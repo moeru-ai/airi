@@ -1,152 +1,152 @@
 common:
-  save: Sauvegarder
+  save: Save
 animations:
   stage-transitions:
-    title: Désactiver les transitions de scène
+    title: Disable Stage Transitions
   use-page-specific-transitions:
     description: >-
-      Certaines pages auront leurs propres transitions, ceci remplacera les transitions de scène.
-    title: Utiliser les transitions spécifiques à chaque page
+      Some pages will have their own transitions, this will override the stage transitions
+    title: Use Page Specific Transitions
 dialogs:
   onboarding:
-    title: Bienvenue dans AIRI!
-    description: Configurez votre premier fournisseur d’IA pour commencer.
-    selectProvider: Choisissez un fournisseur d'IA.
-    configureProvider: Configurer {provider}
-    apiKey: Clé API
-    apiKeyHelp: Obtenez votre clé API {provider} et collez-la ici
-    baseUrl: URL de base
-    baseUrlHelp: URL de l'endpoint API (utilisez la valeur par défaut si vous n’êtes pas sûr)
-    accountId: ID du compte
+    title: Welcome to AIRI!
+    description: Let's set up your first AI provider to get started.
+    selectProvider: Choose an AI Provider
+    configureProvider: Configure {provider}
+    apiKey: API Key
+    apiKeyHelp: Get your API key from {provider} and paste it here
+    baseUrl: Base URL
+    baseUrlHelp: API endpoint URL (use default if unsure)
+    accountId: Account ID
     validationSuccess: Configuration validation success
-    validationFailed: La validation de la configuration a échouée.
-    validationError: 'Erreur de validation: {error}'
-    skipForNow: Passer pour l'instant
-    saveAndContinue: Sauvegarder et Continuer
-    next: Suivant
-    start: Commençons !
-    select-model: Choisissez un modèle
-    no-models: Pas de modèle disponible
+    validationFailed: Configuration validation failed
+    validationError: 'Validation error: {error}'
+    skipForNow: Skip for now
+    saveAndContinue: Save and Continue
+    next: Next
+    start: Let's do it!
+    select-model: Choose model
+    no-models: No available models
     no-models-help: >-
-      Veuillez revenir à l’étape précédente et vérifier votre clé API, ou bien vérifier la connexion réseau.
+      Please return to the previous step and check your API key, or check the network connection.
 language:
-  title: Langage
+  title: Language
   description: >
-    Modifier le langage de l'inteface d'AIRI. Cela n'affectera pas le langage des réponses du personnage.
+    Change the language of the AIRI interface. This will not affect the language of the character's responses.
 live2d:
   change-model:
-    from-file: Charger depuis un Fichier
-    from-file-select: Sélectionner
-    from-url: Charger depuis une URL
-    from-url-confirm: Charger
-    from-url-placeholder: Entrer l'URL d'un modèle Live2D
-    title: Changer de Modèle
+    from-file: Load from File
+    from-file-select: Select
+    from-url: Load from URL
+    from-url-confirm: Load
+    from-url-placeholder: Enter Live2D model URL
+    title: Change Model
   edit-motion-map:
-    title: Modifier la carte des mouvements
+    title: Edit motion map
   map-motions:
-    play: Jouer le mouvement
-    title: Cartographier les mouvements
-  title: Paramètres Live2D
+    play: Play Motion
+    title: Map Motions
+  title: Live2D Settings
   scale-and-position:
-    title: Échelle et position
-    scale: Échelle
+    title: Scale And Position
+    scale: Scale
     x: X
     'y': 'Y'
   switch-to-vrm:
-    title: Passer à l’avatar 3D ?
-    change-to-vrm: Cliquez ici pour passer aux paramètres de l’avatar 3D (VRM)
+    title: Switch to 3D Avatar?
+    change-to-vrm: Click here to switch to the 3D avatar setting (VRM)
   theme-color-from-model:
-    title: Extraire les couleurs du modèle
+    title: Extract colors from model
     button-extract:
-      title: Extraire
+      title: Extract
   focus:
-    title: Désactiver le suivi du modèle par la souris
+    title: Disable model mouse tracking
     button-disable:
-      title: Désactiver
+      title: Disable
 microphone: Microphone
-models: Modèle
+models: Model
 pages:
   card:
-    activate: Activer
-    active: Actif
-    active_badge: Actuellement actif
+    activate: Activate
+    active: Active
+    active_badge: Currently Active
     cancel: Cancel action
-    card_not_found: Carte non trouvée
-    character: Personnage
-    close: Fermer
+    card_not_found: Card not found
+    character: Character
+    close: Close
     consciousness:
-      model: Conscience / Modèle
-    created_by: créé par
-    creator_notes: Notes du créateur
-    delete: Supprimer
-    delete_card: Supprimer la carte
-    delete_confirmation: Êtes-vous sûr de vouloir supprimer cette carte ?
-    description: Utiliser les préréglages des cartes d'AIRI
+      model: Consciousness / Model
+    created_by: created by
+    creator_notes: Creator Notes
+    delete: Delete
+    delete_card: Delete Card
+    delete_confirmation: Are you sure you want to delete this card?
+    description: Use AIRI character card presets
     description_label: Description
-    drop_here: Déposer pour téléverser
-    create_card: Créer une nouvelle carte
+    drop_here: Drop to upload
+    create_card: Create a new Card
     creation:
-      identity: Identité
-      name: Nom
-      nickname: Surnom
+      identity: Identity
+      name: Name
+      nickname: Nickname
       description: Description
-      behavior: Comportement
-      greetings: Salutations (une par ligne)
-      settings: Paramètres
+      behavior: Behavior
+      greetings: Greetings (one per line)
+      settings: Settings
       version: Version
-      create: Créer
+      create: Create
       defaults:
-        name: Nom
-        personality: Vous êtes une personne normale, curieuse de tout.
-        scenario: Vous vous êtes récemment réveillé et avez tout oublié de votre vie passée.
-        systemprompt: Vous recevrez des messages et y répondrez comme un humain.
-        posthistoryinstructions: N’oubliez pas d’imiter un humain.
+        name: Name
+        personality: You are a regular human, curious about everything.
+        scenario: You recently woke up and forgot everything about your previous life.
+        systemprompt: You will receive messages, answer to them like a real human.
+        posthistoryinstructions: Remember to imitate an human.
       fields_info:
         subtitle: >-
-          Vous pouvez ici ajouter des détails sur le personnage que vous créez, expliquer son histoire et son contexte, et comment vos interactions devraient être répondues.
-        name: Le nom officiel du personnage.
-        nickname: Vous pouvez également donner un surnom qui sera utilisé en priorité.
-        description: Description du personnage.
-        notes: Si vous souhaitez ajouter des notes personnelles.
+          You can put here some details about the character you are creating, explain his history and context, and how your interactions should be answered.
+        name: Is the formal name of this character.
+        nickname: You can also give a nickname that will be used in priority.
+        description: Description of this character.
+        notes: If you want to add some personal notes.
         personality: >-
-          Décrivez ici la personnalité de votre personnage. Timide ? Curieux ? Autre chose ?
-        scenario: Quel est l’environnement ? Quelle est la situation actuelle ?
-        greetings_field: Salutations
-        greetings: Comment votre personnage devrait dire « bonjour » ?
-        systemprompt: Expliquez ici à l’IA comment elle doit répondre lorsqu’on l’interroge.
-        posthistoryinstructions: Placez ici tout ce que l’IA doit lire après l’historique des messages.
+          Describe here the personality of your character. Shy ? Curious ? Anything else ?
+        scenario: What are the surroundings ? What is the current situation ?
+        greetings_field: Greetings
+        greetings: How your character should say "hello" ?
+        systemprompt: Explain here to the AI LLM how it should answer when prompted.
+        posthistoryinstructions: Place here anything the AI LLM should read after the messages history.
         version: >-
-          Version de la carte, vous devez l’incrémenter si vous apportez des modifications par rapport à une carte précédente.
+          Card version, you should increase this if you are making changes from a previous card.
       errors:
-        name: Le nom doit être valide ou non vide.
-        version: 'Erreur : numéro de version invalide !'
-        description: 'Erreur : vous devez fournir une description pour cette carte.'
-        personality: 'Erreur : une personnalité doit être fournie pour ce personnage.'
-        scenario: 'Erreur : un scénario est requis.'
-        systemprompt: 'Erreur : veuillez fournir un prompt système.'
-        posthistoryinstructions: 'Erreur : le prompt post-historique est requis.'
+        name: Name should be valid or non-empty.
+        version: 'Error: Invalid version number !'
+        description: 'Error: You must provide a description for this card.'
+        personality: 'Error: A personality must be provided for this character.'
+        scenario: 'Error: A scenario is required.'
+        systemprompt: 'Error: Please, provide a system prompt.'
+        posthistoryinstructions: 'Error: Post history prompt is required.'
     modules: Modules
-    name_asc: Nom (A-Z)
-    name_desc: Nom (Z-A)
-    no_cards: Aucune carte pour le moment. Cliquez sur le bouton ci-dessus pour en téléverser une !
-    no_results: Aucune carte correspondante trouvée
-    personality: Personnalité
-    posthistoryinstructions: Instructions post-historique
-    recent: Récemment ajouté
-    scenario: Scénario
-    search: Rechercher des cartes...
-    sort_by: Trier par
+    name_asc: Name (A-Z)
+    name_desc: Name (Z-A)
+    no_cards: No cards yet. Click the button above to upload one!
+    no_results: No matching cards found
+    personality: Personality
+    posthistoryinstructions: Post-History Instructions
+    recent: Recently Added
+    scenario: Scenario
+    search: Search cards...
+    sort_by: Sort by
     speech:
-      model: Parole / Modèle
-      voice: Parole / Voix
-    systemprompt: Prompt système
-    title: Carte AIRI
-    try_different_search: Essayez un autre terme de recherche
-    upload: Téléverser
-    upload_desc: Cliquez ou glissez un fichier pour téléverser
+      model: Speech / Model
+      voice: Speech / Voice
+    systemprompt: System Prompt
+    title: AIRI Card
+    try_different_search: Try a different search term
+    upload: Upload
+    upload_desc: Click or drag file to upload
   memory:
-    description: Endroit où les souvenirs sont stockés et organisés
-    title: Mémoire
+    description: Where memories got stored, and organized
+    title: Memory
   data:
     title: Data
     description: Manage stored AIRI data, exports, and resets
@@ -195,16 +195,16 @@ pages:
       desktop_reset: Desktop data reset.
   models:
     description: Live2D, VRM, etc.
-    title: Modèles
+    title: Models
     sections:
       section:
         live2d:
           title: Live2D
-          description: Configurer les modèles et paramètres Live2D
+          description: Configure Live2D models and settings
         vrm:
           title: VRM
-          description: Configurer les modèles et paramètres 3D VRM
-        scene: Scène
+          description: Configure 3D VRM models and settings
+        scene: Scene
   modules:
     beat_sync:
       description: Vibe with beats from the audio source
@@ -254,234 +254,234 @@ pages:
               description: Whether to warm up before detecting beats for better accuracy.
               label: Warmup
     consciousness:
-      description: Personnalité, modèle désiré, etc.
+      description: Personality, desired model, etc.
       sections:
         section:
           provider-model-selection:
-            collapse: Réduire
-            custom_model_placeholder: Entrez le nom du modèle personnalisé...
-            description: Sélectionnez le fournisseur LLM approprié pour la conscience
-            error: Erreur lors du chargement des modèles
-            expand: Développer
-            loading: Chargement des modèles disponibles...
-            manual_model_name: Nom du modèle
-            manual_model_placeholder: Entrez le nom du modèle à utiliser avec ce fournisseur
-            no_models: Aucun modèle disponible
-            no_models_description: Aucun modèle trouvé pour ce fournisseur
-            no_search_results: Aucun modèle correspondant
-            no_search_results_description: Aucun modèle ne correspond à '{query}'. Essayez un autre terme.
-            not_supported: Liste des modèles non supportée
-            not_supported_description: Ce fournisseur ne supporte pas la fonctionnalité de liste des modèles
-            search_placeholder: Rechercher des modèles...
-            search_results: '{count} modèles trouvés sur {total}'
-            show_less: Afficher moins
-            show_more: Afficher plus
-            subtitle: Sélectionnez un modèle du fournisseur
-            title: Modèle
-      title: Conscience
-    description: Synthèse, vision, parole, jeux, etc.
+            collapse: Collapse
+            custom_model_placeholder: Enter custom model name...
+            description: Select the suitable LLM provider for consciousness
+            error: Error loading models
+            expand: Expand
+            loading: Loading available models...
+            manual_model_name: Model Name
+            manual_model_placeholder: Enter the model name to use with this provider
+            no_models: No models available
+            no_models_description: No models were found for this provider
+            no_search_results: No matching models
+            no_search_results_description: No models match '{query}'. Try a different search term.
+            not_supported: Model listing not supported
+            not_supported_description: This provider doesn't support model listing functionality
+            search_placeholder: Search models...
+            search_results: Found {count} of {total} models
+            show_less: Show less
+            show_more: Show more
+            subtitle: Select a model from the provider
+            title: Model
+      title: Consciousness
+    description: Thinking, vision, speech synthesis, gaming, etc.
     gaming-factorio:
-      description: Jouer à Factorio !
+      description: Playing Factorio!
       title: Factorio
-      enable: Activer l'intégration Factorio
-      enable-description: Autoriser AIRI à interagir avec le jeu Factorio
-      server-address: Adresse du serveur
-      server-address-description: L'adresse IP ou le nom d'hôte du serveur Factorio
-      server-address-placeholder: Entrez l'adresse du serveur (ex. localhost ou 192.168.1.100)
-      server-port: Port du serveur
-      server-port-description: Le numéro de port du serveur Factorio (par défaut 34197)
-      username: Nom d'utilisateur
-      username-description: Votre nom d'utilisateur sur le serveur Factorio
-      username-placeholder: Entrez votre nom d'utilisateur Factorio
-      configured: Factorio est correctement configuré !
+      enable: Enable Factorio Integration
+      enable-description: Allow AIRI to interact with Factorio game
+      server-address: Server Address
+      server-address-description: The IP address or hostname of the Factorio server
+      server-address-placeholder: Enter server address (e.g., localhost or 192.168.1.100)
+      server-port: Server Port
+      server-port-description: The port number of the Factorio server (default 34197)
+      username: Username
+      username-description: Your username in the Factorio server
+      username-placeholder: Enter your Factorio username
+      configured: Factorio is properly configured!
     gaming-minecraft:
-      description: Jouer à Minecraft !
+      description: Playing Minecraft!
       title: Minecraft
-      enable: Activer l'intégration Minecraft
-      enable-description: Autoriser AIRI à interagir avec le jeu Minecraft
-      server-address: Adresse du serveur
-      server-address-description: L'adresse IP ou le nom d'hôte du serveur Minecraft
-      server-address-placeholder: Entrez l'adresse du serveur (ex. localhost ou play.exemple.com)
-      server-port: Port du serveur
-      server-port-description: Le numéro de port du serveur Minecraft (par défaut 25565)
-      username: Nom d'utilisateur
-      username-description: Votre nom d'utilisateur sur le serveur Minecraft
-      username-placeholder: Entrez votre nom d'utilisateur Minecraft
-      configured: Minecraft est correctement configuré !
+      enable: Enable Minecraft Integration
+      enable-description: Allow AIRI to interact with Minecraft game
+      server-address: Server Address
+      server-address-description: The IP address or hostname of the Minecraft server
+      server-address-placeholder: Enter server address (e.g., localhost or play.example.com)
+      server-port: Server Port
+      server-port-description: The port number of the Minecraft server (default 25565)
+      username: Username
+      username-description: Your username in the Minecraft server
+      username-placeholder: Enter your Minecraft username
+      configured: Minecraft is properly configured!
     hearing:
-      description: Configurer la reconnaissance vocale
-      title: Audition
+      description: Configure how speech recognition works
+      title: Hearing
       sections:
         section:
           provider-selection:
             description: Select the suitable speech recognition provider
     memory-long-term:
-      description: Paramètres et gestion de la mémoire à long terme
-      title: Mémoire à long terme
+      description: Long-term memory specific settings and management
+      title: Long-Term Memory
     memory-short-term:
-      description: Paramètres et gestion de la mémoire à court terme
-      title: Mémoire à court terme
+      description: Short-term memory specific settings and management
+      title: Short-Term Memory
     messaging-discord:
-      description: Chat et chat vocal via Discord
+      description: Chat & voice chat over Discord
       title: Discord
-      enable: Activer l'intégration Discord
-      enable-description: Autoriser AIRI à interagir via Discord
-      token: Jeton du bot
-      token-description: Votre jeton de bot Discord
-      token-placeholder: Entrez votre jeton de bot Discord
-      configured: Discord est correctement configuré !
+      enable: Enable Discord Integration
+      enable-description: Allow AIRI to interact through Discord
+      token: Bot Token
+      token-description: Your Discord bot token
+      token-placeholder: Enter your Discord bot token
+      configured: Discord is properly configured!
     speech:
-      description: Synthèse vocale
+      description: Speech synthesis
       sections:
         section:
           playground:
             buttons:
               stop:
-                label: Arrêter
+                label: Stop
             select-voice:
-              required: Veuillez sélectionner une voix
+              required: Please select a voice
           provider-voice-selection:
-            custom_model_placeholder: Entrez le nom du modèle personnalisé...
-            custom_voice_placeholder: Entrez l’ID de la voix personnalisée...
-            description: Sélectionnez le fournisseur de synthèse vocale approprié
-            no_models: Aucun modèle disponible
-            no_models_description: Aucun modèle trouvé pour ce fournisseur
-            no_voices: Aucune voix disponible
-            no_voices_description: Aucune voix trouvée pour ce fournisseur
-            no_voices_hint: Vous pouvez entrer un nom de voix personnalisé ci-dessous.
+            custom_model_placeholder: Enter custom model name...
+            custom_voice_placeholder: Enter custom voice ID...
+            description: Select the suitable speech provider
+            no_models: No models available
+            no_models_description: No models were found for this provider
+            no_voices: No voices available
+            no_voices_description: No voices were found for this provider
+            no_voices_hint: You can enter a custom voice name below.
             pause: Pause
-            play_sample: Jouer l’exemple
-            search_models_placeholder: Rechercher des modèles...
-            search_models_results: '{count} modèles trouvés sur {total}'
-            search_voices_placeholder: Rechercher des voix...
-            search_voices_results: '{count} voix trouvées sur {total}'
+            play_sample: Play Sample
+            search_models_placeholder: Search models...
+            search_models_results: Found {count} of {total} models
+            search_voices_placeholder: Search voices...
+            search_voices_results: Found {count} of {total} voices
             unsupported_voice_warning_title: No supported voices
             unsupported_voice_warning_content: >-
               Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub at https://github.com/moeru-ai/airi/issues.
-            show_less: Afficher moins
-            show_more: Afficher plus
-            title: Fournisseur
+            show_less: Show less
+            show_more: Show more
+            title: Provider
           voice-settings:
             input-ssml:
-              placeholder: Entrez le texte SSML...
+              placeholder: Enter SSML text...
             use-ssml:
-              description: Activez pour saisir du SSML brut au lieu de texte simple
-              label: Utiliser SSML personnalisé
-      title: Parole
+              description: Enable to input raw SSML instead of plain text
+              label: Use Custom SSML
+      title: Speech
     title: Modules
     vision:
       description: Vision
       title: Vision
     x:
-      description: Navigation et utilisation X / Twitter
+      description: X / Twitter browsing and usage
       title: X / Twitter
-      enable: Activer l'intégration X / Twitter
-      enable-description: Autoriser AIRI à interagir avec X / Twitter
-      api-key: Clé API
-      api-key-description: Votre clé API X / Twitter
-      api-key-placeholder: Entrez votre clé API X / Twitter
-      api-secret: Secret API
-      api-secret-description: Votre secret API X / Twitter
-      api-secret-placeholder: Entrez votre secret API X / Twitter
-      access-token: Jeton d'accès
-      access-token-description: Votre jeton d'accès X / Twitter
-      access-token-placeholder: Entrez votre jeton d'accès X / Twitter
-      access-token-secret: Secret du jeton d'accès
-      access-token-secret-description: Votre secret de jeton d'accès X / Twitter
-      access-token-secret-placeholder: Entrez votre secret de jeton d'accès X / Twitter
-      configured: X / Twitter est correctement configuré !
+      enable: Enable X / Twitter Integration
+      enable-description: Allow AIRI to interact with X / Twitter
+      api-key: API Key
+      api-key-description: Your X / Twitter API key
+      api-key-placeholder: Enter your X / Twitter API key
+      api-secret: API Secret
+      api-secret-description: Your X / Twitter API secret
+      api-secret-placeholder: Enter your X / Twitter API secret
+      access-token: Access Token
+      access-token-description: Your X / Twitter access token
+      access-token-placeholder: Enter your X / Twitter access token
+      access-token-secret: Access Token Secret
+      access-token-secret-description: Your X / Twitter access token secret
+      access-token-secret-placeholder: Enter your X / Twitter access token secret
+      configured: X / Twitter is properly configured!
     mcp-server:
-      description: Connecter et gérer le serveur MCP et ses outils
-      title: Serveur MCP
+      description: Connect and manage MCP server and tools
+      title: MCP Server
   providers:
     explained:
-      chat: Fournisseurs de modèles de génération de texte, par ex. OpenRouter, OpenAI, Ollama.
-      Speech: Fournisseurs de modèles de synthèse vocale, par ex. ElevenLabs, Azure Speech.
+      chat: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      Speech: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
       Transcription: >-
-        Fournisseurs de modèles de transcription (speech-to-text), par ex. Whisper.cpp, OpenAI, Azure Speech
+        Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech
     helpinfo:
-      title: Première fois ici ?
+      title: First time here?
       description: >
-        AIRI nécessite qu’au moins un fournisseur {chat} soit configuré pour penser et se comporter correctement. On peut le considérer comme le cerveau des personnages vivant dans le système AIRI.
+        AIRI requires at least one {chat} provider to be configured to think, and behave properly. You could think of it as the brain of the characters living in AIRI system.
     common:
       fields:
         field:
           api-key:
-            label: Saisie de clé API
+            label: API Key Input
       section:
         advanced:
           fields:
             field:
               headers:
-                description: Ajouter des en-têtes HTTP personnalisés
+                description: Add custom HTTP headers
                 key:
-                  placeholder: Clé
-                label: En-têtes HTTP
+                  placeholder: Key
+                label: HTTP Headers
                 value:
-                  placeholder: Valeur
-          title: Avancé
+                  placeholder: Value
+          title: Advanced
         basic:
-          description: Paramètres essentiels
-          title: Basique
+          description: Essential settings
+          title: Basic
         voice:
-          title: Paramètres de la voix
-    description: LLMs, fournisseurs vocaux, etc.
+          title: Voice Settings
+    description: LLMs, speech providers, etc.
     provider:
       app-local-audio-transcription:
-        title: Application (Locale)
+        title: App (Local)
         description: https://github.com/moeru-ai/xsai-transformers
       app-local-audio-speech:
-        title: Application (Locale)
+        title: App (Local)
         description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-transcription:
-        title: Navigateur (Local)
+        title: Browser (Local)
         description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-speech:
-        title: Navigateur (Local)
+        title: Browser (Local)
         description: https://github.com/moeru-ai/xsai-transformers
       alibaba-cloud-model-studio:
         description: bailian.console.aliyun.com
-        title: Studio de modèles Alibaba Cloud
+        title: Alibaba Cloud Model Studio
       anthropic:
         description: anthropic.com
         title: Anthropic | Claude
         helpinfo:
-          title: Avant de commencer
+          title: Before you start
           description:
             part1: >-
-              Bien qu’Anthropic ait récemment annoncé un support bêta pour la compatibilité SDK OpenAI
-            part2: (vous pouvez en lire plus ici)
-            part3: en raison de détails d’implémentation
+              While Anthropic recently did announce that they are having a beta support for OpenAI SDK compatibility
+            part2: (you can read more here)
+            part3: but due to the implementation details comes with
             part4: >-
-              des restrictions non alignées avec le SDK OpenAI, il n’est actuellement pas possible d’utiliser ce fournisseur dans le navigateur.
+              restrictions which not aligned with the OpenAI SDK, it's currently not possible to use this provider in the browser.
             part5: >-
-              Si vous devez utiliser ce fournisseur, vous aurez besoin d’un proxy backend dédié comme une fonction serverless
-            part6: ou des services contournant le CORS pour éviter les restrictions CORS.
+              If you do need to use this provider, you will need a dedicated proxy backend like a Serverless Function running on
+            part6: or some CORS bypassing services to bypass the CORS restrictions.
       cloudflare-workers-ai:
         description: cloudflare.com
         fields:
           field:
             account-id:
-              description: ID de compte Cloudflare
-              label: ID de compte
-              placeholder: Votre ID de compte Cloudflare
+              description: Cloudflare Account ID
+              label: Account ID
+              placeholder: Your Cloudflare Account ID
             api-key:
-              placeholder: Saisir la clé API Cloudflare
+              placeholder: Input Cloudflare API Key
         title: Cloudflare Workers AI
       common:
         status:
-          validating: Validation en cours
-          valid: La configuration semble valide.
+          validating: Validating
+          valid: Configuration seems to be valid.
         fields:
           field:
             pitch:
-              description: 'Ajuster la hauteur de la voix synthétisée (ex : plus aiguë ou plus grave)'
-              label: Hauteur
+              description: Tune the pitch of synthesized speech (e.g., sharper or coarser)
+              label: Pitch
             speed:
-              description: Ajuster la vitesse de la parole
-              label: Vitesse
+              description: Adjust the speed of speech
+              label: Speed
             volume:
-              description: Ajuster le volume de la parole
+              description: Adjust the volume of speech
               label: Volume
       deepseek:
         description: deepseek.com
@@ -491,39 +491,39 @@ pages:
         fields:
           field:
             simularity-boost:
-              description: Adhérence à la voix originale
-              label: Boost de similarité
+              description: Voice similarity adherence
+              label: Similarity Boost
             speaker-boost:
-              description: Améliorer la similarité du locuteur
-              label: Boost du locuteur
+              description: Enhance speaker similarity
+              label: Speaker Boost
             speed:
-              description: Vitesse de génération de la parole
-              label: Vitesse
+              description: Speech generation speed
+              label: Speed
             stability:
-              description: Stabilité et aléatoire de la voix
-              label: Stabilité
+              description: Voice stability and randomness
+              label: Stability
             style:
-              description: Exagération du style de la voix
+              description: Voice style exaggeration
               label: Style
         playground:
           buttons:
             button:
               test-voice:
-                generating: Génération...
-                label: Tester la voix
+                generating: Generating...
+                label: Test Voice
           fields:
             field:
               input:
-                placeholder: Entrez le texte pour tester la voix...
+                placeholder: Enter text to test the voice...
               language:
-                description: Sélectionnez la langue de la voix
-                label: Langue
+                description: Select voice language
+                label: Language
               voice:
-                description: Sélectionnez la voix préférée
-                label: Voix
-          title: Terrain de test de la voix
+                description: Select preferred voice
+                label: Voice
+          title: Voice Playground
           validation:
-            error-missing-api-key: Veuillez entrer une clé API pour tester la voix.
+            error-missing-api-key: Please enter an API key to test the voice.
         title: ElevenLabs
       fireworks:
         description: fireworks.ai
@@ -534,7 +534,7 @@ pages:
           field:
             region:
               description: Speech Service region
-              label: Région
+              label: Region
         title: Microsoft / Azure Speech
       index-tts-vllm:
         description: https://index-tts.github.io/
@@ -592,8 +592,8 @@ pages:
         fields:
           field:
             appId:
-              description: ID de l’application du projet, que vous pouvez obtenir dans la Console
-              label: ID de l’application
+              description: App ID of the project where you can obtain in Console
+              label: App ID
         title: Volcano Engine
       xai:
         description: x.ai
@@ -612,34 +612,34 @@ pages:
         title: Aliyun NLS
       transcriptions:
         playground:
-          title: Terrain de test de transcription
-    title: Fournisseurs
+          title: Transcription Playground
+    title: Providers
   scene:
-    description: Configurer l’environnement où vit le personnage
-    title: Scène
+    description: Configure the environment where the character lives
+    title: Scene
   system:
     color-scheme:
-      description: Modifier le schéma de couleurs de la scène.
-      title: Schéma de couleurs
+      description: Change the color scheme of the stage.
+      title: Color Scheme
     developer:
-      description: Quelques options pour développeurs.
-      title: Développeurs
+      description: Some developer options.
+      title: Developers
     general:
-      description: Thème sombre, langues, etc.
-      title: Général
-    description: Personnalisez votre scène !
+      description: Dark theme, languages, etc.
+      title: General
+    description: Customize your stage!
     sections:
       section:
         custom-color:
           fields:
             field:
               primary-color:
-                label: Couleur principale
+                label: Primary color
                 rgb-on:
-                  title: Je veux que ce soit dynamique !
-          title: Schéma de couleurs
+                  title: I Want It Dynamic!
+          title: Color Scheme
         developer:
-          title: Développeur
+          title: Developer
           sections:
             section:
               use-magic-keys:
@@ -713,8 +713,8 @@ pages:
               description: >-
                 Traditional Chinese colors, derived from ancient textiles, porcelain and paintings
               title: Chinese Traditional Colors
-          title: Préréglages de couleurs
-    title: Apparence
+          title: Color Scheme Presets
+    title: System
   page:
     developers:
       open-devtools:
@@ -723,53 +723,53 @@ pages:
 sections:
   section:
     general:
-      title: Général
+      title: General
 theme:
-  title: Thème
+  title: Theme
   description: |
-    Changez le thème de base d’AIRI, mode clair ou mode sombre.
-title: Paramètres
-voices: Voix
+    Switch the base theme of AIRI, Light mode or Dark mode.
+title: Settings
+voices: Voice
 vrm:
   change-model:
-    from-file: Charger depuis un fichier
-    from-file-select: Sélectionner
-    from-url: Charger depuis une URL
-    from-url-confirm: Charger
-    from-url-placeholder: Entrez l’URL du modèle VRM
-    title: Changer de modèle
-  title: Paramètres VRM
+    from-file: Load from File
+    from-file-select: Select
+    from-url: Load from URL
+    from-url-confirm: Load
+    from-url-placeholder: Enter VRM model URL
+    title: Change Model
+  title: VRM Settings
   scale-and-position:
-    model-info-title: Informations sur la taille du modèle
-    model-info-x: Largeur (X)
-    model-info-y: Hauteur (Y)
-    model-info-z: Profondeur (Z)
+    model-info-title: Model Size Information
+    model-info-x: Width (X)
+    model-info-y: Height (Y)
+    model-info-z: Depth (Z)
     tips: |
-      Modifiez la position initiale du modèle VRM.
-      Les axes de coordonnées sont visualisés.
-    scale: Échelle
-    x: Décalage X
-    'y': Décalage Y
-    z: Décalage Z
-    fov: FOV (degré)
-    rotation-y: Rotation (axe Y)
-    camera-distance: Distance de la caméra
+      Edit the initial position the VRM model.
+      Coordinate axes are visualised.
+    scale: Scale
+    x: X Offset
+    'y': Y Offset
+    z: Z Offset
+    fov: FOV (degree)
+    rotation-y: Rotation (Y-axis)
+    camera-distance: Camera distance
     eye-tracking-mode:
-      title: Regarder vers
+      title: Looking at
       options:
         option:
-          camera: Caméra
-          mouse: Souris
-          disabled: Désactivé
+          camera: Camera
+          mouse: Mouse
+          disabled: Disabled
   switch-to-vrm:
-    title: Passer à l’avatar Live2D ?
-    change-to-vrm: Cliquez ici pour passer aux paramètres de l’avatar Live2D
+    title: Switch to Live2D Avatar?
+    change-to-vrm: Click here to switch to the Live2D avatar setting
   theme-color-from-model:
     button-extract:
-      title: Extraire
+      title: Extract
   skybox:
-    skybox-intensity: Intensité de la SkyBox
-    skybox-specular-mix: Mélange spéculaire
+    skybox-intensity: SkyBox Intensity
+    skybox-specular-mix: Specular Mix
 wip:
   title: Work in Progress
   description: This feature is currently under development and not yet publicly available. Check back in future updates for this functionality.
