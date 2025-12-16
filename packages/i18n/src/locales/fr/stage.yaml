@@ -2,31 +2,31 @@ chat:
   message:
     character-name:
       airi: AIRI
-      core-system: Système central
-      you: Vous
-message: Dites quelque chose...
+      core-system: Core System
+      you: You
+message: Say something...
 operations:
-  load-models: Charger les modèles
+  load-models: Load Models
   load-models-status:
-    loading: Chargement
-    ready: Prêt
-select-a-audio-input: Sélectionner une entrée audio
-select-a-model: Sélectionner un modèle
-select-a-voice: Choisir une voix
+    loading: Loading
+    ready: Ready
+select-a-audio-input: Select a Audio Input
+select-a-model: Select a model
+select-a-voice: Choose a voice
 viewers:
   debug-menu:
-    emotions: Émotions
+    emotions: Emotions
     emotions-btn:
-      angry: '😠 En colère'
-      awkward: '😳 Mal à l’aise'
-      happy: '😄 Heureux'
-      neutral: '🙂 Neutre'
-      question: '🤔 Interrogatif'
-      sad: '😫 Triste'
-      surprised: '🤯 Surpris'
-      think: '🤨 Pensif'
+      angry: '😠 Angry'
+      awkward: '😳 Awkward'
+      happy: '😄 Happy'
+      neutral: '🙂 Neutral'
+      question: '🤔 Question'
+      sad: '😫 Sad'
+      surprised: '🤯 Surprised'
+      think: '🤨 Think'
     vrm:
-      camera: Caméra
+      camera: Camera
       model:
-        title: Modèle
-waiting: En attente
+        title: Model
+waiting: Waiting
