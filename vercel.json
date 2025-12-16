@@ -1,0 +1,60 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm install --frozen-lockfile && pnpm --filter @proj-airi/i18n run build && pnpm --filter @proj-airi/stage-web run build",
+  "outputDirectory": "apps/stage-web/dist",
+  "functions": {
+    "api/**/*.ts": {
+      "runtime": "@vercel/node@4.0.0"
+    }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "X-Requested-With, Content-Type, Authorization"
+        }
+      ]
+    },
+    {
+      "source": "/:path*\\.(woff|woff2|ttf|otf|eot)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/remote-assets/page-external-data/js/script.js",
+      "destination": "https://plausible.io/js/script.js"
+    },
+    {
+      "source": "/api/v1/page-external-data/submit",
+      "destination": "https://plausible.io/api/event"
+    },
+    {
+      "source": "/((?!api).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "env": {
+    "VITE_SKIP_PROVIDER_HEALTH_CHECK": "true",
+    "VITE_DISABLE_WEBSOCKET": "true"
+  }
+}
