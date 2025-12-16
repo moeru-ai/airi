@@ -36,7 +36,7 @@ function createApp() {
   app.use(
     '/api/auth/*', // or replace with "*" to enable cors for all routes
     cors({
-      origin: ['http://localhost:5173'], // replace with your origin
+      origin: ['http://localhost:5173', 'https://airi.moeru.ai'], // replace with your origin
       // allowHeaders: ['Content-Type', 'Authorization'],
       // allowMethods: ['POST', 'GET', 'OPTIONS'],
       // exposeHeaders: ['Content-Length'],
@@ -50,7 +50,6 @@ function createApp() {
   app.use('*', async (c, next) => {
     const session = await auth.api.getSession({ headers: c.req.raw.headers })
 
-    console.log('headers', c.req.raw.headers)
     if (!session) {
       c.set('user', null)
       c.set('session', null)
@@ -58,7 +57,6 @@ function createApp() {
       return
     }
 
-    console.log('session', session)
     c.set('user', session.user)
     c.set('session', session.session)
     await next()
@@ -87,3 +85,10 @@ function createApp() {
 }
 
 serve(createApp())
+
+function handleError(error: unknown, type: string) {
+  useLogger().withError(error).error(type)
+}
+
+process.on('uncaughtException', error => handleError(error, 'Uncaught exception'))
+process.on('unhandledRejection', error => handleError(error, 'Unhandled rejection'))

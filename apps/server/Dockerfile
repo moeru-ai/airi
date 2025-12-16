@@ -9,7 +9,6 @@ COPY apps/server apps/server
 
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
-ENV NODE_ENV=production
 EXPOSE 3000
 
 CMD ["pnpm", "-F", "@proj-airi/api-server", "start"]
