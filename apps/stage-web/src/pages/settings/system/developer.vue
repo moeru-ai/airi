@@ -68,6 +68,12 @@ const menu = computed(() => [
     icon: 'i-solar:sledgehammer-bold-duotone',
     to: '/devtools/providers-transcription-realtime-aliyun-nls',
   },
+  {
+    title: 'Performance Playground',
+    description: 'Test performance runtime: VRM expressions + TTS lip sync',
+    icon: 'i-solar:sledgehammer-bold-duotone',
+    to: '/devtools/performance-playground',
+  },
 ])
 </script>
 

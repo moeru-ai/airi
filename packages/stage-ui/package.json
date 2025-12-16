@@ -32,7 +32,8 @@
     "./workers/vad": "./src/workers/vad/index.ts",
     "./workers/*": "./src/workers/*.ts",
     "./workers": "./src/workers/index.ts",
-    "./utils": "./src/utils/index.ts"
+    "./utils": "./src/utils/index.ts",
+    "./utils/tts": "./src/utils/tts.ts"
   },
   "scripts": {
     "typecheck": "vue-tsc --noEmit",
