@@ -26,9 +26,9 @@ pages:
         section:
           use-window-mouse:
             title: useWindowMouse
-            description: Test the Electron window cursor position
+            description: 测试 Electron 窗口鼠标位置
 devtools:
-  title: Developer
+  title: 开发者选项
   pages:
     widgets-calling:
-      title: Widget Calling
+      title: 挂件调用

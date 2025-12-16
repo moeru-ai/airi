@@ -44,6 +44,6 @@ blog:
         title: 阅读更多
   no-posts: 该分类下没有找到任何文章
   categories:
-    all: All
+    all: 全部
     devlog: DevLog
     dreamlog: DreamLog
