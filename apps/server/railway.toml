@@ -8,5 +8,4 @@ watchPatterns = [
 ]
 
 [deploy]
-preDeployCommand = [ "pnpm -F @proj-airi/api-server run push:db" ]
 startCommand = "pnpm -F @proj-airi/api-server start"
