@@ -70,36 +70,19 @@ export default defineConfig({
   build: {
     sourcemap: true,
     target: 'esnext',
-    cssCodeSplit: true,
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-        pure_funcs: ['console.log', 'console.debug'],
-      },
-      mangle: true,
-    },
     rollupOptions: {
       output: {
         manualChunks(id) {
-          const chunkMappings: Record<string, string[]> = {
-            'vue-vendor': ['vue', '@vueuse/core'],
-            'three-vendor': ['three', '@tresjs', '@pixiv'],
-            'db-vendor': ['drizzle', 'localforage', 'duckdb'],
-            'markdown-vendor': ['shiki', 'remark', 'rehype'],
-            'ai-vendor': ['@xsai', 'openai'],
+          if (id.includes('vue') || id.includes('@vueuse/core')) {
+            return 'vue-vendor'
           }
-
-          for (const [chunk, modules] of Object.entries(chunkMappings)) {
-            if (modules.some(module => id.includes(module))) {
-              return chunk
-            }
+          if (id.includes('three') || id.includes('@tresjs')) {
+            return 'three-vendor'
+          }
+          if (id.includes('drizzle') || id.includes('localforage')) {
+            return 'db-vendor'
           }
         },
-      },
-      treeshake: {
-        moduleSideEffects: 'no-external',
       },
     },
   },
