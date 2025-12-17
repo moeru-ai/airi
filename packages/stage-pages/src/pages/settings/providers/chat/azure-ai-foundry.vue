@@ -119,7 +119,7 @@ const {
             <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
             <button
               type="button"
-              class="ml-2 px-2 py-0.5 text-xs font-medium rounded bg-red-100 dark:bg-red-800/30 text-red-600 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-700/40 transition-colors"
+              class="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs text-red-600 font-medium transition-colors dark:bg-red-800/30 hover:bg-red-200 dark:text-red-300 dark:hover:bg-red-700/40"
               @click="forceValid"
             >
               {{ t('settings.pages.providers.common.continueAnyway') }}
