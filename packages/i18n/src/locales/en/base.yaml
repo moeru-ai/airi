@@ -1,4 +1,4 @@
-<prompt:
+prompt:
   prefix: >
     (from Neko Ayaka) Good morning! You are finally awake.
 
@@ -61,4 +61,4 @@ journal:
   yesterday: 'Yesterday'
   days_ago: 'days ago'
   delete: 'Delete'
-  cancel: 'Cancel'>
+  cancel: 'Cancel'

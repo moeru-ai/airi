@@ -28,6 +28,7 @@ import {
 import { computed, markRaw, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 
 import { useModelStore } from '../stores/model-store'
+import { useGPUDetect } from '../composables/useGPUDetect'
 import { OrbitControls } from './Controls'
 import { SkyBox } from './Environment'
 import { VRMModel } from './Model'
@@ -52,6 +53,7 @@ const emit = defineEmits<{
 
 const sceneContainerRef = ref<HTMLDivElement>()
 const { width, height } = useElementBounding(sceneContainerRef)
+const { capabilities, getOptimalSettings } = useGPUDetect()
 const modelStore = useModelStore()
 const {
   lastModelSrc,
@@ -85,6 +87,10 @@ const {
   skyBoxSrc,
   skyBoxIntensity,
 } = storeToRefs(modelStore)
+
+const optimalSettings = computed(() => getOptimalSettings(capabilities.value.tier))
+const optimizedDPR = computed(() => optimalSettings.value.pixelRatio)
+const enablePostProcessing = computed(() => optimalSettings.value.postProcessing)
 
 const modelRef = ref<InstanceType<typeof VRMModel>>()
 
@@ -279,12 +285,14 @@ defineExpose({
     <TresCanvas
       v-show="true"
       :camera="camera"
-      :antialias="true"
+      :antialias="optimalSettings.antialias"
       :width="width"
       :height="height"
+      :dpr="optimizedDPR"
       :tone-mapping="ACESFilmicToneMapping"
       :tone-mapping-exposure="1"
       :clear-alpha="0"
+      power-preference="high-performance"
       @ready="onTresReady"
     >
       <OrbitControls
@@ -327,7 +335,7 @@ defineExpose({
         cast-shadow
         @ready="onDirLightReady"
       />
-      <Suspense>
+      <Suspense v-if="enablePostProcessing">
         <EffectComposerPmndrs>
           <HueSaturationPmndrs v-bind="effectProps" />
         </EffectComposerPmndrs>
