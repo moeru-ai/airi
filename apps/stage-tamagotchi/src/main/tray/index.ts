@@ -54,7 +54,7 @@ export function setupTray(params: {
       ...is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG
         ? [
             { type: 'header', label: 'DevTools' },
-            { label: 'Troubleshoot BeatSync...', click: () => params.beatSyncBgWindow.window.webContents.openDevTools() },
+            { label: 'Troubleshoot BeatSync...', click: () => params.beatSyncBgWindow.webContents.openDevTools() },
             { type: 'separator' },
           ] as const // :(
         : [],

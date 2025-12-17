@@ -1,5 +1,3 @@
-import type { BrowserWindow } from 'electron'
-
 import { env, platform } from 'node:process'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
@@ -79,12 +77,6 @@ app.whenReady().then(async () => {
 
   // BeatSync will create a background window to capture and process audio.
   const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
-  const beatSyncDispatchTo = injeca.provide('windows:beat-sync:dispatch-to', {
-    dependsOn: { beatSync },
-    build: async ({ dependsOn }) => (window: BrowserWindow) => {
-      return dependsOn.beatSync.dispatchTo(window)
-    },
-  })
 
   const chatWindow = injeca.provide('windows:chat', {
     dependsOn: { widgetsManager },
@@ -92,17 +84,13 @@ app.whenReady().then(async () => {
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, beatSyncDispatchTo },
-    build: async ({ dependsOn }) => {
-      return setupSettingsWindowReusableFunc({ ...dependsOn, onWindowCreated: window => dependsOn.beatSyncDispatchTo(window) })
-    },
+    dependsOn: { widgetsManager, beatSync },
+    build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, beatSyncDispatchTo },
-    build: async ({ dependsOn }) => {
-      return setupMainWindow({ ...dependsOn, onWindowCreated: window => dependsOn.beatSyncDispatchTo(window) })
-    },
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync },
+    build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
 
   const captionWindow = injeca.provide('windows:caption', {

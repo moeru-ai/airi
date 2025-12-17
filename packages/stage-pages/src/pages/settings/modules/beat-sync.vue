@@ -10,7 +10,7 @@ import {
   listenBeatSyncStateChange,
   toggleBeatSync,
   updateBeatSyncParameters,
-} from '@proj-airi/stage-shared/beat-sync/browser'
+} from '@proj-airi/stage-shared/beat-sync'
 import { Alert, AudioSpectrumVisualizer } from '@proj-airi/stage-ui/components'
 import { Button, FieldCheckbox, FieldRange } from '@proj-airi/ui'
 import { createTimeline } from 'animejs'

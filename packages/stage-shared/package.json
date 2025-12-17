@@ -17,7 +17,6 @@
   "exports": {
     ".": "./src/index.ts",
     "./beat-sync": "./src/beat-sync/index.ts",
-    "./beat-sync/browser": "./src/beat-sync/browser/index.ts",
     "./electron-renderer": "./src/electron-renderer.d.ts"
   },
   "scripts": {
