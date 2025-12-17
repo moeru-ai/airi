@@ -7,14 +7,15 @@ import { Cubism4ModelSettings, ModelSettings as ModelSettingsClass, ZipLoader } 
 // NOTICE: Patch to handle UTF-8 encoded file paths in model settings
 const originalValidateFiles = ModelSettingsClass.prototype.validateFiles
 ModelSettingsClass.prototype.validateFiles = function (files: string[]): string[] {
-  const normalizedFiles = files.map(f => {
+  const normalizedFiles = files.map((f) => {
     try {
-      return decodeURI(f);
-    } catch {
-      // Not a valid URI, return original string.
-      return f;
+      return decodeURI(f)
     }
-  });
+    catch {
+      // Not a valid URI, return original string.
+      return f
+    }
+  })
   return originalValidateFiles.call(this, normalizedFiles)
 }
 
