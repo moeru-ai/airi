@@ -404,6 +404,7 @@ pages:
       description: >
         AIRIが正常に思考し動作するためには、少なくとも1つの{chat}プロバイダーの設定が必要です。 これはAIRIシステム内に存在するキャラクターの脳と考えることができます。
     common:
+      continueAnyway: 続行する
       fields:
         field:
           api-key:

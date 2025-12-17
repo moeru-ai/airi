@@ -404,6 +404,7 @@ pages:
       description: >
         AIRI требует как минимум одного {chat}-провайдера для корректной работы. Можно считать его "мозгом" персонажей в системе AIRI.
     common:
+      continueAnyway: Продолжить всё равно
       fields:
         field:
           api-key:
