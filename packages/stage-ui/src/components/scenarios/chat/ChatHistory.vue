@@ -42,10 +42,9 @@ function scrollToBottom() {
   })
 }
 
-watch(() => props.messages, () => scrollToBottom(), { deep: true, flush: 'post' })
-watch(() => props.streamingMessage, () => scrollToBottom(), { deep: true, flush: 'post' })
-watch(() => props.sending, () => scrollToBottom(), { flush: 'post' })
-onMounted(() => scrollToBottom())
+watch([() => props.messages, () => props.streamingMessage], scrollToBottom, { deep: true, flush: 'post' })
+watch(() => props.sending, scrollToBottom, { flush: 'post' })
+onMounted(scrollToBottom)
 
 const streaming = computed<ChatAssistantMessage>(() => props.streamingMessage ?? { role: 'assistant', content: '', slices: [], tool_results: [] })
 const showStreamingPlaceholder = computed(() => (streaming.value.slices?.length ?? 0) === 0 && !streaming.value.content)

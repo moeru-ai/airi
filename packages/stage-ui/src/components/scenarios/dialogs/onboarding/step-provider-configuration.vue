@@ -37,9 +37,7 @@ function initializeForm() {
 }
 
 // Watch for provider changes
-watch(() => context.selectedProvider.value?.id, () => {
-  initializeForm()
-})
+watch(() => context.selectedProvider.value?.id, initializeForm)
 
 // Computed properties
 const needsApiKey = computed(() => {
