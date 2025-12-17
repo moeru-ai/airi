@@ -38,6 +38,7 @@ const {
   isValid,
   validationMessage,
   handleResetSettings,
+  forceValid,
 } = useProviderValidation(providerId)
 
 const headers = ref<{ key: string, value: string }[]>(Object.entries(providers.value[providerId]?.headers || {}).map(([key, value]) => ({ key, value } as { key: string, value: string })) || [{ key: '', value: '' }])
@@ -151,7 +152,30 @@ onMounted(() => {
       <!-- Validation Status -->
       <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
         <template #title>
-          {{ t('settings.dialogs.onboarding.validationFailed') }}
+          <div class="flex w-full items-center justify-between">
+            <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
+            <button
+              type="button"
+              :class="[
+                'ml-2',
+                'px-2',
+                'py-0.5',
+                'text-xs',
+                'font-medium',
+                'rounded',
+                'bg-red-100',
+                'dark:bg-red-800/30',
+                'text-red-600',
+                'dark:text-red-300',
+                'hover:bg-red-200',
+                'dark:hover:bg-red-700/40',
+                'transition-colors',
+              ]"
+              @click="forceValid"
+            >
+              {{ t('settings.pages.providers.common.continueAnyway') }}
+            </button>
+          </div>
         </template>
         <template v-if="validationMessage" #content>
           <div class="whitespace-pre-wrap break-all">
