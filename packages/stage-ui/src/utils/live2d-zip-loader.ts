@@ -4,6 +4,7 @@ import JSZip from 'jszip'
 
 import { Cubism4ModelSettings, ModelSettings as ModelSettingsClass, ZipLoader } from 'pixi-live2d-display/cubism4'
 
+// TODO: this is a bit hacky, do we have other choice?
 // NOTICE: Patch to handle UTF-8 encoded file paths in model settings
 const originalValidateFiles = ModelSettingsClass.prototype.validateFiles
 ModelSettingsClass.prototype.validateFiles = function (files: string[]): string[] {
