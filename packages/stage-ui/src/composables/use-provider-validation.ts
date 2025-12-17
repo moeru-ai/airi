@@ -122,6 +122,12 @@ export function useProviderValidation(providerId: string) {
     isValidating.value = 0
   }
 
+  function forceValid() {
+    isValid.value = true
+    validationMessage.value = ''
+    providersStore.forceProviderConfigured(providerId)
+  }
+
   return {
     t,
     router,
@@ -133,5 +139,6 @@ export function useProviderValidation(providerId: string) {
     isValid,
     validationMessage,
     handleResetSettings,
+    forceValid,
   }
 }

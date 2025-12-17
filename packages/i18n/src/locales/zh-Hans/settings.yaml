@@ -404,6 +404,7 @@ pages:
       description: >
         AIRI 需要配置至少一个 {chat} 服务来源，才能正常思考和运作。你可以把它看作是 AIRI 系统中角色的大脑。
     common:
+      continueAnyway: 仍然继续
       fields:
         field:
           api-key:

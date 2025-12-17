@@ -404,6 +404,7 @@ pages:
       description: >
         AIRI requiere que al menos un proveedor de {chat} esté configurado para pensar y comportarse correctamente. Podrías pensarlo como el cerebro de los personajes que viven en el sistema AIRI.
     common:
+      continueAnyway: Continuar de todos modos
       fields:
         field:
           api-key:
