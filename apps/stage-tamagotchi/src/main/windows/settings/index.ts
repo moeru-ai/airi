@@ -12,6 +12,7 @@ import { setupSettingsWindowInvokes } from './rpc/index.electron'
 
 export function setupSettingsWindowReusableFunc(params: {
   widgetsManager: WidgetsWindowManager
+  onWindowCreated?: (window: BrowserWindow) => void
 }) {
   return createReusableWindow(async () => {
     const window = new BrowserWindow({
@@ -25,6 +26,10 @@ export function setupSettingsWindowReusableFunc(params: {
         sandbox: false,
       },
     })
+
+    if (params.onWindowCreated) {
+      params.onWindowCreated(window)
+    }
 
     window.on('ready-to-show', () => window.show())
     window.webContents.setWindowOpenHandler((details) => {

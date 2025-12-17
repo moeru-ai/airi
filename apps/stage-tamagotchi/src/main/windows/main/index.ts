@@ -33,6 +33,7 @@ export async function setupMainWindow(params: {
   chatWindow: () => Promise<BrowserWindow>
   widgetsManager: WidgetsWindowManager
   noticeWindow: NoticeWindowManager
+  onWindowCreated?: (window: BrowserWindow) => void
 }) {
   const {
     setup: setupConfig,
@@ -63,6 +64,10 @@ export async function setupMainWindow(params: {
     type: 'panel',
     ...transparentWindowConfig(),
   })
+
+  if (params.onWindowCreated) {
+    params.onWindowCreated(window)
+  }
 
   // NOTICE: in development mode, open devtools by default
   if (is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG) {

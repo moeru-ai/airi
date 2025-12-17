@@ -1,3 +1,5 @@
+import type { BrowserWindow } from 'electron'
+
 import { env, platform } from 'node:process'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
@@ -77,6 +79,12 @@ app.whenReady().then(async () => {
 
   // BeatSync will create a background window to capture and process audio.
   const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
+  const beatSyncDispatchTo = injeca.provide('windows:beat-sync:dispatch-to', {
+    dependsOn: { beatSync },
+    build: async ({ dependsOn }) => (window: BrowserWindow) => {
+      return dependsOn.beatSync.dispatchTo(window)
+    },
+  })
 
   const chatWindow = injeca.provide('windows:chat', {
     dependsOn: { widgetsManager },
@@ -84,22 +92,16 @@ app.whenReady().then(async () => {
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync },
-    build: async ({ dependsOn }) => async () => {
-      const { beatSync: _, ...setupArgs } = dependsOn
-      const window = await setupSettingsWindowReusableFunc(setupArgs)()
-      dependsOn.beatSync.dispatchTo(window)
-      return window
+    dependsOn: { widgetsManager, beatSync, beatSyncDispatchTo },
+    build: async ({ dependsOn }) => {
+      return setupSettingsWindowReusableFunc({ ...dependsOn, onWindowCreated: window => dependsOn.beatSyncDispatchTo(window) })
     },
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync },
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, beatSyncDispatchTo },
     build: async ({ dependsOn }) => {
-      const { beatSync: _, ...setupArgs } = dependsOn
-      const window = await setupMainWindow(setupArgs)
-      dependsOn.beatSync.dispatchTo(window)
-      return window
+      return setupMainWindow({ ...dependsOn, onWindowCreated: window => dependsOn.beatSyncDispatchTo(window) })
     },
   })
 
@@ -109,11 +111,8 @@ app.whenReady().then(async () => {
   })
 
   const tray = injeca.provide('app:tray', {
-    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, beatSync, aboutWindow },
-    build: async ({ dependsOn }) => {
-      const { beatSync, aboutWindow, ...setupArgs } = dependsOn
-      return setupTray({ ...setupArgs, beatSyncBgWindow: beatSync.window, aboutWindow })
-    },
+    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, beatSyncBgWindow: beatSync, aboutWindow },
+    build: async ({ dependsOn }) => setupTray(dependsOn),
   })
 
   injeca.invoke({

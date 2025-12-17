@@ -1,5 +1,6 @@
 import type { BrowserWindow } from 'electron'
 
+import type { setupBeatSync } from '../windows/beat-sync'
 import type { setupCaptionWindowManager } from '../windows/caption'
 import type { WidgetsWindowManager } from '../windows/widgets'
 
@@ -22,7 +23,7 @@ export function setupTray(params: {
   settingsWindow: () => Promise<BrowserWindow>
   captionWindow: ReturnType<typeof setupCaptionWindowManager>
   widgetsWindow: WidgetsWindowManager
-  beatSyncBgWindow: BrowserWindow
+  beatSyncBgWindow: Awaited<ReturnType<typeof setupBeatSync>>
   aboutWindow: () => Promise<BrowserWindow>
 }): void {
   once(() => {
@@ -53,7 +54,7 @@ export function setupTray(params: {
       ...is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG
         ? [
             { type: 'header', label: 'DevTools' },
-            { label: 'Troubleshoot BeatSync...', click: () => params.beatSyncBgWindow.webContents.openDevTools() },
+            { label: 'Troubleshoot BeatSync...', click: () => params.beatSyncBgWindow.window.webContents.openDevTools() },
             { type: 'separator' },
           ] as const // :(
         : [],
