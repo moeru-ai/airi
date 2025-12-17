@@ -2,7 +2,14 @@ import type { ModelSettings } from 'pixi-live2d-display/cubism4'
 
 import JSZip from 'jszip'
 
-import { Cubism4ModelSettings, ZipLoader } from 'pixi-live2d-display/cubism4'
+import { Cubism4ModelSettings, ModelSettings as ModelSettingsClass, ZipLoader } from 'pixi-live2d-display/cubism4'
+
+// NOTICE: Patch to handle UTF-8 encoded file paths in model settings
+const originalValidateFiles = ModelSettingsClass.prototype.validateFiles
+ModelSettingsClass.prototype.validateFiles = function (files: string[]): string[] {
+  const normalizedFiles = files.map(f => decodeURI(f))
+  return originalValidateFiles.call(this, normalizedFiles)
+}
 
 ZipLoader.zipReader = (data: Blob, _url: string) => JSZip.loadAsync(data)
 
