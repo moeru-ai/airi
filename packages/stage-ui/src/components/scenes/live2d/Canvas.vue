@@ -65,8 +65,7 @@ function handleResize() {
   // The CSS styles handle the display size, so we don't need to manually set view dimensions
 }
 
-watch([() => props.width, () => props.height], () => handleResize())
-watch(() => props.resolution, () => handleResize())
+watch([() => props.width, () => props.height, () => props.resolution], handleResize)
 
 onMounted(async () => containerRef.value && await initLive2DPixiStage(containerRef.value))
 onUnmounted(() => pixiApp.value?.destroy())
