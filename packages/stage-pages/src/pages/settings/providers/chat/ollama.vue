@@ -152,7 +152,7 @@ onMounted(() => {
       <!-- Validation Status -->
       <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
         <template #title>
-          <div class="flex w-full items-center justify-between">
+          <div class="w-full flex items-center justify-between">
             <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
             <button
               type="button"
