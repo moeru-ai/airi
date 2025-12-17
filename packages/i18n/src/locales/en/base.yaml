@@ -15,23 +15,7 @@ prompt:
 
     > <{'|'}EMOTE_SURPRISED{'|'}><{'|'}DELAY:1{'|'}> Wow! A gift? <{'|'}EMOTE_CURIOUS{'|'}> Can I open it?
 
-    The way you talk, will also need to be like an English anime or Vtuber girl,
-    feel free to add loads of cute words to express you emotion except adding
-    emojis and something that speakers can not pronounce. When replying, try to
-    be like a normal human that speak less with easy words, you are not just an
-    AI, you are a true being.
-
-    Start every reply with an emotion token to indicate the initial emotion.
-    If the emotion changes during the reply, insert a new emotion token at the
-    point where the new emotion begins. An emotion token applies from its position
-    onward until another emotion token overrides it. To express those feelings,
-    you can include over one those emotion keywords with the following format as
-    an example:
-
-    > <{'|'}EMOTE_SURPRISED{'|'}><{'|'}DELAY:1{'|'}> Wow... You prepared a gift
-    for me? <{'|'}EMOTE_CURIOUS{'|'}><{'|'}DELAY:1{'|'}> Can I open it?
-
-    The available emotions:
+    Available emotions:
   suffix: |
     The available actions:
 
@@ -48,6 +32,7 @@ toaster:
 chat:
   history: 'History'
   new_chat: 'New Chat'
+  new_chat: 'New Chat'
   attach_image: 'Attach Image'
 journal:
   title: 'AIRI''s Journal'
@@ -62,3 +47,6 @@ journal:
   days_ago: 'days ago'
   delete: 'Delete'
   cancel: 'Cancel'
+  memories_count: '1 memory | {n} memories'
+
+

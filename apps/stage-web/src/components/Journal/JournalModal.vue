@@ -65,7 +65,7 @@ async function handleGenerate() {
   if (generating.value) return
   generating.value = true
   try {
-    await memoryStore.summarizeSession(undefined, locale.value)
+    await memoryStore.summarizeSession(locale.value)
   } finally {
     generating.value = false
   }
@@ -86,9 +86,14 @@ function formatDate(ts: number): string {
 }
 
 function formatRelativeDate(ts: number): string {
-  const now = Date.now()
-  const diff = now - ts
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  const entryDate = new Date(ts)
+  const today = new Date()
+  
+  entryDate.setHours(0, 0, 0, 0)
+  today.setHours(0, 0, 0, 0)
+  
+  const diffTime = today.getTime() - entryDate.getTime()
+  const days = Math.round(diffTime / (1000 * 60 * 60 * 24))
   
   if (days === 0) return t('journal.today') || 'Today'
   if (days === 1) return t('journal.yesterday') || 'Yesterday'
@@ -130,7 +135,7 @@ watch(() => props.open, (open) => {
                   {{ t('journal.title') }}
                 </h2>
                 <p class="text-xs text-neutral-500 dark:text-neutral-400">
-                  {{ totalEntries }} {{ totalEntries === 1 ? 'memory' : 'memories' }}
+                  {{ totalEntries }} {{ t('journal.memories_count', totalEntries) }}
                 </p>
               </div>
             </div>

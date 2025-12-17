@@ -1,3 +1,4 @@
+import { type ChatProvider } from '@xsai-ext/shared-providers'
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed } from 'vue'
@@ -151,7 +152,7 @@ export const useMemoryStore = defineStore('memory', () => {
     try {
       await stream(
         activeModel.value,
-        await providersStore.getProviderInstance(activeProvider.value) as any,
+        await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
         [{ role: 'user', content: prompt }],
         {
           headers: (providerConfig?.headers || {}) as Record<string, string>,
@@ -170,9 +171,10 @@ export const useMemoryStore = defineStore('memory', () => {
     // Parse LLM response
     const entryData = parseJournalResponse(fullText)
 
+    const now = Date.now()
     const entry: JournalEntry = {
-      id: `${dateString}-${Date.now()}`, // Unique ID allows multiple entries per day
-      timestamp: Date.now(),
+      id: `${dateString}-${now}`, // Unique ID allows multiple entries per day
+      timestamp: now,
       dateString,
       content: entryData.content,
       mood: entryData.mood,

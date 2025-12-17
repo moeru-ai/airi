@@ -46,8 +46,8 @@ const tools = [
     description: 'Check if a journal entry exists for today or a specific date. Use when the user asks "Did you write the diary?" or "Have you journaled today?"',
     execute: async ({ date }) => {
       const store = useMemoryStore()
-      const today = new Date()
-      const targetDate = date || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+
+      const targetDate = date || new Date().toISOString().split('T')[0]
       const entry = store.getEntryByDate(targetDate)
       
       if (entry) {

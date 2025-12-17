@@ -1,5 +1,6 @@
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { getGPUTier } from 'detect-gpu'
+import { useDevicePixelRatio } from '@vueuse/core'
 
 export type GPUTier = 0 | 1 | 2 | 3
 
@@ -19,6 +20,7 @@ export function useGPUDetect() {
   })
 
   const isReady = ref(false)
+  const { pixelRatio: devicePixelRatio } = useDevicePixelRatio()
 
   async function detect(): Promise<GPUCapabilities> {
     try {
@@ -43,35 +45,39 @@ export function useGPUDetect() {
     return capabilities.value
   }
 
-  const lowTierSettings = {
-    pixelRatio: 1,
-    shadowMapSize: 512,
-    antialias: false,
-    postProcessing: false,
-    maxLights: 2,
-  }
-
-  function getOptimalSettings(tier: GPUTier) {
-    const settings = {
-      0: lowTierSettings,
-      1: lowTierSettings,
-      2: {
-        pixelRatio: Math.min(window.devicePixelRatio, 1.5),
-        shadowMapSize: 1024,
-        antialias: true,
-        postProcessing: true,
-        maxLights: 4,
-      },
-      3: {
-        pixelRatio: Math.min(window.devicePixelRatio, 2),
-        shadowMapSize: 2048,
-        antialias: true,
-        postProcessing: true,
-        maxLights: 8,
-      },
+  const optimalSettings = computed(() => {
+    const lowTierSettings = {
+      pixelRatio: 1,
+      shadowMapSize: 512,
+      antialias: false,
+      postProcessing: false,
+      maxLights: 2,
     }
-    return settings[tier]
-  }
+
+    switch (capabilities.value.tier) {
+      case 0:
+      case 1:
+        return lowTierSettings
+      case 2:
+        return {
+          pixelRatio: Math.min(devicePixelRatio.value, 1.5),
+          shadowMapSize: 1024,
+          antialias: true,
+          postProcessing: true,
+          maxLights: 4,
+        }
+      case 3:
+        return {
+          pixelRatio: Math.min(devicePixelRatio.value, 2),
+          shadowMapSize: 2048,
+          antialias: true,
+          postProcessing: true,
+          maxLights: 8,
+        }
+      default:
+        return lowTierSettings
+    }
+  })
 
   onMounted(() => {
     detect()
@@ -81,6 +87,6 @@ export function useGPUDetect() {
     capabilities,
     isReady,
     detect,
-    getOptimalSettings,
+    optimalSettings,
   }
 }

@@ -53,7 +53,7 @@ const emit = defineEmits<{
 
 const sceneContainerRef = ref<HTMLDivElement>()
 const { width, height } = useElementBounding(sceneContainerRef)
-const { capabilities, getOptimalSettings } = useGPUDetect()
+const { capabilities, optimalSettings } = useGPUDetect()
 const modelStore = useModelStore()
 const {
   lastModelSrc,
@@ -88,7 +88,7 @@ const {
   skyBoxIntensity,
 } = storeToRefs(modelStore)
 
-const optimalSettings = computed(() => getOptimalSettings(capabilities.value.tier))
+
 const optimizedDPR = computed(() => optimalSettings.value.pixelRatio)
 const enablePostProcessing = computed(() => optimalSettings.value.postProcessing)
 
