@@ -31,9 +31,20 @@ const beatsHistory = ref<Array<{
   normalizedEnergy: number
 }>>([])
 
-const parameters = ref<AnalyserWorkletParameters>({ ...DEFAULT_ANALYSER_WORKLET_PARAMS })
+const parameters = ref<AnalyserWorkletParameters>({
+  ...DEFAULT_ANALYSER_WORKLET_PARAMS,
+  // Loosen the parameters for easier beat detection by default.
+  // Also makes life easier :)
+  warmup: false,
+  spectralFlux: false,
+  adaptiveThreshold: false,
+})
 
-watch<AnalyserWorkletParameters>(parameters, newParameters => updateBeatSyncParameters(toRaw(newParameters)), { deep: true })
+watch([state, parameters], ([newState, newParameters]) => {
+  if (newState?.isActive) {
+    updateBeatSyncParameters(toRaw(newParameters))
+  }
+}, { deep: true, immediate: true })
 
 function normalizeEnergy(energy: number) {
   const base = 2
