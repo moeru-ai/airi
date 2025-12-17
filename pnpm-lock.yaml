@@ -720,6 +720,9 @@ importers:
       '@proj-airi/stage-ui-three':
         specifier: workspace:^
         version: link:../../packages/stage-ui-three
+      '@proj-airi/stage-ui-three-performance-runtime':
+        specifier: workspace:^
+        version: link:../../packages/stage-ui-three-performance-runtime
       '@proj-airi/ui':
         specifier: workspace:^
         version: link:../../packages/ui
@@ -1810,6 +1813,19 @@ importers:
       vue-tsc:
         specifier: ^3.1.8
         version: 3.1.8(typescript@5.9.3)
+
+  packages/stage-ui-three-performance-runtime:
+    dependencies:
+      pinia:
+        specifier: ^3.0.4
+        version: 3.0.4(typescript@5.9.3)(vue@3.5.25(typescript@5.9.3))
+      vue:
+        specifier: ^3.5.25
+        version: 3.5.25(typescript@5.9.3)
+    devDependencies:
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
 
   packages/tauri-plugin-mcp:
     dependencies:

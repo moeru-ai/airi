@@ -32,6 +32,7 @@
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/stage-ui": "workspace:^",
     "@proj-airi/stage-ui-three": "workspace:^",
+    "@proj-airi/stage-ui-three-performance-runtime": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@proj-airi/ui-transitions": "workspace:^",
     "@standard-schema/spec": "^1.0.0",
