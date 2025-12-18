@@ -1,5 +1,6 @@
 import type { BrowserWindow } from 'electron'
 
+import type { setupBeatSync } from '../windows/beat-sync'
 import type { setupCaptionWindowManager } from '../windows/caption'
 import type { WidgetsWindowManager } from '../windows/widgets'
 
@@ -22,7 +23,7 @@ export function setupTray(params: {
   settingsWindow: () => Promise<BrowserWindow>
   captionWindow: ReturnType<typeof setupCaptionWindowManager>
   widgetsWindow: WidgetsWindowManager
-  beatSyncBgWindow: BrowserWindow
+  beatSyncBgWindow: Awaited<ReturnType<typeof setupBeatSync>>
   aboutWindow: () => Promise<BrowserWindow>
 }): void {
   once(() => {

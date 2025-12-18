@@ -421,6 +421,7 @@ pages:
         and behave properly. You could think of it as the brain of the
         characters living in AIRI system.
     common:
+      continueAnyway: Continue Anyway
       fields:
         field:
           api-key:

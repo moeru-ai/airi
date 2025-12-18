@@ -1,14 +1,14 @@
 import type { EventContext } from '@moeru/eventa'
 import type { Analyser, AnalyserBeatEvent, AnalyserWorkletParameters } from '@nekopaw/tempora'
 
-import type { BeatSyncDetectorEventMap, BeatSyncDetectorState } from '../types'
+import type { BeatSyncDetectorEventMap, BeatSyncDetectorState } from './types'
 
 import analyserWorklet from '@nekopaw/tempora/worklet?url'
 
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { startAnalyser as startTemporaAnalyser } from '@nekopaw/tempora'
 
-import { isStageTamagotchi, isStageWeb, StageEnvironment } from '../../environment'
+import { isStageTamagotchi, isStageWeb, StageEnvironment } from '../environment'
 import {
   beatSyncBeatSignaledInvokeEventa,
   beatSyncGetInputByteFrequencyDataInvokeEventa,
@@ -16,8 +16,6 @@ import {
   beatSyncStateChangedInvokeEventa,
   beatSyncToggleInvokeEventa,
   beatSyncUpdateParametersInvokeEventa,
-} from '../eventa'
-import {
   createContext,
 } from './eventa'
 
@@ -260,7 +258,7 @@ export function toggleBeatSync(enabled: boolean) {
   }
 
   if (isStageTamagotchi()) {
-    const toggleFn = defineInvoke(getContext(), beatSyncToggleInvokeEventa) as (enabled: boolean) => Promise<void> // TODO: Better type
+    const toggleFn = defineInvoke(getContext(), beatSyncToggleInvokeEventa)
     return toggleFn(enabled)
   }
 

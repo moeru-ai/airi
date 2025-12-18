@@ -3,7 +3,7 @@ import type { Application } from '@pixi/app'
 
 import type { PixiLive2DInternalModel } from '../../../composables/live2d'
 
-import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync/browser'
+import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync'
 import { useTheme } from '@proj-airi/ui'
 import { breakpointsTailwind, until, useBreakpoints, useDebounceFn } from '@vueuse/core'
 import { formatHex } from 'culori'
@@ -112,7 +112,12 @@ function setScaleAndPosition() {
 
   const heightScale = (props.height * 0.95 / initialModelHeight.value * offsetFactor)
   const widthScale = (props.width * 0.95 / initialModelWidth.value * offsetFactor)
-  const scale = Math.min(heightScale, widthScale)
+  let scale = Math.min(heightScale, widthScale)
+
+  // Prevent zero or NaN values to fix the "headless" model issue.
+  if (Number.isNaN(scale) || scale <= 0) {
+    scale = 1e-6
+  }
 
   model.value.scale.set(scale * props.scale, scale * props.scale)
 
@@ -388,7 +393,7 @@ function updateDropShadowFilter() {
   model.value.filters = [dropShadowFilter.value]
 }
 
-watch([() => props.width, () => props.height], () => handleResize())
+watch([() => props.width, () => props.height], handleResize)
 watch(modelSrcRef, async () => await loadModel(), { immediate: true })
 watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)

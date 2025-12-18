@@ -5,6 +5,7 @@
   copyDesktopItems,
   makeDesktopItem,
   makeWrapper,
+  gitMinimal,
   pnpm,
 
   asar,
@@ -17,6 +18,7 @@
     asar
     copyDesktopItems
     makeWrapper
+    gitMinimal
     nodejs
     pnpm.configHook
   ];
@@ -55,7 +57,7 @@
     cd apps/stage-tamagotchi
     pnpm run build
     pnpm exec electron-builder build \
-      --dir --${if stdenvNoCC.isLinux then "linux" else "darwin"} \
+      --dir --${if stdenvNoCC.isLinux then "linux" else "mac"} \
       -c.electronDist="${electron.dist}" \
       -c.electronVersion="${electron.version}"
 

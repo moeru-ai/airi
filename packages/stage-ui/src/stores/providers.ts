@@ -1936,6 +1936,15 @@ export const useProvidersStore = defineStore('providers', () => {
   const isLoadingModels = ref<Record<string, boolean>>({})
   const modelLoadError = ref<Record<string, string | null>>({})
 
+  function forceProviderConfigured(providerId: string) {
+    configuredProviders.value[providerId] = true
+    // Also cache the current config to prevent re-validation from overwriting
+    const config = providerCredentials.value[providerId]
+    if (config) {
+      validatedCredentials.value[providerId] = JSON.stringify(config)
+    }
+  }
+
   async function resetProviderSettings() {
     providerCredentials.value = {}
     configuredProviders.value = {}
@@ -2150,6 +2159,7 @@ export const useProvidersStore = defineStore('providers', () => {
     loadModelsForConfiguredProviders,
     getProviderInstance,
     resetProviderSettings,
+    forceProviderConfigured,
     availableProvidersMetadata,
     allChatProvidersMetadata,
     allAudioSpeechProvidersMetadata,

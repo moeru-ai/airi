@@ -1,3 +1,7 @@
+catalogMode: prefer
+
+shellEmulator: true
+
 packages:
   - packages/**
   - plugins/**
@@ -6,6 +10,16 @@ packages:
   - docs/**
   - apps/**
   - '!**/dist/**'
+
+overrides:
+  array-flatten: npm:@nolyfill/array-flatten@^1.0.44
+  axios: npm:feaxios@^0.0.23
+  is-core-module: npm:@nolyfill/is-core-module@^1.0.39
+  isarray: npm:@nolyfill/isarray@^1.0.44
+  safe-buffer: npm:@nolyfill/safe-buffer@^1.0.44
+  safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
+  side-channel: npm:@nolyfill/side-channel@^1.0.44
+  string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 
 catalog:
   '@guiiai/logg': 1.1.0
@@ -25,10 +39,9 @@ catalog:
   '@xsai/stream-text': ^0.4.0-beta.10
   '@xsai/tool': ^0.4.0-beta.10
   '@xsai/utils-chat': 0.4.0-beta.5
+  electron-updater: ^6.6.2
   posthog-js: 1.306.1
   xsschema: ^0.4.0-beta.10
-
-catalogMode: prefer
 
 catalogs:
   rolldown-vite:
@@ -39,6 +52,7 @@ onlyBuiltDependencies:
   - '@ffmpeg-installer/darwin-arm64'
   - '@parcel/watcher'
   - bufferutil
+  - core-js
   - electron
   - electron-click-drag-plugin
   - es5-ext
@@ -52,15 +66,3 @@ onlyBuiltDependencies:
   - spawn-sync
   - utf-8-validate
   - vue-demi
-
-overrides:
-  array-flatten: npm:@nolyfill/array-flatten@^1.0.44
-  axios: npm:feaxios@^0.0.23
-  is-core-module: npm:@nolyfill/is-core-module@^1.0.39
-  isarray: npm:@nolyfill/isarray@^1.0.44
-  safe-buffer: npm:@nolyfill/safe-buffer@^1.0.44
-  safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
-  side-channel: npm:@nolyfill/side-channel@^1.0.44
-  string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
-
-shellEmulator: true

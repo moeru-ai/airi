@@ -21,7 +21,7 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@moeru/eventa": "^1.0.0-alpha.9",
+    "@moeru/eventa": "^1.0.0-alpha.10",
     "@nekopaw/tempora": "0.3.1-alpha.1",
     "@proj-airi/ccc": "workspace:*",
     "@proj-airi/i18n": "workspace:*",

@@ -37,9 +37,20 @@ export interface ContextPayload {
   text?: string
 }
 
+export type ChatStreamEvent
+  = | { type: 'before-compose', message: string, sessionId: string }
+    | { type: 'after-compose', message: string, sessionId: string }
+    | { type: 'before-send', message: string, sessionId: string }
+    | { type: 'after-send', message: string, sessionId: string }
+    | { type: 'token-literal', literal: string, sessionId: string }
+    | { type: 'token-special', special: string, sessionId: string }
+    | { type: 'stream-end', sessionId: string }
+    | { type: 'assistant-end', message: string, sessionId: string }
+
 const CHAT_STORAGE_KEY = 'chat/messages/v2'
 const ACTIVE_SESSION_STORAGE_KEY = 'chat/active-session'
 export const CONTEXT_CHANNEL_NAME = 'airi-context-update'
+export const CHAT_STREAM_CHANNEL_NAME = 'airi-chat-stream'
 
 export const useChatStore = defineStore('chat', () => {
   const { stream, discoverToolsCompatibility } = useLLM()
@@ -63,34 +74,42 @@ export const useChatStore = defineStore('chat', () => {
 
   function onBeforeMessageComposed(cb: (message: string) => Promise<void>) {
     onBeforeMessageComposedHooks.value.push(cb)
+    return () => onBeforeMessageComposedHooks.value = onBeforeMessageComposedHooks.value.filter(hook => hook !== cb) // return remove listener callback
   }
 
   function onAfterMessageComposed(cb: (message: string) => Promise<void>) {
     onAfterMessageComposedHooks.value.push(cb)
+    return () => onAfterMessageComposedHooks.value = onAfterMessageComposedHooks.value.filter(hook => hook !== cb) // return remove listener callback
   }
 
   function onBeforeSend(cb: (message: string) => Promise<void>) {
     onBeforeSendHooks.value.push(cb)
+    return () => onBeforeSendHooks.value = onBeforeSendHooks.value.filter(hook => hook !== cb) // return remove listener callback
   }
 
   function onAfterSend(cb: (message: string) => Promise<void>) {
     onAfterSendHooks.value.push(cb)
+    return () => onAfterSendHooks.value = onAfterSendHooks.value.filter(hook => hook !== cb) // return remove listener callback
   }
 
   function onTokenLiteral(cb: (literal: string) => Promise<void>) {
     onTokenLiteralHooks.value.push(cb)
+    return () => onTokenLiteralHooks.value = onTokenLiteralHooks.value.filter(hook => hook !== cb) // return remove listener callback
   }
 
   function onTokenSpecial(cb: (special: string) => Promise<void>) {
     onTokenSpecialHooks.value.push(cb)
+    return () => onTokenSpecialHooks.value = onTokenSpecialHooks.value.filter(hook => hook !== cb) // return remove listener callback
   }
 
   function onStreamEnd(cb: () => Promise<void>) {
     onStreamEndHooks.value.push(cb)
+    return () => onStreamEndHooks.value = onStreamEndHooks.value.filter(hook => hook !== cb) // return remove listener callback
   }
 
   function onAssistantResponseEnd(cb: (message: string) => Promise<void>) {
     onAssistantResponseEndHooks.value.push(cb)
+    return () => onAssistantResponseEndHooks.value = onAssistantResponseEndHooks.value.filter(hook => hook !== cb) // return remove listener callback
   }
 
   function onContextPublish(cb: (envelope: ContextMessage<ContextPayload>, origin: 'local' | 'ws' | 'broadcast') => Promise<void> | void) {
@@ -111,6 +130,46 @@ export const useChatStore = defineStore('chat', () => {
     onStreamEndHooks.value = []
     onAssistantResponseEndHooks.value = []
     onContextPublishHooks.value = []
+  }
+
+  async function emitBeforeMessageComposedHooks(message: string) {
+    for (const hook of onBeforeMessageComposedHooks.value)
+      await hook(message)
+  }
+
+  async function emitAfterMessageComposedHooks(message: string) {
+    for (const hook of onAfterMessageComposedHooks.value)
+      await hook(message)
+  }
+
+  async function emitBeforeSendHooks(message: string) {
+    for (const hook of onBeforeSendHooks.value)
+      await hook(message)
+  }
+
+  async function emitAfterSendHooks(message: string) {
+    for (const hook of onAfterSendHooks.value)
+      await hook(message)
+  }
+
+  async function emitTokenLiteralHooks(literal: string) {
+    for (const hook of onTokenLiteralHooks.value)
+      await hook(literal)
+  }
+
+  async function emitTokenSpecialHooks(special: string) {
+    for (const hook of onTokenSpecialHooks.value)
+      await hook(special)
+  }
+
+  async function emitStreamEndHooks() {
+    for (const hook of onStreamEndHooks.value)
+      await hook()
+  }
+
+  async function emitAssistantResponseEndHooks(message: string) {
+    for (const hook of onAssistantResponseEndHooks.value)
+      await hook(message)
   }
 
   // ----- Session state helpers -----
@@ -277,9 +336,7 @@ export const useChatStore = defineStore('chat', () => {
     sending.value = true
 
     try {
-      for (const hook of onBeforeMessageComposedHooks.value) {
-        await hook(sendingMessage)
-      }
+      await emitBeforeMessageComposedHooks(sendingMessage)
 
       const contentParts: CommonContentPart[] = [{ type: 'text', text: sendingMessage }]
 
@@ -311,9 +368,7 @@ export const useChatStore = defineStore('chat', () => {
 
       const parser = useLlmmarkerParser({
         onLiteral: async (literal) => {
-          for (const hook of onTokenLiteralHooks.value) {
-            await hook(literal)
-          }
+          await emitTokenLiteralHooks(literal)
 
           streamingMessage.value.content += literal
 
@@ -330,9 +385,7 @@ export const useChatStore = defineStore('chat', () => {
           })
         },
         onSpecial: async (special) => {
-          for (const hook of onTokenSpecialHooks.value) {
-            await hook(special)
-          }
+          await emitTokenSpecialHooks(special)
         },
         minLiteralEmitLength: 24, // Avoid emitting literals too fast. This is a magic number and can be changed later.
       })
@@ -368,13 +421,8 @@ export const useChatStore = defineStore('chat', () => {
         return rawMessage
       })
 
-      for (const hook of onAfterMessageComposedHooks.value) {
-        await hook(sendingMessage)
-      }
-
-      for (const hook of onBeforeSendHooks.value) {
-        await hook(sendingMessage)
-      }
+      await emitAfterMessageComposedHooks(sendingMessage)
+      await emitBeforeSendHooks(sendingMessage)
 
       let fullText = ''
       const headers = (options.providerConfig?.headers || {}) as Record<string, string>
@@ -445,23 +493,18 @@ export const useChatStore = defineStore('chat', () => {
 
       // Instruct the TTS pipeline to flush by calling hooks directly
       const flushSignal = `${TTS_FLUSH_INSTRUCTION}${TTS_FLUSH_INSTRUCTION}`
-      for (const hook of onTokenLiteralHooks.value)
-        await hook(flushSignal)
+      await emitTokenLiteralHooks(flushSignal)
 
       // Call the end-of-stream hooks
-      for (const hook of onStreamEndHooks.value)
-        await hook()
+      await emitStreamEndHooks()
 
       // Call the end-of-response hooks with the full text
-      for (const hook of onAssistantResponseEndHooks.value)
-        await hook(fullText)
+      await emitAssistantResponseEndHooks(fullText)
 
       // eslint-disable-next-line no-console
       console.debug('LLM output:', fullText)
 
-      for (const hook of onAfterSendHooks.value) {
-        await hook(sendingMessage)
-      }
+      await emitAfterSendHooks(sendingMessage)
     }
     catch (error) {
       console.error('Error sending message:', error)
@@ -489,6 +532,14 @@ export const useChatStore = defineStore('chat', () => {
     replaceSessions,
     resetAllSessions,
     clearHooks,
+    emitBeforeMessageComposedHooks,
+    emitAfterMessageComposedHooks,
+    emitBeforeSendHooks,
+    emitAfterSendHooks,
+    emitTokenLiteralHooks,
+    emitTokenSpecialHooks,
+    emitStreamEndHooks,
+    emitAssistantResponseEndHooks,
 
     onBeforeMessageComposed,
     onAfterMessageComposed,

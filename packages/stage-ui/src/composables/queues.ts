@@ -126,6 +126,7 @@ export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelin
 
   const audioContext = shallowRef<AudioContext>()
   const audioAnalyser = shallowRef<AnalyserNode>()
+  const lipSyncNode = shallowRef<AudioNode>()
 
   function connectAudioContext(context: AudioContext) {
     audioContext.value = context
@@ -133,6 +134,10 @@ export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelin
 
   function connectAudioAnalyser(analyser: AnalyserNode) {
     audioAnalyser.value = analyser
+  }
+
+  function connectLipSyncNode(node: AudioNode) {
+    lipSyncNode.value = node
   }
 
   function clearPlaying() {
@@ -172,6 +177,9 @@ export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelin
             source.connect(audioContext.value.destination)
             // Connect the source to the analyzer
             source.connect(audioAnalyser.value!)
+            // Connect to lip sync tap if provided
+            if (lipSyncNode.value)
+              source.connect(lipSyncNode.value)
 
             // Start playing the audio
             for (const hook of onPlaybackStartedHooks.value) {
@@ -192,15 +200,13 @@ export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelin
             currentAudioSource.value = source
             source.start(0)
             source.onended = () => {
-              // Play special token: delay or emotion
-              if (ctx.data.special) {
-                for (const hook of onPlaybackFinishedHooks.value) {
-                  try {
-                    hook({ special: ctx.data.special })
-                  }
-                  catch (err) {
-                    console.error('Error in onPlaybackFinished hook:', err)
-                  }
+              // Notify hooks regardless; consumers can decide how to use the special token (if any).
+              for (const hook of onPlaybackFinishedHooks.value) {
+                try {
+                  hook({ special: ctx.data.special ?? '' })
+                }
+                catch (err) {
+                  console.error('Error in onPlaybackFinished hook:', err)
                 }
               }
 
@@ -230,6 +236,7 @@ export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelin
 
     connectAudioContext,
     connectAudioAnalyser,
+    connectLipSyncNode,
     clearPlaying,
     clearQueue,
     clearAll,

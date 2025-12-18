@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server-sdk",
   "type": "module",
-  "version": "0.8.0-beta.3",
+  "version": "0.8.0-beta.4",
   "description": "Client-side SDK implementation for connecting to AIRI server components and runtimes",
   "author": {
     "name": "Moeru AI Project AIRI Team",

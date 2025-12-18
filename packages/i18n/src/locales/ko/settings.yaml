@@ -404,6 +404,7 @@ pages:
       description: >
         AIRI requires at least one {chat} provider to be configured to think, and behave properly. You could think of it as the brain of the characters living in AIRI system.
     common:
+      continueAnyway: 계속 진행
       fields:
         field:
           api-key:

@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/docs",
   "type": "module",
-  "version": "0.8.0-beta.3",
+  "version": "0.8.0-beta.4",
   "private": true,
   "scripts": {
     "build": "vitepress build",
@@ -17,7 +17,6 @@
     "@fontsource-variable/quicksand": "^5.2.10",
     "@fontsource/dm-mono": "^5.2.7",
     "@fontsource/dm-serif-display": "^5.2.8",
-    "@fontsource/quicksand": "^5.2.10",
     "@moeru/std": "catalog:",
     "@proj-airi/chromatic": "^1.0.2",
     "@proj-airi/i18n": "workspace:^",
@@ -34,8 +33,8 @@
     "vue-sonner": "^2.0.9"
   },
   "devDependencies": {
-    "@iconify-json/lucide": "^1.2.80",
-    "@iconify-json/mingcute": "^1.2.5",
+    "@iconify-json/lucide": "^1.2.81",
+    "@iconify-json/mingcute": "^1.2.6",
     "@iconify-json/twemoji": "^1.2.4",
     "@iconify/vue": "^5.0.0",
     "@intlify/unplugin-vue-i18n": "^11.0.1",

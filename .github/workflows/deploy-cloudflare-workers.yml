@@ -77,6 +77,15 @@ jobs:
           S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
           S3_REGION: ${{ secrets.S3_REGION }}
           WARP_DRIVE_PUBLIC_BASE: ${{ secrets.WARP_DRIVE_PUBLIC_BASE }}
+      - run: |
+          CI=true pnpm install -g @posthog/cli
+          pnpm exec posthog-cli sourcemap inject --directory ${{ matrix.dist_directory }}
+          pnpm exec posthog-cli sourcemap upload --directory ${{ matrix.dist_directory }}
+        env:
+          POSTHOG_CLI_ENV_ID: ${{ secrets.POSTHOG_ENV_ID }}
+          POSTHOG_CLI_TOKEN: ${{ secrets.POSTHOG_TOKEN }}
+        continue-on-error: true
+
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}

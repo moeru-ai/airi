@@ -9,6 +9,7 @@ export class Client {
   async connect(): Promise<boolean> {
     try {
       this.client = new ServerClient<Events>({ name: 'proj-airi:plugin-vscode' })
+      await this.client.connect()
       useLogger().log('AIRI connected to Server Channel')
       return true
     }
@@ -26,13 +27,14 @@ export class Client {
     }
   }
 
-  sendEvent(event: Events): void {
+  async sendEvent(event: Events): Promise<void> {
     if (!this.client) {
       useLogger().warn('Cannot send event: not connected to AIRI Server Channel')
       return
     }
 
     try {
+      await this.client.connect()
       this.client.send({ type: 'vscode:context', data: event })
 
       useLogger().log(`Sent event to AIRI: ${event.type}`, event)
