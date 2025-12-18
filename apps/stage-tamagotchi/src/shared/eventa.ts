@@ -1,6 +1,3 @@
-import type { AnalyserBeatEvent, AnalyserWorkletParameters } from '@nekopaw/tempora'
-import type { BeatSyncDetectorState } from '@proj-airi/stage-shared/beat-sync'
-
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
 export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
