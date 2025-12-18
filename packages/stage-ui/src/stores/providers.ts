@@ -209,6 +209,7 @@ function createAnthropic(apiKey: string, baseURL: string = 'https://api.anthropi
 
 export const useProvidersStore = defineStore('providers', () => {
   const providerCredentials = useLocalStorage<Record<string, Record<string, unknown>>>('settings/credentials/providers', {})
+  const addedProviders = useLocalStorage<Record<string, boolean>>('settings/providers/added', {})
   const { t } = useI18n()
   const baseUrlValidator = computed(() => (baseUrl: unknown) => {
     let msg = ''
@@ -1869,6 +1870,14 @@ export const useProvidersStore = defineStore('providers', () => {
   const configuredProviders = ref<Record<string, boolean>>({})
   const validatedCredentials = ref<Record<string, string>>({})
 
+  function markProviderAdded(providerId: string) {
+    addedProviders.value[providerId] = true
+  }
+
+  function unmarkProviderAdded(providerId: string) {
+    delete addedProviders.value[providerId]
+  }
+
   // Configuration validation functions
   async function validateProvider(providerId: string): Promise<boolean> {
     const config = providerCredentials.value[providerId]
@@ -1936,6 +1945,16 @@ export const useProvidersStore = defineStore('providers', () => {
   const isLoadingModels = ref<Record<string, boolean>>({})
   const modelLoadError = ref<Record<string, string | null>>({})
 
+  function deleteProvider(providerId: string) {
+    delete providerCredentials.value[providerId]
+    delete configuredProviders.value[providerId]
+    delete validatedCredentials.value[providerId]
+    delete availableModels.value[providerId]
+    delete isLoadingModels.value[providerId]
+    delete modelLoadError.value[providerId]
+    unmarkProviderAdded(providerId)
+  }
+
   function forceProviderConfigured(providerId: string) {
     configuredProviders.value[providerId] = true
     // Also cache the current config to prevent re-validation from overwriting
@@ -1943,10 +1962,12 @@ export const useProvidersStore = defineStore('providers', () => {
     if (config) {
       validatedCredentials.value[providerId] = JSON.stringify(config)
     }
+    markProviderAdded(providerId)
   }
 
   async function resetProviderSettings() {
     providerCredentials.value = {}
+    addedProviders.value = {}
     configuredProviders.value = {}
     validatedCredentials.value = {}
     availableModels.value = {}
@@ -2135,6 +2156,44 @@ export const useProvidersStore = defineStore('providers', () => {
     return allAudioTranscriptionProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
   })
 
+  function normalizeDefaultOptionsForComparison(providerId: string) {
+    const metadata = providerMetadata[providerId]
+    const defaultOptions = metadata?.defaultOptions?.() || {}
+    return {
+      ...defaultOptions,
+      ...(Object.prototype.hasOwnProperty.call(defaultOptions, 'baseUrl') ? {} : { baseUrl: '' }),
+    }
+  }
+
+  function isProviderConfigChangedFromDefault(providerId: string) {
+    const config = providerCredentials.value[providerId]
+    if (!config)
+      return false
+
+    const defaultOptions = normalizeDefaultOptionsForComparison(providerId)
+    return JSON.stringify(config || {}) !== JSON.stringify(defaultOptions || {})
+  }
+
+  function shouldListProvider(providerId: string) {
+    return !!addedProviders.value[providerId] || isProviderConfigChangedFromDefault(providerId)
+  }
+
+  const persistedProvidersMetadata = computed(() => {
+    return availableProvidersMetadata.value.filter(metadata => shouldListProvider(metadata.id))
+  })
+
+  const persistedChatProvidersMetadata = computed(() => {
+    return persistedProvidersMetadata.value.filter(metadata => metadata.category === 'chat')
+  })
+
+  const persistedSpeechProvidersMetadata = computed(() => {
+    return persistedProvidersMetadata.value.filter(metadata => metadata.category === 'speech')
+  })
+
+  const persistedTranscriptionProvidersMetadata = computed(() => {
+    return persistedProvidersMetadata.value.filter(metadata => metadata.category === 'transcription')
+  })
+
   function getProviderConfig(providerId: string) {
     return providerCredentials.value[providerId]
   }
@@ -2142,6 +2201,10 @@ export const useProvidersStore = defineStore('providers', () => {
   return {
     providers: providerCredentials,
     getProviderConfig,
+    addedProviders,
+    markProviderAdded,
+    unmarkProviderAdded,
+    deleteProvider,
     availableProviders,
     configuredProviders,
     providerMetadata,
@@ -2167,5 +2230,9 @@ export const useProvidersStore = defineStore('providers', () => {
     configuredChatProvidersMetadata,
     configuredSpeechProvidersMetadata,
     configuredTranscriptionProvidersMetadata,
+    persistedProvidersMetadata,
+    persistedChatProvidersMetadata,
+    persistedSpeechProvidersMetadata,
+    persistedTranscriptionProvidersMetadata,
   }
 })

@@ -262,6 +262,9 @@ pages:
             custom_model_placeholder: 輸入自訂模型名稱
             description: 為意識選擇合適的 LLM 服務來源
             error: 取得發生錯誤
+            health_check_failed: 健康檢查失敗
+            no_providers_configured_title: 未設定服務來源
+            no_providers_configured_description: 點擊此處設定你的 LLM 服務來源
             expand: 展開
             loading: 載入模型中...
             manual_model_name: 模型名稱
