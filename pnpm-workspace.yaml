@@ -28,7 +28,7 @@ catalog:
   '@xsai/utils-chat': 0.4.0-beta.5
   posthog-js: 1.306.1
   source-map-explorer: ^2.5.3
-  valibot: ^0.42.1
+  valibot: ^1.0.0
   xsschema: ^0.4.0-beta.10
 
 catalogMode: prefer
