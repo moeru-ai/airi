@@ -2,7 +2,7 @@ import type { Session, User } from 'better-auth'
 
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 
 export const useAuthStore = defineStore('auth', () => {
   const authToken = useLocalStorage('auth/token', '')
