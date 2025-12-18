@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 
 import { useProvidersStore } from '../../../../stores/providers'
 import { Callout } from '../../../layouts'
-import { ErrorContainer } from '../../../misc'
+import { Alert } from '../../../misc'
 import { ProviderAccountIdInput } from '../../../scenarios/providers'
 import { OnboardingContextKey } from './utils'
 
@@ -106,6 +106,18 @@ async function handleNext() {
   }
 }
 
+async function handleContinueAnyway() {
+  if (!context.selectedProvider.value)
+    return
+
+  await context.handleNextStep({
+    apiKey: apiKey.value,
+    baseUrl: baseUrl.value,
+    accountId: accountId.value,
+  })
+  providersStore.forceProviderConfigured(context.selectedProvider.value.id)
+}
+
 // Placeholder helpers
 function getApiKeyPlaceholder(providerId: string): string {
   const placeholders: Record<string, string> = {
@@ -191,11 +203,23 @@ initializeForm()
       </div>
 
       <!-- Validation Status -->
-      <ErrorContainer
-        v-if="validation === 'failed'"
-        :title="t('settings.dialogs.onboarding.validationFailed')"
-        :error="validationError"
-      />
+      <Alert v-if="validation === 'failed'" type="error">
+        <template #title>
+          <div class="w-full flex items-center justify-between">
+            <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
+            <button
+              type="button"
+              class="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs text-red-600 font-medium transition-colors dark:bg-red-800/30 hover:bg-red-200 dark:text-red-300 dark:hover:bg-red-700/40"
+              @click="handleContinueAnyway"
+            >
+              {{ t('settings.pages.providers.common.continueAnyway') }}
+            </button>
+          </div>
+        </template>
+        <template v-if="validationError" #content>
+          <pre class="whitespace-pre-wrap break-all">{{ String(validationError) }}</pre>
+        </template>
+      </Alert>
     </div>
 
     <!-- Action Buttons -->
