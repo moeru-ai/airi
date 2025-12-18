@@ -57,6 +57,9 @@ catalogs:
     '@xsai/utils-chat':
       specifier: 0.4.0-beta.5
       version: 0.4.0-beta.5
+    electron-updater:
+      specifier: ^6.6.2
+      version: 6.6.2
     posthog-js:
       specifier: 1.306.1
       version: 1.306.1
@@ -272,6 +275,39 @@ importers:
       '@electron-toolkit/utils':
         specifier: ^4.0.0
         version: 4.0.0(electron@39.2.7)
+      '@fontsource-variable/comfortaa':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource-variable/dm-sans':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource-variable/jura':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource-variable/quicksand':
+        specifier: ^5.2.10
+        version: 5.2.10
+      '@fontsource-variable/urbanist':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource/dm-mono':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource/dm-serif-display':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/gugi':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource/kiwi-maru':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/m-plus-rounded-1c':
+        specifier: ^5.2.9
+        version: 5.2.9
+      '@fontsource/sniglet':
+        specifier: ^5.2.8
+        version: 5.2.8
       '@formkit/auto-animate':
         specifier: ^0.9.0
         version: 0.9.0
@@ -410,6 +446,9 @@ importers:
       electron-click-drag-plugin:
         specifier: ^2.0.2
         version: 2.0.2
+      electron-updater:
+        specifier: 'catalog:'
+        version: 6.6.2
       es-toolkit:
         specifier: ^1.43.0
         version: 1.43.0
@@ -510,36 +549,6 @@ importers:
       '@electron-toolkit/tsconfig':
         specifier: ^2.0.0
         version: 2.0.0(@types/node@24.10.4)
-      '@fontsource-variable/dm-sans':
-        specifier: ^5.2.8
-        version: 5.2.8
-      '@fontsource-variable/jura':
-        specifier: ^5.2.7
-        version: 5.2.7
-      '@fontsource-variable/quicksand':
-        specifier: ^5.2.10
-        version: 5.2.10
-      '@fontsource-variable/urbanist':
-        specifier: ^5.2.7
-        version: 5.2.7
-      '@fontsource/dm-mono':
-        specifier: ^5.2.7
-        version: 5.2.7
-      '@fontsource/dm-serif-display':
-        specifier: ^5.2.8
-        version: 5.2.8
-      '@fontsource/gugi':
-        specifier: ^5.2.7
-        version: 5.2.7
-      '@fontsource/kiwi-maru':
-        specifier: ^5.2.8
-        version: 5.2.8
-      '@fontsource/m-plus-rounded-1c':
-        specifier: ^5.2.9
-        version: 5.2.9
-      '@fontsource/sniglet':
-        specifier: ^5.2.8
-        version: 5.2.8
       '@iconify-json/carbon':
         specifier: ^1.2.15
         version: 1.2.15
@@ -1036,9 +1045,6 @@ importers:
       '@fontsource/dm-serif-display':
         specifier: ^5.2.8
         version: 5.2.8
-      '@fontsource/quicksand':
-        specifier: ^5.2.10
-        version: 5.2.10
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.13
@@ -2033,7 +2039,7 @@ importers:
         version: 66.5.10
       '@wxt-dev/module-vue':
         specifier: ^1.0.3
-        version: 1.0.3(vite@7.2.7(@types/node@24.10.4)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.11(@types/node@24.10.4)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(rollup@4.53.3)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+        version: 1.0.3(vite@8.0.0-beta.1(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.4.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.11(@types/node@24.10.4)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(rollup@4.53.3)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       vue-tsc:
         specifier: ^3.1.8
         version: 3.1.8(typescript@5.9.3)
@@ -4260,9 +4266,6 @@ packages:
 
   '@fontsource/m-plus-rounded-1c@5.2.9':
     resolution: {integrity: sha512-zvgI9lzoZNtRxD3JKcECfPJDRGJfNpFEsWBkGQkBEOKM0pArTmjTwsTPCz3UttNX6EvQyYlSqklhXnLt056cAA==}
-
-  '@fontsource/quicksand@5.2.10':
-    resolution: {integrity: sha512-rck0ccT6vJF9RnbSW2ON1grq5qFZvjVOGvYIUixATXF8mNh4KglD+8Sn8QpRgKQBSBJF5yOR3SBYBWPg/Y8YbQ==}
 
   '@fontsource/sniglet@5.2.8':
     resolution: {integrity: sha512-K2ESFqkw2AxBCu5Ar//ixp5el8lEcdmk8uDWj0jT1uiC82RFjQXq+PFvAA64Nd2TpHygafH7lY9K9493dzPXqw==}
@@ -8809,6 +8812,10 @@ packages:
     resolution: {integrity: sha512-6p/gfG1RJSQeIbz8TK5aPNkoztgY1q5TgmGFMAXcY8itsGW6Y2ld1ALsZ5UJn8rog7hKF3zHx5iQbNQ8uLcRlw==}
     engines: {node: '>=12.0.0'}
 
+  builder-util-runtime@9.3.1:
+    resolution: {integrity: sha512-2/egrNDDnRaxVwK3A+cJq6UOlqOdedGA7JPqCeJjN2Zjk1/QB/6QUi3b714ScIGS7HafFXTyzJEOr5b44I3kvQ==}
+    engines: {node: '>=12.0.0'}
+
   builder-util-runtime@9.5.1:
     resolution: {integrity: sha512-qt41tMfgHTllhResqM5DcnHyDIWNgzHvuY2jDcYP9iaGpkWxTUzV6GQjDeLnlR1/DtdlcsWQbA7sByMpmJFTLQ==}
     engines: {node: '>=12.0.0'}
@@ -9821,6 +9828,9 @@ packages:
 
   electron-to-chromium@1.5.267:
     resolution: {integrity: sha512-0Drusm6MVRXSOJpGbaSVgcQsuB4hEkMpHXaVstcPmhu5LIedxs1xNK/nIxmQIU/RPC0+1/o0AVZfBTkTNJOdUw==}
+
+  electron-updater@6.6.2:
+    resolution: {integrity: sha512-Cr4GDOkbAUqRHP5/oeOmH/L2Bn6+FQPxVLZtPbcmKZC63a1F3uu5EefYOssgZXG3u/zBlubbJ5PJdITdMVggbw==}
 
   electron-vite@5.0.0:
     resolution: {integrity: sha512-OHp/vjdlubNlhNkPkL/+3JD34ii5ov7M0GpuXEVdQeqdQ3ulvVR7Dg/rNBLfS5XPIFwgoBLDf9sjjrL+CuDyRQ==}
@@ -11844,6 +11854,9 @@ packages:
   lodash.difference@4.5.0:
     resolution: {integrity: sha512-dS2j+W26TQ7taQBGN8Lbbq04ssV3emRw4NY58WErlTO29pIqS0HmoT5aJ9+TUQ1N3G+JOZSji4eugsWwGp9yPA==}
 
+  lodash.escaperegexp@4.1.2:
+    resolution: {integrity: sha512-TM9YBvyC84ZxE3rgfefxUWiQKLilstD6k7PTGt6wfbtXF8ixIJLOL3VYyV/z+ZiPLsVxAsKAFVwWlWeb2Y8Yyw==}
+
   lodash.flatten@4.4.0:
     resolution: {integrity: sha512-C5N2Z3DgnnKr0LOpv/hKCgKdb7ZZwafIrsesve6lmzvZIRZRGaZ/l6Q8+2W7NaT+ZwO3fFlSCzCzrDCFdJfZ4g==}
 
@@ -11859,6 +11872,10 @@ packages:
 
   lodash.isboolean@3.0.3:
     resolution: {integrity: sha512-Bz5mupy2SVbPHURB98VAcw+aHh4vRV5IPNhILUCsOzRmsTmSQ17jIuqopAentWoehktxGd9e/hbIXq980/1QJg==}
+
+  lodash.isequal@4.5.0:
+    resolution: {integrity: sha512-pDo3lu8Jhfjqls6GkMgpahsF9kCyayhgykjyLMNFTKWrpVdAQtYyB4muAMWozBB4ig/dtWAmsMxLEI8wuz+DYQ==}
+    deprecated: This package is deprecated. Use require('node:util').isDeepStrictEqual instead.
 
   lodash.isinteger@4.0.4:
     resolution: {integrity: sha512-DBwtEWN2caHQ9/imiNeEA5ys1JoRtRfY3d7V9wkqtbycnAmTvRRmbHKDV4a0EYc678/dia0jrte4tjYwVBaZUA==}
@@ -14710,6 +14727,9 @@ packages:
 
   tiny-invariant@1.3.3:
     resolution: {integrity: sha512-+FbBPE1o9QAYvviau/qC5SE3caw21q3xkvWKBtja5vgqOWIHHJ3ioaq1VPfn/Szqctz2bU/oYeKd9/z5BL+PVg==}
+
+  tiny-typed-emitter@2.1.0:
+    resolution: {integrity: sha512-qVtvMxeXbVej0cQWKqVSSAHmKZEHAvxdF8HEUBFWts8h+xEo5m/lEiPakuyZ3BnCBjOD8i24kzNOiOLLgsSxhA==}
 
   tinybench@2.9.0:
     resolution: {integrity: sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==}
@@ -18333,8 +18353,6 @@ snapshots:
   '@fontsource/kiwi-maru@5.2.8': {}
 
   '@fontsource/m-plus-rounded-1c@5.2.9': {}
-
-  '@fontsource/quicksand@5.2.10': {}
 
   '@fontsource/sniglet@5.2.8': {}
 
@@ -22426,6 +22444,12 @@ snapshots:
       vite: 7.2.7(@types/node@24.10.4)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
       vue: 3.5.25(typescript@5.9.3)
 
+  '@vitejs/plugin-vue@6.0.3(vite@8.0.0-beta.1(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.4.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))':
+    dependencies:
+      '@rolldown/pluginutils': 1.0.0-beta.53
+      vite: 8.0.0-beta.1(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.4.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vue: 3.5.25(typescript@5.9.3)
+
   '@vitest/coverage-v8@4.0.15(vitest@4.0.15(@opentelemetry/api@1.9.0)(@types/node@24.10.4)(jiti@2.6.1)(jsdom@25.0.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(less@4.4.2)(lightningcss@1.30.2)(msw@2.7.3(@types/node@24.10.4)(typescript@5.9.3))(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
       '@bcoe/v8-coverage': 1.0.2
@@ -23216,9 +23240,9 @@ snapshots:
       '@types/filesystem': 0.0.36
       '@types/har-format': 1.2.16
 
-  '@wxt-dev/module-vue@1.0.3(vite@7.2.7(@types/node@24.10.4)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.11(@types/node@24.10.4)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(rollup@4.53.3)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
+  '@wxt-dev/module-vue@1.0.3(vite@8.0.0-beta.1(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.4.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.11(@types/node@24.10.4)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(rollup@4.53.3)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
-      '@vitejs/plugin-vue': 6.0.3(vite@7.2.7(@types/node@24.10.4)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
+      '@vitejs/plugin-vue': 6.0.3(vite@8.0.0-beta.1(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.4.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
       wxt: 0.20.11(@types/node@24.10.4)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(rollup@4.53.3)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - vite
@@ -24000,6 +24024,13 @@ snapshots:
       node-gyp-build: 4.8.4
 
   builder-util-runtime@9.2.10:
+    dependencies:
+      debug: 4.4.3
+      sax: 1.4.3
+    transitivePeerDependencies:
+      - supports-color
+
+  builder-util-runtime@9.3.1:
     dependencies:
       debug: 4.4.3
       sax: 1.4.3
@@ -25067,6 +25098,19 @@ snapshots:
       - supports-color
 
   electron-to-chromium@1.5.267: {}
+
+  electron-updater@6.6.2:
+    dependencies:
+      builder-util-runtime: 9.3.1
+      fs-extra: 10.1.0
+      js-yaml: 4.1.1
+      lazy-val: 1.0.5
+      lodash.escaperegexp: 4.1.2
+      lodash.isequal: 4.5.0
+      semver: 7.7.3
+      tiny-typed-emitter: 2.1.0
+    transitivePeerDependencies:
+      - supports-color
 
   electron-vite@5.0.0(rolldown-vite@7.2.11(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.4.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)):
     dependencies:
@@ -27627,6 +27671,8 @@ snapshots:
 
   lodash.difference@4.5.0: {}
 
+  lodash.escaperegexp@4.1.2: {}
+
   lodash.flatten@4.4.0: {}
 
   lodash.get@4.4.2: {}
@@ -27637,6 +27683,8 @@ snapshots:
     optional: true
 
   lodash.isboolean@3.0.3: {}
+
+  lodash.isequal@4.5.0: {}
 
   lodash.isinteger@4.0.4: {}
 
@@ -31808,6 +31856,8 @@ snapshots:
 
   tiny-invariant@1.3.3:
     optional: true
+
+  tiny-typed-emitter@2.1.0: {}
 
   tinybench@2.9.0: {}
 

@@ -17,7 +17,6 @@
     "@fontsource-variable/quicksand": "^5.2.10",
     "@fontsource/dm-mono": "^5.2.7",
     "@fontsource/dm-serif-display": "^5.2.8",
-    "@fontsource/quicksand": "^5.2.10",
     "@moeru/std": "catalog:",
     "@proj-airi/chromatic": "^1.0.2",
     "@proj-airi/i18n": "workspace:^",

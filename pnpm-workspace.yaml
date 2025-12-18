@@ -39,6 +39,7 @@ catalog:
   '@xsai/stream-text': ^0.4.0-beta.10
   '@xsai/tool': ^0.4.0-beta.10
   '@xsai/utils-chat': 0.4.0-beta.5
+  electron-updater: ^6.6.2
   posthog-js: 1.306.1
   xsschema: ^0.4.0-beta.10
 
