@@ -95,7 +95,7 @@ const hasBuildInfo = computed(() => {
             'lg:px-5 lg:py-3',
             'outline-none',
             'backdrop-blur-md',
-            'active:scale-95',
+            'active:scale-98',
             'focus:outline-none',
             'text-nowrap',
             'text-sm md:text-base',
