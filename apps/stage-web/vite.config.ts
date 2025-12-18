@@ -72,17 +72,7 @@ export default defineConfig({
     target: 'esnext',
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes('vue') || id.includes('@vueuse/core')) {
-            return 'vue-vendor'
-          }
-          if (id.includes('three') || id.includes('@tresjs')) {
-            return 'three-vendor'
-          }
-          if (id.includes('drizzle') || id.includes('localforage')) {
-            return 'db-vendor'
-          }
-        },
+        // manualChunks removed per review
       },
     },
   },

@@ -5,9 +5,7 @@ import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Props & Emits
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 const props = defineProps<{
   open: boolean
@@ -57,9 +55,7 @@ const renderedEntries = computed(() => {
   }))
 })
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Actions
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 async function handleGenerate() {
   if (generating.value) return

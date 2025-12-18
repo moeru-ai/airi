@@ -53,7 +53,6 @@ const emit = defineEmits<{
 
 const sceneContainerRef = ref<HTMLDivElement>()
 const { width, height } = useElementBounding(sceneContainerRef)
-const { capabilities, optimalSettings } = useGPUDetect()
 const modelStore = useModelStore()
 const {
   lastModelSrc,
@@ -89,8 +88,6 @@ const {
 } = storeToRefs(modelStore)
 
 
-const optimizedDPR = computed(() => optimalSettings.value.pixelRatio)
-const enablePostProcessing = computed(() => optimalSettings.value.postProcessing)
 
 const modelRef = ref<InstanceType<typeof VRMModel>>()
 
@@ -285,14 +282,10 @@ defineExpose({
     <TresCanvas
       v-show="true"
       :camera="camera"
-      :antialias="optimalSettings.antialias"
-      :width="width"
-      :height="height"
-      :dpr="optimizedDPR"
-      :tone-mapping="ACESFilmicToneMapping"
-      :tone-mapping-exposure="1"
-      :clear-alpha="0"
-      power-preference="high-performance"
+      v-bind="gl"
+      :dpr="[1, 2]"
+      :antialias="true"
+      preset="realistic"
       @ready="onTresReady"
     >
       <OrbitControls
@@ -335,10 +328,10 @@ defineExpose({
         cast-shadow
         @ready="onDirLightReady"
       />
-      <Suspense v-if="enablePostProcessing">
-        <EffectComposerPmndrs>
-          <HueSaturationPmndrs v-bind="effectProps" />
-        </EffectComposerPmndrs>
+      <Suspense>
+        <EffectComposer :depth-buffer="true">
+          <Bloom :mipmap-blur="true" :radius="0.6" :luminance-threshold="1.0" :intensity="0.5" />
+        </EffectComposer>
       </Suspense>
       <VRMModel
         ref="modelRef"

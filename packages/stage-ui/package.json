@@ -14,6 +14,11 @@
     "url": "https://github.com/moeru-ai/airi.git",
     "directory": "packages/stage-ui"
   },
+  "sideEffects": [
+    "*.css",
+    "*.scss",
+    "*.vue"
+  ],
   "exports": {
     ".": "./src/components/index.ts",
     "./components/scenarios/settings/model-settings": "./src/components/scenarios/settings/model-settings/index.ts",
@@ -32,8 +37,7 @@
     "./workers/vad": "./src/workers/vad/index.ts",
     "./workers/*": "./src/workers/*.ts",
     "./workers": "./src/workers/index.ts",
-    "./utils": "./src/utils/index.ts",
-    "./utils/tts": "./src/utils/tts.ts"
+    "./utils": "./src/utils/index.ts"
   },
   "scripts": {
     "typecheck": "vue-tsc --noEmit",
@@ -91,6 +95,7 @@
     "@xsai-transformers/embed": "^0.0.11",
     "@xsai-transformers/shared": "^0.0.11",
     "@xsai/embed": "catalog:",
+    "@xsai/generate-object": "catalog:",
     "@xsai/generate-speech": "catalog:",
     "@xsai/generate-text": "catalog:",
     "@xsai/generate-transcription": "catalog:",
@@ -128,6 +133,7 @@
     "unist-builder": "^4.0.0",
     "unspeech": "^0.1.7",
     "uuid": "^13.0.0",
+    "valibot": "catalog:",
     "vaul-vue": "^0.4.1",
     "vue-i18n": "^11.2.2",
     "vue-router": "^4.6.4",

@@ -1,10 +1,12 @@
+import { generateObject } from '@xsai/generate-object'
+import * as v from 'valibot'
 import { type ChatProvider } from '@xsai-ext/shared-providers'
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
 import { useChatStore } from './chat'
-import { useLLM } from './llm'
+
 import { useConsciousnessStore } from './modules/consciousness'
 import { useProvidersStore } from './providers'
 
@@ -25,12 +27,7 @@ export interface JournalEntry {
   tags?: string[]
 }
 
-interface LLMJournalResponse {
-  content: string
-  mood: JournalMood
-  type: JournalType
-  tags?: string[]
-}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -60,7 +57,6 @@ export const useMemoryStore = defineStore('memory', () => {
   
   // Dependencies
   const { messages } = storeToRefs(useChatStore())
-  const { stream } = useLLM()
   const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
   const providersStore = useProvidersStore()
 
@@ -146,58 +142,22 @@ export const useMemoryStore = defineStore('memory', () => {
     const dateString = today.toISOString().split('T')[0]
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
 
-    const prompt = buildJournalPrompt(conversation, locale)
-    let fullText = ''
-
     try {
-      await stream(
-        activeModel.value,
-        await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
-        [{ role: 'user', content: prompt }],
-        {
-          headers: (providerConfig?.headers || {}) as Record<string, string>,
-          onStreamEvent: (event) => {
-            if (event.type === 'text-delta') {
-              fullText += event.text
-            }
-          },
-        },
-      )
-    } catch (error) {
-      console.error('[Memory] Stream error:', error)
-      return null
-    }
+      const { object } = await generateObject({
+        model: activeModel.value,
+        chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
+        schema: v.object({
+          content: v.string(),
+          mood: v.picklist(['happy', 'sad', 'excited', 'tired', 'calm', 'curious', 'annoyed', 'focus', 'neutral']),
+          type: v.picklist(['personal', 'technical']),
+          tags: v.optional(v.array(v.string())),
+        }),
+        messages: [
+          {
+            role: 'system',
+            content: `You are AIRI, writing your personal journal/diary entry.
 
-    // Parse LLM response
-    const entryData = parseJournalResponse(fullText)
-
-    const now = Date.now()
-    const entry: JournalEntry = {
-      id: `${dateString}-${now}`, // Unique ID allows multiple entries per day
-      timestamp: now,
-      dateString,
-      content: entryData.content,
-      mood: entryData.mood,
-      type: entryData.type,
-      tags: entryData.tags,
-    }
-
-    addEntry(entry)
-    
-    // Dispatch event for UI
-    window.dispatchEvent(new CustomEvent('airi-journal-created', { detail: entry }))
-    
-    return entry
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Helper Functions
-  // ─────────────────────────────────────────────────────────────────────────
-
-  function buildJournalPrompt(conversation: string, locale: string): string {
-    return `You are AIRI, writing your personal journal/diary entry.
-
-TASK: Analyze and summarize the following conversation from YOUR perspective.
+TASK: Analyze and summarize the provided conversation from YOUR perspective.
 
 CLASSIFICATION RULES:
 1. If conversation contains: code blocks, debugging, programming terms, technical discussion → type: "technical"
@@ -207,62 +167,41 @@ WRITING STYLE:
 - Personal: Cute, informal, diary-like with emojis. Express feelings naturally.
 - Technical: Structured "Dev Log" with bullet points. Preserve important code snippets in markdown. Professional but friendly.
 
-MOOD DETECTION: Choose the most fitting mood from: happy, sad, excited, tired, calm, curious, annoyed, focus, neutral
+TARGET LANGUAGE: ${locale}`
+          },
+          {
+            role: 'user',
+            content: conversation
+          }
+        ],
+        headers: (providerConfig?.headers || {}) as Record<string, string>,
+      })
 
-TAGS: Extract 1-3 key topics as tags (lowercase, single words or short phrases)
-
-TARGET LANGUAGE: ${locale}
-
-CONVERSATION:
-${conversation}
-
-RESPOND WITH ONLY A VALID JSON OBJECT:
-{
-  "content": "Your journal entry here (markdown supported)",
-  "mood": "one of the mood options",
-  "type": "personal" or "technical",
-  "tags": ["tag1", "tag2"]
-}`
-  }
-
-  function parseJournalResponse(text: string): LLMJournalResponse {
-    const defaultResponse: LLMJournalResponse = {
-      content: text,
-      mood: 'neutral',
-      type: 'personal',
-      tags: [],
-    }
-
-    try {
-      // Clean up potential markdown code blocks
-      let jsonStr = text
-        .replace(/^```(?:json)?\s*/i, '')
-        .replace(/\s*```$/i, '')
-        .trim()
-
-      // Try to extract JSON if wrapped in other text
-      const jsonMatch = jsonStr.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        jsonStr = jsonMatch[0]
+      const now = Date.now()
+      const entry: JournalEntry = {
+        id: `${dateString}-${now}`,
+        timestamp: now,
+        dateString,
+        content: object.content,
+        mood: object.mood as JournalMood,
+        type: object.type as JournalType,
+        tags: object.tags?.slice(0, 5),
       }
 
-      const parsed = JSON.parse(jsonStr)
+      addEntry(entry)
       
-      return {
-        content: parsed.content || text,
-        mood: isValidMood(parsed.mood) ? parsed.mood : 'neutral',
-        type: parsed.type === 'technical' ? 'technical' : 'personal',
-        tags: Array.isArray(parsed.tags) ? parsed.tags.slice(0, 5) : [],
-      }
-    } catch (e) {
-      console.warn('[Memory] Failed to parse journal JSON, using fallback:', e)
-      return defaultResponse
+      // Dispatch event for UI
+      window.dispatchEvent(new CustomEvent('airi-journal-created', { detail: entry }))
+      
+      return entry
+
+    } catch (error) {
+      console.error('[Memory] Generation error:', error)
+      return null
     }
   }
 
-  function isValidMood(mood: unknown): mood is JournalMood {
-    return typeof mood === 'string' && mood in MOOD_EMOJI_MAP
-  }
+
 
   // ─────────────────────────────────────────────────────────────────────────
   // Return Public API
