@@ -111,7 +111,7 @@
     "@proj-airi/unplugin-live2d-sdk": "^0.1.6",
     "@proj-airi/vite-plugin-warpdrive": "workspace:*",
     "@shikijs/markdown-it": "^3.20.0",
-    "@types/audioworklet": "^0.0.92",
+    "@types/audioworklet": "catalog:",
     "@types/culori": "^4.0.1",
     "@types/nprogress": "^0.2.3",
     "@types/three": "^0.182.0",

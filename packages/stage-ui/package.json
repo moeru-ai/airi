@@ -160,7 +160,7 @@
     "@moeru/std": "catalog:",
     "@proj-airi/lobe-icons": "^1.0.16",
     "@proj-airi/vite-plugin-warpdrive": "workspace:*",
-    "@types/audioworklet": "^0.0.92",
+    "@types/audioworklet": "catalog:",
     "@types/culori": "^4.0.1",
     "@types/three": "^0.182.0",
     "@unocss/reset": "^66.5.10",
