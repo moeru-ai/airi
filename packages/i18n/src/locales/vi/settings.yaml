@@ -24,6 +24,7 @@ dialogs:
     skipForNow: Bỏ qua
     saveAndContinue: Lưu và tiếp tục
     next: Tiếp
+    retry: Thử lại
     start: Bắt đầu thôi!
     select-model: Chọn mô hình
     no-models: Không có mô hình khả dụng

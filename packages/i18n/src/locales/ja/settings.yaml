@@ -24,6 +24,7 @@ dialogs:
     skipForNow: 今はスキップ
     saveAndContinue: 保存して続行
     next: 次へ
+    retry: 再試行
     start: 始めましょう！
     select-model: モデルを選択
     no-models: 利用可能なモデルがありません

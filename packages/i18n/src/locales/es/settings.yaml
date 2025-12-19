@@ -24,6 +24,7 @@ dialogs:
     skipForNow: Omitir por ahora
     saveAndContinue: Guardar y Continuar
     next: Siguiente
+    retry: Reintentar
     start: '¡Hagámoslo!'
     select-model: Elegir modelo
     no-models: No available models

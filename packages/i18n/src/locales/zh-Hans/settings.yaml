@@ -24,6 +24,7 @@ dialogs:
     skipForNow: 暂时跳过
     saveAndContinue: 保存并继续
     next: 下一步
+    retry: 重试
     start: 开始吧！
     select-model: 选择模型
     no-models: 找不到可用模型

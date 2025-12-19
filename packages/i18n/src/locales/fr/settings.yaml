@@ -26,6 +26,7 @@ dialogs:
     next: Suivant
     start: Commençons !
     select-model: Choisissez un modèle
+    retry: Réessayer
     no-models: Pas de modèle disponible
     no-models-help: >-
       Veuillez revenir à l’étape précédente et vérifier votre clé API, ou bien vérifier la connexion réseau.
