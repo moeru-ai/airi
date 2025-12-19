@@ -39,6 +39,13 @@ function initializeForm() {
 // Watch for provider changes
 watch(() => context.selectedProvider.value?.id, initializeForm)
 
+watch([apiKey, baseUrl, accountId], () => {
+  if (validation.value === 'failed' || validation.value === 'succeed') {
+    validation.value = 'unchecked'
+    validationError.value = undefined
+  }
+})
+
 // Computed properties
 const needsApiKey = computed(() => {
   if (!context.selectedProvider.value)
@@ -59,7 +66,13 @@ const canProceed = computed(() => {
   if (needsApiKey.value && !apiKey.value.trim())
     return false
 
-  return validation.value === 'unchecked' || validation.value === 'succeed'
+  return validation.value !== 'pending'
+})
+
+const primaryActionLabel = computed(() => {
+  return validation.value === 'failed'
+    ? t('settings.dialogs.onboarding.retry')
+    : t('settings.dialogs.onboarding.next')
 })
 
 async function validateConfiguration() {
@@ -67,6 +80,7 @@ async function validateConfiguration() {
     return
 
   validation.value = 'pending'
+  validationError.value = undefined
 
   try {
     // Prepare config object
@@ -97,7 +111,7 @@ async function validateConfiguration() {
 
 async function handleNext() {
   await validateConfiguration()
-  if (validation.value !== 'failed') {
+  if (validation.value === 'succeed') {
     await context.handleNextStep({
       apiKey: apiKey.value,
       baseUrl: baseUrl.value,
@@ -224,7 +238,7 @@ initializeForm()
 
     <!-- Action Buttons -->
     <Button
-      :label="t('settings.dialogs.onboarding.next')"
+      :label="primaryActionLabel"
       :loading="validation === 'pending'"
       :disabled="!canProceed"
       @click="handleNext"
