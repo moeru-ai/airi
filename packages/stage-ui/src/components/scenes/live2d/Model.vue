@@ -76,6 +76,8 @@ const modelLoading = ref(false)
 // NOTICE: boolean is sufficient; this flag is only used inside loadModel to bail out if the component unmounts mid-load.
 let isUnmounted = false
 
+const currentLoadRequestId = ref(0)
+
 const offset = computed(() => parsePropsOffset())
 
 const pixiApp = toRef(() => props.app)
@@ -156,7 +158,11 @@ live2dStore.onShouldUpdateView(() => {
 })
 
 async function loadModel() {
+  const requestId = ++currentLoadRequestId.value
   await until(modelLoading).not.toBeTruthy()
+
+  if (requestId !== currentLoadRequestId.value)
+    return
 
   modelLoading.value = true
   componentState.value = 'loading'
