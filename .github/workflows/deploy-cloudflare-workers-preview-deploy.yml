@@ -60,7 +60,7 @@ jobs:
 
             | Name                    | Link                                                                                   |
             |:------------------------|:---------------------------------------------------------------------------------------|
-            | 🔭 Waiting for approval | For maintainers, approve [here](https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow.id }})
+            | 🔭 Waiting for approval | For maintainers, approve [here](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
             Hey, @nekomeowww, @sumimakito, @luoling8192, @LemonNekoGH, kindly take some time to review and approve this deployment when you are available. Thank you! 🙏
 
@@ -229,6 +229,6 @@ jobs:
 
             | Name                    | Link                                                                                        |
             |:------------------------|:--------------------------------------------------------------------------------------------|
-            | 🔍 Latest deploy log    | https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow.id }} |
+            | 🔍 Latest deploy log    | https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} |
             | 😎 Deploy Preview       | ${{ steps.preview-urls.outputs.deploy_preview_url }}                                         |
             | 🚀 Pull Request Preview | ${{ steps.preview-urls.outputs.pull_request_preview_url }}                                   |
