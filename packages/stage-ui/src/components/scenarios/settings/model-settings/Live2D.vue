@@ -64,6 +64,25 @@ onMounted(() => {
   document.addEventListener('click', handleClickOutside)
 })
 
+function handleMotionShuffle() {
+  selectedRuntimeMotion.value = 'Shuffle All'
+  selectedRuntimeMotionName.value = 'Shuffle All'
+  localStorage.setItem('selected-runtime-motion', 'Shuffle All')
+  localStorage.setItem('selected-runtime-motion-name', 'Shuffle All')
+  localStorage.setItem('selected-runtime-motion-group', 'Idle')
+  localStorage.removeItem('selected-runtime-motion-index')
+
+  // Enable idle animation
+  live2dIdleAnimationEnabled.value = true
+
+  // Set the current motion to shuffle (no index)
+  currentMotion.value = { group: 'Idle' }
+
+  showMotionSelector.value = false
+
+  console.info('✅ Selected shuffle mode')
+}
+
 // Function to reset all parameters to default values
 function resetToDefaultParameters() {
   modelParameters.value = { ...defaultModelParameters }
@@ -487,6 +506,22 @@ onUnmounted(() => {
           <div v-if="runtimeMotions.length === 0" p-4 text-sm text-neutral-500 dark:text-neutral-400>
             No motions available
           </div>
+          <button
+            w-full px-4 py-2.5 text-left
+            hover:bg="neutral-100 dark:neutral-700"
+            transition-colors
+            :class="{
+              'bg-neutral-100 dark:bg-neutral-700': selectedRuntimeMotion === 'Shuffle All',
+            }"
+            @click="handleMotionShuffle"
+          >
+            <div text-sm text-neutral-900 font-medium dark:text-neutral-100>
+              Shuffle All (Idle)
+            </div>
+            <div truncate text-xs text-neutral-500 dark:text-neutral-400>
+              Randomly play motions from the Idle group
+            </div>
+          </button>
           <button
             v-for="motion in runtimeMotions"
             :key="motion.fullPath"

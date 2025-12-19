@@ -231,11 +231,11 @@ async function loadModel() {
 
     const internalModel = model.value.internalModel
     const coreModel = internalModel.coreModel
-    const motionManager = internalModel.motionManager
+    const motionManager = internalModel.motionManager as any
     coreModel.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
 
     availableMotions.value = Object
-      .entries(motionManager.definitions)
+      .entries(motionManager.definitions as Record<string, any[]>)
       .flatMap(([motionName, definition]) => (definition?.map((motion: any, index: number) => ({
         motionName,
         motionIndex: index,
@@ -261,12 +261,12 @@ async function loadModel() {
       }
     }
 
-    if (selectedMotionGroup && selectedMotionIndex && live2dIdleAnimationEnabled.value) {
+    if (selectedMotionGroup && live2dIdleAnimationEnabled.value) {
       setTimeout(() => {
         console.info('Playing selected runtime motion:', selectedMotionGroup, selectedMotionIndex)
         currentMotion.value = {
           group: selectedMotionGroup,
-          index: Number.parseInt(selectedMotionIndex),
+          index: selectedMotionIndex ? Number.parseInt(selectedMotionIndex) : undefined,
         }
       }, 300)
     }
@@ -274,8 +274,10 @@ async function loadModel() {
     // Remove eye ball movements from idle motion group to prevent conflicts
     // This is too hacky
     // FIXME: it cannot blink if loading a model only have idle motion
-    if (motionManager.groups.idle) {
-      motionManager.motionGroups[motionManager.groups.idle]?.forEach((motion) => {
+    const idleGroupName = motionManager.groups.idle ? 'idle' : (motionManager.groups.Idle ? 'Idle' : undefined)
+    if (idleGroupName) {
+      motionManager.idleMotionGroup = idleGroupName
+      motionManager.motionGroups[motionManager.groups[idleGroupName]]?.forEach((motion: any) => {
         motion._motionData.curves.forEach((curve: any) => {
         // TODO: After emotion mapper, stage editor, eye related parameters should be take cared to be dynamical instead of hardcoding
           if (curve.id === 'ParamEyeBallX' || curve.id === 'ParamEyeBallY') {
@@ -304,7 +306,7 @@ async function loadModel() {
       return motionManagerUpdate.hookUpdate(model, now, hookedUpdate)
     }
 
-    motionManager.on('motionStart', (group, index) => {
+    motionManager.on('motionStart', (group: string, index: number) => {
       localCurrentMotion.value = { group, index }
     })
 
@@ -313,14 +315,14 @@ async function loadModel() {
       const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
       const selectedMotionIndex = localStorage.getItem('selected-runtime-motion-index')
 
-      if (selectedMotionGroup && selectedMotionIndex && live2dIdleAnimationEnabled.value) {
+      if (selectedMotionGroup && live2dIdleAnimationEnabled.value) {
         // Restart the selected runtime motion immediately for seamless looping
         console.info('Motion finished, restarting runtime motion:', selectedMotionGroup, selectedMotionIndex)
         // Use requestAnimationFrame to restart on the next frame for smooth transition
         requestAnimationFrame(() => {
           currentMotion.value = {
             group: selectedMotionGroup,
-            index: Number.parseInt(selectedMotionIndex),
+            index: selectedMotionIndex ? Number.parseInt(selectedMotionIndex) : undefined,
           }
         })
       }
