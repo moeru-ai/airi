@@ -20,7 +20,9 @@ let _broadcastChannel: BroadcastChannel | undefined
 function getBroadcastChannel() {
   if (!_broadcastChannel) {
     _broadcastChannel = new BroadcastChannel('airi::beat-sync')
-    _broadcastChannel.onmessage = (event) => {
+    _broadcastChannel.onmessage = () => {
+      // TODO: do we need to handle this?
+      // REVIEW(nekomeowww): do we need to handle this?
     }
   }
   return _broadcastChannel
