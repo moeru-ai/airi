@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Button, TransitionVertical } from '@proj-airi/ui'
+import { Button, Checkbox, TransitionVertical } from '@proj-airi/ui'
 import { refDebounced, useDark, useMouseInElement } from '@vueuse/core'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -10,6 +10,7 @@ import VideoTutorialFadeOnHoverLight from '../../assets/videos/tutorial/tutorial
 
 import { noticeWindowEventa } from '../../../shared/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke } from '../../composables/electron-vueuse'
+import { useControlsIslandStore } from '../../stores/controls-island'
 
 const context = useElectronEventaContext()
 const sendAction = useElectronEventaInvoke(noticeWindowEventa.windowAction, context.value)
@@ -17,6 +18,9 @@ const notifyMounted = useElectronEventaInvoke(noticeWindowEventa.pageMounted, co
 const notifyUnmounted = useElectronEventaInvoke(noticeWindowEventa.pageUnmounted, context.value)
 const route = useRoute()
 const { t } = useI18n()
+
+const controlsIslandStore = useControlsIslandStore()
+const dontShowAgain = ref<boolean>(controlsIslandStore.fadeOnHoverNoticeDontShowAgain)
 
 const descriptionContainerRef = ref<HTMLDivElement>()
 const { isOutside } = useMouseInElement(descriptionContainerRef)
@@ -61,6 +65,8 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
   }
 
   try {
+    if (action === 'confirm')
+      controlsIslandStore.fadeOnHoverNoticeDontShowAgain = dontShowAgain.value
     await sendAction({ id, action })
   }
   catch (error) {
@@ -195,6 +201,12 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
                       :loading="waitingForRequest"
                       @click="handleAction('confirm')"
                     />
+                    <div class="flex items-center gap-2 whitespace-nowrap px-2">
+                      <Checkbox v-model="dontShowAgain" />
+                      <div class="whitespace-nowrap text-sm">
+                        {{ t('tamagotchi.stage.notice.fade-on-hover.dont-show-again') }}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </TransitionVertical>

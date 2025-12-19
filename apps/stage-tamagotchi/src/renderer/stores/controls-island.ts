@@ -4,6 +4,7 @@ import { defineStore } from 'pinia'
 export const useControlsIslandStore = defineStore('controls-island', () => {
   // Persist fade-on-hover preference per user
   const fadeOnHoverEnabled = useLocalStorage<boolean>('controls-island/fade-on-hover-enabled', false)
+  const fadeOnHoverNoticeDontShowAgain = useLocalStorage<boolean>('notice/fade-on-hover/dont-show-again', false)
 
   function enableFadeOnHover() {
     fadeOnHoverEnabled.value = true
@@ -15,6 +16,7 @@ export const useControlsIslandStore = defineStore('controls-island', () => {
 
   return {
     fadeOnHoverEnabled,
+    fadeOnHoverNoticeDontShowAgain,
     enableFadeOnHover,
     disableFadeOnHover,
   }
