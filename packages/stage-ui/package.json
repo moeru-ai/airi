@@ -105,6 +105,7 @@
     "culori": "^4.0.2",
     "date-fns": "^4.1.0",
     "dompurify": "^3.3.1",
+    "es-toolkit": "catalog:",
     "gpuu": "^1.0.6",
     "jszip": "^3.10.1",
     "localforage": "^1.10.0",
