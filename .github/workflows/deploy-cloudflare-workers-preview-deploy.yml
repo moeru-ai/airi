@@ -8,6 +8,62 @@ on:
       - completed
 
 jobs:
+  ask-for-approval:
+    name: Ask for approval to deploy - ${{ matrix.app_name }}
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    strategy:
+      matrix:
+        include:
+          - app_name: stage-web
+
+    steps:
+      - name: Download artifact - metadata
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          workflow_conclusion: success
+          run_id: ${{ github.event.workflow_run.id }}
+          name: preview-meta
+          path: preview-meta
+          allow_forks: true
+
+      - name: Parse metadata
+        id: meta
+        run: |
+          source preview-meta/preview_meta
+          echo "PR_NUM=$PR_NUM" >> "$GITHUB_OUTPUT"
+          echo "REPO_FULL_NAME=$REPO_FULL_NAME" >> "$GITHUB_OUTPUT"
+          echo "HEAD_REF=$HEAD_REF" >> "$GITHUB_OUTPUT"
+          echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "BRANCH_NAME=$HEAD_REF" >> "$GITHUB_ENV"
+
+      - name: Find Comment
+        if: ${{ always() }}
+        uses: peter-evans/find-comment@v4
+        id: fc
+        with:
+          issue-number: ${{ steps.meta.outputs.PR_NUM }}
+          comment-author: 'github-actions[bot]'
+          body-includes: to Cloudflare Workers (Preview) for *${{ matrix.app_name }}*
+
+      - name: Comment on require approval
+        uses: peter-evans/create-or-update-comment@v5
+        with:
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          issue-number: ${{ steps.meta.outputs.PR_NUM }}
+          edit-mode: replace
+          body: |
+            ## ⏳ Approval required for deploying to Cloudflare Workers (Preview) for *${{ matrix.app_name }}*.
+
+            | Name                    | Link                                                                                   |
+            |:------------------------|:---------------------------------------------------------------------------------------|
+            | 🔭 Waiting for approval | For maintainers, approve [here](https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow.id }})
+
+            Hey, @nekomeowww, @sumimakito, @luoling8192, @LemonNekoGH, kindly take some time to review and approve this deployment when you are available. Thank you! 🙏
+
   on-success:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     name: Deploy - ${{ matrix.app_name }}
