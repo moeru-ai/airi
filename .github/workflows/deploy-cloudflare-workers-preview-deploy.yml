@@ -12,6 +12,7 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     name: Deploy - ${{ matrix.app_name }}
     runs-on: ubuntu-latest
+    environment: Preview
 
     permissions:
       contents: read
