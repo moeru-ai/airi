@@ -8,8 +8,8 @@ defineProps<{
 }>()
 
 defineSlots<{
-  topRight?: () => any
-  bottomRight?: () => any
+  topRight?: any
+  bottomRight?: any
 }>()
 
 const modelValue = defineModel<string>({ required: true })
