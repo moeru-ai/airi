@@ -179,17 +179,24 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<A
     : undefined
   abortHandler?.on()
 
-  async function cleanup(error?: unknown) {
+  async function cleanup(error?: unknown, options?: { sendStop?: boolean, closeSocket?: boolean }) {
+    const { sendStop = true, closeSocket = true } = options ?? {}
     abortHandler?.off()
     mayThrow(async () => await reader.cancel())
 
-    if (websocket) {
-      if (websocket.readyState === WebSocket.OPEN) {
+    if (websocket && closeSocket) {
+      switch (websocket.readyState) {
+        case WebSocket.OPEN:
+          if (sendStop)
             mayThrow(() => session.stop(websocket))
           websocket.close(1000, 'client closed')
-      }
-      else {
-        mayThrow(() => websocket?.close())
+          break
+        case WebSocket.CONNECTING:
+          websocket.close(1000, 'client closed')
+          break
+        default:
+          // If the server has already initiated closure, avoid sending another close frame.
+          break
       }
     }
 
@@ -235,7 +242,7 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<A
             await onSentenceFinal?.(event.payload as ServerEvents['SentenceEnd'])
             break
           case 'TranscriptionCompleted':
-            await cleanup()
+            await cleanup(undefined, { sendStop: false, closeSocket: false })
             break
           default:
             break
