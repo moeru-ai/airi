@@ -1,6 +1,6 @@
 import { env } from 'node:process'
 
-import { useLogg } from '@guiiai/logg'
+import { LogLevelString, useLogg } from '@guiiai/logg'
 
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 
@@ -13,12 +13,18 @@ export async function setupServerChannel() {
     const serverRuntime = await import('@proj-airi/server-runtime')
     const { serve } = await import('h3')
     const { plugin: ws } = await import('crossws/server')
+    const app = serverRuntime.setupApp({
+      logger: {
+        app: { level: LogLevelString.Debug },
+        websocket: { level: LogLevelString.Debug },
+      },
+    })
 
     try {
-      const serverInstance = serve(serverRuntime.app, {
+      const serverInstance = serve(app, {
       // TODO: fix types
       // @ts-expect-error - the .crossws property wasn't extended in types
-        plugins: [ws({ resolve: async req => (await serverRuntime.app.fetch(req)).crossws })],
+        plugins: [ws({ resolve: async req => (await app.fetch(req)).crossws })],
         port: env.PORT ? Number(env.PORT) : 6121,
         hostname: env.SERVER_RUNTIME_HOSTNAME || 'localhost',
         reusePort: true,

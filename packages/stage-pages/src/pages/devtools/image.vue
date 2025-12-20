@@ -58,3 +58,8 @@ async function handleFileChange(event: Event) {
   white-space: pre-wrap;
 }
 </style>
+
+<route lang="yaml">
+meta:
+  layout: settings
+</route>

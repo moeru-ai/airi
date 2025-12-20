@@ -1,6 +1,7 @@
 catalogMode: prefer
 
 shellEmulator: true
+
 packages:
   - packages/**
   - plugins/**
@@ -38,7 +39,9 @@ catalog:
   '@xsai/stream-text': ^0.4.0-beta.10
   '@xsai/tool': ^0.4.0-beta.10
   '@xsai/utils-chat': 0.4.0-beta.5
+  builder-util-runtime: ^9.3.1
   electron-updater: ^6.6.2
+  embla-carousel-vue: ^8.6.0
   es-toolkit: ^1.43.0
   posthog-js: 1.306.1
   xsschema: ^0.4.0-beta.10
