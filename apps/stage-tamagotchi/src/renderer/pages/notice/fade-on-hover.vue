@@ -21,8 +21,8 @@ const route = useRoute()
 const { t } = useI18n()
 
 const controlsIslandStore = useControlsIslandStore()
+const dontShowItAgainNoticeFadeOnHoverPending = ref(false)
 const { dontShowItAgainNoticeFadeOnHover } = storeToRefs(controlsIslandStore)
-const toggleDontShowItAgain = useToggle(dontShowItAgainNoticeFadeOnHover)
 
 const descriptionContainerRef = ref<HTMLDivElement>()
 const { isOutside } = useMouseInElement(descriptionContainerRef)
@@ -68,7 +68,7 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
 
   try {
     if (action === 'confirm')
-      toggleDontShowItAgain()
+      dontShowItAgainNoticeFadeOnHover.value = dontShowItAgainNoticeFadeOnHoverPending.value
     await sendAction({ id, action })
   }
   catch (error) {
@@ -222,7 +222,7 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
                       @click="handleAction('confirm')"
                     />
                     <div class="flex items-center gap-2 whitespace-nowrap px-2">
-                      <Checkbox v-model="dontShowAgain" />
+                      <Checkbox v-model="dontShowItAgainNoticeFadeOnHoverPending" />
                       <div class="whitespace-nowrap text-sm">
                         {{ t('tamagotchi.stage.notice.fade-on-hover.dont-show-again') }}
                       </div>
