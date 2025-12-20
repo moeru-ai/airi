@@ -3,12 +3,9 @@ import { BidirectionalTransition } from '@proj-airi/ui'
 import { computed } from 'vue'
 
 // Define button variants for better type safety and maintainability
-type ButtonVariant = 'primary' | 'secondary' | 'secondary-muted' | 'danger' | 'caution'
+type ButtonVariant = 'primary' | 'secondary' | 'secondary-muted' | 'danger' | 'caution' | 'pure'
 
-type ButtonTheme
-  = | 'default'
-// | 'dimmed'
-// | 'lightened'
+type ButtonTheme = 'default'
 
 // Define size options for better flexibility
 type ButtonSize = 'sm' | 'md' | 'lg'
@@ -38,13 +35,11 @@ const props = withDefaults(defineProps<ButtonProps>(), {
 const isDisabled = computed(() => props.disabled || props.loading)
 
 // Extract variant styles for better organization
-const variantClasses: Record<ButtonVariant, {
-  default: {
-    default: string
-    nonToggled?: string
-    toggled?: string
-  }
-}> = {
+const variantClasses: Record<ButtonVariant, Record<ButtonTheme, {
+  default: string
+  nonToggled?: string
+  toggled?: string
+}>> = {
   'primary': {
     default: {
       default: 'bg-primary-500/15 hover:bg-primary-500/20 active:bg-primary-500/30 dark:bg-primary-700/30 dark:hover:bg-primary-700/40 dark:active:bg-primary-700/30 focus:ring-primary-300/60 dark:focus:ring-primary-600/30 border-2 border-solid border-primary-500/5 dark:border-primary-900/40 text-primary-950 dark:text-primary-100',
@@ -70,6 +65,11 @@ const variantClasses: Record<ButtonVariant, {
   'caution': {
     default: {
       default: 'bg-amber-400/20 hover:bg-amber-400/25 active:bg-amber-400/35 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 dark:active:bg-amber-500/35 focus:ring-amber-300/40 dark:focus:ring-amber-400/40 border-2 border-solid border-amber-300/40 dark:border-amber-500/40 text-amber-900 dark:text-amber-50',
+    },
+  },
+  'pure': {
+    default: {
+      default: 'bg-white hover:bg-neutral-50 active:bg-neutral-100 dark:bg-neutral-900 dark:hover:bg-neutral-800 dark:active:bg-neutral-700 border-2 border-solid border-neutral-100 dark:border-neutral-800 focus:ring-neutral-200/40 dark:focus:ring-neutral-600/40 text-neutral-900 dark:text-neutral-50',
     },
   },
 }

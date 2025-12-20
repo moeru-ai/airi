@@ -1,8 +1,11 @@
 <script setup lang="ts">
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   frequencies: number[]
   barsClass?: string
-}>()
+  scale?: 'linear' | 'logarithm'
+}>(), {
+  scale: 'logarithm',
+})
 
 const AMPLIFICATION = 5
 
@@ -12,9 +15,30 @@ function getReductionFactor(index: number, totalBars: number) {
   return minFactor + (maxFactor - minFactor) * (index / totalBars)
 }
 
+function getHeightBounds(totalBars: number) {
+  // Fewer bars get a slightly higher floor; more bars get a lower floor
+  const dynamicMin = 2 + 12 / Math.max(1, Math.sqrt(totalBars || 1))
+  const minHeight = Math.min(18, dynamicMin)
+  const maxHeight = Math.max(minHeight + 8, 100 - (minHeight * 0.15))
+
+  return { minHeight, maxHeight }
+}
+
+function toLogScale(value: number) {
+  const amplified = Math.max(0, value * AMPLIFICATION)
+  // Map the amplified value (0..AMP) into 0..1 using a logarithmic curve
+  const logMax = Math.log1p(AMPLIFICATION)
+  return logMax === 0 ? 0 : Math.log1p(amplified) / logMax
+}
+
 function getBarHeight(frequency: number, index: number) {
   const reductionFactor = getReductionFactor(index, props.frequencies.length)
-  return Math.min(100, Math.max(10, frequency * 100 * AMPLIFICATION * reductionFactor))
+  const { minHeight, maxHeight } = getHeightBounds(props.frequencies.length)
+  const normalized = props.scale === 'linear'
+    ? Math.min(1, Math.max(0, frequency * AMPLIFICATION * reductionFactor))
+    : toLogScale(frequency * reductionFactor)
+  const scaled = normalized * 100
+  return Math.min(maxHeight, Math.max(minHeight, scaled))
 }
 </script>
 

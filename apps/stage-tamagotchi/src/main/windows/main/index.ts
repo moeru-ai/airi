@@ -1,5 +1,6 @@
 import type { BrowserWindowConstructorOptions, Rectangle } from 'electron'
 
+import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { NoticeWindowManager } from '../notice'
 import type { WidgetsWindowManager } from '../widgets'
 
@@ -33,6 +34,7 @@ export async function setupMainWindow(params: {
   chatWindow: () => Promise<BrowserWindow>
   widgetsManager: WidgetsWindowManager
   noticeWindow: NoticeWindowManager
+  autoUpdater: AutoUpdater
   onWindowCreated?: (window: BrowserWindow) => void
 }) {
   const {
@@ -139,6 +141,7 @@ export async function setupMainWindow(params: {
     chatWindow: params.chatWindow,
     widgetsManager: params.widgetsManager,
     noticeWindow: params.noticeWindow,
+    autoUpdater: params.autoUpdater,
   })
 
   /**

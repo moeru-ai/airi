@@ -116,6 +116,16 @@ export default defineConfig({
             short_name: 'AIRI',
             icons: [
               {
+                src: '/web-app-manifest-192x192.png',
+                sizes: '192x192',
+                type: 'image/png',
+              },
+              {
+                src: '/web-app-manifest-512x512.png',
+                sizes: '512x512',
+                type: 'image/png',
+              },
+              {
                 purpose: 'maskable',
                 sizes: '192x192',
                 src: '/maskable_icon_x192.png',
@@ -125,16 +135,6 @@ export default defineConfig({
                 purpose: 'maskable',
                 sizes: '512x512',
                 src: '/maskable_icon_x512.png',
-                type: 'image/png',
-              },
-              {
-                src: '/web-app-manifest-192x192.png',
-                sizes: '192x192',
-                type: 'image/png',
-              },
-              {
-                src: '/web-app-manifest-512x512.png',
-                sizes: '512x512',
                 type: 'image/png',
               },
             ],

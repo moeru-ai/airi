@@ -1,3 +1,5 @@
+import type { AutoUpdater } from '../../services/electron/auto-updater'
+
 import { join, resolve } from 'node:path'
 
 import { BrowserWindow, shell } from 'electron'
@@ -6,13 +8,14 @@ import icon from '../../../../resources/icon.png?asset'
 
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
+import { setupAboutWindowElectronInvokes } from './rpc/index.electron'
 
-export function setupAboutWindowReusable() {
+export function setupAboutWindowReusable(params: { autoUpdater: AutoUpdater }) {
   return createReusableWindow(async () => {
     const window = new BrowserWindow({
       title: 'About AIRI',
-      width: 580,
-      height: 630,
+      width: 670,
+      height: 730,
       show: false,
       resizable: true,
       maximizable: false,
@@ -31,6 +34,8 @@ export function setupAboutWindowReusable() {
     })
 
     await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/about'))
+
+    setupAboutWindowElectronInvokes({ window, autoUpdater: params.autoUpdater })
 
     return window
   }).getWindow

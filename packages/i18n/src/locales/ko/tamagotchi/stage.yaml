@@ -23,6 +23,7 @@ notice:
     value: '0'
     targets: Character and UI
     confirm: Got it
+    dont-show-again: Don’t show again
     preparing: Preparing…
     read-more: Read more
     preview-title: What is it?

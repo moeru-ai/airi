@@ -344,3 +344,8 @@ function hitVSequence() {
     </Section>
   </div>
 </template>
+
+<route lang="yaml">
+meta:
+  layout: settings
+</route>

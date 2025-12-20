@@ -69,3 +69,8 @@ appImage:
   artifactName: ${productName}-${version}-linux-${arch}.${ext}
 
 npmRebuild: false
+
+publish:
+  provider: github
+  owner: moeru-ai
+  repo: airi

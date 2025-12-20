@@ -23,6 +23,7 @@ notice:
     value: '0'
     targets: 角色與介面
     confirm: 知道了
+    dont-show-again: 不再提示
     preparing: 準備中…
     read-more: 閱讀更多
     preview-title: 這是什麼？

@@ -1,5 +1,6 @@
 import type { BrowserWindow } from 'electron'
 
+import type { AutoUpdater } from '../../../services/electron/auto-updater'
 import type { WidgetsWindowManager } from '../../widgets'
 
 import { defineInvokeHandler } from '@moeru/eventa'
@@ -8,9 +9,9 @@ import { ipcMain } from 'electron'
 
 import { electronOpenSettingsDevtools } from '../../../../shared/eventa'
 import { createWidgetsService } from '../../../services/airi/widgets'
-import { createScreenService, createWindowService } from '../../../services/electron'
+import { createAutoUpdaterService, createScreenService, createWindowService } from '../../../services/electron'
 
-export async function setupSettingsWindowInvokes(params: { settingsWindow: BrowserWindow, widgetsManager: WidgetsWindowManager }) {
+export async function setupSettingsWindowInvokes(params: { settingsWindow: BrowserWindow, widgetsManager: WidgetsWindowManager, autoUpdater: AutoUpdater }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
   // manage events within eventa's context system.
@@ -21,6 +22,7 @@ export async function setupSettingsWindowInvokes(params: { settingsWindow: Brows
   createScreenService({ context, window: params.settingsWindow })
   createWindowService({ context, window: params.settingsWindow })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.settingsWindow })
+  createAutoUpdaterService({ context, window: params.settingsWindow, service: params.autoUpdater })
 
   defineInvokeHandler(context, electronOpenSettingsDevtools, async () => params.settingsWindow.webContents.openDevTools({ mode: 'detach' }))
 }

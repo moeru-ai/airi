@@ -45,7 +45,11 @@ const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
 const { isOutside } = useElectronMouseInElement(controlsIslandRef)
 const isOutsideFor250Ms = refDebounced(isOutside, 250)
 const { x: relativeMouseX, y: relativeMouseY } = useElectronRelativeMouse()
-const isTransparent = useCanvasPixelIsTransparentAtPoint(stageCanvas, relativeMouseX, relativeMouseY)
+// NOTICE: In real-world use cases of Fade on Hover feature, the cursor may move around the edge of the
+// model rapidly, causing flickering effects when checking pixel transparency strictly.
+// Here we use `regionRadius` to help to detect with look-ahead strategy to relax the pixel accurate
+// check / detection on hovered underlying canvas pixel, therefore inaccurate mouse movements won't cause flickering.
+const isTransparent = useCanvasPixelIsTransparentAtPoint(stageCanvas, relativeMouseX, relativeMouseY, { regionRadius: 25 })
 const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBorder({ threshold: 30 })
 const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 

@@ -1,6 +1,3 @@
-import type { AnalyserBeatEvent, AnalyserWorkletParameters } from '@nekopaw/tempora'
-import type { BeatSyncDetectorState } from '@proj-airi/stage-shared/beat-sync'
-
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
 export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
@@ -75,3 +72,4 @@ export const widgetsClearEvent = defineEventa('eventa:event:electron:windows:wid
 export const widgetsUpdateEvent = defineEventa<{ id: string, componentProps?: Record<string, any> }>('eventa:event:electron:windows:widgets:update')
 
 export { electron } from './electron'
+export * from './electron-updater'

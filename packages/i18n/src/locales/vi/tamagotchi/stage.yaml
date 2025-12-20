@@ -23,6 +23,7 @@ notice:
     value: '0'
     targets: Nhân vật và giao diện
     confirm: Đã hiểu
+    dont-show-again: Đừng hiển thị lại
     preparing: Đang chuẩn bị…
     read-more: Xem thêm
     preview-title: Đây là gì?

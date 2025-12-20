@@ -23,6 +23,7 @@ notice:
     value: '0'
     targets: キャラクターとUI
     confirm: 了解
+    dont-show-again: 次回から表示しない
     preparing: 準備中…
     read-more: 続きを読む
     preview-title: これは何？
