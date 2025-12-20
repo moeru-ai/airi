@@ -19,8 +19,11 @@ const notifyUnmounted = useElectronEventaInvoke(noticeWindowEventa.pageUnmounted
 const route = useRoute()
 const { t } = useI18n()
 
+import { useToggle } from '@vueuse/core'
+
 const controlsIslandStore = useControlsIslandStore()
-const dontShowAgain = ref<boolean>(controlsIslandStore.fadeOnHoverNoticeDontShowAgain)
+const { fadeOnHoverNoticeDontShowAgain: dontShowAgain } = storeToRefs(controlsIslandStore)
+const toggleDontShowItAgain = useToggle(dontShowAgain)
 
 const descriptionContainerRef = ref<HTMLDivElement>()
 const { isOutside } = useMouseInElement(descriptionContainerRef)
