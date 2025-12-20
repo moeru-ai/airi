@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Button, Checkbox, TransitionVertical } from '@proj-airi/ui'
-import { refDebounced, useDark, useMouseInElement } from '@vueuse/core'
+import { refDebounced, useDark, useMouseInElement, useToggle } from '@vueuse/core'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
@@ -18,8 +18,6 @@ const notifyMounted = useElectronEventaInvoke(noticeWindowEventa.pageMounted, co
 const notifyUnmounted = useElectronEventaInvoke(noticeWindowEventa.pageUnmounted, context.value)
 const route = useRoute()
 const { t } = useI18n()
-
-import { useToggle } from '@vueuse/core'
 
 const controlsIslandStore = useControlsIslandStore()
 const { dontShowItAgainNoticeFadeOnHover } = storeToRefs(controlsIslandStore)
