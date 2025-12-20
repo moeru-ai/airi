@@ -3,12 +3,12 @@ import type { WithUnknown } from '@xsai/shared'
 import type { StreamTranscriptionResult, StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
 
 import { generateTranscription } from '@xsai/generate-transcription'
-import { streamTranscription } from '@xsai/stream-transcription'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 
 import { createResettableLocalStorage, createResettableRef } from '../../utils/resettable'
 import { useProvidersStore } from '../providers'
+import { streamAliyunTranscription } from '../providers/aliyun/stream-transcription'
 
 export interface StreamTranscriptionFileInputOptions extends Omit<XSAIStreamTranscriptionOptions, 'file' | 'fileName'> {
   file: Blob
@@ -36,7 +36,7 @@ interface HearingTranscriptionInvokeOptions {
 }
 
 const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
-  'aliyun-nls-transcription': streamTranscription as StreamTranscription,
+  'aliyun-nls-transcription': streamAliyunTranscription,
 }
 
 export const useHearingStore = defineStore('hearing-store', () => {

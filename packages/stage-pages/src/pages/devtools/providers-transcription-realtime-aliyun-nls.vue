@@ -3,9 +3,8 @@ import type { ServerEvent, ServerEvents } from '@proj-airi/stage-ui/stores/provi
 
 import vadWorkletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
-import { createAliyunNLSProvider } from '@proj-airi/stage-ui/stores/providers/aliyun/stream-transcription'
+import { createAliyunNLSProvider, streamAliyunTranscription } from '@proj-airi/stage-ui/stores/providers/aliyun/stream-transcription'
 import { Button, FieldInput, FieldSelect } from '@proj-airi/ui'
-import { streamTranscription } from '@xsai/stream-transcription'
 import { computed, nextTick, onBeforeUnmount, reactive, ref, shallowRef, watch } from 'vue'
 
 type AliyunRegion
@@ -159,7 +158,7 @@ async function startRecording() {
 
   appendLog('Initializing realtime transcription session')
 
-  const transcriptionResult = streamTranscription({
+  const transcriptionResult = streamAliyunTranscription({
     ...createAliyunNLSProvider(
       credentials.accessKeyId.trim(),
       credentials.accessKeySecret.trim(),
@@ -183,9 +182,8 @@ async function startRecording() {
         }
       },
     }),
-    inputStream: audioStream,
     inputAudioStream: audioStream,
-  } as unknown as Parameters<typeof streamTranscription>[0])
+  } as unknown as Parameters<typeof streamAliyunTranscription>[0])
   transcriptionTextPromise.value = transcriptionResult.text
   isTranscribing.value = true
 
