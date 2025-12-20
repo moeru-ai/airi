@@ -9,6 +9,7 @@ import { logger as honoLogger } from 'hono/logger'
 import { createAuth } from './services/auth'
 import { createDrizzle } from './services/db'
 import { parseEnv } from './services/env'
+import { getTrustedOrigin } from './utils/origin'
 
 function createApp() {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
@@ -36,14 +37,12 @@ function createApp() {
   app.use(
     '/api/auth/*', // or replace with "*" to enable cors for all routes
     cors({
-      origin: ['http://localhost:5173', 'https://airi.moeru.ai'], // replace with your origin
-      // allowHeaders: ['Content-Type', 'Authorization'],
-      // allowMethods: ['POST', 'GET', 'OPTIONS'],
-      // exposeHeaders: ['Content-Length'],
-      // maxAge: 600,
+      origin(origin: string) {
+        return getTrustedOrigin(origin)
+      },
       credentials: true,
     }),
-  )
+  ) as any
 
   app.use(honoLogger())
 
