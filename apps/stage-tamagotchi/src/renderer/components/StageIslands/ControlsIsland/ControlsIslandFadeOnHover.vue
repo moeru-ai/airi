@@ -22,7 +22,7 @@ async function handleToggle() {
     return
   }
 
-  if (uiStore.fadeOnHoverNoticeDontShowAgain) {
+  if (uiStore.dontShowItAgainNoticeFadeOnHover) {
     uiStore.enableFadeOnHover()
     return
   }
