@@ -52,6 +52,12 @@ export class Client<C = undefined> {
       }
     })
 
+    this.onEvent('error', async (event) => {
+      if (event.data.message === 'not authenticated') {
+        await this._reconnectDueToUnauthorized()
+      }
+    })
+
     if (this.opts.autoConnect) {
       void this.connect()
     }
@@ -264,5 +270,18 @@ export class Client<C = undefined> {
       this.websocket.close()
       this.connected = false
     }
+  }
+
+  private async _reconnectDueToUnauthorized() {
+    if (this.shouldClose)
+      return
+
+    const ws = this.websocket
+    this.connected = false
+    if (ws && ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
+      ws.close()
+    }
+
+    await this.connect()
   }
 }

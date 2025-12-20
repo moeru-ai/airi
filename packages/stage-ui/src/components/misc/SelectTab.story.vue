@@ -40,7 +40,6 @@ const lockedOptions = [
   <Story
     title="SelectTab"
     group="misc"
-    :layout="{ type: 'single', width: '100%' }"
   >
     <template #controls>
       <ThemeColorsHueControl />
