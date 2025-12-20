@@ -36,7 +36,7 @@ const rootStyle = computed(() => ({
   '--select-tab-count': String(itemCount.value),
   '--select-tab-active-index': String(Math.max(activeIndex.value, 0)),
   '--select-tab-padding': props.size === 'sm' ? '0px' : '0px',
-  '--select-tab-gap': '0.5rem',
+  '--select-tab-gap': '0.25rem',
   '--select-tab-indicator-opacity': activeIndex.value === -1 ? '0' : '1',
 }))
 </script>
@@ -49,6 +49,7 @@ const rootStyle = computed(() => ({
     :class="[
       'select-tab',
       'relative', 'flex', 'w-full', 'items-stretch', 'rounded-xl',
+      'overflow-hidden',
       'bg-white-400/6', 'dark:bg-neutral-900/70',
       'transition-[border-color,box-shadow,opacity]', 'duration-200', 'ease-out', 'border-2',
       'border-neutral-100', 'dark:border-neutral-800',

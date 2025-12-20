@@ -1,8 +1,11 @@
 <script setup lang="ts">
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   frequencies: number[]
   barsClass?: string
-}>()
+  scale?: 'linear' | 'logarithm'
+}>(), {
+  scale: 'logarithm',
+})
 
 const AMPLIFICATION = 5
 
@@ -31,7 +34,10 @@ function toLogScale(value: number) {
 function getBarHeight(frequency: number, index: number) {
   const reductionFactor = getReductionFactor(index, props.frequencies.length)
   const { minHeight, maxHeight } = getHeightBounds(props.frequencies.length)
-  const scaled = toLogScale(frequency * reductionFactor) * 100
+  const normalized = props.scale === 'linear'
+    ? Math.min(1, Math.max(0, frequency * AMPLIFICATION * reductionFactor))
+    : toLogScale(frequency * reductionFactor)
+  const scaled = normalized * 100
   return Math.min(maxHeight, Math.max(minHeight, scaled))
 }
 </script>
