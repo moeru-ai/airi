@@ -63,6 +63,9 @@ catalogs:
     electron-updater:
       specifier: ^6.6.2
       version: 6.6.2
+    es-toolkit:
+      specifier: ^1.43.0
+      version: 1.43.0
     posthog-js:
       specifier: 1.306.1
       version: 1.306.1
@@ -1574,6 +1577,9 @@ importers:
       dompurify:
         specifier: ^3.3.1
         version: 3.3.1
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.43.0
       gpuu:
         specifier: ^1.0.6
         version: 1.0.6

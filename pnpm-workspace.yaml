@@ -1,7 +1,6 @@
 catalogMode: prefer
 
 shellEmulator: true
-
 packages:
   - packages/**
   - plugins/**
@@ -20,7 +19,6 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
-
 catalog:
   '@guiiai/logg': 1.1.0
   '@moeru/eslint-config': 0.1.0-beta.13
@@ -41,6 +39,7 @@ catalog:
   '@xsai/tool': ^0.4.0-beta.10
   '@xsai/utils-chat': 0.4.0-beta.5
   electron-updater: ^6.6.2
+  es-toolkit: ^1.43.0
   posthog-js: 1.306.1
   xsschema: ^0.4.0-beta.10
 
