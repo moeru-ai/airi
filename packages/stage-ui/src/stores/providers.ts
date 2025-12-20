@@ -2227,7 +2227,7 @@ export const useProvidersStore = defineStore('providers', () => {
   }
 
   function shouldListProvider(providerId: string) {
-    return !!addedProviders.value[providerId] || isProviderConfigChangedFromDefault(providerId)
+    return !!addedProviders.value[providerId] || isProviderConfigDirty(providerId)
   }
 
   const persistedProvidersMetadata = computed(() => {
