@@ -22,8 +22,8 @@ const { t } = useI18n()
 import { useToggle } from '@vueuse/core'
 
 const controlsIslandStore = useControlsIslandStore()
-const { fadeOnHoverNoticeDontShowAgain: dontShowAgain } = storeToRefs(controlsIslandStore)
-const toggleDontShowItAgain = useToggle(dontShowAgain)
+const { dontShowItAgainNoticeFadeOnHover } = storeToRefs(controlsIslandStore)
+const toggleDontShowItAgain = useToggle(dontShowItAgainNoticeFadeOnHover)
 
 const descriptionContainerRef = ref<HTMLDivElement>()
 const { isOutside } = useMouseInElement(descriptionContainerRef)
@@ -69,7 +69,7 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
 
   try {
     if (action === 'confirm')
-      controlsIslandStore.fadeOnHoverNoticeDontShowAgain = dontShowAgain.value
+      toggleDontShowItAgain()
     await sendAction({ id, action })
   }
   catch (error) {
