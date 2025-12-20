@@ -1321,6 +1321,9 @@ importers:
       '@proj-airi/i18n':
         specifier: workspace:*
         version: link:../i18n
+      '@proj-airi/server-sdk':
+        specifier: workspace:*
+        version: link:../server-sdk
       '@proj-airi/stage-ui':
         specifier: workspace:*
         version: link:../stage-ui
