@@ -8318,6 +8318,9 @@ packages:
   '@xsai/shared@0.4.0-beta.10':
     resolution: {integrity: sha512-PWqktpzSQGQwqn4JsUpAmkNrP48/uL4pjNR9sjLugmw71hHpXcAeppGKLokiPusl2BnDvAW2kDSJRzNPBHSejw==}
 
+  '@xsai/shared@0.4.0-beta.11':
+    resolution: {integrity: sha512-JX1APAVPFvPuwSjkg2Yut2TyToaWxZR4RKrrh5uxWPe7I7n8q+D8S2O4zQE++0OgKLRSuaB5GjrOOso1hrthJg==}
+
   '@xsai/stream-text@0.3.5':
     resolution: {integrity: sha512-XUyM3/jo9FulWoqmQU6vvHFOoRZzr3rcsTGm0MY8hUXg9HJl91N0voQGb6R5AMlo5XgoSbO3GMFzJ26AVxmRMg==}
 
@@ -23308,7 +23311,7 @@ snapshots:
 
   '@xsai-ext/shared-providers@0.2.2':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.10
+      '@xsai/shared': 0.4.0-beta.11
 
   '@xsai-ext/shared-providers@0.4.0-beta.10':
     dependencies:
@@ -23403,6 +23406,8 @@ snapshots:
   '@xsai/shared@0.3.5': {}
 
   '@xsai/shared@0.4.0-beta.10': {}
+
+  '@xsai/shared@0.4.0-beta.11': {}
 
   '@xsai/stream-text@0.3.5':
     dependencies:
