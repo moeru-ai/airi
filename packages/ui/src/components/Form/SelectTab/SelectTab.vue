@@ -29,7 +29,7 @@ const isDisabled = computed(() => props.disabled || props.readonly)
 const sizeClasses = computed(() =>
   props.size === 'sm'
     ? ['py-2', 'px-3', 'text-xs', 'rounded-md']
-    : ['py-2.5', 'px-3.5', 'text-sm', 'rounded-lg'],
+    : ['py-2.5', 'px-3.5', 'text-sm', 'rounded-md'],
 )
 
 const rootStyle = computed(() => ({
@@ -56,7 +56,7 @@ const rootStyle = computed(() => ({
       isDisabled ? ['cursor-not-allowed', 'opacity-60'] : ['shadow-[0_14px_50px_-32px_rgba(0,0,0,0.55)]', 'backdrop-blur-sm'],
       // before
       'before:bg-primary-300/50', 'dark:before:bg-primary-400/50',
-      'before:rounded-lg', 'sm:before:rounded-xl',
+      'before:rounded-md', 'sm:before:rounded-lg',
       'before:absolute', 'before:z-0', 'before:content-empty',
       'before:transition-[left,width,opacity,background-color]', 'before:duration-200', 'before:ease',
       'before:pointer-events-none',
