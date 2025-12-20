@@ -1,17 +1,11 @@
 <script setup lang="ts">
-import type { Color } from 'culori'
-
-import html2canvas from 'html2canvas'
-
+import { colorFromElement } from '@proj-airi/stage-ui/libs'
 import { BasicInputFile } from '@proj-airi/ui'
-import { average } from 'culori'
-import { Vibrant } from 'node-vibrant/browser'
 import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 
 import defaultBackgroundImage from '../../assets/backgrounds/fairy-forest.e17cbc2774.ko-fi.com.avif'
 
 import { useThemeColor } from '../../composables/theme-color'
-
 // Reactive state
 const isCapturing = ref(false)
 const extractedColors = ref<string[]>([])
@@ -53,48 +47,56 @@ const topBar = computed(() => {
   return ''
 })
 
-// Color extraction from image
-async function extractColorsFromImage() {
-  if (images.value.length === 0) {
+async function refreshColors() {
+  if (!imageRef.value || images.value.length === 0) {
     return
   }
 
   try {
     isCapturing.value = true
 
-    // Load the image
-    const img = new window.Image()
-    img.crossOrigin = 'anonymous'
-    img.src = images.value[0]
-
-    await new Promise((resolve, reject) => {
-      img.onload = resolve
-      img.onerror = reject
-    })
-
-    // Create a canvas and draw only the top portion
-    const cropHeight = Math.floor(img.naturalHeight * 0.2) // top 20% of the image
-    const canvas = document.createElement('canvas')
-    canvas.width = img.naturalWidth
-    canvas.height = cropHeight
-    const ctx = canvas.getContext('2d')
-    if (ctx) {
-      ctx.drawImage(img, 0, 0, img.naturalWidth, cropHeight, 0, 0, img.naturalWidth, cropHeight)
+    if (imageRef.value instanceof HTMLImageElement && !imageRef.value.complete) {
+      await new Promise<void>((resolve, reject) => {
+        imageRef.value?.addEventListener('load', () => resolve(), { once: true })
+        imageRef.value?.addEventListener('error', () => reject(new Error('Image failed to load')), { once: true })
+      })
     }
 
-    // Convert canvas to data URL and use Vibrant on the cropped region
-    const dataUrl = canvas.toDataURL()
-    const vibrant = new Vibrant(dataUrl)
-    const palette = await vibrant.getPalette()
+    const result = await colorFromElement(imageRef.value, {
+      mode: 'both',
+      vibrant: {
+        imageSource: images.value[0],
+        sampleTopRatio: 0.2,
+      },
+      html2canvas: {
+        region: {
+          x: 0,
+          y: 0,
+          width: imageRef.value.offsetWidth,
+          height: 100,
+        },
+        sampleHeight: 20,
+        sampleStride: 10,
+        scale: 0.5,
+        backgroundColor: null,
+        allowTaint: true,
+        useCORS: true,
+      },
+    })
 
-    const colors = Object.values(palette)
-      .map(color => color?.hex)
-      .filter((color): color is string => typeof color === 'string')
+    extractedColors.value = result.vibrant?.palette ?? []
+    dominantColor.value = result.vibrant?.dominant ?? ''
+    topEdgeColors.value = result.html2canvas?.average ?? ''
 
-    extractedColors.value = colors
-    dominantColor.value = palette.Vibrant?.hex || palette.DarkVibrant?.hex || colors[0]
+    if (canvasRef.value && result.html2canvas?.canvas) {
+      const ctx = canvasRef.value.getContext('2d')
+      if (ctx) {
+        canvasRef.value.width = result.html2canvas.canvas.width
+        canvasRef.value.height = result.html2canvas.canvas.height
+        ctx.drawImage(result.html2canvas.canvas, 0, 0)
+      }
+    }
 
-    // Update PWA theme color
     await updateThemeColor()
   }
   catch (error) {
@@ -105,78 +107,15 @@ async function extractColorsFromImage() {
   }
 }
 
-// Capture top edge colors using html2canvas
-async function captureTopEdgeColors() {
-  if (!imageRef.value)
-    return
-
-  try {
-    isCapturing.value = true
-
-    // Capture the background element
-    const canvas = await html2canvas(imageRef.value, {
-      allowTaint: true,
-      useCORS: true,
-      backgroundColor: null,
-      scale: 0.5, // Reduce quality for performance
-      height: 100, // Only capture top portion
-      width: imageRef.value.offsetWidth,
-      logging: false,
-    })
-
-    // Display captured canvas for debugging
-    if (canvasRef.value) {
-      const ctx = canvasRef.value.getContext('2d')
-      if (ctx) {
-        canvasRef.value.width = canvas.width
-        canvasRef.value.height = canvas.height
-        ctx.drawImage(canvas, 0, 0)
-      }
-    }
-
-    // Sample colors from top edge
-    const ctx = canvas.getContext('2d')
-    if (ctx) {
-      const imageData = ctx.getImageData(0, 0, canvas.width, 20) // Top 20px
-      const colors: Color[] = []
-
-      // Sample every 10th pixel to get representative colors
-      for (let i = 0; i < imageData.data.length; i += 40) { // RGBA = 4 bytes, sample every 10 pixels
-        const r = imageData.data[i]
-        const g = imageData.data[i + 1]
-        const b = imageData.data[i + 2]
-        const a = imageData.data[i + 3]
-
-        if (a > 0) { // Skip transparent pixels
-          colors.push({ mode: 'rgb', r, g, b })
-        }
-      }
-
-      if (colors.length > 0) {
-        const c = average(colors as [Color, ...Color[]])
-        topEdgeColors.value = `rgb(${c.r}, ${c.g}, ${c.b})`
-      }
-    }
-  }
-  catch (error) {
-    console.error('Canvas capture failed:', error)
-  }
-  finally {
-    isCapturing.value = false
-  }
-}
-
 // Auto-extract colors on mount
 onMounted(async () => {
   await nextTick()
-  await extractColorsFromImage()
-  await captureTopEdgeColors()
+  await refreshColors()
 })
 
 watch(images, async () => {
   await nextTick()
-  await extractColorsFromImage()
-  await captureTopEdgeColors()
+  await refreshColors()
 })
 
 onUnmounted(() => {

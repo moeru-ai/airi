@@ -61,3 +61,8 @@ watch(files, (files) => {
     </div>
   </div>
 </template>
+
+<route lang="yaml">
+meta:
+  layout: settings
+</route>

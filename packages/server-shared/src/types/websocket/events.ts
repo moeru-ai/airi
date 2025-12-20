@@ -33,7 +33,7 @@ export interface ContextMessage<Payload = unknown, Meta = Record<string, unknown
    * Unix timestamp in milliseconds.
    */
   ts: number
-  role: 'user' | 'assistant' | 'system' | 'error'
+  role: 'user' | 'assistant' | 'system' | 'error' | 'tool'
   source: ContextSource
   /**
    * The actual payload being carried. Keep this generic so different inputs (text, stt, vision)

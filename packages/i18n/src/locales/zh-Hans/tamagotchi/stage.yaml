@@ -23,6 +23,7 @@ notice:
     value: '0'
     targets: 角色和界面
     confirm: 知道了
+    dont-show-again: 不再提示
     preparing: 准备中…
     read-more: 阅读更多
     preview-title: 这是什么？
