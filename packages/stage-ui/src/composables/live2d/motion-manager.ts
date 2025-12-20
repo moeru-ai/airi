@@ -3,8 +3,8 @@ import type { Ref } from 'vue'
 
 import type { BeatSyncController } from './beat-sync'
 
-import { useLive2DIdleEyeFocus } from './animation'
 import { useLive2d } from '../../stores/live2d'
+import { useLive2DIdleEyeFocus } from './animation'
 
 type CubismModel = Cubism4InternalModel['coreModel']
 type CubismEyeBlink = Cubism4InternalModel['eyeBlink']
