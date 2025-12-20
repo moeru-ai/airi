@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Button, Checkbox, TransitionVertical } from '@proj-airi/ui'
 import { refDebounced, useDark, useMouseInElement, useToggle } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
@@ -20,7 +21,6 @@ const route = useRoute()
 const { t } = useI18n()
 
 const controlsIslandStore = useControlsIslandStore()
-import { storeToRefs } from 'pinia' 
 const { dontShowItAgainNoticeFadeOnHover } = storeToRefs(controlsIslandStore)
 const toggleDontShowItAgain = useToggle(dontShowItAgainNoticeFadeOnHover)
 
