@@ -2217,7 +2217,7 @@ export const useProvidersStore = defineStore('providers', () => {
     return allAudioTranscriptionProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
   })
 
-  function isProviderConfigChangedFromDefault(providerId: string) {
+  function isProviderConfigDirty(providerId: string) {
     const config = providerCredentials.value[providerId]
     if (!config)
       return false
