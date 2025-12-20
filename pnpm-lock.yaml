@@ -1866,6 +1866,8 @@ importers:
         specifier: ^5.6.3
         version: 5.9.3
 
+  packages/stream-transcription: {}
+
   packages/tauri-plugin-mcp:
     dependencies:
       '@tauri-apps/api':
@@ -8320,6 +8322,9 @@ packages:
 
   '@xsai/shared@0.3.5':
     resolution: {integrity: sha512-gxWH+9UjhXgqqKeU/o9UteC/ih1FzxEEsmPojImd/jvq4j/wtIg4aP3dCFnu+EhCT/MRQ38dkBSra99iY9cC3w==}
+
+  '@xsai/shared@0.4.0-beta.11':
+    resolution: {integrity: sha512-JX1APAVPFvPuwSjkg2Yut2TyToaWxZR4RKrrh5uxWPe7I7n8q+D8S2O4zQE++0OgKLRSuaB5GjrOOso1hrthJg==}
 
   '@xsai/shared@0.4.0-beta.11':
     resolution: {integrity: sha512-JX1APAVPFvPuwSjkg2Yut2TyToaWxZR4RKrrh5uxWPe7I7n8q+D8S2O4zQE++0OgKLRSuaB5GjrOOso1hrthJg==}
@@ -23407,6 +23412,8 @@ snapshots:
   '@xsai/shared@0.2.2': {}
 
   '@xsai/shared@0.3.5': {}
+
+  '@xsai/shared@0.4.0-beta.11': {}
 
   '@xsai/shared@0.4.0-beta.11': {}
 

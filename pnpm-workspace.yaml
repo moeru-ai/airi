@@ -1,7 +1,6 @@
 catalogMode: prefer
 
 shellEmulator: true
-
 packages:
   - packages/**
   - plugins/**
