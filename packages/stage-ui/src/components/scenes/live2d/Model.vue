@@ -131,6 +131,7 @@ const {
   availableMotions,
   motionMap,
   modelParameters,
+  selectedRuntimeIdleMotion,
 } = storeToRefs(live2dStore)
 
 const {
@@ -243,20 +244,18 @@ async function loadModel() {
       })) || []))
       .filter(Boolean)
 
-    // Check if user has selected a runtime motion to play as idle
-    const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
-    const selectedMotionIndex = localStorage.getItem('selected-runtime-motion-index')
+    const selectedMotionGroup = selectedRuntimeIdleMotion.value?.group
+    const selectedMotionIndex = selectedRuntimeIdleMotion.value?.index
 
     // Configure the selected motion to loop
-    if (selectedMotionGroup && selectedMotionIndex) {
+    if (selectedMotionGroup && selectedMotionIndex !== undefined) {
       const groupIndex = (motionManager.groups as Record<string, any>)[selectedMotionGroup]
       if (groupIndex !== undefined && motionManager.motionGroups[groupIndex]) {
-        const motionIndex = Number.parseInt(selectedMotionIndex)
-        const motion = motionManager.motionGroups[groupIndex][motionIndex]
+        const motion = motionManager.motionGroups[groupIndex][selectedMotionIndex]
         if (motion && motion._looper) {
           // Force the motion to loop
           motion._looper.loopDuration = 0 // 0 means infinite loop
-          console.info('Configured motion to loop infinitely:', selectedMotionGroup, motionIndex)
+          console.info('Configured motion to loop infinitely:', selectedMotionGroup, selectedMotionIndex)
         }
       }
     }
@@ -266,7 +265,7 @@ async function loadModel() {
         console.info('Playing selected runtime motion:', selectedMotionGroup, selectedMotionIndex)
         currentMotion.value = {
           group: selectedMotionGroup,
-          index: selectedMotionIndex ? Number.parseInt(selectedMotionIndex) : undefined,
+          index: selectedMotionIndex,
         }
       }, 300)
     }
@@ -312,8 +311,8 @@ async function loadModel() {
 
     // Listen for motion finish to restart runtime motion for looping
     motionManager.on('motionFinish', () => {
-      const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
-      const selectedMotionIndex = localStorage.getItem('selected-runtime-motion-index')
+      const selectedMotionGroup = selectedRuntimeIdleMotion.value?.group
+      const selectedMotionIndex = selectedRuntimeIdleMotion.value?.index
 
       if (selectedMotionGroup && live2dIdleAnimationEnabled.value) {
         // Restart the selected runtime motion immediately for seamless looping
@@ -322,7 +321,7 @@ async function loadModel() {
         requestAnimationFrame(() => {
           currentMotion.value = {
             group: selectedMotionGroup,
-            index: selectedMotionIndex ? Number.parseInt(selectedMotionIndex) : undefined,
+            index: selectedMotionIndex,
           }
         })
       }

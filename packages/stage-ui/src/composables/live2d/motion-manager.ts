@@ -4,6 +4,7 @@ import type { Ref } from 'vue'
 import type { BeatSyncController } from './beat-sync'
 
 import { useLive2DIdleEyeFocus } from './animation'
+import { useLive2d } from '../../stores/live2d'
 
 type CubismModel = Cubism4InternalModel['coreModel']
 type CubismEyeBlink = Cubism4InternalModel['eyeBlink']
@@ -49,6 +50,8 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
     lastUpdateTime,
   } = options
 
+  const live2dStore = useLive2d()
+
   const prePlugins: MotionManagerPlugin[] = []
   const postPlugins: MotionManagerPlugin[] = []
 
@@ -69,7 +72,7 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
 
   function hookUpdate(model: CubismModel, now: number, hookedUpdate?: (model: CubismModel, now: number) => boolean) {
     const timeDelta = lastUpdateTime.value ? now - lastUpdateTime.value : 0
-    const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
+    const selectedMotionGroup = live2dStore.selectedRuntimeIdleMotion?.group
     const isIdleMotion = !motionManager.state.currentGroup
       || motionManager.state.currentGroup === motionManager.groups.idle
       || (!!selectedMotionGroup && motionManager.state.currentGroup === selectedMotionGroup)

@@ -27,6 +27,7 @@ const {
   position,
   modelParameters,
   currentMotion,
+  selectedRuntimeIdleMotion,
 } = storeToRefs(live2d)
 
 const selectedRuntimeMotion = ref<string>('')
@@ -50,15 +51,10 @@ onMounted(() => {
     console.info('Available motions:', runtimeMotions.value)
   }, { immediate: true })
 
-  // Restore selected motion
-  const savedPath = localStorage.getItem('selected-runtime-motion')
-  const savedName = localStorage.getItem('selected-runtime-motion-name')
-  if (savedPath) {
-    selectedRuntimeMotion.value = savedPath
-  }
-  if (savedName) {
-    selectedRuntimeMotionName.value = savedName
-  }
+  watch(selectedRuntimeIdleMotion, (motion) => {
+    selectedRuntimeMotion.value = motion?.path || ''
+    selectedRuntimeMotionName.value = motion?.name || ''
+  }, { immediate: true })
 
   // Add click outside handler
   document.addEventListener('click', handleClickOutside)
@@ -67,10 +63,11 @@ onMounted(() => {
 function handleMotionShuffle() {
   selectedRuntimeMotion.value = 'Shuffle All'
   selectedRuntimeMotionName.value = 'Shuffle All'
-  localStorage.setItem('selected-runtime-motion', 'Shuffle All')
-  localStorage.setItem('selected-runtime-motion-name', 'Shuffle All')
-  localStorage.setItem('selected-runtime-motion-group', 'Idle')
-  localStorage.removeItem('selected-runtime-motion-index')
+  selectedRuntimeIdleMotion.value = {
+    path: 'Shuffle All',
+    name: 'Shuffle All',
+    group: 'Idle',
+  }
 
   // Enable idle animation
   live2dIdleAnimationEnabled.value = true
@@ -92,10 +89,12 @@ function resetToDefaultParameters() {
 function handleMotionSelect(motion: any) {
   selectedRuntimeMotion.value = motion.displayPath // Store full path
   selectedRuntimeMotionName.value = motion.name // Store just the filename for display
-  localStorage.setItem('selected-runtime-motion', motion.displayPath)
-  localStorage.setItem('selected-runtime-motion-name', motion.name)
-  localStorage.setItem('selected-runtime-motion-group', motion.group)
-  localStorage.setItem('selected-runtime-motion-index', motion.index.toString())
+  selectedRuntimeIdleMotion.value = {
+    path: motion.displayPath,
+    name: motion.name,
+    group: motion.group,
+    index: motion.index,
+  }
 
   // Enable idle animation
   live2dIdleAnimationEnabled.value = true
