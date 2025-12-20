@@ -89,7 +89,7 @@
     "drizzle-orm": "^0.45.1",
     "electron-audio-loopback": "^1.0.6",
     "electron-click-drag-plugin": "^2.0.2",
-    "electron-updater": "catalog:",
+    "electron-updater": "^6.6.2",
     "es-toolkit": "^1.43.0",
     "h3": "2.0.1-rc.5",
     "injeca": "^0.1.5",

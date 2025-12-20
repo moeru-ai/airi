@@ -63,9 +63,6 @@ catalogs:
     builder-util-runtime:
       specifier: ^9.3.1
       version: 9.3.1
-    electron-updater:
-      specifier: ^6.6.2
-      version: 6.6.2
     embla-carousel-vue:
       specifier: ^8.6.0
       version: 8.6.0
@@ -456,7 +453,7 @@ importers:
         specifier: ^2.0.2
         version: 2.0.2
       electron-updater:
-        specifier: 'catalog:'
+        specifier: ^6.6.2
         version: 6.6.2
       es-toolkit:
         specifier: ^1.43.0
