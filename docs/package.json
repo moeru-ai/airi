@@ -23,6 +23,7 @@
     "@vueuse/core": "^14.1.0",
     "colorjs.io": "^0.5.2",
     "date-fns": "^4.1.0",
+    "embla-carousel-vue": "catalog:",
     "mark.js": "^8.11.1",
     "motion-v": "^1.7.4",
     "pathe": "^2.0.3",

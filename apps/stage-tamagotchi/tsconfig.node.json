@@ -12,7 +12,8 @@
     "types": [
       "vitest",
       "vite/client",
-      "electron-vite/node"
+      "electron-vite/node",
+      "unplugin-info/client"
     ],
     "allowJs": true,
     "strict": true,

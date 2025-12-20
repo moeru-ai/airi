@@ -1,3 +1,4 @@
+import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { WidgetsWindowManager } from '../widgets'
 
 import { join, resolve } from 'node:path'
@@ -12,6 +13,7 @@ import { setupSettingsWindowInvokes } from './rpc/index.electron'
 
 export function setupSettingsWindowReusableFunc(params: {
   widgetsManager: WidgetsWindowManager
+  autoUpdater: AutoUpdater
   onWindowCreated?: (window: BrowserWindow) => void
 }) {
   return createReusableWindow(async () => {
@@ -38,7 +40,7 @@ export function setupSettingsWindowReusableFunc(params: {
     })
 
     await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/settings'))
-    await setupSettingsWindowInvokes({ settingsWindow: window, widgetsManager: params.widgetsManager })
+    await setupSettingsWindowInvokes({ settingsWindow: window, widgetsManager: params.widgetsManager, autoUpdater: params.autoUpdater })
 
     return window
   }).getWindow

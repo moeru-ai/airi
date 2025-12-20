@@ -153,6 +153,7 @@
     "@vue-macros/volar": "^3.1.1",
     "@vueuse/motion": "^3.0.3",
     "@xsai-transformers/embed": "^0.0.11",
+    "builder-util-runtime": "catalog:",
     "cac": "^6.7.14",
     "csstype": "^3.2.3",
     "electron": "^39.2.7",
