@@ -1,30 +1,73 @@
 <script setup lang="ts">
-import { Callout } from '@proj-airi/stage-ui/components'
+import { useMemoryStore } from '@proj-airi/stage-ui/stores/memory'
+import { storeToRefs } from 'pinia'
+import { computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+import EmbeddingConfig from './components/EmbeddingConfig.vue'
+import MemoryLongTermOverview from './components/MemoryLongTermOverview.vue'
+import MemoryShortTermOverview from './components/MemoryShortTermOverview.vue'
+
+const memoryStore = useMemoryStore()
+const { t } = useI18n()
+
+const {
+  configurationSaving,
+  configurationSaveState,
+  configurationError,
+} = storeToRefs(memoryStore)
+
+const saveStateLabel = computed(() => {
+  if (configurationSaveState.value === 'saved')
+    return t('settings.memory.saved', 'Configuration saved successfully.')
+  if (configurationSaveState.value === 'error' && configurationError.value)
+    return configurationError.value
+  return ''
+})
+
+onMounted(() => {
+  // Ensure we load the latest configuration when entering the page
+  memoryStore.loadConfiguration()
+})
+
+async function saveConfiguration() {
+  await memoryStore.applyConfiguration()
+}
 </script>
 
 <template>
-  <div>
-    <Callout
-      label="In development, needs your help!"
-      theme="orange"
-    >
-      <div>
-        This functionality is still under development. If you have any suggestions or would like to contribute, please reach out to us on our <a underline decoration-dotted href="https://github.com/moeru-ai/airi/issues">GitHub issues page</a>.
-        The source code of this page is located at <a underline decoration-dotted href="https://github.com/moeru-ai/airi/tree/main/apps/stage-web/src/pages/settings/memory/index.vue">here</a>.
-      </div>
-    </Callout>
-  </div>
-  <div
-    v-motion
-    text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-    fixed top="[calc(100dvh-15rem)]" bottom-0 right--5 z--1
-    :initial="{ scale: 0.9, opacity: 0, y: 15 }"
-    :enter="{ scale: 1, opacity: 1, y: 0 }"
-    :duration="500"
-    size-60
-    flex items-center justify-center
-  >
-    <div text="60" i-solar:leaf-bold-duotone />
+  <div class="space-y-6">
+    <div class="grid gap-6 xl:grid-cols-2">
+      <MemoryShortTermOverview />
+      <MemoryLongTermOverview />
+    </div>
+
+    <section class="border border-neutral-200 rounded-xl bg-white/80 p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/60">
+      <header class="mb-4 space-y-1">
+        <h2 class="text-lg text-neutral-800 font-semibold dark:text-neutral-100">
+          {{ t('settings.memory.embedding.title', 'Embedding Configuration') }}
+        </h2>
+        <p class="text-sm text-neutral-500 dark:text-neutral-400">
+          {{ t('settings.memory.embedding.description', 'Configure the embedding provider for long-term memory semantic search.') }}
+        </p>
+      </header>
+
+      <EmbeddingConfig />
+    </section>
+
+    <div class="flex items-center gap-3">
+      <button
+        class="border border-neutral-300 rounded-md px-4 py-2 text-sm text-neutral-700 font-medium dark:border-neutral-700 dark:text-neutral-200 disabled:opacity-60"
+        :disabled="configurationSaving"
+        @click="saveConfiguration"
+      >
+        <span v-if="configurationSaving">{{ t('common.saving', 'Saving...') }}</span>
+        <span v-else>{{ t('common.save', 'Save Configuration') }}</span>
+      </button>
+      <span v-if="configurationSaveState !== 'idle'" class="text-sm" :class="configurationSaveState === 'saved' ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'">
+        {{ saveStateLabel }}
+      </span>
+    </div>
   </div>
 </template>
 
