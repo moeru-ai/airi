@@ -7,6 +7,7 @@ import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync'
 import { useTheme } from '@proj-airi/ui'
 import { breakpointsTailwind, until, useBreakpoints, useDebounceFn } from '@vueuse/core'
 import { formatHex } from 'culori'
+import { Mutex } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
 import { Live2DFactory, Live2DModel, MotionPriority } from 'pixi-live2d-display/cubism4'
@@ -75,6 +76,8 @@ const modelSrcRef = toRef(() => props.modelSrc)
 const modelLoading = ref(false)
 // NOTICE: boolean is sufficient; this flag is only used inside loadModel to bail out if the component unmounts mid-load.
 let isUnmounted = false
+
+const modelLoadMutex = new Mutex()
 
 const offset = computed(() => parsePropsOffset())
 
@@ -157,6 +160,8 @@ live2dStore.onShouldUpdateView(() => {
 
 async function loadModel() {
   await until(modelLoading).not.toBeTruthy()
+
+  await modelLoadMutex.acquire()
 
   modelLoading.value = true
   componentState.value = 'loading'
@@ -354,6 +359,7 @@ async function loadModel() {
   finally {
     modelLoading.value = false
     componentState.value = 'mounted'
+    modelLoadMutex.release()
   }
 }
 
