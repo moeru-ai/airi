@@ -29,7 +29,7 @@ const isDisabled = computed(() => props.disabled || props.readonly)
 const sizeClasses = computed(() =>
   props.size === 'sm'
     ? ['py-2', 'px-3', 'text-xs', 'rounded-md']
-    : ['py-2.5', 'px-3.5', 'text-sm', 'rounded-xl'],
+    : ['py-2.5', 'px-3.5', 'text-sm', 'rounded-lg'],
 )
 
 const rootStyle = computed(() => ({
