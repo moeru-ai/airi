@@ -20,6 +20,7 @@ const route = useRoute()
 const { t } = useI18n()
 
 const controlsIslandStore = useControlsIslandStore()
+import { storeToRefs } from 'pinia' 
 const { dontShowItAgainNoticeFadeOnHover } = storeToRefs(controlsIslandStore)
 const toggleDontShowItAgain = useToggle(dontShowItAgainNoticeFadeOnHover)
 
