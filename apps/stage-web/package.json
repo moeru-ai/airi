@@ -93,7 +93,7 @@
     "workbox-window": "^7.4.0",
     "xsschema": "catalog:",
     "yauzl": "^3.2.0",
-    "zod": "^4.1.13"
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@iconify-json/carbon": "^1.2.15",
@@ -122,7 +122,7 @@
     "@vueuse/motion": "^3.0.3",
     "csstype": "^3.2.3",
     "hfup": "^1.0.0",
-    "less": "^4.4.2",
+    "less": "^4.5.1",
     "unplugin-info": "^1.2.4",
     "unplugin-vue-router": "^0.19.0",
     "unplugin-yaml": "^3.0.7",
