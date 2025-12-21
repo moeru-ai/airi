@@ -179,7 +179,7 @@ async function applySelection() {
 
 <template>
   <div class="h-full min-h-0 flex flex-col">
-    <div class="flex-1 overflow-y-auto p-1 scrollbar-none">
+    <div class="flex-1 overflow-x-hidden overflow-y-auto overscroll-contain p-1 scrollbar-none">
       <div class="flex flex-col gap-4">
         <div class="grid grid-cols-2 gap-3 md:grid-cols-3">
           <button
