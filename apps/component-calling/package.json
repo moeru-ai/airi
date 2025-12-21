@@ -29,7 +29,7 @@
     "@xsai/stream-text": "catalog:",
     "es-toolkit": "^1.43.0",
     "valibot": "^1.2.0",
-    "vue": "^3.5.25",
+    "vue": "^3.5.26",
     "xsschema": "catalog:"
   },
   "devDependencies": {
@@ -39,9 +39,9 @@
     "@unocss/reset": "^66.5.10",
     "@vitejs/plugin-vue": "^6.0.3",
     "superjson": "^2.2.6",
-    "unplugin-vue-router": "^0.19.0",
+    "unplugin-vue-router": "^0.19.1",
     "vite": "catalog:rolldown-vite",
     "vue-router": "^4.6.4",
-    "vue-tsc": "^3.1.8"
+    "vue-tsc": "^3.2.0"
   }
 }
