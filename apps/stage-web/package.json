@@ -85,9 +85,9 @@
     "uuid": "^13.0.0",
     "valibot": "^1.2.0",
     "vaul-vue": "^0.4.1",
-    "vue": "^3.5.26",
+    "vue": "^3.5.25",
     "vue-demi": "^0.14.10",
-    "vue-i18n": "^11.2.7",
+    "vue-i18n": "^11.2.2",
     "vue-router": "^4.6.4",
     "vue-sonner": "^2.0.9",
     "workbox-window": "^7.4.0",
@@ -105,7 +105,7 @@
     "@iconify-json/solar": "^1.2.5",
     "@iconify-json/svg-spinners": "^1.2.4",
     "@iconify-json/vscode-icons": "^1.2.37",
-    "@intlify/unplugin-vue-i18n": "^11.0.3",
+    "@intlify/unplugin-vue-i18n": "^11.0.1",
     "@proj-airi/lobe-icons": "^1.0.18",
     "@proj-airi/unplugin-fetch": "^0.2.1",
     "@proj-airi/unplugin-live2d-sdk": "^0.1.6",
@@ -124,7 +124,7 @@
     "hfup": "^1.0.0",
     "less": "^4.5.1",
     "unplugin-info": "^1.2.4",
-    "unplugin-vue-router": "^0.19.1",
+    "unplugin-vue-router": "^0.19.0",
     "unplugin-yaml": "^3.0.7",
     "vite": "catalog:rolldown-vite",
     "vite-bundle-visualizer": "^1.2.1",
@@ -132,6 +132,6 @@
     "vite-plugin-vue-devtools": "^8.0.5",
     "vite-plugin-vue-layouts": "^0.11.0",
     "vue-macros": "^3.1.1",
-    "vue-tsc": "^3.2.0"
+    "vue-tsc": "^3.1.8"
   }
 }

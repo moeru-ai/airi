@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/airi-plugin-web-extension",
   "type": "module",
-  "version": "0.8.0-beta.4",
+  "version": "0.8.0-beta.5",
   "private": true,
   "description": "manifest.json description",
   "scripts": {
@@ -15,12 +15,12 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
-    "vue": "^3.5.26"
+    "vue": "^3.5.25"
   },
   "devDependencies": {
     "@unocss/reset": "^66.5.10",
     "@wxt-dev/module-vue": "^1.0.3",
-    "vue-tsc": "^3.2.0",
-    "wxt": "^0.20.13"
+    "vue-tsc": "^3.1.8",
+    "wxt": "^0.20.11"
   }
 }

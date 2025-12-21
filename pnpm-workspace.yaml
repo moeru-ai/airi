@@ -39,6 +39,7 @@ catalog:
   '@xsai/tool': ^0.4.0-beta.11
   '@xsai/utils-chat': 0.4.0-beta.5
   builder-util-runtime: ^9.3.1
+  electron-updater: ^6.6.2
   embla-carousel-vue: ^8.6.0
   es-toolkit: ^1.43.0
   posthog-js: 1.306.1
@@ -46,11 +47,7 @@ catalog:
 
 catalogs:
   rolldown-vite:
-    vite: npm:rolldown-vite@^7.3.0
-  vitest:
-    '@vitest/browser-playwright': ^4.0.16
-    '@vitest/coverage-v8': '^4.0.16'
-    vitest: ^4.0.16
+    vite: npm:rolldown-vite@^7.2.11
 
 onlyBuiltDependencies:
   - '@discordjs/opus'
