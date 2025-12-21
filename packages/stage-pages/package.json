@@ -42,14 +42,14 @@
     "posthog-js": "catalog:",
     "reka-ui": "^2.6.1",
     "unspeech": "^0.1.7",
-    "vue": "^3.5.25",
-    "vue-i18n": "^11.2.2",
+    "vue": "^3.5.26",
+    "vue-i18n": "^11.2.7",
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
     "@proj-airi/stage-shared": "workspace:^",
     "@types/audioworklet": "catalog:",
     "@types/three": "^0.182.0",
-    "vue-tsc": "^3.1.8"
+    "vue-tsc": "^3.2.0"
   }
 }
