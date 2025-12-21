@@ -8,6 +8,7 @@ const props = withDefaults(defineProps<{
 })
 
 const AMPLIFICATION = 5
+const BYTE_RANGE = 255
 
 function getReductionFactor(index: number, totalBars: number) {
   const minFactor = 0.1 // More reduction for bass frequencies
@@ -24,19 +25,21 @@ function getHeightBounds(totalBars: number) {
   return { minHeight, maxHeight }
 }
 
-function toLogScale(value: number) {
-  const amplified = Math.max(0, value * AMPLIFICATION)
-  // Map the amplified value (0..AMP) into 0..1 using a logarithmic curve
+function toLogScale(normalized: number) {
   const logMax = Math.log1p(AMPLIFICATION)
-  return logMax === 0 ? 0 : Math.log1p(amplified) / logMax
+  return logMax === 0
+    ? 0
+    : Math.log1p(Math.max(0, normalized) * AMPLIFICATION) / logMax
 }
 
 function getBarHeight(frequency: number, index: number) {
   const reductionFactor = getReductionFactor(index, props.frequencies.length)
   const { minHeight, maxHeight } = getHeightBounds(props.frequencies.length)
+  const normalizedFrequency = Math.min(1, Math.max(0, frequency / BYTE_RANGE)) * reductionFactor
   const normalized = props.scale === 'linear'
-    ? Math.min(1, Math.max(0, frequency * AMPLIFICATION * reductionFactor))
-    : toLogScale(frequency * reductionFactor)
+    ? Math.min(1, normalizedFrequency * AMPLIFICATION)
+    : toLogScale(normalizedFrequency)
+
   const scaled = normalized * 100
   return Math.min(maxHeight, Math.max(minHeight, scaled))
 }

@@ -1,6 +1,6 @@
 import { env } from 'node:process'
 
-import { LogLevelString, useLogg } from '@guiiai/logg'
+import { useLogg } from '@guiiai/logg'
 
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 
@@ -13,12 +13,7 @@ export async function setupServerChannel() {
     const serverRuntime = await import('@proj-airi/server-runtime')
     const { serve } = await import('h3')
     const { plugin: ws } = await import('crossws/server')
-    const app = serverRuntime.setupApp({
-      logger: {
-        app: { level: LogLevelString.Debug },
-        websocket: { level: LogLevelString.Debug },
-      },
-    })
+    const app = serverRuntime.setupApp()
 
     try {
       const serverInstance = serve(app, {
