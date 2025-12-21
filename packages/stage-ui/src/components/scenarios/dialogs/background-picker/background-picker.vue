@@ -131,81 +131,85 @@ async function applySelection() {
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
-    <div class="grid grid-cols-2 gap-3 md:grid-cols-3">
-      <button
-        v-for="option in mergedOptions"
-        :key="option.id"
-        type="button"
-        class="border-2 border-transparent rounded-xl bg-neutral-100/80 p-2 text-left transition-colors hover:border-primary-400 dark:bg-neutral-900/80"
-        :class="[option.id === selectedId ? 'border-primary-500/80 shadow-primary-500/10 shadow-lg' : 'border-neutral-200 dark:border-neutral-800']"
-        @click="selectedId = option.id"
-      >
-        <div class="aspect-video w-full overflow-hidden border border-neutral-200 rounded-lg bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-800/70">
-          <component
-            :is="option.component"
-            v-if="option.component"
-            class="h-full w-full"
-          />
-          <img
-            v-else-if="getPreviewSrc(option)"
-            :src="getPreviewSrc(option)"
-            class="h-full w-full object-cover"
-            loading="lazy"
-            decoding="async"
+  <div class="h-full min-h-0 flex flex-col">
+    <div class="flex-1 overflow-y-auto p-1 scrollbar-none">
+      <div class="flex flex-col gap-4">
+        <div class="grid grid-cols-2 gap-3 md:grid-cols-3">
+          <button
+            v-for="option in mergedOptions"
+            :key="option.id"
+            type="button"
+            class="border-2 border-transparent rounded-xl bg-neutral-100/80 p-2 text-left transition-colors hover:border-primary-400 dark:bg-neutral-900/80"
+            :class="[option.id === selectedId ? 'border-primary-500/80 shadow-primary-500/10 shadow-lg' : 'border-neutral-200 dark:border-neutral-800']"
+            @click="selectedId = option.id"
           >
-          <div v-else class="h-full w-full flex items-center justify-center text-sm text-neutral-500 dark:text-neutral-400">
-            No preview
+            <div class="aspect-video w-full overflow-hidden border border-neutral-200 rounded-lg bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-800/70">
+              <component
+                :is="option.component"
+                v-if="option.component"
+                class="h-full w-full"
+              />
+              <img
+                v-else-if="getPreviewSrc(option)"
+                :src="getPreviewSrc(option)"
+                class="h-full w-full object-cover"
+                loading="lazy"
+                decoding="async"
+              >
+              <div v-else class="h-full w-full flex items-center justify-center text-sm text-neutral-500 dark:text-neutral-400">
+                No preview
+              </div>
+            </div>
+            <div class="mt-2 flex flex-col gap-1">
+              <span class="text-base text-neutral-800 font-medium dark:text-neutral-100">{{ option.label }}</span>
+              <span v-if="option.description" class="text-xs text-neutral-500 dark:text-neutral-400">
+                {{ option.description }}
+              </span>
+            </div>
+          </button>
+        </div>
+
+        <div v-if="allowUpload" class="flex flex-wrap gap-2">
+          <BasicInputFile v-model="uploadingFiles" class="cursor-pointer">
+            <div class="flex items-center gap-2 border border-neutral-300 rounded-lg border-dashed px-3 py-2 text-sm text-neutral-600 transition-colors dark:border-neutral-700 hover:border-primary-400 dark:text-neutral-300 hover:text-primary-500 dark:hover:border-primary-400 dark:hover:text-primary-400">
+              <div i-solar:add-square-linear />
+              <span>Add custom background</span>
+            </div>
+          </BasicInputFile>
+        </div>
+
+        <div class="border border-neutral-200 rounded-xl bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900/70">
+          <p class="mb-2 text-sm text-neutral-600 dark:text-neutral-300">
+            Preview
+          </p>
+          <label class="flex items-center gap-2 pb-2 text-sm text-neutral-700 dark:text-neutral-200">
+            <input v-model="enableBlur" type="checkbox" class="accent-primary-500">
+            <span>Blur</span>
+          </label>
+          <div
+            ref="previewRef"
+            class="relative h-48 overflow-hidden border border-neutral-200 rounded-xl bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-800"
+          >
+            <component
+              :is="selectedOption?.component"
+              v-if="selectedOption?.component"
+              class="h-full w-full"
+            />
+            <img
+              v-else-if="getPreviewSrc(selectedOption)"
+              :src="getPreviewSrc(selectedOption)"
+              class="h-full w-full object-cover"
+            >
+            <div v-else class="h-full w-full flex items-center justify-center text-neutral-500 dark:text-neutral-400">
+              Select a background
+            </div>
+            <ThemeOverlay />
           </div>
         </div>
-        <div class="mt-2 flex flex-col gap-1">
-          <span class="text-base text-neutral-800 font-medium dark:text-neutral-100">{{ option.label }}</span>
-          <span v-if="option.description" class="text-xs text-neutral-500 dark:text-neutral-400">
-            {{ option.description }}
-          </span>
-        </div>
-      </button>
-    </div>
-
-    <div v-if="allowUpload" class="flex flex-wrap gap-2">
-      <BasicInputFile v-model="uploadingFiles" class="cursor-pointer">
-        <div class="flex items-center gap-2 border border-neutral-300 rounded-lg border-dashed px-3 py-2 text-sm text-neutral-600 transition-colors dark:border-neutral-700 hover:border-primary-400 dark:text-neutral-300 hover:text-primary-500 dark:hover:border-primary-400 dark:hover:text-primary-400">
-          <div i-solar:add-square-linear />
-          <span>Add custom background</span>
-        </div>
-      </BasicInputFile>
-    </div>
-
-    <div class="border border-neutral-200 rounded-xl bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900/70">
-      <p class="mb-2 text-sm text-neutral-600 dark:text-neutral-300">
-        Preview
-      </p>
-      <label class="flex items-center gap-2 pb-2 text-sm text-neutral-700 dark:text-neutral-200">
-        <input v-model="enableBlur" type="checkbox" class="accent-primary-500">
-        <span>Blur</span>
-      </label>
-      <div
-        ref="previewRef"
-        class="relative h-48 overflow-hidden border border-neutral-200 rounded-xl bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-800"
-      >
-        <component
-          :is="selectedOption?.component"
-          v-if="selectedOption?.component"
-          class="h-full w-full"
-        />
-        <img
-          v-else-if="getPreviewSrc(selectedOption)"
-          :src="getPreviewSrc(selectedOption)"
-          class="h-full w-full object-cover"
-        >
-        <div v-else class="h-full w-full flex items-center justify-center text-neutral-500 dark:text-neutral-400">
-          Select a background
-        </div>
-        <ThemeOverlay />
       </div>
     </div>
 
-    <div class="flex justify-end">
+    <div class="flex justify-end bg-inherit pt-4">
       <button
         class="rounded-lg bg-primary-500 px-4 py-2 text-sm text-white font-medium shadow transition-transform disabled:cursor-not-allowed disabled:opacity-60 hover:-translate-y-0.5"
         :disabled="!selectedOption || busy"
