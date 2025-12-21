@@ -38,7 +38,7 @@ defineExpose({
           class="h-full w-full"
           :fill-color="waveFillColor"
         >
-          <ThemeOverlay :color="topColor" />
+          <ThemeOverlay v-if="background.kind !== 'wave'" :color="topColor" />
           <div class="relative z-10 h-full w-full">
             <slot />
           </div>

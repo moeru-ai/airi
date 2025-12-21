@@ -89,6 +89,14 @@ async function applySelection() {
 
   busy.value = true
   try {
+    if ((selectedOption.value as any).kind === 'wave') {
+      const isDark = document.documentElement.classList.contains('dark')
+      const hue = getComputedStyle(document.documentElement).getPropertyValue('--chromatic-hue') || '220.44'
+      const color = isDark ? `hsl(${hue} 60% 32%)` : `hsl(${hue} 75% 78%)`
+      emit('apply', { option: { ...selectedOption.value, blur: enableBlur.value }, color })
+      return
+    }
+
     await waitForPreviewReady()
     const result = await colorFromElement(previewRef.value, {
       mode: 'html2canvas',
@@ -203,7 +211,7 @@ async function applySelection() {
             <div v-else class="h-full w-full flex items-center justify-center text-neutral-500 dark:text-neutral-400">
               Select a background
             </div>
-            <ThemeOverlay />
+            <ThemeOverlay v-if="(selectedOption as any)?.kind !== 'wave'" />
           </div>
         </div>
       </div>

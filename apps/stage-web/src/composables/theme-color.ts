@@ -7,7 +7,9 @@ import Color from 'colorjs.io'
 
 import { withRetry } from '@moeru/std'
 import { colorFromElement } from '@proj-airi/stage-ui/libs'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
+import { useRafFn } from '@vueuse/core'
 import { nextTick, watch } from 'vue'
 
 export function themeColorFromPropertyOf(colorFromClass: string, property: string): () => Promise<string> {
@@ -61,7 +63,37 @@ export function useBackgroundThemeColor({
   selectedOption: Ref<BackgroundSelection | undefined>
   sampledColor: Ref<string>
 }) {
-  const { updateThemeColor } = useThemeColor(() => sampledColor.value || '#0f172a')
+  const settings = useSettings()
+
+  function getWaveThemeColor() {
+    const isDark = document.documentElement.classList.contains('dark')
+    // We read directly from computed style to catch the animation value
+    const hue = getComputedStyle(document.documentElement).getPropertyValue('--chromatic-hue') || '220.44'
+    return isDark ? `hsl(${hue} 60% 32%)` : `hsl(${hue} 75% 78%)`
+  }
+
+  const { updateThemeColor } = useThemeColor(() => {
+    if (selectedOption.value?.kind === 'wave') {
+      return getWaveThemeColor()
+    }
+    return sampledColor.value || '#0f172a'
+  })
+
+  // Real-time synchronization for dynamic hue
+  const { pause, resume } = useRafFn(() => {
+    if (selectedOption.value?.kind === 'wave' && settings.themeColorsHueDynamic) {
+      updateThemeColor()
+    }
+  }, { immediate: false })
+
+  watch([() => selectedOption.value?.kind, () => settings.themeColorsHueDynamic], ([kind, dynamic]) => {
+    if (kind === 'wave' && dynamic) {
+      resume()
+    }
+    else {
+      pause()
+    }
+  }, { immediate: true })
 
   async function waitForBackgroundReady() {
     await nextTick()
@@ -76,6 +108,11 @@ export function useBackgroundThemeColor({
 
   // Exposed for optional manual triggers; also used within syncBackgroundTheme.
   async function sampleBackgroundColor() {
+    if (selectedOption.value?.kind === 'wave') {
+      await updateThemeColor()
+      return
+    }
+
     const el = backgroundSurface.value?.surfaceEl
     if (!el)
       return
@@ -121,7 +158,10 @@ export function useBackgroundThemeColor({
   }
 
   async function syncBackgroundTheme() {
-    if (sampledColor.value && selectedOption.value?.kind !== 'wave') {
+    if (selectedOption.value?.kind === 'wave') {
+      await updateThemeColor()
+    }
+    else if (sampledColor.value) {
       await updateThemeColor()
     }
     else {
