@@ -2050,8 +2050,8 @@ export const useProvidersStore = defineStore('providers', () => {
       const models = metadata.capabilities.listModels ? await metadata.capabilities.listModels(config) : []
 
       // Transform and store the models
-      if (providerRuntimeState.value[providerId]) {
-        providerRuntimeState.value[providerId].models = models.map(model => ({
+      if (runtimeState) {
+        runtimeState.models = models.map(model => ({
           id: model.id,
           name: model.name,
           description: model.description,
@@ -2059,20 +2059,20 @@ export const useProvidersStore = defineStore('providers', () => {
           deprecated: model.deprecated,
           provider: providerId,
         }))
-        return providerRuntimeState.value[providerId].models
+        return runtimeState.models
       }
       return []
     }
     catch (error) {
       console.error(`Error fetching models for ${providerId}:`, error)
-      if (providerRuntimeState.value[providerId]) {
-        providerRuntimeState.value[providerId].modelLoadError = error instanceof Error ? error.message : 'Unknown error'
+      if (runtimeState) {
+        runtimeState.modelLoadError = error instanceof Error ? error.message : 'Unknown error'
       }
       return []
     }
     finally {
-      if (providerRuntimeState.value[providerId]) {
-        providerRuntimeState.value[providerId].isLoadingModels = false
+      if (runtimeState) {
+        runtimeState.isLoadingModels = false
       }
     }
   }
