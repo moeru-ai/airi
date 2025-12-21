@@ -34,9 +34,9 @@
     "vue-sonner": "^2.0.9"
   },
   "devDependencies": {
-    "@iconify-json/lucide": "^1.2.81",
+    "@iconify-json/lucide": "^1.2.82",
     "@iconify-json/mingcute": "^1.2.6",
-    "@iconify-json/twemoji": "^1.2.4",
+    "@iconify-json/twemoji": "^1.2.5",
     "@iconify/vue": "^5.0.0",
     "@intlify/unplugin-vue-i18n": "^11.0.1",
     "@mdit/plugin-footnote": "^0.22.3",
