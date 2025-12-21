@@ -248,7 +248,7 @@ async function loadModel() {
     const selectedMotionIndex = selectedRuntimeIdleMotion.value?.index
 
     // Configure the selected motion to loop
-    if (selectedMotionGroup && selectedMotionIndex !== undefined) {
+    if (selectedMotionGroup && selectedMotionIndex != null) {
       const groupIndex = (motionManager.groups as Record<string, any>)[selectedMotionGroup]
       if (groupIndex !== undefined && motionManager.motionGroups[groupIndex]) {
         const motion = motionManager.motionGroups[groupIndex][selectedMotionIndex]
