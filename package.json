@@ -34,7 +34,7 @@
     "lint:rust": "cargo fmt --check && cargo clippy --workspace",
     "to-avif": "tsx docs/scripts/avif.ts",
     "typecheck": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" -F=\"./docs\" --parallel typecheck",
-    "up": "taze -w -r -I -f && pnpm prune && pnpm dedupe",
+    "up": "taze -w -r -I && pnpm prune && pnpm dedupe",
     "nolyfill": "pnpm dlx nolyfill"
   },
   "devDependencies": {
@@ -49,7 +49,7 @@
     "@unocss/eslint-plugin": "^66.5.10",
     "@unocss/preset-mini": "^66.5.10",
     "@unocss/preset-web-fonts": "^66.5.10",
-    "@vitest/coverage-v8": "^4.0.15",
+    "@vitest/coverage-v8": "^4.0.16",
     "bumpp": "^10.3.2",
     "eslint": "^9.39.2",
     "eslint-plugin-oxlint": "^1.32.0",
@@ -74,7 +74,7 @@
     "unplugin-vue": "^7.1.0",
     "vite": "^7.2.7",
     "vite-plugin-inspect": "^11.3.3",
-    "vitest": "^4.0.15",
+    "vitest": "^4.0.16",
     "yaml": "^2.8.2"
   },
   "workspaces": [
