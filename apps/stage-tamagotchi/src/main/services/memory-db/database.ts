@@ -12,8 +12,8 @@ export class MemoryDatabase {
   private dbPath: string = ''
 
   constructor() {
-    // Default path in user data
-    this.dbPath = join(app.getPath('userData'), 'memory.db')
+    // Default path will be set on initialization
+    this.dbPath = ''
   }
 
   /**
@@ -22,6 +22,10 @@ export class MemoryDatabase {
   initialize(customPath?: string): void {
     if (customPath) {
       this.dbPath = customPath
+    }
+    else if (!this.dbPath) {
+      // Only use app.getPath if dbPath hasn't been set
+      this.dbPath = join(app.getPath('userData'), 'memory.db')
     }
 
     // Ensure directory exists
