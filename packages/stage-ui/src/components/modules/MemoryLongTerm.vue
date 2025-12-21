@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useMemoryLongTermStore } from '@proj-airi/stage-ui/stores/modules/memory-long-term'
-import { Button, FieldCheckbox, FieldInput } from '@proj-airi/ui'
+import { FieldCheckbox, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 
@@ -10,12 +10,12 @@ const { enabled, vectorDbProvider, embeddingProvider, embeddingModel, configured
 </script>
 
 <template>
-  <div :class="['flex','flex-col','gap-6']">
-    <div :class="['text-2xl','font-bold']">
+  <div :class="['flex', 'flex-col', 'gap-6']">
+    <div :class="['text-2xl', 'font-bold']">
       {{ t('settings.pages.modules.memory-long-term.title') }}
     </div>
 
-    <div :class="['text-sm','opacity-70']">
+    <div :class="['text-sm', 'opacity-70']">
       {{ t('settings.pages.modules.memory-long-term.description') }}
     </div>
 
@@ -49,7 +49,7 @@ const { enabled, vectorDbProvider, embeddingProvider, embeddingModel, configured
       placeholder="text-embedding-3-small"
     />
 
-    <div v-if="configured" :class="['mt-4','rounded-lg','bg-green-100','dark:bg-green-900/30','p-4','text-green-800','dark:text-green-200']">
+    <div v-if="configured" :class="['mt-4', 'rounded-lg', 'bg-green-100', 'dark:bg-green-900/30', 'p-4', 'text-green-800', 'dark:text-green-200']">
       Long-term memory is enabled and configured
     </div>
   </div>
