@@ -30,16 +30,16 @@
     "@rive-app/canvas-lite": "^2.33.1",
     "@vueuse/core": "^14.1.0",
     "@vueuse/motion": "^3.0.3",
-    "vue": "^3.5.26"
+    "vue": "^3.5.25"
   },
   "devDependencies": {
     "@proj-airi/ui": "workspace:^",
     "@unocss/reset": "^66.5.10",
     "@vitejs/plugin-vue": "^6.0.3",
-    "unplugin-vue-router": "^0.19.1",
+    "unplugin-vue-router": "^0.19.0",
     "vite": "catalog:rolldown-vite",
     "vite-plugin-vue-devtools": "^8.0.5",
     "vue-router": "^4.6.4",
-    "vue-tsc": "^3.2.0"
+    "vue-tsc": "^3.1.8"
   }
 }

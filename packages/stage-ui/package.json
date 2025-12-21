@@ -132,10 +132,10 @@
     "unspeech": "^0.1.7",
     "uuid": "^13.0.0",
     "vaul-vue": "^0.4.1",
-    "vue-i18n": "^11.2.7",
+    "vue-i18n": "^11.2.2",
     "vue-router": "^4.6.4",
     "vue-sonner": "^2.0.9",
-    "vue-tsc": "^3.2.0",
+    "vue-tsc": "^3.1.8",
     "xast-util-to-xml": "^4.0.0",
     "xastscript": "^4.0.0",
     "zod": "^4.2.1"
@@ -175,6 +175,6 @@
     "unplugin-info": "^1.2.4",
     "unplugin-yaml": "^3.0.7",
     "vite": "^6.4.1",
-    "vue": "^3.5.26"
+    "vue": "^3.5.25"
   }
 }
