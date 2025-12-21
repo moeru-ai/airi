@@ -9,6 +9,8 @@ export const useMemoryLongTermStore = defineStore('memory-long-term', () => {
   const [vectorDbProvider, resetVectorDbProvider] = createResettableLocalStorage('settings/memory/long-term/vector-db-provider', '')
   const [embeddingProvider, resetEmbeddingProvider] = createResettableLocalStorage('settings/memory/long-term/embedding-provider', '')
   const [embeddingModel, resetEmbeddingModel] = createResettableLocalStorage('settings/memory/long-term/embedding-model', '')
+  const [useSqlite, resetUseSqlite] = createResettableLocalStorage('settings/memory/long-term/use-sqlite', false)
+  const [sqliteDbPath, resetSqliteDbPath] = createResettableLocalStorage('settings/memory/long-term/sqlite-db-path', '')
 
   const configured = computed(() => {
     return enabled.value && !!vectorDbProvider.value && !!embeddingProvider.value && !!embeddingModel.value
@@ -19,6 +21,8 @@ export const useMemoryLongTermStore = defineStore('memory-long-term', () => {
     resetVectorDbProvider()
     resetEmbeddingProvider()
     resetEmbeddingModel()
+    resetUseSqlite()
+    resetSqliteDbPath()
   }
 
   return {
@@ -27,6 +31,8 @@ export const useMemoryLongTermStore = defineStore('memory-long-term', () => {
     vectorDbProvider,
     embeddingProvider,
     embeddingModel,
+    useSqlite,
+    sqliteDbPath,
     configured,
 
     // Actions

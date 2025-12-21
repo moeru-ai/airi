@@ -7,7 +7,7 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const memoryShortTermStore = useMemoryShortTermStore()
-const { enabled, maxMessages, configured } = storeToRefs(memoryShortTermStore)
+const { enabled, maxMessages, useSqlite, sqliteDbPath, configured } = storeToRefs(memoryShortTermStore)
 
 const maxMessagesString = computed({
   get: () => maxMessages.value.toString(),
@@ -42,6 +42,21 @@ const maxMessagesString = computed({
       label="Maximum Messages"
       description="Number of recent messages to keep in short-term memory"
       placeholder="20"
+    />
+
+    <FieldCheckbox
+      v-model="useSqlite"
+      label="Use SQLite Storage"
+      description="Store memory in SQLite database instead of browser storage (Electron only)"
+    />
+
+    <FieldInput
+      v-if="useSqlite"
+      v-model="sqliteDbPath"
+      type="text"
+      label="Database Path"
+      description="Path to SQLite database file (leave empty to use default location)"
+      placeholder="Auto (user data folder)"
     />
 
     <div v-if="configured" :class="['mt-4', 'rounded-lg', 'bg-green-100', 'dark:bg-green-900/30', 'p-4', 'text-green-800', 'dark:text-green-200']">

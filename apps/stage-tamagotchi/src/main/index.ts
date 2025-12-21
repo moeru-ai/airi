@@ -15,6 +15,7 @@ import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/
 import { setElectronMainDirname } from './libs/electron/location'
 import { setupServerChannel } from './services/airi/channel-server'
 import { setupAutoUpdater } from './services/electron/auto-updater'
+import { setupMemoryDbService } from './services/memory-db'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -73,6 +74,7 @@ app.whenReady().then(async () => {
 
   const serverChannel = injeca.provide('modules:channel-server', () => setupServerChannel())
   const autoUpdater = injeca.provide('services:auto-updater', () => setupAutoUpdater())
+  const memoryDbService = injeca.provide('services:memory-db', () => setupMemoryDbService())
   const widgetsManager = injeca.provide('windows:widgets', () => setupWidgetsWindowManager())
   const noticeWindow = injeca.provide('windows:notice', () => setupNoticeWindowManager())
   const aboutWindow = injeca.provide('windows:about', {
@@ -109,7 +111,7 @@ app.whenReady().then(async () => {
   })
 
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel },
+    dependsOn: { mainWindow, tray, serverChannel, memoryDbService },
     callback: noop,
   })
 
