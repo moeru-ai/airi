@@ -32,12 +32,42 @@ const busy = ref(false)
 const mergedOptions = computed(() => [...props.options, ...customOptions.value])
 const selectedOption = computed(() => mergedOptions.value.find(option => option.id === selectedId.value))
 const enableBlur = ref(false)
+const previewColor = ref<string | undefined>(undefined)
 
 watch(modelValue, (value) => {
   selectedId.value = value?.id
 })
 
-watch(selectedOption, option => emit('change', { option }))
+watch(selectedOption, async (option) => {
+  emit('change', { option })
+  if (option?.kind === 'wave') {
+    const isDark = document.documentElement.classList.contains('dark')
+    const hue = getComputedStyle(document.documentElement).getPropertyValue('--chromatic-hue') || '220.44'
+    previewColor.value = isDark ? `hsl(${hue} 60% 32%)` : `hsl(${hue} 75% 78%)`
+  }
+  else if (option) {
+    await waitForPreviewReady()
+    const result = await colorFromElement(previewRef.value!, {
+      mode: 'html2canvas',
+      html2canvas: {
+        region: {
+          x: 0,
+          y: 0,
+          width: previewRef.value!.offsetWidth,
+          height: Math.min(120, previewRef.value!.offsetHeight),
+        },
+        scale: 0.2, // Use a small scale for faster preview sampling
+        backgroundColor: null,
+        allowTaint: true,
+        useCORS: true,
+      },
+    })
+    previewColor.value = result.html2canvas?.average
+  }
+  else {
+    previewColor.value = undefined
+  }
+})
 
 function getPreviewSrc(option?: BackgroundOption) {
   if (!option)
@@ -211,7 +241,7 @@ async function applySelection() {
             <div v-else class="h-full w-full flex items-center justify-center text-neutral-500 dark:text-neutral-400">
               Select a background
             </div>
-            <ThemeOverlay v-if="(selectedOption as any)?.kind !== 'wave'" />
+            <ThemeOverlay v-if="(selectedOption as any)?.kind !== 'wave'" :color="previewColor" />
           </div>
         </div>
       </div>
