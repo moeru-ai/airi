@@ -154,6 +154,7 @@ function updateCustomVoiceName(value: string | undefined) {
     activeSpeechVoice.value = undefined
     return
   }
+
   activeSpeechVoice.value = {
     id: value,
     name: value,

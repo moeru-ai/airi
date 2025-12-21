@@ -15,7 +15,7 @@ const { isDark, toggleDark } = useTheme()
       hover:text="red-500 dark:red-400"
       flex items-center justify-center rounded-md p-2 outline-none
       transition-colors transition-transform active:scale-95
-      @click="cleanupMessages"
+      @click="cleanupMessages()"
     >
       <div class="i-solar:trash-bin-2-bold-duotone" />
     </button>

@@ -1,6 +1,8 @@
-import { useBroadcastChannel, useLocalStorage } from '@vueuse/core'
+import { useBroadcastChannel } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
+
+import { createResettableLocalStorage, createResettableRef } from '../utils/resettable'
 
 type BroadcastChannelEvents
   = | BroadcastChannelEventShouldUpdateView
@@ -53,18 +55,28 @@ export const useLive2d = defineStore('live2d', () => {
     }
   })
 
-  const position = useLocalStorage('settings/live2d/position', { x: 0, y: 0 }) // position is relative to the center of the screen, units are %
+  const [position, resetPosition] = createResettableLocalStorage('settings/live2d/position', { x: 0, y: 0 }) // position is relative to the center of the screen, units are %
   const positionInPercentageString = computed(() => ({
     x: `${position.value.x}%`,
     y: `${position.value.y}%`,
   }))
-  const currentMotion = ref<{ group: string, index?: number }>({ group: 'Idle', index: 0 })
-  const availableMotions = ref<{ motionName: string, motionIndex: number, fileName: string }[]>([])
-  const motionMap = useLocalStorage<Record<string, string>>('settings/live2d/motion-map', {})
-  const scale = useLocalStorage('settings/live2d/scale', 1)
+  const [currentMotion, resetCurrentMotion] = createResettableRef<{ group: string, index?: number }>({ group: 'Idle', index: 0 })
+  const [availableMotions, resetAvailableMotions] = createResettableRef<{ motionName: string, motionIndex: number, fileName: string }[]>([])
+  const [motionMap, resetMotionMap] = createResettableLocalStorage<Record<string, string>>('settings/live2d/motion-map', {})
+  const [scale, resetScale] = createResettableLocalStorage('settings/live2d/scale', 1)
 
   // Live2D model parameters
-  const modelParameters = useLocalStorage('settings/live2d/parameters', defaultModelParameters)
+  const [modelParameters, resetModelParameters] = createResettableLocalStorage('settings/live2d/parameters', defaultModelParameters)
+
+  function resetState() {
+    resetPosition()
+    resetCurrentMotion()
+    resetAvailableMotions()
+    resetMotionMap()
+    resetScale()
+    resetModelParameters()
+    shouldUpdateView()
+  }
 
   return {
     position,
@@ -77,5 +89,6 @@ export const useLive2d = defineStore('live2d', () => {
 
     onShouldUpdateView,
     shouldUpdateView,
+    resetState,
   }
 })

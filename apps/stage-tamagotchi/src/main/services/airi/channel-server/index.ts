@@ -4,7 +4,7 @@ import { useLogg } from '@guiiai/logg'
 
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 
-export async function setupChannelServer() {
+export async function setupServerChannel() {
   const log = useLogg('main/server-runtime').useGlobalConfig()
 
   // Start the server-runtime server with WebSocket support
@@ -13,22 +13,22 @@ export async function setupChannelServer() {
     const serverRuntime = await import('@proj-airi/server-runtime')
     const { serve } = await import('h3')
     const { plugin: ws } = await import('crossws/server')
+    const app = serverRuntime.setupApp()
 
     try {
-      const serverInstance = serve(serverRuntime.app, {
+      const serverInstance = serve(app, {
       // TODO: fix types
       // @ts-expect-error - the .crossws property wasn't extended in types
-        plugins: [ws({ resolve: async req => (await serverRuntime.app.fetch(req)).crossws })],
+        plugins: [ws({ resolve: async req => (await app.fetch(req)).crossws })],
         port: env.PORT ? Number(env.PORT) : 6121,
         hostname: env.SERVER_RUNTIME_HOSTNAME || 'localhost',
         reusePort: true,
+        silent: true,
         gracefulShutdown: {
-          forceTimeout: 500,
-          gracefulTimeout: 500,
+          forceTimeout: 0.5,
+          gracefulTimeout: 0.5,
         },
       })
-
-      log.log('@proj-airi/server-runtime started on ws://localhost:6121')
 
       onAppBeforeQuit(async () => {
         if (serverInstance && typeof serverInstance.close === 'function') {
@@ -41,6 +41,8 @@ export async function setupChannelServer() {
           }
         }
       })
+
+      log.log('@proj-airi/server-runtime started on ws://localhost:6121')
     }
     catch (error) {
       log.withError(error).error('failed to start WebSocket server')

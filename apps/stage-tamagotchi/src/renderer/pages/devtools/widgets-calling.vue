@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { Button } from '@proj-airi/stage-ui/components'
-import { FieldInput, FieldSelect, FieldTextArea } from '@proj-airi/ui'
+import { Button, FieldInput, FieldSelect, FieldTextArea } from '@proj-airi/ui'
 import { computed, reactive, ref } from 'vue'
 
 import { widgetsAdd, widgetsClear, widgetsOpenWindow, widgetsPrepareWindow, widgetsRemove, widgetsUpdate } from '../../../shared/eventa'

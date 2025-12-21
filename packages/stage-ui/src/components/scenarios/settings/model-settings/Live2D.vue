@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Checkbox, FieldRange } from '@proj-airi/ui'
+import { Button, Checkbox, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -7,7 +7,6 @@ import { useI18n } from 'vue-i18n'
 import { defaultModelParameters, useLive2d } from '../../../../stores/live2d'
 import { useSettings } from '../../../../stores/settings'
 import { Section } from '../../../layouts'
-import { Button } from '../../../misc'
 import { ColorPalette } from '../../../widgets'
 
 defineProps<{

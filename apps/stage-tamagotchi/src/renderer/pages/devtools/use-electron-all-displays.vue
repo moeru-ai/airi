@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { useWindowSize } from '@vueuse/core'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 
 import { useElectronAllDisplays, useElectronMouse } from '../../composables/electron-vueuse'
 
 const allDisplays = useElectronAllDisplays()
 const { x: cursorX, y: cursorY } = useElectronMouse()
 
-const containerRef = ref<HTMLElement>()
 const windowSize = useWindowSize()
 
 const displayBounds = computed(() => {
@@ -89,7 +88,6 @@ const containerDimensions = computed(() => {
 <template>
   <div>
     <div
-      ref="containerRef"
       class="relative"
       :style="{
         width: `${containerDimensions.width}px`,

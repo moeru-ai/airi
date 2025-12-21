@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { inject } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -7,7 +8,6 @@ import Alert from '../../../misc/Alert.vue'
 
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
 import { RadioCardManySelect } from '../../../menu'
-import { Button } from '../../../misc'
 import { OnboardingContextKey } from './utils'
 
 const { t } = useI18n()

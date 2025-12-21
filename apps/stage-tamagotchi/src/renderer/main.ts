@@ -15,6 +15,9 @@ import App from './App.vue'
 
 import { i18n } from './modules/i18n'
 
+import './modules/posthog'
+
+// eslint-disable-next-line perfectionist/sort-imports
 import '@unocss/reset/tailwind.css'
 import 'uno.css'
 import './styles/main.css'
@@ -25,6 +28,7 @@ import '@fontsource-variable/dm-sans'
 import '@fontsource-variable/jura'
 import '@fontsource-variable/quicksand'
 import '@fontsource-variable/urbanist'
+import '@fontsource-variable/comfortaa'
 import '@fontsource/dm-mono'
 import '@fontsource/dm-serif-display'
 import '@fontsource/gugi'

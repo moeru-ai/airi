@@ -1,13 +1,16 @@
 <script setup lang="ts">
+import { ChatHistory } from '@proj-airi/stage-ui/components'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useDeferredMount } from '@proj-airi/ui'
+import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
 import ChatActionButtons from '../Widgets/ChatActionButtons.vue'
 import ChatArea from '../Widgets/ChatArea.vue'
 import ChatContainer from '../Widgets/ChatContainer.vue'
-import ChatHistory from '../Widgets/ChatHistory.vue'
 
 const { isReady } = useDeferredMount()
+const { messages, sending, streamingMessage } = storeToRefs(useChatStore())
 
 const isLoading = ref(true)
 </script>
@@ -23,8 +26,16 @@ const isLoading = ref(true)
         >
           <div h-full w="1/3" origin-left bg-primary-500 class="animate-scan" />
         </div>
-        <div w="full" max-h="<md:[60%]" py="<sm:2" flex="~ col" rounded="lg" relative h-full flex-1 overflow-hidden py-4>
-          <ChatHistory v-if="isReady" h-full @vue:mounted="isLoading = false" />
+        <div w="full" max-h="<md:[60%]" py="<sm:2" flex="~ col" rounded="lg" relative h-full flex-1 overflow-hidden px="2 <md:0" py-4>
+          <ChatHistory
+            v-if="isReady"
+            :messages="messages"
+            :sending="sending"
+            :streaming-message="streamingMessage"
+            h-full
+            variant="desktop"
+            @vue:mounted="isLoading = false"
+          />
         </div>
         <ChatArea />
       </ChatContainer>

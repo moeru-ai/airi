@@ -2,11 +2,12 @@ import type { Live2DFactoryContext, Middleware, ModelSettings } from 'pixi-live2
 
 interface OPFSContext extends Live2DFactoryContext {
   opfsKey?: string
+  opfsUrl?: string
 }
 
 declare global {
   interface FileSystemDirectoryHandle {
-    values(): AsyncIterableIterator<FileSystemDirectoryHandle | FileSystemFileHandle>
+    values: () => FileSystemDirectoryHandleAsyncIterator<FileSystemHandle>
   }
 }
 
@@ -17,6 +18,8 @@ export class OPFSCache {
       if (entry.kind === 'file') {
         const fileHandle = entry as FileSystemFileHandle
         const file = await fileHandle.getFile()
+        if (file.name === '__meta.json')
+          continue
         // live2d-display expects this
         Object.defineProperty(file, 'webkitRelativePath', {
           value: pathPrefix + file.name,
@@ -56,11 +59,33 @@ export class OPFSCache {
     await writable.close()
   }
 
-  static async get(key: string): Promise<File[] | null> {
+  static async readMeta(dirHandle: FileSystemDirectoryHandle) {
+    try {
+      const metaHandle = await dirHandle.getFileHandle('__meta.json', { create: false })
+      const metaFile = await metaHandle.getFile()
+      const metaText = await metaFile.text()
+      return JSON.parse(metaText) as { sourceUrl?: string }
+    }
+    catch {
+      return null
+    }
+  }
+
+  static async get(key: string, sourceUrl: string): Promise<File[] | null> {
     try {
       const root = await navigator.storage.getDirectory()
       const dirHandle = await root.getDirectoryHandle(key, { create: false })
+      // eslint-disable-next-line no-console
       console.debug(`[OPFS] Cache hit for ${key}`)
+
+      const meta = await OPFSCache.readMeta(dirHandle)
+      if (meta?.sourceUrl && meta.sourceUrl !== sourceUrl) {
+        // NOTICE: Skip cache when the requested URL changes while the key stays the same.
+        // This avoids serving a stale model when ids are reused or props are out of sync.
+        // eslint-disable-next-line no-console
+        console.debug(`[OPFS] Cache mismatch for ${key}, source url changed`)
+        return null
+      }
 
       const files = await OPFSCache.readDirectoryRecursive(dirHandle, '')
 
@@ -68,13 +93,14 @@ export class OPFSCache {
         return files
       }
     }
-    catch (e) {
+    catch {
       // Cache Miss
     }
     return null
   }
 
-  static async save(key: string, files: File[]): Promise<void> {
+  static async save(key: string, files: File[], sourceUrl?: string): Promise<void> {
+    // eslint-disable-next-line no-console
     console.debug(`[OPFS] Saving ${files.length} files to ${key}`)
 
     try {
@@ -94,6 +120,7 @@ export class OPFSCache {
         // reconstruct settings files from ModelSettings
         const settings: ModelSettings = (files as any).settings
         if (settings) {
+          // eslint-disable-next-line no-console
           console.debug('[OPFS] Reconstructing settings file...')
           const settingsJson = JSON.stringify(settings.json)
           const settingsFileName = settings.url || 'model.model3.json'
@@ -103,6 +130,10 @@ export class OPFSCache {
       }
 
       await Promise.all(writePromises)
+      if (sourceUrl) {
+        await OPFSCache.writeFile(dirHandle, '__meta.json', JSON.stringify({ sourceUrl }))
+      }
+      // eslint-disable-next-line no-console
       console.debug(`[OPFS] Saved to cache`)
     }
     catch (e) {
@@ -136,7 +167,7 @@ export class OPFSCache {
       return next()
     }
 
-    const files = await OPFSCache.get(key)
+    const files = await OPFSCache.get(key, blobUrl)
 
     if (files) {
       // cache hit
@@ -145,8 +176,10 @@ export class OPFSCache {
     }
 
     // cache miss
+    // eslint-disable-next-line no-console
     console.debug(`[OPFS] Cache miss for ${key}`)
     context.opfsKey = key
+    context.opfsUrl = blobUrl
 
     try {
       const res = await fetch(blobUrl)
@@ -174,7 +207,7 @@ export class OPFSCache {
       return next()
     }
 
-    await OPFSCache.save(context.opfsKey, files)
+    await OPFSCache.save(context.opfsKey, files, context.opfsUrl)
 
     return next()
   }

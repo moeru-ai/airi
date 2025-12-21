@@ -116,7 +116,7 @@ onUnmounted(() => {
       <BasicTextarea
         v-model="messageInput"
         :placeholder="t('stage.message')"
-        text="primary-500 hover:primary-600 dark:primary-300/50 dark:hover:primary-500 placeholder:primary-400 placeholder:hover:primary-500 placeholder:dark:primary-300/50 placeholder:dark:hover:primary-500"
+        text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
         bg="transparent"
         min-h="[100px]" max-h="[300px]" w-full
         rounded-t-xl p-4 font-medium

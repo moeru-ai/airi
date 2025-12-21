@@ -3,24 +3,25 @@ import { join, resolve } from 'node:path'
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import Vue from '@vitejs/plugin-vue'
 import UnoCss from 'unocss/vite'
-import VueMacros from 'unplugin-vue-macros/vite'
+import Info from 'unplugin-info/vite'
 import VueRouter from 'unplugin-vue-router/vite'
 import Yaml from 'unplugin-yaml/vite'
 import Inspect from 'vite-plugin-inspect'
 import VitePluginVueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
+import VueMacros from 'vue-macros/vite'
 
 import { Download } from '@proj-airi/unplugin-fetch'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
 import { templateCompilerOptions } from '@tresjs/core'
-import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
+import { defineConfig } from 'electron-vite'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [Info()],
   },
   preload: {
     build: {
@@ -31,7 +32,7 @@ export default defineConfig({
         },
       },
     },
-    plugins: [externalizeDepsPlugin()],
+    plugins: [],
   },
   renderer: {
     // Thanks to [@Maqsyo](https://github.com/Maqsyo)
@@ -91,6 +92,8 @@ export default defineConfig({
     },
 
     plugins: [
+      Info(),
+
       {
         name: 'proj-airi:defines',
         config(ctx) {

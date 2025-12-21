@@ -71,7 +71,5 @@ export const widgetsRemoveEvent = defineEventa<{ id: string }>('eventa:event:ele
 export const widgetsClearEvent = defineEventa('eventa:event:electron:windows:widgets:clear')
 export const widgetsUpdateEvent = defineEventa<{ id: string, componentProps?: Record<string, any> }>('eventa:event:electron:windows:widgets:update')
 
-export const beatSyncToggle = defineInvokeEventa<void, boolean>('eventa:event:electron:beat-sync:toggle')
-export const beatSyncSignalBeat = defineInvokeEventa<void, void>('eventa:event:electron:beat-sync:signal-beat')
-
 export { electron } from './electron'
+export * from './electron-updater'

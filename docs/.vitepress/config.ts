@@ -61,12 +61,13 @@ export default defineConfig({
     ['link', { rel: 'mask-icon', href: '/logo.svg', color: '#ffffff' }],
     // Proxying Plausible through Netlify | Plausible docs
     // https://plausible.io/docs/proxy/guides/netlify
-    ['script', {
-      'defer': 'true',
-      'data-domain': 'airi.moeru.ai',
-      'data-api': 'https://airi.moeru.ai/api/v1/page-external-data/submit',
-      'src': 'https://airi.moeru.ai/remote-assets/page-external-data/js/script.js',
-    }],
+    ['script', { async: '', src: 'https://moeru-ai-airi-helper.kwaa.workers.dev/remote-assets/page-external-data/js/script.js' }],
+    ['script', {}, `
+      window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
+      plausible.init({
+        endpoint: "https://moeru-ai-airi-helper.kwaa.workers.dev/api/v1/page-external-data/submit"
+      })
+    `],
     ['script', {}, `
       ;(function () {
         const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches

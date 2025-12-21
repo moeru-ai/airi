@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Button from './Button.vue'
+import { Button } from '@proj-airi/ui'
 </script>
 
 <template>
@@ -20,18 +20,10 @@ import Button from './Button.vue'
         <div class="flex flex-row gap-4 p-2">
           <Button label="Primary Button" />
           <Button label="Secondary Button" variant="secondary" />
+          <Button label="Caution Button" variant="caution" />
           <Button label="Danger Button" variant="danger" />
+          <Button label="Pure Button" variant="pure" />
         </div>
-        <!-- <div class="flex flex-row gap-4 p-2">
-          <Button label="Primary Button" theme="dimmed" />
-          <Button label="Secondary Button" variant="secondary" theme="dimmed" />
-          <Button label="Danger Button" variant="danger" theme="dimmed" />
-        </div> -->
-        <!-- <div class="flex flex-row gap-4 p-2">
-          <Button label="Primary Button" theme="lightened" />
-          <Button label="Secondary Button" variant="secondary" theme="lightened" />
-          <Button label="Danger Button" variant="danger" theme="lightened" />
-        </div> -->
       </div>
     </Variant>
 
@@ -42,7 +34,9 @@ import Button from './Button.vue'
       <div class="flex flex-row gap-4 p-2">
         <Button label="Disabled Primary" disabled />
         <Button label="Disabled Secondary" variant="secondary" disabled />
+        <Button label="Disabled Caution" variant="caution" disabled />
         <Button label="Disabled Danger" variant="danger" disabled />
+        <Button label="Disabled Pure" variant="pure" disabled />
       </div>
     </Variant>
 
@@ -53,7 +47,9 @@ import Button from './Button.vue'
       <div class="flex flex-row gap-4 p-2">
         <Button label="Loading Primary" loading />
         <Button label="Loading Secondary" variant="secondary" loading />
+        <Button label="Loading Caution" variant="caution" loading />
         <Button label="Loading Danger" variant="danger" loading />
+        <Button label="Loading Pure" variant="pure" loading />
       </div>
     </Variant>
 
@@ -63,8 +59,10 @@ import Button from './Button.vue'
     >
       <div class="flex flex-row gap-4 p-2">
         <Button label="Add Item" icon="i-solar:add-circle-line-duotone" />
+        <Button label="Warn" variant="caution" icon="i-solar:danger-triangle-line-duotone" />
         <Button label="Delete Item" variant="danger" icon="i-solar:trash-bin-trash-line-duotone" />
         <Button label="Settings" variant="secondary" icon="i-solar:settings-line-duotone" />
+        <Button label="Plain" variant="pure" icon="i-solar:emoji-funny-circle-line-duotone" />
       </div>
     </Variant>
 
@@ -75,7 +73,9 @@ import Button from './Button.vue'
       <div class="flex gap-4 p-2">
         <Button icon="i-solar:add-circle-line-duotone" />
         <Button variant="secondary" icon="i-solar:settings-line-duotone" />
+        <Button variant="caution" icon="i-solar:danger-triangle-line-duotone" />
         <Button variant="danger" icon="i-solar:trash-bin-trash-line-duotone" />
+        <Button variant="pure" icon="i-solar:neutral-face-outline" />
       </div>
     </Variant>
 
@@ -87,6 +87,7 @@ import Button from './Button.vue'
         <Button label="Small" size="sm" />
         <Button label="Medium" size="md" />
         <Button label="Large" size="lg" />
+        <Button label="Caution" variant="caution" />
       </div>
     </Variant>
 
@@ -97,6 +98,7 @@ import Button from './Button.vue'
       <div class="flex flex-col gap-4 p-2">
         <Button label="Block Primary" block />
         <Button label="Block Secondary" variant="secondary" block />
+        <Button label="Block Caution" variant="caution" block />
         <Button label="Block Danger" variant="danger" block />
       </div>
     </Variant>

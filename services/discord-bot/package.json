@@ -21,7 +21,7 @@
   "dependencies": {
     "@discordjs/voice": "^0.19.0",
     "@guiiai/logg": "catalog:",
-    "@huggingface/transformers": "^3.7.6",
+    "@huggingface/transformers": "^3.8.1",
     "@proj-airi/audio": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/server-shared": "workspace:^",
@@ -30,10 +30,10 @@
     "@xsai/generate-text": "catalog:",
     "@xsai/generate-transcription": "catalog:",
     "@xsai/shared-chat": "catalog:",
-    "discord.js": "^14.24.2",
+    "discord.js": "^14.25.1",
     "libsodium-wrappers": "^0.7.15",
     "opusscript": "^0.1.1",
-    "tsx": "^4.20.6",
+    "tsx": "^4.21.0",
     "wavefile": "^11.0.0"
   }
 }

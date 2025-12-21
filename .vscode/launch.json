@@ -35,8 +35,7 @@
       ],
       "outFiles": [
         "${workspaceFolder}/plugins/airi-plugin-vscode/dist/**/*.js"
-      ],
-      "preLaunchTask": "npm: build - plugins/airi-plugin-vscode"
+      ]
     }
   ],
   "compounds": [

@@ -21,3 +21,14 @@ pages:
       toggle-ignore-mouse-event:
         label: 忽略鼠标事件
       press-keys: 请按下按键...
+    developer:
+      sections:
+        section:
+          use-window-mouse:
+            title: useWindowMouse
+            description: 测试 Electron 窗口鼠标位置
+devtools:
+  title: 开发者选项
+  pages:
+    widgets-calling:
+      title: 挂件调用

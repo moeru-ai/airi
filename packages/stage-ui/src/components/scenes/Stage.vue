@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { DuckDBWasmDrizzleDatabase } from '@proj-airi/drizzle-duckdb-wasm'
+import type { Live2DLipSync } from '@proj-airi/model-driver-lipsync'
+import type { Profile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 import type { UnElevenLabsOptions } from 'unspeech'
 
@@ -9,6 +11,8 @@ import type { TTSChunkItem } from '../../utils/tts'
 
 import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
 import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser'
+import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
+import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { useBroadcastChannel } from '@vueuse/core'
@@ -67,20 +71,20 @@ const { textSegmentationQueue } = storeToRefs(textSegmentationStore)
 clearTextSegmentationHooks()
 
 const characterSpeechPlaybackQueue = usePipelineCharacterSpeechPlaybackQueueStore()
-const { connectAudioContext, connectAudioAnalyser, clearAll, onPlaybackStarted, onPlaybackFinished } = characterSpeechPlaybackQueue
+const { connectAudioContext, connectAudioAnalyser, connectLipSyncNode, clearAll, onPlaybackStarted, onPlaybackFinished } = characterSpeechPlaybackQueue
 const { currentAudioSource, playbackQueue } = storeToRefs(characterSpeechPlaybackQueue)
 
 const settingsStore = useSettings()
 const { stageModelRenderer, stageViewControlsEnabled, live2dDisableFocus, stageModelSelectedUrl, stageModelSelected } = storeToRefs(settingsStore)
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
-const { audioContext, calculateVolume } = useAudioContext()
+const { audioContext } = useAudioContext()
 connectAudioContext(audioContext)
 
-const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd, clearHooks } = useChatStore()
-// WORKAROUND: clear previous hooks to avoid duplicate calls
-//             due to re-mounting of this component when switching routes and stages.
-//            See the comment above for more details.
-clearHooks()
+const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
+const chatHookCleanups: Array<() => void> = []
+// WORKAROUND: clear previous handlers on unmount to avoid duplicate calls when this component remounts.
+//             We keep per-hook disposers instead of wiping the global chat hooks to play nicely with
+//             cross-window broadcast wiring.
 
 const providersStore = useProvidersStore()
 const live2dStore = useLive2d()
@@ -121,6 +125,8 @@ vrmStore.onShouldUpdateView(async () => {
 const audioAnalyser = ref<AnalyserNode>()
 const nowSpeaking = ref(false)
 const lipSyncStarted = ref(false)
+const lipSyncLoopId = ref<number>()
+const live2dLipSync = ref<Live2DLipSync>()
 
 const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
@@ -224,19 +230,38 @@ onTextSegmented((chunkItem) => {
   ttsQueue.enqueue(chunkItem)
 })
 
-function getVolumeWithMinMaxNormalizeWithFrameUpdates() {
-  requestAnimationFrame(getVolumeWithMinMaxNormalizeWithFrameUpdates)
-  if (!nowSpeaking.value)
+function startLipSyncLoop() {
+  if (lipSyncLoopId.value)
     return
 
-  mouthOpenSize.value = calculateVolume(audioAnalyser.value!, 'linear')
+  const tick = () => {
+    if (!nowSpeaking.value || !live2dLipSync.value) {
+      mouthOpenSize.value = 0
+    }
+    else {
+      mouthOpenSize.value = live2dLipSync.value.getMouthOpen()
+    }
+    lipSyncLoopId.value = requestAnimationFrame(tick)
+  }
+
+  lipSyncLoopId.value = requestAnimationFrame(tick)
 }
 
-function setupLipSync() {
-  if (!lipSyncStarted.value) {
-    getVolumeWithMinMaxNormalizeWithFrameUpdates()
-    audioContext.resume()
+async function setupLipSync() {
+  if (lipSyncStarted.value)
+    return
+
+  try {
+    const lipSync = await createLive2DLipSync(audioContext, wlipsyncProfile as Profile)
+    live2dLipSync.value = lipSync
+    connectLipSyncNode(lipSync.node)
+    await audioContext.resume()
+    startLipSyncLoop()
     lipSyncStarted.value = true
+  }
+  catch (error) {
+    lipSyncStarted.value = false
+    console.error('Failed to setup Live2D lip sync', error)
   }
 }
 
@@ -247,44 +272,44 @@ function setupAnalyser() {
   }
 }
 
-onBeforeMessageComposed(async () => {
+chatHookCleanups.push(onBeforeMessageComposed(async () => {
   clearAll()
   setupAnalyser()
-  setupLipSync()
+  await setupLipSync()
   // Reset assistant caption for a new message
   assistantCaption.value = ''
   postCaption({ type: 'caption-assistant', text: '' })
   postPresent({ type: 'assistant-reset' })
-})
+}))
 
-onBeforeSend(async () => {
+chatHookCleanups.push(onBeforeSend(async () => {
   currentMotion.value = { group: EmotionThinkMotionName }
-})
+}))
 
-onTokenLiteral(async (literal) => {
+chatHookCleanups.push(onTokenLiteral(async (literal) => {
   // Only push to segmentation; visual presentation happens on playback start
   textSegmentationQueue.value.enqueue({ type: 'literal', value: literal } as TextSegmentationItem)
-})
+}))
 
-onTokenSpecial(async (special) => {
+chatHookCleanups.push(onTokenSpecial(async (special) => {
   // delaysQueue.enqueue(special)
   // emotionMessageContentQueue.enqueue(special)
   // Also push special token to the queue for emotion animation/delay and TTS playback synchronisation
   textSegmentationQueue.value.enqueue({ type: 'special', value: special } as TextSegmentationItem)
-})
+}))
 
-onStreamEnd(async () => {
+chatHookCleanups.push(onStreamEnd(async () => {
   delaysQueue.enqueue(llmInferenceEndToken)
-})
+}))
 
-onAssistantResponseEnd(async (_message) => {
+chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
   // const res = await embed({
   //   ...transformersProvider.embed('Xenova/nomic-embed-text-v1'),
   //   input: message,
   // })
 
   // await db.value?.execute(`INSERT INTO memory_test (vec) VALUES (${JSON.stringify(res.embedding)});`)
-})
+}))
 
 onUnmounted(() => {
   lipSyncStarted.value = false
@@ -303,11 +328,32 @@ function canvasElement() {
     return vrmViewerRef.value?.canvasElement()
 }
 
+onUnmounted(() => {
+  if (lipSyncLoopId.value) {
+    cancelAnimationFrame(lipSyncLoopId.value)
+    lipSyncLoopId.value = undefined
+  }
+
+  chatHookCleanups.forEach(dispose => dispose?.())
+})
+
 defineExpose({
   canvasElement,
 })
 
+onPlaybackFinished(() => {
+  nowSpeaking.value = false
+  mouthOpenSize.value = 0
+})
+
 onPlaybackStarted(({ text }) => {
+  nowSpeaking.value = true
+  // NOTICE: currently, postCaption, postPresent from useBroadcastChannel may throw error
+  // once we navigate away from the page that created the BroadcastChannel,
+  // as the channel gets closed on unmount, leading to "Failed to execute 'postMessage' on 'BroadcastChannel': The channel is closed."
+  // error that may block hooks or throw exceptions silently.
+  //
+  // TODO: we should consider better way to manage BroadcastChannel lifecycle to avoid such issues.
   assistantCaption.value += ` ${text}`
   postCaption({ type: 'caption-assistant', text: assistantCaption.value })
   postPresent({ type: 'assistant-append', text })

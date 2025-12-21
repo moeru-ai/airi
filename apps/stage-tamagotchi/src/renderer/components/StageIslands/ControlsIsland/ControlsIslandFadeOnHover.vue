@@ -22,6 +22,11 @@ async function handleToggle() {
     return
   }
 
+  if (uiStore.dontShowItAgainNoticeFadeOnHover) {
+    uiStore.enableFadeOnHover()
+    return
+  }
+
   try {
     const acknowledged = await requestNotice({
       id: NOTICE_WINDOW_ID,

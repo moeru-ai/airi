@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/memory-pgvector",
   "type": "module",
-  "version": "0.8.0-alpha.5",
+  "version": "0.8.0-beta.4",
   "private": true,
   "description": "",
   "author": {
@@ -19,7 +19,12 @@
   "main": "./src/index.ts",
   "scripts": {},
   "dependencies": {
-    "consola": "^3.2.3"
+    "@guiiai/logg": "catalog:",
+    "@proj-airi/server-sdk": "workspace:^",
+    "drizzle-orm": "^0.45.1",
+    "postgres": "^3.4.7"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "tsx": "^4.21.0"
+  }
 }

@@ -31,7 +31,6 @@ import {
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useWindowStore } from '../stores/window'
 
-const resourceStatusIslandRef = ref<InstanceType<typeof ResourceStatusIsland>>()
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const widgetStageRef = ref<{ canvasElement: () => HTMLCanvasElement }>()
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
@@ -46,7 +45,11 @@ const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
 const { isOutside } = useElectronMouseInElement(controlsIslandRef)
 const isOutsideFor250Ms = refDebounced(isOutside, 250)
 const { x: relativeMouseX, y: relativeMouseY } = useElectronRelativeMouse()
-const isTransparent = useCanvasPixelIsTransparentAtPoint(stageCanvas, relativeMouseX, relativeMouseY)
+// NOTICE: In real-world use cases of Fade on Hover feature, the cursor may move around the edge of the
+// model rapidly, causing flickering effects when checking pixel transparency strictly.
+// Here we use `regionRadius` to help to detect with look-ahead strategy to relax the pixel accurate
+// check / detection on hovered underlying canvas pixel, therefore inaccurate mouse movements won't cause flickering.
+const isTransparent = useCanvasPixelIsTransparentAtPoint(stageCanvas, relativeMouseX, relativeMouseY, { regionRadius: 25 })
 const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBorder({ threshold: 30 })
 const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
@@ -85,11 +88,12 @@ watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTrans
     pause()
   }
   else {
+    const fadeEnabled = fadeOnHoverEnabled.value
     // Otherwise allow click-through while we fade UI based on transparency (when enabled)
-    isIgnoringMouseEvents.value = true
-    shouldFadeOnCursorWithin.value = fadeOnHoverEnabled.value && !isOutsideWindow.value && !isTransparent.value
-    setIgnoreMouseEvents([true, { forward: true }])
-    if (fadeOnHoverEnabled.value)
+    isIgnoringMouseEvents.value = fadeEnabled
+    shouldFadeOnCursorWithin.value = fadeEnabled && !isOutsideWindow.value && !isTransparent.value
+    setIgnoreMouseEvents([fadeEnabled, { forward: true }])
+    if (fadeEnabled)
       resume()
     else
       pause()
@@ -217,7 +221,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
           'transition-opacity duration-250 ease-in-out',
         ]"
       >
-        <ResourceStatusIsland ref="resourceStatusIslandRef" />
+        <ResourceStatusIsland />
         <WidgetStage
           ref="widgetStageRef"
           v-model:state="componentStateStage"

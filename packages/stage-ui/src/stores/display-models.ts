@@ -204,6 +204,16 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     displayModels.value = displayModels.value.filter(model => model.id !== id)
   }
 
+  async function resetDisplayModels() {
+    await loadDisplayModelsFromIndexedDB()
+    const userModelIds = displayModels.value.filter(model => model.type === 'file').map(model => model.id)
+    for (const id of userModelIds) {
+      await removeDisplayModel(id)
+    }
+
+    displayModels.value = [...displayModelsPresets].sort((a, b) => b.importedAt - a.importedAt)
+  }
+
   return {
     displayModels,
     displayModelsFromIndexedDBLoading,
@@ -213,5 +223,6 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     addDisplayModel,
     renameDisplayModel,
     removeDisplayModel,
+    resetDisplayModels,
   }
 })

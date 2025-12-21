@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { OnboardingDialog, ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
-import { useModsChannelServerStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
+import { installChatContextBridge } from '@proj-airi/stage-ui/stores/plugins/chat-context-bridge'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
@@ -24,7 +25,8 @@ const settings = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
 const { shouldShowSetup } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
-const channelServerStore = useModsChannelServerStore()
+const cardStore = useAiriCardStore()
+let disposeChatBridge: (() => void) | undefined
 
 const primaryColor = computed(() => {
   return isDark.value
@@ -62,15 +64,18 @@ watch(settings.themeColorsHueDynamic, () => {
 
 // Initialize first-time setup check when app mounts
 onMounted(async () => {
+  cardStore.initialize()
+
   onboardingStore.initializeSetupCheck()
-  channelServerStore.initialize()
+  const bridge = installChatContextBridge()
+  disposeChatBridge = bridge.dispose
 
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
 })
 
 onUnmounted(() => {
-  channelServerStore.dispose()
+  disposeChatBridge?.()
 })
 
 // Handle first-time setup events

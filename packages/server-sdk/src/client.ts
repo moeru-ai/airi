@@ -4,13 +4,6 @@ import WebSocket from 'crossws/websocket'
 
 import { sleep } from '@moeru/std'
 
-class ReconnectingError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'ReconnectingError'
-  }
-}
-
 export interface ClientOptions<C = undefined> {
   url?: string
   name: string
@@ -28,6 +21,8 @@ export class Client<C = undefined> {
   private connecting = false
   private websocket?: WebSocket
   private shouldClose = false
+  private connectAttempt?: Promise<void>
+  private connectTask?: Promise<void>
 
   private readonly opts: Required<Omit<ClientOptions<C>, 'token'>> & Pick<ClientOptions<C>, 'token'>
   private readonly eventListeners = new Map<
@@ -57,6 +52,12 @@ export class Client<C = undefined> {
       }
     })
 
+    this.onEvent('error', async (event) => {
+      if (event.data.message === 'not authenticated') {
+        await this._reconnectDueToUnauthorized()
+      }
+    })
+
     if (this.opts.autoConnect) {
       void this.connect()
     }
@@ -78,10 +79,6 @@ export class Client<C = undefined> {
         return
       }
       catch (err) {
-        if (err instanceof ReconnectingError) {
-          return
-        }
-
         this.opts.onError?.(err)
         const delay = Math.min(2 ** attempts * 1000, 30_000) // capped exponential backoff
         await sleep(delay)
@@ -92,7 +89,7 @@ export class Client<C = undefined> {
 
   private async tryReconnectWithExponentialBackoff() {
     if (this.shouldClose) {
-      return
+      throw new Error('Client is closed')
     }
 
     await this.retryWithExponentialBackoff(() => this._connect())
@@ -103,25 +100,42 @@ export class Client<C = undefined> {
       return Promise.resolve()
     }
     if (this.connecting) {
-      return Promise.reject(new ReconnectingError('Already connecting'))
+      return this.connectAttempt ?? Promise.resolve()
     }
 
-    return new Promise((resolve, reject) => {
+    this.connectAttempt = new Promise((resolve, reject) => {
       this.connecting = true
+      let settled = false
+
+      const settle = (fn: () => void) => {
+        if (settled)
+          return
+
+        settled = true
+        this.connecting = false
+        this.connectAttempt = undefined
+        fn()
+      }
 
       const ws = new WebSocket(this.opts.url)
       this.websocket = ws
 
       ws.onmessage = this.handleMessageBound
       ws.onerror = (event: any) => {
-        this.connecting = false
-        this.connected = false
+        settle(() => {
+          this.connected = false
 
-        this.opts.onError?.(event)
-        reject(event?.error ?? new Error('WebSocket error'))
+          this.opts.onError?.(event)
+          reject(event?.error ?? new Error('WebSocket error'))
+        })
       }
       ws.onclose = () => {
-        this.connecting = false
+        if (!settled && !this.connected) {
+          settle(() => {
+            reject(new Error('WebSocket closed before open'))
+          })
+          return
+        }
 
         if (this.connected) {
           this.connected = false
@@ -132,21 +146,33 @@ export class Client<C = undefined> {
         }
       }
       ws.onopen = () => {
-        this.connecting = false
-        this.connected = true
+        settle(() => {
+          this.connected = true
 
-        if (this.opts.token)
-          this.tryAuthenticate()
-        else
-          this.tryAnnounce()
+          if (this.opts.token)
+            this.tryAuthenticate()
+          else
+            this.tryAnnounce()
 
-        resolve()
+          resolve()
+        })
       }
     })
+
+    return this.connectAttempt
   }
 
   async connect() {
-    await this.tryReconnectWithExponentialBackoff()
+    if (this.connected) {
+      return
+    }
+    if (this.connectTask) {
+      return this.connectTask
+    }
+
+    this.connectTask = this.tryReconnectWithExponentialBackoff().finally(() => (this.connectTask = undefined))
+
+    return this.connectTask
   }
 
   private tryAnnounce() {
@@ -244,5 +270,18 @@ export class Client<C = undefined> {
       this.websocket.close()
       this.connected = false
     }
+  }
+
+  private async _reconnectDueToUnauthorized() {
+    if (this.shouldClose)
+      return
+
+    const ws = this.websocket
+    this.connected = false
+    if (ws && ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
+      ws.close()
+    }
+
+    await this.connect()
   }
 }

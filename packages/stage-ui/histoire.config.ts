@@ -113,6 +113,10 @@ export default defineConfig({
         title: 'Widgets',
       },
       {
+        id: 'chat',
+        title: 'Chat',
+      },
+      {
         id: 'gadgets',
         title: 'Gadgets',
       },

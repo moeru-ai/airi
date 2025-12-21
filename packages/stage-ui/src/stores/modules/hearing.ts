@@ -2,13 +2,13 @@ import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/shared-pro
 import type { WithUnknown } from '@xsai/shared'
 import type { StreamTranscriptionResult, StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
 
-import { useLocalStorage } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
-import { streamTranscription } from '@xsai/stream-transcription'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 
+import { createResettableLocalStorage, createResettableRef } from '../../utils/resettable'
 import { useProvidersStore } from '../providers'
+import { streamAliyunTranscription } from '../providers/aliyun/stream-transcription'
 
 export interface StreamTranscriptionFileInputOptions extends Omit<XSAIStreamTranscriptionOptions, 'file' | 'fileName'> {
   file: Blob
@@ -36,7 +36,7 @@ interface HearingTranscriptionInvokeOptions {
 }
 
 const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
-  'aliyun-nls-transcription': streamTranscription as StreamTranscription,
+  'aliyun-nls-transcription': streamAliyunTranscription,
 }
 
 export const useHearingStore = defineStore('hearing-store', () => {
@@ -44,10 +44,10 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const { allAudioTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
   // State
-  const activeTranscriptionProvider = useLocalStorage('settings/hearing/active-provider', '')
-  const activeTranscriptionModel = useLocalStorage('settings/hearing/active-model', '')
-  const activeCustomModelName = useLocalStorage('settings/hearing/active-custom-model', '')
-  const transcriptionModelSearchQuery = ref('')
+  const [activeTranscriptionProvider, resetActiveTranscriptionProvider] = createResettableLocalStorage('settings/hearing/active-provider', '')
+  const [activeTranscriptionModel, resetActiveTranscriptionModel] = createResettableLocalStorage('settings/hearing/active-model', '')
+  const [activeCustomModelName, resetActiveCustomModelName] = createResettableLocalStorage('settings/hearing/active-custom-model', '')
+  const [transcriptionModelSearchQuery, resetTranscriptionModelSearchQuery] = createResettableRef('')
 
   // Computed properties
   const availableProvidersMetadata = computed(() => allAudioTranscriptionProvidersMetadata.value)
@@ -86,6 +86,13 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const configured = computed(() => {
     return !!activeTranscriptionProvider.value && !!activeTranscriptionModel.value
   })
+
+  function resetState() {
+    resetActiveTranscriptionProvider()
+    resetActiveTranscriptionModel()
+    resetActiveCustomModelName()
+    resetTranscriptionModelSearchQuery()
+  }
 
   async function transcription(
     providerId: string,
@@ -178,6 +185,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     transcription,
     loadModelsForProvider,
     getModelsForProvider,
+    resetState,
   }
 })
 

@@ -1,3 +1,5 @@
+import type { WidgetsWindowManager } from '../widgets'
+
 import { join, resolve } from 'node:path'
 
 import { BrowserWindow, shell } from 'electron'
@@ -6,8 +8,11 @@ import icon from '../../../../resources/icon.png?asset'
 
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
+import { setupChatWindowElectronInvokes } from './rpc/index.electron'
 
-export function setupChatWindowReusableFunc() {
+export function setupChatWindowReusableFunc(params: {
+  widgetsManager: WidgetsWindowManager
+}) {
   return createReusableWindow(async () => {
     const window = new BrowserWindow({
       title: 'Chat',
@@ -28,6 +33,11 @@ export function setupChatWindowReusableFunc() {
     })
 
     await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/chat'))
+
+    setupChatWindowElectronInvokes({
+      window,
+      widgetsManager: params.widgetsManager,
+    })
 
     return window
   }).getWindow

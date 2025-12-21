@@ -21,3 +21,14 @@ pages:
       toggle-ignore-mouse-event:
         label: Alternar Ignorar Evento del Ratón
       press-keys: Presionar Teclas...
+    developer:
+      sections:
+        section:
+          use-window-mouse:
+            title: useWindowMouse
+            description: Test the Electron window cursor position
+devtools:
+  title: Developer
+  pages:
+    widgets-calling:
+      title: Widget Calling

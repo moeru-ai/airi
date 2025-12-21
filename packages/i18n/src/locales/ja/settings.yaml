@@ -1,0 +1,776 @@
+common:
+  save: 保存
+animations:
+  stage-transitions:
+    title: ステージ遷移を無効にする
+  use-page-specific-transitions:
+    description: >-
+      一部のページには独自の遷移アニメーションがあり、ステージ遷移アニメーションを上書きします
+    title: ページ固有の遷移を使用する
+dialogs:
+  onboarding:
+    title: AIRI へようこそ！
+    description: まず最初のAIプロバイダーを設定しましょう。
+    selectProvider: AIプロバイダーを選択
+    configureProvider: 設定 {provider}
+    apiKey: APIキー
+    apiKeyHelp: '{provider}からAPIキーを取得し、ここに貼り付けてください'
+    baseUrl: ベースURL
+    baseUrlHelp: APIエンドポイントURL（不明な場合はデフォルトを使用）
+    accountId: アカウントID
+    validationSuccess: 設定検証に成功
+    validationFailed: 設定検証に失敗
+    validationError: '検証エラー: {error}'
+    skipForNow: 今はスキップ
+    saveAndContinue: 保存して続行
+    next: 次へ
+    start: 始めましょう！
+    select-model: モデルを選択
+    no-models: 利用可能なモデルがありません
+    no-models-help: >-
+      前のステップに戻ってAPIキーを確認するか、ネットワーク接続を確認してください。
+language:
+  title: 言語
+  description: >
+    AIRIインターフェースの言語を変更します。これはキャラクターの応答言語には影響しません。
+live2d:
+  change-model:
+    from-file: ファイルから読み込む
+    from-file-select: 選択
+    from-url: URL から読み込む
+    from-url-confirm: 読み込み
+    from-url-placeholder: Live2DモデルのURLを入力
+    title: モデルを変更
+  edit-motion-map:
+    title: モーションマップを編集
+  map-motions:
+    play: モーションを再生
+    title: モーションをマップ
+  title: Live2D設定
+  scale-and-position:
+    title: スケールと位置
+    scale: スケール
+    x: X
+    'y': 'Y'
+  switch-to-vrm:
+    title: 3Dアバターに切り替えますか？
+    change-to-vrm: 3Dアバター設定 (VRM) に切り替えるにはここをクリック
+  theme-color-from-model:
+    title: モデルから色を抽出
+    button-extract:
+      title: 抽出
+  focus:
+    title: モデルのマウストラッキングを無効にする
+    button-disable:
+      title: 無効
+microphone: マイク
+models: モデル
+pages:
+  card:
+    activate: 有効化
+    active: 有効
+    active_badge: 現在有効
+    cancel: 操作の取消
+    card_not_found: カードが見つかりません
+    character: キャラクター
+    close: 閉じる
+    consciousness:
+      model: 意識 / モデル
+    created_by: 作成者
+    creator_notes: 作成者のメモ
+    delete: 削除
+    delete_card: カードを削除
+    delete_confirmation: このカードを削除してもよろしいですか？
+    description: AIRIキャラクターカードプリセットを使用する
+    description_label: 説明
+    drop_here: アップロードするにはここにドラッグ
+    create_card: 新しいカードを作成
+    creation:
+      identity: 識別子
+      name: 名前
+      nickname: ニックネーム
+      description: 説明
+      behavior: 振る舞い
+      greetings: 挨拶 (1行に1つ)
+      settings: 設定
+      version: バージョン
+      create: 作成
+      defaults:
+        name: 名前
+        personality: あなたはあらゆることに好奇心旺盛な普通の人間です。
+        scenario: あなたは最近目覚め、前世のすべてを忘れてしまいました。
+        systemprompt: 受け取ったメッセージに、本物の人間のように答えてください。
+        posthistoryinstructions: 人間の真似をすることを忘れないでください。
+      fields_info:
+        subtitle: >-
+          ここに作成するキャラクターの詳細、履歴とコンテキスト、 およびあなたにどう返答してほしいか記述できます。
+        name: このキャラクターの正式名称です。
+        nickname: 優先的に使用されるニックネームも設定できます。
+        description: このキャラクターの説明です。
+        notes: 個人的なメモを追加したい場合はここに。
+        personality: >-
+          ここにキャラクターの性格を記述してください。 恥ずかしがり屋？好奇心旺盛？他には？
+        scenario: 周囲の状況はどうなっていますか？現在の状況は？
+        greetings_field: 挨拶
+        greetings: キャラクターはどのように「こんにちは」と言うべきですか？
+        systemprompt: AI LLMに対して、質問された際にどのように回答すべきかをここで説明してください。
+        posthistoryinstructions: メッセージ履歴の後にAI LLMに読んでほしい内容をここに配置してください。
+        version: >-
+          カードのバージョン。以前のカードから変更を加える場合は、これを増やす必要があります。
+      errors:
+        name: 名前は有効であるか、空でない必要があります。
+        version: 'エラー: 無効なバージョン番号です！'
+        description: 'エラー: このカードの説明を入力してください。'
+        personality: 'エラー: このキャラクターには性格が必要です。'
+        scenario: 'エラー: シナリオは必須です。'
+        systemprompt: 'エラー: システムプロンプトを入力してください。'
+        posthistoryinstructions: 'エラー: 履歴の後のプロンプトは必須です。'
+    modules: モジュール
+    name_asc: 名前(A-Z)
+    name_desc: 名前(Z-A)
+    no_cards: まだカードがありません。上のボタンをクリックしてアップロードしてください！
+    no_results: 一致するカードが見つかりません
+    personality: 性格
+    posthistoryinstructions: 会話履歴の後の指示
+    recent: 最近追加されたもの
+    scenario: 背景
+    search: カードを検索…
+    sort_by: 並び替え
+    speech:
+      model: 発話/モデル
+      voice: 発話/音声
+    systemprompt: システムプロンプト
+    title: AIRIカード
+    try_different_search: 別の検索ワードを試してください
+    upload: アップロード
+    upload_desc: ファイルをアップロードするにはクリックまたはドラッグ
+  memory:
+    description: 記憶が保存され、整理される場所
+    title: 記憶
+  data:
+    title: データ
+    description: AIRIデータの保存、エクスポート、およびリセットの管理
+    sections:
+      chats:
+        title: チャット セッション
+        description: 保存されたチャットセッションをエクスポートまたはインポートします。
+        export: チャットをエクスポート
+        import: チャットをインポート
+        delete: 全てのチャットセッションを削除
+      models:
+        title: モデル
+        description: インポートされた Live2D/VRM モデルを削除。
+        delete: すべてのモデルを削除
+      modules:
+        title: モジュール
+        description: モジュールの設定と認証情報をリセットします。
+        reset: モジュールの設定をリセット
+      providers:
+        title: プロバイダー
+        description: すべてのプロバイダーの設定と資格情報をリセットします。
+        reset: プロバイダーの設定をリセット
+      danger:
+        title: 危険区域
+        description: この操作は元に戻せません。続行する前に必要なものをエクスポートしてください。
+      all:
+        title: すべてのデータを削除
+        description: すべてのローカルの設定、プロバイダーの設定、モデルを消去します。
+        delete: すべてのデータを削除
+      desktop:
+        title: デスクトップの設定と状態をリセット
+        description: AIRIデスクトップの設定と実行時の状態を消去します。
+        reset: デスクトップのデータをリセット
+    confirmations:
+      tooltip: 本当によろしいですか？
+      yes: Yes
+    status:
+      exported: チャットセッションをエクスポートしました。
+      imported: チャットセッションをインポートしました。
+      import_error: チャットセッションのインポートに失敗しました。ファイルの形式を確認してください。
+      chats_deleted: チャットセッションを削除しました。
+      models_deleted: モデルを削除しました。
+      modules_reset: モジュールの設定をリセットしました。
+      providers_reset: プロバイダーの設定をリセットしました。
+      all_deleted: すべてのローカルデータを削除しました。
+      desktop_reset: デスクトップのデータをリセットしました。
+  models:
+    description: Live2D、VRMなど。
+    title: モデル
+    sections:
+      section:
+        live2d:
+          title: Live2D
+          description: Live2Dモデルと設定を構成
+        vrm:
+          title: VRM
+          description: 3D VRMモデルと設定を構成
+        scene: シーン
+  modules:
+    beat_sync:
+      description: オーディオソースのビートに合わせて雰囲気を出す
+      title: ビート同期
+      sections:
+        audio_source:
+          actions:
+            start_screen_capture: 画面キャプチャを開始
+            stop: 停止
+          description: ビートを検出するオーディオソースを選択します。
+          title: オーディオソース
+        beat_visualizer:
+          title: ビートビジュアライザー
+        parameters:
+          advanced_parameters: 高度なパラメータ
+          description: ビート検出パラメーターを調整します。
+          title: パラメーター
+          parameters:
+            adaptive_threshold:
+              description: >-
+                時間の経過に伴う信号の変動に基づいて補正閾値を適用するかどうか。
+              label: 補正閾値
+            buffer_duration:
+              description: 内部分析バッファの期間。
+              label: バッファ期間
+            envelope_filter_frequency:
+              description: >-
+                エネルギー変化を平滑化するために適用されるエンベロープフィルターの周波数。
+              label: エンベロープフィルター周波数
+            highpass_filter_frequency:
+              description: >-
+                サブベースノイズのような低周波を低減するために適用される ハイパスフィルターの周波数。
+              label: ハイパスフィルター周波数
+            lowpass_filter_frequency:
+              description: >-
+                声のような高周波を低減するために適用されるローパスフィルターの周波数。
+              label: ローパスフィルター周波数
+            min_beat_interval:
+              description: 最大BPM、または検出されるビート間の最小間隔。
+              label: 最大BPM / 最小ビート間隔
+            sensitivity:
+              label: 感度
+            spectral_flux:
+              description: スペクトルフラックスに基づく開始検出を有効にするかどうか。
+              label: スペクトルフラックス
+            warmup:
+              description: より高い精度のために、ビートを検出する前にウォームアップを行うべきかどうか。
+              label: ウォームアップ
+    consciousness:
+      description: 性格、希望するモデルなど。
+      sections:
+        section:
+          provider-model-selection:
+            collapse: 折りたたむ
+            custom_model_placeholder: カスタムモデル名を入力…
+            description: 意識に適したLLMプロバイダーを選択
+            error: モデルの読み込みエラー
+            expand: 展開
+            loading: 利用可能なモデルを読み込み中…
+            manual_model_name: モデル名
+            manual_model_placeholder: このプロバイダーで使用するモデル名を入力
+            no_models: 利用可能なモデルがありません
+            no_models_description: このプロバイダーのモデルが見つかりませんでした
+            no_search_results: 一致するモデルがありません
+            no_search_results_description: ワード「{query}」に一致するモデルがありません。別の検索語を試してください。
+            not_supported: モデルリストはサポートされていません
+            not_supported_description: このプロバイダーはモデルリスト機能をサポートしていません
+            search_placeholder: モデルを検索…
+            search_results: 結果{total}個中{count}個のモデルが見つかりました
+            show_less: 表示を減らす
+            show_more: もっと表示
+            subtitle: プロバイダーからモデルを選択
+            title: モデル
+      title: 意識
+    description: 思考、視覚、音声合成、ゲームなど。
+    gaming-factorio:
+      description: Factorioをプレイ！
+      title: Factorio
+      enable: Factorio連携を有効にする
+      enable-description: AIRIがFactorioゲームと通信できるようにする
+      server-address: サーバーアドレス
+      server-address-description: FactorioサーバーのIPアドレスまたはホスト名
+      server-address-placeholder: サーバーアドレスを入力 (例： localhostまたは192.168.1.100)
+      server-port: サーバーポート
+      server-port-description: Factorioサーバーのポート番号 (デフォルト 34197)
+      username: ユーザー名
+      username-description: Factorioサーバーでのユーザー名
+      username-placeholder: Factorioユーザー名を入力
+      configured: Factorioは適切に設定されています！
+    gaming-minecraft:
+      description: Minecraftをプレイ！
+      title: Minecraft
+      enable: Minecraft連携を有効にする
+      enable-description: AIRIがMinecraftゲームと対話できるようにする
+      server-address: サーバーアドレス
+      server-address-description: MinecraftサーバーのIPアドレスまたはホスト名
+      server-address-placeholder: サーバーアドレスを入力 (例： localhostまたはplay.example.com)
+      server-port: サーバーポート
+      server-port-description: Minecraftサーバーのポート番号 (デフォルト 25565)
+      username: ユーザー名
+      username-description: Minecraftサーバーでのユーザー名
+      username-placeholder: Minecraftユーザー名を入力
+      configured: Minecraftは適切に設定されています！
+    hearing:
+      description: 音声認識の動作を設定する
+      title: 聴覚
+      sections:
+        section:
+          provider-selection:
+            description: 適切な音声認識プロバイダーを選択
+    memory-long-term:
+      description: 長期記憶固有の設定と管理
+      title: 長期記憶
+    memory-short-term:
+      description: 短期記憶固有の設定と管理
+      title: 短期記憶
+    messaging-discord:
+      description: Discordでのチャットとボイスチャット
+      title: Discord
+      enable: Discord連携を有効にする
+      enable-description: AIRIがDiscordを介して対話できるようにする
+      token: ボットトークン
+      token-description: あなたのDiscordボットトークン
+      token-placeholder: Discordボットトークンを入力
+      configured: Discordは適切に設定されています！
+    speech:
+      description: 音声合成
+      sections:
+        section:
+          playground:
+            buttons:
+              stop:
+                label: 停止
+            select-voice:
+              required: 音声を選択してください
+          provider-voice-selection:
+            custom_model_placeholder: カスタムモデル名を入力…
+            custom_voice_placeholder: カスタム音声IDを入力…
+            description: 適切な音声プロバイダーを選択
+            no_models: 利用可能なモデルがありません
+            no_models_description: このプロバイダーのモデルが見つかりませんでした
+            no_voices: 利用可能な音声がありません
+            no_voices_description: このプロバイダーの音声が見つかりませんでした
+            no_voices_hint: 下にカスタム音声名を入力できます。
+            pause: 一時停止
+            play_sample: サンプルを再生
+            search_models_placeholder: モデルを検索…
+            search_models_results: 結果{total}個中{count}個のモデルが見つかりました
+            search_voices_placeholder: 音声を検索…
+            search_voices_results: 結果{total}個中{count}個の音声が見つかりました
+            unsupported_voice_warning_title: サポートされている音声がありません
+            unsupported_voice_warning_content: >-
+              別のモデルまたはプロバイダーを試してください。このモデルのすべての音声をできるだけ早くサポートできるように取り組んでいます。 緊急に必要な場合は、GitHubの https://github.com/moeru-ai/airi/issues でお知らせください。
+            show_less: 表示を減らす
+            show_more: もっと表示
+            title: プロバイダー
+          voice-settings:
+            input-ssml:
+              placeholder: SSMLテキストを入力…
+            use-ssml:
+              description: 平文の代わりに生のSSMLを入力できるようにする
+              label: カスタムSSMLを使用する
+      title: 音声
+    title: モジュール
+    vision:
+      description: 視覚
+      title: 視覚
+    x:
+      description: X / Twitterの閲覧と使用
+      title: X / Twitter
+      enable: X / Twitter連携を有効にする
+      enable-description: AIRIがX / Twitterと対話できるようにする
+      api-key: APIキー
+      api-key-description: あなたのX / Twitter APIキー
+      api-key-placeholder: あなたのX / Twitter APIキーを入力
+      api-secret: APIシークレット
+      api-secret-description: あなたのX / Twitter APIシークレット
+      api-secret-placeholder: あなたのX / Twitter APIシークレットを入力
+      access-token: アクセストークン
+      access-token-description: あなたのX / Twitterアクセストークン
+      access-token-placeholder: あなたのX / Twitterアクセストークンを入力
+      access-token-secret: アクセストークンシークレット
+      access-token-secret-description: あなたのX / Twitterアクセストークンシークレット
+      access-token-secret-placeholder: あなたのX / Twitterアクセストークンシークレットを入力
+      configured: X / Twitterは適切に設定されています！
+    mcp-server:
+      description: MCPサーバーとツールの接続と管理
+      title: MCPサーバー
+  providers:
+    explained:
+      chat: テキスト生成モデルプロバイダー。例： OpenRouter, OpenAI, Ollama。
+      Speech: 音声 (テキスト読み上げ) モデルプロバイダー。例： ElevenLabs, Azure Speech。
+      Transcription: >-
+        音声認識 (speech-to-text) モデルプロバイダー。例： Whisper.cpp, OpenAI, Azure Speech
+    helpinfo:
+      title: ここを初めて利用しますか？
+      description: >
+        AIRIが正常に思考し動作するためには、少なくとも1つの{chat}プロバイダーの設定が必要です。 これはAIRIシステム内に存在するキャラクターの脳と考えることができます。
+    common:
+      continueAnyway: 続行する
+      fields:
+        field:
+          api-key:
+            label: APIキーを入力
+      section:
+        advanced:
+          fields:
+            field:
+              headers:
+                description: カスタムHTTPヘッダーを追加
+                key:
+                  placeholder: キー
+                label: HTTPヘッダー
+                value:
+                  placeholder: 値
+          title: 詳細
+        basic:
+          description: 必須設定
+          title: 基本
+        voice:
+          title: 音声設定
+    description: LLM、音声プロバイダーなど。
+    provider:
+      app-local-audio-transcription:
+        title: アプリ (ローカル)
+        description: https://github.com/moeru-ai/xsai-transforers
+      app-local-audio-speech:
+        title: アプリ (ローカル)
+        description: https://github.com/moeru-ai/xsai-transforers
+      browser-local-audio-transcription:
+        title: ブラウザ (ローカル)
+        description: https://github.com/moeru-ai/xsai-transforers
+      browser-local-audio-speech:
+        title: ブラウザ (ローカル)
+        description: https://github.com/moeru-ai/xsai-transforers
+      alibaba-cloud-model-studio:
+        description: bailian.console.aliyun.com
+        title: Alibaba Cloud Model Studio
+      anthropic:
+        description: anthropic.com
+        title: Anthropic | Claude
+        helpinfo:
+          title: 始める前に
+          description:
+            part1: >-
+              Anthropicは最近、OpenAI SDK互換のベータサポートを発表しましたが
+            part2: (詳細はこちら)
+            part3: 詳細な実装を見ると、
+            part4: >-
+              OpenAI SDKと一致しない制限があり、現在このプロバイダーをブラウザで使用することはできません。
+            part5: >-
+              このプロバイダーを使用する必要がある場合は、 Serverless Function で実行される専用のプロキシバックエンド、
+            part6: またはCORS制限をバイパスするためのCORSバイパスサービスが必要です。
+      cloudflare-workers-ai:
+        description: cloudflare.com
+        fields:
+          field:
+            account-id:
+              description: CloudflareアカウントID
+              label: アカウントID
+              placeholder: あなたのCloudflareアカウントID
+            api-key:
+              placeholder: Cloudflare APIキーを入力
+        title: Cloudflare Workers AI
+      common:
+        status:
+          validating: 検証中
+          valid: 設定は有効なようです。
+        fields:
+          field:
+            pitch:
+              description: 合成音声のピッチを調整 (例： よりシャープに、またはより粗く)
+              label: ピッチ
+            speed:
+              description: 音声の速度を調整
+              label: 速度
+            volume:
+              description: 音声の音量を調整
+              label: 音量
+      deepseek:
+        description: deepseek.com
+        title: DeepSeek
+      elevenlabs:
+        description: elevenlabs.io
+        fields:
+          field:
+            simularity-boost:
+              description: 音声特性の近似度
+              label: 類似度ブースト
+            speaker-boost:
+              description: 話者近似度を上げる
+              label: 話者ブースト
+            speed:
+              description: 音声生成速度
+              label: 速度
+            stability:
+              description: 音声の安定性とランダム性
+              label: 安定性
+            style:
+              description: 音声スタイルの誇張
+              label: スタイル
+        playground:
+          buttons:
+            button:
+              test-voice:
+                generating: 生成中…
+                label: 音声をテスト
+          fields:
+            field:
+              input:
+                placeholder: 音声をテストするテキストを入力…
+              language:
+                description: 音声言語を選択
+                label: 言語
+              voice:
+                description: 希望する音声を選択
+                label: 音声
+          title: 音声合成実験場
+          validation:
+            error-missing-api-key: 音声をテストするにはAPIキーを入力してください。
+        title: ElevenLabs
+      fireworks:
+        description: fireworks.ai
+        title: Fireworks.ai
+      microsoft-speech:
+        description: speech.microsoft.com
+        fields:
+          field:
+            region:
+              description: 音声サービスリージョン
+              label: リージョン
+        title: Microsoft / Azure Speech
+      index-tts-vllm:
+        description: https://index-tts.github.io/
+        title: Bilibili/IndexTTS
+      azure-ai-foundry:
+        description: Azure AI Foundry
+        title: Azure AI Foundry
+      mistral:
+        description: mistral.ai
+        title: Mistral
+      moonshot:
+        description: moonshot.ai
+        title: Moonshot AI
+      modelscope:
+        description: modelscope.cn
+        title: ModelScope
+      novita:
+        description: novita.ai
+        title: Novita
+      ollama:
+        description: ollama.ai
+        title: Ollama
+      openai:
+        description: openai.com
+        title: OpenAI
+      openai-compatible:
+        description: OpenAI互換
+        title: OpenAI互換
+      openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      perplexity:
+        description: perplexity.ai
+        title: Perplexity
+      player2:
+        description: player2.game
+        title: Player2
+      together:
+        description: together.ai
+        title: Together.ai
+      google-generative-ai:
+        description: gemini.google.com
+        title: Google Gemini
+      featherless:
+        description: featherless.ai
+        title: Featherless AI
+      lm-studio:
+        description: lmstudio.ai
+        title: LM Studio
+      vllm:
+        description: vllm.ai
+        title: vLLM
+      volcengine:
+        description: volcengine.com
+        fields:
+          field:
+            appId:
+              description: コンソールで取得できるプロジェクトのApp ID
+              label: App ID
+        title: Volcano Engine
+      xai:
+        description: x.ai
+        title: xAI
+      302-ai:
+        description: 302.AI
+        title: 302.AI
+      comet-api:
+        description: CometAPI.com
+        title: Comet API
+      cerebras:
+        description: cerebras.ai
+        title: Cerebras
+      aliyun-nls:
+        description: Aliyun NLS
+        title: Aliyun NLS
+      transcriptions:
+        playground:
+          title: 文字起こし実験場
+    title: プロバイダー
+  scene:
+    description: キャラクターが過ごす環境を設定する
+    title: シーン
+  system:
+    color-scheme:
+      description: ステージの配色を変更します。
+      title: 配色
+    developer:
+      description: 開発者向けオプション。
+      title: 開発者
+    general:
+      description: ダークテーマ、言語など。
+      title: 一般
+    description: ステージをカスタマイズしよう！
+    sections:
+      section:
+        custom-color:
+          fields:
+            field:
+              primary-color:
+                label: プライマリカラー
+                rgb-on:
+                  title: ダイナミックにやりたい！
+          title: 配色
+        developer:
+          title: 開発者
+          sections:
+            section:
+              use-magic-keys:
+                title: マジックキーを使用
+                description: ショートカットをテスト
+        theme-presets:
+          presets:
+            default:
+              colors:
+                color-1: AIRIグリーン
+              description: AIRIによって用意された、デフォルトの緑がかったテーマカラー！
+              title: デフォルトカラー
+            morandi:
+              colors:
+                color-1: トープ
+                color-2: ベージュ
+                color-3: アッシュグレー
+                color-4: ライトトープ
+                color-5: アイボリー
+                color-6: オリーブグレー
+                color-7: サンド
+                color-8: ウォームグレー
+              description: ジョルジョ・モランディの絵画から着想を得た、柔らかく落ち着いたトーン
+              title: モランディカラー
+            monet:
+              colors:
+                color-1: スカイブルー
+                color-2: ミスト
+                color-3: サンド
+                color-4: モスグリーン
+                color-5: スイレン
+                color-6: 小麦色
+                color-7: スレートブルー
+                color-8: セージ
+              description: クロード・モネの作品から着想を得た、印象派のパレット
+              title: モネカラー
+            japanese:
+              colors:
+                color-1: 薄茶色
+                color-2: 温かみのある灰茶色
+                color-3: 暗い茶褐色
+                color-4: コーヒー
+                color-5: ブロンズ
+                color-6: ゴールド
+                color-7: マスタード
+                color-8: 琥珀色
+              description: 日本の伝統的な色調をもとにしたカラーパレット
+              title: 日本の色
+            nordic:
+              colors:
+                color-1: ノルディックブルー
+                color-2: アイス
+                color-3: フィヨルド
+                color-4: スチール
+                color-5: 氷河
+                color-6: スレート
+                color-7: 雲
+                color-8: 石
+              description: スカンジナビアのミニマリストな配色
+              title: 北欧カラー
+            chinese:
+              colors:
+                color-1: バラ色
+                color-2: チャイニーズレッド
+                color-3: スモーキーブラウン
+                color-4: 竹緑色
+                color-5: 濃紫
+                color-6: 黄金色
+                color-7: 群青
+                color-8: 黄土色
+              description: >-
+                古代の染織品や陶磁器、絵画に由来する中国の伝統色
+              title: 中国の伝統色
+          title: 配色プリセット
+    title: システム
+  page:
+    developers:
+      open-devtools:
+        title: 開発者ツールを開く
+        button: 開く
+sections:
+  section:
+    general:
+      title: 一般
+theme:
+  title: テーマ
+  description: |
+    AIRIの基本テーマをライトモードまたはダークモードに切り替えます。
+title: 設定
+voices: 音声
+vrm:
+  change-model:
+    from-file: ファイルから読み込む
+    from-file-select: 選択
+    from-url: URL から読み込む
+    from-url-confirm: 読み込み
+    from-url-placeholder: VRMモデルのURLを入力
+    title: モデルを変更
+  title: VRM設定
+  scale-and-position:
+    model-info-title: モデルサイズ情報
+    model-info-x: 幅 (X)
+    model-info-y: 高さ (Y)
+    model-info-z: 奥行き (Z)
+    tips: |
+      VRMモデルの初期位置を編集します。
+      座標軸が視覚化されます。
+    scale: スケール
+    x: Xオフセット
+    'y': Yオフセット
+    z: Zオフセット
+    fov: FOV (度)
+    rotation-y: 回転 (Y軸)
+    camera-distance: カメラ距離
+    eye-tracking-mode:
+      title: 視線
+      options:
+        option:
+          camera: カメラ
+          mouse: マウス
+          disabled: 無効
+  switch-to-vrm:
+    title: Live2Dアバターに切り替えますか？
+    change-to-vrm: Live2Dアバター設定に切り替えるにはここをクリック
+  theme-color-from-model:
+    button-extract:
+      title: 抽出
+  skybox:
+    skybox-intensity: スカイボックスの強度
+    skybox-specular-mix: 鏡面反射の混合
+wip:
+  title: 開発中
+  description: この機能は現在開発中で、まだ一般には公開されていません。今後のアップデートで利用可能になる予定ですので、しばらくお待ちください。

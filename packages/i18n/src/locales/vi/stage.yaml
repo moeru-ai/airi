@@ -17,14 +17,14 @@ viewers:
   debug-menu:
     emotions: Cảm xúc
     emotions-btn:
-      angry: 😠 Giận dữ
-      awkward: 😳 Ngại ngùng
-      happy: 😄 Vui vẻ
-      neutral: 🙂 Bình thường
-      question: 🤔 Thắc mắc
-      sad: 😫 Buồn bã
-      surprised: 🤯 Ngạc nhiên
-      think: 🤨 Suy nghĩ
+      angry: '😠 Giận dữ'
+      awkward: '😳 Ngại ngùng'
+      happy: '😄 Vui vẻ'
+      neutral: '🙂 Bình thường'
+      question: '🤔 Thắc mắc'
+      sad: '😫 Buồn bã'
+      surprised: '🤯 Ngạc nhiên'
+      think: '🤨 Suy nghĩ'
     vrm:
       camera: Máy quay
       model:

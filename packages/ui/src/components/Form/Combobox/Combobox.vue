@@ -82,7 +82,7 @@ function toDisplayValue(value: T): string {
 
         <template
           v-for="(group, index) in options"
-          :key="group.name"
+          :key="group.groupLabel"
         >
           <ComboboxGroup :class="['overflow-x-hidden']">
             <ComboboxSeparator

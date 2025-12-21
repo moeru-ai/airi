@@ -1,152 +1,88 @@
 {
-  lib,
-  stdenv,
   stdenvNoCC,
-  rustPlatform,
+  callPackage,
 
-  autoPatchelfHook,
-  cargo-tauri,
-  pkg-config,
+  copyDesktopItems,
+  makeDesktopItem,
+  makeWrapper,
+  gitMinimal,
   pnpm,
-  wrapGAppsHook3,
 
-  alsa-lib,
-  atk,
-  cacert,
-  glib,
-  libayatana-appindicator,
+  asar,
+  electron,
   nodejs,
-  onnxruntime,
-  openssl,
-  systemdLibs,
-  webkitgtk_4_1,
-  xorg,
-
-  debugBuild ? false,
 }:
 
-rustPlatform.buildRustPackage (final: {
-  pname = "airi";
-  version = "0.7.2-beta.3";
-
-  src = ../.;
-
-  cargoLock = {
-    lockFile = ../Cargo.lock;
-    outputHashes."rdev-0.6.0" = "sha256-mGt44/kVo5EJO1Wf6MPLq0sZgwGTzuQjeVT6HxVzpQY=";
-  };
-
-  pnpmDeps = pnpm.fetchDeps {
-    inherit (final) pname version src;
-    fetcherVersion = 1;
-    hash = builtins.readFile ./pnpm-deps-hash.txt;
-  };
-
-  # Cache of assets downloaded during vite build
-  assets = stdenvNoCC.mkDerivation {
-    pname = "${final.pname}-assets";
-    inherit (final) version src pnpmDeps;
-
-    nativeBuildInputs = [
-      cacert # For network request
-      nodejs
-      pnpm.configHook
-    ];
-
-    buildPhase = ''
-      runHook preBuild
-
-      pnpm run build:packages
-      pnpm -F @proj-airi/stage-tamagotchi run build
-
-      runHook postBuild
-    '';
-
-    installPhase = ''
-      runHook preInstall
-
-      mkdir -p $out
-      cp -r apps/stage-tamagotchi/.cache/assets $out
-
-      runHook postInstall
-    '';
-
-    outputHashMode = "recursive";
-    outputHash = builtins.readFile ./assets-hash.txt;
-  };
-
+(callPackage ./common.nix { }).overrideAttrs (final: {
   nativeBuildInputs = [
-    cargo-tauri.hook
+    asar
+    copyDesktopItems
+    makeWrapper
+    gitMinimal
     nodejs
-    pkg-config
     pnpm.configHook
-  ]
-  ++ lib.optionals stdenv.isLinux [
-    wrapGAppsHook3
-    autoPatchelfHook
   ];
 
-  buildInputs = [
-    glib # Used by glib-sys
-    onnxruntime # Used by ort-sys
-    openssl # Used by openssl-sys
-  ]
-  ++ lib.optionals stdenv.isLinux [
-    alsa-lib # Used by alsa-sys
-    atk # Used by atk-sys
-    libayatana-appindicator # Used by libappindicator-sys
-    systemdLibs # For libudev used by libudev-sys
-    webkitgtk_4_1
-    xorg.libXtst # Used by x11
+  desktopItems = [
+    (makeDesktopItem {
+      desktopName = "AIRI";
+      comment = final.meta.description;
+      categories = [
+        "AudioVideo"
+        "Amusement"
+      ];
+      exec = final.meta.mainProgram;
+      icon = final.meta.mainProgram;
+      name = final.meta.mainProgram;
+    })
   ];
+
+  env.ELECTRON_SKIP_BINARY_DOWNLOAD = "1";
 
   configurePhase = ''
     runHook preConfigure
 
     echo Setting up asset cache
-    mkdir apps/stage-tamagotchi/.cache
-    cp -r $assets/assets apps/stage-tamagotchi/.cache
+    ln -s "$assets" .cache
+    mkdir apps/stage-tamagotchi/src/renderer/.cache
+    ln -s "$assets" apps/stage-tamagotchi/src/renderer/.cache/assets
 
     runHook postConfigure
   '';
 
-  preBuild = ''
+  buildPhase = ''
+    runHook preBuild
+
     pnpm run build:packages
+    cd apps/stage-tamagotchi
+    pnpm run build
+    pnpm exec electron-builder build \
+      --dir --${if stdenvNoCC.isLinux then "linux" else "mac"} \
+      -c.electronDist="${electron.dist}" \
+      -c.electronVersion="${electron.version}"
+
+    runHook postBuild
   '';
 
-  buildAndTestSubdir = "apps/stage-tamagotchi";
-  buildType = if debugBuild then "debug" else "release";
+  installPhase = ''
+    runHook preInstall
 
-  postInstall = lib.optionalString stdenv.isDarwin ''
-    mkdir -p "$out/bin"
-    ln -sf "$out/Applications/AIRI.app/Contents/MacOS/airi" "$out/bin/airi"
+    mkdir -p "$out/opt"
+    cp -r dist/*-unpacked "$out/opt/AIRI"
+    # The icon is actually 1500x1500... install it anyway
+    install -Dm644 resources/icon.png "$out/share/icons/hicolor/64x64/apps/airi.png"
+
+    # Patch the asar to include the assets
+    cd "$out/opt/AIRI/resources"
+    asar extract app.asar app
+    rm -r app.asar.unpacked
+    cp -r "$assets"/{vrm,live2d} app/out/renderer/assets
+    asar pack app app.asar
+
+    makeWrapper "${electron}/bin/electron" "$out/bin/airi" \
+      --add-flags "$out/opt/AIRI/resources/app.asar" \
+      --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--enable-wayland-ime=true --wayland-text-input-version=3}}"
+
+    runHook postInstall
   '';
-
-  # Add missing runtime dependency
-  preFixup = lib.optionalString stdenv.isLinux ''
-    patchelf --add-needed libayatana-appindicator3.so.1 $out/bin/airi
-  '';
-
-  meta = {
-    description = "Self-hostable AI waifu / companion / VTuber";
-    longDescription = ''
-      AIRI is a soul container of AI waifu / virtual characters to bring them into our world,
-      wishing to achieve Neuro-sama's altitude. It's completely LLM and AI driven, capable of
-      realtime voice chat, playing Minecraft and Factorio. It can be run in browser or on desktop.
-      This is the desktop version.
-    '';
-    homepage = "https://github.com/moeru-ai/airi";
-    changelog = "https://github.com/moeru-ai/airi/releases/tag/v${final.version}";
-    # While airi itself is licensed under MIT, it uses the nonfree Cubism SDK. Whether it's
-    # redistributable remains a question, so we say it's not.
-    license = lib.licenses.unfree;
-    platforms = [
-      "x86_64-linux"
-      "aarch64-linux"
-      "x86_64-darwin"
-      "aarch64-darwin"
-    ];
-    mainProgram = "airi";
-    maintainers = with lib.maintainers; [ weathercold ];
-  };
 })

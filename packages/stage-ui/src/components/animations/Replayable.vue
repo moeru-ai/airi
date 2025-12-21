@@ -28,7 +28,6 @@ const emit = defineEmits<{
 // State
 const isReplaying = ref(false)
 const replayCount = ref(0)
-const containerRef = ref<HTMLElement>()
 const autoReplayTimer = ref<NodeJS.Timeout>()
 
 // Replay callbacks registry
@@ -143,10 +142,7 @@ defineExpose({
 </script>
 
 <template>
-  <div
-    ref="containerRef"
-    class="relative inline-block h-full w-full"
-  >
+  <div class="relative inline-block h-full w-full">
     <!-- Slot content -->
     <div class="relative z-1">
       <slot />

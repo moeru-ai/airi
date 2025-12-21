@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
+import { ChatHistory } from '@proj-airi/stage-ui/components'
 import { useMicVAD } from '@proj-airi/stage-ui/composables'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
@@ -11,7 +12,7 @@ import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import TamagotchiChatHistory from './ChatHistory.vue'
+import { widgetsTools } from '../stores/tools/builtin/widgets'
 
 const messageInput = ref('')
 const listening = ref(false)
@@ -19,8 +20,9 @@ const attachments = ref<{ type: 'image', data: string, mimeType: string, url: st
 
 const { askPermission } = useSettingsAudioDevice()
 const { enabled, selectedAudioInput } = storeToRefs(useSettingsAudioDevice())
-const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = useChatStore()
-const { messages } = storeToRefs(useChatStore())
+const chatStore = useChatStore()
+const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = chatStore
+const { messages, sending, streamingMessage } = storeToRefs(chatStore)
 const { t } = useI18n()
 const providersStore = useProvidersStore()
 const { activeModel, activeProvider } = storeToRefs(useConsciousnessStore())
@@ -43,6 +45,7 @@ async function handleSend() {
       chatProvider: await providersStore.getProviderInstance<ChatProvider>(activeProvider.value),
       providerConfig,
       attachments: attachmentsToSend,
+      tools: widgetsTools,
     })
 
     // clear after sending
@@ -132,7 +135,7 @@ watch([activeProvider, activeModel], async () => {
   if (activeProvider.value && activeModel.value) {
     await discoverToolsCompatibility(activeModel.value, await providersStore.getProviderInstance<ChatProvider>(activeProvider.value), [])
   }
-})
+}, { immediate: true })
 
 onAfterMessageComposed(async () => {
   messageInput.value = ''
@@ -144,7 +147,11 @@ onAfterMessageComposed(async () => {
 <template>
   <div h-full w-full flex="~ col gap-1">
     <div w-full flex-1 overflow-hidden>
-      <TamagotchiChatHistory />
+      <ChatHistory
+        :messages="messages"
+        :sending="sending"
+        :streaming-message="streamingMessage"
+      />
     </div>
     <div v-if="attachments.length > 0" class="flex flex-wrap gap-2 border-t border-primary-100 p-2">
       <div v-for="(attachment, index) in attachments" :key="index" class="relative">
@@ -162,7 +169,7 @@ onAfterMessageComposed(async () => {
         hover:text="red-500 dark:red-400"
         flex items-center justify-center rounded-md p-2 outline-none
         transition-colors transition-transform active:scale-95
-        @click="cleanupMessages"
+        @click="() => cleanupMessages()"
       >
         <div class="i-solar:trash-bin-2-bold-duotone" />
       </button>
@@ -170,9 +177,10 @@ onAfterMessageComposed(async () => {
     <BasicTextarea
       v-model="messageInput"
       :placeholder="t('stage.message')"
-      border="solid 2 primary-100"
-      text="primary-400 hover:primary-600  placeholder:primary-400 placeholder:hover:primary-600"
-      bg="primary-50 dark:primary-100" max-h="[10lh]" min-h="[1lh]"
+      text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
+      border="solid 2 primary-200/20 dark:primary-400/20"
+      bg="primary-100/50 dark:primary-900/70"
+      max-h="[10lh]" min-h="[1lh]"
       w-full shrink-0 resize-none overflow-y-scroll rounded-xl p-2 font-medium outline-none
       transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
       @compositionstart="isComposing = true"

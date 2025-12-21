@@ -1,18 +1,18 @@
-import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 
+import { createResettableLocalStorage, createResettableRef } from '../../utils/resettable'
 import { useProvidersStore } from '../providers'
 
 export const useConsciousnessStore = defineStore('consciousness', () => {
   const providersStore = useProvidersStore()
 
   // State
-  const activeProvider = useLocalStorage('settings/consciousness/active-provider', '')
-  const activeModel = useLocalStorage('settings/consciousness/active-model', '')
-  const activeCustomModelName = useLocalStorage('settings/consciousness/active-custom-model', '')
-  const expandedDescriptions = ref<Record<string, boolean>>({})
-  const modelSearchQuery = ref('')
+  const [activeProvider, resetActiveProvider] = createResettableLocalStorage('settings/consciousness/active-provider', '')
+  const [activeModel, resetActiveModel] = createResettableLocalStorage('settings/consciousness/active-model', '')
+  const [activeCustomModelName, resetActiveCustomModelName] = createResettableLocalStorage('settings/consciousness/active-custom-model', '')
+  const [expandedDescriptions, resetExpandedDescriptions] = createResettableRef<Record<string, boolean>>({})
+  const [modelSearchQuery, resetModelSearchQuery] = createResettableRef('')
 
   // Computed properties
   const supportsModelListing = computed(() => {
@@ -45,10 +45,10 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   })
 
   function resetModelSelection() {
-    activeModel.value = ''
-    activeCustomModelName.value = ''
-    expandedDescriptions.value = {}
-    modelSearchQuery.value = ''
+    resetActiveModel()
+    resetActiveCustomModelName()
+    resetExpandedDescriptions()
+    resetModelSearchQuery()
   }
 
   async function loadModelsForProvider(provider: string) {
@@ -68,6 +68,11 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   const configured = computed(() => {
     return !!activeProvider.value && !!activeModel.value
   })
+
+  function resetState() {
+    resetActiveProvider()
+    resetModelSelection()
+  }
 
   return {
     // State
@@ -89,5 +94,6 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     resetModelSelection,
     loadModelsForProvider,
     getModelsForProvider,
+    resetState,
   }
 })

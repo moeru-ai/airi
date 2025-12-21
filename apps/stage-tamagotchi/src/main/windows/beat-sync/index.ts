@@ -5,7 +5,7 @@ import { BrowserWindow } from 'electron'
 
 import { baseUrl, getElectronMainDirname, load } from '../../libs/electron/location'
 
-export async function setupBeatSyncBackgroundWindow() {
+export async function setupBeatSync() {
   const window = new BrowserWindow({
     show: false,
     webPreferences: {
@@ -13,6 +13,7 @@ export async function setupBeatSyncBackgroundWindow() {
       sandbox: false,
     },
   })
+
   await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'), 'beat-sync.html'))
   return window
 }

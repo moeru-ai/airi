@@ -23,6 +23,7 @@ notice:
     value: '0'
     targets: Personaje y UI
     confirm: Entendido
+    dont-show-again: No volver a mostrar
     preparing: Preparando…
     read-more: Leer más
-    preview-title: ¿Qué es esto?
+    preview-title: '¿Qué es esto?'

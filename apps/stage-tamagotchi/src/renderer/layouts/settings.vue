@@ -2,7 +2,7 @@
 import { PageHeader } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute } from 'vue-router'
 
@@ -14,6 +14,8 @@ const route = useRoute()
 const { t } = useI18n()
 const providersStore = useProvidersStore()
 const { allProvidersMetadata } = storeToRefs(providersStore)
+const scrollContainer = ref<HTMLElement>()
+useRestoreScroll(scrollContainer)
 
 const routeHeaderMetadataMap = computed(() => {
   const map: Record<string, { subtitle?: string, title: string }> = {
@@ -89,9 +91,17 @@ const routeHeaderMetadataMap = computed(() => {
       subtitle: t('settings.title'),
       title: t('settings.pages.modules.gaming-factorio.title'),
     },
+    '/settings/modules/beat-sync': {
+      subtitle: t('settings.title'),
+      title: t('settings.pages.modules.beat_sync.title'),
+    },
     '/settings/providers': {
       subtitle: t('settings.title'),
       title: t('settings.pages.providers.title'),
+    },
+    '/settings/data': {
+      subtitle: t('settings.title'),
+      title: t('settings.pages.data.title'),
     },
     '/settings/scene': {
       subtitle: t('settings.title'),
@@ -126,34 +136,30 @@ const routeHeaderMetadataMap = computed(() => {
 const routeHeaderMetadata = computed(() => {
   return routeHeaderMetadataMap.value[route.path] || routeHeaderMetadataMap.value[`${route.path}/`]
 })
-
-const { scrollContainer } = useRestoreScroll()
 </script>
 
 <template>
-  <div ref="scrollContainer" h-full w-full overflow-y-scroll scrollbar-none bg="$bg-color">
-    <WindowTitleBar
-      :title="routeHeaderMetadata?.title"
-      icon="i-solar:settings-bold"
-    />
+  <div h-full w-full bg="$bg-color" flex="~ col">
+    <WindowTitleBar :title="routeHeaderMetadata?.title" icon="i-solar:settings-bold" />
     <div
       :style="{
+        paddingTop: `44px`,
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-        paddingTop: 'env(safe-area-inset-top, 0px)',
         paddingRight: 'env(safe-area-inset-right, 0px)',
         paddingLeft: 'env(safe-area-inset-left, 0px)',
       }"
+
+      min-h-0 flex-1
     >
-      <div relative h-full w-full top="44px">
-        <!-- Content -->
-        <div flex="~ col" mx-auto max-w-screen-xl max-h="[calc(100dvh-44px)]">
+      <div ref="scrollContainer" relative h-full w-full overflow-y-auto scrollbar-none>
+        <div flex="~ col" mx-auto h-full max-w-screen-xl>
           <PageHeader
             :title="routeHeaderMetadata?.title"
             :subtitle="routeHeaderMetadata?.subtitle"
             :disable-back-button="route.path === '/settings'"
-            top="44px!" px-4
+            px-4
           />
-          <div h-full px-4>
+          <div min-h-0 flex-1 px-4>
             <RouterView />
           </div>
         </div>

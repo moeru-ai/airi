@@ -1,8 +1,7 @@
 <script setup lang="ts">
+import { Button } from '@proj-airi/ui'
 import { animate, createDraggable, createSpring, utils } from 'animejs'
 import { onMounted } from 'vue'
-
-import Button from '../misc/Button.vue'
 
 onMounted(() => {
   const [$logo] = utils.$('.logo.js')

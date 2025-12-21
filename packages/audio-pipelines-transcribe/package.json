@@ -1,0 +1,14 @@
+{
+  "name": "@proj-airi/audio-pipelines-transcribe",
+  "type": "module",
+  "private": true,
+  "exports": "./src/index.ts",
+  "scripts": {
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "devDependencies": {
+    "@vitest/browser-playwright": "catalog:vitest",
+    "vitest": "catalog:vitest"
+  }
+}

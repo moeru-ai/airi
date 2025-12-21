@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
+import { installChatContextBridge } from '@proj-airi/stage-ui/stores/plugins/chat-context-bridge'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { onMounted, watch } from 'vue'
+import { onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 
@@ -21,6 +23,8 @@ const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settings
 const onboardingStore = useOnboardingStore()
 const router = useRouter()
 const route = useRoute()
+const cardStore = useAiriCardStore()
+let disposeChatBridge: (() => void) | undefined
 
 watch(language, () => {
   i18n.locale.value = language.value
@@ -33,10 +37,14 @@ onMounted(() => updateThemeColor())
 
 // FIXME: store settings to file
 onMounted(async () => {
+  cardStore.initialize()
   onboardingStore.initializeSetupCheck()
 
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
+
+  const bridge = installChatContextBridge()
+  disposeChatBridge = bridge.dispose
 
   const context = useElectronEventaContext()
   const startTrackingCursorPoint = defineInvoke(context.value, electronStartTrackMousePosition)
@@ -53,6 +61,8 @@ watch(themeColorsHue, () => {
 watch(themeColorsHueDynamic, () => {
   document.documentElement.classList.toggle('dynamic-hue', themeColorsHueDynamic.value)
 }, { immediate: true })
+
+onUnmounted(() => disposeChatBridge?.())
 </script>
 
 <template>

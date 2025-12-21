@@ -2,13 +2,13 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
 
 import type { VoiceInfo } from '../providers'
 
-import { useLocalStorage } from '@vueuse/core'
 import { generateSpeech } from '@xsai/generate-speech'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
 
+import { createResettableLocalStorage, createResettableRef } from '../../utils/resettable'
 import { useProvidersStore } from '../providers'
 
 export const useSpeechStore = defineStore('speech', () => {
@@ -16,19 +16,19 @@ export const useSpeechStore = defineStore('speech', () => {
   const { allAudioSpeechProvidersMetadata } = storeToRefs(providersStore)
 
   // State
-  const activeSpeechProvider = useLocalStorage('settings/speech/active-provider', '')
-  const activeSpeechModel = useLocalStorage('settings/speech/active-model', 'eleven_multilingual_v2')
-  const activeSpeechVoiceId = useLocalStorage<string>('settings/speech/voice', '')
-  const activeSpeechVoice = ref<VoiceInfo>()
+  const [activeSpeechProvider, resetActiveSpeechProvider] = createResettableLocalStorage('settings/speech/active-provider', '')
+  const [activeSpeechModel, resetActiveSpeechModel] = createResettableLocalStorage('settings/speech/active-model', 'eleven_multilingual_v2')
+  const [activeSpeechVoiceId, resetActiveSpeechVoiceId] = createResettableLocalStorage<string>('settings/speech/voice', '')
+  const [activeSpeechVoice, resetActiveSpeechVoice] = createResettableRef<VoiceInfo | undefined>(undefined)
 
-  const pitch = useLocalStorage('settings/speech/pitch', 0)
-  const rate = useLocalStorage('settings/speech/rate', 1)
-  const ssmlEnabled = useLocalStorage('settings/speech/ssml-enabled', false)
-  const isLoadingSpeechProviderVoices = ref(false)
-  const speechProviderError = ref<string | null>(null)
-  const availableVoices = ref<Record<string, VoiceInfo[]>>({})
-  const selectedLanguage = useLocalStorage('settings/speech/language', 'en-US')
-  const modelSearchQuery = ref('')
+  const [pitch, resetPitch] = createResettableLocalStorage('settings/speech/pitch', 0)
+  const [rate, resetRate] = createResettableLocalStorage('settings/speech/rate', 1)
+  const [ssmlEnabled, resetSsmlEnabled] = createResettableLocalStorage('settings/speech/ssml-enabled', false)
+  const [isLoadingSpeechProviderVoices, resetIsLoadingSpeechProviderVoices] = createResettableRef(false)
+  const [speechProviderError, resetSpeechProviderError] = createResettableRef<string | null>(null)
+  const [availableVoices, resetAvailableVoices] = createResettableRef<Record<string, VoiceInfo[]>>({})
+  const [selectedLanguage, resetSelectedLanguage] = createResettableLocalStorage('settings/speech/language', 'en-US')
+  const [modelSearchQuery, resetModelSearchQuery] = createResettableRef('')
 
   // Computed properties
   const availableSpeechProvidersMetadata = computed(() => allAudioSpeechProvidersMetadata.value)
@@ -106,6 +106,9 @@ export const useSpeechStore = defineStore('speech', () => {
       await loadVoicesForProvider(newProvider)
       // Don't reset voice settings when changing providers to allow for persistence
     }
+  }, {
+    // REVIEW: should we always load voices on init? What will happen when network is not available?
+    immediate: true,
   })
 
   onMounted(() => {
@@ -116,20 +119,13 @@ export const useSpeechStore = defineStore('speech', () => {
     })
   })
 
-  watch(activeSpeechVoiceId, (voiceId) => {
+  watch([activeSpeechVoiceId, availableVoices], ([voiceId, voices]) => {
     if (voiceId) {
-      activeSpeechVoice.value = availableVoices.value[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
+      activeSpeechVoice.value = voices[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
     }
   }, {
     immediate: true,
-  })
-
-  watch(availableVoices, (voices) => {
-    if (activeSpeechVoiceId.value) {
-      activeSpeechVoice.value = voices[activeSpeechProvider.value]?.find(voice => voice.id === activeSpeechVoiceId.value)
-    }
-  }, {
-    immediate: true,
+    deep: true,
   })
 
   /**
@@ -208,6 +204,21 @@ export const useSpeechStore = defineStore('speech', () => {
     return !!activeSpeechProvider.value && !!activeSpeechModel.value && !!activeSpeechVoiceId.value
   })
 
+  function resetState() {
+    resetActiveSpeechProvider()
+    resetActiveSpeechModel()
+    resetActiveSpeechVoiceId()
+    resetActiveSpeechVoice()
+    resetPitch()
+    resetRate()
+    resetSsmlEnabled()
+    resetSelectedLanguage()
+    resetModelSearchQuery()
+    resetAvailableVoices()
+    resetSpeechProviderError()
+    resetIsLoadingSpeechProviderVoices()
+  }
+
   return {
     // State
     configured,
@@ -238,5 +249,6 @@ export const useSpeechStore = defineStore('speech', () => {
     loadVoicesForProvider,
     getVoicesForProvider,
     generateSSML,
+    resetState,
   }
 })

@@ -1,12 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-
 import CursorMomentum from './CursorMomentum.vue'
-
-// Example components that use momentum
-const rotatingBox = ref(null)
-const floatingBall = ref(null)
-const pulsingCircle = ref(null)
 </script>
 
 <template>
@@ -31,7 +24,6 @@ const pulsingCircle = ref(null)
           :momentum-factor="0.005"
         >
           <div
-            ref="rotatingBox"
             class="h-20 w-20 bg-primary-500/20"
             :style="{
               transform: `rotate(${currentValue}deg)`,
@@ -53,7 +45,6 @@ const pulsingCircle = ref(null)
           :momentum-factor="0.01"
         >
           <div
-            ref="floatingBall"
             class="h-10 w-10 rounded-full bg-primary-500/20"
             :style="{
               transform: `translateY(${Math.sin(momentum * 0.1) * 20}px)`,
@@ -75,7 +66,6 @@ const pulsingCircle = ref(null)
           :momentum-factor="0.008"
         >
           <div
-            ref="pulsingCircle"
             class="h-16 w-16 rounded-full bg-primary-500/20"
             :style="{
               transform: `scale(${0.8 + (momentum * 0.2)})`,

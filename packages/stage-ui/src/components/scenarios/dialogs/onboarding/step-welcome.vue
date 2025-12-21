@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import { Button } from '@proj-airi/ui'
 import { inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import onboardingLogo from '../../../../assets/onboarding.avif'
 
-import { Button } from '../../../misc'
 import { OnboardingContextKey } from './utils'
 
 const { t } = useI18n()

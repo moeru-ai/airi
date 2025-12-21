@@ -1936,6 +1936,27 @@ export const useProvidersStore = defineStore('providers', () => {
   const isLoadingModels = ref<Record<string, boolean>>({})
   const modelLoadError = ref<Record<string, string | null>>({})
 
+  function forceProviderConfigured(providerId: string) {
+    configuredProviders.value[providerId] = true
+    // Also cache the current config to prevent re-validation from overwriting
+    const config = providerCredentials.value[providerId]
+    if (config) {
+      validatedCredentials.value[providerId] = JSON.stringify(config)
+    }
+  }
+
+  async function resetProviderSettings() {
+    providerCredentials.value = {}
+    configuredProviders.value = {}
+    validatedCredentials.value = {}
+    availableModels.value = {}
+    isLoadingModels.value = {}
+    modelLoadError.value = {}
+
+    Object.keys(providerMetadata).forEach(initializeProvider)
+    await updateConfigurationStatus()
+  }
+
   // Function to fetch models for a specific provider
   async function fetchModelsForProvider(providerId: string) {
     const config = providerCredentials.value[providerId]
@@ -2137,6 +2158,8 @@ export const useProvidersStore = defineStore('providers', () => {
     allAvailableModels,
     loadModelsForConfiguredProviders,
     getProviderInstance,
+    resetProviderSettings,
+    forceProviderConfigured,
     availableProvidersMetadata,
     allChatProvidersMetadata,
     allAudioSpeechProvidersMetadata,

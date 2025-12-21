@@ -5,11 +5,11 @@ import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import Vue from '@vitejs/plugin-vue'
 import Unocss from 'unocss/vite'
 import Info from 'unplugin-info/vite'
-import VueMacros from 'unplugin-vue-macros/vite'
 import VueRouter from 'unplugin-vue-router/vite'
 import Yaml from 'unplugin-yaml/vite'
 import VueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
+import VueMacros from 'vue-macros/vite'
 
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
@@ -67,6 +67,9 @@ export default defineConfig({
       ],
     },
   },
+  build: {
+    sourcemap: true,
+  },
 
   plugins: [
     Info(),
@@ -113,6 +116,16 @@ export default defineConfig({
             short_name: 'AIRI',
             icons: [
               {
+                src: '/web-app-manifest-192x192.png',
+                sizes: '192x192',
+                type: 'image/png',
+              },
+              {
+                src: '/web-app-manifest-512x512.png',
+                sizes: '512x512',
+                type: 'image/png',
+              },
+              {
                 purpose: 'maskable',
                 sizes: '192x192',
                 src: '/maskable_icon_x192.png',
@@ -122,16 +135,6 @@ export default defineConfig({
                 purpose: 'maskable',
                 sizes: '512x512',
                 src: '/maskable_icon_x512.png',
-                type: 'image/png',
-              },
-              {
-                src: '/web-app-manifest-192x192.png',
-                sizes: '192x192',
-                type: 'image/png',
-              },
-              {
-                src: '/web-app-manifest-512x512.png',
-                sizes: '512x512',
                 type: 'image/png',
               },
             ],
