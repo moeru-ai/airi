@@ -9,7 +9,7 @@ import { withRetry } from '@moeru/std'
 import { colorFromElement } from '@proj-airi/stage-ui/libs'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
-import { useRafFn } from '@vueuse/core'
+import { useIntervalFn } from '@vueuse/core'
 import { nextTick, watch } from 'vue'
 
 export function themeColorFromPropertyOf(colorFromClass: string, property: string): () => Promise<string> {
@@ -65,6 +65,8 @@ export function useBackgroundThemeColor({
 }) {
   const settings = useSettings()
 
+  let samplingToken = 0
+
   function getWaveThemeColor() {
     const isDark = document.documentElement.classList.contains('dark')
     // We read directly from computed style to catch the animation value
@@ -79,15 +81,17 @@ export function useBackgroundThemeColor({
     return sampledColor.value || '#0f172a'
   })
 
-  // Real-time synchronization for dynamic hue
-  const { pause, resume } = useRafFn(() => {
-    if (selectedOption.value?.kind === 'wave' && settings.themeColorsHueDynamic) {
-      updateThemeColor()
-    }
-  }, { immediate: false })
+  // Keep theme-color reasonably fresh for animated wave backgrounds without doing per-frame work.
+  const { pause, resume } = useIntervalFn(() => {
+    if (document.visibilityState !== 'visible')
+      return
+    if (selectedOption.value?.kind === 'wave' && settings.themeColorsHueDynamic)
+      void updateThemeColor()
+  }, 250, { immediate: false })
 
   watch([() => selectedOption.value?.kind, () => settings.themeColorsHueDynamic], ([kind, dynamic]) => {
     if (kind === 'wave' && dynamic) {
+      void updateThemeColor()
       resume()
     }
     else {
@@ -108,6 +112,8 @@ export function useBackgroundThemeColor({
 
   // Exposed for optional manual triggers; also used within syncBackgroundTheme.
   async function sampleBackgroundColor() {
+    const token = ++samplingToken
+    const optionId = selectedOption.value?.id
     if (selectedOption.value?.kind === 'wave') {
       await updateThemeColor()
       return
@@ -151,6 +157,11 @@ export function useBackgroundThemeColor({
     })
 
     const color = result.html2canvas?.average
+    if (token !== samplingToken)
+      return
+    if (optionId && selectedOption.value?.id !== optionId)
+      return
+
     if (color) {
       sampledColor.value = color
       await updateThemeColor()

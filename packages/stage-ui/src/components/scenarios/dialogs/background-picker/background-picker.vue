@@ -2,9 +2,8 @@
 import type { BackgroundOption } from './types'
 
 import { BasicInputFile } from '@proj-airi/ui'
-import { useObjectUrl } from '@vueuse/core'
 import { nanoid } from 'nanoid'
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onScopeDispose, ref, watch } from 'vue'
 
 import ThemeOverlay from '../../../ThemeOverlay.vue'
 
@@ -25,7 +24,7 @@ const modelValue = defineModel<BackgroundOption | undefined>({ default: undefine
 const previewRef = ref<HTMLElement | null>(null)
 const uploadingFiles = ref<File[]>([])
 const customOptions = ref<BackgroundOption[]>([])
-const objectUrls = new Map<string, ReturnType<typeof useObjectUrl>>()
+const objectUrls = new Map<string, string>()
 const selectedId = ref<string | undefined>(modelValue.value?.id)
 const busy = ref(false)
 
@@ -34,11 +33,30 @@ const selectedOption = computed(() => mergedOptions.value.find(option => option.
 const enableBlur = ref(false)
 const previewColor = ref<string | undefined>(undefined)
 
+function ensureObjectUrl(id: string, file: File) {
+  const existing = objectUrls.get(id)
+  if (existing)
+    return existing
+  const created = URL.createObjectURL(file)
+  objectUrls.set(id, created)
+  return created
+}
+
+onScopeDispose(() => {
+  objectUrls.forEach((url) => {
+    URL.revokeObjectURL(url)
+  })
+  objectUrls.clear()
+})
+
 watch(modelValue, (value) => {
   selectedId.value = value?.id
 })
 
+let previewSamplingToken = 0
+
 watch(selectedOption, async (option) => {
+  const token = ++previewSamplingToken
   emit('change', { option })
   if (option?.kind === 'wave') {
     const isDark = document.documentElement.classList.contains('dark')
@@ -62,7 +80,8 @@ watch(selectedOption, async (option) => {
         useCORS: true,
       },
     })
-    previewColor.value = result.html2canvas?.average
+    if (token === previewSamplingToken)
+      previewColor.value = result.html2canvas?.average
   }
   else {
     previewColor.value = undefined
@@ -74,13 +93,7 @@ function getPreviewSrc(option?: BackgroundOption) {
     return ''
 
   if (option.file) {
-    let urlRef = objectUrls.get(option.id)
-    if (!urlRef) {
-      const fileRef = ref<Blob | undefined>(option.file)
-      urlRef = useObjectUrl(fileRef)
-      objectUrls.set(option.id, urlRef)
-    }
-    return urlRef.value ?? ''
+    return ensureObjectUrl(option.id, option.file)
   }
 
   return option.src ?? ''
