@@ -30,8 +30,14 @@ const busy = ref(false)
 
 const mergedOptions = computed(() => [...props.options, ...customOptions.value])
 const selectedOption = computed(() => mergedOptions.value.find(option => option.id === selectedId.value))
-const enableBlur = ref(false)
+const enableBlur = ref(modelValue.value?.blur ?? false)
 const previewColor = ref<string | undefined>(undefined)
+
+watch(() => modelValue.value?.id, (id) => {
+  if (id === undefined)
+    return
+  enableBlur.value = modelValue.value?.blur ?? false
+})
 
 function ensureObjectUrl(id: string, file: File) {
   const existing = objectUrls.get(id)
@@ -223,7 +229,10 @@ async function applySelection() {
           <p class="mb-2 text-sm text-neutral-600 dark:text-neutral-300">
             Preview
           </p>
-          <label class="flex items-center gap-2 pb-2 text-sm text-neutral-700 dark:text-neutral-200">
+          <label
+            v-if="selectedOption?.kind !== 'wave'"
+            class="flex items-center gap-2 pb-2 text-sm text-neutral-700 dark:text-neutral-200"
+          >
             <input v-model="enableBlur" type="checkbox" class="accent-primary-500">
             <span>Blur</span>
           </label>
@@ -231,18 +240,23 @@ async function applySelection() {
             ref="previewRef"
             class="relative h-48 overflow-hidden border border-neutral-200 rounded-xl bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-800"
           >
-            <component
-              :is="selectedOption?.component"
-              v-if="selectedOption?.component"
-              class="h-full w-full"
-            />
-            <img
-              v-else-if="getPreviewSrc(selectedOption)"
-              :src="getPreviewSrc(selectedOption)"
-              class="h-full w-full object-cover"
+            <div
+              class="h-full w-full transition-all duration-300"
+              :class="[(enableBlur && selectedOption?.kind !== 'wave') ? 'blur-md scale-110' : '']"
             >
-            <div v-else class="h-full w-full flex items-center justify-center text-neutral-500 dark:text-neutral-400">
-              Select a background
+              <component
+                :is="selectedOption?.component"
+                v-if="selectedOption?.component"
+                class="h-full w-full"
+              />
+              <img
+                v-else-if="getPreviewSrc(selectedOption)"
+                :src="getPreviewSrc(selectedOption)"
+                class="h-full w-full object-cover"
+              >
+              <div v-else class="h-full w-full flex items-center justify-center text-neutral-500 dark:text-neutral-400">
+                Select a background
+              </div>
             </div>
             <ThemeOverlay v-if="(selectedOption as any)?.kind !== 'wave'" :color="previewColor" />
           </div>

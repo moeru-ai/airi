@@ -8,7 +8,7 @@ import ThemeOverlay from '../../../../../packages/stage-ui/src/components/ThemeO
 import AnimatedWave from '../Widgets/AnimatedWave.vue'
 import Cross from './Cross.vue'
 
-const props = defineProps<{
+defineProps<{
   background: BackgroundItem
   topColor?: string
 }>()
@@ -23,17 +23,18 @@ const waveFillColor = computed(() => {
     : `hsl(${hue} 75% 78%)`
 })
 
-const blurClass = computed(() => props.background.blur ? 'backdrop-blur-md' : '')
-
 defineExpose({
   surfaceEl: containerRef,
 })
 </script>
 
 <template>
-  <div ref="containerRef" class="customized-background relative min-h-100dvh w-full overflow-hidden" :class="blurClass">
+  <div ref="containerRef" class="customized-background relative min-h-100dvh w-full overflow-hidden">
     <!-- Background layers -->
-    <div class="absolute inset-0 z-0">
+    <div
+      class="absolute inset-0 z-0 transition-all duration-300"
+      :class="[(background.blur && background.kind !== 'wave') ? 'blur-md scale-110' : '']"
+    >
       <template v-if="background.kind === 'wave'">
         <Cross class="h-full w-full">
           <AnimatedWave
@@ -53,10 +54,10 @@ defineExpose({
       <template v-else>
         <div class="h-full w-full bg-neutral-950" />
       </template>
-
-      <!-- Overlay (not for wave) -->
-      <ThemeOverlay v-if="background.kind !== 'wave'" :color="topColor" />
     </div>
+
+    <!-- Overlay (not for wave) -->
+    <ThemeOverlay v-if="background.kind !== 'wave'" :color="topColor" />
 
     <!-- Content layer (kept mounted during background switches) -->
     <div class="relative z-10 h-full w-full">
