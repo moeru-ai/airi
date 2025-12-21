@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Button } from '@proj-airi/ui'
 import { computed, ref, watch } from 'vue'
+
+import Button from './Button.vue'
 
 type ButtonVariant = 'primary' | 'secondary' | 'secondary-muted' | 'danger' | 'caution'
 type ButtonSize = 'sm' | 'md' | 'lg'
