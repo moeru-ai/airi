@@ -29,16 +29,16 @@
     "pathe": "^2.0.3",
     "posthog-js": "catalog:",
     "reka-ui": "^2.6.1",
-    "vue": "^3.5.26",
-    "vue-i18n": "^11.2.7",
+    "vue": "^3.5.25",
+    "vue-i18n": "^11.2.2",
     "vue-sonner": "^2.0.9"
   },
   "devDependencies": {
-    "@iconify-json/lucide": "^1.2.82",
+    "@iconify-json/lucide": "^1.2.81",
     "@iconify-json/mingcute": "^1.2.6",
-    "@iconify-json/twemoji": "^1.2.5",
+    "@iconify-json/twemoji": "^1.2.4",
     "@iconify/vue": "^5.0.0",
-    "@intlify/unplugin-vue-i18n": "^11.0.3",
+    "@intlify/unplugin-vue-i18n": "^11.0.1",
     "@mdit/plugin-footnote": "^0.22.3",
     "@mdit/plugin-tasklist": "^0.22.2",
     "@proj-airi/stage-ui": "workspace:^",
@@ -61,6 +61,6 @@
     "uncrypto": "^0.1.3",
     "unplugin-yaml": "^3.0.7",
     "vitepress": "^2.0.0-alpha.15",
-    "vue-tsc": "^3.2.0"
+    "vue-tsc": "^3.1.8"
   }
 }
