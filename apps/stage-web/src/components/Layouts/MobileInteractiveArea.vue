@@ -131,14 +131,6 @@ onUnmounted(() => {
 onMounted(() => {
   screenSafeArea.update()
 })
-
-async function handleBackgroundApply(payload: { option: { id: string, label: string, kind?: string, src?: string, file?: File }, color?: string }) {
-  const saved = await backgroundStore.addOption({
-    ...payload.option,
-    kind: (payload.option.kind ?? 'image') as 'wave' | 'image',
-  })
-  backgroundStore.setSelection(saved, payload.color)
-}
 </script>
 
 <template>
@@ -146,7 +138,7 @@ async function handleBackgroundApply(payload: { option: { id: string, label: str
     <BackgroundPickerDialog
       v-model="backgroundDialogOpen"
       :options="backgroundOptions"
-      @apply="handleBackgroundApply"
+      @apply="backgroundStore.applyPickerSelection"
     />
     <KeepAlive>
       <Transition name="fade">

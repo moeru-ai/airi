@@ -1,12 +1,12 @@
 import type { Ref } from 'vue'
 
 import type CustomizedBackground from '../components/Backgrounds/CustomizedBackground.vue'
-import type { BackgroundSelection } from '../stores/background'
+import type { BackgroundItem } from '../stores/background'
 
 import Color from 'colorjs.io'
 
 import { withRetry } from '@moeru/std'
-import { colorFromElement } from '@proj-airi/stage-ui/libs'
+import { colorFromElement, patchThemeSamplingHtml2CanvasClone } from '@proj-airi/stage-ui/libs'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { useIntervalFn } from '@vueuse/core'
@@ -60,7 +60,7 @@ export function useBackgroundThemeColor({
   sampledColor,
 }: {
   backgroundSurface: Ref<InstanceType<typeof CustomizedBackground> | undefined | null>
-  selectedOption: Ref<BackgroundSelection | undefined>
+  selectedOption: Ref<BackgroundItem | undefined>
   sampledColor: Ref<string>
 }) {
   const settings = useSettings()
@@ -140,19 +140,7 @@ export function useBackgroundThemeColor({
         backgroundColor: null,
         allowTaint: true,
         useCORS: true,
-        onclone: (doc) => {
-          doc.querySelectorAll('.theme-overlay').forEach((overlay) => {
-            (overlay as HTMLElement).style.display = 'none'
-          })
-
-          // For wave backgrounds, providing a solid fallback color for html2canvas to pick up.
-          doc.querySelectorAll('.colored-area').forEach((wave) => {
-            const waveEl = wave as HTMLElement
-            const isDark = document.documentElement.classList.contains('dark')
-            const hue = getComputedStyle(document.documentElement).getPropertyValue('--chromatic-hue') || '200'
-            waveEl.style.background = isDark ? `hsl(${hue} 60% 32%)` : `hsl(${hue} 75% 78%)`
-          })
-        },
+        onclone: patchThemeSamplingHtml2CanvasClone,
       },
     })
 

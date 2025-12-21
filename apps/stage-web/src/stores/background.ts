@@ -9,14 +9,18 @@ import ChromaticWavePreview from '../components/Backgrounds/ChromaticWavePreview
 
 export type BackgroundKind = 'wave' | 'image'
 
-export interface BackgroundSelection extends BackgroundOption {
+export interface BackgroundItem extends BackgroundOption {
   kind: BackgroundKind
   importedAt?: number
 }
 
+type PersistedBackgroundItem = Omit<BackgroundItem, 'file'> & {
+  file?: Blob
+}
+
 export const useBackgroundStore = defineStore('background', () => {
   const STORAGE_PREFIX = 'background-'
-  const presets: BackgroundSelection[] = [
+  const presets: BackgroundItem[] = [
     {
       id: 'colorful-wave',
       label: 'Colorful Wave',
@@ -26,7 +30,7 @@ export const useBackgroundStore = defineStore('background', () => {
     },
   ]
 
-  const options = ref<BackgroundSelection[]>([...presets])
+  const options = ref<BackgroundItem[]>([...presets])
   const loading = ref(false)
 
   const selectedId = ref<string>(options.value[0]?.id)
@@ -72,7 +76,7 @@ export const useBackgroundStore = defineStore('background', () => {
     revokeAllObjectUrls()
   })
 
-  async function migrateDataUrlToBlob(key: string, val: BackgroundSelection, dataUrl: string) {
+  async function migrateDataUrlToBlob(key: string, val: PersistedBackgroundItem, dataUrl: string) {
     try {
       const blob = await (await fetch(dataUrl)).blob()
       const objectUrl = ensureObjectUrl(key, blob)
@@ -83,30 +87,47 @@ export const useBackgroundStore = defineStore('background', () => {
         existing.file = undefined
       }
 
-      await localforage.setItem(key, {
+      const payload: PersistedBackgroundItem = {
         ...val,
         src: undefined,
-        file: blob as unknown as any,
-      })
+        file: blob,
+      }
+
+      await localforage.setItem<PersistedBackgroundItem>(key, payload)
     }
     catch (error) {
       console.error('Failed to migrate background data URL to Blob', error)
     }
   }
 
-  function setSelection(option: BackgroundSelection, color?: string) {
+  function setSelection(option: BackgroundItem, color?: string) {
     selectedId.value = option.id
     if (color)
       sampledColor.value = color
+  }
+
+  async function applyPickerSelection(payload: { option: BackgroundOption, color?: string }) {
+    const kind: BackgroundKind = payload.option.kind === 'wave' || payload.option.kind === 'image'
+      ? payload.option.kind
+      : 'image'
+
+    const selection: BackgroundItem = {
+      ...payload.option,
+      kind,
+    }
+
+    const saved = await addOption(selection)
+    setSelection(saved, payload.color)
+    return saved
   }
 
   async function loadFromIndexedDb() {
     if (loading.value)
       return
     loading.value = true
-    const stored: BackgroundSelection[] = []
+    const stored: BackgroundItem[] = []
     try {
-      await localforage.iterate<BackgroundSelection, void>((val, key) => {
+      await localforage.iterate<PersistedBackgroundItem, void>((val, key) => {
         if (!key.startsWith(STORAGE_PREFIX))
           return
 
@@ -127,9 +148,6 @@ export const useBackgroundStore = defineStore('background', () => {
         }
 
         if (storedSrc) {
-          if (storedSrc.startsWith('blob:'))
-            return
-
           stored.push({
             ...val,
             id: key,
@@ -157,7 +175,7 @@ export const useBackgroundStore = defineStore('background', () => {
 
   void loadFromIndexedDb()
 
-  async function addOption(option: BackgroundSelection): Promise<BackgroundSelection> {
+  async function addOption(option: BackgroundItem): Promise<BackgroundItem> {
     const normalizedId = option.file ? (option.id.startsWith(STORAGE_PREFIX) ? option.id : `${STORAGE_PREFIX}${option.id}`) : option.id
 
     const hasUploadedFile = option.file instanceof Blob
@@ -170,7 +188,7 @@ export const useBackgroundStore = defineStore('background', () => {
       ? ensureObjectUrl(normalizedId, storedBlob)
       : option.src
 
-    const normalizedOption: BackgroundSelection = {
+    const normalizedOption: BackgroundItem = {
       ...option,
       id: normalizedId,
       kind: option.kind ?? 'image',
@@ -191,15 +209,15 @@ export const useBackgroundStore = defineStore('background', () => {
     selectedId.value = normalizedId
 
     if (hasUploadedFile && storedBlob) {
-      const payload: BackgroundSelection = {
+      const payload: PersistedBackgroundItem = {
         ...normalizedOption,
         // ensure we store under prefix for consistency
         id: normalizedId.startsWith(STORAGE_PREFIX) ? normalizedId : `${STORAGE_PREFIX}${normalizedId}`,
         src: undefined,
-        file: storedBlob as unknown as any,
+        file: storedBlob,
       }
       try {
-        await localforage.setItem(payload.id, payload)
+        await localforage.setItem<PersistedBackgroundItem>(payload.id, payload)
       }
       catch (error) {
         console.error('Failed to persist background', error)
@@ -223,6 +241,7 @@ export const useBackgroundStore = defineStore('background', () => {
     loadFromIndexedDb,
     addOption,
     setSelection,
+    applyPickerSelection,
     setSampledColor,
   }
 })

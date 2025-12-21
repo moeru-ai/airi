@@ -7,6 +7,24 @@ import { Vibrant } from 'node-vibrant/browser'
 
 export type ColorFromElementMode = 'vibrant' | 'html2canvas' | 'both'
 
+export function patchThemeSamplingHtml2CanvasClone(doc: Document) {
+  if (!('document' in globalThis) || globalThis.document == null)
+    return
+  if (!('getComputedStyle' in globalThis))
+    return
+
+  doc.querySelectorAll('.theme-overlay').forEach((overlay) => {
+    (overlay as HTMLElement).style.display = 'none'
+  })
+
+  doc.querySelectorAll('.colored-area').forEach((wave) => {
+    const waveEl = wave as HTMLElement
+    const isDark = document.documentElement.classList.contains('dark')
+    const hue = getComputedStyle(document.documentElement).getPropertyValue('--chromatic-hue') || '200'
+    waveEl.style.background = isDark ? `hsl(${hue} 60% 32%)` : `hsl(${hue} 75% 78%)`
+  })
+}
+
 export interface ColorFromElementOptions {
   /**
    * Which extraction pipeline to run. Use `'both'` to mirror the devtools view.

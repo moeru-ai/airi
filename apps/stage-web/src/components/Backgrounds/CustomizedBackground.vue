@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BackgroundSelection } from '../../stores/background'
+import type { BackgroundItem } from '../../stores/background'
 
 import { useTheme } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
@@ -9,7 +9,7 @@ import AnimatedWave from '../Widgets/AnimatedWave.vue'
 import Cross from './Cross.vue'
 
 const props = defineProps<{
-  background: BackgroundSelection
+  background: BackgroundItem
   topColor?: string
 }>()
 
