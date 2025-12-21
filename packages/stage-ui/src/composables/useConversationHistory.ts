@@ -1,6 +1,8 @@
+import type { HistoryMessage } from '../services'
+
 import { ref } from 'vue'
 
-import { conversationHistoryService, type HistoryMessage } from '../services'
+import { conversationHistoryService } from '../services'
 import { useMemoryService } from './useMemoryService'
 
 export type { HistoryMessage }

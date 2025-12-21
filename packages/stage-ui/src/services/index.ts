@@ -18,7 +18,7 @@ class ConversationHistoryService {
     }
   }
 
-// @ts-expect-error
+  // @ts-expect-error
   async addMessage(message: HistoryMessage): Promise<void> {
     // TODO: Implement actual adding logic
     console.warn('ConversationHistoryService.addMessage not implemented.')

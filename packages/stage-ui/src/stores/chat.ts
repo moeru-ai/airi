@@ -327,8 +327,6 @@ export const useChatStore = defineStore('chat', () => {
   // ----- Send flow (user -> LLM -> assistant) -----
   const streamingMessage = ref<ChatAssistantMessage>({ role: 'assistant', content: '', slices: [], tool_results: [] })
 
-  
-
   async function send(
     sendingMessage: string,
     options: {
