@@ -55,6 +55,7 @@ export interface ColorFromElementOptions {
     useCORS?: boolean
     backgroundColor?: string | null
     logging?: boolean
+    onclone?: (doc: Document) => void
   }
 }
 
@@ -145,6 +146,7 @@ async function extractWithHtml2Canvas(element: HTMLElement, options: ColorFromEl
     height: captureHeight,
     x: region.x,
     y: region.y,
+    onclone: options?.onclone,
   })
 
   const ctx = canvas.getContext('2d')

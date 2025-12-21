@@ -97,18 +97,18 @@ export function useBackgroundThemeColor({
         backgroundColor: null,
         allowTaint: true,
         useCORS: true,
-        // NOTICE: onclone is not typed in our local html2canvas types; keep it here to sanitize unsupported color functions for capture.
-        // @ts-expect-error onclone is supported by html2canvas but missing in the current types
         onclone: (doc) => {
-          const target = (doc as Document).body.firstElementChild as HTMLElement | null
-          if (target) {
-            const wave = target.querySelector('.colored-area') as HTMLElement | null
-            if (wave) {
-              // NOTICE: html2canvas lacks oklch/color-mix support; fall back to safe colors before capture.
-              wave.style.background = wave.style.background.replace(/oklch\([^)]*\)/g, '#7dd3fc')
-              wave.style.background = wave.style.background.replace(/color-mix\([^)]*\)/g, '#7dd3fc')
-            }
-          }
+          doc.querySelectorAll('.theme-overlay').forEach((overlay) => {
+            (overlay as HTMLElement).style.display = 'none'
+          })
+
+          // For wave backgrounds, providing a solid fallback color for html2canvas to pick up.
+          doc.querySelectorAll('.colored-area').forEach((wave) => {
+            const waveEl = wave as HTMLElement
+            const isDark = document.documentElement.classList.contains('dark')
+            const hue = getComputedStyle(document.documentElement).getPropertyValue('--chromatic-hue') || '200'
+            waveEl.style.background = isDark ? `hsl(${hue} 60% 32%)` : `hsl(${hue} 75% 78%)`
+          })
         },
       },
     })
@@ -121,7 +121,7 @@ export function useBackgroundThemeColor({
   }
 
   async function syncBackgroundTheme() {
-    if (sampledColor.value) {
+    if (sampledColor.value && selectedOption.value?.kind !== 'wave') {
       await updateThemeColor()
     }
     else {

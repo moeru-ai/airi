@@ -6,6 +6,8 @@ import { useObjectUrl } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { computed, nextTick, ref, watch } from 'vue'
 
+import ThemeOverlay from '../../../ThemeOverlay.vue'
+
 import { colorFromElement } from '../../../../libs'
 
 const props = defineProps<{
@@ -103,6 +105,17 @@ async function applySelection() {
         backgroundColor: null,
         allowTaint: true,
         useCORS: true,
+        onclone: (doc) => {
+          doc.querySelectorAll('.theme-overlay').forEach((overlay) => {
+            (overlay as HTMLElement).style.display = 'none'
+          })
+          doc.querySelectorAll('.colored-area').forEach((wave) => {
+            const waveEl = wave as HTMLElement
+            const isDark = document.documentElement.classList.contains('dark')
+            const hue = getComputedStyle(document.documentElement).getPropertyValue('--chromatic-hue') || '200'
+            waveEl.style.background = isDark ? `hsl(${hue} 60% 32%)` : `hsl(${hue} 75% 78%)`
+          })
+        },
       },
     })
 
@@ -168,13 +181,13 @@ async function applySelection() {
         Preview
       </p>
       <label class="flex items-center gap-2 pb-2 text-sm text-neutral-700 dark:text-neutral-200">
-        <input v-model="enableBlur" type="checkbox" class="accent-primary-500" />
+        <input v-model="enableBlur" type="checkbox" class="accent-primary-500">
         <span>Blur</span>
       </label>
       <div
         ref="previewRef"
         class="relative h-48 overflow-hidden border border-neutral-200 rounded-xl bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-800"
-        >
+      >
         <component
           :is="selectedOption?.component"
           v-if="selectedOption?.component"
@@ -188,10 +201,7 @@ async function applySelection() {
         <div v-else class="h-full w-full flex items-center justify-center text-neutral-500 dark:text-neutral-400">
           Select a background
         </div>
-        <div
-          class="transparent-gradient-overlay pointer-events-none absolute inset-0 h-[calc((1lh+1rem+1rem)*2)] w-full"
-          :style="{ background: 'linear-gradient(to top, rgba(0,0,0,0) 0%, rgba(0,0,0,0.85) 50%)' }"
-        />
+        <ThemeOverlay />
       </div>
     </div>
 
@@ -208,21 +218,4 @@ async function applySelection() {
 </template>
 
 <style scoped>
-/*
-DO NOT ATTEMPT TO USE backdrop-filter TOGETHER WITH mask-image.
-
-html - Why doesn't blur backdrop-filter work together with mask-image? - Stack Overflow
-https://stackoverflow.com/questions/72780266/why-doesnt-blur-backdrop-filter-work-together-with-mask-image
-*/
-.transparent-gradient-overlay {
-  --gradient: linear-gradient(to top, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 50%);
-  -webkit-mask-image: var(--gradient);
-  mask-image: var(--gradient);
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: bottom;
-  mask-position: bottom;
-}
 </style>
