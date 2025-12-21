@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { WIP } from '@proj-airi/stage-ui/components'
+import { MemoryLongTerm } from '@proj-airi/stage-ui/components'
 </script>
 
 <template>
-  <WIP />
+  <MemoryLongTerm />
 </template>
 
 <route lang="yaml">
