@@ -1,27 +1,18 @@
 <script setup lang="ts">
-import { BackgroundPickerDialog } from '@proj-airi/stage-ui/components'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useTheme } from '@proj-airi/ui'
-import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
-import { useBackgroundStore } from '../../stores/background'
+import AppBackgroundPickerDialog from '../Backgrounds/AppBackgroundPickerDialog.vue'
 
 const { cleanupMessages } = useChatStore()
 const { isDark, toggleDark } = useTheme()
 
 const backgroundDialogOpen = ref(false)
-const backgroundStore = useBackgroundStore()
-const { options: backgroundOptions } = storeToRefs(backgroundStore)
 </script>
 
 <template>
-  <BackgroundPickerDialog
-    v-model="backgroundDialogOpen"
-    :options="backgroundOptions"
-    @apply="backgroundStore.applyPickerSelection"
-    @remove="option => backgroundStore.removeOption(option.id)"
-  />
+  <AppBackgroundPickerDialog v-model="backgroundDialogOpen" />
   <div absolute bottom--8 right-0 flex gap-2>
     <button
       class="max-h-[10lh] min-h-[1lh]"

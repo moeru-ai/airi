@@ -160,7 +160,7 @@ async function applySelection(isImport = false) {
 
   busy.value = true
   try {
-    if ((selectedOption.value as any).kind === 'wave') {
+    if (selectedOption.value.kind === 'wave') {
       const isDark = document.documentElement.classList.contains('dark')
       const hue = getComputedStyle(document.documentElement).getPropertyValue('--chromatic-hue') || '220.44'
       const color = isDark ? `hsl(${hue} 60% 32%)` : `hsl(${hue} 75% 78%)`

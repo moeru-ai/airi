@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
-import { BackgroundPickerDialog, ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
+import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -15,12 +15,11 @@ import { onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
+import AppBackgroundPickerDialog from '../Backgrounds/AppBackgroundPickerDialog.vue'
 import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
 import ActionViewControls from './InteractiveArea/Actions/ViewControls.vue'
 import ViewControlInputs from './ViewControls/Inputs.vue'
-
-import { useBackgroundStore } from '../../stores/background'
 
 const { isDark, toggleDark } = useTheme()
 const hearingDialogOpen = ref(false)
@@ -36,8 +35,6 @@ const backgroundDialogOpen = ref(false)
 const screenSafeArea = useScreenSafeArea()
 const providersStore = useProvidersStore()
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
-const backgroundStore = useBackgroundStore()
-const { options: backgroundOptions } = storeToRefs(backgroundStore)
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
 const { themeColorsHueDynamic, stageViewControlsEnabled } = storeToRefs(useSettings())
@@ -135,12 +132,7 @@ onMounted(() => {
 
 <template>
   <div fixed bottom-0 w-full flex flex-col>
-    <BackgroundPickerDialog
-      v-model="backgroundDialogOpen"
-      :options="backgroundOptions"
-      @apply="backgroundStore.applyPickerSelection"
-      @remove="option => backgroundStore.removeOption(option.id)"
-    />
+    <AppBackgroundPickerDialog v-model="backgroundDialogOpen" />
     <KeepAlive>
       <Transition name="fade">
         <ChatHistory

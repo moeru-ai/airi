@@ -233,7 +233,6 @@ export const useBackgroundStore = defineStore('background', () => {
   }
 
   async function removeOption(optionId: string) {
-    console.info('Removing background', optionId) // FIXME: remove
     const optionIndex = options.value.findIndex(o => o.id === optionId)
     if (optionIndex === -1)
       return
