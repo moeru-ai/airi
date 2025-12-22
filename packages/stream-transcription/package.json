@@ -1,6 +1,0 @@
-{
-  "name": "@proj-airi/stream-transcription",
-  "type": "module",
-  "private": true,
-  "exports": "./src/index.ts"
-}
