@@ -2,6 +2,7 @@ import type { BackgroundOption } from '@proj-airi/stage-ui/components'
 
 import localforage from 'localforage'
 
+import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, markRaw, onScopeDispose, ref } from 'vue'
 
@@ -33,8 +34,8 @@ export const useBackgroundStore = defineStore('background', () => {
   const options = ref<BackgroundItem[]>([...presets])
   const loading = ref(false)
 
-  const selectedId = ref<string>(options.value[0]?.id)
-  const sampledColor = ref<string>('')
+  const selectedId = useLocalStorage<string>('background/selected-id', options.value[0]?.id)
+  const sampledColor = useLocalStorage<string>('background/sampled-color', '')
 
   const selectedOption = computed(() => options.value.find(option => option.id === selectedId.value) ?? options.value[0])
 
