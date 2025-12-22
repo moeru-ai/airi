@@ -14,14 +14,14 @@ import VueMacros from 'vue-macros/vite'
 import { Download } from '@proj-airi/unplugin-fetch'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
 import { templateCompilerOptions } from '@tresjs/core'
-import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
+import { defineConfig } from 'electron-vite'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [Info()],
   },
   preload: {
     build: {
@@ -32,7 +32,7 @@ export default defineConfig({
         },
       },
     },
-    plugins: [externalizeDepsPlugin()],
+    plugins: [],
   },
   renderer: {
     // Thanks to [@Maqsyo](https://github.com/Maqsyo)

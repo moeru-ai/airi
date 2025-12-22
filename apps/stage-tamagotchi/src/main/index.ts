@@ -14,6 +14,7 @@ import { openDebugger, setupDebugger } from './app/debugger'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
 import { setupServerChannel } from './services/airi/channel-server'
+import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -71,9 +72,13 @@ app.whenReady().then(async () => {
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
 
   const serverChannel = injeca.provide('modules:channel-server', () => setupServerChannel())
+  const autoUpdater = injeca.provide('services:auto-updater', () => setupAutoUpdater())
   const widgetsManager = injeca.provide('windows:widgets', () => setupWidgetsWindowManager())
   const noticeWindow = injeca.provide('windows:notice', () => setupNoticeWindowManager())
-  const aboutWindow = injeca.provide('windows:about', () => setupAboutWindowReusable())
+  const aboutWindow = injeca.provide('windows:about', {
+    dependsOn: { autoUpdater },
+    build: ({ dependsOn }) => setupAboutWindowReusable(dependsOn),
+  })
 
   // BeatSync will create a background window to capture and process audio.
   const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
@@ -84,12 +89,12 @@ app.whenReady().then(async () => {
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync },
+    dependsOn: { widgetsManager, beatSync, autoUpdater },
     build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync },
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
 

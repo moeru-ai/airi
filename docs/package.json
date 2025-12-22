@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/docs",
   "type": "module",
-  "version": "0.8.0-beta.4",
+  "version": "0.8.0-beta.5",
   "private": true,
   "scripts": {
     "build": "vitepress build",
@@ -23,6 +23,7 @@
     "@vueuse/core": "^14.1.0",
     "colorjs.io": "^0.5.2",
     "date-fns": "^4.1.0",
+    "embla-carousel-vue": "catalog:",
     "mark.js": "^8.11.1",
     "motion-v": "^1.7.4",
     "pathe": "^2.0.3",
@@ -33,9 +34,9 @@
     "vue-sonner": "^2.0.9"
   },
   "devDependencies": {
-    "@iconify-json/lucide": "^1.2.81",
+    "@iconify-json/lucide": "^1.2.82",
     "@iconify-json/mingcute": "^1.2.6",
-    "@iconify-json/twemoji": "^1.2.4",
+    "@iconify-json/twemoji": "^1.2.5",
     "@iconify/vue": "^5.0.0",
     "@intlify/unplugin-vue-i18n": "^11.0.1",
     "@mdit/plugin-footnote": "^0.22.3",

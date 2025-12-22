@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/root",
   "type": "module",
-  "version": "0.8.0-beta.4",
+  "version": "0.8.0-beta.5",
   "private": true,
   "packageManager": "pnpm@10.25.0",
   "description": "LLM powered virtual character",
@@ -34,7 +34,7 @@
     "lint:rust": "cargo fmt --check && cargo clippy --workspace",
     "to-avif": "tsx docs/scripts/avif.ts",
     "typecheck": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" -F=\"./docs\" --parallel typecheck",
-    "up": "taze -w -r -I -f && pnpm prune && pnpm dedupe",
+    "up": "taze -w -r -I && pnpm prune && pnpm dedupe",
     "nolyfill": "pnpm dlx nolyfill"
   },
   "devDependencies": {
@@ -49,12 +49,12 @@
     "@unocss/eslint-plugin": "^66.5.10",
     "@unocss/preset-mini": "^66.5.10",
     "@unocss/preset-web-fonts": "^66.5.10",
-    "@vitest/coverage-v8": "^4.0.15",
+    "@vitest/coverage-v8": "^4.0.16",
     "bumpp": "^10.3.2",
     "eslint": "^9.39.2",
-    "eslint-plugin-oxlint": "^1.32.0",
+    "eslint-plugin-oxlint": "^1.34.0",
     "lint-staged": "^16.2.7",
-    "oxlint": "^1.32.0",
+    "oxlint": "^1.34.0",
     "publint": "^0.3.16",
     "rollup": "^4.53.3",
     "simple-git-hooks": "^2.13.1",
@@ -63,7 +63,7 @@
     "tinyexec": "^1.0.2",
     "tsdown": "^0.17.4",
     "tsx": "^4.21.0",
-    "turbo": "^2.6.3",
+    "turbo": "^2.7.1",
     "typescript": "~5.9.3",
     "uncrypto": "^0.1.3",
     "unocss": "^66.5.10",
@@ -74,7 +74,7 @@
     "unplugin-vue": "^7.1.0",
     "vite": "^7.2.7",
     "vite-plugin-inspect": "^11.3.3",
-    "vitest": "^4.0.15",
+    "vitest": "^4.0.16",
     "yaml": "^2.8.2"
   },
   "workspaces": [

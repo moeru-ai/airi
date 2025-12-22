@@ -24,6 +24,7 @@ dialogs:
     skipForNow: Skip for now
     saveAndContinue: Save and Continue
     next: Next
+    retry: Retry
     start: Let's do it!
     select-model: Choose model
     no-models: No available models
