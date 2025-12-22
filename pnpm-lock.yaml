@@ -8367,6 +8367,9 @@ packages:
   '@xsai/shared@0.4.0-beta.12':
     resolution: {integrity: sha512-45qSpEL1T0cH7X3No3u7gHIBle3anVvEMx1sWk20QSYaIKzv+sUcY+sFdVbmm2QKZbJvgD7S41RLJCay36fphQ==}
 
+  '@xsai/shared@0.4.0-beta.12':
+    resolution: {integrity: sha512-45qSpEL1T0cH7X3No3u7gHIBle3anVvEMx1sWk20QSYaIKzv+sUcY+sFdVbmm2QKZbJvgD7S41RLJCay36fphQ==}
+
   '@xsai/stream-text@0.3.5':
     resolution: {integrity: sha512-XUyM3/jo9FulWoqmQU6vvHFOoRZzr3rcsTGm0MY8hUXg9HJl91N0voQGb6R5AMlo5XgoSbO3GMFzJ26AVxmRMg==}
 
@@ -23512,6 +23515,8 @@ snapshots:
   '@xsai/shared@0.2.2': {}
 
   '@xsai/shared@0.3.5': {}
+
+  '@xsai/shared@0.4.0-beta.12': {}
 
   '@xsai/shared@0.4.0-beta.12': {}
 
