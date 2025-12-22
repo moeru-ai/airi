@@ -24,4 +24,8 @@ export interface BackgroundOption {
    * Optional component renderer when the background is procedural/pattern-based.
    */
   component?: Component
+  /**
+   * Whether the background can be removed.
+   */
+  removable?: boolean
 }

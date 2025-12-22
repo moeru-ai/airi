@@ -143,6 +143,7 @@ export const useBackgroundStore = defineStore('background', () => {
             src: objectUrl,
             file: undefined,
             component: undefined,
+            removable: true,
           })
           return
         }
@@ -155,6 +156,7 @@ export const useBackgroundStore = defineStore('background', () => {
             src: storedSrc,
             file: undefined,
             component: undefined,
+            removable: true,
           })
 
           if (storedSrc.startsWith('data:')) {
@@ -197,6 +199,7 @@ export const useBackgroundStore = defineStore('background', () => {
       importedAt: option.importedAt ?? Date.now(),
       blur: option.blur,
       file: undefined,
+      removable: true,
     }
 
     const existing = options.value.find(o => o.id === normalizedId)
@@ -215,6 +218,7 @@ export const useBackgroundStore = defineStore('background', () => {
         id: normalizedId.startsWith(STORAGE_PREFIX) ? normalizedId : `${STORAGE_PREFIX}${normalizedId}`,
         src: undefined,
         file: storedBlob,
+        removable: true,
       }
       try {
         await localforage.setItem<PersistedBackgroundItem>(payload.id, payload)
@@ -225,6 +229,41 @@ export const useBackgroundStore = defineStore('background', () => {
     }
 
     return normalizedOption
+  }
+
+  async function removeOption(optionId: string) {
+    console.info('Removing background', optionId) // FIXME: remove
+    const optionIndex = options.value.findIndex(o => o.id === optionId)
+    if (optionIndex === -1)
+      return
+
+    const option = options.value[optionIndex]
+
+    // Remove from localforage
+    try {
+      if (option.id.startsWith(STORAGE_PREFIX)) {
+        await localforage.removeItem(option.id)
+      }
+    }
+    catch (error) {
+      console.error('Failed to remove background from storage', error)
+    }
+
+    // Revoke object URL if exists
+    if (objectUrls.has(optionId)) {
+      revokeObjectUrl(optionId)
+    }
+
+    // Remove from list
+    options.value.splice(optionIndex, 1)
+
+    // If selected, fallback to first available option
+    if (selectedId.value === optionId) {
+      const fallback = options.value[0]
+      if (fallback) {
+        selectedId.value = fallback.id
+      }
+    }
   }
 
   function setSampledColor(color?: string) {
@@ -240,6 +279,7 @@ export const useBackgroundStore = defineStore('background', () => {
     loading,
     loadFromIndexedDb,
     addOption,
+    removeOption,
     setSelection,
     applyPickerSelection,
     setSampledColor,

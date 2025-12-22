@@ -17,6 +17,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'apply', payload: { option: BackgroundOption, color?: string }): void
   (e: 'change', payload: { option: BackgroundOption | undefined }): void
+  (e: 'remove', option: BackgroundOption): void
 }>()
 
 const modelValue = defineModel<BackgroundOption | undefined>({ default: undefined })
@@ -186,8 +187,8 @@ async function applySelection() {
             v-for="option in mergedOptions"
             :key="option.id"
             type="button"
-            class="border-2 border-transparent rounded-xl bg-neutral-100/80 p-2 text-left transition-colors hover:border-primary-400 dark:bg-neutral-900/80"
-            :class="[option.id === selectedId ? 'border-primary-500/80 shadow-primary-500/10 shadow-lg' : 'border-neutral-200 dark:border-neutral-800']"
+            class="background-option group relative border-2 rounded-xl bg-neutral-100/80 p-2 text-left transition-colors dark:bg-neutral-900/80"
+            :class="[option.id === selectedId ? 'selected border-primary-500/80 shadow-primary-500/10 shadow-lg' : 'border-neutral-200 dark:border-neutral-800']"
             @click="selectedId = option.id"
           >
             <div class="aspect-video w-full overflow-hidden border border-neutral-200 rounded-lg bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-800/70">
@@ -213,12 +214,21 @@ async function applySelection() {
                 {{ option.description }}
               </span>
             </div>
+            <div
+              v-if="option.removable"
+              class="trash-button absolute right-2 top-2 z-10 flex cursor-pointer items-center justify-center rounded-full bg-neutral-200/50 p-1 text-neutral-600 backdrop-blur-md transition-opacity dark:bg-neutral-800/50"
+              :class="[option.id === selectedId ? 'opacity-100' : 'opacity-0']"
+              title="Remove background"
+              @click.stop="emit('remove', option)"
+            >
+              <div class="i-solar:trash-bin-trash-bold h-4 w-4" />
+            </div>
           </button>
         </div>
 
         <div v-if="allowUpload" class="flex flex-wrap gap-2">
           <BasicInputFile v-model="uploadingFiles" class="cursor-pointer">
-            <div class="flex items-center gap-2 border border-neutral-300 rounded-lg border-dashed px-3 py-2 text-sm text-neutral-600 transition-colors dark:border-neutral-700 hover:border-primary-400 dark:text-neutral-300 hover:text-primary-500 dark:hover:border-primary-400 dark:hover:text-primary-400">
+            <div class="upload-button flex items-center gap-2 border border-neutral-300 rounded-lg border-dashed px-3 py-2 text-sm text-neutral-600 transition-colors dark:border-neutral-700 dark:text-neutral-300">
               <div i-solar:add-square-linear />
               <span>Add custom background</span>
             </div>
@@ -266,7 +276,7 @@ async function applySelection() {
 
     <div class="flex justify-end bg-inherit pt-4">
       <button
-        class="rounded-lg bg-primary-500 px-4 py-2 text-sm text-white font-medium shadow transition-transform disabled:cursor-not-allowed disabled:opacity-60 hover:-translate-y-0.5"
+        class="apply-button rounded-lg bg-primary-500 px-4 py-2 text-sm text-white font-medium shadow transition-transform disabled:cursor-not-allowed disabled:opacity-60"
         :disabled="!selectedOption || busy"
         @click="applySelection"
       >
@@ -277,4 +287,25 @@ async function applySelection() {
 </template>
 
 <style scoped>
+@media (hover: hover) {
+  .background-option:hover:not(.selected) {
+    --at-apply: border-primary-400/80;
+  }
+
+  .background-option:hover .trash-button {
+    --at-apply: opacity-100;
+  }
+
+  .trash-button:hover {
+    --at-apply: bg-red-500 text-white;
+  }
+
+  .upload-button:hover {
+    --at-apply: border-primary-400 text-primary-500 dark:border-primary-400 dark:text-primary-400;
+  }
+
+  .apply-button:hover:not(:disabled) {
+    --at-apply: -translate-y-0.5;
+  }
+}
 </style>

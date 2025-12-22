@@ -20,6 +20,7 @@ const { options: backgroundOptions } = storeToRefs(backgroundStore)
     v-model="backgroundDialogOpen"
     :options="backgroundOptions"
     @apply="backgroundStore.applyPickerSelection"
+    @remove="option => backgroundStore.removeOption(option.id)"
   />
   <div absolute bottom--8 right-0 flex gap-2>
     <button

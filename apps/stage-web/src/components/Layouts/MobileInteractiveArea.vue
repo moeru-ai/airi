@@ -139,6 +139,7 @@ onMounted(() => {
       v-model="backgroundDialogOpen"
       :options="backgroundOptions"
       @apply="backgroundStore.applyPickerSelection"
+      @remove="option => backgroundStore.removeOption(option.id)"
     />
     <KeepAlive>
       <Transition name="fade">

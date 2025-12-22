@@ -13,6 +13,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   (e: 'apply', payload: { option: BackgroundOption, color?: string }): void
+  (e: 'remove', option: BackgroundOption): void
 }>()
 const showDialog = defineModel({ type: Boolean, default: false, required: false })
 const selected = defineModel<BackgroundOption | undefined>('selected', { default: undefined })
@@ -38,6 +39,7 @@ onMounted(() => screenSafeArea.update())
           allow-upload
           class="min-h-0 flex-1"
           @apply="payload => { emit('apply', payload); showDialog = false }"
+          @remove="option => emit('remove', option)"
         />
       </DialogContent>
     </DialogPortal>
@@ -53,6 +55,7 @@ onMounted(() => screenSafeArea.update())
           allow-upload
           class="min-h-0 flex-1"
           @apply="payload => { emit('apply', payload); showDialog = false }"
+          @remove="option => emit('remove', option)"
         />
       </DrawerContent>
     </DrawerPortal>
