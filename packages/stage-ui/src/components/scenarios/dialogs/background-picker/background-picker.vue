@@ -9,13 +9,18 @@ import ThemeOverlay from '../../../ThemeOverlay.vue'
 
 import { colorFromElement, patchThemeSamplingHtml2CanvasClone } from '../../../../libs'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   options: BackgroundOption[]
   allowUpload?: boolean
-}>()
+  idPrefix?: string
+}>(), {
+  allowUpload: false,
+  idPrefix: 'background-',
+})
 
 const emit = defineEmits<{
   (e: 'apply', payload: { option: BackgroundOption, color?: string }): void
+  (e: 'import', payload: { option: BackgroundOption, color?: string }): void
   (e: 'change', payload: { option: BackgroundOption | undefined }): void
   (e: 'remove', option: BackgroundOption): void
 }>()
@@ -29,7 +34,10 @@ const objectUrls = new Map<string, string>()
 const selectedId = ref<string | undefined>(modelValue.value?.id)
 const busy = ref(false)
 
-const mergedOptions = computed(() => [...props.options, ...customOptions.value])
+const mergedOptions = computed(() => {
+  const propIds = new Set(props.options.map(o => o.id))
+  return [...props.options, ...customOptions.value.filter(o => !propIds.has(o.id))]
+})
 const selectedOption = computed(() => mergedOptions.value.find(option => option.id === selectedId.value))
 const enableBlur = ref(modelValue.value?.blur ?? false)
 const previewColor = ref<string | undefined>(undefined)
@@ -49,6 +57,20 @@ function ensureObjectUrl(id: string, file: File) {
   return created
 }
 
+async function waitForPreviewReady() {
+  await nextTick()
+  const image = previewRef.value?.querySelector('img')
+  if (image && !image.complete) {
+    await Promise.race([
+      new Promise<void>((resolve, reject) => {
+        image.addEventListener('load', () => resolve(), { once: true })
+        image.addEventListener('error', () => reject(new Error('Preview image failed to load')), { once: true })
+      }),
+      new Promise<void>(resolve => setTimeout(resolve, 3000)), // 3s timeout safety
+    ])
+  }
+}
+
 onScopeDispose(() => {
   objectUrls.forEach((url) => {
     URL.revokeObjectURL(url)
@@ -64,6 +86,7 @@ let previewSamplingToken = 0
 
 watch(selectedOption, async (option) => {
   const token = ++previewSamplingToken
+  previewColor.value = undefined
   emit('change', { option })
   if (option?.kind === 'wave') {
     const isDark = document.documentElement.classList.contains('dark')
@@ -85,6 +108,7 @@ watch(selectedOption, async (option) => {
         backgroundColor: null,
         allowTaint: true,
         useCORS: true,
+        onclone: patchThemeSamplingHtml2CanvasClone,
       },
     })
     if (token === previewSamplingToken)
@@ -106,36 +130,33 @@ function getPreviewSrc(option?: BackgroundOption) {
   return option.src ?? ''
 }
 
-function handleFilesChange(files: File[]) {
-  files.forEach((file) => {
-    const option = {
-      id: `custom-${nanoid(6)}`,
+async function handleFilesChange(files: File[]) {
+  for (const file of files) {
+    const option: BackgroundOption = {
+      id: `${props.idPrefix}custom-${nanoid(6)}`,
       label: file.name || 'Custom Background',
       file,
+      kind: 'image',
     }
     customOptions.value.push(option)
     selectedId.value = option.id
-  })
+
+    // Auto-persist: wait for preview to be ready and trigger apply logic
+    await nextTick()
+    await applySelection(true)
+  }
 }
 
 watch(uploadingFiles, (files) => {
   handleFilesChange(files ?? [])
 })
 
-async function waitForPreviewReady() {
-  await nextTick()
-  const image = previewRef.value?.querySelector('img')
-  if (image && !image.complete) {
-    await new Promise<void>((resolve, reject) => {
-      image.addEventListener('load', () => resolve(), { once: true })
-      image.addEventListener('error', () => reject(new Error('Preview image failed to load')), { once: true })
-    })
-  }
-}
-
-async function applySelection() {
-  if (!selectedOption.value || !previewRef.value)
+async function applySelection(isImport = false) {
+  if (!selectedOption.value)
     return
+
+  // If we are already sampling (from the watcher), wait for it or use the current previewColor
+  // For auto-import, we might want to wait a bit to get a real color, or just use what we have.
 
   busy.value = true
   try {
@@ -143,34 +164,31 @@ async function applySelection() {
       const isDark = document.documentElement.classList.contains('dark')
       const hue = getComputedStyle(document.documentElement).getPropertyValue('--chromatic-hue') || '220.44'
       const color = isDark ? `hsl(${hue} 60% 32%)` : `hsl(${hue} 75% 78%)`
-      emit('apply', { option: { ...selectedOption.value, blur: enableBlur.value }, color })
+      const payload = { option: { ...selectedOption.value, blur: enableBlur.value }, color }
+      if (isImport)
+        (emit as any)('import', payload)
+      else
+        (emit as any)('apply', payload)
       return
     }
 
-    await waitForPreviewReady()
-    const result = await colorFromElement(previewRef.value, {
-      mode: 'html2canvas',
-      html2canvas: {
-        region: {
-          x: 0,
-          y: 0,
-          width: previewRef.value.offsetWidth,
-          height: Math.min(120, previewRef.value.offsetHeight),
-        },
-        sampleHeight: 20,
-        sampleStride: 10,
-        scale: 0.5,
-        backgroundColor: null,
-        allowTaint: true,
-        useCORS: true,
-        onclone: patchThemeSamplingHtml2CanvasClone,
-      },
-    })
+    // For standard images, we use the color already being sampled by the watcher.
+    // If it's not ready yet, we wait a bit for it.
+    if (!previewColor.value) {
+      await waitForPreviewReady()
+      // Give it a tiny bit more time for the watcher's sampling to finish
+      if (!previewColor.value)
+        await new Promise(resolve => setTimeout(resolve, 300))
+    }
 
-    emit('apply', { option: { ...selectedOption.value, blur: enableBlur.value }, color: result.html2canvas?.average })
+    const payload = { option: { ...selectedOption.value, blur: enableBlur.value }, color: previewColor.value }
+    if (isImport)
+      (emit as any)('import', payload)
+    else
+      (emit as any)('apply', payload)
   }
   catch (error) {
-    console.error('Background sampling failed:', error)
+    console.error('Background application failed:', error)
   }
   finally {
     busy.value = false
@@ -278,7 +296,7 @@ async function applySelection() {
       <button
         class="apply-button rounded-lg bg-primary-500 px-4 py-2 text-sm text-white font-medium shadow transition-transform disabled:cursor-not-allowed disabled:opacity-60"
         :disabled="!selectedOption || busy"
-        @click="applySelection"
+        @click="() => applySelection()"
       >
         {{ busy ? 'Sampling...' : 'Use this background' }}
       </button>

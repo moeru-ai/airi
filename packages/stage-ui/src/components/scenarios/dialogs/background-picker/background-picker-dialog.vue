@@ -39,6 +39,7 @@ onMounted(() => screenSafeArea.update())
           allow-upload
           class="min-h-0 flex-1"
           @apply="payload => { emit('apply', payload); showDialog = false }"
+          @import="payload => emit('apply', payload)"
           @remove="option => emit('remove', option)"
         />
       </DialogContent>
@@ -55,6 +56,7 @@ onMounted(() => screenSafeArea.update())
           allow-upload
           class="min-h-0 flex-1"
           @apply="payload => { emit('apply', payload); showDialog = false }"
+          @import="payload => emit('apply', payload)"
           @remove="option => emit('remove', option)"
         />
       </DrawerContent>
