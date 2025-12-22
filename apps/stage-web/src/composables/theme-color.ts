@@ -67,11 +67,12 @@ export function useBackgroundThemeColor({
 
   let samplingToken = 0
 
+  const { isDark } = useTheme()
+
   function getWaveThemeColor() {
-    const isDark = document.documentElement.classList.contains('dark')
     // We read directly from computed style to catch the animation value
     const hue = getComputedStyle(document.documentElement).getPropertyValue('--chromatic-hue') || '220.44'
-    return isDark ? `hsl(${hue} 60% 32%)` : `hsl(${hue} 75% 78%)`
+    return isDark.value ? `hsl(${hue} 60% 32%)` : `hsl(${hue} 75% 78%)`
   }
 
   const { updateThemeColor } = useThemeColor(() => {
@@ -179,6 +180,10 @@ export function useBackgroundThemeColor({
   watch(() => backgroundSurface.value?.surfaceEl, (el) => {
     if (el)
       syncBackgroundTheme()
+  })
+
+  watch(isDark, () => {
+    syncBackgroundTheme()
   })
 
   return {

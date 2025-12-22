@@ -12,7 +12,6 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { useTheme } from '@proj-airi/ui'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
@@ -26,7 +25,6 @@ import MobileInteractiveArea from '../components/Layouts/MobileInteractiveArea.v
 import { useBackgroundThemeColor } from '../composables/theme-color'
 import { useBackgroundStore } from '../stores/background'
 
-const { isDark: dark } = useTheme()
 const paused = ref(false)
 
 function handleSettingsOpen(open: boolean) {
@@ -43,7 +41,6 @@ const { selectedOption, sampledColor } = storeToRefs(backgroundStore)
 const backgroundSurface = useTemplateRef<InstanceType<typeof CustomizedBackground>>('backgroundSurface')
 
 const { syncBackgroundTheme } = useBackgroundThemeColor({ backgroundSurface, selectedOption, sampledColor })
-watch(dark, () => syncBackgroundTheme())
 onMounted(() => syncBackgroundTheme())
 
 // Audio + transcription pipeline (mirrors stage-tamagotchi)
