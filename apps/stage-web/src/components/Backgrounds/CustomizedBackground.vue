@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { BackgroundItem } from '../../stores/background'
 
+import ThemeOverlay from '@proj-airi/stage-ui/components/ThemeOverlay.vue'
+
 import { useTheme } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
 
-import ThemeOverlay from '@proj-airi/stage-ui/components/ThemeOverlay.vue'
 import AnimatedWave from '../Widgets/AnimatedWave.vue'
 import Cross from './Cross.vue'
 
