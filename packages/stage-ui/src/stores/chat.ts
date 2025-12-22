@@ -356,7 +356,8 @@ export const useChatStore = defineStore('chat', () => {
       return
 
     const isStaleGeneration = () => sessionGeneration.value !== generation
-    if (isStaleGeneration())
+    const shouldAbort = () => isStaleGeneration()
+    if (shouldAbort())
       return
     sending.value = true
     streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
@@ -381,7 +382,7 @@ export const useChatStore = defineStore('chat', () => {
 
       const finalContent = contentParts.length > 1 ? contentParts : sendingMessage
 
-      if (isStaleGeneration())
+      if (shouldAbort())
         return
 
       const userContext: MessageContext = { sessionId: activeSessionId.value, source: 'text', ts: Date.now() }
@@ -397,7 +398,7 @@ export const useChatStore = defineStore('chat', () => {
 
       const parser = useLlmmarkerParser({
         onLiteral: async (literal) => {
-          if (isStaleGeneration())
+          if (shouldAbort())
             return
           await emitTokenLiteralHooks(literal)
 
@@ -416,7 +417,7 @@ export const useChatStore = defineStore('chat', () => {
           })
         },
         onSpecial: async (special) => {
-          if (isStaleGeneration())
+          if (shouldAbort())
             return
           await emitTokenSpecialHooks(special)
         },
@@ -426,7 +427,7 @@ export const useChatStore = defineStore('chat', () => {
       const toolCallQueue = createQueue<ChatSlices>({
         handlers: [
           async (ctx) => {
-            if (isStaleGeneration())
+            if (shouldAbort())
               return
             if (ctx.data.type === 'tool-call') {
               streamingMessage.value.slices.push(ctx.data)
@@ -460,7 +461,7 @@ export const useChatStore = defineStore('chat', () => {
       let fullText = ''
       const headers = (options.providerConfig?.headers || {}) as Record<string, string>
 
-      if (isStaleGeneration())
+      if (shouldAbort())
         return
 
       await stream(options.model, options.chatProvider, newMessages as Message[], {
