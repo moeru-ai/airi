@@ -139,9 +139,7 @@ onMounted(() => {
           :sending="sending"
           :streaming-message="streamingMessage"
           max-w="[calc(100%-3.5rem)]"
-          w-full
-          self-start
-          pl-3
+          w-full self-start pb-3 pl-3
           class="chat-history"
           :class="[
             'relative z-20',
