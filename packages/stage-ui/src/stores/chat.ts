@@ -355,6 +355,7 @@ export const useChatStore = defineStore('chat', () => {
 
     const isStaleGeneration = () => sessionGeneration.value !== generation
     sending.value = true
+    streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
 
     try {
       await emitBeforeMessageComposedHooks(sendingMessage)
@@ -431,8 +432,6 @@ export const useChatStore = defineStore('chat', () => {
           },
         ],
       })
-
-      streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
 
       const newMessages = messages.value.map((msg) => {
         const { context: _context, ...withoutContext } = msg
