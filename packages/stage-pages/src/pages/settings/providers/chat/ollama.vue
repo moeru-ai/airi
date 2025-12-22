@@ -67,7 +67,8 @@ watch(headers, (headers) => {
   if (headers.length > 0 && (headers[headers.length - 1].key !== '' || headers[headers.length - 1].value !== '')) {
     headers.push({ key: '', value: '' })
   }
-
+  if (!providers.value[providerId])
+    return
   providers.value[providerId].headers = headers.filter(header => header.key !== '').reduce((acc, header) => {
     acc[header.key] = header.value
     return acc

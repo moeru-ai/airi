@@ -24,6 +24,7 @@ dialogs:
     skipForNow: Bỏ qua
     saveAndContinue: Lưu và tiếp tục
     next: Tiếp
+    retry: Thử lại
     start: Bắt đầu thôi!
     select-model: Chọn mô hình
     no-models: Không có mô hình khả dụng
@@ -262,6 +263,9 @@ pages:
             custom_model_placeholder: Nhập tên mô hình tùy chỉnh...
             description: Chọn nhà cung cấp LLM phù hợp cho ý thức
             error: Lỗi tải mô hình
+            health_check_failed: Kiểm tra tình trạng thất bại
+            no_providers_configured_title: Chưa cấu hình nhà cung cấp
+            no_providers_configured_description: Nhấn vào đây để thiết lập nhà cung cấp LLM của bạn
             expand: Mở rộng
             loading: Đang tải mô hình...
             manual_model_name: Tên mô hình
