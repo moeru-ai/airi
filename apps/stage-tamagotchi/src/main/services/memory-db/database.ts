@@ -1,10 +1,12 @@
-import Database from 'better-sqlite3'
+import type { MemoryEntry } from './schema'
+
 import { existsSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
+import Database from 'better-sqlite3'
+
 import { app } from 'electron'
 
-import type { MemoryEntry } from './schema'
 import { CREATE_TABLES_SQL } from './schema'
 
 export class MemoryDatabase {
@@ -36,7 +38,7 @@ export class MemoryDatabase {
 
     // Open/create database
     this.db = new Database(this.dbPath)
-    
+
     // Create tables
     this.db.exec(CREATE_TABLES_SQL)
   }
@@ -58,7 +60,7 @@ export class MemoryDatabase {
     type: 'short-term' | 'long-term',
     content: string,
     metadata?: Record<string, any>,
-    embedding?: number[]
+    embedding?: number[],
   ): number {
     if (!this.db) {
       throw new Error('Database not initialized')
@@ -74,7 +76,7 @@ export class MemoryDatabase {
       content,
       Date.now(),
       metadata ? JSON.stringify(metadata) : null,
-      embedding ? JSON.stringify(embedding) : null
+      embedding ? JSON.stringify(embedding) : null,
     )
 
     return result.lastInsertRowid as number

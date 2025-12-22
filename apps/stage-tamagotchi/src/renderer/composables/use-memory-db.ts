@@ -22,7 +22,7 @@ export function useMemoryDb() {
     type: 'short-term' | 'long-term',
     content: string,
     metadata?: Record<string, any>,
-    embedding?: number[]
+    embedding?: number[],
   ) {
     return await invoke(memoryDb.addMemory, { type, content, metadata, embedding })
   }

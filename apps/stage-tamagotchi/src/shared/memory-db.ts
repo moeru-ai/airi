@@ -27,4 +27,3 @@ export const memoryDb = {
   getDatabasePath: defineInvokeEventa<{ success: boolean, path: string }>('eventa:invoke:electron:memory-db:get-path'),
   isInitialized: defineInvokeEventa<{ initialized: boolean }>('eventa:invoke:electron:memory-db:is-initialized'),
 }
-

@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { describe, it, expect, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
+
 import { useMemoryShortTermStore } from './memory-short-term'
 
 describe('useMemoryShortTermStore', () => {
