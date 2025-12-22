@@ -246,6 +246,9 @@ export const useChatStore = defineStore('chat', () => {
         ts: Date.now(),
       },
     }]
+    // Reject and clear any pending sends so callers don't hang after cleanup
+    for (const queued of sendQueue.value)
+      queued.reject(new Error('Chat session was reset before send could start'))
     sendQueue.value = []
     sending.value = false
     streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
@@ -353,6 +356,8 @@ export const useChatStore = defineStore('chat', () => {
       return
 
     const isStaleGeneration = () => sessionGeneration.value !== generation
+    if (isStaleGeneration())
+      return
     sending.value = true
     streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
 
@@ -375,6 +380,9 @@ export const useChatStore = defineStore('chat', () => {
       }
 
       const finalContent = contentParts.length > 1 ? contentParts : sendingMessage
+
+      if (isStaleGeneration())
+        return
 
       const userContext: MessageContext = { sessionId: activeSessionId.value, source: 'text', ts: Date.now() }
       messages.value.push({ role: 'user', content: finalContent, context: userContext })
@@ -451,6 +459,9 @@ export const useChatStore = defineStore('chat', () => {
 
       let fullText = ''
       const headers = (options.providerConfig?.headers || {}) as Record<string, string>
+
+      if (isStaleGeneration())
+        return
 
       await stream(options.model, options.chatProvider, newMessages as Message[], {
         headers,
