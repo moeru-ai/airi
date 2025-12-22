@@ -302,7 +302,7 @@ importers:
     devDependencies:
       '@better-auth/cli':
         specifier: ^1.4.5
-        version: 1.4.6(@better-fetch/fetch@1.1.18)(@opentelemetry/api@1.9.0)(better-call@1.1.5(zod@4.1.13))(jose@6.1.3)(kysely@0.28.8)(magicast@0.5.1)(nanostores@1.1.0)(postgres@3.4.7)(react@18.3.1)(vue@3.5.25(typescript@5.9.3))
+        version: 1.4.6(@better-fetch/fetch@1.1.18)(@opentelemetry/api@1.9.0)(better-call@1.1.5(zod@4.2.1))(jose@6.1.3)(kysely@0.28.8)(magicast@0.5.1)(nanostores@1.1.0)(postgres@3.4.7)(react@18.3.1)(vue@3.5.25(typescript@5.9.3))
       drizzle-kit:
         specifier: ^0.31.7
         version: 0.31.8
@@ -2111,7 +2111,7 @@ importers:
         version: 66.5.10
       '@wxt-dev/module-vue':
         specifier: ^1.0.3
-        version: 1.0.3(vite@8.0.0-beta.1(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.11(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.53.3)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+        version: 1.0.3(vite@7.2.7(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.11(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.53.3)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       vue-tsc:
         specifier: ^3.1.8
         version: 3.1.8(typescript@5.9.3)
@@ -8405,9 +8405,6 @@ packages:
   '@xsai-ext/shared-providers@0.2.2':
     resolution: {integrity: sha512-yHQ3RQf3yb/xD5neQGFKmY/9+TmNFDZmH2aOSiS11rqAZwd6wPr/Wkvo/Ls1yiVGYVfZpzZGYp9Q+0iELt5MhA==}
 
-  '@xsai-ext/shared-providers@0.4.0-beta.10':
-    resolution: {integrity: sha512-L5w0RO3lBi+ZdlOMXzUSSEBGmHrdZHNBaYUYm0UYIAZ8IRHWcv/YETd6DdlF6idhHSRJfxMNNO3EerL+EWQknw==}
-
   '@xsai-ext/shared-providers@0.4.0-beta.11':
     resolution: {integrity: sha512-LbmT5jwDvGbIVcxzT10+MVkj9y2NhH1H3pP7740n9rCEH2/oPqoOcmGx67XyfqHSDQPT3WHpKY/bllmd2QxVHA==}
 
@@ -8433,9 +8430,6 @@ packages:
       web-worker:
         optional: true
 
-  '@xsai/embed@0.4.0-beta.10':
-    resolution: {integrity: sha512-YR8Xow2hNQPu7jBVY60EWVLA3c9c4ESs2ba8qfp4CKH0Jdw7n/EL7nkDzY0fPECwinEvNrtezVoxTV64uFYzWQ==}
-
   '@xsai/embed@0.4.0-beta.11':
     resolution: {integrity: sha512-0YrdK1ZFcHM1BVt061pkiPLJvspNFJQvFUJsyZDzdHASIGKfuV70zSlVOUsu4gdhM4uZ1Rk70L5qjPhJO7xR9w==}
 
@@ -8447,9 +8441,6 @@ packages:
 
   '@xsai/generate-text@0.4.0-beta.11':
     resolution: {integrity: sha512-AaVkIrxIMAIwF3rhiZY2vU2KZ6H2LkW2RnDsBN7Vw1asXUyX6K+dhAgB2SGRkKBsOLYRHke2ZY6rWX4+oSM1IQ==}
-
-  '@xsai/generate-transcription@0.4.0-beta.10':
-    resolution: {integrity: sha512-9V9hfU6NV9qypWqy9ZlTb3ODFVFJHRJ6OMdKQ8/KPSaKNQI2P9VLM1ZDY/wE4hdChqfL8Bszwt1qVeB9EXn/2A==}
 
   '@xsai/generate-transcription@0.4.0-beta.11':
     resolution: {integrity: sha512-uE/aSYIXpsvp874vO7H45XcVBf5iP+x8KbjmAdn8uB0oCNiiHyzcNWkPXaVt448mwz8hq7qGRq8YdMVkCtVLrA==}
@@ -16827,9 +16818,6 @@ packages:
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
-  zod@4.1.13:
-    resolution: {integrity: sha512-AvvthqfqrAhNH9dnfmrfKzX5upOdjUVJYFqNSlkmGf64gRaTzlPwz99IHYnVs28qYAybvAlBV+H7pn0saFY4Ig==}
-
   zod@4.2.1:
     resolution: {integrity: sha512-0wZ1IRqGGhMP76gLqz8EyfBXKk0J2qo2+H3fi4mcUP/KtTocoX08nmIAHl1Z2kJIZbZee8KOpBCSNPRgauucjw==}
 
@@ -17870,13 +17858,13 @@ snapshots:
 
   '@bcoe/v8-coverage@1.0.2': {}
 
-  '@better-auth/cli@1.4.6(@better-fetch/fetch@1.1.18)(@opentelemetry/api@1.9.0)(better-call@1.1.5(zod@4.1.13))(jose@6.1.3)(kysely@0.28.8)(magicast@0.5.1)(nanostores@1.1.0)(postgres@3.4.7)(react@18.3.1)(vue@3.5.25(typescript@5.9.3))':
+  '@better-auth/cli@1.4.6(@better-fetch/fetch@1.1.18)(@opentelemetry/api@1.9.0)(better-call@1.1.5(zod@4.2.1))(jose@6.1.3)(kysely@0.28.8)(magicast@0.5.1)(nanostores@1.1.0)(postgres@3.4.7)(react@18.3.1)(vue@3.5.25(typescript@5.9.3))':
     dependencies:
       '@babel/core': 7.28.5
       '@babel/preset-react': 7.28.5(@babel/core@7.28.5)
       '@babel/preset-typescript': 7.28.5(@babel/core@7.28.5)
-      '@better-auth/core': 1.4.6(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.5(zod@4.1.13))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0)
-      '@better-auth/telemetry': 1.4.6(@better-auth/core@1.4.6(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.5(zod@4.1.13))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0))
+      '@better-auth/core': 1.4.6(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.5(zod@4.2.1))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0)
+      '@better-auth/telemetry': 1.4.6(@better-auth/core@1.4.6(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.5(zod@4.2.1))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0))
       '@better-auth/utils': 0.3.0
       '@clack/prompts': 0.11.0
       '@mrleebo/prisma-ast': 0.13.1
@@ -17895,7 +17883,7 @@ snapshots:
       prompts: 2.4.2
       semver: 7.7.3
       yocto-spinner: 0.2.3
-      zod: 4.1.13
+      zod: 4.2.1
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@better-fetch/fetch'
@@ -17937,20 +17925,20 @@ snapshots:
       - svelte
       - vue
 
-  '@better-auth/core@1.4.6(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.5(zod@4.1.13))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0)':
+  '@better-auth/core@1.4.6(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.5(zod@4.2.1))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0)':
     dependencies:
       '@better-auth/utils': 0.3.0
       '@better-fetch/fetch': 1.1.18
       '@standard-schema/spec': 1.1.0
-      better-call: 1.1.5(zod@4.1.13)
+      better-call: 1.1.5(zod@4.2.1)
       jose: 6.1.3
       kysely: 0.28.8
       nanostores: 1.1.0
       zod: 4.2.1
 
-  '@better-auth/telemetry@1.4.6(@better-auth/core@1.4.6(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.5(zod@4.1.13))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0))':
+  '@better-auth/telemetry@1.4.6(@better-auth/core@1.4.6(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.5(zod@4.2.1))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0))':
     dependencies:
-      '@better-auth/core': 1.4.6(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.5(zod@4.1.13))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0)
+      '@better-auth/core': 1.4.6(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.5(zod@4.2.1))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0)
       '@better-auth/utils': 0.3.0
       '@better-fetch/fetch': 1.1.18
 
@@ -23121,12 +23109,6 @@ snapshots:
       vite: 7.2.7(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
       vue: 3.5.25(typescript@5.9.3)
 
-  '@vitejs/plugin-vue@6.0.3(vite@8.0.0-beta.1(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))':
-    dependencies:
-      '@rolldown/pluginutils': 1.0.0-beta.53
-      vite: 8.0.0-beta.1(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
-      vue: 3.5.25(typescript@5.9.3)
-
   '@vitest/coverage-v8@4.0.16(vitest@4.0.16(@opentelemetry/api@1.9.0)(@types/node@24.10.4)(jiti@2.6.1)(jsdom@25.0.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(msw@2.7.3(@types/node@24.10.4)(typescript@5.9.3))(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
       '@bcoe/v8-coverage': 1.0.2
@@ -23917,9 +23899,9 @@ snapshots:
       '@types/filesystem': 0.0.36
       '@types/har-format': 1.2.16
 
-  '@wxt-dev/module-vue@1.0.3(vite@8.0.0-beta.1(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.11(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.53.3)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
+  '@wxt-dev/module-vue@1.0.3(vite@7.2.7(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.11(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.53.3)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
-      '@vitejs/plugin-vue': 6.0.3(vite@8.0.0-beta.1(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
+      '@vitejs/plugin-vue': 6.0.3(vite@7.2.7(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
       wxt: 0.20.11(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.53.3)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - vite
@@ -23953,10 +23935,6 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.4.0-beta.11
 
-  '@xsai-ext/shared-providers@0.4.0-beta.10':
-    dependencies:
-      '@xsai/shared': 0.4.0-beta.11
-
   '@xsai-ext/shared-providers@0.4.0-beta.11':
     dependencies:
       '@xsai/shared': 0.4.0-beta.11
@@ -23970,9 +23948,9 @@ snapshots:
       '@huggingface/transformers': 3.8.1
       '@moeru/eventa': 0.3.0(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.7)))(web-worker@1.5.0)
       '@moeru/std': 0.1.0-beta.13
-      '@xsai-ext/shared-providers': 0.4.0-beta.10
+      '@xsai-ext/shared-providers': 0.4.0-beta.11
       '@xsai-transformers/shared': 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.7)))(web-worker@1.5.0)
-      '@xsai/embed': 0.4.0-beta.10
+      '@xsai/embed': 0.4.0-beta.11
       '@xsai/shared': 0.4.0-beta.11
       gpuu: 1.0.6
     optionalDependencies:
@@ -23986,7 +23964,7 @@ snapshots:
       '@huggingface/transformers': 3.8.1
       '@moeru/eventa': 0.3.0(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.7)))(web-worker@1.5.0)
       '@moeru/std': 0.1.0-beta.13
-      '@xsai-ext/shared-providers': 0.4.0-beta.10
+      '@xsai-ext/shared-providers': 0.4.0-beta.11
       '@xsai/shared': 0.4.0-beta.11
       onnxruntime-common: 1.23.2
     transitivePeerDependencies:
@@ -23999,10 +23977,10 @@ snapshots:
       '@huggingface/transformers': 3.8.1
       '@moeru/eventa': 0.3.0(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.7)))(web-worker@1.5.0)
       '@moeru/std': 0.1.0-beta.13
-      '@xsai-ext/shared-providers': 0.4.0-beta.10
+      '@xsai-ext/shared-providers': 0.4.0-beta.11
       '@xsai-transformers/shared': 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.7)))(web-worker@1.5.0)
-      '@xsai/embed': 0.4.0-beta.10
-      '@xsai/generate-transcription': 0.4.0-beta.10
+      '@xsai/embed': 0.4.0-beta.11
+      '@xsai/generate-transcription': 0.4.0-beta.11
       '@xsai/shared': 0.4.0-beta.11
       gpuu: 1.0.6
     optionalDependencies:
@@ -24010,10 +23988,6 @@ snapshots:
     transitivePeerDependencies:
       - electron
       - h3
-
-  '@xsai/embed@0.4.0-beta.10':
-    dependencies:
-      '@xsai/shared': 0.4.0-beta.11
 
   '@xsai/embed@0.4.0-beta.11':
     dependencies:
@@ -24032,10 +24006,6 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.4.0-beta.11
       '@xsai/shared-chat': 0.4.0-beta.11
-
-  '@xsai/generate-transcription@0.4.0-beta.10':
-    dependencies:
-      '@xsai/shared': 0.4.0-beta.11
 
   '@xsai/generate-transcription@0.4.0-beta.11':
     dependencies:
@@ -24585,31 +24555,31 @@ snapshots:
 
   better-auth@1.4.6(react@18.3.1)(vue@3.5.25(typescript@5.9.3)):
     dependencies:
-      '@better-auth/core': 1.4.6(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.5(zod@4.1.13))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0)
-      '@better-auth/telemetry': 1.4.6(@better-auth/core@1.4.6(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.5(zod@4.1.13))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0))
+      '@better-auth/core': 1.4.6(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.5(zod@4.2.1))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0)
+      '@better-auth/telemetry': 1.4.6(@better-auth/core@1.4.6(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.5(zod@4.2.1))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0))
       '@better-auth/utils': 0.3.0
       '@better-fetch/fetch': 1.1.18
       '@noble/ciphers': 2.0.1
       '@noble/hashes': 2.0.1
-      better-call: 1.1.5(zod@4.1.13)
+      better-call: 1.1.5(zod@4.2.1)
       defu: 6.1.4
       jose: 6.1.3
       kysely: 0.28.8
       ms: 4.0.0-nightly.202508271359
       nanostores: 1.1.0
-      zod: 4.1.13
+      zod: 4.2.1
     optionalDependencies:
       react: 18.3.1
       vue: 3.5.25(typescript@5.9.3)
 
-  better-call@1.1.5(zod@4.1.13):
+  better-call@1.1.5(zod@4.2.1):
     dependencies:
       '@better-auth/utils': 0.3.0
       '@better-fetch/fetch': 1.1.18
       rou3: 0.7.11
       set-cookie-parser: 2.7.1
     optionalDependencies:
-      zod: 4.1.13
+      zod: 4.2.1
 
   better-sqlite3@12.5.0:
     dependencies:
@@ -34738,8 +34708,6 @@ snapshots:
     optional: true
 
   zod@3.25.76: {}
-
-  zod@4.1.13: {}
 
   zod@4.2.1: {}
 
