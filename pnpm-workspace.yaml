@@ -1,6 +1,3 @@
-catalogMode: prefer
-
-shellEmulator: true
 packages:
   - packages/**
   - plugins/**
@@ -10,21 +7,13 @@ packages:
   - apps/**
   - '!**/dist/**'
 
-overrides:
-  array-flatten: npm:@nolyfill/array-flatten@^1.0.44
-  axios: npm:feaxios@^0.0.23
-  is-core-module: npm:@nolyfill/is-core-module@^1.0.39
-  isarray: npm:@nolyfill/isarray@^1.0.44
-  safe-buffer: npm:@nolyfill/safe-buffer@^1.0.44
-  safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
-  side-channel: npm:@nolyfill/side-channel@^1.0.44
-  string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 catalog:
   '@guiiai/logg': 1.1.0
   '@moeru/eslint-config': 0.1.0-beta.13
   '@moeru/std': 0.1.0-beta.13
   '@proj-airi/drizzle-duckdb-wasm': ^0.4.29
   '@types/audioworklet': ^0.0.92
+  '@types/better-sqlite3': ^7.6.13
   '@xsai-ext/providers-cloud': ^0.4.0-beta.11
   '@xsai-ext/providers-local': ^0.4.0-beta.11
   '@xsai-ext/shared-providers': 0.4.0-beta.5
@@ -38,12 +27,15 @@ catalog:
   '@xsai/stream-text': ^0.4.0-beta.11
   '@xsai/tool': ^0.4.0-beta.11
   '@xsai/utils-chat': 0.4.0-beta.5
+  better-sqlite3: ^12.5.0
   builder-util-runtime: ^9.3.1
   electron-updater: ^6.6.2
   embla-carousel-vue: ^8.6.0
   es-toolkit: ^1.43.0
   posthog-js: 1.306.1
   xsschema: ^0.4.0-beta.11
+
+catalogMode: prefer
 
 catalogs:
   rolldown-vite:
@@ -68,3 +60,15 @@ onlyBuiltDependencies:
   - spawn-sync
   - utf-8-validate
   - vue-demi
+
+overrides:
+  array-flatten: npm:@nolyfill/array-flatten@^1.0.44
+  axios: npm:feaxios@^0.0.23
+  is-core-module: npm:@nolyfill/is-core-module@^1.0.39
+  isarray: npm:@nolyfill/isarray@^1.0.44
+  safe-buffer: npm:@nolyfill/safe-buffer@^1.0.44
+  safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
+  side-channel: npm:@nolyfill/side-channel@^1.0.44
+  string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
+
+shellEmulator: true

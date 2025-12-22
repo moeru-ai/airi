@@ -6,7 +6,7 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const memoryLongTermStore = useMemoryLongTermStore()
-const { enabled, vectorDbProvider, embeddingProvider, embeddingModel, configured } = storeToRefs(memoryLongTermStore)
+const { enabled, vectorDbProvider, embeddingProvider, embeddingModel, useSqlite, sqliteDbPath, configured } = storeToRefs(memoryLongTermStore)
 </script>
 
 <template>
@@ -47,6 +47,21 @@ const { enabled, vectorDbProvider, embeddingProvider, embeddingModel, configured
       label="Embedding Model"
       description="Model to use for embedding generation"
       placeholder="text-embedding-3-small"
+    />
+
+    <FieldCheckbox
+      v-model="useSqlite"
+      label="Use SQLite Storage"
+      description="Store memory in SQLite database instead of browser storage (Electron only)"
+    />
+
+    <FieldInput
+      v-if="useSqlite"
+      v-model="sqliteDbPath"
+      type="text"
+      label="Database Path"
+      description="Path to SQLite database file (leave empty to use default location)"
+      placeholder="Auto (user data folder)"
     />
 
     <div v-if="configured" :class="['mt-4', 'rounded-lg', 'bg-green-100', 'dark:bg-green-900/30', 'p-4', 'text-green-800', 'dark:text-green-200']">
