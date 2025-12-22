@@ -60,6 +60,7 @@ export const useChatStore = defineStore('chat', () => {
   const sessionMessages = useLocalStorage<Record<string, ChatEntry[]>>(CHAT_STORAGE_KEY, {})
 
   const sending = ref(false)
+  const streamingMessage = ref<ChatAssistantMessage>({ role: 'assistant', content: '', slices: [], tool_results: [] })
   const sessionGeneration = ref(0)
 
   interface SendOptions {
@@ -343,8 +344,6 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   // ----- Send flow (user -> LLM -> assistant) -----
-  const streamingMessage = ref<ChatAssistantMessage>({ role: 'assistant', content: '', slices: [], tool_results: [] })
-
   async function performSend(
     sendingMessage: string,
     options: SendOptions,
