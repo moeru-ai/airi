@@ -18,6 +18,7 @@
     ".": "./src/index.ts",
     "./components/animations": "./src/components/Animations/index.ts",
     "./components/form": "./src/components/Form/index.ts",
+    "./components/misc": "./src/components/Misc/index.ts",
     "./*": "./*"
   },
   "scripts": {
