@@ -35,8 +35,8 @@ export const useBackgroundStore = defineStore('background', () => {
   const options = ref<BackgroundItem[]>([...presets])
   const loading = ref(false)
 
-  const selectedId = useLocalStorage<string>('background/selected-id', options.value[0]?.id)
-  const sampledColor = useLocalStorage<string>('background/sampled-color', '')
+  const selectedId = useLocalStorage<string>('settings/theme/background/selected-id', options.value[0]?.id)
+  const sampledColor = useLocalStorage<string>('settings/theme/background/sampled-color', '')
 
   const selectedOption = computed(() => options.value.find(option => option.id === selectedId.value) ?? options.value[0])
 
