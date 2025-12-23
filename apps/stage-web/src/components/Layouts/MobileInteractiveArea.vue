@@ -22,8 +22,7 @@ import ViewControlInputs from './ViewControls/Inputs.vue'
 
 const { isDark, toggleDark } = useTheme()
 const hearingDialogOpen = ref(false)
-const chatStore = useChatStore()
-const { messages, sending, streamingMessage } = storeToRefs(chatStore)
+const { messages, sending, streamingMessage } = storeToRefs(useChatStore())
 
 const viewControlsActiveMode = ref<'x' | 'y' | 'z' | 'scale'>('scale')
 const viewControlsInputsRef = useTemplateRef<InstanceType<typeof ViewControlInputs>>('viewControlsInputs')
@@ -40,12 +39,11 @@ useResizeObserver(document.documentElement, () => screenSafeArea.update())
 const { themeColorsHueDynamic, stageViewControlsEnabled } = storeToRefs(useSettings())
 const settingsAudioDevice = useSettingsAudioDevice()
 const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(settingsAudioDevice)
-const { send, discoverToolsCompatibility, cleanupMessages, onAssistantResponseEnd } = chatStore
+const { send, discoverToolsCompatibility, cleanupMessages } = useChatStore()
 const { t } = useI18n()
 const { audioContext } = useAudioContext()
 const { startAnalyzer, stopAnalyzer, volumeLevel } = useAudioAnalyzer()
 let analyzerSource: MediaStreamAudioSourceNode | undefined
-const chatHookCleanups: Array<() => void> = []
 
 function isMobileDevice() {
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
@@ -64,6 +62,7 @@ async function handleSend() {
 
   const textToSend = messageInput.value
   messageInput.value = ''
+  chatHistoryRef.value?.scrollToBottom?.()
 
   try {
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
@@ -128,14 +127,6 @@ onUnmounted(() => {
 
 onMounted(() => {
   screenSafeArea.update()
-})
-
-chatHookCleanups.push(onAssistantResponseEnd(async () => {
-  chatHistoryRef.value?.scrollToBottom?.()
-}))
-
-onUnmounted(() => {
-  chatHookCleanups.forEach(dispose => dispose?.())
 })
 </script>
 
