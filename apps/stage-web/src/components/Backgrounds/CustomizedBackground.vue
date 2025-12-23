@@ -9,6 +9,8 @@ import { computed, ref } from 'vue'
 import AnimatedWave from '../Widgets/AnimatedWave.vue'
 import Cross from './Cross.vue'
 
+import { BackgroundKind } from '../../stores/background'
+
 defineProps<{
   background: BackgroundItem
   topColor?: string
@@ -34,9 +36,9 @@ defineExpose({
     <!-- Background layers -->
     <div
       class="absolute inset-0 z-0 transition-all duration-300"
-      :class="[(background.blur && background.kind !== 'wave') ? 'blur-md scale-110' : '']"
+      :class="[(background.blur && background.kind !== BackgroundKind.Wave) ? 'blur-md scale-110' : '']"
     >
-      <template v-if="background.kind === 'wave'">
+      <template v-if="background.kind === BackgroundKind.Wave">
         <Cross class="h-full w-full">
           <AnimatedWave
             class="h-full w-full"
@@ -44,7 +46,7 @@ defineExpose({
           />
         </Cross>
       </template>
-      <template v-else-if="background.kind === 'image'">
+      <template v-else-if="background.kind === BackgroundKind.Image">
         <img
           :src="background.src"
           class="h-full w-full object-cover"
@@ -58,7 +60,7 @@ defineExpose({
     </div>
 
     <!-- Overlay (not for wave) -->
-    <ThemeOverlay v-if="background.kind !== 'wave'" :color="topColor" />
+    <ThemeOverlay v-if="background.kind !== BackgroundKind.Wave" :color="topColor" />
 
     <!-- Content layer (kept mounted during background switches) -->
     <div class="relative z-10 h-full w-full">

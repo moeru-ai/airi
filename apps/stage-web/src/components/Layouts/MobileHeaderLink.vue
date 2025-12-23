@@ -6,7 +6,7 @@ import { RouterLink } from 'vue-router'
 import LogoDark from '../../assets/logo-dark.svg'
 import Logo from '../../assets/logo.svg'
 
-import { useBackgroundStore } from '../../stores/background'
+import { BackgroundKind, useBackgroundStore } from '../../stores/background'
 
 const { isDark: dark } = useTheme()
 const { selectedOption } = storeToRefs(useBackgroundStore())
@@ -17,7 +17,7 @@ const { selectedOption } = storeToRefs(useBackgroundStore())
     to="/" flex="~" items-center
     gap-2 px-2 text-nowrap text-2xl outline-none
   >
-    <template v-if="selectedOption?.kind === 'wave'">
+    <template v-if="selectedOption?.kind === BackgroundKind.Wave">
       <template v-if="dark">
         <img :src="LogoDark" h-8 w-8 class="theme-colored">
       </template>

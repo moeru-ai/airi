@@ -12,6 +12,8 @@ import { useTheme } from '@proj-airi/ui'
 import { useDocumentVisibility, useIntervalFn } from '@vueuse/core'
 import { nextTick, watch } from 'vue'
 
+import { BackgroundKind } from '../stores/background'
+
 export function themeColorFromPropertyOf(colorFromClass: string, property: string): () => Promise<string> {
   return async () => {
     const fetchUntilWidgetMounted = withRetry(() => {
@@ -75,7 +77,7 @@ export function useBackgroundThemeColor({
   }
 
   const { updateThemeColor } = useThemeColor(() => {
-    if (selectedOption.value?.kind === 'wave') {
+    if (selectedOption.value?.kind === BackgroundKind.Wave) {
       return getWaveThemeColor()
     }
     return sampledColor.value
@@ -85,12 +87,12 @@ export function useBackgroundThemeColor({
   const { pause, resume } = useIntervalFn(() => {
     if (useDocumentVisibility().value !== 'visible')
       return
-    if (selectedOption.value?.kind === 'wave' && themeColorsHueDynamic)
+    if (selectedOption.value?.kind === BackgroundKind.Wave && themeColorsHueDynamic)
       void updateThemeColor()
   }, 250, { immediate: false })
 
   watch([() => selectedOption.value?.kind, () => themeColorsHueDynamic], ([kind, dynamic]) => {
-    if (kind === 'wave' && dynamic) {
+    if (kind === BackgroundKind.Wave && dynamic) {
       void updateThemeColor()
       resume()
     }
@@ -114,7 +116,7 @@ export function useBackgroundThemeColor({
   async function sampleBackgroundColor() {
     const token = ++samplingToken
     const optionId = selectedOption.value?.id
-    if (selectedOption.value?.kind === 'wave') {
+    if (selectedOption.value?.kind === BackgroundKind.Wave) {
       await updateThemeColor()
       return
     }
@@ -156,7 +158,7 @@ export function useBackgroundThemeColor({
   }
 
   async function syncBackgroundTheme() {
-    if (selectedOption.value?.kind === 'wave') {
+    if (selectedOption.value?.kind === BackgroundKind.Wave) {
       await updateThemeColor()
     }
     else if (sampledColor.value) {

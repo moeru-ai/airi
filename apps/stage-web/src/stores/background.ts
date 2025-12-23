@@ -9,7 +9,10 @@ import { computed, markRaw, onScopeDispose, ref, shallowRef } from 'vue'
 
 import ChromaticWavePreview from '../components/Backgrounds/ChromaticWavePreview.vue'
 
-export type BackgroundKind = 'wave' | 'image'
+export enum BackgroundKind {
+  Wave = 'wave',
+  Image = 'image',
+}
 
 export interface BackgroundItem extends BackgroundOption {
   kind: BackgroundKind
@@ -28,7 +31,7 @@ export const useBackgroundStore = defineStore('background', () => {
       id: 'colorful-wave',
       label: 'Colorful Wave',
       description: 'Animated wave on cross grid',
-      kind: 'wave',
+      kind: BackgroundKind.Wave,
       component: markRaw(ChromaticWavePreview),
     },
   ]
@@ -97,9 +100,11 @@ export const useBackgroundStore = defineStore('background', () => {
   }
 
   async function applyPickerSelection(payload: { option: BackgroundOption, color?: string }) {
-    const kind: BackgroundKind = payload.option.kind === 'wave' || payload.option.kind === 'image'
-      ? payload.option.kind
-      : 'image'
+    const kind = payload.option.kind === BackgroundKind.Wave
+      ? BackgroundKind.Wave
+      : payload.option.kind === BackgroundKind.Image
+        ? BackgroundKind.Image
+        : BackgroundKind.Image
 
     const selection: BackgroundItem = {
       ...payload.option,
@@ -129,7 +134,7 @@ export const useBackgroundStore = defineStore('background', () => {
           stored.push({
             ...val,
             id: key,
-            kind: 'image',
+            kind: BackgroundKind.Image,
             src: objectUrl,
             file: undefined,
             component: undefined,
@@ -142,7 +147,7 @@ export const useBackgroundStore = defineStore('background', () => {
           stored.push({
             ...val,
             id: key,
-            kind: 'image',
+            kind: BackgroundKind.Image,
             src: storedSrc,
             file: undefined,
             component: undefined,
@@ -180,7 +185,7 @@ export const useBackgroundStore = defineStore('background', () => {
     const normalizedOption: BackgroundItem = {
       ...option,
       id: normalizedId,
-      kind: option.kind ?? 'image',
+      kind: option.kind ?? BackgroundKind.Image,
       component: option.component ? markRaw(option.component) : option.component,
       src,
       importedAt: option.importedAt ?? Date.now(),
