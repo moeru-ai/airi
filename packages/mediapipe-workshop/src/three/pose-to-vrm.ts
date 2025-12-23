@@ -39,8 +39,6 @@ export type VrmPoseDirections = Partial<Record<
   | 'hips'
   | 'spine'
   | 'chest'
-  | 'neck'
-  | 'head'
   | 'leftShoulder'
   | 'rightShoulder'
   | 'leftUpperArm'
@@ -63,7 +61,7 @@ export type VrmPoseTargets = Partial<Record<keyof VrmPoseDirections, VrmPoseTarg
 
 const DEFAULT_AXIS = { x: 1 as const, y: 1 as const, z: 1 as const }
 const DEFAULT_MIN_VISIBILITY = 0.5
-const DEFAULT_MIN_PRESENCE = 0.5
+const DEFAULT_MIN_PRESENCE = 0
 
 function vSub(a: Vec3, b: Vec3): Vec3 {
   return { x: a.x - b.x, y: a.y - b.y, z: (a.z ?? 0) - (b.z ?? 0) }
@@ -120,13 +118,17 @@ function get(points: Vec3[], index: number): Vec3 | null {
 }
 
 function isConfident(pose: PoseState, index: number, thresholds: { minVisibility: number, minPresence: number }): boolean {
-  const lm = pose.landmarks2d?.[index]
+  const lm = pose.worldLandmarks?.[index] ?? pose.landmarks2d?.[index]
+  // User requirement: do not output anything when `visibility` is missing.
   if (!lm)
-    return true
+    return false
+
+  if (lm.visibility == null || !Number.isFinite(lm.visibility))
+    return false
 
   if (lm.visibility != null && Number.isFinite(lm.visibility) && lm.visibility < thresholds.minVisibility)
     return false
-  if (lm.presence != null && Number.isFinite(lm.presence) && lm.presence < thresholds.minPresence)
+  if (thresholds.minPresence > 0 && lm.presence != null && Number.isFinite(lm.presence) && lm.presence < thresholds.minPresence)
     return false
   return true
 }
@@ -147,10 +149,6 @@ export function poseToVrmTargets(pose: PoseState, options?: PoseToVrmOptions): V
   }
 
   const getC = (index: number) => (isConfident(pose, index, thresholds) ? get(points, index) : null)
-
-  const nose = getC(0)
-  const leftEar = getC(7)
-  const rightEar = getC(8)
 
   const leftShoulder = getC(11)
   const rightShoulder = getC(12)
@@ -219,31 +217,6 @@ export function poseToVrmTargets(pose: PoseState, options?: PoseToVrmOptions): V
     const d = vNormalize(vRemapAxis(vSub(rightShoulder, shoulderCenter), axis))
     if (d)
       out.rightShoulder = { dir: d }
-  }
-
-  // Neck/Head (pose-only): use up (shoulders->head) + forward pole (ears + optional nose check).
-  const headCenter = leftEar && rightEar ? mid(leftEar, rightEar) : null
-  if (shoulderCenter && headCenter) {
-    const up = vNormalize(vRemapAxis(vSub(headCenter, shoulderCenter), axis))
-    const right = leftEar && rightEar ? vNormalize(vRemapAxis(vSub(rightEar, leftEar), axis)) : null
-    if (up) {
-      let headForward = right ? vNormalize(vCross(right, up)) : null
-      if (headForward && nose) {
-        const noseDir = vNormalize(vRemapAxis(vSub(nose, headCenter), axis))
-        if (noseDir && vDot(headForward, noseDir) < 0)
-          headForward = vNeg(headForward)
-      }
-
-      const forward = headForward ?? torsoForward
-      if (forward) {
-        out.neck = { dir: up, pole: stabilizePole('neck', forward) }
-        out.head = { dir: up, pole: stabilizePole('head', forward) }
-      }
-      else {
-        out.neck = { dir: up }
-        out.head = { dir: up }
-      }
-    }
   }
 
   // Arms (with pole from elbow bend plane)

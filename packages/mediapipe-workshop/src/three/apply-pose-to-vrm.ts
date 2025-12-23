@@ -9,6 +9,19 @@ export interface VrmPoseApplyOptions {
    * Slerp factor per frame in [0..1]. Higher = snappier, lower = smoother.
    */
   alpha?: number
+  /**
+   * Reject sudden flips: if the target direction is close to the opposite of the
+   * current bone direction (in world space), skip this update.
+   *
+   * `minDot` in [-1..1]. Example: `-0.2` rejects angles > ~101°.
+   */
+  minDotBeforeReject?: number
+  /**
+   * Similar to `minDotBeforeReject`, but applied to the pole vector when using
+   * pole-based orientation. Helps avoid 180° roll/yaw flips when the pole sign
+   * becomes ambiguous.
+   */
+  minPoleDotBeforeReject?: number
 }
 
 type BoneKey = keyof VrmPoseDirections
@@ -32,14 +45,6 @@ const CHAINS: Readonly<Record<BoneKey, BoneChain>> = {
   chest: {
     bone: 'chest',
     childCandidates: ['upperChest', 'neck'],
-  },
-  neck: {
-    bone: 'neck',
-    childCandidates: ['head'],
-  },
-  head: {
-    bone: 'head',
-    childCandidates: ['leftEye', 'rightEye', 'jaw'],
   },
   leftShoulder: {
     bone: 'leftShoulder',
@@ -127,6 +132,8 @@ function orthonormalizePole(dir: Vector3, pole: Vector3): Vector3 | null {
 
 export function createVrmPoseApplier(options?: VrmPoseApplyOptions) {
   const alpha = options?.alpha ?? DEFAULT_ALPHA
+  const minDotBeforeReject = options?.minDotBeforeReject ?? -0.2
+  const minPoleDotBeforeReject = options?.minPoleDotBeforeReject ?? -0.2
 
   const restDirLocal: Partial<Record<BoneKey, Vector3>> = {}
   const restPoleLocal: Partial<Record<BoneKey, Vector3>> = {}
@@ -154,6 +161,7 @@ export function createVrmPoseApplier(options?: VrmPoseApplyOptions) {
   const tmpRestYLocal = new Vector3()
   const tmpTargetYWorld = new Vector3()
   const tmpWorldForward = new Vector3(0, 0, -1)
+  const tmpCurrentPoleWorld = new Vector3()
 
   function ensureRestDirection(vrm: VRM, key: BoneKey): Vector3 | null {
     const existing = restDirLocal[key]
@@ -230,7 +238,7 @@ export function createVrmPoseApplier(options?: VrmPoseApplyOptions) {
       return stored
     }
 
-    // For torso/head: use "world forward" as rest pole, transformed into bone local.
+    // For torso: use "world forward" as rest pole, transformed into bone local.
     tmpDirLocal.copy(tmpWorldForward).applyQuaternion(tmpBoneWorldQ.clone().invert()).normalize()
     const stored = tmpDirLocal.clone()
     restPoleLocal[key] = stored
@@ -264,6 +272,11 @@ export function createVrmPoseApplier(options?: VrmPoseApplyOptions) {
       tmpParentWorldQ.identity()
     }
 
+    // Reject near-180° instant flips (keep last frame).
+    tmpCurrentDirWorld.copy(rest).applyQuaternion(tmpBoneWorldQ).normalize()
+    if (tmpCurrentDirWorld.dot(tmpTargetDirWorld) < minDotBeforeReject)
+      return
+
     const restPole = target.pole ? ensureRestPole(vrm, key) : null
     const usePole = !!(target.pole && restPole)
 
@@ -283,6 +296,11 @@ export function createVrmPoseApplier(options?: VrmPoseApplyOptions) {
       tmpTargetPoleWorld.copy(poleOrtho)
       tmpTargetYWorld.copy(tmpTargetPoleWorld).cross(tmpTargetDirWorld).normalize()
 
+      // Reject near-180° pole flips (keep last frame).
+      tmpCurrentPoleWorld.copy(tmpRestPoleLocal).applyQuaternion(tmpBoneWorldQ).normalize()
+      if (tmpCurrentPoleWorld.dot(tmpTargetPoleWorld) < minPoleDotBeforeReject)
+        return
+
       tmpRestM.makeBasis(tmpRestDirLocal, tmpRestYLocal, tmpRestPoleLocal)
       tmpTargetM.makeBasis(tmpTargetDirWorld, tmpTargetYWorld, tmpTargetPoleWorld)
 
@@ -291,7 +309,6 @@ export function createVrmPoseApplier(options?: VrmPoseApplyOptions) {
       tmpNewLocalQ.copy(tmpParentWorldQ).invert().multiply(tmpNewWorldQ)
     }
     else {
-      tmpCurrentDirWorld.copy(rest).applyQuaternion(tmpBoneWorldQ).normalize()
       tmpDeltaQ.setFromUnitVectors(tmpCurrentDirWorld, tmpTargetDirWorld)
       tmpNewWorldQ.copy(tmpDeltaQ).multiply(tmpBoneWorldQ)
       tmpNewLocalQ.copy(tmpParentWorldQ).invert().multiply(tmpNewWorldQ)

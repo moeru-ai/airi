@@ -126,28 +126,24 @@ async function startPipeline() {
     { getFrame: () => videoRef.value as HTMLVideoElement },
     (state) => {
       latestState.value = state
-      if (config.value.enabled.pose && state.pose?.worldLandmarks?.length) {
-        const targets = poseToVrmTargets(state.pose, {
-          axis: {
-            x: vrmMapping.value.flipX ? -1 : 1,
-            y: vrmMapping.value.flipY ? -1 : 1,
-            z: vrmMapping.value.flipZ ? -1 : 1,
-          },
-          confidence: {
-            minVisibility: 0.5,
-            minPresence: 0.5,
-          },
-          stabilize: {
-            previousTargets: prevPoseTargets.value,
-          },
-        })
-        latestPoseTargets.value = targets
-        prevPoseTargets.value = targets
-      }
-      else {
-        latestPoseTargets.value = undefined
-        prevPoseTargets.value = undefined
-      }
+      const axis = {
+        x: vrmMapping.value.flipX ? -1 : 1,
+        y: vrmMapping.value.flipY ? -1 : 1,
+        z: vrmMapping.value.flipZ ? -1 : 1,
+      } as const
+
+      const poseTargets = (config.value.enabled.pose && state.pose?.worldLandmarks?.length)
+        ? poseToVrmTargets(state.pose, {
+            axis,
+            confidence: { minVisibility: 0.8 },
+            stabilize: { previousTargets: prevPoseTargets.value },
+          })
+        : {}
+
+      const hasAny = Object.keys(poseTargets).length > 0
+      latestPoseTargets.value = hasAny ? poseTargets : undefined
+      if (hasAny)
+        prevPoseTargets.value = poseTargets
 
       const canvas = canvasRef.value
       const video = videoRef.value
@@ -189,6 +185,7 @@ function stopPipeline() {
   engine = undefined
   latestState.value = undefined
   latestPoseTargets.value = undefined
+  prevPoseTargets.value = undefined
 }
 
 function stop() {

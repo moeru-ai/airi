@@ -6,9 +6,14 @@ export type Landmark2D = Vec3 & {
   presence?: number
 }
 
+export type Landmark3D = Vec3 & {
+  visibility?: number
+  presence?: number
+}
+
 export interface PoseState {
   landmarks2d?: Landmark2D[]
-  worldLandmarks?: Vec3[]
+  worldLandmarks?: Landmark3D[]
 }
 
 export interface HandState {
