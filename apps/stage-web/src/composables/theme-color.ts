@@ -63,7 +63,7 @@ export function useBackgroundThemeColor({
   selectedOption: Ref<BackgroundItem | undefined>
   sampledColor: Ref<string>
 }) {
-  const settings = useSettings()
+  const { themeColorsHue, themeColorsHueDynamic } = useSettings()
 
   let samplingToken = 0
 
@@ -71,26 +71,25 @@ export function useBackgroundThemeColor({
 
   function getWaveThemeColor() {
     // We read directly from computed style to catch the animation value
-    const hue = getComputedStyle(document.documentElement).getPropertyValue('--chromatic-hue') || '220.44'
-    return isDark.value ? `hsl(${hue} 60% 32%)` : `hsl(${hue} 75% 78%)`
+    return isDark.value ? `hsl(${themeColorsHue} 60% 32%)` : `hsl(${themeColorsHue} 75% 78%)`
   }
 
   const { updateThemeColor } = useThemeColor(() => {
     if (selectedOption.value?.kind === 'wave') {
       return getWaveThemeColor()
     }
-    return sampledColor.value || '#0f172a'
+    return sampledColor.value
   })
 
   // Keep theme-color reasonably fresh for animated wave backgrounds without doing per-frame work.
   const { pause, resume } = useIntervalFn(() => {
     if (useDocumentVisibility().value !== 'visible')
       return
-    if (selectedOption.value?.kind === 'wave' && settings.themeColorsHueDynamic)
+    if (selectedOption.value?.kind === 'wave' && themeColorsHueDynamic)
       void updateThemeColor()
   }, 250, { immediate: false })
 
-  watch([() => selectedOption.value?.kind, () => settings.themeColorsHueDynamic], ([kind, dynamic]) => {
+  watch([() => selectedOption.value?.kind, () => themeColorsHueDynamic], ([kind, dynamic]) => {
     if (kind === 'wave' && dynamic) {
       void updateThemeColor()
       resume()

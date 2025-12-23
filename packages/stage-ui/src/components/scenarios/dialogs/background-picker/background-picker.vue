@@ -3,6 +3,7 @@ import type { Ref, ShallowRef } from 'vue'
 
 import type { BackgroundOption } from './types'
 
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { BasicInputFile } from '@proj-airi/ui'
 import { useObjectUrl } from '@vueuse/core'
 import { nanoid } from 'nanoid'
@@ -27,6 +28,8 @@ const emit = defineEmits<{
   (e: 'change', payload: { option: BackgroundOption | undefined }): void
   (e: 'remove', option: BackgroundOption): void
 }>()
+
+const { themeColorsHue } = useSettings()
 
 const modelValue = defineModel<BackgroundOption | undefined>({ default: undefined })
 
@@ -99,9 +102,7 @@ watch(selectedOption, async (option) => {
   previewColor.value = undefined
   emit('change', { option })
   if (option?.kind === 'wave') {
-    const isDark = document.documentElement.classList.contains('dark')
-    const hue = getComputedStyle(document.documentElement).getPropertyValue('--chromatic-hue') || '220.44'
-    previewColor.value = isDark ? `hsl(${hue} 60% 32%)` : `hsl(${hue} 75% 78%)`
+    previewColor.value = themeColorsHue.toString()
   }
   else if (option) {
     await waitForPreviewReady()
@@ -171,9 +172,8 @@ async function applySelection(isImport = false) {
   busy.value = true
   try {
     if (selectedOption.value.kind === 'wave') {
-      const isDark = document.documentElement.classList.contains('dark')
-      const hue = getComputedStyle(document.documentElement).getPropertyValue('--chromatic-hue') || '220.44'
-      const color = isDark ? `hsl(${hue} 60% 32%)` : `hsl(${hue} 75% 78%)`
+      const color = themeColorsHue.toString()
+
       const payload = { option: { ...selectedOption.value, blur: enableBlur.value }, color }
       if (isImport)
         (emit as any)('import', payload)
