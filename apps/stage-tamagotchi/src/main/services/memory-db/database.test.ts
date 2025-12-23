@@ -190,4 +190,29 @@ describe('memoryDatabase', () => {
       })
     })
   })
+
+  describe('exportDatabase', () => {
+    it('should export database as a buffer', () => {
+      db.addMemory('short-term', 'Test memory 1')
+      db.addMemory('long-term', 'Test memory 2')
+
+      const buffer = db.exportDatabase()
+      expect(buffer).toBeInstanceOf(Buffer)
+      expect(buffer.length).toBeGreaterThan(0)
+    })
+
+    it('should throw error if database is not initialized', () => {
+      const uninitializedDb = new MemoryDatabase()
+      expect(() => uninitializedDb.exportDatabase()).toThrow('Database not initialized')
+    })
+
+    it('should export a valid SQLite database', () => {
+      db.addMemory('short-term', 'Test memory')
+      const buffer = db.exportDatabase()
+
+      // Check for SQLite file header (first 16 bytes should be "SQLite format 3\0")
+      const header = buffer.toString('utf-8', 0, 15)
+      expect(header).toBe('SQLite format 3')
+    })
+  })
 })
