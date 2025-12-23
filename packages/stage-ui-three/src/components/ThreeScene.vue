@@ -7,6 +7,7 @@
   * - Src of model is obtained from stage-ui via props, which is NOT a part of stage-ui-three package
 */
 
+import type { VRM } from '@pixiv/three-vrm'
 import type { TresContext } from '@tresjs/core'
 import type { DirectionalLight, SphericalHarmonics3, Texture, WebGLRenderTarget } from 'three'
 
@@ -198,6 +199,12 @@ const effectProps = {
   blendFunction: BlendFunction.SRC,
 }
 
+const vrmFrameHook = shallowRef<((vrm: VRM, delta: number) => void) | undefined>(undefined)
+function applyVrmFrameHook() {
+  modelRef.value?.setVrmFrameHook(vrmFrameHook.value)
+}
+watch(modelRef, () => applyVrmFrameHook(), { immediate: true })
+
 // === Directional Light ===
 // TODO: wrap <TresDirectionalLight> to integrate all the below code
 const sceneReady = ref(false)
@@ -269,6 +276,10 @@ watch(directionalLightRotation, (newRotation) => {
 defineExpose({
   setExpression: (expression: string) => {
     modelRef.value?.setExpression(expression)
+  },
+  setVrmFrameHook: (hook?: (vrm: VRM, delta: number) => void) => {
+    vrmFrameHook.value = hook
+    applyVrmFrameHook()
   },
   canvasElement: () => {
     return tresCanvasRef.value?.renderer.instance.domElement

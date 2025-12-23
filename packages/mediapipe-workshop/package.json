@@ -1,0 +1,32 @@
+{
+  "name": "@proj-airi/mediapipe-workshop",
+  "type": "module",
+  "private": true,
+  "description": "MediaPipe motion capture workshop (experimental) for Project AIRI",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/mediapipe-workshop"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^0.10.0",
+    "@pixiv/three-vrm": "^3.4.4",
+    "three": "^0.182.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.182.0"
+  }
+}
