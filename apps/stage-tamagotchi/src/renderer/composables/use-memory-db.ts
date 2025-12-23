@@ -61,6 +61,10 @@ export function useMemoryDb() {
     return result.initialized
   }
 
+  async function exportDatabase() {
+    return await invoke(memoryDb.exportDatabase, undefined)
+  }
+
   return {
     isInitialized,
     dbPath,
@@ -74,5 +78,6 @@ export function useMemoryDb() {
     getStats,
     getDatabasePath,
     checkInitialized,
+    exportDatabase,
   }
 }

@@ -95,6 +95,51 @@ async function selectDatabaseFolder() {
   // For now, users can manually enter the path
   statusMessage.value = 'Please enter the database path manually'
 }
+
+async function exportDatabaseFile() {
+  isLoading.value = true
+  statusMessage.value = ''
+  try {
+    const result = await memoryDb.exportDatabase()
+    if (result.success && result.data.length > 0) {
+      // Convert array back to Buffer/Uint8Array
+      const buffer = new Uint8Array(result.data)
+      
+      // Create a blob from the buffer
+      const blob = new Blob([buffer], { type: 'application/x-sqlite3' })
+      
+      // Create download link
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
+      link.download = `airi-memory-${timestamp}.db`
+      
+      // Trigger download
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      // Clean up
+      URL.revokeObjectURL(url)
+      
+      statusMessage.value = 'Database exported successfully'
+    }
+    else {
+      statusMessage.value = 'Failed to export database'
+    }
+  }
+  catch (error) {
+    statusMessage.value = `Error: ${error}`
+    console.error('Failed to export database:', error)
+  }
+  finally {
+    isLoading.value = false
+  }
+}
+
 </script>
 
 <template>
@@ -179,6 +224,24 @@ async function selectDatabaseFolder() {
           @click="initializeDatabase"
         >
           {{ isLoading ? 'Initializing...' : 'Initialize Database' }}
+        </FieldButton>
+      </div>
+    </div>
+
+    <!-- Export Database -->
+    <div :class="['rounded-lg', 'border', 'border-gray-200', 'dark:border-gray-700', 'p-4']">
+      <div :class="['text-lg', 'font-semibold', 'mb-3']">
+        Export Database
+      </div>
+      <div :class="['space-y-4']">
+        <div :class="['text-sm', 'opacity-70']">
+          Download a copy of your memory database as a SQLite file. This file can be opened with SQLite database tools or imported later.
+        </div>
+        <FieldButton
+          :disabled="isLoading || !memoryDb.isInitialized.value"
+          @click="exportDatabaseFile"
+        >
+          {{ isLoading ? 'Exporting...' : 'Export Database' }}
         </FieldButton>
       </div>
     </div>

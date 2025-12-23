@@ -167,4 +167,23 @@ export function setupMemoryDbService(context: ReturnType<typeof createContext>['
       initialized: memoryDatabase.isInitialized(),
     }
   })
+
+  defineInvokeHandler(context, memoryDb.exportDatabase, async () => {
+    try {
+      const buffer = memoryDatabase.exportDatabase()
+      // Convert Buffer to array for IPC transfer
+      const data = Array.from(buffer)
+      return {
+        success: true,
+        data,
+      }
+    }
+    catch (error) {
+      console.error('Failed to export database:', error)
+      return {
+        success: false,
+        data: [],
+      }
+    }
+  })
 }
