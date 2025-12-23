@@ -1,0 +1,6 @@
+export const WORKSHOP_NAME = '@proj-airi/mediapipe-workshop'
+
+export * from './backends/mediapipe'
+export * from './engine'
+export * from './overlay'
+export * from './types'
