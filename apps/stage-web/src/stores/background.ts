@@ -20,6 +20,7 @@ type PersistedBackgroundItem = Omit<BackgroundItem, 'file'> & {
 }
 
 export const useBackgroundStore = defineStore('background', () => {
+  // TODO: STORAGE_PREFIX used with multiple less maintainable `localforage` and `key.startsWith(...)` call that creates complexity.
   const STORAGE_PREFIX = 'background-'
   const presets: BackgroundItem[] = [
     {
