@@ -9,7 +9,7 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { ref, useTemplateRef, watch } from 'vue'
+import { onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { widgetsTools } from '../stores/tools/builtin/widgets'
@@ -21,13 +21,14 @@ const attachments = ref<{ type: 'image', data: string, mimeType: string, url: st
 const { askPermission } = useSettingsAudioDevice()
 const { enabled, selectedAudioInput } = storeToRefs(useSettingsAudioDevice())
 const chatStore = useChatStore()
-const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = chatStore
+const { send, onAfterMessageComposed, onAssistantResponseEnd, discoverToolsCompatibility, cleanupMessages } = chatStore
 const { messages, sending, streamingMessage } = storeToRefs(chatStore)
 const { t } = useI18n()
 const providersStore = useProvidersStore()
 const { activeModel, activeProvider } = storeToRefs(useConsciousnessStore())
 const isComposing = ref(false)
 const chatHistoryRef = useTemplateRef<InstanceType<typeof ChatHistory>>('chatHistory')
+const chatHookCleanups: Array<() => void> = []
 
 async function handleSend() {
   if (isComposing.value) {
@@ -43,7 +44,6 @@ async function handleSend() {
 
   messageInput.value = ''
   attachments.value = []
-  chatHistoryRef.value?.scrollToBottom?.()
 
   const revokeAttachments = () => {
     attachmentsToSend.forEach(att => URL.revokeObjectURL(att.url))
@@ -153,6 +153,14 @@ onAfterMessageComposed(async () => {
   messageInput.value = ''
   attachments.value.forEach(att => URL.revokeObjectURL(att.url))
   attachments.value = []
+})
+
+chatHookCleanups.push(onAssistantResponseEnd(async () => {
+  chatHistoryRef.value?.scrollToBottom?.()
+}))
+
+onUnmounted(() => {
+  chatHookCleanups.forEach(dispose => dispose?.())
 })
 </script>
 
