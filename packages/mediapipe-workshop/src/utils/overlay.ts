@@ -1,4 +1,4 @@
-import type { FaceState, HandState, Landmark2D, PerceptionState, PoseState } from './types'
+import type { FaceState, HandState, Landmark2D, PerceptionState, PoseState } from '../types'
 
 const POSE_CONNECTIONS: ReadonlyArray<readonly [number, number]> = [
   // Face

@@ -159,6 +159,9 @@ let stopCameraWatch: WatchStopHandle | undefined
 // Animation related ref
 const vrmAnimationMixer = ref<AnimationMixer>()
 const { onBeforeRender, stop, start } = useLoop()
+
+type VrmFrameHook = (vrm: VRM, delta: number) => void
+const vrmFrameHook = shallowRef<VrmFrameHook>()
 let disposeBeforeRenderLoop: (() => void | undefined)
 
 // Expressions
@@ -417,13 +420,23 @@ async function loadModel() {
       // Clean up & animation setting
       disposeBeforeRenderLoop = onBeforeRender(({ delta }) => {
         vrmAnimationMixer.value?.update(delta)
-        vrm.value?.update(delta)
-        vrm.value?.lookAt?.update?.(delta)
-        blink.update(vrm.value, delta)
-        idleEyeSaccades.update(vrm.value, lookAtTarget, delta)
+        const activeVrm = vrm.value
+        if (activeVrm && vrmFrameHook.value) {
+          try {
+            vrmFrameHook.value(activeVrm, delta)
+          }
+          catch (err) {
+            console.error(err)
+            emit('error', err)
+          }
+        }
+        activeVrm?.humanoid.update()
+        activeVrm?.lookAt?.update?.(delta)
+        blink.update(activeVrm, delta)
+        idleEyeSaccades.update(activeVrm, lookAtTarget, delta)
         vrmEmote.value?.update(delta)
-        vrmLipSync.update(vrm.value, delta)
-        vrm.value?.springBoneManager?.update(delta)
+        vrmLipSync.update(activeVrm, delta)
+        activeVrm?.springBoneManager?.update(delta)
       }).off
 
       // update the 'last model src'
@@ -561,6 +574,9 @@ if (import.meta.hot) {
 defineExpose({
   setExpression(expression: string) {
     vrmEmote.value?.setEmotionWithResetAfter(expression, 1000)
+  },
+  setVrmFrameHook(hook?: VrmFrameHook) {
+    vrmFrameHook.value = hook
   },
   scene: computed(() => vrm.value?.scene),
   lookAtUpdate(target: Vec3) {

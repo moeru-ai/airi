@@ -4,6 +4,7 @@ import type {
   FaceLandmarkerResult,
   HandLandmarker,
   HandLandmarkerResult,
+  Landmark,
   NormalizedLandmark,
   PoseLandmarker,
   PoseLandmarkerResult,
@@ -88,6 +89,7 @@ export function createMediaPipeBackend(
       baseOptions: { modelAssetPath: assets.modelAssetPath.face },
       runningMode: 'VIDEO',
       numFaces: 1,
+      outputFacialTransformationMatrixes: true,
     })
 
     return faceLandmarker
@@ -109,7 +111,11 @@ export function createMediaPipeBackend(
           const landmarker = await ensurePoseLandmarker()
           const res: PoseLandmarkerResult = landmarker.detectForVideo(frame, nowMs)
           const firstPose: NormalizedLandmark[] = res.landmarks[0] ?? []
-          partial.pose = { landmarks2d: firstPose }
+          const firstWorld: Landmark[] = res.worldLandmarks[0] ?? []
+          partial.pose = {
+            landmarks2d: firstPose,
+            worldLandmarks: firstWorld.map(p => ({ x: p.x, y: p.y, z: p.z })),
+          }
         }
         else if (job === 'hands') {
           const landmarker = await ensureHandLandmarker()
@@ -133,9 +139,13 @@ export function createMediaPipeBackend(
           const landmarker = await ensureFaceLandmarker()
           const res: FaceLandmarkerResult = landmarker.detectForVideo(frame, nowMs)
           const firstFace: NormalizedLandmark[] = res.faceLandmarks?.[0] ?? []
+          const firstMatrix = res.facialTransformationMatrixes?.[0]
           partial.face = {
             hasFace: firstFace.length > 0,
             landmarks2d: firstFace,
+            facialTransformationMatrix: firstMatrix
+              ? { rows: firstMatrix.rows, columns: firstMatrix.columns, data: firstMatrix.data }
+              : undefined,
           }
         }
       }
