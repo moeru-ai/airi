@@ -48,8 +48,6 @@ onMounted(scrollToBottom)
 
 const streaming = computed<ChatAssistantMessage>(() => props.streamingMessage ?? { role: 'assistant', content: '', slices: [], tool_results: [] })
 const showStreamingPlaceholder = computed(() => (streaming.value.slices?.length ?? 0) === 0 && !streaming.value.content)
-
-defineExpose({ scrollToBottom })
 </script>
 
 <template>
