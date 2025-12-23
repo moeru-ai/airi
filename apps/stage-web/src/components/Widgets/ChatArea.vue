@@ -25,7 +25,7 @@ const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
 const { askPermission } = useSettingsAudioDevice()
 const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(useSettingsAudioDevice())
-const { send, onAfterMessageComposed, discoverToolsCompatibility } = useChatStore()
+const { send, discoverToolsCompatibility } = useChatStore()
 const { messages } = storeToRefs(useChatStore())
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
@@ -35,16 +35,20 @@ async function handleSend() {
     return
   }
 
+  const textToSend = messageInput.value
+  messageInput.value = ''
+
   try {
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
 
-    await send(messageInput.value, {
+    await send(textToSend, {
       chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
       model: activeModel.value,
       providerConfig,
     })
   }
   catch (error) {
+    messageInput.value = textToSend
     messages.value.pop()
     messages.value.push({
       role: 'error',
@@ -63,10 +67,6 @@ watch([activeProvider, activeModel], async () => {
   if (activeProvider.value && activeModel.value) {
     await discoverToolsCompatibility(activeModel.value, await providersStore.getProviderInstance<ChatProvider>(activeProvider.value), [])
   }
-})
-
-onAfterMessageComposed(async () => {
-  messageInput.value = ''
 })
 
 const { startAnalyzer, stopAnalyzer, volumeLevel } = useAudioAnalyzer()

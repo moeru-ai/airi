@@ -9,7 +9,7 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { ref, watch } from 'vue'
+import { ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { widgetsTools } from '../stores/tools/builtin/widgets'
@@ -27,6 +27,7 @@ const { t } = useI18n()
 const providersStore = useProvidersStore()
 const { activeModel, activeProvider } = storeToRefs(useConsciousnessStore())
 const isComposing = ref(false)
+const chatHistoryRef = useTemplateRef<InstanceType<typeof ChatHistory>>('chatHistory')
 
 async function handleSend() {
   if (isComposing.value) {
@@ -37,21 +38,32 @@ async function handleSend() {
     return
   }
 
+  const textToSend = messageInput.value
+  const attachmentsToSend = attachments.value.map(attachment => ({ ...attachment }))
+
+  messageInput.value = ''
+  attachments.value = []
+  chatHistoryRef.value?.scrollToBottom?.()
+
+  const revokeAttachments = () => {
+    attachmentsToSend.forEach(att => URL.revokeObjectURL(att.url))
+  }
+
   try {
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
-    const attachmentsToSend = attachments.value.map(({ data, mimeType, type }) => ({ data, mimeType, type }))
-    await send(messageInput.value, {
+    await send(textToSend, {
       model: activeModel.value,
       chatProvider: await providersStore.getProviderInstance<ChatProvider>(activeProvider.value),
       providerConfig,
-      attachments: attachmentsToSend,
+      attachments: attachmentsToSend.map(({ data, mimeType, type }) => ({ data, mimeType, type })),
       tools: widgetsTools,
     })
 
-    // clear after sending
-    messageInput.value = ''
+    revokeAttachments()
   }
   catch (error) {
+    messageInput.value = textToSend
+    attachments.value = attachmentsToSend
     messages.value.pop()
     messages.value.push({
       role: 'error',
@@ -148,6 +160,7 @@ onAfterMessageComposed(async () => {
   <div h-full w-full flex="~ col gap-1">
     <div w-full flex-1 overflow-hidden>
       <ChatHistory
+        ref="chatHistoryRef"
         :messages="messages"
         :sending="sending"
         :streaming-message="streamingMessage"
