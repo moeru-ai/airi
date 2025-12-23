@@ -104,27 +104,27 @@ async function exportDatabaseFile() {
     if (result.success && result.data.length > 0) {
       // Convert array back to Buffer/Uint8Array
       const buffer = new Uint8Array(result.data)
-      
+
       // Create a blob from the buffer
       const blob = new Blob([buffer], { type: 'application/x-sqlite3' })
-      
+
       // Create download link
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      
+
       // Generate filename with timestamp
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
+      const timestamp = new Date().toISOString().split('.')[0].replace(/[:.]/g, '-')
       link.download = `airi-memory-${timestamp}.db`
-      
+
       // Trigger download
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
-      
+
       // Clean up
       URL.revokeObjectURL(url)
-      
+
       statusMessage.value = 'Database exported successfully'
     }
     else {
@@ -132,14 +132,14 @@ async function exportDatabaseFile() {
     }
   }
   catch (error) {
-    statusMessage.value = `Error: ${error}`
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+    statusMessage.value = `Error: ${errorMessage}`
     console.error('Failed to export database:', error)
   }
   finally {
     isLoading.value = false
   }
 }
-
 </script>
 
 <template>
