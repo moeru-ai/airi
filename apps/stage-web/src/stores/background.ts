@@ -1,10 +1,11 @@
 import type { BackgroundOption } from '@proj-airi/stage-ui/components'
+import type { Ref, ShallowRef } from 'vue'
 
 import localforage from 'localforage'
 
-import { useLocalStorage } from '@vueuse/core'
+import { useLocalStorage, useObjectUrl } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, markRaw, onScopeDispose, ref } from 'vue'
+import { computed, markRaw, onScopeDispose, ref, shallowRef } from 'vue'
 
 import ChromaticWavePreview from '../components/Backgrounds/ChromaticWavePreview.vue'
 
@@ -40,42 +41,29 @@ export const useBackgroundStore = defineStore('background', () => {
 
   const selectedOption = computed(() => options.value.find(option => option.id === selectedId.value) ?? options.value[0])
 
-  const objectUrls = new Map<string, string>()
-
-  function revokeObjectUrl(id: string) {
-    const url = objectUrls.get(id)
-    if (url) {
-      URL.revokeObjectURL(url)
-      objectUrls.delete(id)
-    }
-  }
+  const blobRefs = new Map<string, ShallowRef<Blob | undefined>>()
+  const urlRefs = new Map<string, Readonly<Ref<string | undefined>>>()
 
   function ensureObjectUrl(id: string, blob: Blob) {
-    const existing = objectUrls.get(id)
-    if (existing)
-      return existing
-    const created = URL.createObjectURL(blob)
-    objectUrls.set(id, created)
-    return created
-  }
+    let blobRef = blobRefs.get(id)
+    let urlRef = urlRefs.get(id)
 
-  function revokeAllObjectUrls() {
-    objectUrls.forEach((url) => {
-      URL.revokeObjectURL(url)
-    })
-    objectUrls.clear()
-  }
+    if (!blobRef || !urlRef) {
+      blobRef = shallowRef<Blob | undefined>(blob)
+      blobRefs.set(id, blobRef)
+      urlRef = useObjectUrl(blobRef)
+      urlRefs.set(id, urlRef)
+    }
 
-  const onPageHide = () => revokeAllObjectUrls()
-  if ('addEventListener' in globalThis) {
-    globalThis.addEventListener('pagehide', onPageHide)
+    if (blobRef.value !== blob)
+      blobRef.value = blob
+
+    return urlRef!.value!
   }
 
   onScopeDispose(() => {
-    if ('removeEventListener' in globalThis) {
-      globalThis.removeEventListener('pagehide', onPageHide)
-    }
-    revokeAllObjectUrls()
+    blobRefs.clear()
+    urlRefs.clear()
   })
 
   async function migrateDataUrlToBlob(key: string, val: PersistedBackgroundItem, dataUrl: string) {
@@ -185,9 +173,6 @@ export const useBackgroundStore = defineStore('background', () => {
     const hasUploadedFile = option.file instanceof Blob
     const storedBlob = hasUploadedFile ? option.file : undefined
 
-    if (storedBlob)
-      revokeObjectUrl(normalizedId)
-
     const src = storedBlob
       ? ensureObjectUrl(normalizedId, storedBlob)
       : option.src
@@ -250,10 +235,11 @@ export const useBackgroundStore = defineStore('background', () => {
       console.error('Failed to remove background from storage', error)
     }
 
-    // Revoke object URL if exists
-    if (objectUrls.has(optionId)) {
-      revokeObjectUrl(optionId)
-    }
+    const blobRef = blobRefs.get(optionId)
+    if (blobRef)
+      blobRef.value = undefined
+    blobRefs.delete(optionId)
+    urlRefs.delete(optionId)
 
     // Remove from list
     options.value.splice(optionIndex, 1)

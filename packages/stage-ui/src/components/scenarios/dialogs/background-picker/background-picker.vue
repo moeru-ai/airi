@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import type { Ref, ShallowRef } from 'vue'
+
 import type { BackgroundOption } from './types'
 
 import { BasicInputFile } from '@proj-airi/ui'
+import { useObjectUrl } from '@vueuse/core'
 import { nanoid } from 'nanoid'
-import { computed, nextTick, onScopeDispose, ref, watch } from 'vue'
+import { computed, nextTick, onScopeDispose, ref, shallowRef, watch } from 'vue'
 
 import ThemeOverlay from '../../../ThemeOverlay.vue'
 
@@ -30,7 +33,8 @@ const modelValue = defineModel<BackgroundOption | undefined>({ default: undefine
 const previewRef = ref<HTMLElement | null>(null)
 const uploadingFiles = ref<File[]>([])
 const customOptions = ref<BackgroundOption[]>([])
-const objectUrls = new Map<string, string>()
+const blobRefs = new Map<string, ShallowRef<Blob | undefined>>()
+const urlRefs = new Map<string, Readonly<Ref<string | undefined>>>()
 const selectedId = ref<string | undefined>(modelValue.value?.id)
 const busy = ref(false)
 
@@ -49,12 +53,20 @@ watch(() => modelValue.value?.id, (id) => {
 })
 
 function ensureObjectUrl(id: string, file: File) {
-  const existing = objectUrls.get(id)
-  if (existing)
-    return existing
-  const created = URL.createObjectURL(file)
-  objectUrls.set(id, created)
-  return created
+  let blobRef = blobRefs.get(id)
+  let urlRef = urlRefs.get(id)
+
+  if (!blobRef || !urlRef) {
+    blobRef = shallowRef<Blob | undefined>(file)
+    blobRefs.set(id, blobRef)
+    urlRef = useObjectUrl(blobRef)
+    urlRefs.set(id, urlRef)
+  }
+
+  if (blobRef.value !== file)
+    blobRef.value = file
+
+  return urlRef!.value!
 }
 
 async function waitForPreviewReady() {
@@ -72,10 +84,8 @@ async function waitForPreviewReady() {
 }
 
 onScopeDispose(() => {
-  objectUrls.forEach((url) => {
-    URL.revokeObjectURL(url)
-  })
-  objectUrls.clear()
+  blobRefs.clear()
+  urlRefs.clear()
 })
 
 watch(modelValue, (value) => {
