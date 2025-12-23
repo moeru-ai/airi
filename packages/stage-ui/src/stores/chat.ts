@@ -74,13 +74,38 @@ export const useChatStore = defineStore('chat', () => {
   interface QueuedSend {
     sendingMessage: string
     options: SendOptions
-    resolve: () => void
-    reject: (error: unknown) => void
     generation: number
+    deferred: {
+      resolve: () => void
+      reject: (error: unknown) => void
+    }
   }
 
-  const sendQueue = ref<QueuedSend[]>([])
-  const processingSend = ref(false)
+  const pendingQueuedSends = ref<QueuedSend[]>([])
+
+  const sendQueue = createQueue<QueuedSend>({
+    handlers: [
+      async ({ data }) => {
+        const { sendingMessage, options, generation, deferred } = data
+
+        try {
+          await performSend(sendingMessage, options, generation)
+          deferred.resolve()
+        }
+        catch (error) {
+          deferred.reject(error)
+        }
+      },
+    ],
+  })
+
+  sendQueue.on('enqueue', (queuedSend) => {
+    pendingQueuedSends.value = [...pendingQueuedSends.value, queuedSend]
+  })
+
+  sendQueue.on('dequeue', (queuedSend) => {
+    pendingQueuedSends.value = pendingQueuedSends.value.filter(item => item !== queuedSend)
+  })
 
   // ----- Hooks (UI callbacks) -----
   const onBeforeMessageComposedHooks = ref<Array<(message: string) => Promise<void>>>([])
@@ -247,9 +272,10 @@ export const useChatStore = defineStore('chat', () => {
       },
     }]
     // Reject and clear any pending sends so callers don't hang after cleanup
-    for (const queued of sendQueue.value)
-      queued.reject(new Error('Chat session was reset before send could start'))
-    sendQueue.value = []
+    for (const queued of pendingQueuedSends.value)
+      queued.deferred.reject(new Error('Chat session was reset before send could start'))
+    pendingQueuedSends.value = []
+    sendQueue.clear()
     sending.value = false
     streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
   }
@@ -552,42 +578,17 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  async function processSendQueue() {
-    if (processingSend.value)
-      return
-
-    const next = sendQueue.value.shift()
-    if (!next)
-      return
-
-    processingSend.value = true
-    try {
-      await performSend(next.sendingMessage, next.options, next.generation)
-      next.resolve()
-    }
-    catch (error) {
-      next.reject(error)
-    }
-    finally {
-      processingSend.value = false
-      if (sendQueue.value.length > 0)
-        void processSendQueue()
-    }
-  }
-
   async function send(
     sendingMessage: string,
     options: SendOptions,
   ) {
     return new Promise<void>((resolve, reject) => {
-      sendQueue.value.push({
+      sendQueue.enqueue({
         sendingMessage,
         options,
-        resolve,
-        reject,
         generation: sessionGeneration.value,
+        deferred: { resolve, reject },
       })
-      void processSendQueue()
     })
   }
 
