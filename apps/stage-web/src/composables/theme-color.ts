@@ -9,7 +9,7 @@ import { withRetry } from '@moeru/std'
 import { colorFromElement, patchThemeSamplingHtml2CanvasClone } from '@proj-airi/stage-ui/libs'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
-import { useIntervalFn } from '@vueuse/core'
+import { useDocumentVisibility, useIntervalFn } from '@vueuse/core'
 import { nextTick, watch } from 'vue'
 
 export function themeColorFromPropertyOf(colorFromClass: string, property: string): () => Promise<string> {
@@ -84,7 +84,7 @@ export function useBackgroundThemeColor({
 
   // Keep theme-color reasonably fresh for animated wave backgrounds without doing per-frame work.
   const { pause, resume } = useIntervalFn(() => {
-    if (document.visibilityState !== 'visible')
+    if (useDocumentVisibility().value !== 'visible')
       return
     if (selectedOption.value?.kind === 'wave' && settings.themeColorsHueDynamic)
       void updateThemeColor()
@@ -153,7 +153,6 @@ export function useBackgroundThemeColor({
 
     if (color) {
       sampledColor.value = color
-      await updateThemeColor()
     }
   }
 
