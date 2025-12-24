@@ -3,16 +3,14 @@ import type { Message, PhotoSize } from 'grammy/types'
 
 import type { BotContext } from '../types'
 
-import { Buffer } from 'node:buffer'
 import { env } from 'node:process'
-
-import Sharp from 'sharp'
 
 import { embed } from '@xsai/embed'
 import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/utils-chat'
 
 import { findPhotosDescriptions, recordPhoto } from '../models'
+import { toPngBase64 } from './image'
 
 export async function interpretPhotos(state: BotContext, msg: Message, photos: PhotoSize[]) {
   try {
@@ -25,8 +23,7 @@ export async function interpretPhotos(state: BotContext, msg: Message, photos: P
     const photoResArray = await Promise.all(files.map(file => fetch(`https://api.telegram.org/file/bot${state.bot.api.token}/${file.file_path}`)))
 
     const buffers = await Promise.all(photoResArray.map(photoRes => photoRes.arrayBuffer()))
-    const pngResizedBuffers = await Promise.all(buffers.map(buffer => Sharp(buffer).resize(512, 512).png().toBuffer()))
-    const photoBase64s = pngResizedBuffers.map(buffer => Buffer.from(buffer).toString('base64'))
+    const photoBase64s = await Promise.all(buffers.map(buffer => toPngBase64(buffer)))
 
     await Promise.all(photoBase64s.map(async (base64, index) => {
       const req = {

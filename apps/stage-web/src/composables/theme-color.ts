@@ -1,7 +1,18 @@
+import type { Ref } from 'vue'
+
+import type { BackgroundProvider } from '../components/Backgrounds'
+import type { BackgroundItem } from '../stores/background'
+
 import Color from 'colorjs.io'
 
 import { withRetry } from '@moeru/std'
+import { colorFromElement, patchThemeSamplingHtml2CanvasClone } from '@proj-airi/stage-ui/libs'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
+import { useDocumentVisibility, useIntervalFn } from '@vueuse/core'
+import { nextTick, watch } from 'vue'
+
+import { BackgroundKind } from '../stores/background'
 
 export function themeColorFromPropertyOf(colorFromClass: string, property: string): () => Promise<string> {
   return async () => {
@@ -42,5 +53,142 @@ export function useThemeColor(colorFrom: () => string | Promise<string>) {
 
   return {
     updateThemeColor,
+  }
+}
+
+export function useBackgroundThemeColor({
+  backgroundSurface,
+  selectedOption,
+  sampledColor,
+}: {
+  backgroundSurface: Ref<InstanceType<typeof BackgroundProvider> | undefined | null>
+  selectedOption: Ref<BackgroundItem | undefined>
+  sampledColor: Ref<string>
+}) {
+  const { themeColorsHue, themeColorsHueDynamic } = useSettings()
+
+  let samplingToken = 0
+
+  const { isDark } = useTheme()
+
+  function getWaveThemeColor() {
+    // We read directly from computed style to catch the animation value
+    return isDark.value ? `hsl(${themeColorsHue} 60% 32%)` : `hsl(${themeColorsHue} 75% 78%)`
+  }
+
+  const { updateThemeColor } = useThemeColor(() => {
+    if (selectedOption.value?.kind === BackgroundKind.Wave) {
+      return getWaveThemeColor()
+    }
+    return sampledColor.value
+  })
+
+  // Keep theme-color reasonably fresh for animated wave backgrounds without doing per-frame work.
+  const { pause, resume } = useIntervalFn(() => {
+    if (useDocumentVisibility().value !== 'visible')
+      return
+    if (selectedOption.value?.kind === BackgroundKind.Wave && themeColorsHueDynamic)
+      void updateThemeColor()
+  }, 250, { immediate: false })
+
+  watch([() => selectedOption.value?.kind, () => themeColorsHueDynamic], ([kind, dynamic]) => {
+    if (kind === BackgroundKind.Wave && dynamic) {
+      void updateThemeColor()
+      resume()
+    }
+    else {
+      pause()
+    }
+  }, { immediate: true })
+
+  async function waitForBackgroundReady() {
+    await nextTick()
+    const image = backgroundSurface.value?.surfaceEl?.querySelector('img')
+    if (image && !image.complete) {
+      await new Promise<void>((resolve, reject) => {
+        image.addEventListener('load', () => resolve(), { once: true })
+        image.addEventListener('error', () => reject(new Error('Background image failed to load')), { once: true })
+      })
+    }
+  }
+
+  // Exposed for optional manual triggers; also used within syncBackgroundTheme.
+  async function sampleBackgroundColor() {
+    const token = ++samplingToken
+    const optionId = selectedOption.value?.id
+    if (selectedOption.value?.kind === BackgroundKind.Wave) {
+      await updateThemeColor()
+      return
+    }
+
+    const el = backgroundSurface.value?.surfaceEl
+    if (!el)
+      return
+
+    await waitForBackgroundReady()
+
+    const result = await colorFromElement(el, {
+      mode: 'html2canvas',
+      html2canvas: {
+        region: {
+          x: 0,
+          y: 0,
+          width: el.offsetWidth,
+          height: Math.min(140, el.offsetHeight),
+        },
+        sampleHeight: 20,
+        sampleStride: 10,
+        scale: 0.5,
+        backgroundColor: null,
+        allowTaint: true,
+        useCORS: true,
+        onclone: patchThemeSamplingHtml2CanvasClone,
+      },
+    })
+
+    const color = result.html2canvas?.average
+    if (token !== samplingToken)
+      return
+    if (optionId && selectedOption.value?.id !== optionId)
+      return
+
+    if (color) {
+      sampledColor.value = color
+    }
+  }
+
+  async function syncBackgroundTheme() {
+    if (selectedOption.value?.kind === BackgroundKind.Wave) {
+      await updateThemeColor()
+    }
+    else if (sampledColor.value) {
+      await updateThemeColor()
+    }
+    else {
+      await sampleBackgroundColor()
+    }
+  }
+
+  watch([selectedOption], () => {
+    syncBackgroundTheme()
+  }, { immediate: true })
+
+  watch(sampledColor, () => {
+    syncBackgroundTheme()
+  })
+
+  watch(() => backgroundSurface.value?.surfaceEl, (el) => {
+    if (el)
+      syncBackgroundTheme()
+  })
+
+  watch(isDark, () => {
+    syncBackgroundTheme()
+  })
+
+  return {
+    sampledColor,
+    sampleBackgroundColor,
+    syncBackgroundTheme,
   }
 }
