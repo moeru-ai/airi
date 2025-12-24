@@ -1,5 +1,5 @@
 {
-  "name": "@proj-airi/mediapipe-workshop",
+  "name": "@proj-airi/model-driver-mediapipe",
   "type": "module",
   "private": true,
   "description": "MediaPipe motion capture workshop (experimental) for Project AIRI",
