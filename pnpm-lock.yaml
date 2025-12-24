@@ -751,9 +751,9 @@ importers:
       '@proj-airi/i18n':
         specifier: workspace:^
         version: link:../../packages/i18n
-      '@proj-airi/mediapipe-workshop':
+      '@proj-airi/model-driver-mediapipe':
         specifier: workspace:^
-        version: link:../../packages/mediapipe-workshop
+        version: link:../../packages/model-driver-mediapipe
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../../packages/server-sdk
@@ -1269,22 +1269,6 @@ importers:
         specifier: ^3.0.7
         version: 3.0.7(@nuxt/kit@3.20.2(magicast@0.5.1))(esbuild@0.27.2)(rolldown@1.0.0-beta.53)(rollup@4.54.0)(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
 
-  packages/mediapipe-workshop:
-    dependencies:
-      '@mediapipe/tasks-vision':
-        specifier: ^0.10.0
-        version: 0.10.21
-      '@pixiv/three-vrm':
-        specifier: ^3.4.4
-        version: 3.4.4(three@0.182.0)
-      three:
-        specifier: ^0.182.0
-        version: 0.182.0
-    devDependencies:
-      '@types/three':
-        specifier: ^0.182.0
-        version: 0.182.0
-
   packages/memory-pgvector:
     dependencies:
       '@guiiai/logg':
@@ -1309,6 +1293,22 @@ importers:
       wlipsync:
         specifier: ^1.3.0
         version: 1.3.0
+
+  packages/model-driver-mediapipe:
+    dependencies:
+      '@mediapipe/tasks-vision':
+        specifier: ^0.10.0
+        version: 0.10.21
+      '@pixiv/three-vrm':
+        specifier: ^3.4.4
+        version: 3.4.4(three@0.182.0)
+      three:
+        specifier: ^0.182.0
+        version: 0.182.0
+    devDependencies:
+      '@types/three':
+        specifier: ^0.182.0
+        version: 0.182.0
 
   packages/pipelines-audio:
     dependencies:
