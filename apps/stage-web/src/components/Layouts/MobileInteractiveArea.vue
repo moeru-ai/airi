@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import type { ChatHistoryMessage } from '@proj-airi/stage-ui/components'
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
-import type { ChatHistoryMessage } from '@proj-airi/stage-ui/components'
 import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -138,14 +138,14 @@ onMounted(() => {
   <div fixed bottom-0 w-full flex flex-col>
     <KeepAlive>
       <Transition name="fade">
-          <ChatHistory
-            v-if="!stageViewControlsEnabled"
-            variant="mobile"
-            :messages="historyMessages"
-            :sending="sending"
-            :streaming-message="streamingMessage"
-            max-w="[calc(100%-3.5rem)]"
-            w-full self-start pb-3 pl-3
+        <ChatHistory
+          v-if="!stageViewControlsEnabled"
+          variant="mobile"
+          :messages="historyMessages"
+          :sending="sending"
+          :streaming-message="streamingMessage"
+          max-w="[calc(100%-3.5rem)]"
+          w-full self-start pb-3 pl-3
           class="chat-history"
           :class="[
             'relative z-20',
