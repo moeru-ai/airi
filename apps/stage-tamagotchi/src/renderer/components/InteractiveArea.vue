@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ChatHistoryMessage } from '@proj-airi/stage-ui/components'
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
 import { ChatHistory } from '@proj-airi/stage-ui/components'
@@ -9,7 +10,7 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { widgetsTools } from '../stores/tools/builtin/widgets'
@@ -38,7 +39,7 @@ async function handleSend() {
   }
 
   const textToSend = messageInput.value
-  const attachmentsToSend = attachments.value.map(({ data, mimeType, type }) => ({ data, mimeType, type }))
+  const attachmentsToSend = attachments.value.map(att => ({ ...att }))
 
   // optimistic clear
   messageInput.value = ''
@@ -153,13 +154,15 @@ onAfterMessageComposed(async () => {
   attachments.value.forEach(att => URL.revokeObjectURL(att.url))
   attachments.value = []
 })
+
+const historyMessages = computed(() => messages.value as unknown as ChatHistoryMessage[])
 </script>
 
 <template>
   <div h-full w-full flex="~ col gap-1">
     <div w-full flex-1 overflow-hidden>
       <ChatHistory
-        :messages="messages"
+        :messages="historyMessages"
         :sending="sending"
         :streaming-message="streamingMessage"
       />
