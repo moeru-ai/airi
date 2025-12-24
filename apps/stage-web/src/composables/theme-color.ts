@@ -65,6 +65,7 @@ export function useBackgroundThemeColor({
   selectedOption: Ref<BackgroundItem | undefined>
   sampledColor: Ref<string>
 }) {
+  const visibility = useDocumentVisibility()
   const { themeColorsHue, themeColorsHueDynamic } = useSettings()
 
   let samplingToken = 0
@@ -85,7 +86,7 @@ export function useBackgroundThemeColor({
 
   // Keep theme-color reasonably fresh for animated wave backgrounds without doing per-frame work.
   const { pause, resume } = useIntervalFn(() => {
-    if (useDocumentVisibility().value !== 'visible')
+    if (visibility.value !== 'visible')
       return
     if (selectedOption.value?.kind === BackgroundKind.Wave && themeColorsHueDynamic)
       void updateThemeColor()
