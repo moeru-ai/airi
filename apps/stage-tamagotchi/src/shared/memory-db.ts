@@ -26,4 +26,5 @@ export const memoryDb = {
   getStats: defineInvokeEventa<{ success: boolean, stats: { total: number, shortTerm: number, longTerm: number } }>('eventa:invoke:electron:memory-db:get-stats'),
   getDatabasePath: defineInvokeEventa<{ success: boolean, path: string }>('eventa:invoke:electron:memory-db:get-path'),
   isInitialized: defineInvokeEventa<{ initialized: boolean }>('eventa:invoke:electron:memory-db:is-initialized'),
+  exportDatabase: defineInvokeEventa<{ success: boolean, data: number[] }>('eventa:invoke:electron:memory-db:export'),
 }

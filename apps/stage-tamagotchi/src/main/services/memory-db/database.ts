@@ -192,6 +192,20 @@ export class MemoryDatabase {
   isInitialized(): boolean {
     return this.db !== null
   }
+
+  /**
+   * Export database as Buffer
+   * Creates a backup using better-sqlite3's built-in backup functionality
+   */
+  exportDatabase(): Buffer {
+    if (!this.db) {
+      throw new Error('Database not initialized')
+    }
+
+    // Use better-sqlite3's serialize method to get the database as a buffer
+    const buffer = this.db.serialize()
+    return buffer
+  }
 }
 
 let memoryDbInstance: MemoryDatabase | null = null
