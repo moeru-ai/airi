@@ -32,6 +32,7 @@ function createApp() {
     })
     .catch((err) => {
       logger.withError(err).error('Failed to connect to database')
+      process.exit(1)
     })
 
   app.use(
@@ -42,7 +43,7 @@ function createApp() {
       },
       credentials: true,
     }),
-  ) as any
+  )
 
   app.use(honoLogger())
 
