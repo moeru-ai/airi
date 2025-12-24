@@ -108,6 +108,13 @@ function vNeg(v: Vec3): Vec3 {
   return { x: -v.x, y: -v.y, z: -(v.z ?? 0) }
 }
 
+function safePole(dir: Vec3, pole: Vec3, threshold = 0.85): Vec3 | null {
+  const d = Math.abs(vDot(dir, pole))
+  if (!Number.isFinite(d))
+    return null
+  return d > threshold ? null : pole
+}
+
 function get(points: Vec3[], index: number): Vec3 | null {
   const p = points[index]
   if (!p)
@@ -118,18 +125,25 @@ function get(points: Vec3[], index: number): Vec3 | null {
 }
 
 function isConfident(pose: PoseState, index: number, thresholds: { minVisibility: number, minPresence: number }): boolean {
-  const lm = pose.worldLandmarks?.[index] ?? pose.landmarks2d?.[index]
   // User requirement: do not output anything when `visibility` is missing.
-  if (!lm)
+  // Prefer 2D landmarks for visibility/presence (they are more consistently populated),
+  // but still allow fallback to world landmarks when needed.
+  const lm2d = pose.landmarks2d?.[index]
+  const lm3d = pose.worldLandmarks?.[index]
+  if (!lm2d && !lm3d)
     return false
 
-  if (lm.visibility == null || !Number.isFinite(lm.visibility))
+  const visibility = lm2d?.visibility ?? lm3d?.visibility
+  if (visibility == null || !Number.isFinite(visibility))
+    return false
+  if (visibility < thresholds.minVisibility)
     return false
 
-  if (lm.visibility != null && Number.isFinite(lm.visibility) && lm.visibility < thresholds.minVisibility)
-    return false
-  if (thresholds.minPresence > 0 && lm.presence != null && Number.isFinite(lm.presence) && lm.presence < thresholds.minPresence)
-    return false
+  if (thresholds.minPresence > 0) {
+    const presence = lm2d?.presence ?? lm3d?.presence
+    if (presence != null && Number.isFinite(presence) && presence < thresholds.minPresence)
+      return false
+  }
   return true
 }
 
@@ -138,6 +152,7 @@ function mid(a: Vec3, b: Vec3): Vec3 {
 }
 
 export function poseToVrmTargets(pose: PoseState, options?: PoseToVrmOptions): VrmPoseTargets {
+  // Prefer world landmarks when available; fallback to normalized landmarks to keep the pipeline usable.
   const points = pose.worldLandmarks
   if (!points?.length)
     return {}
@@ -176,19 +191,34 @@ export function poseToVrmTargets(pose: PoseState, options?: PoseToVrmOptions): V
     return pole
   }
 
-  // Torso forward (for yaw): cross(hipRight-leftHip, up)
+  // Torso basis:
+  // - up: hipCenter -> shoulderCenter (dir)
+  // - right: leftShoulder -> rightShoulder
+  // - forward: cross(right, up)
+  //
+  // NOTICE: In apply-pose-to-vrm.ts, pole is used as the Z axis in `makeBasis(X=dir, Y=..., Z=pole)`,
+  // so torso pole must be "forward-like" (body facing), not "right-like" (shoulder line).
   let torsoForward: Vec3 | null = null
-  if (leftHip && rightHip && hipCenter && shoulderCenter) {
-    const lr = vSub(rightHip, leftHip)
+  if (hipCenter && shoulderCenter && leftShoulder && rightShoulder) {
+    const rightRaw = vSub(rightShoulder, leftShoulder)
     const upRaw = vSub(shoulderCenter, hipCenter)
-    const fw = vNormalize(vRemapAxis(vCross(lr, upRaw), axis))
-    if (fw) {
-      const prevForward = options?.stabilize?.previousForward ?? prevTargets?.hips?.pole ?? prevTargets?.spine?.pole
-      torsoForward = prevForward && vDot(prevForward, fw) < 0 ? vNeg(fw) : fw
+    const right = vNormalize(vRemapAxis(rightRaw, axis))
+    const up = vNormalize(vRemapAxis(upRaw, axis))
+    if (right && up) {
+      // Base forward from right×up, then fix sign so that (up×forward) matches observed shoulder-right.
+      let fw = vNormalize(vCross(right, up))
+      if (fw) {
+        const rightFromBasis = vNormalize(vCross(fw, up))
+        if (rightFromBasis && vDot(rightFromBasis, right) < 0)
+          fw = vNeg(fw)
+
+        const prevForward = options?.stabilize?.previousForward ?? prevTargets?.hips?.pole ?? prevTargets?.spine?.pole ?? prevTargets?.chest?.pole
+        torsoForward = prevForward && vDot(prevForward, fw) < 0 ? vNeg(fw) : fw
+      }
     }
   }
 
-  // Hips/spine/chest: drive "up" with a stable forward pole so the avatar can turn with you.
+  // Hips/spine/chest: drive "up" with forward pole so the avatar can turn with you.
   if (hipCenter && shoulderCenter) {
     const up = vNormalize(vRemapAxis(vSub(shoulderCenter, hipCenter), axis))
     if (up) {
@@ -197,13 +227,14 @@ export function poseToVrmTargets(pose: PoseState, options?: PoseToVrmOptions): V
       else
         out.hips = { dir: up }
 
-      if (torsoForward)
+      if (torsoForward) {
         out.spine = { dir: up, pole: stabilizePole('spine', torsoForward) }
-      else
+        out.chest = { dir: up, pole: stabilizePole('chest', torsoForward) }
+      }
+      else {
         out.spine = { dir: up }
-
-      // Chest: reuse spine for now (works well enough for pose-only).
-      out.chest = out.spine.pole ? { dir: out.spine.dir, pole: stabilizePole('chest', out.spine.pole) } : { dir: out.spine.dir }
+        out.chest = { dir: up }
+      }
     }
   }
 
@@ -247,29 +278,36 @@ export function poseToVrmTargets(pose: PoseState, options?: PoseToVrmOptions): V
       out.rightLowerArm = { dir: lower }
   }
 
-  // Legs (with pole from knee bend plane)
-  if (leftHip && leftKnee) {
+  // Legs: require ankle to reduce hallucinated flips when lower body is off-screen
+  if (leftHip && leftKnee && leftAnkle) {
     const upper = vNormalize(vRemapAxis(vSub(leftKnee, leftHip), axis))
     if (upper) {
-      const poleRaw = leftAnkle ? vCross(vSub(leftKnee, leftHip), vSub(leftAnkle, leftKnee)) : null
-      const pole = poleRaw ? vNormalize(vRemapAxis(poleRaw, axis)) : null
+      const poleRaw = vCross(vSub(leftKnee, leftHip), vSub(leftAnkle, leftKnee))
+      let pole = vNormalize(vRemapAxis(poleRaw, axis))
+      if (pole)
+        pole = stabilizePole('leftUpperLeg', pole)
+      if (pole)
+        pole = safePole(upper, pole)
       out.leftUpperLeg = pole ? { dir: upper, pole } : { dir: upper }
     }
-  }
-  if (leftKnee && leftAnkle) {
+
     const lower = vNormalize(vRemapAxis(vSub(leftAnkle, leftKnee), axis))
     if (lower)
       out.leftLowerLeg = { dir: lower }
   }
-  if (rightHip && rightKnee) {
+
+  if (rightHip && rightKnee && rightAnkle) {
     const upper = vNormalize(vRemapAxis(vSub(rightKnee, rightHip), axis))
     if (upper) {
-      const poleRaw = rightAnkle ? vCross(vSub(rightKnee, rightHip), vSub(rightAnkle, rightKnee)) : null
-      const pole = poleRaw ? vNormalize(vRemapAxis(poleRaw, axis)) : null
+      const poleRaw = vCross(vSub(rightKnee, rightHip), vSub(rightAnkle, rightKnee))
+      let pole = vNormalize(vRemapAxis(poleRaw, axis))
+      if (pole)
+        pole = stabilizePole('rightUpperLeg', pole)
+      if (pole)
+        pole = safePole(upper, pole)
       out.rightUpperLeg = pole ? { dir: upper, pole } : { dir: upper }
     }
-  }
-  if (rightKnee && rightAnkle) {
+
     const lower = vNormalize(vRemapAxis(vSub(rightAnkle, rightKnee), axis))
     if (lower)
       out.rightLowerLeg = { dir: lower }

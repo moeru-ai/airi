@@ -137,6 +137,8 @@ export function createVrmPoseApplier(options?: VrmPoseApplyOptions) {
 
   const restDirLocal: Partial<Record<BoneKey, Vector3>> = {}
   const restPoleLocal: Partial<Record<BoneKey, Vector3>> = {}
+  const lastTargetDirWorld: Partial<Record<BoneKey, Vector3>> = {}
+  const lastTargetPoleWorld: Partial<Record<BoneKey, Vector3>> = {}
 
   const tmpBoneWorldQ = new Quaternion()
   const tmpParentWorldQ = new Quaternion()
@@ -161,7 +163,6 @@ export function createVrmPoseApplier(options?: VrmPoseApplyOptions) {
   const tmpRestYLocal = new Vector3()
   const tmpTargetYWorld = new Vector3()
   const tmpWorldForward = new Vector3(0, 0, -1)
-  const tmpCurrentPoleWorld = new Vector3()
 
   function ensureRestDirection(vrm: VRM, key: BoneKey): Vector3 | null {
     const existing = restDirLocal[key]
@@ -260,6 +261,13 @@ export function createVrmPoseApplier(options?: VrmPoseApplyOptions) {
       return
     tmpTargetDirWorld.normalize()
 
+    // Reject near-180° instant flips based on previous target (not current bone pose).
+    // Using the current bone direction is unreliable when tracking reacquires or when
+    // the bind pose differs from the mocap space.
+    const prevDir = lastTargetDirWorld[key]
+    if (prevDir && prevDir.dot(tmpTargetDirWorld) < minDotBeforeReject)
+      return
+
     bone.updateMatrixWorld(true)
     bone.getWorldQuaternion(tmpBoneWorldQ)
 
@@ -271,11 +279,6 @@ export function createVrmPoseApplier(options?: VrmPoseApplyOptions) {
     else {
       tmpParentWorldQ.identity()
     }
-
-    // Reject near-180° instant flips (keep last frame).
-    tmpCurrentDirWorld.copy(rest).applyQuaternion(tmpBoneWorldQ).normalize()
-    if (tmpCurrentDirWorld.dot(tmpTargetDirWorld) < minDotBeforeReject)
-      return
 
     const restPole = target.pole ? ensureRestPole(vrm, key) : null
     const usePole = !!(target.pole && restPole)
@@ -296,9 +299,9 @@ export function createVrmPoseApplier(options?: VrmPoseApplyOptions) {
       tmpTargetPoleWorld.copy(poleOrtho)
       tmpTargetYWorld.copy(tmpTargetPoleWorld).cross(tmpTargetDirWorld).normalize()
 
-      // Reject near-180° pole flips (keep last frame).
-      tmpCurrentPoleWorld.copy(tmpRestPoleLocal).applyQuaternion(tmpBoneWorldQ).normalize()
-      if (tmpCurrentPoleWorld.dot(tmpTargetPoleWorld) < minPoleDotBeforeReject)
+      // Reject near-180° pole flips based on previous target pole.
+      const prevPole = lastTargetPoleWorld[key]
+      if (prevPole && prevPole.dot(tmpTargetPoleWorld) < minPoleDotBeforeReject)
         return
 
       tmpRestM.makeBasis(tmpRestDirLocal, tmpRestYLocal, tmpRestPoleLocal)
@@ -309,6 +312,7 @@ export function createVrmPoseApplier(options?: VrmPoseApplyOptions) {
       tmpNewLocalQ.copy(tmpParentWorldQ).invert().multiply(tmpNewWorldQ)
     }
     else {
+      tmpCurrentDirWorld.copy(rest).applyQuaternion(tmpBoneWorldQ).normalize()
       tmpDeltaQ.setFromUnitVectors(tmpCurrentDirWorld, tmpTargetDirWorld)
       tmpNewWorldQ.copy(tmpDeltaQ).multiply(tmpBoneWorldQ)
       tmpNewLocalQ.copy(tmpParentWorldQ).invert().multiply(tmpNewWorldQ)
@@ -318,6 +322,13 @@ export function createVrmPoseApplier(options?: VrmPoseApplyOptions) {
       bone.quaternion.copy(tmpNewLocalQ)
     else
       bone.quaternion.slerp(tmpNewLocalQ, alpha)
+
+    // Update last targets only after a successful apply.
+    lastTargetDirWorld[key] = tmpTargetDirWorld.clone()
+    if (usePole)
+      lastTargetPoleWorld[key] = tmpTargetPoleWorld.clone()
+    else
+      delete lastTargetPoleWorld[key]
   }
 
   function applyPoseDirectionsToVrm(vrm: VRM, directions: VrmPoseDirections) {

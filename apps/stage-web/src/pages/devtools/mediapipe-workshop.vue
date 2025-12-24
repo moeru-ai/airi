@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { MediaPipeAssetsConfig, PerceptionState, VrmPoseTargets } from '@proj-airi/mediapipe-workshop'
+import type { MediaPipeAssetsConfig, PerceptionState, Vec3, VrmPoseTargets } from '@proj-airi/mediapipe-workshop'
 
 import { createMediaPipeBackend, createMocapEngine, createVrmPoseApplier, DEFAULT_MEDIAPIPE_ASSETS, drawOverlay, poseToVrmTargets, WORKSHOP_NAME } from '@proj-airi/mediapipe-workshop'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
@@ -42,11 +42,16 @@ const vrmMapping = ref({
   flipZ: false,
 })
 
+const poseFiltering = ref({
+  minVisibility: 0.5,
+})
+
 // MediaPipe assets config
 const assets = ref<MediaPipeAssetsConfig>(DEFAULT_MEDIAPIPE_ASSETS)
 const latestState = ref<PerceptionState>()
 const latestPoseTargets = ref<VrmPoseTargets>()
 const prevPoseTargets = ref<VrmPoseTargets>()
+const prevPoseForward = ref<Vec3>()
 
 // VRM pose applier
 const vrmPoseApplier = createVrmPoseApplier({ alpha: 1 })
@@ -79,6 +84,28 @@ const summary = computed(() => {
     latency != null ? `latency ${latency.toFixed(1)}ms` : null,
     dropped != null ? `dropped ${dropped}` : null,
   ].filter(Boolean).join(' | ')
+})
+
+const poseVisibilityDebug = computed(() => {
+  const pose = latestState.value?.pose
+  const lm = pose?.landmarks2d
+  const world = pose?.worldLandmarks
+  if (!lm?.length)
+    return 'pose: (no landmarks)'
+
+  const pick = (i: number) => {
+    const v = lm[i]?.visibility
+    return v == null || !Number.isFinite(v) ? 'na' : v.toFixed(2)
+  }
+
+  const withVis = lm.filter(p => p.visibility != null && Number.isFinite(p.visibility)).length
+  const worldWithVis = world?.filter(p => p.visibility != null && Number.isFinite(p.visibility)).length ?? 0
+  return [
+    `pose 2d vis ${withVis}/${lm.length}`,
+    `pose 3d vis ${worldWithVis}/${world?.length ?? 0}`,
+    `LS ${pick(11)} RS ${pick(12)} LE ${pick(13)} RE ${pick(14)}`,
+    `LW ${pick(15)} RW ${pick(16)} LH ${pick(23)} RH ${pick(24)}`,
+  ].join(' | ')
 })
 
 // Start camera and pipeline
@@ -135,8 +162,11 @@ async function startPipeline() {
       const poseTargets = (config.value.enabled.pose && state.pose?.worldLandmarks?.length)
         ? poseToVrmTargets(state.pose, {
             axis,
-            confidence: { minVisibility: 0.8 },
-            stabilize: { previousTargets: prevPoseTargets.value },
+            confidence: { minVisibility: poseFiltering.value.minVisibility },
+            stabilize: {
+              previousTargets: prevPoseTargets.value,
+              previousForward: prevPoseForward.value,
+            },
           })
         : {}
 
@@ -144,6 +174,11 @@ async function startPipeline() {
       latestPoseTargets.value = hasAny ? poseTargets : undefined
       if (hasAny)
         prevPoseTargets.value = poseTargets
+      if (hasAny) {
+        const derivedForward = poseTargets.hips?.pole ?? poseTargets.spine?.pole
+        if (derivedForward)
+          prevPoseForward.value = derivedForward
+      }
 
       const canvas = canvasRef.value
       const video = videoRef.value
@@ -186,6 +221,7 @@ function stopPipeline() {
   latestState.value = undefined
   latestPoseTargets.value = undefined
   prevPoseTargets.value = undefined
+  prevPoseForward.value = undefined
 }
 
 function stop() {
@@ -364,8 +400,30 @@ onUnmounted(() => {
         </div>
       </div>
 
+      <div :class="['flex', 'items-center', 'justify-between', 'gap-4', 'flex-wrap']">
+        <div :class="['text-sm', 'text-neutral-600', 'dark:text-neutral-300']">
+          Pose Filtering
+        </div>
+        <label :class="['flex', 'items-center', 'gap-3']">
+          <div :class="['text-sm', 'text-neutral-600', 'dark:text-neutral-300']">
+            Min Visibility
+          </div>
+          <input
+            v-model.number="poseFiltering.minVisibility"
+            type="number"
+            min="0"
+            max="1"
+            step="0.05"
+            :class="['w-24', 'rounded-lg', 'border', 'border-neutral-300/60', 'bg-white', 'px-2', 'py-1', 'text-sm', 'dark:bg-neutral-900/60', 'dark:border-neutral-700/60']"
+          >
+        </label>
+      </div>
+
       <div :class="['text-xs', 'text-neutral-500']">
         Note: `@mediapipe/tasks-vision` runs sync and may block the main thread. This workshop drops frames when busy to keep UI responsive.
+      </div>
+      <div :class="['text-xs', 'text-neutral-500', 'break-words']">
+        {{ poseVisibilityDebug }}
       </div>
     </div>
 
