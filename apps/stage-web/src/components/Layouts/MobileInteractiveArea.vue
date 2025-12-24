@@ -15,11 +15,12 @@ import { onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
-import AppBackgroundPickerDialog from '../Backgrounds/AppBackgroundPickerDialog.vue'
 import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
 import ActionViewControls from './InteractiveArea/Actions/ViewControls.vue'
 import ViewControlInputs from './ViewControls/Inputs.vue'
+
+import { BackgroundDialogPicker } from '../Backgrounds'
 
 const { isDark, toggleDark } = useTheme()
 const hearingDialogOpen = ref(false)
@@ -132,7 +133,7 @@ onMounted(() => {
 
 <template>
   <div fixed bottom-0 w-full flex flex-col>
-    <AppBackgroundPickerDialog v-model="backgroundDialogOpen" />
+    <BackgroundDialogPicker v-model="backgroundDialogOpen" />
     <KeepAlive>
       <Transition name="fade">
         <ChatHistory

@@ -7,7 +7,7 @@ import { useLocalStorage, useObjectUrl } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, markRaw, onScopeDispose, ref, shallowRef } from 'vue'
 
-import ChromaticWavePreview from '../components/Backgrounds/ChromaticWavePreview.vue'
+import { DefaultBackgroundPreview } from '../components/Backgrounds/default'
 
 export enum BackgroundKind {
   Wave = 'wave',
@@ -32,7 +32,7 @@ export const useBackgroundStore = defineStore('background', () => {
       label: 'Colorful Wave',
       description: 'Animated wave on cross grid',
       kind: BackgroundKind.Wave,
-      component: markRaw(ChromaticWavePreview),
+      component: markRaw(DefaultBackgroundPreview),
     },
   ]
 

@@ -16,12 +16,12 @@ import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 
-import CustomizedBackground from '../components/Backgrounds/CustomizedBackground.vue'
 import Header from '../components/Layouts/Header.vue'
 import InteractiveArea from '../components/Layouts/InteractiveArea.vue'
 import MobileHeader from '../components/Layouts/MobileHeader.vue'
 import MobileInteractiveArea from '../components/Layouts/MobileInteractiveArea.vue'
 
+import { BackgroundProvider } from '../components/Backgrounds'
 import { useBackgroundThemeColor } from '../composables/theme-color'
 import { useBackgroundStore } from '../stores/background'
 
@@ -38,7 +38,7 @@ const isMobile = breakpoints.smaller('md')
 
 const backgroundStore = useBackgroundStore()
 const { selectedOption, sampledColor } = storeToRefs(backgroundStore)
-const backgroundSurface = useTemplateRef<InstanceType<typeof CustomizedBackground>>('backgroundSurface')
+const backgroundSurface = useTemplateRef<InstanceType<typeof BackgroundProvider>>('backgroundSurface')
 
 const { syncBackgroundTheme } = useBackgroundThemeColor({ backgroundSurface, selectedOption, sampledColor })
 onMounted(() => syncBackgroundTheme())
@@ -130,7 +130,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
 </script>
 
 <template>
-  <CustomizedBackground
+  <BackgroundProvider
     ref="backgroundSurface"
     class="widgets top-widgets"
     :background="selectedOption"
@@ -159,7 +159,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
         <MobileInteractiveArea v-if="isMobile" @settings-open="handleSettingsOpen" />
       </div>
     </div>
-  </CustomizedBackground>
+  </BackgroundProvider>
 </template>
 
 <route lang="yaml">

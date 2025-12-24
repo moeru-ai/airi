@@ -3,7 +3,7 @@ import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useTheme } from '@proj-airi/ui'
 import { ref } from 'vue'
 
-import AppBackgroundPickerDialog from '../Backgrounds/AppBackgroundPickerDialog.vue'
+import { BackgroundDialogPicker } from '../Backgrounds'
 
 const { cleanupMessages } = useChatStore()
 const { isDark, toggleDark } = useTheme()
@@ -12,7 +12,7 @@ const backgroundDialogOpen = ref(false)
 </script>
 
 <template>
-  <AppBackgroundPickerDialog v-model="backgroundDialogOpen" />
+  <BackgroundDialogPicker v-model="backgroundDialogOpen" />
   <div absolute bottom--8 right-0 flex gap-2>
     <button
       class="max-h-[10lh] min-h-[1lh]"

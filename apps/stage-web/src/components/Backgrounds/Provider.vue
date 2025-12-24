@@ -3,28 +3,17 @@ import type { BackgroundItem } from '../../stores/background'
 
 import ThemeOverlay from '@proj-airi/stage-ui/components/ThemeOverlay.vue'
 
-import { useTheme } from '@proj-airi/ui'
-import { computed, ref } from 'vue'
-
-import AnimatedWave from '../Widgets/AnimatedWave.vue'
-import Cross from './Cross.vue'
+import { ref } from 'vue'
 
 import { BackgroundKind } from '../../stores/background'
+import { DefaultBackground } from '../Backgrounds/default'
 
 defineProps<{
   background: BackgroundItem
   topColor?: string
 }>()
 
-const { isDark: dark } = useTheme()
 const containerRef = ref<HTMLElement | null>(null)
-
-const waveFillColor = computed(() => {
-  const hue = 'var(--chromatic-hue)'
-  return dark.value
-    ? `hsl(${hue} 60% 32%)`
-    : `hsl(${hue} 75% 78%)`
-})
 
 defineExpose({
   surfaceEl: containerRef,
@@ -39,12 +28,7 @@ defineExpose({
       :class="[(background.blur && background.kind !== BackgroundKind.Wave) ? 'blur-md scale-110' : '']"
     >
       <template v-if="background.kind === BackgroundKind.Wave">
-        <Cross class="h-full w-full">
-          <AnimatedWave
-            class="h-full w-full"
-            :fill-color="waveFillColor"
-          />
-        </Cross>
+        <DefaultBackground class="h-full w-full" />
       </template>
       <template v-else-if="background.kind === BackgroundKind.Image">
         <img
