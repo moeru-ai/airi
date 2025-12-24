@@ -27,8 +27,7 @@ interface MessageContext {
   meta?: Record<string, unknown>
 }
 
-type ChatEntry = (ChatMessage | ErrorMessage) & { context?: MessageContext }
-export type { ChatEntry }
+export type ChatEntry = (ChatMessage | ErrorMessage) & { context?: MessageContext }
 
 export interface ContextPayload {
   content?: unknown
@@ -52,6 +51,8 @@ const ACTIVE_SESSION_STORAGE_KEY = 'chat/active-session'
 export const CONTEXT_CHANNEL_NAME = 'airi-context-update'
 export const CHAT_STREAM_CHANNEL_NAME = 'airi-chat-stream'
 
+type StreamingAssistantMessage = ChatAssistantMessage & { context?: MessageContext }
+
 export const useChatStore = defineStore('chat', () => {
   const { stream, discoverToolsCompatibility } = useLLM()
   const { systemPrompt } = storeToRefs(useAiriCardStore())
@@ -60,7 +61,7 @@ export const useChatStore = defineStore('chat', () => {
   const sessionMessages = useLocalStorage<Record<string, ChatEntry[]>>(CHAT_STORAGE_KEY, {})
 
   const sending = ref(false)
-  const streamingMessage = ref<ChatAssistantMessage>({ role: 'assistant', content: '', slices: [], tool_results: [] })
+  const streamingMessage = ref<StreamingAssistantMessage>({ role: 'assistant', content: '', slices: [], tool_results: [] })
   const sessionGenerations = ref<Record<string, number>>({})
 
   interface SendOptions {
@@ -427,7 +428,12 @@ export const useChatStore = defineStore('chat', () => {
     if (shouldAbort())
       return
     sending.value = true
-    streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
+    const assistantContext: MessageContext = {
+      sessionId,
+      source: 'llm',
+      ts: Date.now(),
+    }
+    streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [], context: assistantContext }
 
     try {
       await emitBeforeMessageComposedHooks(sendingMessage)
@@ -567,12 +573,6 @@ export const useChatStore = defineStore('chat', () => {
 
       // Add the completed message to the history only if it has content
       if (!isStaleGeneration() && streamingMessage.value.slices.length > 0) {
-        const assistantContext: MessageContext = {
-          sessionId,
-          source: 'llm',
-          ts: Date.now(),
-        }
-
         const assistantMessage: ChatEntry = {
           ...(toRaw(streamingMessage.value) as ChatAssistantMessage),
           context: assistantContext,

@@ -11,7 +11,7 @@ import ChatUserItem from './ChatUserItem.vue'
 
 const props = withDefaults(defineProps<{
   messages: ChatHistoryMessage[]
-  streamingMessage?: ChatAssistantMessage
+  streamingMessage?: ChatAssistantMessage & { context?: { ts?: number } }
   sending?: boolean
   assistantLabel?: string
   userLabel?: string
@@ -46,18 +46,30 @@ watch([() => props.messages, () => props.streamingMessage], scrollToBottom, { de
 watch(() => props.sending, scrollToBottom, { flush: 'post' })
 onMounted(scrollToBottom)
 
-const streaming = computed<ChatAssistantMessage>(() => props.streamingMessage ?? { role: 'assistant', content: '', slices: [], tool_results: [] })
+const streaming = computed<ChatAssistantMessage & { context?: { ts?: number } }>(() => props.streamingMessage ?? { role: 'assistant', content: '', slices: [], tool_results: [] })
 const showStreamingPlaceholder = computed(() => (streaming.value.slices?.length ?? 0) === 0 && !streaming.value.content)
+const streamingTs = computed(() => streaming.value.context?.ts)
+const renderMessages = computed<ChatHistoryMessage[]>(() => {
+  if (!props.sending)
+    return props.messages
+
+  const streamTs = streaming.value.context?.ts
+  const hasStreamAlready = streamTs && props.messages.some(msg => msg.context?.ts === streamTs)
+  if (hasStreamAlready)
+    return props.messages
+
+  return [...props.messages, streaming.value]
+})
 </script>
 
 <template>
   <div ref="chatHistoryRef" v-auto-animate flex="~ col" relative h-full w-full overflow-y-auto rounded-xl px="<sm:2" py="<sm:2" :class="variant === 'mobile' ? 'gap-1' : 'gap-2'">
-    <template v-for="(message, index) in messages" :key="index">
+    <template v-for="(message, index) in renderMessages" :key="message.context?.ts ?? index">
       <div v-if="message.role === 'error'">
         <ChatErrorItem
           :message="message"
           :label="labels.error"
-          :show-placeholder="sending && index === messages.length - 1"
+          :show-placeholder="sending && index === renderMessages.length - 1"
           :variant="variant"
         />
       </div>
@@ -66,6 +78,7 @@ const showStreamingPlaceholder = computed(() => (streaming.value.slices?.length 
         <ChatAssistantItem
           :message="message"
           :label="labels.assistant"
+          :show-placeholder="message.context?.ts === streamingTs ? showStreamingPlaceholder : false"
           :variant="variant"
         />
       </div>
@@ -78,14 +91,5 @@ const showStreamingPlaceholder = computed(() => (streaming.value.slices?.length 
         />
       </div>
     </template>
-
-    <div v-if="sending">
-      <ChatAssistantItem
-        :message="streaming"
-        :label="labels.assistant"
-        :show-placeholder="showStreamingPlaceholder"
-        :variant="variant"
-      />
-    </div>
   </div>
 </template>
