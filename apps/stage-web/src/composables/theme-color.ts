@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 
-import type CustomizedBackground from '../components/Backgrounds/CustomizedBackground.vue'
+import type { BackgroundProvider } from '../components/Backgrounds'
 import type { BackgroundItem } from '../stores/background'
 
 import Color from 'colorjs.io'
@@ -61,7 +61,7 @@ export function useBackgroundThemeColor({
   selectedOption,
   sampledColor,
 }: {
-  backgroundSurface: Ref<InstanceType<typeof CustomizedBackground> | undefined | null>
+  backgroundSurface: Ref<InstanceType<typeof BackgroundProvider> | undefined | null>
   selectedOption: Ref<BackgroundItem | undefined>
   sampledColor: Ref<string>
 }) {
