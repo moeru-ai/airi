@@ -172,9 +172,8 @@ async function startPipeline() {
 
       const hasAny = Object.keys(poseTargets).length > 0
       latestPoseTargets.value = hasAny ? poseTargets : undefined
-      if (hasAny)
-        prevPoseTargets.value = poseTargets
       if (hasAny) {
+        prevPoseTargets.value = poseTargets
         const derivedForward = poseTargets.hips?.pole ?? poseTargets.spine?.pole
         if (derivedForward)
           prevPoseForward.value = derivedForward

@@ -136,13 +136,15 @@ function drawPose(ctx: CanvasRenderingContext2D, pose: PoseState) {
 }
 
 function drawHands(ctx: CanvasRenderingContext2D, hands: HandState[]) {
-  for (const hand of hands) {
-    const color = hand.handedness === 'Left'
-      ? 'rgba(120, 255, 140, 0.95)'
-      : 'rgba(255, 180, 80, 0.95)'
+  const handColors = {
+    Left: { point: 'rgba(120, 255, 140, 0.95)', connector: 'rgba(120, 255, 140, 0.55)' },
+    Right: { point: 'rgba(255, 180, 80, 0.95)', connector: 'rgba(255, 180, 80, 0.55)' },
+  }
 
-    drawConnectors(ctx, hand.landmarks2d, HAND_CONNECTIONS, color.replace('0.95', '0.55'))
-    drawPoints(ctx, hand.landmarks2d, color, { radius: 6 })
+  for (const hand of hands) {
+    const colors = hand.handedness === 'Left' ? handColors.Left : handColors.Right
+    drawConnectors(ctx, hand.landmarks2d, HAND_CONNECTIONS, colors.connector)
+    drawPoints(ctx, hand.landmarks2d, colors.point, { radius: 6 })
   }
 }
 
