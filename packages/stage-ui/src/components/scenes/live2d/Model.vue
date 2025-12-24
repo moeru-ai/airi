@@ -394,7 +394,10 @@ function updateDropShadowFilter() {
     return
   }
 
-  const color = getComputedStyle(dropShadowColorComputer.value!).backgroundColor
+  if (!dropShadowColorComputer.value)
+    return
+
+  const color = getComputedStyle(dropShadowColorComputer.value).backgroundColor
   dropShadowFilter.value.color = Number(formatHex(color)!.replace('#', '0x'))
   model.value.filters = [dropShadowFilter.value]
 }

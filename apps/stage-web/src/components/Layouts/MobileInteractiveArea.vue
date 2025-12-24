@@ -15,6 +15,7 @@ import { onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
+import AppBackgroundPickerDialog from '../Backgrounds/AppBackgroundPickerDialog.vue'
 import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
 import ActionViewControls from './InteractiveArea/Actions/ViewControls.vue'
@@ -29,6 +30,7 @@ const viewControlsInputsRef = useTemplateRef<InstanceType<typeof ViewControlInpu
 
 const messageInput = ref('')
 const isComposing = ref(false)
+const backgroundDialogOpen = ref(false)
 
 const screenSafeArea = useScreenSafeArea()
 const providersStore = useProvidersStore()
@@ -130,6 +132,7 @@ onMounted(() => {
 
 <template>
   <div fixed bottom-0 w-full flex flex-col>
+    <AppBackgroundPickerDialog v-model="backgroundDialogOpen" />
     <KeepAlive>
       <Transition name="fade">
         <ChatHistory
@@ -179,6 +182,9 @@ onMounted(() => {
               <div v-if="isDark" i-solar:moon-outline size-5 text="neutral-500 dark:neutral-400" />
               <div v-else i-solar:sun-2-outline size-5 text="neutral-500 dark:neutral-400" />
             </Transition>
+          </button>
+          <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Background" @click="backgroundDialogOpen = true">
+            <div i-solar:gallery-wide-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
           </button>
           <!-- <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Language">
             <div i-solar:earth-outline size-5 text="neutral-500 dark:neutral-400" />
