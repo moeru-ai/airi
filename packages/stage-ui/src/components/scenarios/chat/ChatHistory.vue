@@ -53,7 +53,10 @@ const renderMessages = computed<ChatHistoryMessage[]>(() => {
   if (!props.sending)
     return props.messages
 
-  const streamTs = streaming.value.context?.ts
+  const streamTs = streamingTs.value
+  if (!streamTs)
+    return props.messages
+
   const hasStreamAlready = streamTs && props.messages.some(msg => msg.context?.ts === streamTs)
   if (hasStreamAlready)
     return props.messages
