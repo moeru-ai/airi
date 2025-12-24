@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
+import type { ChatHistoryMessage } from '@proj-airi/stage-ui/components'
 import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -11,7 +12,7 @@ import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/
 import { BasicTextarea, useTheme } from '@proj-airi/ui'
 import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
@@ -24,6 +25,7 @@ const { isDark, toggleDark } = useTheme()
 const hearingDialogOpen = ref(false)
 const chatStore = useChatStore()
 const { messages, sending, streamingMessage } = storeToRefs(chatStore)
+const historyMessages = computed(() => messages.value as unknown as ChatHistoryMessage[])
 
 const viewControlsActiveMode = ref<'x' | 'y' | 'z' | 'scale'>('scale')
 const viewControlsInputsRef = useTemplateRef<InstanceType<typeof ViewControlInputs>>('viewControlsInputs')
@@ -136,14 +138,14 @@ onMounted(() => {
   <div fixed bottom-0 w-full flex flex-col>
     <KeepAlive>
       <Transition name="fade">
-        <ChatHistory
-          v-if="!stageViewControlsEnabled"
-          variant="mobile"
-          :messages="messages"
-          :sending="sending"
-          :streaming-message="streamingMessage"
-          max-w="[calc(100%-3.5rem)]"
-          w-full self-start pb-3 pl-3
+          <ChatHistory
+            v-if="!stageViewControlsEnabled"
+            variant="mobile"
+            :messages="historyMessages"
+            :sending="sending"
+            :streaming-message="streamingMessage"
+            max-w="[calc(100%-3.5rem)]"
+            w-full self-start pb-3 pl-3
           class="chat-history"
           :class="[
             'relative z-20',
