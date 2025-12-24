@@ -33,4 +33,3 @@ Keep upstream docs/snippets in `packages/mediapipe-workshop/references/`.
 The minimal API surface this package uses is summarized in:
 
 - `packages/mediapipe-workshop/references/tasks-vision-api.md`
-

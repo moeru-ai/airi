@@ -42,4 +42,3 @@ const res = pose.detectForVideo(videoEl, nowMs)
 
 - `res.faceLandmarks`: `NormalizedLandmark[][]` (468 landmarks, heavy)
 - For the workshop we treat this as presence-only by default.
-

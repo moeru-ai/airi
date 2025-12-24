@@ -33,4 +33,3 @@ This package is an experimental single-person mocap pipeline for stage-web devto
 - `detectForVideo()` is synchronous; avoid blocking UI:
   - Engine drops frames when backend reports `isBusy()`.
   - Scheduler controls per-task rates (`hz`) to cap work.
-
