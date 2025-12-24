@@ -37,10 +37,16 @@ async function handleSend() {
     return
   }
 
+  const textToSend = messageInput.value
+  const attachmentsToSend = attachments.value.map(({ data, mimeType, type }) => ({ data, mimeType, type }))
+
+  // optimistic clear
+  messageInput.value = ''
+  attachments.value = []
+
   try {
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
-    const attachmentsToSend = attachments.value.map(({ data, mimeType, type }) => ({ data, mimeType, type }))
-    await send(messageInput.value, {
+    await send(textToSend, {
       model: activeModel.value,
       chatProvider: await providersStore.getProviderInstance<ChatProvider>(activeProvider.value),
       providerConfig,
@@ -48,10 +54,15 @@ async function handleSend() {
       tools: widgetsTools,
     })
 
-    // clear after sending
-    messageInput.value = ''
+    attachmentsToSend.forEach(att => URL.revokeObjectURL(att.url))
   }
   catch (error) {
+    // restore on failure
+    messageInput.value = textToSend
+    attachments.value = attachmentsToSend.map(att => ({
+      ...att,
+      url: URL.createObjectURL(new Blob([Uint8Array.from(atob(att.data), c => c.charCodeAt(0))], { type: att.mimeType })),
+    }))
     messages.value.pop()
     messages.value.push({
       role: 'error',

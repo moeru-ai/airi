@@ -22,7 +22,8 @@ import ViewControlInputs from './ViewControls/Inputs.vue'
 
 const { isDark, toggleDark } = useTheme()
 const hearingDialogOpen = ref(false)
-const { messages, sending, streamingMessage } = storeToRefs(useChatStore())
+const chatStore = useChatStore()
+const { messages, sending, streamingMessage } = storeToRefs(chatStore)
 
 const viewControlsActiveMode = ref<'x' | 'y' | 'z' | 'scale'>('scale')
 const viewControlsInputsRef = useTemplateRef<InstanceType<typeof ViewControlInputs>>('viewControlsInputs')
@@ -38,7 +39,7 @@ useResizeObserver(document.documentElement, () => screenSafeArea.update())
 const { themeColorsHueDynamic, stageViewControlsEnabled } = storeToRefs(useSettings())
 const settingsAudioDevice = useSettingsAudioDevice()
 const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(settingsAudioDevice)
-const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = useChatStore()
+const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = chatStore
 const { t } = useI18n()
 const { audioContext } = useAudioContext()
 const { startAnalyzer, stopAnalyzer, volumeLevel } = useAudioAnalyzer()
@@ -59,16 +60,20 @@ async function handleSend() {
     return
   }
 
+  const textToSend = messageInput.value
+  messageInput.value = ''
+
   try {
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
 
-    await send(messageInput.value, {
+    await send(textToSend, {
       chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
       model: activeModel.value,
       providerConfig,
     })
   }
   catch (error) {
+    messageInput.value = textToSend
     messages.value.pop()
     messages.value.push({
       role: 'error',
@@ -110,7 +115,6 @@ watch(hearingDialogOpen, (value) => {
 })
 
 onAfterMessageComposed(async () => {
-  messageInput.value = ''
 })
 
 watch([activeProvider, activeModel], async () => {
