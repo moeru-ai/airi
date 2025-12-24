@@ -29,6 +29,15 @@ export function createAuth(db: Database, env: Env) {
     baseURL: process.env.API_SERVER_URL || 'http://localhost:3000',
     trustedOrigins: ['*'],
 
+    // To skip state-mismatch errors
+    // https://github.com/better-auth/better-auth/issues/4969#issuecomment-3397804378
+    advanced: {
+      defaultCookieAttributes: {
+        sameSite: 'None', // this enables cross-site cookies
+        secure: true, // required for SameSite=None
+      },
+    },
+
     socialProviders: {
       google: {
         clientId: env.AUTH_GOOGLE_CLIENT_ID,
