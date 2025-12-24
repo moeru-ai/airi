@@ -8,6 +8,8 @@ import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
 import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
+import { useMemoryLongTermStore } from '../stores/modules/memory-long-term'
+import { useMemoryShortTermStore } from '../stores/modules/memory-short-term'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
 
@@ -33,6 +35,8 @@ export function useModulesList() {
   const twitterStore = useTwitterStore()
   const minecraftStore = useMinecraftStore()
   const factorioStore = useFactorioStore()
+  const memoryShortTermStore = useMemoryShortTermStore()
+  const memoryLongTermStore = useMemoryLongTermStore()
   const beatSyncState = ref<BeatSyncDetectorState>()
 
   const modulesList = computed<Module[]>(() => [
@@ -78,7 +82,7 @@ export function useModulesList() {
       description: t('settings.pages.modules.memory-short-term.description'),
       icon: 'i-solar:bookmark-bold-duotone',
       to: '/settings/modules/memory-short-term',
-      configured: false,
+      configured: memoryShortTermStore.configured,
       category: 'essential',
     },
     {
@@ -87,7 +91,7 @@ export function useModulesList() {
       description: t('settings.pages.modules.memory-long-term.description'),
       icon: 'i-solar:book-bookmark-bold-duotone',
       to: '/settings/modules/memory-long-term',
-      configured: false,
+      configured: memoryLongTermStore.configured,
       category: 'essential',
     },
     {

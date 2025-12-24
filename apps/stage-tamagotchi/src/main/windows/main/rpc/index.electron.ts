@@ -11,6 +11,7 @@ import { ipcMain } from 'electron'
 import { electronOpenChat, electronOpenMainDevtools, electronOpenSettings, noticeWindowEventa } from '../../../../shared/eventa'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { createAutoUpdaterService, createScreenService, createWindowService } from '../../../services/electron'
+import { setupMemoryDbService } from '../../../services/memory-db'
 import { toggleWindowShow } from '../../shared'
 
 export function setupMainWindowElectronInvokes(params: {
@@ -32,6 +33,7 @@ export function setupMainWindowElectronInvokes(params: {
   createWindowService({ context, window: params.window })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
   createAutoUpdaterService({ context, window: params.window, service: params.autoUpdater })
+  setupMemoryDbService(context)
 
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenSettings, async () => toggleWindowShow(await params.settingsWindow()))
