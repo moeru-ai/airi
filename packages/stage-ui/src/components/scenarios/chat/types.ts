@@ -7,4 +7,8 @@ export interface ChatErrorMessage {
 
 export type ChatHistoryMessage = (ChatMessage | ChatErrorMessage) & {
   slices?: ChatSlices[]
+  context?: {
+    ts?: number
+    [key: string]: unknown
+  }
 }
