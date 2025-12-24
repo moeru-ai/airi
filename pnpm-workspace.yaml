@@ -22,7 +22,7 @@ overrides:
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 
 catalog:
-  '@guiiai/logg': 1.1.0
+  '@guiiai/logg': ^1.2.11
   '@moeru/eslint-config': 0.1.0-beta.14
   '@moeru/std': 0.1.0-beta.14
   '@proj-airi/drizzle-duckdb-wasm': ^0.4.29
