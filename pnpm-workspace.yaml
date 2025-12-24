@@ -23,8 +23,8 @@ overrides:
 
 catalog:
   '@guiiai/logg': 1.1.0
-  '@moeru/eslint-config': 0.1.0-beta.13
-  '@moeru/std': 0.1.0-beta.13
+  '@moeru/eslint-config': 0.1.0-beta.14
+  '@moeru/std': 0.1.0-beta.14
   '@proj-airi/drizzle-duckdb-wasm': ^0.4.29
   '@types/audioworklet': ^0.0.92
   '@xsai-ext/providers-cloud': ^0.4.0-beta.12
@@ -57,6 +57,7 @@ catalogs:
 
 onlyBuiltDependencies:
   - '@discordjs/opus'
+  - '@napi-rs/image'
   - '@ffmpeg-installer/darwin-arm64'
   - '@parcel/watcher'
   - bufferutil
@@ -69,7 +70,6 @@ onlyBuiltDependencies:
   - msw
   - onnxruntime-node
   - protobufjs
-  - sharp
   - simple-git-hooks
   - spawn-sync
   - utf-8-validate
