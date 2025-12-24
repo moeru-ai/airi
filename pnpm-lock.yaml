@@ -7,8 +7,8 @@ settings:
 catalogs:
   default:
     '@guiiai/logg':
-      specifier: 1.1.0
-      version: 1.1.0
+      specifier: ^1.2.11
+      version: 1.2.11
     '@moeru/eslint-config':
       specifier: 0.1.0-beta.14
       version: 0.1.0-beta.14
@@ -369,7 +369,7 @@ importers:
         version: 0.9.0
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.1.0
+        version: 1.2.11
       '@huggingface/transformers':
         specifier: ^3.8.1
         version: 3.8.1
@@ -510,7 +510,7 @@ importers:
         version: 2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8))
       injeca:
         specifier: ^0.1.5
-        version: 0.1.5(@guiiai/logg@1.1.0)(error-stack-parser@2.1.4)(nanoid@5.1.6)
+        version: 0.1.5(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6)
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
@@ -1304,7 +1304,7 @@ importers:
     dependencies:
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.1.0
+        version: 1.2.11
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../server-sdk
@@ -1338,7 +1338,7 @@ importers:
     dependencies:
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.1.0
+        version: 1.2.11
       '@proj-airi/server-shared':
         specifier: workspace:^
         version: link:../server-shared
@@ -2079,7 +2079,7 @@ importers:
     dependencies:
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.1.0
+        version: 1.2.11
       '@proj-airi/server-sdk':
         specifier: workspace:*
         version: link:../../packages/server-sdk
@@ -2110,7 +2110,7 @@ importers:
     devDependencies:
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.1.0
+        version: 1.2.11
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.14
@@ -2153,7 +2153,7 @@ importers:
         version: 0.19.0(@discordjs/opus@0.9.0(encoding@0.1.13))(bufferutil@4.0.9)(ffmpeg-static@5.2.0)(opusscript@0.1.1)(utf-8-validate@5.0.10)
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.1.0
+        version: 1.2.11
       '@huggingface/transformers':
         specifier: ^3.8.1
         version: 3.8.1
@@ -2201,7 +2201,7 @@ importers:
     dependencies:
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.1.0
+        version: 1.2.11
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.14
@@ -2288,7 +2288,7 @@ importers:
         version: 1.2.0(grammy@1.38.4(encoding@0.1.13))
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.1.0
+        version: 1.2.11
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.14
@@ -2397,7 +2397,7 @@ importers:
         version: 3.0.6(@cfworker/json-schema@4.1.1)(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.208.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(deepmerge@4.3.1)(dotenv@17.2.3)(encoding@0.1.13)(hono@4.10.8)(utf-8-validate@5.0.10)(zod@4.2.1)
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.1.0
+        version: 1.2.11
       '@modelcontextprotocol/sdk':
         specifier: ^1.25.1
         version: 1.25.1(@cfworker/json-schema@4.1.1)(hono@4.10.8)(zod@4.2.1)
@@ -4475,8 +4475,8 @@ packages:
     engines: {node: '>=6'}
     hasBin: true
 
-  '@guiiai/logg@1.1.0':
-    resolution: {integrity: sha512-phmHJQFGFy75h0bAQ++/hg+PJ1DDzh3/BSl5akS/i+jXOsl/pVO+Hb5ZxMEWu0hrnZwutMlilc8AqJErRYHpyA==}
+  '@guiiai/logg@1.2.11':
+    resolution: {integrity: sha512-OE4tpTa3NCw/A0YC6TcRD09fLeatpyQ22625syiW7amygCAnHpswIjQRMDLkZnxFTHvleKomBpaXyIsk0qDk3g==}
 
   '@histoire/app@1.0.0-alpha.2':
     resolution: {integrity: sha512-sGQ470fHS965pSFVtALY3sRkgBDQXzhnjshmR9gzIcqs3ZBCW4N1nyA6t7r3X++1cvgJ16ctWKQl/lFERwQLgA==}
@@ -19169,7 +19169,7 @@ snapshots:
       protobufjs: 7.4.0
       yargs: 17.7.2
 
-  '@guiiai/logg@1.1.0':
+  '@guiiai/logg@1.2.11':
     dependencies:
       error-stack-parser: 2.1.4
       pathe: 2.0.3
@@ -28063,12 +28063,12 @@ snapshots:
 
   ini@4.1.3: {}
 
-  injeca@0.1.5(@guiiai/logg@1.1.0)(error-stack-parser@2.1.4)(nanoid@5.1.6):
+  injeca@0.1.5(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6):
     dependencies:
       error-stack-parser: 2.1.4
       nanoid: 5.1.6
     optionalDependencies:
-      '@guiiai/logg': 1.1.0
+      '@guiiai/logg': 1.2.11
 
   ioredis@5.8.2:
     dependencies:
