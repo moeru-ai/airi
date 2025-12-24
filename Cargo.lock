@@ -3874,9 +3874,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.145"
+version = "1.0.146"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "402a6f66d8c709116cf22f558eab210f5a50187f702eb4d7e5ef38d9a7f1c79c"
+checksum = "217ca874ae0207aac254aa02c957ded05585a90892cc8d87f9e5fa49669dadd8"
 dependencies = [
  "itoa",
  "memchr",
@@ -4653,7 +4653,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-ipc-audio-transcription-ort"
-version = "0.8.0-beta.5"
+version = "0.8.0-beta.6"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -4675,7 +4675,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-ipc-audio-vad-ort"
-version = "0.8.0-beta.5"
+version = "0.8.0-beta.6"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -4699,7 +4699,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-mcp"
-version = "0.8.0-beta.5"
+version = "0.8.0-beta.6"
 dependencies = [
  "anyhow",
  "log",
@@ -4713,7 +4713,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-rdev"
-version = "0.8.0-beta.5"
+version = "0.8.0-beta.6"
 dependencies = [
  "anyhow",
  "log",
@@ -4727,7 +4727,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-window-pass-through-on-hover"
-version = "0.8.0-beta.5"
+version = "0.8.0-beta.6"
 dependencies = [
  "anyhow",
  "log",
@@ -4746,7 +4746,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-window-router-link"
-version = "0.8.0-beta.5"
+version = "0.8.0-beta.6"
 dependencies = [
  "anyhow",
  "log",
