@@ -10,9 +10,6 @@ export const authClient = createAuthClient({
   baseURL: API_SERVER_URL,
 
   credentials: 'include',
-  // plugins: [
-  //   jwtClient(),
-  // ],
   fetchOptions: {
     auth: {
       type: 'Bearer',

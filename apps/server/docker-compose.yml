@@ -25,12 +25,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      - DATABASE_URL=postgresql://airi:airi@db:5432/airi
-      - AUTH_GOOGLE_CLIENT_ID=changeme
-      - AUTH_GOOGLE_CLIENT_SECRET=changeme
-      - AUTH_GITHUB_CLIENT_ID=changeme
-      - AUTH_GITHUB_CLIENT_SECRET=changeme
     ports:
       - '3000:3000'
 
