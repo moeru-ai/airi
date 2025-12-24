@@ -18,16 +18,7 @@ export function createAuth(db: Database, env: Env) {
       },
     }),
 
-    // session: {
-    //   cookieCache: {
-    //     enabled: true,
-    //     maxAge: 5 * 60,
-    //     strategy: 'jwt', // or "compact" or "jwe"
-    //   },
-    // },
-
     plugins: [
-      // jwt(),
       bearer(),
     ],
 
@@ -36,17 +27,6 @@ export function createAuth(db: Database, env: Env) {
     },
 
     baseURL: process.env.API_SERVER_URL || 'http://localhost:3000',
-    // trustedOrigins: async (request) => {
-    //   const origin = request.headers.get('origin')
-    //   if (!origin) {
-    //     return []
-    //   }
-    //   const trustedOrigin = getTrustedOrigin(origin)
-    //   if (!trustedOrigin) {
-    //     return []
-    //   }
-    //   return [trustedOrigin]
-    // },
     trustedOrigins: ['*'],
 
     socialProviders: {
