@@ -118,7 +118,6 @@ export function createMediaPipeBackend(
               y: p.y,
               z: p.z,
               visibility: p.visibility,
-              presence: p.presence,
             })),
           }
         }
