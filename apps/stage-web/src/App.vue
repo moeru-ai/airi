@@ -16,6 +16,7 @@ import { RouterView } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
 import { usePWAStore } from './stores/pwa'
+import LagOverlay from './components/Devtools/LagOverlay.vue'
 
 import 'vue-sonner/style.css'
 
@@ -122,6 +123,8 @@ function handleSetupSkipped() {
     @configured="handleSetupConfigured"
     @skipped="handleSetupSkipped"
   />
+
+  <LagOverlay />
 </template>
 
 <style>
