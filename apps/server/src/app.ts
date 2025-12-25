@@ -1,0 +1,99 @@
+import process, { exit } from 'node:process'
+
+import { initLogger, LoggerFormat, LoggerLevel, useLogger } from '@guiiai/logg'
+import { serve } from '@hono/node-server'
+import { Hono } from 'hono'
+import { cors } from 'hono/cors'
+import { logger as honoLogger } from 'hono/logger'
+import { injeca } from 'injeca'
+
+import { createAuth } from './services/auth'
+import { createDrizzle } from './services/db'
+import { parsedEnv } from './services/env'
+import { getTrustedOrigin } from './utils/origin'
+
+async function createApp() {
+  initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
+
+  const resolved = await injeca.resolve({ parsedEnv })
+
+  const logger = useLogger('app').useGlobalConfig()
+  const db = createDrizzle(resolved.parsedEnv.DATABASE_URL)
+  const auth = createAuth(db, resolved.parsedEnv)
+
+  db.execute('SELECT 1')
+    .then(() => {
+      logger.log('Connected to database')
+    })
+    .catch((err) => {
+      logger.withError(err).error('Failed to connect to database')
+      exit(1)
+    })
+
+  const app = new Hono<{
+    Variables: {
+      user: typeof auth.$Infer.Session.user | null
+      session: typeof auth.$Infer.Session.session | null
+    }
+  }>()
+
+  app.use(
+    '/api/auth/*', // or replace with "*" to enable cors for all routes
+    cors({
+      origin(origin: string) {
+        return getTrustedOrigin(origin)
+      },
+      credentials: true,
+    }),
+  )
+
+  app.use(honoLogger())
+
+  app.use('*', async (c, next) => {
+    const session = await auth.api.getSession({ headers: c.req.raw.headers })
+
+    if (!session) {
+      c.set('user', null)
+      c.set('session', null)
+      await next()
+      return
+    }
+
+    c.set('user', session.user)
+    c.set('session', session.session)
+
+    await next()
+  })
+
+  app.get('/session', (c) => {
+    const session = c.get('session')
+    const user = c.get('user')
+
+    if (!user)
+      return c.body(null, 401)
+
+    return c.json({
+      session,
+      user,
+    })
+  })
+
+  // NOTICE: required by better-auth
+  app.on(['POST', 'GET'], '/api/auth/*', (c) => {
+    return auth.handler(c.req.raw)
+  })
+
+  logger.withFields({ port: 3000 }).log('Server started')
+
+  return app
+}
+
+// eslint-disable-next-line antfu/no-top-level-await
+serve(await createApp())
+
+function handleError(error: unknown, type: string) {
+  useLogger().withError(error).error(type)
+}
+
+process.on('uncaughtException', error => handleError(error, 'Uncaught exception'))
+process.on('unhandledRejection', error => handleError(error, 'Unhandled rejection'))

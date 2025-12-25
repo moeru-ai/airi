@@ -1,0 +1,30 @@
+{
+  "name": "@proj-airi/api-server",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "apply:env": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE",
+    "auth:generate": "pnpm run apply:env -- better-auth generate --config src/scripts/auth.ts --output src/schemas/auth.ts -y",
+    "dev": "pnpm run apply:env -- tsx --watch src/app.ts",
+    "start": "tsx src/app.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "pnpm run apply:env -- drizzle-kit push"
+  },
+  "dependencies": {
+    "@dotenvx/dotenvx": "^1.51.1",
+    "@guiiai/logg": "catalog:",
+    "@hono/node-server": "^1.19.6",
+    "better-auth": "^1.4.5",
+    "drizzle-orm": "^0.44.7",
+    "hono": "^4.10.7",
+    "injeca": "catalog:",
+    "postgres": "^3.4.7",
+    "tsx": "^4.21.0",
+    "valibot": "catalog:"
+  },
+  "devDependencies": {
+    "@better-auth/cli": "^1.4.5",
+    "drizzle-kit": "^0.31.7"
+  }
+}
