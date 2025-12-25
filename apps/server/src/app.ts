@@ -75,6 +75,7 @@ function createApp() {
     })
   })
 
+  // NOTICE: required by better-auth
   app.on(['POST', 'GET'], '/api/auth/*', (c) => {
     return auth.handler(c.req.raw)
   })

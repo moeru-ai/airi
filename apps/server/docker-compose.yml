@@ -16,7 +16,7 @@ services:
       timeout: 5s
       retries: 10
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ${serviceName}_data:/var/lib/postgresql/data
 
   server:
     build:
@@ -29,5 +29,5 @@ services:
       - '3000:3000'
 
 volumes:
-  pgdata:
+  db_data:
     driver: local
