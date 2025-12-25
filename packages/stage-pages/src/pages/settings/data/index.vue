@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
-import { DoubleCheckButton } from '@proj-airi/stage-ui/components'
 import { useDataMaintenance } from '@proj-airi/stage-ui/composables/use-data-maintenance'
-import { Button } from '@proj-airi/ui'
+import { Button, DoubleCheckButton } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 

@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/airi-plugin-web-extension",
   "type": "module",
-  "version": "0.8.0-beta.5",
+  "version": "0.8.0-beta.6",
   "private": true,
   "description": "manifest.json description",
   "scripts": {
@@ -21,6 +21,6 @@
     "@unocss/reset": "^66.5.10",
     "@wxt-dev/module-vue": "^1.0.3",
     "vue-tsc": "^3.1.8",
-    "wxt": "^0.20.11"
+    "wxt": "^0.20.13"
   }
 }

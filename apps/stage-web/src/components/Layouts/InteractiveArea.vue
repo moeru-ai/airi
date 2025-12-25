@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import type { ChatHistoryMessage } from '@proj-airi/stage-ui/components'
+
 import { ChatHistory } from '@proj-airi/stage-ui/components'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useDeferredMount } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import ChatActionButtons from '../Widgets/ChatActionButtons.vue'
 import ChatArea from '../Widgets/ChatArea.vue'
@@ -13,6 +15,7 @@ const { isReady } = useDeferredMount()
 const { messages, sending, streamingMessage } = storeToRefs(useChatStore())
 
 const isLoading = ref(true)
+const historyMessages = computed(() => messages.value as unknown as ChatHistoryMessage[])
 </script>
 
 <template>
@@ -29,7 +32,7 @@ const isLoading = ref(true)
         <div w="full" max-h="<md:[60%]" py="<sm:2" flex="~ col" rounded="lg" relative h-full flex-1 overflow-hidden px="2 <md:0" py-4>
           <ChatHistory
             v-if="isReady"
-            :messages="messages"
+            :messages="historyMessages"
             :sending="sending"
             :streaming-message="streamingMessage"
             h-full

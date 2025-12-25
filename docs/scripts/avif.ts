@@ -1,9 +1,9 @@
 import path from 'node:path'
 import process from 'node:process'
 
-import { readdir, readFile, rm, stat } from 'node:fs/promises'
+import { readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 
-import sharp from 'sharp'
+import { Transformer } from '@napi-rs/image'
 
 const SOURCE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp']
 
@@ -21,7 +21,8 @@ async function transform(filePath: string): Promise<any> {
     path.dirname(filePath),
     `${path.basename(filePath, path.extname(filePath))}.avif`,
   )
-  await sharp(await readFile(filePath)).toFile(dist)
+  const avifBuffer = await new Transformer(await readFile(filePath)).avif()
+  await writeFile(dist, avifBuffer)
   await rm(filePath)
   console.info(`√ ${filePath} -> ${dist}`)
 }
@@ -34,9 +35,7 @@ async function main() {
   }
 
   await Promise.all(files.map(f => stat(f)))
-  await Promise.allSettled(
-    files.map(file => transform(file)),
-  )
+  await Promise.allSettled(files.map(file => transform(file)))
 }
 
 main()

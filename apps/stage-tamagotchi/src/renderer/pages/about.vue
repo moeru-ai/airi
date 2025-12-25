@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { UTCDate } from '@date-fns/utc'
-import { DoubleCheckButton, MarkdownRenderer, Progress } from '@proj-airi/stage-ui/components'
-import { Button } from '@proj-airi/ui'
+import { MarkdownRenderer, Progress } from '@proj-airi/stage-ui/components'
+import { Button, DoubleCheckButton } from '@proj-airi/ui'
 import { useMediaQuery } from '@vueuse/core'
 import { abbreviatedSha, branch, committerDate } from '~build/git'
 import { formatISO9075 } from 'date-fns'

@@ -6,15 +6,21 @@ import { createAnimatable } from 'animejs'
 import { onMounted, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import homeBackgroundChristmas20251224 from '../assets/home-cover-2025-12-24-bg.avif'
 // NOTICE: for unknown reasons, without `?no-inline`, the inlined SVG use in the SFC template
 // of `url(...)` doesn't work properly in Vite/Vue, the entire SVG content either got incorrectly
 // cached or erased in dev/prod, causing the mask pattern to not show up.
 import homeBackgroundPatternGhost from '../assets/home-patterns-ghost.svg?no-inline'
 import homeBackgroundPatternLollipop from '../assets/home-patterns-lollipop.svg?no-inline'
 import ParallaxCover from './ParallaxCover.vue'
+import ParallaxCoverChristmas20251224 from './ParallaxCoverChristmas20251224.vue'
 import ParallaxCoverHalloween20251029 from './ParallaxCoverHalloween20251029.vue'
+import Snowfall from './Snowfall.vue'
 
-import { isBetweenHalloweenAndHalfOfNovember } from '../composables/date'
+import {
+  isBetweenChristmasAndHalfOfJanuary,
+  isBetweenHalloweenAndHalfOfNovember,
+} from '../composables/date'
 
 const heroRef = useTemplateRef<HTMLDivElement>('hero')
 
@@ -106,6 +112,19 @@ watchEffect((onCleanup) => {
               >
                 <div i-twemoji:jack-o-lantern />Happy Halloween!<div i-twemoji:jack-o-lantern />
               </div>
+              <div
+                v-if="true || isBetweenChristmasAndHalfOfJanuary(new Date())"
+                :class="[
+                  'w-fit',
+                  'flex items-center gap-2',
+                  'px-4 py-1',
+                  'mb-3 sm:mb-4 lg:mb-8',
+                  'border-3 rounded-full border-white/75 bg-red-300/75 text-neutral-800 dark:border-white/50 dark:bg-red-500/50 dark:text-white',
+                  'text-sm sm:text-base align-middle',
+                ]"
+              >
+                <div i-twemoji:christmas-tree />Merry Christmas!<div i-twemoji:christmas-tree />
+              </div>
               <div :class="[isBetweenHalloweenAndHalfOfNovember(new Date()) ? 'font-sans-serif-halloween' : '']">
                 Project AIRI
               </div>
@@ -165,15 +184,27 @@ watchEffect((onCleanup) => {
         <template v-if="isBetweenHalloweenAndHalfOfNovember(new Date())">
           <div class="bg-icon-pattern pointer-events-none absolute inset-0 z-0 opacity-10 dark:opacity-10" :style="{ '--bg-mask-icon-pattern': `url(${homeBackgroundPatternGhost})` }" />
         </template>
+        <template v-if="isBetweenChristmasAndHalfOfJanuary(new Date())">
+          <img :src="homeBackgroundChristmas20251224" class="pointer-events-none absolute inset-0 z-0 h-full w-full object-cover">
+        </template>
         <template v-else>
           <div class="bg-icon-pattern pointer-events-none absolute inset-0 z-0 opacity-10 dark:opacity-10" :style="{ '--bg-mask-icon-pattern': `url(${homeBackgroundPatternLollipop})` }" />
         </template>
-      </ClientOnly>
-      <!-- Flickering red (even within the color space range) if to top in oklch (UnoCSS or tailwind css default), have to force to use srgb color space to prevent this -->
-      <div class="absolute bottom-0 left-0 right-0 top-0 z-2 h-80% from-transparent to-white bg-gradient-to-t dark:to-[hsl(207_15%_5%)]" style="--un-gradient-shape: to top in srgb;" />
-      <ClientOnly>
+        <!-- Flickering red (even within the color space range) if to top in oklch (UnoCSS or tailwind css default), have to force to use srgb color space to prevent this -->
+        <div
+          :class="[
+            'absolute bottom-0 left-0 right-0 top-0 z-2',
+            'from-transparent to-white bg-gradient-to-t dark:to-[hsl(207_15%_5%)]',
+            isBetweenChristmasAndHalfOfJanuary(new Date()) ? 'h-[40%]' : 'h-[80%]',
+          ]"
+          style="--un-gradient-shape: to top in srgb;"
+        />
         <template v-if="isBetweenHalloweenAndHalfOfNovember(new Date())">
           <ParallaxCoverHalloween20251029 />
+        </template>
+        <template v-else-if="isBetweenChristmasAndHalfOfJanuary(new Date())">
+          <Snowfall />
+          <ParallaxCoverChristmas20251224 />
         </template>
         <template v-else>
           <ParallaxCover />
@@ -182,7 +213,7 @@ watchEffect((onCleanup) => {
     </div>
 
     <footer class="fixed bottom-3 left-1/2 z-40 flex justify-end -translate-x-1/2">
-      <div class="rounded-full bg-white/80 px-3 py-2 text-sm text-slate-400 backdrop-blur-md dark:bg-white/20 dark:text-slate-900" text="nowrap">
+      <div class="rounded-full bg-white/80 px-3 py-2 text-sm text-slate-700 backdrop-blur-md dark:bg-white/20 dark:text-slate-900" text="nowrap">
         Since 2024 @ <a href="https://github.com/proj-airi">Project AIRI</a> × <a href="https://github.com/moeru-ai">萌える AI 研究会</a>
       </div>
     </footer>

@@ -2,10 +2,7 @@ import type { GenerateTextOptions } from '@xsai/generate-text'
 import type { Bot } from 'grammy'
 import type { Message, Sticker } from 'grammy/types'
 
-import { Buffer } from 'node:buffer'
 import { env } from 'node:process'
-
-import Sharp from 'sharp'
 
 import { useLogg } from '@guiiai/logg'
 import { embed } from '@xsai/embed'
@@ -15,6 +12,7 @@ import { message } from '@xsai/utils-chat'
 import { findStickerDescription, recordSticker } from '../models'
 import { div, span } from '../prompts/utils'
 import { interpretAnimatedSticker } from './animated-sticker'
+import { toPngBase64 } from './image'
 
 export async function interpretSticker(bot: Bot, msg: Message, sticker: Sticker) {
   const logger = useLogg('interpretSticker').useGlobalConfig()
@@ -39,7 +37,7 @@ export async function interpretSticker(bot: Bot, msg: Message, sticker: Sticker)
     const file = await bot.api.getFile(sticker.file_id)
     const stickerRes = await fetch(`https://api.telegram.org/file/bot${bot.api.token}/${file.file_path}`)
     const buffer = await stickerRes.arrayBuffer()
-    const stickerBase64 = Buffer.from(await Sharp(buffer).resize(512, 512).png().toBuffer()).toString('base64')
+    const stickerBase64 = await toPngBase64(buffer)
 
     const req = {
       apiKey: env.LLM_VISION_API_KEY!,

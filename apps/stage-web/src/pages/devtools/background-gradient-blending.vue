@@ -32,9 +32,6 @@ const mode = ref<'vibrant' | 'html2canvas'>('vibrant')
 const imageRef = useTemplateRef<HTMLDivElement>('imageRef')
 const canvasRef = useTemplateRef<HTMLCanvasElement>('canvas')
 
-// Theme color integration
-const { updateThemeColor } = useThemeColor(() => dominantColor.value)
-
 // Computed gradient for top bar blending
 const topBar = computed(() => {
   if (mode.value === 'vibrant') {
@@ -46,6 +43,9 @@ const topBar = computed(() => {
 
   return ''
 })
+
+// Theme color integration
+const { updateThemeColor } = useThemeColor(() => topBar.value)
 
 async function refreshColors() {
   if (!imageRef.value || images.value.length === 0) {
@@ -131,8 +131,6 @@ onUnmounted(() => {
           Top Area
         </div>
       </div>
-
-      <div class="transparent-gradient-overlay absolute inset-0 h-[calc((1lh+1rem+1rem)*2)] w-full" :style="{ background: topBar }" />
 
       <img
         ref="imageRef"
@@ -220,21 +218,4 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/*
-DO NOT ATTEMPT TO USE backdrop-filter TOGETHER WITH mask-image.
-
-html - Why doesn't blur backdrop-filter work together with mask-image? - Stack Overflow
-https://stackoverflow.com/questions/72780266/why-doesnt-blur-backdrop-filter-work-together-with-mask-image
-*/
-.transparent-gradient-overlay {
-  --gradient: linear-gradient(to top, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 50%);
-  -webkit-mask-image: var(--gradient);
-  mask-image: var(--gradient);
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: bottom;
-  mask-position: bottom;
-}
 </style>

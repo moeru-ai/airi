@@ -7,6 +7,11 @@ defineProps<{
   description?: string
 }>()
 
+defineSlots<{
+  topRight?: any
+  bottomRight?: any
+}>()
+
 const modelValue = defineModel<string>({ required: true })
 </script>
 
@@ -77,6 +82,14 @@ const modelValue = defineModel<string>({ required: true })
       absolute inset-0 z--1
       style="background-size: 10px 10px; mask-image: linear-gradient(165deg, white 30%, transparent 50%);"
     />
+
+    <div v-if="$slots.topRight" class="absolute right-2 top-2 z-10">
+      <slot name="topRight" />
+    </div>
+
+    <div v-if="$slots.bottomRight" class="absolute bottom-2 right-2 z-10">
+      <slot name="bottomRight" />
+    </div>
   </label>
 </template>
 

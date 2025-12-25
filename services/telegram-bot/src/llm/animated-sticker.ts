@@ -11,7 +11,6 @@ import { env } from 'node:process'
 
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg'
 import ffmpeg from 'fluent-ffmpeg'
-import Sharp from 'sharp'
 
 import { useLogg } from '@guiiai/logg'
 import { generateText } from '@xsai/generate-text'
@@ -19,6 +18,7 @@ import { message } from '@xsai/utils-chat'
 
 import { findStickerDescription, recordSticker } from '../models'
 import { div, span, ul } from '../prompts/utils'
+import { toPngBase64FromFile } from './image'
 
 // Set path to FFmpeg binaries
 ffmpeg.setFfmpegPath(ffmpegInstaller.path)
@@ -88,17 +88,10 @@ export async function interpretAnimatedSticker(bot: Bot, msg: Message, sticker: 
     logger.withField('sampled', sampled).log('Sampled frames')
 
     // Process frames with Sharp
-    const frames = await Promise.all(sampled.map(async (framePath, index) => {
-      const frameBuffer = await Sharp(framePath)
-        .resize(512, 512)
-        .png()
-        .toBuffer()
-      return {
-        index,
-        buffer: frameBuffer,
-        base64: Buffer.from(frameBuffer).toString('base64'),
-      }
-    }))
+    const frames = await Promise.all(sampled.map(async (framePath, index) => ({
+      index,
+      base64: await toPngBase64FromFile(framePath),
+    })))
     logger.withField('sampled_frames', sampled).log('Normalized the frames')
 
     // STAGE 1: Process each frame individually

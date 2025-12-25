@@ -7,3 +7,11 @@ export function isBetweenHalloweenAndHalfOfNovember(date: Date) {
 
   return isAfter(date, halloween) && isBefore(date, halfOfNovember)
 }
+
+export function isBetweenChristmasAndHalfOfJanuary(date: Date) {
+  const year = date.getFullYear()
+  const christmas = new Date(year, 11, 20) // December 20
+  const halfOfJanuary = new Date(year + 1, 0, 10) // January 10 of the next year
+
+  return isAfter(date, christmas) && isBefore(date, halfOfJanuary)
+}

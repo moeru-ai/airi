@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/docs",
   "type": "module",
-  "version": "0.8.0-beta.5",
+  "version": "0.8.0-beta.6",
   "private": true,
   "scripts": {
     "build": "vitepress build",
@@ -41,6 +41,7 @@
     "@intlify/unplugin-vue-i18n": "^11.0.1",
     "@mdit/plugin-footnote": "^0.22.3",
     "@mdit/plugin-tasklist": "^0.22.2",
+    "@napi-rs/image": "^1.9.1",
     "@proj-airi/stage-ui": "workspace:^",
     "@radix-ui/colors": "^3.0.0",
     "@types/hast": "^3.0.4",
@@ -54,7 +55,6 @@
     "markdown-it-anchor": "^9.2.0",
     "minisearch": "^7.2.0",
     "postcss": "^8.5.6",
-    "sharp": "^0.34.5",
     "shiki": "^3.20.0",
     "tinyglobby": "^0.2.15",
     "tsx": "^4.21.0",
