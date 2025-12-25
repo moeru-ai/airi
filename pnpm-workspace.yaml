@@ -57,8 +57,8 @@ catalogs:
 
 onlyBuiltDependencies:
   - '@discordjs/opus'
-  - '@napi-rs/image'
   - '@ffmpeg-installer/darwin-arm64'
+  - '@napi-rs/image'
   - '@parcel/watcher'
   - bufferutil
   - core-js
@@ -67,6 +67,7 @@ onlyBuiltDependencies:
   - es5-ext
   - esbuild
   - ffmpeg-static
+  - less
   - msw
   - onnxruntime-node
   - protobufjs
