@@ -130,6 +130,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
 })
 
 onMounted(() => {
+  // TODO: move this to pinia store with `initialize(...)` action.  
   // Fetch session, ignore errors
   fetchSession().catch(() => {})
 })

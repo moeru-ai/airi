@@ -5,8 +5,7 @@ import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { toast } from 'vue-sonner'
 
-import { doRequest } from '../../composables/api'
-import { authClient } from '../../composables/auth'
+import { listSessions, signOut } from '../../composables/auth'
 import { useAuthStore } from '../../stores/auth'
 
 const authStore = useAuthStore()
@@ -22,23 +21,26 @@ onClickOutside(dropdownRef, () => {
 })
 
 function handleLogout() {
-  authClient.signOut()
+  signOut()
 }
 
-function handleListSessions() {
-  doRequest('/session')
-    .then((response) => {
-      toast.success(`You have ${response.data.length} active sessions.`)
-    })
-    .catch((error) => {
-      toast.error(error instanceof Error ? error.message : 'An unknown error occurred')
-    })
+async function handleListSessions() {
+  try {
+    const { data: sessions } = await listSessions()
+    if (sessions) {
+      toast.success(`You have ${sessions.length} active sessions.`)
+    }
+  }
+  catch (error) {
+    toast.error(error instanceof Error ? error.message : 'An unknown error occurred')
+  }
 }
 </script>
 
 <template>
   <div flex items-center gap-2>
     <!-- Non-authenticated: Settings & Login -->
+    <!-- NOTICE: The avatar is stored in the localstorage, it will be shown at the first time of the page load, so we do not need the skeleton loading here -->
     <template v-if="!isAuthenticated">
       <RouterLink
         border="2 solid neutral-100/60 dark:neutral-800/30"
