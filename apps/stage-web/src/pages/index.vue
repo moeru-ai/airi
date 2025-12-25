@@ -23,6 +23,8 @@ import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 
+import { fetchSession } from '../composables/auth'
+
 const paused = ref(false)
 
 function handleSettingsOpen(open: boolean) {
@@ -166,6 +168,12 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
       console.error('Failed to start VAD with stream:', e)
     }
   }
+})
+
+onMounted(() => {
+  // TODO: move this to pinia store with `initialize(...)` action.
+  // Fetch session, ignore errors
+  fetchSession().catch(() => {})
 })
 </script>
 
