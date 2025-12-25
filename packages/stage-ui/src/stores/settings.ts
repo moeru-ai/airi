@@ -237,7 +237,10 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   })
 
   onMounted(() => {
-    if (selectedAudioInputEnabledPersist.value && selectedAudioInputPersist.value) {
+    const hasSelectedInput = selectedAudioInputPersist.value
+      && audioInputs.value.some(device => device.deviceId === selectedAudioInputPersist.value)
+
+    if (selectedAudioInputEnabledPersist.value && hasSelectedInput) {
       startStream()
     }
     if (selectedAudioInputNonPersist.value && !selectedAudioInputEnabledPersist.value) {

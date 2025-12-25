@@ -218,6 +218,7 @@ function createAnthropic(apiKey: string, baseURL: string = 'https://api.anthropi
 export const useProvidersStore = defineStore('providers', () => {
   const providerCredentials = useLocalStorage<Record<string, Record<string, unknown>>>('settings/credentials/providers', {})
   const addedProviders = useLocalStorage<Record<string, boolean>>('settings/providers/added', {})
+  const providerInstanceCache = ref<Record<string, unknown>>({})
   const { t } = useI18n()
   const baseUrlValidator = computed(() => (baseUrl: unknown) => {
     let msg = ''
@@ -904,9 +905,17 @@ export const useProvidersStore = defineStore('providers', () => {
         const provider = createAliyunNlsStreamProvider(accessKeyId, accessKeySecret, appKey, { region: resolvedRegion })
 
         return {
-          transcription(model: string, extraOptions?: AliyunRealtimeSpeechExtraOptions) {
-            return provider.speech(model, extraOptions)
-          },
+          transcription: (model: string, extraOptions?: AliyunRealtimeSpeechExtraOptions) => provider.speech(model, {
+            ...extraOptions,
+            sessionOptions: {
+              format: 'pcm',
+              sample_rate: 16000,
+              enable_punctuation_prediction: true,
+              enable_intermediate_result: true,
+              enable_words: true,
+              ...extraOptions?.sessionOptions,
+            },
+          }),
         } as TranscriptionProviderWithExtraOptions<string, AliyunRealtimeSpeechExtraOptions>
       },
       capabilities: {
@@ -1875,16 +1884,17 @@ export const useProvidersStore = defineStore('providers', () => {
     },
   }
 
+  // const validatedCredentials = ref<Record<string, string>>({})
+  const providerRuntimeState = ref<Record<string, ProviderRuntimeState>>({})
+
   const configuredProviders = computed(() => {
     const result: Record<string, boolean> = {}
     for (const [key, state] of Object.entries(providerRuntimeState.value)) {
       result[key] = state.isConfigured
     }
+
     return result
   })
-
-  // const validatedCredentials = ref<Record<string, string>>({})
-  const providerRuntimeState = ref<Record<string, ProviderRuntimeState>>({})
 
   function markProviderAdded(providerId: string) {
     addedProviders.value[providerId] = true
@@ -2107,6 +2117,9 @@ export const useProvidersStore = defineStore('providers', () => {
     )
 
     for (const providerId of changedProviders) {
+      // Since credentials changed, dispose the cached instance so new creds take effect.
+      void disposeProviderInstance(providerId)
+
       // If the provider is configured and has the capability, refetch its models
       if (providerRuntimeState.value[providerId]?.isConfigured && providerMetadata[providerId]?.capabilities.listModels) {
         fetchModelsForProvider(providerId)
@@ -2160,6 +2173,10 @@ export const useProvidersStore = defineStore('providers', () => {
   | TranscriptionProvider
   | TranscriptionProviderWithExtraOptions,
   >(providerId: string): Promise<R> {
+    const cached = providerInstanceCache.value[providerId] as R | undefined
+    if (cached)
+      return cached
+
     const config = providerCredentials.value[providerId]
     if (!config)
       throw new Error(`Provider credentials for ${providerId} not found`)
@@ -2169,12 +2186,22 @@ export const useProvidersStore = defineStore('providers', () => {
       throw new Error(`Provider metadata for ${providerId} not found`)
 
     try {
-      return await metadata.createProvider(config) as R
+      const instance = await metadata.createProvider(config) as R
+      providerInstanceCache.value[providerId] = instance
+      return instance
     }
     catch (error) {
       console.error(`Error creating provider instance for ${providerId}:`, error)
       throw error
     }
+  }
+
+  async function disposeProviderInstance(providerId: string) {
+    const instance = providerInstanceCache.value[providerId] as { dispose?: () => Promise<void> | void } | undefined
+    if (instance?.dispose)
+      await instance.dispose()
+
+    delete providerInstanceCache.value[providerId]
   }
 
   const availableProvidersMetadata = computedAsync<ProviderMetadata[]>(async () => {
@@ -2273,6 +2300,7 @@ export const useProvidersStore = defineStore('providers', () => {
     allAvailableModels,
     loadModelsForConfiguredProviders,
     getProviderInstance,
+    disposeProviderInstance,
     resetProviderSettings,
     forceProviderConfigured,
     availableProvidersMetadata,
