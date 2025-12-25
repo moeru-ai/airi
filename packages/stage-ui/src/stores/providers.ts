@@ -1609,7 +1609,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'novita.ai',
       defaultBaseUrl: 'https://api.novita.ai/openai/',
       creator: createNovita,
-      validation: ['health', 'model_list', 'chat_completions'],
+      validation: ['health', 'model_list'],
       iconColor: 'i-lobe-icons:novita',
     }),
     'fireworks-ai': buildOpenAICompatibleProvider({
@@ -1721,7 +1721,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'modelscope',
       defaultBaseUrl: 'https://api-inference.modelscope.cn/v1/',
       creator: createOpenAI,
-      validation: ['health', 'model_list', 'chat_completions'],
+      validation: ['health', 'model_list'],
       iconColor: 'i-lobe-icons:modelscope',
     }),
     'player2': {
