@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { MediaPipeAssetsConfig, PerceptionState, Vec3, VrmPoseTargets } from '@proj-airi/mediapipe-workshop'
+import type { MediaPipeAssetsConfig, PerceptionState, Vec3, VrmPoseTargets } from '@proj-airi/model-driver-mediapipe'
 
-import { createMediaPipeBackend, createMocapEngine, createVrmPoseApplier, DEFAULT_MEDIAPIPE_ASSETS, drawOverlay, poseToVrmTargets, WORKSHOP_NAME } from '@proj-airi/mediapipe-workshop'
+import { createMediaPipeBackend, createMocapEngine, createVrmPoseApplier, DEFAULT_MEDIAPIPE_ASSETS, drawOverlay, poseToVrmTargets, WORKSHOP_NAME } from '@proj-airi/model-driver-mediapipe'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
