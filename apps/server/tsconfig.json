@@ -8,6 +8,8 @@
       "ESNext"
     ],
     "useDefineForClassFields": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "types": [
       "vitest",

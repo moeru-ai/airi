@@ -1,3 +1,7 @@
+import { env } from 'node:process'
+
+import { injeca } from 'injeca'
+
 export interface Env {
   DATABASE_URL: string
   AUTH_GOOGLE_CLIENT_ID: string
@@ -6,12 +10,14 @@ export interface Env {
   AUTH_GITHUB_CLIENT_SECRET: string
 }
 
-export function parseEnv(env: any): Env {
+export function parseEnv(inputEnv: Record<string, string> | typeof env): Env {
   return {
-    DATABASE_URL: env.DATABASE_URL,
-    AUTH_GOOGLE_CLIENT_ID: env.AUTH_GOOGLE_CLIENT_ID,
-    AUTH_GOOGLE_CLIENT_SECRET: env.AUTH_GOOGLE_CLIENT_SECRET,
-    AUTH_GITHUB_CLIENT_ID: env.AUTH_GITHUB_CLIENT_ID,
-    AUTH_GITHUB_CLIENT_SECRET: env.AUTH_GITHUB_CLIENT_SECRET,
+    DATABASE_URL: inputEnv.DATABASE_URL!,
+    AUTH_GOOGLE_CLIENT_ID: inputEnv.AUTH_GOOGLE_CLIENT_ID!,
+    AUTH_GOOGLE_CLIENT_SECRET: inputEnv.AUTH_GOOGLE_CLIENT_SECRET!,
+    AUTH_GITHUB_CLIENT_ID: inputEnv.AUTH_GITHUB_CLIENT_ID!,
+    AUTH_GITHUB_CLIENT_SECRET: inputEnv.AUTH_GITHUB_CLIENT_SECRET!,
   }
 }
+
+export const parsedEnv = injeca.provide('env', () => parseEnv(env))

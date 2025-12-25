@@ -1,18 +1,20 @@
-import process from 'node:process'
+import process, { exit } from 'node:process'
 
 import { initLogger, LoggerFormat, LoggerLevel, useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
+import { injeca } from 'injeca'
 
 import { createAuth } from './services/auth'
 import { createDrizzle } from './services/db'
-import { parseEnv } from './services/env'
+import { parsedEnv } from './services/env'
 import { getTrustedOrigin } from './utils/origin'
 
-function createApp() {
+async function createApp() {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
+  const resolved = await injeca.resolve({ parsedEnv })
 
   const app = new Hono<{
     Variables: {
@@ -20,11 +22,10 @@ function createApp() {
       session: typeof auth.$Infer.Session.session | null
     }
   }>()
-  const env = parseEnv(process.env)
 
   const logger = useLogger('app').useGlobalConfig()
-  const db = createDrizzle(env.DATABASE_URL)
-  const auth = createAuth(db, env)
+  const db = createDrizzle(resolved.parsedEnv.DATABASE_URL)
+  const auth = createAuth(db, resolved.parsedEnv)
 
   db.execute('SELECT 1')
     .then(() => {
@@ -32,7 +33,7 @@ function createApp() {
     })
     .catch((err) => {
       logger.withError(err).error('Failed to connect to database')
-      process.exit(1)
+      exit(1)
     })
 
   app.use(
@@ -59,6 +60,7 @@ function createApp() {
 
     c.set('user', session.user)
     c.set('session', session.session)
+
     await next()
   })
 
@@ -85,7 +87,8 @@ function createApp() {
   return app
 }
 
-serve(createApp())
+// eslint-disable-next-line antfu/no-top-level-await
+serve(await createApp())
 
 function handleError(error: unknown, type: string) {
   useLogger().withError(error).error(type)
