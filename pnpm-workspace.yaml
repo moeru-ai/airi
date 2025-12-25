@@ -1,7 +1,6 @@
 catalogMode: prefer
 
 shellEmulator: true
-
 packages:
   - packages/**
   - plugins/**
@@ -49,6 +48,7 @@ catalog:
   posthog-js: 1.306.1
   uncrypto: ^0.1.3
   unplugin-info: 1.2.4
+  valibot: ^1.2.0
   xsschema: ^0.4.0-beta.12
 
 catalogs:

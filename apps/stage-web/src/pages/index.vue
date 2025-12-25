@@ -22,6 +22,7 @@ import MobileHeader from '../components/Layouts/MobileHeader.vue'
 import MobileInteractiveArea from '../components/Layouts/MobileInteractiveArea.vue'
 
 import { BackgroundProvider } from '../components/Backgrounds'
+import { fetchSession } from '../composables/auth'
 import { useBackgroundThemeColor } from '../composables/theme-color'
 import { useBackgroundStore } from '../stores/background'
 
@@ -168,6 +169,12 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
       console.error('Failed to start VAD with stream:', e)
     }
   }
+})
+
+onMounted(() => {
+  // TODO: move this to pinia store with `initialize(...)` action.  
+  // Fetch session, ignore errors
+  fetchSession().catch(() => {})
 })
 </script>
 
