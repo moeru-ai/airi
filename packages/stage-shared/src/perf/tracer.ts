@@ -24,14 +24,17 @@ export interface PerfTracer {
 
 export function createPerfTracer(): PerfTracer {
   let enabled = false
+  let leaseCount = 0
   const subscribers = new Set<TraceSubscriber>()
 
   function enable() {
-    enabled = true
+    leaseCount += 1
+    enabled = leaseCount > 0
   }
 
   function disable() {
-    enabled = false
+    leaseCount = Math.max(0, leaseCount - 1)
+    enabled = leaseCount > 0
   }
 
   function subscribe(subscriber: TraceSubscriber) {

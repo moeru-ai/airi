@@ -10,6 +10,7 @@ import RemarkParse from 'remark-parse'
 import RemarkRehype from 'remark-rehype'
 
 import { unified } from 'unified'
+import { defaultPerfTracer } from '@proj-airi/stage-shared'
 
 // Define a specific, compatible type for our processor to ensure type safety.
 type MarkdownProcessor = Processor<any, any, any, any, string>
@@ -69,37 +70,58 @@ export function useMarkdown() {
 
   return {
     process: async (markdown: string): Promise<string> => {
-      try {
-        // A quick check for code fences. If none, use the fast fallback.
-        if (!/`{3,}/.test(markdown))
-          return fallbackProcessor.processSync(markdown).toString()
+      const hasCodeFence = /`{3,}/.test(markdown)
+      const meta = { length: markdown.length, hasCodeFence }
 
-        const langs = extractLangs(markdown)
+      return defaultPerfTracer.withMeasure('markdown', 'process', async () => {
+        try {
+          // A quick check for code fences. If none, use the fast fallback.
+          if (!hasCodeFence) {
+            return defaultPerfTracer.withMeasure('markdown', 'process.fallback', () => {
+              return fallbackProcessor.processSync(markdown).toString()
+            }, meta)
+          }
 
-        // Always ensure 'python' is loaded as it's our default.
-        const langSet = new Set(langs)
-        langSet.add('python')
-        const languagesToLoad = Array.from(langSet)
+          const langs = extractLangs(markdown)
 
-        const processor = await getProcessor(languagesToLoad)
-        const result = await processor.process(markdown)
-        return result.toString()
-      }
-      catch (error) {
-        console.warn(
-          'Failed to process markdown with syntax highlighting, falling back to basic processing:',
-          error,
-        )
-        // Fallback to basic processor without highlighting
-        return fallbackProcessor.processSync(markdown).toString()
-      }
+          // Always ensure 'python' is loaded as it's our default.
+          const langSet = new Set(langs)
+          langSet.add('python')
+          const languagesToLoad = Array.from(langSet)
+
+          const processor = await getProcessor(languagesToLoad)
+          const result = await defaultPerfTracer.withMeasure('markdown', 'process.shiki', () => processor.process(markdown), meta)
+          return result.toString()
+        }
+        catch (error) {
+          console.warn(
+            'Failed to process markdown with syntax highlighting, falling back to basic processing:',
+            error,
+          )
+          // Fallback to basic processor without highlighting
+          return defaultPerfTracer.withMeasure('markdown', 'process.fallback', () => {
+            return fallbackProcessor.processSync(markdown).toString()
+          }, { ...meta, fallback: true })
+        }
+      }, meta)
     },
 
     // Synchronous version for backward compatibility
     processSync: (markdown: string): string => {
-      return fallbackProcessor
+      const start = performance.now()
+      const output = fallbackProcessor
         .processSync(markdown)
         .toString()
+
+      defaultPerfTracer.emit({
+        tracerId: 'markdown',
+        name: 'process.sync',
+        ts: start,
+        duration: performance.now() - start,
+        meta: { length: markdown.length },
+      })
+
+      return output
     },
   }
 }
