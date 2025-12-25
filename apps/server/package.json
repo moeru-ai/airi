@@ -19,7 +19,8 @@
     "hono": "^4.10.7",
     "injeca": "catalog:",
     "postgres": "^3.4.7",
-    "tsx": "^4.21.0"
+    "tsx": "^4.21.0",
+    "valibot": "catalog:"
   },
   "devDependencies": {
     "@better-auth/cli": "^1.4.5",

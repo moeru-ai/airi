@@ -1,22 +1,28 @@
-import { env } from 'node:process'
+import type { InferOutput } from 'valibot'
 
+import { env, exit } from 'node:process'
+
+import { useLogger } from '@guiiai/logg'
 import { injeca } from 'injeca'
+import { nonEmpty, object, parse, pipe, string } from 'valibot'
 
-export interface Env {
-  DATABASE_URL: string
-  AUTH_GOOGLE_CLIENT_ID: string
-  AUTH_GOOGLE_CLIENT_SECRET: string
-  AUTH_GITHUB_CLIENT_ID: string
-  AUTH_GITHUB_CLIENT_SECRET: string
-}
+const EnvSchema = object({
+  DATABASE_URL: pipe(string(), nonEmpty('DATABASE_URL is required')),
+  AUTH_GOOGLE_CLIENT_ID: pipe(string(), nonEmpty('AUTH_GOOGLE_CLIENT_ID is required')),
+  AUTH_GOOGLE_CLIENT_SECRET: pipe(string(), nonEmpty('AUTH_GOOGLE_CLIENT_SECRET is required')),
+  AUTH_GITHUB_CLIENT_ID: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_ID is required')),
+  AUTH_GITHUB_CLIENT_SECRET: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_SECRET is required')),
+})
+
+export type Env = InferOutput<typeof EnvSchema>
 
 export function parseEnv(inputEnv: Record<string, string> | typeof env): Env {
-  return {
-    DATABASE_URL: inputEnv.DATABASE_URL!,
-    AUTH_GOOGLE_CLIENT_ID: inputEnv.AUTH_GOOGLE_CLIENT_ID!,
-    AUTH_GOOGLE_CLIENT_SECRET: inputEnv.AUTH_GOOGLE_CLIENT_SECRET!,
-    AUTH_GITHUB_CLIENT_ID: inputEnv.AUTH_GITHUB_CLIENT_ID!,
-    AUTH_GITHUB_CLIENT_SECRET: inputEnv.AUTH_GITHUB_CLIENT_SECRET!,
+  try {
+    return parse(EnvSchema, inputEnv)
+  }
+  catch (err) {
+    useLogger().withError(err).error('Invalid environment variables')
+    exit(1)
   }
 }
 

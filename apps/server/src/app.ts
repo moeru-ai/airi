@@ -14,14 +14,8 @@ import { getTrustedOrigin } from './utils/origin'
 
 async function createApp() {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
-  const resolved = await injeca.resolve({ parsedEnv })
 
-  const app = new Hono<{
-    Variables: {
-      user: typeof auth.$Infer.Session.user | null
-      session: typeof auth.$Infer.Session.session | null
-    }
-  }>()
+  const resolved = await injeca.resolve({ parsedEnv })
 
   const logger = useLogger('app').useGlobalConfig()
   const db = createDrizzle(resolved.parsedEnv.DATABASE_URL)
@@ -35,6 +29,13 @@ async function createApp() {
       logger.withError(err).error('Failed to connect to database')
       exit(1)
     })
+
+  const app = new Hono<{
+    Variables: {
+      user: typeof auth.$Infer.Session.user | null
+      session: typeof auth.$Infer.Session.session | null
+    }
+  }>()
 
   app.use(
     '/api/auth/*', // or replace with "*" to enable cors for all routes
