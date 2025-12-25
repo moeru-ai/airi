@@ -38,7 +38,7 @@ preview-cover:
   - xAI 的 Grok Ani
   - 不错的场景 [gogh](https://store.steampowered.com/app/3213850/gogh/)
   - 还有好的社区与音乐，[Chill with You](https://store.steampowered.com/app/3548580/LoFi/)
-  - 我们还有一份列表：https://github.com/proj-airi/awesome-ai-vtubers，可以关注更多类似项目
+  - 我们还有一份列表：https://github.com/proj-airi/awesome-ai-vtubers ，可以关注更多类似项目
 4. Discord 成员超过 3400+
 
 感谢你们在这一年里与我们一起构建、测试和做梦。愿你的假期平静、热可可香甜。🎁
