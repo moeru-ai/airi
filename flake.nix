@@ -42,7 +42,7 @@
               nixfmt-rfc-style
               nixfmt-tree
               pnpm
-              python3
+              python314
             ];
           };
         }
