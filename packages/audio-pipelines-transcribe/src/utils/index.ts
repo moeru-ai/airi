@@ -1,3 +1,5 @@
+import { tryCatch } from '@moeru/std'
+
 export async function mediaStreamFromAudioFile(file: File): Promise<{
   cleanup: () => Promise<void>
   stream: MediaStream
@@ -14,7 +16,9 @@ export async function mediaStreamFromAudioFile(file: File): Promise<{
   source.connect(audioContext.destination)
 
   source.start(0)
-  await audioContext.resume()
+  await tryCatch(async () => {
+    await audioContext.resume()
+  })
 
   return {
     stream: destination.stream,
