@@ -24,7 +24,7 @@ dialogs:
     skipForNow: 先略過
     saveAndContinue: 儲存並繼續
     next: 下一步
-    retry: 重試
+    retry: Retry
     start: 開始吧！
     select-model: 選擇模型
     no-models: 找不到可用的模型
@@ -263,9 +263,9 @@ pages:
             custom_model_placeholder: 輸入自訂模型名稱
             description: 為意識選擇合適的 LLM 服務來源
             error: 取得發生錯誤
-            health_check_failed: 健康檢查失敗
-            no_providers_configured_title: 未設定服務來源
-            no_providers_configured_description: 點擊此處設定你的 LLM 服務來源
+            health_check_failed: Health check failed
+            no_providers_configured_title: No Providers Configured
+            no_providers_configured_description: Click here to set up your LLM providers
             expand: 展開
             loading: 載入模型中...
             manual_model_name: 模型名稱
