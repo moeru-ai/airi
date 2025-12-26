@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatHistoryMessage } from '@proj-airi/stage-ui/components'
+import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
 import { ChatHistory } from '@proj-airi/stage-ui/components'
@@ -155,7 +155,7 @@ onAfterMessageComposed(async () => {
   attachments.value = []
 })
 
-const historyMessages = computed(() => messages.value as unknown as ChatHistoryMessage[])
+const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 </script>
 
 <template>

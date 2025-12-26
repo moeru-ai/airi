@@ -33,7 +33,9 @@
     "./workers/*": "./src/workers/*.ts",
     "./workers": "./src/workers/index.ts",
     "./utils": "./src/utils/index.ts",
-    "./utils/tts": "./src/utils/tts.ts"
+    "./utils/tts": "./src/utils/tts.ts",
+    "./types/*": "./src/types/*.ts",
+    "./types": "./src/types/index.ts"
   },
   "scripts": {
     "typecheck": "vue-tsc --noEmit",
