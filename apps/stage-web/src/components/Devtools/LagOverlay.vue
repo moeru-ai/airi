@@ -60,7 +60,7 @@ function toggleRecording() {
   <div
     v-if="hasAnyEnabled"
     :style="{ opacity: hovered ? 1 : 0.3 }"
-    class="fixed right-3 top-3 z-50"
+    class="fixed bottom-3 left-3 z-50"
     p-3
     flex="~ col gap-2"
     rounded="xl"
@@ -77,7 +77,7 @@ function toggleRecording() {
       </div>
       <button
         type="button"
-        class="inline-flex items-center gap-1 rounded px-2 py-1 text-xs bg-white/10 hover:bg-white/20 transition-colors"
+        class="inline-flex items-center gap-1 rounded bg-white/10 px-2 py-1 text-xs transition-colors hover:bg-white/20"
         @click="toggleRecording"
       >
         <span
@@ -102,7 +102,7 @@ function toggleRecording() {
           </template>
         </span>
       </div>
-      <div class="h-10 rounded bg-white/5 px-1 py-1 flex items-end gap-0.5 overflow-hidden">
+      <div class="h-10 flex items-end gap-0.5 overflow-hidden rounded bg-white/5 px-1 py-1">
         <div
           v-for="(bar, index) in barSeries(metric.key as any)"
           :key="index"
