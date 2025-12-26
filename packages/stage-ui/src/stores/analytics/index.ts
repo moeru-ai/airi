@@ -13,6 +13,8 @@ export const useSharedAnalyticsStore = defineStore('shared_analytics', {
       branch: '',
       builtOn: '',
     } as AboutBuildInfo,
+    appStartTime: null as number | null,
+    firstMessageTracked: false,
   }),
   getters: {
     versionMeta: (state) => {
@@ -33,7 +35,25 @@ export const useSharedAnalyticsStore = defineStore('shared_analytics', {
 
       posthog.register(this.versionMeta)
 
+      // Record app start time for first message tracking
+      this.appStartTime = Date.now()
+
       this.isInitialized = true
+    },
+    trackFirstMessage(success: boolean, messageSentAt: number) {
+      // Only track the first message once
+      if (this.firstMessageTracked)
+        return
+
+      // Calculate time from app start to message sent
+      const timeToFirstMessageMs = this.appStartTime ? messageSentAt - this.appStartTime : null
+
+      posthog.capture('first_message_sent', {
+        time_to_first_message_ms: timeToFirstMessageMs,
+        success,
+      })
+
+      this.firstMessageTracked = true
     },
   },
 })
