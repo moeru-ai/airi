@@ -10,27 +10,15 @@ import type {
   PoseLandmarkerResult,
 } from '@mediapipe/tasks-vision'
 
-import type { MediaPipeAssetsConfig, MocapBackend, MocapConfig, MocapJob, PerceptionPartial } from '../types'
+import type { MocapBackend, MocapConfig, MocapJob, PerceptionPartial, VisionTaskModule, VisionTaskWasmFileset } from '../types'
 
-type TasksVisionModule = typeof import('@mediapipe/tasks-vision')
-type VisionFileset = Awaited<ReturnType<TasksVisionModule['FilesetResolver']['forVisionTasks']>>
+import { visionTaskAssets, visionTaskWasmRoot } from '../../tasks/tasks'
 
-export const DEFAULT_MEDIAPIPE_ASSETS: MediaPipeAssetsConfig = {
-  wasmRoot: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm',
-  modelAssetPath: {
-    pose: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
-    hands: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-    face: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
-  },
-}
-
-export function createMediaPipeBackend(
-  assets: MediaPipeAssetsConfig = DEFAULT_MEDIAPIPE_ASSETS,
-): MocapBackend {
+export function createMediaPipeBackend(): MocapBackend {
   let busy = false
   let config: MocapConfig | undefined
-  let tasksVision: TasksVisionModule | undefined
-  let vision: VisionFileset | undefined
+  let tasksVision: VisionTaskModule | undefined
+  let vision: VisionTaskWasmFileset | undefined
 
   let poseLandmarker: PoseLandmarker | undefined
   let handLandmarker: HandLandmarker | undefined
@@ -44,7 +32,7 @@ export function createMediaPipeBackend(
 
     if (!vision) {
       const { FilesetResolver } = tasksVision
-      vision = await FilesetResolver.forVisionTasks(assets.wasmRoot)
+      vision = await FilesetResolver.forVisionTasks(visionTaskWasmRoot)
     }
   }
 
@@ -58,7 +46,7 @@ export function createMediaPipeBackend(
 
     const { PoseLandmarker } = tasksVision!
     poseLandmarker = await PoseLandmarker.createFromOptions(vision!, {
-      baseOptions: { modelAssetPath: assets.modelAssetPath.pose },
+      baseOptions: { modelAssetPath: visionTaskAssets.pose },
       runningMode: 'VIDEO',
       numPoses: 1,
     })
@@ -72,7 +60,7 @@ export function createMediaPipeBackend(
 
     const { HandLandmarker } = tasksVision!
     handLandmarker = await HandLandmarker.createFromOptions(vision!, {
-      baseOptions: { modelAssetPath: assets.modelAssetPath.hands },
+      baseOptions: { modelAssetPath: visionTaskAssets.hands },
       runningMode: 'VIDEO',
       numHands: 2,
     })
@@ -86,7 +74,7 @@ export function createMediaPipeBackend(
 
     const { FaceLandmarker } = tasksVision!
     faceLandmarker = await FaceLandmarker.createFromOptions(vision!, {
-      baseOptions: { modelAssetPath: assets.modelAssetPath.face },
+      baseOptions: { modelAssetPath: visionTaskAssets.face },
       runningMode: 'VIDEO',
       numFaces: 1,
     })
