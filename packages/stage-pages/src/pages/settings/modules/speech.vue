@@ -10,6 +10,7 @@ import {
   TestDummyMarker,
   VoiceCardManySelect,
 } from '@proj-airi/stage-ui/components'
+import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import {
@@ -44,6 +45,8 @@ const {
   ssmlEnabled,
   availableVoices,
 } = storeToRefs(speechStore)
+
+const { trackProviderClick } = useAnalytics()
 
 const voiceSearchQuery = ref('')
 const useSSML = ref(false)
@@ -198,6 +201,7 @@ function updateCustomModelName(value: string) {
                 :value="metadata.id"
                 :title="metadata.localizedName || 'Unknown'"
                 :description="metadata.localizedDescription"
+                @click="trackProviderClick(metadata.id, 'speech')"
               />
               <RouterLink
                 to="/settings/providers#speech"
