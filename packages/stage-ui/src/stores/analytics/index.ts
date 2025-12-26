@@ -1,5 +1,7 @@
 import type { AboutBuildInfo } from '../../components/scenarios/about/types'
 
+import posthog from 'posthog-js'
+
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
@@ -27,6 +29,10 @@ export const useSharedAnalyticsStore = defineStore('shared_analytics', () => {
 
     buildInfo.value = info
     appStartTime.value = Date.now()
+
+    // Register metadata with PostHog after buildInfo is set
+    posthog.register(versionMeta.value)
+
     isInitialized.value = true
   }
 

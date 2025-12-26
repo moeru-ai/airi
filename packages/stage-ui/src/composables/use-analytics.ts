@@ -30,13 +30,8 @@ export function useAnalytics() {
     analyticsStore.markFirstMessageTracked()
   }
 
-  function registerMetadata() {
-    posthog.register(analyticsStore.versionMeta)
-  }
-
   return {
     trackProviderClick,
     trackFirstMessage,
-    registerMetadata,
   }
 }
