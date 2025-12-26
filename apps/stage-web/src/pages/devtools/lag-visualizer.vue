@@ -52,11 +52,11 @@ function exportCsv() {
     <div flex="~ col gap-2">
       <div flex="~ row items-center gap-2">
         <CheckBar
-          :model-value="enabled.frames && enabled.longtask && enabled.gc && enabled.memory"
+          :model-value="enabled.frames && enabled.longtask && enabled.memory"
           icon-on="i-solar:sledgehammer-bold-duotone"
           icon-off="i-solar:sledgehammer-bold-duotone"
           text="Enable all metrics"
-          description="Toggle all lag metrics (FPS, frame time, long task, GC, memory)"
+          description="Toggle all lag metrics (FPS, frame time, long task, memory)"
           @update:model-value="value => toggleAll(Boolean(value))"
         />
         <ButtonBar
@@ -92,13 +92,6 @@ function exportCsv() {
           description="PerformanceObserver('longtask')"
         />
         <CheckBar
-          v-model="enabled.gc"
-          icon-on="i-solar:cpu-bold-duotone"
-          icon-off="i-solar:cpu-bold-duotone"
-          text="GC"
-          description="PerformanceObserver('gc')"
-        />
-        <CheckBar
           v-model="enabled.memory"
           icon-on="i-solar:database-bold-duotone"
           icon-off="i-solar:database-bold-duotone"
@@ -121,7 +114,6 @@ function exportCsv() {
         FPS {{ lastRecording?.samples.fps.length }},
         Frames {{ lastRecording?.samples.frameDuration.length }},
         Long tasks {{ lastRecording?.samples.longtask.length }},
-        GC {{ lastRecording?.samples.gc.length }},
         Memory {{ lastRecording?.samples.memory.length }}
       </div>
     </div>

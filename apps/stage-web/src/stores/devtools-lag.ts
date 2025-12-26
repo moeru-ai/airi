@@ -5,7 +5,7 @@ import { reactive, ref, watch } from 'vue'
 
 import { createLagSampler } from '../composables/perf/register-lag-sampler'
 
-type LagMetric = 'fps' | 'frameDuration' | 'longtask' | 'gc' | 'memory'
+type LagMetric = 'fps' | 'frameDuration' | 'longtask' | 'memory'
 
 interface Sample {
   ts: number
@@ -30,7 +30,6 @@ function createEmptySamples(): Record<LagMetric, Sample[]> {
     fps: [],
     frameDuration: [],
     longtask: [],
-    gc: [],
     memory: [],
   }
 }
@@ -90,7 +89,6 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
   const enabled = reactive({
     frames: false,
     longtask: false,
-    gc: false,
     memory: false,
   })
 
@@ -105,6 +103,7 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
 
   const sampler = createLagSampler(defaultPerfTracer)
   let unsubscribeTracer: (() => void) | undefined
+  let tracerActive = false
 
   function resetRecordingSamples() {
     for (const metric of Object.keys(recordingSamples) as LagMetric[])
@@ -153,7 +152,6 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
         fps: [...recordingSamples.fps],
         frameDuration: [...recordingSamples.frameDuration],
         longtask: [...recordingSamples.longtask],
-        gc: [...recordingSamples.gc],
         memory: [...recordingSamples.memory],
       },
     }
@@ -169,11 +167,14 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
       unsubscribeTracer()
       unsubscribeTracer = undefined
     }
-    defaultPerfTracer.disable()
+    if (tracerActive) {
+      defaultPerfTracer.disable()
+      tracerActive = false
+    }
   }
 
   function ensureSampler() {
-    const anyEnabled = enabled.frames || enabled.longtask || enabled.gc || enabled.memory
+    const anyEnabled = enabled.frames || enabled.longtask || enabled.memory
     if (!anyEnabled) {
       stopAll()
       return
@@ -186,15 +187,14 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
           return
 
         const metric = event.name as LagMetric
-        if (!['fps', 'frameDuration', 'longtask', 'gc', 'memory'].includes(metric))
+        if (!['fps', 'frameDuration', 'longtask', 'memory'].includes(metric))
           return
 
         // Only accept samples for enabled metrics
         const isMetricEnabled = (
           (metric === 'fps' || metric === 'frameDuration') ? enabled.frames
             : metric === 'longtask' ? enabled.longtask
-              : metric === 'gc' ? enabled.gc
-                : enabled.memory
+              : enabled.memory
         )
 
         if (!isMetricEnabled)
@@ -205,11 +205,13 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
       })
     }
 
-    defaultPerfTracer.enable()
+    if (!tracerActive) {
+      defaultPerfTracer.enable()
+      tracerActive = true
+    }
     sampler.start({
       frames: enabled.frames,
       longtask: enabled.longtask,
-      gc: enabled.gc,
       memory: enabled.memory,
     })
   }
@@ -217,7 +219,6 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
   function toggleAll(on: boolean) {
     enabled.frames = on
     enabled.longtask = on
-    enabled.gc = on
     enabled.memory = on
   }
 

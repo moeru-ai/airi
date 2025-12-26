@@ -16,7 +16,7 @@ const menu = computed(() => [
   },
   {
     title: 'Lag Visualizer',
-    description: 'Toggle FPS/long task/GC/memory overlay',
+    description: 'Toggle FPS/long task/memory overlay',
     icon: 'i-solar:sledgehammer-bold-duotone',
     to: '/devtools/lag-visualizer',
   },

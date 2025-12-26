@@ -3,7 +3,6 @@ import type { PerfTracer } from '@proj-airi/stage-shared'
 interface LagEnabled {
   frames: boolean
   longtask: boolean
-  gc: boolean
   memory: boolean
 }
 
@@ -11,7 +10,6 @@ export function createLagSampler(tracer: PerfTracer) {
   let rafId: number | undefined
   let lastTs: number | undefined
   let longTaskObserver: PerformanceObserver | undefined
-  let gcObserver: PerformanceObserver | undefined
   let memoryTimer: ReturnType<typeof setInterval> | undefined
 
   function stopRaf() {
@@ -80,35 +78,6 @@ export function createLagSampler(tracer: PerfTracer) {
     }
   }
 
-  function stopGcObserver() {
-    gcObserver?.disconnect()
-    gcObserver = undefined
-  }
-
-  function startGcObserver() {
-    stopGcObserver()
-    if (!('PerformanceObserver' in window))
-      return
-
-    try {
-      gcObserver = new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
-          tracer.emit({
-            tracerId: 'lag',
-            name: 'gc',
-            ts: entry.startTime,
-            duration: entry.duration,
-            meta: { kind: (entry as any).kind },
-          })
-        }
-      })
-      gcObserver.observe({ type: 'gc', buffered: true })
-    }
-    catch (error) {
-      console.warn('[LagSampler] Failed to start gc observer', error)
-    }
-  }
-
   function stopMemoryTimer() {
     if (memoryTimer) {
       clearInterval(memoryTimer)
@@ -141,9 +110,6 @@ export function createLagSampler(tracer: PerfTracer) {
     if (enabled.longtask)
       startLongTaskObserver()
 
-    if (enabled.gc)
-      startGcObserver()
-
     if (enabled.memory)
       startMemoryTimer()
   }
@@ -151,7 +117,6 @@ export function createLagSampler(tracer: PerfTracer) {
   function stop() {
     stopRaf()
     stopLongTaskObserver()
-    stopGcObserver()
     stopMemoryTimer()
   }
 

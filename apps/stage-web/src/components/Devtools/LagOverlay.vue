@@ -13,7 +13,6 @@ const metrics = [
   { key: 'fps', label: 'FPS', enabled: () => enabled.value.frames },
   { key: 'frameDuration', label: 'Frame (ms)', enabled: () => enabled.value.frames },
   { key: 'longtask', label: 'Long task (ms)', enabled: () => enabled.value.longtask },
-  { key: 'gc', label: 'GC (ms)', enabled: () => enabled.value.gc },
   { key: 'memory', label: 'Memory (MB)', enabled: () => enabled.value.memory },
 ]
 
@@ -33,7 +32,7 @@ function formatValue(metric: string, value: number) {
   return value.toFixed(1)
 }
 
-function barSeries(metric: 'fps' | 'frameDuration' | 'longtask' | 'gc' | 'memory') {
+function barSeries(metric: 'fps' | 'frameDuration' | 'longtask' | 'memory') {
   const values = buffers.value[metric].map(sample => sample.value)
   const histogram = store.buildHistogram(values, 20)
   const max = Math.max(1, ...histogram.map(bin => bin.count))
@@ -43,7 +42,7 @@ function barSeries(metric: 'fps' | 'frameDuration' | 'longtask' | 'gc' | 'memory
   }))
 }
 
-function metricStats(metric: 'fps' | 'frameDuration' | 'longtask' | 'gc' | 'memory') {
+function metricStats(metric: 'fps' | 'frameDuration' | 'longtask' | 'memory') {
   const values = buffers.value[metric].map(sample => sample.value)
   return store.calcStats(values)
 }
