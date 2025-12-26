@@ -1,7 +1,9 @@
+import type { WebSocketEventOptionalSource } from '@proj-airi/server-sdk'
+
 import type { Events } from './types'
 
 import { useLogger } from '@guiiai/logg'
-import { Client as ServerClient } from '@proj-airi/server-sdk'
+import { ContextUpdateStrategy, Client as ServerClient } from '@proj-airi/server-sdk'
 
 export class Client {
   private client: ServerClient<Events> | null = null
@@ -27,7 +29,7 @@ export class Client {
     }
   }
 
-  async sendEvent(event: Events): Promise<void> {
+  private async send(event: WebSocketEventOptionalSource<Events>): Promise<void> {
     if (!this.client) {
       useLogger().warn('Cannot send event: not connected to AIRI Server Channel')
       return
@@ -35,13 +37,19 @@ export class Client {
 
     try {
       await this.client.connect()
-      this.client.send({ type: 'vscode:context', data: event })
-
-      useLogger().log(`Sent event to AIRI: ${event.type}`, event)
+      this.client.send(event)
     }
     catch (error) {
       useLogger().errorWithError('Failed to send event to AIRI:', error)
     }
+  }
+
+  async replaceContext(context: string): Promise<void> {
+    this.send({ type: 'context:update', data: { strategy: ContextUpdateStrategy.ReplaceSelf, text: context } })
+  }
+
+  async appendContext(context: string): Promise<void> {
+    this.send({ type: 'context:update', data: { strategy: ContextUpdateStrategy.AppendSelf, text: context } })
   }
 
   isConnected(): boolean {

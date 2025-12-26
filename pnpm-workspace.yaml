@@ -35,14 +35,15 @@ catalog:
   '@xsai/generate-text': ^0.4.0-beta.12
   '@xsai/generate-transcription': ^0.4.0-beta.12
   '@xsai/model': ^0.4.0-beta.12
-  '@xsai/shared': ^0.4.0-beta.12
-  '@xsai/shared-chat': ^0.4.0-beta.12
+  '@xsai/shared': 0.4.0-beta.12
+  '@xsai/shared-chat': 0.4.0-beta.12
   '@xsai/stream-text': ^0.4.0-beta.12
   '@xsai/tool': ^0.4.0-beta.12
   '@xsai/utils-chat': 0.4.0-beta.5
   builder-util-runtime: ^9.3.1
   embla-carousel-vue: ^8.6.0
-  es-toolkit: ^1.43.0
+  es-toolkit: 1.43.0
+  injeca: ^0.1.5
   posthog-js: 1.306.1
   uncrypto: ^0.1.3
   xsschema: ^0.4.0-beta.12

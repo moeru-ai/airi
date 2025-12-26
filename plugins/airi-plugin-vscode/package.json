@@ -1,6 +1,6 @@
 {
   "publisher": "proj-airi",
-  "name": "airi-vscode",
+  "name": "@proj-airi/airi-plugin-vscode",
   "displayName": "AIRI",
   "version": "0.8.0-beta.7",
   "private": true,
@@ -65,6 +65,10 @@
     "build": "tsdown",
     "publish": "tsx ./scripts/publish.ts",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "es-toolkit": "catalog:",
+    "injeca": "catalog:"
   },
   "devDependencies": {
     "@guiiai/logg": "catalog:",
