@@ -15,7 +15,7 @@ export const useSharedAnalyticsStore = defineStore('shared_analytics', () => {
   const firstMessageTracked = ref(false)
 
   const versionMeta = computed(() => ({
-    app_version: buildInfo.value.version === '0.0.0' ? 'dev' : buildInfo.value.version,
+    app_version: (buildInfo.value.version && buildInfo.value.version !== '0.0.0') ? buildInfo.value.version : 'dev',
     app_commit: buildInfo.value.commit,
     app_branch: buildInfo.value.branch,
     app_build_time: buildInfo.value.builtOn,
