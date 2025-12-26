@@ -1,4 +1,5 @@
 import type { TraceEvent } from '@proj-airi/stage-shared'
+
 import { defaultPerfTracer } from '@proj-airi/stage-shared'
 import { defineStore } from 'pinia'
 import { reactive, ref, watch } from 'vue'
@@ -103,7 +104,7 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
 
   const sampler = createLagSampler(defaultPerfTracer)
   let unsubscribeTracer: (() => void) | undefined
-  let tracerActive = false
+  let releaseTracer: (() => void) | undefined
 
   function resetRecordingSamples() {
     for (const metric of Object.keys(recordingSamples) as LagMetric[])
@@ -167,10 +168,8 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
       unsubscribeTracer()
       unsubscribeTracer = undefined
     }
-    if (tracerActive) {
-      defaultPerfTracer.disable()
-      tracerActive = false
-    }
+    releaseTracer?.()
+    releaseTracer = undefined
   }
 
   function ensureSampler() {
@@ -192,8 +191,10 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
 
         // Only accept samples for enabled metrics
         const isMetricEnabled = (
-          (metric === 'fps' || metric === 'frameDuration') ? enabled.frames
-            : metric === 'longtask' ? enabled.longtask
+          (metric === 'fps' || metric === 'frameDuration')
+            ? enabled.frames
+            : metric === 'longtask'
+              ? enabled.longtask
               : enabled.memory
         )
 
@@ -205,10 +206,8 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
       })
     }
 
-    if (!tracerActive) {
-      defaultPerfTracer.enable()
-      tracerActive = true
-    }
+    if (!releaseTracer)
+      releaseTracer = defaultPerfTracer.acquire('lag-overlay')
     sampler.start({
       frames: enabled.frames,
       longtask: enabled.longtask,

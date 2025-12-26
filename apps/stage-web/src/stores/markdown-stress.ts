@@ -20,6 +20,7 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
 
   let unsubscribe: (() => void) | undefined
   let startedAt = 0
+  let releaseTracer: (() => void) | undefined
 
   function startCapture() {
     if (capturing.value)
@@ -35,7 +36,7 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
 
       events.value.push(event)
     })
-    defaultPerfTracer.enable()
+    releaseTracer = defaultPerfTracer.acquire('markdown-stress')
   }
 
   function stopCapture() {
@@ -50,7 +51,8 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
 
     unsubscribe?.()
     unsubscribe = undefined
-    defaultPerfTracer.disable()
+    releaseTracer?.()
+    releaseTracer = undefined
     capturing.value = false
   }
 
