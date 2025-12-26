@@ -5,13 +5,13 @@ import { computed, ref } from 'vue'
 import { useDevtoolsLagStore } from '../../stores/devtools-lag'
 
 const store = useDevtoolsLagStore()
-const { enabled, buffers } = storeToRefs(store)
+const { enabled, buffers, recording } = storeToRefs(store)
 
 const hovered = ref(false)
 
 const metrics = [
-  { key: 'fps', label: 'FPS', enabled: () => enabled.value.frames },
-  { key: 'frameDuration', label: 'Frame (ms)', enabled: () => enabled.value.frames },
+  { key: 'fps', label: 'FPS', enabled: () => enabled.value.fps },
+  { key: 'frameDuration', label: 'Frame (ms)', enabled: () => enabled.value.frameDuration },
   { key: 'longtask', label: 'Long task (ms)', enabled: () => enabled.value.longtask },
   { key: 'memory', label: 'Memory (MB)', enabled: () => enabled.value.memory },
 ]
@@ -48,10 +48,14 @@ function metricStats(metric: 'fps' | 'frameDuration' | 'longtask' | 'memory') {
 }
 
 function toggleRecording() {
-  if (store.recording)
-    store.stopRecording()
-  else
-    store.startRecording()
+  if (recording.value) {
+    const snapshot = store.stopRecording()
+    if (snapshot)
+      store.exportCsv(snapshot)
+    return
+  }
+
+  store.startRecording()
 }
 </script>
 
@@ -81,9 +85,9 @@ function toggleRecording() {
       >
         <span
           class="inline-block h-2 w-2 rounded-full"
-          :class="store.recording ? 'bg-red-400' : 'bg-neutral-400'"
+          :class="recording ? 'bg-red-400' : 'bg-neutral-400'"
         />
-        <span>{{ store.recording ? 'Stop' : 'Record' }}</span>
+        <span>{{ recording ? 'Stop' : 'Record' }}</span>
       </button>
     </div>
 

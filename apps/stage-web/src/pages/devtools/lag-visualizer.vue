@@ -7,10 +7,11 @@ import { computed } from 'vue'
 import { useDevtoolsLagStore } from '../../stores/devtools-lag'
 
 const lagStore = useDevtoolsLagStore()
-const { enabled, lastRecording } = storeToRefs(lagStore)
+const { enabled, lastRecording, recording } = storeToRefs(lagStore)
 
-const recordingLabel = computed(() => lagStore.recording ? 'Stop recording (max 60s)' : 'Start recording')
+const recordingLabel = computed(() => recording.value ? 'Stop recording (max 60s)' : 'Start recording')
 const hasRecording = computed(() => !!lastRecording.value)
+const allEnabled = computed(() => enabled.value.fps && enabled.value.frameDuration && enabled.value.longtask && enabled.value.memory)
 
 const magicKeys = useMagicKeys()
 whenever(magicKeys['ctrl+alt+l'], () => toggleAll(true))
@@ -21,29 +22,7 @@ function toggleAll(on: boolean) {
 }
 
 function exportCsv() {
-  if (!lastRecording.value)
-    return
-
-  const rows = [['metric', 'ts', 'value', 'meta']]
-  for (const metric of Object.keys(lastRecording.value.samples) as Array<keyof typeof lastRecording.value.samples>) {
-    for (const sample of lastRecording.value.samples[metric]) {
-      rows.push([
-        metric,
-        sample.ts.toFixed(3),
-        sample.value,
-        JSON.stringify(sample.meta ?? {}),
-      ].map(field => `"${String(field).replace(/"/g, '""')}"`))
-    }
-  }
-
-  const csv = rows.map(row => row.join(',')).join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `lag-recording-${Date.now()}.csv`
-  link.click()
-  URL.revokeObjectURL(url)
+  lagStore.exportCsv()
 }
 </script>
 
@@ -52,7 +31,7 @@ function exportCsv() {
     <div flex="~ col gap-2">
       <div flex="~ row items-center gap-2">
         <CheckBar
-          :model-value="enabled.frames && enabled.longtask && enabled.memory"
+          :model-value="allEnabled"
           icon-on="i-solar:sledgehammer-bold-duotone"
           icon-off="i-solar:sledgehammer-bold-duotone"
           text="Enable all metrics"
@@ -60,9 +39,9 @@ function exportCsv() {
           @update:model-value="value => toggleAll(Boolean(value))"
         />
         <ButtonBar
-          :icon="lagStore.recording ? 'i-solar:stop-circle-bold-duotone' : 'i-solar:recive-bold-duotone'"
+          :icon="recording ? 'i-solar:stop-circle-bold-duotone' : 'i-solar:recive-bold-duotone'"
           text="Recording"
-          @click="lagStore.recording ? lagStore.stopRecording() : lagStore.startRecording()"
+          @click="recording ? lagStore.stopRecording() : lagStore.startRecording()"
         >
           {{ recordingLabel }}
         </ButtonBar>
@@ -78,11 +57,18 @@ function exportCsv() {
 
       <div flex="~ col gap-2">
         <CheckBar
-          v-model="enabled.frames"
+          v-model="enabled.fps"
           icon-on="i-solar:activity-bold-duotone"
           icon-off="i-solar:activity-bold-duotone"
-          text="Frames"
-          description="Collect FPS and frame duration histogram"
+          text="FPS"
+          description="Collect FPS histogram"
+        />
+        <CheckBar
+          v-model="enabled.frameDuration"
+          icon-on="i-solar:chart-bold-duotone"
+          icon-off="i-solar:chart-bold-duotone"
+          text="Frame time (ms)"
+          description="Collect frame duration histogram"
         />
         <CheckBar
           v-model="enabled.longtask"

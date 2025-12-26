@@ -1,7 +1,8 @@
 import type { PerfTracer } from '@proj-airi/stage-shared'
 
 interface LagEnabled {
-  frames: boolean
+  fps: boolean
+  frameDuration: boolean
   longtask: boolean
   memory: boolean
 }
@@ -104,7 +105,7 @@ export function createLagSampler(tracer: PerfTracer) {
   function start(enabled: LagEnabled) {
     stop()
 
-    if (enabled.frames)
+    if (enabled.fps || enabled.frameDuration)
       startRaf()
 
     if (enabled.longtask)

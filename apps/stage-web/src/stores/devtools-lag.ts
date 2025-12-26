@@ -88,7 +88,8 @@ function buildHistogram(values: number[], bins = 20): HistogramBin[] {
 
 export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
   const enabled = reactive({
-    frames: false,
+    fps: false,
+    frameDuration: false,
     longtask: false,
     memory: false,
   })
@@ -136,7 +137,7 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
     recordingTimeout = setTimeout(() => stopRecording(), 60000)
   }
 
-  function stopRecording() {
+  function stopRecording(): RecordingSnapshot | undefined {
     if (!recording.value)
       return
 
@@ -146,7 +147,7 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
     }
 
     const stoppedAt = performance.now()
-    lastRecording.value = {
+    const snapshot: RecordingSnapshot = {
       startedAt: recordingStartedAt.value || stoppedAt,
       stoppedAt,
       samples: {
@@ -156,10 +157,12 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
         memory: [...recordingSamples.memory],
       },
     }
+    lastRecording.value = snapshot
 
     resetRecordingSamples()
     recordingStartedAt.value = null
     recording.value = false
+    return snapshot
   }
 
   function stopAll() {
@@ -173,7 +176,7 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
   }
 
   function ensureSampler() {
-    const anyEnabled = enabled.frames || enabled.longtask || enabled.memory
+    const anyEnabled = enabled.fps || enabled.frameDuration || enabled.longtask || enabled.memory
     if (!anyEnabled) {
       stopAll()
       return
@@ -190,13 +193,20 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
           return
 
         // Only accept samples for enabled metrics
-        const isMetricEnabled = (
-          (metric === 'fps' || metric === 'frameDuration')
-            ? enabled.frames
-            : metric === 'longtask'
-              ? enabled.longtask
-              : enabled.memory
-        )
+        const isMetricEnabled = (() => {
+          switch (metric) {
+            case 'fps':
+              return enabled.fps
+            case 'frameDuration':
+              return enabled.frameDuration
+            case 'longtask':
+              return enabled.longtask
+            case 'memory':
+              return enabled.memory
+            default:
+              return false
+          }
+        })()
 
         if (!isMetricEnabled)
           return
@@ -209,16 +219,51 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
     if (!releaseTracer)
       releaseTracer = defaultPerfTracer.acquire('lag-overlay')
     sampler.start({
-      frames: enabled.frames,
+      fps: enabled.fps,
+      frameDuration: enabled.frameDuration,
       longtask: enabled.longtask,
       memory: enabled.memory,
     })
   }
 
   function toggleAll(on: boolean) {
-    enabled.frames = on
+    enabled.fps = on
+    enabled.frameDuration = on
     enabled.longtask = on
     enabled.memory = on
+    ensureSampler()
+  }
+
+  function exportCsv(snapshot?: RecordingSnapshot) {
+    const target = snapshot ?? lastRecording.value
+    if (!target)
+      return
+
+    if (typeof Blob === 'undefined' || typeof document === 'undefined' || typeof URL === 'undefined') {
+      console.warn('[Lag] Export is only supported in browser environments')
+      return
+    }
+
+    const rows = [['metric', 'ts', 'value', 'meta']]
+    for (const metric of Object.keys(target.samples) as LagMetric[]) {
+      for (const sample of target.samples[metric]) {
+        rows.push([
+          metric,
+          sample.ts.toFixed(3),
+          sample.value,
+          JSON.stringify(sample.meta ?? {}),
+        ].map(field => `"${String(field).replace(/"/g, '""')}"`))
+      }
+    }
+
+    const csv = rows.map(row => row.join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `lag-recording-${Date.now()}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
   // React to enablement changes
@@ -245,6 +290,7 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
     lastRecording,
     startRecording,
     stopRecording,
+    exportCsv,
     toggleAll,
     calcStats,
     buildHistogram,
