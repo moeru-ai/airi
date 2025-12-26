@@ -1,3 +1,5 @@
+import type { AssistantMessage, ToolMessage } from '@xsai/shared-chat'
+
 export interface DiscordGuildMember {
   nickname: string
   displayName: string
@@ -10,46 +12,64 @@ export interface Discord {
   channelId?: string
 }
 
+export enum WebSocketEventSource {
+  Server = 'proj-airi:server-runtime',
+  StageWeb = 'proj-airi:stage-web',
+  StageTamagotchi = 'proj-airi:stage-tamagotchi',
+}
+
 interface InputSource {
-  browser: string
-  discord: Discord
+  'stage-web': string
+  'stage-tamagotchi': string
+  'discord': Discord
 }
 
-export type ContextSource
-  = | 'text'
-    | 'stt'
-    | 'vision'
-    | 'llm'
-    | 'server-channel'
-    | 'plugin'
-    | 'system'
-
-export interface ContextMessage<Payload = unknown, Meta = Record<string, unknown>> {
-  /**
-   * Session identifier so UIs can group conversations from multiple windows/devices.
-   */
-  sessionId: string
-  /**
-   * Unix timestamp in milliseconds.
-   */
-  ts: number
-  role: 'user' | 'assistant' | 'system' | 'error' | 'tool'
-  source: ContextSource
-  /**
-   * The actual payload being carried. Keep this generic so different inputs (text, stt, vision)
-   * can share the same envelope.
-   */
-  payload: Payload
-  meta?: Meta
+interface OutputSource {
+  'gen-ai-model-chat': string
 }
 
-export interface WebSocketBaseEvent<T, D> {
+export enum ContextUpdateStrategy {
+  ReplaceSelf = 'replace-self',
+  AppendSelf = 'append-self',
+}
+
+export interface ContextUpdateDestinationAll {
+  all: true
+}
+
+export interface ContextUpdateDestinationList {
+  include?: Array<string>
+  exclude?: Array<string>
+}
+
+export type ContextUpdateDestinationFilter
+  = | ContextUpdateDestinationAll
+    | ContextUpdateDestinationList
+
+export interface ContextUpdate<
+  Metadata extends Record<string, any> = Record<string, unknown>,
+  // eslint-disable-next-line ts/no-unnecessary-type-constraint
+  Content extends any = undefined,
+> {
+  strategy: ContextUpdateStrategy
+  text: string
+  content?: Content
+  destinations?: Array<string> | ContextUpdateDestinationFilter
+  metadata?: Metadata
+}
+
+export interface WebSocketBaseEvent<T, D, S extends string = string> {
   type: T
   data: D
+  source: WebSocketEventSource | S
 }
 
 export type WithInputSource<Source extends keyof InputSource> = {
   [S in Source]: InputSource[S]
+}
+
+export type WithOutputSource<Source extends keyof OutputSource> = {
+  [S in Source]: OutputSource[S]
 }
 
 // Thanks to:
@@ -80,17 +100,23 @@ export interface WebSocketEvents<C = undefined> {
   }
   'input:text': {
     text: string
-  } & Partial<WithInputSource<'browser' | 'discord'>>
+  } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
   'input:text:voice': {
     transcription: string
-  } & Partial<WithInputSource<'browser' | 'discord'>>
+  } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
   'input:voice': {
     audio: ArrayBuffer
-  } & Partial<WithInputSource<'browser' | 'discord'>>
-  'vscode:context': C
-  'context:update': ContextMessage
+  } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
+  'output:gen-ai:chat:message': {
+    messages: Array<AssistantMessage | ToolMessage>
+  } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>> & Partial<WithOutputSource<'gen-ai-model-chat'>>
+  'context:update': ContextUpdate
 }
 
 export type WebSocketEvent<C = undefined> = {
   [K in keyof WebSocketEvents<C>]: WebSocketBaseEvent<K, WebSocketEvents<C>[K]>;
+}[keyof WebSocketEvents<C>]
+
+export type WebSocketEventOptionalSource<C = undefined> = {
+  [K in keyof WebSocketEvents<C>]: Omit<WebSocketBaseEvent<K, WebSocketEvents<C>[K]>, 'source'> & Partial<Pick<WebSocketBaseEvent<K, WebSocketEvents<C>[K]>, 'source'>>;
 }[keyof WebSocketEvents<C>]
