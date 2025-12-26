@@ -437,8 +437,7 @@ export const useChatStore = defineStore('chat', () => {
     }
     streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [], context: assistantContext }
 
-    // Capture send time for first message analytics
-    const messageSentAt = Date.now()
+    trackFirstMessage()
 
     try {
       await emitBeforeMessageComposedHooks(sendingMessage)
@@ -615,13 +614,9 @@ export const useChatStore = defineStore('chat', () => {
       console.debug('LLM output:', fullText)
 
       await emitAfterSendHooks(sendingMessage)
-
-      trackFirstMessage(true, messageSentAt)
     }
     catch (error) {
       console.error('Error sending message:', error)
-
-      trackFirstMessage(false, messageSentAt)
 
       throw error
     }
