@@ -1,12 +1,17 @@
-export interface Vec2 { x: number, y: number }
-export interface Vec3 { x: number, y: number, z?: number }
+import type { FilesetResolver } from '@mediapipe/tasks-vision'
+import type { Vector3Like } from 'three'
 
-export type Landmark2D = Vec3 & {
+export type VisionTaskModule = typeof import('@mediapipe/tasks-vision')
+
+// Indirect export from @mediapipe/tasks-vision
+export type VisionTaskWasmFileset = Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>
+
+export interface Landmark2D extends Vector3Like {
   visibility?: number
   presence?: number
 }
 
-export type Landmark3D = Vec3 & {
+export interface Landmark3D extends Vector3Like {
   visibility?: number
   presence?: number
 }
@@ -41,7 +46,7 @@ export interface PerceptionPartial {
   face?: FaceState
 }
 
-export type PerceptionState = PerceptionPartial & {
+export interface PerceptionState extends PerceptionPartial {
   t: number
   quality: PerceptionQuality
 }
@@ -74,13 +79,4 @@ export interface MocapEngine {
   stop: () => void
   updateConfig: (config: MocapConfig) => void
   resetState: () => void
-}
-
-export interface MediaPipeAssetsConfig {
-  wasmRoot: string
-  modelAssetPath: {
-    pose: string
-    hands: string
-    face: string
-  }
 }

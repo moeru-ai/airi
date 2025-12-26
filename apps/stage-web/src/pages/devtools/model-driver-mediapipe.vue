@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import type { MediaPipeAssetsConfig, PerceptionState, Vec3, VrmPoseTargets } from '@proj-airi/model-driver-mediapipe'
+import type { PerceptionState, VrmPoseTargets } from '@proj-airi/model-driver-mediapipe'
+import type { Vector3Like } from 'three'
 
-import { createMediaPipeBackend, createMocapEngine, createVrmPoseApplier, DEFAULT_MEDIAPIPE_ASSETS, drawOverlay, poseToVrmTargets, WORKSHOP_NAME } from '@proj-airi/model-driver-mediapipe'
+import { createMediaPipeBackend, createMocapEngine, createVrmPoseApplier, drawOverlay, poseToVrmTargets, WORKSHOP_NAME } from '@proj-airi/model-driver-mediapipe'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
@@ -47,11 +48,10 @@ const poseFiltering = ref({
 })
 
 // MediaPipe assets config
-const assets = ref<MediaPipeAssetsConfig>(DEFAULT_MEDIAPIPE_ASSETS)
 const latestState = ref<PerceptionState>()
 const latestPoseTargets = ref<VrmPoseTargets>()
 const prevPoseTargets = ref<VrmPoseTargets>()
-const prevPoseForward = ref<Vec3>()
+const prevPoseForward = ref<Vector3Like>()
 
 // VRM pose applier
 const vrmPoseApplier = createVrmPoseApplier({ alpha: 1 })
@@ -145,7 +145,7 @@ async function startPipeline() {
   if (engine)
     return
 
-  const backend = createMediaPipeBackend(toRaw(assets.value))
+  const backend = createMediaPipeBackend()
   engine = createMocapEngine(backend, toRaw(config.value))
   await engine.init()
 

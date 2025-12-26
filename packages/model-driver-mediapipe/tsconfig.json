@@ -20,7 +20,8 @@
   },
   "include": [
     "src/**/*.ts",
-    "src/**/*.d.ts"
+    "src/**/*.d.ts",
+    "tasks/**/*.ts"
   ],
   "exclude": [
     "dist",

@@ -1,4 +1,6 @@
-import type { PoseState, Vec3 } from '../types'
+import type { Vector3Like } from 'three'
+
+import type { PoseState } from '../types'
 
 export interface PoseToVrmOptions {
   /**
@@ -31,7 +33,7 @@ export interface PoseToVrmOptions {
    */
   stabilize?: {
     previousTargets?: VrmPoseTargets
-    previousForward?: Vec3
+    previousForward?: Vector3Like
   }
 }
 
@@ -49,12 +51,12 @@ export type VrmPoseDirections = Partial<Record<
   | 'leftLowerLeg'
   | 'rightUpperLeg'
   | 'rightLowerLeg',
-  Vec3
+  Vector3Like
 >>
 
 export interface VrmPoseTarget {
-  dir: Vec3
-  pole?: Vec3
+  dir: Vector3Like
+  pole?: Vector3Like
 }
 
 export type VrmPoseTargets = Partial<Record<keyof VrmPoseDirections, VrmPoseTarget>>
@@ -63,34 +65,34 @@ const DEFAULT_AXIS = { x: 1 as const, y: 1 as const, z: 1 as const }
 const DEFAULT_MIN_VISIBILITY = 0.5
 const DEFAULT_MIN_PRESENCE = 0
 
-function vSub(a: Vec3, b: Vec3): Vec3 {
+function vSub(a: Vector3Like, b: Vector3Like): Vector3Like {
   return { x: a.x - b.x, y: a.y - b.y, z: (a.z ?? 0) - (b.z ?? 0) }
 }
 
-function vAdd(a: Vec3, b: Vec3): Vec3 {
+function vAdd(a: Vector3Like, b: Vector3Like): Vector3Like {
   return { x: a.x + b.x, y: a.y + b.y, z: (a.z ?? 0) + (b.z ?? 0) }
 }
 
-function vScale(v: Vec3, s: number): Vec3 {
+function vScale(v: Vector3Like, s: number): Vector3Like {
   return { x: v.x * s, y: v.y * s, z: (v.z ?? 0) * s }
 }
 
-function vLen(v: Vec3): number {
+function vLen(v: Vector3Like): number {
   return Math.hypot(v.x, v.y, v.z ?? 0)
 }
 
-function vNormalize(v: Vec3): Vec3 | null {
+function vNormalize(v: Vector3Like): Vector3Like | null {
   const len = vLen(v)
   if (!Number.isFinite(len) || len <= 1e-6)
     return null
   return vScale(v, 1 / len)
 }
 
-function vRemapAxis(v: Vec3, axis: { x: 1 | -1, y: 1 | -1, z: 1 | -1 }): Vec3 {
+function vRemapAxis(v: Vector3Like, axis: { x: 1 | -1, y: 1 | -1, z: 1 | -1 }): Vector3Like {
   return { x: v.x * axis.x, y: v.y * axis.y, z: (v.z ?? 0) * axis.z }
 }
 
-function vCross(a: Vec3, b: Vec3): Vec3 {
+function vCross(a: Vector3Like, b: Vector3Like): Vector3Like {
   const az = a.z ?? 0
   const bz = b.z ?? 0
   return {
@@ -100,22 +102,22 @@ function vCross(a: Vec3, b: Vec3): Vec3 {
   }
 }
 
-function vDot(a: Vec3, b: Vec3): number {
+function vDot(a: Vector3Like, b: Vector3Like): number {
   return a.x * b.x + a.y * b.y + (a.z ?? 0) * (b.z ?? 0)
 }
 
-function vNeg(v: Vec3): Vec3 {
+function vNeg(v: Vector3Like): Vector3Like {
   return { x: -v.x, y: -v.y, z: -(v.z ?? 0) }
 }
 
-function safePole(dir: Vec3, pole: Vec3, threshold = 0.85): Vec3 | null {
+function safePole(dir: Vector3Like, pole: Vector3Like, threshold = 0.85): Vector3Like | null {
   const d = Math.abs(vDot(dir, pole))
   if (!Number.isFinite(d))
     return null
   return d > threshold ? null : pole
 }
 
-function get(points: Vec3[], index: number): Vec3 | null {
+function get(points: Vector3Like[], index: number): Vector3Like | null {
   const p = points[index]
   if (!p)
     return null
@@ -147,7 +149,7 @@ function isConfident(pose: PoseState, index: number, thresholds: { minVisibility
   return true
 }
 
-function mid(a: Vec3, b: Vec3): Vec3 {
+function mid(a: Vector3Like, b: Vector3Like): Vector3Like {
   return vScale(vAdd(a, b), 0.5)
 }
 
@@ -184,7 +186,7 @@ export function poseToVrmTargets(pose: PoseState, options?: PoseToVrmOptions): V
   const hipCenter = leftHip && rightHip ? mid(leftHip, rightHip) : null
 
   const prevTargets = options?.stabilize?.previousTargets
-  const stabilizePole = (key: keyof VrmPoseTargets, pole: Vec3): Vec3 => {
+  const stabilizePole = (key: keyof VrmPoseTargets, pole: Vector3Like): Vector3Like => {
     const prev = prevTargets?.[key]?.pole
     if (prev && vDot(prev, pole) < 0)
       return vNeg(pole)
@@ -198,7 +200,7 @@ export function poseToVrmTargets(pose: PoseState, options?: PoseToVrmOptions): V
   //
   // NOTICE: In apply-pose-to-vrm.ts, pole is used as the Z axis in `makeBasis(X=dir, Y=..., Z=pole)`,
   // so torso pole must be "forward-like" (body facing), not "right-like" (shoulder line).
-  let torsoForward: Vec3 | null = null
+  let torsoForward: Vector3Like | null = null
   if (hipCenter && shoulderCenter && leftShoulder && rightShoulder) {
     const rightRaw = vSub(rightShoulder, leftShoulder)
     const upRaw = vSub(shoulderCenter, hipCenter)

@@ -19,7 +19,8 @@
     "./types": "./src/types.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postinstall": "tsx ./tasks/prepare-tasks.ts"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.0",
@@ -27,6 +28,8 @@
     "three": "^0.182.0"
   },
   "devDependencies": {
-    "@types/three": "^0.182.0"
+    "@types/three": "^0.182.0",
+    "ofetch": "catalog:",
+    "tsx": "catalog:"
   }
 }
