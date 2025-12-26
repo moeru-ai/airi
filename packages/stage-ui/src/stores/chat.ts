@@ -9,8 +9,8 @@ import { useLocalStorage } from '@vueuse/core'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
 
+import { useAnalytics } from '../composables'
 import { useLlmmarkerParser } from '../composables/llmmarkerParser'
-import { useSharedAnalyticsStore } from '../stores/analytics'
 import { useLLM } from '../stores/llm'
 import { createQueue } from '../utils/queue'
 import { TTS_FLUSH_INSTRUCTION } from '../utils/tts'
@@ -57,7 +57,7 @@ type StreamingAssistantMessage = ChatAssistantMessage & { context?: MessageConte
 export const useChatStore = defineStore('chat', () => {
   const { stream, discoverToolsCompatibility } = useLLM()
   const { systemPrompt } = storeToRefs(useAiriCardStore())
-  const analyticsStore = useSharedAnalyticsStore()
+  const { trackFirstMessage } = useAnalytics()
 
   const activeSessionId = useLocalStorage<string>(ACTIVE_SESSION_STORAGE_KEY, 'default')
   const sessionMessages = useLocalStorage<Record<string, ChatEntry[]>>(CHAT_STORAGE_KEY, {})
@@ -616,12 +616,12 @@ export const useChatStore = defineStore('chat', () => {
 
       await emitAfterSendHooks(sendingMessage)
 
-      analyticsStore.trackFirstMessage(true, messageSentAt)
+      trackFirstMessage(true, messageSentAt)
     }
     catch (error) {
       console.error('Error sending message:', error)
 
-      analyticsStore.trackFirstMessage(false, messageSentAt)
+      trackFirstMessage(false, messageSentAt)
 
       throw error
     }

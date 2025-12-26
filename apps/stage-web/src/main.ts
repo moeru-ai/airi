@@ -6,6 +6,7 @@ import buildTime from '~build/time'
 import NProgress from 'nprogress'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics/index'
 import { MotionPlugin } from '@vueuse/motion'
 import { abbreviatedSha, branch } from '~build/git'
@@ -39,6 +40,9 @@ analyticsStore.initialize({
   branch,
   builtOn: buildTime.toISOString(),
 })
+
+const { registerMetadata } = useAnalytics()
+registerMetadata()
 
 // TODO: vite-plugin-vue-layouts is long deprecated, replace with another layout solution
 const routeRecords = setupLayouts(routes as RouteRecordRaw[])

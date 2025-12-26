@@ -5,6 +5,7 @@ import Tres from '@tresjs/core'
 import buildTime from '~build/time'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics/index'
 import { MotionPlugin } from '@vueuse/motion'
 import { abbreviatedSha, branch } from '~build/git'
@@ -50,6 +51,9 @@ analyticsStore.initialize({
   branch,
   builtOn: buildTime.toISOString(),
 })
+
+const { registerMetadata } = useAnalytics()
+registerMetadata()
 
 const router = createRouter({
   history: createWebHashHistory(),

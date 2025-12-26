@@ -1,7 +1,5 @@
 import type { AboutBuildInfo } from '../../components/scenarios/about/types'
 
-import posthog from 'posthog-js'
-
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
@@ -28,35 +26,20 @@ export const useSharedAnalyticsStore = defineStore('shared_analytics', () => {
       return
 
     buildInfo.value = info
-
-    posthog.register(versionMeta.value)
-
-    // Record app start time for first message tracking
     appStartTime.value = Date.now()
-
     isInitialized.value = true
   }
 
-  function trackFirstMessage(success: boolean, messageSentAt: number) {
-    // Only track the first message once
-    if (firstMessageTracked.value)
-      return
-
-    // Calculate time from app start to message sent
-    const timeToFirstMessageMs = appStartTime.value ? messageSentAt - appStartTime.value : null
-
-    posthog.capture('first_message_sent', {
-      time_to_first_message_ms: timeToFirstMessageMs,
-      success,
-    })
-
+  function markFirstMessageTracked() {
     firstMessageTracked.value = true
   }
 
   return {
     buildInfo,
     versionMeta,
+    appStartTime,
+    firstMessageTracked,
     initialize,
-    trackFirstMessage,
+    markFirstMessageTracked,
   }
 })
