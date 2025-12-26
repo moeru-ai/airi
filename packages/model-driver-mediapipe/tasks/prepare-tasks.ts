@@ -35,13 +35,13 @@ await Promise.all(Object.entries(visionTaskAssets).map(
     const path = fileURLToPath(url)
     try {
       await fs.access(path, fs.constants.R_OK)
-      const stat = await fs.stat(path)
-      if (!stat.isFile()) {
-        throw new Error(`Failed to ensure MediaPipe vision task asset for ${key}: not a file: ${path}`)
-      }
     }
     catch (err) {
       throw new Error(`Failed to ensure MediaPipe vision task asset for ${key}: ${err}`)
+    }
+    const stat = await fs.stat(path)
+    if (!stat.isFile()) {
+      throw new Error(`Failed to ensure MediaPipe vision task asset for ${key}: not a file: ${path}`)
     }
   },
 ))
