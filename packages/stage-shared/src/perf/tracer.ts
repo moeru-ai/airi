@@ -33,6 +33,14 @@ export function createPerfTracer(): PerfTracer {
   const leases = new Map<string, number>()
   const subscribers = new Set<TraceSubscriber>()
 
+  function push(event: TraceEvent, force = false) {
+    if (!enabled && !force)
+      return
+
+    for (const subscriber of subscribers)
+      subscriber(event)
+  }
+
   function recomputeEnabled() {
     let total = 0
     for (const count of leases.values())
@@ -89,20 +97,16 @@ export function createPerfTracer(): PerfTracer {
   }
 
   function emit(event: TraceEvent) {
-    if (!enabled)
-      return
-
-    for (const subscriber of subscribers)
-      subscriber(event)
+    push(event, false)
   }
 
   function mark(tracerId: string, name: string, meta?: Record<string, any>) {
-    emit({
+    push({
       tracerId,
       name,
       ts: performance.now(),
       meta,
-    })
+    }, false)
   }
 
   async function withMeasure<T>(
@@ -111,18 +115,23 @@ export function createPerfTracer(): PerfTracer {
     fn: () => Promise<T> | T,
     meta?: Record<string, any>,
   ) {
+    const shouldEmit = enabled
+    if (!shouldEmit)
+      return fn()
+
     const start = performance.now()
     try {
       return await fn()
     }
     finally {
-      emit({
+      const disabledAtEnd = !enabled
+      push({
         tracerId,
         name,
         ts: start,
         duration: performance.now() - start,
-        meta,
-      })
+        meta: disabledAtEnd ? { ...meta, tracerDisabledDuringMeasure: true } : meta,
+      }, true)
     }
   }
 
