@@ -1,17 +1,13 @@
 <script setup lang="ts">
-import { UTCDate } from '@date-fns/utc'
 import { AboutContent, AboutDialog } from '@proj-airi/stage-ui/components'
-import { abbreviatedSha, branch, committerDate } from '~build/git'
-import { formatISO9075 } from 'date-fns'
-import { computed, ref } from 'vue'
+import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics/index'
+import { storeToRefs } from 'pinia'
+import { ref } from 'vue'
 
 const show = ref(false)
-const localDate = formatISO9075(new UTCDate(committerDate))
-const buildInfo = computed(() => ({
-  branch,
-  commit: abbreviatedSha.substring(0, 7),
-  builtOn: localDate,
-}))
+const analyticsStore = useSharedAnalyticsStore()
+const { buildInfo } = storeToRefs(analyticsStore)
+
 const aboutLinks = [
   { label: 'Home', href: 'https://airi.moeru.ai/docs/', icon: 'i-solar:home-smile-outline' },
   { label: 'Documentations', href: 'https://airi.moeru.ai/docs/en/docs/overview/', icon: 'i-solar:document-add-outline' },
