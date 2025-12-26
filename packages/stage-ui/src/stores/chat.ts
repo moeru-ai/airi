@@ -438,7 +438,6 @@ export const useChatStore = defineStore('chat', () => {
     streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [], context: assistantContext }
 
     trackFirstMessage()
-
     try {
       await emitBeforeMessageComposedHooks(sendingMessage)
 
@@ -617,7 +616,6 @@ export const useChatStore = defineStore('chat', () => {
     }
     catch (error) {
       console.error('Error sending message:', error)
-
       throw error
     }
     finally {
