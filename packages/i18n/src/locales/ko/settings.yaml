@@ -263,6 +263,9 @@ pages:
             custom_model_placeholder: Enter custom model name...
             description: Select the suitable LLM provider for consciousness
             error: Error loading models
+            health_check_failed: Health check failed
+            no_providers_configured_title: No Providers Configured
+            no_providers_configured_description: Click here to set up your LLM providers
             expand: Expand
             loading: Loading available models...
             manual_model_name: Model Name
