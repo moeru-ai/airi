@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import type { ChatAssistantMessage } from '../../../types/chat'
-import type { ChatHistoryMessage } from './types'
+import type { ChatAssistantMessage, ChatHistoryItem, ContextMessage } from '../../../types/chat'
 
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -10,8 +9,8 @@ import ChatErrorItem from './ChatErrorItem.vue'
 import ChatUserItem from './ChatUserItem.vue'
 
 const props = withDefaults(defineProps<{
-  messages: ChatHistoryMessage[]
-  streamingMessage?: ChatAssistantMessage & { context?: { ts?: number } }
+  messages: ChatHistoryItem[]
+  streamingMessage?: ChatAssistantMessage & { createdAt?: number }
   sending?: boolean
   assistantLabel?: string
   userLabel?: string
@@ -46,10 +45,10 @@ watch([() => props.messages, () => props.streamingMessage], scrollToBottom, { de
 watch(() => props.sending, scrollToBottom, { flush: 'post' })
 onMounted(scrollToBottom)
 
-const streaming = computed<ChatAssistantMessage & { context?: { ts?: number } }>(() => props.streamingMessage ?? { role: 'assistant', content: '', slices: [], tool_results: [] })
+const streaming = computed<ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number }>(() => props.streamingMessage ?? { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() })
 const showStreamingPlaceholder = computed(() => (streaming.value.slices?.length ?? 0) === 0 && !streaming.value.content)
-const streamingTs = computed(() => streaming.value.context?.ts)
-const renderMessages = computed<ChatHistoryMessage[]>(() => {
+const streamingTs = computed(() => streaming.value?.createdAt)
+const renderMessages = computed<ChatHistoryItem[]>(() => {
   if (!props.sending)
     return props.messages
 
@@ -57,7 +56,7 @@ const renderMessages = computed<ChatHistoryMessage[]>(() => {
   if (!streamTs)
     return props.messages
 
-  const hasStreamAlready = streamTs && props.messages.some(msg => msg.context?.ts === streamTs)
+  const hasStreamAlready = streamTs && props.messages.some(msg => msg?.createdAt === streamTs)
   if (hasStreamAlready)
     return props.messages
 
@@ -67,7 +66,7 @@ const renderMessages = computed<ChatHistoryMessage[]>(() => {
 
 <template>
   <div ref="chatHistoryRef" v-auto-animate flex="~ col" relative h-full w-full overflow-y-auto rounded-xl px="<sm:2" py="<sm:2" :class="variant === 'mobile' ? 'gap-1' : 'gap-2'">
-    <template v-for="(message, index) in renderMessages" :key="message.context?.ts ?? index">
+    <template v-for="(message, index) in renderMessages" :key="message?.createdAt ?? index">
       <div v-if="message.role === 'error'">
         <ChatErrorItem
           :message="message"
@@ -81,7 +80,7 @@ const renderMessages = computed<ChatHistoryMessage[]>(() => {
         <ChatAssistantItem
           :message="message"
           :label="labels.assistant"
-          :show-placeholder="message.context?.ts === streamingTs ? showStreamingPlaceholder : false"
+          :show-placeholder="message.context?.createdAt === streamingTs ? showStreamingPlaceholder : false"
           :variant="variant"
         />
       </div>

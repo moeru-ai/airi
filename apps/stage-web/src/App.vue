@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { OnboardingDialog, ToasterRoot } from '@proj-airi/stage-ui/components'
+import { useContextBridge } from '@proj-airi/stage-ui/composables'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
+import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
-import { installChatContextBridge } from '@proj-airi/stage-ui/stores/plugins/chat-context-bridge'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
@@ -18,15 +19,17 @@ import { usePWAStore } from './stores/pwa'
 import 'vue-sonner/style.css'
 
 usePWAStore()
+
+const contextBridge = useContextBridge()
 const i18n = useI18n()
 const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const settings = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
+const serverChannelStore = useModsServerChannelStore()
 const { shouldShowSetup } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
-let disposeChatBridge: (() => void) | undefined
 
 const primaryColor = computed(() => {
   return isDark.value
@@ -67,15 +70,16 @@ onMounted(async () => {
   cardStore.initialize()
 
   onboardingStore.initializeSetupCheck()
-  const bridge = installChatContextBridge()
-  disposeChatBridge = bridge.dispose
+
+  await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch((err) => { console.error('Failed to initialize Mods Server Channel in App.vue:', err) })
+  await contextBridge.initialize()
 
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
 })
 
 onUnmounted(() => {
-  disposeChatBridge?.()
+  contextBridge.dispose()
 })
 
 // Handle first-time setup events

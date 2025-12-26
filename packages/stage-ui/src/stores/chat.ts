@@ -1,10 +1,10 @@
-import type { ContextMessage, ContextSource } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 import type { CommonContentPart, Message, SystemMessage } from '@xsai/shared-chat'
 
 import type { StreamEvent, StreamOptions } from '../stores/llm'
-import type { ChatAssistantMessage, ChatMessage, ChatSlices } from '../types/chat'
+import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 
+import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
@@ -15,54 +15,23 @@ import { createQueue } from '../utils/queue'
 import { TTS_FLUSH_INSTRUCTION } from '../utils/tts'
 import { useAiriCardStore } from './modules'
 
-export interface ErrorMessage {
-  role: 'error'
-  content: string
-}
-
-interface MessageContext {
-  sessionId: string
-  source: ContextSource
-  ts: number
-  meta?: Record<string, unknown>
-}
-
-export type ChatEntry = (ChatMessage | ErrorMessage) & { context?: MessageContext }
-
-export interface ContextPayload {
-  content?: unknown
-  slices?: ChatSlices[]
-  tool_results?: ChatAssistantMessage['tool_results']
-  text?: string
-}
-
-export type ChatStreamEvent
-  = | { type: 'before-compose', message: string, sessionId: string }
-    | { type: 'after-compose', message: string, sessionId: string }
-    | { type: 'before-send', message: string, sessionId: string }
-    | { type: 'after-send', message: string, sessionId: string }
-    | { type: 'token-literal', literal: string, sessionId: string }
-    | { type: 'token-special', special: string, sessionId: string }
-    | { type: 'stream-end', sessionId: string }
-    | { type: 'assistant-end', message: string, sessionId: string }
-
 const CHAT_STORAGE_KEY = 'chat/messages/v2'
 const ACTIVE_SESSION_STORAGE_KEY = 'chat/active-session'
 export const CONTEXT_CHANNEL_NAME = 'airi-context-update'
 export const CHAT_STREAM_CHANNEL_NAME = 'airi-chat-stream'
-
-type StreamingAssistantMessage = ChatAssistantMessage & { context?: MessageContext }
 
 export const useChatStore = defineStore('chat', () => {
   const { stream, discoverToolsCompatibility } = useLLM()
   const { systemPrompt } = storeToRefs(useAiriCardStore())
 
   const activeSessionId = useLocalStorage<string>(ACTIVE_SESSION_STORAGE_KEY, 'default')
-  const sessionMessages = useLocalStorage<Record<string, ChatEntry[]>>(CHAT_STORAGE_KEY, {})
+  const sessionMessages = useLocalStorage<Record<string, ChatHistoryItem[]>>(CHAT_STORAGE_KEY, {})
 
   const sending = ref(false)
-  const streamingMessage = ref<StreamingAssistantMessage>({ role: 'assistant', content: '', slices: [], tool_results: [] })
+  const streamingMessage = ref<StreamingAssistantMessage>({ role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() })
   const sessionGenerations = ref<Record<string, number>>({})
+
+  const activeContexts = ref<Record<string, ContextMessage[]>>({})
 
   interface SendOptions {
     model: string
@@ -127,7 +96,7 @@ export const useChatStore = defineStore('chat', () => {
   const onTokenSpecialHooks = ref<Array<(special: string) => Promise<void>>>([])
   const onStreamEndHooks = ref<Array<() => Promise<void>>>([])
   const onAssistantResponseEndHooks = ref<Array<(message: string) => Promise<void>>>([])
-  const onContextPublishHooks = ref<Array<(envelope: ContextMessage<ContextPayload>, origin: 'local' | 'ws' | 'broadcast') => Promise<void> | void>>([])
+  const onContextPublishHooks = ref<Array<(envelope: ContextMessage, origin: 'local' | 'ws' | 'broadcast') => Promise<void> | void>>([])
 
   function onBeforeMessageComposed(cb: (message: string) => Promise<void>) {
     onBeforeMessageComposedHooks.value.push(cb)
@@ -167,14 +136,6 @@ export const useChatStore = defineStore('chat', () => {
   function onAssistantResponseEnd(cb: (message: string) => Promise<void>) {
     onAssistantResponseEndHooks.value.push(cb)
     return () => onAssistantResponseEndHooks.value = onAssistantResponseEndHooks.value.filter(hook => hook !== cb) // return remove listener callback
-  }
-
-  function onContextPublish(cb: (envelope: ContextMessage<ContextPayload>, origin: 'local' | 'ws' | 'broadcast') => Promise<void> | void) {
-    onContextPublishHooks.value.push(cb)
-
-    return () => {
-      onContextPublishHooks.value = onContextPublishHooks.value.filter(hook => hook !== cb)
-    }
   }
 
   function clearHooks() {
@@ -252,23 +213,19 @@ export const useChatStore = defineStore('chat', () => {
 
   function generateInitialMessage() {
     // TODO: compose, replace {{ user }} tag, etc
+    const content = codeBlockSystemPrompt + mathSyntaxSystemPrompt + systemPrompt.value
+
     return {
       role: 'system',
-      content: codeBlockSystemPrompt + mathSyntaxSystemPrompt + systemPrompt.value,
+      content,
     } satisfies SystemMessage
   }
 
   function ensureSession(sessionId: string) {
     ensureSessionGeneration(sessionId)
+
     if (!sessionMessages.value[sessionId] || sessionMessages.value[sessionId].length === 0) {
-      sessionMessages.value[sessionId] = [{
-        ...generateInitialMessage(),
-        context: {
-          sessionId,
-          source: 'system',
-          ts: Date.now(),
-        },
-      }]
+      sessionMessages.value[sessionId] = [generateInitialMessage()]
     }
   }
 
@@ -279,7 +236,7 @@ export const useChatStore = defineStore('chat', () => {
     return sessionMessages.value[sessionId]!
   }
 
-  const messages = computed<ChatEntry[]>({
+  const messages = computed<ChatHistoryItem[]>({
     get: () => {
       ensureSession(activeSessionId.value)
       return sessionMessages.value[activeSessionId.value]
@@ -296,14 +253,8 @@ export const useChatStore = defineStore('chat', () => {
 
   function cleanupMessages(sessionId = activeSessionId.value) {
     bumpSessionGeneration(sessionId)
-    sessionMessages.value[sessionId] = [{
-      ...generateInitialMessage(),
-      context: {
-        sessionId,
-        source: 'system',
-        ts: Date.now(),
-      },
-    }]
+    sessionMessages.value[sessionId] = [generateInitialMessage()]
+
     // Reject pending sends for this session so callers don't hang after cleanup
     for (const queued of pendingQueuedSends.value) {
       if (queued.sessionId !== sessionId)
@@ -312,16 +263,17 @@ export const useChatStore = defineStore('chat', () => {
       queued.cancelled = true
       queued.deferred.reject(new Error('Chat session was reset before send could start'))
     }
+
     pendingQueuedSends.value = pendingQueuedSends.value.filter(item => item.sessionId !== sessionId)
     sending.value = false
     streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
   }
 
   function getAllSessions() {
-    return JSON.parse(JSON.stringify(toRaw(sessionMessages.value))) as Record<string, ChatEntry[]>
+    return JSON.parse(JSON.stringify(toRaw(sessionMessages.value))) as Record<string, ChatHistoryItem[]>
   }
 
-  function replaceSessions(sessions: Record<string, ChatEntry[]>) {
+  function replaceSessions(sessions: Record<string, ChatHistoryItem[]>) {
     sessionMessages.value = sessions
     sessionGenerations.value = Object.fromEntries(Object.keys(sessions).map(sessionId => [sessionId, 0]))
     const [firstSessionId] = Object.keys(sessions)
@@ -341,74 +293,22 @@ export const useChatStore = defineStore('chat', () => {
   watch(systemPrompt, () => {
     for (const [sessionId, history] of Object.entries(sessionMessages.value)) {
       if (history.length > 0 && history[0].role === 'system') {
-        sessionMessages.value[sessionId][0] = {
-          ...generateInitialMessage(),
-          context: {
-            sessionId,
-            source: 'system',
-            ts: Date.now(),
-          },
-        }
+        sessionMessages.value[sessionId][0] = generateInitialMessage()
       }
     }
   }, { immediate: true })
 
-  // ----- Context bridge (WS + BroadcastChannel) -----
-  function normalizePayload(payload?: ContextPayload) {
-    const baseContent = payload?.content ?? payload?.text ?? ''
-    const normalizedContent = typeof baseContent === 'string' || Array.isArray(baseContent)
-      ? baseContent
-      : JSON.stringify(baseContent)
-
-    return {
-      content: normalizedContent,
-      slices: payload?.slices ?? [],
-      tool_results: payload?.tool_results ?? [],
-    }
-  }
-
-  function ingestContextMessage(envelope: ContextMessage<ContextPayload>) {
-    ensureSession(envelope.sessionId)
-
-    const { content, slices, tool_results } = normalizePayload(envelope.payload)
-
-    const context: MessageContext = {
-      sessionId: envelope.sessionId,
-      source: envelope.source,
-      ts: envelope.ts,
-      meta: envelope.meta,
+  function ingestContextMessage(envelope: ContextMessage) {
+    if (!activeContexts.value[envelope.source]) {
+      activeContexts.value[envelope.source] = []
     }
 
-    const nextHistory = sessionMessages.value[envelope.sessionId]
-
-    if (envelope.role === 'assistant') {
-      nextHistory.push({
-        role: 'assistant',
-        content,
-        slices,
-        tool_results,
-        context,
-      })
+    if (envelope.strategy === ContextUpdateStrategy.ReplaceSelf) {
+      activeContexts.value[envelope.source] = [envelope]
     }
-    else if (envelope.role === 'error') {
-      nextHistory.push({
-        role: 'error',
-        content: typeof content === 'string' ? content : JSON.stringify(content),
-        context,
-      })
+    else if (envelope.strategy === ContextUpdateStrategy.AppendSelf) {
+      activeContexts.value[envelope.source].push(envelope)
     }
-    else {
-      nextHistory.push({
-        role: envelope.role,
-        content,
-        context,
-      } as ChatEntry)
-    }
-  }
-
-  function publishContextMessage(envelope: ContextMessage<ContextPayload>, origin: 'local' | 'ws' | 'broadcast' = 'local') {
-    for (const hook of onContextPublishHooks.value)
-      void hook(envelope, origin)
   }
 
   // ----- Send flow (user -> LLM -> assistant) -----
@@ -427,13 +327,10 @@ export const useChatStore = defineStore('chat', () => {
     const shouldAbort = () => isStaleGeneration()
     if (shouldAbort())
       return
+
     sending.value = true
-    const assistantContext: MessageContext = {
-      sessionId,
-      source: 'llm',
-      ts: Date.now(),
-    }
-    streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [], context: assistantContext }
+
+    streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() }
 
     try {
       await emitBeforeMessageComposedHooks(sendingMessage)
@@ -459,16 +356,7 @@ export const useChatStore = defineStore('chat', () => {
         return
 
       const sessionMessagesForSend = getSessionMessagesById(sessionId)
-      const userContext: MessageContext = { sessionId, source: 'text', ts: Date.now() }
-      sessionMessagesForSend.push({ role: 'user', content: finalContent, context: userContext })
-
-      publishContextMessage({
-        sessionId: userContext.sessionId,
-        ts: userContext.ts,
-        role: 'user',
-        source: userContext.source,
-        payload: { content: finalContent },
-      }, 'local')
+      sessionMessagesForSend.push({ role: 'user', content: finalContent })
 
       const parser = useLlmmarkerParser({
         onLiteral: async (literal) => {
@@ -493,6 +381,7 @@ export const useChatStore = defineStore('chat', () => {
         onSpecial: async (special) => {
           if (shouldAbort())
             return
+
           await emitTokenSpecialHooks(special)
         },
         minLiteralEmitLength: 24, // Avoid emitting literals too fast. This is a magic number and can be changed later.
@@ -515,9 +404,10 @@ export const useChatStore = defineStore('chat', () => {
         ],
       })
 
-      const newMessages = sessionMessagesForSend.map((msg) => {
+      let newMessages = sessionMessagesForSend.map((msg) => {
         const { context: _context, ...withoutContext } = msg
         const rawMessage = toRaw(withoutContext)
+
         if (rawMessage.role === 'assistant') {
           const { slices: _, tool_results, ...rest } = rawMessage as ChatAssistantMessage
           return {
@@ -528,6 +418,28 @@ export const useChatStore = defineStore('chat', () => {
 
         return rawMessage
       })
+
+      // TODO: possible prototype pollution as key of activeContexts is from external source
+      // TODO: sanitize keys or use a safer structure
+      if (Object.keys(activeContexts.value).length > 0) {
+        const system = newMessages.slice(0, 1)
+        const afterSystem = newMessages.slice(1, newMessages.length)
+
+        newMessages = [
+          ...system,
+          {
+            role: 'user',
+            content: [
+            // TODO: use prompt render & i18n system later
+            // TODO: Module should have description & context length management
+              { type: 'text', text: ''
+                + 'These are the contextual information retrieved or on-demand updated from other modules, you may use them as context for chat, or reference of the next action, tool call, etc.:\n'
+                + `${Object.entries(activeContexts.value).map(([key, value]) => `Module ${key}: ${JSON.stringify(value)}`).join('\n')}\n` },
+            ],
+          },
+          ...afterSystem,
+        ]
+      }
 
       await emitAfterMessageComposedHooks(sendingMessage)
       await emitBeforeSendHooks(sendingMessage)
@@ -573,24 +485,7 @@ export const useChatStore = defineStore('chat', () => {
 
       // Add the completed message to the history only if it has content
       if (!isStaleGeneration() && streamingMessage.value.slices.length > 0) {
-        const assistantMessage: ChatEntry = {
-          ...(toRaw(streamingMessage.value) as ChatAssistantMessage),
-          context: assistantContext,
-        }
-
-        sessionMessagesForSend.push(assistantMessage)
-
-        publishContextMessage({
-          sessionId: assistantContext.sessionId,
-          ts: assistantContext.ts,
-          role: 'assistant',
-          source: assistantContext.source,
-          payload: {
-            content: assistantMessage.content,
-            slices: assistantMessage.slices,
-            tool_results: assistantMessage.tool_results,
-          },
-        }, 'local')
+        sessionMessagesForSend.push(toRaw(streamingMessage.value))
       }
 
       // Reset the streaming message for the next turn
@@ -649,7 +544,6 @@ export const useChatStore = defineStore('chat', () => {
     send,
     setActiveSession,
     ingestContextMessage,
-    publishContextMessage,
     cleanupMessages,
     getAllSessions,
     replaceSessions,
@@ -672,6 +566,5 @@ export const useChatStore = defineStore('chat', () => {
     onTokenSpecial,
     onStreamEnd,
     onAssistantResponseEnd,
-    onContextPublish,
   }
 })
