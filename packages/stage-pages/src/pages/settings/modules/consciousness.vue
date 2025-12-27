@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
@@ -22,6 +23,7 @@ const {
 } = storeToRefs(consciousnessStore)
 
 const { t } = useI18n()
+const { trackProviderClick } = useAnalytics()
 
 watch(activeProvider, async (provider) => {
   if (!provider)
@@ -76,6 +78,7 @@ function handleDeleteProvider(providerId: string) {
               :value="metadata.id"
               :title="metadata.localizedName || 'Unknown'"
               :description="metadata.localizedDescription"
+              @click="trackProviderClick(metadata.id, 'consciousness')"
             >
               <template #topRight>
                 <button

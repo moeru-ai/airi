@@ -9,6 +9,7 @@ import { useLocalStorage } from '@vueuse/core'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
 
+import { useAnalytics } from '../composables'
 import { useLlmmarkerParser } from '../composables/llmmarkerParser'
 import { useLLM } from '../stores/llm'
 import { createQueue } from '../utils/queue'
@@ -23,6 +24,7 @@ export const CHAT_STREAM_CHANNEL_NAME = 'airi-chat-stream'
 export const useChatStore = defineStore('chat', () => {
   const { stream, discoverToolsCompatibility } = useLLM()
   const { systemPrompt } = storeToRefs(useAiriCardStore())
+  const { trackFirstMessage } = useAnalytics()
 
   const activeSessionId = useLocalStorage<string>(ACTIVE_SESSION_STORAGE_KEY, 'default')
   const sessionMessages = useLocalStorage<Record<string, ChatHistoryItem[]>>(CHAT_STORAGE_KEY, {})
@@ -332,6 +334,7 @@ export const useChatStore = defineStore('chat', () => {
 
     streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() }
 
+    trackFirstMessage()
     try {
       await emitBeforeMessageComposedHooks(sendingMessage)
 

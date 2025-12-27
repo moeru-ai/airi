@@ -1,24 +1,17 @@
 <script setup lang="ts">
-import { UTCDate } from '@date-fns/utc'
 import { MarkdownRenderer, Progress } from '@proj-airi/stage-ui/components'
+import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics/index'
 import { Button, DoubleCheckButton } from '@proj-airi/ui'
 import { useMediaQuery } from '@vueuse/core'
-import { abbreviatedSha, branch, committerDate } from '~build/git'
-import { formatISO9075 } from 'date-fns'
+import { storeToRefs } from 'pinia'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { DrawerContent, DrawerDescription, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTitle } from 'vaul-vue'
 import { computed, ref } from 'vue'
 
-import packageJson from '../../../package.json'
-
 import { useElectronAutoUpdater } from '../composables/electron-vueuse'
 
-const buildInfo = computed(() => ({
-  version: packageJson.version,
-  branch,
-  commit: abbreviatedSha.substring(0, 7),
-  builtOn: formatISO9075(new UTCDate(committerDate)),
-}))
+const analyticsStore = useSharedAnalyticsStore()
+const { buildInfo } = storeToRefs(analyticsStore)
 
 const {
   state: updateState,
