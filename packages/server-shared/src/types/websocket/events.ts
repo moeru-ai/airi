@@ -25,7 +25,11 @@ interface InputSource {
 }
 
 interface OutputSource {
-  'gen-ai:chat': string
+  'gen-ai:chat': {
+    input: UserMessage
+    contexts: Record<string, ContextUpdate[]>
+    composedMessage: Array<Message>
+  }
 }
 
 export enum ContextUpdateStrategy {
@@ -118,11 +122,14 @@ export interface WebSocketEvents<C = undefined> {
     message: AssistantMessage
   } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>> & Partial<WithOutputSource<'gen-ai:chat'>>
   'output:gen-ai:chat:complete': {
-    input: UserMessage
-    contexts: Record<string, ContextUpdate[]>
-    composedMessage: Array<Message>
     message: AssistantMessage
     toolCalls: ToolMessage[]
+    usage: {
+      promptTokens: number
+      completionTokens: number
+      totalTokens: number
+      source: 'provider-based' | 'estimate-based'
+    }
   } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>> & Partial<WithOutputSource<'gen-ai:chat'>>
 
   'context:update': ContextUpdate
