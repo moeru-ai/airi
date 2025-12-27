@@ -10,7 +10,7 @@ import {
   TestDummyMarker,
   VoiceCardManySelect,
 } from '@proj-airi/stage-ui/components'
-import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import {

@@ -6,7 +6,7 @@ import buildTime from '~build/time'
 import NProgress from 'nprogress'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
-import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics/index'
+import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { MotionPlugin } from '@vueuse/motion'
 import { abbreviatedSha, branch } from '~build/git'
 import { version } from '~build/package'
