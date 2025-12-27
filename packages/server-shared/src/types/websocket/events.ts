@@ -142,13 +142,28 @@ export interface WebSocketEvents<C = undefined> {
   } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>> & Partial<WithOutputSource<'gen-ai:chat'>>
 
   /**
-   * Sub-agent raises an event toward the character (or other destinations).
+   * Spark used for allowing agents in a network to raise an event toward the other destinations (e.g. character).
+   *
+   * DO:
+   * - Use notify for episodic events (alarms/pings/reminders) with minimal payload.
+   * - Use command for high-level intent; let sub-agents translate into their own state machines.
+   * - Use emit for ack/progress/completion; include ids for tracing/dedupe.
+   * - Route via destinations; keep payloads small; use context:update for richer ideas.
+   * - Dedupe/log via id/eventId for observability.
+   *
+   * DOn't:
+   * - Stream high-frequency telemetry here (keep a separate channel).
+   * - Stuff large blobs into payload/contexts; prefer refs/summaries.
+   * - Assume exactly-once; add retry/ack on critical paths. You may rely on id/eventId for dedupe.
+   * - Allow untrusted agents to broadcast without auth/capability checks.
+   *
    * Examples:
    * - Minecraft attack/death: kind=alarm, urgency=immediate (fast bubble-up).
    *   e.g., fromAgent='minecraft', headline='Under attack by witch', payload includes hp/location/gear.
    * - Cat bowl empty from HomeAssistant: kind=alarm, urgency=soon.
    * - IM/email "read now": kind=ping, urgency=immediate.
    * - Action Required email: kind=reminder, urgency=later.
+   *
    * destinations controls routing (e.g. ['character'], ['character','minecraft-agent']).
    */
   'spark:notify': {
@@ -163,6 +178,7 @@ export interface WebSocketEvents<C = undefined> {
     ttlMs?: number
     requiresAck?: boolean
     destinations: Array<string>
+    metadata?: Record<string, unknown>
   }
 
   /**
@@ -179,6 +195,7 @@ export interface WebSocketEvents<C = undefined> {
     state: 'queued' | 'working' | 'done' | 'dropped' | 'blocked' | 'expired'
     note?: string
     destinations: Array<string>
+    metadata?: Record<string, unknown>
   }
 
   /**
@@ -197,7 +214,7 @@ export interface WebSocketEvents<C = undefined> {
     commandId: string
     interrupt: 'force' | 'soft' | false
     priority: 'critical' | 'high' | 'normal' | 'low'
-    intent: 'action' | 'plan' | 'pause' | 'resume' | 'reroute' | 'context'
+    intent: 'plan' | 'proposal' | 'action' | 'pause' | 'resume' | 'reroute' | 'context'
     ack?: string
     guidance?: {
       type: 'proposal' | 'instruction' | 'memory-recall'
