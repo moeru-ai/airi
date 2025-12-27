@@ -1,5 +1,5 @@
 import type { ChatProvider } from '@xsai-ext/shared-providers'
-import type { CommonContentPart, Message, SystemMessage } from '@xsai/shared-chat'
+import type { CommonContentPart, Message, SystemMessage, ToolMessage } from '@xsai/shared-chat'
 
 import type { StreamEvent, StreamOptions } from '../stores/llm'
 import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ContextMessage, StreamingAssistantMessage } from '../types/chat'
@@ -98,8 +98,15 @@ export const useChatStore = defineStore('chat', () => {
   const onTokenSpecialHooks = ref<Array<(special: string) => Promise<void>>>([])
   const onStreamEndHooks = ref<Array<() => Promise<void>>>([])
   const onAssistantResponseEndHooks = ref<Array<(message: string) => Promise<void>>>([])
-  const onAssistantMessageHooks = ref<Array<(message: StreamingAssistantMessage) => Promise<void>>>([])
-  const onChatTurnCompleteHooks = ref<Array<(chat: { input: ChatHistoryItem, contexts: Record<string, ContextMessage[]>, composedMessage: Message[], output: StreamingAssistantMessage }) => Promise<void>>>([])
+  const onAssistantMessageHooks = ref<Array<(message: StreamingAssistantMessage, messageText?: string) => Promise<void>>>([])
+  const onChatTurnCompleteHooks = ref<Array<(chat: {
+    input: ChatHistoryItem
+    contexts: Record<string, ContextMessage[]>
+    composedMessage: Message[]
+    output: StreamingAssistantMessage
+    outputText: string
+    toolCalls: ToolMessage[]
+  }) => Promise<void>>>([])
 
   function onBeforeMessageComposed(cb: (message: string) => Promise<void>) {
     onBeforeMessageComposedHooks.value.push(cb)
@@ -141,12 +148,19 @@ export const useChatStore = defineStore('chat', () => {
     return () => onAssistantResponseEndHooks.value = onAssistantResponseEndHooks.value.filter(hook => hook !== cb) // return remove listener callback
   }
 
-  function onAssistantMessage(cb: (message: StreamingAssistantMessage) => Promise<void>) {
+  function onAssistantMessage(cb: (message: StreamingAssistantMessage, messageText?: string) => Promise<void>) {
     onAssistantMessageHooks.value.push(cb)
     return () => onAssistantMessageHooks.value = onAssistantMessageHooks.value.filter(hook => hook !== cb) // return remove listener callback
   }
 
-  function onChatTurnComplete(cb: (chat: { input: ChatHistoryItem, contexts: Record<string, ContextMessage[]>, composedMessage: Message[], output: StreamingAssistantMessage }) => Promise<void>) {
+  function onChatTurnComplete(cb: (chat: {
+    input: ChatHistoryItem
+    contexts: Record<string, ContextMessage[]>
+    composedMessage: Message[]
+    output: StreamingAssistantMessage
+    outputText: string
+    toolCalls: ToolMessage[]
+  }) => Promise<void>) {
     onChatTurnCompleteHooks.value.push(cb)
     return () => onChatTurnCompleteHooks.value = onChatTurnCompleteHooks.value.filter(hook => hook !== cb) // return remove listener callback
   }
@@ -204,12 +218,19 @@ export const useChatStore = defineStore('chat', () => {
       await hook(message)
   }
 
-  async function emitAssistantMessageHooks(message: StreamingAssistantMessage) {
+  async function emitAssistantMessageHooks(message: StreamingAssistantMessage, messageText?: string) {
     for (const hook of onAssistantMessageHooks.value)
-      await hook(message)
+      await hook(message, messageText)
   }
 
-  async function emitChatTurnCompleteHooks(chat: { input: ChatHistoryItem, contexts: Record<string, ContextMessage[]>, composedMessage: Message[], output: StreamingAssistantMessage }) {
+  async function emitChatTurnCompleteHooks(chat: {
+    input: ChatHistoryItem
+    contexts: Record<string, ContextMessage[]>
+    composedMessage: Message[]
+    output: StreamingAssistantMessage
+    outputText: string
+    toolCalls: ToolMessage[]
+  }) {
     for (const hook of onChatTurnCompleteHooks.value)
       await hook(chat)
   }
@@ -528,12 +549,14 @@ export const useChatStore = defineStore('chat', () => {
       await emitAssistantResponseEndHooks(fullText)
 
       await emitAfterSendHooks(sendingMessage)
-      await emitAssistantMessageHooks({ ...streamingMessage.value })
+      await emitAssistantMessageHooks({ ...streamingMessage.value }, fullText)
       await emitChatTurnCompleteHooks({
         input: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt },
         contexts: { ...activeContexts.value },
         composedMessage: newMessages as Message[],
         output: { ...streamingMessage.value },
+        outputText: fullText,
+        toolCalls: sessionMessagesForSend.filter(msg => msg.role === 'tool') as ToolMessage[],
       })
 
       // Reset the streaming message for the next turn
@@ -576,11 +599,12 @@ export const useChatStore = defineStore('chat', () => {
 
     send,
     setActiveSession,
-    ingestContextMessage,
     cleanupMessages,
     getAllSessions,
     replaceSessions,
     resetAllSessions,
+
+    ingestContextMessage,
 
     clearHooks,
 

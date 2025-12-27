@@ -1,4 +1,4 @@
-import type { AssistantMessage, ToolMessage } from '@xsai/shared-chat'
+import type { AssistantMessage, Message, ToolMessage, UserMessage } from '@xsai/shared-chat'
 
 export interface DiscordGuildMember {
   nickname: string
@@ -19,13 +19,13 @@ export enum WebSocketEventSource {
 }
 
 interface InputSource {
-  'stage-web': string
-  'stage-tamagotchi': string
+  'stage-web': boolean
+  'stage-tamagotchi': boolean
   'discord': Discord
 }
 
 interface OutputSource {
-  'gen-ai-model-chat': string
+  'gen-ai:chat': string
 }
 
 export enum ContextUpdateStrategy {
@@ -80,6 +80,7 @@ export interface WebSocketEvents<C = undefined> {
   'error': {
     message: string
   }
+
   'module:authenticate': {
     token: string
   }
@@ -93,11 +94,13 @@ export interface WebSocketEvents<C = undefined> {
   'module:configure': {
     config: C
   }
+
   'ui:configure': {
     moduleName: string
     moduleIndex?: number
     config: C | Record<string, unknown>
   }
+
   'input:text': {
     text: string
   } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
@@ -107,9 +110,21 @@ export interface WebSocketEvents<C = undefined> {
   'input:voice': {
     audio: ArrayBuffer
   } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
+
+  'output:gen-ai:chat:tool-call': {
+    toolCalls: ToolMessage[]
+  } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>> & Partial<WithOutputSource<'gen-ai:chat'>>
   'output:gen-ai:chat:message': {
-    messages: Array<AssistantMessage | ToolMessage>
-  } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>> & Partial<WithOutputSource<'gen-ai-model-chat'>>
+    message: AssistantMessage
+  } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>> & Partial<WithOutputSource<'gen-ai:chat'>>
+  'output:gen-ai:chat:complete': {
+    input: UserMessage
+    contexts: Record<string, ContextUpdate[]>
+    composedMessage: Array<Message>
+    message: AssistantMessage
+    toolCalls: ToolMessage[]
+  } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>> & Partial<WithOutputSource<'gen-ai:chat'>>
+
   'context:update': ContextUpdate
 }
 

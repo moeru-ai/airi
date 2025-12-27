@@ -1,5 +1,8 @@
+import type { UserMessage } from '@xsai/shared-chat'
+
 import type { ChatStreamEvent, ContextMessage } from '../../../types/chat'
 
+import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useBroadcastChannel } from '@vueuse/core'
 import { Mutex } from 'es-toolkit'
 import { defineStore } from 'pinia'
@@ -87,8 +90,32 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }),
       )
 
+      disposeHookFns.value.push(chatStore.onAssistantMessage(async (message, messageText) => {
+        serverChannelStore.send({
+          type: 'output:gen-ai:chat:message',
+          data: {
+            message,
+            'stage-web': isStageWeb(),
+            'stage-tamagotchi': isStageTamagotchi(),
+            'gen-ai:chat': messageText || '',
+          },
+        })
+      }))
+
       disposeHookFns.value.push(chatStore.onChatTurnComplete(async (chat) => {
-        serverChannelStore.send({ type: 'output:gen-ai:chat:message', data: { messages: [chat.output] } })
+        serverChannelStore.send({
+          type: 'output:gen-ai:chat:complete',
+          data: {
+            'input': chat.input as UserMessage,
+            'composedMessage': chat.composedMessage,
+            'contexts': chat.contexts,
+            'message': chat.output,
+            'toolCalls': [],
+            'stage-web': isStageWeb(),
+            'stage-tamagotchi': isStageTamagotchi(),
+            'gen-ai:chat': chat.outputText,
+          },
+        })
       }))
 
       const { stop: stopIncomingStreamWatch } = watch(incomingStreamEvent, async (event) => {
