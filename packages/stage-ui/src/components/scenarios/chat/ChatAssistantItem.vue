@@ -4,6 +4,7 @@ import type { ChatAssistantMessage, ChatSlices, ChatSlicesText } from '../../../
 import { computed } from 'vue'
 
 import MarkdownRenderer from '../../markdown/MarkdownRenderer.vue'
+import ChatResponseCategorization from './ChatResponseCategorization.vue'
 import ChatToolCallBlock from './ChatToolCallBlock.vue'
 
 const props = withDefaults(defineProps<{
@@ -66,6 +67,13 @@ const boxClasses = computed(() => [
         </template>
       </div>
       <div v-else-if="showLoader" i-eos-icons:three-dots-loading />
+
+      <!-- Add categorization display -->
+      <ChatResponseCategorization
+        v-if="message.categorization"
+        :message="message"
+        :variant="variant"
+      />
     </div>
   </div>
 </template>

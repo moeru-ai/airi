@@ -25,6 +25,12 @@ export interface ChatAssistantMessage extends AssistantMessage {
     id: string
     result?: string | CommonContentPart[]
   }[]
+  categorization?: {
+    speech: string
+    thoughts: string
+    reasoning: string
+    metadata: string
+  }
 }
 
 export type ChatMessage = ChatAssistantMessage | SystemMessage | ToolMessage | UserMessage

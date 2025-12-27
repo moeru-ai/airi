@@ -9,11 +9,13 @@ import { useLocalStorage } from '@vueuse/core'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
 
+import { categorizeResponse, createStreamingCategorizer } from '../composables/responseCategorizer'
 import { useLlmmarkerParser } from '../composables/llmmarkerParser'
 import { useLLM } from '../stores/llm'
 import { createQueue } from '../utils/queue'
 import { TTS_FLUSH_INSTRUCTION } from '../utils/tts'
 import { useAiriCardStore } from './modules'
+import { useConsciousnessStore } from './modules/consciousness'
 
 const CHAT_STORAGE_KEY = 'chat/messages/v2'
 const ACTIVE_SESSION_STORAGE_KEY = 'chat/active-session'
@@ -23,6 +25,7 @@ export const CHAT_STREAM_CHANNEL_NAME = 'airi-chat-stream'
 export const useChatStore = defineStore('chat', () => {
   const { stream, discoverToolsCompatibility } = useLLM()
   const { systemPrompt } = storeToRefs(useAiriCardStore())
+  const consciousnessStore = useConsciousnessStore()
 
   const activeSessionId = useLocalStorage<string>(ACTIVE_SESSION_STORAGE_KEY, 'default')
   const sessionMessages = useLocalStorage<Record<string, ChatHistoryItem[]>>(CHAT_STORAGE_KEY, {})
@@ -358,14 +361,34 @@ export const useChatStore = defineStore('chat', () => {
       const sessionMessagesForSend = getSessionMessagesById(sessionId)
       sessionMessagesForSend.push({ role: 'user', content: finalContent })
 
+      // Create categorizer for response categorization
+      const activeProvider = consciousnessStore.activeProvider
+      const categorizer = createStreamingCategorizer(activeProvider.value)
+      let streamPosition = 0 // Track position in stream for TTS filtering
+      let fullTextForCategorization = '' // Track full text for accurate categorization
+
       const parser = useLlmmarkerParser({
         onLiteral: async (literal) => {
           if (shouldAbort())
             return
-          await emitTokenLiteralHooks(literal)
 
+          // Store full content (including thoughts) for categorization
+          fullTextForCategorization += literal
           streamingMessage.value.content += literal
 
+          // Feed to categorizer
+          categorizer.consume(literal)
+
+          // Try to filter for TTS (may not be perfect during streaming, but better than nothing)
+          const speechOnly = categorizer.filterToSpeech(literal, streamPosition)
+          streamPosition += literal.length
+
+          // Only emit speech content to TTS hooks
+          if (speechOnly) {
+            await emitTokenLiteralHooks(speechOnly)
+          }
+
+          // Add all content to slices during streaming (will be filtered after categorization completes)
           // merge text slices for markdown
           const lastSlice = streamingMessage.value.slices.at(-1)
           if (lastSlice?.type === 'text') {
@@ -409,14 +432,16 @@ export const useChatStore = defineStore('chat', () => {
         const rawMessage = toRaw(withoutContext)
 
         if (rawMessage.role === 'assistant') {
-          const { slices: _, tool_results, ...rest } = rawMessage as ChatAssistantMessage
-          return {
+          const { slices: _, tool_results, categorization: __categorization, ...rest } = rawMessage as ChatAssistantMessage
+          // Create a clean, serializable message object
+          return JSON.parse(JSON.stringify({
             ...toRaw(rest),
             tool_results: toRaw(tool_results),
-          }
+          })) as Message
         }
 
-        return rawMessage
+        // Ensure user/system messages are also serializable
+        return JSON.parse(JSON.stringify(rawMessage)) as Message
       })
 
       // TODO: possible prototype pollution as key of activeContexts is from external source
@@ -482,6 +507,71 @@ export const useChatStore = defineStore('chat', () => {
       })
       // Finalize the parsing of the actual message content
       await parser.end()
+
+      // Finalize categorization using the full text
+      const finalCategorization = categorizeResponse(fullTextForCategorization, activeProvider.value)
+
+      // Always filter out thoughts/reasoning/metadata from the main message content
+      // even if categorization didn't detect tags (defensive filtering)
+      if (finalCategorization && !isStaleGeneration()) {
+        // Only store categorization if we actually found tagged segments
+        // This prevents storing empty/inferred categorizations
+        const hasTaggedSegments = finalCategorization.segments.length > 0
+        
+        if (hasTaggedSegments) {
+          // Only store thoughts if we have actual thought segments (tagged content)
+          const hasThoughtSegments = finalCategorization.segments.some(s => s.category === 'thought')
+          const hasReasoningSegments = finalCategorization.segments.some(s => s.category === 'reasoning')
+          const hasMetadataSegments = finalCategorization.segments.some(s => s.category === 'metadata')
+
+          streamingMessage.value.categorization = {
+            speech: finalCategorization.speech,
+            // Only include thoughts if we found actual thought tags
+            thoughts: hasThoughtSegments ? finalCategorization.thoughts : '',
+            // Only include reasoning if we found actual reasoning tags
+            reasoning: hasReasoningSegments ? finalCategorization.reasoning : '',
+            // Only include metadata if we found actual metadata tags
+            metadata: hasMetadataSegments ? finalCategorization.metadata : '',
+          }
+        }
+
+        // Always rebuild slices to only include speech content (filter out thoughts/reasoning/metadata)
+        // This ensures thoughts never appear in the main message content
+        const speechOnlySlices: ChatSlices[] = []
+
+        // Rebuild text slices from speech content only
+        // Preserve non-text slices (tool-calls, etc.)
+        for (const slice of streamingMessage.value.slices) {
+          if (slice.type === 'text') {
+            // Skip text slices - we'll rebuild them from speech content
+            continue
+          }
+          else {
+            // Keep non-text slices (tool-call, etc.) as-is
+            speechOnlySlices.push(slice)
+          }
+        }
+
+        // Add speech content as a single text slice
+        // finalCategorization.speech always contains the filtered speech content
+        // (when tags are found, it excludes thoughts/reasoning/metadata;
+        //  when no tags are found, it contains the full text)
+        if (finalCategorization.speech && finalCategorization.speech.trim()) {
+          // If there are existing non-text slices, add speech after them
+          // Otherwise, add as the first slice
+          speechOnlySlices.push({
+            type: 'text',
+            text: finalCategorization.speech,
+          })
+        }
+
+        // Replace slices with filtered version
+        streamingMessage.value.slices = speechOnlySlices
+
+        // Always update content to only show speech (thoughts/reasoning filtered out)
+        // This ensures consistency between slices and content field
+        streamingMessage.value.content = finalCategorization.speech || ''
+      }
 
       // Add the completed message to the history only if it has content
       if (!isStaleGeneration() && streamingMessage.value.slices.length > 0) {

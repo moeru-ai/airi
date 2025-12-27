@@ -11,14 +11,27 @@ import { EMOTION_VALUES } from '../constants/emotions'
 import { createQueue } from '../utils/queue'
 import { createControllableStream } from '../utils/stream'
 import { chunkEmitter, TTS_SPECIAL_TOKEN } from '../utils/tts'
+import { detectEmotionFromText } from './semanticEmotionDetector'
 
 export interface TextSegmentationItem {
   type: 'literal' | 'special'
   value: string
 }
 
-export function useEmotionsMessageQueue(emotionsQueue: UseQueueReturn<Emotion>) {
+export function useEmotionsMessageQueue(
+  emotionsQueue: UseQueueReturn<Emotion>,
+  options?: {
+    enableSemanticDetection?: boolean // Enable semantic emotion detection when no explicit tokens found
+    semanticThreshold?: number // Minimum confidence for semantic detection (default: 0.3)
+  },
+) {
+  const {
+    enableSemanticDetection = true,
+    semanticThreshold = 0.3,
+  } = options || {}
+
   function splitEmotion(content: string) {
+    // First, check for explicit emotion tokens
     for (const emotion of EMOTION_VALUES) {
       // doesn't include the emotion, continue
       if (!content.includes(emotion))
@@ -27,6 +40,17 @@ export function useEmotionsMessageQueue(emotionsQueue: UseQueueReturn<Emotion>) 
       return {
         ok: true,
         emotion: emotion as Emotion,
+      }
+    }
+
+    // If no explicit tokens found and semantic detection is enabled, try semantic detection
+    if (enableSemanticDetection) {
+      const detection = detectEmotionFromText(content)
+      if (detection.emotion && detection.confidence >= semanticThreshold) {
+        return {
+          ok: true,
+          emotion: detection.emotion,
+        }
       }
     }
 

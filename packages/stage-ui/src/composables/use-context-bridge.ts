@@ -31,51 +31,85 @@ export function useContextBridge() {
         })
         disposeHookFns.push(stop)
 
+        // Helper function to safely broadcast context
+        const safeBroadcastContext = (event: ContextMessage) => {
+          try {
+            broadcastContext(event)
+          }
+          catch (error) {
+            // BroadcastChannel might be closed (e.g., page unmounted, channel disposed)
+            // Silently ignore the error to prevent breaking the chat flow
+            if (error instanceof Error && error.name === 'InvalidStateError') {
+              // Channel is closed, which is fine - just skip broadcasting
+              return
+            }
+            // Re-throw other errors
+            throw error
+          }
+        }
+
         disposeHookFns.push(serverChannelStore.onContextUpdate((event) => {
           chatStore.ingestContextMessage({ source: event.source, createdAt: Date.now(), ...event.data })
-          broadcastContext(event.data as ContextMessage)
+          safeBroadcastContext(event.data as ContextMessage)
         }))
+
+        // Helper function to safely broadcast events
+        const safeBroadcast = (event: ChatStreamEvent) => {
+          try {
+            broadcastStreamEvent(event)
+          }
+          catch (error) {
+            // BroadcastChannel might be closed (e.g., page unmounted, channel disposed)
+            // Silently ignore the error to prevent breaking the chat flow
+            if (error instanceof Error && error.name === 'InvalidStateError') {
+              // Channel is closed, which is fine - just skip broadcasting
+              return
+            }
+            // Re-throw other errors
+            throw error
+          }
+        }
 
         disposeHookFns.push(...[
           chatStore.onBeforeMessageComposed(async (message) => {
             if (isProcessingRemoteStream)
               return
-            broadcastStreamEvent({ type: 'before-compose', message, sessionId: chatStore.activeSessionId })
+            safeBroadcast({ type: 'before-compose', message, sessionId: chatStore.activeSessionId })
           }),
           chatStore.onAfterMessageComposed(async (message) => {
             if (isProcessingRemoteStream)
               return
-            broadcastStreamEvent({ type: 'after-compose', message, sessionId: chatStore.activeSessionId })
+            safeBroadcast({ type: 'after-compose', message, sessionId: chatStore.activeSessionId })
           }),
           chatStore.onBeforeSend(async (message) => {
             if (isProcessingRemoteStream)
               return
-            broadcastStreamEvent({ type: 'before-send', message, sessionId: chatStore.activeSessionId })
+            safeBroadcast({ type: 'before-send', message, sessionId: chatStore.activeSessionId })
           }),
           chatStore.onAfterSend(async (message) => {
             if (isProcessingRemoteStream)
               return
-            broadcastStreamEvent({ type: 'after-send', message, sessionId: chatStore.activeSessionId })
+            safeBroadcast({ type: 'after-send', message, sessionId: chatStore.activeSessionId })
           }),
           chatStore.onTokenLiteral(async (literal) => {
             if (isProcessingRemoteStream)
               return
-            broadcastStreamEvent({ type: 'token-literal', literal, sessionId: chatStore.activeSessionId })
+            safeBroadcast({ type: 'token-literal', literal, sessionId: chatStore.activeSessionId })
           }),
           chatStore.onTokenSpecial(async (special) => {
             if (isProcessingRemoteStream)
               return
-            broadcastStreamEvent({ type: 'token-special', special, sessionId: chatStore.activeSessionId })
+            safeBroadcast({ type: 'token-special', special, sessionId: chatStore.activeSessionId })
           }),
           chatStore.onStreamEnd(async () => {
             if (isProcessingRemoteStream)
               return
-            broadcastStreamEvent({ type: 'stream-end', sessionId: chatStore.activeSessionId })
+            safeBroadcast({ type: 'stream-end', sessionId: chatStore.activeSessionId })
           }),
           chatStore.onAssistantResponseEnd(async (message) => {
             if (isProcessingRemoteStream)
               return
-            broadcastStreamEvent({ type: 'assistant-end', message, sessionId: chatStore.activeSessionId })
+            safeBroadcast({ type: 'assistant-end', message, sessionId: chatStore.activeSessionId })
           }),
         ])
 
