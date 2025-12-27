@@ -5,6 +5,7 @@ import type { PlanStep } from '../planning/adapter'
 
 import { useBot } from '../../composables/bot'
 import { AbstractAgent } from '../../libs/mineflayer/base-agent'
+import { ActionError } from '../../utils/errors'
 import { actionsList } from './tools'
 
 interface ActionState {
@@ -78,6 +79,10 @@ export class ActionAgentImpl extends AbstractAgent implements ActionAgent {
       })
     }
     catch (error) {
+      if (error instanceof ActionError) {
+        this.logger.withError(error).warn(`Action failed: ${error.code}`)
+        throw error
+      }
       this.logger.withError(error).error('Action failed')
       throw error
     }

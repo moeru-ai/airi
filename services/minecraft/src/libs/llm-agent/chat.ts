@@ -1,6 +1,6 @@
+import type { Logger } from '@guiiai/logg'
 import type { Neuri, NeuriContext } from 'neuri'
 
-import type { Logger } from '../../utils/logger'
 import type { MineflayerWithAgents } from './types'
 
 import { withRetry } from '@moeru/std'
@@ -46,7 +46,7 @@ export async function handleChatMessage(username: string, message: string, bot: 
     }
   }
   catch (error) {
-    logger.withError(error).error('Failed to process message')
+    logger.withError(error).warn('Failed to process message')
     bot.bot.chat(
       `Sorry, I encountered an error: ${
         error instanceof Error ? error.message : 'Unknown error'
