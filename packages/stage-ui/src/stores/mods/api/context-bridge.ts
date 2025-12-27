@@ -40,44 +40,56 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         chatStore.onBeforeMessageComposed(async (message) => {
           if (isProcessingRemoteStream)
             return
+
           broadcastStreamEvent({ type: 'before-compose', message, sessionId: chatStore.activeSessionId })
         }),
         chatStore.onAfterMessageComposed(async (message) => {
           if (isProcessingRemoteStream)
             return
+
           broadcastStreamEvent({ type: 'after-compose', message, sessionId: chatStore.activeSessionId })
         }),
         chatStore.onBeforeSend(async (message) => {
           if (isProcessingRemoteStream)
             return
+
           broadcastStreamEvent({ type: 'before-send', message, sessionId: chatStore.activeSessionId })
         }),
         chatStore.onAfterSend(async (message) => {
           if (isProcessingRemoteStream)
             return
+
           broadcastStreamEvent({ type: 'after-send', message, sessionId: chatStore.activeSessionId })
         }),
         chatStore.onTokenLiteral(async (literal) => {
           if (isProcessingRemoteStream)
             return
+
           broadcastStreamEvent({ type: 'token-literal', literal, sessionId: chatStore.activeSessionId })
         }),
         chatStore.onTokenSpecial(async (special) => {
           if (isProcessingRemoteStream)
             return
+
           broadcastStreamEvent({ type: 'token-special', special, sessionId: chatStore.activeSessionId })
         }),
         chatStore.onStreamEnd(async () => {
           if (isProcessingRemoteStream)
             return
+
           broadcastStreamEvent({ type: 'stream-end', sessionId: chatStore.activeSessionId })
         }),
         chatStore.onAssistantResponseEnd(async (message) => {
           if (isProcessingRemoteStream)
             return
+
           broadcastStreamEvent({ type: 'assistant-end', message, sessionId: chatStore.activeSessionId })
         }),
       )
+
+      disposeHookFns.value.push(chatStore.onChatTurnComplete(async (chat) => {
+        serverChannelStore.send({ type: 'output:gen-ai:chat:message', data: { messages: [chat.output] } })
+      }))
 
       const { stop: stopIncomingStreamWatch } = watch(incomingStreamEvent, async (event) => {
         if (!event)

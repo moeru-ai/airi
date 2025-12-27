@@ -98,7 +98,8 @@ export const useChatStore = defineStore('chat', () => {
   const onTokenSpecialHooks = ref<Array<(special: string) => Promise<void>>>([])
   const onStreamEndHooks = ref<Array<() => Promise<void>>>([])
   const onAssistantResponseEndHooks = ref<Array<(message: string) => Promise<void>>>([])
-  const onContextPublishHooks = ref<Array<(envelope: ContextMessage, origin: 'local' | 'ws' | 'broadcast') => Promise<void> | void>>([])
+  const onAssistantMessageHooks = ref<Array<(message: StreamingAssistantMessage) => Promise<void>>>([])
+  const onChatTurnCompleteHooks = ref<Array<(chat: { input: ChatHistoryItem, contexts: Record<string, ContextMessage[]>, composedMessage: Message[], output: StreamingAssistantMessage }) => Promise<void>>>([])
 
   function onBeforeMessageComposed(cb: (message: string) => Promise<void>) {
     onBeforeMessageComposedHooks.value.push(cb)
@@ -140,6 +141,16 @@ export const useChatStore = defineStore('chat', () => {
     return () => onAssistantResponseEndHooks.value = onAssistantResponseEndHooks.value.filter(hook => hook !== cb) // return remove listener callback
   }
 
+  function onAssistantMessage(cb: (message: StreamingAssistantMessage) => Promise<void>) {
+    onAssistantMessageHooks.value.push(cb)
+    return () => onAssistantMessageHooks.value = onAssistantMessageHooks.value.filter(hook => hook !== cb) // return remove listener callback
+  }
+
+  function onChatTurnComplete(cb: (chat: { input: ChatHistoryItem, contexts: Record<string, ContextMessage[]>, composedMessage: Message[], output: StreamingAssistantMessage }) => Promise<void>) {
+    onChatTurnCompleteHooks.value.push(cb)
+    return () => onChatTurnCompleteHooks.value = onChatTurnCompleteHooks.value.filter(hook => hook !== cb) // return remove listener callback
+  }
+
   function clearHooks() {
     onBeforeMessageComposedHooks.value = []
     onAfterMessageComposedHooks.value = []
@@ -149,7 +160,8 @@ export const useChatStore = defineStore('chat', () => {
     onTokenSpecialHooks.value = []
     onStreamEndHooks.value = []
     onAssistantResponseEndHooks.value = []
-    onContextPublishHooks.value = []
+    onAssistantMessageHooks.value = []
+    onChatTurnCompleteHooks.value = []
   }
 
   async function emitBeforeMessageComposedHooks(message: string) {
@@ -190,6 +202,16 @@ export const useChatStore = defineStore('chat', () => {
   async function emitAssistantResponseEndHooks(message: string) {
     for (const hook of onAssistantResponseEndHooks.value)
       await hook(message)
+  }
+
+  async function emitAssistantMessageHooks(message: StreamingAssistantMessage) {
+    for (const hook of onAssistantMessageHooks.value)
+      await hook(message)
+  }
+
+  async function emitChatTurnCompleteHooks(chat: { input: ChatHistoryItem, contexts: Record<string, ContextMessage[]>, composedMessage: Message[], output: StreamingAssistantMessage }) {
+    for (const hook of onChatTurnCompleteHooks.value)
+      await hook(chat)
   }
 
   // ----- Session state helpers -----
@@ -325,6 +347,7 @@ export const useChatStore = defineStore('chat', () => {
 
     ensureSession(sessionId)
 
+    const sendingCreatedAt = Date.now()
     const isStaleGeneration = () => getSessionGeneration(sessionId) !== generation
     const shouldAbort = () => isStaleGeneration()
     if (shouldAbort())
@@ -463,6 +486,7 @@ export const useChatStore = defineStore('chat', () => {
                 type: 'tool-call',
                 toolCall: event,
               })
+
               break
             case 'tool-result':
               toolCallQueue.enqueue({
@@ -470,6 +494,7 @@ export const useChatStore = defineStore('chat', () => {
                 id: event.toolCallId,
                 result: event.result,
               })
+
               break
             case 'text-delta':
               fullText += event.text
@@ -483,6 +508,7 @@ export const useChatStore = defineStore('chat', () => {
           }
         },
       })
+
       // Finalize the parsing of the actual message content
       await parser.end()
 
@@ -490,9 +516,6 @@ export const useChatStore = defineStore('chat', () => {
       if (!isStaleGeneration() && streamingMessage.value.slices.length > 0) {
         sessionMessagesForSend.push(toRaw(streamingMessage.value))
       }
-
-      // Reset the streaming message for the next turn
-      streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
 
       // Instruct the TTS pipeline to flush by calling hooks directly
       const flushSignal = `${TTS_FLUSH_INSTRUCTION}${TTS_FLUSH_INSTRUCTION}`
@@ -504,10 +527,17 @@ export const useChatStore = defineStore('chat', () => {
       // Call the end-of-response hooks with the full text
       await emitAssistantResponseEndHooks(fullText)
 
-      // eslint-disable-next-line no-console
-      console.debug('LLM output:', fullText)
-
       await emitAfterSendHooks(sendingMessage)
+      await emitAssistantMessageHooks({ ...streamingMessage.value })
+      await emitChatTurnCompleteHooks({
+        input: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt },
+        contexts: { ...activeContexts.value },
+        composedMessage: newMessages as Message[],
+        output: { ...streamingMessage.value },
+      })
+
+      // Reset the streaming message for the next turn
+      streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
     }
     catch (error) {
       console.error('Error sending message:', error)
@@ -551,7 +581,9 @@ export const useChatStore = defineStore('chat', () => {
     getAllSessions,
     replaceSessions,
     resetAllSessions,
+
     clearHooks,
+
     emitBeforeMessageComposedHooks,
     emitAfterMessageComposedHooks,
     emitBeforeSendHooks,
@@ -560,6 +592,8 @@ export const useChatStore = defineStore('chat', () => {
     emitTokenSpecialHooks,
     emitStreamEndHooks,
     emitAssistantResponseEndHooks,
+    emitAssistantMessageHooks,
+    emitChatTurnCompleteHooks,
 
     onBeforeMessageComposed,
     onAfterMessageComposed,
@@ -569,5 +603,7 @@ export const useChatStore = defineStore('chat', () => {
     onTokenSpecial,
     onStreamEnd,
     onAssistantResponseEnd,
+    onAssistantMessage,
+    onChatTurnComplete,
   }
 })
