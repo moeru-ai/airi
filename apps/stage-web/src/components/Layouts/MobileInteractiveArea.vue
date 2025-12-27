@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatHistoryMessage } from '@proj-airi/stage-ui/components'
+import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
 import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
@@ -27,7 +27,7 @@ const { isDark, toggleDark } = useTheme()
 const hearingDialogOpen = ref(false)
 const chatStore = useChatStore()
 const { messages, sending, streamingMessage } = storeToRefs(chatStore)
-const historyMessages = computed(() => messages.value as unknown as ChatHistoryMessage[])
+const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 
 const viewControlsActiveMode = ref<'x' | 'y' | 'z' | 'scale'>('scale')
 const viewControlsInputsRef = useTemplateRef<InstanceType<typeof ViewControlInputs>>('viewControlsInputs')

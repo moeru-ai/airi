@@ -40,7 +40,7 @@ const boxClasses = computed(() => [
 </script>
 
 <template>
-  <div v-if="message.role === 'user'" :class="containerClasses">
+  <div v-if="message.role === 'user'" :class="containerClasses" class="ph-no-capture">
     <div
       flex="~ col" shadow="sm neutral-200/50 dark:none"
       min-w-20 rounded-xl h="unset <sm:fit"

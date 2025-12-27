@@ -18,7 +18,7 @@
     "vue": "^3.5.25"
   },
   "devDependencies": {
-    "@unocss/reset": "^66.5.10",
+    "@unocss/reset": "^66.5.11",
     "@wxt-dev/module-vue": "^1.0.3",
     "vue-tsc": "^3.1.8",
     "wxt": "^0.20.13"

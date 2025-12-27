@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatHistoryMessage } from '@proj-airi/stage-ui/components'
+import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
 import { ChatHistory } from '@proj-airi/stage-ui/components'
@@ -155,7 +155,7 @@ onAfterMessageComposed(async () => {
   attachments.value = []
 })
 
-const historyMessages = computed(() => messages.value as unknown as ChatHistoryMessage[])
+const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 </script>
 
 <template>
@@ -191,6 +191,7 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryM
     <BasicTextarea
       v-model="messageInput"
       :placeholder="t('stage.message')"
+      class="ph-no-capture"
       text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
       border="solid 2 primary-200/20 dark:primary-400/20"
       bg="primary-100/50 dark:primary-900/70"

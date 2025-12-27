@@ -19,7 +19,7 @@ defineEmits<{
 const { t } = useI18n()
 
 const settings = useSettings()
-const { live2dDisableFocus, live2dIdleAnimationEnabled, live2dAutoBlinkEnabled, live2dShadowEnabled } = storeToRefs(settings)
+const { live2dDisableFocus, live2dIdleAnimationEnabled, live2dAutoBlinkEnabled, live2dForceAutoBlinkEnabled, live2dShadowEnabled } = storeToRefs(settings)
 
 const live2d = useLive2d()
 const {
@@ -107,187 +107,6 @@ onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
 
-// Auto blink slider animation
-let blinkAnimationId: number | null = null
-let nextBlinkTimeout: ReturnType<typeof setTimeout> | null = null
-const blinkCloseDuration = 200 // 0.2 seconds to close (1 to 0)
-const blinkOpenDuration = 200 // 0.2 seconds to open (0 to 1)
-const totalBlinkDuration = blinkCloseDuration + blinkOpenDuration
-let blinkStartTime = 0
-let blinkStartLeft = 1
-let blinkStartRight = 1
-let isAnimating = false
-let isUpdatingFromAnimation = false
-let userInteractionTimeout: ReturnType<typeof setTimeout> | null = null
-
-function stopBlinkAnimation() {
-  if (blinkAnimationId !== null) {
-    cancelAnimationFrame(blinkAnimationId)
-    blinkAnimationId = null
-    isAnimating = false
-  }
-  if (nextBlinkTimeout !== null) {
-    clearTimeout(nextBlinkTimeout)
-    nextBlinkTimeout = null
-  }
-  if (userInteractionTimeout !== null) {
-    clearTimeout(userInteractionTimeout)
-    userInteractionTimeout = null
-  }
-}
-
-function animateEyeBlink() {
-  // Prevent multiple animations from running simultaneously
-  if (isAnimating || nextBlinkTimeout !== null) {
-    return
-  }
-
-  stopBlinkAnimation()
-
-  if (!live2dAutoBlinkEnabled.value) {
-    return
-  }
-
-  isAnimating = true
-  blinkStartTime = Date.now()
-  blinkStartLeft = modelParameters.value.leftEyeOpen
-  blinkStartRight = modelParameters.value.rightEyeOpen
-
-  function animate() {
-    if (!live2dAutoBlinkEnabled.value) {
-      stopBlinkAnimation()
-      return
-    }
-
-    const elapsed = Date.now() - blinkStartTime
-    const progress = Math.min(elapsed / totalBlinkDuration, 1)
-
-    let newLeft: number
-    let newRight: number
-
-    if (elapsed < blinkCloseDuration) {
-      // Closing phase: 1 -> 0
-      const closeProgress = elapsed / blinkCloseDuration
-      const eased = 1 - (1 - closeProgress) ** 2 // Ease out
-      newLeft = blinkStartLeft + (0 - blinkStartLeft) * eased
-      newRight = blinkStartRight + (0 - blinkStartRight) * eased
-    }
-    else {
-      // Opening phase: 0 -> 1
-      const openProgress = (elapsed - blinkCloseDuration) / blinkOpenDuration
-      const eased = openProgress * openProgress // Ease in
-      newLeft = 0 + (blinkStartLeft - 0) * eased
-      newRight = 0 + (blinkStartRight - 0) * eased
-    }
-
-    isUpdatingFromAnimation = true
-    modelParameters.value.leftEyeOpen = Math.round(newLeft * 100) / 100
-    modelParameters.value.rightEyeOpen = Math.round(newRight * 100) / 100
-    // Use nextTick to ensure watchers see the flag before it's cleared
-    setTimeout(() => {
-      isUpdatingFromAnimation = false
-    }, 0)
-
-    if (progress < 1) {
-      blinkAnimationId = requestAnimationFrame(animate)
-    }
-    else {
-      // Animation complete, eyes back to starting value
-      isUpdatingFromAnimation = true
-      modelParameters.value.leftEyeOpen = Math.round(blinkStartLeft * 100) / 100
-      modelParameters.value.rightEyeOpen = Math.round(blinkStartRight * 100) / 100
-      setTimeout(() => {
-        isUpdatingFromAnimation = false
-      }, 0)
-
-      isAnimating = false
-      blinkAnimationId = null
-
-      // Trigger next blink after a delay
-      if (live2dAutoBlinkEnabled.value) {
-        const nextBlinkDelay = 5000 + Math.random() * 5000 // 5-10 seconds
-        nextBlinkTimeout = setTimeout(() => {
-          nextBlinkTimeout = null
-          if (live2dAutoBlinkEnabled.value && !isAnimating) {
-            animateEyeBlink()
-          }
-        }, nextBlinkDelay)
-      }
-    }
-  }
-
-  blinkAnimationId = requestAnimationFrame(animate)
-}
-
-// Watch for auto blink enabled/disabled
-watch(live2dAutoBlinkEnabled, (enabled) => {
-  if (enabled) {
-    // Start animation when enabled, but only if not already running
-    if (!isAnimating && nextBlinkTimeout === null) {
-      animateEyeBlink()
-    }
-  }
-  else {
-    // Stop animation when disabled
-    stopBlinkAnimation()
-  }
-})
-
-// Track user interaction with sliders - only react if not currently animating
-watch(() => modelParameters.value.leftEyeOpen, (newValue, oldValue) => {
-  if (!live2dAutoBlinkEnabled.value || isAnimating || isUpdatingFromAnimation || nextBlinkTimeout !== null) {
-    return
-  }
-  if (oldValue == null && newValue > 0) {
-    animateEyeBlink()
-    return
-  }
-
-  // If user manually changed the value while auto blink is enabled
-  if (oldValue !== undefined && Math.abs(newValue - oldValue) > 0.01) {
-    stopBlinkAnimation()
-    // Resume animation after user stops interacting
-    if (userInteractionTimeout !== null) {
-      clearTimeout(userInteractionTimeout)
-    }
-    userInteractionTimeout = setTimeout(() => {
-      if (live2dAutoBlinkEnabled.value && !isAnimating && nextBlinkTimeout === null) {
-        animateEyeBlink()
-      }
-      userInteractionTimeout = null
-    }, 1000)
-  }
-}, { immediate: true })
-
-watch(() => modelParameters.value.rightEyeOpen, (newValue, oldValue) => {
-  if (!live2dAutoBlinkEnabled.value || isAnimating || isUpdatingFromAnimation || nextBlinkTimeout !== null) {
-    return
-  }
-  if (oldValue == null && newValue > 0) {
-    animateEyeBlink()
-    return
-  }
-
-  // If user manually changed the value while auto blink is enabled
-  if (oldValue !== undefined && Math.abs(newValue - oldValue) > 0.01) {
-    stopBlinkAnimation()
-    // Resume animation after user stops interacting
-    if (userInteractionTimeout !== null) {
-      clearTimeout(userInteractionTimeout)
-    }
-    userInteractionTimeout = setTimeout(() => {
-      if (live2dAutoBlinkEnabled.value && !isAnimating && nextBlinkTimeout === null) {
-        animateEyeBlink()
-      }
-      userInteractionTimeout = null
-    }, 1000)
-  }
-}, { immediate: true })
-
-onUnmounted(() => {
-  stopBlinkAnimation()
-})
-
 // async function patchMotionMap(source: File, motionMap: Record<string, string>): Promise<File> {
 //   if (!Object.keys(motionMap).length)
 //     return source
@@ -355,7 +174,7 @@ onUnmounted(() => {
         </div>
       </template>
     </FieldRange>
-    <FieldRange v-model="position.x" as="div" :min="-1000" :max="1000" :step="1" :label="t('settings.live2d.scale-and-position.x')">
+    <FieldRange v-model="position.x" as="div" :min="-3000" :max="3000" :step="1" :label="t('settings.live2d.scale-and-position.x')">
       <template #label>
         <div flex items-center>
           <div>{{ t('settings.live2d.scale-and-position.x') }}</div>
@@ -365,7 +184,7 @@ onUnmounted(() => {
         </div>
       </template>
     </FieldRange>
-    <FieldRange v-model="position.y" as="div" :min="-1000" :max="1000" :step="1" :label="t('settings.live2d.scale-and-position.y')">
+    <FieldRange v-model="position.y" as="div" :min="-3000" :max="3000" :step="1" :label="t('settings.live2d.scale-and-position.y')">
       <template #label>
         <div flex items-center>
           <div>{{ t('settings.live2d.scale-and-position.y') }}</div>
@@ -512,6 +331,11 @@ onUnmounted(() => {
     <div mt-4 flex items-center justify-between>
       <span text-sm text-neutral-600 dark:text-neutral-400>Auto Blink</span>
       <Checkbox v-model="live2dAutoBlinkEnabled" />
+    </div>
+
+    <div mt-3 flex items-center justify-between>
+      <span text-sm text-neutral-600 dark:text-neutral-400>Force Auto Blink (fallback timer)</span>
+      <Checkbox v-model="live2dForceAutoBlinkEnabled" />
     </div>
 
     <div mt-4 flex items-center justify-between>

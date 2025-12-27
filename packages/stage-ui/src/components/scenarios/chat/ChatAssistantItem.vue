@@ -42,7 +42,7 @@ const boxClasses = computed(() => [
 </script>
 
 <template>
-  <div flex :class="containerClass">
+  <div flex :class="containerClass" class="ph-no-capture">
     <div
       flex="~ col" shadow="sm primary-200/50 dark:none"
       min-w-20 rounded-xl h="unset <sm:fit"

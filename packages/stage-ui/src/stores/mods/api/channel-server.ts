@@ -1,6 +1,7 @@
-import type { ContextMessage, WebSocketBaseEvent, WebSocketEvent, WebSocketEvents } from '@proj-airi/server-sdk'
+import type { ContextUpdate, WebSocketBaseEvent, WebSocketEvent, WebSocketEventOptionalSource, WebSocketEvents } from '@proj-airi/server-sdk'
 
-import { Client } from '@proj-airi/server-sdk'
+import { Client, WebSocketEventSource } from '@proj-airi/server-sdk'
+import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
@@ -8,7 +9,6 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   const connected = ref(false)
   const client = ref<Client>()
   const initializing = ref<Promise<void> | null>(null)
-
   const pendingSend = ref<Array<WebSocketEvent>>([])
 
   function initialize(options?: { token?: string, possibleEvents?: Array<keyof WebSocketEvents> }) {
@@ -19,13 +19,12 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
     const possibleEvents = Array.from(new Set<keyof WebSocketEvents>([
       'ui:configure',
-      'context:update',
       ...(options?.possibleEvents ?? []),
     ]))
 
     initializing.value = new Promise<void>((resolve, reject) => {
       client.value = new Client({
-        name: 'proj-airi:ui:stage',
+        name: isStageWeb() ? WebSocketEventSource.StageWeb : isStageTamagotchi() ? WebSocketEventSource.StageTamagotchi : WebSocketEventSource.StageWeb,
         url: import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws',
         token: options?.token,
         possibleEvents,
@@ -47,6 +46,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           flush()
           initializeListeners()
           resolve()
+
           return
         }
 
@@ -64,15 +64,15 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
       return
   }
 
-  function send(data: WebSocketEvent) {
+  function send<C = undefined>(data: WebSocketEventOptionalSource<C>) {
     if (!client.value && !initializing.value)
       void initialize()
 
     if (client.value && connected.value) {
-      client.value.send(data)
+      client.value.send(data as WebSocketEvent)
     }
     else {
-      pendingSend.value.push(data)
+      pendingSend.value.push(data as WebSocketEvent)
     }
   }
 
@@ -86,7 +86,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     }
   }
 
-  function onContextUpdate(callback: (event: WebSocketBaseEvent<'context:update', ContextMessage>) => void | Promise<void>) {
+  function onContextUpdate(callback: (event: WebSocketBaseEvent<'context:update', ContextUpdate>) => void | Promise<void>) {
     if (!client.value && !initializing.value)
       void initialize()
 
@@ -97,11 +97,8 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     }
   }
 
-  function sendContextUpdate(message: ContextMessage) {
-    send({
-      type: 'context:update',
-      data: message,
-    })
+  function sendContextUpdate(message: ContextUpdate) {
+    send({ type: 'context:update', data: message })
   }
 
   function dispose() {

@@ -10,6 +10,7 @@ import { colorFromElement, patchThemeSamplingHtml2CanvasClone } from '@proj-airi
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { useDocumentVisibility, useIntervalFn } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
 import { nextTick, watch } from 'vue'
 
 import { BackgroundKind } from '../stores/background'
@@ -66,21 +67,18 @@ export function useBackgroundThemeColor({
   sampledColor: Ref<string>
 }) {
   const visibility = useDocumentVisibility()
-  const { themeColorsHue, themeColorsHueDynamic } = useSettings()
+  const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
   let samplingToken = 0
 
   const { isDark } = useTheme()
-
-  function getWaveThemeColor() {
-    // We read directly from computed style to catch the animation value
-    return isDark.value ? `hsl(${themeColorsHue} 60% 32%)` : `hsl(${themeColorsHue} 75% 78%)`
-  }
+  const waveThemeColor = themeColorFromPropertyOf('.widgets.top-widgets .colored-area', 'background-color')
 
   const { updateThemeColor } = useThemeColor(() => {
     if (selectedOption.value?.kind === BackgroundKind.Wave) {
-      return getWaveThemeColor()
+      return waveThemeColor()
     }
+
     return sampledColor.value
   })
 

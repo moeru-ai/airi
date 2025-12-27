@@ -1,4 +1,4 @@
-import type { ChatEntry } from '../stores/chat'
+import type { ChatHistoryItem } from '../types/chat'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 
@@ -67,11 +67,11 @@ export function useDataMaintenance() {
 
   function importChatSessions(payload: Record<string, unknown>) {
     const normalizedPayload = payload as Record<string, unknown>
-    const sessions: Record<string, ChatEntry[]> = {}
+    const sessions: Record<string, ChatHistoryItem[]> = {}
 
     for (const [sessionId, messages] of Object.entries(normalizedPayload)) {
       if (Array.isArray(messages))
-        sessions[sessionId] = messages as ChatEntry[]
+        sessions[sessionId] = messages as ChatHistoryItem[]
     }
 
     chatStore.replaceSessions(sessions)
