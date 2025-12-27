@@ -5,22 +5,19 @@ import posthog from 'posthog-js'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
+import { useBuildInfo } from '../../composables'
+
 export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
+  const buildInfo = ref<AboutBuildInfo>(useBuildInfo())
   const isInitialized = ref(false)
-  const buildInfo = ref<AboutBuildInfo>({
-    version: '',
-    commit: '',
-    branch: '',
-    builtOn: '',
-  })
+
   const appStartTime = ref<number | null>(null)
   const firstMessageTracked = ref(false)
 
-  function initialize(info: AboutBuildInfo) {
+  function initialize() {
     if (isInitialized.value)
       return
 
-    buildInfo.value = info
     appStartTime.value = Date.now()
 
     // Register metadata with PostHog after buildInfo is set

@@ -50,6 +50,7 @@
     "@proj-airi/stage-shared": "workspace:^",
     "@types/audioworklet": "catalog:",
     "@types/three": "^0.182.0",
+    "unplugin-info": "catalog:",
     "vue-tsc": "^3.1.8"
   }
 }

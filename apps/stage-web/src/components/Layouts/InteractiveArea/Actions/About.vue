@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { AboutContent, AboutDialog } from '@proj-airi/stage-ui/components'
-import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics/index'
-import { storeToRefs } from 'pinia'
+import { useBuildInfo } from '@proj-airi/stage-ui/composables'
 import { ref } from 'vue'
 
 const show = ref(false)
-const analyticsStore = useSharedAnalyticsStore()
-const { buildInfo } = storeToRefs(analyticsStore)
+const buildInfo = useBuildInfo()
 
 const aboutLinks = [
   { label: 'Home', href: 'https://airi.moeru.ai/docs/', icon: 'i-solar:home-smile-outline' },

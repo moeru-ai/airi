@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { useContextBridge } from '@proj-airi/stage-ui/composables'
+import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -27,6 +28,7 @@ const router = useRouter()
 const route = useRoute()
 const cardStore = useAiriCardStore()
 const serverChannelStore = useModsServerChannelStore()
+const analyticsStore = useSharedAnalyticsStore()
 
 watch(language, () => {
   i18n.locale.value = language.value
@@ -39,6 +41,7 @@ onMounted(() => updateThemeColor())
 
 // FIXME: store settings to file
 onMounted(async () => {
+  analyticsStore.initialize()
   cardStore.initialize()
   onboardingStore.initializeSetupCheck()
 

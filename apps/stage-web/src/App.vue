@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { OnboardingDialog, ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useContextBridge } from '@proj-airi/stage-ui/composables'
+import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -30,6 +31,7 @@ const serverChannelStore = useModsServerChannelStore()
 const { shouldShowSetup } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
+const analyticsStore = useSharedAnalyticsStore()
 
 const primaryColor = computed(() => {
   return isDark.value
@@ -67,6 +69,7 @@ watch(settings.themeColorsHueDynamic, () => {
 
 // Initialize first-time setup check when app mounts
 onMounted(async () => {
+  analyticsStore.initialize()
   cardStore.initialize()
 
   onboardingStore.initializeSetupCheck()

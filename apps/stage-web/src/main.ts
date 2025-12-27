@@ -2,14 +2,10 @@ import type { Plugin } from 'vue'
 import type { Router, RouteRecordRaw } from 'vue-router'
 
 import Tres from '@tresjs/core'
-import buildTime from '~build/time'
 import NProgress from 'nprogress'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
-import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { MotionPlugin } from '@vueuse/motion'
-import { abbreviatedSha, branch } from '~build/git'
-import { version } from '~build/package'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
 import { createApp } from 'vue'
@@ -30,15 +26,6 @@ import './styles/main.css'
 import 'uno.css'
 
 const pinia = createPinia()
-
-// Initialize analytics
-const analyticsStore = useSharedAnalyticsStore(pinia)
-analyticsStore.initialize({
-  version: version ?? 'dev',
-  commit: abbreviatedSha,
-  branch,
-  builtOn: buildTime.toISOString(),
-})
 
 // TODO: vite-plugin-vue-layouts is long deprecated, replace with another layout solution
 const routeRecords = setupLayouts(routes as RouteRecordRaw[])
