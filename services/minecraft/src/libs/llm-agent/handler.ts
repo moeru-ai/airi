@@ -7,6 +7,7 @@ import type { LLMConfig, LLMResponse } from './types'
 import { withRetry } from '@moeru/std'
 
 import { config } from '../../composables/config'
+import { DebugServer } from '../../debug-server'
 import { useLogger } from '../../utils/logger'
 
 export abstract class BaseLLMHandler {
@@ -32,6 +33,15 @@ export abstract class BaseLLMHandler {
 
     const content = await completion.firstContent()
     this.logger.withFields({ usage: completion.usage, content }).log('Generated content')
+
+    // Broadcast LLM trace
+    DebugServer.getInstance().broadcast('llm', {
+      route,
+      messages,
+      content,
+      usage: completion.usage,
+      timestamp: Date.now(),
+    })
 
     return {
       content,

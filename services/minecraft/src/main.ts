@@ -12,13 +12,19 @@ import { plugin as MineflayerTool } from 'mineflayer-tool'
 import { initBot } from './composables/bot'
 import { config, initEnv } from './composables/config'
 import { createNeuriAgent } from './composables/neuri'
+import { DebugServer } from './debug-server'
 import { LLMAgent } from './libs/llm-agent'
 import { wrapPlugin } from './libs/mineflayer'
 import { initLogger, useLogger } from './utils/logger'
 
+// ...
+
 async function main() {
   initLogger() // todo: save logs to file
   initEnv()
+
+  // Start debug server
+  DebugServer.getInstance().start()
 
   const { bot } = await initBot({
     botConfig: config.bot,
