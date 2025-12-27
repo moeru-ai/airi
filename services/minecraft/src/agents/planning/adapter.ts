@@ -31,7 +31,7 @@ export class PlanningLLMHandler extends BaseLLMHandler {
     const result = await this.config.agent.handleStateless(messages, async (context) => {
       this.logger.log('Generating plan...')
       const retryHandler = this.createRetryHandler(
-        async ctx => (await this.handleCompletion(ctx, 'planning', ctx.messages)).content,
+        async ctx => (await this.handleCompletion(ctx, 'planning', messages)).content,
       )
       return await retryHandler(context)
     })
