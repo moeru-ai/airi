@@ -191,6 +191,7 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
     <BasicTextarea
       v-model="messageInput"
       :placeholder="t('stage.message')"
+      class="ph-no-capture"
       text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
       border="solid 2 primary-200/20 dark:primary-400/20"
       bg="primary-100/50 dark:primary-900/70"
