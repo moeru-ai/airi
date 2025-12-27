@@ -68,7 +68,8 @@
   },
   "dependencies": {
     "es-toolkit": "catalog:",
-    "injeca": "catalog:"
+    "injeca": "catalog:",
+    "nanoid": "catalog:"
   },
   "devDependencies": {
     "@guiiai/logg": "catalog:",

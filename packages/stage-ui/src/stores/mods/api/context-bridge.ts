@@ -89,7 +89,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           broadcastStreamEvent({ type: 'assistant-end', message, sessionId: chatStore.activeSessionId, context })
         }),
 
-        chatStore.onAssistantMessage(async (message, messageText, context) => {
+        chatStore.onAssistantMessage(async (message, _messageText, context) => {
           serverChannelStore.send({
             type: 'output:gen-ai:chat:message',
             data: {

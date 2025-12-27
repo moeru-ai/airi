@@ -72,6 +72,9 @@ catalogs:
     injeca:
       specifier: ^0.1.5
       version: 0.1.5
+    nanoid:
+      specifier: ^5.1.6
+      version: 5.1.6
     posthog-js:
       specifier: 1.306.1
       version: 1.306.1
@@ -2089,6 +2092,9 @@ importers:
       injeca:
         specifier: 'catalog:'
         version: 0.1.5(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6)
+      nanoid:
+        specifier: 'catalog:'
+        version: 5.1.6
     devDependencies:
       '@guiiai/logg':
         specifier: 'catalog:'

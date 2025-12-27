@@ -2,6 +2,7 @@ import type { ContextUpdate, WebSocketBaseEvent, WebSocketEvent, WebSocketEventO
 
 import { Client, WebSocketEventSource } from '@proj-airi/server-sdk'
 import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
+import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
@@ -97,8 +98,9 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     }
   }
 
-  function sendContextUpdate(message: ContextUpdate) {
-    send({ type: 'context:update', data: message })
+  function sendContextUpdate(message: Omit<ContextUpdate, 'id' | 'contextId'> & Partial<Pick<ContextUpdate, 'id' | 'contextId'>>) {
+    const id = nanoid()
+    send({ type: 'context:update', data: { id, contextId: id, ...message } })
   }
 
   function dispose() {

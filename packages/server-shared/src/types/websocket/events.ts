@@ -55,6 +55,15 @@ export interface ContextUpdate<
   // eslint-disable-next-line ts/no-unnecessary-type-constraint
   Content extends any = undefined,
 > {
+  id: string
+  /**
+   * Can be the same if same update sends multiple time as attempts
+   * and trials, (e.g. notified first but not ACKed, then retried).
+   */
+  contextId: string
+  lane?: string
+  ideas?: Array<string>
+  hints?: Array<string>
   strategy: ContextUpdateStrategy
   text: string
   content?: Content
@@ -131,6 +140,93 @@ export interface WebSocketEvents<C = undefined> {
       source: 'provider-based' | 'estimate-based'
     }
   } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>> & Partial<WithOutputSource<'gen-ai:chat'>>
+
+  /**
+   * Sub-agent raises an event toward the character (or other destinations).
+   * Examples:
+   * - Minecraft attack/death: kind=alarm, urgency=immediate (fast bubble-up).
+   *   e.g., fromAgent='minecraft', headline='Under attack by witch', payload includes hp/location/gear.
+   * - Cat bowl empty from HomeAssistant: kind=alarm, urgency=soon.
+   * - IM/email "read now": kind=ping, urgency=immediate.
+   * - Action Required email: kind=reminder, urgency=later.
+   * destinations controls routing (e.g. ['character'], ['character','minecraft-agent']).
+   */
+  'spark:notify': {
+    id: string
+    eventId: string
+    lane?: string
+    kind: 'alarm' | 'ping' | 'reminder'
+    urgency: 'immediate' | 'soon' | 'later'
+    headline: string
+    note?: string
+    payload?: Record<string, unknown>
+    ttlMs?: number
+    requiresAck?: boolean
+    destinations: Array<string>
+  }
+
+  /**
+   * Acknowledgement/progress/state for a spark or command (bidirectional).
+   * Examples:
+   * - Character: state=working, note="Seen it, responding".
+   * - Sub-agent: state=done, note="Healed and safe".
+   * - Sub-agent: state=blocked/dropped with note when it cannot comply.
+   * - Minecraft: state=working, note="Pillared up; healing" in reply to a command.
+   */
+  'spark:emit': {
+    id: string
+    eventId?: string
+    state: 'queued' | 'working' | 'done' | 'dropped' | 'blocked' | 'expired'
+    note?: string
+    destinations: Array<string>
+  }
+
+  /**
+   * Character issues instructions or context to a sub-agent.
+   * interrupt: force = hard preempt; soft = merge/queue.
+   * Examples:
+   * - Witch attack: interrupt=force, priority=critical, intent=action with options (aggressive/cautious).
+   *   e.g., options to block/retreat vs push with shield/sword, with fallback steps.
+   * - Prep plan: interrupt=soft, priority=high, intent=plan with steps/fallbacks.
+   * - Contextual hints: intent=context with contextPatch ideas/hints.
+   */
+  'spark:command': {
+    id: string
+    eventId?: string
+    parentEventId?: string
+    commandId: string
+    interrupt: 'force' | 'soft' | false
+    priority: 'critical' | 'high' | 'normal' | 'low'
+    intent: 'action' | 'plan' | 'pause' | 'resume' | 'reroute' | 'context'
+    ack?: string
+    guidance?: {
+      type: 'proposal' | 'instruction' | 'memory-recall'
+      /**
+       * Personas can be used to adjust the behavior of sub-agents.
+       * For example, when using as NPC in games, or player in Minecraft,
+       * the persona can help define the character's traits and decision-making style.
+       *
+       * Example:
+       *  persona: {
+       *    "bravery": "high",
+       *    "cautiousness": "low",
+       *    "friendliness": "medium"
+       *  }
+       */
+      persona?: Record<string, 'very-high' | 'high' | 'medium' | 'low' | 'very-low'>
+      options: Array<{
+        label: string
+        steps: Array<string>
+        rationale?: string
+        possibleOutcome?: Array<string>
+        risk?: 'high' | 'medium' | 'low' | 'none'
+        fallback?: Array<string>
+        triggers?: Array<string>
+      }>
+    }
+    contexts?: Array<ContextUpdate>
+    destinations: Array<string>
+  }
 
   'context:update': ContextUpdate
 }

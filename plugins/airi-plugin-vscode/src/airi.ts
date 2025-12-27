@@ -4,6 +4,7 @@ import type { Events } from './types'
 
 import { useLogger } from '@guiiai/logg'
 import { ContextUpdateStrategy, Client as ServerClient } from '@proj-airi/server-sdk'
+import { nanoid } from 'nanoid'
 
 export class Client {
   private client: ServerClient<Events> | null = null
@@ -45,11 +46,13 @@ export class Client {
   }
 
   async replaceContext(context: string): Promise<void> {
-    this.send({ type: 'context:update', data: { strategy: ContextUpdateStrategy.ReplaceSelf, text: context } })
+    const id = nanoid()
+    this.send({ type: 'context:update', data: { strategy: ContextUpdateStrategy.ReplaceSelf, text: context, id, contextId: id } })
   }
 
   async appendContext(context: string): Promise<void> {
-    this.send({ type: 'context:update', data: { strategy: ContextUpdateStrategy.AppendSelf, text: context } })
+    const id = nanoid()
+    this.send({ type: 'context:update', data: { strategy: ContextUpdateStrategy.AppendSelf, text: context, id, contextId: id } })
   }
 
   isConnected(): boolean {
