@@ -5,7 +5,7 @@ import posthog from 'posthog-js'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-export const useSharedAnalyticsStore = defineStore('shared_analytics', () => {
+export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
   const isInitialized = ref(false)
   const buildInfo = ref<AboutBuildInfo>({
     version: '',
