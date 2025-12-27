@@ -54,7 +54,7 @@ export function useVRMEmote(vrm: VRMCore) {
     }],
     ['surprised', {
       expression: [
-        { name: 'Surprised', value: 1.0 },
+        { name: 'surprised', value: 1.0 },
         { name: 'oh', value: 0.6 },
       ],
       blendDuration: 0.1,
@@ -62,6 +62,12 @@ export function useVRMEmote(vrm: VRMCore) {
     ['neutral', {
       expression: [
         { name: 'neutral', value: 1.0 },
+      ],
+      blendDuration: 0.5,
+    }],
+    ['think', {
+      expression: [
+        { name: 'think', value: 1.0 },
       ],
       blendDuration: 0.5,
     }],
@@ -76,6 +82,7 @@ export function useVRMEmote(vrm: VRMCore) {
 
   const setEmotion = (emotionName: string) => {
     clearResetTimeout()
+    console.log(`Setting emotion: ${emotionName}`)
 
     if (!emotionStates.has(emotionName)) {
       console.warn(`Emotion ${emotionName} not found`)

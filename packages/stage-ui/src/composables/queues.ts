@@ -111,11 +111,11 @@ export function useDelayMessageQueue() {
 
 export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelines:character:speech', () => {
   // Hooks
-  const onPlaybackStartedHooks = ref<Array<(payload: { text: string }) => Promise<void> | void>>([])
+  const onPlaybackStartedHooks = ref<Array<(payload: { text: string, audioBuffer: AudioBuffer, special: string | null }) => Promise<void> | void>>([])
   const onPlaybackFinishedHooks = ref<Array<(payload: { special: string }) => Promise<void> | void>>([])
 
   // Hooks registers
-  function onPlaybackStarted(hook: (payload: { text: string }) => Promise<void> | void) {
+  function onPlaybackStarted(hook: (payload: { text: string, audioBuffer: AudioBuffer, special: string | null }) => Promise<void> | void) {
     onPlaybackStartedHooks.value.push(hook)
   }
   function onPlaybackFinished(hook: (payload: { special: string }) => Promise<void> | void) {
@@ -184,7 +184,7 @@ export const usePipelineCharacterSpeechPlaybackQueueStore = defineStore('pipelin
             // Start playing the audio
             for (const hook of onPlaybackStartedHooks.value) {
               try {
-                hook({ text: ctx.data.text })
+                hook({ text: ctx.data.text, audioBuffer: ctx.data.audioBuffer, special: ctx.data.special })
               }
               catch (err) {
                 // NOTICE: onPlaybackStarted hook errors should not block audio playback.

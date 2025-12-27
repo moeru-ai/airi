@@ -10,6 +10,7 @@
 import type { TresContext } from '@tresjs/core'
 import type { DirectionalLight, SphericalHarmonics3, Texture, WebGLRenderTarget } from 'three'
 
+import type { EnqueueGestureFramesOptions, GestureFrame, VrmUpperBodyBone } from '../performance/types'
 import type { Vec3 } from '../stores/model-store'
 
 import { TresCanvas } from '@tresjs/core'
@@ -269,6 +270,33 @@ watch(directionalLightRotation, (newRotation) => {
 defineExpose({
   setExpression: (expression: string) => {
     modelRef.value?.setExpression(expression)
+  },
+  getPerformanceTimeMs: () => {
+    return modelRef.value?.getPerformanceTimeMs?.() ?? 0
+  },
+  listExpressions: () => {
+    return modelRef.value?.listExpressions?.() ?? []
+  },
+  setExpressionValue: (name: string, value: number, resetAfterMs?: number) => {
+    modelRef.value?.setExpressionValue?.(name, value, resetAfterMs)
+  },
+  enqueueGestureFrames: (inputFrames: GestureFrame[] | GestureFrame, options?: EnqueueGestureFramesOptions) => {
+    modelRef.value?.enqueueGestureFrames(inputFrames, options)
+  },
+  clearGestureStream: () => {
+    modelRef.value?.clearGestureStream()
+  },
+  setGestureBoneWeights: (scales: Partial<Record<VrmUpperBodyBone, number>>) => {
+    modelRef.value?.setGestureBoneWeights(scales)
+  },
+  setGestureAxisCorrection: (options: {
+    global?: [number, number, number, number]
+    perBone?: Partial<Record<VrmUpperBodyBone, [number, number, number, number]>>
+  }) => {
+    modelRef.value?.setGestureAxisCorrection(options)
+  },
+  setGestureRotationScale: (scale: number) => {
+    modelRef.value?.setGestureRotationScale(scale)
   },
   canvasElement: () => {
     return tresCanvasRef.value?.renderer.instance.domElement
