@@ -137,7 +137,10 @@ export class TaskExecutor extends EventEmitter {
       }
       catch (error) {
         this.logger.withError(error).error('Action execution failed')
-        this.emit('action:failed', { action, error })
+        // Only emit action:failed for physical actions
+        if (action.type === 'physical') {
+          this.emit('action:failed', { action, error })
+        }
       }
     })
   }

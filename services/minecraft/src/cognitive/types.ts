@@ -28,6 +28,7 @@ export interface CognitiveEngineOptions {
   airiClient: Client
 }
 
+// TODO: currently stimulus is just chat events, consider renaming to 'input' or 'user_interaction'
 export type EventType = 'stimulus' | 'perception' | 'feedback' | 'world_update' | 'system_alert'
 
 export interface BotEventSource {
