@@ -235,35 +235,45 @@
     </header>
     <main>
         <nav>
-            <div class="nav-item active" onclick="switchTab('task-status')">Task Status</div>
+            <div class="nav-item active" onclick="switchTab('overview')">Overview</div>
             <div class="nav-item" onclick="switchTab('logs')">Logs</div>
             <div class="nav-item" onclick="switchTab('llm')">LLM Traces</div>
+            <div class="nav-item" onclick="switchTab('blackboard')">Blackboard</div>
         </nav>
         
-        <div id="task-status-panel" class="content-panel active">
+        <div id="overview-panel" class="content-panel active">
             <div class="toolbar">
-                <h3 style="margin: 0;">Current Task State</h3>
+                <h3 style="margin: 0;">System Overview</h3>
             </div>
             <div class="log-container" style="padding: 2rem;">
-                <div id="current-task" style="margin-bottom: 2rem;">
-                    <div class="section-title">Active Task</div>
-                    <div id="task-info" class="llm-card" style="background-color: #1e1e1e;">
-                        <div style="padding: 1rem; color: #666;">No active task</div>
+                <!-- Event Queue -->
+                <div id="queue-section" style="margin-bottom: 2rem;">
+                    <div class="section-title">Event Queue (<span id="queue-size">0</span>)</div>
+                    <div id="queue-list" style="display: flex; flex-direction: column; gap: 0.5rem; min-height: 50px; background: #111; padding: 1rem; border-radius: 4px;">
+                        <div style="color: #666;">Queue is empty</div>
                     </div>
                 </div>
 
-                <div id="task-queue" style="margin-bottom: 2rem;">
-                    <div class="section-title">Event Queue (<span id="queue-count">0</span>)</div>
-                    <div id="queue-list" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
-                </div>
-
-                <div id="task-history">
-                    <div class="section-title">Recent Tasks (Last 5)</div>
-                    <div id="history-list" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
+                <!-- Current Processing -->
+                <div id="processing-section">
+                    <div class="section-title">Currently Processing</div>
+                    <div id="current-event" class="llm-card" style="background-color: #1e1e1e;">
+                        <div style="padding: 1rem; color: #666;">Idle</div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div id="logs-panel" class="content-panel active">
+
+        <div id="blackboard-panel" class="content-panel">
+            <div class="toolbar">
+                <h3 style="margin: 0;">Blackboard State</h3>
+            </div>
+            <div class="log-container">
+                <pre id="blackboard-content" class="json-block" style="height: 100%; border: none;">{}</pre>
+            </div>
+        </div>
+
+        <div id="logs-panel" class="content-panel">
             <div class="toolbar">
                 <button onclick="clearLogs()">Clear</button>
                 <label><input type="checkbox" id="auto-scroll" checked> Auto-scroll</label>
@@ -288,6 +298,10 @@
             autoScroll = e.target.checked;
         });
 
+
+
+
+
         function switchTab(tabId) {
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.content-panel').forEach(el => el.classList.remove('active'));
@@ -309,7 +323,7 @@
             const div = document.createElement('div');
             div.className = 'log-entry level-' + (entry.level || 'info').toLowerCase();
             
-            const time = new Date().toLocaleTimeString();
+            const time = new Date(entry.timestamp || Date.now()).toLocaleTimeString();
             const fieldsJson = entry.fields ? JSON.stringify(entry.fields) : '';
             
             div.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-level">[${entry.level}]</span> ${entry.message} ${fieldsJson ? `<br><span style="color:#666;font-size:0.9em">${fieldsJson}</span>` : ''}`;
@@ -322,10 +336,7 @@
         }
 
         function addLLMTrace(trace) {
-            if (!trace) {
-                console.error('Received undefined trace');
-                return;
-            }
+            if (!trace) return;
 
             const container = document.getElementById('llm-list');
             const div = document.createElement('div');
@@ -386,7 +397,63 @@
             container.insertBefore(div, container.firstChild);
         }
 
-        let eventSource = null;
+        function updateQueue(data) {
+            const queueList = document.getElementById('queue-list');
+            const queueSize = document.getElementById('queue-size');
+            const currentEventEl = document.getElementById('current-event');
+
+            if (!data) return;
+
+            // Update Header
+            queueSize.textContent = data.queue ? data.queue.length : 0;
+
+            // Render Queue
+            if (data.queue && data.queue.length > 0) {
+                queueList.innerHTML = data.queue.map((item, idx) => {
+                    return `
+                    <div class="llm-card" style="margin-bottom: 0.5rem; background-color: #1e1e1e;">
+                        <div style="padding: 0.5rem; display: flex; justify-content: space-between;">
+                            <span><span style="color: #666; margin-right: 0.5rem;">#${idx+1}</span> ${item.type}</span>
+                            <span class="badge">${item.source?.id || 'unknown'}</span>
+                        </div>
+                        <div style="padding: 0 0.5rem 0.5rem 0.5rem; color: #aaa; font-size: 0.9em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ${item.payload?.content || JSON.stringify(item.payload)}
+                        </div>
+                    </div>
+                    `
+                }).join('');
+            } else {
+                queueList.innerHTML = '<div style="color: #666;">Queue is empty</div>';
+            }
+
+            // Render Current Processing
+            if (data.processing) {
+                const item = data.processing;
+                currentEventEl.innerHTML = `
+                    <div style="padding: 1rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span style="color: var(--accent-color); font-weight: bold;">${item.type}</span>
+                            <span class="badge" style="background-color: var(--accent-color);">PROCESSING</span>
+                        </div>
+                        <div style="background-color: #111; padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem;">
+                            <pre style="margin: 0; white-space: pre-wrap;">${JSON.stringify(item.payload, null, 2)}</pre>
+                        </div>
+                        <div style="margin-top: 0.5rem; font-size: 0.9em; color: #888;">
+                            Source: ${item.source?.type} / ${item.source?.id}
+                        </div>
+                    </div>
+                `;
+            } else {
+                currentEventEl.innerHTML = '<div style="padding: 1rem; color: #666;">Idle</div>';
+            }
+        }
+
+        function updateBlackboard(data) {
+            const el = document.getElementById('blackboard-content');
+            if (data && data.state) {
+                el.textContent = JSON.stringify(data.state, null, 2);
+            }
+        }
 
         function reconnect() {
             if (eventSource) {
@@ -419,133 +486,27 @@
 
             eventSource.addEventListener('log', (e) => {
                 try {
-                    const data = JSON.parse(e.data);
-                    addLog(data);
-                } catch (e) {
-                    console.error('Failed to parse log', e);
-                }
+                    addLog(JSON.parse(e.data));
+                } catch (e) { console.error(e); }
             });
 
             eventSource.addEventListener('llm', (e) => {
                 try {
-                    const data = JSON.parse(e.data);
-                    addLLMTrace(data);
-                } catch (e) {
-                    console.error('Failed to parse llm trace', e);
-                }
+                    addLLMTrace(JSON.parse(e.data));
+                } catch (e) { console.error(e); }
             });
 
-            eventSource.addEventListener('task-status', (e) => {
+            eventSource.addEventListener('queue', (e) => {
                 try {
-                    const data = JSON.parse(e.data);
-                    updateTaskStatus(data);
-                } catch (e) {
-                    console.error('Failed to parse task status', e);
-                }
+                    updateQueue(JSON.parse(e.data));
+                } catch (e) { console.error(e); }
             });
-        }
 
-        function updateTaskStatus(status) {
-            // Update active tasks
-            const taskInfo = document.getElementById('task-info');
-            
-            // Handle new multi-task structure or fallback to single task
-            let tasks = [];
-            if (status.activeTasks && Array.isArray(status.activeTasks)) {
-                tasks = status.activeTasks;
-            } else if (status.currentTask) {
-                tasks = [status.currentTask];
-            }
-
-            if (tasks.length > 0) {
-                taskInfo.innerHTML = tasks.map(task => {
-                    // Determine if primary based on data or assumption
-                    // Note: TaskManager now logs 'type' but task object structure might not have it explicitly unless we added it to TaskContext
-                    // But we can infer order or just display all.
-                    // Let's assume the first one might be primary if we used getAllActiveTasks() order (primary first)
-                    
-                    const elapsed = Math.floor((Date.now() - task.startTime) / 1000);
-                    const statusColor = {
-                        'idle': '#888',
-                        'planning': '#ffb74d',
-                        'executing': '#4a9eff',
-                        'responding': '#9c27b0',
-                        'cancelling': '#ef5350'
-                    }[task.status] || '#888';
-
-                    // Visual distinction for secondary vs primary could be nice, but simple list is fine for now
-                    return `
-                    <div style="padding: 1rem; border-bottom: 1px solid #333; last-child: border-bottom: none;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                            <span style="font-weight: bold; font-size: 1.1em;">${task.goal}</span>
-                            <span class="badge" style="background-color: ${statusColor}">${task.status.toUpperCase()}</span>
-                        </div>
-                        <div style="color: #888; font-size: 0.9em;">
-                            <div style="display: flex; gap: 1rem;">
-                                <span>ID: <span title="${task.id}">${task.id.substr(0,12)}...</span></span>
-                                <span>Time: ${elapsed}s</span>
-                            </div>
-                            ${task.currentStep ? `<div style="margin-top:0.25rem;">Step: ${task.currentStep}</div>` : ''}
-                            ${task.plan ? `<div style="margin-top:0.25rem;">Plan: ${task.plan.steps.length} steps (${task.plan.status})</div>` : ''}
-                        </div>
-                    </div>
-                    `;
-                }).join('');
-            } else {
-                taskInfo.innerHTML = '<div style="padding: 1rem; color: #666;">No active tasks</div>';
-            }
-
-            // Update queue
-            // ... (rest same, removing queue updates here as they are separate chunks?)
-            // Actually I need to include the rest of the function or it will be cut off.
-            // Let's just replace the task rendering part if I target specific lines.
-            
-            const queueCount = document.getElementById('queue-count');
-            const queueList = document.getElementById('queue-list');
-            queueCount.textContent = status.queueSize || 0;
-            
-            if (status.queue && status.queue.length > 0) {
-                queueList.innerHTML = status.queue.map((event, idx) => `
-                    <div class="message" style="background-color: #1e1e1e; border-left-color: #ffb74d;">
-                        <div style="display: flex; justify-content: space-between;">
-                            <span>#${idx + 1}: ${event.payload?.content || 'Unknown event'}</span>
-                            <span class="badge">Priority: ${event.priority || 5}</span>
-                        </div>
-                        <div style="color: #666; font-size: 0.85em; margin-top: 0.5rem;">
-                            From: ${event.source?.id || 'unknown'}
-                        </div>
-                    </div>
-                `).join('');
-            } else {
-                queueList.innerHTML = '<div style="color: #666; padding: 1rem;">Queue is empty</div>';
-            }
-
-            // Update history
-            const historyList = document.getElementById('history-list');
-            if (status.history && status.history.length > 0) {
-                historyList.innerHTML = status.history.slice(0, 5).map(task => {
-                    const elapsed = Math.floor((Date.now() - task.startTime) / 1000);
-                    const statusColor = {
-                        'completed': '#4caf50',
-                        'failed': '#ef5350',
-                        'cancelled': '#ff9800'
-                    }[task.plan?.status] || '#888';
-
-                    return `
-                        <div class="message" style="background-color: #1e1e1e; border-left-color: ${statusColor};">
-                            <div style="display: flex; justify-content: space-between;">
-                                <span>${task.goal}</span>
-                                <span class="badge" style="background-color: ${statusColor}">${task.plan?.status || task.status}</span>
-                            </div>
-                            <div style="color: #666; font-size: 0.85em; margin-top: 0.5rem;">
-                                Duration: ${elapsed}s
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            } else {
-                historyList.innerHTML = '<div style="color: #666; padding: 1rem;">No task history</div>';
-            }
+            eventSource.addEventListener('blackboard', (e) => {
+                try {
+                    updateBlackboard(JSON.parse(e.data));
+                } catch (e) { console.error(e); }
+            });
         }
 
         connectSSE();

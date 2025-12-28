@@ -7,7 +7,7 @@ import type { LLMConfig, LLMResponse } from '../types'
 import { withRetry } from '@moeru/std'
 
 import { config } from '../../composables/config'
-import { DebugServer } from '../../debug-server'
+import { DebugService } from '../../debug-server'
 import { useLogger } from '../../utils/logger'
 
 export abstract class BaseLLMHandler {
@@ -35,12 +35,12 @@ export abstract class BaseLLMHandler {
     this.logger.withFields({ usage: completion.usage, content }).log('Generated content')
 
     // Broadcast LLM trace
-    DebugServer.getInstance().broadcast('llm', {
+    DebugService.getInstance().traceLLM({
       route,
       messages,
       content,
       usage: completion.usage,
-      timestamp: Date.now(),
+      model: this.config.model ?? config.openai.model,
     })
 
     return {
