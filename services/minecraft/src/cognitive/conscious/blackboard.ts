@@ -1,4 +1,4 @@
-import { Vec3 } from 'vec3'
+import type { Vec3 } from 'vec3'
 
 export interface SelfState {
   status: 'idle' | 'moving' | 'working' | 'chatting' | 'busy'
@@ -12,17 +12,17 @@ export interface SelfState {
 export interface EnvironmentState {
   time: string // 'day' | 'night' | 'sunset' | 'sunrise'
   weather: 'clear' | 'rain' | 'thunder'
-  nearbyPlayers: string[]
+  nearbyAgents: string[]
   nearbyEntities: string[] // significant entities (mobs, dropped items of interest)
   lightLevel: number
 }
 
 export interface BlackboardState {
-    currentGoal: string
-    currentThought: string
-    executionStrategy: string
-    self: SelfState
-    environment: EnvironmentState
+  currentGoal: string
+  currentThought: string
+  executionStrategy: string
+  self: SelfState
+  environment: EnvironmentState
 }
 
 export class Blackboard {
@@ -44,7 +44,7 @@ export class Blackboard {
       environment: {
         time: 'day',
         weather: 'clear',
-        nearbyPlayers: [],
+        nearbyAgents: [],
         nearbyEntities: [],
         lightLevel: 15,
       },
@@ -60,24 +60,24 @@ export class Blackboard {
 
   // Setters (Partial updates allowed)
   public update(updates: Partial<BlackboardState>): void {
-      this._state = { ...this._state, ...updates }
+    this._state = { ...this._state, ...updates }
   }
 
   public updateSelf(updates: Partial<SelfState>): void {
-      this._state.self = { ...this._state.self, ...updates }
+    this._state.self = { ...this._state.self, ...updates }
   }
 
   public updateEnvironment(updates: Partial<EnvironmentState>): void {
-      this._state.environment = { ...this._state.environment, ...updates }
+    this._state.environment = { ...this._state.environment, ...updates }
   }
 
   public getSnapshot(): BlackboardState {
-      // Return a deep copy or safe reference? 
-      // For now, return a shallow copy of the state structure
-      return {
-          ...this._state,
-          self: { ...this._state.self }, // location (Vec3) is an object, but usually treated efficiently. 
-          environment: { ...this._state.environment, nearbyPlayers: [...this._state.environment.nearbyPlayers], nearbyEntities: [...this._state.environment.nearbyEntities] }
-      }
+    // Return a deep copy or safe reference?
+    // For now, return a shallow copy of the state structure
+    return {
+      ...this._state,
+      self: { ...this._state.self }, // location (Vec3) is an object, but usually treated efficiently.
+      environment: { ...this._state.environment, nearbyAgents: [...this._state.environment.nearbyAgents], nearbyEntities: [...this._state.environment.nearbyEntities] },
+    }
   }
 }

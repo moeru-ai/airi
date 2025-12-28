@@ -1,7 +1,7 @@
 import type { Logg } from '@guiiai/logg'
 
 import type { EventManager } from '../perception/event-manager'
-import type { BotEvent, MineflayerWithAgents, UserIntentPayload } from '../types'
+import type { BotEvent, MineflayerWithAgents, StimulusPayload } from '../types'
 
 export class ReflexManager {
   constructor(
@@ -12,15 +12,15 @@ export class ReflexManager {
   ) {}
 
   public init(bot: MineflayerWithAgents): void {
-    // Listen to user intents as a "subconscious" filter
-    this.deps.eventManager.on<UserIntentPayload>('user_intent', (event) => {
-      this.handleUserIntent(bot, event)
+    // Listen to stimuli as a "subconscious" filter
+    this.deps.eventManager.on<StimulusPayload>('stimulus', (event) => {
+      this.onStimulus(bot, event)
     })
 
     // TODO: Listen to world_update for physical reflexes (dodge, flee)
   }
 
-  private handleUserIntent(bot: MineflayerWithAgents, event: BotEvent<UserIntentPayload>): void {
+  private onStimulus(bot: MineflayerWithAgents, event: BotEvent<StimulusPayload>): void {
     const { content } = event.payload
     const lowerContent = content.toLowerCase().trim()
 

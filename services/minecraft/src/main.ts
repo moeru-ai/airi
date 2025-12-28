@@ -9,7 +9,7 @@ import { pathfinder as MineflayerPathfinder } from 'mineflayer-pathfinder'
 import { plugin as MineflayerPVP } from 'mineflayer-pvp'
 import { plugin as MineflayerTool } from 'mineflayer-tool'
 
-import { LLMAgent } from './cognitive'
+import { CognitiveEngine } from './cognitive'
 import { initBot } from './composables/bot'
 import { config, initEnv } from './composables/config'
 import { createNeuriAgent } from './composables/neuri'
@@ -44,9 +44,9 @@ async function main() {
     url: config.airi.wsBaseUrl,
   })
 
-  // Dynamically load LLMAgent after the bot is initialized
+  // Dynamically load CognitiveEngine after the bot is initialized
   const agent = await createNeuriAgent(bot)
-  await bot.loadPlugin(LLMAgent({ agent, airiClient }))
+  await bot.loadPlugin(CognitiveEngine({ agent, airiClient }))
 
   process.on('SIGINT', () => {
     bot.stop()
