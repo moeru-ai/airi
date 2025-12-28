@@ -1,0 +1,17 @@
+{
+  "name": "@proj-airi/airi-plugin-bilibili-laplace",
+  "type": "module",
+  "version": "0.8.0-beta.8",
+  "private": true,
+  "description": "Live stream chat plugin, a bridge to forward Bilibili live chat via LAPLACE Event Bridge into AIRI server channel",
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "@laplace.live/event-bridge-sdk": "^1.0.7",
+    "@laplace.live/event-types": "^2.0.14",
+    "@proj-airi/server-sdk": "workspace:*"
+  }
+}
