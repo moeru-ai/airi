@@ -1,6 +1,6 @@
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 
-import { DebugServer } from '../debug-server'
+import { DebugService } from '../debug-server'
 
 export type Logger = ReturnType<typeof useLogg>
 
@@ -32,28 +32,15 @@ export function useLogger() {
   return {
     log: (message: string, ...args: any[]) => {
       logger.log(message, ...args)
-      DebugServer.getInstance().broadcast('log', {
-        level: 'INFO',
-        message: `[${dirName}/${fileName}] ${message}`,
-        timestamp: Date.now(),
-        fields: (logger as any).fields, // Access fields if stored on instance, currently Logg API might differ so we simplify
-      })
+      DebugService.getInstance().log('INFO', `[${dirName}/${fileName}] ${message}`, { args })
     },
     error: (message: string, ...args: any[]) => {
       logger.error(message, ...args)
-      DebugServer.getInstance().broadcast('log', {
-        level: 'ERROR',
-        message: `[${dirName}/${fileName}] ${message}`,
-        timestamp: Date.now(),
-      })
+      DebugService.getInstance().log('ERROR', `[${dirName}/${fileName}] ${message}`, { args })
     },
     warn: (message: string, ...args: any[]) => {
       logger.warn(message, ...args)
-      DebugServer.getInstance().broadcast('log', {
-        level: 'WARN',
-        message: `[${dirName}/${fileName}] ${message}`,
-        timestamp: Date.now(),
-      })
+      DebugService.getInstance().log('WARN', `[${dirName}/${fileName}] ${message}`, { args })
     },
     withFields: (fields: Record<string, any>) => {
       const subLogger = logger.withFields(fields)
@@ -61,39 +48,19 @@ export function useLogger() {
       return {
         log: (message: string) => {
           subLogger.log(message)
-          DebugServer.getInstance().broadcast('log', {
-            level: 'INFO',
-            message: `[${dirName}/${fileName}] ${message}`,
-            fields,
-            timestamp: Date.now(),
-          })
+          DebugService.getInstance().log('INFO', `[${dirName}/${fileName}] ${message}`, fields)
         },
         error: (message: string) => {
           subLogger.error(message)
-          DebugServer.getInstance().broadcast('log', {
-            level: 'ERROR',
-            message: `[${dirName}/${fileName}] ${message}`,
-            fields,
-            timestamp: Date.now(),
-          })
+          DebugService.getInstance().log('ERROR', `[${dirName}/${fileName}] ${message}`, fields)
         },
         warn: (message: string) => {
           subLogger.warn(message)
-          DebugServer.getInstance().broadcast('log', {
-            level: 'WARN',
-            message: `[${dirName}/${fileName}] ${message}`,
-            fields,
-            timestamp: Date.now(),
-          })
+          DebugService.getInstance().log('WARN', `[${dirName}/${fileName}] ${message}`, fields)
         },
         errorWithError: (message: string, error: unknown) => {
           subLogger.errorWithError(message, error)
-          DebugServer.getInstance().broadcast('log', {
-            level: 'ERROR',
-            message: `[${dirName}/${fileName}] ${message}`,
-            fields: { ...fields, error },
-            timestamp: Date.now(),
-          })
+          DebugService.getInstance().log('ERROR', `[${dirName}/${fileName}] ${message}`, { ...fields, error })
         },
         withFields: (newFields: Record<string, any>) => useLogger().withFields({ ...fields, ...newFields }), // Recursion hack for simplicity, ideally properly implement interface
         withError: (err: unknown) => useLogger().withFields({ ...fields, error: err }), // Recursion hack
@@ -104,12 +71,7 @@ export function useLogger() {
     },
     errorWithError: (message: string, error: unknown) => {
       logger.errorWithError(message, error)
-      DebugServer.getInstance().broadcast('log', {
-        level: 'ERROR',
-        message: `[${dirName}/${fileName}] ${message}`,
-        fields: { error },
-        timestamp: Date.now(),
-      })
+      DebugService.getInstance().log('ERROR', `[${dirName}/${fileName}] ${message}`, { error })
     },
   } as unknown as ReturnType<typeof useLogg> // Force type for now as complete Logg interface is complex to mock fully perfectly without more boilerplate
 }

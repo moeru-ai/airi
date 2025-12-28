@@ -7,7 +7,7 @@ import type { MineflayerWithAgents } from '../types'
 import { assistant } from 'neuri/openai'
 
 import { config } from '../../composables/config'
-import { DebugServer } from '../../debug-server'
+import { DebugService } from '../../debug-server'
 
 export async function handleLLMCompletion(context: NeuriContext, bot: MineflayerWithAgents, logger: Logger): Promise<string> {
   logger.log('rerouting...')
@@ -26,12 +26,12 @@ export async function handleLLMCompletion(context: NeuriContext, bot: Mineflayer
   logger.withFields({ usage: completion.usage, content }).log('output')
 
   // Broadcast LLM trace
-  DebugServer.getInstance().broadcast('llm', {
+  DebugService.getInstance().traceLLM({
     route: 'action',
     messages: context.messages,
     content,
     usage: completion.usage,
-    timestamp: Date.now(),
+    model: config.openai.model,
   })
 
   bot.memory.chatHistory.push(assistant(content))

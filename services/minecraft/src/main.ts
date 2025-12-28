@@ -13,7 +13,7 @@ import { CognitiveEngine } from './cognitive'
 import { initBot } from './composables/bot'
 import { config, initEnv } from './composables/config'
 import { createNeuriAgent } from './composables/neuri'
-import { DebugServer } from './debug-server'
+import { DebugService } from './debug-server'
 import { wrapPlugin } from './libs/mineflayer'
 import { initLogger, useLogger } from './utils/logger'
 
@@ -24,7 +24,7 @@ async function main() {
   initEnv()
 
   // Start debug server
-  DebugServer.getInstance().start()
+  DebugService.getInstance().start()
 
   const { bot } = await initBot({
     botConfig: config.bot,
