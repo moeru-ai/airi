@@ -210,7 +210,6 @@ export class Brain {
           const completion = await ctx.reroute('action', ctx.messages, {
             model: config.openai.model,
             response_format: { type: 'json_object' },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any) as any
 
           // Trace LLM
