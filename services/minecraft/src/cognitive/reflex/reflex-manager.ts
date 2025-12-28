@@ -24,7 +24,6 @@ export class ReflexManager {
     const { content } = event.payload
     const lowerContent = content.toLowerCase().trim()
 
-    // MCP Skeleton: Simple "hi" reflex
     if (lowerContent === 'hi' || lowerContent === 'hello') {
       this.deps.logger.log('Reflex: Handling greeting')
 
@@ -36,7 +35,6 @@ export class ReflexManager {
         bot.bot.chat(reply)
       }
 
-      // Mark as handled to inhibit Conscious layer (Orchestrator)
       event.handled = true
     }
   }
