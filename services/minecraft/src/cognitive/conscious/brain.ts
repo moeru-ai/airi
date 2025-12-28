@@ -41,6 +41,10 @@ export class Brain {
     // Listen to Stimuli (Chat/Voice)
     // We treat these as "Sensory Inputs" that trigger the Cognitive Cycle
     this.deps.eventManager.on<StimulusPayload>('stimulus', async (event) => {
+      if (event.handled) {
+        this.deps.logger.log(`Brain: Stimulus from ${event.source.id} already handled by reflex, ignoring.`)
+        return
+      }
       this.deps.logger.log(`Brain: Received stimulus from ${event.source.id}: ${event.payload.content}`)
       await this.processEvent(bot, event)
     })
