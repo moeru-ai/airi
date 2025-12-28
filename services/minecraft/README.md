@@ -104,20 +104,211 @@ You can also give the bot natural language commands, and it will try to understa
 - "Help me fight these zombies"
 - "Collect wood from nearby trees"
 
-## 🛠️ Development
+## 🧠 Cognitive Architecture
 
-### Project Structure
+AIRI's Minecraft agent is built on a **three-layered cognitive architecture** inspired by cognitive science, enabling both reactive and deliberate behaviors. This design allows the bot to respond instantly to urgent situations while maintaining the ability to plan and execute complex tasks.
+
+### Architecture Overview
+
+```mermaid
+graph TB
+    subgraph "Layer A: Perception"
+        Events[Raw Events]
+        EM[Event Manager]
+        Events --> EM
+    end
+
+    subgraph "Layer B: Reflex (Subconscious)"
+        RM[Reflex Manager]
+        FSM[State Machine]
+        RM --> FSM
+    end
+
+    subgraph "Layer C: Conscious"
+        ORC[Orchestrator]
+        Planning[Planning Agent]
+        Action[Action Agent]
+        Chat[Chat Agent]
+        ORC --> Planning
+        ORC --> Action
+        ORC --> Chat
+    end
+
+    EM -->|High Priority| RM
+    EM -->|All Events| ORC
+    RM -.->|Inhibition Signal| ORC
+
+    style EM fill:#e1f5ff
+    style RM fill:#fff4e1
+    style ORC fill:#ffe1f5
+```
+
+### Layer A: Perception
+
+**Location**: `src/cognitive/perception/`
+
+The perception layer acts as the sensory input hub, receiving and preprocessing all events from the Minecraft world and external sources.
+
+**Components**:
+- **Event Manager** (`event-manager.ts`): Centralized event distribution system
+  - Emits standardized `BotEvent` objects
+  - Supports event prioritization (TODO: salience detection)
+  - Manages temporal context (TODO: short-term event memory)
+
+**Event Types**:
+- `user_intent`: Player chat messages, voice commands
+- `world_update`: Block changes, entity movements, damage events
+- `system_alert`: Internal system notifications
+
+**Event Flow**:
+```typescript
+// Example: Chat message → Event
+{
+  type: 'user_intent',
+  payload: { content: 'build a house' },
+  source: { type: 'minecraft', id: 'player123' },
+  timestamp: 1234567890,
+  priority: 0,  // Default priority
+  handled: false // Not yet processed
+}
+```
+
+### Layer B: Reflex
+
+**Location**: `src/cognitive/reflex/`
+
+The reflex layer handles immediate, instinctive reactions without LLM overhead. It operates on a finite state machine (FSM) pattern for predictable, fast responses.
+
+**Components**:
+- **Reflex Manager** (`reflex-manager.ts`): Coordinates all reflex behaviors
+  - Subscribes to high-priority events
+  - Executes instant responses
+  - Sets inhibition signals to prevent unnecessary LLM calls
+
+**Current Reflexes**:
+- ✅ **Greeting Reflex**: Instantly responds to "hi" or "hello"
+- 🚧 **Dodge Reflex** (TODO): Avoid incoming projectiles
+- 🚧 **Survival Reflex** (TODO): Auto-eat when hungry, flee from danger
+
+**Inhibition Mechanism**:
+When a reflex handles an event, it sets `event.handled = true`, preventing the expensive Conscious layer from processing the same event.
+
+```typescript
+// Example: Greeting reflex
+if (content === 'hi') {
+  bot.chat('Hi there! (Reflex)')
+  event.handled = true // Inhibit Conscious processing
+}
+```
+
+### Layer C: Conscious
+
+**Location**: `src/cognitive/conscious/`
+
+The conscious layer handles complex reasoning, planning, and decision-making using LLM-powered agents.
+
+**Components**:
+- **Orchestrator** (`orchestrator.ts`): Main coordinator for deliberate actions
+  - Checks inhibition signals from Reflex layer
+  - Manages processing state (prevents concurrent operations)
+  - Coordinates Planning → Execution → Response flow
+
+- **Planning Agent**: Creates multi-step plans to achieve goals
+- **Action Agent**: Executes atomic actions (move, mine, build)
+- **Chat Agent**: Generates natural language responses
+
+**Processing Pipeline**:
+```
+1. Check Inhibition → 2. Update Memory → 3. Create Plan →
+4. Execute Actions → 5. Generate Response → 6. Reply
+```
+
+**State Management**:
+- Uses `isProcessing` lock to prevent race conditions
+- Future: Queue system for handling concurrent intents
+
+### 🔄 Event Flow Example
+
+**Scenario 1: Simple Greeting (Reflex)**
+```
+Player: "hi"
+  ↓
+[Perception] EventManager emits user_intent
+  ↓
+[Reflex] ReflexManager detects greeting → Replies instantly
+  ↓
+[Conscious] Orchestrator sees handled=true → Skips processing
+```
+
+**Scenario 2: Complex Command (Conscious)**
+```
+Player: "build a house"
+  ↓
+[Perception] EventManager emits user_intent
+  ↓
+[Reflex] ReflexManager ignores (not a reflex trigger)
+  ↓
+[Conscious] Orchestrator processes:
+  - PlanningAgent creates building plan
+  - ActionAgent executes steps (gather, place blocks)
+  - ChatAgent generates response
+  ↓
+Bot: "I've built a small house for you!"
+```
+
+### 📁 Project Structure
 
 ```
 src/
-├── agents/     # AI agent implementations
-├── composables/# Reusable composable functions
-├── libs/       # Core library code
-├── mineflayer/ # Mineflayer plugin implementations
-├── prompts/    # AI prompt templates
-├── skills/     # Bot skills and actions
-└── utils/      # Utility functions
+├── cognitive/              # 🧠 Three-layer cognitive system
+│   ├── perception/        # Layer A: Event processing
+│   │   └── event-manager.ts
+│   ├── reflex/            # Layer B: Instant reactions
+│   │   └── reflex-manager.ts
+│   ├── conscious/         # Layer C: LLM-powered reasoning
+│   │   ├── orchestrator.ts
+│   │   ├── completion.ts
+│   │   ├── prompt.ts
+│   │   └── handler.ts
+│   ├── container.ts       # Dependency injection
+│   ├── index.ts           # Cognitive system entry
+│   └── types.ts           # Shared type definitions
+├── agents/                # Specialized AI agents
+│   ├── action/           # Action execution agent
+│   ├── planning/         # Goal planning agent
+│   └── chat/             # Conversation agent
+├── libs/
+│   └── mineflayer/       # Mineflayer bot wrapper
+├── skills/               # Atomic bot capabilities
+├── composables/          # Reusable functions
+└── utils/                # Helper utilities
 ```
+
+### 🎯 Design Principles
+
+1. **Separation of Concerns**: Each layer has a distinct responsibility
+2. **Event-Driven**: Loose coupling via centralized event system
+3. **Inhibition Control**: Reflexes prevent unnecessary LLM calls
+4. **Extensibility**: Easy to add new reflexes or conscious behaviors
+5. **Cognitive Realism**: Mimics human-like perception → reaction → deliberation
+
+### 🚧 Future Enhancements
+
+- **Perception Layer**:
+  - ⏱️ Temporal context window (remember recent events)
+  - 🎯 Salience detection (filter noise, prioritize important events)
+
+- **Reflex Layer**:
+  - 🏃 Dodge hostile mobs
+  - 🍖 Auto-eat when health/hunger is low
+  - 🛡️ Emergency combat responses
+
+- **Conscious Layer**:
+  - 💭 Emotional state management
+  - 🧠 Long-term memory integration
+  - 🎭 Personality-driven responses
+
+## 🛠️ Development
 
 ### Commands
 
