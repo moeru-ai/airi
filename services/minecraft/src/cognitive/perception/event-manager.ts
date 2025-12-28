@@ -1,4 +1,4 @@
-import type { BotEvent, EventType } from './types'
+import type { BotEvent, EventType } from '../types'
 
 import EventEmitter from 'eventemitter3'
 

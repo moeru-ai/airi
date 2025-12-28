@@ -2,7 +2,7 @@ import type { NeuriContext } from 'neuri'
 import type { ChatCompletion } from 'neuri/openai'
 
 import type { Logger } from '../../utils/logger'
-import type { MineflayerWithAgents } from './types'
+import type { MineflayerWithAgents } from '../types'
 
 import { assistant } from 'neuri/openai'
 

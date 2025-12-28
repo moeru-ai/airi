@@ -4,11 +4,11 @@ import type { Neuri } from 'neuri'
 import { useLogg } from '@guiiai/logg'
 import { asClass, asFunction, createContainer, InjectionMode } from 'awilix'
 
-import { ActionAgentImpl } from '../../agents/action'
-import { ChatAgentImpl } from '../../agents/chat'
-import { PlanningAgentImpl } from '../../agents/planning'
-import { EventManager } from './event-manager'
-import { Orchestrator } from './orchestrator'
+import { ActionAgentImpl } from '../agents/action'
+import { ChatAgentImpl } from '../agents/chat'
+import { PlanningAgentImpl } from '../agents/planning'
+import { Orchestrator } from './conscious/orchestrator'
+import { EventManager } from './perception/event-manager'
 import { ReflexManager } from './reflex/reflex-manager'
 
 export interface ContainerServices {

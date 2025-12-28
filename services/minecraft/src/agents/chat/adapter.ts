@@ -2,7 +2,7 @@ import type { ChatHistory } from './types'
 
 import { system, user } from 'neuri/openai'
 
-import { BaseLLMHandler } from '../../libs/llm-agent/handler'
+import { BaseLLMHandler } from '../../cognitive/conscious/handler'
 
 export function generateChatAgentPrompt(): string {
   return `You are a Minecraft bot assistant. Your task is to engage in natural conversation with players while helping them achieve their goals.

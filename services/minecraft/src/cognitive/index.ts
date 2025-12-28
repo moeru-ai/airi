@@ -1,12 +1,12 @@
-import type { MineflayerPlugin } from '../mineflayer'
+import type { MineflayerPlugin } from '../libs/mineflayer'
 import type { LLMAgentOptions, MineflayerWithAgents } from './types'
 
 import { system } from 'neuri/openai'
 
-import { config } from '../../composables/config'
-import { ChatMessageHandler } from '../mineflayer'
+import { config } from '../composables/config'
+import { ChatMessageHandler } from '../libs/mineflayer'
+import { generateActionAgentPrompt } from './conscious/prompt'
 import { createAgentContainer } from './container'
-import { generateActionAgentPrompt } from './prompt'
 
 export function LLMAgent(options: LLMAgentOptions): MineflayerPlugin {
   return {
