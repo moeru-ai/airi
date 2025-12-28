@@ -192,7 +192,7 @@ export class Brain {
     this.blackboard.updateEnvironment({
       time: bot.bot.time.isDay ? 'day' : 'night',
       weather: bot.bot.isRaining ? 'rain' : 'clear',
-      nearbyAgents: Object.keys(bot.bot.players).filter(p => p !== bot.bot.username),
+      nearbyPlayers: Object.keys(bot.bot.players).filter(p => p !== bot.bot.username),
     })
 
     // Sync Blackboard to Debug

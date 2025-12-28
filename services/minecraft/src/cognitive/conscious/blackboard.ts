@@ -12,7 +12,7 @@ export interface SelfState {
 export interface EnvironmentState {
   time: string // 'day' | 'night' | 'sunset' | 'sunrise'
   weather: 'clear' | 'rain' | 'thunder'
-  nearbyAgents: string[]
+  nearbyPlayers: string[]
   nearbyEntities: string[] // significant entities (mobs, dropped items of interest)
   lightLevel: number
 }
@@ -44,7 +44,7 @@ export class Blackboard {
       environment: {
         time: 'day',
         weather: 'clear',
-        nearbyAgents: [],
+        nearbyPlayers: [],
         nearbyEntities: [],
         lightLevel: 15,
       },
@@ -77,7 +77,7 @@ export class Blackboard {
     return {
       ...this._state,
       self: { ...this._state.self }, // location (Vec3) is an object, but usually treated efficiently.
-      environment: { ...this._state.environment, nearbyAgents: [...this._state.environment.nearbyAgents], nearbyEntities: [...this._state.environment.nearbyEntities] },
+      environment: { ...this._state.environment, nearbyPlayers: [...this._state.environment.nearbyPlayers], nearbyEntities: [...this._state.environment.nearbyEntities] },
     }
   }
 }
