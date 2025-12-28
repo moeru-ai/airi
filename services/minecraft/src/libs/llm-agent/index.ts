@@ -4,18 +4,13 @@ import type { LLMAgentOptions, MineflayerWithAgents } from './types'
 import { system } from 'neuri/openai'
 
 import { config } from '../../composables/config'
-import { useLogger } from '../../utils/logger'
 import { ChatMessageHandler } from '../mineflayer'
-import { handleChatMessage } from './chat'
 import { createAgentContainer } from './container'
 import { generateActionAgentPrompt } from './prompt'
-import { handleVoiceInput } from './voice'
 
 export function LLMAgent(options: LLMAgentOptions): MineflayerPlugin {
   return {
     async created(bot) {
-      const logger = useLogger()
-
       // Create container and get required services
       const container = createAgentContainer({
         neuri: options.agent,
@@ -25,6 +20,9 @@ export function LLMAgent(options: LLMAgentOptions): MineflayerPlugin {
       const actionAgent = container.resolve('actionAgent')
       const planningAgent = container.resolve('planningAgent')
       const chatAgent = container.resolve('chatAgent')
+      const eventManager = container.resolve('eventManager')
+      const orchestrator = container.resolve('orchestrator')
+      const reflexManager = container.resolve('reflexManager')
 
       // Initialize agents
       await actionAgent.init()
@@ -37,17 +35,55 @@ export function LLMAgent(options: LLMAgentOptions): MineflayerPlugin {
       botWithAgents.planning = planningAgent
       botWithAgents.chat = chatAgent
 
+      // Initialize layers
+      reflexManager.init(botWithAgents)
+      orchestrator.init(botWithAgents)
+
       // Initialize system prompt
       bot.memory.chatHistory.push(system(generateActionAgentPrompt(bot)))
 
-      // Set message handling
-      const onChat = new ChatMessageHandler(bot.username).handleChat((username, message) =>
-        handleChatMessage(username, message, botWithAgents, options.agent, logger))
+      // Set message handling via EventManager
+      const chatHandler = new ChatMessageHandler(bot.username)
+      bot.bot.on('chat', (username, message) => {
+        if (chatHandler.isBotMessage(username))
+          return
 
-      options.airiClient.onEvent('input:text:voice', event =>
-        handleVoiceInput(event, botWithAgents, options.agent, logger))
+        eventManager.emit({
+          type: 'user_intent',
+          payload: {
+            content: message,
+            metadata: {
+              displayName: username,
+            },
+          },
+          source: {
+            type: 'minecraft',
+            id: username,
+          },
+          timestamp: Date.now(),
+        })
+      })
 
-      bot.bot.on('chat', onChat)
+      options.airiClient.onEvent('input:text:voice', (event) => {
+        eventManager.emit({
+          type: 'user_intent',
+          payload: {
+            content: event.data.transcription,
+            metadata: {
+              displayName: (event.data.discord?.guildMember as any)?.nick || (event.data.discord?.guildMember as any)?.user?.username || 'Voice User',
+            },
+          },
+          source: {
+            type: 'airi',
+            id: (event.data.discord?.guildMember as any)?.user?.id || 'unknown',
+            reply: (msg) => {
+              // TODO: implement Airi voice reply if needed, or just chat in MC
+              bot.bot.chat(msg)
+            },
+          },
+          timestamp: Date.now(),
+        })
+      })
     },
 
     async beforeCleanup(bot) {

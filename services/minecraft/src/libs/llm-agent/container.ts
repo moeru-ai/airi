@@ -7,6 +7,9 @@ import { asClass, asFunction, createContainer, InjectionMode } from 'awilix'
 import { ActionAgentImpl } from '../../agents/action'
 import { ChatAgentImpl } from '../../agents/chat'
 import { PlanningAgentImpl } from '../../agents/planning'
+import { EventManager } from './event-manager'
+import { Orchestrator } from './orchestrator'
+import { ReflexManager } from './reflex/reflex-manager'
 
 export interface ContainerServices {
   logger: Logg
@@ -14,6 +17,9 @@ export interface ContainerServices {
   planningAgent: PlanningAgentImpl
   chatAgent: ChatAgentImpl
   neuri: Neuri
+  eventManager: EventManager
+  orchestrator: Orchestrator
+  reflexManager: ReflexManager
 }
 
 export function createAgentContainer(options: {
@@ -64,6 +70,12 @@ export function createAgentContainer(options: {
         maxHistoryLength: 50,
         idleTimeout: 5 * 60 * 1000, // 5 minutes
       })),
+
+    eventManager: asClass(EventManager).singleton(),
+
+    orchestrator: asClass(Orchestrator).singleton(),
+
+    reflexManager: asClass(ReflexManager).singleton(),
   })
 
   return container
