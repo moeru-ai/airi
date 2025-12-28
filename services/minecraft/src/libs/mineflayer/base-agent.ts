@@ -38,14 +38,14 @@ export interface MemoryAgent extends BaseAgent {
 export interface Plan {
   goal: string
   steps: PlanStep[]
-  status: 'pending' | 'in_progress' | 'completed' | 'failed'
+  status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'cancelled'
   requiresAction: boolean
 }
 
 export interface PlanningAgent extends BaseAgent {
   type: 'planning'
   createPlan: (goal: string) => Promise<Plan>
-  executePlan: (plan: Plan) => Promise<void>
+  executePlan: (plan: Plan, cancellationToken?: any) => Promise<void>
   adjustPlan: (plan: Plan, feedback: string, sender: string) => Promise<Plan>
 }
 
