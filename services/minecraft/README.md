@@ -106,7 +106,7 @@ You can also give the bot natural language commands, and it will try to understa
 
 ## 🧠 Cognitive Architecture
 
-AIRI's Minecraft agent is built on a **three-layered cognitive architecture** inspired by cognitive science, enabling both reactive and deliberate behaviors. This design allows the bot to respond instantly to urgent situations while maintaining the ability to plan and execute complex tasks.
+AIRI's Minecraft agent is built on a **four-layered cognitive architecture** inspired by cognitive science, enabling reactive, conscious, and physically grounded behaviors.
 
 ### Architecture Overview
 
@@ -124,136 +124,91 @@ graph TB
         RM --> FSM
     end
 
-    subgraph "Layer C: Conscious"
+    subgraph "Layer C: Conscious (Reasoning)"
         ORC[Orchestrator]
-        Planning[Planning Agent]
-        Action[Action Agent]
-        Chat[Chat Agent]
-        ORC --> Planning
-        ORC --> Action
+        Planner[Planning Agent (LLM)]
+        Chat[Chat Agent (LLM)]
+        ORC --> Planner
         ORC --> Chat
+    end
+
+    subgraph "Layer D: Action (Execution)"
+        TE[Task Executor]
+        AA[Action Agent]
+        Planner -->|Plan| TE
+        TE -->|Action Steps| AA
     end
 
     EM -->|High Priority| RM
     EM -->|All Events| ORC
     RM -.->|Inhibition Signal| ORC
+    ORC -->|Execution Request| TE
 
     style EM fill:#e1f5ff
     style RM fill:#fff4e1
     style ORC fill:#ffe1f5
+    style TE fill:#dcedc8
 ```
 
 ### Layer A: Perception
 
 **Location**: `src/cognitive/perception/`
 
-The perception layer acts as the sensory input hub, receiving and preprocessing all events from the Minecraft world and external sources.
+The perception layer acts as the sensory input hub, receiving and preprocesses all events from the Minecraft world and external sources.
 
 **Components**:
 - **Event Manager** (`event-manager.ts`): Centralized event distribution system
   - Emits standardized `BotEvent` objects
-  - Supports event prioritization (TODO: salience detection)
-  - Manages temporal context (TODO: short-term event memory)
-
-**Event Types**:
-- `user_intent`: Player chat messages, voice commands
-- `world_update`: Block changes, entity movements, damage events
-- `system_alert`: Internal system notifications
-
-**Event Flow**:
-```typescript
-// Example: Chat message → Event
-{
-  type: 'user_intent',
-  payload: { content: 'build a house' },
-  source: { type: 'minecraft', id: 'player123' },
-  timestamp: 1234567890,
-  priority: 0,  // Default priority
-  handled: false // Not yet processed
-}
-```
+  - Supports event prioritization and concurrency
 
 ### Layer B: Reflex
 
 **Location**: `src/cognitive/reflex/`
 
-The reflex layer handles immediate, instinctive reactions without LLM overhead. It operates on a finite state machine (FSM) pattern for predictable, fast responses.
+The reflex layer handles immediate, instinctive reactions. It operates on a finite state machine (FSM) pattern for predictable, fast responses.
 
 **Components**:
-- **Reflex Manager** (`reflex-manager.ts`): Coordinates all reflex behaviors
-  - Subscribes to high-priority events
-  - Executes instant responses
-  - Sets inhibition signals to prevent unnecessary LLM calls
-
-**Current Reflexes**:
-- ✅ **Greeting Reflex**: Instantly responds to "hi" or "hello"
-- 🚧 **Dodge Reflex** (TODO): Avoid incoming projectiles
-- 🚧 **Survival Reflex** (TODO): Auto-eat when hungry, flee from danger
-
-**Inhibition Mechanism**:
-When a reflex handles an event, it sets `event.handled = true`, preventing the expensive Conscious layer from processing the same event.
-
-```typescript
-// Example: Greeting reflex
-if (content === 'hi') {
-  bot.chat('Hi there! (Reflex)')
-  event.handled = true // Inhibit Conscious processing
-}
-```
+- **Reflex Manager** (`reflex-manager.ts`): Coordinates reflex behaviors
+- **Inhibition**: Reflexes can inhibit Conscious layer processing to prevent redundant responses.
 
 ### Layer C: Conscious
 
 **Location**: `src/cognitive/conscious/`
 
-The conscious layer handles complex reasoning, planning, and decision-making using LLM-powered agents.
+The conscious layer handles complex reasoning, planning, and high-level decision-making. No physical execution happens here anymore.
 
 **Components**:
-- **Orchestrator** (`orchestrator.ts`): Main coordinator for deliberate actions
-  - Checks inhibition signals from Reflex layer
-  - Manages processing state (prevents concurrent operations)
-  - Coordinates Planning → Execution → Response flow
+- **Orchestrator**: Coordinates "Thinking" vs "Chatting" tasks.
+- **Task Manager**: Manages concurrent Primary (Physical) and Secondary (Mental) tasks.
+- **Planning Agent**: pure LLM reasoning to generate plans.
+- **Chat Agent**: Generates natural language responses.
 
-- **Planning Agent**: Creates multi-step plans to achieve goals
-- **Action Agent**: Executes atomic actions (move, mine, build)
-- **Chat Agent**: Generates natural language responses
+### Layer D: Action
 
-**Processing Pipeline**:
-```
-1. Check Inhibition → 2. Update Memory → 3. Create Plan →
-4. Execute Actions → 5. Generate Response → 6. Reply
-```
+**Location**: `src/cognitive/action/`
 
-**State Management**:
-- Uses `isProcessing` lock to prevent race conditions
-- Future: Queue system for handling concurrent intents
+The action layer is responsible for the actual execution of tasks in the world. It isolates "Doing" from "Thinking".
+
+**Components**:
+- **Task Executor**: Receives a `Plan` and executes it step-by-step. Handles retry logic and errors.
+- **Action Agent**: The interface to low-level Mineflayer skills (move, place, break).
 
 ### 🔄 Event Flow Example
 
-**Scenario 1: Simple Greeting (Reflex)**
-```
-Player: "hi"
-  ↓
-[Perception] EventManager emits user_intent
-  ↓
-[Reflex] ReflexManager detects greeting → Replies instantly
-  ↓
-[Conscious] Orchestrator sees handled=true → Skips processing
-```
-
-**Scenario 2: Complex Command (Conscious)**
+**Scenario: "Build a house"**
 ```
 Player: "build a house"
   ↓
-[Perception] EventManager emits user_intent
+[Perception] Event detected
   ↓
-[Reflex] ReflexManager ignores (not a reflex trigger)
+[Conscious] Architect plans the structure
   ↓
-[Conscious] Orchestrator processes:
-  - PlanningAgent creates building plan
-  - ActionAgent executes steps (gather, place blocks)
-  - ChatAgent generates response
+[Action] Executor takes the plan and manages the construction loop:
+    - Step 1: Collect wood (calls ActionAgent)
+    - Step 2: Craft planks
+    - Step 3: Build walls
   ↓
-Bot: "I've built a small house for you!"
+[Conscious] ChatAgent confirms completion: "House is ready!"
 ```
 
 ### 📁 Project Structure

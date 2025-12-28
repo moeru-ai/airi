@@ -44,14 +44,14 @@ export interface Plan {
 
 export interface PlanningAgent extends BaseAgent {
   type: 'planning'
-  createPlan: (goal: string) => Promise<Plan>
-  executePlan: (plan: Plan, cancellationToken?: any) => Promise<void>
-  adjustPlan: (plan: Plan, feedback: string, sender: string) => Promise<Plan>
+  createPlan: (goal: string, availableActions?: Action[]) => Promise<Plan>
+  adjustPlan: (plan: Plan, feedback: string, sender: string, availableActions?: Action[]) => Promise<Plan>
 }
 
 export interface ChatAgent extends BaseAgent {
   type: 'chat'
   processMessage: (message: string, sender: string) => Promise<string>
+  sendMessage: (message: string) => Promise<void>
   startConversation: (player: string) => void
   endConversation: (player: string) => void
 }

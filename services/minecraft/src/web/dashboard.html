@@ -446,38 +446,60 @@
         }
 
         function updateTaskStatus(status) {
-            // Update current task
+            // Update active tasks
             const taskInfo = document.getElementById('task-info');
-            if (status.currentTask) {
-                const task = status.currentTask;
-                const elapsed = Math.floor((Date.now() - task.startTime) / 1000);
-                const statusColor = {
-                    'idle': '#888',
-                    'planning': '#ffb74d',
-                    'executing': '#4a9eff',
-                    'responding': '#9c27b0',
-                    'cancelling': '#ef5350'
-                }[task.status] || '#888';
+            
+            // Handle new multi-task structure or fallback to single task
+            let tasks = [];
+            if (status.activeTasks && Array.isArray(status.activeTasks)) {
+                tasks = status.activeTasks;
+            } else if (status.currentTask) {
+                tasks = [status.currentTask];
+            }
 
-                taskInfo.innerHTML = `
-                    <div style="padding: 1rem;">
+            if (tasks.length > 0) {
+                taskInfo.innerHTML = tasks.map(task => {
+                    // Determine if primary based on data or assumption
+                    // Note: TaskManager now logs 'type' but task object structure might not have it explicitly unless we added it to TaskContext
+                    // But we can infer order or just display all.
+                    // Let's assume the first one might be primary if we used getAllActiveTasks() order (primary first)
+                    
+                    const elapsed = Math.floor((Date.now() - task.startTime) / 1000);
+                    const statusColor = {
+                        'idle': '#888',
+                        'planning': '#ffb74d',
+                        'executing': '#4a9eff',
+                        'responding': '#9c27b0',
+                        'cancelling': '#ef5350'
+                    }[task.status] || '#888';
+
+                    // Visual distinction for secondary vs primary could be nice, but simple list is fine for now
+                    return `
+                    <div style="padding: 1rem; border-bottom: 1px solid #333; last-child: border-bottom: none;">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
                             <span style="font-weight: bold; font-size: 1.1em;">${task.goal}</span>
                             <span class="badge" style="background-color: ${statusColor}">${task.status.toUpperCase()}</span>
                         </div>
                         <div style="color: #888; font-size: 0.9em;">
-                            <div>Task ID: ${task.id}</div>
-                            <div>Elapsed: ${elapsed}s</div>
-                            ${task.currentStep ? `<div>Current Step: ${task.currentStep}</div>` : ''}
-                            ${task.plan ? `<div>Plan: ${task.plan.steps.length} steps (${task.plan.status})</div>` : ''}
+                            <div style="display: flex; gap: 1rem;">
+                                <span>ID: <span title="${task.id}">${task.id.substr(0,12)}...</span></span>
+                                <span>Time: ${elapsed}s</span>
+                            </div>
+                            ${task.currentStep ? `<div style="margin-top:0.25rem;">Step: ${task.currentStep}</div>` : ''}
+                            ${task.plan ? `<div style="margin-top:0.25rem;">Plan: ${task.plan.steps.length} steps (${task.plan.status})</div>` : ''}
                         </div>
                     </div>
-                `;
+                    `;
+                }).join('');
             } else {
-                taskInfo.innerHTML = '<div style="padding: 1rem; color: #666;">No active task</div>';
+                taskInfo.innerHTML = '<div style="padding: 1rem; color: #666;">No active tasks</div>';
             }
 
             // Update queue
+            // ... (rest same, removing queue updates here as they are separate chunks?)
+            // Actually I need to include the rest of the function or it will be cut off.
+            // Let's just replace the task rendering part if I target specific lines.
+            
             const queueCount = document.getElementById('queue-count');
             const queueList = document.getElementById('queue-list');
             queueCount.textContent = status.queueSize || 0;

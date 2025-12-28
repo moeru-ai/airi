@@ -1,46 +1,41 @@
 import type { MineflayerPlugin } from '../libs/mineflayer'
 import type { LLMAgentOptions, MineflayerWithAgents } from './types'
 
-import { system } from 'neuri/openai'
-
 import { config } from '../composables/config'
 import { ChatMessageHandler } from '../libs/mineflayer'
-import { generateActionAgentPrompt } from './conscious/prompt'
 import { createAgentContainer } from './container'
 
 export function LLMAgent(options: LLMAgentOptions): MineflayerPlugin {
+  let container: ReturnType<typeof createAgentContainer>
+
   return {
     async created(bot) {
       // Create container and get required services
-      const container = createAgentContainer({
+      container = createAgentContainer({
         neuri: options.agent,
         model: config.openai.model,
       })
 
       const actionAgent = container.resolve('actionAgent')
-      const planningAgent = container.resolve('planningAgent')
       const chatAgent = container.resolve('chatAgent')
       const eventManager = container.resolve('eventManager')
-      const orchestrator = container.resolve('orchestrator')
+      const brain = container.resolve('brain')
       const reflexManager = container.resolve('reflexManager')
+      const taskExecutor = container.resolve('taskExecutor')
 
       // Initialize agents
       await actionAgent.init()
-      await planningAgent.init()
       await chatAgent.init()
+      await taskExecutor.initialize()
 
       // Type conversion
       const botWithAgents = bot as unknown as MineflayerWithAgents
       botWithAgents.action = actionAgent
-      botWithAgents.planning = planningAgent
       botWithAgents.chat = chatAgent
 
       // Initialize layers
       reflexManager.init(botWithAgents)
-      orchestrator.init(botWithAgents)
-
-      // Initialize system prompt
-      bot.memory.chatHistory.push(system(generateActionAgentPrompt(bot)))
+      brain.init(botWithAgents)
 
       // Set message handling via EventManager
       const chatHandler = new ChatMessageHandler(bot.username)
@@ -89,8 +84,13 @@ export function LLMAgent(options: LLMAgentOptions): MineflayerPlugin {
     async beforeCleanup(bot) {
       const botWithAgents = bot as unknown as MineflayerWithAgents
       await botWithAgents.action?.destroy()
-      await botWithAgents.planning?.destroy()
       await botWithAgents.chat?.destroy()
+
+      if (container) {
+        const taskExecutor = container.resolve('taskExecutor')
+        await taskExecutor.destroy()
+      }
+
       bot.bot.removeAllListeners('chat')
     },
   }

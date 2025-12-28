@@ -7,7 +7,8 @@ import { asClass, asFunction, createContainer, InjectionMode } from 'awilix'
 import { ActionAgentImpl } from '../agents/action'
 import { ChatAgentImpl } from '../agents/chat'
 import { PlanningAgentImpl } from '../agents/planning'
-import { Orchestrator } from './conscious/orchestrator'
+import { TaskExecutor } from './action/task-executor'
+import { Brain } from './conscious/brain'
 import { EventManager } from './perception/event-manager'
 import { ReflexManager } from './reflex/reflex-manager'
 
@@ -18,7 +19,8 @@ export interface ContainerServices {
   chatAgent: ChatAgentImpl
   neuri: Neuri
   eventManager: EventManager
-  orchestrator: Orchestrator
+  taskExecutor: TaskExecutor
+  brain: Brain
   reflexManager: ReflexManager
 }
 
@@ -73,7 +75,9 @@ export function createAgentContainer(options: {
 
     eventManager: asClass(EventManager).singleton(),
 
-    orchestrator: asClass(Orchestrator).singleton(),
+    taskExecutor: asClass(TaskExecutor).singleton(),
+
+    brain: asClass(Brain).singleton(),
 
     reflexManager: asClass(ReflexManager).singleton(),
   })

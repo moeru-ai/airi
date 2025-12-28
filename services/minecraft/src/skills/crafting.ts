@@ -305,15 +305,12 @@ export async function clearNearestFurnace(mineflayer: Mineflayer): Promise<boole
   const furnace = await mineflayer.bot.openFurnace(furnaceBlock)
   logger.log('opened furnace...')
   // Take the items out of the furnace
-  let smeltedItem: Item | null = null
-  let inputItem: Item | null = null
-  let fuelItem: Item | null = null
   if (furnace.outputItem())
-    smeltedItem = await furnace.takeOutput()
+    await furnace.takeOutput()
   if (furnace.inputItem())
-    inputItem = await furnace.takeInput()
+    await furnace.takeInput()
   if (furnace.fuelItem())
-    fuelItem = await furnace.takeFuel()
+    await furnace.takeFuel()
     
   await mineflayer.bot.closeWindow(furnace)
   return true

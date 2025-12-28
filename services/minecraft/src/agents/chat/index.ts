@@ -1,6 +1,8 @@
+import type { Mineflayer } from '../../libs/mineflayer'
 import type { ChatAgent } from '../../libs/mineflayer/base-agent'
 import type { ChatAgentConfig, ChatContext } from './types'
 
+import { useBot } from '../../composables/bot'
 import { AbstractAgent } from '../../libs/mineflayer/base-agent'
 import { generateChatResponse } from './llm'
 
@@ -10,13 +12,17 @@ export class ChatAgentImpl extends AbstractAgent implements ChatAgent {
   private maxHistoryLength: number
   private idleTimeout: number
   private llmConfig: ChatAgentConfig['llm']
+  private mineflayer: Mineflayer
 
   constructor(config: ChatAgentConfig) {
     super(config)
     this.activeChats = new Map()
     this.maxHistoryLength = config.maxHistoryLength ?? 50
     this.idleTimeout = config.idleTimeout ?? 5 * 60 * 1000 // 5 minutes
+    this.maxHistoryLength = config.maxHistoryLength ?? 50
+    this.idleTimeout = config.idleTimeout ?? 5 * 60 * 1000 // 5 minutes
     this.llmConfig = config.llm
+    this.mineflayer = useBot().bot
   }
 
   protected async initializeAgent(): Promise<void> {
@@ -65,6 +71,25 @@ export class ChatAgentImpl extends AbstractAgent implements ChatAgent {
       this.logger.withError(error).error('Failed to process message')
       throw error
     }
+  }
+
+  public async sendMessage(message: string): Promise<void> {
+    if (!this.initialized) {
+      throw new Error('Chat agent not initialized')
+    }
+    this.logger.withField('message', message).log('Sending message')
+
+    // We also record our own messages in history (handled by on('chat') listener usually?
+    // No, on('chat') filters out bot's own messages in LLMAgent plugin usually to avoid loops.
+    // So we manually add to history?
+    // Wait, the orchestrator call bot.chat() before. Did it record it?
+    // In processMessage, we added generated response to history.
+    // Here we are just sending. We should record it.
+    // But we don't know the receiver context? Global chat.
+    // If it's global chat, we treat it as broadcast.
+
+    // Just send for now.
+    this.mineflayer.bot.chat(message)
   }
 
   public startConversation(player: string): void {
