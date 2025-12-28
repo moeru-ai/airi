@@ -1,12 +1,10 @@
 import type { Neuri } from 'neuri'
 
 import type { Action } from '../../libs/mineflayer/action'
-import type { ActionAgent, AgentConfig, MemoryAgent, Plan, PlanningAgent } from '../../libs/mineflayer/base-agent'
+import type { AgentConfig, MemoryAgent, Plan, PlanningAgent } from '../../libs/mineflayer/base-agent'
 import type { PlanStep } from './adapter'
 
 import { AbstractAgent } from '../../libs/mineflayer/base-agent'
-import { ActionError } from '../../utils/errors'
-import { ActionAgentImpl } from '../action'
 import { PlanningLLMHandler } from './adapter'
 
 interface PlanContext {
@@ -17,6 +15,7 @@ interface PlanContext {
   retryCount: number
   isGenerating: boolean
   pendingSteps: PlanStep[]
+  availableActions?: Action[]
 }
 
 export interface PlanningAgentConfig extends AgentConfig {
@@ -30,7 +29,6 @@ export class PlanningAgentImpl extends AbstractAgent implements PlanningAgent {
   public readonly type = 'planning' as const
   private currentPlan: Plan | null = null
   private context: PlanContext | null = null
-  private actionAgent: ActionAgent | null = null
   private memoryAgent: MemoryAgent | null = null
   private llmConfig: PlanningAgentConfig['llm']
   private llmHandler: PlanningLLMHandler
@@ -47,13 +45,6 @@ export class PlanningAgentImpl extends AbstractAgent implements PlanningAgent {
   protected async initializeAgent(): Promise<void> {
     this.logger.log('Initializing planning agent')
 
-    // Create action agent directly
-    this.actionAgent = new ActionAgentImpl({
-      id: 'action',
-      type: 'action',
-    })
-    await this.actionAgent.init()
-
     // Set event listener
     this.on('message', async ({ sender, message }) => {
       await this.handleAgentMessage(sender, message)
@@ -67,12 +58,11 @@ export class PlanningAgentImpl extends AbstractAgent implements PlanningAgent {
   protected async destroyAgent(): Promise<void> {
     this.currentPlan = null
     this.context = null
-    this.actionAgent = null
     this.memoryAgent = null
     this.removeAllListeners()
   }
 
-  public async createPlan(goal: string): Promise<Plan> {
+  public async createPlan(goal: string, availableActions: Action[] = []): Promise<Plan> {
     if (!this.initialized) {
       throw new Error('Planning agent not initialized')
     }
@@ -87,8 +77,7 @@ export class PlanningAgentImpl extends AbstractAgent implements PlanningAgent {
         return cachedPlan
       }
 
-      // Get available actions from action agent
-      const availableActions = this.actionAgent?.getAvailableActions() ?? []
+      // Actions passed from Orchestrator/Executor
 
       // Check if the goal requires actions
       const requirements = this.parseGoalRequirements(goal)
@@ -128,6 +117,7 @@ export class PlanningAgentImpl extends AbstractAgent implements PlanningAgent {
         retryCount: 0,
         isGenerating: false,
         pendingSteps: [],
+        availableActions,
       }
 
       return plan
@@ -138,83 +128,7 @@ export class PlanningAgentImpl extends AbstractAgent implements PlanningAgent {
     }
   }
 
-  public async executePlan(plan: Plan, cancellationToken?: any): Promise<void> {
-    if (!this.initialized) {
-      throw new Error('Planning agent not initialized')
-    }
-
-    if (!plan.requiresAction) {
-      this.logger.log('Plan does not require actions, skipping execution')
-      return
-    }
-
-    if (!this.actionAgent) {
-      throw new Error('Action agent not available')
-    }
-
-    this.logger.withField('plan', plan).log('Executing plan')
-
-    try {
-      plan.status = 'in_progress'
-      this.currentPlan = plan
-
-      // Execute each step
-      for (const step of plan.steps) {
-        // Check for cancellation before each step
-        if (cancellationToken?.isCancelled) {
-          this.logger.log('Plan execution cancelled')
-          plan.status = 'cancelled'
-          return
-        }
-
-        try {
-          this.logger.withField('step', step).log('Executing step')
-          await this.actionAgent.performAction(step)
-        }
-        catch (stepError) {
-          if (stepError instanceof ActionError) {
-            this.logger.withError(stepError).warn('Step execution failed with ActionError')
-            // If it's a resource failure or crafting failure that we've already tried to fix (implied by fail-fast skills),
-            // then we should abort and report failure instead of looping.
-            // We can check error types or context.
-            if (stepError.code === 'RESOURCE_MISSING' || stepError.code === 'CRAFTING_FAILED' || stepError.code === 'INVENTORY_FULL') {
-              // For now, fail fast on these hard errors.
-              // In the future we might want a "replanning" phase here, but NOT a blind retry.
-              throw stepError
-            }
-          }
-
-          this.logger.withError(stepError).error('Failed to execute step')
-
-          // Attempt to adjust plan and retry
-          if (this.context && this.context.retryCount < 3) {
-            this.context.retryCount++
-            // Adjust plan and restart
-            const adjustedPlan = await this.adjustPlan(
-              plan,
-              stepError instanceof Error ? stepError.message : 'Unknown error',
-              'system',
-            )
-            await this.executePlan(adjustedPlan, cancellationToken)
-            return
-          }
-
-          throw stepError
-        }
-      }
-
-      plan.status = 'completed'
-    }
-    catch (error) {
-      plan.status = 'failed'
-      throw error // This will be caught by handleChatMessage and reported to user
-    }
-    finally {
-      this.context = null
-    }
-  }
-
-  public async adjustPlan(plan: Plan, feedback: string, sender: string): Promise<Plan> {
+  public async adjustPlan(plan: Plan, feedback: string, sender: string, availableActions: Action[] = []): Promise<Plan> {
     if (!this.initialized) {
       throw new Error('Planning agent not initialized')
     }
@@ -225,13 +139,13 @@ export class PlanningAgentImpl extends AbstractAgent implements PlanningAgent {
       // If there's a current context, use it to adjust the plan
       if (this.context) {
         const currentStep = this.context.currentStep
-        const availableActions = this.actionAgent?.getAvailableActions() ?? []
+        const actions = availableActions.length > 0 ? availableActions : (this.context.availableActions || [])
 
         // Generate recovery steps based on feedback
         const recoverySteps = this.generateRecoverySteps(feedback)
 
         // Generate new steps from the current point
-        const newSteps = await this.generatePlanSteps(plan.goal, availableActions, sender, feedback)
+        const newSteps = await this.generatePlanSteps(plan.goal, actions, sender, feedback)
 
         // Create adjusted plan
         const adjustedPlan: Plan = {
@@ -249,7 +163,7 @@ export class PlanningAgentImpl extends AbstractAgent implements PlanningAgent {
       }
 
       // If no context, create a new plan
-      return this.createPlan(plan.goal)
+      return this.createPlan(plan.goal, availableActions)
     }
     catch (error) {
       this.logger.withError(error).error('Failed to adjust plan')
