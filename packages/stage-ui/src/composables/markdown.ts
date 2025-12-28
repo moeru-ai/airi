@@ -9,8 +9,8 @@ import remarkMath from 'remark-math'
 import RemarkParse from 'remark-parse'
 import RemarkRehype from 'remark-rehype'
 
-import { unified } from 'unified'
 import { defaultPerfTracer } from '@proj-airi/stage-shared'
+import { unified } from 'unified'
 
 // Define a specific, compatible type for our processor to ensure type safety.
 type MarkdownProcessor = Processor<any, any, any, any, string>
@@ -29,6 +29,14 @@ function extractLangs(markdown: string): BundledLanguage[] {
   return [...langs]
 }
 
+function measuredKatex(options?: Parameters<typeof rehypeKatex>[0]) {
+  const transform = rehypeKatex(options)
+  return async (tree: any, file: any) => {
+    const length = typeof file?.value === 'string' ? file.value.length : undefined
+    return defaultPerfTracer.withMeasure('markdown', 'process.katex', () => transform(tree, file), { length })
+  }
+}
+
 async function createProcessor(langs: BundledLanguage[]): Promise<MarkdownProcessor> {
   const options: RehypeShikiOptions = {
     themes: {
@@ -43,7 +51,7 @@ async function createProcessor(langs: BundledLanguage[]): Promise<MarkdownProces
     .use(RemarkParse)
     .use(remarkMath)
     .use(RemarkRehype)
-    .use(rehypeKatex, { output: 'mathml' })
+    .use(measuredKatex, { output: 'mathml' })
     .use(rehypeShiki, options)
     .use(RehypeStringify)
 }
@@ -65,7 +73,7 @@ export function useMarkdown() {
     .use(RemarkParse)
     .use(remarkMath)
     .use(RemarkRehype)
-    .use(rehypeKatex, { output: 'mathml' })
+    .use(measuredKatex, { output: 'mathml' })
     .use(RehypeStringify)
 
   return {
@@ -77,7 +85,7 @@ export function useMarkdown() {
         try {
           // A quick check for code fences. If none, use the fast fallback.
           if (!hasCodeFence) {
-            return defaultPerfTracer.withMeasure('markdown', 'process.fallback', () => {
+            return defaultPerfTracer.withMeasure('markdown', 'process.pipeline.basic', () => {
               return fallbackProcessor.processSync(markdown).toString()
             }, meta)
           }
@@ -90,7 +98,7 @@ export function useMarkdown() {
           const languagesToLoad = Array.from(langSet)
 
           const processor = await getProcessor(languagesToLoad)
-          const result = await defaultPerfTracer.withMeasure('markdown', 'process.shiki', () => processor.process(markdown), meta)
+          const result = await defaultPerfTracer.withMeasure('markdown', 'process.pipeline.rich', () => processor.process(markdown), meta)
           return result.toString()
         }
         catch (error) {
@@ -99,7 +107,7 @@ export function useMarkdown() {
             error,
           )
           // Fallback to basic processor without highlighting
-          return defaultPerfTracer.withMeasure('markdown', 'process.fallback', () => {
+          return defaultPerfTracer.withMeasure('markdown', 'process.pipeline.fallback', () => {
             return fallbackProcessor.processSync(markdown).toString()
           }, { ...meta, fallback: true })
         }
@@ -115,7 +123,7 @@ export function useMarkdown() {
 
       defaultPerfTracer.emit({
         tracerId: 'markdown',
-        name: 'process.sync',
+        name: 'process.pipeline.sync',
         ts: start,
         duration: performance.now() - start,
         meta: { length: markdown.length },
