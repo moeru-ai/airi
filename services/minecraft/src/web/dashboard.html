@@ -235,10 +235,34 @@
     </header>
     <main>
         <nav>
-            <div class="nav-item active" onclick="switchTab('logs')">Logs</div>
+            <div class="nav-item active" onclick="switchTab('task-status')">Task Status</div>
+            <div class="nav-item" onclick="switchTab('logs')">Logs</div>
             <div class="nav-item" onclick="switchTab('llm')">LLM Traces</div>
         </nav>
         
+        <div id="task-status-panel" class="content-panel active">
+            <div class="toolbar">
+                <h3 style="margin: 0;">Current Task State</h3>
+            </div>
+            <div class="log-container" style="padding: 2rem;">
+                <div id="current-task" style="margin-bottom: 2rem;">
+                    <div class="section-title">Active Task</div>
+                    <div id="task-info" class="llm-card" style="background-color: #1e1e1e;">
+                        <div style="padding: 1rem; color: #666;">No active task</div>
+                    </div>
+                </div>
+
+                <div id="task-queue" style="margin-bottom: 2rem;">
+                    <div class="section-title">Event Queue (<span id="queue-count">0</span>)</div>
+                    <div id="queue-list" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
+                </div>
+
+                <div id="task-history">
+                    <div class="section-title">Recent Tasks (Last 5)</div>
+                    <div id="history-list" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
+                </div>
+            </div>
+        </div>
         <div id="logs-panel" class="content-panel active">
             <div class="toolbar">
                 <button onclick="clearLogs()">Clear</button>
@@ -410,6 +434,96 @@
                     console.error('Failed to parse llm trace', e);
                 }
             });
+
+            eventSource.addEventListener('task-status', (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    updateTaskStatus(data);
+                } catch (e) {
+                    console.error('Failed to parse task status', e);
+                }
+            });
+        }
+
+        function updateTaskStatus(status) {
+            // Update current task
+            const taskInfo = document.getElementById('task-info');
+            if (status.currentTask) {
+                const task = status.currentTask;
+                const elapsed = Math.floor((Date.now() - task.startTime) / 1000);
+                const statusColor = {
+                    'idle': '#888',
+                    'planning': '#ffb74d',
+                    'executing': '#4a9eff',
+                    'responding': '#9c27b0',
+                    'cancelling': '#ef5350'
+                }[task.status] || '#888';
+
+                taskInfo.innerHTML = `
+                    <div style="padding: 1rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span style="font-weight: bold; font-size: 1.1em;">${task.goal}</span>
+                            <span class="badge" style="background-color: ${statusColor}">${task.status.toUpperCase()}</span>
+                        </div>
+                        <div style="color: #888; font-size: 0.9em;">
+                            <div>Task ID: ${task.id}</div>
+                            <div>Elapsed: ${elapsed}s</div>
+                            ${task.currentStep ? `<div>Current Step: ${task.currentStep}</div>` : ''}
+                            ${task.plan ? `<div>Plan: ${task.plan.steps.length} steps (${task.plan.status})</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            } else {
+                taskInfo.innerHTML = '<div style="padding: 1rem; color: #666;">No active task</div>';
+            }
+
+            // Update queue
+            const queueCount = document.getElementById('queue-count');
+            const queueList = document.getElementById('queue-list');
+            queueCount.textContent = status.queueSize || 0;
+            
+            if (status.queue && status.queue.length > 0) {
+                queueList.innerHTML = status.queue.map((event, idx) => `
+                    <div class="message" style="background-color: #1e1e1e; border-left-color: #ffb74d;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>#${idx + 1}: ${event.payload?.content || 'Unknown event'}</span>
+                            <span class="badge">Priority: ${event.priority || 5}</span>
+                        </div>
+                        <div style="color: #666; font-size: 0.85em; margin-top: 0.5rem;">
+                            From: ${event.source?.id || 'unknown'}
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                queueList.innerHTML = '<div style="color: #666; padding: 1rem;">Queue is empty</div>';
+            }
+
+            // Update history
+            const historyList = document.getElementById('history-list');
+            if (status.history && status.history.length > 0) {
+                historyList.innerHTML = status.history.slice(0, 5).map(task => {
+                    const elapsed = Math.floor((Date.now() - task.startTime) / 1000);
+                    const statusColor = {
+                        'completed': '#4caf50',
+                        'failed': '#ef5350',
+                        'cancelled': '#ff9800'
+                    }[task.plan?.status] || '#888';
+
+                    return `
+                        <div class="message" style="background-color: #1e1e1e; border-left-color: ${statusColor};">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>${task.goal}</span>
+                                <span class="badge" style="background-color: ${statusColor}">${task.plan?.status || task.status}</span>
+                            </div>
+                            <div style="color: #666; font-size: 0.85em; margin-top: 0.5rem;">
+                                Duration: ${elapsed}s
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                historyList.innerHTML = '<div style="color: #666; padding: 1rem;">No task history</div>';
+            }
         }
 
         connectSSE();

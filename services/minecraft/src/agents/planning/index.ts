@@ -138,7 +138,7 @@ export class PlanningAgentImpl extends AbstractAgent implements PlanningAgent {
     }
   }
 
-  public async executePlan(plan: Plan): Promise<void> {
+  public async executePlan(plan: Plan, cancellationToken?: any): Promise<void> {
     if (!this.initialized) {
       throw new Error('Planning agent not initialized')
     }
@@ -160,22 +160,28 @@ export class PlanningAgentImpl extends AbstractAgent implements PlanningAgent {
 
       // Execute each step
       for (const step of plan.steps) {
+        // Check for cancellation before each step
+        if (cancellationToken?.isCancelled) {
+          this.logger.log('Plan execution cancelled')
+          plan.status = 'cancelled'
+          return
+        }
+
         try {
           this.logger.withField('step', step).log('Executing step')
           await this.actionAgent.performAction(step)
         }
         catch (stepError) {
-          
           if (stepError instanceof ActionError) {
-             this.logger.withError(stepError).warn('Step execution failed with ActionError')
-             // If it's a resource failure or crafting failure that we've already tried to fix (implied by fail-fast skills),
-             // then we should abort and report failure instead of looping.
-             // We can check error types or context.
-             if (stepError.code === 'RESOURCE_MISSING' || stepError.code === 'CRAFTING_FAILED' || stepError.code === 'INVENTORY_FULL') {
-                 // For now, fail fast on these hard errors.
-                 // In the future we might want a "replanning" phase here, but NOT a blind retry.
-                 throw stepError;
-             }
+            this.logger.withError(stepError).warn('Step execution failed with ActionError')
+            // If it's a resource failure or crafting failure that we've already tried to fix (implied by fail-fast skills),
+            // then we should abort and report failure instead of looping.
+            // We can check error types or context.
+            if (stepError.code === 'RESOURCE_MISSING' || stepError.code === 'CRAFTING_FAILED' || stepError.code === 'INVENTORY_FULL') {
+              // For now, fail fast on these hard errors.
+              // In the future we might want a "replanning" phase here, but NOT a blind retry.
+              throw stepError
+            }
           }
 
           this.logger.withError(stepError).error('Failed to execute step')
@@ -189,7 +195,7 @@ export class PlanningAgentImpl extends AbstractAgent implements PlanningAgent {
               stepError instanceof Error ? stepError.message : 'Unknown error',
               'system',
             )
-            await this.executePlan(adjustedPlan)
+            await this.executePlan(adjustedPlan, cancellationToken)
             return
           }
 
