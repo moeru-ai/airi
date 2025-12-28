@@ -80,7 +80,7 @@ export class ChatAgentImpl extends AbstractAgent implements ChatAgent {
     this.logger.withField('message', message).log('Sending message')
 
     // We also record our own messages in history (handled by on('chat') listener usually?
-    // No, on('chat') filters out bot's own messages in LLMAgent plugin usually to avoid loops.
+    // No, on('chat') filters out bot's own messages in CognitiveEngine plugin usually to avoid loops.
     // So we manually add to history?
     // Wait, the orchestrator call bot.chat() before. Did it record it?
     // In processMessage, we added generated response to history.

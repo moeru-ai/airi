@@ -1,11 +1,11 @@
 import type { MineflayerPlugin } from '../libs/mineflayer'
-import type { LLMAgentOptions, MineflayerWithAgents } from './types'
+import type { CognitiveEngineOptions, MineflayerWithAgents } from './types'
 
 import { config } from '../composables/config'
 import { ChatMessageHandler } from '../libs/mineflayer'
 import { createAgentContainer } from './container'
 
-export function LLMAgent(options: LLMAgentOptions): MineflayerPlugin {
+export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlugin {
   let container: ReturnType<typeof createAgentContainer>
 
   return {
@@ -44,7 +44,7 @@ export function LLMAgent(options: LLMAgentOptions): MineflayerPlugin {
           return
 
         eventManager.emit({
-          type: 'user_intent',
+          type: 'stimulus',
           payload: {
             content: message,
             metadata: {
@@ -61,11 +61,11 @@ export function LLMAgent(options: LLMAgentOptions): MineflayerPlugin {
 
       options.airiClient.onEvent('input:text:voice', (event) => {
         eventManager.emit({
-          type: 'user_intent',
+          type: 'stimulus',
           payload: {
             content: event.data.transcription,
             metadata: {
-              displayName: (event.data.discord?.guildMember as any)?.nick || (event.data.discord?.guildMember as any)?.user?.username || 'Voice User',
+              displayName: (event.data.discord?.guildMember as any)?.nick || (event.data.discord?.guildMember as any)?.user?.username || 'Voice Stimulus',
             },
           },
           source: {

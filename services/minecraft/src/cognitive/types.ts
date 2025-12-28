@@ -23,16 +23,16 @@ export interface MineflayerWithAgents extends Mineflayer {
   chat: ChatAgent
 }
 
-export interface LLMAgentOptions {
+export interface CognitiveEngineOptions {
   agent: Neuri
   airiClient: Client
 }
 
-export type EventType = 'user_intent' | 'world_update' | 'system_alert'
+export type EventType = 'stimulus' | 'perception' | 'feedback' | 'world_update' | 'system_alert'
 
 export interface BotEventSource {
   type: 'minecraft' | 'airi' | 'system'
-  id: string // username or session id
+  id: string // Agent/Source identifier
   reply?: (message: string) => void
 }
 
@@ -46,7 +46,7 @@ export interface BotEvent<T = any> {
   handled?: boolean // Set by Reflex layer to inhibit Conscious layer
 }
 
-export interface UserIntentPayload {
+export interface StimulusPayload {
   content: string
   metadata?: {
     entity?: any // prismarine-entity Entity

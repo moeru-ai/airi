@@ -29,7 +29,7 @@ export function generateBrainSystemPrompt(
 思绪: "${blackboard.thought}"
 策略: "${blackboard.strategy}"
 自身: 位置${blackboard.self.location} 生命${blackboard.self.health} 饱食${blackboard.self.food}
-环境: ${blackboard.environment.time} ${blackboard.environment.weather} 玩家[${blackboard.environment.nearbyPlayers.join(',')}]
+环境: ${blackboard.environment.time} ${blackboard.environment.weather} 附近智体[${blackboard.environment.nearbyAgents.join(',')}]
 
 可用动作:
 ${availableActionsJson}

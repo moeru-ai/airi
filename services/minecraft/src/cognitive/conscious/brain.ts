@@ -4,7 +4,7 @@ import type { Neuri } from 'neuri'
 import type { TaskExecutor } from '../action/task-executor'
 import type { ActionInstruction } from '../action/types'
 import type { EventManager } from '../perception/event-manager'
-import type { MineflayerWithAgents, UserIntentPayload } from '../types'
+import type { MineflayerWithAgents, StimulusPayload } from '../types'
 
 import { system, user } from 'neuri/openai'
 
@@ -38,10 +38,10 @@ export class Brain {
   public init(bot: MineflayerWithAgents): void {
     this.deps.logger.log('Brain: Initializing...')
 
-    // Listen to User Intents (Chat/Voice)
+    // Listen to Stimuli (Chat/Voice)
     // We treat these as "Sensory Inputs" that trigger the Cognitive Cycle
-    this.deps.eventManager.on<UserIntentPayload>('user_intent', async (event) => {
-      this.deps.logger.log(`Brain: Received intent from ${event.source.id}: ${event.payload.content}`)
+    this.deps.eventManager.on<StimulusPayload>('stimulus', async (event) => {
+      this.deps.logger.log(`Brain: Received stimulus from ${event.source.id}: ${event.payload.content}`)
       await this.processEvent(bot, event)
     })
 
@@ -49,7 +49,7 @@ export class Brain {
     this.deps.taskExecutor.on('action:completed', async ({ action, result }) => {
       this.deps.logger.log(`Brain: Action completed: ${action.type}`)
       await this.processEvent(bot, {
-        type: 'action:feedback',
+        type: 'feedback',
         payload: {
           status: 'success',
           action,
@@ -63,7 +63,7 @@ export class Brain {
     this.deps.taskExecutor.on('action:failed', async ({ action, error }) => {
       this.deps.logger.withError(error).warn(`Brain: Action failed: ${action.type}`)
       await this.processEvent(bot, {
-        type: 'action:feedback',
+        type: 'feedback',
         payload: {
           status: 'failure',
           action,
@@ -85,13 +85,13 @@ export class Brain {
 
     // 2. Orient (Contextualize Event)
     let contextMsg = ''
-    if (event.type === 'user_intent') {
-      contextMsg = `User ${event.source.id} says: "${event.payload.content}"`
+    if (event.type === 'stimulus') {
+      contextMsg = `${event.source.type} stimulus from ${event.source.id}: "${event.payload.content}"`
     }
-    else if (event.type === 'action:feedback') {
+    else if (event.type === 'feedback') {
       const { status, result, error, action } = event.payload
       const actionDesc = action.type === 'physical' ? action.step.tool : 'chat'
-      contextMsg = `Action Feedback: ${actionDesc} ${status}. Result: ${JSON.stringify(result || error)}`
+      contextMsg = `Internal Feedback: ${actionDesc} ${status}. Result: ${JSON.stringify(result || error)}`
     }
 
     // 3. Decide (LLM Call)
@@ -130,7 +130,7 @@ export class Brain {
     this.blackboard.updateEnvironment({
       time: bot.bot.time.isDay ? 'day' : 'night',
       weather: bot.bot.isRaining ? 'rain' : 'clear',
-      nearbyPlayers: Object.keys(bot.bot.players).filter(p => p !== bot.bot.username),
+      nearbyAgents: Object.keys(bot.bot.players).filter(p => p !== bot.bot.username),
     })
   }
 
