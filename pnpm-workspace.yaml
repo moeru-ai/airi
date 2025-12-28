@@ -1,6 +1,7 @@
 catalogMode: prefer
 
 shellEmulator: true
+
 packages:
   - packages/**
   - plugins/**
@@ -19,6 +20,7 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
+
 catalog:
   '@guiiai/logg': ^1.2.11
   '@moeru/eslint-config': 0.1.0-beta.14
