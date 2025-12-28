@@ -70,7 +70,10 @@ export class DebugService {
         const htmlPath = path.join(__dirname, 'web', 'dashboard.html')
         try {
           const html = fs.readFileSync(htmlPath, 'utf-8')
-          res.writeHead(200, { 'Content-Type': 'text/html' })
+          res.writeHead(200, {
+            'Content-Type': 'text/html',
+            'Cache-Control': 'no-cache',
+          })
           res.end(html)
         }
         catch {

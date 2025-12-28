@@ -290,7 +290,8 @@
     </main>
 
     <script>
-        let autoScroll = true;
+        var autoScroll = true;
+        var sseClient = null;
         const statusDot = document.getElementById('connection-status');
         const statusText = document.getElementById('status-text');
         
@@ -456,9 +457,9 @@
         }
 
         function reconnect() {
-            if (eventSource) {
-                eventSource.close();
-                eventSource = null;
+            if (sseClient) {
+                sseClient.close();
+                sseClient = null;
             }
             statusDot.classList.remove('connected');
             statusText.textContent = 'Reconnecting...';
@@ -466,43 +467,43 @@
         }
 
         function connectSSE() {
-            if (eventSource) {
-                eventSource.close();
+            if (sseClient) {
+                sseClient.close();
             }
 
-            eventSource = new EventSource('/events');
+            sseClient = new EventSource('/events');
             
-            eventSource.onopen = () => {
+            sseClient.onopen = () => {
                 statusDot.classList.add('connected');
                 statusText.textContent = 'Connected';
                 addLog({ level: 'SYSTEM', message: 'Connected to debug server' });
             };
 
-            eventSource.onerror = (err) => {
+            sseClient.onerror = (err) => {
                 console.error('SSE error:', err);
                 statusDot.classList.remove('connected');
                 statusText.textContent = 'Disconnected';
             };
 
-            eventSource.addEventListener('log', (e) => {
+            sseClient.addEventListener('log', (e) => {
                 try {
                     addLog(JSON.parse(e.data));
                 } catch (e) { console.error(e); }
             });
 
-            eventSource.addEventListener('llm', (e) => {
+            sseClient.addEventListener('llm', (e) => {
                 try {
                     addLLMTrace(JSON.parse(e.data));
                 } catch (e) { console.error(e); }
             });
 
-            eventSource.addEventListener('queue', (e) => {
+            sseClient.addEventListener('queue', (e) => {
                 try {
                     updateQueue(JSON.parse(e.data));
                 } catch (e) { console.error(e); }
             });
 
-            eventSource.addEventListener('blackboard', (e) => {
+            sseClient.addEventListener('blackboard', (e) => {
                 try {
                     updateBlackboard(JSON.parse(e.data));
                 } catch (e) { console.error(e); }
