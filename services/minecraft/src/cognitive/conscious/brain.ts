@@ -136,6 +136,19 @@ export class Brain {
 
   // --- Cognitive Cycle ---
 
+  private contextFromEvent(event: BotEvent): string {
+    switch (event.type) {
+      case 'stimulus':
+        return `${event.source.type} stimulus from ${event.source.id}: "${event.payload.content}"`
+      case 'feedback': {
+        const { status, result, error } = event.payload
+        return `Internal Feedback: ${status}. Result: ${JSON.stringify(result || error)}`
+      }
+      default:
+        return ''
+    }
+  }
+
   private async processEvent(bot: MineflayerWithAgents, event: BotEvent): Promise<void> {
     // OODA Loop: Observe -> Orient -> Decide -> Act
 
@@ -143,19 +156,12 @@ export class Brain {
     this.updatePerception(bot)
 
     // 2. Orient (Contextualize Event)
-    let contextMsg = ''
-    if (event.type === 'stimulus') {
-      contextMsg = `${event.source.type} stimulus from ${event.source.id}: "${event.payload.content}"`
-    }
-    else if (event.type === 'feedback') {
-      const { status, result, error, action } = event.payload
-      const actionDesc = action.type === 'physical' ? action.step.tool : 'chat'
-      contextMsg = `Internal Feedback: ${actionDesc} ${status}. Result: ${JSON.stringify(result || error)}`
-    }
+    // Environmental context are included in the system prompt blackboard
+    const additionalCtx = this.contextFromEvent(event)
 
     // 3. Decide (LLM Call)
     const systemPrompt = this.generateSystemPrompt(this.blackboard)
-    const decision = await this.decide(systemPrompt, contextMsg)
+    const decision = await this.decide(systemPrompt, additionalCtx)
 
     if (!decision) {
       this.log('WARN', 'Brain: No decision made.')
