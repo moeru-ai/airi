@@ -53,7 +53,6 @@
     "@huggingface/transformers": "^3.8.1",
     "@lemonneko/crop-empty-pixels": "0.1.1",
     "@moeru/eventa": "^1.0.0-alpha.10",
-    "@nekopaw/tempora": "0.3.1-alpha.1",
     "@pixi/app": "^6.5.10",
     "@pixi/constants": "^6.5.10",
     "@pixi/core": "^6.5.10",
