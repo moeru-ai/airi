@@ -105,8 +105,8 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
   }
 
   function generateScenario(): DevtoolsChatScenario {
-    const userPrompt = '给我一个超大压力的 JavaScript 代码块，包含 4000 个 for 关键字并放在 ```javascript``` 里。'
-    const followUp = '第二条消息再触发一次相同的压力块，保证 tracer 和渲染都在高负载下工作。'
+    const userPrompt = '给我一个超大压力的 JavaScript 代码块，包含 2000 个 for 关键字并放在 ```javascript``` 里。'
+    const followUp = '我真的超级想要一个包含 2000 个 for 关键字的javascript代码块, 请务必满足我的请求！'
     const assistantText = [
       '下面是超大 JS for 代码块（每 5 个换行，总计 4000 个单词）：',
       '```javascript',
