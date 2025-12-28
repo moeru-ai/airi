@@ -15,6 +15,9 @@ catalogs:
     '@moeru/std':
       specifier: 0.1.0-beta.14
       version: 0.1.0-beta.14
+    '@nekopaw/tempora':
+      specifier: 0.4.0-alpha.1
+      version: 0.4.0-alpha.1
     '@proj-airi/drizzle-duckdb-wasm':
       specifier: ^0.4.29
       version: 0.4.29
@@ -610,9 +613,6 @@ importers:
       '@intlify/unplugin-vue-i18n':
         specifier: ^11.0.1
         version: 11.0.1(@vue/compiler-dom@3.5.26)(eslint@9.39.2(jiti@2.6.1))(rollup@4.54.0)(typescript@5.9.3)(vue-i18n@11.2.2(vue@3.5.25(typescript@5.9.3)))(vue@3.5.25(typescript@5.9.3))
-      '@nekopaw/tempora':
-        specifier: 0.3.1-alpha.1
-        version: 0.3.1-alpha.1
       '@proj-airi/lobe-icons':
         specifier: ^1.0.18
         version: 1.0.18
@@ -733,9 +733,6 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.14
-      '@nekopaw/tempora':
-        specifier: 0.3.1-alpha.1
-        version: 0.3.1-alpha.1
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../../packages/audio
@@ -1354,9 +1351,6 @@ importers:
       '@moeru/eventa':
         specifier: ^1.0.0-alpha.10
         version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))(web-worker@1.5.0)
-      '@nekopaw/tempora':
-        specifier: 0.3.1-alpha.1
-        version: 0.3.1-alpha.1
       '@proj-airi/ccc':
         specifier: workspace:*
         version: link:../ccc
@@ -1424,6 +1418,9 @@ importers:
         specifier: ^4.6.4
         version: 4.6.4(vue@3.5.25(typescript@5.9.3))
     devDependencies:
+      '@nekopaw/tempora':
+        specifier: 'catalog:'
+        version: 0.4.0-alpha.1
       '@proj-airi/stage-shared':
         specifier: workspace:^
         version: link:../stage-shared
@@ -1449,8 +1446,8 @@ importers:
         specifier: ^1.0.0-alpha.10
         version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))(web-worker@1.5.0)
       '@nekopaw/tempora':
-        specifier: 0.3.1-alpha.1
-        version: 0.3.1-alpha.1
+        specifier: 'catalog:'
+        version: 0.4.0-alpha.1
       '@types/audioworklet':
         specifier: 'catalog:'
         version: 0.0.92
@@ -1472,9 +1469,6 @@ importers:
       '@moeru/eventa':
         specifier: ^1.0.0-alpha.10
         version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))(web-worker@1.5.0)
-      '@nekopaw/tempora':
-        specifier: 0.3.1-alpha.1
-        version: 0.3.1-alpha.1
       '@pixi/app':
         specifier: ^6.5.10
         version: 6.5.10(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/display@6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
@@ -5142,8 +5136,8 @@ packages:
   '@napi-rs/wasm-runtime@1.1.0':
     resolution: {integrity: sha512-Fq6DJW+Bb5jaWE69/qOE0D1TUN9+6uWhCeZpdnSBk14pjLcCWR7Q8n49PTSPHazM37JqrsdpEthXy2xn6jWWiA==}
 
-  '@nekopaw/tempora@0.3.1-alpha.1':
-    resolution: {integrity: sha512-PjckDovy+OFYgeCmyuVBcGnkePwIuMVEdtDAlj2c0rmppJtelwYyC/SV8CPhlcbUEjT5WlyL1Jx+f6XZ+gLx6A==}
+  '@nekopaw/tempora@0.4.0-alpha.1':
+    resolution: {integrity: sha512-DlTVHe8HG2d925Jdr8qNikzFISr/ej3lq2/b4UMYfRx+IzMvkPasag1mzedWfrkU2keHn3NgClbWP/MbAxFyKw==}
     engines: {node: '>=22.10.0'}
 
   '@netlify/blobs@9.1.2':
@@ -19505,7 +19499,7 @@ snapshots:
       '@tybys/wasm-util': 0.10.1
     optional: true
 
-  '@nekopaw/tempora@0.3.1-alpha.1': {}
+  '@nekopaw/tempora@0.4.0-alpha.1': {}
 
   '@netlify/blobs@9.1.2':
     dependencies:
