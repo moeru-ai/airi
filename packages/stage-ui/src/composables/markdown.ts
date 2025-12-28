@@ -31,9 +31,21 @@ function extractLangs(markdown: string): BundledLanguage[] {
 
 function measuredKatex(options?: Parameters<typeof rehypeKatex>[0]) {
   const transform = rehypeKatex(options)
-  return async (tree: any, file: any) => {
+  return (tree: any, file: any) => {
+    const start = performance.now()
     const length = typeof file?.value === 'string' ? file.value.length : undefined
-    return defaultPerfTracer.withMeasure('markdown', 'process.katex', () => transform(tree, file), { length })
+    try {
+      return transform(tree, file)
+    }
+    finally {
+      defaultPerfTracer.emit({
+        tracerId: 'markdown',
+        name: 'process.katex',
+        ts: start,
+        duration: performance.now() - start,
+        meta: { length },
+      })
+    }
   }
 }
 
