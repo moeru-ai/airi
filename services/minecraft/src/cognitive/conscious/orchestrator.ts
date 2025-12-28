@@ -1,8 +1,8 @@
 import type { Logg } from '@guiiai/logg'
 import type { Neuri, NeuriContext } from 'neuri'
 
-import type { EventManager } from './event-manager'
-import type { BotEvent, MineflayerWithAgents, UserIntentPayload } from './types'
+import type { EventManager } from '../perception/event-manager'
+import type { BotEvent, MineflayerWithAgents, UserIntentPayload } from '../types'
 
 import { withRetry } from '@moeru/std'
 import { system, user } from 'neuri/openai'

@@ -1,4 +1,4 @@
-import type { Mineflayer } from '../mineflayer'
+import type { Mineflayer } from '../../libs/mineflayer'
 
 import { listInventory } from '../../skills/actions/inventory'
 

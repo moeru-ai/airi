@@ -1,10 +1,10 @@
 import { messages, system, user } from 'neuri/openai'
 import { beforeAll, describe, expect, it } from 'vitest'
 
+import { generateSystemBasicPrompt } from '../../cognitive/conscious/prompt'
 import { initBot, useBot } from '../../composables/bot'
 import { config, initEnv } from '../../composables/config'
 import { createNeuriAgent } from '../../composables/neuri'
-import { generateSystemBasicPrompt } from '../../libs/llm-agent/prompt'
 import { initLogger } from '../../utils/logger'
 
 describe('openAI agent', { timeout: 0 }, () => {

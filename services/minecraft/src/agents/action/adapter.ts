@@ -7,7 +7,7 @@ import type { PlanStep } from '../planning/adapter'
 import { agent } from 'neuri'
 import { system, user } from 'neuri/openai'
 
-import { BaseLLMHandler } from '../../libs/llm-agent/handler'
+import { BaseLLMHandler } from '../../cognitive/conscious/handler'
 import { useLogger } from '../../utils/logger'
 import { generateActionSystemPrompt } from './system-prompt'
 import { actionsList } from './tools'

@@ -5,7 +5,7 @@ import type { Action } from '../../libs/mineflayer/action'
 import { agent } from 'neuri'
 import { system, user } from 'neuri/openai'
 
-import { BaseLLMHandler } from '../../libs/llm-agent/handler'
+import { BaseLLMHandler } from '../../cognitive/conscious/handler'
 import { generatePlanningAgentSystemPrompt } from './system-prompt'
 
 export async function createPlanningNeuriAgent(): Promise<Agent> {
