@@ -8,6 +8,7 @@ import type { MineflayerWithAgents, StimulusPayload } from '../types'
 
 import { system, user } from 'neuri/openai'
 
+import { config } from '../../composables/config'
 import { Blackboard } from './blackboard'
 import { generateBrainSystemPrompt } from './prompts/brain-prompt'
 
@@ -147,6 +148,7 @@ export class Brain {
         ],
         async (ctx) => {
           const completion = await ctx.reroute('action', ctx.messages, {
+            model: config.openai.model,
             response_format: { type: 'json_object' },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any) as any
