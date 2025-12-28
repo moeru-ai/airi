@@ -1,0 +1,15 @@
+{
+  "name": "@proj-airi/airi-plugin-homeassistant",
+  "type": "module",
+  "version": "0.8.0-beta.8",
+  "private": true,
+  "description": "Home Assistant integration plugin for AIRI server",
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "@proj-airi/server-sdk": "workspace:*"
+  }
+}
