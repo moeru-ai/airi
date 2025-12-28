@@ -11,7 +11,6 @@ export function generateBrainSystemPrompt(
   availableActions: Action[],
 ): string {
   const actionDefinitions = availableActions.map((a) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const schema = zodToJsonSchema(a.schema as any)
     return {
       name: a.name,
