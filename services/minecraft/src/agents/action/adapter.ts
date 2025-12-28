@@ -9,6 +9,7 @@ import { system, user } from 'neuri/openai'
 
 import { BaseLLMHandler } from '../../libs/llm-agent/handler'
 import { useLogger } from '../../utils/logger'
+import { generateActionSystemPrompt } from './system-prompt'
 import { actionsList } from './tools'
 
 export async function createActionNeuriAgent(mineflayer: Mineflayer): Promise<Agent> {
@@ -35,26 +36,12 @@ export async function createActionNeuriAgent(mineflayer: Mineflayer): Promise<Ag
 
 export class ActionLLMHandler extends BaseLLMHandler {
   public async executeStep(step: PlanStep): Promise<string> {
-    const systemPrompt = this.generateActionSystemPrompt()
+    const systemPrompt = generateActionSystemPrompt()
     const userPrompt = this.generateActionUserPrompt(step)
     const messages = [system(systemPrompt), user(userPrompt)]
 
     const result = await this.handleAction(messages)
     return result
-  }
-
-  private generateActionSystemPrompt(): string {
-    return `You are a Minecraft bot action executor. Your task is to execute a given step using available tools.
-You have access to various tools that can help you accomplish tasks.
-When using a tool:
-1. Choose the most appropriate tool for the task
-2. Determine the correct parameters based on the context
-3. Handle any errors or unexpected situations
-
-Remember to:
-- Be precise with tool parameters
-- Consider the current state of the bot
-- Handle failures gracefully`
   }
 
   private generateActionUserPrompt(step: PlanStep): string {
