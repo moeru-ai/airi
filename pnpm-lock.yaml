@@ -24,6 +24,9 @@ catalogs:
     '@types/audioworklet':
       specifier: ^0.0.92
       version: 0.0.92
+    '@xsai-ext/providers':
+      specifier: ^0.4.0-beta.13
+      version: 0.4.0-beta.13
     '@xsai-ext/providers-cloud':
       specifier: ^0.4.0-beta.12
       version: 0.4.0-beta.12
@@ -2169,9 +2172,9 @@ importers:
       '@proj-airi/server-shared':
         specifier: workspace:^
         version: link:../../packages/server-shared
-      '@xsai-ext/providers-cloud':
+      '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.12
+        version: 0.4.0-beta.13
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -7984,6 +7987,9 @@ packages:
 
   '@xsai-ext/providers-local@0.4.0-beta.12':
     resolution: {integrity: sha512-yDpM+8l3vVbIDhxF7QoDSocY+tbuYLeiwskS0TKqH91cH3G6WnqbVnW7Eh60G4Kp2CK9ADf5kppFbiMrgZoDGg==}
+
+  '@xsai-ext/providers@0.4.0-beta.13':
+    resolution: {integrity: sha512-XJp+Q0CMgXIUDexsD/wALHMI2NH6y4qIijZYz52+ywhfMAXhxx6NBwNO1/BsODWhbiReFy12nUHBQnT1cje9qQ==}
 
   '@xsai-ext/shared-providers@0.2.2':
     resolution: {integrity: sha512-yHQ3RQf3yb/xD5neQGFKmY/9+TmNFDZmH2aOSiS11rqAZwd6wPr/Wkvo/Ls1yiVGYVfZpzZGYp9Q+0iELt5MhA==}
@@ -21253,6 +21259,10 @@ snapshots:
   '@xsai-ext/providers-local@0.4.0-beta.12':
     dependencies:
       '@xsai-ext/shared-providers': 0.4.0-beta.12
+      '@xsai/shared': 0.4.0-beta.13
+
+  '@xsai-ext/providers@0.4.0-beta.13':
+    dependencies:
       '@xsai/shared': 0.4.0-beta.13
 
   '@xsai-ext/shared-providers@0.2.2':

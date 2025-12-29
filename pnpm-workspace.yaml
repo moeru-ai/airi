@@ -28,6 +28,7 @@ catalog:
   '@nekopaw/tempora': 0.4.0-alpha.1
   '@proj-airi/drizzle-duckdb-wasm': ^0.4.29
   '@types/audioworklet': ^0.0.92
+  '@xsai-ext/providers': ^0.4.0-beta.13
   '@xsai-ext/providers-cloud': ^0.4.0-beta.12
   '@xsai-ext/providers-local': ^0.4.0-beta.12
   '@xsai-ext/shared-providers': 0.4.0-beta.12
