@@ -28,6 +28,7 @@ export const character = pgTable(
 
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    deletedAt: timestamp('deleted_at'),
   },
 )
 
@@ -47,6 +48,7 @@ export const avatarModel = pgTable(
     config: jsonb('config').notNull().$type<AvatarModelConfig[keyof AvatarModelConfig]>(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    deletedAt: timestamp('deleted_at'),
   },
 )
 
@@ -94,6 +96,7 @@ export const characterI18n = pgTable(
 
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    deletedAt: timestamp('deleted_at'),
   },
 )
 
