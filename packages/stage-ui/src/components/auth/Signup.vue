@@ -13,7 +13,8 @@ export default {
       error.value = null
       try {
         await signup(form.name, form.email, form.password)
-      } catch (err: any) {
+      }
+      catch (err: any) {
         console.error('Signup failed:', err)
         error.value = err?.message || 'Signup failed'
       }
@@ -48,7 +49,9 @@ export default {
       <button class="btn-primary" :disabled="loading">
         {{ $t('auth.signup.submit') }}
       </button>
-      <div v-if="error" class="text-sm text-red-500 mt-2">{{ error }}</div>
+      <div v-if="error" class="mt-2 text-sm text-red-500">
+        {{ error }}
+      </div>
     </form>
   </div>
 </template>

@@ -1,8 +1,8 @@
 <script lang="ts">
 import { computed } from 'vue'
 
-import { useAuthStore } from '../../stores/auth'
 import { useAuth } from '../../composables/useAuth'
+import { useAuthStore } from '../../stores/auth'
 
 export default {
   setup() {
