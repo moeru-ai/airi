@@ -155,10 +155,6 @@ watch(enabled, async (val) => {
   }
 }, { immediate: true })
 
-onMounted(() => {
-  console.log('onMounted')
-})
-
 onUnmounted(() => {
   stopAudioInteraction()
 })
