@@ -1,3 +1,5 @@
+import type { HonoEnv } from './types/hono'
+
 import process, { exit } from 'node:process'
 
 import { initLogger, LoggerFormat, LoggerLevel, useLogger } from '@guiiai/logg'
@@ -51,12 +53,7 @@ async function createApp() {
 
   const authInstance = resolved.auth
 
-  const app = new Hono<{
-    Variables: {
-      user: typeof authInstance.$Infer.Session.user | null
-      session: typeof authInstance.$Infer.Session.session | null
-    }
-  }>()
+  const app = new Hono<HonoEnv>()
 
   app.use(
     '/api/auth/*',
@@ -99,7 +96,7 @@ async function createApp() {
     })
   })
 
-  app.route('/api/characters', createCharacterRoutes(resolved.characterService, authInstance))
+  app.route('/api/characters', createCharacterRoutes(resolved.characterService))
 
   // NOTICE: required by better-auth
   app.on(['POST', 'GET'], '/api/auth/*', (c) => {

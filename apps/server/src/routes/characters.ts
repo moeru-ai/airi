@@ -1,21 +1,13 @@
-import type { createAuth } from '../services/auth'
 import type { CharacterService } from '../services/characters'
+import type { HonoEnv } from '../types/hono'
 
 import { Hono } from 'hono'
 import { safeParse } from 'valibot'
 
 import { CreateCharacterSchema, UpdateCharacterSchema } from '../api/characters.schema'
 
-export function createCharacterRoutes(
-  characterService: CharacterService,
-  auth: ReturnType<typeof createAuth>,
-) {
-  const app = new Hono<{
-    Variables: {
-      user: typeof auth.$Infer.Session.user | null
-      session: typeof auth.$Infer.Session.session | null
-    }
-  }>()
+export function createCharacterRoutes(characterService: CharacterService) {
+  const app = new Hono<HonoEnv>()
 
   app.get('/', async (c) => {
     const user = c.get('user')
