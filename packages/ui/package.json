@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/ui",
   "type": "module",
-  "version": "0.8.0-beta.6",
+  "version": "0.8.0",
   "description": "A collection of UI components that used by Project AIRI",
   "author": {
     "name": "Moeru AI Project AIRI Team",
@@ -26,7 +26,7 @@
   "dependencies": {
     "@vueuse/core": "^14.1.0",
     "floating-vue": "^5.2.2",
-    "reka-ui": "^2.6.1",
+    "reka-ui": "^2.7.0",
     "vue": "^3.5.25"
   },
   "devDependencies": {

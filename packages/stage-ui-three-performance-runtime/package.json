@@ -18,13 +18,10 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "pinia": "^3.0.4",
     "vue": "^3.5.25"
-  },
-  "devDependencies": {
-    "typescript": "^5.6.3"
   }
 }

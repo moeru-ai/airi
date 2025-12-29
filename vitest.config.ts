@@ -6,6 +6,7 @@ export default defineConfig({
       'apps/server',
       'packages/stage-ui',
       'packages/vite-plugin-warpdrive',
+      'packages/audio-pipelines-transcribe',
     ],
   },
 })

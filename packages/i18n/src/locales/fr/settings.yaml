@@ -24,9 +24,9 @@ dialogs:
     skipForNow: Passer pour l'instant
     saveAndContinue: Sauvegarder et Continuer
     next: Suivant
+    retry: Retry
     start: Commençons !
     select-model: Choisissez un modèle
-    retry: Réessayer
     no-models: Pas de modèle disponible
     no-models-help: >-
       Veuillez revenir à l’étape précédente et vérifier votre clé API, ou bien vérifier la connexion réseau.
@@ -263,9 +263,9 @@ pages:
             custom_model_placeholder: Entrez le nom du modèle personnalisé...
             description: Sélectionnez le fournisseur LLM approprié pour la conscience
             error: Erreur lors du chargement des modèles
-            health_check_failed: Échec du contrôle d’état
-            no_providers_configured_title: Aucun fournisseur configuré
-            no_providers_configured_description: Cliquez ici pour configurer vos fournisseurs LLM
+            health_check_failed: Health check failed
+            no_providers_configured_title: No Providers Configured
+            no_providers_configured_description: Click here to set up your LLM providers
             expand: Développer
             loading: Chargement des modèles disponibles...
             manual_model_name: Nom du modèle
