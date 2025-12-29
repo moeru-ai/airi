@@ -62,7 +62,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
       throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', result.issues)
     }
 
-    const existing = await characterService.findById(id)
+    const existing = await characterService.findById(id, { withRelations: false })
     if (!existing)
       throw createNotFoundError()
     if (existing.ownerId !== user.id)
@@ -76,7 +76,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
     const user = c.get('user')!
 
     const id = c.req.param('id')
-    const existing = await characterService.findById(id)
+    const existing = await characterService.findById(id, { withRelations: false })
     if (!existing)
       throw createNotFoundError()
     if (existing.ownerId !== user.id)

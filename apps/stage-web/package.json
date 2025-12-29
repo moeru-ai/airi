@@ -62,6 +62,7 @@
     "drizzle-kit": "^0.31.8",
     "drizzle-orm": "^0.45.1",
     "gpuu": "^1.0.6",
+    "hono": "catalog:",
     "html2canvas": "^1.4.1",
     "jszip": "^3.10.1",
     "localforage": "^1.10.0",

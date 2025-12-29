@@ -45,6 +45,7 @@ catalog:
   drizzle-valibot: ^0.4.2
   embla-carousel-vue: ^8.6.0
   es-toolkit: ^1.43.0
+  hono: ^4.10.8
   injeca: ^0.1.5
   nanoid: ^5.1.6
   ofetch: ^1.5.1
@@ -57,16 +58,20 @@ catalog:
 
 catalogs:
   rolldown-vite:
-    vite: npm:rolldown-vite@^7.3.0
+    vite: npm:rolldown-vite@^7.2.11
   vitest:
     '@vitest/browser-playwright': ^4.0.16
     '@vitest/coverage-v8': ^4.0.16
     vitest: ^4.0.16
 
+ignoredBuiltDependencies:
+  - '@prisma/client'
+  - better-sqlite3
+
 onlyBuiltDependencies:
   - '@discordjs/opus'
-  - '@ffmpeg-installer/darwin-arm64'
   - '@napi-rs/image'
+  - '@ffmpeg-installer/darwin-arm64'
   - '@parcel/watcher'
   - bufferutil
   - core-js
@@ -76,7 +81,6 @@ onlyBuiltDependencies:
   - es5-ext
   - esbuild
   - ffmpeg-static
-  - less
   - msw
   - onnxruntime-node
   - protobufjs

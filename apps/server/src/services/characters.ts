@@ -1,29 +1,38 @@
 import type * as fullSchema from '../schemas'
 import type { Database } from './db'
 
-import { eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 
 import * as schema from '../schemas/characters'
 
 export function createCharacterService(db: Database<typeof fullSchema>) {
   return {
-    async findById(id: string) {
+    async findById(id: string, options: { withRelations?: boolean } = { withRelations: true }) {
       return await db.query.character.findFirst({
-        where: eq(schema.character.id, id),
-        with: {
-          capabilities: true,
-          avatarModels: true,
-          i18n: true,
-          prompts: true,
-        },
+        where: and(
+          eq(schema.character.id, id),
+          isNull(schema.character.deletedAt),
+        ),
+        with: options.withRelations
+          ? {
+              capabilities: true,
+              avatarModels: true,
+              i18n: true,
+              prompts: true,
+            }
+          : undefined,
       })
     },
 
     async findByOwnerId(ownerId: string) {
       return await db.query.character.findMany({
-        where: eq(schema.character.ownerId, ownerId),
+        where: and(
+          eq(schema.character.ownerId, ownerId),
+          isNull(schema.character.deletedAt),
+        ),
         with: {
           i18n: true,
+          capabilities: true,
         },
       })
     },
@@ -69,13 +78,20 @@ export function createCharacterService(db: Database<typeof fullSchema>) {
     async update(id: string, data: Partial<schema.NewCharacter>) {
       return await db.update(schema.character)
         .set({ ...data, updatedAt: new Date() })
-        .where(eq(schema.character.id, id))
+        .where(and(
+          eq(schema.character.id, id),
+          isNull(schema.character.deletedAt),
+        ))
         .returning()
     },
 
     async delete(id: string) {
-      return await db.delete(schema.character)
-        .where(eq(schema.character.id, id))
+      return await db.update(schema.character)
+        .set({ deletedAt: new Date() })
+        .where(and(
+          eq(schema.character.id, id),
+          isNull(schema.character.deletedAt),
+        ))
         .returning()
     },
   }

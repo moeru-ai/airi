@@ -3,7 +3,7 @@ import { BidirectionalTransition } from '@proj-airi/ui'
 import { computed } from 'vue'
 
 // Define button variants for better type safety and maintainability
-type ButtonVariant = 'primary' | 'secondary' | 'secondary-muted' | 'danger' | 'caution' | 'pure'
+type ButtonVariant = 'primary' | 'secondary' | 'secondary-muted' | 'danger' | 'caution' | 'pure' | 'ghost'
 
 type ButtonTheme = 'default'
 
@@ -72,6 +72,11 @@ const variantClasses: Record<ButtonVariant, Record<ButtonTheme, {
       default: 'bg-white hover:bg-neutral-50 active:bg-neutral-100 dark:bg-neutral-900 dark:hover:bg-neutral-800 dark:active:bg-neutral-700 border-2 border-solid border-neutral-100 dark:border-neutral-800 focus:ring-neutral-200/40 dark:focus:ring-neutral-600/40 text-neutral-900 dark:text-neutral-50',
     },
   },
+  'ghost': {
+    default: {
+      default: 'bg-transparent hover:bg-neutral-100/50 dark:hover:bg-neutral-800/50 text-neutral-500 dark:text-neutral-400 focus:ring-neutral-300/30 dark:focus:ring-neutral-600/30',
+    },
+  },
 }
 
 // Extract size styles for better organization
@@ -82,18 +87,23 @@ const sizeClasses: Record<ButtonSize, string> = {
 }
 
 // Base classes that are always applied
-const baseClasses = computed(() => [
-  'rounded-lg font-medium outline-none',
-  'transition-all duration-200 ease-in-out',
-  'disabled:cursor-not-allowed disabled:opacity-50',
-  'backdrop-blur-md',
-  props.block ? 'w-full' : '',
-  sizeClasses[props.size],
-  variantClasses[props.variant][props.theme].default,
-  props.toggled ? variantClasses[props.variant][props.theme].toggled || '' : variantClasses[props.variant][props.theme].nonToggled || '',
-  { 'opacity-50 cursor-not-allowed': isDisabled.value },
-  'focus:ring-2',
-])
+const baseClasses = computed(() => {
+  const variant = variantClasses[props.variant] || variantClasses.primary
+  const theme = variant[props.theme] || variant.default
+
+  return [
+    'rounded-lg font-medium outline-none',
+    'transition-all duration-200 ease-in-out',
+    'disabled:cursor-not-allowed disabled:opacity-50',
+    'backdrop-blur-md',
+    props.block ? 'w-full' : '',
+    sizeClasses[props.size],
+    theme.default,
+    props.toggled ? theme.toggled || '' : theme.nonToggled || '',
+    { 'opacity-50 cursor-not-allowed': isDisabled.value },
+    'focus:ring-2',
+  ]
+})
 </script>
 
 <template>
