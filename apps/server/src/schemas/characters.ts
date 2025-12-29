@@ -97,3 +97,17 @@ export const characterI18n = pgTable(
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
 )
+
+type PromptType = 'system' | 'personality' | 'greetings'
+
+export const characterPrompts = pgTable(
+  'character_prompts',
+  {
+    id: text('id').primaryKey(),
+    characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
+
+    language: text('language').notNull(),
+    type: text('type').notNull().$type<PromptType>(),
+    content: text('content').notNull(),
+  },
+)

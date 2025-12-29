@@ -14,8 +14,8 @@ export const media = pgTable(
   },
 )
 
-export const sticker = pgTable(
-  'sticker',
+export const stickers = pgTable(
+  'stickers',
   {
     id: text('id').primaryKey(),
     url: text('url').notNull(),
@@ -24,8 +24,8 @@ export const sticker = pgTable(
   },
 )
 
-export const stickerPack = pgTable(
-  'sticker_pack',
+export const stickerPacks = pgTable(
+  'sticker_packs',
   {
     id: text('id').primaryKey(),
     name: text('name').notNull(),
@@ -37,8 +37,8 @@ export const stickerPack = pgTable(
 
 type ChatType = 'private' | 'bot' | 'group' | 'channel'
 
-export const chat = pgTable(
-  'chat',
+export const chats = pgTable(
+  'chats',
   {
     id: text('id').primaryKey(),
 
@@ -50,21 +50,21 @@ export const chat = pgTable(
   },
 )
 
-export const chatMember = pgTable(
-  'chat_member',
+export const chatMembers = pgTable(
+  'chat_members',
   {
     id: text('id').primaryKey(),
-    chatId: text('chat_id').notNull().references(() => chat.id, { onDelete: 'cascade' }),
+    chatId: text('chat_id').notNull().references(() => chats.id, { onDelete: 'cascade' }),
     userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
   },
 )
 
-export const message = pgTable(
-  'message',
+export const messages = pgTable(
+  'messages',
   {
     id: text('id').primaryKey(),
 
-    chatId: text('chat_id').notNull().references(() => chat.id, { onDelete: 'cascade' }),
+    chatId: text('chat_id').notNull().references(() => chats.id, { onDelete: 'cascade' }),
     senderId: text('sender_id').notNull(),
 
     content: text('content').notNull(),
