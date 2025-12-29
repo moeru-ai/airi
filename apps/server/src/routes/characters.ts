@@ -5,14 +5,15 @@ import { Hono } from 'hono'
 import { safeParse } from 'valibot'
 
 import { CreateCharacterSchema, UpdateCharacterSchema } from '../api/characters.schema'
+import { authGuard } from '../middlewares/auth'
 
 export function createCharacterRoutes(characterService: CharacterService) {
   const app = new Hono<HonoEnv>()
 
+  app.use('*', authGuard)
+
   app.get('/', async (c) => {
-    const user = c.get('user')
-    if (!user)
-      return c.json({ error: 'Unauthorized' }, 401)
+    const user = c.get('user')!
 
     const characters = await characterService.findByOwnerId(user.id)
     return c.json(characters)
@@ -28,9 +29,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
   })
 
   app.post('/', async (c) => {
-    const user = c.get('user')
-    if (!user)
-      return c.json({ error: 'Unauthorized' }, 401)
+    const user = c.get('user')!
 
     const body = await c.req.json()
     const result = safeParse(CreateCharacterSchema, body)
@@ -46,15 +45,13 @@ export function createCharacterRoutes(characterService: CharacterService) {
         ownerId: user.id,
         creatorId: user.id,
       },
-    })
+    } as any)
 
     return c.json(character, 201)
   })
 
   app.patch('/:id', async (c) => {
-    const user = c.get('user')
-    if (!user)
-      return c.json({ error: 'Unauthorized' }, 401)
+    const user = c.get('user')!
 
     const id = c.req.param('id')
     const body = await c.req.json()
@@ -75,9 +72,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
   })
 
   app.delete('/:id', async (c) => {
-    const user = c.get('user')
-    if (!user)
-      return c.json({ error: 'Unauthorized' }, 401)
+    const user = c.get('user')!
 
     const id = c.req.param('id')
     const existing = await characterService.findById(id)

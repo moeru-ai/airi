@@ -30,35 +30,35 @@ export function createCharacterService(db: Database<typeof fullSchema>) {
 
     async create(data: {
       character: schema.NewCharacter
-      capabilities?: schema.NewCharacterCapability[]
-      avatarModels?: schema.NewAvatarModel[]
-      i18n?: schema.NewCharacterI18n[]
-      prompts?: schema.NewCharacterPrompt[]
+      capabilities?: Omit<schema.NewCharacterCapability, 'characterId'>[]
+      avatarModels?: Omit<schema.NewAvatarModel, 'characterId'>[]
+      i18n?: Omit<schema.NewCharacterI18n, 'characterId'>[]
+      prompts?: Omit<schema.NewCharacterPrompt, 'characterId'>[]
     }) {
       return await db.transaction(async (tx) => {
         const [inserted] = await tx.insert(schema.character).values(data.character).returning()
 
         if (data.capabilities?.length) {
           await tx.insert(schema.characterCapabilities).values(
-            data.capabilities.map(c => ({ ...c, characterId: inserted.id })),
+            data.capabilities.map(c => ({ ...c, characterId: inserted.id }) as schema.NewCharacterCapability),
           )
         }
 
         if (data.avatarModels?.length) {
           await tx.insert(schema.avatarModel).values(
-            data.avatarModels.map(a => ({ ...a, characterId: inserted.id })),
+            data.avatarModels.map(a => ({ ...a, characterId: inserted.id }) as schema.NewAvatarModel),
           )
         }
 
         if (data.i18n?.length) {
           await tx.insert(schema.characterI18n).values(
-            data.i18n.map(i => ({ ...i, characterId: inserted.id })),
+            data.i18n.map(i => ({ ...i, characterId: inserted.id }) as schema.NewCharacterI18n),
           )
         }
 
         if (data.prompts?.length) {
           await tx.insert(schema.characterPrompts).values(
-            data.prompts.map(p => ({ ...p, characterId: inserted.id })),
+            data.prompts.map(p => ({ ...p, characterId: inserted.id }) as schema.NewCharacterPrompt),
           )
         }
 

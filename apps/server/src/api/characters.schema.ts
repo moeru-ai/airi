@@ -1,5 +1,5 @@
 import { createInsertSchema, createSelectSchema } from 'drizzle-valibot'
-import { array, number, object, optional, string } from 'valibot'
+import { array, literal, number, object, optional, pipe, string, transform, union } from 'valibot'
 
 import * as schema from '../schemas/characters'
 
@@ -33,6 +33,18 @@ export const CharacterCapabilityConfigSchema = object({
   })),
 })
 
+const CharacterCapabilityTypeSchema = union([
+  literal('llm'),
+  literal('tts'),
+  literal('vlm'),
+  literal('asr'),
+])
+
+const AvatarModelTypeSchema = union([
+  literal('vrm'),
+  literal('live2d'),
+])
+
 export const CharacterSchema = createSelectSchema(schema.character)
 export const InsertCharacterSchema = createInsertSchema(schema.character)
 
@@ -48,6 +60,11 @@ export const InsertCharacterI18nSchema = createInsertSchema(schema.characterI18n
 export const CharacterPromptSchema = createSelectSchema(schema.characterPrompts)
 export const InsertCharacterPromptSchema = createInsertSchema(schema.characterPrompts)
 
+const DateSchema = pipe(
+  string(),
+  transform(v => new Date(v)),
+)
+
 export const CreateCharacterSchema = object({
   character: createInsertSchema(schema.character, {
     creatorId: optional(string()),
@@ -55,10 +72,12 @@ export const CreateCharacterSchema = object({
   }),
   capabilities: optional(array(createInsertSchema(schema.characterCapabilities, {
     characterId: optional(string()),
+    type: CharacterCapabilityTypeSchema,
     config: CharacterCapabilityConfigSchema,
   }))),
   avatarModels: optional(array(createInsertSchema(schema.avatarModel, {
     characterId: optional(string()),
+    type: AvatarModelTypeSchema,
     config: AvatarModelConfigSchema,
   }))),
   i18n: optional(array(createInsertSchema(schema.characterI18n, {
@@ -76,6 +95,6 @@ export const UpdateCharacterSchema = createInsertSchema(schema.character, {
   creatorId: optional(string()),
   ownerId: optional(string()),
   characterId: optional(string()),
-  createdAt: optional(string()),
-  updatedAt: optional(string()),
+  createdAt: optional(DateSchema),
+  updatedAt: optional(DateSchema),
 })

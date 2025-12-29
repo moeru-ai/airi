@@ -9,6 +9,7 @@ import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
 import { createLoggLogger, injeca } from 'injeca'
 
+import { authGuard, sessionMiddleware } from './middlewares/auth'
 import { createCharacterRoutes } from './routes/characters'
 import { createAuth } from './services/auth'
 import { createCharacterService } from './services/characters'
@@ -50,58 +51,32 @@ async function createApp() {
 
   await injeca.start()
   const resolved = await injeca.resolve({ auth, characterService })
-
   const authInstance = resolved.auth
 
   const app = new Hono<HonoEnv>()
 
   app.use(
-    '/api/auth/*',
+    '/api/*',
     cors({
-      origin(origin: string) {
-        return getTrustedOrigin(origin)
-      },
+      origin: origin => getTrustedOrigin(origin),
       credentials: true,
     }),
   )
 
   app.use(honoLogger())
 
-  app.use('*', async (c, next) => {
-    const session = await authInstance.api.getSession({ headers: c.req.raw.headers })
+  app.use('*', sessionMiddleware(authInstance))
 
-    if (!session) {
-      c.set('user', null)
-      c.set('session', null)
-      await next()
-      return
-    }
-
-    c.set('user', session.user)
-    c.set('session', session.session)
-
-    await next()
-  })
-
-  app.get('/session', (c) => {
-    const session = c.get('session')
-    const user = c.get('user')
-
-    if (!user)
-      return c.body(null, 401)
-
+  app.get('/session', authGuard, (c) => {
     return c.json({
-      session,
-      user,
+      session: c.get('session'),
+      user: c.get('user')!,
     })
   })
 
-  app.route('/api/characters', createCharacterRoutes(resolved.characterService))
+  app.on(['POST', 'GET'], '/api/auth/*', c => authInstance.handler(c.req.raw))
 
-  // NOTICE: required by better-auth
-  app.on(['POST', 'GET'], '/api/auth/*', (c) => {
-    return authInstance.handler(c.req.raw)
-  })
+  app.route('/api/characters', createCharacterRoutes(resolved.characterService))
 
   logger.withFields({ port: 3000 }).log('Server started')
 

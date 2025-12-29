@@ -1,4 +1,4 @@
-import type { createAuth } from '../services/auth'
+import type { HonoEnv } from '../types/hono'
 
 import { Hono } from 'hono'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -7,8 +7,7 @@ import { createCharacterRoutes } from './characters'
 
 describe('characterRoutes', () => {
   let characterService: any
-  let auth: any
-  let app: Hono<any>
+  let app: Hono<HonoEnv>
 
   beforeEach(() => {
     characterService = {
@@ -27,8 +26,8 @@ describe('characterRoutes', () => {
       },
     }
 
-    const routes = createCharacterRoutes(characterService, auth as ReturnType<typeof createAuth>)
-    app = new Hono<any>()
+    const routes = createCharacterRoutes(characterService)
+    app = new Hono<HonoEnv>()
 
     app.use('*', async (c, next) => {
       const user = (c.env as any)?.user
@@ -51,7 +50,7 @@ describe('characterRoutes', () => {
     const mockChars = [{ id: 'char-1' }]
     characterService.findByOwnerId.mockResolvedValue(mockChars)
 
-    const res = await app.fetch(new Request('http://localhost/'), { user: mockUser })
+    const res = await app.fetch(new Request('http://localhost/'), { user: mockUser } as any)
 
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual(mockChars)
@@ -87,7 +86,7 @@ describe('characterRoutes', () => {
       method: 'POST',
       body: JSON.stringify(payload),
       headers: { 'Content-Type': 'application/json' },
-    }), { user: mockUser })
+    }), { user: mockUser } as any)
 
     expect(res.status).toBe(201)
   })
@@ -98,7 +97,7 @@ describe('characterRoutes', () => {
       method: 'POST',
       body: JSON.stringify({ invalid: 'data' }),
       headers: { 'Content-Type': 'application/json' },
-    }), { user: mockUser })
+    }), { user: mockUser } as any)
 
     expect(res.status).toBe(400)
   })
@@ -114,7 +113,7 @@ describe('characterRoutes', () => {
       method: 'PATCH',
       body: JSON.stringify({ version: 123 }),
       headers: { 'Content-Type': 'application/json' },
-    }), { user: mockUser })
+    }), { user: mockUser } as any)
     expect(res.status).toBe(400)
   })
 
@@ -125,7 +124,7 @@ describe('characterRoutes', () => {
       method: 'PATCH',
       body: JSON.stringify({ version: '2' }),
       headers: { 'Content-Type': 'application/json' },
-    }), { user: mockUser })
+    }), { user: mockUser } as any)
     expect(res.status).toBe(404)
   })
 
@@ -136,7 +135,7 @@ describe('characterRoutes', () => {
       method: 'PATCH',
       body: JSON.stringify({ version: '2' }),
       headers: { 'Content-Type': 'application/json' },
-    }), { user: mockUser })
+    }), { user: mockUser } as any)
     expect(res.status).toBe(403)
   })
 
@@ -148,7 +147,7 @@ describe('characterRoutes', () => {
       method: 'PATCH',
       body: JSON.stringify({ version: '2' }),
       headers: { 'Content-Type': 'application/json' },
-    }), { user: mockUser })
+    }), { user: mockUser } as any)
     expect(res.status).toBe(200)
   })
 
@@ -160,7 +159,7 @@ describe('characterRoutes', () => {
       method: 'PATCH',
       body: JSON.stringify({}),
       headers: { 'Content-Type': 'application/json' },
-    }), { user: mockUser })
+    }), { user: mockUser } as any)
     expect(res.status).toBe(200)
   })
 
@@ -172,21 +171,21 @@ describe('characterRoutes', () => {
   it('delete /:id should return 404 if not found', async () => {
     const mockUser = { id: 'user-1' }
     characterService.findById.mockResolvedValue(null)
-    const res = await app.fetch(new Request('http://localhost/c1', { method: 'DELETE' }), { user: mockUser })
+    const res = await app.fetch(new Request('http://localhost/c1', { method: 'DELETE' }), { user: mockUser } as any)
     expect(res.status).toBe(404)
   })
 
   it('delete /:id should return 403 if not owner', async () => {
     const mockUser = { id: 'user-1' }
     characterService.findById.mockResolvedValue({ id: 'c1', ownerId: 'user-2' })
-    const res = await app.fetch(new Request('http://localhost/c1', { method: 'DELETE' }), { user: mockUser })
+    const res = await app.fetch(new Request('http://localhost/c1', { method: 'DELETE' }), { user: mockUser } as any)
     expect(res.status).toBe(403)
   })
 
   it('delete /:id should delete if owner', async () => {
     const mockUser = { id: 'user-1' }
     characterService.findById.mockResolvedValue({ id: 'c1', ownerId: 'user-1' })
-    const res = await app.fetch(new Request('http://localhost/c1', { method: 'DELETE' }), { user: mockUser })
+    const res = await app.fetch(new Request('http://localhost/c1', { method: 'DELETE' }), { user: mockUser } as any)
     expect(res.status).toBe(204)
   })
 })
