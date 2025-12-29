@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { LagMetric } from '../../stores/devtools-lag'
+
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 
@@ -9,7 +11,7 @@ const { enabled, buffers, recording } = storeToRefs(store)
 
 const hovered = ref(false)
 
-const metrics = [
+const metrics: Array<{ key: LagMetric, label: string, enabled: () => boolean }> = [
   { key: 'fps', label: 'FPS', enabled: () => enabled.value.fps },
   { key: 'frameDuration', label: 'Frame (ms)', enabled: () => enabled.value.frameDuration },
   { key: 'longtask', label: 'Long task (ms)', enabled: () => enabled.value.longtask },
@@ -18,6 +20,18 @@ const metrics = [
 
 const visibleMetrics = computed(() => metrics.filter(metric => metric.enabled()))
 const hasAnyEnabled = computed(() => visibleMetrics.value.length > 0)
+const metricStatsMap = computed<Record<LagMetric, ReturnType<typeof store.calcStats>>>(() => {
+  const result = {} as Record<LagMetric, ReturnType<typeof store.calcStats>>
+  for (const metric of metrics) {
+    const values = buffers.value[metric.key].map(sample => sample.value)
+    result[metric.key] = store.calcStats(values)
+  }
+  return result
+})
+const metricsWithStats = computed(() => visibleMetrics.value.map(metric => ({
+  ...metric,
+  stats: metricStatsMap.value[metric.key],
+})))
 
 function formatValue(metric: string, value: number) {
   if (!Number.isFinite(value))
@@ -32,7 +46,7 @@ function formatValue(metric: string, value: number) {
   return value.toFixed(1)
 }
 
-function barSeries(metric: 'fps' | 'frameDuration' | 'longtask' | 'memory') {
+function barSeries(metric: LagMetric) {
   const values = buffers.value[metric].map(sample => sample.value)
   const histogram = store.buildHistogram(values, 20)
   const max = Math.max(1, ...histogram.map(bin => bin.count))
@@ -40,11 +54,6 @@ function barSeries(metric: 'fps' | 'frameDuration' | 'longtask' | 'memory') {
     width: `${100 / (histogram.length || 1)}%`,
     height: `${(bin.count / max) * 100}%`,
   }))
-}
-
-function metricStats(metric: 'fps' | 'frameDuration' | 'longtask' | 'memory') {
-  const values = buffers.value[metric].map(sample => sample.value)
-  return store.calcStats(values)
 }
 
 function toggleRecording() {
@@ -91,14 +100,14 @@ function toggleRecording() {
       </button>
     </div>
 
-    <div v-for="metric in visibleMetrics" :key="metric.key" flex="~ col gap-1">
+    <div v-for="metric in metricsWithStats" :key="metric.key" flex="~ col gap-1">
       <div flex="~ row items-center justify-between">
         <span text="xs neutral-100">{{ metric.label }}</span>
         <span text="xs neutral-300">
-          <template v-if="metricStats(metric.key as any).latest">
-            avg {{ formatValue(metric.key, metricStats(metric.key as any).avg) }}
+          <template v-if="metric.stats.latest">
+            avg {{ formatValue(metric.key, metric.stats.avg) }}
             /
-            p95 {{ formatValue(metric.key, metricStats(metric.key as any).p95) }}
+            p95 {{ formatValue(metric.key, metric.stats.p95) }}
           </template>
           <template v-else>
             --
@@ -107,7 +116,7 @@ function toggleRecording() {
       </div>
       <div class="h-10 flex items-end gap-0.5 overflow-hidden rounded bg-white/5 px-1 py-1">
         <div
-          v-for="(bar, index) in barSeries(metric.key as any)"
+          v-for="(bar, index) in barSeries(metric.key)"
           :key="index"
           :style="{ width: bar.width, height: bar.height }"
           class="bg-white/50"

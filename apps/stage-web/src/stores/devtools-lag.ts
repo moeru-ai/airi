@@ -1,12 +1,12 @@
 import type { TraceEvent } from '@proj-airi/stage-shared'
 
-import { defaultPerfTracer } from '@proj-airi/stage-shared'
+import { defaultPerfTracer, exportCsv as exportCsvFile } from '@proj-airi/stage-shared'
 import { defineStore } from 'pinia'
 import { reactive, ref, watch } from 'vue'
 
 import { createLagSampler } from '../composables/perf/register-lag-sampler'
 
-type LagMetric = 'fps' | 'frameDuration' | 'longtask' | 'memory'
+export type LagMetric = 'fps' | 'frameDuration' | 'longtask' | 'memory'
 
 interface Sample {
   ts: number
@@ -239,12 +239,7 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
     if (!target)
       return
 
-    if (typeof Blob === 'undefined' || typeof document === 'undefined' || typeof URL === 'undefined') {
-      console.warn('[Lag] Export is only supported in browser environments')
-      return
-    }
-
-    const rows = [['metric', 'ts', 'value', 'meta']]
+    const rows: Array<Array<string | number>> = [['metric', 'ts', 'value', 'meta']]
     for (const metric of Object.keys(target.samples) as LagMetric[]) {
       for (const sample of target.samples[metric]) {
         rows.push([
@@ -252,18 +247,11 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
           sample.ts.toFixed(3),
           sample.value,
           JSON.stringify(sample.meta ?? {}),
-        ].map(field => `"${String(field).replace(/"/g, '""')}"`))
+        ])
       }
     }
 
-    const csv = rows.map(row => row.join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `lag-recording-${Date.now()}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
+    exportCsvFile(rows, 'lag-recording')
   }
 
   // React to enablement changes

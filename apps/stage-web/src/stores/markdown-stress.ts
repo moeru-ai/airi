@@ -1,7 +1,7 @@
 import type { TraceEvent } from '@proj-airi/stage-shared'
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
-import { defaultPerfTracer } from '@proj-airi/stage-shared'
+import { defaultPerfTracer, exportCsv as exportCsvFile } from '@proj-airi/stage-shared'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
@@ -215,7 +215,7 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
     if (!target)
       return
 
-    const rows = [['tracerId', 'name', 'ts', 'duration', 'meta']]
+    const rows: Array<Array<string | number>> = [['tracerId', 'name', 'ts', 'duration', 'meta']]
     for (const event of target.events) {
       rows.push([
         event.tracerId,
@@ -223,17 +223,10 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
         event.ts.toFixed(3),
         event.duration ?? '',
         JSON.stringify(event.meta ?? {}),
-      ].map(field => `"${String(field).replace(/"/g, '""')}"`))
+      ])
     }
 
-    const csv = rows.map(row => row.join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `markdown-stress-${Date.now()}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
+    exportCsvFile(rows, 'markdown-stress')
   }
 
   return {
