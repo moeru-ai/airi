@@ -140,6 +140,8 @@ const {
   themeColorsHue,
   themeColorsHueDynamic,
   live2dIdleAnimationEnabled,
+  live2dAutoBlinkEnabled,
+  live2dForceAutoBlinkEnabled,
   live2dShadowEnabled,
 } = storeToRefs(useSettings())
 
@@ -296,6 +298,8 @@ async function loadModel() {
       motionManager,
       modelParameters,
       live2dIdleAnimationEnabled,
+      live2dAutoBlinkEnabled,
+      live2dForceAutoBlinkEnabled,
       lastUpdateTime,
     })
 

@@ -1,4 +1,10 @@
-import type { WebSocketBaseEvent, WebSocketEvent, WebSocketEvents } from '@proj-airi/server-shared/types'
+import type {
+  WebSocketBaseEvent,
+  WebSocketEvent,
+  WebSocketEventOptionalSource,
+  WebSocketEvents,
+  WebSocketEventSource,
+} from '@proj-airi/server-shared/types'
 
 import WebSocket from 'crossws/websocket'
 
@@ -212,6 +218,7 @@ export class Client<C = undefined> {
       for (const listener of listeners) {
         executions.push(Promise.resolve(listener(data as any)))
       }
+
       await Promise.allSettled(executions)
     }
     catch (err) {
@@ -252,9 +259,9 @@ export class Client<C = undefined> {
     }
   }
 
-  send(data: WebSocketEvent<C>): void {
+  send(data: WebSocketEventOptionalSource<C>): void {
     if (this.websocket && this.connected) {
-      this.websocket.send(JSON.stringify(data))
+      this.websocket.send(JSON.stringify({ source: this.opts.name as WebSocketEventSource | string, ...data } as WebSocketEvent<C>))
     }
   }
 

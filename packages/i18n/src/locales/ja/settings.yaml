@@ -263,6 +263,9 @@ pages:
             custom_model_placeholder: カスタムモデル名を入力…
             description: 意識に適したLLMプロバイダーを選択
             error: モデルの読み込みエラー
+            health_check_failed: ヘルスチェックに失敗しました
+            no_providers_configured_title: プロバイダーが設定されていません
+            no_providers_configured_description: LLMプロバイダーを設定するにはここをクリック
             expand: 展開
             loading: 利用可能なモデルを読み込み中…
             manual_model_name: モデル名

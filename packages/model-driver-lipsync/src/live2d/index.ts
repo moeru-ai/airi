@@ -50,6 +50,16 @@ export interface Live2DLipSyncOptions {
    * Defaults to 0.7.
    */
   volumeExponent?: number
+  /**
+   * Minimum interval (ms) between mouth-open recalculations.
+   * Defaults to 40ms (~25fps) to avoid overly chattery updates.
+   */
+  mouthUpdateIntervalMs?: number
+  /**
+   * Lerp window (ms) for smoothing mouth-open changes.
+   * Defaults to 120ms; set to 0 to disable smoothing.
+   */
+  mouthLerpWindowMs?: number
 }
 
 /**
@@ -68,6 +78,15 @@ export async function createLive2DLipSync(
   const cap = options.cap ?? 0.7
   const volumeScale = options.volumeScale ?? 0.9
   const volumeExponent = options.volumeExponent ?? 0.7
+  const mouthUpdateIntervalMs = options.mouthUpdateIntervalMs ?? 40
+  const mouthLerpWindowMs = options.mouthLerpWindowMs ?? 120
+
+  const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+
+  let lastRawMouthOpen = 0
+  let lastRawUpdateMs = 0
+  let smoothedMouthOpen = 0
+  let lastSmoothedMs = 0
 
   const getVowelWeights = (): Record<VowelKey, number> => {
     const projected: Record<VowelKey, number> = { A: 0, E: 0, I: 0, O: 0, U: 0 }
@@ -82,9 +101,42 @@ export async function createLive2DLipSync(
     return projected
   }
 
-  const getMouthOpen = () => {
+  const computeMouthOpen = () => {
     const weights = Object.values(getVowelWeights())
     return weights.length ? Math.max(...weights) : 0
+  }
+
+  const maybeUpdateRawMouthOpen = (timestamp: number) => {
+    if (lastRawUpdateMs === 0 || mouthUpdateIntervalMs <= 0 || timestamp - lastRawUpdateMs >= mouthUpdateIntervalMs) {
+      lastRawMouthOpen = computeMouthOpen()
+      lastRawUpdateMs = timestamp
+    }
+  }
+
+  const getSmoothedMouthOpen = (timestamp: number) => {
+    if (lastSmoothedMs === 0 || mouthLerpWindowMs <= 0) {
+      smoothedMouthOpen = lastRawMouthOpen
+      lastSmoothedMs = timestamp
+      return smoothedMouthOpen
+    }
+
+    const alpha = Math.min(1, (timestamp - lastSmoothedMs) / mouthLerpWindowMs)
+    smoothedMouthOpen += (lastRawMouthOpen - smoothedMouthOpen) * alpha
+    lastSmoothedMs = timestamp
+    return smoothedMouthOpen
+  }
+
+  // Prime mouth state so first frame isn't stale
+  const initialTimestamp = now()
+  lastRawMouthOpen = computeMouthOpen()
+  lastRawUpdateMs = initialTimestamp
+  smoothedMouthOpen = lastRawMouthOpen
+  lastSmoothedMs = initialTimestamp
+
+  const getMouthOpen = () => {
+    const timestamp = now()
+    maybeUpdateRawMouthOpen(timestamp)
+    return getSmoothedMouthOpen(timestamp)
   }
 
   const connectSource = (source: AudioNode) => {

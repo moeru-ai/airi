@@ -58,3 +58,8 @@ function onSubmit() {
   emit('submit', { name: form.name, email: form.email, password: form.password })
 }
 </script>
+
+<style scoped>
+.text-primary{color:var(--un-text-primary,#2563eb)}
+.text-muted{color:var(--un-text-muted,#6b7280)}
+</style>

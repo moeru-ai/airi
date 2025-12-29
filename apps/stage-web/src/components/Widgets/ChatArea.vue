@@ -109,7 +109,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div h="<md:full" flex gap-2>
+  <div h="<md:full" flex gap-2 class="ph-no-capture">
     <div
       :class="[
         'relative',

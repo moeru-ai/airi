@@ -23,14 +23,14 @@ import '@fontsource-variable/comfortaa'
 
 export default {
   Layout,
-  enhanceApp({ app }) {
+  enhanceApp({ app, siteData }) {
     if (!import.meta.env.SSR) {
       import('../modules/posthog')
     }
 
     const i18n = createI18n({
       legacy: false,
-      locale: 'en',
+      locale: siteData.value.lang || 'en',
       fallbackLocale: 'en',
       messages,
     })

@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import type { ChatAssistantMessage } from '../../../types/chat'
-import type { ChatHistoryMessage } from './types'
+import type { ChatAssistantMessage, ChatHistoryItem } from '../../../types/chat'
 
 import { computed, ref } from 'vue'
 
 import ChatHistory from './ChatHistory.vue'
 
-const markdownMessages = ref<ChatHistoryMessage[]>([
+const markdownMessages = ref<ChatHistoryItem[]>([
   {
     role: 'user',
     content: 'Hey AIRI, can you summarize today\'s tasks?',
@@ -30,7 +29,7 @@ const markdownMessages = ref<ChatHistoryMessage[]>([
   },
 ])
 
-const toolHeavyMessages = computed<ChatHistoryMessage[]>(() => [
+const toolHeavyMessages = computed<ChatHistoryItem[]>(() => [
   {
     role: 'user',
     content: 'Grab the weather for Tokyo and Osaka.',
@@ -47,7 +46,7 @@ const toolHeavyMessages = computed<ChatHistoryMessage[]>(() => [
   },
 ])
 
-const errorMessages = ref<ChatHistoryMessage[]>([
+const errorMessages = ref<ChatHistoryItem[]>([
   {
     role: 'user',
     content: 'Push the deployment now.',

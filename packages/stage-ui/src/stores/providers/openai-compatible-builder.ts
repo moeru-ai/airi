@@ -226,27 +226,6 @@ export function buildOpenAICompatibleProvider(
         })())
       }
 
-      // Chat completions validation = generateText again (was: fetch(`${baseUrl}chat/completions`))
-      if (validationChecks.includes('chat_completions') && hasApiKey) {
-        asyncChecks.push((async () => {
-          try {
-            const model = await modelPromise
-            await generateText({
-              apiKey,
-              baseURL: baseUrl,
-              headers: additionalHeaders,
-              model,
-              messages: message.messages(message.user('ping')),
-              max_tokens: 1,
-            })
-            return null
-          }
-          catch (e) {
-            return new Error(`Chat completions check failed: ${(e as Error).message}`)
-          }
-        })())
-      }
-
       if (asyncChecks.length > 0) {
         const results = await Promise.allSettled(asyncChecks)
         for (const r of results) {

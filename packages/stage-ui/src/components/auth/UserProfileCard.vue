@@ -1,10 +1,10 @@
 <template>
-  <div class="max-w-sm mx-auto p-4 rounded-lg bg-white/50 dark:bg-black/50 backdrop-blur-sm">
+  <div class="mx-auto max-w-sm rounded-lg bg-white/50 p-4 backdrop-blur-sm dark:bg-black/50">
     <div class="flex items-center gap-4">
-      <img :src="user.avatar || defaultAvatar" alt="avatar" class="w-12 h-12 rounded-full object-cover" />
+      <img :src="user.avatar || defaultAvatar" alt="avatar" class="h-12 w-12 rounded-full object-cover">
       <div>
         <div class="font-semibold">{{ user.name || 'Unknown' }}</div>
-        <div class="text-sm text-muted">{{ user.email }}</div>
+        <div class="text-muted text-sm">{{ user.email }}</div>
       </div>
     </div>
 
@@ -20,8 +20,12 @@ import { computed } from 'vue'
 import { Button } from '@proj-airi/ui'
 
 const props = defineProps<{ user: { name?: string; email?: string; avatar?: string } }>()
+const emit = defineEmits<{ (e: 'edit'): void; (e: 'logout'): void }>()
 
-const defaultAvatar = computed(() => `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><rect width='100%' height='100%' fill='%23e5e7eb'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23999' font-size='24'>👤</text></svg>`)
+const defaultAvatar = computed(
+  () =>
+    `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><rect width='100%' height='100%' fill='%23e5e7eb'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23999' font-size='24'>👤</text></svg>`
+)
 
 const user = props.user
 </script>
