@@ -1,9 +1,9 @@
-import type { HonoEnv } from '../types/hono'
+import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createCharacterRoutes } from './characters'
+import { createCharacterRoutes } from '../characters'
 
 describe('characterRoutes', () => {
   let characterService: any

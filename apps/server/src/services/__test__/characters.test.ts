@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createCharacterService } from './characters'
+import { createCharacterService } from '../characters'
 
-import * as schema from '../schemas/characters'
+import * as schema from '../../schemas/characters'
 
 describe('characterService', () => {
   let db: any
