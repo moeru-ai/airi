@@ -2,8 +2,8 @@ import postgres from 'postgres'
 
 import { drizzle } from 'drizzle-orm/postgres-js'
 
-export type Database = ReturnType<typeof createDrizzle>
+export type Database<TSchema extends Record<string, unknown> = Record<string, unknown>> = ReturnType<typeof createDrizzle<TSchema>>
 
-export function createDrizzle(dsn: string) {
-  return drizzle(postgres(dsn))
+export function createDrizzle<TSchema extends Record<string, unknown>>(dsn: string, schema?: TSchema) {
+  return drizzle(postgres(dsn), { schema })
 }
