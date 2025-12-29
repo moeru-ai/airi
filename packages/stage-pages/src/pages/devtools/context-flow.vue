@@ -2,7 +2,7 @@
 import type { ChatStreamEvent, ContextMessage } from '@proj-airi/stage-ui/types/chat'
 
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
-import { Callout, Collapsable, Section } from '@proj-airi/stage-ui/components'
+import { Callout, Section } from '@proj-airi/stage-ui/components'
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME, useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { Button, FieldCheckbox, FieldInput, FieldTextArea, Input, SelectTab } from '@proj-airi/ui'
@@ -27,12 +27,12 @@ const chatStore = useChatStore()
 const serverChannelStore = useModsServerChannelStore()
 
 const entries = ref<FlowEntry[]>([])
-const captureBroadcast = ref(true)
-const captureChatHooks = ref(true)
-const captureServerUpdates = ref(true)
-const autoScroll = ref(true)
 const showIncoming = ref(true)
 const showOutgoing = ref(true)
+const showServer = ref(true)
+const showBroadcast = ref(false)
+const showChat = ref(false)
+const showDevtools = ref(false)
 const filterText = ref('')
 const maxEntries = ref('200')
 
@@ -64,17 +64,26 @@ const maxEntriesValue = computed(() => {
 
 const filteredEntries = computed(() => {
   const query = filterText.value.trim().toLowerCase()
-  return entries.value.filter((entry) => {
+  const filtered = entries.value.filter((entry) => {
     if (directionFilter.value !== 'all' && entry.direction !== directionFilter.value)
       return false
     if (!showIncoming.value && entry.direction === 'incoming')
       return false
     if (!showOutgoing.value && entry.direction === 'outgoing')
       return false
+    if (!showServer.value && entry.channel === 'server')
+      return false
+    if (!showBroadcast.value && entry.channel === 'broadcast')
+      return false
+    if (!showChat.value && entry.channel === 'chat')
+      return false
+    if (!showDevtools.value && entry.channel === 'devtools')
+      return false
     if (!query)
       return true
     return entry.searchText.includes(query)
   })
+  return filtered.slice().reverse()
 })
 
 function normalizePayload(payload: unknown) {
@@ -92,7 +101,36 @@ function truncateText(value: string, limit = 160) {
   return `${value.slice(0, limit)}...`
 }
 
-function summarizeContextUpdate(update: { text?: string, content?: unknown }) {
+function formatDestinations(destinations: unknown) {
+  if (!destinations)
+    return ''
+  if (Array.isArray(destinations))
+    return destinations.join(', ')
+  if (typeof destinations === 'string')
+    return destinations
+  try {
+    return JSON.stringify(destinations)
+  }
+  catch {
+    return String(destinations)
+  }
+}
+
+function getPayloadData(entry: FlowEntry) {
+  const payload = entry.payload as Record<string, any> | undefined
+  if (!payload)
+    return undefined
+  return payload.data ?? payload
+}
+
+function getEventSource(entry: FlowEntry) {
+  const payload = entry.payload as Record<string, any> | undefined
+  if (!payload)
+    return undefined
+  return payload.source as string | undefined
+}
+
+function summarizeContextUpdate(update: { text?: string, content?: unknown, destinations?: unknown }) {
   const summaryParts: string[] = []
   if (update.text) {
     summaryParts.push(`text="${truncateText(update.text, 120)}"`)
@@ -109,6 +147,9 @@ function summarizeContextUpdate(update: { text?: string, content?: unknown }) {
           }
         })()
     summaryParts.push(`content="${truncateText(contentText, 120)}"`)
+  }
+  if (update.destinations !== undefined) {
+    summaryParts.push(`destinations="${truncateText(formatDestinations(update.destinations), 120)}"`)
   }
   return summaryParts.join(' ')
 }
@@ -134,17 +175,13 @@ function formatPreviewValue(value: unknown) {
 }
 
 function getContextUpdatePreview(entry: FlowEntry) {
-  const payload = entry.payload as Record<string, any> | undefined
-  if (!payload)
-    return null
-  const candidate = entry.type === 'context:update' && payload.data
-    ? payload.data
-    : payload
-  if (!candidate || (candidate.text === undefined && candidate.content === undefined))
+  const candidate = getPayloadData(entry) as Record<string, any> | undefined
+  if (!candidate || (candidate.text === undefined && candidate.content === undefined && candidate.destinations === undefined))
     return null
   return {
     text: candidate.text as string | undefined,
     content: candidate.content as unknown,
+    destinations: candidate.destinations as unknown,
   }
 }
 
@@ -158,10 +195,24 @@ function buildPreviewItems(entry: FlowEntry): PreviewItem[] {
     if (contextPreview.content !== undefined) {
       items.push({ label: 'Content', value: formatPreviewValue(contextPreview.content) })
     }
+    if (contextPreview.destinations !== undefined) {
+      items.push({ label: 'Destinations', value: formatPreviewValue(formatDestinations(contextPreview.destinations)) })
+    }
     return items
   }
 
-  const payload = entry.payload as Record<string, any> | undefined
+  const payload = getPayloadData(entry) as Record<string, any> | undefined
+  if (payload?.destinations !== undefined) {
+    items.push({ label: 'Destinations', value: formatPreviewValue(formatDestinations(payload.destinations)) })
+  }
+  if (entry.type.startsWith('spark:')) {
+    if (payload?.headline)
+      items.push({ label: 'Headline', value: formatPreviewValue(payload.headline) })
+    if (payload?.state)
+      items.push({ label: 'State', value: formatPreviewValue(payload.state) })
+    if (payload?.intent)
+      items.push({ label: 'Intent', value: formatPreviewValue(payload.intent) })
+  }
   if (payload?.messageText) {
     items.push({ label: 'Message', value: formatPreviewValue(payload.messageText) })
   }
@@ -174,11 +225,49 @@ function buildPreviewItems(entry: FlowEntry): PreviewItem[] {
   else if (payload?.message) {
     items.push({ label: 'Message', value: formatPreviewValue(payload.message) })
   }
+  else if (payload?.name && entry.type === 'module:announce') {
+    items.push({ label: 'Module', value: formatPreviewValue(payload.name) })
+  }
+  else if (payload?.text) {
+    items.push({ label: 'Text', value: formatPreviewValue(payload.text) })
+  }
+  else if (payload?.transcription) {
+    items.push({ label: 'Transcription', value: formatPreviewValue(payload.transcription) })
+  }
   else if (entry.summary) {
     items.push({ label: 'Summary', value: formatPreviewValue(entry.summary) })
   }
 
   return items
+}
+
+function summarizeServerEvent(event: { type: string, data: Record<string, any> }) {
+  switch (event.type) {
+    case 'module:announce':
+      return `name=${event.data.name} events=${event.data.possibleEvents?.length ?? 0}`
+    case 'spark:notify':
+      return [
+        event.data.headline ? `headline="${truncateText(String(event.data.headline), 120)}"` : '',
+        event.data.destinations ? `destinations="${truncateText(formatDestinations(event.data.destinations), 120)}"` : '',
+      ].filter(Boolean).join(' ')
+    case 'spark:emit':
+      return [
+        event.data.state ? `state=${event.data.state}` : '',
+        event.data.destinations ? `destinations="${truncateText(formatDestinations(event.data.destinations), 120)}"` : '',
+      ].filter(Boolean).join(' ')
+    case 'spark:command':
+      return [
+        event.data.intent ? `intent=${event.data.intent}` : '',
+        event.data.priority ? `priority=${event.data.priority}` : '',
+        event.data.destinations ? `destinations="${truncateText(formatDestinations(event.data.destinations), 120)}"` : '',
+      ].filter(Boolean).join(' ')
+    default:
+      if (event.data.text)
+        return `text="${truncateText(String(event.data.text), 120)}"`
+      if (event.data.transcription)
+        return `transcription="${truncateText(String(event.data.transcription), 120)}"`
+      return ''
+  }
 }
 
 function buildSearchText(entry: Omit<FlowEntry, 'searchText'>) {
@@ -239,18 +328,22 @@ function formatPayload(payload: unknown) {
 function directionBadgeClasses(direction: FlowDirection) {
   if (direction === 'incoming') {
     return [
-      'bg-emerald-500/15',
-      'text-emerald-600',
-      'dark:text-emerald-300',
-      'border-emerald-500/30',
+      'bg-complementary-500/15',
+      'text-complementary-600',
+      'dark:text-complementary-300',
+      'border-complementary-500/30',
     ]
   }
   return [
-    'bg-sky-500/15',
-    'text-sky-600',
-    'dark:text-sky-300',
-    'border-sky-500/30',
+    'bg-primary-500/15',
+    'text-primary-600',
+    'dark:text-primary-300',
+    'border-primary-500/30',
   ]
+}
+
+function directionIconClass(direction: FlowDirection) {
+  return direction === 'incoming' ? 'i-solar:arrow-down-linear' : 'i-solar:arrow-up-linear'
 }
 
 function channelBadgeClasses(channel: FlowChannel) {
@@ -264,6 +357,10 @@ function channelBadgeClasses(channel: FlowChannel) {
     default:
       return ['bg-neutral-400/15', 'text-neutral-600', 'dark:text-neutral-300', 'border-neutral-500/30']
   }
+}
+
+function sourceBadgeClasses() {
+  return ['bg-neutral-400/15', 'text-neutral-600', 'dark:text-neutral-300', 'border-neutral-500/30']
 }
 
 function clearEntries() {
@@ -300,9 +397,6 @@ const cleanupFns: Array<() => void> = []
 
 onMounted(() => {
   cleanupFns.push(serverChannelStore.onContextUpdate((event) => {
-    if (!captureServerUpdates.value)
-      return
-
     pushEntry({
       direction: 'incoming',
       channel: 'server',
@@ -316,10 +410,35 @@ onMounted(() => {
     })
   }))
 
+  const serverEventTypes = [
+    'module:announce',
+    'module:configure',
+    'module:authenticated',
+    'error',
+    'spark:notify',
+    'spark:emit',
+    'spark:command',
+    'input:text',
+    'input:text:voice',
+    'output:gen-ai:chat:message',
+    'output:gen-ai:chat:complete',
+    'output:gen-ai:chat:tool-call',
+  ] as const
+
+  for (const type of serverEventTypes) {
+    cleanupFns.push(serverChannelStore.onEvent(type, (event) => {
+      pushEntry({
+        direction: 'incoming',
+        channel: 'server',
+        type: event.type,
+        summary: summarizeServerEvent(event as any),
+        payload: event,
+      })
+    }))
+  }
+
   cleanupFns.push(
     chatStore.onBeforeMessageComposed(async (message, context) => {
-      if (!captureChatHooks.value)
-        return
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -329,8 +448,6 @@ onMounted(() => {
       })
     }),
     chatStore.onAfterMessageComposed(async (message, context) => {
-      if (!captureChatHooks.value)
-        return
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -340,8 +457,6 @@ onMounted(() => {
       })
     }),
     chatStore.onBeforeSend(async (message, context) => {
-      if (!captureChatHooks.value)
-        return
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -351,8 +466,6 @@ onMounted(() => {
       })
     }),
     chatStore.onAfterSend(async (message, context) => {
-      if (!captureChatHooks.value)
-        return
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -362,8 +475,6 @@ onMounted(() => {
       })
     }),
     chatStore.onTokenLiteral(async (literal, context) => {
-      if (!captureChatHooks.value)
-        return
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -373,8 +484,6 @@ onMounted(() => {
       })
     }),
     chatStore.onTokenSpecial(async (special, context) => {
-      if (!captureChatHooks.value)
-        return
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -384,8 +493,6 @@ onMounted(() => {
       })
     }),
     chatStore.onStreamEnd(async (context) => {
-      if (!captureChatHooks.value)
-        return
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -395,8 +502,6 @@ onMounted(() => {
       })
     }),
     chatStore.onAssistantResponseEnd(async (message, context) => {
-      if (!captureChatHooks.value)
-        return
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -406,8 +511,6 @@ onMounted(() => {
       })
     }),
     chatStore.onAssistantMessage(async (message, messageText, context) => {
-      if (!captureChatHooks.value)
-        return
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -417,8 +520,6 @@ onMounted(() => {
       })
     }),
     chatStore.onChatTurnComplete(async (chat, context) => {
-      if (!captureChatHooks.value)
-        return
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -431,7 +532,7 @@ onMounted(() => {
 })
 
 watch(incomingContext, (event) => {
-  if (!event || !captureBroadcast.value)
+  if (!event)
     return
 
   pushEntry({
@@ -448,7 +549,7 @@ watch(incomingContext, (event) => {
 })
 
 watch(incomingStreamEvent, (event) => {
-  if (!event || !captureBroadcast.value)
+  if (!event)
     return
 
   pushEntry({
@@ -467,11 +568,9 @@ watch(incomingStreamEvent, (event) => {
 })
 
 watch(() => entries.value.length, async () => {
-  if (!autoScroll.value)
-    return
   await nextTick()
   if (streamContainer.value)
-    streamContainer.value.scrollTop = streamContainer.value.scrollHeight
+    streamContainer.value.scrollTop = 0
 })
 
 watch(maxEntriesValue, () => {
@@ -496,13 +595,50 @@ onUnmounted(() => {
       <div :class="['flex', 'flex-col', 'gap-6', 'rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]', 'h-fit']">
         <div :class="['flex', 'items-center', 'gap-2', 'text-sm', 'font-semibold', 'text-neutral-600', 'dark:text-neutral-300']">
           <div :class="['size-5', 'i-solar:filter-bold-duotone']" />
-          Capture toggles
+          Filters
         </div>
         <div :class="['flex', 'flex-col', 'gap-3']">
-          <FieldCheckbox v-model="captureServerUpdates" label="Server context updates" description="Listen for context:update events from the channel server." />
-          <FieldCheckbox v-model="captureBroadcast" label="Broadcast channels" description="Listen for context + stream events from BroadcastChannel." />
-          <FieldCheckbox v-model="captureChatHooks" label="Chat hooks" description="Record outgoing chat lifecycle hooks (compose/send/stream)." />
-          <FieldCheckbox v-model="autoScroll" label="Auto scroll" description="Stick to the latest entry as events arrive." />
+          <div :class="['flex', 'flex-col', 'gap-2', 'w-full']">
+            <div :class="['text-xs', 'font-medium', 'text-neutral-500', 'dark:text-neutral-400']">
+              Direction
+            </div>
+            <SelectTab
+              v-model="directionFilter"
+              size="sm"
+              :options="directionOptions"
+            />
+          </div>
+          <div :class="['flex', 'flex-col', 'gap-2', 'w-full']">
+            <div :class="['text-xs', 'font-medium', 'text-neutral-500', 'dark:text-neutral-400']">
+              Visibility
+            </div>
+            <div :class="['flex', 'flex-wrap', 'gap-2']">
+              <FieldCheckbox v-model="showIncoming" label="Show incoming" />
+              <FieldCheckbox v-model="showOutgoing" label="Show outgoing" />
+            </div>
+          </div>
+          <div :class="['flex', 'flex-col', 'gap-2', 'w-full']">
+            <div :class="['text-xs', 'font-medium', 'text-neutral-500', 'dark:text-neutral-400']">
+              Channels
+            </div>
+            <div :class="['flex', 'flex-wrap', 'gap-2']">
+              <FieldCheckbox v-model="showServer" label="Server" />
+              <FieldCheckbox v-model="showBroadcast" label="Broadcast" />
+              <FieldCheckbox v-model="showChat" label="Chat" />
+              <FieldCheckbox v-model="showDevtools" label="Devtools" />
+            </div>
+          </div>
+          <div :class="['flex', 'flex-col', 'gap-2', 'w-full']">
+            <FieldInput
+              v-model="maxEntries"
+              label="Max entries"
+              description="50-1000 (default 200)"
+              type="number"
+            />
+          </div>
+          <div :class="['flex', 'items-end', 'justify-end', 'w-full']">
+            <Button label="Clear" icon="i-solar:trash-bin-trash-bold-duotone" size="sm" @click="clearEntries" />
+          </div>
         </div>
       </div>
 
@@ -527,56 +663,17 @@ onUnmounted(() => {
               :input-class="['font-mono', 'min-h-32']"
             />
             <div :class="['flex', 'justify-end']">
-              <Button label="Send context update" icon="i-solar:paper-plane-bold-duotone" size="sm" @click="sendTestContextUpdate" />
+              <Button label="Send context update" icon="i-solar:plain-2-bold-duotone" size="sm" @click="sendTestContextUpdate" />
             </div>
           </div>
         </Section>
 
-        <div :class="['flex', 'items-center', 'gap-2']">
-          <div :class="['size-5', 'i-solar:stream-bold-duotone']" />
-          <div :class="['text-base', 'font-semibold', 'text-neutral-700', 'dark:text-neutral-200']">
-            Event stream
-          </div>
+        <div :class="['flex']">
+          <Input
+            v-model="filterText"
+            placeholder="Search type, source, text..."
+          />
         </div>
-        <Input
-          v-model="filterText"
-          placeholder="Search type, source, text..."
-        />
-        <Collapsable :default="false" label="Filters">
-          <div :class="['grid', 'gap-3', 'py-2', 'grid-cols-1', 'md:grid-cols-2', 'lg:grid-cols-3']">
-            <div :class="['flex', 'flex-col', 'gap-2', 'w-full']">
-              <div :class="['text-xs', 'font-medium', 'text-neutral-500', 'dark:text-neutral-400']">
-                Direction
-              </div>
-              <SelectTab
-                v-model="directionFilter"
-                size="sm"
-                :options="directionOptions"
-              />
-            </div>
-            <div :class="['flex', 'flex-col', 'gap-2', 'w-full']">
-              <div :class="['text-xs', 'font-medium', 'text-neutral-500', 'dark:text-neutral-400']">
-                Visibility
-              </div>
-              <div :class="['flex', 'flex-wrap', 'gap-2']">
-                <FieldCheckbox v-model="showIncoming" label="Show incoming" />
-                <FieldCheckbox v-model="showOutgoing" label="Show outgoing" />
-              </div>
-            </div>
-            <div :class="['flex', 'flex-col', 'gap-2', 'w-full']">
-              <FieldInput
-                v-model="maxEntries"
-                label="Max entries"
-                description="50-1000 (default 200)"
-                type="number"
-              />
-            </div>
-            <div :class="['flex', 'items-end', 'justify-end', 'w-full']">
-              <Button label="Clear" icon="i-solar:trash-bin-trash-bold-duotone" size="sm" @click="clearEntries" />
-            </div>
-          </div>
-        </Collapsable>
-
         <div
           ref="streamContainer"
           :class="[
@@ -595,7 +692,7 @@ onUnmounted(() => {
           >
             No data yet. Trigger a chat, send a context update, or enable broadcast capture.
           </div>
-          <div v-else :class="['grid', 'gap-3']">
+          <div v-else v-auto-animate :class="['grid', 'gap-3']">
             <div
               v-for="entry in filteredEntries"
               :key="entry.id"
@@ -610,18 +707,26 @@ onUnmounted(() => {
                 'dark:bg-neutral-950/60',
               ]"
             >
-              <div :class="['flex', 'flex-wrap', 'items-center', 'gap-2', 'text-xs']">
-                <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', ...directionBadgeClasses(entry.direction)]">
-                  {{ entry.direction.toUpperCase() }}
-                </span>
-                <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', ...channelBadgeClasses(entry.channel)]">
-                  {{ entry.channel }}
-                </span>
-                <span :class="['font-mono', 'text-neutral-500', 'dark:text-neutral-400']">
+              <div :class="['flex', 'items-start', 'justify-between', 'gap-3']">
+                <div :class="['flex', 'flex-wrap', 'items-center', 'gap-2', 'text-xs']">
+                  <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', 'flex', 'items-center', 'justify-center', ...directionBadgeClasses(entry.direction)]">
+                    <span :class="['size-3.5', directionIconClass(entry.direction)]" :aria-label="entry.direction" />
+                  </span>
+                  <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', ...channelBadgeClasses(entry.channel)]">
+                    {{ entry.channel }}
+                  </span>
+                  <span
+                    v-if="getEventSource(entry)"
+                    :class="['rounded-full', 'border', 'px-2', 'py-0.5', ...sourceBadgeClasses()]"
+                  >
+                    {{ getEventSource(entry) }}
+                  </span>
+                  <span :class="['font-semibold', 'text-neutral-800', 'dark:text-neutral-100']">
+                    {{ entry.type }}
+                  </span>
+                </div>
+                <span :class="['font-mono', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
                   {{ formatTimestamp(entry.timestamp) }}
-                </span>
-                <span :class="['font-semibold', 'text-neutral-800', 'dark:text-neutral-100']">
-                  {{ entry.type }}
                 </span>
               </div>
 

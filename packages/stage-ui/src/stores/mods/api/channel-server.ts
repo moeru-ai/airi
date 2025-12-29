@@ -12,6 +12,23 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   const initializing = ref<Promise<void> | null>(null)
   const pendingSend = ref<Array<WebSocketEvent>>([])
 
+  const basePossibleEvents: Array<keyof WebSocketEvents> = [
+    'context:update',
+    'error',
+    'module:announce',
+    'module:configure',
+    'module:authenticated',
+    'spark:notify',
+    'spark:emit',
+    'spark:command',
+    'input:text',
+    'input:text:voice',
+    'output:gen-ai:chat:message',
+    'output:gen-ai:chat:complete',
+    'output:gen-ai:chat:tool-call',
+    'ui:configure',
+  ]
+
   function initialize(options?: { token?: string, possibleEvents?: Array<keyof WebSocketEvents> }) {
     if (connected.value && client.value)
       return Promise.resolve()
@@ -19,7 +36,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
       return initializing.value
 
     const possibleEvents = Array.from(new Set<keyof WebSocketEvents>([
-      'ui:configure',
+      ...basePossibleEvents,
       ...(options?.possibleEvents ?? []),
     ]))
 
@@ -98,6 +115,20 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     }
   }
 
+  function onEvent<E extends keyof WebSocketEvents>(
+    type: E,
+    callback: (event: WebSocketBaseEvent<E, WebSocketEvents[E]>) => void | Promise<void>,
+  ) {
+    if (!client.value && !initializing.value)
+      void initialize()
+
+    client.value?.onEvent(type, callback as any)
+
+    return () => {
+      client.value?.offEvent(type, callback as any)
+    }
+  }
+
   function sendContextUpdate(message: Omit<ContextUpdate, 'id' | 'contextId'> & Partial<Pick<ContextUpdate, 'id' | 'contextId'>>) {
     const id = nanoid()
     send({ type: 'context:update', data: { id, contextId: id, ...message } })
@@ -119,6 +150,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     send,
     sendContextUpdate,
     onContextUpdate,
+    onEvent,
     dispose,
   }
 })
