@@ -4,13 +4,13 @@
 
     <form @submit.prevent="onSubmit" class="space-y-4">
       <div>
-        <label class="block text-sm font-medium mb-1">Email or username</label>
-        <input v-model="form.identifier" type="text" autocomplete="username" class="w-full px-3 py-2 rounded border" />
+        <label :for="identifierId" class="block text-sm font-medium mb-1">Email or username</label>
+        <input v-model="form.identifier" :id="identifierId" type="text" autocomplete="username" class="w-full px-3 py-2 rounded border" />
       </div>
 
       <div>
-        <label class="block text-sm font-medium mb-1">Password</label>
-        <input v-model="form.password" type="password" autocomplete="current-password" class="w-full px-3 py-2 rounded border" />
+        <label :for="passwordId" class="block text-sm font-medium mb-1">Password</label>
+        <input v-model="form.password" :id="passwordId" type="password" autocomplete="current-password" class="w-full px-3 py-2 rounded border" />
       </div>
 
       <div class="flex items-center justify-between text-sm">
@@ -18,28 +18,36 @@
           <input type="checkbox" v-model="form.remember" />
           <span>Remember me</span>
         </label>
-        <a class="text-primary hover:underline">Forgot?</a>
+        <a href="#" class="text-primary hover:underline" @click.prevent="$emit('forgot')">Forgot?</a>
       </div>
 
       <div class="pt-2">
-        <button type="submit" class="w-full btn-primary">Sign in</button>
+        <Button label="Sign in" type="submit" block />
       </div>
     </form>
 
     <div class="mt-4 text-center text-sm text-muted">Or continue with</div>
     <div class="mt-3 grid grid-cols-2 gap-2">
-      <button class="px-3 py-2 rounded border">Google</button>
-      <button class="px-3 py-2 rounded border">Twitter</button>
+      <Button label="Google" @click="$emit('google')" />
+      <Button label="Twitter" @click="$emit('twitter')" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { reactive } from 'vue'
+import { Button } from '@proj-airi/ui'
 
 const emit = defineEmits<{
   (e: 'submit', payload: { identifier: string; password: string; remember: boolean }): void
+  (e: 'google'): void
+  (e: 'twitter'): void
+  (e: 'forgot'): void
 }>()
+
+const uid = Math.random().toString(36).slice(2, 9)
+const identifierId = `identifier-${uid}`
+const passwordId = `password-${uid}`
 
 const form = reactive({ identifier: '', password: '', remember: false })
 
@@ -49,7 +57,6 @@ function onSubmit() {
 </script>
 
 <style scoped>
-.btn-primary{background:var(--un-bg-primary, #2563eb);color:white;padding:.5rem;border-radius:.375rem}
 .text-primary{color:var(--un-text-primary,#2563eb)}
 .text-muted{color:var(--un-text-muted,#6b7280)}
 </style>
