@@ -90,6 +90,9 @@ catalogs:
     es-toolkit:
       specifier: ^1.43.0
       version: 1.43.0
+    hono:
+      specifier: ^4.10.8
+      version: 4.11.3
     injeca:
       specifier: ^0.1.5
       version: 0.1.5
@@ -134,7 +137,7 @@ catalogs:
       version: 4.2.1
   rolldown-vite:
     vite:
-      specifier: npm:rolldown-vite@^7.3.0
+      specifier: npm:rolldown-vite@^7.2.11
       version: 7.3.0
   vitest:
     '@vitest/browser-playwright':
@@ -1317,6 +1320,9 @@ importers:
       gpuu:
         specifier: ^1.0.6
         version: 1.0.6
+      hono:
+        specifier: 'catalog:'
+        version: 4.11.3
       html2canvas:
         specifier: ^1.4.1
         version: 1.4.1

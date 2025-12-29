@@ -15,6 +15,20 @@
       "when": 1766998160836,
       "tag": "0001_simple_garia",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1767024282458,
+      "tag": "0002_special_fabian_cortez",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1767025034768,
+      "tag": "0003_flawless_dreaming_celestial",
+      "breakpoints": true
     }
   ]
 }

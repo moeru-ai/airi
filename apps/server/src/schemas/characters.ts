@@ -6,12 +6,13 @@ import type { CharacterCapabilityConfig } from '../types/character-capability'
 import { relations } from 'drizzle-orm'
 import { jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
+import { nanoid } from '../utils/id'
 import { user } from './accounts'
 
 export const character = pgTable(
   'characters',
   {
-    id: text('id').primaryKey(),
+    id: text('id').primaryKey().$defaultFn(() => nanoid()),
     version: text('version').notNull(),
     coverUrl: text('cover_url').notNull(),
 
@@ -27,6 +28,7 @@ export const character = pgTable(
 
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    deletedAt: timestamp('deleted_at'),
   },
 )
 
@@ -36,7 +38,7 @@ export type NewCharacter = InferInsertModel<typeof character>
 export const avatarModel = pgTable(
   'avatar_model',
   {
-    id: text('id').primaryKey(),
+    id: text('id').primaryKey().$defaultFn(() => nanoid()),
     characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     type: text('type').notNull().$type<keyof AvatarModelConfig>(),
@@ -46,6 +48,7 @@ export const avatarModel = pgTable(
     config: jsonb('config').notNull().$type<AvatarModelConfig[keyof AvatarModelConfig]>(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    deletedAt: timestamp('deleted_at'),
   },
 )
 
@@ -55,7 +58,7 @@ export type NewAvatarModel = InferInsertModel<typeof avatarModel>
 export const characterCapabilities = pgTable(
   'character_capabilities',
   {
-    id: text('id').primaryKey(),
+    id: text('id').primaryKey().$defaultFn(() => nanoid()),
     characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
 
     type: text('type').notNull().$type<keyof CharacterCapabilityConfig>(),
@@ -70,7 +73,7 @@ export type NewCharacterCapability = InferInsertModel<typeof characterCapabiliti
 export const characterI18n = pgTable(
   'character_i18n',
   {
-    id: text('id').primaryKey(),
+    id: text('id').primaryKey().$defaultFn(() => nanoid()),
     characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
 
     language: text('language').notNull(),
@@ -93,6 +96,7 @@ export const characterI18n = pgTable(
 
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    deletedAt: timestamp('deleted_at'),
   },
 )
 
@@ -104,7 +108,7 @@ type PromptType = 'system' | 'personality' | 'greetings'
 export const characterPrompts = pgTable(
   'character_prompts',
   {
-    id: text('id').primaryKey(),
+    id: text('id').primaryKey().$defaultFn(() => nanoid()),
     characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
 
     language: text('language').notNull(),
