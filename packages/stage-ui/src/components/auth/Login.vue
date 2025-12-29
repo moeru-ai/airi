@@ -1,18 +1,25 @@
 <script lang="ts">
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
 
 import { useAuth } from '../../composables/useAuth'
 
 export default {
   setup() {
     const form = reactive({ email: '', password: '' })
+    const error = ref<string | null>(null)
     const { login, loading } = useAuth()
 
     const onSubmit = async () => {
-      await login(form.email, form.password)
+      error.value = null
+      try {
+        await login(form.email, form.password)
+      } catch (err: any) {
+        console.error('Login failed:', err)
+        error.value = err?.message || 'Login failed'
+      }
     }
 
-    return { form, onSubmit, loading }
+    return { form, onSubmit, loading, error }
   },
 }
 </script>
@@ -36,6 +43,7 @@ export default {
       <button class="btn-primary" :disabled="loading">
         {{ $t('auth.login.submit') }}
       </button>
+      <div v-if="error" class="text-sm text-red-500 mt-2">{{ error }}</div>
     </form>
   </div>
 </template>

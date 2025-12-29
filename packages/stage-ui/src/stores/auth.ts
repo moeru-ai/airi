@@ -11,7 +11,6 @@ export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null as User | null,
     token: null as string | null,
-    loading: false as boolean,
   }),
   actions: {
     setAuth(user: User, token: string) {

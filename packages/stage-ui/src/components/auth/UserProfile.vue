@@ -2,10 +2,12 @@
 import { computed } from 'vue'
 
 import { useAuthStore } from '../../stores/auth'
+import { useAuth } from '../../composables/useAuth'
 
 export default {
   setup() {
     const store = useAuthStore()
+    const { logout } = useAuth()
     const user = computed(() => store.user)
     const defaultAvatar = '/assets/default-avatar.png'
 
@@ -13,8 +15,6 @@ export default {
       // open edit modal (to be implemented by app)
       console.log('edit profile')
     }
-
-    const logout = () => store.logout()
 
     return { user, defaultAvatar, onEdit, logout }
   },
