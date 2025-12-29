@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 
-export type User = {
+export interface User {
   id: string
   name: string
   email?: string
@@ -11,7 +11,7 @@ export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null as User | null,
     token: null as string | null,
-    loading: false as boolean
+    loading: false as boolean,
   }),
   actions: {
     setAuth(user: User, token: string) {
@@ -24,6 +24,6 @@ export const useAuthStore = defineStore('auth', {
     clearAuth() {
       this.user = null
       this.token = null
-    }
-  }
+    },
+  },
 })

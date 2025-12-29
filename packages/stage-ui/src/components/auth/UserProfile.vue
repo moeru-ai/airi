@@ -1,23 +1,6 @@
-<template>
-  <div class="max-w-md mx-auto p-6 bg-card rounded-lg shadow-sm flex gap-4 items-center">
-    <img :src="user?.avatarUrl || defaultAvatar" alt="avatar" class="w-16 h-16 rounded-full object-cover" />
-    <div class="flex-1">
-      <div class="flex items-center justify-between">
-        <div>
-          <div class="font-medium">{{ user?.name || $t('auth.profile.anonymous') }}</div>
-          <div class="text-sm text-muted">{{ user?.email }}</div>
-        </div>
-        <div class="flex gap-2">
-          <button class="btn-secondary" @click="onEdit">{{ $t('auth.profile.edit') }}</button>
-          <button class="btn-ghost text-red-500" @click="logout">{{ $t('auth.logout') }}</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script lang="ts">
 import { computed } from 'vue'
+
 import { useAuthStore } from '../../stores/auth'
 
 export default {
@@ -34,9 +17,35 @@ export default {
     const logout = () => store.logout()
 
     return { user, defaultAvatar, onEdit, logout }
-  }
+  },
 }
 </script>
+
+<template>
+  <div class="bg-card mx-auto max-w-md flex items-center gap-4 rounded-lg p-6 shadow-sm">
+    <img :src="user?.avatarUrl || defaultAvatar" alt="avatar" class="h-16 w-16 rounded-full object-cover">
+    <div class="flex-1">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="font-medium">
+            {{ user?.name || $t('auth.profile.anonymous') }}
+          </div>
+          <div class="text-muted text-sm">
+            {{ user?.email }}
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn-secondary" @click="onEdit">
+            {{ $t('auth.profile.edit') }}
+          </button>
+          <button class="btn-ghost text-red-500" @click="logout">
+            {{ $t('auth.logout') }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
 
 <style scoped>
 .bg-card { background: var(--card-bg); }

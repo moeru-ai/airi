@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+
 import { useAuthStore } from '../stores/auth'
 
 export function useAuth() {
@@ -12,12 +13,14 @@ export function useAuth() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
       })
-      if (!res.ok) throw new Error('Login failed')
+      if (!res.ok)
+        throw new Error('Login failed')
       const data = await res.json()
       store.setAuth(data.user, data.token)
-    } finally {
+    }
+    finally {
       loading.value = false
     }
   }
@@ -28,12 +31,14 @@ export function useAuth() {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password })
+        body: JSON.stringify({ name, email, password }),
       })
-      if (!res.ok) throw new Error('Signup failed')
+      if (!res.ok)
+        throw new Error('Signup failed')
       const data = await res.json()
       store.setAuth(data.user, data.token)
-    } finally {
+    }
+    finally {
       loading.value = false
     }
   }
@@ -47,10 +52,12 @@ export function useAuth() {
     loading.value = true
     try {
       const res = await fetch('/api/auth/me')
-      if (!res.ok) return
+      if (!res.ok)
+        return
       const data = await res.json()
       store.setUser(data.user)
-    } finally {
+    }
+    finally {
       loading.value = false
     }
   }
