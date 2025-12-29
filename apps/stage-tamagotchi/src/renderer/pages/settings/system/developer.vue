@@ -18,14 +18,14 @@ const menu = computed(() => [
     to: '/devtools/use-magic-keys',
   },
   {
-    title: 'Lag Visualizer',
-    description: 'Toggle FPS/long task/GC/memory overlay',
+    title: t('tamagotchi.settings.devtools.pages.lag-visualizer.title'),
+    description: t('tamagotchi.settings.devtools.pages.lag-visualizer.description'),
     icon: 'i-solar:sledgehammer-bold-duotone',
     to: '/devtools/lag-visualizer',
   },
   {
-    title: 'Markdown Stress',
-    description: 'Generate mock chat payloads and stress markdown parsing',
+    title: t('tamagotchi.settings.devtools.pages.markdown-stress.title'),
+    description: t('tamagotchi.settings.devtools.pages.markdown-stress.description'),
     icon: 'i-solar:sledgehammer-bold-duotone',
     to: '/devtools/markdown-stress',
   },

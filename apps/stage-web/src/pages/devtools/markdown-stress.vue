@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ButtonBar } from '@proj-airi/stage-ui/components'
 import { storeToRefs } from 'pinia'
+import { useI18n } from 'vue-i18n'
 
 import { useMarkdownStressStore } from '../../stores/markdown-stress'
 
 const stressStore = useMarkdownStressStore()
+const { t } = useI18n()
 const { capturing, events, lastRun, payloadPreview, scheduleDelayMs, runState } = storeToRefs(stressStore)
 
 function toggleCapture() {
@@ -18,10 +20,10 @@ function toggleCapture() {
 <template>
   <div flex="~ col gap-4" pb-6>
     <div text="lg neutral-100">
-      Markdown Stress
+      {{ t('settings.pages.system.sections.section.developer.sections.section.markdown-stress.title') }}
     </div>
     <div text="sm neutral-400">
-      Generate a heavy chat payload, schedule it into chat after a {{ scheduleDelayMs }}ms delay, and record markdown/DOM timings via the perf tracer. Runs always send through the active provider/model.
+      {{ t('settings.pages.system.sections.section.developer.sections.section.markdown-stress.description') }}
     </div>
 
     <div flex="~ col gap-2">

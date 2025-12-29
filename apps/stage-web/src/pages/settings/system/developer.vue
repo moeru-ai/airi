@@ -15,14 +15,14 @@ const menu = computed(() => [
     to: '/devtools/audio-record',
   },
   {
-    title: 'Lag Visualizer',
-    description: 'Toggle FPS/long task/memory overlay',
+    title: t('settings.pages.system.sections.section.developer.sections.section.lag-visualizer.title'),
+    description: t('settings.pages.system.sections.section.developer.sections.section.lag-visualizer.description'),
     icon: 'i-solar:sledgehammer-bold-duotone',
     to: '/devtools/lag-visualizer',
   },
   {
-    title: 'Markdown Stress',
-    description: 'Generate mock chat payloads and stress markdown parsing',
+    title: t('settings.pages.system.sections.section.developer.sections.section.markdown-stress.title'),
+    description: t('settings.pages.system.sections.section.developer.sections.section.markdown-stress.description'),
     icon: 'i-solar:sledgehammer-bold-duotone',
     to: '/devtools/markdown-stress',
   },
