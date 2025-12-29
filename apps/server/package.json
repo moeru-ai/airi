@@ -17,6 +17,7 @@
     "@hono/node-server": "^1.19.6",
     "better-auth": "^1.4.5",
     "drizzle-orm": "^0.44.7",
+    "drizzle-valibot": "catalog:",
     "hono": "^4.10.7",
     "injeca": "catalog:",
     "postgres": "^3.4.7",

@@ -1,3 +1,5 @@
+import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
+
 import type { AvatarModelConfig } from '../types/character-avatar-model'
 import type { CharacterCapabilityConfig } from '../types/character-capability'
 
@@ -28,10 +30,14 @@ export const character = pgTable(
   },
 )
 
+export type Character = InferSelectModel<typeof character>
+export type NewCharacter = InferInsertModel<typeof character>
+
 export const avatarModel = pgTable(
   'avatar_model',
   {
     id: text('id').primaryKey(),
+    characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     type: text('type').notNull().$type<keyof AvatarModelConfig>(),
 
@@ -42,6 +48,9 @@ export const avatarModel = pgTable(
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
 )
+
+export type AvatarModel = InferSelectModel<typeof avatarModel>
+export type NewAvatarModel = InferInsertModel<typeof avatarModel>
 
 export const characterCapabilities = pgTable(
   'character_capabilities',
@@ -55,19 +64,8 @@ export const characterCapabilities = pgTable(
   },
 )
 
-export const characterRelations = relations(
-  character,
-  ({ one, many }) => ({
-    capabilities: many(characterCapabilities),
-
-    avatarModels: many(avatarModel),
-
-    owner: one(user, {
-      fields: [character.ownerId],
-      references: [user.id],
-    }),
-  }),
-)
+export type CharacterCapability = InferSelectModel<typeof characterCapabilities>
+export type NewCharacterCapability = InferInsertModel<typeof characterCapabilities>
 
 export const characterI18n = pgTable(
   'character_i18n',
@@ -98,6 +96,9 @@ export const characterI18n = pgTable(
   },
 )
 
+export type CharacterI18n = InferSelectModel<typeof characterI18n>
+export type NewCharacterI18n = InferInsertModel<typeof characterI18n>
+
 type PromptType = 'system' | 'personality' | 'greetings'
 
 export const characterPrompts = pgTable(
@@ -110,4 +111,61 @@ export const characterPrompts = pgTable(
     type: text('type').notNull().$type<PromptType>(),
     content: text('content').notNull(),
   },
+)
+
+export type CharacterPrompt = InferSelectModel<typeof characterPrompts>
+export type NewCharacterPrompt = InferInsertModel<typeof characterPrompts>
+
+export const characterRelations = relations(
+  character,
+  ({ one, many }) => ({
+    capabilities: many(characterCapabilities),
+    avatarModels: many(avatarModel),
+    i18n: many(characterI18n),
+    prompts: many(characterPrompts),
+    owner: one(user, {
+      fields: [character.ownerId],
+      references: [user.id],
+    }),
+  }),
+)
+
+export const avatarModelRelations = relations(
+  avatarModel,
+  ({ one }) => ({
+    character: one(character, {
+      fields: [avatarModel.characterId],
+      references: [character.id],
+    }),
+  }),
+)
+
+export const characterCapabilitiesRelations = relations(
+  characterCapabilities,
+  ({ one }) => ({
+    character: one(character, {
+      fields: [characterCapabilities.characterId],
+      references: [character.id],
+    }),
+  }),
+)
+
+export const characterI18nRelations = relations(
+  characterI18n,
+  ({ one }) => ({
+    character: one(character, {
+      fields: [characterI18n.characterId],
+      references: [character.id],
+    }),
+  }),
+)
+
+export const characterPromptsRelations = relations(
+  characterPrompts,
+  ({ one }) => ({
+    character: one(character, {
+      fields: [characterPrompts.characterId],
+      references: [character.id],
+    }),
+  }),
 )
