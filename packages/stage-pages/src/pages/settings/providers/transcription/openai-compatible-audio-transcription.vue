@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { RemovableRef } from '@vueuse/core'
-import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
+import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import {
   Alert,

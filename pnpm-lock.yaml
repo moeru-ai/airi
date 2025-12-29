@@ -27,15 +27,6 @@ catalogs:
     '@xsai-ext/providers':
       specifier: ^0.4.0-beta.13
       version: 0.4.0-beta.13
-    '@xsai-ext/providers-cloud':
-      specifier: ^0.4.0-beta.12
-      version: 0.4.0-beta.12
-    '@xsai-ext/providers-local':
-      specifier: ^0.4.0-beta.12
-      version: 0.4.0-beta.12
-    '@xsai-ext/shared-providers':
-      specifier: 0.4.0-beta.12
-      version: 0.4.0-beta.12
     '@xsai/embed':
       specifier: ^0.4.0-beta.13
       version: 0.4.0-beta.13
@@ -405,15 +396,9 @@ importers:
       '@vueuse/shared':
         specifier: ^14.1.0
         version: 14.1.0(vue@3.5.25(typescript@5.9.3))
-      '@xsai-ext/providers-cloud':
+      '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.12
-      '@xsai-ext/providers-local':
-        specifier: 'catalog:'
-        version: 0.4.0-beta.12
-      '@xsai-ext/shared-providers':
-        specifier: 'catalog:'
-        version: 0.4.0-beta.12
+        version: 0.4.0-beta.13
       '@xsai-transformers/transcription':
         specifier: ^0.0.11
         version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
@@ -793,15 +778,9 @@ importers:
       '@vueuse/shared':
         specifier: ^14.1.0
         version: 14.1.0(vue@3.5.25(typescript@5.9.3))
-      '@xsai-ext/providers-cloud':
+      '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.12
-      '@xsai-ext/providers-local':
-        specifier: 'catalog:'
-        version: 0.4.0-beta.12
-      '@xsai-ext/shared-providers':
-        specifier: 'catalog:'
-        version: 0.4.0-beta.12
+        version: 0.4.0-beta.13
       '@xsai-transformers/embed':
         specifier: ^0.0.11
         version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
@@ -1375,9 +1354,9 @@ importers:
       '@vueuse/shared':
         specifier: ^14.1.0
         version: 14.1.0(vue@3.5.25(typescript@5.9.3))
-      '@xsai-ext/shared-providers':
+      '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.12
+        version: 0.4.0-beta.13
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -1571,15 +1550,9 @@ importers:
       '@vueuse/shared':
         specifier: ^14.1.0
         version: 14.1.0(vue@3.5.25(typescript@5.9.3))
-      '@xsai-ext/providers-cloud':
+      '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.12
-      '@xsai-ext/providers-local':
-        specifier: 'catalog:'
-        version: 0.4.0-beta.12
-      '@xsai-ext/shared-providers':
-        specifier: 'catalog:'
-        version: 0.4.0-beta.12
+        version: 0.4.0-beta.13
       '@xsai-transformers/embed':
         specifier: ^0.0.11
         version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
@@ -7978,12 +7951,6 @@ packages:
   '@xmldom/xmldom@0.8.11':
     resolution: {integrity: sha512-cQzWCtO6C8TQiYl1ruKNn2U6Ao4o4WBBcbL61yJl84x+j5sOWWFU9X7DpND8XZG3daDppSsigMdfAIl2upQBRw==}
     engines: {node: '>=10.0.0'}
-
-  '@xsai-ext/providers-cloud@0.4.0-beta.12':
-    resolution: {integrity: sha512-9caAXaVgcPD8m3cURJjEokGIT6TSsKWD7Ug8oWmaCDGGJBS4HynYuTZ2OZk1Umotp7AN/6jnrR/D1uf00YwasQ==}
-
-  '@xsai-ext/providers-local@0.4.0-beta.12':
-    resolution: {integrity: sha512-yDpM+8l3vVbIDhxF7QoDSocY+tbuYLeiwskS0TKqH91cH3G6WnqbVnW7Eh60G4Kp2CK9ADf5kppFbiMrgZoDGg==}
 
   '@xsai-ext/providers@0.4.0-beta.13':
     resolution: {integrity: sha512-XJp+Q0CMgXIUDexsD/wALHMI2NH6y4qIijZYz52+ywhfMAXhxx6NBwNO1/BsODWhbiReFy12nUHBQnT1cje9qQ==}
@@ -21247,16 +21214,6 @@ snapshots:
       axios: feaxios@0.0.23
 
   '@xmldom/xmldom@0.8.11': {}
-
-  '@xsai-ext/providers-cloud@0.4.0-beta.12':
-    dependencies:
-      '@xsai-ext/shared-providers': 0.4.0-beta.12
-      '@xsai/shared': 0.4.0-beta.13
-
-  '@xsai-ext/providers-local@0.4.0-beta.12':
-    dependencies:
-      '@xsai-ext/shared-providers': 0.4.0-beta.12
-      '@xsai/shared': 0.4.0-beta.13
 
   '@xsai-ext/providers@0.4.0-beta.13':
     dependencies:
