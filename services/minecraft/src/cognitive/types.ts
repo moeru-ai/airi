@@ -29,7 +29,7 @@ export interface CognitiveEngineOptions {
 }
 
 // TODO: currently stimulus is just chat events, consider renaming to 'input' or 'user_interaction'
-export type EventType = 'stimulus' | 'perception' | 'feedback' | 'world_update' | 'system_alert'
+export type EventCategory = 'stimulus' | 'perception' | 'feedback' | 'world_update' | 'system_alert'
 
 export interface BotEventSource {
   type: 'minecraft' | 'airi' | 'system'
@@ -38,7 +38,7 @@ export interface BotEventSource {
 }
 
 export interface BotEvent<T = any> {
-  type: EventType
+  type: EventCategory
   payload: T
   source: BotEventSource
   timestamp: number
