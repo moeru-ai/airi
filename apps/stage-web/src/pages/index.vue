@@ -22,8 +22,8 @@ import MobileHeader from '../components/Layouts/MobileHeader.vue'
 import MobileInteractiveArea from '../components/Layouts/MobileInteractiveArea.vue'
 
 import { BackgroundProvider } from '../components/Backgrounds'
-import { fetchSession } from '../composables/auth'
 import { useBackgroundThemeColor } from '../composables/theme-color'
+import { fetchSession } from '../libs/auth'
 import { useBackgroundStore } from '../stores/background'
 
 const paused = ref(false)
@@ -172,7 +172,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
 })
 
 onMounted(() => {
-  // TODO: move this to pinia store with `initialize(...)` action.  
+  // TODO: move this to pinia store with `initialize(...)` action.
   // Fetch session, ignore errors
   fetchSession().catch(() => {})
 })

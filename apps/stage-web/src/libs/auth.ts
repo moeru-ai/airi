@@ -2,12 +2,12 @@ import { createAuthClient } from 'better-auth/vue'
 
 import { useAuthStore } from '../stores/auth'
 
-export const API_SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://airi-api.moeru.ai'
+export const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://airi-api.moeru.ai'
 
 const authStore = useAuthStore()
 
 export const authClient = createAuthClient({
-  baseURL: API_SERVER_URL,
+  baseURL: SERVER_URL,
 
   credentials: 'include',
   fetchOptions: {
