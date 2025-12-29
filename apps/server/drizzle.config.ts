@@ -1,10 +1,14 @@
-import process from 'node:process'
+import { env } from 'node:process'
 
-export default {
+import { defineConfig } from 'drizzle-kit'
+
+export default defineConfig({
   schema: './src/schemas/**/*.ts',
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL,
+    url: env.DATABASE_URL!,
   },
-}
+  // https://github.com/drizzle-team/drizzle-orm/issues/4008
+  tablesFilter: ['!vchordrq_sampled_queries'],
+})
