@@ -7,15 +7,15 @@ import * as schema from '../schemas/characters'
 
 export function createCharacterService(db: Database<typeof fullSchema>) {
   return {
-    async findById(id: string) {
+    async findById(id: string, options: { withRelations?: boolean } = { withRelations: true }) {
       return await db.query.character.findFirst({
         where: eq(schema.character.id, id),
-        with: {
+        with: options.withRelations ? {
           capabilities: true,
           avatarModels: true,
           i18n: true,
           prompts: true,
-        },
+        } : undefined,
       })
     },
 
