@@ -6,6 +6,7 @@ import { safeParse } from 'valibot'
 
 import { CreateCharacterSchema, UpdateCharacterSchema } from '../api/characters.schema'
 import { authGuard } from '../middlewares/auth'
+import { createBadRequestError, createForbiddenError, createNotFoundError } from '../utils/error'
 
 export function createCharacterRoutes(characterService: CharacterService) {
   const app = new Hono<HonoEnv>()
@@ -23,7 +24,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
     const id = c.req.param('id')
     const character = await characterService.findById(id)
     if (!character)
-      return c.json({ error: 'Not Found' }, 404)
+      throw createNotFoundError()
 
     return c.json(character)
   })
@@ -35,7 +36,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
     const result = safeParse(CreateCharacterSchema, body)
 
     if (!result.success) {
-      return c.json({ error: 'Invalid Request', issues: result.issues }, 400)
+      throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', result.issues)
     }
 
     const character = await characterService.create({
@@ -58,14 +59,14 @@ export function createCharacterRoutes(characterService: CharacterService) {
     const result = safeParse(UpdateCharacterSchema, body)
 
     if (!result.success) {
-      return c.json({ error: 'Invalid Request', issues: result.issues }, 400)
+      throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', result.issues)
     }
 
     const existing = await characterService.findById(id)
     if (!existing)
-      return c.json({ error: 'Not Found' }, 404)
+      throw createNotFoundError()
     if (existing.ownerId !== user.id)
-      return c.json({ error: 'Forbidden' }, 403)
+      throw createForbiddenError()
 
     const updated = await characterService.update(id, result.output)
     return c.json(updated)
@@ -77,9 +78,9 @@ export function createCharacterRoutes(characterService: CharacterService) {
     const id = c.req.param('id')
     const existing = await characterService.findById(id)
     if (!existing)
-      return c.json({ error: 'Not Found' }, 404)
+      throw createNotFoundError()
     if (existing.ownerId !== user.id)
-      return c.json({ error: 'Forbidden' }, 403)
+      throw createForbiddenError()
 
     await characterService.delete(id)
     return c.body(null, 204)

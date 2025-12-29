@@ -1,6 +1,9 @@
 import type { MiddlewareHandler } from 'hono'
+
 import type { createAuth } from '../services/auth'
 import type { HonoEnv } from '../types/hono'
+
+import { createUnauthorizedError } from '../utils/error'
 
 type AuthInstance = ReturnType<typeof createAuth>
 
@@ -31,8 +34,7 @@ export function sessionMiddleware(auth: AuthInstance): MiddlewareHandler<HonoEnv
 export const authGuard: MiddlewareHandler<HonoEnv> = async (c, next) => {
   const user = c.get('user')
   if (!user) {
-    return c.json({ error: 'Unauthorized' }, 401)
+    throw createUnauthorizedError()
   }
   await next()
 }
-

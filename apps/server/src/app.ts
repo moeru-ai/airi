@@ -15,6 +15,7 @@ import { createAuth } from './services/auth'
 import { createCharacterService } from './services/characters'
 import { createDrizzle } from './services/db'
 import { parsedEnv } from './services/env'
+import { ApiError, createInternalError } from './utils/error'
 import { getTrustedOrigin } from './utils/origin'
 
 import * as schema from './schemas'
@@ -77,6 +78,23 @@ async function createApp() {
   app.on(['POST', 'GET'], '/api/auth/*', c => authInstance.handler(c.req.raw))
 
   app.route('/api/characters', createCharacterRoutes(resolved.characterService))
+
+  app.onError((err, c) => {
+    if (err instanceof ApiError) {
+      return c.json({
+        error: err.errorCode,
+        message: err.message,
+        details: err.details,
+      }, err.statusCode)
+    }
+
+    logger.withError(err).error('Unhandled error')
+    const internalError = createInternalError()
+    return c.json({
+      error: internalError.errorCode,
+      message: internalError.message,
+    }, internalError.statusCode)
+  })
 
   logger.withFields({ port: 3000 }).log('Server started')
 
