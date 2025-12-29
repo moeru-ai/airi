@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>AIRI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" sizes="any" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="description" content="Open source attempt to create cyber companion.">
+    <meta name="apple-mobile-web-app-title" content="AIRI" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="rgb(18,18,18)" id="themeColor" />
+
+    <!-- Open Graph Protocol -->
+    <meta property="og:title" content="AIRI">
+    <meta property="og:site_name" content="AIRI">
+    <meta property="og:image" content="https://airi.moeru.ai/open-graph.png">
+    <meta property="og:description" content="Top 1 open source attempt to create cyber companion, capable of playing Minecraft, Factorio, Balatro, etc. .">
+    <meta property="og:url" content="https://airi.moeru.ai/docs/en/">
+
+    <!-- Open Graph Protocol extension, Twitter cards -->
+    <meta name="twitter:title" content="AIRI">
+    <meta name="twitter:description" content="Top 1 open source attempt to create cyber companion, capable of playing Minecraft, Factorio, Balatro, etc. .">
+    <meta name="twitter:image" content="https://airi.moeru.ai/open-graph.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:creator" content="Moeru AI">
+    <script>
+      ;(function () {
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        const setting = localStorage.getItem('vueuse-color-scheme') || 'auto'
+        if (setting === 'light' || (prefersDark && setting !== 'dark'))
+          document.querySelector('#themeColor')?.setAttribute('content', 'rgb(255,255,255)')
+      })()
+    </script>
+    <script>
+      ;(function () {
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        const setting = localStorage.getItem('vueuse-color-scheme') || 'auto'
+        if (setting === 'dark' || (prefersDark && setting !== 'light'))
+          document.documentElement.classList.toggle('dark', true)
+      })()
+    </script>
+    <!-- Privacy-friendly analytics by Plausible -->
+    <script async src="https://moeru-ai-airi-helper.kwaa.workers.dev/remote-assets/page-external-data/js/script.js"></script>
+    <script>
+      window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
+      plausible.init({
+        endpoint: "https://moeru-ai-airi-helper.kwaa.workers.dev/api/v1/page-external-data/submit"
+      })
+    </script>
+    <script src="/assets/js/CubismSdkForWeb-5-r.3/Core/live2dcubismcore.min.js"></script>
+  </head>
+  <body class="font-sans">
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+    <noscript> This website requires JavaScript to function properly. Please enable JavaScript to continue. </noscript>
+  </body>
+</html>

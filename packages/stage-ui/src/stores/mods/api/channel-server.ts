@@ -1,7 +1,7 @@
 import type { ContextUpdate, WebSocketBaseEvent, WebSocketEvent, WebSocketEventOptionalSource, WebSocketEvents } from '@proj-airi/server-sdk'
 
 import { Client, WebSocketEventSource } from '@proj-airi/server-sdk'
-import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
+import { isStageCapacitor, isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
@@ -30,6 +30,8 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   ]
 
   function initialize(options?: { token?: string, possibleEvents?: Array<keyof WebSocketEvents> }) {
+    if (isStageCapacitor())
+      return Promise.resolve()
     if (connected.value && client.value)
       return Promise.resolve()
     if (initializing.value)
