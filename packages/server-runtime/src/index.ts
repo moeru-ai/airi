@@ -3,15 +3,15 @@ import type { WebSocketEvent } from '@proj-airi/server-shared/types'
 import type { AuthenticatedPeer, Peer } from './types'
 
 import { availableLogLevelStrings, Format, LogLevelString, logLevelStringToLogLevelMap, useLogg } from '@guiiai/logg'
+import { WebSocketEventSource } from '@proj-airi/server-shared/types'
 import { defineWebSocketHandler, H3 } from 'h3'
 
 import { optionOrEnv } from './config'
-import { WebSocketReadyState } from './types'
 
 // pre-stringified responses
 const RESPONSES = {
-  authenticated: JSON.stringify({ type: 'module:authenticated', data: { authenticated: true } }),
-  notAuthenticated: JSON.stringify({ type: 'error', data: { message: 'not authenticated' } }),
+  authenticated: JSON.stringify({ type: 'module:authenticated', data: { authenticated: true }, source: WebSocketEventSource.Server } satisfies WebSocketEvent),
+  notAuthenticated: JSON.stringify({ type: 'error', data: { message: 'not authenticated' }, source: WebSocketEventSource.Server } satisfies WebSocketEvent),
 }
 
 // helper send function
@@ -94,7 +94,7 @@ export function setupApp(options?: {
       }
       catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err)
-        send(peer, { type: 'error', data: { message: `invalid JSON, error: ${errorMessage}` } })
+        send(peer, { type: 'error', data: { message: `invalid JSON, error: ${errorMessage}` }, source: WebSocketEventSource.Server })
 
         return
       }
@@ -110,7 +110,11 @@ export function setupApp(options?: {
         case 'module:authenticate': {
           if (authToken && event.data.token !== authToken) {
             logger.withFields({ peer: peer.id, peerRemote: peer.remoteAddress, peerRequest: peer.request.url }).log('authentication failed')
-            send(peer, { type: 'error', data: { message: 'invalid token' } })
+            send(peer, {
+              type: 'error',
+              data: { message: 'invalid token' },
+              source: WebSocketEventSource.Server,
+            })
 
             return
           }
@@ -135,17 +139,32 @@ export function setupApp(options?: {
           // verify
           const { name, index } = event.data as { name: string, index?: number }
           if (!name || typeof name !== 'string') {
-            send(peer, { type: 'error', data: { message: 'the field \'name\' must be a non-empty string for event \'module:announce\'' } })
+            send(peer, {
+              type: 'error',
+              data: { message: 'the field \'name\' must be a non-empty string for event \'module:announce\'' },
+              source: WebSocketEventSource.Server,
+            })
+
             return
           }
           if (typeof index !== 'undefined') {
             if (!Number.isInteger(index) || index < 0) {
-              send(peer, { type: 'error', data: { message: 'the field \'index\' must be a non-negative integer for event \'module:announce\'' } })
+              send(peer, {
+                type: 'error',
+                data: { message: 'the field \'index\' must be a non-negative integer for event \'module:announce\'' },
+                source: WebSocketEventSource.Server,
+              })
+
               return
             }
           }
           if (authToken && !p.authenticated) {
-            send(peer, { type: 'error', data: { message: 'must authenticate before announcing' } })
+            send(peer, {
+              type: 'error',
+              data: { message: 'must authenticate before announcing' },
+              source: WebSocketEventSource.Server,
+            })
+
             return
           }
 
@@ -161,7 +180,11 @@ export function setupApp(options?: {
           const { moduleName, moduleIndex, config } = event.data
 
           if (moduleName === '') {
-            send(peer, { type: 'error', data: { message: 'the field \'moduleName\' can\'t be empty for event \'ui:configure\'' } })
+            send(peer, {
+              type: 'error',
+              data: { message: 'the field \'moduleName\' can\'t be empty for event \'ui:configure\'' },
+              source: WebSocketEventSource.Server,
+            })
 
             return
           }
@@ -170,6 +193,7 @@ export function setupApp(options?: {
               send(peer, {
                 type: 'error',
                 data: { message: 'the field \'moduleIndex\' must be a non-negative integer for event \'ui:configure\'' },
+                source: WebSocketEventSource.Server,
               })
 
               return
@@ -178,10 +202,19 @@ export function setupApp(options?: {
 
           const target = peersByModule.get(moduleName)?.get(moduleIndex)
           if (target) {
-            send(target.peer, { type: 'module:configure', data: { config } })
+            send(target.peer, {
+              type: 'module:configure',
+              data: { config },
+              // NOTICE: here we will forward the source as-is
+              source: event.source,
+            })
           }
           else {
-            send(peer, { type: 'error', data: { message: 'module not found, it hasn\'t announced itself or the name is incorrect' } })
+            send(peer, {
+              type: 'error',
+              data: { message: 'module not found, it hasn\'t announced itself or the name is incorrect' },
+              source: WebSocketEventSource.Server,
+            })
           }
 
           return
@@ -191,27 +224,28 @@ export function setupApp(options?: {
       // default case
       const p = peers.get(peer.id)
       if (!p?.authenticated) {
-        logger.withFields({ peer: peer.id, peerRemote: peer.remoteAddress, peerRequest: peer.request.url }).debug('not authenticated')
+        logger.withFields({ peer: peer.id, peerName: p?.name, peerRemote: peer.remoteAddress, peerRequest: peer.request.url }).debug('not authenticated')
         peer.send(RESPONSES.notAuthenticated)
 
         return
       }
 
       const payload = JSON.stringify(event)
-      logger.withFields({ peer: peer.id, event }).debug('broadcasting event to peers')
+      logger.withFields({ peer: peer.id, peerName: p.name, event }).debug('broadcasting event to peers')
 
       for (const [id, other] of peers.entries()) {
         if (id === peer.id) {
-          logger.withFields({ peer: peer.id, event }).debug('not sending event to self')
+          logger.withFields({ peer: peer.id, peerName: p.name, event }).debug('not sending event to self')
           continue
         }
 
-        if (other.peer.readyState === WebSocketReadyState.OPEN) {
-          logger.withFields({ fromPeer: peer.id, toPeer: other.peer.id, event }).debug('sending event to peer')
+        try {
+          logger.withFields({ fromPeer: peer.id, fromPeerName: p.name, toPeer: other.peer.id, toPeerName: other.name, event }).debug('sending event to peer')
           other.peer.send(payload)
         }
-        else {
-          logger.withFields({ peer: other.peer.id }).debug('removing closed peer')
+        catch (err) {
+          logger.withFields({ fromPeer: peer.id, fromPeerName: p.name, toPeer: other.peer.id, toPeerName: other.name, event }).withError(err as Error).error('failed to send event to peer, removing peer')
+          logger.withFields({ peer: peer.id, peerName: other.name }).debug('removing closed peer')
           peers.delete(id)
 
           unregisterModulePeer(other)

@@ -82,6 +82,7 @@ export function createQueue<T>(options: {
         }
       }
     }
+
     emit('drain')
     drainTask = undefined
   }

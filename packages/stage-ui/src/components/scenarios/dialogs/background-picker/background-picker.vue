@@ -3,15 +3,14 @@ import type { Ref, ShallowRef } from 'vue'
 
 import type { BackgroundOption } from './types'
 
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { BasicInputFile } from '@proj-airi/ui'
 import { useObjectUrl } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { computed, nextTick, onScopeDispose, ref, shallowRef, watch } from 'vue'
 
-import ThemeOverlay from '../../../ThemeOverlay.vue'
-
 import { colorFromElement, patchThemeSamplingHtml2CanvasClone } from '../../../../libs'
+import { useSettings } from '../../../../stores/settings'
+import { BackgroundGradientOverlay } from '../../../layouts/backgrounds'
 
 const props = withDefaults(defineProps<{
   options: BackgroundOption[]
@@ -296,7 +295,7 @@ async function applySelection(isImport = false) {
                 Select a background
               </div>
             </div>
-            <ThemeOverlay v-if="(selectedOption as any)?.kind !== 'wave'" :color="previewColor" />
+            <BackgroundGradientOverlay v-if="(selectedOption as any)?.kind !== 'wave'" :color="previewColor" />
           </div>
         </div>
       </div>

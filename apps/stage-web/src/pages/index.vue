@@ -14,7 +14,7 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 
 import Header from '../components/Layouts/Header.vue'
 import InteractiveArea from '../components/Layouts/InteractiveArea.vue'
@@ -48,11 +48,15 @@ onMounted(() => syncBackgroundTheme())
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
-const { transcribeForRecording } = useHearingSpeechInputPipeline()
+const hearingPipeline = useHearingSpeechInputPipeline()
+const { transcribeForRecording, transcribeForMediaStream } = hearingPipeline
+const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
 const chatStore = useChatStore()
+
+const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
 const {
   init: initVAD,
@@ -61,8 +65,8 @@ const {
   loaded: vadLoaded,
 } = useVAD(workletUrl, {
   threshold: ref(0.6),
-  onSpeechStart: () => startRecord(),
-  onSpeechEnd: () => stopRecord(),
+  onSpeechStart: () => handleSpeechStart(),
+  onSpeechEnd: () => handleSpeechEnd(),
 })
 
 let stopOnStopRecord: (() => void) | undefined
@@ -94,6 +98,44 @@ async function startAudioInteraction() {
   catch (e) {
     console.error('Audio interaction init failed:', e)
   }
+}
+
+async function handleSpeechStart() {
+  if (shouldUseStreamInput.value && stream.value) {
+    await transcribeForMediaStream(stream.value, {
+      onSentenceEnd: (delta) => {
+        const finalText = delta
+        if (!finalText || !finalText.trim()) {
+          return
+        }
+
+        void (async () => {
+          try {
+            const provider = await providersStore.getProviderInstance(activeChatProvider.value)
+            if (!provider || !activeChatModel.value)
+              return
+
+            await chatStore.send(finalText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+          }
+          catch (err) {
+            console.error('Failed to send chat from voice:', err)
+          }
+        })()
+      },
+    })
+    return
+  }
+
+  startRecord()
+}
+
+async function handleSpeechEnd() {
+  if (shouldUseStreamInput.value) {
+    // Keep streaming session alive; idle timer in pipeline will handle teardown.
+    return
+  }
+
+  stopRecord()
 }
 
 function stopAudioInteraction() {

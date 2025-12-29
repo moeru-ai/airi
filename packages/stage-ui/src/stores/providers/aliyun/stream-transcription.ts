@@ -4,11 +4,60 @@ import type { StreamTranscriptionDelta, StreamTranscriptionResult } from '@xsai/
 
 import type { EventStartTranscription, ServerEvent, ServerEvents } from './'
 
+import { tryCatch } from '@moeru/std'
+import { timeout as promiseTimeout } from 'es-toolkit/promise'
+
 import { createAliyunNLSSession } from './'
 import { nlsWebSocketEndpointFromRegion } from './utils'
 
 type SessionOptions = NonNullable<Parameters<typeof createAliyunNLSSession>[3]>
 type AudioChunk = ArrayBuffer | ArrayBufferView
+
+function eventListenerOf(type: string, listener: EventListenerOrEventListenerObject, on?: EventTarget, options?: AddEventListenerOptions) {
+  return {
+    on: () => on?.addEventListener(type, listener, options),
+    off: () => on?.removeEventListener(type, listener, options),
+  }
+}
+
+function promiseOfAbortSignal(signal?: AbortSignal) {
+  if (!signal)
+    return null
+  if (signal.aborted)
+    return Promise.reject(signal.reason ?? new DOMException('Aborted', 'AbortError'))
+
+  return new Promise<never>((_, reject) => {
+    const handler = () => {
+      signal.removeEventListener('abort', handler)
+      reject(signal.reason ?? new DOMException('Aborted', 'AbortError'))
+    }
+
+    signal.addEventListener('abort', handler, { once: true })
+  })
+}
+
+function createWaiter(timeoutMs: number, abortSignal?: AbortSignal) {
+  let resolve!: () => void
+  let reject!: (reason?: unknown) => void
+  const deferred = new Promise<void>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+
+  function wait() {
+    return Promise.race([
+      deferred,
+      timeoutMs > 0 ? promiseTimeout(timeoutMs) : deferred,
+      abortSignal ? promiseOfAbortSignal(abortSignal) : deferred,
+    ]) as Promise<void>
+  }
+
+  return {
+    wait,
+    trigger: () => resolve?.(),
+    cancel: (reason?: unknown) => reject?.(reason),
+  }
+}
 
 const DEFAULT_SESSION_OPTIONS: Pick<EventStartTranscription['payload'], 'format' | 'sample_rate'> = {
   format: 'pcm',
@@ -133,22 +182,8 @@ function resolveAudioStream(options: AliyunStreamTranscriptionOptions): Readable
 
 interface InternalRealtimeOptions extends CreateAliyunStreamTranscriptionOptions {
   onSentenceFinal?: (payload: ServerEvents['SentenceEnd']) => Promise<void> | void
-}
-
-function mayThrow(fn: () => void | Promise<void>) {
-  try {
-    return fn()
-  }
-  catch {
-    return undefined
-  }
-}
-
-function eventListenerOf(type: string, listener: EventListenerOrEventListenerObject, on?: EventTarget) {
-  return {
-    on: () => on?.addEventListener(type, listener),
-    off: () => on?.removeEventListener(type, listener),
-  }
+  idleTimeoutMs?: number
+  stopAckTimeoutMs?: number
 }
 
 async function startRealtimeSession(options: InternalRealtimeOptions): Promise<AliyunStreamTranscriptionHandle> {
@@ -163,32 +198,70 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<A
     hooks,
     onSessionTerminated,
     onSentenceFinal,
+    idleTimeoutMs = 8000,
+    stopAckTimeoutMs = 2000,
   } = options
 
   const session = createAliyunNLSSession(accessKeyId, accessKeySecret, appKey, { region })
   const reader = audioStream.getReader()
   const url = await session.websocketUrl()
 
-  mayThrow(() => hooks?.onWebSocketConnecting?.())
+  await tryCatch(() => hooks?.onWebSocketConnecting?.())
 
   const websocket = new WebSocket(url)
   websocket.binaryType = 'arraybuffer'
 
   const abortHandler = abortSignal
-    ? eventListenerOf('abort', () => cleanup(abortSignal?.reason ?? new DOMException('Aborted', 'AbortError')), abortSignal)
+    ? eventListenerOf('abort', () => cleanup(abortSignal.reason ?? new DOMException('Aborted', 'AbortError')), abortSignal, { once: true })
     : undefined
+
   abortHandler?.on()
+
+  const stopWaiter = createWaiter(stopAckTimeoutMs, abortSignal)
+  let stopping = false
+
+  async function requestStop(reason?: unknown) {
+    if (stopping)
+      return
+    stopping = true
+    try {
+      if (websocket?.readyState === WebSocket.OPEN)
+        await tryCatch(() => session.stop(websocket))
+
+      await Promise.race([
+        stopWaiter.wait(),
+        new Promise(resolve => setTimeout(resolve, stopAckTimeoutMs)),
+      ])
+    }
+    catch (error) {
+      await cleanup(error, { sendStop: false })
+      return
+    }
+
+    await cleanup(reason, { sendStop: false })
+  }
+
+  let idleTimer: ReturnType<typeof setTimeout> | undefined
+  const bumpIdle = () => {
+    if (idleTimer)
+      clearTimeout(idleTimer)
+    idleTimer = setTimeout(() => {
+      void requestStop(new DOMException('Idle timeout', 'AbortError'))
+    }, idleTimeoutMs)
+  }
+
+  bumpIdle()
 
   async function cleanup(error?: unknown, options?: { sendStop?: boolean, closeSocket?: boolean }) {
     const { sendStop = true, closeSocket = true } = options ?? {}
     abortHandler?.off()
-    mayThrow(async () => await reader.cancel())
+    await tryCatch(async () => await reader.cancel())
 
     if (websocket && closeSocket) {
       switch (websocket.readyState) {
         case WebSocket.OPEN:
           if (sendStop)
-            mayThrow(() => session.stop(websocket))
+            await tryCatch(() => session.stop(websocket))
           websocket.close(1000, 'client closed')
           break
         case WebSocket.CONNECTING:
@@ -215,13 +288,16 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<A
         }
 
         const { done, value } = await reader.read()
-
         if (done)
           break
-
         if (value)
           websocket!.send(toArrayBuffer(value))
+
+        bumpIdle()
       }
+
+      // Allow a grace period for server to flush final events before stop.
+      bumpIdle()
     }
     catch (error) {
       await cleanup(error)
@@ -231,7 +307,9 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<A
   async function onMessage(message: MessageEvent) {
     const data = JSON.parse(message.data)
     session.onEvent(data, async (event: ServerEvent) => {
-      mayThrow(async () => await hooks?.onServerEvent?.(event))
+      await tryCatch(async () => await hooks?.onServerEvent?.(event))
+
+      bumpIdle()
 
       try {
         switch (event.header.name) {
@@ -242,6 +320,7 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<A
             await onSentenceFinal?.(event.payload as ServerEvents['SentenceEnd'])
             break
           case 'TranscriptionCompleted':
+            stopWaiter.trigger()
             await cleanup(undefined, { sendStop: false, closeSocket: false })
             break
           default:
@@ -255,7 +334,7 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<A
   }
 
   async function onOpen() {
-    mayThrow(() => hooks?.onWebSocketOpen?.())
+    await tryCatch(() => hooks?.onWebSocketOpen?.())
 
     session.start(websocket!, {
       enable_intermediate_result: true,
@@ -265,10 +344,13 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<A
     })
   }
 
-  websocket.onerror = event => mayThrow(() => hooks?.onWebSocketError?.(event))
-  websocket.onclose = close => mayThrow(() => hooks?.onWebSocketClose?.(close?.code ?? 1006, close?.reason ?? ''))
-  websocket.onopen = () => mayThrow(async () => onOpen())
-  websocket.onmessage = event => mayThrow(async () => onMessage(event))
+  websocket.onerror = event => tryCatch(() => hooks?.onWebSocketError?.(event))
+  websocket.onclose = (close) => {
+    stopWaiter.trigger()
+    return tryCatch(() => hooks?.onWebSocketClose?.(close?.code ?? 1006, close?.reason ?? ''))
+  }
+  websocket.onopen = () => tryCatch(async () => onOpen())
+  websocket.onmessage = event => tryCatch(async () => onMessage(event))
 
   if (abortSignal?.aborted)
     throw abortSignal.reason ?? new DOMException('Aborted', 'AbortError')
@@ -364,7 +446,7 @@ export function createAliyunNLSProvider(
   options?: {
     region?: SessionOptions['region']
   },
-): SpeechProviderWithExtraOptions<string, AliyunRealtimeSpeechExtraOptions> {
+): SpeechProviderWithExtraOptions<string, AliyunRealtimeSpeechExtraOptions> & { dispose: () => Promise<void> } {
   return {
     speech(_, extraOptions) {
       return {
@@ -393,6 +475,7 @@ export function createAliyunNLSProvider(
                   controllerClosed = true
                   try {
                     await extraOptions?.onSessionTerminated?.(error)
+                    controller.enqueue(encodeSSE({ delta: '', type: 'transcript.text.done' }))
                   }
                   finally {
                     if (error)
@@ -405,6 +488,7 @@ export function createAliyunNLSProvider(
                   const text = payload.result ? `${payload.result}\n` : ''
                   if (text)
                     controller.enqueue(encodeSSE({ delta: text, type: 'transcript.text.delta' }))
+
                   controller.enqueue(encodeSSE({ delta: '', type: 'transcript.text.done' }))
                 },
               }).then((handle) => {
@@ -433,6 +517,10 @@ export function createAliyunNLSProvider(
           })
         },
       }
+    },
+    // Allow external caches to dispose provider instances; no persistent resources to release here.
+    async dispose() {
+
     },
   }
 }

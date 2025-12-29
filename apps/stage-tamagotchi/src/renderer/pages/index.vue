@@ -103,11 +103,18 @@ watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTrans
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
-const { transcribeForRecording } = useHearingSpeechInputPipeline()
+const hearingPipeline = useHearingSpeechInputPipeline()
+const {
+  transcribeForRecording,
+  transcribeForMediaStream,
+  stopStreamingTranscription,
+} = hearingPipeline
+const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
 const chatStore = useChatStore()
+const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
 const {
   init: initVAD,
@@ -116,8 +123,12 @@ const {
   loaded: vadLoaded,
 } = useVAD(workletUrl, {
   threshold: ref(0.6),
-  onSpeechStart: () => startRecord(),
-  onSpeechEnd: () => stopRecord(),
+  onSpeechStart: () => {
+    void handleSpeechStart()
+  },
+  onSpeechEnd: () => {
+    void handleSpeechEnd()
+  },
 })
 
 let stopOnStopRecord: (() => void) | undefined
@@ -128,6 +139,49 @@ type CaptionChannelEvent
     | { type: 'caption-assistant', text: string }
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
 
+async function handleSpeechStart() {
+  if (shouldUseStreamInput.value && stream.value) {
+    await transcribeForMediaStream(stream.value, {
+      onSentenceEnd: (delta) => {
+        const finalText = delta
+        if (!finalText || !finalText.trim()) {
+          return
+        }
+
+        postCaption({ type: 'caption-speaker', text: finalText })
+
+        void (async () => {
+          try {
+            const provider = await providersStore.getProviderInstance(activeChatProvider.value)
+            if (!provider || !activeChatModel.value)
+              return
+
+            await chatStore.send(finalText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+          }
+          catch (err) {
+            console.error('Failed to send chat from voice:', err)
+          }
+        })()
+      },
+      onSpeechEnd: (text) => {
+        postCaption({ type: 'caption-speaker', text })
+      },
+    })
+    return
+  }
+
+  startRecord()
+}
+
+async function handleSpeechEnd() {
+  if (shouldUseStreamInput.value) {
+    // Keep streaming session alive; idle timer in pipeline will handle teardown.
+    return
+  }
+
+  stopRecord()
+}
+
 async function startAudioInteraction() {
   try {
     await initVAD()
@@ -136,6 +190,9 @@ async function startAudioInteraction() {
 
     // Hook once
     stopOnStopRecord = onStopRecord(async (recording) => {
+      if (shouldUseStreamInput.value)
+        return
+
       const text = await transcribeForRecording(recording)
       if (!text || !text.trim())
         return
@@ -164,6 +221,7 @@ function stopAudioInteraction() {
   try {
     stopOnStopRecord?.()
     stopOnStopRecord = undefined
+    void stopStreamingTranscription(true)
     disposeVAD()
   }
   catch {}

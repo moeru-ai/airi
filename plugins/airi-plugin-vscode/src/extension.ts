@@ -1,15 +1,15 @@
+import type { DependencyMap, ProvidedKey } from 'injeca'
 import type * as vscode from 'vscode'
 
 import { initLogger, LoggerFormat, LoggerLevel, useLogger } from '@guiiai/logg'
+import { noop } from 'es-toolkit'
+import { injeca } from 'injeca'
 import { commands, window, workspace } from 'vscode'
 
 import { Client } from './airi'
 import { ContextCollector } from './context-collector'
 
-let client: Client
-let contextCollector: ContextCollector
 let updateTimer: NodeJS.Timeout | null = null
-let isEnabled = true
 let eventListeners: vscode.Disposable[] = []
 
 /**
@@ -22,17 +22,38 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Get the configuration
   const config = workspace.getConfiguration('airi-vscode')
-  isEnabled = config.get<boolean>('enabled', true)
+  const isEnabled = config.get<boolean>('enabled', true)
   const contextLines = config.get<number>('contextLines', 5)
   const sendInterval = config.get<number>('sendInterval', 3000)
 
   // Initialize
-  client = new Client()
-  contextCollector = new ContextCollector(contextLines)
+  const vscodeContext = injeca.provide('vscode:context', () => context)
+  const client = injeca.provide('proj-airi:client', () => new Client())
+  const contextCollector = injeca.provide('self:context-collector', () => new ContextCollector(contextLines))
 
+  const extension = injeca.provide('extension', {
+    dependsOn: { client, vscodeContext, contextCollector },
+    build: ({ dependsOn }) => setup({ ...dependsOn, isEnabled, sendInterval }),
+  })
+
+  injeca.invoke({
+    dependsOn: { extension },
+    callback: noop,
+  })
+
+  await injeca.start()
+}
+
+async function setup(params: {
+  client: Client
+  vscodeContext: vscode.ExtensionContext
+  contextCollector: ContextCollector
+  isEnabled: boolean
+  sendInterval: number
+}) {
   // Connect to Airi Channel Server
-  if (isEnabled) {
-    const connected = await client.connect()
+  if (params.isEnabled) {
+    const connected = await params.client.connect()
     if (connected) {
       window.showInformationMessage('AIRI Server Channel connected!')
     }
@@ -42,30 +63,30 @@ export async function activate(context: vscode.ExtensionContext) {
   }
 
   // Register commands
-  context.subscriptions.push(
+  params.vscodeContext.subscriptions.push(
     commands.registerCommand('airi-vscode.enable', async () => {
-      isEnabled = true
-      await client.connect()
-      await registerListeners(sendInterval)
+      params.isEnabled = true
+      await params.client.connect()
+      await registerListeners({ sendInterval: params.sendInterval, contextCollector: params.contextCollector, client: params.client, isEnabled: params.isEnabled })
       window.showInformationMessage('AIRI enabled!')
     }),
 
     commands.registerCommand('airi-vscode.disable', () => {
-      isEnabled = false
+      params.isEnabled = false
       unregisterListeners()
-      client.disconnect()
+      params.client.disconnect()
       window.showInformationMessage('AIRI disabled!')
     }),
 
     commands.registerCommand('airi-vscode.status', () => {
-      const status = isEnabled && client ? 'Connected' : 'Disconnected'
+      const status = params.isEnabled && params.client ? 'Connected' : 'Disconnected'
       window.showInformationMessage(`AIRI Server Channel status: ${status}.`)
     }),
   )
 
   // Register event listeners if enabled
-  if (isEnabled) {
-    await registerListeners(sendInterval)
+  if (params.isEnabled) {
+    await registerListeners({ sendInterval: params.sendInterval, contextCollector: params.contextCollector, client: params.client, isEnabled: params.isEnabled })
   }
 
   useLogger().log('AIRI activated successfully')
@@ -74,7 +95,7 @@ export async function activate(context: vscode.ExtensionContext) {
 /**
  * Register event listeners for file save and editor switch
  */
-async function registerListeners(sendInterval: number) {
+async function registerListeners(params: { contextCollector: ContextCollector, client: Client, isEnabled: boolean, sendInterval: number }) {
   unregisterListeners()
 
   // File save event
@@ -82,13 +103,11 @@ async function registerListeners(sendInterval: number) {
     workspace.onDidSaveTextDocument(async (document) => {
       const editor = window.activeTextEditor
       if (editor && editor.document === document) {
-        const ctx = await contextCollector.collect(editor)
-        if (ctx) {
-          client.sendEvent({
-            type: 'coding:save',
-            data: ctx,
-          })
-        }
+        const ctx = await params.contextCollector.collect(editor)
+        if (!ctx)
+          return
+
+        params.client.replaceContext(JSON.stringify({ type: 'coding:save', data: ctx }))
       }
     }),
   )
@@ -96,21 +115,22 @@ async function registerListeners(sendInterval: number) {
   // Switch file event
   eventListeners.push(
     window.onDidChangeActiveTextEditor(async (editor) => {
-      if (editor) {
-        const ctx = await contextCollector.collect(editor)
-        if (ctx) {
-          client.sendEvent({
-            type: 'coding:switch-file',
-            data: ctx,
-          })
-        }
+      if (!editor) {
+        return
       }
+
+      const ctx = await params.contextCollector.collect(editor)
+      if (!ctx) {
+        return
+      }
+
+      params.client.replaceContext(JSON.stringify({ type: 'coding:switch-file', data: ctx }))
     }),
   )
 
   // Start periodic monitoring if interval is set
-  if (sendInterval > 0) {
-    startMonitoring(sendInterval)
+  if (params.sendInterval > 0) {
+    startMonitoring({ contextCollector: params.contextCollector, client: params.client, isEnabled: params.isEnabled, interval: params.sendInterval })
   }
 }
 
@@ -126,25 +146,23 @@ function unregisterListeners() {
 /**
  * Start monitoring the coding context
  */
-function startMonitoring(interval: number) {
+function startMonitoring(params: { contextCollector: ContextCollector, client: Client, isEnabled: boolean, interval: number }) {
   stopMonitoring()
 
   updateTimer = setInterval(async () => {
-    if (!isEnabled)
+    if (!params.isEnabled)
       return
 
     const editor = window.activeTextEditor
     if (!editor)
       return
 
-    const ctx = await contextCollector.collect(editor)
-    if (ctx) {
-      client.sendEvent({
-        type: 'coding:context',
-        data: ctx,
-      })
-    }
-  }, interval)
+    const ctx = await params.contextCollector.collect(editor)
+    if (!ctx)
+      return
+
+    params.client.replaceContext(JSON.stringify({ type: 'coding:context', data: ctx }))
+  }, params.interval)
 }
 
 /**
@@ -160,7 +178,9 @@ function stopMonitoring() {
 /**
  * Deactivate the plugin
  */
-export function deactivate() {
+export async function deactivate() {
+  const { client } = await injeca.resolve({ client: { key: 'proj-airi:client' } as ProvidedKey<'proj-airi:client', Client, DependencyMap | undefined> })
+
   unregisterListeners()
   client?.disconnect()
   useLogger().log('AIRI deactivated!')

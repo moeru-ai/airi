@@ -30,5 +30,7 @@ pages:
 devtools:
   title: 開発者
   pages:
+    context-flow:
+      title: Context Flow
     widgets-calling:
       title: ウィジェット呼び出し

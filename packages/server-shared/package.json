@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server-shared",
   "type": "module",
-  "version": "0.8.0-beta.6",
+  "version": "0.8.0",
   "description": "Server shared types, utilities for AIRI server components and runtimes",
   "author": {
     "name": "Moeru AI Project AIRI Team",
@@ -31,5 +31,9 @@
     "dev": "pnpm run build",
     "build": "tsdown",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@xsai/shared": "catalog:",
+    "@xsai/shared-chat": "catalog:"
   }
 }

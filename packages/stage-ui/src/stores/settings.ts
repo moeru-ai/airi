@@ -102,6 +102,7 @@ export const useSettings = defineStore('settings', () => {
   const [live2dDisableFocus, resetLive2dDisableFocus] = createResettableLocalStorage('settings/live2d/disable-focus', false)
   const [live2dIdleAnimationEnabled, resetLive2dIdleAnimationEnabled] = createResettableLocalStorage('settings/live2d/idle-animation-enabled', true)
   const [live2dAutoBlinkEnabled, resetLive2dAutoBlinkEnabled] = createResettableLocalStorage('settings/live2d/auto-blink-enabled', true)
+  const [live2dForceAutoBlinkEnabled, resetLive2dForceAutoBlinkEnabled] = createResettableLocalStorage('settings/live2d/force-auto-blink-enabled', false)
   const [live2dShadowEnabled, resetLive2dShadowEnabled] = createResettableLocalStorage('settings/live2d/shadow-enabled', true)
 
   const [disableTransitions, resetDisableTransitions] = createResettableLocalStorage('settings/disable-transitions', true)
@@ -173,6 +174,7 @@ export const useSettings = defineStore('settings', () => {
     resetLive2dDisableFocus()
     resetLive2dIdleAnimationEnabled()
     resetLive2dAutoBlinkEnabled()
+    resetLive2dForceAutoBlinkEnabled()
     resetLive2dShadowEnabled()
 
     resetDisableTransitions()
@@ -202,6 +204,7 @@ export const useSettings = defineStore('settings', () => {
     live2dDisableFocus,
     live2dIdleAnimationEnabled,
     live2dAutoBlinkEnabled,
+    live2dForceAutoBlinkEnabled,
     live2dShadowEnabled,
     themeColorsHue,
     themeColorsHueDynamic,
@@ -237,7 +240,10 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   })
 
   onMounted(() => {
-    if (selectedAudioInputEnabledPersist.value && selectedAudioInputPersist.value) {
+    const hasSelectedInput = selectedAudioInputPersist.value
+      && audioInputs.value.some(device => device.deviceId === selectedAudioInputPersist.value)
+
+    if (selectedAudioInputEnabledPersist.value && hasSelectedInput) {
       startStream()
     }
     if (selectedAudioInputNonPersist.value && !selectedAudioInputEnabledPersist.value) {
