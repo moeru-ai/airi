@@ -46,7 +46,6 @@
     "@radix-ui/colors": "^3.0.0",
     "@types/hast": "^3.0.4",
     "@types/markdown-it": "^14.1.2",
-    "@types/markdown-it-anchor": "^7.0.0",
     "@unocss/reset": "^66.5.11",
     "@vue/tsconfig": "^0.8.1",
     "animejs": "^4.2.2",
