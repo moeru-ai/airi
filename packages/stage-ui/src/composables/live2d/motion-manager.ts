@@ -25,6 +25,8 @@ export type MotionManagerPluginContext = MotionManagerUpdateContext & {
   motionManager: PixiLive2DInternalModel['motionManager']
   modelParameters: Ref<any>
   live2dIdleAnimationEnabled: Ref<boolean>
+  live2dAutoBlinkEnabled: Ref<boolean>
+  live2dForceAutoBlinkEnabled: Ref<boolean>
   isIdleMotion: boolean
   handled: boolean
   markHandled: () => void
@@ -37,6 +39,8 @@ export interface UseLive2DMotionManagerUpdateOptions {
   motionManager: PixiLive2DInternalModel['motionManager']
   modelParameters: Ref<any>
   live2dIdleAnimationEnabled: Ref<boolean>
+  live2dAutoBlinkEnabled: Ref<boolean>
+  live2dForceAutoBlinkEnabled: Ref<boolean>
   lastUpdateTime: Ref<number>
 }
 
@@ -46,6 +50,8 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
     motionManager,
     modelParameters,
     live2dIdleAnimationEnabled,
+    live2dAutoBlinkEnabled,
+    live2dForceAutoBlinkEnabled,
     lastUpdateTime,
   } = options
 
@@ -83,6 +89,8 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
       motionManager,
       modelParameters,
       live2dIdleAnimationEnabled,
+      live2dAutoBlinkEnabled,
+      live2dForceAutoBlinkEnabled,
       isIdleMotion,
       handled: false,
       markHandled: () => {
@@ -212,12 +220,110 @@ export function useMotionUpdatePluginIdleFocus(idleEyeFocus = useLive2DIdleEyeFo
 }
 
 export function useMotionUpdatePluginAutoEyeBlink(): MotionManagerPlugin {
+  const blinkState = {
+    phase: 'idle' as 'idle' | 'closing' | 'opening',
+    progress: 0,
+    startLeft: 1,
+    startRight: 1,
+    delayMs: 0,
+  }
+  const blinkCloseDuration = 200 // ms
+  const blinkOpenDuration = 200 // ms
+  const minDelay = 3000
+  const maxDelay = 8000
+
+  const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
+
+  function resetBlinkState() {
+    blinkState.phase = 'idle'
+    blinkState.progress = 0
+    blinkState.delayMs = minDelay + Math.random() * (maxDelay - minDelay)
+  }
+  resetBlinkState()
+
+  function easeOutQuad(t: number) {
+    return 1 - (1 - t) * (1 - t)
+  }
+  function easeInQuad(t: number) {
+    return t * t
+  }
+
+  function updateForcedBlink(dt: number, baseLeft: number, baseRight: number) {
+    // Idle: count down delay to next blink.
+    if (blinkState.phase === 'idle') {
+      blinkState.delayMs = Math.max(0, blinkState.delayMs - dt)
+      if (blinkState.delayMs === 0) {
+        blinkState.phase = 'closing'
+        blinkState.progress = 0
+        blinkState.startLeft = baseLeft
+        blinkState.startRight = baseRight
+      }
+
+      return { eyeLOpen: baseLeft, eyeROpen: baseRight }
+    }
+
+    // Closing: move toward zero with ease-out.
+    if (blinkState.phase === 'closing') {
+      blinkState.progress = Math.min(1, blinkState.progress + dt / blinkCloseDuration)
+      const eased = easeOutQuad(blinkState.progress)
+      const eyeLOpen = clamp01(blinkState.startLeft * (1 - eased))
+      const eyeROpen = clamp01(blinkState.startRight * (1 - eased))
+
+      if (blinkState.progress >= 1) {
+        blinkState.phase = 'opening'
+        blinkState.progress = 0
+      }
+
+      return { eyeLOpen, eyeROpen }
+    }
+
+    // Opening: move back to the base with ease-in.
+    blinkState.progress = Math.min(1, blinkState.progress + dt / blinkOpenDuration)
+    const eased = easeInQuad(blinkState.progress)
+    const eyeLOpen = clamp01(blinkState.startLeft * eased)
+    const eyeROpen = clamp01(blinkState.startRight * eased)
+
+    if (blinkState.progress >= 1) {
+      resetBlinkState()
+    }
+
+    return { eyeLOpen, eyeROpen }
+  }
+
   return (ctx) => {
     // Possibility 1: Only update eye focus when the model is idle
     // Possibility 2: For models having no motion groups, currentGroup will be undefined while groups can be { idle: ... }
     if (!ctx.isIdleMotion || ctx.handled)
       return
 
+    const baseLeft = clamp01(ctx.modelParameters.value.leftEyeOpen)
+    const baseRight = clamp01(ctx.modelParameters.value.rightEyeOpen)
+
+    // If the user disabled auto blink entirely, keep manual values and bail. Reset state so re-enabling starts fresh.
+    if (!ctx.live2dAutoBlinkEnabled.value) {
+      resetBlinkState()
+      ctx.model.setParameterValueById('ParamEyeLOpen', baseLeft)
+      ctx.model.setParameterValueById('ParamEyeROpen', baseRight)
+      ctx.markHandled()
+      return
+    }
+
+    // Option 1: Force auto blink via our own timer (for models without eyeBlink or when forced in settings).
+    if (ctx.live2dForceAutoBlinkEnabled.value || !ctx.internalModel.eyeBlink) {
+      // timeDelta can be seconds or milliseconds depending on source; normalize to ms.
+      const rawDelta = Math.max(ctx.timeDelta ?? 0, 0)
+      const dt = rawDelta < 5 ? rawDelta * 1000 : rawDelta // If less than 5, treat as seconds (e.g., 0.016s -> 16ms).
+      const safeDt = dt || 16 // Fallback to ~1 frame to avoid getting stuck when timeDelta is 0 on first tick.
+
+      const { eyeLOpen, eyeROpen } = updateForcedBlink(safeDt, baseLeft, baseRight)
+
+      ctx.model.setParameterValueById('ParamEyeLOpen', eyeLOpen)
+      ctx.model.setParameterValueById('ParamEyeROpen', eyeROpen)
+      ctx.markHandled()
+      return
+    }
+
+    // Option 2: Let Cubism drive the blink, but scale it with the user-provided base.
     // If the model has eye blink parameters
     if (ctx.internalModel.eyeBlink != null) {
       // For the part of the auto eye blink implementation in pixi-live2d-display
@@ -244,8 +350,11 @@ export function useMotionUpdatePluginAutoEyeBlink(): MotionManagerPlugin {
     }
 
     // Apply manual eye parameters after auto eye blink
-    ctx.model.setParameterValueById('ParamEyeLOpen', ctx.modelParameters.value.leftEyeOpen)
-    ctx.model.setParameterValueById('ParamEyeROpen', ctx.modelParameters.value.rightEyeOpen)
+    const blinkLeft = ctx.model.getParameterValueById('ParamEyeLOpen') as number
+    const blinkRight = ctx.model.getParameterValueById('ParamEyeROpen') as number
+
+    ctx.model.setParameterValueById('ParamEyeLOpen', clamp01(blinkLeft * baseLeft))
+    ctx.model.setParameterValueById('ParamEyeROpen', clamp01(blinkRight * baseRight))
 
     ctx.markHandled()
   }

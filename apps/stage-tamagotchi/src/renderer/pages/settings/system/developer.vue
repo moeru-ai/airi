@@ -36,6 +36,12 @@ const menu = computed(() => [
     to: '/devtools/widgets-calling',
   },
   {
+    title: t('tamagotchi.settings.devtools.pages.context-flow.title'),
+    description: 'Inspect incoming context updates and outgoing chat stream events',
+    icon: 'i-solar:chat-square-call-bold-duotone',
+    to: '/devtools/context-flow',
+  },
+  {
     title: 'Relative Mouse',
     description: 'Get mouse position relative to the window',
     icon: 'i-solar:sledgehammer-bold-duotone',

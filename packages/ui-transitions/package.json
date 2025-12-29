@@ -31,7 +31,7 @@
     "vue": "^3.5.25"
   },
   "devDependencies": {
-    "@unocss/reset": "^66.5.10",
+    "@unocss/reset": "^66.5.11",
     "@vitejs/plugin-vue": "^6.0.3",
     "unplugin-vue-router": "^0.19.0",
     "vite": "catalog:rolldown-vite",

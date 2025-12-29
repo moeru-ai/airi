@@ -84,7 +84,7 @@ const maskImageURL = `url(${homeCover})`
       'md:w-[150%] md:translate-y-[40%] md:rotate-[0deg] md:top-8dvh',
       'lg:w-[95%] lg:translate-y-[-20%] lg:translate-x-[-50%] lg:rotate-[0deg] lg:scale-95 lg:top-32dvh',
       'xl:translate-y-[-50%] xl:translate-x-[-50%] xl:scale-80 xl:top-18dvh',
-      '2xl:w-[100%] 2xl:translate-y-[-20%] 2xl:translate-x-[-50%] 2xl:rotate-[0deg] 2xl:top-16dvh',
+      '2xl:w-[100%] 2xl:translate-y-[-20%] 2xl:translate-x-[-50%] 2xl:rotate-[0deg] 2xl:scale-60 2xl:top-12dvh',
     ]"
   >
     <img ref="surface" :src="homeCover" alt="Project AIRI Cover Image" class="w-full object-cover">

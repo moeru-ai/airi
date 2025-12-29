@@ -25,6 +25,7 @@ catalog:
   '@guiiai/logg': ^1.2.11
   '@moeru/eslint-config': 0.1.0-beta.14
   '@moeru/std': 0.1.0-beta.14
+  '@nekopaw/tempora': 0.4.0-alpha.1
   '@proj-airi/drizzle-duckdb-wasm': ^0.4.29
   '@types/audioworklet': ^0.0.92
   '@xsai-ext/providers-cloud': ^0.4.0-beta.12
@@ -35,21 +36,24 @@ catalog:
   '@xsai/generate-text': ^0.4.0-beta.12
   '@xsai/generate-transcription': ^0.4.0-beta.12
   '@xsai/model': ^0.4.0-beta.12
-  '@xsai/shared': ^0.4.0-beta.12
-  '@xsai/shared-chat': ^0.4.0-beta.12
+  '@xsai/shared': 0.4.0-beta.12
+  '@xsai/shared-chat': 0.4.0-beta.12
   '@xsai/stream-text': ^0.4.0-beta.12
   '@xsai/tool': ^0.4.0-beta.12
   '@xsai/utils-chat': 0.4.0-beta.5
   builder-util-runtime: ^9.3.1
   embla-carousel-vue: ^8.6.0
-  es-toolkit: ^1.43.0
+  es-toolkit: 1.43.0
+  injeca: ^0.1.5
+  nanoid: ^5.1.6
   posthog-js: 1.306.1
   uncrypto: ^0.1.3
+  unplugin-info: 1.2.4
   xsschema: ^0.4.0-beta.12
 
 catalogs:
   rolldown-vite:
-    vite: npm:rolldown-vite@^7.2.11
+    vite: npm:rolldown-vite@^7.3.0
   vitest:
     '@vitest/browser-playwright': ^4.0.16
     '@vitest/coverage-v8': ^4.0.16
@@ -57,8 +61,8 @@ catalogs:
 
 onlyBuiltDependencies:
   - '@discordjs/opus'
-  - '@napi-rs/image'
   - '@ffmpeg-installer/darwin-arm64'
+  - '@napi-rs/image'
   - '@parcel/watcher'
   - bufferutil
   - core-js
@@ -67,6 +71,7 @@ onlyBuiltDependencies:
   - es5-ext
   - esbuild
   - ffmpeg-static
+  - less
   - msw
   - onnxruntime-node
   - protobufjs

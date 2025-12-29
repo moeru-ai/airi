@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/vite-plugin-warpdrive",
   "type": "module",
-  "version": "0.8.0-beta.6",
+  "version": "0.8.0-beta.9",
   "private": true,
   "description": "Vite plugin to rewrite and upload heavy build assets to remote object storage",
   "author": {
@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "rolldown": "1.0.0-beta.51",
-    "s3mini": "^0.8.1"
+    "s3mini": "^0.9.0"
   },
   "devDependencies": {
     "@moeru/std": "catalog:"

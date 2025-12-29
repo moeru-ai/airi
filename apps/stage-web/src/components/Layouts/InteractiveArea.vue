@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatHistoryMessage } from '@proj-airi/stage-ui/components'
+import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { ChatHistory } from '@proj-airi/stage-ui/components'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -15,7 +15,7 @@ const { isReady } = useDeferredMount()
 const { messages, sending, streamingMessage } = storeToRefs(useChatStore())
 
 const isLoading = ref(true)
-const historyMessages = computed(() => messages.value as unknown as ChatHistoryMessage[])
+const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 </script>
 
 <template>

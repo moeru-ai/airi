@@ -5,7 +5,14 @@ export function useAudioDevice() {
   const devices = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
   const audioInputs = computed(() => devices.audioInputs.value)
   const selectedAudioInput = ref<string>(devices.audioInputs.value[0]?.deviceId || '')
-  const deviceConstraints = computed<MediaStreamConstraints>(() => ({ audio: { deviceId: { exact: selectedAudioInput.value }, autoGainControl: true, echoCancellation: true, noiseSuppression: true } }))
+  const deviceConstraints = computed<MediaStreamConstraints>(() => ({
+    audio: {
+      ...(selectedAudioInput.value ? { deviceId: { exact: selectedAudioInput.value } } : {}),
+      autoGainControl: true,
+      echoCancellation: true,
+      noiseSuppression: true,
+    },
+  }))
   const { stream, stop: stopStream, start: startStream } = useUserMedia({ constraints: deviceConstraints, enabled: false, autoSwitch: true })
 
   watch(audioInputs, () => {

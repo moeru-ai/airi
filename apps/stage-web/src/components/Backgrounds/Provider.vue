@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import type { BackgroundItem } from '../../stores/background'
 
-import ThemeOverlay from '@proj-airi/stage-ui/components/ThemeOverlay.vue'
-
+import { BackgroundGradientOverlay } from '@proj-airi/stage-ui/components'
 import { ref } from 'vue'
 
 import { BackgroundKind } from '../../stores/background'
@@ -44,7 +43,7 @@ defineExpose({
     </div>
 
     <!-- Overlay (not for wave) -->
-    <ThemeOverlay v-if="background.kind !== BackgroundKind.Wave" :color="topColor" />
+    <BackgroundGradientOverlay v-if="background.kind !== BackgroundKind.Wave" :color="topColor" />
 
     <!-- Content layer (kept mounted during background switches) -->
     <div class="relative z-10 h-full w-full">
