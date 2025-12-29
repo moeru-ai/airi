@@ -5,7 +5,7 @@ import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { toast } from 'vue-sonner'
 
-import { listSessions, signOut } from '../../composables/auth'
+import { listSessions, signOut } from '../../libs/auth'
 import { useAuthStore } from '../../stores/auth'
 
 const authStore = useAuthStore()

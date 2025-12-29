@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
-import { authClient, fetchSession } from '../../composables/auth'
+import { authClient, fetchSession } from '../../libs/auth'
 import { useAuthStore } from '../../stores/auth'
 
 const router = useRouter()

@@ -23,7 +23,7 @@ import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 
-import { fetchSession } from '../composables/auth'
+import { fetchSession } from '../libs/auth'
 
 const paused = ref(false)
 

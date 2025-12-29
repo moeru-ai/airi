@@ -2,10 +2,10 @@ import type { AppType } from '../../../server/src/app'
 
 import { hc } from 'hono/client'
 
+import { SERVER_URL } from '../libs/auth'
 import { useAuthStore } from '../stores/auth'
-import { API_SERVER_URL } from './auth'
 
-export const client = hc<AppType>(API_SERVER_URL, {
+export const client = hc<AppType>(SERVER_URL, {
   fetch: (input: RequestInfo | URL, init?: RequestInit) => {
     const authStore = useAuthStore()
     const headers = new Headers(init?.headers)

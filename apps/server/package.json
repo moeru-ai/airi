@@ -1,5 +1,5 @@
 {
-  "name": "@proj-airi/api-server",
+  "name": "@proj-airi/server",
   "type": "module",
   "version": "0.0.1",
   "private": true,
