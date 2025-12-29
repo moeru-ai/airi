@@ -1,6 +1,6 @@
 import type { InferOutput } from 'valibot'
 
-import { array, boolean, date, literal, nullable, number, object, optional, pipe, string, transform, union } from 'valibot'
+import { array, date, literal, number, object, optional, pipe, string, transform, union } from 'valibot'
 
 // --- Enums & Configs ---
 

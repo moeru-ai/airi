@@ -24,6 +24,7 @@ export function createCharacterService(db: Database<typeof fullSchema>) {
         where: eq(schema.character.ownerId, ownerId),
         with: {
           i18n: true,
+          capabilities: true,
         },
       })
     },

@@ -11,7 +11,6 @@ import {
 } from 'reka-ui'
 import { safeParse } from 'valibot'
 import { computed, reactive, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
 
 import { useCharacterStore } from '../../../../stores/characters'
 import { CreateCharacterSchema } from '../../../../types/character'
@@ -27,7 +26,6 @@ const emit = defineEmits<{
   (e: 'submit'): void
 }>()
 
-const { t } = useI18n()
 const characterStore = useCharacterStore()
 
 // Form State
@@ -50,9 +48,9 @@ const form = reactive({
 // Initialize form when character prop changes or dialog opens
 watch(() => props.character, (char) => {
   if (char) {
-    const i18n = char.i18n.find(i => i.language === 'en') || char.i18n[0]
-    const llm = char.capabilities.find(c => c.type === 'llm')
-    const tts = char.capabilities.find(c => c.type === 'tts')
+    const i18n = char.i18n?.find(i => i.language === 'en') || char.i18n?.[0]
+    const llm = char.capabilities?.find(c => c.type === 'llm')
+    const tts = char.capabilities?.find(c => c.type === 'tts')
 
     form.characterId = char.characterId
     form.version = char.version

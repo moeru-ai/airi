@@ -19,6 +19,8 @@ const emit = defineEmits<{
 
 const i18n = computed(() => {
   // TODO: Use current locale
+  if (!props.character.i18n?.length)
+    return undefined
   return props.character.i18n.find(i => i.language === 'en') || props.character.i18n[0]
 })
 
@@ -26,11 +28,15 @@ const name = computed(() => i18n.value?.name || 'Unknown')
 const description = computed(() => i18n.value?.description || '')
 
 const consciousnessModel = computed(() => {
+  if (!props.character.capabilities)
+    return '-'
   const cap = props.character.capabilities.find(c => c.type === 'llm')
   return cap?.config.llm?.model || '-'
 })
 
 const voiceModel = computed(() => {
+  if (!props.character.capabilities)
+    return '-'
   const cap = props.character.capabilities.find(c => c.type === 'tts')
   return cap?.config.tts?.voiceId || '-'
 })
@@ -38,7 +44,7 @@ const voiceModel = computed(() => {
 
 <template>
   <CursorFloating
-    class="before:mask-image-[linear-gradient(120deg,white_100%)] relative min-h-120px flex flex-col cursor-pointer overflow-hidden rounded-xl bg-neutral-200/50 drop-shadow-none transition-all duration-400 ease-in-out before:absolute before:inset-0 before:z-0 before:h-full before:w-25% dark:bg-neutral-800/50 before:from-primary-500/0 before:to-primary-500/0 before:bg-gradient-to-r before:opacity-0 active:drop-shadow-[0px_0px_0px_rgba(220,220,220,0.25)] hover:drop-shadow-[0px_4px_4px_rgba(220,220,220,0.4)] before:transition-all before:duration-400 before:ease-in-out before:content-empty dark:before:from-primary-400/0 hover:before:from-primary-500/20 hover:before:via-primary-500/10 dark:before:to-primary-400/0 hover:before:to-transparent hover:before:bg-gradient-to-r hover:before:opacity-100 dark:hover:drop-shadow-none dark:hover:before:from-primary-400/20 dark:hover:before:via-primary-400/10 dark:hover:before:to-transparent"
+    class="before:mask-image-[linear-gradient(120deg,white_100%)] before:bg-linear-to-r hover:before:bg-linear-to-r relative min-h-120px flex flex-col cursor-pointer overflow-hidden rounded-xl bg-neutral-200/50 drop-shadow-none transition-all duration-400 ease-in-out before:absolute before:inset-0 before:z-0 before:h-full before:w-25% dark:bg-neutral-800/50 before:from-primary-500/0 before:to-primary-500/0 before:opacity-0 active:drop-shadow-[0px_0px_0px_rgba(220,220,220,0.25)] hover:drop-shadow-[0px_4px_4px_rgba(220,220,220,0.4)] before:transition-all before:duration-400 before:ease-in-out before:content-empty dark:before:from-primary-400/0 hover:before:from-primary-500/20 hover:before:via-primary-500/10 dark:before:to-primary-400/0 hover:before:to-transparent hover:before:opacity-100 dark:hover:drop-shadow-none dark:hover:before:from-primary-400/20 dark:hover:before:via-primary-400/10 dark:hover:before:to-transparent"
     :class="[
       isSelected
         ? 'border-2 border-primary-400 dark:border-primary-600'
