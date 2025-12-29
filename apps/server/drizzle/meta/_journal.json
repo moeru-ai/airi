@@ -8,6 +8,13 @@
       "when": 1766665325052,
       "tag": "0000_steep_gamora",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1766998160836,
+      "tag": "0001_simple_garia",
+      "breakpoints": true
     }
   ]
 }

@@ -7,7 +7,7 @@ import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { bearer } from 'better-auth/plugins'
 
-import * as authSchema from '../schemas/auth'
+import * as authSchema from '../schemas/accounts'
 
 export function createAuth(db: Database, env: Env) {
   return betterAuth({

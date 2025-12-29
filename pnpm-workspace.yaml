@@ -1,3 +1,7 @@
+catalogMode: prefer
+
+shellEmulator: true
+
 packages:
   - packages/**
   - plugins/**
@@ -34,8 +38,9 @@ catalog:
   '@xsai/tool': ^0.4.0-beta.13
   '@xsai/utils-chat': 0.4.0-beta.13
   builder-util-runtime: ^9.3.1
+  drizzle-valibot: ^0.4.2
   embla-carousel-vue: ^8.6.0
-  es-toolkit: 1.43.0
+  es-toolkit: ^1.43.0
   injeca: ^0.1.5
   is-network-error: ^1.3.0
   nano-staged: ^0.9.0
@@ -45,13 +50,11 @@ catalog:
   splitpanes: ^4.0.4
   tsx: ^4.21.0
   uncrypto: ^0.1.3
-  unplugin-info: 1.2.4
   vite-plugin-mkcert: ^1.17.9
+  unplugin-info: ^1.2.4
   valibot: ^1.2.0
   xsschema: ^0.4.0-beta.12
   zod: ^4.2.1
-
-catalogMode: prefer
 
 catalogs:
   rolldown-vite:
@@ -98,5 +101,3 @@ overrides:
 
 patchedDependencies:
   srvx@0.9.8: patches/srvx@0.9.8.patch
-
-shellEmulator: true
