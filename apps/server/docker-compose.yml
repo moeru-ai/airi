@@ -24,7 +24,13 @@ services:
       db:
         condition: service_healthy
     environment:
+      # Database
       - DATABASE_URL=postgresql://postgres:example-P@ssw0rd-xHjDYR.b7N@db:5432/postgres
+      # Auth
+      - AUTH_GOOGLE_CLIENT_ID
+      - AUTH_GOOGLE_CLIENT_SECRET
+      - AUTH_GITHUB_CLIENT_ID
+      - AUTH_GITHUB_CLIENT_SECRET
     ports:
       - '6112:3000'
     healthcheck:
