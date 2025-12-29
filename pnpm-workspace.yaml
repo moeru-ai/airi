@@ -30,6 +30,7 @@ catalog:
   drizzle-valibot: ^0.4.2
   embla-carousel-vue: ^8.6.0
   es-toolkit: ^1.43.0
+  hono: ^4.10.8
   injeca: ^0.1.5
   posthog-js: 1.306.1
   uncrypto: ^0.1.3
