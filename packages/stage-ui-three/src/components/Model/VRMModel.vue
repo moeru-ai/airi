@@ -17,6 +17,7 @@ import type {
 } from 'three'
 import type { Ref, WatchStopHandle } from 'vue'
 
+import type { EnqueueGestureFramesOptions, GestureFrame, VrmUpperBodyBone } from '../../performance/types'
 import type { Vec3 } from '../../stores/model-store'
 
 import { VRMUtils } from '@pixiv/three-vrm'
@@ -39,6 +40,7 @@ import {
   computed,
   onMounted,
   onUnmounted,
+  reactive,
   ref,
 
   shallowRef,
@@ -65,6 +67,7 @@ import {
 import { loadVrm } from '../../composables/vrm/core'
 import { useVRMEmote } from '../../composables/vrm/expression'
 import { useVRMLipSync } from '../../composables/vrm/lip-sync'
+import { useGestureStream } from '../../performance/gesture-stream'
 
 /*
   * Props:
@@ -166,6 +169,11 @@ const blink = useBlink()
 const idleEyeSaccades = useIdleEyeSaccades()
 const vrmEmote = ref<ReturnType<typeof useVRMEmote>>()
 const vrmLipSync = useVRMLipSync(currentAudioSource)
+const expressionResetTimeouts = reactive(new Map<string, number>())
+const gestureStream = useGestureStream()
+const performanceTimeMs = ref(0)
+const suppressBlinkUntilMs = ref(0)
+let blinkSuppressed = false
 
 // For sky box update
 const nprProgramVersion = ref(0)
@@ -176,6 +184,13 @@ let airiIblProbe: ReturnType<typeof createIblProbeController> | null = null
 function componentCleanUp() {
   // clear animation
   disposeBeforeRenderLoop?.()
+  for (const timeoutId of expressionResetTimeouts.values())
+    clearTimeout(timeoutId)
+  expressionResetTimeouts.clear()
+  gestureStream.reset()
+  performanceTimeMs.value = 0
+  suppressBlinkUntilMs.value = 0
+  blinkSuppressed = false
   // clear vrm group
   if (vrmGroup.value) {
     vrmGroup.value.removeFromParent()
@@ -416,14 +431,34 @@ async function loadModel() {
 
       // Clean up & animation setting
       disposeBeforeRenderLoop = onBeforeRender(({ delta }) => {
+        performanceTimeMs.value += delta * 1000
         vrmAnimationMixer.value?.update(delta)
-        vrm.value?.update(delta)
-        vrm.value?.lookAt?.update?.(delta)
-        blink.update(vrm.value, delta)
+        // Apply base VRMAnimation clips (normalized bones) to raw bones first.
+        // Then apply gesture overrides on raw bones, and finally run constraints / spring bones.
+        vrm.value?.humanoid?.update?.()
+        const shouldSuppressBlink = performanceTimeMs.value < suppressBlinkUntilMs.value
+        if (shouldSuppressBlink) {
+          if (!blinkSuppressed) {
+            blink.reset(vrm.value)
+            blinkSuppressed = true
+          }
+        }
+        else {
+          blinkSuppressed = false
+          blink.update(vrm.value, delta)
+        }
         idleEyeSaccades.update(vrm.value, lookAtTarget, delta)
         vrmEmote.value?.update(delta)
         vrmLipSync.update(vrm.value, delta)
-        vrm.value?.springBoneManager?.update(delta)
+        gestureStream.update(vrm.value, performanceTimeMs.value)
+        vrm.value?.lookAt?.update?.(delta)
+        vrm.value?.expressionManager?.update?.()
+        vrm.value?.nodeConstraintManager?.update?.()
+        vrm.value?.springBoneManager?.update?.(delta)
+        vrm.value?.materials?.forEach((material: any) => {
+          if (typeof material?.update === 'function')
+            material.update(delta)
+        })
       }).off
 
       // update the 'last model src'
@@ -560,7 +595,65 @@ if (import.meta.hot) {
 
 defineExpose({
   setExpression(expression: string) {
-    vrmEmote.value?.setEmotionWithResetAfter(expression, 1000)
+    const holdMs = 3000
+    suppressBlinkUntilMs.value = Math.max(suppressBlinkUntilMs.value, performanceTimeMs.value + holdMs)
+    vrmEmote.value?.setEmotionWithResetAfter(expression, holdMs)
+  },
+  getPerformanceTimeMs() {
+    return performanceTimeMs.value
+  },
+  listExpressions() {
+    const map = vrm.value?.expressionManager?.expressionMap
+    return map ? Object.keys(map) : []
+  },
+  setExpressionValue(name: string, value: number, resetAfterMs?: number) {
+    const manager = vrm.value?.expressionManager
+    if (!manager)
+      return
+
+    const keys = Object.keys(manager.expressionMap)
+    const resolved = keys.find(k => k.toLowerCase() === name.toLowerCase()) ?? name
+
+    manager.setValue(resolved, value)
+
+    const existing = expressionResetTimeouts.get(resolved)
+    if (existing) {
+      clearTimeout(existing)
+      expressionResetTimeouts.delete(resolved)
+    }
+
+    if (resetAfterMs && resetAfterMs > 0) {
+      if (value > 0) {
+        suppressBlinkUntilMs.value = Math.max(suppressBlinkUntilMs.value, performanceTimeMs.value + resetAfterMs)
+      }
+      const timeoutId = setTimeout(() => {
+        try {
+          manager.setValue(resolved, 0)
+        }
+        finally {
+          expressionResetTimeouts.delete(resolved)
+        }
+      }, resetAfterMs) as unknown as number
+      expressionResetTimeouts.set(resolved, timeoutId)
+    }
+  },
+  enqueueGestureFrames(inputFrames: GestureFrame[] | GestureFrame, options?: EnqueueGestureFramesOptions) {
+    gestureStream.enqueue(inputFrames, performanceTimeMs.value, options)
+  },
+  clearGestureStream() {
+    gestureStream.clear()
+  },
+  setGestureBoneWeights(scales: Partial<Record<VrmUpperBodyBone, number>>) {
+    gestureStream.setBoneWeightScale(scales)
+  },
+  setGestureAxisCorrection(options: {
+    global?: [number, number, number, number]
+    perBone?: Partial<Record<VrmUpperBodyBone, [number, number, number, number]>>
+  }) {
+    gestureStream.setAxisCorrection(options)
+  },
+  setGestureRotationScale(scale: number) {
+    gestureStream.setRotationScale(scale)
   },
   scene: computed(() => vrm.value?.scene),
   lookAtUpdate(target: Vec3) {

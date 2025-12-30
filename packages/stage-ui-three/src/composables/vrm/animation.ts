@@ -99,6 +99,14 @@ export function useBlink() {
   const MAX_BLINK_INTERVAL = 6 // Maximum time between blinks
   const nextBlinkTime = ref(Math.random() * (MAX_BLINK_INTERVAL - MIN_BLINK_INTERVAL) + MIN_BLINK_INTERVAL)
 
+  function reset(vrm?: VRMCore) {
+    isBlinking.value = false
+    blinkProgress.value = 0
+    timeSinceLastBlink.value = 0
+    nextBlinkTime.value = Math.random() * (MAX_BLINK_INTERVAL - MIN_BLINK_INTERVAL) + MIN_BLINK_INTERVAL
+    vrm?.expressionManager?.setValue('blink', 0)
+  }
+
   // Function to handle blinking animation
   function update(vrm: VRMCore | undefined, delta: number) {
     if (!vrm?.expressionManager)
@@ -132,7 +140,7 @@ export function useBlink() {
     }
   }
 
-  return { update }
+  return { update, reset }
 }
 
 /**

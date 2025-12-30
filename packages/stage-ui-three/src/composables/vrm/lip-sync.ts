@@ -3,7 +3,7 @@ import type { Ref } from 'vue'
 import type { Profile } from 'wlipsync'
 
 import { useAsyncState } from '@vueuse/core'
-import { onUnmounted, watch } from 'vue'
+import { onUnmounted, ref, watch } from 'vue'
 import { createWLipSyncNode } from 'wlipsync'
 
 import profile from '../../assets/lip-sync-profile.json' with { type: 'json' }
@@ -13,6 +13,7 @@ import { useAudioContext } from '../../../../stage-ui/src/stores/audio'
 export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, AudioBufferSourceNode | undefined>) {
   const { audioContext } = useAudioContext()
   const { state: lipSyncNode, isReady } = useAsyncState(createWLipSyncNode(audioContext, profile as Profile), undefined)
+  const isConnected = ref(false)
 
   // https://github.com/mrxz/wLipSync/blob/c3bc4b321dc7e1ca333d75f7aa1e9e746cbbb23a/example/index.js#L50-L66
   const RAW_KEYS = ['A', 'E', 'I', 'O', 'U', 'S'] as const
@@ -50,21 +51,52 @@ export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, 
       }
       catch {}
     }
-    if (!ready || !newAudioNode || !lipSyncNode.value)
+    if (!ready || !lipSyncNode.value) {
+      isConnected.value = false
       return
+    }
+    if (!newAudioNode) {
+      isConnected.value = false
+      return
+    }
     try {
       newAudioNode.connect(lipSyncNode.value)
+      isConnected.value = true
+    }
+    catch {
+      isConnected.value = false
+    }
+  }, { immediate: true })
+  onUnmounted(() => {
+    isConnected.value = false
+    try {
+      audioNode.value?.disconnect()
     }
     catch {}
-  }, { immediate: true })
-  onUnmounted(() => audioNode.value?.disconnect())
+  })
 
   function update(vrm?: VRMCore, delta = 0.016) {
     const node = lipSyncNode.value
     if (!vrm?.expressionManager || !node)
       return
 
-    const vol = node.volume ?? 0
+    // NOTE: When the audio node gets disconnected, wLipSync may keep the last
+    // volume/weights internally, which can freeze the mouth open. Gate on the
+    // actual connection state and decay to zero when disconnected.
+    if (!isConnected.value || !audioNode.value) {
+      lastActiveAt = 0
+      for (const key of LIP_KEYS) {
+        const from = smoothState[key]
+        const to = 0
+        const rate = 1 - Math.exp(-RELEASE * delta)
+        smoothState[key] = from + (to - from) * rate
+        const weight = (smoothState[key] <= 0.01 ? 0 : smoothState[key]) * 0.7
+        vrm.expressionManager.setValue(BLENDSHAPE_MAP[key], weight)
+      }
+      return
+    }
+
+    const vol = Number.isFinite(node.volume) ? (node.volume ?? 0) : 0
     const amp = Math.min(vol * 0.9, 1) ** 0.7
 
     // Remapping wLipSync output AEIOUS to AEIOU
