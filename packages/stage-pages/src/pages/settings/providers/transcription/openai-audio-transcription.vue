@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
+import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import {
   TranscriptionPlayground,

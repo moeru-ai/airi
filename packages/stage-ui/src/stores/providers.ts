@@ -7,7 +7,7 @@ import type {
   SpeechProviderWithExtraOptions,
   TranscriptionProvider,
   TranscriptionProviderWithExtraOptions,
-} from '@xsai-ext/shared-providers'
+} from '@xsai-ext/providers/utils'
 import type { ProgressInfo } from '@xsai-transformers/shared/types'
 import type {
   UnAlibabaCloudOptions,
@@ -22,31 +22,29 @@ import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
 import { computedAsync, useLocalStorage } from '@vueuse/core'
 import {
-  createAzure,
   createCerebras,
   createDeepSeek,
   createFireworks,
   createGoogleGenerativeAI,
   createMistral,
-  createMoonshot,
+  createMoonshotai,
   createNovita,
+  createOllama,
   createOpenAI,
   createOpenRouter,
   createPerplexity,
   createTogetherAI,
-  createWorkersAI,
-  createXAI,
-} from '@xsai-ext/providers-cloud'
-import { createOllama, createPlayer2 } from '@xsai-ext/providers-local'
+  createXai,
+} from '@xsai-ext/providers/create'
+import { createAzure, createPlayer2, createWorkersAI } from '@xsai-ext/providers/special/create'
 import {
   createChatProvider,
   createEmbedProvider,
-  createMetadataProvider,
   createModelProvider,
   createSpeechProvider,
   createTranscriptionProvider,
   merge,
-} from '@xsai-ext/shared-providers'
+} from '@xsai-ext/providers/utils'
 import { listModels } from '@xsai/model'
 import { isWebGPUSupported } from 'gpuu/webgpu'
 import { defineStore } from 'pinia'
@@ -208,7 +206,6 @@ function createAnthropic(apiKey: string, baseURL: string = 'https://api.anthropi
   }
 
   return merge(
-    createMetadataProvider('anthropic'),
     /** @see {@link https://docs.anthropic.com/en/docs/about-claude/models/all-models} */
     createChatProvider({ apiKey, fetch: anthropicFetch, baseURL }),
     createModelProvider({ apiKey, fetch: anthropicFetch, baseURL }),
@@ -1501,7 +1498,7 @@ export const useProvidersStore = defineStore('providers', () => {
       icon: 'i-lobe-icons:xai',
       description: 'x.ai',
       defaultBaseUrl: 'https://api.x.ai/v1/',
-      creator: createXAI,
+      creator: createXai,
       validation: ['health', 'model_list'],
     }),
     'vllm': {
@@ -1709,7 +1706,7 @@ export const useProvidersStore = defineStore('providers', () => {
       icon: 'i-lobe-icons:moonshot',
       description: 'moonshot.ai',
       defaultBaseUrl: 'https://api.moonshot.ai/v1/',
-      creator: createMoonshot,
+      creator: createMoonshotai,
       validation: ['health', 'model_list'],
     }),
     'modelscope': buildOpenAICompatibleProvider({

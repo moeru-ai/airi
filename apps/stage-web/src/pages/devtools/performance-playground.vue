@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TTSChunkItem } from '@proj-airi/stage-ui/utils/tts'
-import type { ChatProvider, SpeechProviderWithExtraOptions } from '@xsai-ext/shared-providers'
+import type { ChatProvider, SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'

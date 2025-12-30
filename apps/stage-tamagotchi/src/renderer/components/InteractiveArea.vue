@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
-import type { ChatProvider } from '@xsai-ext/shared-providers'
+import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { ChatHistory } from '@proj-airi/stage-ui/components'
 import { useMicVAD } from '@proj-airi/stage-ui/composables'

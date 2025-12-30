@@ -1,6 +1,6 @@
 import { env } from 'node:process'
 
-import { createOpenRouter } from '@xsai-ext/providers-cloud'
+import { createOpenRouter } from '@xsai-ext/providers/create'
 import { describe, expect, it } from 'vitest'
 
 import { attemptForToolsCompatibilityDiscovery } from './llm'

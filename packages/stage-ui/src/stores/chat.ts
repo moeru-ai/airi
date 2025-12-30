@@ -1,4 +1,4 @@
-import type { ChatProvider } from '@xsai-ext/shared-providers'
+import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { CommonContentPart, Message, SystemMessage, ToolMessage } from '@xsai/shared-chat'
 
 import type { StreamEvent, StreamOptions } from '../stores/llm'
