@@ -99,7 +99,12 @@ export default defineConfig({
     }),
 
     // https://github.com/JohnCampionJr/vite-plugin-vue-layouts
-    Layouts(),
+    Layouts({
+      layoutsDirs: [
+        resolve(import.meta.dirname, 'src', 'layouts'),
+        resolve(import.meta.dirname, '..', '..', 'packages', 'stage-layouts', 'src', 'layouts'),
+      ],
+    }),
 
     // https://github.com/antfu/unocss
     // see uno.config.ts for config

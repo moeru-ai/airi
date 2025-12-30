@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
+import Header from '@proj-airi/stage-layouts/components/Layouts/Header.vue'
+import InteractiveArea from '@proj-airi/stage-layouts/components/Layouts/InteractiveArea.vue'
+import MobileHeader from '@proj-airi/stage-layouts/components/Layouts/MobileHeader.vue'
+import MobileInteractiveArea from '@proj-airi/stage-layouts/components/Layouts/MobileInteractiveArea.vue'
 import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
@@ -16,12 +20,7 @@ import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 
-import Header from '../components/Layouts/Header.vue'
-import InteractiveArea from '../components/Layouts/InteractiveArea.vue'
-import MobileHeader from '../components/Layouts/MobileHeader.vue'
-import MobileInteractiveArea from '../components/Layouts/MobileInteractiveArea.vue'
-
-import { BackgroundProvider } from '../components/Backgrounds'
+import { BackgroundProvider } from '@proj-airi/stage-layouts/components/Backgrounds'
 import { useBackgroundThemeColor } from '../composables/theme-color'
 import { useBackgroundStore } from '../stores/background'
 

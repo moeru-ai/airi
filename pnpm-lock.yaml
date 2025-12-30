@@ -351,6 +351,9 @@ importers:
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../../packages/server-sdk
+      '@proj-airi/stage-layouts':
+        specifier: workspace:^
+        version: link:../../packages/stage-layouts
       '@proj-airi/stage-ui':
         specifier: workspace:^
         version: link:../../packages/stage-ui
@@ -1106,6 +1109,9 @@ importers:
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../../packages/server-sdk
+      '@proj-airi/stage-layouts':
+        specifier: workspace:^
+        version: link:../../packages/stage-layouts
       '@proj-airi/stage-ui':
         specifier: workspace:^
         version: link:../../packages/stage-ui
@@ -1713,6 +1719,106 @@ importers:
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
+
+  packages/stage-layouts:
+    dependencies:
+      '@moeru/eventa':
+        specifier: ^1.0.0-alpha.10
+        version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
+      '@proj-airi/ccc':
+        specifier: workspace:*
+        version: link:../ccc
+      '@proj-airi/i18n':
+        specifier: workspace:*
+        version: link:../i18n
+      '@proj-airi/server-sdk':
+        specifier: workspace:*
+        version: link:../server-sdk
+      '@proj-airi/stage-ui':
+        specifier: workspace:*
+        version: link:../stage-ui
+      '@proj-airi/stage-ui-three':
+        specifier: workspace:*
+        version: link:../stage-ui-three
+      '@proj-airi/ui':
+        specifier: workspace:*
+        version: link:../ui
+      '@stdlib/string-base-kebabcase':
+        specifier: ^0.2.2
+        version: 0.2.2
+      '@vueuse/core':
+        specifier: ^14.1.0
+        version: 14.1.0(vue@3.5.25(typescript@5.9.3))
+      '@vueuse/shared':
+        specifier: ^14.1.0
+        version: 14.1.0(vue@3.5.25(typescript@5.9.3))
+      '@xsai-ext/providers':
+        specifier: 'catalog:'
+        version: 0.4.0-beta.13
+      '@xsai/generate-speech':
+        specifier: 'catalog:'
+        version: 0.4.0-beta.13
+      '@xsai/stream-transcription':
+        specifier: 0.4.0-beta.8
+        version: 0.4.0-beta.8
+      animejs:
+        specifier: ^4.2.2
+        version: 4.2.2
+      colorjs.io:
+        specifier: ^0.6.0
+        version: 0.6.0
+      dompurify:
+        specifier: ^3.3.1
+        version: 3.3.1
+      localforage:
+        specifier: ^1.10.0
+        version: 1.10.0
+      nanoid:
+        specifier: ^5.1.6
+        version: 5.1.6
+      node-vibrant:
+        specifier: ^4.0.3
+        version: 4.0.3(encoding@0.1.13)
+      pinia:
+        specifier: ^3.0.4
+        version: 3.0.4(typescript@5.9.3)(vue@3.5.25(typescript@5.9.3))
+      posthog-js:
+        specifier: 'catalog:'
+        version: 1.306.1
+      reka-ui:
+        specifier: ^2.7.0
+        version: 2.7.0(typescript@5.9.3)(vue@3.5.25(typescript@5.9.3))
+      unspeech:
+        specifier: ^0.1.7
+        version: 0.1.7
+      vue:
+        specifier: ^3.5.25
+        version: 3.5.25(typescript@5.9.3)
+      vue-i18n:
+        specifier: ^11.2.2
+        version: 11.2.7(vue@3.5.25(typescript@5.9.3))
+      vue-router:
+        specifier: ^4.6.4
+        version: 4.6.4(vue@3.5.25(typescript@5.9.3))
+    devDependencies:
+      '@nekopaw/tempora':
+        specifier: 'catalog:'
+        version: 0.4.0-alpha.1
+      '@proj-airi/stage-shared':
+        specifier: workspace:^
+        version: link:../stage-shared
+      '@types/audioworklet':
+        specifier: 'catalog:'
+        version: 0.0.92
+      '@types/three':
+        specifier: ^0.182.0
+        version: 0.182.0
+      unplugin-info:
+        specifier: 'catalog:'
+        version: 1.2.4(@nuxt/kit@3.20.2(magicast@0.5.1))(esbuild@0.27.2)(rollup@4.54.0)(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+      vue-tsc:
+        specifier: ^3.1.8
+        version: 3.2.1(typescript@5.9.3)
 
   packages/stage-pages:
     dependencies:
@@ -2506,7 +2612,7 @@ importers:
         version: 66.5.11
       '@wxt-dev/module-vue':
         specifier: ^1.0.3
-        version: 1.0.3(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+        version: 1.0.3(vite@8.0.0-beta.5(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       vue-tsc:
         specifier: ^3.1.8
         version: 3.2.1(typescript@5.9.3)
@@ -21029,6 +21135,12 @@ snapshots:
       vite: 7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
       vue: 3.5.25(typescript@5.9.3)
 
+  '@vitejs/plugin-vue@6.0.3(vite@8.0.0-beta.5(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))':
+    dependencies:
+      '@rolldown/pluginutils': 1.0.0-beta.53
+      vite: 8.0.0-beta.5(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vue: 3.5.25(typescript@5.9.3)
+
   '@vitest/browser-playwright@4.0.16(bufferutil@4.1.0)(playwright@1.57.0)(utf-8-validate@5.0.10)(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vitest@4.0.16)':
     dependencies:
       '@vitest/browser': 4.0.16(bufferutil@4.1.0)(utf-8-validate@5.0.10)(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vitest@4.0.16)
@@ -21787,9 +21899,9 @@ snapshots:
       '@types/filesystem': 0.0.36
       '@types/har-format': 1.2.16
 
-  '@wxt-dev/module-vue@1.0.3(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
+  '@wxt-dev/module-vue@1.0.3(vite@8.0.0-beta.5(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
-      '@vitejs/plugin-vue': 6.0.3(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
+      '@vitejs/plugin-vue': 6.0.3(vite@8.0.0-beta.5(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
       wxt: 0.20.13(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - vite
