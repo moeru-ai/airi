@@ -52,40 +52,42 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
     return tools ?? []
   }
 
-  return new Promise<void>(async (resolve, reject) => {
-    try {
-      const supportedTools = streamOptionsToolsCompatibilityOk(model, chatProvider, messages, options)
+  return new Promise<void>((resolve, reject) => {
+    void (async () => {
+      try {
+        const supportedTools = streamOptionsToolsCompatibilityOk(model, chatProvider, messages, options)
 
-      await streamText({
-        ...chatProvider.chat(model),
-        maxSteps: 10,
-        messages: sanitized,
-        headers,
-        // TODO: we need Automatic tools discovery
-        tools: supportedTools
-          ? [
-              ...await mcp(),
-              ...await debug(),
-              ...await resolveTools(),
-            ]
-          : undefined,
-        async onEvent(event) {
-          try {
-            await options?.onStreamEvent?.(event as StreamEvent)
-            if (event.type === 'finish')
-              resolve()
-            else if (event.type === 'error')
-              reject(event.error ?? new Error('Stream error'))
-          }
-          catch (err) {
-            reject(err)
-          }
-        },
-      })
-    }
-    catch (err) {
-      reject(err)
-    }
+        await streamText({
+          ...chatProvider.chat(model),
+          maxSteps: 10,
+          messages: sanitized,
+          headers,
+          // TODO: we need Automatic tools discovery
+          tools: supportedTools
+            ? [
+                ...await mcp(),
+                ...await debug(),
+                ...await resolveTools(),
+              ]
+            : undefined,
+          async onEvent(event) {
+            try {
+              await options?.onStreamEvent?.(event as StreamEvent)
+              if (event.type === 'finish')
+                resolve()
+              else if (event.type === 'error')
+                reject(event.error ?? new Error('Stream error'))
+            }
+            catch (err) {
+              reject(err)
+            }
+          },
+        })
+      }
+      catch (err) {
+        reject(err)
+      }
+    })()
   })
 }
 

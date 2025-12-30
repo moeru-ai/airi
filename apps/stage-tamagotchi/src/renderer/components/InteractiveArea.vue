@@ -6,6 +6,7 @@ import { ChatHistory } from '@proj-airi/stage-ui/components'
 import { useMicVAD } from '@proj-airi/stage-ui/composables'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
@@ -28,6 +29,58 @@ const { t } = useI18n()
 const providersStore = useProvidersStore()
 const { activeModel, activeProvider } = storeToRefs(useConsciousnessStore())
 const isComposing = ref(false)
+const hearingPipeline = useHearingSpeechInputPipeline()
+const { transcribeForRecording, stopStreamingTranscription } = hearingPipeline
+
+function float32ToWavFile(buffer: Float32Array, sampleRate = 16000) {
+  const BITS_PER_SAMPLE = 16
+  const BYTES_PER_SAMPLE = BITS_PER_SAMPLE / 8
+  const CHANNELS = 1
+  const WAV_HEADER_SIZE = 44
+  const FMT_CHUNK_SIZE = 16
+  const PCM_FORMAT = 1
+
+  const blockAlign = CHANNELS * BYTES_PER_SAMPLE
+  const byteRate = sampleRate * blockAlign
+  const dataLength = buffer.length * BYTES_PER_SAMPLE
+  const bufferLength = WAV_HEADER_SIZE + dataLength
+
+  const arrayBuffer = new ArrayBuffer(bufferLength)
+  const view = new DataView(arrayBuffer)
+
+  function writeString(offset: number, str: string) {
+    for (let i = 0; i < str.length; i++)
+      view.setUint8(offset + i, str.charCodeAt(i))
+  }
+
+  // RIFF header
+  writeString(0, 'RIFF')
+  view.setUint32(4, WAV_HEADER_SIZE - 8 + dataLength, true)
+  writeString(8, 'WAVE')
+
+  // fmt chunk
+  writeString(12, 'fmt ')
+  view.setUint32(16, FMT_CHUNK_SIZE, true)
+  view.setUint16(20, PCM_FORMAT, true)
+  view.setUint16(22, CHANNELS, true)
+  view.setUint32(24, sampleRate, true)
+  view.setUint32(28, byteRate, true)
+  view.setUint16(32, blockAlign, true)
+  view.setUint16(34, BITS_PER_SAMPLE, true)
+
+  // data chunk
+  writeString(36, 'data')
+  view.setUint32(40, dataLength, true)
+
+  let offset = WAV_HEADER_SIZE
+  for (let i = 0; i < buffer.length; i++) {
+    const s = Math.max(-1, Math.min(1, buffer[i]))
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true)
+    offset += BYTES_PER_SAMPLE
+  }
+
+  return new File([arrayBuffer], 'recording.wav', { type: 'audio/wav' })
+}
 
 async function handleSend() {
   if (isComposing.value) {
@@ -102,12 +155,8 @@ function removeAttachment(index: number) {
 
 const { destroy, start } = useMicVAD(selectedAudioInput, {
   onSpeechStart: () => {
-    // TODO: interrupt the playback
-    // TODO: interrupt any of the ongoing TTS
-    // TODO: interrupt any of the ongoing LLM requests
-    // TODO: interrupt any of the ongoing animation of Live2D or VRM
-    // TODO: once interrupted, we should somehow switch to listen or thinking
-    //       emotion / expression?
+    // Interrupt ongoing speech/transcription sessions
+    void stopStreamingTranscription(true)
     listening.value = true
   },
   // VAD misfire means while speech end is detected but
@@ -115,20 +164,25 @@ const { destroy, start } = useMicVAD(selectedAudioInput, {
   // is not enough to be considered as a speech segment
   // which controlled by the `minSpeechFrames` parameter
   onVADMisfire: () => {
-    // TODO: do audio buffer send to whisper
     listening.value = false
   },
-  onSpeechEnd: (buffer) => {
-    // TODO: do audio buffer send to whisper
+  onSpeechEnd: (buffer: Float32Array) => {
     listening.value = false
     handleTranscription(buffer)
   },
   auto: false,
 })
 
-function handleTranscription(_buffer: Float32Array) {
-  // eslint-disable-next-line no-alert
-  alert('Transcription is not implemented yet')
+async function handleTranscription(buffer: Float32Array) {
+  try {
+    const recordingFile = float32ToWavFile(buffer)
+    const text = await transcribeForRecording(recordingFile)
+    if (typeof text === 'string' && text.trim())
+      messageInput.value = text
+  }
+  catch (err) {
+    console.error('Transcription failed', err)
+  }
 }
 
 watch(enabled, async (value) => {

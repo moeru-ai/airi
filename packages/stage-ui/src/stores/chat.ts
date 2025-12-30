@@ -235,9 +235,13 @@ export const useChatStore = defineStore('chat', () => {
     return nextGeneration
   }
 
+  function renderSystemPrompt(template: string) {
+    const userName = 'User'
+    return template.replaceAll('{{ user }}', userName)
+  }
+
   function generateInitialMessage() {
-    // TODO: compose, replace {{ user }} tag, etc
-    const content = codeBlockSystemPrompt + mathSyntaxSystemPrompt + systemPrompt.value
+    const content = codeBlockSystemPrompt + mathSyntaxSystemPrompt + renderSystemPrompt(systemPrompt.value)
 
     return {
       role: 'system',
@@ -336,6 +340,18 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   // ----- Send flow (user -> LLM -> assistant) -----
+  function sanitizeContextKey(key: string) {
+    const safe = key.replace(/[^\w-]/g, '_').replace(/^[_-]+/, '')
+    if (!safe || safe === '__proto__' || safe === 'constructor' || safe === 'prototype')
+      return `ctx_${Math.random().toString(36).slice(2)}`
+    return safe
+  }
+
+  function buildSafeContexts() {
+    const safeEntries = Object.entries(activeContexts.value ?? {}).map(([key, value]) => [sanitizeContextKey(key), value] as const)
+    return Object.fromEntries(safeEntries) as Record<string, ContextMessage[]>
+  }
+
   async function performSend(
     sendingMessage: string,
     options: SendOptions,
@@ -350,7 +366,7 @@ export const useChatStore = defineStore('chat', () => {
     const sendingCreatedAt = Date.now()
     const streamingMessageContext: ChatStreamEventContext = {
       input: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt },
-      contexts: { ...activeContexts.value },
+      contexts: { ...buildSafeContexts() },
       composedMessage: [],
     }
 
@@ -453,9 +469,8 @@ export const useChatStore = defineStore('chat', () => {
         return rawMessage
       })
 
-      // TODO: possible prototype pollution as key of activeContexts is from external source
-      // TODO: sanitize keys or use a safer structure
-      if (Object.keys(activeContexts.value).length > 0) {
+      const safeContexts = buildSafeContexts()
+      if (Object.keys(safeContexts).length > 0) {
         const system = newMessages.slice(0, 1)
         const afterSystem = newMessages.slice(1, newMessages.length)
 
@@ -464,11 +479,9 @@ export const useChatStore = defineStore('chat', () => {
           {
             role: 'user',
             content: [
-            // TODO: use prompt render & i18n system later
-            // TODO: Module should have description & context length management
               { type: 'text', text: ''
-                + 'These are the contextual information retrieved or on-demand updated from other modules, you may use them as context for chat, or reference of the next action, tool call, etc.:\n'
-                + `${Object.entries(activeContexts.value).map(([key, value]) => `Module ${key}: ${JSON.stringify(value)}`).join('\n')}\n` },
+                + 'Context from other modules (sanitized):\n'
+                + `${Object.entries(safeContexts).map(([key, value]) => `Module ${key}: ${JSON.stringify(value)}`).join('\n')}\n` },
             ],
           },
           ...afterSystem,

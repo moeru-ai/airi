@@ -42,6 +42,9 @@ export const useLive2d = defineStore('live2d', () => {
 
   const onShouldUpdateView = (hook: () => void) => {
     shouldUpdateViewHooks.value.push(hook)
+    return () => {
+      shouldUpdateViewHooks.value = shouldUpdateViewHooks.value.filter(h => h !== hook)
+    }
   }
 
   function shouldUpdateView() {
