@@ -8,6 +8,8 @@ import MobileInteractiveArea from '@proj-airi/stage-layouts/components/Layouts/M
 import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
 import { BackgroundProvider } from '@proj-airi/stage-layouts/components/Backgrounds'
+import { useBackgroundThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
+import { useBackgroundStore } from '@proj-airi/stage-layouts/stores/background'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
@@ -20,9 +22,6 @@ import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
-
-import { useBackgroundThemeColor } from '../composables/theme-color'
-import { useBackgroundStore } from '../stores/background'
 
 const paused = ref(false)
 

@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@moeru/eventa": "^1.0.0-alpha.10",
+    "@moeru/std": "catalog:",
     "@proj-airi/ccc": "workspace:*",
     "@proj-airi/i18n": "workspace:*",
     "@proj-airi/server-sdk": "workspace:*",
