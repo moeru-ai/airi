@@ -66,8 +66,6 @@ function initAnalyser() {
   analyser.value = audioContext.createAnalyser()
   analyserDataBuffer.value = new Uint8Array(analyser.value.frequencyBinCount)
   analyser.value.getByteTimeDomainData(analyserDataBuffer.value)
-  const windowAny = window as any
-  windowAny.analyserDataBuffer = analyserDataBuffer
 
   fetchAnalyserDataDuringFrames()
 }
