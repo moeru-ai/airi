@@ -24,6 +24,9 @@ catalogs:
     '@types/audioworklet':
       specifier: ^0.0.92
       version: 0.0.92
+    '@vueuse/core':
+      specifier: ^14.1.0
+      version: 14.1.0
     '@xsai-ext/providers-cloud':
       specifier: ^0.4.0-beta.12
       version: 0.4.0-beta.12
@@ -397,7 +400,7 @@ importers:
         specifier: ^5.2.1
         version: 5.2.1(three@0.182.0)(vue@3.5.25(typescript@5.9.3))
       '@vueuse/core':
-        specifier: ^14.1.0
+        specifier: 'catalog:'
         version: 14.1.0(vue@3.5.25(typescript@5.9.3))
       '@vueuse/shared':
         specifier: ^14.1.0

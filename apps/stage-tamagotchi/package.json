@@ -62,7 +62,7 @@
     "@stdlib/string-base-kebabcase": "^0.2.2",
     "@tresjs/cientos": "^5.2.1",
     "@tresjs/core": "^5.2.1",
-    "@vueuse/core": "^14.1.0",
+    "@vueuse/core": "catalog:",
     "@vueuse/shared": "^14.1.0",
     "@xsai-ext/providers-cloud": "catalog:",
     "@xsai-ext/providers-local": "catalog:",
