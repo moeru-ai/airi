@@ -1,7 +1,6 @@
 catalogMode: prefer
 
 shellEmulator: true
-
 packages:
   - packages/**
   - plugins/**
@@ -20,7 +19,6 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
-
 catalog:
   '@guiiai/logg': ^1.2.11
   '@moeru/eslint-config': 0.1.0-beta.14
@@ -44,7 +42,9 @@ catalog:
   es-toolkit: 1.43.0
   injeca: ^0.1.5
   nanoid: ^5.1.6
+  ofetch: ^1.5.1
   posthog-js: 1.306.1
+  tsx: ^4.21.0
   uncrypto: ^0.1.3
   unplugin-info: 1.2.4
   xsschema: ^0.4.0-beta.12

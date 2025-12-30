@@ -80,6 +80,12 @@ const menu = computed(() => [
     icon: 'i-solar:sledgehammer-bold-duotone',
     to: '/devtools/performance-playground',
   },
+  {
+    title: 'MediaPipe Workshop',
+    description: 'Single-person mocap playground (MediaPipe backend) with scheduling knobs',
+    icon: 'i-solar:sledgehammer-bold-duotone',
+    to: '/devtools/model-driver-mediapipe',
+  },
 ])
 </script>
 
