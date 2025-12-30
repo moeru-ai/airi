@@ -2,7 +2,7 @@
 import type { PerceptionState, VrmPoseTargets } from '@proj-airi/model-driver-mediapipe'
 import type { Vector3Like } from 'three'
 
-import { createMediaPipeBackend, createMocapEngine, createVrmPoseApplier, drawOverlay, poseToVrmTargets, WORKSHOP_NAME } from '@proj-airi/model-driver-mediapipe'
+import { createMediaPipeBackend, createMocapEngine, createVrmPoseApplier, drawOverlay, poseToVrmTargets } from '@proj-airi/model-driver-mediapipe'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
@@ -287,10 +287,6 @@ onUnmounted(() => {
     <div>
       <div :class="['text-lg', 'font-600']">
         MediaPipe Workshop Playground
-      </div>
-
-      <div :class="['text-xs', 'text-neutral-500', 'break-words']">
-        Package: {{ WORKSHOP_NAME }}
       </div>
     </div>
 

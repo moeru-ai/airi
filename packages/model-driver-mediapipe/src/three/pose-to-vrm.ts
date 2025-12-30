@@ -127,6 +127,22 @@ function get(points: Vector3Like[], index: number): Vector3Like | null {
   return { x: p.x, y: p.y, z: p.z ?? 0 }
 }
 
+// NOTICE: mediapipe doesn't provide this type correctly, so we define it here.
+interface LandmarkWithPresence { presence?: number }
+interface LandmarkWithVisibility { visibility?: number }
+
+function getOptionalPresence(landmark: unknown): number | undefined {
+  if (landmark && typeof landmark === 'object' && 'presence' in landmark)
+    return (landmark as LandmarkWithPresence).presence
+  return undefined
+}
+
+function getOptionalVisibility(landmark: unknown): number | undefined {
+  if (landmark && typeof landmark === 'object' && 'visibility' in landmark)
+    return (landmark as LandmarkWithVisibility).visibility
+  return undefined
+}
+
 function isConfident(pose: PoseState, index: number, thresholds: { minVisibility: number, minPresence: number }): boolean {
   // User requirement: do not output anything when `visibility` is missing.
   // Prefer 2D landmarks for visibility/presence (they are more consistently populated),
@@ -136,14 +152,14 @@ function isConfident(pose: PoseState, index: number, thresholds: { minVisibility
   if (!lm2d && !lm3d)
     return false
 
-  const visibility = lm2d?.visibility ?? lm3d?.visibility
+  const visibility = getOptionalVisibility(lm2d) ?? getOptionalVisibility(lm3d)
   if (visibility == null || !Number.isFinite(visibility))
     return false
   if (visibility < thresholds.minVisibility)
     return false
 
   if (thresholds.minPresence > 0) {
-    const presence = lm2d?.presence ?? lm3d?.presence
+    const presence = getOptionalPresence(lm2d) ?? getOptionalPresence(lm3d)
     if (presence != null && Number.isFinite(presence) && presence < thresholds.minPresence)
       return false
   }
