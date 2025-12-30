@@ -166,6 +166,34 @@ A Nix package for Tamagotchi is included. To run airi with Nix, first make sure 
 nix run github:moeru-ai/airi
 ```
 
+### Stage Capacitor (Mobile Version)
+
+Start the development server for the capacitor web version:
+
+```shell
+pnpm dev:capacitor
+```
+
+Check your IP address in the output of the command above:
+
+```shell
+  ROLLDOWN-VITE v7.3.0  ready in 1073 ms
+
+  ➜  Local:   https://localhost:5273/
+  ➜  Network: https://<ip-will-be-here>:5273/
+  ➜  Vue DevTools: Open https://localhost:5273/__devtools__/ as a separate window
+  ➜  Vue DevTools: Press Option(⌥)+Shift(⇧)+D in App to toggle the Vue DevTools
+  ➜  UnoCSS Inspector: https://localhost:5273/__unocss/
+```
+
+Open the Xcode project:
+
+```shell
+CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
+```
+
+Then Xcode will open and you can click the "Run" button to run the app on your iPhone.
+
 ### Documentation Site
 
 ```shell

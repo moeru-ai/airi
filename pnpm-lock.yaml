@@ -96,6 +96,9 @@ catalogs:
     unplugin-info:
       specifier: 1.2.4
       version: 1.2.4
+    vite-plugin-mkcert:
+      specifier: ^1.17.9
+      version: 1.17.9
     xsschema:
       specifier: ^0.4.0-beta.12
       version: 0.4.0-beta.13
@@ -640,6 +643,9 @@ importers:
       vite-bundle-visualizer:
         specifier: ^1.2.1
         version: 1.2.1(rolldown@1.0.0-beta.53)(rollup@2.79.2)
+      vite-plugin-mkcert:
+        specifier: 'catalog:'
+        version: 1.17.9(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       vite-plugin-pwa:
         specifier: ^1.2.0
         version: 1.2.0(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(workbox-build@7.4.0)(workbox-window@7.4.0)
@@ -8568,6 +8574,9 @@ packages:
   '@xsai/shared@0.3.5':
     resolution: {integrity: sha512-gxWH+9UjhXgqqKeU/o9UteC/ih1FzxEEsmPojImd/jvq4j/wtIg4aP3dCFnu+EhCT/MRQ38dkBSra99iY9cC3w==}
 
+  '@xsai/shared@0.4.0':
+    resolution: {integrity: sha512-RUkHutaib4/LvwdFT59Vtbq9Nycjr273ehuSVVs8NXH5BmqRk4+QwC+Ioyw282cuQAUQd1ESVqMNxY4f4DtV/Q==}
+
   '@xsai/shared@0.4.0-beta.12':
     resolution: {integrity: sha512-45qSpEL1T0cH7X3No3u7gHIBle3anVvEMx1sWk20QSYaIKzv+sUcY+sFdVbmm2QKZbJvgD7S41RLJCay36fphQ==}
 
@@ -14963,6 +14972,12 @@ packages:
     peerDependenciesMeta:
       '@nuxt/kit':
         optional: true
+
+  vite-plugin-mkcert@1.17.9:
+    resolution: {integrity: sha512-SwI7yqp2Cq4r2XItarnHRCj2uzHPqevbxFNMLpyN+LDXd5w1vmZeM4l5X/wCZoP4mjPQYN+9+4kmE6e3nPO5fg==}
+    engines: {node: '>=v16.7.0'}
+    peerDependencies:
+      vite: '>=3'
 
   vite-plugin-pwa@1.2.0:
     resolution: {integrity: sha512-a2xld+SJshT9Lgcv8Ji4+srFJL4k/1bVbd1x06JIkvecpQkwkvCncD1+gSzcdm3s+owWLpMJerG3aN5jupJEVw==}
@@ -21928,7 +21943,7 @@ snapshots:
 
   '@xsai-ext/shared-providers@0.2.2':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.13
+      '@xsai/shared': 0.4.0
 
   '@xsai-ext/shared-providers@0.4.0-beta.12':
     dependencies:
@@ -22017,6 +22032,8 @@ snapshots:
   '@xsai/shared@0.2.2': {}
 
   '@xsai/shared@0.3.5': {}
+
+  '@xsai/shared@0.4.0': {}
 
   '@xsai/shared@0.4.0-beta.12': {}
 
@@ -29900,6 +29917,15 @@ snapshots:
       unplugin-utils: 0.3.1
       vite: 7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
       vite-dev-rpc: 1.1.0(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+    transitivePeerDependencies:
+      - supports-color
+
+  vite-plugin-mkcert@1.17.9(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)):
+    dependencies:
+      axios: feaxios@0.0.23
+      debug: 4.4.3
+      picocolors: 1.1.1
+      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - supports-color
 
