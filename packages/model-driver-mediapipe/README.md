@@ -1,4 +1,4 @@
-# @proj-airi/mediapipe-workshop
+# @proj-airi/model-driver-mediapipe
 
 Single-person motion capture workshop package.
 
@@ -10,15 +10,15 @@ Provide a minimal closed loop that stage-web can consume:
 
 **Where to try it**
 
-- Devtools page: `apps/stage-web/src/pages/devtools/mediapipe-workshop.vue`
+- Devtools page: `apps/stage-web/src/pages/devtools/model-driver-mediapipe.vue`
 - Menu entry: Settings → System → Developer → “MediaPipe Workshop”
 
 **Key files**
 
-- `packages/mediapipe-workshop/src/types.ts`: middle-layer contract (`PerceptionState`)
-- `packages/mediapipe-workshop/src/engine.ts`: scheduler + dropped-frame policy + state merge
-- `packages/mediapipe-workshop/src/backends/mediapipe.ts`: `@mediapipe/tasks-vision` integration
-- `packages/mediapipe-workshop/src/overlay.ts`: canvas overlay renderer
+- `packages/model-driver-mediapipe/src/types.ts`: middle-layer contract (`PerceptionState`)
+- `packages/model-driver-mediapipe/src/engine.ts`: scheduler + dropped-frame policy + state merge
+- `packages/model-driver-mediapipe/src/backends/mediapipe.ts`: `@mediapipe/tasks-vision` integration
+- `packages/model-driver-mediapipe/src/utils/overlay.ts`: canvas overlay renderer
 
 **Backend assumptions**
 
@@ -28,8 +28,8 @@ Provide a minimal closed loop that stage-web can consume:
 
 **Docs**
 
-Keep upstream docs/snippets in `packages/mediapipe-workshop/references/`.
+Keep upstream docs/snippets in `packages/model-driver-mediapipe/references/`.
 
 The minimal API surface this package uses is summarized in:
 
-- `packages/mediapipe-workshop/references/tasks-vision-api.md`
+- `packages/model-driver-mediapipe/references/tasks-vision-api.md`

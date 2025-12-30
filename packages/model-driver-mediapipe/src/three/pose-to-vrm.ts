@@ -65,6 +65,7 @@ const DEFAULT_AXIS = { x: 1 as const, y: 1 as const, z: 1 as const }
 const DEFAULT_MIN_VISIBILITY = 0.5
 const DEFAULT_MIN_PRESENCE = 0
 
+// TODO: Consider consolidating these vector helpers into a shared math utility if more drivers need them.
 function vSub(a: Vector3Like, b: Vector3Like): Vector3Like {
   return { x: a.x - b.x, y: a.y - b.y, z: (a.z ?? 0) - (b.z ?? 0) }
 }

@@ -1,20 +1,12 @@
-import type { FilesetResolver } from '@mediapipe/tasks-vision'
-import type { Vector3Like } from 'three'
+import type { FilesetResolver, Landmark, NormalizedLandmark } from '@mediapipe/tasks-vision'
 
 export type VisionTaskModule = typeof import('@mediapipe/tasks-vision')
 
 // Indirect export from @mediapipe/tasks-vision
 export type VisionTaskWasmFileset = Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>
 
-export interface Landmark2D extends Vector3Like {
-  visibility?: number
-  presence?: number
-}
-
-export interface Landmark3D extends Vector3Like {
-  visibility?: number
-  presence?: number
-}
+export type Landmark2D = NormalizedLandmark
+export type Landmark3D = Landmark
 
 export interface PoseState {
   landmarks2d?: Landmark2D[]

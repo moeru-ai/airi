@@ -12,9 +12,12 @@ import type {
 
 import type { MocapBackend, MocapConfig, MocapJob, PerceptionPartial, VisionTaskModule, VisionTaskWasmFileset } from '../types'
 
+import { Semaphore } from 'es-toolkit'
+
 import { visionTaskAssets, visionTaskWasmRoot } from '../../tasks/tasks'
 
 export function createMediaPipeBackend(): MocapBackend {
+  const semaphore = new Semaphore(1)
   let busy = false
   let config: MocapConfig | undefined
   let tasksVision: VisionTaskModule | undefined
@@ -86,6 +89,7 @@ export function createMediaPipeBackend(): MocapBackend {
     if (!config)
       throw new Error('MediaPipe backend not initialized (call init() first)')
 
+    await semaphore.acquire()
     busy = true
     try {
       const partial: PerceptionPartial = {}
@@ -142,6 +146,7 @@ export function createMediaPipeBackend(): MocapBackend {
     }
     finally {
       busy = false
+      semaphore.release()
     }
   }
 

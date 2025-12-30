@@ -30,6 +30,11 @@ await Promise.all(Object.entries(taskSources).map(
   },
 ))
 
+const wasmSourceDir = fileURLToPath(new URL('../node_modules/@mediapipe/tasks-vision/wasm', import.meta.url))
+const wasmOutputDir = fileURLToPath(new URL('./assets/wasm', import.meta.url))
+await fs.mkdir(wasmOutputDir, { recursive: true })
+await fs.cp(wasmSourceDir, wasmOutputDir, { recursive: true, force: true })
+
 await Promise.all(Object.entries(visionTaskAssets).map(
   async ([key, url]) => {
     const path = fileURLToPath(url)
@@ -45,5 +50,9 @@ await Promise.all(Object.entries(visionTaskAssets).map(
     }
   },
 ))
+
+const wasmEntries = await fs.readdir(wasmOutputDir)
+if (!wasmEntries.length)
+  throw new Error(`Failed to ensure MediaPipe WASM assets: ${wasmOutputDir} is empty`)
 
 console.log('All MediaPipe vision task assets are prepared.')

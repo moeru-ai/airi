@@ -10,4 +10,4 @@ export const visionTaskAssets: VisionTaskAssets = {
   face: new URL('./assets/face_landmarker.task', import.meta.url).href,
 }
 
-export const visionTaskWasmRoot = new URL('../node_modules/@mediapipe/tasks-vision/wasm', import.meta.url).href
+export const visionTaskWasmRoot = new URL('./assets/wasm', import.meta.url).href

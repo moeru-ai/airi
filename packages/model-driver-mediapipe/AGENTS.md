@@ -1,6 +1,6 @@
-# mediapipe-workshop Agent Notes
+# model-driver-mediapipe Agent Notes
 
-Scope: `packages/mediapipe-workshop/**`
+Scope: `packages/model-driver-mediapipe/**`
 
 ## Intent
 

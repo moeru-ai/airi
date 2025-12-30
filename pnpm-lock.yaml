@@ -1308,6 +1308,9 @@ importers:
       '@pixiv/three-vrm':
         specifier: ^3.4.4
         version: 3.4.4(three@0.182.0)
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.43.0
       three:
         specifier: ^0.182.0
         version: 0.182.0
