@@ -22,6 +22,8 @@ export default defineConfig({
     'apps/stage-tamagotchi/src-tauri/**',
     'apps/stage-tamagotchi-electron/out/**',
     'apps/stage-tamagotchi-electron/src/renderer/bindings/**',
+    'apps/stage-capacitor/ios/**',
+    'apps/stage-capacitor/android/**',
     'crates/**',
     '**/drizzle/**',
     '**/.astro/**',

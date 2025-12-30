@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
+import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
@@ -15,7 +16,6 @@ import { RouterView, useRoute, useRouter } from 'vue-router'
 
 import { electronOpenSettings, electronStartTrackMousePosition } from '../shared/eventa'
 import { useElectronEventaContext } from './composables/electron-vueuse'
-import { themeColorFromValue, useThemeColor } from './composables/theme-color'
 
 const { isDark: dark } = useTheme()
 const i18n = useI18n()

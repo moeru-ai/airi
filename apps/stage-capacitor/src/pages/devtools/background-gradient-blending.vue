@@ -1,11 +1,10 @@
 <script setup lang="ts">
+import { useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { colorFromElement } from '@proj-airi/stage-ui/libs'
 import { BasicInputFile } from '@proj-airi/ui'
 import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 
 import defaultBackgroundImage from '../../assets/backgrounds/fairy-forest.e17cbc2774.ko-fi.com.avif'
-
-import { useThemeColor } from '../../composables/theme-color'
 // Reactive state
 const isCapturing = ref(false)
 const extractedColors = ref<string[]>([])
