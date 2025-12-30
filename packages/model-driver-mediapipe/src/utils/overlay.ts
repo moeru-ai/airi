@@ -41,7 +41,7 @@ function drawPose(drawing: DrawingUtils, pose: PoseState) {
     return
 
   const colors = paletteFor(0)
-  drawing.drawConnectors(pose.landmarks2d as Landmark2D[], POSE_CONNECTIONS, {
+  drawing.drawConnectors(pose.landmarks2d as Landmark2D[], POSE_CONNECTIONS.map(({ start, end }) => ({ start, end })), {
     color: colors.connector,
     lineWidth: OVERLAY_STYLES.connectorLineWidth,
   })
@@ -56,7 +56,7 @@ function drawHands(drawing: DrawingUtils, hands: HandState[]) {
   hands.forEach((hand) => {
     const handIndex = hand.handedness === 'Left' ? 1 : 2
     const colors = paletteFor(handIndex)
-    drawing.drawConnectors(hand.landmarks2d as Landmark2D[], HAND_CONNECTIONS, {
+    drawing.drawConnectors(hand.landmarks2d as Landmark2D[], HAND_CONNECTIONS.map(({ start, end }) => ({ start, end })), {
       color: colors.connector,
       lineWidth: OVERLAY_STYLES.connectorLineWidth,
     })
