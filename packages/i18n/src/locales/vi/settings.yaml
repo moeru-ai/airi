@@ -24,6 +24,7 @@ dialogs:
     skipForNow: Bỏ qua
     saveAndContinue: Lưu và tiếp tục
     next: Tiếp
+    retry: Retry
     start: Bắt đầu thôi!
     select-model: Chọn mô hình
     no-models: Không có mô hình khả dụng
@@ -262,6 +263,9 @@ pages:
             custom_model_placeholder: Nhập tên mô hình tùy chỉnh...
             description: Chọn nhà cung cấp LLM phù hợp cho ý thức
             error: Lỗi tải mô hình
+            health_check_failed: Health check failed
+            no_providers_configured_title: No Providers Configured
+            no_providers_configured_description: Click here to set up your LLM providers
             expand: Mở rộng
             loading: Đang tải mô hình...
             manual_model_name: Tên mô hình
@@ -404,6 +408,7 @@ pages:
       description: >
         {chat} AIRI cần ít nhất một nhà cung cấp để suy nghĩ và hoạt động đúng cách. Có thể coi nó như bộ não của nhân vật AIRI trong hệ thống.
     common:
+      continueAnyway: Tiếp tục bất chấp
       fields:
         field:
           api-key:

@@ -24,6 +24,7 @@ dialogs:
     skipForNow: Passer pour l'instant
     saveAndContinue: Sauvegarder et Continuer
     next: Suivant
+    retry: Retry
     start: Commençons !
     select-model: Choisissez un modèle
     no-models: Pas de modèle disponible
@@ -262,6 +263,9 @@ pages:
             custom_model_placeholder: Entrez le nom du modèle personnalisé...
             description: Sélectionnez le fournisseur LLM approprié pour la conscience
             error: Erreur lors du chargement des modèles
+            health_check_failed: Health check failed
+            no_providers_configured_title: No Providers Configured
+            no_providers_configured_description: Click here to set up your LLM providers
             expand: Développer
             loading: Chargement des modèles disponibles...
             manual_model_name: Nom du modèle
@@ -404,6 +408,7 @@ pages:
       description: >
         AIRI nécessite qu’au moins un fournisseur {chat} soit configuré pour penser et se comporter correctement. On peut le considérer comme le cerveau des personnages vivant dans le système AIRI.
     common:
+      continueAnyway: Continuer quand même
       fields:
         field:
           api-key:

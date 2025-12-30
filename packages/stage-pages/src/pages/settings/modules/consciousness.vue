@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
@@ -9,7 +10,7 @@ import { RouterLink } from 'vue-router'
 
 const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
-const { configuredChatProvidersMetadata } = storeToRefs(providersStore)
+const { persistedChatProvidersMetadata, configuredProviders } = storeToRefs(providersStore)
 const {
   activeProvider,
   activeModel,
@@ -22,13 +23,24 @@ const {
 } = storeToRefs(consciousnessStore)
 
 const { t } = useI18n()
+const { trackProviderClick } = useAnalytics()
 
 watch(activeProvider, async (provider) => {
+  if (!provider)
+    return
   await consciousnessStore.loadModelsForProvider(provider)
 }, { immediate: true })
 
 function updateCustomModelName(value: string) {
   customModelName.value = value
+}
+
+function handleDeleteProvider(providerId: string) {
+  if (activeProvider.value === providerId) {
+    activeProvider.value = ''
+    activeModel.value = ''
+  }
+  providersStore.deleteProvider(providerId)
 }
 </script>
 
@@ -51,14 +63,14 @@ function updateCustomModelName(value: string) {
           See also: https://stackoverflow.com/a/33737340
         -->
           <fieldset
-            v-if="configuredChatProvidersMetadata.length > 0"
+            v-if="persistedChatProvidersMetadata.length > 0"
             flex="~ row gap-4"
             :style="{ 'scrollbar-width': 'none' }"
             min-w-0 of-x-scroll scroll-smooth
             role="radiogroup"
           >
             <RadioCardSimple
-              v-for="metadata in configuredChatProvidersMetadata"
+              v-for="metadata in persistedChatProvidersMetadata"
               :id="metadata.id"
               :key="metadata.id"
               v-model="activeProvider"
@@ -66,7 +78,24 @@ function updateCustomModelName(value: string) {
               :value="metadata.id"
               :title="metadata.localizedName || 'Unknown'"
               :description="metadata.localizedDescription"
-            />
+              @click="trackProviderClick(metadata.id, 'consciousness')"
+            >
+              <template #topRight>
+                <button
+                  type="button"
+                  class="rounded bg-neutral-100 p-1 text-neutral-600 transition-colors dark:bg-neutral-800/60 hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-700/60"
+                  @click.stop.prevent="handleDeleteProvider(metadata.id)"
+                >
+                  <div i-solar:trash-bin-trash-bold-duotone class="text-base" />
+                </button>
+              </template>
+
+              <template v-if="configuredProviders[metadata.id] === false" #bottomRight>
+                <div class="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-700 font-medium dark:bg-amber-900/30 dark:text-amber-300">
+                  {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.health_check_failed') }}
+                </div>
+              </template>
+            </RadioCardSimple>
             <RouterLink
               to="/settings/providers"
               border="2px solid"
@@ -93,9 +122,8 @@ function updateCustomModelName(value: string) {
             >
               <div i-solar:warning-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
               <div class="flex flex-col">
-                <span class="font-medium">No Providers Configured</span>
-                <span class="text-sm text-neutral-400 dark:text-neutral-500">Click here to set up your LLM
-                  providers</span>
+                <span class="font-medium">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_providers_configured_title') }}</span>
+                <span class="text-sm text-neutral-400 dark:text-neutral-500">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_providers_configured_description') }}</span>
               </div>
               <div i-solar:arrow-right-line-duotone class="ml-auto text-xl text-neutral-400 dark:text-neutral-500" />
             </RouterLink>

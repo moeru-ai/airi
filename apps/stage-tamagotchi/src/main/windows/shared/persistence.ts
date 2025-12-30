@@ -7,7 +7,14 @@ import { app } from 'electron'
 import { throttle } from 'es-toolkit'
 
 function parseOrFallback<T>(config: string, fallback: T | undefined): T | undefined {
-  return safeDestr<T>(config) || fallback
+  try {
+    const parsed = safeDestr<T>(config)
+    return parsed ?? fallback
+  }
+  catch (error) {
+    console.warn('Invalid config persisted to disk, resetting to default', error)
+    return fallback
+  }
 }
 
 const persistenceMap = new Map<string, any>()

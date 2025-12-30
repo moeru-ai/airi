@@ -35,7 +35,11 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
     height: props.height * props.resolution,
     backgroundAlpha: 0,
     preserveDrawingBuffer: true,
+    autoDensity: false,
+    resolution: 1,
   })
+
+  pixiApp.value.stage.scale.set(props.resolution)
 
   pixiAppCanvas.value = pixiApp.value.view
 
@@ -54,19 +58,14 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
 function handleResize() {
   if (pixiApp.value) {
     // Update the internal rendering resolution
-    pixiApp.value.renderer.resize(props.width, props.height)
+    pixiApp.value.renderer.resize(props.width * props.resolution, props.height * props.resolution)
+    pixiApp.value.stage.scale.set(props.resolution)
   }
 
   // The CSS styles handle the display size, so we don't need to manually set view dimensions
 }
 
-watch([() => props.width, () => props.height], () => handleResize())
-watch(() => props.resolution, (newScale) => {
-  if (pixiApp.value && newScale) {
-    pixiApp.value.renderer.resolution = newScale
-    handleResize() // Refresh the renderer
-  }
-})
+watch([() => props.width, () => props.height, () => props.resolution], handleResize)
 
 onMounted(async () => containerRef.value && await initLive2DPixiStage(containerRef.value))
 onUnmounted(() => pixiApp.value?.destroy())

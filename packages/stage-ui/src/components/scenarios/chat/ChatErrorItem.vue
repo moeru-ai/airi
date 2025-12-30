@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { ChatErrorMessage } from './types'
+import type { ErrorMessage } from '../../../types/chat'
 
 import { computed } from 'vue'
 
 import MarkdownRenderer from '../../markdown/MarkdownRenderer.vue'
 
 const props = withDefaults(defineProps<{
-  message: ChatErrorMessage
+  message: ErrorMessage
   label: string
   showPlaceholder?: boolean
   variant?: 'desktop' | 'mobile'

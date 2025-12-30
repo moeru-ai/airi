@@ -1,5 +1,6 @@
 import type { BrowserWindowConstructorOptions, Rectangle } from 'electron'
 
+import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { NoticeWindowManager } from '../notice'
 import type { WidgetsWindowManager } from '../widgets'
 
@@ -33,6 +34,8 @@ export async function setupMainWindow(params: {
   chatWindow: () => Promise<BrowserWindow>
   widgetsManager: WidgetsWindowManager
   noticeWindow: NoticeWindowManager
+  autoUpdater: AutoUpdater
+  onWindowCreated?: (window: BrowserWindow) => void
 }) {
   const {
     setup: setupConfig,
@@ -63,6 +66,10 @@ export async function setupMainWindow(params: {
     type: 'panel',
     ...transparentWindowConfig(),
   })
+
+  if (params.onWindowCreated) {
+    params.onWindowCreated(window)
+  }
 
   // NOTICE: in development mode, open devtools by default
   if (is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG) {
@@ -134,6 +141,7 @@ export async function setupMainWindow(params: {
     chatWindow: params.chatWindow,
     widgetsManager: params.widgetsManager,
     noticeWindow: params.noticeWindow,
+    autoUpdater: params.autoUpdater,
   })
 
   /**

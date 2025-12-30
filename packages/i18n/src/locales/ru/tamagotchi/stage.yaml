@@ -23,6 +23,7 @@ notice:
     value: '0'
     targets: Персонажа и интерфейса
     confirm: Понятно
+    dont-show-again: Больше не показывать
     preparing: Подготавливаем…
     read-more: Подробнее
     preview-title: Что это?

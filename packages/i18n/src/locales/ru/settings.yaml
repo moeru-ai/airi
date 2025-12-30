@@ -24,6 +24,7 @@ dialogs:
     skipForNow: Пропустить на сейчас
     saveAndContinue: Сохранить и продолжить
     next: Далее
+    retry: Retry
     start: Поехали!
     select-model: Выберите модель
     no-models: Нет доступных моделей
@@ -262,6 +263,9 @@ pages:
             custom_model_placeholder: Введите название кастомной модели...
             description: Выберите подходящего LLM-провайдера для сознания
             error: Ошибка загрузки моделей
+            health_check_failed: Health check failed
+            no_providers_configured_title: No Providers Configured
+            no_providers_configured_description: Click here to set up your LLM providers
             expand: Развернуть
             loading: Загрузка доступных моделей...
             manual_model_name: Название модели
@@ -404,6 +408,7 @@ pages:
       description: >
         AIRI требует как минимум одного {chat}-провайдера для корректной работы. Можно считать его "мозгом" персонажей в системе AIRI.
     common:
+      continueAnyway: Продолжить всё равно
       fields:
         field:
           api-key:

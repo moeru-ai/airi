@@ -2,7 +2,7 @@
 import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
 import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
-import { useAudioAnalyzer, useAudioRecorder } from '@proj-airi/stage-ui/composables'
+import { useAnalytics, useAudioAnalyzer, useAudioRecorder } from '@proj-airi/stage-ui/composables'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
@@ -29,12 +29,20 @@ const {
 const providersStore = useProvidersStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
+const { trackProviderClick } = useAnalytics()
 const { stopStream, startStream } = useSettingsAudioDevice()
 const { audioInputs, selectedAudioInput, stream } = storeToRefs(useSettingsAudioDevice())
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioAnalyzer()
 const { audioContext } = storeToRefs(useAudioContext())
-const { transcribeForRecording } = useHearingSpeechInputPipeline()
+const {
+  transcribeForRecording,
+  transcribeForMediaStream,
+  stopStreamingTranscription,
+} = useHearingSpeechInputPipeline()
+const {
+  supportsStreamInput,
+} = storeToRefs(useHearingSpeechInputPipeline())
 
 const animationFrame = ref<number>()
 
@@ -54,6 +62,33 @@ const audioURLs = computed(() => {
 
 const useVADThreshold = ref(0.6) // 0.1 - 0.9
 const useVADModel = ref(true) // Toggle between VAD and volume-based detection
+const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
+
+async function handleSpeechStart() {
+  if (shouldUseStreamInput.value && stream.value) {
+    await transcribeForMediaStream(stream.value, {
+      onSentenceEnd: (delta) => {
+        transcriptions.value.push(delta)
+      },
+      onSpeechEnd: (text) => {
+        transcriptions.value = [text]
+      },
+    })
+    return
+  }
+
+  startRecord()
+}
+
+async function handleSpeechEnd() {
+  if (shouldUseStreamInput.value) {
+    // For streaming providers, keep the session alive; idle timer will handle teardown.
+    return
+  }
+
+  stopRecord()
+}
+
 const {
   init: initVAD,
   dispose: disposeVAD,
@@ -66,8 +101,12 @@ const {
   loading: loadingVAD,
 } = useVAD(workletUrl, {
   threshold: useVADThreshold,
-  onSpeechStart: () => startRecord(),
-  onSpeechEnd: () => stopRecord(),
+  onSpeechStart: () => {
+    void handleSpeechStart()
+  },
+  onSpeechEnd: () => {
+    void handleSpeechEnd()
+  },
 })
 
 const isSpeechVolume = ref(false) // Volume-based speaking detection
@@ -122,6 +161,8 @@ async function stopAudioMonitoring() {
     cancelAnimationFrame(animationFrame.value)
     animationFrame.value = undefined
   }
+
+  await stopStreamingTranscription(true, activeTranscriptionProvider.value)
   if (stream.value) { // Stop media stream
     stopStream()
   }
@@ -174,6 +215,9 @@ function updateCustomModelName(value: string) {
 }
 
 onStopRecord(async (recording) => {
+  if (shouldUseStreamInput.value)
+    return
+
   if (recording && recording.size > 0)
     audios.value.push(recording)
 
@@ -247,6 +291,7 @@ onUnmounted(() => {
                 :value="metadata.id"
                 :title="metadata.localizedName || 'Unknown'"
                 :description="metadata.localizedDescription"
+                @click="trackProviderClick(metadata.id, 'hearing')"
               />
               <RouterLink
                 to="/settings/providers#transcription"
@@ -365,10 +410,10 @@ onUnmounted(() => {
         </Button>
 
         <div>
-          <div v-for="(audio, index) in audioURLs" :key="index" class="mb-2">
-            <audio :src="audio" controls class="w-full" />
-            <div v-if="transcriptions[index]" class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-              {{ transcriptions[index] }}
+          <div v-for="(transcription, index) in transcriptions" :key="index" class="mb-2">
+            <audio v-if="audioURLs[index]" :src="audioURLs[index]" controls class="w-full" />
+            <div v-if="transcription" class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+              {{ transcription }}
             </div>
           </div>
         </div>

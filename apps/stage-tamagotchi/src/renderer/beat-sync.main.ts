@@ -1,24 +1,22 @@
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
-import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { StageEnvironment } from '@proj-airi/stage-shared'
-import { createBeatSyncDetector } from '@proj-airi/stage-shared/beat-sync/browser'
-
 import {
-  beatSyncElectronChangeState,
-  beatSyncElectronGetInputByteFrequencyData,
-  beatSyncElectronGetState,
-  beatSyncElectronSignalBeat,
-  beatSyncElectronToggle,
-  beatSyncElectronUpdateParameters,
-} from '../shared/eventa'
+  beatSyncBeatSignaledInvokeEventa,
+  beatSyncGetInputByteFrequencyDataInvokeEventa,
+  beatSyncGetStateInvokeEventa,
+  beatSyncStateChangedInvokeEventa,
+  beatSyncToggleInvokeEventa,
+  beatSyncUpdateParametersInvokeEventa,
+  createBeatSyncDetector,
+  createContext,
+} from '@proj-airi/stage-shared/beat-sync'
 
 const { ipcRenderer } = window.electron
 
-const context = createContext(ipcRenderer).context
+const context = createContext()
 
-// [renderer] beat-sync -> [main] -> [renderer] index
-const changeState = defineInvoke(context, beatSyncElectronChangeState)
-const signalBeat = defineInvoke(context, beatSyncElectronSignalBeat)
+const changeState = defineInvoke(context, beatSyncStateChangedInvokeEventa)
+const signalBeat = defineInvoke(context, beatSyncBeatSignaledInvokeEventa)
 
 function enableLoopbackAudio() {
   // electron-audio-loopback currently registers this handler internally
@@ -43,7 +41,7 @@ detector.on('beat', (e) => {
   signalBeat(e)
 })
 
-defineInvokeHandler(context, beatSyncElectronToggle, async (enabled) => {
+defineInvokeHandler(context, beatSyncToggleInvokeEventa, async (enabled) => {
   // eslint-disable-next-line no-console
   console.log('[toggle]', enabled)
   if (enabled) {
@@ -53,13 +51,13 @@ defineInvokeHandler(context, beatSyncElectronToggle, async (enabled) => {
     detector.stop()
   }
 })
-defineInvokeHandler(context, beatSyncElectronGetState, async () => detector.state)
-defineInvokeHandler(context, beatSyncElectronUpdateParameters, async (params) => {
+defineInvokeHandler(context, beatSyncGetStateInvokeEventa, async () => detector.state)
+defineInvokeHandler(context, beatSyncUpdateParametersInvokeEventa, async (params) => {
   // eslint-disable-next-line no-console
   console.log('[update-params]', params)
   detector.updateParameters(params)
 })
-defineInvokeHandler(context, beatSyncElectronGetInputByteFrequencyData, async () => {
+defineInvokeHandler(context, beatSyncGetInputByteFrequencyDataInvokeEventa, async () => {
   // eslint-disable-next-line no-console
   console.debug('[get-input-byte-frequency-data]') // This could be noisy.
   return detector.getInputByteFrequencyData()

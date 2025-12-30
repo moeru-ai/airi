@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { ChatProvider } from '@xsai-ext/shared-providers'
+import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
+import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
@@ -11,7 +12,7 @@ import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/
 import { BasicTextarea, useTheme } from '@proj-airi/ui'
 import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
@@ -20,15 +21,20 @@ import ActionAbout from './InteractiveArea/Actions/About.vue'
 import ActionViewControls from './InteractiveArea/Actions/ViewControls.vue'
 import ViewControlInputs from './ViewControls/Inputs.vue'
 
+import { BackgroundDialogPicker } from '../Backgrounds'
+
 const { isDark, toggleDark } = useTheme()
 const hearingDialogOpen = ref(false)
-const { messages, sending, streamingMessage } = storeToRefs(useChatStore())
+const chatStore = useChatStore()
+const { messages, sending, streamingMessage } = storeToRefs(chatStore)
+const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 
 const viewControlsActiveMode = ref<'x' | 'y' | 'z' | 'scale'>('scale')
 const viewControlsInputsRef = useTemplateRef<InstanceType<typeof ViewControlInputs>>('viewControlsInputs')
 
 const messageInput = ref('')
 const isComposing = ref(false)
+const backgroundDialogOpen = ref(false)
 
 const screenSafeArea = useScreenSafeArea()
 const providersStore = useProvidersStore()
@@ -38,7 +44,7 @@ useResizeObserver(document.documentElement, () => screenSafeArea.update())
 const { themeColorsHueDynamic, stageViewControlsEnabled } = storeToRefs(useSettings())
 const settingsAudioDevice = useSettingsAudioDevice()
 const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(settingsAudioDevice)
-const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = useChatStore()
+const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = chatStore
 const { t } = useI18n()
 const { audioContext } = useAudioContext()
 const { startAnalyzer, stopAnalyzer, volumeLevel } = useAudioAnalyzer()
@@ -59,16 +65,20 @@ async function handleSend() {
     return
   }
 
+  const textToSend = messageInput.value
+  messageInput.value = ''
+
   try {
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
 
-    await send(messageInput.value, {
+    await send(textToSend, {
       chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
       model: activeModel.value,
       providerConfig,
     })
   }
   catch (error) {
+    messageInput.value = textToSend
     messages.value.pop()
     messages.value.push({
       role: 'error',
@@ -110,7 +120,6 @@ watch(hearingDialogOpen, (value) => {
 })
 
 onAfterMessageComposed(async () => {
-  messageInput.value = ''
 })
 
 watch([activeProvider, activeModel], async () => {
@@ -130,18 +139,17 @@ onMounted(() => {
 
 <template>
   <div fixed bottom-0 w-full flex flex-col>
+    <BackgroundDialogPicker v-model="backgroundDialogOpen" />
     <KeepAlive>
       <Transition name="fade">
         <ChatHistory
           v-if="!stageViewControlsEnabled"
           variant="mobile"
-          :messages="messages"
+          :messages="historyMessages"
           :sending="sending"
           :streaming-message="streamingMessage"
           max-w="[calc(100%-3.5rem)]"
-          w-full
-          self-start
-          pl-3
+          w-full self-start pb-3 pl-3
           class="chat-history"
           :class="[
             'relative z-20',
@@ -181,6 +189,9 @@ onMounted(() => {
               <div v-if="isDark" i-solar:moon-outline size-5 text="neutral-500 dark:neutral-400" />
               <div v-else i-solar:sun-2-outline size-5 text="neutral-500 dark:neutral-400" />
             </Transition>
+          </button>
+          <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Background" @click="backgroundDialogOpen = true">
+            <div i-solar:gallery-wide-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
           </button>
           <!-- <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Language">
             <div i-solar:earth-outline size-5 text="neutral-500 dark:neutral-400" />

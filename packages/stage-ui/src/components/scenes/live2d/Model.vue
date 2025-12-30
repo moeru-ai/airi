@@ -3,10 +3,11 @@ import type { Application } from '@pixi/app'
 
 import type { PixiLive2DInternalModel } from '../../../composables/live2d'
 
-import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync/browser'
+import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync'
 import { useTheme } from '@proj-airi/ui'
 import { breakpointsTailwind, until, useBreakpoints, useDebounceFn } from '@vueuse/core'
 import { formatHex } from 'culori'
+import { Mutex } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
 import { Live2DFactory, Live2DModel, MotionPriority } from 'pixi-live2d-display/cubism4'
@@ -76,6 +77,8 @@ const modelLoading = ref(false)
 // NOTICE: boolean is sufficient; this flag is only used inside loadModel to bail out if the component unmounts mid-load.
 let isUnmounted = false
 
+const modelLoadMutex = new Mutex()
+
 const offset = computed(() => parsePropsOffset())
 
 const pixiApp = toRef(() => props.app)
@@ -137,6 +140,8 @@ const {
   themeColorsHue,
   themeColorsHueDynamic,
   live2dIdleAnimationEnabled,
+  live2dAutoBlinkEnabled,
+  live2dForceAutoBlinkEnabled,
   live2dShadowEnabled,
 } = storeToRefs(useSettings())
 
@@ -157,6 +162,8 @@ live2dStore.onShouldUpdateView(() => {
 
 async function loadModel() {
   await until(modelLoading).not.toBeTruthy()
+
+  await modelLoadMutex.acquire()
 
   modelLoading.value = true
   componentState.value = 'loading'
@@ -291,6 +298,8 @@ async function loadModel() {
       motionManager,
       modelParameters,
       live2dIdleAnimationEnabled,
+      live2dAutoBlinkEnabled,
+      live2dForceAutoBlinkEnabled,
       lastUpdateTime,
     })
 
@@ -354,6 +363,7 @@ async function loadModel() {
   finally {
     modelLoading.value = false
     componentState.value = 'mounted'
+    modelLoadMutex.release()
   }
 }
 
@@ -388,12 +398,15 @@ function updateDropShadowFilter() {
     return
   }
 
-  const color = getComputedStyle(dropShadowColorComputer.value!).backgroundColor
+  if (!dropShadowColorComputer.value)
+    return
+
+  const color = getComputedStyle(dropShadowColorComputer.value).backgroundColor
   dropShadowFilter.value.color = Number(formatHex(color)!.replace('#', '0x'))
   model.value.filters = [dropShadowFilter.value]
 }
 
-watch([() => props.width, () => props.height], () => handleResize())
+watch([() => props.width, () => props.height], handleResize)
 watch(modelSrcRef, async () => await loadModel(), { immediate: true })
 watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)

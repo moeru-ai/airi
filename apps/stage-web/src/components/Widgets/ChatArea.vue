@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatProvider } from '@xsai-ext/shared-providers'
+import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -25,7 +25,8 @@ const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
 const { askPermission } = useSettingsAudioDevice()
 const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(useSettingsAudioDevice())
-const { send, onAfterMessageComposed, discoverToolsCompatibility } = useChatStore()
+const chatStore = useChatStore()
+const { send, onAfterMessageComposed, discoverToolsCompatibility } = chatStore
 const { messages } = storeToRefs(useChatStore())
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
@@ -35,16 +36,20 @@ async function handleSend() {
     return
   }
 
+  const textToSend = messageInput.value
+  messageInput.value = ''
+
   try {
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
 
-    await send(messageInput.value, {
+    await send(textToSend, {
       chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
       model: activeModel.value,
       providerConfig,
     })
   }
   catch (error) {
+    messageInput.value = textToSend
     messages.value.pop()
     messages.value.push({
       role: 'error',
@@ -66,7 +71,6 @@ watch([activeProvider, activeModel], async () => {
 })
 
 onAfterMessageComposed(async () => {
-  messageInput.value = ''
 })
 
 const { startAnalyzer, stopAnalyzer, volumeLevel } = useAudioAnalyzer()
@@ -105,7 +109,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div h="<md:full" flex gap-2>
+  <div h="<md:full" flex gap-2 class="ph-no-capture">
     <div
       :class="[
         'relative',

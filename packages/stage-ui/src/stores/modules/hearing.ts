@@ -1,14 +1,17 @@
-import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
+import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { WithUnknown } from '@xsai/shared'
 import type { StreamTranscriptionResult, StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
 
+import { tryCatch } from '@moeru/std'
 import { generateTranscription } from '@xsai/generate-transcription'
-import { streamTranscription } from '@xsai/stream-transcription'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
+
+import vadWorkletUrl from '../../workers/vad/process.worklet?worker&url'
 
 import { createResettableLocalStorage, createResettableRef } from '../../utils/resettable'
 import { useProvidersStore } from '../providers'
+import { streamAliyunTranscription } from '../providers/aliyun/stream-transcription'
 
 export interface StreamTranscriptionFileInputOptions extends Omit<XSAIStreamTranscriptionOptions, 'file' | 'fileName'> {
   file: Blob
@@ -36,7 +39,7 @@ interface HearingTranscriptionInvokeOptions {
 }
 
 const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
-  'aliyun-nls-transcription': streamTranscription as StreamTranscription,
+  'aliyun-nls-transcription': streamAliyunTranscription,
 }
 
 export const useHearingStore = defineStore('hearing-store', () => {
@@ -195,6 +198,243 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
   const hearingStore = useHearingStore()
   const { activeTranscriptionProvider, activeTranscriptionModel } = storeToRefs(hearingStore)
   const providersStore = useProvidersStore()
+  const streamingSession = shallowRef<{
+    audioContext: AudioContext
+    workletNode: AudioWorkletNode
+    mediaStreamSource: MediaStreamAudioSourceNode
+    audioStreamController?: ReadableStreamDefaultController<ArrayBuffer>
+    abortController: AbortController
+    result?: HearingTranscriptionResult
+    idleTimer?: ReturnType<typeof setTimeout>
+    providerId?: string
+  }>()
+
+  const supportsStreamInput = computed(() => {
+    return providersStore.getTranscriptionFeatures(activeTranscriptionProvider.value).supportsStreamInput
+  })
+
+  const DEFAULT_SAMPLE_RATE = 16000
+  const DEFAULT_STREAM_IDLE_TIMEOUT = 15000
+
+  function float32ToInt16(buffer: Float32Array) {
+    const output = new Int16Array(buffer.length)
+    for (let i = 0; i < buffer.length; i++) {
+      const value = Math.max(-1, Math.min(1, buffer[i]))
+      output[i] = value < 0 ? value * 0x8000 : value * 0x7FFF
+    }
+
+    return output
+  }
+
+  async function createAudioStreamFromMediaStream(stream: MediaStream, sampleRate = DEFAULT_SAMPLE_RATE, onActivity?: () => void) {
+    const audioContext = new AudioContext({ sampleRate, latencyHint: 'interactive' })
+    await audioContext.audioWorklet.addModule(vadWorkletUrl)
+    const workletNode = new AudioWorkletNode(audioContext, 'vad-audio-worklet-processor')
+
+    let audioStreamController: ReadableStreamDefaultController<ArrayBuffer> | undefined
+    const audioStream = new ReadableStream<ArrayBuffer>({
+      start(controller) {
+        audioStreamController = controller
+      },
+      cancel: () => {
+        audioStreamController = undefined
+      },
+    })
+
+    workletNode.port.onmessage = ({ data }: MessageEvent<{ buffer?: Float32Array }>) => {
+      const buffer = data?.buffer
+      if (!buffer || !audioStreamController)
+        return
+
+      const pcm16 = float32ToInt16(buffer)
+      // Clone buffer to avoid retaining underlying ArrayBuffer references
+      audioStreamController.enqueue(pcm16.buffer.slice(0))
+      onActivity?.()
+    }
+
+    const mediaStreamSource = audioContext.createMediaStreamSource(stream)
+    mediaStreamSource.connect(workletNode)
+
+    // Sink to avoid feedback/echo
+    const silentGain = audioContext.createGain()
+    silentGain.gain.value = 0
+    workletNode.connect(silentGain)
+    silentGain.connect(audioContext.destination)
+
+    return {
+      audioContext,
+      workletNode,
+      mediaStreamSource,
+      audioStream,
+      get controller() {
+        return audioStreamController
+      },
+    }
+  }
+
+  async function stopStreamingTranscription(abort?: boolean, disposeProviderId?: string) {
+    const session = streamingSession.value
+    if (!session)
+      return
+
+    try {
+      const reason = new DOMException(abort ? 'Aborted' : 'Stopped', 'AbortError')
+      // Ensure provider transports (e.g., Aliyun NLS) are signaled to stop over websocket.
+      if (!session.abortController.signal.aborted) {
+        session.abortController.abort(reason)
+      }
+
+      if (abort)
+        session.audioStreamController?.error(reason)
+      else
+        session.audioStreamController?.close()
+    }
+    catch {}
+
+    await tryCatch(() => {
+      session.mediaStreamSource.disconnect()
+      session.workletNode.port.onmessage = null
+      session.workletNode.disconnect()
+    })
+    await tryCatch(() => session.audioContext.close())
+
+    if (session.idleTimer)
+      clearTimeout(session.idleTimer)
+
+    streamingSession.value = undefined
+
+    if (session.result?.mode === 'stream') {
+      try {
+        const text = await session.result.text
+
+        if (disposeProviderId) {
+          await providersStore.disposeProviderInstance(disposeProviderId)
+        }
+
+        return text
+      }
+      catch (err) {
+        error.value = err instanceof Error ? err.message : String(err)
+        console.error('Error generating transcription:', error.value)
+      }
+    }
+
+    const text = session.result?.text
+    if (disposeProviderId)
+      await providersStore.disposeProviderInstance(disposeProviderId)
+
+    return text
+  }
+
+  async function transcribeForMediaStream(stream: MediaStream, options?: {
+    sampleRate?: number
+    providerOptions?: Record<string, unknown>
+    idleTimeoutMs?: number
+    onSentenceEnd?: (delta: string) => void
+    onSpeechEnd?: (text: string) => void
+  }) {
+    if (!supportsStreamInput.value)
+      return
+
+    try {
+      const providerId = activeTranscriptionProvider.value
+      const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
+      if (!provider) {
+        throw new Error('Failed to initialize speech provider')
+      }
+
+      const idleTimeout = options?.idleTimeoutMs ?? DEFAULT_STREAM_IDLE_TIMEOUT
+
+      // If a session already exists, just bump the idle timer and reuse the websocket/audio graph.
+      const existingSession = streamingSession.value
+      if (existingSession) {
+        if (existingSession.idleTimer) {
+          clearTimeout(existingSession.idleTimer)
+          existingSession.idleTimer = setTimeout(async () => {
+            await stopStreamingTranscription(false, existingSession.providerId)
+          }, idleTimeout)
+        }
+        return
+      }
+
+      const abortController = new AbortController()
+      let idleTimer: ReturnType<typeof setTimeout> | undefined
+      const bumpIdle = () => {
+        if (idleTimer)
+          clearTimeout(idleTimer)
+        idleTimer = setTimeout(async () => {
+          await stopStreamingTranscription(false, providerId)
+        }, idleTimeout)
+      }
+
+      const session = await createAudioStreamFromMediaStream(
+        stream,
+        options?.sampleRate ?? DEFAULT_SAMPLE_RATE,
+        () => bumpIdle(),
+      )
+
+      if (session.audioContext.state === 'suspended')
+        await session.audioContext.resume()
+
+      bumpIdle()
+
+      const model = activeTranscriptionModel.value
+      const result = await hearingStore.transcription(
+        providerId,
+        provider,
+        model,
+        { inputAudioStream: session.audioStream },
+        undefined,
+        {
+          providerOptions: {
+            abortSignal: abortController.signal,
+            ...options?.providerOptions,
+          },
+        },
+      )
+
+      streamingSession.value = {
+        audioContext: session.audioContext,
+        workletNode: session.workletNode,
+        mediaStreamSource: session.mediaStreamSource,
+        audioStreamController: session.controller,
+        abortController,
+        result,
+        idleTimer,
+        providerId,
+      }
+
+      // Stream out text deltas to caller without tearing down the session.
+      if (result.mode === 'stream' && result.textStream) {
+        void (async () => {
+          let fullText = ''
+          try {
+            const reader = result.textStream.getReader()
+
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done)
+                break
+              if (value) {
+                fullText += value
+                options?.onSentenceEnd?.(value)
+              }
+            }
+          }
+          catch (err) {
+            console.error('Error reading text stream:', err)
+          }
+          finally {
+            options?.onSpeechEnd?.(fullText)
+          }
+        })()
+      }
+    }
+    catch (err) {
+      error.value = err instanceof Error ? err.message : String(err)
+      console.error('Error generating transcription:', error.value)
+    }
+  }
 
   async function transcribeForRecording(recording: Blob | null | undefined) {
     if (!recording)
@@ -229,5 +469,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     error,
 
     transcribeForRecording,
+    transcribeForMediaStream,
+    stopStreamingTranscription,
+    supportsStreamInput,
   }
 })

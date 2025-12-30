@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Button, TransitionVertical } from '@proj-airi/ui'
+import { Button, Checkbox, TransitionVertical } from '@proj-airi/ui'
 import { refDebounced, useDark, useMouseInElement } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
@@ -10,6 +11,7 @@ import VideoTutorialFadeOnHoverLight from '../../assets/videos/tutorial/tutorial
 
 import { noticeWindowEventa } from '../../../shared/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke } from '../../composables/electron-vueuse'
+import { useControlsIslandStore } from '../../stores/controls-island'
 
 const context = useElectronEventaContext()
 const sendAction = useElectronEventaInvoke(noticeWindowEventa.windowAction, context.value)
@@ -17,6 +19,10 @@ const notifyMounted = useElectronEventaInvoke(noticeWindowEventa.pageMounted, co
 const notifyUnmounted = useElectronEventaInvoke(noticeWindowEventa.pageUnmounted, context.value)
 const route = useRoute()
 const { t } = useI18n()
+
+const controlsIslandStore = useControlsIslandStore()
+const dontShowItAgainNoticeFadeOnHoverPending = ref(false)
+const { dontShowItAgainNoticeFadeOnHover } = storeToRefs(controlsIslandStore)
 
 const descriptionContainerRef = ref<HTMLDivElement>()
 const { isOutside } = useMouseInElement(descriptionContainerRef)
@@ -61,6 +67,8 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
   }
 
   try {
+    if (action === 'confirm')
+      dontShowItAgainNoticeFadeOnHover.value = dontShowItAgainNoticeFadeOnHoverPending.value
     await sendAction({ id, action })
   }
   catch (error) {
@@ -87,12 +95,23 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
       />
       <div class="relative z-1 h-full w-full flex flex-col">
         <div class="mb-2 flex items-center justify-between gap-2 px-4 pt-4">
-          <div class="inline-flex items-center gap-2 rounded-full bg-primary-50 px-3 py-1 text-[11px] text-primary-900 font-semibold tracking-[0.14em] uppercase dark:bg-primary-500 dark:text-primary-100">
+          <div
+            v-motion
+            :initial="{ opacity: 0 }"
+            :enter="{ opacity: 1 }"
+            :duration="250"
+            class="inline-flex items-center gap-2 rounded-full bg-primary-50 px-3 py-1 text-[11px] text-primary-900 font-semibold tracking-[0.14em] uppercase dark:bg-primary-500 dark:text-primary-100"
+          >
             Tutorial
             <div class="h-1.5 w-1.5 rounded-full bg-primary-300 shadow-[0_0_12px_rgba(0,0,0,0.35)]" />
           </div>
         </div>
         <div
+          v-motion
+          :initial="{ opacity: 0, x: -28 }"
+          :enter="{ opacity: 1, x: 0 }"
+          :duration="500"
+          transition="all ease-out"
           :class="[
             'w-fit',
             'pl-4 pr-5 py-4 text-2xl font-semibold leading-tight',
@@ -107,17 +126,24 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
         <div class="w-full px-4 pb-4">
           <div
             ref="descriptionContainerRef"
+            v-motion
+            :initial="{ opacity: 0, x: -16, width: '25%' }"
+            :enter="{ opacity: 1, x: 0, width: '75%' }"
+            :duration="650"
+            :delay="100"
+            transition="all ease-out"
             :class="[
               'flex flex-col overflow-hidden',
-              'bg-primary-50/80 dark:bg-primary-800/80',
-              'backdrop-blur-sm',
-              'p-3 sm:p-4',
+              'w-full',
+              'bg-white/90 dark:bg-neutral-700/90',
+              'backdrop-blur-sm shadow-lg',
+              'px-3 py-2 sm:px-4 sm:py-3',
               'rounded-lg',
             ]"
           >
-            <div class="space-y-2">
+            <div class="flex flex-col gap-3">
               <div class="flex items-center gap-3">
-                <div class="line-clamp-1 min-h-full flex-1 overflow-hidden text-ellipsis text-lg font-semibold space-y-0.5">
+                <div class="line-clamp-1 min-h-full flex-1 overflow-hidden text-ellipsis text-lg font-semibold">
                   <template v-if="!descriptionOpen">
                     <i18n-t keypath="tamagotchi.stage.notice.fade-on-hover.opacity" tag="div">
                       <template #value>
@@ -179,7 +205,7 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
                     <template #icon>
                       <div
                         i-ph:eye-slash
-                        class="inline-block align-middle"
+                        class="inline-block align-middle text-primary-600 dark:text-primary-100"
                         :aria-label="t('tamagotchi.stage.notice.fade-on-hover.icon-label')"
                       />
                     </template>
@@ -195,6 +221,12 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
                       :loading="waitingForRequest"
                       @click="handleAction('confirm')"
                     />
+                    <div class="flex items-center gap-2 whitespace-nowrap px-2">
+                      <Checkbox v-model="dontShowItAgainNoticeFadeOnHoverPending" />
+                      <div class="whitespace-nowrap text-sm">
+                        {{ t('tamagotchi.stage.notice.fade-on-hover.dont-show-again') }}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </TransitionVertical>

@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 
 import { useProvidersStore } from '../../../../stores/providers'
 import { Callout } from '../../../layouts'
-import { ErrorContainer } from '../../../misc'
+import { Alert } from '../../../misc'
 import { ProviderAccountIdInput } from '../../../scenarios/providers'
 import { OnboardingContextKey } from './utils'
 
@@ -37,8 +37,13 @@ function initializeForm() {
 }
 
 // Watch for provider changes
-watch(() => context.selectedProvider.value?.id, () => {
-  initializeForm()
+watch(() => context.selectedProvider.value?.id, initializeForm)
+
+watch([apiKey, baseUrl, accountId], () => {
+  if (validation.value === 'failed' || validation.value === 'succeed') {
+    validation.value = 'unchecked'
+    validationError.value = undefined
+  }
 })
 
 // Computed properties
@@ -61,7 +66,13 @@ const canProceed = computed(() => {
   if (needsApiKey.value && !apiKey.value.trim())
     return false
 
-  return validation.value === 'unchecked' || validation.value === 'succeed'
+  return validation.value !== 'pending'
+})
+
+const primaryActionLabel = computed(() => {
+  return validation.value === 'failed'
+    ? t('settings.dialogs.onboarding.retry')
+    : t('settings.dialogs.onboarding.next')
 })
 
 async function validateConfiguration() {
@@ -69,6 +80,7 @@ async function validateConfiguration() {
     return
 
   validation.value = 'pending'
+  validationError.value = undefined
 
   try {
     // Prepare config object
@@ -99,13 +111,25 @@ async function validateConfiguration() {
 
 async function handleNext() {
   await validateConfiguration()
-  if (validation.value !== 'failed') {
+  if (validation.value === 'succeed') {
     await context.handleNextStep({
       apiKey: apiKey.value,
       baseUrl: baseUrl.value,
       accountId: accountId.value,
     })
   }
+}
+
+async function handleContinueAnyway() {
+  if (!context.selectedProvider.value)
+    return
+
+  await context.handleNextStep({
+    apiKey: apiKey.value,
+    baseUrl: baseUrl.value,
+    accountId: accountId.value,
+  })
+  providersStore.forceProviderConfigured(context.selectedProvider.value.id)
 }
 
 // Placeholder helpers
@@ -193,16 +217,28 @@ initializeForm()
       </div>
 
       <!-- Validation Status -->
-      <ErrorContainer
-        v-if="validation === 'failed'"
-        :title="t('settings.dialogs.onboarding.validationFailed')"
-        :error="validationError"
-      />
+      <Alert v-if="validation === 'failed'" type="error">
+        <template #title>
+          <div class="w-full flex items-center justify-between">
+            <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
+            <button
+              type="button"
+              class="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs text-red-600 font-medium transition-colors dark:bg-red-800/30 hover:bg-red-200 dark:text-red-300 dark:hover:bg-red-700/40"
+              @click="handleContinueAnyway"
+            >
+              {{ t('settings.pages.providers.common.continueAnyway') }}
+            </button>
+          </div>
+        </template>
+        <template v-if="validationError" #content>
+          <pre class="whitespace-pre-wrap break-all">{{ String(validationError) }}</pre>
+        </template>
+      </Alert>
     </div>
 
     <!-- Action Buttons -->
     <Button
-      :label="t('settings.dialogs.onboarding.next')"
+      :label="primaryActionLabel"
       :loading="validation === 'pending'"
       :disabled="!canProceed"
       @click="handleNext"

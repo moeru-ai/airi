@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
+import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
+import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
+import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
-import { installChatContextBridge } from '@proj-airi/stage-ui/stores/plugins/chat-context-bridge'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -16,13 +19,16 @@ import { themeColorFromValue, useThemeColor } from './composables/theme-color'
 
 const { isDark: dark } = useTheme()
 const i18n = useI18n()
+const contextBridgeStore = useContextBridgeStore()
 const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
 const router = useRouter()
 const route = useRoute()
-let disposeChatBridge: (() => void) | undefined
+const cardStore = useAiriCardStore()
+const serverChannelStore = useModsServerChannelStore()
+const analyticsStore = useSharedAnalyticsStore()
 
 watch(language, () => {
   i18n.locale.value = language.value
@@ -35,13 +41,15 @@ onMounted(() => updateThemeColor())
 
 // FIXME: store settings to file
 onMounted(async () => {
+  analyticsStore.initialize()
+  cardStore.initialize()
   onboardingStore.initializeSetupCheck()
 
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
 
-  const bridge = installChatContextBridge()
-  disposeChatBridge = bridge.dispose
+  await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch((err) => { console.error('Failed to initialize Mods Server Channel in App.vue:', err) })
+  await contextBridgeStore.initialize()
 
   const context = useElectronEventaContext()
   const startTrackingCursorPoint = defineInvoke(context.value, electronStartTrackMousePosition)
@@ -59,7 +67,7 @@ watch(themeColorsHueDynamic, () => {
   document.documentElement.classList.toggle('dynamic-hue', themeColorsHueDynamic.value)
 }, { immediate: true })
 
-onUnmounted(() => disposeChatBridge?.())
+onUnmounted(() => contextBridgeStore.dispose())
 </script>
 
 <template>

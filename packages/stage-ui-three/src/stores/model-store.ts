@@ -137,7 +137,7 @@ export const useModelStore = defineStore('modelStore', () => {
   const ambientLightIntensity = useLocalStorage('settings/stage-ui-three/scenes/scene/ambient-light/intensity', 0.6)
 
   // environment related setting
-  const envSelect = useLocalStorage('settings/stage-ui-three/envEnabled', 'skyBox' as 'hemisphere' | 'skyBox')
+  const envSelect = useLocalStorage('settings/stage-ui-three/envEnabled', 'hemisphere' as 'hemisphere' | 'skyBox')
   const skyBoxSrc = useLocalStorage('settings/stage-ui-three/skyBoxUrl', defaultSkyBoxSrc)
   const skyBoxIntensity = useLocalStorage('settings/stage-ui-three/skyBoxIntensity', 0.1)
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { IconStatusItem, RippleGrid } from '@proj-airi/stage-ui/components'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useRippleGridState } from '@proj-airi/stage-ui/composables/use-ripple-grid-state'
 import { useScrollToHash } from '@proj-airi/stage-ui/composables/useScrollToHash'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
@@ -10,6 +11,7 @@ import { useRoute } from 'vue-router'
 const route = useRoute()
 const providersStore = useProvidersStore()
 const { lastClickedIndex, setLastClickedIndex } = useRippleGridState()
+const { trackProviderClick } = useAnalytics()
 
 const {
   allChatProvidersMetadata,
@@ -114,6 +116,7 @@ useScrollToHash(() => route.hash, {
           :icon-image="provider.iconImage"
           :to="`/settings/providers/${provider.category}/${provider.id}`"
           :configured="provider.configured"
+          @click="trackProviderClick(provider.id, provider.category)"
         />
       </template>
     </RippleGrid>

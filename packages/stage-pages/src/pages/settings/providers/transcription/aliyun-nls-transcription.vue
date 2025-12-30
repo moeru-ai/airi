@@ -2,7 +2,7 @@
 import type { HearingTranscriptionResult } from '@proj-airi/stage-ui/stores/modules/hearing'
 import type { ServerEvent, ServerEvents } from '@proj-airi/stage-ui/stores/providers/aliyun'
 import type { RemovableRef } from '@vueuse/core'
-import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
+import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import vadWorkletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
@@ -115,6 +115,7 @@ const {
   isValid,
   validationMessage,
   handleResetSettings,
+  forceValid,
 } = useProviderValidation(providerId)
 
 function float32ToInt16(buffer: Float32Array) {
@@ -397,7 +398,16 @@ onBeforeUnmount(async () => {
 
         <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
           <template #title>
-            {{ t('settings.dialogs.onboarding.validationFailed') }}
+            <div class="w-full flex items-center justify-between">
+              <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
+              <button
+                type="button"
+                class="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs text-red-600 font-medium transition-colors dark:bg-red-800/30 hover:bg-red-200 dark:text-red-300 dark:hover:bg-red-700/40"
+                @click="forceValid"
+              >
+                {{ t('settings.pages.providers.common.continueAnyway') }}
+              </button>
+            </div>
           </template>
           <template #content>
             <div class="whitespace-pre-wrap break-all">

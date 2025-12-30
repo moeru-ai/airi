@@ -7,7 +7,7 @@ import type {
   SpeechProviderWithExtraOptions,
   TranscriptionProvider,
   TranscriptionProviderWithExtraOptions,
-} from '@xsai-ext/shared-providers'
+} from '@xsai-ext/providers/utils'
 import type { ProgressInfo } from '@xsai-transformers/shared/types'
 import type {
   UnAlibabaCloudOptions,
@@ -22,31 +22,29 @@ import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
 import { computedAsync, useLocalStorage } from '@vueuse/core'
 import {
-  createAzure,
   createCerebras,
   createDeepSeek,
   createFireworks,
   createGoogleGenerativeAI,
   createMistral,
-  createMoonshot,
+  createMoonshotai,
   createNovita,
+  createOllama,
   createOpenAI,
   createOpenRouter,
   createPerplexity,
   createTogetherAI,
-  createWorkersAI,
-  createXAI,
-} from '@xsai-ext/providers-cloud'
-import { createOllama, createPlayer2 } from '@xsai-ext/providers-local'
+  createXai,
+} from '@xsai-ext/providers/create'
+import { createAzure, createPlayer2, createWorkersAI } from '@xsai-ext/providers/special/create'
 import {
   createChatProvider,
   createEmbedProvider,
-  createMetadataProvider,
   createModelProvider,
   createSpeechProvider,
   createTranscriptionProvider,
   merge,
-} from '@xsai-ext/shared-providers'
+} from '@xsai-ext/providers/utils'
 import { listModels } from '@xsai/model'
 import { isWebGPUSupported } from 'gpuu/webgpu'
 import { defineStore } from 'pinia'
@@ -187,6 +185,14 @@ export interface VoiceInfo {
   }[]
 }
 
+export interface ProviderRuntimeState {
+  isConfigured: boolean
+  validatedCredentialHash?: string
+  models: ModelInfo[]
+  isLoadingModels: boolean
+  modelLoadError: string | null
+}
+
 function createAnthropic(apiKey: string, baseURL: string = 'https://api.anthropic.com/v1/') {
   const anthropicFetch = async (input: any, init: any) => {
     init.headers ??= {}
@@ -200,7 +206,6 @@ function createAnthropic(apiKey: string, baseURL: string = 'https://api.anthropi
   }
 
   return merge(
-    createMetadataProvider('anthropic'),
     /** @see {@link https://docs.anthropic.com/en/docs/about-claude/models/all-models} */
     createChatProvider({ apiKey, fetch: anthropicFetch, baseURL }),
     createModelProvider({ apiKey, fetch: anthropicFetch, baseURL }),
@@ -209,6 +214,8 @@ function createAnthropic(apiKey: string, baseURL: string = 'https://api.anthropi
 
 export const useProvidersStore = defineStore('providers', () => {
   const providerCredentials = useLocalStorage<Record<string, Record<string, unknown>>>('settings/credentials/providers', {})
+  const addedProviders = useLocalStorage<Record<string, boolean>>('settings/providers/added', {})
+  const providerInstanceCache = ref<Record<string, unknown>>({})
   const { t } = useI18n()
   const baseUrlValidator = computed(() => (baseUrl: unknown) => {
     let msg = ''
@@ -895,9 +902,17 @@ export const useProvidersStore = defineStore('providers', () => {
         const provider = createAliyunNlsStreamProvider(accessKeyId, accessKeySecret, appKey, { region: resolvedRegion })
 
         return {
-          transcription(model: string, extraOptions?: AliyunRealtimeSpeechExtraOptions) {
-            return provider.speech(model, extraOptions)
-          },
+          transcription: (model: string, extraOptions?: AliyunRealtimeSpeechExtraOptions) => provider.speech(model, {
+            ...extraOptions,
+            sessionOptions: {
+              format: 'pcm',
+              sample_rate: 16000,
+              enable_punctuation_prediction: true,
+              enable_intermediate_result: true,
+              enable_words: true,
+              ...extraOptions?.sessionOptions,
+            },
+          }),
         } as TranscriptionProviderWithExtraOptions<string, AliyunRealtimeSpeechExtraOptions>
       },
       capabilities: {
@@ -1483,7 +1498,7 @@ export const useProvidersStore = defineStore('providers', () => {
       icon: 'i-lobe-icons:xai',
       description: 'x.ai',
       defaultBaseUrl: 'https://api.x.ai/v1/',
-      creator: createXAI,
+      creator: createXai,
       validation: ['health', 'model_list'],
     }),
     'vllm': {
@@ -1591,7 +1606,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'novita.ai',
       defaultBaseUrl: 'https://api.novita.ai/openai/',
       creator: createNovita,
-      validation: ['health', 'model_list', 'chat_completions'],
+      validation: ['health', 'model_list'],
       iconColor: 'i-lobe-icons:novita',
     }),
     'fireworks-ai': buildOpenAICompatibleProvider({
@@ -1691,7 +1706,7 @@ export const useProvidersStore = defineStore('providers', () => {
       icon: 'i-lobe-icons:moonshot',
       description: 'moonshot.ai',
       defaultBaseUrl: 'https://api.moonshot.ai/v1/',
-      creator: createMoonshot,
+      creator: createMoonshotai,
       validation: ['health', 'model_list'],
     }),
     'modelscope': buildOpenAICompatibleProvider({
@@ -1703,7 +1718,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'modelscope',
       defaultBaseUrl: 'https://api-inference.modelscope.cn/v1/',
       creator: createOpenAI,
-      validation: ['health', 'model_list', 'chat_completions'],
+      validation: ['health', 'model_list'],
       iconColor: 'i-lobe-icons:modelscope',
     }),
     'player2': {
@@ -1866,8 +1881,25 @@ export const useProvidersStore = defineStore('providers', () => {
     },
   }
 
-  const configuredProviders = ref<Record<string, boolean>>({})
-  const validatedCredentials = ref<Record<string, string>>({})
+  // const validatedCredentials = ref<Record<string, string>>({})
+  const providerRuntimeState = ref<Record<string, ProviderRuntimeState>>({})
+
+  const configuredProviders = computed(() => {
+    const result: Record<string, boolean> = {}
+    for (const [key, state] of Object.entries(providerRuntimeState.value)) {
+      result[key] = state.isConfigured
+    }
+
+    return result
+  })
+
+  function markProviderAdded(providerId: string) {
+    addedProviders.value[providerId] = true
+  }
+
+  function unmarkProviderAdded(providerId: string) {
+    delete addedProviders.value[providerId]
+  }
 
   // Configuration validation functions
   async function validateProvider(providerId: string): Promise<boolean> {
@@ -1876,33 +1908,51 @@ export const useProvidersStore = defineStore('providers', () => {
       return false
 
     const configString = JSON.stringify(config || {})
-    if (validatedCredentials.value[providerId] === configString && typeof configuredProviders.value[providerId] === 'boolean')
-      return configuredProviders.value[providerId]
+    const runtimeState = providerRuntimeState.value[providerId]
+
+    if (runtimeState?.validatedCredentialHash === configString && typeof runtimeState.isConfigured === 'boolean')
+      return runtimeState.isConfigured
 
     const metadata = providerMetadata[providerId]
     if (!metadata)
       return false
 
     // Always cache the current config string to prevent re-validating the same config
-    validatedCredentials.value[providerId] = configString
+    if (providerRuntimeState.value[providerId]) {
+      providerRuntimeState.value[providerId].validatedCredentialHash = configString
+    }
 
     const validationResult = await metadata.validators.validateProviderConfig(config)
 
-    configuredProviders.value[providerId] = validationResult.valid
+    if (providerRuntimeState.value[providerId]) {
+      providerRuntimeState.value[providerId].isConfigured = validationResult.valid
+    }
 
     return validationResult.valid
   }
 
   // Create computed properties for each provider's configuration status
 
+  function getDefaultProviderConfig(providerId: string) {
+    const metadata = providerMetadata[providerId]
+    const defaultOptions = metadata?.defaultOptions?.() || {}
+    return {
+      ...defaultOptions,
+      ...(Object.prototype.hasOwnProperty.call(defaultOptions, 'baseUrl') ? {} : { baseUrl: '' }),
+    }
+  }
+
   // Initialize provider configurations
   function initializeProvider(providerId: string) {
     if (!providerCredentials.value[providerId]) {
-      const metadata = providerMetadata[providerId]
-      const defaultOptions = metadata.defaultOptions?.() || {}
-      providerCredentials.value[providerId] = {
-        ...defaultOptions,
-        ...(Object.prototype.hasOwnProperty.call(defaultOptions, 'baseUrl') ? {} : { baseUrl: '' }),
+      providerCredentials.value[providerId] = getDefaultProviderConfig(providerId)
+    }
+    if (!providerRuntimeState.value[providerId]) {
+      providerRuntimeState.value[providerId] = {
+        isConfigured: false,
+        models: [],
+        isLoadingModels: false,
+        modelLoadError: null,
       }
     }
   }
@@ -1917,10 +1967,14 @@ export const useProvidersStore = defineStore('providers', () => {
       // .filter(([_, provider]) => provider.configured)
       .map(async ([providerId]) => {
         try {
-          configuredProviders.value[providerId] = await validateProvider(providerId)
+          if (providerRuntimeState.value[providerId]) {
+            providerRuntimeState.value[providerId].isConfigured = await validateProvider(providerId)
+          }
         }
         catch {
-          configuredProviders.value[providerId] = false
+          if (providerRuntimeState.value[providerId]) {
+            providerRuntimeState.value[providerId].isConfigured = false
+          }
         }
       }))
   }
@@ -1929,20 +1983,55 @@ export const useProvidersStore = defineStore('providers', () => {
   watch(providerCredentials, updateConfigurationStatus, { deep: true, immediate: true })
 
   // Available providers (only those that are properly configured)
-  const availableProviders = computed(() => Object.keys(providerMetadata).filter(providerId => configuredProviders.value[providerId]))
+  const availableProviders = computed(() => Object.keys(providerMetadata).filter(providerId => providerRuntimeState.value[providerId]?.isConfigured))
 
   // Store available models for each provider
-  const availableModels = ref<Record<string, ModelInfo[]>>({})
-  const isLoadingModels = ref<Record<string, boolean>>({})
-  const modelLoadError = ref<Record<string, string | null>>({})
+  const availableModels = computed(() => {
+    const result: Record<string, ModelInfo[]> = {}
+    for (const [key, state] of Object.entries(providerRuntimeState.value)) {
+      result[key] = state.models
+    }
+    return result
+  })
+
+  const isLoadingModels = computed(() => {
+    const result: Record<string, boolean> = {}
+    for (const [key, state] of Object.entries(providerRuntimeState.value)) {
+      result[key] = state.isLoadingModels
+    }
+    return result
+  })
+
+  const modelLoadError = computed(() => {
+    const result: Record<string, string | null> = {}
+    for (const [key, state] of Object.entries(providerRuntimeState.value)) {
+      result[key] = state.modelLoadError
+    }
+    return result
+  })
+
+  function deleteProvider(providerId: string) {
+    delete providerCredentials.value[providerId]
+    delete providerRuntimeState.value[providerId]
+    unmarkProviderAdded(providerId)
+  }
+
+  function forceProviderConfigured(providerId: string) {
+    if (providerRuntimeState.value[providerId]) {
+      providerRuntimeState.value[providerId].isConfigured = true
+      // Also cache the current config to prevent re-validation from overwriting
+      const config = providerCredentials.value[providerId]
+      if (config) {
+        providerRuntimeState.value[providerId].validatedCredentialHash = JSON.stringify(config)
+      }
+    }
+    markProviderAdded(providerId)
+  }
 
   async function resetProviderSettings() {
     providerCredentials.value = {}
-    configuredProviders.value = {}
-    validatedCredentials.value = {}
-    availableModels.value = {}
-    isLoadingModels.value = {}
-    modelLoadError.value = {}
+    addedProviders.value = {}
+    providerRuntimeState.value = {}
 
     Object.keys(providerMetadata).forEach(initializeProvider)
     await updateConfigurationStatus()
@@ -1958,44 +2047,53 @@ export const useProvidersStore = defineStore('providers', () => {
     if (!metadata)
       return []
 
-    isLoadingModels.value[providerId] = true
-    modelLoadError.value[providerId] = null
+    const runtimeState = providerRuntimeState.value[providerId]
+    if (runtimeState) {
+      runtimeState.isLoadingModels = true
+      runtimeState.modelLoadError = null
+    }
 
     try {
       const models = metadata.capabilities.listModels ? await metadata.capabilities.listModels(config) : []
 
       // Transform and store the models
-      availableModels.value[providerId] = models.map(model => ({
-        id: model.id,
-        name: model.name,
-        description: model.description,
-        contextLength: model.contextLength,
-        deprecated: model.deprecated,
-        provider: providerId,
-      }))
-
-      return availableModels.value[providerId]
+      if (runtimeState) {
+        runtimeState.models = models.map(model => ({
+          id: model.id,
+          name: model.name,
+          description: model.description,
+          contextLength: model.contextLength,
+          deprecated: model.deprecated,
+          provider: providerId,
+        }))
+        return runtimeState.models
+      }
+      return []
     }
     catch (error) {
       console.error(`Error fetching models for ${providerId}:`, error)
-      modelLoadError.value[providerId] = error instanceof Error ? error.message : 'Unknown error'
+      if (runtimeState) {
+        runtimeState.modelLoadError = error instanceof Error ? error.message : 'Unknown error'
+      }
       return []
     }
     finally {
-      isLoadingModels.value[providerId] = false
+      if (runtimeState) {
+        runtimeState.isLoadingModels = false
+      }
     }
   }
 
   // Get models for a specific provider
   function getModelsForProvider(providerId: string) {
-    return availableModels.value[providerId] || []
+    return providerRuntimeState.value[providerId]?.models || []
   }
 
   // Get all available models across all configured providers
   const allAvailableModels = computed(() => {
     const models: ModelInfo[] = []
     for (const providerId of availableProviders.value) {
-      models.push(...(availableModels.value[providerId] || []))
+      models.push(...(providerRuntimeState.value[providerId]?.models || []))
     }
     return models
   })
@@ -2016,8 +2114,11 @@ export const useProvidersStore = defineStore('providers', () => {
     )
 
     for (const providerId of changedProviders) {
+      // Since credentials changed, dispose the cached instance so new creds take effect.
+      void disposeProviderInstance(providerId)
+
       // If the provider is configured and has the capability, refetch its models
-      if (configuredProviders.value[providerId] && providerMetadata[providerId]?.capabilities.listModels) {
+      if (providerRuntimeState.value[providerId]?.isConfigured && providerMetadata[providerId]?.capabilities.listModels) {
         fetchModelsForProvider(providerId)
       }
     }
@@ -2043,7 +2144,7 @@ export const useProvidersStore = defineStore('providers', () => {
       ...metadata,
       localizedName: t(metadata.nameKey, metadata.name),
       localizedDescription: t(metadata.descriptionKey, metadata.description),
-      configured: configuredProviders.value[metadata.id] || false,
+      configured: providerRuntimeState.value[metadata.id]?.isConfigured || false,
     }))
   })
 
@@ -2069,6 +2170,10 @@ export const useProvidersStore = defineStore('providers', () => {
   | TranscriptionProvider
   | TranscriptionProviderWithExtraOptions,
   >(providerId: string): Promise<R> {
+    const cached = providerInstanceCache.value[providerId] as R | undefined
+    if (cached)
+      return cached
+
     const config = providerCredentials.value[providerId]
     if (!config)
       throw new Error(`Provider credentials for ${providerId} not found`)
@@ -2078,12 +2183,22 @@ export const useProvidersStore = defineStore('providers', () => {
       throw new Error(`Provider metadata for ${providerId} not found`)
 
     try {
-      return await metadata.createProvider(config) as R
+      const instance = await metadata.createProvider(config) as R
+      providerInstanceCache.value[providerId] = instance
+      return instance
     }
     catch (error) {
       console.error(`Error creating provider instance for ${providerId}:`, error)
       throw error
     }
+  }
+
+  async function disposeProviderInstance(providerId: string) {
+    const instance = providerInstanceCache.value[providerId] as { dispose?: () => Promise<void> | void } | undefined
+    if (instance?.dispose)
+      await instance.dispose()
+
+    delete providerInstanceCache.value[providerId]
   }
 
   const availableProvidersMetadata = computedAsync<ProviderMetadata[]>(async () => {
@@ -2126,6 +2241,35 @@ export const useProvidersStore = defineStore('providers', () => {
     return allAudioTranscriptionProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
   })
 
+  function isProviderConfigDirty(providerId: string) {
+    const config = providerCredentials.value[providerId]
+    if (!config)
+      return false
+
+    const defaultOptions = getDefaultProviderConfig(providerId)
+    return JSON.stringify(config) !== JSON.stringify(defaultOptions)
+  }
+
+  function shouldListProvider(providerId: string) {
+    return !!addedProviders.value[providerId] || isProviderConfigDirty(providerId)
+  }
+
+  const persistedProvidersMetadata = computed(() => {
+    return availableProvidersMetadata.value.filter(metadata => shouldListProvider(metadata.id))
+  })
+
+  const persistedChatProvidersMetadata = computed(() => {
+    return persistedProvidersMetadata.value.filter(metadata => metadata.category === 'chat')
+  })
+
+  const persistedSpeechProvidersMetadata = computed(() => {
+    return persistedProvidersMetadata.value.filter(metadata => metadata.category === 'speech')
+  })
+
+  const persistedTranscriptionProvidersMetadata = computed(() => {
+    return persistedProvidersMetadata.value.filter(metadata => metadata.category === 'transcription')
+  })
+
   function getProviderConfig(providerId: string) {
     return providerCredentials.value[providerId]
   }
@@ -2133,6 +2277,10 @@ export const useProvidersStore = defineStore('providers', () => {
   return {
     providers: providerCredentials,
     getProviderConfig,
+    addedProviders,
+    markProviderAdded,
+    unmarkProviderAdded,
+    deleteProvider,
     availableProviders,
     configuredProviders,
     providerMetadata,
@@ -2149,7 +2297,9 @@ export const useProvidersStore = defineStore('providers', () => {
     allAvailableModels,
     loadModelsForConfiguredProviders,
     getProviderInstance,
+    disposeProviderInstance,
     resetProviderSettings,
+    forceProviderConfigured,
     availableProvidersMetadata,
     allChatProvidersMetadata,
     allAudioSpeechProvidersMetadata,
@@ -2157,5 +2307,9 @@ export const useProvidersStore = defineStore('providers', () => {
     configuredChatProvidersMetadata,
     configuredSpeechProvidersMetadata,
     configuredTranscriptionProvidersMetadata,
+    persistedProvidersMetadata,
+    persistedChatProvidersMetadata,
+    persistedSpeechProvidersMetadata,
+    persistedTranscriptionProvidersMetadata,
   }
 })

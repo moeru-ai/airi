@@ -18,9 +18,7 @@ onMounted(() => {
   handleAnalyze()
 })
 
-watch(() => props.stream, () => {
-  handleAnalyze()
-})
+watch(() => props.stream, handleAnalyze)
 
 function handleAnalyze() {
   if (!props.stream) {

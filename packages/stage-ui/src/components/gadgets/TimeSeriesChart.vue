@@ -2,7 +2,7 @@
 import type { Oklch } from '@proj-airi/chromatic'
 
 import { chromaticPaletteFrom } from '@proj-airi/chromatic'
-import { useElementBounding } from '@vueuse/core'
+import { useElementBounding, useThrottleFn } from '@vueuse/core'
 import { computed, inject, ref, toRef, watch } from 'vue'
 
 import { chromaticHue as hue } from '../../constants'
@@ -73,6 +73,13 @@ const chromaticShades = computed(() => chromaticPaletteFrom(chromaticHueOrDefaul
 
 const timeSeriesChartContainerBounding = useElementBounding(timeSeriesChartRef, { windowResize: true })
 
+const throttledWidth = ref(0)
+const updateWidth = useThrottleFn(() => {
+  throttledWidth.value = Math.max(0, Math.floor(timeSeriesChartContainerBounding.width.value || 0))
+}, 100, true, true)
+
+watch(() => timeSeriesChartContainerBounding.width.value, updateWidth, { immediate: true })
+
 watch([chromaticHueOrDefault, timeSeriesChartRef], () => {
   if (timeSeriesChartRef.value) {
     timeSeriesChartRef.value.style.setProperty('--chromatic-hue', chromaticHueOrDefault.value.toString())
@@ -133,13 +140,48 @@ const thresholdLineY = computed(() => {
   return chartHeight.value - (normalizedThreshold.value * chartHeight.value)
 })
 
+const chartWidth = computed(() => throttledWidth.value)
+
+// Keep the number of rendered points close to the available pixels to avoid giant SVG paths
+function downsampleSeries(values: readonly number[], maxPoints: number) {
+  if (values.length <= maxPoints || maxPoints < 2)
+    return values
+
+  const result: number[] = []
+  const bucketSize = (values.length - 1) / (maxPoints - 1)
+
+  for (let i = 0; i < maxPoints; i++) {
+    const start = Math.floor(i * bucketSize)
+    const end = Math.min(values.length, Math.floor((i + 1) * bucketSize))
+    if (end <= start) {
+      result.push(values[start])
+      continue
+    }
+
+    let sum = 0
+    for (let j = start; j < end; j++)
+      sum += values[j]
+
+    result.push(sum / (end - start))
+  }
+
+  // Ensure the last value remains the most recent value (avoid averaging it away)
+  result[result.length - 1] = values[values.length - 1]
+  return result
+}
+
+const downsampledHistory = computed(() => {
+  const targetPoints = Math.max(props.minDataPoints, Math.min(400, chartWidth.value))
+  return downsampleSeries(props.history, targetPoints)
+})
+
 // Create smooth curve path
 const smoothPath = computed(() => {
-  const history = props.history
-  if (history.length < 2)
+  const history = downsampledHistory.value
+  if (history.length < 2 || chartWidth.value === 0)
     return ''
 
-  const width = timeSeriesChartContainerBounding.width.value
+  const width = chartWidth.value
   const height = chartHeight.value
 
   let path = `M0,${height - (history[0] * height)}`
@@ -164,11 +206,11 @@ const smoothPath = computed(() => {
 
 // Create filled area path
 const dataAreaPath = computed(() => {
-  const history = props.history
-  if (history.length < 2)
+  const history = downsampledHistory.value
+  if (history.length < 2 || chartWidth.value === 0)
     return ''
 
-  const width = timeSeriesChartContainerBounding.width.value
+  const width = chartWidth.value
   const height = chartHeight.value
 
   let path = `M0,${height} L0,${height - (history[0] * height)}`
@@ -249,7 +291,6 @@ const dataAreaPath = computed(() => {
           width="100%"
           :height="chartHeight - thresholdLineY"
           :fill="thresholdColor"
-          class="transition-all duration-300"
         />
 
         <!-- Threshold line -->
@@ -263,7 +304,6 @@ const dataAreaPath = computed(() => {
           stroke-width="1.5"
           stroke-dasharray="4,4"
           :fill="thresholdColor"
-          class="transition-all duration-300"
         />
 
         <!-- Data area (filled under curve) -->
@@ -271,7 +311,6 @@ const dataAreaPath = computed(() => {
           v-if="dataAreaPath && showArea"
           :d="dataAreaPath"
           :fill="`url(#${areaGradientId})`"
-          class="transition-all duration-75"
         />
 
         <!-- Main data curve -->
@@ -283,7 +322,7 @@ const dataAreaPath = computed(() => {
           :stroke-width="lineWidth"
           stroke-linecap="round"
           stroke-linejoin="round"
-          class="drop-shadow-sm transition-all duration-75"
+          class="drop-shadow-sm"
         />
       </svg>
 

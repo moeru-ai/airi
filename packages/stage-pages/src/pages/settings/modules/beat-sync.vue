@@ -10,9 +10,9 @@ import {
   listenBeatSyncStateChange,
   toggleBeatSync,
   updateBeatSyncParameters,
-} from '@proj-airi/stage-shared/beat-sync/browser'
+} from '@proj-airi/stage-shared/beat-sync'
 import { Alert, AudioSpectrumVisualizer } from '@proj-airi/stage-ui/components'
-import { Button, FieldCheckbox, FieldRange } from '@proj-airi/ui'
+import { Button, FieldCheckbox, FieldRange, SelectTab } from '@proj-airi/ui'
 import { createTimeline } from 'animejs'
 import { nanoid } from 'nanoid'
 import { computed, onMounted, onUnmounted, ref, toRaw, watch } from 'vue'
@@ -22,6 +22,11 @@ const state = ref<BeatSyncDetectorState>()
 const frequencies = ref<number[]>([])
 const totalFreqHistory = ref<number[]>([])
 const isUpdatingFrequencies = ref(false)
+const spectrumScale = ref<'linear' | 'logarithm'>('logarithm')
+const spectrumScaleOptions = [
+  { label: 'Linear', value: 'linear' as const, icon: 'i-solar:chart-2-bold-duotone' },
+  { label: 'Logarithm', value: 'logarithm' as const, icon: 'i-solar:chart-bold-duotone' },
+]
 
 const { t } = useI18n()
 
@@ -31,9 +36,20 @@ const beatsHistory = ref<Array<{
   normalizedEnergy: number
 }>>([])
 
-const parameters = ref<AnalyserWorkletParameters>({ ...DEFAULT_ANALYSER_WORKLET_PARAMS })
+const parameters = ref<AnalyserWorkletParameters>({
+  ...DEFAULT_ANALYSER_WORKLET_PARAMS,
+  // Loosen the parameters for easier beat detection by default.
+  // Also makes life easier :)
+  warmup: false,
+  spectralFlux: false,
+  adaptiveThreshold: false,
+})
 
-watch<AnalyserWorkletParameters>(parameters, newParameters => updateBeatSyncParameters(toRaw(newParameters)), { deep: true })
+watch([state, parameters], ([newState, newParameters]) => {
+  if (newState?.isActive) {
+    updateBeatSyncParameters(toRaw(newParameters))
+  }
+}, { deep: true, immediate: true })
 
 function normalizeEnergy(energy: number) {
   const base = 2
@@ -293,12 +309,21 @@ onUnmounted(() => {
         </div>
       </h2>
 
-      <div bg="neutral/10" h-64px max-w-400px w-full overflow-hidden rounded-2xl>
-        <AudioSpectrumVisualizer
-          v-if="isUpdatingFrequencies"
-          :frequencies="frequencies"
-          h-full w-full gap-0
-          bars-class="bg-primary-400/50 dark:bg-primary-500/50 rounded-none"
+      <div class="max-w-400px w-full flex flex-col gap-3">
+        <div bg="neutral/10" h-64px w-full overflow-hidden rounded-2xl>
+          <AudioSpectrumVisualizer
+            v-if="isUpdatingFrequencies"
+            :frequencies="frequencies"
+            :scale="spectrumScale"
+            h-full w-full gap-0
+            bars-class="bg-primary-400/50 dark:bg-primary-500/50 rounded-none"
+          />
+        </div>
+
+        <SelectTab
+          v-model="spectrumScale"
+          size="sm"
+          :options="spectrumScaleOptions"
         />
       </div>
 

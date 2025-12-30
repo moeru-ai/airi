@@ -3,30 +3,30 @@ chat:
     character-name:
       airi: AIRI
       core-system: Core System
-      you: You
-message: Say something...
+      you: 당신
+message: 듣고 있어요...
 operations:
-  load-models: Load Models
+  load-models: 모델 불러오기
   load-models-status:
-    loading: Loading
+    loading: 로딩 중
     ready: Ready
 select-a-audio-input: Select a Audio Input
-select-a-model: Select a model
+select-a-model: 모델 선택
 select-a-voice: Choose a voice
 viewers:
   debug-menu:
-    emotions: Emotions
+    emotions: 감정
     emotions-btn:
-      angry: '😠 Angry'
-      awkward: '😳 Awkward'
-      happy: '😄 Happy'
+      angry: 화남
+      awkward: 어색함
+      happy: 행복함
       neutral: '🙂 Neutral'
       question: '🤔 Question'
-      sad: '😫 Sad'
-      surprised: '🤯 Surprised'
+      sad: 슬픔
+      surprised: 놀람
       think: '🤨 Think'
     vrm:
-      camera: Camera
+      camera: 카메라
       model:
-        title: Model
+        title: 모델
 waiting: Waiting
