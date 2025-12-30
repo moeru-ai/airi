@@ -1,6 +1,6 @@
 import type { FaceState, HandState, Landmark2D, PerceptionState, PoseState } from '../types'
 
-import { HandLandmarker, PoseLandmarker } from '@mediapipe/tasks-vision'
+import { DrawingUtils, HandLandmarker, PoseLandmarker } from '@mediapipe/tasks-vision'
 
 const POSE_CONNECTIONS: Readonly<{ start: number, end: number }[]> = PoseLandmarker.POSE_CONNECTIONS
 const HAND_CONNECTIONS: Readonly<{ start: number, end: number }[]> = HandLandmarker.HAND_CONNECTIONS
@@ -18,83 +18,53 @@ const OVERLAY_STYLES = {
   connectorLineWidth: 2.5,
   pointRadius: 6,
   facePointRadius: 2,
-  pointStroke: 'rgba(0, 0, 0, 0.35)',
+  pointLineWidth: 1.5,
 }
 
 const paletteFor = (index: number) => OVERLAY_PALETTE[index % OVERLAY_PALETTE.length]
 
-function drawConnectors(
-  ctx: CanvasRenderingContext2D,
-  points: Landmark2D[],
-  connections: ReadonlyArray<readonly [number, number]>,
-  color: string,
-) {
-  const { width, height } = ctx.canvas
-
-  ctx.strokeStyle = color
-  ctx.lineWidth = OVERLAY_STYLES.connectorLineWidth
-  ctx.lineCap = 'round'
-  ctx.lineJoin = 'round'
-
-  ctx.beginPath()
-  for (const [a, b] of connections) {
-    const pa = points[a]
-    const pb = points[b]
-    if (!pa || !pb)
-      continue
-
-    ctx.moveTo(pa.x * width, pa.y * height)
-    ctx.lineTo(pb.x * width, pb.y * height)
-  }
-  ctx.stroke()
-}
-
-function drawPoints(
-  ctx: CanvasRenderingContext2D,
-  points: Landmark2D[],
-  color: string,
-  options?: { radius?: number },
-) {
-  const { width, height } = ctx.canvas
-
-  ctx.fillStyle = color
-  ctx.strokeStyle = OVERLAY_STYLES.pointStroke
-  ctx.lineWidth = 1.5
-
-  const radius = options?.radius ?? OVERLAY_STYLES.pointRadius
-  for (const p of points) {
-    const x = p.x * width
-    const y = p.y * height
-    ctx.beginPath()
-    ctx.arc(x, y, radius, 0, Math.PI * 2)
-    ctx.fill()
-  }
-}
-
-function drawFace(ctx: CanvasRenderingContext2D, face: FaceState) {
+function drawFace(drawing: DrawingUtils, face: FaceState) {
   if (!face.landmarks2d?.length)
     return
 
   // Face has 468 points; keep them small to reduce clutter.
   const colors = paletteFor(3)
-  drawPoints(ctx, face.landmarks2d, colors.point, { radius: OVERLAY_STYLES.facePointRadius })
+  drawing.drawLandmarks(face.landmarks2d as Landmark2D[], {
+    color: colors.point,
+    radius: OVERLAY_STYLES.facePointRadius,
+    lineWidth: OVERLAY_STYLES.pointLineWidth,
+  })
 }
 
-function drawPose(ctx: CanvasRenderingContext2D, pose: PoseState) {
+function drawPose(drawing: DrawingUtils, pose: PoseState) {
   if (!pose.landmarks2d?.length)
     return
 
   const colors = paletteFor(0)
-  drawConnectors(ctx, pose.landmarks2d, POSE_CONNECTIONS.map(({ start, end }) => [start, end] as const), colors.connector)
-  drawPoints(ctx, pose.landmarks2d, colors.point, { radius: OVERLAY_STYLES.pointRadius })
+  drawing.drawConnectors(pose.landmarks2d as Landmark2D[], POSE_CONNECTIONS, {
+    color: colors.connector,
+    lineWidth: OVERLAY_STYLES.connectorLineWidth,
+  })
+  drawing.drawLandmarks(pose.landmarks2d as Landmark2D[], {
+    color: colors.point,
+    radius: OVERLAY_STYLES.pointRadius,
+    lineWidth: OVERLAY_STYLES.pointLineWidth,
+  })
 }
 
-function drawHands(ctx: CanvasRenderingContext2D, hands: HandState[]) {
+function drawHands(drawing: DrawingUtils, hands: HandState[]) {
   hands.forEach((hand) => {
     const handIndex = hand.handedness === 'Left' ? 1 : 2
     const colors = paletteFor(handIndex)
-    drawConnectors(ctx, hand.landmarks2d, HAND_CONNECTIONS.map(({ start, end }) => [start, end] as const), colors.connector)
-    drawPoints(ctx, hand.landmarks2d, colors.point, { radius: OVERLAY_STYLES.pointRadius })
+    drawing.drawConnectors(hand.landmarks2d as Landmark2D[], HAND_CONNECTIONS, {
+      color: colors.connector,
+      lineWidth: OVERLAY_STYLES.connectorLineWidth,
+    })
+    drawing.drawLandmarks(hand.landmarks2d as Landmark2D[], {
+      color: colors.point,
+      radius: OVERLAY_STYLES.pointRadius,
+      lineWidth: OVERLAY_STYLES.pointLineWidth,
+    })
   })
 }
 
@@ -103,20 +73,21 @@ export function drawOverlay(
   state: PerceptionState,
   enabled?: Partial<Record<'pose' | 'hands' | 'face', boolean>>,
 ) {
-  // TODO: Reduce per-frame allocations; consider MediaPipe DrawingUtils or cached paths.
   const { width, height } = ctx.canvas
   ctx.clearRect(0, 0, width, height)
+
+  const drawing = new DrawingUtils(ctx)
 
   const showPose = enabled?.pose ?? true
   const showHands = enabled?.hands ?? true
   const showFace = enabled?.face ?? true
 
   if (state.face && showFace)
-    drawFace(ctx, state.face)
+    drawFace(drawing, state.face)
 
   if (state.pose && showPose)
-    drawPose(ctx, state.pose)
+    drawPose(drawing, state.pose)
 
   if (state.hands?.length && showHands)
-    drawHands(ctx, state.hands)
+    drawHands(drawing, state.hands)
 }
