@@ -34,7 +34,7 @@ const isComposing = ref(false)
 // --- new feature ---
 type SendMode = 'enter' | 'ctrl-enter' | 'double-enter' // define three sending modes
 
-const sendMode = useLocalStorage<SendMode>('chat-send-mode', 'enter') // use useLocalStorage to make the browser remember the user's choice. The default is 'enter'
+const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter') // use useLocalStorage to make the browser remember the user's choice. The default is 'enter'
 const showSendModeMenu = ref(false) // whether the menu is displayed
 
 let lastEnterPressTime = 0 // timer of double-enter
