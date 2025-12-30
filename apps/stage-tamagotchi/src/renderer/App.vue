@@ -48,7 +48,7 @@ onMounted(async () => {
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
 
-  await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch((err) => { console.error('Failed to initialize Mods Server Channel in App.vue:', err) })
+  await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   await contextBridgeStore.initialize()
 
   const context = useElectronEventaContext()

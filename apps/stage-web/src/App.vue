@@ -74,7 +74,7 @@ onMounted(async () => {
 
   onboardingStore.initializeSetupCheck()
 
-  await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch((err) => { console.error('Failed to initialize Mods Server Channel in App.vue:', err) })
+  await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   await contextBridgeStore.initialize()
 
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
