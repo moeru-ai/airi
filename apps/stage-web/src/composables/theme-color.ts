@@ -1,6 +1,6 @@
+import type { BackgroundProvider } from '@proj-airi/stage-layouts/components/Backgrounds'
 import type { Ref } from 'vue'
 
-import type { BackgroundProvider } from '@proj-airi/stage-layouts/components/Backgrounds'
 import type { BackgroundItem } from '../stores/background'
 
 import Color from 'colorjs.io'

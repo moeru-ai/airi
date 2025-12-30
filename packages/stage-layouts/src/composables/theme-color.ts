@@ -1,5 +1,6 @@
-import { useTheme } from '@proj-airi/ui'
 import Color from 'colorjs.io'
+
+import { useTheme } from '@proj-airi/ui'
 
 export function themeColorFromValue(value: string | { light: string, dark: string }): () => Promise<string> {
   return async () => {
@@ -27,4 +28,3 @@ export function useThemeColor(colorFrom: () => string | Promise<string>) {
     updateThemeColor,
   }
 }
-
