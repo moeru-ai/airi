@@ -17,8 +17,8 @@ class DevBridgeViewController: CAPBridgeViewController {
     #endif
 }
 
+#if DEBUG
 extension DevBridgeViewController: WKNavigationDelegate {
-
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         if let url = navigationAction.request.url {
             print("[DevBridge] Navigation request to: \(url.absoluteString)")
@@ -67,5 +67,4 @@ extension DevBridgeViewController: WKNavigationDelegate {
         print("[DevBridge] Navigation didFail: \(error.localizedDescription)")
     }
 }
-
-
+#endif
