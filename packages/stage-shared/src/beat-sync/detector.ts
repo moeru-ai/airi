@@ -43,6 +43,8 @@ export type CreateBeatSyncDetectorOptions = |
   }
   | {
     env: StageEnvironment.Web
+  } | {
+    env: StageEnvironment.Capacitor
   }
 
 export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): BeatSyncDetector {
