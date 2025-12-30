@@ -15,7 +15,15 @@
     "directory": "packages/stage-layouts"
   },
   "exports": {
-    "./*": "./src/*"
+    ".": "./src/index.ts",
+    "./layouts/*": "./src/layouts/*.vue",
+    "./components/Layouts/*": "./src/components/Layouts/*.vue",
+    "./components/Layouts/InteractiveArea/Actions/*": "./src/components/Layouts/InteractiveArea/Actions/*.vue",
+    "./components/Layouts/ViewControls/*": "./src/components/Layouts/ViewControls/*.vue",
+    "./components/Widgets/*": "./src/components/Widgets/*.vue",
+    "./components/Backgrounds/*": "./src/components/Backgrounds/*",
+    "./composables/*": "./src/composables/*.ts",
+    "./stores/*": "./src/stores/*.ts"
   },
   "scripts": {
     "typecheck": "vue-tsc --noEmit"
