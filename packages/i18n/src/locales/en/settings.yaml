@@ -603,6 +603,9 @@ pages:
       google-generative-ai:
         description: gemini.google.com
         title: Google Gemini
+      groq:
+        description: groq.com
+        title: Groq
       featherless:
         description: featherless.ai
         title: Featherless AI
