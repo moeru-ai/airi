@@ -28,6 +28,8 @@ const languageRemap: Record<string, string> = {
   'ru-RU': 'ru',
   'fr': 'fr',
   'fr-FR': 'fr',
+  'ja': 'ja',
+  'ja-JP': 'ja',
 }
 
 export const DEFAULT_THEME_COLORS_HUE = 220.44
