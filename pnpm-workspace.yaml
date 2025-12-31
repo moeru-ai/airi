@@ -21,6 +21,9 @@ overrides:
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 
+patchedDependencies:
+  srvx@0.9.8: patches/srvx@0.9.8.patch
+
 catalog:
   '@guiiai/logg': ^1.2.11
   '@moeru/eslint-config': 0.1.0-beta.14
