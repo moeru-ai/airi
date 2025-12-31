@@ -28,7 +28,6 @@ export interface ChatAssistantMessage extends AssistantMessage {
   categorization?: {
     speech: string
     reasoning: string
-    metadata: string
   }
 }
 

@@ -1,4 +1,4 @@
-export type ResponseCategory = 'thought' | 'speech' | 'reasoning' | 'metadata' | 'unknown'
+export type ResponseCategory = 'speech' | 'reasoning' | 'unknown'
 
 export interface CategorizedSegment {
   category: ResponseCategory
@@ -12,42 +12,17 @@ export interface CategorizedSegment {
 export interface CategorizedResponse {
   segments: CategorizedSegment[]
   speech: string // Combined speech content (everything outside tags)
-  thoughts: string // Combined thought content
-  reasoning: string // Combined reasoning content
-  metadata: string // Combined metadata content
+  reasoning: string // Combined reasoning/thought content
   raw: string // Original full response
 }
 
 /**
- * Maps tag names to categories dynamically
- * This allows us to recognize various tag formats that models might use
+ * Maps tag names to categories
+ * All tags are treated as reasoning (filtered from TTS)
  */
-function mapTagNameToCategory(tagName: string): ResponseCategory {
-  const normalized = tagName.toLowerCase().trim()
-
-  // Thought-related tags
-  if (normalized === 'think' || normalized === 'thought' || normalized === 'thoughts'
-    || normalized === 'thinking' || normalized === 'redacted_reasoning') {
-    return 'thought'
-  }
-
-  // Reasoning-related tags
-  if (normalized === 'reasoning' || normalized === 'reason' || normalized === 'rationale') {
-    return 'reasoning'
-  }
-
-  // Metadata-related tags
-  if (normalized === 'meta' || normalized === 'metadata' || normalized === 'info') {
-    return 'metadata'
-  }
-
-  // Speech-related tags (explicit speech markers)
-  if (normalized === 'speech' || normalized === 'say' || normalized === 'output') {
-    return 'speech'
-  }
-
-  // Unknown tags default to 'unknown' category
-  return 'unknown'
+function mapTagNameToCategory(_tagName: string): ResponseCategory {
+  // All tags are reasoning - no need to distinguish tag names
+  return 'reasoning'
 }
 
 /**
@@ -112,9 +87,7 @@ export function categorizeResponse(
     return {
       segments: [],
       speech: response,
-      thoughts: '',
       reasoning: '',
-      metadata: '',
       raw: response,
     }
   }
@@ -156,18 +129,8 @@ export function categorizeResponse(
   }
 
   // Combine segments by category
-  const thoughts = segments
-    .filter(s => s.category === 'thought')
-    .map(s => s.content)
-    .join('\n\n')
-
   const reasoning = segments
     .filter(s => s.category === 'reasoning')
-    .map(s => s.content)
-    .join('\n\n')
-
-  const metadata = segments
-    .filter(s => s.category === 'metadata')
     .map(s => s.content)
     .join('\n\n')
 
@@ -177,9 +140,7 @@ export function categorizeResponse(
   return {
     segments,
     speech: speech || '',
-    thoughts,
     reasoning,
-    metadata,
     raw: response,
   }
 }
@@ -197,19 +158,24 @@ export function createStreamingCategorizer(
 
   // Helper to check for incomplete tags
   function checkIncompleteTag(): boolean {
-    // Check for incomplete reasoning tags
-    const hasOpenReasoningTag = /<reasoning[^>]*>/i.test(buffer)
-      && !/<\/reasoning>/i.test(buffer)
+    // Check for any incomplete tag (all tags are treated as reasoning)
+    const openTagPattern = /<([a-z_][\w-]*)>/gi
+    const closeTagPattern = /<\/([a-z_][\w-]*)>/gi
 
-    // Check for incomplete thought tags
-    const hasOpenThoughtTag = /<(?:think|thought|thoughts)[^>]*>/i.test(buffer)
-      && !/<\/(?:think|thought|thoughts)>/i.test(buffer)
+    const openTags: string[] = []
+    const closeTags: string[] = []
 
-    // Check for incomplete metadata tags
-    const hasOpenMetadataTag = /<(?:meta|metadata|info)[^>]*>/i.test(buffer)
-      && !/<\/(?:meta|metadata|info)>/i.test(buffer)
+    let match
+    while ((match = openTagPattern.exec(buffer)) !== null) {
+      openTags.push(match[1].toLowerCase())
+    }
 
-    return hasOpenReasoningTag || hasOpenThoughtTag || hasOpenMetadataTag
+    while ((match = closeTagPattern.exec(buffer)) !== null) {
+      closeTags.push(match[1].toLowerCase())
+    }
+
+    // If we have more opening tags than closing tags, we have an incomplete tag
+    return openTags.length > closeTags.length
   }
 
   return {
@@ -244,7 +210,7 @@ export function createStreamingCategorizer(
       // Check if position falls within any non-speech segment
       for (const segment of categorized.segments) {
         if (position >= segment.startIndex && position < segment.endIndex) {
-          // Position is within a tagged segment (thought/reasoning/metadata)
+          // Position is within a tagged segment (thought/reasoning)
           return false
         }
       }
@@ -254,7 +220,7 @@ export function createStreamingCategorizer(
     },
     /**
      * Filters text to only include speech parts
-     * Removes content that falls within thought/reasoning/metadata segments
+     * Removes content that falls within thought/reasoning segments
      */
     filterToSpeech(text: string, startPosition: number): string {
       // Check if we're currently inside an incomplete tag
@@ -263,27 +229,13 @@ export function createStreamingCategorizer(
         // Check if this chunk contains the closing tag
         const textToCheck = buffer.slice(startPosition, startPosition + text.length)
 
-        // Check for closing tags in this chunk
-        const closingReasoningMatch = textToCheck.match(/<\/reasoning>/i)
-        const closingThoughtMatch = textToCheck.match(/<\/(?:think|thought|thoughts)>/i)
-        const closingMetadataMatch = textToCheck.match(/<\/(?:meta|metadata|info)>/i)
+        // Check for any closing tag in this chunk
+        const closingTagMatch = textToCheck.match(/<\/([a-z_][\w-]*)>/i)
 
         // Find the earliest closing tag
         let closingTagIndex = -1
-        if (closingReasoningMatch && closingReasoningMatch.index !== undefined) {
-          closingTagIndex = closingReasoningMatch.index + closingReasoningMatch[0].length
-        }
-        if (closingThoughtMatch && closingThoughtMatch.index !== undefined) {
-          const idx = closingThoughtMatch.index + closingThoughtMatch[0].length
-          if (closingTagIndex === -1 || idx < closingTagIndex) {
-            closingTagIndex = idx
-          }
-        }
-        if (closingMetadataMatch && closingMetadataMatch.index !== undefined) {
-          const idx = closingMetadataMatch.index + closingMetadataMatch[0].length
-          if (closingTagIndex === -1 || idx < closingTagIndex) {
-            closingTagIndex = idx
-          }
+        if (closingTagMatch && closingTagMatch.index !== undefined) {
+          closingTagIndex = closingTagMatch.index + closingTagMatch[0].length
         }
 
         if (closingTagIndex === -1) {

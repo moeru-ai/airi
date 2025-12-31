@@ -409,7 +409,7 @@ export const useChatStore = defineStore('chat', () => {
           // Feed to categorizer first
           categorizer.consume(literal)
 
-          // Filter to only include speech parts (exclude reasoning/thoughts/metadata)
+          // Filter to only include speech parts (exclude reasoning)
           // The categorizer handles incomplete tags and filters based on detected tags during streaming
           const speechOnly = categorizer.filterToSpeech(literal, streamPosition)
           streamPosition += literal.length
@@ -451,11 +451,7 @@ export const useChatStore = defineStore('chat', () => {
           // Always store categorization (even if empty) for consistency and memory features
           streamingMessage.value.categorization = {
             speech: finalCategorization.speech,
-            reasoning: [
-              finalCategorization.thoughts,
-              finalCategorization.reasoning,
-            ].filter(Boolean).join('\n\n'),
-            metadata: finalCategorization.metadata,
+            reasoning: finalCategorization.reasoning,
           }
 
           // TTS has already been emitted during streaming for speech parts only
