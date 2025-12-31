@@ -11,11 +11,11 @@
   "license": "MIT",
   "scripts": {
     "build": "vite build",
-    "dev": "vite --port 5273",
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
-    "dev:ios": "cap run ios -l --port 5273"
+    "dev:web": "vite",
+    "open:ios": "vite build && cap sync ios && cap open ios"
   },
   "dependencies": {
     "@capacitor/core": "catalog:",
@@ -130,6 +130,7 @@
     "unplugin-yaml": "^3.0.7",
     "vite": "catalog:rolldown-vite",
     "vite-bundle-visualizer": "^1.2.1",
+    "vite-plugin-mkcert": "catalog:",
     "vite-plugin-pwa": "^1.2.0",
     "vite-plugin-vue-devtools": "^8.0.5",
     "vite-plugin-vue-layouts": "^0.11.0",
