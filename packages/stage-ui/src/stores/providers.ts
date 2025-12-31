@@ -11,6 +11,7 @@ import type {
 import type { ProgressInfo } from '@xsai-transformers/shared/types'
 import type {
   UnAlibabaCloudOptions,
+  UnDeepgramOptions,
   UnElevenLabsOptions,
   UnMicrosoftOptions,
   UnVolcengineOptions,
@@ -50,6 +51,7 @@ import { isWebGPUSupported } from 'gpuu/webgpu'
 import { defineStore } from 'pinia'
 import {
   createUnAlibabaCloud,
+  createUnDeepgram,
   createUnElevenLabs,
   createUnMicrosoft,
   createUnVolcengine,
@@ -1125,6 +1127,59 @@ export const useProvidersStore = defineStore('providers', () => {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
             valid: !!config.apiKey && !!config.baseUrl,
+          }
+        },
+      },
+    },
+    'deepgram': {
+      id: 'deepgram',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      nameKey: 'settings.pages.providers.provider.deepgram.title',
+      name: 'Deepgram',
+      descriptionKey: 'settings.pages.providers.provider.deepgram.description',
+      description: 'deepgram.com',
+      icon: 'i-simple-icons:deepgram',
+      defaultOptions: () => ({
+        baseUrl: 'https://unspeech.hyp3r.link/v1/',
+      }),
+      createProvider: async (config) => {
+        const provider = createUnDeepgram((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as SpeechProviderWithExtraOptions<string, UnDeepgramOptions>
+        return provider
+      },
+      capabilities: {
+        listVoices: async (config) => {
+          const provider = createUnDeepgram((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnDeepgramOptions>
+
+          const voices = await listVoices({
+            ...provider.voice(),
+          })
+
+          return voices.map((voice) => {
+            return {
+              id: voice.id,
+              name: voice.name,
+              provider: 'deepgram',
+              description: voice.description,
+              languages: voice.languages,
+              gender: voice.labels?.gender,
+            }
+          })
+        },
+      },
+      validators: {
+        validateProviderConfig: async (config) => {
+          if (!config.apiKey) {
+            return {
+              errors: [new Error('API Key is required')],
+              reason: 'API Key is required',
+              valid: false,
+            }
+          }
+          return {
+            errors: [],
+            reason: '',
+            valid: true,
           }
         },
       },
