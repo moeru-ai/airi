@@ -50,7 +50,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 watch(providers, async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   const providerMetadata = providersStore.getProviderMetadata(providerId)
-  if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
+  if ((await providerMetadata.validators.validateProviderConfig(providerConfig)).valid) {
     await speechStore.loadVoicesForProvider(providerId)
   }
   else {
