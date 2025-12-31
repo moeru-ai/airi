@@ -10,7 +10,7 @@ jobs:
   upload-translations-to-crowdin:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       # NOTICE: Uploading local translations to Crowdin can overwrite remote changes and discard pending sync work. Run only when intentionally pushing the repo state upstream. See https://github.com/moeru-ai/airi/pull/813#issuecomment-3669328994 and https://support.crowdin.com/enterprise/github-integration/ (explained by @typed-sigterm); Mastodon follows a similar flow.
       - uses: crowdin/github-action@v2
         with:

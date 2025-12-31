@@ -1,4 +1,4 @@
-import type { ChatProvider } from '@xsai-ext/shared-providers'
+import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { CommonContentPart, CompletionToolCall, Message, Tool } from '@xsai/shared-chat'
 
 import { listModels } from '@xsai/model'

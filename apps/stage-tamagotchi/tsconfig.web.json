@@ -15,6 +15,9 @@
     "paths": {
       "@proj-airi/stage-ui/*": [
         "../../packages/stage-ui/src/*"
+      ],
+      "@proj-airi/stage-layouts/*": [
+        "../../packages/stage-layouts/src/*"
       ]
     },
     "resolveJsonModule": true,

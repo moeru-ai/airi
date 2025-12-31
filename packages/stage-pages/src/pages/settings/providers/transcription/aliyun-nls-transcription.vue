@@ -2,7 +2,7 @@
 import type { HearingTranscriptionResult } from '@proj-airi/stage-ui/stores/modules/hearing'
 import type { ServerEvent, ServerEvents } from '@proj-airi/stage-ui/stores/providers/aliyun'
 import type { RemovableRef } from '@vueuse/core'
-import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
+import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import vadWorkletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 

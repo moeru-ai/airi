@@ -1,4 +1,4 @@
-import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/shared-providers'
+import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { WithUnknown } from '@xsai/shared'
 import type { StreamTranscriptionResult, StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
 

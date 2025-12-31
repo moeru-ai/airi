@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SpeechProvider } from '@xsai-ext/shared-providers'
+import type { SpeechProvider } from '@xsai-ext/providers/utils'
 
 import {
   SpeechPlayground,

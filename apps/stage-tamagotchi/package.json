@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stage-tamagotchi",
   "type": "module",
-  "version": "0.8.0-beta.9",
+  "version": "0.8.0",
   "private": true,
   "description": "LLM powered virtual character",
   "author": {
@@ -57,6 +57,7 @@
     "@proj-airi/i18n": "workspace:^",
     "@proj-airi/server-runtime": "workspace:^",
     "@proj-airi/server-sdk": "workspace:*",
+    "@proj-airi/stage-layouts": "workspace:^",
     "@proj-airi/stage-ui": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@stdlib/string-base-kebabcase": "^0.2.2",
@@ -64,9 +65,7 @@
     "@tresjs/core": "^5.2.1",
     "@vueuse/core": "^14.1.0",
     "@vueuse/shared": "^14.1.0",
-    "@xsai-ext/providers-cloud": "catalog:",
-    "@xsai-ext/providers-local": "catalog:",
-    "@xsai-ext/shared-providers": "catalog:",
+    "@xsai-ext/providers": "catalog:",
     "@xsai-transformers/transcription": "^0.0.11",
     "@xsai/generate-speech": "catalog:",
     "@xsai/generate-text": "catalog:",

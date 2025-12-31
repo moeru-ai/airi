@@ -1,3 +1,5 @@
+import type { Tool } from '@xsai/shared-chat'
+
 import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { tool } from '@xsai/tool'
@@ -54,11 +56,7 @@ export type WidgetInvokers = ReturnType<typeof createInvokers>
 let cachedInvokers: WidgetInvokers | undefined
 
 function createInvokers() {
-  const ipcRenderer = typeof window !== 'undefined' ? (window as any)?.electron?.ipcRenderer : undefined
-  if (!ipcRenderer)
-    throw new Error('Widget tools are only available in the desktop app.')
-
-  const { context } = createContext(ipcRenderer)
+  const { context } = createContext(window.electron.ipcRenderer)
 
   return {
     prepareWindow: defineInvoke(context, widgetsPrepareWindow),
@@ -164,7 +162,7 @@ export async function executeWidgetAction(input: WidgetActionInput, deps?: { inv
   }
 }
 
-const tools = [
+const tools: Promise<Tool>[] = [
   tool({
     name: 'stage_widgets',
     description: 'Manage overlay widgets in the Stage desktop app (spawn, update, remove, clear, or open the widgets window).',

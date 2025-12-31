@@ -90,9 +90,9 @@ const tabList = [
         v-model:y="modelOffset.y"
         v-model:z="modelOffset.z"
         label="Model Position"
-        :x-config="{ min: -modelSize.x * 2, max: modelSize.x * 2, step: modelSize.x / 100, label: 'X', formatValue: val => val?.toFixed(4) }"
-        :y-config="{ min: -modelSize.y * 2, max: modelSize.y * 2, step: modelSize.y / 100, label: 'Y', formatValue: val => val?.toFixed(4) }"
-        :z-config="{ min: -modelSize.z * 2, max: modelSize.z * 2, step: modelSize.z / 100, label: 'Z', formatValue: val => val?.toFixed(4) }"
+        :x-config="{ min: -modelSize.x * 2, max: modelSize.x * 2, step: modelSize.x / 10000, label: 'X', formatValue: val => val?.toFixed(4) }"
+        :y-config="{ min: -modelSize.y * 2, max: modelSize.y * 2, step: modelSize.y / 10000, label: 'Y', formatValue: val => val?.toFixed(4) }"
+        :z-config="{ min: -modelSize.z * 2, max: modelSize.z * 2, step: modelSize.z / 10000, label: 'Z', formatValue: val => val?.toFixed(4) }"
       />
       <PropertyNumber
         v-model="cameraFOV"

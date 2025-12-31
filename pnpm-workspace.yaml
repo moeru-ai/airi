@@ -1,7 +1,6 @@
 catalogMode: prefer
 
 shellEmulator: true
-
 packages:
   - packages/**
   - plugins/**
@@ -20,33 +19,35 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
-
 catalog:
+  '@capacitor/cli': ^8.0.0
+  '@capacitor/core': ^8.0.0
+  '@capacitor/ios': ^8.0.0
   '@guiiai/logg': ^1.2.11
   '@moeru/eslint-config': 0.1.0-beta.14
   '@moeru/std': 0.1.0-beta.14
   '@nekopaw/tempora': 0.4.0-alpha.1
   '@proj-airi/drizzle-duckdb-wasm': ^0.4.29
   '@types/audioworklet': ^0.0.92
-  '@xsai-ext/providers-cloud': ^0.4.0-beta.12
-  '@xsai-ext/providers-local': ^0.4.0-beta.12
-  '@xsai-ext/shared-providers': 0.4.0-beta.5
-  '@xsai/embed': ^0.4.0-beta.12
-  '@xsai/generate-speech': 0.4.0-beta.5
-  '@xsai/generate-text': ^0.4.0-beta.12
-  '@xsai/generate-transcription': ^0.4.0-beta.12
-  '@xsai/model': ^0.4.0-beta.12
-  '@xsai/shared': 0.4.0-beta.12
-  '@xsai/shared-chat': 0.4.0-beta.12
-  '@xsai/stream-text': ^0.4.0-beta.12
-  '@xsai/tool': ^0.4.0-beta.12
-  '@xsai/utils-chat': 0.4.0-beta.5
+  '@xsai-ext/providers': ^0.4.0-beta.13
+  '@xsai/embed': ^0.4.0-beta.13
+  '@xsai/generate-speech': 0.4.0-beta.13
+  '@xsai/generate-text': ^0.4.0-beta.13
+  '@xsai/generate-transcription': ^0.4.0-beta.13
+  '@xsai/model': ^0.4.0-beta.13
+  '@xsai/shared': 0.4.0-beta.13
+  '@xsai/shared-chat': 0.4.0-beta.13
+  '@xsai/stream-text': ^0.4.0-beta.13
+  '@xsai/tool': ^0.4.0-beta.13
+  '@xsai/utils-chat': 0.4.0-beta.13
   builder-util-runtime: ^9.3.1
   embla-carousel-vue: ^8.6.0
   es-toolkit: 1.43.0
   injeca: ^0.1.5
   nanoid: ^5.1.6
+  ofetch: ^1.5.1
   posthog-js: 1.306.1
+  tsx: ^4.21.0
   uncrypto: ^0.1.3
   unplugin-info: 1.2.4
   xsschema: ^0.4.0-beta.12
@@ -68,6 +69,7 @@ onlyBuiltDependencies:
   - core-js
   - electron
   - electron-click-drag-plugin
+  - electron-winstaller
   - es5-ext
   - esbuild
   - ffmpeg-static
@@ -75,6 +77,7 @@ onlyBuiltDependencies:
   - msw
   - onnxruntime-node
   - protobufjs
+  - sharp
   - simple-git-hooks
   - spawn-sync
   - utf-8-validate

@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Download artifact - metadata
-        uses: dawidd6/action-download-artifact@v11
+        uses: dawidd6/action-download-artifact@v12
         with:
           workflow_conclusion: success
           run_id: ${{ github.event.workflow_run.id }}
@@ -92,7 +92,7 @@ jobs:
 
     steps:
       - name: Download artifact - metadata
-        uses: dawidd6/action-download-artifact@v11
+        uses: dawidd6/action-download-artifact@v12
         with:
           workflow_conclusion: success
           run_id: ${{ github.event.workflow_run.id }}

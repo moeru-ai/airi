@@ -81,7 +81,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
         uses: jlumbroso/free-disk-space@main
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       # https://docs.github.com/en/actions/how-tos/deploy/deploy-to-third-party-platforms/sign-xcode-applications
       # - name: Install the Apple certificate (macOS Only)
