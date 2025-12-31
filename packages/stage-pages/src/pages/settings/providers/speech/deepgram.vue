@@ -8,7 +8,7 @@ import {
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, watch } from 'vue'
+import { computed, watch } from 'vue'
 
 const providerId = 'deepgram'
 const defaultModel = 'aura-2-thalia-en'
@@ -52,17 +52,6 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
     },
   )
 }
-
-onMounted(async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  const providerMetadata = providersStore.getProviderMetadata(providerId)
-  if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
-    await speechStore.loadVoicesForProvider(providerId)
-  }
-  else {
-    console.error('Failed to validate provider config', providerConfig)
-  }
-})
 
 watch(providers, async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)

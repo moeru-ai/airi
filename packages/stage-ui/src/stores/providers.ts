@@ -1168,18 +1168,21 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
-        validateProviderConfig: async (config) => {
-          if (!config.apiKey) {
-            return {
-              errors: [new Error('API Key is required')],
-              reason: 'API Key is required',
-              valid: false,
-            }
+        validateProviderConfig: (config) => {
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.baseUrl && new Error('Base URL is required.'),
+          ].filter(Boolean)
+
+          const res = baseUrlValidator.value(config.baseUrl)
+          if (res) {
+            return res
           }
+
           return {
-            errors: [],
-            reason: '',
-            valid: true,
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
           }
         },
       },
