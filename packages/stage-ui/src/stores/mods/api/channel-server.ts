@@ -29,7 +29,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     'ui:configure',
   ]
 
-  function initialize(options?: { token?: string, possibleEvents?: Array<keyof WebSocketEvents> }) {
+  async function initialize(options?: { token?: string, possibleEvents?: Array<keyof WebSocketEvents> }) {
     if (connected.value && client.value)
       return Promise.resolve()
     if (initializing.value)
@@ -40,7 +40,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
       ...(options?.possibleEvents ?? []),
     ]))
 
-    initializing.value = new Promise<void>((resolve, reject) => {
+    initializing.value = new Promise<void>((resolve) => {
       client.value = new Client({
         name: isStageWeb() ? WebSocketEventSource.StageWeb : isStageTamagotchi() ? WebSocketEventSource.StageTamagotchi : WebSocketEventSource.StageWeb,
         url: import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws',
@@ -50,7 +50,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           client.value = undefined
           connected.value = false
           initializing.value = null
-          reject(error)
+          console.error('WebSocket server connection error:', error)
         },
         onClose: () => {
           connected.value = false
