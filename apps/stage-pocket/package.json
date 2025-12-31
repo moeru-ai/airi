@@ -1,5 +1,5 @@
 {
-  "name": "@proj-airi/stage-capacitor",
+  "name": "@proj-airi/stage-pocket",
   "type": "module",
   "private": true,
   "description": "LLM powered virtual character",

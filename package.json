@@ -17,7 +17,7 @@
     "dev:docs": "pnpm -rF @proj-airi/docs run dev",
     "dev:ui": "pnpm -rF @proj-airi/stage-ui run story:dev",
     "dev:web": "pnpm -rF @proj-airi/stage-web run dev",
-    "dev:capacitor": "pnpm -rF @proj-airi/stage-capacitor run dev:web",
+    "dev:pocket": "pnpm -rF @proj-airi/stage-pocket run dev:web",
     "dev:server": "pnpm -rF @proj-airi/server-runtime run dev",
     "dev:tamagotchi": "pnpm -rF @proj-airi/stage-tamagotchi run dev",
     "dev:apps": "pnpm -rF=\"./apps/*\" run --parallel dev",
@@ -37,7 +37,7 @@
     "typecheck": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" -F=\"./docs\" --parallel typecheck",
     "up": "taze -w -r -I && pnpm prune && pnpm dedupe",
     "nolyfill": "pnpm dlx nolyfill",
-    "open:ios": "pnpm -rF @proj-airi/stage-capacitor run open:ios"
+    "open:ios": "pnpm -rF @proj-airi/stage-pocket run open:ios"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^6.7.3",
