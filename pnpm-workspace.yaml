@@ -1,6 +1,7 @@
 catalogMode: prefer
 
 shellEmulator: true
+
 packages:
   - packages/**
   - plugins/**
@@ -19,6 +20,10 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
+
+patchedDependencies:
+  srvx@0.9.8: patches/srvx@0.9.8.patch
+
 catalog:
   '@capacitor/cli': ^8.0.0
   '@capacitor/core': ^8.0.0
