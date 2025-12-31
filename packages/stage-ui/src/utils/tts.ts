@@ -239,11 +239,52 @@ export async function chunkEmitter(
   pendingSpecials: string[],
   handler: (ttsSegment: TTSChunkItem) => Promise<void> | void,
 ) {
-  const sanitizeChunk = (text: string) =>
-    text
+  const segmenter = new Intl.Segmenter(undefined, { granularity: 'word' })
+  let actionMarkerBuffer = '' // Buffer for incomplete action markers like *text...
+
+  const sanitizeChunk = (text: string): string => {
+    // Combine with buffer to handle action markers split across chunks
+    let combined = actionMarkerBuffer + text
+
+    // Remove special tokens and flush instructions
+    combined = combined
       .replaceAll(TTS_SPECIAL_TOKEN, '')
       .replaceAll(TTS_FLUSH_INSTRUCTION, '')
-      .trim()
+
+    // Check for incomplete action marker (odd number of asterisks = incomplete)
+    const asteriskCount = (combined.match(/\*/g)?.length ?? 0)
+    const hasIncompleteMarker = asteriskCount % 2 === 1
+
+    if (hasIncompleteMarker) {
+      // Find the last asterisk and buffer everything from it onwards
+      const lastAsteriskIndex = combined.lastIndexOf('*')
+      if (lastAsteriskIndex >= 0) {
+        actionMarkerBuffer = combined.slice(lastAsteriskIndex)
+        combined = combined.slice(0, lastAsteriskIndex)
+      }
+    }
+    else {
+      // All action markers are complete, clear buffer
+      actionMarkerBuffer = ''
+    }
+
+    // Remove complete action markers like *action* or *text*
+    // This must happen before word filtering, otherwise words inside markers would pass through
+    combined = combined.replace(/\*[^*]*\*/g, '')
+
+    // Filter to only words - rely on Intl.Segmenter's isWordLike detection
+    // This automatically excludes standalone symbols, emojis, and non-word content
+    // This handles all languages and scripts automatically
+    const words: string[] = []
+    for (const segment of segmenter.segment(combined)) {
+      if (segment.isWordLike) {
+        words.push(segment.segment)
+      }
+    }
+
+    // Join words with spaces and trim
+    return words.join(' ').trim()
+  }
 
   try {
     for await (const chunk of chunkTTSInput(reader)) {
@@ -258,6 +299,10 @@ export async function chunkEmitter(
         await handler({ chunk: sanitizeChunk(chunk.text), special: null } as TTSChunkItem)
       }
     }
+
+    // Flush any remaining buffered action marker at stream end
+    // (incomplete markers are discarded - they shouldn't be sent to TTS)
+    actionMarkerBuffer = ''
   }
   catch (e) {
     console.error('Error chunking stream to TTS queue:', e)
