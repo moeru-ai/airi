@@ -301,7 +301,8 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     const fileRefs = model3Json.FileReferences
     if (fileRefs) {
       // Add moc file
-      if (fileRefs.Moc) filesToFetch.add(fileRefs.Moc)
+      if (fileRefs.Moc)
+        filesToFetch.add(fileRefs.Moc)
 
       // Add textures
       if (fileRefs.Textures) {
@@ -309,21 +310,26 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
       }
 
       // Add physics
-      if (fileRefs.Physics) filesToFetch.add(fileRefs.Physics)
+      if (fileRefs.Physics)
+        filesToFetch.add(fileRefs.Physics)
 
       // Add pose
-      if (fileRefs.Pose) filesToFetch.add(fileRefs.Pose)
+      if (fileRefs.Pose)
+        filesToFetch.add(fileRefs.Pose)
 
       // Add display info
-      if (fileRefs.DisplayInfo) filesToFetch.add(fileRefs.DisplayInfo)
+      if (fileRefs.DisplayInfo)
+        filesToFetch.add(fileRefs.DisplayInfo)
 
       // Add user data
-      if (fileRefs.UserData) filesToFetch.add(fileRefs.UserData)
+      if (fileRefs.UserData)
+        filesToFetch.add(fileRefs.UserData)
 
       // Add expressions
       if (fileRefs.Expressions) {
         fileRefs.Expressions.forEach((exp) => {
-          if (exp.File) filesToFetch.add(exp.File)
+          if (exp.File)
+            filesToFetch.add(exp.File)
         })
       }
 
@@ -331,8 +337,10 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
       if (fileRefs.Motions) {
         Object.values(fileRefs.Motions).forEach((motionGroup) => {
           motionGroup.forEach((motion) => {
-            if (motion.File) filesToFetch.add(motion.File)
-            if (motion.Sound) filesToFetch.add(motion.Sound)
+            if (motion.File)
+              filesToFetch.add(motion.File)
+            if (motion.Sound)
+              filesToFetch.add(motion.Sound)
           })
         })
       }

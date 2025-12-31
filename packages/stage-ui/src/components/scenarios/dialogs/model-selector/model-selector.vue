@@ -7,8 +7,9 @@ import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger, EditableArea, EditableEditTrigger, EditableInput, EditablePreview, EditableRoot, EditableSubmitTrigger } from 'reka-ui'
 import { ref } from 'vue'
 
-import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
 import URLModelImportDialog from './URLModelImportDialog.vue'
+
+import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
 
 const emits = defineEmits<{ (e: 'close', value: void): void }>()
 const selectedModel = defineModel<DisplayModel | undefined>({ type: Object, required: false })
@@ -66,6 +67,7 @@ const vrmDialog = useFileDialog({ accept: '.vrm', multiple: false, reset: true }
 live2dDialog.onChange(handleAddLive2DModel)
 vrmDialog.onChange(handleAddVRMModel)
 </script>
+
 <template>
   <div pt="4 sm:0" gap="4 sm:6" h-full flex flex-col>
     <div flex items-center>
