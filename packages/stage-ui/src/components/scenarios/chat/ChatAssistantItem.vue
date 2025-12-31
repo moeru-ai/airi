@@ -68,7 +68,6 @@ const boxClasses = computed(() => [
       </div>
       <div v-else-if="showLoader" i-eos-icons:three-dots-loading />
 
-      <!-- Add categorization display -->
       <ChatResponseCategorization
         v-if="message.categorization"
         :message="message"

@@ -17,11 +17,8 @@ export interface TextSegmentationItem {
   value: string
 }
 
-export function useEmotionsMessageQueue(
-  emotionsQueue: UseQueueReturn<Emotion>,
-) {
+export function useEmotionsMessageQueue(emotionsQueue: UseQueueReturn<Emotion>) {
   function splitEmotion(content: string) {
-    // Check for explicit emotion tokens
     for (const emotion of EMOTION_VALUES) {
       // doesn't include the emotion, continue
       if (!content.includes(emotion))

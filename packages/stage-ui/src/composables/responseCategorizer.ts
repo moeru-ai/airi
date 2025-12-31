@@ -26,8 +26,8 @@ function mapTagNameToCategory(tagName: string): ResponseCategory {
   const normalized = tagName.toLowerCase().trim()
 
   // Thought-related tags
-  if (normalized === 'think' || normalized === 'thought' || normalized === 'thoughts' 
-      || normalized === 'thinking' || normalized === 'redacted_reasoning') {
+  if (normalized === 'think' || normalized === 'thought' || normalized === 'thoughts'
+    || normalized === 'thinking' || normalized === 'redacted_reasoning') {
     return 'thought'
   }
 
@@ -71,11 +71,12 @@ function extractAllTags(response: string): Array<{
 
   // Match any XML-like tag: <tagname>content</tagname>
   // This regex finds opening tags, captures the tag name, content, and closing tag
-  const tagPattern = /<([a-zA-Z_][a-zA-Z0-9_-]*)>([\s\S]*?)<\/\1>/gi
+  const tagPattern = /<([a-z_][\w-]*)>([\s\S]*?)<\/\1>/gi
 
   let match
   while ((match = tagPattern.exec(response)) !== null) {
-    if (match.index === undefined) continue
+    if (match.index === undefined)
+      continue
 
     const tagName = match[1]
     const content = match[2] || ''
@@ -101,7 +102,7 @@ function extractAllTags(response: string): Array<{
  */
 export function categorizeResponse(
   response: string,
-  providerId?: string,
+  _providerId?: string,
 ): CategorizedResponse {
   // Extract all tags dynamically
   const extractedTags = extractAllTags(response)
@@ -194,6 +195,23 @@ export function createStreamingCategorizer(
   let categorized: CategorizedResponse | null = null
   let lastEmittedSegmentIndex = -1
 
+  // Helper to check for incomplete tags
+  function checkIncompleteTag(): boolean {
+    // Check for incomplete reasoning tags
+    const hasOpenReasoningTag = /<reasoning[^>]*>/i.test(buffer)
+      && !/<\/reasoning>/i.test(buffer)
+
+    // Check for incomplete thought tags
+    const hasOpenThoughtTag = /<(?:think|thought|thoughts)[^>]*>/i.test(buffer)
+      && !/<\/(?:think|thought|thoughts)>/i.test(buffer)
+
+    // Check for incomplete metadata tags
+    const hasOpenMetadataTag = /<(?:meta|metadata|info)[^>]*>/i.test(buffer)
+      && !/<\/(?:meta|metadata|info)>/i.test(buffer)
+
+    return hasOpenReasoningTag || hasOpenThoughtTag || hasOpenMetadataTag
+  }
+
   return {
     consume(chunk: string) {
       buffer += chunk
@@ -239,8 +257,50 @@ export function createStreamingCategorizer(
      * Removes content that falls within thought/reasoning/metadata segments
      */
     filterToSpeech(text: string, startPosition: number): string {
+      // Check if we're currently inside an incomplete tag
+      // If so, filter out all content until the tag closes
+      if (checkIncompleteTag()) {
+        // Check if this chunk contains the closing tag
+        const textToCheck = buffer.slice(startPosition, startPosition + text.length)
+
+        // Check for closing tags in this chunk
+        const closingReasoningMatch = textToCheck.match(/<\/reasoning>/i)
+        const closingThoughtMatch = textToCheck.match(/<\/(?:think|thought|thoughts)>/i)
+        const closingMetadataMatch = textToCheck.match(/<\/(?:meta|metadata|info)>/i)
+
+        // Find the earliest closing tag
+        let closingTagIndex = -1
+        if (closingReasoningMatch && closingReasoningMatch.index !== undefined) {
+          closingTagIndex = closingReasoningMatch.index + closingReasoningMatch[0].length
+        }
+        if (closingThoughtMatch && closingThoughtMatch.index !== undefined) {
+          const idx = closingThoughtMatch.index + closingThoughtMatch[0].length
+          if (closingTagIndex === -1 || idx < closingTagIndex) {
+            closingTagIndex = idx
+          }
+        }
+        if (closingMetadataMatch && closingMetadataMatch.index !== undefined) {
+          const idx = closingMetadataMatch.index + closingMetadataMatch[0].length
+          if (closingTagIndex === -1 || idx < closingTagIndex) {
+            closingTagIndex = idx
+          }
+        }
+
+        if (closingTagIndex === -1) {
+          // Still inside incomplete tag, filter everything
+          return ''
+        }
+
+        // Return only content after the closing tag
+        // Continue with normal filtering below for the remaining text
+        text = text.slice(closingTagIndex)
+        startPosition += closingTagIndex
+        // Re-categorize to get updated segments (the closing tag is now in the buffer)
+        categorized = categorizeResponse(buffer, providerId)
+      }
+
       if (!categorized || categorized.segments.length === 0) {
-        // No categorization yet, return all text
+        // No segments detected, all text is speech
         return text
       }
 
