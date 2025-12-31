@@ -12,7 +12,13 @@ import { QdrantClient } from '@qdrant/js-client-rest'
 import { Redis } from '@upstash/redis'
 import { kv as vercelKv } from '@vercel/kv'
 import { sql } from '@vercel/postgres'
+import { embed } from '@xsai/embed'
 import { Pool } from 'pg'
+
+// Constants
+const DEFAULT_OPENAI_EMBEDDING_MODEL = 'text-embedding-3-small'
+const DEFAULT_CLOUDFLARE_EMBEDDING_MODEL = '@cf/baai/bge-base-en-v1.5'
+const DEFAULT_CLOUDFLARE_API_BASE_URL = 'https://api.cloudflare.com/client/v4'
 
 interface SqlQueryExecutor {
   query: <T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) => Promise<QueryResult<T>>
@@ -298,33 +304,24 @@ async function generateEmbedding(text: string): Promise<number[]> {
     return response.data[0].embedding
   }
   else if (provider === 'cloudflare') {
-    const { cloudflare } = config.longTerm.embedding
-    if (!cloudflare) {
+    const cfConfig = embeddingConfig.cloudflare
+    if (!cfConfig) {
       throw new Error('Cloudflare configuration is missing')
     }
 
-    const response = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${cloudflare.accountId}/ai/run/${cloudflare.model}`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${cloudflare.apiToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text }),
-      },
-    )
+    // Use Cloudflare Workers AI OpenAI-compatible endpoint
+    // Format: https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1
+    const baseURL = `${DEFAULT_CLOUDFLARE_API_BASE_URL}/accounts/${cfConfig.accountId}/ai/v1`
+    const embeddingModel = cfConfig.model || DEFAULT_CLOUDFLARE_EMBEDDING_MODEL
 
-    if (!response.ok) {
-      throw new Error(`Cloudflare API error: ${response.statusText}`)
-    }
+    const { embedding } = await embed({
+      apiKey: cfConfig.apiToken,
+      baseURL,
+      input: text,
+      model: embeddingModel,
+    })
 
-    const payload = await response.json() as Record<string, any>
-    console.info('[Memory Debug] Cloudflare API response structure:', JSON.stringify(payload, null, 2).substring(0, 500))
-    const embedding = extractCloudflareEmbedding(payload)
-
-    if (!embedding || !Array.isArray(embedding) || embedding.length === 0) {
-      console.error('[Memory Debug] Failed to extract embedding. Full payload:', JSON.stringify(payload))
+    if (!embedding || !embedding.length) {
       throw new Error('Cloudflare embedding response did not include an embedding vector.')
     }
 
@@ -332,56 +329,6 @@ async function generateEmbedding(text: string): Promise<number[]> {
   }
 
   throw new Error(`Unsupported embedding provider: ${provider}`)
-}
-
-function extractCloudflareEmbedding(payload: Record<string, any>): number[] | undefined {
-  // Try multiple possible response structures from Cloudflare Workers AI
-
-  // Format 1: { result: { data: [[...numbers...]] } }
-  if (payload.result?.data && Array.isArray(payload.result.data)) {
-    const data = payload.result.data
-    // Handle nested array
-    if (Array.isArray(data[0]) && typeof data[0][0] === 'number') {
-      return data[0] as number[]
-    }
-    // Handle flat array
-    if (typeof data[0] === 'number') {
-      return data as number[]
-    }
-  }
-
-  // Format 2: { result: [...numbers...] }
-  if (Array.isArray(payload.result) && typeof payload.result[0] === 'number') {
-    return payload.result as number[]
-  }
-
-  // Format 3: { data: [...numbers...] } (direct)
-  if (Array.isArray(payload.data) && typeof payload.data[0] === 'number') {
-    return payload.data as number[]
-  }
-
-  // Format 4: Legacy formats
-  const result = payload.result ?? payload
-
-  if (Array.isArray(result?.data) && result.data.length > 0) {
-    const candidate = result.data[0]
-    if (Array.isArray(candidate?.embedding)) {
-      return candidate.embedding as number[]
-    }
-    if (Array.isArray(candidate?.vector)) {
-      return candidate.vector as number[]
-    }
-  }
-
-  if (Array.isArray(result?.embedding)) {
-    return result.embedding as number[]
-  }
-
-  if (Array.isArray(result?.data?.embedding)) {
-    return result.data.embedding as number[]
-  }
-
-  return undefined
 }
 
 function sanitizeTableName(tableName?: string): string {
@@ -518,7 +465,7 @@ export async function saveMessage(sessionId: string, message: Message, userId?: 
     ...message,
     timestamp: message.timestamp instanceof Date ? message.timestamp.toISOString() : message.timestamp,
     metadata: {
-      ...(message.metadata || {}),
+      ...message.metadata,
       ...(userId ? { userId } : {}),
     },
   }

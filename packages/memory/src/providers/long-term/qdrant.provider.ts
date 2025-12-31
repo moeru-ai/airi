@@ -4,13 +4,15 @@ import type { EmbeddingProviderConfiguration } from '../../types/config'
 import { randomUUID } from 'node:crypto'
 import { env } from 'node:process'
 
-import OpenAI from 'openai'
-
 import { QdrantClient } from '@qdrant/js-client-rest'
+import { embed } from '@xsai/embed'
+import OpenAI from 'openai'
 
 const DEFAULT_COLLECTION_NAME = 'memory_entries'
 const DEFAULT_VECTOR_SIZE = 1536
 const DEFAULT_EMBEDDING_MODEL = 'text-embedding-3-small'
+const DEFAULT_CLOUDFLARE_EMBEDDING_MODEL = '@cf/baai/bge-base-en-v1.5'
+const DEFAULT_CLOUDFLARE_API_BASE_URL = 'https://api.cloudflare.com/client/v4'
 
 export interface QdrantMemoryOptions {
   url?: string
@@ -290,59 +292,32 @@ export class QdrantMemoryProvider implements IMemoryProvider {
     } satisfies EmbeddingProviderConfiguration
   }
 
+  /**
+   * Generate embedding using Cloudflare Workers AI OpenAI-compatible endpoint.
+   * @see https://developers.cloudflare.com/workers-ai/configuration/open-ai-compatibility
+   */
   private async generateCloudflareEmbedding(input: string): Promise<number[]> {
     const accountId = this.embeddingConfig.accountId
     if (!accountId) {
       throw new Error('Cloudflare account ID is not configured.')
     }
 
-    const url = `${this.embeddingConfig.baseUrl ?? 'https://api.cloudflare.com/client/v4'}/accounts/${accountId}/ai/run/${this.embeddingConfig.model ?? DEFAULT_EMBEDDING_MODEL}`
+    // Cloudflare Workers AI OpenAI-compatible endpoint
+    // Format: https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1
+    const baseURL = this.embeddingConfig.baseUrl ?? `${DEFAULT_CLOUDFLARE_API_BASE_URL}/accounts/${accountId}/ai/v1`
+    const model = this.embeddingConfig.model ?? DEFAULT_CLOUDFLARE_EMBEDDING_MODEL
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.embeddingConfig.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ text: input }),
+    const { embedding } = await embed({
+      apiKey: this.embeddingConfig.apiKey,
+      baseURL,
+      input,
+      model,
     })
 
-    if (!response.ok) {
-      const body = await response.text()
-      throw new Error(`Cloudflare embedding request failed: ${response.status} ${body}`)
-    }
-
-    const payload = await response.json() as Record<string, any>
-    const embedding = this.extractCloudflareEmbedding(payload)
-
-    if (!embedding || !Array.isArray(embedding) || embedding.length === 0) {
+    if (!embedding || !embedding.length) {
       throw new Error('Cloudflare embedding response did not include an embedding vector.')
     }
 
     return embedding.map((value: number | string) => Number(value))
-  }
-
-  private extractCloudflareEmbedding(payload: Record<string, any>): number[] | undefined {
-    const result = payload.result ?? payload
-
-    if (Array.isArray(result?.data) && result.data.length > 0) {
-      const candidate = result.data[0]
-      if (Array.isArray(candidate?.embedding)) {
-        return candidate.embedding as number[]
-      }
-      if (Array.isArray(candidate?.vector)) {
-        return candidate.vector as number[]
-      }
-    }
-
-    if (Array.isArray(result?.embedding)) {
-      return result.embedding as number[]
-    }
-
-    if (Array.isArray(result?.data?.embedding)) {
-      return result.data.embedding as number[]
-    }
-
-    return undefined
   }
 }
