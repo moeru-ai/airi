@@ -74,6 +74,12 @@ const menu = computed(() => [
     icon: 'i-solar:sledgehammer-bold-duotone',
     to: '/devtools/performance-playground',
   },
+  {
+    title: 'Notification',
+    description: 'Test notification',
+    icon: 'i-solar:sledgehammer-bold-duotone',
+    to: '/devtools/notifications',
+  },
 ])
 </script>
 
