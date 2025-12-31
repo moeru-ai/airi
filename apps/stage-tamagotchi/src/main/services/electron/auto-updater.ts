@@ -96,7 +96,7 @@ export function setupAutoUpdater(): AutoUpdater {
     },
     async checkForUpdates() {
       broadcast({ status: 'checking' })
-      await autoUpdater.checkForUpdates()
+      await autoUpdater.checkForUpdates().catch(error => log.withError(error).error('checkForUpdates() failed'))
     },
     async downloadUpdate() {
       if (state.status === 'downloading' || state.status === 'downloaded')
@@ -139,6 +139,8 @@ export function setupAutoUpdater(): AutoUpdater {
 export function createAutoUpdaterService(params: { context: MainContext, window: BrowserWindow, service: AutoUpdater }) {
   const { context, window, service } = params
 
+  const log = useLogg('auto-updater-service').useGlobalConfig()
+
   // Subscribe to state changes and forward to the context
   const unsubscribe = service.subscribe((state) => {
     if (window.isDestroyed())
@@ -158,7 +160,7 @@ export function createAutoUpdaterService(params: { context: MainContext, window:
 
   cleanups.push(
     defineInvokeHandler(context, autoUpdaterEventa.checkForUpdates, async () => {
-      await service.checkForUpdates()
+      await service.checkForUpdates().catch(error => log.withError(error).error('checkForUpdates() failed'))
       return service.state
     }),
   )
