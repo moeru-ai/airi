@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { TrackingMode } from '@proj-airi/stage-ui-three'
+
 import { useModelStore } from '@proj-airi/stage-ui-three'
 import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
