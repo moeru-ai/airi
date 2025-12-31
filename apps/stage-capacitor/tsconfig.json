@@ -25,7 +25,8 @@
       "vue-macros/macros-global",
       "unplugin-vue-router/client",
       "@types/audioworklet",
-      "unplugin-info/client"
+      "unplugin-info/client",
+      "node"
     ],
     "allowJs": true,
     "strict": true,
