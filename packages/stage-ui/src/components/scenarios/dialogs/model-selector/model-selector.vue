@@ -8,6 +8,7 @@ import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenu
 import { ref } from 'vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
+import URLModelImportDialog from './URLModelImportDialog.vue'
 
 const emits = defineEmits<{ (e: 'close', value: void): void }>()
 const selectedModel = defineModel<DisplayModel | undefined>({ type: Object, required: false })
@@ -20,6 +21,7 @@ function handleRemoveModel(model: DisplayModel) {
 }
 
 const highlightDisplayModelCard = ref<string | undefined>(selectedModel.value?.id)
+const urlImportDialogOpen = ref(false)
 
 function handleAddLive2DModel(file: FileList | null) {
   if (file === null || file.length === 0)
@@ -64,7 +66,6 @@ const vrmDialog = useFileDialog({ accept: '.vrm', multiple: false, reset: true }
 live2dDialog.onChange(handleAddLive2DModel)
 vrmDialog.onChange(handleAddVRMModel)
 </script>
-
 <template>
   <div pt="4 sm:0" gap="4 sm:6" h-full flex flex-col>
     <div flex items-center>
@@ -104,6 +105,13 @@ vrmDialog.onChange(handleAddVRMModel)
                 transition="colors duration-200 ease-in-out" @click="vrmDialog.open()"
               >
                 VRM
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                class="data-[disabled]:text-mauve8 relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 text-base leading-none outline-none data-[disabled]:pointer-events-none data-[highlighted]:bg-primary-100/20 sm:text-sm data-[highlighted]:text-primary-200"
+                transition="colors duration-200 ease-in-out"
+                @click="urlImportDialogOpen = true"
+              >
+                From URL
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenuPortal>
@@ -214,5 +222,8 @@ vrmDialog.onChange(handleAddVRMModel)
     <Button class="block md:hidden" @click="handleMobilePick()">
       Confirm
     </Button>
+
+    <!-- URL Import Dialog -->
+    <URLModelImportDialog v-model:open="urlImportDialogOpen" />
   </div>
 </template>
