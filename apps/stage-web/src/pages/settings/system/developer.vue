@@ -51,6 +51,12 @@ const menu = computed(() => [
     to: '/devtools/polaroid',
   },
   {
+    title: t('tamagotchi.settings.devtools.pages.context-flow.title'),
+    description: 'Inspect incoming context updates and outgoing chat stream events',
+    icon: 'i-solar:chat-square-call-bold-duotone',
+    to: '/devtools/context-flow',
+  },
+  {
     title: t('settings.pages.system.sections.section.developer.sections.section.use-magic-keys.title'),
     description: t('settings.pages.system.sections.section.developer.sections.section.use-magic-keys.description'),
     icon: 'i-solar:sledgehammer-bold-duotone',
@@ -73,6 +79,12 @@ const menu = computed(() => [
     description: 'Test performance runtime: VRM expressions + TTS lip sync',
     icon: 'i-solar:sledgehammer-bold-duotone',
     to: '/devtools/performance-playground',
+  },
+  {
+    title: 'MediaPipe Workshop',
+    description: 'Single-person mocap playground (MediaPipe backend) with scheduling knobs',
+    icon: 'i-solar:sledgehammer-bold-duotone',
+    to: '/devtools/model-driver-mediapipe',
   },
 ])
 </script>

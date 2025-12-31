@@ -48,11 +48,10 @@ const rootStyle = computed(() => ({
     :aria-readonly="props.readonly"
     :class="[
       'select-tab',
-      'relative', 'flex', 'w-full', 'items-stretch', 'rounded-xl',
+      'relative', 'flex', 'w-full', 'items-stretch', 'rounded-lg',
       'overflow-hidden',
-      'bg-white-400/6', 'dark:bg-neutral-900/70',
-      'transition-[border-color,box-shadow,opacity]', 'duration-200', 'ease-out', 'border-2',
-      'border-neutral-100', 'dark:border-neutral-800',
+      'bg-white-400/6', 'dark:bg-neutral-950/70',
+      'transition-[border-color,box-shadow,opacity]', 'duration-200', 'ease-out',
       isDisabled ? ['cursor-not-allowed', 'opacity-60'] : ['shadow-[0_14px_50px_-32px_rgba(0,0,0,0.55)]', 'backdrop-blur-sm'],
       // before
       'before:bg-primary-300/50', 'dark:before:bg-primary-400/50',

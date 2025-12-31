@@ -1,4 +1,10 @@
-import type { WebSocketBaseEvent, WebSocketEvent, WebSocketEventOptionalSource, WebSocketEvents, WebSocketEventSource } from '@proj-airi/server-shared/types'
+import type {
+  WebSocketBaseEvent,
+  WebSocketEvent,
+  WebSocketEventOptionalSource,
+  WebSocketEvents,
+  WebSocketEventSource,
+} from '@proj-airi/server-shared/types'
 
 import WebSocket from 'crossws/websocket'
 

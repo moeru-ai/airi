@@ -1,5 +1,5 @@
 import type { ContextUpdate, WebSocketEventSource } from '@proj-airi/server-sdk'
-import type { AssistantMessage, CommonContentPart, CompletionToolCall, SystemMessage, ToolMessage, UserMessage } from '@xsai/shared-chat'
+import type { AssistantMessage, CommonContentPart, CompletionToolCall, Message, SystemMessage, ToolMessage, UserMessage } from '@xsai/shared-chat'
 
 export interface ChatSlicesText {
   type: 'text'
@@ -46,14 +46,21 @@ export interface ContextMessage extends ContextUpdate {
 
 export type ChatHistoryItem = (ChatMessage | ErrorMessage) & { context?: ContextMessage } & { createdAt?: number }
 
+export interface ChatStreamEventContext {
+  input: ChatHistoryItem
+  contexts: Record<string, ContextMessage[]>
+  composedMessage: Message[]
+}
+
 export type ChatStreamEvent
-  = | { type: 'before-compose', message: string, sessionId: string }
-    | { type: 'after-compose', message: string, sessionId: string }
-    | { type: 'before-send', message: string, sessionId: string }
-    | { type: 'after-send', message: string, sessionId: string }
-    | { type: 'token-literal', literal: string, sessionId: string }
-    | { type: 'token-special', special: string, sessionId: string }
-    | { type: 'stream-end', sessionId: string }
-    | { type: 'assistant-end', message: string, sessionId: string }
+  = | { type: 'before-compose', message: string, sessionId: string, context: Omit<ChatStreamEventContext, 'composedMessage'> }
+    | { type: 'after-compose', message: string, sessionId: string, context: ChatStreamEventContext }
+    | { type: 'before-send', message: string, sessionId: string, context: ChatStreamEventContext }
+    | { type: 'after-send', message: string, sessionId: string, context: ChatStreamEventContext }
+    | { type: 'token-literal', literal: string, sessionId: string, context: ChatStreamEventContext }
+    | { type: 'token-special', special: string, sessionId: string, context: ChatStreamEventContext }
+    | { type: 'stream-end', sessionId: string, context: ChatStreamEventContext }
+    | { type: 'assistant-end', message: string, sessionId: string, context: ChatStreamEventContext }
+    | { type: 'assistant-message', message: ChatAssistantMessage, sessionId: string, messageText: string, context: ChatStreamEventContext }
 
 export type StreamingAssistantMessage = ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number }

@@ -19,7 +19,16 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      # Why?
+      #
+      # failed to
+      # $ nix build .#airi-pnpm-deps
+      # > airi-pnpm-deps> Running phase: fixupPhase
+      # > error: writing to file: No space left on device
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+
+      - uses: actions/checkout@v6
 
       - uses: cachix/install-nix-action@v31
         with:

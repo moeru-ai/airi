@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
-import { useContextBridge } from '@proj-airi/stage-ui/composables'
+import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
+import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
+import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
@@ -14,11 +16,10 @@ import { RouterView, useRoute, useRouter } from 'vue-router'
 
 import { electronOpenSettings, electronStartTrackMousePosition } from '../shared/eventa'
 import { useElectronEventaContext } from './composables/electron-vueuse'
-import { themeColorFromValue, useThemeColor } from './composables/theme-color'
 
 const { isDark: dark } = useTheme()
 const i18n = useI18n()
-const contextBridge = useContextBridge()
+const contextBridgeStore = useContextBridgeStore()
 const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settingsStore)
@@ -27,6 +28,7 @@ const router = useRouter()
 const route = useRoute()
 const cardStore = useAiriCardStore()
 const serverChannelStore = useModsServerChannelStore()
+const analyticsStore = useSharedAnalyticsStore()
 
 watch(language, () => {
   i18n.locale.value = language.value
@@ -39,14 +41,15 @@ onMounted(() => updateThemeColor())
 
 // FIXME: store settings to file
 onMounted(async () => {
+  analyticsStore.initialize()
   cardStore.initialize()
   onboardingStore.initializeSetupCheck()
 
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
 
-  await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch((err) => { console.error('Failed to initialize Mods Server Channel in App.vue:', err) })
-  await contextBridge.initialize()
+  await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
+  await contextBridgeStore.initialize()
 
   const context = useElectronEventaContext()
   const startTrackingCursorPoint = defineInvoke(context.value, electronStartTrackMousePosition)
@@ -64,7 +67,7 @@ watch(themeColorsHueDynamic, () => {
   document.documentElement.classList.toggle('dynamic-hue', themeColorsHueDynamic.value)
 }, { immediate: true })
 
-onUnmounted(() => contextBridge.dispose())
+onUnmounted(() => contextBridgeStore.dispose())
 </script>
 
 <template>

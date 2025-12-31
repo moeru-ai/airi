@@ -39,7 +39,6 @@
     "@opentelemetry/sdk-trace-node": "^2.2.0",
     "@opentelemetry/semantic-conventions": "^1.38.0",
     "@velin-dev/core": "^0.3.4",
-    "@xsai-ext/providers-cloud": "catalog:",
     "@xsai/embed": "catalog:",
     "@xsai/generate-text": "catalog:",
     "@xsai/shared-chat": "catalog:",

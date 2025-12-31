@@ -57,6 +57,7 @@ export default defineConfig({
       '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src')),
       '@proj-airi/stage-pages': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src')),
       '@proj-airi/stage-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-shared', 'src')),
+      '@proj-airi/stage-layouts': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-layouts', 'src')),
     },
   },
   server: {
@@ -99,7 +100,12 @@ export default defineConfig({
     }),
 
     // https://github.com/JohnCampionJr/vite-plugin-vue-layouts
-    Layouts(),
+    Layouts({
+      layoutsDirs: [
+        resolve(import.meta.dirname, 'src', 'layouts'),
+        resolve(import.meta.dirname, '..', '..', 'packages', 'stage-layouts', 'src', 'layouts'),
+      ],
+    }),
 
     // https://github.com/antfu/unocss
     // see uno.config.ts for config
@@ -167,7 +173,23 @@ export default defineConfig({
     Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'vrm/models/AvatarSample-B', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
 
     // HuggingFace Spaces
-    LFS({ root: cwd(), extraGlobs: ['*.vrm', '*.vrma', '*.hdr', '*.cmo3', '*.png', '*.jpg', '*.jpeg', '*.gif', '*.webp', '*.bmp', '*.ttf'] }),
+    LFS({ root: cwd(), extraGlobs: [
+      // Scene & Models
+      '*.vrm',
+      '*.vrma',
+      '*.hdr',
+      '*.cmo3',
+      // Images & Fonts
+      '*.png',
+      '*.jpg',
+      '*.jpeg',
+      '*.gif',
+      '*.webp',
+      '*.bmp',
+      '*.ttf',
+      // Tensorflow / MediaPipe task
+      '*.task',
+    ] }),
     SpaceCard({
       root: cwd(),
       title: 'AIRI: Virtual Companion',

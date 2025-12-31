@@ -26,6 +26,7 @@ import './styles/main.css'
 import 'uno.css'
 
 const pinia = createPinia()
+
 // TODO: vite-plugin-vue-layouts is long deprecated, replace with another layout solution
 const routeRecords = setupLayouts(routes as RouteRecordRaw[])
 

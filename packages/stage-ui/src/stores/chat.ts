@@ -1,14 +1,15 @@
-import type { ChatProvider } from '@xsai-ext/shared-providers'
-import type { CommonContentPart, Message, SystemMessage } from '@xsai/shared-chat'
+import type { ChatProvider } from '@xsai-ext/providers/utils'
+import type { CommonContentPart, Message, SystemMessage, ToolMessage } from '@xsai/shared-chat'
 
 import type { StreamEvent, StreamOptions } from '../stores/llm'
-import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ContextMessage, StreamingAssistantMessage } from '../types/chat'
+import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatStreamEventContext, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
 
+import { useAnalytics } from '../composables'
 import { useLlmmarkerParser } from '../composables/llmmarkerParser'
 import { categorizeResponse, createStreamingCategorizer } from '../composables/responseCategorizer'
 import { useLLM } from '../stores/llm'
@@ -27,6 +28,7 @@ export const useChatStore = defineStore('chat', () => {
   const { systemPrompt } = storeToRefs(useAiriCardStore())
   const consciousnessStore = useConsciousnessStore()
   const { activeProvider } = storeToRefs(consciousnessStore)
+  const { trackFirstMessage } = useAnalytics()
 
   const activeSessionId = useLocalStorage<string>(ACTIVE_SESSION_STORAGE_KEY, 'default')
   const sessionMessages = useLocalStorage<Record<string, ChatHistoryItem[]>>(CHAT_STORAGE_KEY, {})
@@ -92,54 +94,65 @@ export const useChatStore = defineStore('chat', () => {
   })
 
   // ----- Hooks (UI callbacks) -----
-  const onBeforeMessageComposedHooks = ref<Array<(message: string) => Promise<void>>>([])
-  const onAfterMessageComposedHooks = ref<Array<(message: string) => Promise<void>>>([])
-  const onBeforeSendHooks = ref<Array<(message: string) => Promise<void>>>([])
-  const onAfterSendHooks = ref<Array<(message: string) => Promise<void>>>([])
-  const onTokenLiteralHooks = ref<Array<(literal: string) => Promise<void>>>([])
-  const onTokenSpecialHooks = ref<Array<(special: string) => Promise<void>>>([])
-  const onStreamEndHooks = ref<Array<() => Promise<void>>>([])
-  const onAssistantResponseEndHooks = ref<Array<(message: string) => Promise<void>>>([])
-  const onContextPublishHooks = ref<Array<(envelope: ContextMessage, origin: 'local' | 'ws' | 'broadcast') => Promise<void> | void>>([])
+  const onBeforeMessageComposedHooks = ref<Array<(message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) => Promise<void>>>([])
+  const onAfterMessageComposedHooks = ref<Array<(message: string, context: ChatStreamEventContext) => Promise<void>>>([])
+  const onBeforeSendHooks = ref<Array<(message: string, context: ChatStreamEventContext) => Promise<void>>>([])
+  const onAfterSendHooks = ref<Array<(message: string, context: ChatStreamEventContext) => Promise<void>>>([])
+  const onTokenLiteralHooks = ref<Array<(literal: string, context: ChatStreamEventContext) => Promise<void>>>([])
+  const onTokenSpecialHooks = ref<Array<(special: string, context: ChatStreamEventContext) => Promise<void>>>([])
+  const onStreamEndHooks = ref<Array<(context: ChatStreamEventContext) => Promise<void>>>([])
+  const onAssistantResponseEndHooks = ref<Array<(message: string, context: ChatStreamEventContext) => Promise<void>>>([])
+  const onAssistantMessageHooks = ref<Array<(message: StreamingAssistantMessage, messageText: string, context: ChatStreamEventContext) => Promise<void>>>([])
+  const onChatTurnCompleteHooks = ref<Array<(chat: { output: StreamingAssistantMessage, outputText: string, toolCalls: ToolMessage[] }, context: ChatStreamEventContext) => Promise<void>>>([])
 
-  function onBeforeMessageComposed(cb: (message: string) => Promise<void>) {
+  function onBeforeMessageComposed(cb: (message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) => Promise<void>) {
     onBeforeMessageComposedHooks.value.push(cb)
     return () => onBeforeMessageComposedHooks.value = onBeforeMessageComposedHooks.value.filter(hook => hook !== cb) // return remove listener callback
   }
 
-  function onAfterMessageComposed(cb: (message: string) => Promise<void>) {
+  function onAfterMessageComposed(cb: (message: string, context: ChatStreamEventContext) => Promise<void>) {
     onAfterMessageComposedHooks.value.push(cb)
     return () => onAfterMessageComposedHooks.value = onAfterMessageComposedHooks.value.filter(hook => hook !== cb) // return remove listener callback
   }
 
-  function onBeforeSend(cb: (message: string) => Promise<void>) {
+  function onBeforeSend(cb: (message: string, context: ChatStreamEventContext) => Promise<void>) {
     onBeforeSendHooks.value.push(cb)
     return () => onBeforeSendHooks.value = onBeforeSendHooks.value.filter(hook => hook !== cb) // return remove listener callback
   }
 
-  function onAfterSend(cb: (message: string) => Promise<void>) {
+  function onAfterSend(cb: (message: string, context: ChatStreamEventContext) => Promise<void>) {
     onAfterSendHooks.value.push(cb)
     return () => onAfterSendHooks.value = onAfterSendHooks.value.filter(hook => hook !== cb) // return remove listener callback
   }
 
-  function onTokenLiteral(cb: (literal: string) => Promise<void>) {
+  function onTokenLiteral(cb: (literal: string, context: ChatStreamEventContext) => Promise<void>) {
     onTokenLiteralHooks.value.push(cb)
     return () => onTokenLiteralHooks.value = onTokenLiteralHooks.value.filter(hook => hook !== cb) // return remove listener callback
   }
 
-  function onTokenSpecial(cb: (special: string) => Promise<void>) {
+  function onTokenSpecial(cb: (special: string, context: ChatStreamEventContext) => Promise<void>) {
     onTokenSpecialHooks.value.push(cb)
     return () => onTokenSpecialHooks.value = onTokenSpecialHooks.value.filter(hook => hook !== cb) // return remove listener callback
   }
 
-  function onStreamEnd(cb: () => Promise<void>) {
+  function onStreamEnd(cb: (context: ChatStreamEventContext) => Promise<void>) {
     onStreamEndHooks.value.push(cb)
     return () => onStreamEndHooks.value = onStreamEndHooks.value.filter(hook => hook !== cb) // return remove listener callback
   }
 
-  function onAssistantResponseEnd(cb: (message: string) => Promise<void>) {
+  function onAssistantResponseEnd(cb: (message: string, context: ChatStreamEventContext) => Promise<void>) {
     onAssistantResponseEndHooks.value.push(cb)
     return () => onAssistantResponseEndHooks.value = onAssistantResponseEndHooks.value.filter(hook => hook !== cb) // return remove listener callback
+  }
+
+  function onAssistantMessage(cb: (message: StreamingAssistantMessage, messageText: string, context: ChatStreamEventContext) => Promise<void>) {
+    onAssistantMessageHooks.value.push(cb)
+    return () => onAssistantMessageHooks.value = onAssistantMessageHooks.value.filter(hook => hook !== cb) // return remove listener callback
+  }
+
+  function onChatTurnComplete(cb: (chat: { output: StreamingAssistantMessage, outputText: string, toolCalls: ToolMessage[] }, context: ChatStreamEventContext) => Promise<void>) {
+    onChatTurnCompleteHooks.value.push(cb)
+    return () => onChatTurnCompleteHooks.value = onChatTurnCompleteHooks.value.filter(hook => hook !== cb) // return remove listener callback
   }
 
   function clearHooks() {
@@ -151,47 +164,58 @@ export const useChatStore = defineStore('chat', () => {
     onTokenSpecialHooks.value = []
     onStreamEndHooks.value = []
     onAssistantResponseEndHooks.value = []
-    onContextPublishHooks.value = []
+    onAssistantMessageHooks.value = []
+    onChatTurnCompleteHooks.value = []
   }
 
-  async function emitBeforeMessageComposedHooks(message: string) {
+  async function emitBeforeMessageComposedHooks(message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) {
     for (const hook of onBeforeMessageComposedHooks.value)
-      await hook(message)
+      await hook(message, context)
   }
 
-  async function emitAfterMessageComposedHooks(message: string) {
+  async function emitAfterMessageComposedHooks(message: string, context: ChatStreamEventContext) {
     for (const hook of onAfterMessageComposedHooks.value)
-      await hook(message)
+      await hook(message, context)
   }
 
-  async function emitBeforeSendHooks(message: string) {
+  async function emitBeforeSendHooks(message: string, context: ChatStreamEventContext) {
     for (const hook of onBeforeSendHooks.value)
-      await hook(message)
+      await hook(message, context)
   }
 
-  async function emitAfterSendHooks(message: string) {
+  async function emitAfterSendHooks(message: string, context: ChatStreamEventContext) {
     for (const hook of onAfterSendHooks.value)
-      await hook(message)
+      await hook(message, context)
   }
 
-  async function emitTokenLiteralHooks(literal: string) {
+  async function emitTokenLiteralHooks(literal: string, context: ChatStreamEventContext) {
     for (const hook of onTokenLiteralHooks.value)
-      await hook(literal)
+      await hook(literal, context)
   }
 
-  async function emitTokenSpecialHooks(special: string) {
+  async function emitTokenSpecialHooks(special: string, context: ChatStreamEventContext) {
     for (const hook of onTokenSpecialHooks.value)
-      await hook(special)
+      await hook(special, context)
   }
 
-  async function emitStreamEndHooks() {
+  async function emitStreamEndHooks(context: ChatStreamEventContext) {
     for (const hook of onStreamEndHooks.value)
-      await hook()
+      await hook(context)
   }
 
-  async function emitAssistantResponseEndHooks(message: string) {
+  async function emitAssistantResponseEndHooks(message: string, context: ChatStreamEventContext) {
     for (const hook of onAssistantResponseEndHooks.value)
-      await hook(message)
+      await hook(message, context)
+  }
+
+  async function emitAssistantMessageHooks(message: StreamingAssistantMessage, messageText: string, context: ChatStreamEventContext) {
+    for (const hook of onAssistantMessageHooks.value)
+      await hook(message, messageText, context)
+  }
+
+  async function emitChatTurnCompleteHooks(chat: { output: StreamingAssistantMessage, outputText: string, toolCalls: ToolMessage[] }, context: ChatStreamEventContext) {
+    for (const hook of onChatTurnCompleteHooks.value)
+      await hook(chat, context)
   }
 
   // ----- Session state helpers -----
@@ -327,6 +351,13 @@ export const useChatStore = defineStore('chat', () => {
 
     ensureSession(sessionId)
 
+    const sendingCreatedAt = Date.now()
+    const streamingMessageContext: ChatStreamEventContext = {
+      input: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt },
+      contexts: { ...activeContexts.value },
+      composedMessage: [],
+    }
+
     const isStaleGeneration = () => getSessionGeneration(sessionId) !== generation
     const shouldAbort = () => isStaleGeneration()
     if (shouldAbort())
@@ -336,8 +367,9 @@ export const useChatStore = defineStore('chat', () => {
 
     streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() }
 
+    trackFirstMessage()
     try {
-      await emitBeforeMessageComposedHooks(sendingMessage)
+      await emitBeforeMessageComposedHooks(sendingMessage, streamingMessageContext)
 
       const contentParts: CommonContentPart[] = [{ type: 'text', text: sendingMessage }]
 
@@ -355,6 +387,7 @@ export const useChatStore = defineStore('chat', () => {
       }
 
       const finalContent = contentParts.length > 1 ? contentParts : sendingMessage
+      streamingMessageContext.input.content = finalContent
 
       if (shouldAbort())
         return
@@ -371,6 +404,8 @@ export const useChatStore = defineStore('chat', () => {
           if (shouldAbort())
             return
 
+          await emitTokenLiteralHooks(literal, streamingMessageContext)
+
           // Feed to categorizer first
           categorizer.consume(literal)
 
@@ -384,7 +419,7 @@ export const useChatStore = defineStore('chat', () => {
             streamingMessage.value.content += speechOnly
 
             // Emit TTS only for speech parts, not reasoning
-            await emitTokenLiteralHooks(speechOnly)
+            await emitTokenLiteralHooks(speechOnly, streamingMessageContext)
 
             // Add speech content to slices for rendering
             // merge text slices for markdown
@@ -404,7 +439,7 @@ export const useChatStore = defineStore('chat', () => {
           if (shouldAbort())
             return
 
-          await emitTokenSpecialHooks(special)
+          await emitTokenSpecialHooks(special, streamingMessageContext)
         },
         onEnd: async (fullText) => {
           if (isStaleGeneration())
@@ -509,8 +544,10 @@ export const useChatStore = defineStore('chat', () => {
         ]
       }
 
-      await emitAfterMessageComposedHooks(sendingMessage)
-      await emitBeforeSendHooks(sendingMessage)
+      streamingMessageContext.composedMessage = newMessages as Message[]
+
+      await emitAfterMessageComposedHooks(sendingMessage, streamingMessageContext)
+      await emitBeforeSendHooks(sendingMessage, streamingMessageContext)
 
       let fullText = ''
       const headers = (options.providerConfig?.headers || {}) as Record<string, string>
@@ -528,6 +565,7 @@ export const useChatStore = defineStore('chat', () => {
                 type: 'tool-call',
                 toolCall: event,
               })
+
               break
             case 'tool-result':
               toolCallQueue.enqueue({
@@ -535,6 +573,7 @@ export const useChatStore = defineStore('chat', () => {
                 id: event.toolCallId,
                 result: event.result,
               })
+
               break
             case 'text-delta':
               fullText += event.text
@@ -548,6 +587,7 @@ export const useChatStore = defineStore('chat', () => {
           }
         },
       })
+
       // Finalize the parsing of the actual message content
       // Categorization and filtering happens in the onEnd callback
       await parser.end()
@@ -557,23 +597,26 @@ export const useChatStore = defineStore('chat', () => {
         sessionMessagesForSend.push(toRaw(streamingMessage.value))
       }
 
-      // Reset the streaming message for the next turn
-      streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
-
       // Instruct the TTS pipeline to flush by calling hooks directly
       const flushSignal = `${TTS_FLUSH_INSTRUCTION}${TTS_FLUSH_INSTRUCTION}`
-      await emitTokenLiteralHooks(flushSignal)
+      await emitTokenLiteralHooks(flushSignal, streamingMessageContext)
 
       // Call the end-of-stream hooks
-      await emitStreamEndHooks()
+      await emitStreamEndHooks(streamingMessageContext)
 
       // Call the end-of-response hooks with the full text
-      await emitAssistantResponseEndHooks(fullText)
+      await emitAssistantResponseEndHooks(fullText, streamingMessageContext)
 
-      // eslint-disable-next-line no-console
-      console.debug('LLM output:', fullText)
+      await emitAfterSendHooks(sendingMessage, streamingMessageContext)
+      await emitAssistantMessageHooks({ ...streamingMessage.value }, fullText, streamingMessageContext)
+      await emitChatTurnCompleteHooks({
+        output: { ...streamingMessage.value },
+        outputText: fullText,
+        toolCalls: sessionMessagesForSend.filter(msg => msg.role === 'tool') as ToolMessage[],
+      }, streamingMessageContext)
 
-      await emitAfterSendHooks(sendingMessage)
+      // Reset the streaming message for the next turn
+      streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
     }
     catch (error) {
       console.error('Error sending message:', error)
@@ -612,12 +655,15 @@ export const useChatStore = defineStore('chat', () => {
 
     send,
     setActiveSession,
-    ingestContextMessage,
     cleanupMessages,
     getAllSessions,
     replaceSessions,
     resetAllSessions,
+
+    ingestContextMessage,
+
     clearHooks,
+
     emitBeforeMessageComposedHooks,
     emitAfterMessageComposedHooks,
     emitBeforeSendHooks,
@@ -626,6 +672,8 @@ export const useChatStore = defineStore('chat', () => {
     emitTokenSpecialHooks,
     emitStreamEndHooks,
     emitAssistantResponseEndHooks,
+    emitAssistantMessageHooks,
+    emitChatTurnCompleteHooks,
 
     onBeforeMessageComposed,
     onAfterMessageComposed,
@@ -635,5 +683,7 @@ export const useChatStore = defineStore('chat', () => {
     onTokenSpecial,
     onStreamEnd,
     onAssistantResponseEnd,
+    onAssistantMessage,
+    onChatTurnComplete,
   }
 })
