@@ -3,7 +3,7 @@ title: DevLog @ 2026.01.01
 category: DevLog
 date: 2026-01-01
 excerpt: |
-  Sharing some of AIRI's progress, the problems we encountered and their solutions, as well as some achievements and implementation details of the memory layer experiments in FlowChat by LemonNeko.
+  Sharing AIRI's progress on the iOS platform, the problems we encountered and their solutions, as well as some achievements and implementation details of the memory layer experiments in FlowChat by LemonNeko.
 preview-cover:
 # TODO
 ---
