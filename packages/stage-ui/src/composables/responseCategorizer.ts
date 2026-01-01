@@ -105,14 +105,26 @@ export function categorizeResponse(
   // Sort segments by position
   segments.sort((a, b) => a.startIndex - b.startIndex)
 
-  // Extract speech content by removing complete tags from original text
-  // Only process tags - preserve everything else exactly as-is (no trimming, no processing)
-  let speech = response
-  // Remove tags in reverse order to preserve indices
-  for (let i = segments.length - 1; i >= 0; i--) {
-    const segment = segments[i]
-    if (segment.category === 'reasoning') {
-      speech = speech.slice(0, segment.startIndex) + speech.slice(segment.endIndex)
+  // Extract speech content (everything outside tags)
+  const speechParts: string[] = []
+  let lastEnd = 0
+
+  for (const segment of segments) {
+    // Add text before this segment
+    if (segment.startIndex > lastEnd) {
+      const text = response.slice(lastEnd, segment.startIndex).trim()
+      if (text) {
+        speechParts.push(text)
+      }
+    }
+    lastEnd = segment.endIndex
+  }
+
+  // Add remaining text after last segment
+  if (lastEnd < response.length) {
+    const text = response.slice(lastEnd).trim()
+    if (text) {
+      speechParts.push(text)
     }
   }
 
@@ -122,9 +134,12 @@ export function categorizeResponse(
     .map(s => s.content)
     .join('\n\n')
 
+  // Speech is everything outside tags
+  const speech = speechParts.join(' ').trim()
+
   return {
     segments,
-    speech,
+    speech: speech || '',
     reasoning,
     raw: response,
   }
@@ -140,6 +155,28 @@ export function createStreamingCategorizer(
   let buffer = ''
   let categorized: CategorizedResponse | null = null
   let lastEmittedSegmentIndex = -1
+
+  // Helper to check for incomplete tags
+  function checkIncompleteTag(): boolean {
+    // Check for any incomplete tag (all tags are treated as reasoning)
+    const openTagPattern = /<([a-z_][\w-]*)>/gi
+    const closeTagPattern = /<\/([a-z_][\w-]*)>/gi
+
+    const openTags: string[] = []
+    const closeTags: string[] = []
+
+    let match
+    while ((match = openTagPattern.exec(buffer)) !== null) {
+      openTags.push(match[1].toLowerCase())
+    }
+
+    while ((match = closeTagPattern.exec(buffer)) !== null) {
+      closeTags.push(match[1].toLowerCase())
+    }
+
+    // If we have more opening tags than closing tags, we have an incomplete tag
+    return openTags.length > closeTags.length
+  }
 
   return {
     consume(chunk: string) {
@@ -170,10 +207,10 @@ export function createStreamingCategorizer(
         return true
       }
 
-      // Check if position falls within any reasoning segment
+      // Check if position falls within any non-speech segment
       for (const segment of categorized.segments) {
-        if (segment.category === 'reasoning' && position >= segment.startIndex && position < segment.endIndex) {
-          // Position is within a reasoning tag, filter it out
+        if (position >= segment.startIndex && position < segment.endIndex) {
+          // Position is within a tagged segment (thought/reasoning)
           return false
         }
       }
@@ -184,33 +221,57 @@ export function createStreamingCategorizer(
     /**
      * Filters text to only include speech parts
      * Removes content that falls within thought/reasoning segments
-     * Only filters based on complete tags (opening + closing)
      */
     filterToSpeech(text: string, startPosition: number): string {
-      // Re-categorize to get latest complete tags
-      categorized = categorizeResponse(buffer, providerId)
+      // Check if we're currently inside an incomplete tag
+      // If so, filter out all content until the tag closes
+      if (checkIncompleteTag()) {
+        // Check if this chunk contains the closing tag
+        const textToCheck = buffer.slice(startPosition, startPosition + text.length)
+
+        // Check for any closing tag in this chunk
+        const closingTagMatch = textToCheck.match(/<\/([a-z_][\w-]*)>/i)
+
+        // Find the earliest closing tag
+        let closingTagIndex = -1
+        if (closingTagMatch && closingTagMatch.index !== undefined) {
+          closingTagIndex = closingTagMatch.index + closingTagMatch[0].length
+        }
+
+        if (closingTagIndex === -1) {
+          // Still inside incomplete tag, filter everything
+          return ''
+        }
+
+        // Return only content after the closing tag
+        // Continue with normal filtering below for the remaining text
+        text = text.slice(closingTagIndex)
+        startPosition += closingTagIndex
+        // Re-categorize to get updated segments (the closing tag is now in the buffer)
+        categorized = categorizeResponse(buffer, providerId)
+      }
 
       if (!categorized || categorized.segments.length === 0) {
-        // No complete tags detected, all text is speech
+        // No segments detected, all text is speech
         return text
       }
 
       let filtered = ''
       const endPosition = startPosition + text.length
 
-      // Find all reasoning segments that overlap with this text (explicitly filter these out)
-      const overlappingReasoningSegments = categorized.segments.filter(
-        segment => segment.category === 'reasoning' && segment.endIndex > startPosition && segment.startIndex < endPosition,
+      // Find all non-speech segments that overlap with this text
+      const overlappingSegments = categorized.segments.filter(
+        segment => segment.endIndex > startPosition && segment.startIndex < endPosition,
       )
 
-      if (overlappingReasoningSegments.length === 0) {
-        // No overlapping reasoning segments, all text is speech
+      if (overlappingSegments.length === 0) {
+        // No overlapping segments, all text is speech
         return text
       }
 
-      // Build filtered text by excluding reasoning segments
+      // Build filtered text by excluding non-speech segments
       let currentPos = startPosition
-      for (const segment of overlappingReasoningSegments) {
+      for (const segment of overlappingSegments) {
         const segmentStart = Math.max(segment.startIndex, startPosition)
         const segmentEnd = Math.min(segment.endIndex, endPosition)
 
