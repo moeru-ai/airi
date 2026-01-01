@@ -3,7 +3,7 @@ title: DevLog @ 2026.01.01
 category: DevLog
 date: 2026-01-01
 excerpt: |
-  和大家分享 AIRI 的一部分进展、问题与解决方案，以及柠猫在 FlowChat 实验记忆层的一些成果和一点点实现细节。
+  和大家分享 AIRI 在 iOS 平台上的进展，遇到的问题与解决方案，以及柠猫在 FlowChat 实验记忆层的一些成果和一点点实现细节。
 preview-cover:
 # TODO
 ---
