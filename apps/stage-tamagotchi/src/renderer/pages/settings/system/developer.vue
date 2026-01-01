@@ -4,7 +4,7 @@ import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { electronOpenMainDevtools } from '../../../../shared/eventa'
+import { electronOpenDevtoolsWindow, electronOpenMainDevtools } from '../../../../shared/eventa'
 import { useElectronEventaInvoke } from '../../../composables/electron-vueuse'
 
 const { t } = useI18n()
@@ -22,12 +22,6 @@ const menu = computed(() => [
     description: t('tamagotchi.settings.devtools.pages.lag-visualizer.description'),
     icon: 'i-solar:sledgehammer-bold-duotone',
     to: '/devtools/lag-visualizer',
-  },
-  {
-    title: t('tamagotchi.settings.devtools.pages.markdown-stress.title'),
-    description: t('tamagotchi.settings.devtools.pages.markdown-stress.description'),
-    icon: 'i-solar:sledgehammer-bold-duotone',
-    to: '/devtools/markdown-stress',
   },
   {
     title: t('tamagotchi.settings.pages.system.developer.sections.section.use-window-mouse.title'),
@@ -74,6 +68,7 @@ const menu = computed(() => [
 ])
 
 const openDevTools = useElectronEventaInvoke(electronOpenMainDevtools)
+const openMarkdownStressWindow = useElectronEventaInvoke(electronOpenDevtoolsWindow)
 </script>
 
 <template>
@@ -92,6 +87,20 @@ const openDevTools = useElectronEventaInvoke(electronOpenMainDevtools)
   >
     {{ t('settings.pages.page.developers.open-devtools.button') }}
   </ButtonBar>
+  <ButtonBar
+    v-motion
+    mb-2
+    icon="i-solar:code-bold-duotone"
+    :text="t('tamagotchi.settings.devtools.pages.markdown-stress.title')"
+    :initial="{ opacity: 0, y: 10 }"
+    :enter="{ opacity: 1, y: 0 }"
+    :duration="250 + (19 * 10)"
+    :delay="2 * 50"
+    transition="all ease-in-out duration-250"
+    @click="() => openMarkdownStressWindow({ route: '/devtools/markdown-stress' })"
+  >
+    {{ t('tamagotchi.settings.devtools.pages.markdown-stress.title') }}
+  </ButtonBar>
   <CheckBar
     v-model="settings.disableTransitions"
     v-motion
@@ -102,7 +111,7 @@ const openDevTools = useElectronEventaInvoke(electronOpenMainDevtools)
     :initial="{ opacity: 0, y: 10 }"
     :enter="{ opacity: 1, y: 0 }"
     :duration="250 + (19 * 10)"
-    :delay="2 * 50"
+    :delay="3 * 50"
     transition="all ease-in-out duration-250"
   />
   <CheckBar
@@ -116,7 +125,7 @@ const openDevTools = useElectronEventaInvoke(electronOpenMainDevtools)
     :initial="{ opacity: 0, y: 10 }"
     :enter="{ opacity: 1, y: 0 }"
     :duration="250 + (20 * 10)"
-    :delay="3 * 50"
+    :delay="4 * 50"
     transition="all ease-in-out duration-250"
   />
 
