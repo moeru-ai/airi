@@ -137,9 +137,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         isProcessingRemoteStream = true
 
         try {
-          if (event.sessionId && chatStore.activeSessionId !== event.sessionId)
-            chatStore.setActiveSession(event.sessionId)
-
+          // Use the receiver's active session to avoid clobbering chat state when events come from other windows/devtools.
           switch (event.type) {
             case 'before-compose':
               await chatStore.emitBeforeMessageComposedHooks(event.message, event.context)
