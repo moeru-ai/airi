@@ -77,7 +77,9 @@ function toggleCapture() {
       <div text="xs neutral-300">
         Payload preview
       </div>
-      <pre class="whitespace-pre-wrap text-xs text-neutral-200">{{ payloadPreview }}</pre>
+      <pre class="max-h-48 overflow-auto whitespace-pre-wrap text-xs text-neutral-200">
+{{ payloadPreview.split('\n').slice(-20).join('\n') }}
+      </pre>
     </div>
 
     <div flex="~ col gap-2" rounded="lg" border="1 dashed neutral-700" p-3>
