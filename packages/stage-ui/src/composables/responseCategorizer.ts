@@ -227,10 +227,7 @@ export function createStreamingCategorizer(
       // If so, filter out all content until the tag closes
       if (checkIncompleteTag()) {
         // Check if this chunk contains the closing tag
-        const textToCheck = buffer.slice(startPosition, startPosition + text.length)
-
-        // Check for any closing tag in this chunk
-        const closingTagMatch = textToCheck.match(/<\/([a-z_][\w-]*)>/i)
+        const closingTagMatch = text.match(/<\/([a-z_][\w-]*)>/i)
 
         // Find the earliest closing tag
         let closingTagIndex = -1

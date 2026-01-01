@@ -404,8 +404,6 @@ export const useChatStore = defineStore('chat', () => {
           if (shouldAbort())
             return
 
-          await emitTokenLiteralHooks(literal, streamingMessageContext)
-
           // Feed to categorizer first
           categorizer.consume(literal)
 
@@ -414,11 +412,12 @@ export const useChatStore = defineStore('chat', () => {
           const speechOnly = categorizer.filterToSpeech(literal, streamPosition)
           streamPosition += literal.length
 
-          // Only add speech content to the visual stream (not reasoning)
-          if (speechOnly) {
+          // Only process non-empty speech content (filter empty/whitespace-only chunks)
+          // Preserve spacing in chunks with content for proper word boundaries
+          if (speechOnly.trim()) {
             streamingMessage.value.content += speechOnly
 
-            // Emit TTS only for speech parts, not reasoning
+            // Emit TTS only for speech parts, not reasoning (clean data, no empty chunks)
             await emitTokenLiteralHooks(speechOnly, streamingMessageContext)
 
             // Add speech content to slices for rendering
