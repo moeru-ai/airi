@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { ButtonBar } from '@proj-airi/stage-ui/components'
+import { useMarkdownStressStore } from '@proj-airi/stage-ui/stores/markdown-stress'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
-
-import { useMarkdownStressStore } from '../../stores/markdown-stress'
 
 const stressStore = useMarkdownStressStore()
 const { t } = useI18n()

@@ -2,11 +2,12 @@ import type { TraceEvent } from '@proj-airi/stage-shared'
 import type { ChatProvider } from '@xsai-ext/shared-providers'
 
 import { defaultPerfTracer, exportCsv as exportCsvFile } from '@proj-airi/stage-shared'
-import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
+
+import { useChatStore } from './chat'
+import { useConsciousnessStore } from './modules/consciousness'
+import { useProvidersStore } from './providers'
 
 interface RunSnapshot {
   startedAt: number
