@@ -147,11 +147,13 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               break
             case 'before-send':
               await chatStore.emitBeforeSendHooks(event.message, event.context)
+              chatStore.beginRemoteStream()
               break
             case 'after-send':
               await chatStore.emitAfterSendHooks(event.message, event.context)
               break
             case 'token-literal':
+              chatStore.appendRemoteLiteral(event.literal)
               await chatStore.emitTokenLiteralHooks(event.literal, event.context)
               break
             case 'token-special':
@@ -159,9 +161,11 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               break
             case 'stream-end':
               await chatStore.emitStreamEndHooks(event.context)
+              chatStore.finalizeRemoteStream()
               break
             case 'assistant-end':
               await chatStore.emitAssistantResponseEndHooks(event.message, event.context)
+              chatStore.finalizeRemoteStream(event.message)
               break
           }
         }

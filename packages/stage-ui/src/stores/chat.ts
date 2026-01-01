@@ -557,6 +557,36 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  // ----- Remote stream helpers (for broadcast/devtools) -----
+  function beginRemoteStream() {
+    streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() }
+  }
+
+  function appendRemoteLiteral(literal: string) {
+    streamingMessage.value.content += literal
+
+    const lastSlice = streamingMessage.value.slices.at(-1)
+    if (lastSlice?.type === 'text') {
+      lastSlice.text += literal
+      return
+    }
+
+    streamingMessage.value.slices.push({
+      type: 'text',
+      text: literal,
+    })
+  }
+
+  function finalizeRemoteStream(fullText?: string) {
+    const sessionId = activeSessionId.value
+    const sessionMessagesForSend = getSessionMessagesById(sessionId)
+    if (streamingMessage.value.slices.length > 0)
+      sessionMessagesForSend.push(toRaw(streamingMessage.value))
+    streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
+    if (fullText)
+      streamingMessage.value.content = fullText
+  }
+
   async function send(
     sendingMessage: string,
     options: SendOptions,
@@ -604,6 +634,10 @@ export const useChatStore = defineStore('chat', () => {
     emitAssistantResponseEndHooks,
     emitAssistantMessageHooks,
     emitChatTurnCompleteHooks,
+
+    beginRemoteStream,
+    appendRemoteLiteral,
+    finalizeRemoteStream,
 
     onBeforeMessageComposed,
     onAfterMessageComposed,
