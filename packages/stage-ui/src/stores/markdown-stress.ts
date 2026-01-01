@@ -7,6 +7,7 @@ import { ref } from 'vue'
 
 import { useChatStore } from './chat'
 import { useConsciousnessStore } from './modules/consciousness'
+import { usePerfTracerBridgeStore } from './perf-tracer-bridge'
 import { useProvidersStore } from './providers'
 
 interface RunSnapshot {
@@ -41,6 +42,7 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
   const providersStore = useProvidersStore()
   const consciousnessStore = useConsciousnessStore()
   const { activeProvider, activeModel } = storeToRefs(consciousnessStore)
+  const perfTracerBridge = usePerfTracerBridgeStore()
 
   let unsubscribe: (() => void) | undefined
   let startedAt = 0
@@ -48,6 +50,8 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
   let runTimeout: ReturnType<typeof setTimeout> | undefined
   let autoStopTimeout: ReturnType<typeof setTimeout> | undefined
   let inFlightTimers: Array<ReturnType<typeof setTimeout>> = []
+  const runCleanups: Array<() => void> = []
+  let pendingResponses = 0
 
   function clearTimers() {
     if (runTimeout) {
@@ -61,6 +65,13 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
     for (const timer of inFlightTimers)
       clearTimeout(timer)
     inFlightTimers = []
+  }
+
+  function clearRunCleanups() {
+    while (runCleanups.length) {
+      const cleanup = runCleanups.pop()
+      cleanup?.()
+    }
   }
 
   function startCapture() {
@@ -78,6 +89,7 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
       events.value.push(event)
     }, { label: 'markdown-stress' })
     releaseTracer = defaultPerfTracer.acquire('markdown-stress')
+    perfTracerBridge.requestEnable('markdown-stress')
   }
 
   function stopCapture() {
@@ -85,6 +97,8 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
       return
 
     clearTimers()
+    clearRunCleanups()
+    pendingResponses = 0
     lastRun.value = {
       startedAt,
       stoppedAt: performance.now(),
@@ -95,6 +109,7 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
     unsubscribe = undefined
     releaseTracer?.()
     releaseTracer = undefined
+    perfTracerBridge.requestDisable('markdown-stress')
     capturing.value = false
     runState.value = 'idle'
   }
@@ -159,6 +174,16 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
     }
     canRunOnline.value = true
 
+    pendingResponses = targetScenario.userMessages.length
+    const stopOnAssistantEnd = chatStore.onAssistantResponseEnd(async () => {
+      if (!capturing.value)
+        return
+      pendingResponses = Math.max(0, pendingResponses - 1)
+      if (pendingResponses === 0)
+        stopCapture()
+    })
+    runCleanups.push(stopOnAssistantEnd)
+
     const runStart = performance.now()
     for (const message of targetScenario.userMessages) {
       const delay = Math.max(0, runStart + message.atMs - performance.now())
@@ -208,6 +233,7 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
 
   function cancelScheduledRun() {
     clearTimers()
+    clearRunCleanups()
     runState.value = 'idle'
   }
 
