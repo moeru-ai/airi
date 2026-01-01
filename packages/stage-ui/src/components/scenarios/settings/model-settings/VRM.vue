@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { TrackingMode } from '@proj-airi/stage-ui-three'
+
 import { useModelStore } from '@proj-airi/stage-ui-three'
 import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -42,7 +44,7 @@ const {
   envSelect,
   skyBoxIntensity,
 } = storeToRefs(modelStore)
-const trackingOptions = computed(() => [
+const trackingOptions = computed<{ value: TrackingMode, label: string, class: string }[]>(() => [
   { value: 'camera', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.camera'), class: 'col-start-3' },
   { value: 'mouse', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.mouse'), class: 'col-start-4' },
   { value: 'none', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.disabled'), class: 'col-start-5' },

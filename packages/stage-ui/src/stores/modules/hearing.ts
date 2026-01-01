@@ -215,6 +215,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
   const DEFAULT_SAMPLE_RATE = 16000
   const DEFAULT_STREAM_IDLE_TIMEOUT = 15000
+  const DEFAULT_SILENCE_THRESHOLD = 0.01
+  const DEFAULT_SILENCE_DURATION_MS = 4000
 
   function float32ToInt16(buffer: Float32Array) {
     const output = new Int16Array(buffer.length)
@@ -226,7 +228,16 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     return output
   }
 
-  async function createAudioStreamFromMediaStream(stream: MediaStream, sampleRate = DEFAULT_SAMPLE_RATE, onActivity?: () => void) {
+  async function createAudioStreamFromMediaStream(
+    stream: MediaStream,
+    sampleRate = DEFAULT_SAMPLE_RATE,
+    opts?: {
+      onActivity?: () => void
+      onSilence?: () => void
+      silenceThreshold?: number
+      silenceDurationMs?: number
+    },
+  ) {
     const audioContext = new AudioContext({ sampleRate, latencyHint: 'interactive' })
     await audioContext.audioWorklet.addModule(vadWorkletUrl)
     const workletNode = new AudioWorkletNode(audioContext, 'vad-audio-worklet-processor')
@@ -241,15 +252,31 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       },
     })
 
+    let lastNonSilenceTs = performance.now()
+    let silenceTriggered = false
+    const silenceThreshold = opts?.silenceThreshold ?? DEFAULT_SILENCE_THRESHOLD
+    const silenceDurationMs = opts?.silenceDurationMs ?? DEFAULT_SILENCE_DURATION_MS
+
     workletNode.port.onmessage = ({ data }: MessageEvent<{ buffer?: Float32Array }>) => {
       const buffer = data?.buffer
       if (!buffer || !audioStreamController)
         return
 
       const pcm16 = float32ToInt16(buffer)
+      const rms = Math.sqrt(buffer.reduce((sum, sample) => sum + sample * sample, 0) / buffer.length)
+      const now = performance.now()
+      if (rms > silenceThreshold) {
+        lastNonSilenceTs = now
+        silenceTriggered = false
+        opts?.onActivity?.()
+      }
+      else if (!silenceTriggered && now - lastNonSilenceTs >= silenceDurationMs) {
+        silenceTriggered = true
+        opts?.onSilence?.()
+      }
+
       // Clone buffer to avoid retaining underlying ArrayBuffer references
       audioStreamController.enqueue(pcm16.buffer.slice(0))
-      onActivity?.()
     }
 
     const mediaStreamSource = audioContext.createMediaStreamSource(stream)
@@ -370,7 +397,9 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       const session = await createAudioStreamFromMediaStream(
         stream,
         options?.sampleRate ?? DEFAULT_SAMPLE_RATE,
-        () => bumpIdle(),
+        {
+          onActivity: () => bumpIdle(),
+        },
       )
 
       if (session.audioContext.state === 'suspended')
