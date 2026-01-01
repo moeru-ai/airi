@@ -87,7 +87,6 @@ export function useLlmmarkerParser(options: {
       // Incomplete tag should not be emitted as literals.
       if (!inTag && buffer.length > 0) {
         await options.onLiteral?.(buffer)
-        fullText += buffer
         buffer = ''
       }
       await options.onEnd?.(fullText)
