@@ -56,6 +56,7 @@ Ainsi, ce projet AIRI offre une autre possibilité : **vous permettre de posséd
 
 ## Journaux de développement et mises à jour récentes
 
+- [DevLog @ 01.01.2026](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) du 1er janvier 2026
 - [DevLog @ 20.10.2025](https://airi.moeru.ai/docs/en/blog/DevLog-2025.10.20/) du 20 octobre 2025
 - [DevLog @ 05.08.2025](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) du 5 août 2025
 - [DevLog @ 01.08.2025](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.01/) du 1er août 2025
