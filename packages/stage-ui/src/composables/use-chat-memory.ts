@@ -36,15 +36,21 @@ export function getSessionSummary(
   createdAt?: number
   lastMessageAt?: number
 } {
-  const assistantMessages = messages.filter(
-    (msg): msg is ChatAssistantMessage =>
-      msg.role === 'assistant' && 'categorization' in msg,
-  )
+  const allReasoning: string[] = []
+  const allSpeech: string[] = []
 
-  const allReasoning = getAllReasoning(messages)
-  const allSpeech = assistantMessages
-    .map(msg => msg.categorization?.speech)
-    .filter((s): s is string => !!s?.trim())
+  for (const msg of messages) {
+    if (msg.role === 'assistant' && 'categorization' in msg) {
+      const reasoning = msg.categorization?.reasoning
+      if (reasoning?.trim()) {
+        allReasoning.push(reasoning)
+      }
+      const speech = msg.categorization?.speech
+      if (speech?.trim()) {
+        allSpeech.push(speech)
+      }
+    }
+  }
 
   return {
     sessionId,

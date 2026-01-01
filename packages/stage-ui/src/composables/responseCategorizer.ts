@@ -158,24 +158,32 @@ export function createStreamingCategorizer(
 
   // Helper to check for incomplete tags
   function checkIncompleteTag(): boolean {
-    // Check for any incomplete tag (all tags are treated as reasoning)
-    const openTagPattern = /<([a-z_][\w-]*)>/gi
-    const closeTagPattern = /<\/([a-z_][\w-]*)>/gi
-
-    const openTags: string[] = []
-    const closeTags: string[] = []
+    // Stack-based approach to track tag matching
+    // Process tags in order to handle nesting and mismatches correctly
+    const stack: string[] = []
+    const tagPattern = /<\/?([a-z_][\w-]*)>/gi
 
     let match
-    while ((match = openTagPattern.exec(buffer)) !== null) {
-      openTags.push(match[1].toLowerCase())
+    while ((match = tagPattern.exec(buffer)) !== null) {
+      const tagName = match[1].toLowerCase()
+      const isClosing = match[0].startsWith('</')
+
+      if (isClosing) {
+        // Check if this closing tag matches the most recent opening tag
+        if (stack.length > 0 && stack[stack.length - 1] === tagName) {
+          stack.pop()
+        }
+        // If it doesn't match, we still have an unbalanced structure
+        // (but we'll continue processing to find incomplete tags)
+      }
+      else {
+        // Opening tag: push onto stack
+        stack.push(tagName)
+      }
     }
 
-    while ((match = closeTagPattern.exec(buffer)) !== null) {
-      closeTags.push(match[1].toLowerCase())
-    }
-
-    // If we have more opening tags than closing tags, we have an incomplete tag
-    return openTags.length > closeTags.length
+    // If stack is non-empty, we have unclosed tags
+    return stack.length > 0
   }
 
   return {

@@ -452,33 +452,6 @@ export const useChatStore = defineStore('chat', () => {
             speech: finalCategorization.speech,
             reasoning: finalCategorization.reasoning,
           }
-
-          // TTS has already been emitted during streaming for speech parts only
-          // (reasoning was filtered out by categorizer.filterToSpeech)
-
-          // Trust the streamed content - filterToSpeech() already handles incomplete tags correctly
-          // The slices were built correctly during streaming, so we keep them as-is
-          // Only update content from final categorization if there's a mismatch (edge case handling)
-          const streamedContent = typeof streamingMessage.value.content === 'string'
-            ? streamingMessage.value.content.trim()
-            : ''
-          const finalSpeech = finalCategorization.speech.trim()
-
-          // If there's a significant mismatch, use final categorization (edge case handling)
-          // Otherwise trust what was streamed
-          if (finalSpeech && finalSpeech !== streamedContent) {
-            // Only update if the difference is substantial (more than just whitespace)
-            const normalizedStreamed = streamedContent.replace(/\s+/g, ' ')
-            const normalizedFinal = finalSpeech.replace(/\s+/g, ' ')
-            if (normalizedFinal !== normalizedStreamed) {
-              // Update content but keep slices - they were built correctly during streaming
-              streamingMessage.value.content = finalSpeech
-            }
-          }
-          else if (finalSpeech && !streamedContent) {
-            // If we have final speech but no streamed content, use final speech
-            streamingMessage.value.content = finalSpeech
-          }
         },
         minLiteralEmitLength: 24, // Avoid emitting literals too fast. This is a magic number and can be changed later.
       })

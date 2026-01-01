@@ -11,10 +11,6 @@ const props = defineProps<{
   variant?: 'desktop' | 'mobile'
 }>()
 
-const hasCategorization = computed(() => {
-  return !!props.message.categorization?.reasoning
-})
-
 const hasReasoning = computed(() => !!props.message.categorization?.reasoning?.trim())
 
 const containerClasses = computed(() => [
@@ -24,7 +20,7 @@ const containerClasses = computed(() => [
 </script>
 
 <template>
-  <div v-if="hasCategorization" :class="containerClasses" flex="~ col" gap-1>
+  <div v-if="hasReasoning" :class="containerClasses" flex="~ col" gap-1>
     <Collapsable v-if="hasReasoning" :default="false">
       <template #trigger="slotProps">
         <button
