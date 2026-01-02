@@ -86,7 +86,6 @@ function createMockStream(options: {
   timer: DeterministicTimer
   onEvent: (event: StreamEvent) => void | Promise<void>
 }) {
-  const scheduledIds: number[] = []
   let cancelled = false
   const {
     scenario: {
@@ -103,59 +102,31 @@ function createMockStream(options: {
   const chunks = chunkText(text, Math.max(1, rate?.maxChunkSize ?? 96))
   const intervalMs = 1000 / Math.max(1, rate?.tokensPerSecond ?? 40)
 
-  function schedule(delayMs: number, fn: () => void | Promise<void>) {
-    const id = timer.schedule(delayMs, fn)
-    scheduledIds.push(id)
-  }
-
   async function run() {
-    const totalDuration = firstTokenDelayMs + chunks.length * intervalMs
-    return new Promise<void>(async (resolve, reject) => {
-      const emit = async (event: StreamEvent) => {
-        if (cancelled)
-          return
-        await onEvent(event)
-        if (event.type === 'finish')
-          resolve()
-      }
+    const yieldMacro = () => new Promise(resolve => setTimeout(resolve, 0))
+    let lastTs = timer.now()
+    const base = lastTs + firstTokenDelayMs
 
-      chunks.forEach((chunk, idx) => {
-        schedule(firstTokenDelayMs + idx * intervalMs, async () => {
-          try {
-            await emit({ type: 'text-delta', text: chunk })
-          }
-          catch (error) {
-            cancelled = true
-            reject(error)
-          }
-        })
-      })
+    for (const [idx, chunk] of chunks.entries()) {
+      if (cancelled)
+        return
+      const target = base + idx * intervalMs
+      await timer.tick(target - lastTs)
+      lastTs = target
+      await onEvent({ type: 'text-delta', text: chunk })
+      await yieldMacro()
+    }
 
-      schedule(firstTokenDelayMs + chunks.length * intervalMs, async () => {
-        try {
-          await emit({ type: 'finish' } as StreamEvent)
-        }
-        catch (error) {
-          cancelled = true
-          reject(error)
-        }
-      })
+    if (cancelled)
+      return
 
-      try {
-        await timer.tick(totalDuration + 1)
-      }
-      catch (error) {
-        cancelled = true
-        reject(error)
-      }
-    })
+    const finishAt = base + chunks.length * intervalMs
+    await timer.tick(finishAt - lastTs)
+    await onEvent({ type: 'finish' } as StreamEvent)
   }
 
   function cancel() {
     cancelled = true
-    for (const id of scheduledIds)
-      timer.cancel(id)
-    scheduledIds.length = 0
   }
 
   return {
