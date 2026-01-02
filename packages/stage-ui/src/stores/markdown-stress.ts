@@ -178,7 +178,6 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
   let autoStopTimeout: ReturnType<typeof setTimeout> | undefined
   let inFlightTimers: Array<ReturnType<typeof setTimeout>> = []
   const runCleanups: Array<() => void> = []
-  let pendingResponses = 0
   const mockTimer = createDeterministicTimer()
   let mockStreamCancel: (() => void) | undefined
 
@@ -230,7 +229,6 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
 
     clearTimers()
     clearRunCleanups()
-    pendingResponses = 0
     lastRun.value = {
       startedAt,
       stoppedAt: performance.now(),
@@ -306,16 +304,6 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
     }
     canRunOnline.value = true
 
-    pendingResponses = targetScenario.userMessages.length
-    const stopOnAssistantEnd = chatStore.onAssistantResponseEnd(async () => {
-      if (!capturing.value)
-        return
-      pendingResponses = Math.max(0, pendingResponses - 1)
-      if (pendingResponses === 0)
-        stopCapture()
-    })
-    runCleanups.push(stopOnAssistantEnd)
-
     const runStart = performance.now()
     for (const message of targetScenario.userMessages) {
       const delay = Math.max(0, runStart + message.atMs - performance.now())
@@ -349,16 +337,6 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
         } as any
       },
     } as ChatProvider
-
-    pendingResponses = targetScenario.userMessages.length
-    const stopOnAssistantEnd = chatStore.onAssistantResponseEnd(async () => {
-      if (!capturing.value)
-        return
-      pendingResponses = Math.max(0, pendingResponses - 1)
-      if (pendingResponses === 0)
-        stopCapture()
-    })
-    runCleanups.push(stopOnAssistantEnd)
 
     const originalStream = llm.stream
     llm.stream = async (_model, _provider, _messages, options) => {
@@ -429,7 +407,7 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
 
     autoStopTimeout = setTimeout(() => {
       stopCapture()
-    }, scheduleDelayMs.value + 65000)
+    }, scheduleDelayMs.value + 60000)
   }
 
   function cancelScheduledRun() {
