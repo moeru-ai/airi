@@ -52,7 +52,7 @@ description: Project AIRI のたまごっちバージョンの使い方
 - オンボーディング / ウィザードセットアップガイド
 - モデル (Live2D および VRM モデルを表示可能)
 
-![](./assets/screenshot-ui.avif)
+![](/en/docs/overview/guide/tamagotchi/assets/screenshot-ui.avif)
 
 システムトレイには、次のような他のオプション/コマンドがあります：
 

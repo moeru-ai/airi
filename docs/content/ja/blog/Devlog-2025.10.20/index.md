@@ -16,13 +16,13 @@ Tauri は数日前にもまた話題になりました。私たちは3月に最�
 
 ...結局我慢できず、国慶節に完全に Electron に切り替えました
 
-<img src="/en/blog/Devlog-2025.10.20/assets/electron.png" alt="electron.png" />
+<img src="/en/blog/DevLog-2025.10.20/assets/electron.png" alt="electron.png" />
 
 現在、Electron は元の基盤の上で、Linux のサポート、私たちが Control Island（コントロールアイランド）と呼ぶ機能を追加し、macOS のウィンドウが全画面表示のときでもインターフェース上にオーバーレイできるようになりました。
 
 互換性は非常に良く、とても気に入っています。昨日はついにキャプションオーバーレイも追加され、Neuro-sama のように AI が何を出力したかを確認できる字幕がつきました。
 
-<img src="/en/blog/Devlog-2025.10.20/assets/control-island.png" alt="control-island.png" />
+<img src="/en/blog/DevLog-2025.10.20/assets/control-island.png" alt="control-island.png" />
 
 <div style="text-align: center; font-size: 0.875rem; color: #666; margin-top: 0.5rem;">
 Control Island
@@ -36,7 +36,7 @@ Control Island
 
 （小声）スポンサーが増えれば、喜んで公開するかもしれません（x
 
-<video src="/en/blog/Devlog-2025.10.20/assets/airi.mp4" alt="airi.mp4" controls></video>
+<video src="/en/blog/DevLog-2025.10.20/assets/airi.mp4" alt="airi.mp4" controls></video>
 
 ## Three.js MMD サポート
 
@@ -52,7 +52,7 @@ Control Island
 
 5月に私たち自身が実装したプロンプトライブラリを共有したことを覚えていますか？RainbowBird の努力と寄付のおかげで、現在 Velin も Moeru AI の一員です。AIRI のほぼすべてのプロンプトは Velin によって駆動されていますが、クロスプラットフォーム機能を心配する必要はありません。Velin は Node.js 環境でも使用できます！
 
-<img src="/en/blog/Devlog-2025.10.20/assets/velin.png" alt="velin.png" />
+<img src="/en/blog/DevLog-2025.10.20/assets/velin.png" alt="velin.png" />
 
 ## Eventa：イベント駆動型 IPC/RPC
 
