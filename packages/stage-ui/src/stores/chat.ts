@@ -235,6 +235,10 @@ export const useChatStore = defineStore('chat', () => {
     return nextGeneration
   }
 
+  function getSessionGenerationValue(sessionId = activeSessionId.value) {
+    return getSessionGeneration(sessionId)
+  }
+
   function generateInitialMessage() {
     // TODO: compose, replace {{ user }} tag, etc
     const content = codeBlockSystemPrompt + mathSyntaxSystemPrompt + systemPrompt.value
@@ -634,6 +638,8 @@ export const useChatStore = defineStore('chat', () => {
     emitAssistantResponseEndHooks,
     emitAssistantMessageHooks,
     emitChatTurnCompleteHooks,
+
+    getSessionGenerationValue,
 
     beginRemoteStream,
     appendRemoteLiteral,
