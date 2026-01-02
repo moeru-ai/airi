@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { DefaultTheme } from 'vitepress/theme'
 
-import { CollapsibleContent, CollapsibleRoot, CollapsibleTrigger } from 'reka-ui'
 import { Content, useData, useRoute } from 'vitepress'
 import { computed, toRefs } from 'vue'
 
