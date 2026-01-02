@@ -13,10 +13,20 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Detect OS
+    - name: Detect OS and architecture
       id: os
       shell: bash
       run: |
+        ARCH=$(uname -m)
+        if [[ "$ARCH" == "x86_64" ]]; then
+          ARCH_SUFFIX="amd64"
+        elif [[ "$ARCH" == "aarch64" ]] || [[ "$ARCH" == "arm64" ]]; then
+          ARCH_SUFFIX="arm64"
+        else
+          echo "Error: Unsupported architecture $ARCH"
+          exit 1
+        fi
+
         if [[ "$RUNNER_OS" == "macOS" ]]; then
           echo "platform=macos" >> $GITHUB_OUTPUT
           echo "archive_name=portable_swiftlint.zip" >> $GITHUB_OUTPUT
@@ -27,6 +37,7 @@ runs:
           echo "Error: Unsupported OS $RUNNER_OS"
           exit 1
         fi
+        echo "arch=$ARCH_SUFFIX" >> $GITHUB_OUTPUT
 
     - name: Resolve version
       id: version
@@ -55,14 +66,25 @@ runs:
 
         PLATFORM="${{ steps.os.outputs.platform }}"
         VERSION="${{ steps.version.outputs.version }}"
+        ARCH="${{ steps.os.outputs.arch }}"
         ARCHIVE_NAME="${{ steps.os.outputs.archive_name }}"
+
+        if [[ "$PLATFORM" == "linux" ]]; then
+          ARCHIVE_NAME="${ARCHIVE_NAME%.zip}_${ARCH}.zip"
+        fi
+
         DOWNLOAD_URL="https://github.com/realm/SwiftLint/releases/download/${VERSION}/${ARCHIVE_NAME}"
 
         echo "Downloading SwiftLint from $DOWNLOAD_URL..."
 
         if ! curl -L -f -o swiftlint.zip "$DOWNLOAD_URL"; then
-          echo "Error: Download failed, please check if the version is correct"
-          exit 1
+          ARCHIVE_NAME_FALLBACK="${ARCHIVE_NAME%.zip}.zip"
+          DOWNLOAD_URL="https://github.com/realm/SwiftLint/releases/download/${VERSION}/${ARCHIVE_NAME_FALLBACK}"
+          echo "Trying fallback URL: $DOWNLOAD_URL"
+          if ! curl -L -f -o swiftlint.zip "$DOWNLOAD_URL"; then
+            echo "Error: Download failed, please check if the version is correct"
+            exit 1
+          fi
         fi
 
         echo "Extracting..."
