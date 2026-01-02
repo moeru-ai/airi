@@ -193,20 +193,7 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
           return
 
         // Only accept samples for enabled metrics
-        const isMetricEnabled = (() => {
-          switch (metric) {
-            case 'fps':
-              return enabled.fps
-            case 'frameDuration':
-              return enabled.frameDuration
-            case 'longtask':
-              return enabled.longtask
-            case 'memory':
-              return enabled.memory
-            default:
-              return false
-          }
-        })()
+        const isMetricEnabled = enabled[metric]
 
         if (!isMetricEnabled)
           return
