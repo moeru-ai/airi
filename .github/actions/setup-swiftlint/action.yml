@@ -88,17 +88,18 @@ runs:
         fi
 
         echo "Extracting..."
-        unzip -q swiftlint.zip
+        EXTRACT_DIR=$(mktemp -d)
+        unzip -q -o swiftlint.zip -d "$EXTRACT_DIR"
 
-        if [[ -f "swiftlint" ]]; then
-          BINARY_PATH="swiftlint"
-        elif [[ -f "swiftlint_linux/swiftlint" ]]; then
-          BINARY_PATH="swiftlint_linux/swiftlint"
-        elif [[ -f "portable_swiftlint/swiftlint" ]]; then
-          BINARY_PATH="portable_swiftlint/swiftlint"
+        if [[ -f "$EXTRACT_DIR/swiftlint" ]]; then
+          BINARY_PATH="$EXTRACT_DIR/swiftlint"
+        elif [[ -f "$EXTRACT_DIR/swiftlint_linux/swiftlint" ]]; then
+          BINARY_PATH="$EXTRACT_DIR/swiftlint_linux/swiftlint"
+        elif [[ -f "$EXTRACT_DIR/portable_swiftlint/swiftlint" ]]; then
+          BINARY_PATH="$EXTRACT_DIR/portable_swiftlint/swiftlint"
         else
           echo "Error: Could not find swiftlint binary"
-          ls -la
+          ls -la "$EXTRACT_DIR"
           exit 1
         fi
 
@@ -110,4 +111,4 @@ runs:
           exit 1
         fi
 
-        rm -rf swiftlint.zip swiftlint_linux portable_swiftlint 2>/dev/null || true
+        rm -rf swiftlint.zip "$EXTRACT_DIR" 2>/dev/null || true
