@@ -10,7 +10,7 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
 import { computed, watch } from 'vue'
 
-const providerId = 'deepgram'
+const providerId = 'deepgram-tts'
 const defaultModel = 'aura-2-thalia-en'
 
 const defaultVoiceSettings = {}

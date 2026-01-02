@@ -1135,9 +1135,9 @@ export const useProvidersStore = defineStore('providers', () => {
       id: 'deepgram-tts',
       category: 'speech',
       tasks: ['text-to-speech'],
-      nameKey: 'settings.pages.providers.provider.deepgram.title',
+      nameKey: 'settings.pages.providers.provider.deepgram-tts.title',
       name: 'Deepgram',
-      descriptionKey: 'settings.pages.providers.provider.deepgram.description',
+      descriptionKey: 'settings.pages.providers.provider.deepgram-tts.description',
       description: 'deepgram.com',
       icon: 'i-simple-icons:deepgram',
       defaultOptions: () => ({
@@ -1159,7 +1159,7 @@ export const useProvidersStore = defineStore('providers', () => {
             return {
               id: voice.id,
               name: voice.name,
-              provider: 'deepgram',
+              provider: 'deepgram-tts',
               description: voice.description,
               languages: voice.languages,
               gender: voice.labels?.gender,
