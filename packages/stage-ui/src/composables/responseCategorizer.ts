@@ -207,7 +207,8 @@ export function categorizeResponse(
 }
 
 /**
- * Streaming version that processes text incrementally
+ * Note: This receives literal text from useLlmmarkerParser (special tokens <|...|> are already extracted).
+ * Only XML/HTML tags like <think>, <reasoning> need to be parsed here.
  */
 export function createStreamingCategorizer(
   providerId?: string,
@@ -216,15 +217,19 @@ export function createStreamingCategorizer(
   let buffer = ''
   let categorized: CategorizedResponse | null = null
   let lastEmittedSegmentIndex = -1
+  let lastParsedLength = 0
 
-  // Helper to check for incomplete tags using rehype
+  // Lightweight state machine to detect tag closures without parsing entire buffer
+  type TagState = 'outside' | 'in-opening-tag' | 'in-content' | 'in-closing-tag'
+  let tagState: TagState = 'outside'
+  let tagStackDepth = 0
+
+  // Fallback for filterToSpeech - uses rehype for robust incomplete tag detection
   function checkIncompleteTag(): boolean {
     try {
       const tree = unified().use(rehypeParse, { fragment: true }).parse(buffer) as Root
       const stringified = unified().use(rehypeStringify).stringify(tree).toString()
 
-      // If rehype auto-closed tags, stringified will differ from buffer
-      // Check if the end of buffer differs (incomplete tag at end)
       if (stringified !== buffer) {
         const bufferEnd = buffer.trim().slice(-30)
         const stringifiedEnd = stringified.trim().slice(-30)
@@ -239,18 +244,93 @@ export function createStreamingCategorizer(
     }
   }
 
+  // Tracks tag state incrementally (O(chunk.length)) to detect when tags close
+  // Returns true when the outermost tag just closed
+  function processChunkIncrementally(chunk: string): boolean {
+    let tagJustClosed = false
+
+    for (let i = 0; i < chunk.length; i++) {
+      const char = chunk[i]
+
+      switch (tagState) {
+        case 'outside': {
+          if (char === '<') {
+            if (i + 1 < chunk.length && chunk[i + 1] === '/') {
+              tagState = 'in-closing-tag'
+              i++
+            }
+            else {
+              tagState = 'in-opening-tag'
+            }
+          }
+          break
+        }
+
+        case 'in-opening-tag': {
+          if (char === '>') {
+            tagState = 'in-content'
+            tagStackDepth++
+          }
+          break
+        }
+
+        case 'in-content': {
+          if (char === '<') {
+            if (i + 1 < chunk.length && chunk[i + 1] === '/') {
+              tagState = 'in-closing-tag'
+              i++
+            }
+            else {
+              tagState = 'in-opening-tag'
+            }
+          }
+          break
+        }
+
+        case 'in-closing-tag': {
+          if (char === '>') {
+            tagStackDepth--
+            if (tagStackDepth === 0) {
+              tagState = 'outside'
+              tagJustClosed = true
+            }
+            else {
+              tagState = 'in-content'
+            }
+          }
+          break
+        }
+      }
+    }
+
+    return tagJustClosed
+  }
+
   return {
     consume(chunk: string) {
+      // Process before adding to buffer to detect tag closure in this chunk
+      const tagJustClosed = processChunkIncrementally(chunk)
       buffer += chunk
-      // Re-categorize on each chunk
-      categorized = categorizeResponse(buffer, providerId)
 
-      // Emit new segments if any
+      // Re-categorize on first chunk, tag closure, or every 1KB (periodic fallback)
+      const shouldRecategorize = !categorized
+        || tagJustClosed
+        || buffer.length - lastParsedLength > 1000
+
+      if (shouldRecategorize) {
+        categorized = categorizeResponse(buffer, providerId)
+        lastParsedLength = buffer.length
+      }
+
+      // Type guard for TypeScript (shouldRecategorize handles !categorized, but TS doesn't know)
+      if (!categorized) {
+        categorized = categorizeResponse(buffer, providerId)
+        lastParsedLength = buffer.length
+      }
+
       if (onSegment && categorized.segments.length > 0) {
-        // Emit segments that haven't been emitted yet
         for (let i = lastEmittedSegmentIndex + 1; i < categorized.segments.length; i++) {
           const segment = categorized.segments[i]
-          // Only emit if the segment is complete (we've received the closing tag)
           if (buffer.length >= segment.endIndex) {
             onSegment(segment)
             lastEmittedSegmentIndex = i
