@@ -12,6 +12,7 @@
   "scripts": {
     "build": "vite build",
     "lint": "eslint .",
+    "lint:swift": "swiftlint",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
     "dev:web": "vite",
