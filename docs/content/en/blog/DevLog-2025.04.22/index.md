@@ -12,9 +12,7 @@ Two months ago, we ported AIRI's web interface to Electron [#7](https://github.c
 
 Last weekend (2025.04.20), I spent some time creating an MCP server demo [airi-android](https://github.com/LemonNekoGH/airi-android) that can interact with ADB, providing AIRI with basic mobile interaction capabilities (in fact, most LLMs can interact with phones through it). Here's a demo video:
 
-<video controls muted>
-  <source src="./assets/cursor-open-settings.mp4">
-</video>
+<ThemedVideo controls muted src="./assets/cursor-open-settings.mp4" />
 
 I also packaged it as a Docker image and submitted it to the [MCP server list](https://mcp.so/server/airi-android/lemonnekogh). Feel free to try it if you're interested.
 

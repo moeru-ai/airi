@@ -4,6 +4,7 @@ import messages from '@proj-airi/i18n/locales'
 
 import { createI18n } from 'vue-i18n'
 
+import ThemedVideo from '../components/ThemedVideo.vue'
 import Layout from '../custom/Layout.vue'
 
 import '@unocss/reset/tailwind.css'
@@ -24,7 +25,7 @@ import '@fontsource-variable/comfortaa'
 export default {
   Layout,
   enhanceApp({ app, siteData }) {
-    if (!import.meta.env.SSR) {
+    if (!import.meta.env.SSR && import.meta.env.PROD) {
       import('../modules/posthog')
     }
 

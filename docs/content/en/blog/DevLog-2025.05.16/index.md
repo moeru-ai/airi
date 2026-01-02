@@ -140,9 +140,7 @@ Eventually, I got this:
 which I managed to proof the work can be done on Web browser within one single
 300 ~ 500 lines of TypeScript code to achieve ChatGPT voice chat system.
 
-<video controls muted style="{ height: '640px' }">
-  <source src="./assets/webai-examples-demo.MP4"/>
-</video>
+<ThemedVideo controls muted src="./assets/webai-examples-demo.MP4" style="height: 640px;" />
 
 I tried my best to split all the possible steps into small and reusable pieces
 to help demonstrate how you can construct a real-time voice chat system

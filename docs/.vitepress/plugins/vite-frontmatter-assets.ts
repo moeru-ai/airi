@@ -129,7 +129,16 @@ export function frontmatterAssets(): Plugin {
         }
 
         recursivelyFindAtAssets(data, (matched) => {
-          mAssetAbsoluteUrlMetadata.set(join(dirname(file), fromAtAssets(matched)), { url: file, builtUrl: file, hash: '' })
+          const assetPath = fromAtAssets(matched)
+          let absoluteAssetPath: string
+          if (assetPath.startsWith('/')) {
+            absoluteAssetPath = join(resolvedConfig?.vitepress.srcDir || '', assetPath)
+          }
+          else {
+            absoluteAssetPath = join(dirname(file), assetPath)
+          }
+
+          mAssetAbsoluteUrlMetadata.set(absoluteAssetPath, { url: file, builtUrl: file, hash: '' })
           return undefined
         })
       }
