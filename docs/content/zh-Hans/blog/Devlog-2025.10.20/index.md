@@ -36,7 +36,7 @@ Control Island
 
 （小声）也许 sponsor 多了就愿意了（x
 
-<video src="./assets/airi.mp4" alt="airi.mp4" controls></video>
+<video src="./assets/airi.mp4" alt="airi.mp4" controls playsinline></video>
 
 ## Three.js MMD 支持
 

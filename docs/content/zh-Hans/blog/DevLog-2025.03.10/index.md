@@ -55,9 +55,7 @@ date: 2025-03-10
 
 在3月8日结束时，[@LemonNekoGH](https://github.com/LemonNekoGH) 和 [@junkwarrior87](https://github.com/junkwarrior87) 居然实现了整个舞台的颜色自定义功能！（我从来没想过这能在短短几个小时内完成...）
 
-<video controls muted>
-  <source src="./assets/customizable-theme-colors.mp4">
-</video>
+<ThemedVideo controls muted src="./assets/customizable-theme-colors.mp4" />
 
 - https://github.com/moeru-ai/airi/pull/53
 - https://github.com/moeru-ai/airi/pull/60

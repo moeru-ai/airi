@@ -57,9 +57,7 @@ import SteinsGateMayori from './assets/steins-gate-mayori.avif'
 
 这是 [@sumimakito](https://github.com/sumimakito) 完成后录制的第一眼：
 
-<video muted autoplay>
-  <source src="./assets/histoire-first-look.mp4" />
-</video>
+<ThemedVideo muted autoplay src="./assets/histoire-first-look.mp4" />
 
 整个 OKLCH 调色板可以一次性展开到画布上，供我们参考。但是要尝试颜色并获得与 Project AIRI 主题相同的感觉方案并不完美，不是吗？
 
@@ -136,9 +134,7 @@ logo 和默认的绿色可以被替换以与 AIRI 的主题保持一致，这就
 
 有了所有这些，我们可以得到这个结果：
 
-<video control muted autoplay>
-  <source src="./assets/airi-demo.mp4" />
-</video>
+<ThemedVideo controls muted autoplay src="./assets/airi-demo.mp4" />
 
 几乎一模一样。但我们的故事并没有在这里结束，目前，我们还没有实现记忆功能、更好的动作控制，转录设置 UI 也缺失了。希望我们能在月底前完成这些工作。
 
