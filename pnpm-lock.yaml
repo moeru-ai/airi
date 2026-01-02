@@ -15,6 +15,9 @@ catalogs:
     '@capacitor/ios':
       specifier: ^8.0.0
       version: 8.0.0
+    '@capacitor/local-notifications':
+      specifier: ^8.0.0
+      version: 8.0.0
     '@guiiai/logg':
       specifier: ^1.2.11
       version: 1.2.11
@@ -102,6 +105,9 @@ catalogs:
     unplugin-info:
       specifier: 1.2.4
       version: 1.2.4
+    vite-plugin-mkcert:
+      specifier: ^1.17.9
+      version: 1.17.9
     xsschema:
       specifier: ^0.4.0-beta.12
       version: 0.4.0-beta.13
@@ -129,6 +135,11 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
+
+patchedDependencies:
+  srvx@0.9.8:
+    hash: f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d
+    path: patches/srvx@0.9.8.patch
 
 importers:
 
@@ -313,12 +324,15 @@ importers:
         specifier: ^3.1.8
         version: 3.2.1(typescript@5.9.3)
 
-  apps/stage-capacitor:
+  apps/stage-pocket:
     dependencies:
       '@capacitor/core':
         specifier: 'catalog:'
         version: 8.0.0
       '@capacitor/ios':
+        specifier: 'catalog:'
+        version: 8.0.0(@capacitor/core@8.0.0)
+      '@capacitor/local-notifications':
         specifier: 'catalog:'
         version: 8.0.0(@capacitor/core@8.0.0)
       '@date-fns/utc':
@@ -332,7 +346,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: ^1.0.0-alpha.10
-        version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
+        version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.14
@@ -401,7 +415,7 @@ importers:
         version: 0.4.0-beta.13
       '@xsai-transformers/embed':
         specifier: ^0.0.11
-        version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
+        version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -646,6 +660,9 @@ importers:
       vite-bundle-visualizer:
         specifier: ^1.2.1
         version: 1.2.1(rolldown@1.0.0-beta.53)(rollup@2.79.2)
+      vite-plugin-mkcert:
+        specifier: 'catalog:'
+        version: 1.17.9(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       vite-plugin-pwa:
         specifier: ^1.2.0
         version: 1.2.0(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(workbox-build@7.4.0)(workbox-window@7.4.0)
@@ -717,7 +734,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: ^1.0.0-alpha.10
-        version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
+        version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.14
@@ -774,7 +791,7 @@ importers:
         version: 0.4.0-beta.13
       '@xsai-transformers/transcription':
         specifier: ^0.0.11
-        version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
+        version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -810,7 +827,7 @@ importers:
         version: 0.6.0
       crossws:
         specifier: ^0.4.1
-        version: 0.4.1(srvx@0.9.8)
+        version: 0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))
       culori:
         specifier: ^4.0.2
         version: 4.0.2
@@ -846,7 +863,7 @@ importers:
         version: 1.43.0
       h3:
         specifier: 2.0.1-rc.5
-        version: 2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8))
+        version: 2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d)))
       injeca:
         specifier: ^0.1.5
         version: 0.1.5(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6)
@@ -1021,7 +1038,7 @@ importers:
         version: 3.0.3(magicast@0.5.1)(vue@3.5.25(typescript@5.9.3))
       '@xsai-transformers/embed':
         specifier: ^0.0.11
-        version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
+        version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
       builder-util-runtime:
         specifier: 'catalog:'
         version: 9.3.1
@@ -1090,7 +1107,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: ^1.0.0-alpha.10
-        version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
+        version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.14
@@ -1162,7 +1179,7 @@ importers:
         version: 0.4.0-beta.13
       '@xsai-transformers/embed':
         specifier: ^0.0.11
-        version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
+        version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -1696,10 +1713,10 @@ importers:
         version: link:../server-shared
       crossws:
         specifier: ^0.4.1
-        version: 0.4.1(srvx@0.9.8)
+        version: 0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))
       h3:
         specifier: ^2.0.1-rc.6
-        version: 2.0.1-rc.6(crossws@0.4.1(srvx@0.9.8))
+        version: 2.0.1-rc.6(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d)))
       listhen:
         specifier: ^1.9.0
         version: 1.9.0
@@ -1711,7 +1728,7 @@ importers:
         version: link:../server-shared
       crossws:
         specifier: ^0.4.1
-        version: 0.4.1(srvx@0.9.8)
+        version: 0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))
       defu:
         specifier: ^6.1.4
         version: 6.1.4
@@ -1733,7 +1750,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: ^1.0.0-alpha.10
-        version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
+        version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.14
@@ -1836,7 +1853,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: ^1.0.0-alpha.10
-        version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
+        version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
       '@proj-airi/ccc':
         specifier: workspace:*
         version: link:../ccc
@@ -1930,7 +1947,7 @@ importers:
         version: 3.0.2(electron@39.2.7)
       '@moeru/eventa':
         specifier: ^1.0.0-alpha.10
-        version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
+        version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
       '@nekopaw/tempora':
         specifier: 'catalog:'
         version: 0.4.0-alpha.1
@@ -1954,7 +1971,7 @@ importers:
         version: 0.1.1
       '@moeru/eventa':
         specifier: ^1.0.0-alpha.10
-        version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
+        version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
       '@pixi/app':
         specifier: ^6.5.10
         version: 6.5.10(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/display@6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
@@ -2062,10 +2079,10 @@ importers:
         version: 0.4.0-beta.13
       '@xsai-transformers/embed':
         specifier: ^0.0.11
-        version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
+        version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
       '@xsai-transformers/shared':
         specifier: ^0.0.11
-        version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
+        version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
       '@xsai/embed':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -2705,7 +2722,7 @@ importers:
         version: 0.1.0-beta.14
       '@proj-airi/server-sdk':
         specifier: ^0.8.0-beta.9
-        version: 0.8.0(srvx@0.9.8)
+        version: 0.8.0(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))
       awilix:
         specifier: ^12.0.5
         version: 12.0.5
@@ -2901,10 +2918,10 @@ importers:
         version: 0.1.0-beta.14
       '@proj-airi/server-sdk':
         specifier: ^0.8.0-beta.9
-        version: 0.8.0(srvx@0.9.8)
+        version: 0.8.0(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))
       h3:
         specifier: ^2.0.1-rc.6
-        version: 2.0.1-rc.6(crossws@0.4.1(srvx@0.9.8))
+        version: 2.0.1-rc.6(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d)))
       listhen:
         specifier: ^1.9.0
         version: 1.9.0
@@ -3787,6 +3804,11 @@ packages:
     resolution: {integrity: sha512-gwSn6X4uHYNHlM8zZmVmM1zjEhexxbHpPSSnH1DZkp8o3zdK/RmH8tmDma+3zPZrhhTSrMC7sT24dKTOvV8www==}
     peerDependencies:
       '@capacitor/core': ^8.0.0
+
+  '@capacitor/local-notifications@8.0.0':
+    resolution: {integrity: sha512-Jn2IJs13vhRyOUtYni7PIPdMDYMILb4uI/rRAi7PmGg2lnaKbM5aWBmHZWt0laTYyVApYIbCWmdgBqWx/IH4dQ==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
 
   '@cfworker/json-schema@4.1.1':
     resolution: {integrity: sha512-gAmrUZSGtKc3AiBL71iNWxDsyUC5uMaKKGdvzYsBoTW/xi42JQHl7eKV2OYzCUqvc+D2RCcf7EXY2iCyFIk6og==}
@@ -14985,6 +15007,12 @@ packages:
       '@nuxt/kit':
         optional: true
 
+  vite-plugin-mkcert@1.17.9:
+    resolution: {integrity: sha512-SwI7yqp2Cq4r2XItarnHRCj2uzHPqevbxFNMLpyN+LDXd5w1vmZeM4l5X/wCZoP4mjPQYN+9+4kmE6e3nPO5fg==}
+    engines: {node: '>=v16.7.0'}
+    peerDependencies:
+      vite: '>=3'
+
   vite-plugin-pwa@1.2.0:
     resolution: {integrity: sha512-a2xld+SJshT9Lgcv8Ji4+srFJL4k/1bVbd1x06JIkvecpQkwkvCncD1+gSzcdm3s+owWLpMJerG3aN5jupJEVw==}
     engines: {node: '>=16.0.0'}
@@ -16867,6 +16895,10 @@ snapshots:
     dependencies:
       '@capacitor/core': 8.0.0
 
+  '@capacitor/local-notifications@8.0.0(@capacitor/core@8.0.0)':
+    dependencies:
+      '@capacitor/core': 8.0.0
+
   '@cfworker/json-schema@4.1.1': {}
 
   '@clack/core@0.5.0':
@@ -18521,21 +18553,21 @@ snapshots:
       - supports-color
       - typescript
 
-  '@moeru/eventa@0.3.0(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))':
+  '@moeru/eventa@0.3.0(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))':
     dependencies:
       nanoid: 5.1.6
       picomatch: 4.0.3
     optionalDependencies:
       electron: 39.2.7
-      h3: 2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8))
+      h3: 2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d)))
 
-  '@moeru/eventa@1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))':
+  '@moeru/eventa@1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))':
     dependencies:
       nanoid: 5.1.6
       picomatch: 4.0.3
     optionalDependencies:
       electron: 39.2.7
-      h3: 2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8))
+      h3: 2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d)))
 
   '@moeru/std@0.1.0-beta.1': {}
 
@@ -19917,10 +19949,10 @@ snapshots:
     dependencies:
       '@iconify/types': 2.0.0
 
-  '@proj-airi/server-sdk@0.8.0(srvx@0.9.8)':
+  '@proj-airi/server-sdk@0.8.0(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))':
     dependencies:
       '@proj-airi/server-shared': 0.8.0
-      crossws: 0.4.1(srvx@0.9.8)
+      crossws: 0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))
       defu: 6.1.4
     transitivePeerDependencies:
       - srvx
@@ -21914,7 +21946,7 @@ snapshots:
 
   '@xsai-ext/providers@0.4.0-beta.13':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.13
+      '@xsai/shared': 0.4.0
 
   '@xsai-ext/shared-providers@0.2.2':
     dependencies:
@@ -21922,45 +21954,45 @@ snapshots:
 
   '@xsai-ext/shared-providers@0.4.0-beta.12':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.13
+      '@xsai/shared': 0.4.0
 
-  '@xsai-transformers/embed@0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))':
+  '@xsai-transformers/embed@0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))':
     dependencies:
       '@huggingface/transformers': 3.8.1
-      '@moeru/eventa': 0.3.0(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
+      '@moeru/eventa': 0.3.0(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
       '@moeru/std': 0.1.0-beta.14
       '@xsai-ext/shared-providers': 0.4.0-beta.12
-      '@xsai-transformers/shared': 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
+      '@xsai-transformers/shared': 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
       '@xsai/embed': 0.4.0-beta.13
-      '@xsai/shared': 0.4.0-beta.13
+      '@xsai/shared': 0.4.0
       gpuu: 1.0.6
     transitivePeerDependencies:
       - electron
       - h3
 
-  '@xsai-transformers/shared@0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))':
+  '@xsai-transformers/shared@0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))':
     dependencies:
       '@huggingface/transformers': 3.8.1
-      '@moeru/eventa': 0.3.0(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
+      '@moeru/eventa': 0.3.0(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
       '@moeru/std': 0.1.0-beta.14
       '@xsai-ext/shared-providers': 0.4.0-beta.12
-      '@xsai/shared': 0.4.0-beta.13
+      '@xsai/shared': 0.4.0
       onnxruntime-common: 1.23.2
     transitivePeerDependencies:
       - electron
       - h3
       - web-worker
 
-  '@xsai-transformers/transcription@0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))':
+  '@xsai-transformers/transcription@0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))':
     dependencies:
       '@huggingface/transformers': 3.8.1
-      '@moeru/eventa': 0.3.0(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
+      '@moeru/eventa': 0.3.0(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
       '@moeru/std': 0.1.0-beta.14
       '@xsai-ext/shared-providers': 0.4.0-beta.12
-      '@xsai-transformers/shared': 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)))
+      '@xsai-transformers/shared': 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
       '@xsai/embed': 0.4.0-beta.13
       '@xsai/generate-transcription': 0.4.0-beta.13
-      '@xsai/shared': 0.4.0-beta.13
+      '@xsai/shared': 0.4.0
       gpuu: 1.0.6
     transitivePeerDependencies:
       - electron
@@ -21968,11 +22000,11 @@ snapshots:
 
   '@xsai/embed@0.4.0-beta.13':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.13
+      '@xsai/shared': 0.4.0
 
   '@xsai/generate-speech@0.4.0-beta.13':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.13
+      '@xsai/shared': 0.4.0
 
   '@xsai/generate-text@0.3.5':
     dependencies:
@@ -21981,16 +22013,16 @@ snapshots:
 
   '@xsai/generate-text@0.4.0-beta.13':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.13
+      '@xsai/shared': 0.4.0
       '@xsai/shared-chat': 0.4.0-beta.13
 
   '@xsai/generate-transcription@0.4.0-beta.13':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.13
+      '@xsai/shared': 0.4.0
 
   '@xsai/model@0.4.0-beta.13':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.13
+      '@xsai/shared': 0.4.0
 
   '@xsai/shared-chat@0.3.5':
     dependencies:
@@ -21998,11 +22030,11 @@ snapshots:
 
   '@xsai/shared-chat@0.4.0-beta.12':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.13
+      '@xsai/shared': 0.4.0
 
   '@xsai/shared-chat@0.4.0-beta.13':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.13
+      '@xsai/shared': 0.4.0
 
   '@xsai/shared@0.2.2': {}
 
@@ -22020,16 +22052,16 @@ snapshots:
 
   '@xsai/stream-text@0.4.0-beta.13':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.13
+      '@xsai/shared': 0.4.0
       '@xsai/shared-chat': 0.4.0-beta.13
 
   '@xsai/stream-transcription@0.4.0-beta.8':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.13
+      '@xsai/shared': 0.4.0
 
   '@xsai/tool@0.4.0-beta.13(zod-to-json-schema@3.25.1(zod@4.2.1))(zod@4.2.1)':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.13
+      '@xsai/shared': 0.4.0
       '@xsai/shared-chat': 0.4.0-beta.13
       xsschema: 0.4.0-beta.13(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.2.1))(zod@4.2.1)
     transitivePeerDependencies:
@@ -22985,9 +23017,9 @@ snapshots:
     dependencies:
       uncrypto: 0.1.3
 
-  crossws@0.4.1(srvx@0.9.8):
+  crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d)):
     optionalDependencies:
-      srvx: 0.9.8
+      srvx: 0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d)
 
   crypto-random-string@2.0.0: {}
 
@@ -24798,19 +24830,19 @@ snapshots:
       ufo: 1.6.1
       uncrypto: 0.1.3
 
-  h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8)):
+  h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))):
     dependencies:
       rou3: 0.7.12
-      srvx: 0.9.8
+      srvx: 0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d)
     optionalDependencies:
-      crossws: 0.4.1(srvx@0.9.8)
+      crossws: 0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))
 
-  h3@2.0.1-rc.6(crossws@0.4.1(srvx@0.9.8)):
+  h3@2.0.1-rc.6(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))):
     dependencies:
       rou3: 0.7.12
-      srvx: 0.9.8
+      srvx: 0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d)
     optionalDependencies:
-      crossws: 0.4.1(srvx@0.9.8)
+      crossws: 0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))
 
   has-flag@4.0.0: {}
 
@@ -28551,7 +28583,7 @@ snapshots:
 
   sprintf-js@1.1.3: {}
 
-  srvx@0.9.8: {}
+  srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d): {}
 
   ssri@12.0.0:
     dependencies:
@@ -29836,7 +29868,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  vite-plugin-inspect@11.3.3(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)):
+  vite-plugin-inspect@11.3.3(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)):
     dependencies:
       ansis: 4.2.0
       debug: 4.4.3
@@ -29846,8 +29878,37 @@ snapshots:
       perfect-debounce: 2.0.0
       sirv: 3.0.2
       unplugin-utils: 0.3.1
-      vite: 7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
-      vite-dev-rpc: 1.1.0(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vite-dev-rpc: 1.1.0(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+    transitivePeerDependencies:
+      - supports-color
+
+  vite-plugin-inspect@11.3.3(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)):
+    dependencies:
+      axios: feaxios@0.0.23
+      debug: 4.4.3
+      picocolors: 1.1.1
+      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+    transitivePeerDependencies:
+      - supports-color
+
+  vite-plugin-mkcert@1.17.9(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)):
+    dependencies:
+      axios: feaxios@0.0.23
+      debug: 4.4.3
+      picocolors: 1.1.1
+      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+    transitivePeerDependencies:
+      - supports-color
+
+  vite-plugin-pwa@1.2.0(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(workbox-build@7.4.0)(workbox-window@7.4.0):
+    dependencies:
+      debug: 4.4.3
+      pretty-bytes: 6.1.1
+      tinyglobby: 0.2.15
+      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      workbox-build: 7.4.0
+      workbox-window: 7.4.0
     transitivePeerDependencies:
       - supports-color
 

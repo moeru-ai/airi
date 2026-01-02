@@ -6,6 +6,7 @@ import Unocss from 'unocss/vite'
 import Info from 'unplugin-info/vite'
 import VueRouter from 'unplugin-vue-router/vite'
 import Yaml from 'unplugin-yaml/vite'
+import mkcert from 'vite-plugin-mkcert'
 import VueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
 import VueMacros from 'vue-macros/vite'
@@ -57,6 +58,8 @@ export default defineConfig({
     },
   },
   server: {
+    host: '0.0.0.0',
+    port: 5273,
     warmup: {
       clientFiles: [
         `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src'))}/*.vue`,
@@ -70,6 +73,8 @@ export default defineConfig({
   },
 
   plugins: [
+    mkcert(),
+
     Info(),
 
     Yaml(),

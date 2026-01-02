@@ -29,7 +29,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     'ui:configure',
   ]
 
-  function initialize(options?: { token?: string, possibleEvents?: Array<keyof WebSocketEvents> }) {
+  async function initialize(options?: { token?: string, possibleEvents?: Array<keyof WebSocketEvents> }) {
     if (connected.value && client.value)
       return Promise.resolve()
     if (initializing.value)
@@ -40,21 +40,23 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
       ...(options?.possibleEvents ?? []),
     ]))
 
-    initializing.value = new Promise<void>((resolve, reject) => {
+    initializing.value = new Promise<void>((resolve) => {
       client.value = new Client({
         name: isStageWeb() ? WebSocketEventSource.StageWeb : isStageTamagotchi() ? WebSocketEventSource.StageTamagotchi : WebSocketEventSource.StageWeb,
         url: import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws',
         token: options?.token,
         possibleEvents,
         onError: (error) => {
-          client.value = undefined
           connected.value = false
           initializing.value = null
-          reject(error)
+
+          console.warn('WebSocket server connection error:', error)
         },
         onClose: () => {
           connected.value = false
           initializing.value = null
+
+          console.warn('WebSocket server connection closed')
         },
       })
 
@@ -65,14 +67,22 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           initializeListeners()
           resolve()
 
+          // eslint-disable-next-line no-console
+          console.log('WebSocket server connection established and authenticated')
+
           return
         }
 
         connected.value = false
       })
     })
+  }
 
-    return initializing.value
+  async function ensureConnected() {
+    await initializing.value
+    if (!connected.value) {
+      return await initialize()
+    }
   }
 
   function initializeListeners() {
@@ -145,6 +155,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
   return {
     connected,
+    ensureConnected,
 
     initialize,
     send,

@@ -652,6 +652,17 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'groq': buildOpenAICompatibleProvider({
+      id: 'groq',
+      name: 'Groq',
+      nameKey: 'settings.pages.providers.provider.groq.title',
+      descriptionKey: 'settings.pages.providers.provider.groq.description',
+      icon: 'i-lobe-icons:groq',
+      description: 'groq.com',
+      defaultBaseUrl: 'https://api.groq.com/openai/v1/',
+      creator: createOpenAI,
+      validation: ['model_list'],
+    }),
     'openai': buildOpenAICompatibleProvider({
       id: 'openai',
       name: 'OpenAI',
