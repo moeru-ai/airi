@@ -68,12 +68,12 @@ Control Island
 
 合計フォロワー数はすでに 800 人を超えています。これは1年前に私たちが設立したばかりの頃には想像もできなかったことです。皆さん、本当にありがとうございます。
 
-<img src="/en/blog/Devlog-2025.10.20/assets/moeru.png" alt="moeru.png" />
+<img src="/en/blog/DevLog-2025.10.20/assets/moeru.png" alt="moeru.png" />
 <div style="text-align: center; font-size: 0.875rem; color: #666; margin-top: 0.5rem;">
 Moeru AI
 </div>
 
-<img src="/en/blog/Devlog-2025.10.20/assets/project-airi.png" alt="project-airi.png" />
+<img src="/en/blog/DevLog-2025.10.20/assets/project-airi.png" alt="project-airi.png" />
 <div style="text-align: center; font-size: 0.875rem; color: #666; margin-top: 0.5rem;">
 Project AIRI
 </div>
@@ -86,7 +86,7 @@ Project AIRI
 
 Rust で Python のモデルアーキテクチャに対してほぼ 1:1 で実装しました。他の SOTA TTS モデルに依存して、非常に軽量なローカル TTS 推論エンジンになることを期待しています。
 
-<img src="/en/blog/Devlog-2025.10.20/assets/rust-tts.png" alt="rust-tts.png" />
+<img src="/en/blog/DevLog-2025.10.20/assets/rust-tts.png" alt="rust-tts.png" />
 
 ## 最後に
 

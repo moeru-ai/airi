@@ -6,7 +6,7 @@ date: 2025-04-14
 
 ## Introduction
 
-[Last time](../Devlog-2025.04.06/#memory-system-memory-system) we discussed AIRI's memory system. Today, let's dive deeper into how to implement such a complex memory system and explore future prospects.
+[Last time](../DevLog-2025.04.06/#memory-system-memory-system) we discussed AIRI's memory system. Today, let's dive deeper into how to implement such a complex memory system and explore future prospects.
 
 ## Starting with Search Engines
 
