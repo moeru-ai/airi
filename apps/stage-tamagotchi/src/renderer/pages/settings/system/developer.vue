@@ -18,12 +18,6 @@ const menu = computed(() => [
     to: '/devtools/use-magic-keys',
   },
   {
-    title: t('tamagotchi.settings.devtools.pages.lag-visualizer.title'),
-    description: t('tamagotchi.settings.devtools.pages.lag-visualizer.description'),
-    icon: 'i-solar:sledgehammer-bold-duotone',
-    to: '/devtools/lag-visualizer',
-  },
-  {
     title: t('tamagotchi.settings.pages.system.developer.sections.section.use-window-mouse.title'),
     description: t('tamagotchi.settings.pages.system.developer.sections.section.use-window-mouse.description'),
     icon: 'i-solar:sledgehammer-bold-duotone',
