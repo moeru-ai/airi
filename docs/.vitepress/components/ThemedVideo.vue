@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useData } from 'vitepress'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue'
 
 const props = withDefaults(defineProps<{
   src?: string
@@ -69,13 +69,12 @@ onUnmounted(() => {
   }
 })
 
-watch(currentSrc, () => {
+watch(currentSrc, async () => {
   if (props.autoplay && videoRef.value && isVisible.value) {
     // If src changes while visible (e.g. theme toggle), ensure we play the new src
-    // Using setTimeout to allow DOM update
-    setTimeout(() => {
-      videoRef.value?.play().catch(() => {})
-    }, 50)
+    // Using nextTick to allow DOM update
+    await nextTick()
+    videoRef.value?.play().catch(() => {})
   }
 })
 </script>
