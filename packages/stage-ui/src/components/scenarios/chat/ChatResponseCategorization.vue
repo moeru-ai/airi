@@ -21,7 +21,7 @@ const containerClasses = computed(() => [
 
 <template>
   <div v-if="hasReasoning" :class="containerClasses" flex="~ col" gap-1>
-    <Collapsable v-if="hasReasoning" :default="false">
+    <Collapsable :default="false">
       <template #trigger="slotProps">
         <button
           class="w-full flex items-center justify-between rounded-lg bg-neutral-100/50 px-2 py-1 text-xs text-neutral-600 outline-none transition-all duration-200 dark:bg-neutral-800/50 hover:bg-neutral-200/50 dark:text-neutral-400 dark:hover:bg-neutral-700/50"
@@ -43,7 +43,7 @@ const containerClasses = computed(() => [
         class="mt-1 border border-neutral-200 rounded-md bg-neutral-50/80 px-2 py-1.5 dark:border-neutral-700 dark:bg-neutral-900/80"
       >
         <MarkdownRenderer
-          :content="message.categorization!.reasoning!"
+          :content="message.categorization?.reasoning ?? ''"
           class="break-words"
           text="xs neutral-700 dark:neutral-300"
         />
