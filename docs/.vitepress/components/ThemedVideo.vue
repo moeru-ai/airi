@@ -94,7 +94,7 @@ watch(currentSrc, () => {
       preload="none"
     >
       <slot>
-        您的浏览器不支持视频标签。
+        Your browser does not support the video tag.
       </slot>
     </video>
   </div>
