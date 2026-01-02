@@ -1,3 +1,12 @@
+import type { Element, Root } from 'hast'
+import type { Position } from 'unist'
+
+import rehypeParse from 'rehype-parse'
+import rehypeStringify from 'rehype-stringify'
+
+import { unified } from 'unified'
+import { visit } from 'unist-util-visit'
+
 export type ResponseCategory = 'speech' | 'reasoning' | 'unknown'
 
 export interface CategorizedSegment {
@@ -25,50 +34,102 @@ function mapTagNameToCategory(_tagName: string): ResponseCategory {
   return 'reasoning'
 }
 
-/**
- * Extracts all XML-like tags from a response dynamically
- * Works with any tag format: <tag>content</tag>
- */
-function extractAllTags(response: string): Array<{
+interface ExtractedTag {
   tagName: string
   content: string
   fullMatch: string
   startIndex: number
   endIndex: number
-}> {
-  const tags: Array<{
-    tagName: string
-    content: string
-    fullMatch: string
-    startIndex: number
-    endIndex: number
-  }> = []
+}
 
-  // Match any XML-like tag: <tagname>content</tagname>
-  // This regex finds opening tags, captures the tag name, content, and closing tag
-  const tagPattern = /<([a-z_][\w-]*)>([\s\S]*?)<\/\1>/gi
+/**
+ * Extracts all XML-like tags from a response using rehype pipeline
+ * Works with any tag format: <tag>content</tag>
+ * Only extracts tags that are actually complete (have closing tags in source)
+ */
+function extractAllTags(response: string): ExtractedTag[] {
+  const tags: ExtractedTag[] = []
 
-  let match
-  while ((match = tagPattern.exec(response)) !== null) {
-    if (match.index === undefined)
-      continue
+  try {
+    const tree = unified().use(rehypeParse, { fragment: true }).parse(response) as Root
 
-    const tagName = match[1]
-    const content = match[2] || ''
-    const fullMatch = match[0]
-    const startIndex = match.index
-    const endIndex = startIndex + fullMatch.length
+    visit(tree, 'element', (node: Element) => {
+      const position = node.position
+      if (!position?.start || !position?.end)
+        return
 
-    tags.push({
-      tagName,
-      content,
-      fullMatch,
-      startIndex,
-      endIndex,
+      const startIndex = getOffsetFromPosition(response, position.start)
+      const endIndex = getOffsetFromPosition(response, position.end)
+
+      if (startIndex === -1 || endIndex === -1)
+        return
+
+      // Extract the actual tag content from source
+      const fullMatch = response.slice(startIndex, endIndex)
+
+      // Only include tags that have a closing tag in the source (not auto-closed by rehype)
+      // Check if the source actually contains the closing tag
+      const expectedClosingTag = `</${node.tagName}>`
+      if (!fullMatch.includes(expectedClosingTag)) {
+        // This tag was auto-closed by rehype, so it's incomplete - skip it
+        return
+      }
+
+      tags.push({
+        tagName: node.tagName,
+        content: extractTextContent(node),
+        fullMatch,
+        startIndex,
+        endIndex,
+      })
     })
+  }
+  catch {
+    // If parsing fails, return empty array (no tags found)
   }
 
   return tags
+}
+
+/**
+ * Converts a position (line/column) to a character offset in the string
+ */
+function getOffsetFromPosition(text: string, position: Position['start']): number {
+  if (!position || typeof position.line !== 'number' || typeof position.column !== 'number')
+    return -1
+
+  const lines = text.split('\n')
+  let offset = 0
+
+  // Sum up lengths of all lines before the target line
+  for (let i = 0; i < position.line - 1 && i < lines.length; i++) {
+    offset += lines[i].length + 1 // +1 for the newline character
+  }
+
+  // Add the column offset (subtract 1 because columns are 1-indexed)
+  offset += position.column - 1
+
+  return offset
+}
+
+/**
+ * Extracts text content from an element node
+ */
+function extractTextContent(node: Element): string {
+  const textParts: string[] = []
+
+  if (node.children) {
+    for (const child of node.children) {
+      if (child.type === 'text') {
+        textParts.push(child.value)
+      }
+      else if (child.type === 'element') {
+        textParts.push(extractTextContent(child))
+      }
+    }
+  }
+
+  return textParts.join('')
 }
 
 /**
@@ -156,34 +217,26 @@ export function createStreamingCategorizer(
   let categorized: CategorizedResponse | null = null
   let lastEmittedSegmentIndex = -1
 
-  // Helper to check for incomplete tags
+  // Helper to check for incomplete tags using rehype
   function checkIncompleteTag(): boolean {
-    // Stack-based approach to track tag matching
-    // Process tags in order to handle nesting and mismatches correctly
-    const stack: string[] = []
-    const tagPattern = /<\/?([a-z_][\w-]*)>/gi
+    try {
+      const tree = unified().use(rehypeParse, { fragment: true }).parse(buffer) as Root
+      const stringified = unified().use(rehypeStringify).stringify(tree).toString()
 
-    let match
-    while ((match = tagPattern.exec(buffer)) !== null) {
-      const tagName = match[1].toLowerCase()
-      const isClosing = match[0].startsWith('</')
+      // If rehype auto-closed tags, stringified will differ from buffer
+      // Check if the end of buffer differs (incomplete tag at end)
+      if (stringified !== buffer) {
+        const bufferEnd = buffer.trim().slice(-30)
+        const stringifiedEnd = stringified.trim().slice(-30)
+        return bufferEnd !== stringifiedEnd
+      }
 
-      if (isClosing) {
-        // Check if this closing tag matches the most recent opening tag
-        if (stack.length > 0 && stack[stack.length - 1] === tagName) {
-          stack.pop()
-        }
-        // If it doesn't match, we still have an unbalanced structure
-        // (but we'll continue processing to find incomplete tags)
-      }
-      else {
-        // Opening tag: push onto stack
-        stack.push(tagName)
-      }
+      return false
     }
-
-    // If stack is non-empty, we have unclosed tags
-    return stack.length > 0
+    catch {
+      // If parsing fails, assume incomplete
+      return true
+    }
   }
 
   return {
@@ -232,28 +285,47 @@ export function createStreamingCategorizer(
      */
     filterToSpeech(text: string, startPosition: number): string {
       // Check if we're currently inside an incomplete tag
-      // If so, filter out all content until the tag closes
       if (checkIncompleteTag()) {
-        // Check if this chunk contains the closing tag
-        const closingTagMatch = text.match(/<\/([a-z_][\w-]*)>/i)
+        // Try to find where the tag closes in the combined buffer + text
+        const fullText = buffer + text
+        try {
+          const tree = unified().use(rehypeParse, { fragment: true }).parse(fullText) as Root
+          let closingOffset = -1
 
-        // Find the earliest closing tag
-        let closingTagIndex = -1
-        if (closingTagMatch && closingTagMatch.index !== undefined) {
-          closingTagIndex = closingTagMatch.index + closingTagMatch[0].length
+          visit(tree, 'element', (node: Element) => {
+            const position = node.position
+            if (position?.end && closingOffset === -1) {
+              const endOffset = getOffsetFromPosition(fullText, position.end)
+              // Check if this element actually has a closing tag in the source
+              const elementSource = fullText.slice(
+                getOffsetFromPosition(fullText, position.start) ?? 0,
+                endOffset,
+              )
+              const expectedClosingTag = `</${node.tagName}>`
+
+              // Only consider it complete if the closing tag exists in source
+              if (elementSource.includes(expectedClosingTag)) {
+                // If this element closes within the new text chunk
+                if (endOffset >= buffer.length && endOffset <= fullText.length) {
+                  closingOffset = endOffset - buffer.length
+                }
+              }
+            }
+          })
+
+          if (closingOffset === -1)
+            return '' // Still incomplete, filter everything
+
+          // Return only content after the closing tag
+          // The buffer already includes text up to closingOffset (from consume())
+          text = text.slice(closingOffset)
+          startPosition += closingOffset
+          // Re-categorize with the complete tag now in buffer
+          categorized = categorizeResponse(buffer, providerId)
         }
-
-        if (closingTagIndex === -1) {
-          // Still inside incomplete tag, filter everything
-          return ''
+        catch {
+          return '' // Parsing failed, filter everything
         }
-
-        // Return only content after the closing tag
-        // Continue with normal filtering below for the remaining text
-        text = text.slice(closingTagIndex)
-        startPosition += closingTagIndex
-        // Re-categorize to get updated segments (the closing tag is now in the buffer)
-        categorized = categorizeResponse(buffer, providerId)
       }
 
       if (!categorized || categorized.segments.length === 0) {
@@ -265,6 +337,7 @@ export function createStreamingCategorizer(
       const endPosition = startPosition + text.length
 
       // Find all non-speech segments that overlap with this text
+      // Note: segments are already filtered to be complete by extractAllTags
       const overlappingSegments = categorized.segments.filter(
         segment => segment.endIndex > startPosition && segment.startIndex < endPosition,
       )
