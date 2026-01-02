@@ -1131,8 +1131,8 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
-    'deepgram': {
-      id: 'deepgram',
+    'deepgram-tts': {
+      id: 'deepgram-tts',
       category: 'speech',
       tasks: ['text-to-speech'],
       nameKey: 'settings.pages.providers.provider.deepgram.title',
