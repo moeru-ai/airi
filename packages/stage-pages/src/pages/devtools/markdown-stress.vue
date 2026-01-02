@@ -6,13 +6,17 @@ import { useI18n } from 'vue-i18n'
 
 const stressStore = useMarkdownStressStore()
 const { t } = useI18n()
-const { capturing, events, lastRun, payloadPreview, scheduleDelayMs, runState } = storeToRefs(stressStore)
+const { capturing, events, isMock, lastRun, payloadPreview, scheduleDelayMs, runState } = storeToRefs(stressStore)
 
 function toggleCapture() {
   if (capturing.value)
     stressStore.stopCapture()
   else
     stressStore.startCapture()
+}
+
+function toggleMode() {
+  stressStore.toggleMockMode()
 }
 </script>
 
@@ -37,7 +41,7 @@ function toggleCapture() {
         <ButtonBar
           icon="i-solar:play-circle-bold-duotone"
           :text="runState === 'running' ? 'Abort run' : runState === 'scheduled' ? 'Unschedule' : 'Schedule live replay'"
-          :disabled="!stressStore.canRunOnline"
+          :disabled="!isMock && !stressStore.canRunOnline"
           @click="stressStore.scheduleRun()"
         >
           {{ runState === 'running' ? 'Abort now' : runState === 'scheduled' ? 'Cancel scheduled replay' : 'Schedule replay (sends to active provider)' }}
@@ -56,6 +60,13 @@ function toggleCapture() {
           @click="stressStore.exportCsv()"
         >
           Export last run
+        </ButtonBar>
+        <ButtonBar
+          :icon="isMock ? 'i-solar:simplerockets-bold-duotone' : 'i-solar:cloud-bold-duotone'"
+          :text="isMock ? 'Mode: Mock' : 'Mode: Live'"
+          @click="toggleMode"
+        >
+          {{ isMock ? 'Switch to live provider' : 'Switch to mock stream' }}
         </ButtonBar>
       </div>
 

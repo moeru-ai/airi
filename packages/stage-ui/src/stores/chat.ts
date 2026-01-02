@@ -22,7 +22,7 @@ export const CONTEXT_CHANNEL_NAME = 'airi-context-update'
 export const CHAT_STREAM_CHANNEL_NAME = 'airi-chat-stream'
 
 export const useChatStore = defineStore('chat', () => {
-  const { stream, discoverToolsCompatibility } = useLLM()
+  const llmStore = useLLM()
   const { systemPrompt } = storeToRefs(useAiriCardStore())
   const { trackFirstMessage } = useAnalytics()
 
@@ -490,7 +490,7 @@ export const useChatStore = defineStore('chat', () => {
       if (shouldAbort())
         return
 
-      await stream(options.model, options.chatProvider, newMessages as Message[], {
+      await llmStore.stream(options.model, options.chatProvider, newMessages as Message[], {
         headers,
         tools: options.tools,
         onStreamEvent: async (event: StreamEvent) => {
@@ -615,7 +615,7 @@ export const useChatStore = defineStore('chat', () => {
     messages,
     streamingMessage,
 
-    discoverToolsCompatibility,
+    discoverToolsCompatibility: llmStore.discoverToolsCompatibility,
 
     send,
     setActiveSession,
