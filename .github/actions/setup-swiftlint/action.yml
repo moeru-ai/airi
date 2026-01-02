@@ -28,30 +28,25 @@ runs:
           exit 1
         fi
 
-    - name: Get latest version
-      if: inputs.version == 'latest'
+    - name: Resolve version
       id: version
       shell: bash
       run: |
-        VERSION=$(curl -s https://api.github.com/repos/realm/SwiftLint/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-        if [[ -z "$VERSION" ]]; then
-          echo "Error: Failed to get latest version"
-          exit 1
+        if [[ "${{ inputs.version }}" == "latest" ]]; then
+          VERSION=$(curl -s https://api.github.com/repos/realm/SwiftLint/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+          if [[ -z "$VERSION" ]]; then
+            echo "Error: Failed to get latest version"
+            exit 1
+          fi
+          echo "Latest version: $VERSION"
+        else
+          VERSION="${{ inputs.version }}"
+          if [[ ! "$VERSION" =~ ^v ]]; then
+            VERSION="v$VERSION"
+          fi
+          echo "Using specified version: $VERSION"
         fi
         echo "version=$VERSION" >> $GITHUB_OUTPUT
-        echo "Latest version: $VERSION"
-
-    - name: Set version
-      if: inputs.version != 'latest'
-      id: version
-      shell: bash
-      run: |
-        VERSION="${{ inputs.version }}"
-        if [[ ! "$VERSION" =~ ^v ]]; then
-          VERSION="v$VERSION"
-        fi
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-        echo "Using specified version: $VERSION"
 
     - name: Download and install SwiftLint
       shell: bash
