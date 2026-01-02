@@ -573,7 +573,7 @@ pages:
             volume:
               description: Adjust the volume of speech
               label: Volume
-      deepgram:
+      deepgram-tts:
         description: deepgram.com
         title: Deepgram
       deepseek:
