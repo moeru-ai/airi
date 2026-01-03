@@ -36,6 +36,9 @@ catalogs:
     '@types/audioworklet':
       specifier: ^0.0.92
       version: 0.0.92
+    '@types/splitpanes':
+      specifier: ^2.2.6
+      version: 2.2.6
     '@types/hast':
       specifier: ^3.0.4
       version: 3.0.4
@@ -44,7 +47,7 @@ catalogs:
       version: 3.0.3
     '@xsai-ext/providers':
       specifier: ^0.4.0-beta.13
-      version: 0.4.0-beta.13
+      version: 0.4.0
     '@xsai/embed':
       specifier: ^0.4.0-beta.13
       version: 0.4.0-beta.13
@@ -87,6 +90,9 @@ catalogs:
     injeca:
       specifier: ^0.1.5
       version: 0.1.5
+    is-network-error:
+      specifier: ^1.3.0
+      version: 1.3.0
     nanoid:
       specifier: ^5.1.6
       version: 5.1.6
@@ -96,6 +102,9 @@ catalogs:
     posthog-js:
       specifier: 1.306.1
       version: 1.306.1
+    splitpanes:
+      specifier: ^4.0.4
+      version: 4.0.4
     tsx:
       specifier: ^4.21.0
       version: 4.21.0
@@ -111,6 +120,9 @@ catalogs:
     xsschema:
       specifier: ^0.4.0-beta.12
       version: 0.4.0-beta.13
+    zod:
+      specifier: ^4.2.1
+      version: 4.2.1
   rolldown-vite:
     vite:
       specifier: npm:rolldown-vite@^7.3.0
@@ -125,6 +137,10 @@ catalogs:
     vitest:
       specifier: ^4.0.16
       version: 4.0.16
+  xsai:
+    unspeech:
+      specifier: ^0.1.11
+      version: 0.1.11
 
 overrides:
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
@@ -412,7 +428,7 @@ importers:
         version: 14.1.0(vue@3.5.25(typescript@5.9.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.4.0
       '@xsai-transformers/embed':
         specifier: ^0.0.11
         version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
@@ -515,6 +531,9 @@ importers:
       shiki:
         specifier: ^3.20.0
         version: 3.20.0
+      splitpanes:
+        specifier: 'catalog:'
+        version: 4.0.4(vue@3.5.25(typescript@5.9.3))
       three:
         specifier: ^0.182.0
         version: 0.182.0
@@ -522,8 +541,8 @@ importers:
         specifier: ^11.0.5
         version: 11.0.5
       unspeech:
-        specifier: ^0.1.7
-        version: 0.1.7
+        specifier: catalog:xsai
+        version: 0.1.11
       uuid:
         specifier: ^13.0.0
         version: 13.0.0
@@ -618,6 +637,9 @@ importers:
       '@types/nprogress':
         specifier: ^0.2.3
         version: 0.2.3
+      '@types/splitpanes':
+        specifier: 'catalog:'
+        version: 2.2.6
       '@types/three':
         specifier: ^0.182.0
         version: 0.182.0
@@ -788,7 +810,7 @@ importers:
         version: 14.1.0(vue@3.5.25(typescript@5.9.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.4.0
       '@xsai-transformers/transcription':
         specifier: ^0.0.11
         version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
@@ -912,6 +934,9 @@ importers:
       shiki:
         specifier: ^3.20.0
         version: 3.20.0
+      splitpanes:
+        specifier: 'catalog:'
+        version: 4.0.4(vue@3.5.25(typescript@5.9.3))
       std-env:
         specifier: ^3.10.0
         version: 3.10.0
@@ -922,8 +947,8 @@ importers:
         specifier: ^11.0.5
         version: 11.0.5
       unspeech:
-        specifier: ^0.1.7
-        version: 0.1.7
+        specifier: catalog:xsai
+        version: 0.1.11
       uuid:
         specifier: ^13.0.0
         version: 13.0.0
@@ -1018,6 +1043,9 @@ importers:
       '@types/nprogress':
         specifier: ^0.2.3
         version: 0.2.3
+      '@types/splitpanes':
+        specifier: 'catalog:'
+        version: 2.2.6
       '@types/three':
         specifier: ^0.182.0
         version: 0.182.0
@@ -1176,7 +1204,7 @@ importers:
         version: 14.1.0(vue@3.5.25(typescript@5.9.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.4.0
       '@xsai-transformers/embed':
         specifier: ^0.0.11
         version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
@@ -1279,6 +1307,9 @@ importers:
       shiki:
         specifier: ^3.20.0
         version: 3.20.0
+      splitpanes:
+        specifier: 'catalog:'
+        version: 4.0.4(vue@3.5.25(typescript@5.9.3))
       three:
         specifier: ^0.182.0
         version: 0.182.0
@@ -1286,8 +1317,8 @@ importers:
         specifier: ^11.0.5
         version: 11.0.5
       unspeech:
-        specifier: ^0.1.7
-        version: 0.1.7
+        specifier: catalog:xsai
+        version: 0.1.11
       uuid:
         specifier: ^13.0.0
         version: 13.0.0
@@ -1379,6 +1410,9 @@ importers:
       '@types/nprogress':
         specifier: ^0.2.3
         version: 0.2.3
+      '@types/splitpanes':
+        specifier: 'catalog:'
+        version: 2.2.6
       '@types/three':
         specifier: ^0.182.0
         version: 0.182.0
@@ -1783,7 +1817,7 @@ importers:
         version: 14.1.0(vue@3.5.25(typescript@5.9.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.4.0
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -1818,8 +1852,8 @@ importers:
         specifier: ^2.7.0
         version: 2.7.0(typescript@5.9.3)(vue@3.5.25(typescript@5.9.3))
       unspeech:
-        specifier: ^0.1.7
-        version: 0.1.7
+        specifier: catalog:xsai
+        version: 0.1.11
       vue:
         specifier: ^3.5.25
         version: 3.5.25(typescript@5.9.3)
@@ -1854,6 +1888,9 @@ importers:
       '@moeru/eventa':
         specifier: ^1.0.0-alpha.10
         version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.14
       '@proj-airi/ccc':
         specifier: workspace:*
         version: link:../ccc
@@ -1880,7 +1917,7 @@ importers:
         version: 14.1.0(vue@3.5.25(typescript@5.9.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.4.0
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -1908,9 +1945,12 @@ importers:
       reka-ui:
         specifier: ^2.7.0
         version: 2.7.0(typescript@5.9.3)(vue@3.5.25(typescript@5.9.3))
+      splitpanes:
+        specifier: 'catalog:'
+        version: 4.0.4(vue@3.5.25(typescript@5.9.3))
       unspeech:
-        specifier: ^0.1.7
-        version: 0.1.7
+        specifier: catalog:xsai
+        version: 0.1.11
       vue:
         specifier: ^3.5.25
         version: 3.5.25(typescript@5.9.3)
@@ -1920,6 +1960,9 @@ importers:
       vue-router:
         specifier: ^4.6.4
         version: 4.6.4(vue@3.5.25(typescript@5.9.3))
+      zod:
+        specifier: 'catalog:'
+        version: 4.2.1
     devDependencies:
       '@nekopaw/tempora':
         specifier: 'catalog:'
@@ -1930,6 +1973,9 @@ importers:
       '@types/audioworklet':
         specifier: 'catalog:'
         version: 0.0.92
+      '@types/splitpanes':
+        specifier: 'catalog:'
+        version: 2.2.6
       '@types/three':
         specifier: ^0.182.0
         version: 0.182.0
@@ -2076,7 +2122,7 @@ importers:
         version: 14.1.0(vue@3.5.25(typescript@5.9.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.4.0
       '@xsai-transformers/embed':
         specifier: ^0.0.11
         version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
@@ -2194,6 +2240,9 @@ importers:
       shiki:
         specifier: ^3.20.0
         version: 3.20.0
+      splitpanes:
+        specifier: 'catalog:'
+        version: 4.0.4(vue@3.5.25(typescript@5.9.3))
       three:
         specifier: ^0.182.0
         version: 0.182.0
@@ -2207,8 +2256,8 @@ importers:
         specifier: ^5.0.0
         version: 5.0.0
       unspeech:
-        specifier: ^0.1.7
-        version: 0.1.7
+        specifier: catalog:xsai
+        version: 0.1.11
       uuid:
         specifier: ^13.0.0
         version: 13.0.0
@@ -2306,6 +2355,9 @@ importers:
       '@types/culori':
         specifier: ^4.0.1
         version: 4.0.1
+      '@types/splitpanes':
+        specifier: 'catalog:'
+        version: 2.2.6
       '@types/hast':
         specifier: 'catalog:'
         version: 3.0.4
@@ -2330,6 +2382,9 @@ importers:
       histoire:
         specifier: 1.0.0-alpha.2
         version: 1.0.0-alpha.2(@types/node@24.10.4)(bufferutil@4.1.0)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(utf-8-validate@5.0.10)(vite@6.4.1(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+      is-network-error:
+        specifier: 'catalog:'
+        version: 1.3.0
       unocss:
         specifier: ^66.5.11
         version: 66.5.11(postcss@8.5.6)(vite@6.4.1(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -2683,7 +2738,7 @@ importers:
         version: link:../../packages/server-shared
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.4.0
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -7746,6 +7801,9 @@ packages:
   '@types/slice-ansi@4.0.0':
     resolution: {integrity: sha512-+OpjSaq85gvlZAYINyzKpLeiFkSC4EsC6IIiT6v6TLSU5k5U83fHGj9Lel8oKEXM0HqgrMVCjXPDPVICtxF7EQ==}
 
+  '@types/splitpanes@2.2.6':
+    resolution: {integrity: sha512-3dV5sO1Ht74iER4jJU03mreL3f+Q2h47ZqXS6Sfbqc6hkCvsDrX1GA0NbYWRdNvZemPyTDzUoApWKeoGbALwkQ==}
+
   '@types/stats.js@0.17.4':
     resolution: {integrity: sha512-jIBvWWShCvlBqBNIZt0KAshWpvSjhkwkEu4ZUcASoAvhmrgAUI2t1dXrjSL4xXVLB4FznPrIsX3nKXFl/Dt4vA==}
 
@@ -8321,6 +8379,9 @@ packages:
   '@vue/compiler-dom@3.5.26':
     resolution: {integrity: sha512-y1Tcd3eXs834QjswshSilCBnKGeQjQXB6PqFn/1nxcQw4pmG42G8lwz+FZPAZAby6gZeHSt/8LMPfZ4Rb+Bd/A==}
 
+  '@vue/compiler-sfc@2.7.16':
+    resolution: {integrity: sha512-KWhJ9k5nXuNtygPU7+t1rX6baZeqOYLEforUPjgNDBnLicfHCoi48H87Q8XyLZOrNNsmhuwKqtpDQWjEFe6Ekg==}
+
   '@vue/compiler-sfc@3.5.25':
     resolution: {integrity: sha512-PUgKp2rn8fFsI++lF2sO7gwO2d9Yj57Utr5yEsDf3GNaQcowCLKL7sf+LvVFvtJDXUp/03+dC6f2+LCv5aK1ag==}
 
@@ -8547,11 +8608,8 @@ packages:
     resolution: {integrity: sha512-cQzWCtO6C8TQiYl1ruKNn2U6Ao4o4WBBcbL61yJl84x+j5sOWWFU9X7DpND8XZG3daDppSsigMdfAIl2upQBRw==}
     engines: {node: '>=10.0.0'}
 
-  '@xsai-ext/providers@0.4.0-beta.13':
-    resolution: {integrity: sha512-XJp+Q0CMgXIUDexsD/wALHMI2NH6y4qIijZYz52+ywhfMAXhxx6NBwNO1/BsODWhbiReFy12nUHBQnT1cje9qQ==}
-
-  '@xsai-ext/shared-providers@0.2.2':
-    resolution: {integrity: sha512-yHQ3RQf3yb/xD5neQGFKmY/9+TmNFDZmH2aOSiS11rqAZwd6wPr/Wkvo/Ls1yiVGYVfZpzZGYp9Q+0iELt5MhA==}
+  '@xsai-ext/providers@0.4.0':
+    resolution: {integrity: sha512-2qsum5D9FI5rdtHlb7uz/z5u/1aPyn8Qm5oL2ML2DlPY7joiLFxrjA5fsv9YSONrhxB3DDlJA/0a0gdQiiFNZQ==}
 
   '@xsai-ext/shared-providers@0.4.0-beta.12':
     resolution: {integrity: sha512-ME9L8BtapghM0W2SiTdulq0IvU3WR0h7dZ3k1bg/eXag2XUdbh1jy0zYY3oGmpMBmKXO8JXcArS1mq87gpsK0A==}
@@ -8601,9 +8659,6 @@ packages:
 
   '@xsai/shared-chat@0.4.0-beta.13':
     resolution: {integrity: sha512-nvE/lrS50JsZPw09cOaa6vebMfXXuJ7j3/41CN+UqwgJwCWteT4eZRVG55sH1vOAwO8ZOBaPR8pqo88Ph3uy6A==}
-
-  '@xsai/shared@0.2.2':
-    resolution: {integrity: sha512-bgalLd3samx36hDRRmu3M75LY5NfWwh3YRaMwY4Woy7X09JQx+vEqVpJcaIeqcmVqztm8NGYzj8hUru7lwPh0w==}
 
   '@xsai/shared@0.3.5':
     resolution: {integrity: sha512-gxWH+9UjhXgqqKeU/o9UteC/ih1FzxEEsmPojImd/jvq4j/wtIg4aP3dCFnu+EhCT/MRQ38dkBSra99iY9cC3w==}
@@ -11344,6 +11399,10 @@ packages:
   is-module@1.0.0:
     resolution: {integrity: sha512-51ypPSPCoTEIN9dy5Oy+h4pShgJmPCygKfyRCISBI+JoWT/2oJvK8QPxmwv7b/p239jXrm9M1mlQbyKJ5A152g==}
 
+  is-network-error@1.3.0:
+    resolution: {integrity: sha512-6oIwpsgRfnDiyEDLMay/GqCl3HoAtH5+RUKW29gYkL0QA+ipzpDLA16yQs7/RHCSu+BwgbJaOUqa4A99qNVQVw==}
+    engines: {node: '>=16'}
+
   is-npm@6.1.0:
     resolution: {integrity: sha512-O2z4/kNgyjhQwVR1Wpkbfc19JIhggF97NZNCpWTnjH7kVcZMUrnut9XSN7txI7VdyIYk5ZatOq3zvSuWpU8hoA==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
@@ -13141,6 +13200,11 @@ packages:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
     engines: {node: '>= 0.8.0'}
 
+  prettier@2.8.8:
+    resolution: {integrity: sha512-tdN8qQGvNjw4CHbY+XXk0JgCXn9QiF21a55rBe5LJAU+kDyC4WQn4+awm2Xfk2lQMk5fKup9XgzTZtGkjBdP9Q==}
+    engines: {node: '>=10.13.0'}
+    hasBin: true
+
   pretty-bytes@5.6.0:
     resolution: {integrity: sha512-FFw039TmrBqFK8ma/7OL3sDz/VytdtJr044/QUJtH0wK9lb9jLq9tJyIxUwtQJHwar2BqtiA4iCWSwo9JLkzFg==}
     engines: {node: '>=6'}
@@ -13976,6 +14040,11 @@ packages:
 
   split@1.0.1:
     resolution: {integrity: sha512-mTyOoPbrivtXnwnIxZRFYRrPNtEFKlpB2fvjSnCQUiAA6qAZzqwna5envK4uk6OIeP17CsdF3rSBGYVBsU0Tkg==}
+
+  splitpanes@4.0.4:
+    resolution: {integrity: sha512-RbysugZhjbCw5fgplvk3hOXr41stahQDtZhHVkhnnJI6H4wlGDhM2kIpbehy7v92duy9GnMa8zIhHigIV1TWtg==}
+    peerDependencies:
+      vue: ^3.2.0
 
   sprintf-js@1.0.3:
     resolution: {integrity: sha512-D9cPgkvLlV3t3IzL0D0YLvGA9Ahk4PcvVwUbN0dSGr1aP0Nrt4AEnTUbuGvquEC0mA64Gqt1fzirlRs5ibXx8g==}
@@ -14844,8 +14913,8 @@ packages:
       synckit:
         optional: true
 
-  unspeech@0.1.7:
-    resolution: {integrity: sha512-HQ49mqEfvkMIKsbYDfHXDxbpUuNnb+gJdLO6wjQ/iPP1VuUfXs5Ky20attrRr1Qp2S0FHWsuz7/nlv9CAHHuhg==}
+  unspeech@0.1.11:
+    resolution: {integrity: sha512-leRXPcR3ou4F1Jxio0ePyOv+/+mm++huuLHMN4f63/My/s6tiFPbZ8EwQcgxw0FVpiaH4auad5qkhWUD3xxzrQ==}
 
   untildify@4.0.0:
     resolution: {integrity: sha512-KK8xQ1mkzZeg9inewmFVDNkg3l5LUhoq9kN6iWYB/CC9YMG8HA+c1Q8HwDe6dEX7kErrEVNVBO3fWsVq5iDgtw==}
@@ -15312,6 +15381,10 @@ packages:
     hasBin: true
     peerDependencies:
       typescript: '>=5.0.0'
+
+  vue@2.7.16:
+    resolution: {integrity: sha512-4gCtFXaAA3zYZdTp5s4Hl2sozuySsgz4jy1EnpBHNfpMa9dK1ZCG7viqBPCwXtmgc8nHqUsAu3G4gtmXkkY3Sw==}
+    deprecated: Vue 2 has reached EOL and is no longer actively maintained. See https://v2.vuejs.org/eol/ for more details.
 
   vue@3.5.25:
     resolution: {integrity: sha512-YLVdgv2K13WJ6n+kD5owehKtEXwdwXuj2TTyJMsO7pSeKw2bfRNZGjhB7YzrpbMYj5b5QsUebHpOqR3R3ziy/g==}
@@ -20709,6 +20782,10 @@ snapshots:
 
   '@types/slice-ansi@4.0.0': {}
 
+  '@types/splitpanes@2.2.6':
+    dependencies:
+      vue: 2.7.16
+
   '@types/stats.js@0.17.4': {}
 
   '@types/tedious@4.0.14':
@@ -21672,6 +21749,14 @@ snapshots:
       '@vue/compiler-core': 3.5.26
       '@vue/shared': 3.5.26
 
+  '@vue/compiler-sfc@2.7.16':
+    dependencies:
+      '@babel/parser': 7.28.5
+      postcss: 8.5.6
+      source-map: 0.6.1
+    optionalDependencies:
+      prettier: 2.8.8
+
   '@vue/compiler-sfc@3.5.25':
     dependencies:
       '@babel/parser': 7.28.5
@@ -21982,11 +22067,7 @@ snapshots:
 
   '@xmldom/xmldom@0.8.11': {}
 
-  '@xsai-ext/providers@0.4.0-beta.13':
-    dependencies:
-      '@xsai/shared': 0.4.0
-
-  '@xsai-ext/shared-providers@0.2.2':
+  '@xsai-ext/providers@0.4.0':
     dependencies:
       '@xsai/shared': 0.4.0
 
@@ -22073,8 +22154,6 @@ snapshots:
   '@xsai/shared-chat@0.4.0-beta.13':
     dependencies:
       '@xsai/shared': 0.4.0
-
-  '@xsai/shared@0.2.2': {}
 
   '@xsai/shared@0.3.5': {}
 
@@ -25317,6 +25396,8 @@ snapshots:
 
   is-module@1.0.0: {}
 
+  is-network-error@1.3.0: {}
+
   is-npm@6.1.0: {}
 
   is-number@7.0.0: {}
@@ -27504,6 +27585,9 @@ snapshots:
 
   prelude-ls@1.2.1: {}
 
+  prettier@2.8.8:
+    optional: true
+
   pretty-bytes@5.6.0: {}
 
   pretty-bytes@6.1.1: {}
@@ -28636,6 +28720,10 @@ snapshots:
     dependencies:
       through: 2.3.8
 
+  splitpanes@4.0.4(vue@3.5.25(typescript@5.9.3)):
+    dependencies:
+      vue: 3.5.25(typescript@5.9.3)
+
   sprintf-js@1.0.3: {}
 
   sprintf-js@1.1.3: {}
@@ -29694,10 +29782,10 @@ snapshots:
     optionalDependencies:
       synckit: 0.11.11
 
-  unspeech@0.1.7:
+  unspeech@0.1.11:
     dependencies:
-      '@xsai-ext/shared-providers': 0.2.2
-      '@xsai/shared': 0.2.2
+      '@xsai-ext/providers': 0.4.0
+      '@xsai/shared': 0.4.0
 
   untildify@4.0.0: {}
 
@@ -30373,6 +30461,11 @@ snapshots:
       '@volar/typescript': 2.4.27
       '@vue/language-core': 3.2.1
       typescript: 5.9.3
+
+  vue@2.7.16:
+    dependencies:
+      '@vue/compiler-sfc': 2.7.16
+      csstype: 3.2.3
 
   vue@3.5.25(typescript@5.9.3):
     dependencies:

@@ -12,9 +12,7 @@ date: 2025-04-22
 
 在上个周末（2025.04.20），我花了点时间，做了一个能与 ADB 交互的 MCP 服务器 Demo [airi-android](https://github.com/LemonNekoGH/airi-android)，给 AIRI 提供了最基础的与手机交互的能力（事实上大部分 LLM 都可以通过它与手机交互），这是演示视频：
 
-<video controls muted>
-  <source src="./assets/cursor-open-settings.mp4">
-</video>
+<ThemedVideo controls muted src="./assets/cursor-open-settings.mp4" />
 
 我也把它打包成了 Docker 镜像，提交到了 [MCP 服务器列表](https://mcp.so/server/airi-android/lemonnekogh)，有兴趣的可以试试。
 

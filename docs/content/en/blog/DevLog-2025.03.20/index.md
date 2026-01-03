@@ -72,9 +72,7 @@ This is where we made the decision to introduce the amazing tool called
 Here's the first look that [@sumimakito](https://github.com/sumimakito)
 recorded once done:
 
-<video muted autoplay>
-  <source src="./assets/histoire-first-look.mp4" />
-</video>
+<ThemedVideo muted autoplay src="./assets/histoire-first-look.mp4" />
 
 The entire OKLCH color palette can spread on to the canvas all at once
 for us to take as reference. But it wasn't perfect to tryout the colors
@@ -167,9 +165,7 @@ what Neuro-sama can do with the new **Speech** ability!
 
 With all of those, we can get this result:
 
-<video control muted autoplay>
-  <source src="./assets/airi-demo.mp4" />
-</video>
+<ThemedVideo controls muted autoplay src="./assets/airi-demo.mp4" />
 
 Nearly the same. But our story doesn't end here, currently, we haven't
 achieved memory, and better motion control, and the transcription settings

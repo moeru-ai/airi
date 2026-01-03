@@ -3,7 +3,7 @@ import { BidirectionalTransition } from '@proj-airi/ui'
 import { computed } from 'vue'
 
 // Define button variants for better type safety and maintainability
-type ButtonVariant = 'primary' | 'secondary' | 'secondary-muted' | 'danger' | 'caution' | 'pure'
+type ButtonVariant = 'primary' | 'secondary' | 'secondary-muted' | 'danger' | 'caution' | 'ghost'
 
 type ButtonTheme = 'default'
 
@@ -36,40 +36,70 @@ const isDisabled = computed(() => props.disabled || props.loading)
 
 // Extract variant styles for better organization
 const variantClasses: Record<ButtonVariant, Record<ButtonTheme, {
-  default: string
+  default: string[]
   nonToggled?: string
   toggled?: string
 }>> = {
   'primary': {
     default: {
-      default: 'bg-primary-500/15 hover:bg-primary-500/20 active:bg-primary-500/30 dark:bg-primary-700/30 dark:hover:bg-primary-700/40 dark:active:bg-primary-700/30 focus:ring-primary-300/60 dark:focus:ring-primary-600/30 border-2 border-solid border-primary-500/5 dark:border-primary-900/40 text-primary-950 dark:text-primary-100',
+      default: [
+        'bg-primary-500/15 hover:bg-primary-500/20 active:bg-primary-500/30 dark:bg-primary-700/30 dark:hover:bg-primary-700/40 dark:active:bg-primary-700/30',
+        'focus:ring-primary-300/60 dark:focus:ring-primary-600/30',
+        'border-2 border-solid border-primary-500/5 dark:border-primary-900/40',
+        'text-primary-950 dark:text-primary-100',
+        'focus:ring-2',
+      ],
     },
   },
   'secondary': {
     default: {
-      default: 'bg-neutral-100/55 hover:bg-neutral-400/20 active:bg-neutral-400/30 dark:bg-neutral-700/60 dark:hover:bg-neutral-700/80 dark:active:bg-neutral-700/60 focus:ring-neutral-300/30 dark:focus:ring-neutral-600/60 dark:focus:ring-neutral-600/30 border-2 border-solid border-neutral-300/30 dark:border-neutral-700/30 text-neutral-950 dark:text-neutral-100',
+      default: [
+        'bg-neutral-100/55 hover:bg-neutral-400/20 active:bg-neutral-400/30 dark:bg-neutral-700/60 dark:hover:bg-neutral-700/80 dark:active:bg-neutral-700/60',
+        'focus:ring-neutral-300/30 dark:focus:ring-neutral-600/60 dark:focus:ring-neutral-600/30',
+        'border-2 border-solid border-neutral-300/30 dark:border-neutral-700/30',
+        'text-neutral-950 dark:text-neutral-100',
+        'focus:ring-2',
+      ],
     },
   },
   'secondary-muted': {
     default: {
-      default: 'hover:bg-neutral-50/50 active:bg-neutral-50/90 hover:dark:bg-neutral-800/50 active:dark:bg-neutral-800/90 border-2 border-solid border-neutral-100/60 dark:border-neutral-800/30 focus:ring-neutral-300/30 dark:focus:ring-neutral-600/60 dark:focus:ring-neutral-600/30',
+      default: [
+        'hover:bg-neutral-50/50 active:bg-neutral-50/90 hover:dark:bg-neutral-800/50 active:dark:bg-neutral-800/90',
+        'border-2 border-solid border-neutral-100/60 dark:border-neutral-800/30',
+        'focus:ring-2 focus:ring-neutral-300/30 dark:focus:ring-neutral-600/60 dark:focus:ring-neutral-600/30',
+      ],
       nonToggled: 'bg-neutral-50/70 dark:bg-neutral-800/70 text-neutral-500 dark:text-neutral-400',
       toggled: 'bg-white/90 dark:bg-neutral-500/70 ring-neutral-300/30 dark:ring-neutral-600/60 ring-2 dark:ring-neutral-600/30 text-primary-500 dark:text-primary-100',
     },
   },
   'danger': {
     default: {
-      default: 'bg-red-500/15 hover:bg-red-500/20 active:bg-red-500/30 dark:bg-red-700/30 dark:hover:bg-red-700/40 dark:active:bg-red-700/30 focus:ring-red-300/30 dark:focus:ring-red-600/60 dark:focus:ring-red-600/30 border-2 border-solid border-red-200/30 dark:border-red-900/30 text-red-950 dark:text-red-100',
+      default: [
+        'bg-red-500/15 hover:bg-red-500/20 active:bg-red-500/30 dark:bg-red-700/30 dark:hover:bg-red-700/40 dark:active:bg-red-700/30',
+        'focus:ring-2 focus:ring-red-300/30 dark:focus:ring-red-600/60 dark:focus:ring-red-600/30',
+        'border-2 border-solid border-red-200/30 dark:border-red-900/30',
+        'text-red-950 dark:text-red-100',
+      ],
     },
   },
   'caution': {
     default: {
-      default: 'bg-amber-400/20 hover:bg-amber-400/25 active:bg-amber-400/35 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 dark:active:bg-amber-500/35 focus:ring-amber-300/40 dark:focus:ring-amber-400/40 border-2 border-solid border-amber-300/40 dark:border-amber-500/40 text-amber-900 dark:text-amber-50',
+      default: [
+        'bg-amber-400/20 hover:bg-amber-400/25 active:bg-amber-400/35 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 dark:active:bg-amber-500/35',
+        'focus:ring-2 focus:ring-amber-300/40 dark:focus:ring-amber-400/40',
+        'border-2 border-solid border-amber-300/40 dark:border-amber-500/40',
+        'text-amber-900 dark:text-amber-50',
+      ],
     },
   },
-  'pure': {
+  'ghost': {
     default: {
-      default: 'bg-white hover:bg-neutral-50 active:bg-neutral-100 dark:bg-neutral-900 dark:hover:bg-neutral-800 dark:active:bg-neutral-700 border-2 border-solid border-neutral-100 dark:border-neutral-800 focus:ring-neutral-200/40 dark:focus:ring-neutral-600/40 text-neutral-900 dark:text-neutral-50',
+      default: [
+        'bg-transparent hover:bg-neutral-50/60 active:bg-neutral-100/80 dark:hover:bg-neutral-800/50 dark:active:bg-neutral-700/60',
+        'text-neutral-900 dark:text-neutral-50',
+        '!px-0 !py-0',
+      ],
     },
   },
 }
@@ -89,10 +119,10 @@ const baseClasses = computed(() => [
   'backdrop-blur-md',
   props.block ? 'w-full' : '',
   sizeClasses[props.size],
-  variantClasses[props.variant][props.theme].default,
+  ...variantClasses[props.variant][props.theme].default,
   props.toggled ? variantClasses[props.variant][props.theme].toggled || '' : variantClasses[props.variant][props.theme].nonToggled || '',
   { 'opacity-50 cursor-not-allowed': isDisabled.value },
-  'focus:ring-2',
+
 ])
 </script>
 

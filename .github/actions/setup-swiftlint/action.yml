@@ -1,0 +1,114 @@
+name: 'Setup SwiftLint'
+description: 'Download and install SwiftLint binary to /usr/bin'
+branding:
+  icon: 'code'
+  color: 'blue'
+
+inputs:
+  version:
+    description: 'SwiftLint version (e.g., 0.58.2). If not specified, the latest version will be used'
+    required: false
+    default: 'latest'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Detect OS and architecture
+      id: os
+      shell: bash
+      run: |
+        ARCH=$(uname -m)
+        if [[ "$ARCH" == "x86_64" ]]; then
+          ARCH_SUFFIX="amd64"
+        elif [[ "$ARCH" == "aarch64" ]] || [[ "$ARCH" == "arm64" ]]; then
+          ARCH_SUFFIX="arm64"
+        else
+          echo "Error: Unsupported architecture $ARCH"
+          exit 1
+        fi
+
+        if [[ "$RUNNER_OS" == "macOS" ]]; then
+          echo "platform=macos" >> $GITHUB_OUTPUT
+          echo "archive_name=portable_swiftlint.zip" >> $GITHUB_OUTPUT
+        elif [[ "$RUNNER_OS" == "Linux" ]]; then
+          echo "platform=linux" >> $GITHUB_OUTPUT
+          echo "archive_name=swiftlint_linux.zip" >> $GITHUB_OUTPUT
+        else
+          echo "Error: Unsupported OS $RUNNER_OS"
+          exit 1
+        fi
+        echo "arch=$ARCH_SUFFIX" >> $GITHUB_OUTPUT
+
+    - name: Resolve version
+      id: version
+      shell: bash
+      run: |
+        if [[ "${{ inputs.version }}" == "latest" ]]; then
+          VERSION=$(curl -s https://api.github.com/repos/realm/SwiftLint/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+          if [[ -z "$VERSION" ]]; then
+            echo "Error: Failed to get latest version"
+            exit 1
+          fi
+          echo "Latest version: $VERSION"
+        else
+          VERSION="${{ inputs.version }}"
+          if [[ ! "$VERSION" =~ ^v ]]; then
+            VERSION="v$VERSION"
+          fi
+          echo "Using specified version: $VERSION"
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Download and install SwiftLint
+      shell: bash
+      run: |
+        set -e
+
+        PLATFORM="${{ steps.os.outputs.platform }}"
+        VERSION="${{ steps.version.outputs.version }}"
+        ARCH="${{ steps.os.outputs.arch }}"
+        ARCHIVE_NAME="${{ steps.os.outputs.archive_name }}"
+
+        if [[ "$PLATFORM" == "linux" ]]; then
+          ARCHIVE_NAME="${ARCHIVE_NAME%.zip}_${ARCH}.zip"
+        fi
+
+        DOWNLOAD_URL="https://github.com/realm/SwiftLint/releases/download/${VERSION}/${ARCHIVE_NAME}"
+
+        echo "Downloading SwiftLint from $DOWNLOAD_URL..."
+
+        if ! curl -L -f -o swiftlint.zip "$DOWNLOAD_URL"; then
+          ARCHIVE_NAME_FALLBACK="${ARCHIVE_NAME%.zip}.zip"
+          DOWNLOAD_URL="https://github.com/realm/SwiftLint/releases/download/${VERSION}/${ARCHIVE_NAME_FALLBACK}"
+          echo "Trying fallback URL: $DOWNLOAD_URL"
+          if ! curl -L -f -o swiftlint.zip "$DOWNLOAD_URL"; then
+            echo "Error: Download failed, please check if the version is correct"
+            exit 1
+          fi
+        fi
+
+        echo "Extracting..."
+        EXTRACT_DIR=$(mktemp -d)
+        unzip -q -o swiftlint.zip -d "$EXTRACT_DIR"
+
+        if [[ -f "$EXTRACT_DIR/swiftlint" ]]; then
+          BINARY_PATH="$EXTRACT_DIR/swiftlint"
+        elif [[ -f "$EXTRACT_DIR/swiftlint_linux/swiftlint" ]]; then
+          BINARY_PATH="$EXTRACT_DIR/swiftlint_linux/swiftlint"
+        elif [[ -f "$EXTRACT_DIR/portable_swiftlint/swiftlint" ]]; then
+          BINARY_PATH="$EXTRACT_DIR/portable_swiftlint/swiftlint"
+        else
+          echo "Error: Could not find swiftlint binary"
+          ls -la "$EXTRACT_DIR"
+          exit 1
+        fi
+
+        chmod +x "$BINARY_PATH"
+        sudo mv "$BINARY_PATH" /usr/bin/swiftlint
+
+        if ! swiftlint version; then
+          echo "Error: SwiftLint installation verification failed"
+          exit 1
+        fi
+
+        rm -rf swiftlint.zip "$EXTRACT_DIR" 2>/dev/null || true

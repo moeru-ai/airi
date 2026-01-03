@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Application } from '@pixi/app'
+import type { MotionManager } from 'pixi-live2d-display/cubism4'
 
 import type { PixiLive2DInternalModel } from '../../../composables/live2d'
 
@@ -25,6 +26,17 @@ import {
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
 import { useLive2d } from '../../../stores/live2d'
 import { useSettings } from '../../../stores/settings'
+
+type ExtendedMotionManager = MotionManager<any, any> & {
+  idleMotionGroup?: string
+  definitions: Record<string, any[]>
+  groups: {
+    idle?: string
+    Idle?: string
+    [key: string]: any
+  }
+  motionGroups: Record<string, any[]>
+}
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
@@ -134,6 +146,7 @@ const {
   availableMotions,
   motionMap,
   modelParameters,
+  selectedRuntimeIdleMotion,
 } = storeToRefs(live2dStore)
 
 const {
@@ -238,7 +251,8 @@ async function loadModel() {
 
     const internalModel = model.value.internalModel
     const coreModel = internalModel.coreModel
-    const motionManager = internalModel.motionManager
+
+    const motionManager = internalModel.motionManager as ExtendedMotionManager
     coreModel.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
 
     availableMotions.value = Object
@@ -250,30 +264,28 @@ async function loadModel() {
       })) || []))
       .filter(Boolean)
 
-    // Check if user has selected a runtime motion to play as idle
-    const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
-    const selectedMotionIndex = localStorage.getItem('selected-runtime-motion-index')
+    const selectedMotionGroup = selectedRuntimeIdleMotion.value?.group
+    const selectedMotionIndex = selectedRuntimeIdleMotion.value?.index
 
     // Configure the selected motion to loop
-    if (selectedMotionGroup && selectedMotionIndex) {
+    if (selectedMotionGroup != null && selectedMotionIndex != null) {
       const groupIndex = (motionManager.groups as Record<string, any>)[selectedMotionGroup]
       if (groupIndex !== undefined && motionManager.motionGroups[groupIndex]) {
-        const motionIndex = Number.parseInt(selectedMotionIndex)
-        const motion = motionManager.motionGroups[groupIndex][motionIndex]
+        const motion = motionManager.motionGroups[groupIndex][selectedMotionIndex]
         if (motion && motion._looper) {
           // Force the motion to loop
           motion._looper.loopDuration = 0 // 0 means infinite loop
-          console.info('Configured motion to loop infinitely:', selectedMotionGroup, motionIndex)
+          console.info('Configured motion to loop infinitely:', selectedMotionGroup, selectedMotionIndex)
         }
       }
     }
 
-    if (selectedMotionGroup && selectedMotionIndex && live2dIdleAnimationEnabled.value) {
+    if (selectedMotionGroup != null && selectedMotionIndex != null && live2dIdleAnimationEnabled.value) {
       setTimeout(() => {
         console.info('Playing selected runtime motion:', selectedMotionGroup, selectedMotionIndex)
         currentMotion.value = {
           group: selectedMotionGroup,
-          index: Number.parseInt(selectedMotionIndex),
+          index: selectedMotionIndex,
         }
       }, 300)
     }
@@ -281,15 +293,20 @@ async function loadModel() {
     // Remove eye ball movements from idle motion group to prevent conflicts
     // This is too hacky
     // FIXME: it cannot blink if loading a model only have idle motion
-    if (motionManager.groups.idle) {
-      motionManager.motionGroups[motionManager.groups.idle]?.forEach((motion) => {
-        motion._motionData.curves.forEach((curve: any) => {
-        // TODO: After emotion mapper, stage editor, eye related parameters should be take cared to be dynamical instead of hardcoding
-          if (curve.id === 'ParamEyeBallX' || curve.id === 'ParamEyeBallY') {
-            curve.id = `_${curve.id}`
-          }
+    const idleGroupName = motionManager.groups.idle ? 'idle' : (motionManager.groups.Idle ? 'Idle' : undefined)
+    if (idleGroupName) {
+      const groupTarget = motionManager.groups[idleGroupName]
+      if (groupTarget !== undefined) {
+        motionManager.idleMotionGroup = idleGroupName
+        motionManager.motionGroups[groupTarget]?.forEach((motion: any) => {
+          motion._motionData.curves.forEach((curve: any) => {
+            // TODO: After emotion mapper, stage editor, eye related parameters should be take cared to be dynamical instead of hardcoding
+            if (curve.id === 'ParamEyeBallX' || curve.id === 'ParamEyeBallY') {
+              curve.id = `_${curve.id}`
+            }
+          })
         })
-      })
+      }
     }
 
     // This is hacky too
@@ -313,23 +330,25 @@ async function loadModel() {
       return motionManagerUpdate.hookUpdate(model, now, hookedUpdate)
     }
 
-    motionManager.on('motionStart', (group, index) => {
+    motionManager.on('motionStart', (group: string, index: number) => {
       localCurrentMotion.value = { group, index }
     })
 
     // Listen for motion finish to restart runtime motion for looping
     motionManager.on('motionFinish', () => {
-      const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
-      const selectedMotionIndex = localStorage.getItem('selected-runtime-motion-index')
+      const selectedMotionGroup = selectedRuntimeIdleMotion.value?.group
+      const selectedMotionIndex = selectedRuntimeIdleMotion.value?.index
 
-      if (selectedMotionGroup && selectedMotionIndex && live2dIdleAnimationEnabled.value) {
+      if (selectedMotionGroup != null && selectedMotionIndex != null && live2dIdleAnimationEnabled.value) {
         // Restart the selected runtime motion immediately for seamless looping
         console.info('Motion finished, restarting runtime motion:', selectedMotionGroup, selectedMotionIndex)
         // Use requestAnimationFrame to restart on the next frame for smooth transition
         requestAnimationFrame(() => {
-          currentMotion.value = {
-            group: selectedMotionGroup,
-            index: Number.parseInt(selectedMotionIndex),
+          if (selectedMotionGroup != null && selectedMotionIndex != null && live2dIdleAnimationEnabled.value) {
+            currentMotion.value = {
+              group: selectedMotionGroup,
+              index: selectedMotionIndex,
+            }
           }
         })
       }

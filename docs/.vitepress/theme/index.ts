@@ -24,7 +24,7 @@ import '@fontsource-variable/comfortaa'
 export default {
   Layout,
   enhanceApp({ app, siteData }) {
-    if (!import.meta.env.SSR) {
+    if (!import.meta.env.SSR && import.meta.env.PROD) {
       import('../modules/posthog')
     }
 

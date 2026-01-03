@@ -99,10 +99,33 @@ export default defineConfig({
               { text: 'Release Notes ', link: releases },
             ],
           },
+          {
+            text: 'About',
+            items: [
+              { text: 'Privacy Policy', link: withBase('/en/about/privacy') },
+              { text: 'Terms of Use', link: withBase('/en/about/terms') },
+            ],
+          },
         ],
         outline: {
           level: 'deep',
+          label: 'このページの内容',
         },
+        docFooter: {
+          prev: '前のページ',
+          next: '次のページ',
+        },
+        editLink: {
+          pattern: 'https://github.com/moeru-ai/airi/edit/main/docs/content/:path',
+          text: 'GitHub でこのページを編集',
+        },
+        lastUpdated: {
+          text: '最終更新',
+        },
+        darkModeSwitchLabel: '外観モード',
+        sidebarMenuLabel: 'メニュー',
+        returnToTopLabel: 'トップに戻る',
+        langMenuLabel: '言語を変更',
         logo: withBase('/favicon.svg'),
 
         sidebar: [
@@ -180,6 +203,13 @@ export default defineConfig({
               { text: '发布说明 ', link: releases },
             ],
           },
+          {
+            text: '关于',
+            items: [
+              { text: '隐私政策', link: withBase('/zh-Hans/about/privacy') },
+              { text: '使用条款', link: withBase('/zh-Hans/about/terms') },
+            ],
+          },
         ],
         outline: {
           level: 'deep',
@@ -211,13 +241,9 @@ export default defineConfig({
                 text: '参与贡献',
                 items: [
                   { text: '贡献代码', link: withBase('/zh-Hans/docs/overview/contributing/') },
-                  {
-                    text: '贡献设计',
-                    items: [
-                      { text: '参考资源', link: withBase('/zh-Hans/docs/overview/contributing/design-guidelines/resources') },
-                      { text: '工具', link: withBase('/zh-Hans/docs/overview/contributing/design-guidelines/tools') },
-                    ],
-                  },
+                  { text: '贡献设计', link: withBase('/zh-Hans/docs/overview/contributing/design-guidelines/') },
+                  { text: '参考资源', link: withBase('/zh-Hans/docs/overview/contributing/design-guidelines/resources') },
+                  { text: '工具', link: withBase('/zh-Hans/docs/overview/contributing/design-guidelines/tools') },
                 ],
               },
               { text: '有关 AI VTuber', link: withBase('/zh-Hans/docs/overview/about-ai-vtuber') },
@@ -261,6 +287,13 @@ export default defineConfig({
               { text: 'リリースノート', link: releases },
             ],
           },
+          {
+            text: '概要',
+            items: [
+              { text: 'プライバシーポリシー', link: withBase('/ja/about/privacy') },
+              { text: '利用規約', link: withBase('/ja/about/terms') },
+            ],
+          },
         ],
         outline: {
           level: 'deep',
@@ -278,12 +311,12 @@ export default defineConfig({
                 items: [
                   {
                     text: 'デスクトップ版のガイド',
-                    link: withBase('/en/docs/overview/guide/tamagotchi/'),
+                    link: withBase('/ja/docs/overview/guide/tamagotchi/'),
                     items: [],
                   },
                   {
                     text: 'Web 版のガイド',
-                    link: withBase('/en/docs/overview/guide/web/'),
+                    link: withBase('/ja/docs/overview/guide/web/'),
                     items: [],
                   },
                 ],
@@ -291,33 +324,29 @@ export default defineConfig({
               {
                 text: 'コントリビューション',
                 items: [
-                  { text: 'コードで貢献', link: withBase('/en/docs/overview/contributing/') },
-                  {
-                    text: 'デザインで貢献',
-                    items: [
-                      { text: 'リソース', link: withBase('/en/docs/overview/contributing/design-guidelines/resources') },
-                      { text: 'ツール', link: withBase('/en/docs/overview/contributing/design-guidelines/tools') },
-                    ],
-                  },
+                  { text: 'コードで貢献', link: withBase('/ja/docs/overview/contributing/') },
+                  { text: 'デザインで貢献', link: withBase('/ja/docs/overview/contributing/design-guidelines/') },
+                  { text: 'リソース', link: withBase('/ja/docs/overview/contributing/design-guidelines/resources') },
+                  { text: 'ツール', link: withBase('/ja/docs/overview/contributing/design-guidelines/tools') },
                 ],
               },
-              { text: 'AI VTuber について', link: withBase('/en/docs/overview/about-ai-vtuber') },
-              { text: 'Neuro-sama について', link: withBase('/en/docs/overview/about-neuro-sama') },
+              { text: 'AI VTuber について', link: withBase('/ja/docs/overview/about-ai-vtuber') },
+              { text: 'Neuro-sama について', link: withBase('/ja/docs/overview/about-neuro-sama') },
             ],
           },
           {
             text: 'マニュアル',
             icon: 'lucide:book-open',
             items: [
-              { text: 'バージョン一覧', link: withBase('/en/docs/manual/versions') },
+              { text: 'バージョン一覧', link: withBase('/ja/docs/manual/versions') },
             ],
           },
           {
             text: '年表',
             icon: 'lucide:calendar-days',
             items: [
-              { text: '初公開 v0.1.0', link: withBase('/en/docs/chronicles/version-v0.1.0/') },
-              { text: '前日譚 v0.0.1', link: withBase('/en/docs/chronicles/version-v0.0.1/') },
+              { text: '初公開 v0.1.0', link: withBase('/ja/docs/chronicles/version-v0.1.0/') },
+              { text: '前日譚 v0.0.1', link: withBase('/ja/docs/chronicles/version-v0.0.1/') },
             ],
           },
           {

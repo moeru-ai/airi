@@ -70,7 +70,7 @@ function withDirname(url?: string, cwd?: string) {
   }
 
   if (url.startsWith('/')) {
-    return join(cwd, url)
+    return url
   }
 
   return join(cwd, url)
@@ -99,12 +99,18 @@ export default createContentLoader('**/blog/**/*.md', {
             return file
 
           const parsed = parse(file)
-          const hash = createHash('sha256')
-            .update(await readFile(join(config.srcDir, file)))
-            .digest('hex')
-            .slice(0, 8)
+          try {
+            const hash = createHash('sha256')
+              .update(await readFile(join(config.srcDir, file)))
+              .digest('hex')
+              .slice(0, 8)
 
-          return `/assets/${parsed.name}.${hash}${parsed.ext}`
+            return `/assets/${parsed.name}.${hash}${parsed.ext}`
+          }
+          catch (e) {
+            console.error(`[blog.data.ts] Failed to read file: ${join(config.srcDir, file)}`, e)
+            return file
+          }
         }
 
         const previewCoverLight = withBase(await fileToUrl(withDirname(fromAtAssets(frontmatter['preview-cover']?.light), cwdFromUrl(url))), base)

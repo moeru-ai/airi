@@ -97,9 +97,7 @@ import DemoDayHangzhou3 from './assets/demo-day-hangzhou-3.avif'
 
 最终，我得到了这个：[WebAI 实时语音聊天示例](https://github.com/proj-airi/webai-example-realtime-voice-chat)，我设法证明了这项工作可以在 Web 浏览器中用一个 300 ~ 500 行的 TypeScript 代码来实现 ChatGPT 语音聊天系统。
 
-<video controls muted style="{ height: '640px' }">
-  <source src="./assets/webai-examples-demo.MP4"/>
-</video>
+<ThemedVideo controls muted src="./assets/webai-examples-demo.MP4" style="height: 640px;" />
 
 我尽力将所有可能的步骤分解为小的可重用片段，以帮助演示如何从头开始构建实时语音聊天系统：
 
