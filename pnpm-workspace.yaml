@@ -35,8 +35,8 @@ catalog:
   '@nekopaw/tempora': 0.4.0-alpha.1
   '@proj-airi/drizzle-duckdb-wasm': ^0.4.29
   '@types/audioworklet': ^0.0.92
-  '@types/splitpanes': ^2.2.6
   '@types/hast': ^3.0.4
+  '@types/splitpanes': ^2.2.6
   '@types/unist': ^3.0.3
   '@xsai-ext/providers': ^0.4.0-beta.13
   '@xsai/embed': ^0.4.0-beta.13
@@ -63,6 +63,7 @@ catalog:
   unplugin-info: 1.2.4
   vite-plugin-mkcert: ^1.17.9
   xsschema: ^0.4.0-beta.12
+  zod: ^4.2.1
 
 catalogs:
   rolldown-vite:
