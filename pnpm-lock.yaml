@@ -41,7 +41,7 @@ catalogs:
       version: 2.2.6
     '@xsai-ext/providers':
       specifier: ^0.4.0-beta.13
-      version: 0.4.0-beta.13
+      version: 0.4.0
     '@xsai/embed':
       specifier: ^0.4.0-beta.13
       version: 0.4.0-beta.13
@@ -131,6 +131,10 @@ catalogs:
     vitest:
       specifier: ^4.0.16
       version: 4.0.16
+  xsai:
+    unspeech:
+      specifier: ^0.1.11
+      version: 0.1.11
 
 overrides:
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
@@ -418,7 +422,7 @@ importers:
         version: 14.1.0(vue@3.5.25(typescript@5.9.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.4.0
       '@xsai-transformers/embed':
         specifier: ^0.0.11
         version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
@@ -531,7 +535,7 @@ importers:
         specifier: ^11.0.5
         version: 11.0.5
       unspeech:
-        specifier: ^0.1.7
+        specifier: catalog:xsai
         version: 0.1.11
       uuid:
         specifier: ^13.0.0
@@ -800,7 +804,7 @@ importers:
         version: 14.1.0(vue@3.5.25(typescript@5.9.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.4.0
       '@xsai-transformers/transcription':
         specifier: ^0.0.11
         version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
@@ -937,7 +941,7 @@ importers:
         specifier: ^11.0.5
         version: 11.0.5
       unspeech:
-        specifier: ^0.1.7
+        specifier: catalog:xsai
         version: 0.1.11
       uuid:
         specifier: ^13.0.0
@@ -1194,7 +1198,7 @@ importers:
         version: 14.1.0(vue@3.5.25(typescript@5.9.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.4.0
       '@xsai-transformers/embed':
         specifier: ^0.0.11
         version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
@@ -1307,7 +1311,7 @@ importers:
         specifier: ^11.0.5
         version: 11.0.5
       unspeech:
-        specifier: ^0.1.7
+        specifier: catalog:xsai
         version: 0.1.11
       uuid:
         specifier: ^13.0.0
@@ -1807,7 +1811,7 @@ importers:
         version: 14.1.0(vue@3.5.25(typescript@5.9.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.4.0
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -1842,7 +1846,7 @@ importers:
         specifier: ^2.7.0
         version: 2.7.0(typescript@5.9.3)(vue@3.5.25(typescript@5.9.3))
       unspeech:
-        specifier: ^0.1.7
+        specifier: catalog:xsai
         version: 0.1.11
       vue:
         specifier: ^3.5.25
@@ -1907,7 +1911,7 @@ importers:
         version: 14.1.0(vue@3.5.25(typescript@5.9.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.4.0
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -1939,7 +1943,7 @@ importers:
         specifier: 'catalog:'
         version: 4.0.4(vue@3.5.25(typescript@5.9.3))
       unspeech:
-        specifier: ^0.1.7
+        specifier: catalog:xsai
         version: 0.1.11
       vue:
         specifier: ^3.5.25
@@ -2112,7 +2116,7 @@ importers:
         version: 14.1.0(vue@3.5.25(typescript@5.9.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.4.0
       '@xsai-transformers/embed':
         specifier: ^0.0.11
         version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
@@ -2240,7 +2244,7 @@ importers:
         specifier: ^4.0.0
         version: 4.0.0
       unspeech:
-        specifier: ^0.1.7
+        specifier: catalog:xsai
         version: 0.1.11
       uuid:
         specifier: ^13.0.0
@@ -2716,7 +2720,7 @@ importers:
         version: link:../../packages/server-shared
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.4.0
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -8588,9 +8592,6 @@ packages:
 
   '@xsai-ext/providers@0.4.0':
     resolution: {integrity: sha512-2qsum5D9FI5rdtHlb7uz/z5u/1aPyn8Qm5oL2ML2DlPY7joiLFxrjA5fsv9YSONrhxB3DDlJA/0a0gdQiiFNZQ==}
-
-  '@xsai-ext/providers@0.4.0-beta.13':
-    resolution: {integrity: sha512-XJp+Q0CMgXIUDexsD/wALHMI2NH6y4qIijZYz52+ywhfMAXhxx6NBwNO1/BsODWhbiReFy12nUHBQnT1cje9qQ==}
 
   '@xsai-ext/shared-providers@0.4.0-beta.12':
     resolution: {integrity: sha512-ME9L8BtapghM0W2SiTdulq0IvU3WR0h7dZ3k1bg/eXag2XUdbh1jy0zYY3oGmpMBmKXO8JXcArS1mq87gpsK0A==}
@@ -22049,10 +22050,6 @@ snapshots:
   '@xmldom/xmldom@0.8.11': {}
 
   '@xsai-ext/providers@0.4.0':
-    dependencies:
-      '@xsai/shared': 0.4.0
-
-  '@xsai-ext/providers@0.4.0-beta.13':
     dependencies:
       '@xsai/shared': 0.4.0
 

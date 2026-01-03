@@ -42,7 +42,7 @@
     "posthog-js": "catalog:",
     "reka-ui": "^2.7.0",
     "splitpanes": "catalog:",
-    "unspeech": "^0.1.7",
+    "unspeech": "catalog:xsai",
     "vue": "^3.5.25",
     "vue-i18n": "^11.2.2",
     "vue-router": "^4.6.4",
