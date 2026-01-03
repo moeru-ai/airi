@@ -174,58 +174,10 @@ onPlaybackFinished(({ special }) => {
   playSpecialToken(special)
 })
 
-async function handleSpeechGeneration(ctx: { data: TTSChunkItem }) {
-  try {
-    if (!activeSpeechProvider.value) {
-      console.warn('No active speech provider configured')
-      return
-    }
-
-    if (!activeSpeechVoice.value) {
-      console.warn('No active speech voice configured')
-      return
-    }
-
-    const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
-    if (!provider) {
-      console.error('Failed to initialize speech provider')
-      return
-    }
-
-    // console.debug("ctx.data.chunk is empty? ", ctx.data.chunk === "")
-    // console.debug("ctx.data.special: ", ctx.data.special)
-    if (ctx.data.chunk === '' && !ctx.data.special)
-      return
-    // If special token only and chunk = ""
-    if (ctx.data.chunk === '' && ctx.data.special) {
-      playSpecialToken(ctx.data.special)
-      return
-    }
-
-    const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
-
-    const input = ssmlEnabled.value
-      ? speechStore.generateSSML(ctx.data.chunk, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value })
-      : ctx.data.chunk
-
-    const res = await generateSpeech({
-      ...provider.speech(activeSpeechModel.value, providerConfig),
-      input,
-      voice: activeSpeechVoice.value.id,
-    })
-
-    const audioBuffer = await audioContext.decodeAudioData(res)
-    playbackQueue.value.enqueue({ audioBuffer, text: ctx.data.chunk, special: ctx.data.special })
-  }
-  catch (error) {
-    console.error('Speech generation failed:', error)
-  }
-}
-
 // Orderly parallel TTS processor: limits concurrent requests while maintaining playback order
 const ttsOrderlyParallel = createTTSOrderlyParallelProcessor<TTSChunkItem>({
   maxConcurrent: 3,
-  debug: false, // Set to true for development debugging
+  debug: true, // Set to true for development debugging
 
   async processItem(chunkItem) {
     // Skip empty chunks without special markers
@@ -234,7 +186,7 @@ const ttsOrderlyParallel = createTTSOrderlyParallelProcessor<TTSChunkItem>({
 
     // Special token only
     if (chunkItem.chunk === '' && chunkItem.special)
-      return { audioBuffer: null as any, text: '', special: chunkItem.special }
+      return { audioBuffer: null, text: '', special: chunkItem.special }
 
     // Validate configuration
     if (!activeSpeechProvider.value || !activeSpeechVoice.value) {
@@ -273,8 +225,15 @@ const ttsOrderlyParallel = createTTSOrderlyParallelProcessor<TTSChunkItem>({
       return
     }
 
-    // Enqueue normal audio for playback
-    playbackQueue.value.enqueue(result)
+    // At this point, audioBuffer is guaranteed to be non-null
+    // since we returned early if it was null with a special token
+    if (result.audioBuffer) {
+      playbackQueue.value.enqueue({
+        audioBuffer: result.audioBuffer,
+        text: result.text,
+        special: result.special,
+      })
+    }
   },
 })
 

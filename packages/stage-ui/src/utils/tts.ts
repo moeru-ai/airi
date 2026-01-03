@@ -267,8 +267,8 @@ export async function chunkEmitter(
 export interface TTSOrderlyParallelProcessorOptions<T = TTSChunkItem> {
   maxConcurrent?: number
   debug?: boolean
-  processItem: (item: T) => Promise<{ audioBuffer: AudioBuffer, text: string, special: string | null } | null>
-  onResult: (result: { audioBuffer: AudioBuffer, text: string, special: string | null } | null) => void
+  processItem: (item: T) => Promise<{ audioBuffer: AudioBuffer | null, text: string, special: string | null } | null>
+  onResult: (result: { audioBuffer: AudioBuffer | null, text: string, special: string | null } | null) => void
 }
 
 export interface TTSOrderlyParallelProcessor<T = TTSChunkItem> {
@@ -317,7 +317,7 @@ export function createTTSOrderlyParallelProcessor<T = TTSChunkItem>(
   // - undefined: task is still running
   // - null: task completed with no result
   // - otherwise: task completed with result
-  const pending = new Map<number, { result?: { audioBuffer: AudioBuffer, text: string, special: string | null } | null }>()
+  const pending = new Map<number, { result?: { audioBuffer: AudioBuffer | null, text: string, special: string | null } | null }>()
 
   // Debug logger
   const logDebug = (...args: unknown[]) => {
@@ -349,18 +349,18 @@ export function createTTSOrderlyParallelProcessor<T = TTSChunkItem>(
 
   // Start next tasks from the queue, up to the max concurrent limit
   function startNext() {
-    const started: number[] = []
+    let startedCount = 0
     while (running < maxConcurrent && taskQueue.length > 0) {
+      running++
       const nextTask = taskQueue.shift()!
-      const taskIndex = started.length
       nextTask().catch((error) => {
         console.error('[TTS] Task execution failed:', error)
       })
-      started.push(taskIndex)
+      startedCount++
     }
 
-    if (started.length > 0)
-      logDebug('Started', started.length, 'tasks, running:', running + started.length, '/', maxConcurrent)
+    if (startedCount > 0)
+      logDebug('Started', startedCount, 'tasks, running:', running, '/', maxConcurrent)
   }
 
   // Process a new item
@@ -371,7 +371,6 @@ export function createTTSOrderlyParallelProcessor<T = TTSChunkItem>(
 
     // Define the task that will process this item
     const task = async () => {
-      running++
       logDebug('Item', currentIndex, 'started, running:', running)
 
       try {
