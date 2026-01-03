@@ -131,7 +131,7 @@ export function createPerfTracer(): PerfTracer {
         ts: start,
         duration: performance.now() - start,
         meta: disabledAtEnd
-          ? { ...(meta ?? {}), tracerDisabledDuringMeasure: true }
+          ? { ...meta, tracerDisabledDuringMeasure: true }
           : meta,
       }, true)
     }

@@ -94,7 +94,7 @@ function toggleMode() {
           v-model.number="scheduleDelayMs"
           type="number"
           min="0"
-          class="w-full max-w-[180px] rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
+          class="max-w-[180px] w-full border border-neutral-700 rounded bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
         >
       </div>
 
@@ -117,21 +117,20 @@ function toggleMode() {
       </Callout>
     </Section>
 
-    <div class="space-y-3 rounded-xl border border-neutral-800/70 bg-neutral-900/60 p-4 shadow-sm lg:col-span-1">
+    <div class="border border-neutral-800/70 rounded-xl bg-neutral-900/60 p-4 shadow-sm lg:col-span-1 space-y-3">
       <div class="text-sm text-neutral-200">
         Live traces
       </div>
       <div class="text-xs text-neutral-400">
         Capturing: {{ capturing ? 'yes' : 'no' }}, events: {{ events.length }}
       </div>
-      <ul class="max-h-64 space-y-1 overflow-auto text-xs text-neutral-300">
+      <ul class="max-h-64 overflow-auto text-xs text-neutral-300 space-y-1">
         <li v-for="(event, idx) in events.slice(-20).reverse()" :key="idx">
-          <span class="font-mono text-neutral-100">{{ event.name }}</span>
+          <span class="text-neutral-100 font-mono">{{ event.name }}</span>
           — {{ (event.duration ?? 0).toFixed(2) }} ms
           <span v-if="event.meta" class="text-neutral-500"> {{ JSON.stringify(event.meta) }}</span>
         </li>
       </ul>
-
     </div>
 
     <Section
@@ -144,7 +143,7 @@ function toggleMode() {
         Latest payload
       </div>
 
-      <div v-if="previewText" class="space-y-2 rounded-lg border border-dashed border-neutral-700 bg-neutral-900/60 p-3">
+      <div v-if="previewText" class="border border-neutral-700 rounded-lg border-dashed bg-neutral-900/60 p-3 space-y-2">
         <pre class="max-h-60 overflow-auto whitespace-pre-wrap text-xs text-neutral-200">{{ previewText }}</pre>
       </div>
       <div v-else class="text-xs text-neutral-500">
