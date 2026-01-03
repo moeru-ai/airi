@@ -479,15 +479,13 @@ export const useChatStore = defineStore('chat', () => {
 
         if (rawMessage.role === 'assistant') {
           const { slices: _, tool_results, categorization: __categorization, ...rest } = rawMessage as ChatAssistantMessage
-          // Create a clean, serializable message object
-          return JSON.parse(JSON.stringify({
+          return {
             ...toRaw(rest),
             tool_results: toRaw(tool_results),
-          })) as Message
+          }
         }
 
-        // Ensure user/system messages are also serializable
-        return JSON.parse(JSON.stringify(rawMessage)) as Message
+        return rawMessage
       })
 
       // TODO: possible prototype pollution as key of activeContexts is from external source
