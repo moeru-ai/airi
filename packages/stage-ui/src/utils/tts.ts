@@ -285,7 +285,6 @@ export interface TTSOrderlyParallelProcessor<T = TTSChunkItem> {
  * ```ts
  * const processor = createTTSOrderlyParallelProcessor({
  *   maxConcurrent: 5,
- *   debug: true,  // Enable debug logging
  *   processItem: async (chunk) => {
  *     // Generate audio for chunk
  *     return { audioBuffer, text, special }
