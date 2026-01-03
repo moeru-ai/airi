@@ -27,6 +27,7 @@ const {
   position,
   modelParameters,
   currentMotion,
+  selectedRuntimeIdleMotion,
 } = storeToRefs(live2d)
 
 const selectedRuntimeMotion = ref<string>('')
@@ -50,19 +51,32 @@ onMounted(() => {
     console.info('Available motions:', runtimeMotions.value)
   }, { immediate: true })
 
-  // Restore selected motion
-  const savedPath = localStorage.getItem('selected-runtime-motion')
-  const savedName = localStorage.getItem('selected-runtime-motion-name')
-  if (savedPath) {
-    selectedRuntimeMotion.value = savedPath
-  }
-  if (savedName) {
-    selectedRuntimeMotionName.value = savedName
-  }
+  watch(selectedRuntimeIdleMotion, (motion) => {
+    selectedRuntimeMotion.value = motion?.path || ''
+    selectedRuntimeMotionName.value = motion?.name || ''
+  }, { immediate: true })
 
   // Add click outside handler
   document.addEventListener('click', handleClickOutside)
 })
+
+function handleMotionShuffle() {
+  selectedRuntimeMotion.value = 'Shuffle All'
+  selectedRuntimeMotionName.value = 'Shuffle All'
+  selectedRuntimeIdleMotion.value = {
+    path: 'Shuffle All',
+    name: 'Shuffle All',
+    group: 'Idle',
+  }
+
+  // Enable idle animation
+  live2dIdleAnimationEnabled.value = true
+
+  // Set the current motion to shuffle (no index)
+  currentMotion.value = { group: 'Idle' }
+
+  showMotionSelector.value = false
+}
 
 // Function to reset all parameters to default values
 function resetToDefaultParameters() {
@@ -73,10 +87,12 @@ function resetToDefaultParameters() {
 function handleMotionSelect(motion: any) {
   selectedRuntimeMotion.value = motion.displayPath // Store full path
   selectedRuntimeMotionName.value = motion.name // Store just the filename for display
-  localStorage.setItem('selected-runtime-motion', motion.displayPath)
-  localStorage.setItem('selected-runtime-motion-name', motion.name)
-  localStorage.setItem('selected-runtime-motion-group', motion.group)
-  localStorage.setItem('selected-runtime-motion-index', motion.index.toString())
+  selectedRuntimeIdleMotion.value = {
+    path: motion.displayPath,
+    name: motion.name,
+    group: motion.group,
+    index: motion.index,
+  }
 
   // Enable idle animation
   live2dIdleAnimationEnabled.value = true
@@ -306,6 +322,22 @@ onUnmounted(() => {
           <div v-if="runtimeMotions.length === 0" p-4 text-sm text-neutral-500 dark:text-neutral-400>
             No motions available
           </div>
+          <button
+            w-full px-4 py-2.5 text-left
+            hover:bg="neutral-100 dark:neutral-700"
+            transition-colors
+            :class="{
+              'bg-neutral-100 dark:bg-neutral-700': selectedRuntimeMotion === 'Shuffle All',
+            }"
+            @click="handleMotionShuffle"
+          >
+            <div text-sm text-neutral-900 font-medium dark:text-neutral-100>
+              Shuffle All (Idle)
+            </div>
+            <div truncate text-xs text-neutral-500 dark:text-neutral-400>
+              Randomly play motions from the Idle group
+            </div>
+          </button>
           <button
             v-for="motion in runtimeMotions"
             :key="motion.fullPath"
