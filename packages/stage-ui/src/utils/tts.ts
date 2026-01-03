@@ -263,3 +263,163 @@ export async function chunkEmitter(
     console.error('Error chunking stream to TTS queue:', e)
   }
 }
+<<<<<<< HEAD
+=======
+
+export interface TTSOrderlyParallelProcessorOptions<T = TTSChunkItem> {
+  maxConcurrent?: number
+  debug?: boolean
+  processItem: (item: T) => Promise<{ audioBuffer: AudioBuffer | null, text: string, special: string | null } | null>
+  onResult: (result: { audioBuffer: AudioBuffer | null, text: string, special: string | null } | null) => void
+}
+
+export interface TTSOrderlyParallelProcessor<T = TTSChunkItem> {
+  process: (item: T) => void
+  reset: () => void
+}
+
+/**
+ * Creates an orderly parallel processor that limits concurrent operations
+ * while maintaining result processing order.
+ *
+ * @example
+ * ```ts
+ * const processor = createTTSOrderlyParallelProcessor({
+ *   maxConcurrent: 5,
+ *   debug: true,  // Enable debug logging
+ *   processItem: async (chunk) => {
+ *     // Generate audio for chunk
+ *     return { audioBuffer, text, special }
+ *   },
+ *   onResult: (result) => {
+ *     // Handle result in order
+ *   }
+ * })
+ * ```
+ */
+export function createTTSOrderlyParallelProcessor<T = TTSChunkItem>(
+  options: TTSOrderlyParallelProcessorOptions<T>,
+): TTSOrderlyParallelProcessor<T> {
+  const {
+    maxConcurrent = 5,
+    debug = false,
+    processItem,
+    onResult,
+  } = options
+
+  // Counter for assigning unique index to each item
+  let index = 0
+  // Index of the next item whose result should be processed
+  let nextToProcess = 0
+  // Number of currently running tasks
+  let running = 0
+  // Queue of tasks waiting to start
+  const taskQueue: Array<() => Promise<void>> = []
+  // Map of pending items: index -> { result: undefined | result | null }
+  // - undefined: task is still running
+  // - null: task completed with no result
+  // - otherwise: task completed with result
+  const pending = new Map<number, { result?: { audioBuffer: AudioBuffer | null, text: string, special: string | null } | null }>()
+
+  // Debug logger
+  const logDebug = (...args: unknown[]) => {
+    if (debug)
+      // eslint-disable-next-line no-console
+      console.log('[TTS-Parallel]', ...args)
+  }
+
+  // Process completed results in order
+  // Only processes results sequentially, maintaining order even when tasks complete out of order
+  function drain() {
+    let drainedCount = 0
+    while (true) {
+      const entry = pending.get(nextToProcess)
+      // Stop if the next item hasn't finished yet (result is undefined)
+      if (!entry || entry.result === undefined)
+        break
+
+      const result = entry.result
+      pending.delete(nextToProcess)
+      onResult(result)
+      nextToProcess++
+      drainedCount++
+    }
+
+    if (drainedCount > 0)
+      logDebug('Drained', drainedCount, 'results, next:', nextToProcess)
+  }
+
+  // Start next tasks from the queue, up to the max concurrent limit
+  function startNext() {
+    let startedCount = 0
+    while (running < maxConcurrent && taskQueue.length > 0) {
+      running++
+      const nextTask = taskQueue.shift()!
+      nextTask().catch((error) => {
+        console.error('[TTS] Task execution failed:', error)
+      })
+      startedCount++
+    }
+
+    if (startedCount > 0)
+      logDebug('Started', startedCount, 'tasks, running:', running, '/', maxConcurrent)
+  }
+
+  // Process a new item
+  function process(item: T) {
+    const currentIndex = index++
+
+    logDebug('Queuing item', currentIndex, 'queue:', taskQueue.length, 'running:', running)
+
+    // Define the task that will process this item
+    const task = async () => {
+      logDebug('Item', currentIndex, 'started, running:', running)
+
+      try {
+        // Execute the item processing logic
+        const result = await processItem(item)
+        const entry = pending.get(currentIndex)
+        if (entry) {
+          entry.result = result
+        }
+        logDebug('Item', currentIndex, 'completed, result:', result ? 'has data' : 'null')
+        // Try to process completed results in order
+        drain()
+      }
+      catch (error) {
+        console.error(`[TTS] Processing item ${currentIndex} failed:`, error)
+        const entry = pending.get(currentIndex)
+        if (entry) {
+          entry.result = null
+        }
+        // Ensure we still drain even on error
+        drain()
+      }
+      finally {
+        running--
+        // Start next waiting task
+        startNext()
+      }
+    }
+
+    // Add to pending map with undefined result (in progress)
+    pending.set(currentIndex, { result: undefined })
+    // Queue the task for execution
+    taskQueue.push(task)
+    // Try to start immediately if we have capacity
+    startNext()
+  }
+
+  // Reset all state
+  function reset() {
+    index = 0
+    nextToProcess = 0
+    running = 0
+    taskQueue.length = 0
+    pending.clear()
+    logDebug('Reset')
+  }
+
+  return { process, reset }
+}
+>>>>>>> 67948bf9 (perf(stage-ui): optimize TTS parallel processor and fix race condition)

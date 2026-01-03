@@ -234,6 +234,7 @@ const playbackManager = createPlaybackManager<AudioBuffer>({
   ownerOverflowPolicy: 'steal-oldest',
 })
 
+<<<<<<< HEAD
 // 创建调试日志工具
 const speechPipelineLogger = {
   debug: (...args: unknown[]) => console.info('[SpeechPipeline]', ...args),
@@ -327,6 +328,68 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
     catch {
       return null
     }
+=======
+// Orderly parallel TTS processor: limits concurrent requests while maintaining playback order
+const ttsOrderlyParallel = createTTSOrderlyParallelProcessor<TTSChunkItem>({
+  maxConcurrent: 3,
+  debug: true, // Set to true for development debugging
+
+  async processItem(chunkItem) {
+    // Skip empty chunks without special markers
+    if (chunkItem.chunk === '' && !chunkItem.special)
+      return null
+
+    // Special token only
+    if (chunkItem.chunk === '' && chunkItem.special)
+      return { audioBuffer: null, text: '', special: chunkItem.special }
+
+    // Validate configuration
+    if (!activeSpeechProvider.value || !activeSpeechVoice.value) {
+      console.warn('[TTS] No provider or voice configured')
+      return null
+    }
+
+    const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
+    if (!provider) {
+      console.error('[TTS] Failed to initialize speech provider')
+      return null
+    }
+
+    const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+    const input = ssmlEnabled.value
+      ? speechStore.generateSSML(chunkItem.chunk, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value })
+      : chunkItem.chunk
+
+    const res = await generateSpeech({
+      ...provider.speech(activeSpeechModel.value, providerConfig),
+      input,
+      voice: activeSpeechVoice.value.id,
+    })
+
+    const audioBuffer = await audioContext.decodeAudioData(res)
+    return { audioBuffer, text: chunkItem.chunk, special: chunkItem.special }
+  },
+
+  onResult(result) {
+    if (!result)
+      return
+
+    // Handle special tokens
+    if (result.special && !result.audioBuffer) {
+      playSpecialToken(result.special)
+      return
+    }
+
+    // At this point, audioBuffer is guaranteed to be non-null
+    // since we returned early if it was null with a special token
+    if (result.audioBuffer) {
+      playbackQueue.value.enqueue({
+        audioBuffer: result.audioBuffer,
+        text: result.text,
+        special: result.special,
+      })
+    }
+>>>>>>> 67948bf9 (perf(stage-ui): optimize TTS parallel processor and fix race condition)
   },
   playback: playbackManager,
 })
