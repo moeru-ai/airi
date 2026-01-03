@@ -1,13 +1,18 @@
+import type { VRM } from '@pixiv/three-vrm'
+
 import cropImg from '@lemonneko/crop-empty-pixels'
 import localforage from 'localforage'
 
 import { Application } from '@pixi/app'
 import { extensions } from '@pixi/extensions'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
+import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
+import { clipFromVRMAnimation, loadVrm, loadVRMAnimation, reAnchorRootPositionTrack } from '@proj-airi/stage-ui-three/composables/vrm'
 import { until } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 import { Live2DFactory, Live2DModel } from 'pixi-live2d-display/cubism4'
+import { AmbientLight, AnimationMixer, DirectionalLight, PerspectiveCamera, Scene, WebGLRenderer } from 'three'
 import { ref } from 'vue'
 
 import '../utils/live2d-zip-loader'
@@ -102,9 +107,13 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     Live2DModel.registerTicker(Ticker)
     extensions.add(TickerPlugin)
 
+    const previewWidth = 1440
+    const previewHeight = 2560
+    const previewResolution = 2
+
     const offscreenCanvas = document.createElement('canvas')
-    offscreenCanvas.width = 720
-    offscreenCanvas.height = 1280
+    offscreenCanvas.width = previewWidth * previewResolution
+    offscreenCanvas.height = previewHeight * previewResolution
     offscreenCanvas.style.position = 'absolute'
     offscreenCanvas.style.top = '0'
     offscreenCanvas.style.left = '0'
@@ -116,11 +125,15 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
     const app = new Application({
       view: offscreenCanvas,
+      width: offscreenCanvas.width,
+      height: offscreenCanvas.height,
       // Ensure the drawing buffer persists so toDataURL() can read pixels
       preserveDrawingBuffer: true,
       backgroundAlpha: 0,
-      resizeTo: window,
+      autoDensity: false,
+      resolution: 1,
     })
+    app.stage.scale.set(previewResolution)
 
     const modelInstance = new Live2DModel()
     const objUrl = URL.createObjectURL(file)
@@ -143,8 +156,8 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     // transforms
     modelInstance.x = 275
     modelInstance.y = 450
-    modelInstance.width = offscreenCanvas.width
-    modelInstance.height = offscreenCanvas.height
+    modelInstance.width = previewWidth
+    modelInstance.height = previewHeight
     modelInstance.scale.set(0.1, 0.1)
     modelInstance.anchor.set(0.5, 0.5)
 
@@ -171,12 +184,117 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     return paddingDataUrl
   }
 
+  async function loadVrmModelPreview(file: File) {
+    const offscreenCanvas = document.createElement('canvas')
+    offscreenCanvas.width = 1440
+    offscreenCanvas.height = 2560
+    offscreenCanvas.style.position = 'absolute'
+    offscreenCanvas.style.top = '0'
+    offscreenCanvas.style.left = '0'
+    offscreenCanvas.style.objectFit = 'cover'
+    offscreenCanvas.style.display = 'block'
+    offscreenCanvas.style.zIndex = '10000000000'
+    offscreenCanvas.style.opacity = '0'
+    document.body.appendChild(offscreenCanvas)
+
+    const renderer = new WebGLRenderer({
+      canvas: offscreenCanvas,
+      alpha: true,
+      antialias: true,
+      preserveDrawingBuffer: true,
+    })
+    renderer.setSize(offscreenCanvas.width, offscreenCanvas.height, false)
+    renderer.setPixelRatio(1)
+
+    const scene = new Scene()
+    const camera = new PerspectiveCamera(40, offscreenCanvas.width / offscreenCanvas.height, 0.01, 1000)
+    const ambientLight = new AmbientLight(0xFFFFFF, 0.8)
+    const directionalLight = new DirectionalLight(0xFFFFFF, 0.8)
+    directionalLight.position.set(1, 1, 1)
+    scene.add(ambientLight, directionalLight)
+
+    const objUrl = URL.createObjectURL(file)
+    let vrmInstance: VRM | undefined
+
+    try {
+      const vrmData = await loadVrm(objUrl, { scene, lookAt: true })
+      if (!vrmData) {
+        return
+      }
+
+      vrmInstance = vrmData._vrm
+      const { modelCenter, initialCameraOffset } = vrmData
+
+      camera.position.copy(modelCenter).add(initialCameraOffset)
+      camera.lookAt(modelCenter)
+      camera.updateProjectionMatrix()
+
+      try {
+        const animation = await loadVRMAnimation(animations.idleLoop.toString())
+        const clip = await clipFromVRMAnimation(vrmData._vrm, animation)
+        if (clip) {
+          reAnchorRootPositionTrack(clip, vrmData._vrm)
+          const mixer = new AnimationMixer(vrmData._vrm.scene)
+          mixer.clipAction(clip).play()
+          mixer.update(1 / 60)
+        }
+      }
+      catch (error) {
+        console.warn('Failed to load VRM idle animation for preview.', error)
+      }
+
+      await new Promise<void>((resolve) => {
+        const start = performance.now()
+        const step = (time: number) => {
+          if (time - start >= 2000) {
+            resolve()
+            return
+          }
+          requestAnimationFrame(step)
+        }
+        requestAnimationFrame(step)
+      })
+      renderer.render(scene, camera)
+
+      const croppedCanvas = cropImg(offscreenCanvas)
+
+      // padding to 12:16
+      const paddingCanvas = document.createElement('canvas')
+      paddingCanvas.width = croppedCanvas.width > croppedCanvas.height / 16 * 12 ? croppedCanvas.width : croppedCanvas.height / 16 * 12
+      paddingCanvas.height = paddingCanvas.width / 12 * 16
+      const paddingCanvasCtx = paddingCanvas.getContext('2d')!
+
+      paddingCanvasCtx.drawImage(croppedCanvas, (paddingCanvas.width - croppedCanvas.width) / 2, (paddingCanvas.height - croppedCanvas.height) / 2, croppedCanvas.width, croppedCanvas.height)
+      return paddingCanvas.toDataURL()
+    }
+    catch (error) {
+      console.error(error)
+      return
+    }
+    finally {
+      if (vrmInstance && 'dispose' in vrmInstance) {
+        (vrmInstance as { dispose: () => void }).dispose()
+      }
+
+      renderer.dispose()
+      document.body.removeChild(offscreenCanvas)
+      URL.revokeObjectURL(objUrl)
+    }
+  }
+
   async function addDisplayModel(format: DisplayModelFormat, file: File) {
     await until(displayModelsFromIndexedDBLoading).toBe(false)
     const newDisplayModel: DisplayModelFile = { id: `display-model-${nanoid()}`, format, type: 'file', file, name: file.name, importedAt: Date.now() }
 
     if (format === DisplayModelFormat.Live2dZip) {
       const previewImage = await loadLive2DModelPreview(file)
+      if (!previewImage)
+        return
+
+      newDisplayModel.previewImage = previewImage
+    }
+    else if (format === DisplayModelFormat.VRM) {
+      const previewImage = await loadVrmModelPreview(file)
       if (!previewImage)
         return
 
