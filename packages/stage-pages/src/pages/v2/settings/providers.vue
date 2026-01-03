@@ -82,15 +82,14 @@ function handleClick(providerId: string) {
                         'bg-white', 'dark:bg-neutral-800/90',
                         'shadow-md', 'dark:shadow-lg',
                         'backdrop-blur-md',
-                        'will-change-[opacity,transform] min-w-[400px] rounded-xl p-2 outline-none',
+                        'will-change-[opacity,transform] min-w-[300px] rounded-xl p-2 outline-none',
                         'data-[side=bottom]:animate-slideUpAndFade data-[side=left]:animate-slideRightAndFade data-[side=right]:animate-slideLeftAndFade data-[side=top]:animate-slideDownAndFade',
                       ]"
                       :side-offset="8"
                       align="start"
                     >
                       <Input v-model="availableProviderSearchQuery" placeholder="Search supported providers..." class="mb-2" variant="primary-dimmed" />
-
-                      <div flex flex-col gap-1>
+                      <div class="max-h-50dvh flex flex-col gap-1 overflow-y-auto">
                         <div v-for="(provider) in availableProvidersFiltered" :key="provider.id" @click="() => handleAdd(provider.id)">
                           <div
                             bg="hover:neutral-200/80 dark:hover:neutral-700/80"
@@ -100,7 +99,7 @@ function handleClick(providerId: string) {
                             <div class="relative w-4">
                               <div :class="[provider.iconColor || provider.icon, 'absolute left-50% top-50% -translate-x-1/2 -translate-y-1/2']" />
                             </div>
-                            <div>{{ provider?.name }}</div>
+                            <div>{{ provider?.nameLocalized || provider.name }}</div>
                           </div>
                         </div>
                       </div>
