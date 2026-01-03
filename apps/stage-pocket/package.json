@@ -85,7 +85,7 @@
     "splitpanes": "catalog:",
     "three": "^0.182.0",
     "unified": "^11.0.5",
-    "unspeech": "^0.1.7",
+    "unspeech": "catalog:xsai",
     "uuid": "^13.0.0",
     "valibot": "^1.2.0",
     "vaul-vue": "^0.4.1",

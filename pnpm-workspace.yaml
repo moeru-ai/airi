@@ -70,6 +70,8 @@ catalogs:
     '@vitest/browser-playwright': ^4.0.16
     '@vitest/coverage-v8': ^4.0.16
     vitest: ^4.0.16
+  xsai:
+    'unspeech': ^0.1.11
 
 onlyBuiltDependencies:
   - '@discordjs/opus'
