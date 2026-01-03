@@ -268,7 +268,6 @@ export async function chunkEmitter(
 
 export interface TTSOrderlyParallelProcessorOptions<T = TTSChunkItem> {
   maxConcurrent?: number
-  debug?: boolean
   processItem: (item: T) => Promise<{ audioBuffer: AudioBuffer | null, text: string, special: string | null } | null>
   onResult: (result: { audioBuffer: AudioBuffer | null, text: string, special: string | null } | null) => void
 }
@@ -302,7 +301,6 @@ export function createTTSOrderlyParallelProcessor<T = TTSChunkItem>(
 ): TTSOrderlyParallelProcessor<T> {
   const {
     maxConcurrent = 5,
-    debug = false,
     processItem,
     onResult,
   } = options
@@ -321,13 +319,6 @@ export function createTTSOrderlyParallelProcessor<T = TTSChunkItem>(
   // - otherwise: task completed with result
   const pending = new Map<number, { result?: { audioBuffer: AudioBuffer | null, text: string, special: string | null } | null }>()
 
-  // Debug logger
-  const logDebug = (...args: unknown[]) => {
-    if (debug)
-      // eslint-disable-next-line no-console
-      console.log('[TTS-Parallel]', ...args)
-  }
-
   // Process completed results in order
   // Only processes results sequentially, maintaining order even when tasks complete out of order
   function drain() {
@@ -340,13 +331,18 @@ export function createTTSOrderlyParallelProcessor<T = TTSChunkItem>(
 
       const result = entry.result
       pending.delete(nextToProcess)
-      onResult(result)
+
+      // Wrap onResult in try...catch to prevent consumer errors from blocking the queue
+      try {
+        onResult(result)
+      }
+      catch (e) {
+        console.error(`[TTS] onResult callback failed for item ${nextToProcess}:`, e)
+      }
+
       nextToProcess++
       drainedCount++
     }
-
-    if (drainedCount > 0)
-      logDebug('Drained', drainedCount, 'results, next:', nextToProcess)
   }
 
   // Start next tasks from the queue, up to the max concurrent limit
@@ -360,21 +356,14 @@ export function createTTSOrderlyParallelProcessor<T = TTSChunkItem>(
       })
       startedCount++
     }
-
-    if (startedCount > 0)
-      logDebug('Started', startedCount, 'tasks, running:', running, '/', maxConcurrent)
   }
 
   // Process a new item
   function process(item: T) {
     const currentIndex = index++
 
-    logDebug('Queuing item', currentIndex, 'queue:', taskQueue.length, 'running:', running)
-
     // Define the task that will process this item
     const task = async () => {
-      logDebug('Item', currentIndex, 'started, running:', running)
-
       try {
         // Execute the item processing logic
         const result = await processItem(item)
@@ -382,7 +371,6 @@ export function createTTSOrderlyParallelProcessor<T = TTSChunkItem>(
         if (entry) {
           entry.result = result
         }
-        logDebug('Item', currentIndex, 'completed, result:', result ? 'has data' : 'null')
         // Try to process completed results in order
         drain()
       }
@@ -417,7 +405,6 @@ export function createTTSOrderlyParallelProcessor<T = TTSChunkItem>(
     running = 0
     taskQueue.length = 0
     pending.clear()
-    logDebug('Reset')
   }
 
   return { process, reset }
