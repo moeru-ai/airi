@@ -6,6 +6,7 @@ import { defineProvider } from '../registry'
 
 export const providerOllama = defineProvider({
   id: 'ollama',
+  order: 2,
   name: 'Ollama',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.ollama.title'),
   description: 'Local Ollama server for fast model iteration.',

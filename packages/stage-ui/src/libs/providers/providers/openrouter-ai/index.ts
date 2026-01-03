@@ -17,6 +17,7 @@ type OpenRouterConfig = z.input<typeof openRouterConfigSchema>
 
 export const providerOpenRouterAI = defineProvider<OpenRouterConfig>({
   id: 'openrouter-ai',
+  order: 0,
   name: 'OpenRouter',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.openrouter.title'),
   description: 'openrouter.ai',

@@ -17,6 +17,7 @@ type DeepSeekConfig = z.input<typeof deepSeekConfigSchema>
 
 export const providerDeepSeek = defineProvider<DeepSeekConfig>({
   id: 'deepseek',
+  order: 4,
   name: 'DeepSeek',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.deepseek.title'),
   description: 'deepseek.com',

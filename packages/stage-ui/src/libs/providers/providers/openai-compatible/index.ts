@@ -18,6 +18,7 @@ type OpenAICompatibleConfig = z.input<typeof openAICompatibleConfigSchema>
 
 export const providerOpenAICompatible = defineProvider<OpenAICompatibleConfig>({
   id: 'openai-compatible',
+  order: 3,
   name: 'OpenAI Compatible',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.openai-compatible.title'),
   description: 'OpenAI-compatible chat APIs with API key authentication.',

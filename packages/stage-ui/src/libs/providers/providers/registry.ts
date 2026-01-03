@@ -3,13 +3,14 @@ import type { $ZodType } from 'zod/v4/core'
 
 import type { ProviderDefinition } from '../types'
 
-import { sortBy } from 'es-toolkit'
+import { orderBy } from 'es-toolkit'
 
 const providerRegistry = new Map<string, ProviderDefinition>()
 
 export function listProviders(): ProviderDefinition[] {
-  const providerDefs = Array.from(providerRegistry.values())
-  return sortBy(providerDefs, [p => p.order, p => p.name.toLowerCase()])
+  const providerDefs = Array.from(providerRegistry.values()).map(def => ({ order: 99999, ...def }))
+  const sorted = orderBy(providerDefs, [p => p.order, 'name'], ['asc', 'asc'])
+  return sorted
 }
 
 export function getDefinedProvider(id: string): ProviderDefinition | undefined {

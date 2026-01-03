@@ -17,6 +17,7 @@ type OpenAICompatibleConfig = z.input<typeof openAICompatibleConfigSchema>
 
 export const providerOpenAI = defineProvider<OpenAICompatibleConfig>({
   id: 'openai',
+  order: 1,
   name: 'OpenAI',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.openai.title'),
   description: 'OpenAI',

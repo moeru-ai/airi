@@ -17,6 +17,7 @@ type AI302Config = z.input<typeof ai302ConfigSchema>
 
 export const provider302AI = defineProvider<AI302Config>({
   id: '302-ai',
+  order: 7,
   name: '302.AI',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.302-ai.title'),
   description: '302.ai',
