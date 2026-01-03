@@ -1,5 +1,5 @@
 import type { TraceEvent } from '@proj-airi/stage-shared'
-import type { ChatProvider } from '@xsai-ext/shared-providers'
+import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import type { StreamEvent } from './llm'
 
