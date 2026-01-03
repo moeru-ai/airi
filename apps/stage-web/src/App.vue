@@ -15,8 +15,9 @@ import { useI18n } from 'vue-i18n'
 import { RouterView } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
+import PerformanceOverlay from './components/Devtools/PerformanceOverlay.vue'
+
 import { usePWAStore } from './stores/pwa'
-import LagOverlay from './components/Devtools/LagOverlay.vue'
 
 import 'vue-sonner/style.css'
 
@@ -124,7 +125,7 @@ function handleSetupSkipped() {
     @skipped="handleSetupSkipped"
   />
 
-  <LagOverlay />
+  <PerformanceOverlay />
 </template>
 
 <style>

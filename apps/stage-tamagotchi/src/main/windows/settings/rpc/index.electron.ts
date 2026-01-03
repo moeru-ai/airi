@@ -16,7 +16,7 @@ export async function setupSettingsWindowInvokes(params: {
   settingsWindow: BrowserWindow
   widgetsManager: WidgetsWindowManager
   autoUpdater: AutoUpdater
-  devtoolsWindow: DevtoolsWindowManager
+  devtoolsMarkdownStressWindow: DevtoolsWindowManager
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -32,6 +32,6 @@ export async function setupSettingsWindowInvokes(params: {
 
   defineInvokeHandler(context, electronOpenSettingsDevtools, async () => params.settingsWindow.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenDevtoolsWindow, async (payload) => {
-    await params.devtoolsWindow.openWindow(payload?.route)
+    await params.devtoolsMarkdownStressWindow.openWindow(payload?.route)
   })
 }

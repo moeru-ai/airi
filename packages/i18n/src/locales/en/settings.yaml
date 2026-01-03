@@ -70,14 +70,6 @@ live2d:
 microphone: Microphone
 models: Model
 pages:
-  devtools:
-    pages:
-      lag-visualizer:
-        title: Lag Visualizer
-        description: Toggle FPS/long task/memory overlay
-      markdown-stress:
-        title: Markdown Stress
-        description: Stress markdown parsing and rendering with heavy chat payloads
   card:
     activate: Activate
     active: Active
@@ -746,8 +738,8 @@ pages:
           title: Developer
           sections:
             section:
-              lag-visualizer:
-                title: Lag Visualizer
+              performance-visualizer:
+                title: Performance Visualizer
                 description: Toggle FPS/long task/memory overlay
               markdown-stress:
                 title: Markdown Stress

@@ -34,6 +34,8 @@ devtools:
       title: Context Flow
     lag-visualizer:
       title: Lag Visualizer
+    performance-visualizer:
+      title: Performance Visualizer
       description: Toggle FPS/long task/memory overlay
     markdown-stress:
       title: Markdown Stress

@@ -20,8 +20,10 @@ export function setupDevtoolsWindow(): DevtoolsWindowManager {
   const reusable = createReusableWindow(async () => {
     const window = new BrowserWindow({
       title: 'Devtools',
-      width: 1100,
-      height: 900,
+      width: 1020,
+      height: 720,
+      minWidth: 640,
+      minHeight: 480,
       show: false,
       icon,
       webPreferences: {

@@ -85,7 +85,7 @@ function toggleRecording() {
   >
     <div flex="~ row items-center gap-2" justify-between>
       <div text="xs neutral-200" uppercase tracking="wide">
-        Lag Overlay
+        Performance Overlay
       </div>
       <button
         type="button"

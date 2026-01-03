@@ -15,10 +15,10 @@ const menu = computed(() => [
     to: '/devtools/audio-record',
   },
   {
-    title: t('settings.pages.system.sections.section.developer.sections.section.lag-visualizer.title'),
-    description: t('settings.pages.system.sections.section.developer.sections.section.lag-visualizer.description'),
+    title: t('settings.pages.system.sections.section.developer.sections.section.performance-visualizer.title'),
+    description: t('settings.pages.system.sections.section.developer.sections.section.performance-visualizer.description'),
     icon: 'i-solar:sledgehammer-bold-duotone',
-    to: '/devtools/lag-visualizer',
+    to: '/devtools/performance-visualizer',
   },
   {
     title: t('settings.pages.system.sections.section.developer.sections.section.markdown-stress.title'),

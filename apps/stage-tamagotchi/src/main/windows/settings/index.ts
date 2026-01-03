@@ -15,7 +15,7 @@ import { setupSettingsWindowInvokes } from './rpc/index.electron'
 export function setupSettingsWindowReusableFunc(params: {
   widgetsManager: WidgetsWindowManager
   autoUpdater: AutoUpdater
-  devtoolsWindow: DevtoolsWindowManager
+  devtoolsMarkdownStressWindow: DevtoolsWindowManager
   onWindowCreated?: (window: BrowserWindow) => void
 }) {
   return createReusableWindow(async () => {
@@ -46,7 +46,7 @@ export function setupSettingsWindowReusableFunc(params: {
       settingsWindow: window,
       widgetsManager: params.widgetsManager,
       autoUpdater: params.autoUpdater,
-      devtoolsWindow: params.devtoolsWindow,
+      devtoolsMarkdownStressWindow: params.devtoolsMarkdownStressWindow,
     })
 
     return window
