@@ -35,6 +35,7 @@ import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
 import { createQueue } from '../../utils/queue'
+import { createTTSOrderlyParallelProcessor } from '../../utils/tts'
 
 withDefaults(defineProps<{
   paused?: boolean
@@ -221,14 +222,65 @@ async function handleSpeechGeneration(ctx: { data: TTSChunkItem }) {
   }
 }
 
-const ttsQueue = createQueue<TTSChunkItem>({
-  handlers: [
-    handleSpeechGeneration,
-  ],
+// Orderly parallel TTS processor: limits concurrent requests while maintaining playback order
+const ttsOrderlyParallel = createTTSOrderlyParallelProcessor<TTSChunkItem>({
+  maxConcurrent: 3,
+  debug: false, // Set to true for development debugging
+
+  async processItem(chunkItem) {
+    // Skip empty chunks without special markers
+    if (chunkItem.chunk === '' && !chunkItem.special)
+      return null
+
+    // Special token only
+    if (chunkItem.chunk === '' && chunkItem.special)
+      return { audioBuffer: null as any, text: '', special: chunkItem.special }
+
+    // Validate configuration
+    if (!activeSpeechProvider.value || !activeSpeechVoice.value) {
+      console.warn('[TTS] No provider or voice configured')
+      return null
+    }
+
+    const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
+    if (!provider) {
+      console.error('[TTS] Failed to initialize speech provider')
+      return null
+    }
+
+    const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+    const input = ssmlEnabled.value
+      ? speechStore.generateSSML(chunkItem.chunk, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value })
+      : chunkItem.chunk
+
+    const res = await generateSpeech({
+      ...provider.speech(activeSpeechModel.value, providerConfig),
+      input,
+      voice: activeSpeechVoice.value.id,
+    })
+
+    const audioBuffer = await audioContext.decodeAudioData(res)
+    return { audioBuffer, text: chunkItem.chunk, special: chunkItem.special }
+  },
+
+  onResult(result) {
+    if (!result)
+      return
+
+    // Handle special tokens
+    if (result.special && !result.audioBuffer) {
+      playSpecialToken(result.special)
+      return
+    }
+
+    // Enqueue normal audio for playback
+    playbackQueue.value.enqueue(result)
+  },
 })
 
 onTextSegmented((chunkItem) => {
-  ttsQueue.enqueue(chunkItem)
+  // Process immediately without blocking
+  ttsOrderlyParallel.process(chunkItem)
 })
 
 function startLipSyncLoop() {
