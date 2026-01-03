@@ -452,11 +452,11 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'http://localhost:11434/v1/',
       }),
-      createProvider: async config => createOllama((config.baseUrl as string).trim()),
+      createProvider: async config => createOllama('', (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
-            ...createOllama((config.baseUrl as string).trim()).model(),
+            ...createOllama('', (config.baseUrl as string).trim()).model(),
           })).map((model) => {
             return {
               id: model.id,
