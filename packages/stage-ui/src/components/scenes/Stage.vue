@@ -177,7 +177,6 @@ onPlaybackFinished(({ special }) => {
 // Orderly parallel TTS processor: limits concurrent requests while maintaining playback order
 const ttsOrderlyParallel = createTTSOrderlyParallelProcessor<TTSChunkItem>({
   maxConcurrent: 3,
-  debug: true, // Set to true for development debugging
 
   async processItem(chunkItem) {
     // Skip empty chunks without special markers
