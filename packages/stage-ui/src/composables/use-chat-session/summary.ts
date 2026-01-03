@@ -1,4 +1,4 @@
-import type { ChatAssistantMessage, ChatHistoryItem } from '../types/chat'
+import type { ChatAssistantMessage, ChatHistoryItem } from '../../types/chat'
 
 /**
  * Extract all reasoning from a session's messages

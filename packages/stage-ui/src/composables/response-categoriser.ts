@@ -378,7 +378,7 @@ export function createStreamingCategorizer(
               const endOffset = getOffsetFromPosition(fullText, position.end)
               // Check if this element actually has a closing tag in the source
               const elementSource = fullText.slice(
-                getOffsetFromPosition(fullText, position.start) ?? 0,
+                getOffsetFromPosition(fullText, position.start),
                 endOffset,
               )
               const expectedClosingTag = `</${node.tagName}>`

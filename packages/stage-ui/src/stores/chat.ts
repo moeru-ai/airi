@@ -11,7 +11,7 @@ import { computed, ref, toRaw, watch } from 'vue'
 
 import { useAnalytics } from '../composables'
 import { useLlmmarkerParser } from '../composables/llmmarkerParser'
-import { categorizeResponse, createStreamingCategorizer } from '../composables/responseCategorizer'
+import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
 import { useLLM } from '../stores/llm'
 import { createQueue } from '../utils/queue'
 import { TTS_FLUSH_INSTRUCTION } from '../utils/tts'
