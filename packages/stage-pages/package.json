@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@moeru/eventa": "^1.0.0-alpha.10",
+    "@moeru/std": "catalog:",
     "@proj-airi/ccc": "workspace:*",
     "@proj-airi/i18n": "workspace:*",
     "@proj-airi/server-sdk": "workspace:*",
@@ -40,15 +41,18 @@
     "pinia": "^3.0.4",
     "posthog-js": "catalog:",
     "reka-ui": "^2.7.0",
+    "splitpanes": "catalog:",
     "unspeech": "^0.1.7",
     "vue": "^3.5.25",
     "vue-i18n": "^11.2.2",
-    "vue-router": "^4.6.4"
+    "vue-router": "^4.6.4",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@nekopaw/tempora": "catalog:",
     "@proj-airi/stage-shared": "workspace:^",
     "@types/audioworklet": "catalog:",
+    "@types/splitpanes": "catalog:",
     "@types/three": "^0.182.0",
     "unplugin-info": "catalog:",
     "vue-tsc": "^3.1.8"

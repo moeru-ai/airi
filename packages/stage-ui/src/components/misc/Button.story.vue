@@ -22,7 +22,7 @@ import { Button } from '@proj-airi/ui'
           <Button label="Secondary Button" variant="secondary" />
           <Button label="Caution Button" variant="caution" />
           <Button label="Danger Button" variant="danger" />
-          <Button label="Pure Button" variant="pure" />
+          <Button label="Ghost Button" variant="ghost" />
         </div>
       </div>
     </Variant>
@@ -36,7 +36,7 @@ import { Button } from '@proj-airi/ui'
         <Button label="Disabled Secondary" variant="secondary" disabled />
         <Button label="Disabled Caution" variant="caution" disabled />
         <Button label="Disabled Danger" variant="danger" disabled />
-        <Button label="Disabled Pure" variant="pure" disabled />
+        <Button label="Disabled Ghost" variant="ghost" disabled />
       </div>
     </Variant>
 
@@ -49,7 +49,7 @@ import { Button } from '@proj-airi/ui'
         <Button label="Loading Secondary" variant="secondary" loading />
         <Button label="Loading Caution" variant="caution" loading />
         <Button label="Loading Danger" variant="danger" loading />
-        <Button label="Loading Pure" variant="pure" loading />
+        <Button label="Loading Ghost" variant="ghost" loading />
       </div>
     </Variant>
 
@@ -62,7 +62,7 @@ import { Button } from '@proj-airi/ui'
         <Button label="Warn" variant="caution" icon="i-solar:danger-triangle-line-duotone" />
         <Button label="Delete Item" variant="danger" icon="i-solar:trash-bin-trash-line-duotone" />
         <Button label="Settings" variant="secondary" icon="i-solar:settings-line-duotone" />
-        <Button label="Plain" variant="pure" icon="i-solar:emoji-funny-circle-line-duotone" />
+        <Button label="Plain" variant="ghost" icon="i-solar:emoji-funny-circle-line-duotone" />
       </div>
     </Variant>
 
@@ -75,7 +75,7 @@ import { Button } from '@proj-airi/ui'
         <Button variant="secondary" icon="i-solar:settings-line-duotone" />
         <Button variant="caution" icon="i-solar:danger-triangle-line-duotone" />
         <Button variant="danger" icon="i-solar:trash-bin-trash-line-duotone" />
-        <Button variant="pure" icon="i-solar:neutral-face-outline" />
+        <Button variant="ghost" icon="i-solar:neutral-face-outline" />
       </div>
     </Variant>
 

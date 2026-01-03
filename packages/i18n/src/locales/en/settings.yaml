@@ -190,7 +190,7 @@ pages:
         reset: Reset desktop data
     confirmations:
       tooltip: Are you sure?
-      yes: Yes
+      'yes': 'Yes'
     status:
       exported: Chat sessions exported.
       imported: Chat sessions imported.
@@ -424,6 +424,71 @@ pages:
         AIRI requires at least one {chat} provider to be configured to think,
         and behave properly. You could think of it as the brain of the
         characters living in AIRI system.
+    catalog:
+      edit:
+        config-id-not-found: Provider configuration not found.
+        definition-id-not-found: Provider definition not found.
+        actions:
+          more-options: More options
+          delete: Delete
+        validation:
+          failed:
+            title: Please check your provider settings, validation failed.
+            description: You can still save the current configuration if you want to proceed.
+            action: Save anyway
+        config:
+          common:
+            fields:
+              field:
+                api-key:
+                  label: API Key
+                  description: API Key used to authorize requests to this provider
+                  placeholder: sk-...
+                base-url:
+                  label: Base URL
+                  description: >-
+                    The base url used to connect to remote service. Often looks
+                    like http://localhost:11434/v1 or https://example.com/v1.
+                  placeholder: Base url...
+                headers:
+                  label: Custom HTTP Headers
+                  description: Add custom HTTP headers
+                  key:
+                    placeholder: Key
+                  value:
+                    placeholder: Value
+        validators:
+          actions:
+            validate: Validate
+          empty: No validation steps available.
+          openai-compatible:
+            check-config:
+              title: Configuration
+            check-connectivity:
+              title: Connectivity
+            check-supports-model-listing:
+              title: List Models
+            check-supports-chat-completion:
+              title: Chat Completion
+          status:
+            validating: Validating...
+            valid: Passed
+            invalid: Errored
+          title: Checks
+        providers:
+          provider:
+            ollama:
+              troubleshooting:
+                validators:
+                  openai-compatible-check-connectivity:
+                    label: Extra configuration needed for Ollama
+                    content: >-
+                      Sorry to hear that Connectivity check failed for Ollama.
+                      Don't worry, for Ollama instances, extra configuration is
+                      needed for making it pass for Ollama. You need to set
+                      <code>OLLAMA_HOST</code> explicitly when start the Ollama
+                      application or Ollama CLI server, for detailed
+                      information, check <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama integration guide</a>.
     common:
       continueAnyway: Continue Anyway
       fields:
@@ -801,4 +866,6 @@ vrm:
     skybox-specular-mix: Specular Mix
 wip:
   title: Work in Progress
-  description: This feature is currently under development and not yet publicly available. Check back in future updates for this functionality.
+  description: >-
+    This feature is currently under development and not yet publicly available.
+    Check back in future updates for this functionality.
