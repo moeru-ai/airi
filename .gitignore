@@ -105,7 +105,6 @@ web-ext.config.ts
 # Data
 .postgres
 twitter-session.json
-services/satori-bot/data/db.json
 
 # Symlinks created by nix build
 result*

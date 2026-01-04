@@ -91,15 +91,22 @@ export async function imagineAnAction(
       completion_tokens: res.usage.completion_tokens,
     }).log('Generated action')
 
+    // 清理代码块标记（支持多种格式）
     responseText = res.text
-      .replace(/^```json\s*\n/, '')
-      .replace(/\n```$/, '')
-      .replace(/^```\s*\n/, '')
-      .replace(/\n```$/, '')
+      .replace(/^```(?:json)?\s*/m, '') // 移除开头的 ```json 或 ```（支持可选的 json 标记）
+      .replace(/\s*```\s*$/m, '') // 移除结尾的 ```（允许前后有空格）
       .trim()
 
-    const action = parse(responseText) as Action
-    return action
+    const parsed = parse(responseText) as any
+
+    // 如果 LLM 返回的 JSON 有 parameters 包装层，需要展开
+    if (parsed.parameters && typeof parsed.parameters === 'object') {
+      const { parameters, ...rest } = parsed
+      const action = { ...rest, ...parameters } as Action
+      return action
+    }
+
+    return parsed as Action
   }
   catch (err) {
     const error = err as Error

@@ -1,4 +1,4 @@
-import { env } from 'node:process'
+import process, { env } from 'node:process'
 
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 
@@ -66,7 +66,7 @@ async function main() {
     })
 
     // Get or create chat context
-    const chatCtx = ensureChatContext(botContext, channelId)
+    const chatCtx = await ensureChatContext(botContext, channelId)
 
     // Set platform and selfId if not set
     if (!chatCtx.platform) {

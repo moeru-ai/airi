@@ -1,5 +1,3 @@
-import { env } from 'node:process'
-
 import { velin } from '../utils/velin'
 
 export async function personality() {
@@ -7,7 +5,5 @@ export async function personality() {
 }
 
 export async function systemPrompt() {
-  return await (velin<{ responseLanguage: string }>('system-action-gen-v1.velin.md', import.meta.url))({
-    responseLanguage: env.LLM_RESPONSE_LANGUAGE || 'the same language as the user',
-  })
+  return await (velin('system-action-gen-v1.velin.md', import.meta.url))()
 }

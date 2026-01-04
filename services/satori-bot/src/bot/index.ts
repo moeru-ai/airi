@@ -46,7 +46,7 @@ async function dispatchAction(
     }
 
     case 'send_message': {
-      const chatCtx = ensureChatContext(ctx, action.channelId)
+      const chatCtx = await ensureChatContext(ctx, action.channelId)
       chatCtx.actions.push({
         action,
         result: `AIRI System: Sending message to channel ${action.channelId}: ${action.content}`,
@@ -56,7 +56,7 @@ async function dispatchAction(
     }
 
     case 'read_unread_messages': {
-      const chatCtx = ensureChatContext(ctx, action.channelId)
+      const chatCtx = await ensureChatContext(ctx, action.channelId)
       const res = await readUnreadMessages(ctx, chatCtx, action)
       if (res?.result) {
         ctx.logger.log('Messages read')
@@ -216,7 +216,7 @@ async function loopIterationPeriodicForExistingChannels(ctx: BotContext, satoriC
 
   // Process channels sequentially to avoid overwhelming the LLM API
   for (const channelId of channelsWithUnread) {
-    const chatCtx = ensureChatContext(ctx, channelId)
+    const chatCtx = await ensureChatContext(ctx, channelId)
 
     try {
       const action = await imagineAnAction(
@@ -338,15 +338,19 @@ export async function onMessageArrival(
   }
 }
 
-export function ensureChatContext(botCtx: BotContext, channelId: string): ChatContext {
+export async function ensureChatContext(botCtx: BotContext, channelId: string): Promise<ChatContext> {
   if (botCtx.chats.has(channelId)) {
     return botCtx.chats.get(channelId)!
   }
 
+  // Try to get channel info from database
+  const channels = await listChannels()
+  const channelInfo = channels.find(c => c.id === channelId)
+
   const newChatContext: ChatContext = {
     channelId,
-    platform: '',
-    selfId: '',
+    platform: channelInfo?.platform || '',
+    selfId: channelInfo?.selfId || '',
     currentTask: undefined,
     currentAbortController: undefined,
     messages: [],

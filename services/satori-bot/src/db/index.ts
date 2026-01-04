@@ -45,8 +45,16 @@ export async function initDb() {
 export async function recordChannel(id: string, name: string, platform: string, selfId: string) {
   await db.read()
 
-  const existing = db.data.channels.find(c => c.id === id && c.platform === platform && c.selfId === selfId)
-  if (!existing) {
+  // Find existing channel by ID only (platform/selfId may change on restart)
+  const existingIndex = db.data.channels.findIndex(c => c.id === id)
+
+  if (existingIndex >= 0) {
+    // Update existing channel with new platform/selfId
+    db.data.channels[existingIndex] = { id, name, platform, selfId }
+    await db.write()
+  }
+  else {
+    // Create new channel
     db.data.channels.push({ id, name, platform, selfId })
     await db.write()
   }
