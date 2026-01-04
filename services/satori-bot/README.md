@@ -96,7 +96,10 @@ pnpm --filter @proj-airi/satori-bot typecheck
 
 ### 2. 如何自定义 AI 人格？
 
-编辑 [`src/prompts/index.ts`](src/prompts/index.ts:1) 中的 `personality()` 函数。
+可以编辑以下文件：
+
+- `services\satori-bot\src\prompts\personality-v1.velin.md`
+- `services\satori-bot\src\prompts\system-action-gen-v1.velin.md`
 
 ### 3. 数据库文件在哪里？
 
