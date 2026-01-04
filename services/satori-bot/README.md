@@ -25,7 +25,7 @@ pnpm install
 复制 `.env` 文件并修改配置：
 
 ```bash
-# 在 services\satori-bot 目录
+# 在 services/satori-bot 目录
 cp .env .env.local
 ```
 
