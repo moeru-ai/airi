@@ -4,7 +4,3 @@
 interface ImportMetaEnv {
   // Env variables...
 }
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv
-}
