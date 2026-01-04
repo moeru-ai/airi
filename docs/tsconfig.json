@@ -26,15 +26,12 @@
     "skipLibCheck": true
   },
   "include": [
-    "/**/*.vue",
     "components/**/*.vue",
     ".vitepress/**/*.vue",
-    "/**/*.ts",
-    "/**/*.md",
-    ".vitepress/**/*.ts",
-    ".vitepress/**/*.vue"
+    ".vitepress/**/*.ts"
   ],
   "exclude": [
+    "**/dist/**",
     "node_modules"
   ],
   "vueCompilerOptions": {
