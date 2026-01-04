@@ -6,6 +6,9 @@
     ],
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "types": [
+      "node"
+    ],
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
