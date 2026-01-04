@@ -143,9 +143,32 @@ describe('createStreamingCategorizer', () => {
     categorizer.consume(text)
     const result = categorizer.end()
 
-    expect(result.speech).toBe('Hello world!')
-    expect(result.reasoning).toBe('thinking <|EMOTE_CURIOUS|> about this <|DELAY:2|> and that')
+    // Log what was recognized
+    console.info('📋 Test: should handle <think> tag with special tokens')
+    console.info('  Input text:', text)
+    console.info('  Segments found:', result.segments.length)
+    console.info('  Tag name:', result.segments[0]?.tagName)
+    console.info('  Segment content:', result.segments[0]?.content)
+    console.info('  Reasoning:', result.reasoning)
+    console.info('  Speech:', result.speech)
+
+    // Verify tag is recognized
+    expect(result.segments).toHaveLength(1)
     expect(result.segments[0].tagName).toBe('think')
+
+    // Verify special tokens are preserved in segment content
+    expect(result.segments[0].content).toContain('<|EMOTE_CURIOUS|>')
+    expect(result.segments[0].content).toContain('<|DELAY:2|>')
+
+    // Verify special tokens are in reasoning output
+    expect(result.reasoning).toContain('<|EMOTE_CURIOUS|>')
+    expect(result.reasoning).toContain('<|DELAY:2|>')
+
+    // Verify speech excludes the reasoning content
+    expect(result.speech).toBe('Hello world!')
+    expect(result.speech).not.toContain('<|EMOTE_CURIOUS|>')
+    expect(result.speech).not.toContain('<|DELAY:2|>')
+    expect(result.reasoning).toBe('thinking <|EMOTE_CURIOUS|> about this <|DELAY:2|> and that')
   })
 
   it('should handle <think> with special tokens like <|EMOTE_HAPPY|> in between', () => {
@@ -156,11 +179,34 @@ describe('createStreamingCategorizer', () => {
     categorizer.consume(text)
     const result = categorizer.end()
 
-    expect(result.speech).toBe('Hello world!')
-    expect(result.reasoning).toBe('thinking <|EMOTE_HAPPY|> about this <|DELAY:1|> and that')
+    // Log what was recognized
+    console.info('📋 Test: should handle <think> with special tokens like <|EMOTE_HAPPY|>')
+    console.info('  Input text:', text)
+    console.info('  Segments found:', result.segments.length)
+    console.info('  Tag name:', result.segments[0]?.tagName)
+    console.info('  Segment content:', result.segments[0]?.content)
+    console.info('  Has <|EMOTE_HAPPY|>:', result.segments[0]?.content.includes('<|EMOTE_HAPPY|>'))
+    console.info('  Has <|DELAY:1|>:', result.segments[0]?.content.includes('<|DELAY:1|>'))
+    console.info('  Reasoning:', result.reasoning)
+    console.info('  Speech:', result.speech)
+
+    // Verify tag is recognized
+    expect(result.segments).toHaveLength(1)
     expect(result.segments[0].tagName).toBe('think')
+
+    // Verify special tokens are preserved in segment content
     expect(result.segments[0].content).toContain('<|EMOTE_HAPPY|>')
     expect(result.segments[0].content).toContain('<|DELAY:1|>')
+
+    // Verify special tokens are in reasoning output
+    expect(result.reasoning).toContain('<|EMOTE_HAPPY|>')
+    expect(result.reasoning).toContain('<|DELAY:1|>')
+
+    // Verify speech excludes the reasoning content
+    expect(result.speech).toBe('Hello world!')
+    expect(result.speech).not.toContain('<|EMOTE_HAPPY|>')
+    expect(result.speech).not.toContain('<|DELAY:1|>')
+    expect(result.reasoning).toBe('thinking <|EMOTE_HAPPY|> about this <|DELAY:1|> and that')
   })
 
   it('should handle any tag name as reasoning', () => {
