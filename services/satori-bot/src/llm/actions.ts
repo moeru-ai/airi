@@ -91,10 +91,9 @@ export async function imagineAnAction(
       completion_tokens: res.usage.completion_tokens,
     }).log('Generated action')
 
-    // 清理代码块标记（支持多种格式）
     responseText = res.text
-      .replace(/^```(?:json)?\s*/m, '') // 移除开头的 ```json 或 ```（支持可选的 json 标记）
-      .replace(/\s*```\s*$/m, '') // 移除结尾的 ```（允许前后有空格）
+      .replace(/^```(?:json)?\s*/m, '')
+      .replace(/\s*```\s*$/m, '')
       .trim()
 
     const parsed = parse(responseText) as any

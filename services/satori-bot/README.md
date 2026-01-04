@@ -4,22 +4,7 @@
 
 ## 架构说明
 
-本项目采用**独立架构**，参考了 Telegram Bot 的实现模式：
-
-- ✅ 直接调用 LLM API（`@xsai/generate-text`）
-- ✅ 有自己的 prompt 系统
-- ✅ 使用轻量级数据库（lowdb - JSON 数据库）
-- ✅ 完全独立运行，不依赖 AIRI Server Runtime
-- ✅ 消息流程：Satori → LLM → Satori
-
-## 功能特性
-
-- 🤖 智能对话：基于 LLM 的自然语言理解和生成
-- 🔌 多平台支持：通过 Satori 协议连接多个聊天平台
-- 💾 消息历史：自动记录频道和消息历史
-- 🎯 上下文管理：智能管理对话上下文
-- 🔄 自动重连：WebSocket 断线自动重连
-- 📊 消息队列：异步处理消息，避免阻塞
+本项目采用**独立架构**，参考了 Telegram Bot 的实现模式
 
 ## 前置要求
 
@@ -40,18 +25,19 @@ pnpm install
 复制 `.env` 文件并修改配置：
 
 ```bash
+# 在 services\satori-bot 目录
 cp .env .env.local
 ```
 
 编辑 `.env.local`：
 
 ```env
-# Satori 配置
+# Satori Configuration
 SATORI_WS_URL=ws://localhost:5140/satori/v1/events
-SATORI_API_BASE_URL=http://localhost:5140
+SATORI_API_BASE_URL=http://localhost:5140/satori/v1
 SATORI_TOKEN=your_satori_token_here
 
-# LLM 配置
+# LLM Configuration
 LLM_API_KEY=your_api_key_here
 LLM_API_BASE_URL=https://api.openai.com/v1
 LLM_MODEL=gpt-4
@@ -65,7 +51,7 @@ LLM_OLLAMA_DISABLE_THINK=false
 
 - `SATORI_WS_URL`: Satori WebSocket 地址（Koishi 默认：`ws://localhost:5140/satori/v1/events`）
 - `SATORI_API_BASE_URL`: Satori HTTP API 地址（Koishi 默认：`http://localhost:5140/satori/v1`）
-- `SATORI_TOKEN`: Satori 认证令牌（在 Koishi 配置中获取）
+- `SATORI_TOKEN`: Satori 认证令牌（在 Koishi 配置中获取，如果为空 请留空，如：`SATORI_TOKEN=`）
 
 **重要**: Koishi 的 Satori 服务默认路由是 `/satori/v1`，因此完整的 API 路径会自动拼接，例如：
 - 发送消息: `http://localhost:5140/satori/v1/message.create`
@@ -84,18 +70,21 @@ LLM_OLLAMA_DISABLE_THINK=false
 ### 开发模式
 
 ```bash
+# 在项目根目录
 pnpm --filter @proj-airi/satori-bot dev
 ```
 
 ### 生产模式
 
 ```bash
+# 在项目根目录
 pnpm --filter @proj-airi/satori-bot start
 ```
 
 ### 类型检查
 
 ```bash
+# 在项目根目录
 pnpm --filter @proj-airi/satori-bot typecheck
 ```
 

@@ -9,8 +9,6 @@ export interface VelinModule {
 export function importVelin(module: string, base: string): VelinModule {
   return {
     render: async (_data) => {
-      // 直接读取文件内容，不使用 Velin 渲染
-      // 因为 Velin 的 renderMarkdownString 会尝试处理 SFC，导致 Vue 模块导入错误
       const content = (await readFile(relativeOf(module, base))).toString('utf-8')
       return content
     },
