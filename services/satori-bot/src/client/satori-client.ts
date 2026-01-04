@@ -194,7 +194,7 @@ export class SatoriClient {
   }
 
   private initializeAPIClients(ready: SatoriReadyBody): void {
-    const apiBaseUrl = this.config.apiBaseUrl || this.config.url.replace('/events', '').replace('ws://', 'http://').replace('wss://', 'https://')
+    const apiBaseUrl = this.config.apiBaseUrl || this.config.url.replace('/v1/events', '').replace('ws://', 'http://').replace('wss://', 'https://')
 
     for (const login of ready.logins) {
       if (login.platform && login.self_id) {

@@ -37,8 +37,8 @@ cp .env .env.local
 
 ```shell
 # Satori 服务端配置
-SATORI_WS_URL='ws://localhost:5140/v1/events'
-SATORI_API_URL='http://localhost:5140'
+SATORI_WS_URL='ws://localhost:5140/satori/v1/events'
+SATORI_API_URL='http://localhost:5140/satori'
 SATORI_TOKEN='your-satori-token-here'
 
 # AIRI 服务端配置
@@ -53,7 +53,7 @@ AIRI_TOKEN='abcd'
 1. 下载并安装 Koishi Desktop
 2. 在 Koishi 中安装你需要的平台适配器（如 `adapter-onebot`、`adapter-telegram` 等）
 3. 配置适配器并启动
-4. 确保 Satori 服务在 `http://localhost:5140` 运行（这是 Koishi 的默认端口）
+4. 确保 Satori 服务在 `http://localhost:5140/satori` 运行（Koishi 默认端口 5140，路径 `/satori`）
 
 ### 4. 启动 AIRI 服务端
 
