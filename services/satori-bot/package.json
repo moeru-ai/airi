@@ -16,19 +16,25 @@
   },
   "scripts": {
     "start": "tsx --env-file=.env --env-file-if-exists=.env.local src/index.ts",
+    "dev": "tsx watch --env-file=.env --env-file-if-exists=.env.local src/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@guiiai/logg": "catalog:",
-    "@proj-airi/server-sdk": "workspace:^",
-    "@proj-airi/server-shared": "workspace:^",
-    "@xsai-ext/providers": "catalog:",
+    "@moeru/std": "catalog:",
     "@xsai/generate-text": "catalog:",
     "@xsai/shared-chat": "catalog:",
-    "tsx": "^4.21.0",
+    "@xsai/utils-chat": "catalog:",
+    "best-effort-json-parser": "^1.2.1",
+    "es-toolkit": "^1.43.0",
+    "lowdb": "^7.0.1",
+    "nanoid": "^5.1.6",
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "@types/ws": "^8.5.13"
+    "@types/node": "^22.10.2",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.2"
   }
 }

@@ -2832,31 +2832,46 @@ importers:
       '@guiiai/logg':
         specifier: 'catalog:'
         version: 1.2.11
-      '@proj-airi/server-sdk':
-        specifier: workspace:^
-        version: link:../../packages/server-sdk
-      '@proj-airi/server-shared':
-        specifier: workspace:^
-        version: link:../../packages/server-shared
-      '@xsai-ext/providers':
+      '@moeru/std':
         specifier: 'catalog:'
-        version: 0.4.0
+        version: 0.1.0-beta.14
       '@xsai/generate-text':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
-      tsx:
-        specifier: ^4.21.0
-        version: 4.21.0
+      '@xsai/utils-chat':
+        specifier: 'catalog:'
+        version: 0.4.0-beta.13
+      best-effort-json-parser:
+        specifier: ^1.2.1
+        version: 1.2.1
+      es-toolkit:
+        specifier: ^1.43.0
+        version: 1.43.0
+      lowdb:
+        specifier: ^7.0.1
+        version: 7.0.1
+      nanoid:
+        specifier: ^5.1.6
+        version: 5.1.6
       ws:
         specifier: ^8.18.0
         version: 8.18.3(bufferutil@4.1.0)(utf-8-validate@5.0.10)
     devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.19.3
       '@types/ws':
         specifier: ^8.5.13
         version: 8.18.1
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
 
   services/telegram-bot:
     dependencies:
@@ -12042,6 +12057,10 @@ packages:
   longest-streak@3.1.0:
     resolution: {integrity: sha512-9Ri+o0JYgehTaVBBDoMqIl8GXtbWg711O3srftcHhZ0dqnETqLaoIK0x17fUw9rFSlK/0NlsKe0Ahhyl5pXE2g==}
 
+  lowdb@7.0.1:
+    resolution: {integrity: sha512-neJAj8GwF0e8EpycYIDFqEPcx9Qz4GUho20jWFR7YiFeXzF1YMLdxB36PypcTSPMA+4+LvgyMacYhlr18Zlymw==}
+    engines: {node: '>=18'}
+
   lower-case@2.0.2:
     resolution: {integrity: sha512-7fm3l3NAF9WfN6W3JOmf5drwpVqX78JtoGJ3A6W0a6ZnldM41w2fV5D490psKFTpMds8TJse/eHLFFsNHHjHgg==}
 
@@ -14181,6 +14200,10 @@ packages:
 
   stdin-discarder@0.2.2:
     resolution: {integrity: sha512-UhDfHmA92YAlNnCfhmq0VeNL5bDbiZGg7sZ2IvPsXubGkiNa9EC+tUTsjBRsYUAz87btI6/1wf4XoVvQ3uRnmQ==}
+    engines: {node: '>=18'}
+
+  steno@4.0.2:
+    resolution: {integrity: sha512-yhPIQXjrlt1xv7dyPQg2P17URmXbuM5pdGkpiMB3RenprfiBlvK415Lctfe0eshk90oA7/tNq7WEiMK8RSP39A==}
     engines: {node: '>=18'}
 
   store2@2.14.4:
@@ -26020,6 +26043,10 @@ snapshots:
 
   longest-streak@3.1.0: {}
 
+  lowdb@7.0.1:
+    dependencies:
+      steno: 4.0.2
+
   lower-case@2.0.2:
     dependencies:
       tslib: 2.8.1
@@ -28842,6 +28869,8 @@ snapshots:
   std-env@3.10.0: {}
 
   stdin-discarder@0.2.2: {}
+
+  steno@4.0.2: {}
 
   store2@2.14.4: {}
 

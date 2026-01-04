@@ -1,40 +1,98 @@
-import process, { env } from 'node:process'
+import { env } from 'node:process'
 
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 
-import { SatoriAdapter } from './adapters/airi-adapter'
+import { createBotContext, ensureChatContext, onMessageArrival, startPeriodicLoop } from './bot'
+import { SatoriClient } from './client/satori-client'
+import { initDb } from './db'
 
 setGlobalFormat(Format.Pretty)
-setGlobalLogLevel(LogLevel.Log)
-const log = useLogg('Bot').useGlobalConfig()
+setGlobalLogLevel(LogLevel.Debug)
 
-// Create a new Satori adapter instance
 async function main() {
-  // Create Satori adapter with configuration
-  const adapter = new SatoriAdapter({
-    satoriWsUrl: env.SATORI_WS_URL || 'ws://localhost:5140/v1/events',
-    satoriApiUrl: env.SATORI_API_URL || 'http://localhost:5140',
-    satoriToken: env.SATORI_TOKEN,
-    airiToken: env.AIRI_TOKEN || 'abcd',
-    airiUrl: env.AIRI_URL || 'ws://localhost:6121/ws',
+  const log = useLogg('Main').useGlobalConfig()
+
+  // Initialize database
+  await initDb()
+  log.log('Database initialized')
+
+  // Create Satori client
+  const satoriClient = new SatoriClient({
+    url: env.SATORI_WS_URL || 'ws://localhost:5140/satori/v1/events',
+    token: env.SATORI_TOKEN,
+    apiBaseUrl: env.SATORI_API_BASE_URL,
   })
 
-  await adapter.start()
+  // Create bot context
+  const botContext = createBotContext(log)
 
-  // Set up process shutdown hooks
-  async function gracefulShutdown(signal: string) {
-    log.log(`Received ${signal}, shutting down...`)
-    await adapter.stop()
-    process.exit(0)
-  }
+  // Set up event handlers
+  satoriClient.onReady((ready) => {
+    log.log('Satori client ready:', ready)
+    log.log(`Connected to ${ready.logins.length} platform(s)`)
 
-  process.on('SIGINT', async () => {
-    await gracefulShutdown('SIGINT')
+    for (const login of ready.logins) {
+      log.log(`- ${login.platform} (${login.self_id}): ${login.status}`)
+    }
   })
 
-  process.on('SIGTERM', async () => {
-    await gracefulShutdown('SIGTERM')
+  // Handle message-created events
+  satoriClient.on('message-created', async (event) => {
+    const message = event.message
+    if (!message) {
+      return
+    }
+
+    // Skip bot's own messages
+    if (message.user?.id === event.self_id) {
+      return
+    }
+
+    const messageId = `${message.channel?.id}-${message.id}`
+    if (botContext.processedIds.has(messageId)) {
+      return
+    }
+
+    botContext.processedIds.add(messageId)
+    log.log(`Received message from ${message.user?.name || message.user?.id}: ${message.content}`)
+
+    // Add to message queue
+    botContext.messageQueue.push({
+      message,
+      status: 'ready',
+    })
+
+    // Get or create chat context
+    const channelId = message.channel?.id || 'unknown'
+    const chatCtx = ensureChatContext(botContext, channelId)
+
+    // Set platform and selfId if not set
+    if (!chatCtx.platform) {
+      chatCtx.platform = event.platform
+    }
+    if (!chatCtx.selfId) {
+      chatCtx.selfId = event.self_id
+    }
+
+    // Process message
+    await onMessageArrival(botContext, satoriClient, chatCtx)
   })
+
+  // Connect to Satori server
+  await satoriClient.connect()
+  log.log('Connected to Satori server')
+
+  // Start periodic loop
+  startPeriodicLoop(botContext, satoriClient)
+  log.log('Periodic loop started')
 }
 
-main().catch(err => log.withError(err).error('An error occurred'))
+process.on('unhandledRejection', (err) => {
+  const log = useLogg('UnhandledRejection').useGlobalConfig()
+  log
+    .withError(err as Error)
+    .withField('cause', (err as any).cause)
+    .error('Unhandled rejection')
+})
+
+main().catch(console.error)
