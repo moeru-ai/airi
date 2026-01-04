@@ -113,6 +113,7 @@ outputs/
 
 # MediaPipe task assets
 packages/model-driver-mediapipe/tasks/assets/*
+<<<<<<< HEAD
 
 # Plugins
 plugins/local
@@ -122,3 +123,5 @@ plugins-development
 
 #ia
 GEMINI.md
+=======
+>>>>>>> f7a5d207 (chore: remove docs/private_docs/ from gitignore)
