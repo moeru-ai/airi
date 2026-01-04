@@ -48,13 +48,16 @@ async function main() {
       return
     }
 
-    const messageId = `${message.channel?.id}-${message.id}`
+    // Use event.channel.id as primary source, fallback to message.channel.id
+    const channelId = event.channel?.id || message.channel?.id || 'unknown'
+
+    const messageId = `${channelId}-${message.id}`
     if (botContext.processedIds.has(messageId)) {
       return
     }
 
     botContext.processedIds.add(messageId)
-    log.log(`Received message from ${message.user?.name || message.user?.id}: ${message.content}`)
+    log.log(`Received message from ${message.user?.name || message.user?.id} in channel ${channelId}: ${message.content}`)
 
     // Add to message queue
     botContext.messageQueue.push({
@@ -63,7 +66,6 @@ async function main() {
     })
 
     // Get or create chat context
-    const channelId = message.channel?.id || 'unknown'
     const chatCtx = ensureChatContext(botContext, channelId)
 
     // Set platform and selfId if not set

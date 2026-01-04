@@ -112,7 +112,7 @@ export class SatoriClient {
       switch (signal.op) {
         case SatoriOpcode.READY: {
           const readyBody = signal.body as SatoriReadyBody
-          log.log('Received READY signal:', readyBody)
+          log.log('Received READY signal')
 
           // Initialize API clients for each login
           this.initializeAPIClients(readyBody)
@@ -150,7 +150,7 @@ export class SatoriClient {
   }
 
   private async handleEvent(event: SatoriEvent): Promise<void> {
-    log.log(`Received event: ${event.type}`, event)
+    log.log(`Received event: ${event.type}`)
 
     const handlers = this.eventHandlers.get(event.type)
     if (handlers && handlers.size > 0) {

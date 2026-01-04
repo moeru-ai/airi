@@ -6,7 +6,6 @@ import type { Action, BotContext, ChatContext } from '../types/bot'
 import type { SatoriEvent, SatoriMessage } from '../types/satori'
 
 import { useLogg } from '@guiiai/logg'
-import { sleep } from 'es-toolkit'
 
 import { readUnreadMessages } from '../actions/read-unread-messages'
 import { sendMessage } from '../actions/send-message'
@@ -88,7 +87,7 @@ async function dispatchAction(
       return undefined
 
     case 'sleep':
-      await sleep(30 * 1000)
+      await new Promise(resolve => setTimeout(resolve, 30 * 1000))
       if (chatCtx) {
         chatCtx.actions.push({
           action,
@@ -268,20 +267,18 @@ export async function onMessageArrival(
       const nextMsg = botContext.messageQueue[0]
 
       if (nextMsg.status === 'ready') {
-        // Record channel
-        if (nextMsg.message.channel) {
-          await recordChannel(
-            nextMsg.message.channel.id,
-            nextMsg.message.channel.name || nextMsg.message.channel.id,
-            chatCtx.platform,
-            chatCtx.selfId,
-          )
-        }
+        // Record channel (use chatCtx.channelId which is already correctly set)
+        await recordChannel(
+          chatCtx.channelId,
+          nextMsg.message.channel?.name || chatCtx.channelId,
+          chatCtx.platform,
+          chatCtx.selfId,
+        )
 
         // Record message
         if (nextMsg.message.user && nextMsg.message.content) {
           await recordMessage(
-            nextMsg.message.channel?.id || chatCtx.channelId,
+            chatCtx.channelId,
             nextMsg.message.user.id,
             nextMsg.message.user.name || nextMsg.message.user.id,
             nextMsg.message.content,

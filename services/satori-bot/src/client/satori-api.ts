@@ -68,25 +68,25 @@ export class SatoriAPI {
     }
 
     log.log(`Sending message to channel ${channelId}: ${content}`)
-    return await this.request<SatoriMessageCreateResponse[]>('/v1/message.create', body)
+    return await this.request<SatoriMessageCreateResponse[]>('/message.create', body)
   }
 
   async getMessage(channelId: string, messageId: string): Promise<any> {
-    return await this.request('/v1/message.get', {
+    return await this.request('/message.get', {
       channel_id: channelId,
       message_id: messageId,
     })
   }
 
   async deleteMessage(channelId: string, messageId: string): Promise<void> {
-    await this.request('/v1/message.delete', {
+    await this.request('/message.delete', {
       channel_id: channelId,
       message_id: messageId,
     })
   }
 
   async updateMessage(channelId: string, messageId: string, content: string): Promise<void> {
-    await this.request('/v1/message.update', {
+    await this.request('/message.update', {
       channel_id: channelId,
       message_id: messageId,
       content,

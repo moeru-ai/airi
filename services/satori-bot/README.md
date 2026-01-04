@@ -63,9 +63,13 @@ LLM_OLLAMA_DISABLE_THINK=false
 
 #### Satori 配置
 
-- `SATORI_WS_URL`: Satori WebSocket 地址（默认：`ws://localhost:5140/satori/v1/events`）
-- `SATORI_API_BASE_URL`: Satori HTTP API 地址（默认：`http://localhost:5140`）
+- `SATORI_WS_URL`: Satori WebSocket 地址（Koishi 默认：`ws://localhost:5140/satori/v1/events`）
+- `SATORI_API_BASE_URL`: Satori HTTP API 地址（Koishi 默认：`http://localhost:5140/satori/v1`）
 - `SATORI_TOKEN`: Satori 认证令牌（在 Koishi 配置中获取）
+
+**重要**: Koishi 的 Satori 服务默认路由是 `/satori/v1`，因此完整的 API 路径会自动拼接，例如：
+- 发送消息: `http://localhost:5140/satori/v1/message.create`
+- 获取消息: `http://localhost:5140/satori/v1/message.get`
 
 #### LLM 配置
 
