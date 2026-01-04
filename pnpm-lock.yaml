@@ -209,6 +209,9 @@ importers:
       oxlint:
         specifier: ^1.35.0
         version: 1.36.0
+      posthog-js:
+        specifier: 'catalog:'
+        version: 1.306.1
       publint:
         specifier: ^0.3.16
         version: 0.3.16
