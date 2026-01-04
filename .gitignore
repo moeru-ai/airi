@@ -113,6 +113,3 @@ outputs/
 
 # MediaPipe task assets
 packages/model-driver-mediapipe/tasks/assets/*
-
-# Private documentation
-docs/private_docs/
