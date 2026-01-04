@@ -132,56 +132,59 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
       backgroundAlpha: 0,
       autoDensity: false,
       resolution: 1,
+      autoStart: false,
     })
     app.stage.scale.set(previewResolution)
+    app.ticker.stop()
 
     const modelInstance = new Live2DModel()
     const objUrl = URL.createObjectURL(file)
     const res = await fetch(objUrl)
     const blob = await res.blob()
 
+    const cleanup = () => {
+      app.destroy()
+      if (offscreenCanvas.isConnected)
+        document.body.removeChild(offscreenCanvas)
+      URL.revokeObjectURL(objUrl)
+    }
+
     try {
       await Live2DFactory.setupLive2DModel(modelInstance, [new File([blob], file.name)], { autoInteract: false })
+      app.stage.addChild(modelInstance)
+
+      // transforms
+      modelInstance.x = 275
+      modelInstance.y = 450
+      modelInstance.width = previewWidth
+      modelInstance.height = previewHeight
+      modelInstance.scale.set(0.1, 0.1)
+      modelInstance.anchor.set(0.5, 0.5)
+
+      await new Promise(resolve => setTimeout(resolve, 500))
+      // Force a render to ensure the latest frame is in the drawing buffer
+      app.renderer.render(app.stage)
+
+      const croppedCanvas = cropImg(offscreenCanvas)
+
+      // padding to 12:16
+      const paddingCanvas = document.createElement('canvas')
+      paddingCanvas.width = croppedCanvas.width > croppedCanvas.height / 16 * 12 ? croppedCanvas.width : croppedCanvas.height / 16 * 12
+      paddingCanvas.height = paddingCanvas.width / 12 * 16
+      const paddingCanvasCtx = paddingCanvas.getContext('2d')!
+
+      paddingCanvasCtx.drawImage(croppedCanvas, (paddingCanvas.width - croppedCanvas.width) / 2, (paddingCanvas.height - croppedCanvas.height) / 2, croppedCanvas.width, croppedCanvas.height)
+      const paddingDataUrl = paddingCanvas.toDataURL()
+
+      cleanup()
+
+      // return dataUrl
+      return paddingDataUrl
     }
     catch (error) {
-      app.destroy()
-      document.body.removeChild(offscreenCanvas)
-      URL.revokeObjectURL(objUrl)
       console.error(error)
-      return
+      cleanup()
     }
-
-    app.stage.addChild(modelInstance)
-
-    // transforms
-    modelInstance.x = 275
-    modelInstance.y = 450
-    modelInstance.width = previewWidth
-    modelInstance.height = previewHeight
-    modelInstance.scale.set(0.1, 0.1)
-    modelInstance.anchor.set(0.5, 0.5)
-
-    await new Promise(resolve => setTimeout(resolve, 500))
-    // Force a render to ensure the latest frame is in the drawing buffer
-    app.renderer.render(app.stage)
-
-    const croppedCanvas = cropImg(offscreenCanvas)
-
-    // padding to 12:16
-    const paddingCanvas = document.createElement('canvas')
-    paddingCanvas.width = croppedCanvas.width > croppedCanvas.height / 16 * 12 ? croppedCanvas.width : croppedCanvas.height / 16 * 12
-    paddingCanvas.height = paddingCanvas.width / 12 * 16
-    const paddingCanvasCtx = paddingCanvas.getContext('2d')!
-
-    paddingCanvasCtx.drawImage(croppedCanvas, (paddingCanvas.width - croppedCanvas.width) / 2, (paddingCanvas.height - croppedCanvas.height) / 2, croppedCanvas.width, croppedCanvas.height)
-    const paddingDataUrl = paddingCanvas.toDataURL()
-
-    app.destroy()
-    document.body.removeChild(offscreenCanvas)
-    URL.revokeObjectURL(objUrl)
-
-    // return dataUrl
-    return paddingDataUrl
   }
 
   async function loadVrmModelPreview(file: File) {
@@ -288,16 +291,10 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
     if (format === DisplayModelFormat.Live2dZip) {
       const previewImage = await loadLive2DModelPreview(file)
-      if (!previewImage)
-        return
-
       newDisplayModel.previewImage = previewImage
     }
     else if (format === DisplayModelFormat.VRM) {
       const previewImage = await loadVrmModelPreview(file)
-      if (!previewImage)
-        return
-
       newDisplayModel.previewImage = previewImage
     }
 
