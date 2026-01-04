@@ -202,19 +202,38 @@ async function loopIterationForChannel(
 }
 
 async function loopIterationPeriodicForExistingChannels(ctx: BotContext, satoriClient: SatoriClient) {
-  for (const [channelId] of ctx.chats) {
+  // Only process channels with unread messages to avoid unnecessary LLM calls
+  const channelsWithUnread = Object.keys(ctx.unreadMessages).filter(
+    channelId => ctx.unreadMessages[channelId]?.length > 0,
+  )
+
+  if (channelsWithUnread.length === 0) {
+    ctx.logger.log('No channels with unread messages, skipping periodic check')
+    return
+  }
+
+  ctx.logger.withField('channelCount', channelsWithUnread.length).log('Processing channels with unread messages')
+
+  // Process channels sequentially to avoid overwhelming the LLM API
+  for (const channelId of channelsWithUnread) {
     const chatCtx = ensureChatContext(ctx, channelId)
 
-    const action = await imagineAnAction(
-      chatCtx.currentAbortController,
-      chatCtx.messages,
-      chatCtx.actions,
-      { unreadMessages: ctx.unreadMessages },
-    )
-    let result = await dispatchAction(ctx, satoriClient, action, chatCtx.currentAbortController, chatCtx)
+    try {
+      const action = await imagineAnAction(
+        chatCtx.currentAbortController,
+        chatCtx.messages,
+        chatCtx.actions,
+        { unreadMessages: ctx.unreadMessages },
+      )
+      let result = await dispatchAction(ctx, satoriClient, action, chatCtx.currentAbortController, chatCtx)
 
-    while (typeof result === 'function') {
-      result = await result()
+      while (typeof result === 'function') {
+        result = await result()
+      }
+    }
+    catch (err) {
+      ctx.logger.withError(err as Error).withField('channelId', channelId).log('Error processing channel in periodic loop')
+      // Continue to next channel instead of breaking the entire loop
     }
   }
 }

@@ -129,6 +129,15 @@ Satori 消息 → WebSocket 客户端 →
 
 数据文件位置：`services/satori-bot/data/db.json`
 
+### Prompts 自定义
+
+Bot 的提示词存储在 `data/prompts/` 目录下，可以自定义：
+
+- `personality.md` - Bot 的性格和行为特征
+- `system.md` - 系统提示词和可用 actions
+
+修改后需要重启 Bot 才能生效。详见 [`data/prompts/README.md`](data/prompts/README.md)。
+
 ## 项目结构
 
 ```
@@ -176,6 +185,21 @@ services/satori-bot/
 - ✅ 直接调用 LLM API
 - ✅ 不依赖 AIRI Server Runtime
 - ✅ 可立即工作
+
+## 性能优化
+
+### 减少不必要的 LLM 调用
+
+Bot 已经优化为：
+- 只在有未读消息的频道调用 LLM
+- 周期性检查时跳过没有未读消息的频道
+- 避免对每条消息都立即调用 LLM
+
+### 配置建议
+
+1. **使用更快的模型**：如 `gpt-4o-mini` 而不是 `gpt-4`
+2. **调整周期性检查间隔**：在 [`src/bot/index.ts:238`](src/bot/index.ts:238) 中修改（默认 60 秒）
+3. **使用本地 LLM**：如 Ollama，减少网络延迟
 
 ## 常见问题
 

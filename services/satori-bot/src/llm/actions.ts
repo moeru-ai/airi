@@ -52,10 +52,21 @@ export async function imagineAnAction(
   )
 
   try {
+    // Validate API configuration
+    if (!env.LLM_API_KEY) {
+      throw new Error('LLM_API_KEY is not configured. Please set it in your .env.local file.')
+    }
+    if (!env.LLM_API_BASE_URL) {
+      throw new Error('LLM_API_BASE_URL is not configured. Please set it in your .env.local file.')
+    }
+    if (!env.LLM_MODEL) {
+      throw new Error('LLM_MODEL is not configured. Please set it in your .env.local file.')
+    }
+
     const req = {
-      apiKey: env.LLM_API_KEY!,
-      baseURL: env.LLM_API_BASE_URL!,
-      model: env.LLM_MODEL!,
+      apiKey: env.LLM_API_KEY,
+      baseURL: env.LLM_API_BASE_URL,
+      model: env.LLM_MODEL,
       messages: requestMessages,
       abortSignal: currentAbortController?.signal,
     } satisfies GenerateTextOptions
@@ -91,7 +102,22 @@ export async function imagineAnAction(
     return action
   }
   catch (err) {
-    logger.withError(err).log('Failed to generate action')
+    const error = err as Error
+
+    // Check for API key errors
+    if (error.message?.includes('API Key') || error.message?.includes('API key')) {
+      logger.error('❌ LLM API Key Error: Please check your .env.local file and ensure LLM_API_KEY is set correctly.')
+      logger.error(`   Current LLM_API_BASE_URL: ${env.LLM_API_BASE_URL}`)
+      logger.error(`   Current LLM_MODEL: ${env.LLM_MODEL}`)
+    }
+    else if (error.message?.includes('LLM_')) {
+      // Configuration error
+      logger.error(`❌ Configuration Error: ${error.message}`)
+    }
+    else {
+      logger.withError(error).log('Failed to generate action')
+    }
+
     throw err
   }
 }
