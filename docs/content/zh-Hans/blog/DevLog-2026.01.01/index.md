@@ -5,7 +5,8 @@ date: 2026-01-01
 excerpt: |
   和大家分享 AIRI 在 iOS 平台上的进展，遇到的问题与解决方案，以及柠猫在 FlowChat 实验记忆层的一些成果和一点点实现细节。
 preview-cover:
-# TODO
+  light: "@assets('./assets/cover-light.png')"
+  dark: "@assets('./assets/cover-dark.png')"
 ---
 
 新年快乐！这里是 [@LemonNekoGH](https://github.com/LemonNekoGH)，AIRI 的维护者之一，新年的第一篇 DevLog 是我的了，（按下 B 键选择了大笑表情）啊哈哈哈哈哈哈！
@@ -123,3 +124,5 @@ const props = defineProps<{
 好的，今年第一篇 DevLog 就被我 ~~水~~ 写好了，希望你看得开心。
 
 我们下一篇 DevLog 再见。
+
+*封面图由 [Google Gemini](https://gemini.google.com/) 生成*
