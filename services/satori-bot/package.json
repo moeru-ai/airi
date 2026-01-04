@@ -22,6 +22,7 @@
   "dependencies": {
     "@guiiai/logg": "catalog:",
     "@moeru/std": "catalog:",
+    "@velin-dev/core": "^0.3.4",
     "@xsai/generate-text": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "@xsai/utils-chat": "catalog:",
