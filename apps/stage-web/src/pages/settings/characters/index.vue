@@ -4,14 +4,12 @@ import type { Character } from '../../../types/character'
 import { Button, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
 
 import CharacterDialog from './components/CharacterDialog.vue'
 import CharacterItem from './components/CharacterItem.vue'
 
 import { useCharacterStore } from '../../../stores/characters'
 
-const { t } = useI18n()
 const characterStore = useCharacterStore()
 const { characters, isLoading } = storeToRefs(characterStore)
 
@@ -45,6 +43,8 @@ function handleEdit(char: Character) {
 }
 
 function handleDelete(id: string) {
+  // TODO: Remove this
+  // eslint-disable-next-line no-alert
   if (confirm('Are you sure you want to delete this character?')) {
     characterStore.remove(id).catch(console.error)
   }
@@ -52,6 +52,7 @@ function handleDelete(id: string) {
 
 function handleActivate(char: Character) {
   // TODO: Implement activation logic (global store for active character)
+  // eslint-disable-next-line no-console
   console.log('Activate', char.id)
 }
 </script>

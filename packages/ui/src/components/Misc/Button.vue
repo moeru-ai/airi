@@ -103,7 +103,7 @@ const variantClasses: Record<ButtonVariant, Record<ButtonTheme, {
       ],
     },
   },
-  'ghost': {
+  'pure': {
     default: {
       default: [
         'bg-transparent',
@@ -114,7 +114,12 @@ const variantClasses: Record<ButtonVariant, Record<ButtonTheme, {
   },
   'ghost': {
     default: {
-      default: 'bg-transparent hover:bg-neutral-100/50 dark:hover:bg-neutral-800/50 text-neutral-500 dark:text-neutral-400 focus:ring-neutral-300/30 dark:focus:ring-neutral-600/30',
+      default: [
+        'bg-transparent',
+        'hover:bg-neutral-100/50 dark:hover:bg-neutral-800/50',
+        'text-neutral-500 dark:text-neutral-400',
+        'focus:ring-2 focus:ring-neutral-300/30 dark:focus:ring-neutral-600/30',
+      ],
     },
   },
 }
