@@ -1314,6 +1314,170 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'voicevox': {
+      id: 'voicevox',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      nameKey: 'settings.pages.providers.provider.voicevox.title',
+      name: 'VOICEVOX',
+      descriptionKey: 'settings.pages.providers.provider.voicevox.description',
+      description: 'voicevox.hiroshiba.jp',
+      icon: 'i-solar:microphone-2-bold-duotone',
+      iconColor: 'i-lobe-icons:voicevox',
+      defaultOptions: () => ({
+        baseUrl: 'http://localhost:50021',
+        speed: 1.0,
+        pitch: 0.0,
+        intonation: 1.0,
+      }),
+      createProvider: async (config) => {
+        const baseUrl = (config.baseUrl as string).trim().replace(/\/$/, '')
+        
+        const provider: SpeechProvider = {
+          speech: (model, extraOptions) => {
+            return {
+              baseURL: baseUrl,
+              model: 'voicevox',
+              fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+                // VOICEVOX APIの2段階フローを実装
+                // 1. audio_queryで音声クエリを生成
+                // 2. synthesisで音声を合成
+                
+                // generateSpeech関数から渡されるパラメータを取得
+                // inputとvoiceはgenerateSpeech関数から渡される
+                const request = input instanceof Request ? input : new Request(input, init)
+                const url = new URL(request.url)
+                const text = url.searchParams.get('input') || url.searchParams.get('text') || ''
+                const speakerId = url.searchParams.get('voice') || url.searchParams.get('speaker') || ''
+                
+                // 設定からパラメータを取得
+                const speed = (extraOptions?.speed as number) ?? (config.speed as number) ?? 1.0
+                const pitch = (extraOptions?.pitch as number) ?? (config.pitch as number) ?? 0.0
+                const intonation = (extraOptions?.intonation as number) ?? (config.intonation as number) ?? 1.0
+                
+                if (!text || !speakerId) {
+                  throw new Error('Text and speaker ID are required')
+                }
+                
+                // Step 1: audio_queryで音声クエリを生成
+                const audioQueryUrl = `${baseUrl}/audio_query?text=${encodeURIComponent(text)}&speaker=${speakerId}`
+                const audioQueryResponse = await fetch(audioQueryUrl, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                })
+                
+                if (!audioQueryResponse.ok) {
+                  throw new Error(`Failed to create audio query: ${audioQueryResponse.statusText}`)
+                }
+                
+                let audioQuery = await audioQueryResponse.json()
+                
+                // パラメータを設定
+                if (speed !== undefined && speed !== 1.0) {
+                  audioQuery.speedScale = speed
+                }
+                if (pitch !== undefined && pitch !== 0.0) {
+                  audioQuery.pitchScale = pitch
+                }
+                if (intonation !== undefined && intonation !== 1.0) {
+                  audioQuery.intonationScale = intonation
+                }
+                
+                // Step 2: synthesisで音声を合成
+                const synthesisUrl = `${baseUrl}/synthesis?speaker=${speakerId}`
+                const synthesisResponse = await fetch(synthesisUrl, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(audioQuery),
+                })
+                
+                if (!synthesisResponse.ok) {
+                  throw new Error(`Failed to synthesize audio: ${synthesisResponse.statusText}`)
+                }
+                
+                // WAV形式の音声データを返す
+                return synthesisResponse
+              },
+            }
+          },
+        }
+        return provider
+      },
+      capabilities: {
+        listVoices: async (config) => {
+          const baseUrl = (config.baseUrl as string).trim().replace(/\/$/, '')
+          const response = await fetch(`${baseUrl}/speakers`)
+          if (!response.ok) {
+            throw new Error(`Failed to fetch speakers: ${response.statusText}`)
+          }
+          const speakers = await response.json() as Array<{
+            name: string
+            speaker_uuid: string
+            styles: Array<{
+              name: string
+              id: number
+            }>
+          }>
+          
+          // 各話者のスタイルを展開してVoiceInfoとして返す
+          const voices: VoiceInfo[] = []
+          for (const speaker of speakers) {
+            for (const style of speaker.styles) {
+              voices.push({
+                id: String(style.id),
+                name: `${speaker.name} (${style.name})`,
+                provider: 'voicevox',
+                languages: [{ code: 'ja', title: 'Japanese' }],
+              })
+            }
+          }
+          
+          return voices
+        },
+      },
+      validators: {
+        validateProviderConfig: async (config) => {
+          const errors = [
+            !config.baseUrl && new Error('Base URL is required. Default to http://localhost:50021 for VOICEVOX.'),
+          ].filter(Boolean)
+          
+          const res = baseUrlValidator.value(config.baseUrl)
+          if (res) {
+            return res
+          }
+          
+          // VOICEVOXエンジンへの接続確認
+          try {
+            const baseUrl = (config.baseUrl as string).trim().replace(/\/$/, '')
+            const response = await fetch(`${baseUrl}/speakers`)
+            if (!response.ok) {
+              return {
+                errors: [new Error(`VOICEVOX engine returned non-ok status: ${response.statusText}`)],
+                reason: `Failed to connect to VOICEVOX engine at ${baseUrl}. Make sure the engine is running.`,
+                valid: false,
+              }
+            }
+          }
+          catch (err) {
+            return {
+              errors: [err instanceof Error ? err : new Error(String(err))],
+              reason: `Failed to connect to VOICEVOX engine. Make sure it's running at ${config.baseUrl}.`,
+              valid: false,
+            }
+          }
+          
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.baseUrl,
+          }
+        },
+      },
+    },
     'alibaba-cloud-model-studio': {
       id: 'alibaba-cloud-model-studio',
       category: 'speech',

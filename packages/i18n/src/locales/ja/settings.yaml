@@ -606,6 +606,16 @@ pages:
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili/IndexTTS
+      voicevox:
+        description: voicevox.hiroshiba.jp
+        title: VOICEVOX
+        fields:
+          pitch:
+            description: 音声のピッチ（高さ）を調整します
+            label: ピッチ
+          intonation:
+            description: 音声の抑揚を調整します
+            label: 抑揚
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry

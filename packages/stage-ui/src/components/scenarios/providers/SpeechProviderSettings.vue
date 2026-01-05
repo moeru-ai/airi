@@ -42,6 +42,13 @@ const { providers } = storeToRefs(providersStore)
 // Get provider metadata
 const providerMetadata = computed(() => providersStore.getProviderMetadata(props.providerId))
 
+// Check if API key is needed for this provider
+const needsApiKey = computed(() => {
+  // Providers that don't require API key
+  const noApiKeyProviders = ['voicevox', 'index-tts-vllm', 'ollama', 'player2-speech']
+  return !noApiKeyProviders.includes(props.providerId)
+})
+
 // Common provider settings
 const apiKey = computed({
   get: () => providers.value[props.providerId]?.apiKey as string | undefined || '',
@@ -135,7 +142,7 @@ function handleResetVoiceSettings() {
           :description="t('settings.pages.providers.common.section.basic.description')"
           :on-reset="handleResetVoiceSettings"
         >
-          <ProviderApiKeyInput v-model="apiKey" :provider-name="providerMetadata?.localizedName" :placeholder="props.placeholder || 'API Key'" />
+          <ProviderApiKeyInput v-if="needsApiKey" v-model="apiKey" :provider-name="providerMetadata?.localizedName" :placeholder="props.placeholder || 'API Key'" />
           <!-- Slot for provider-specific basic settings -->
           <slot name="basic-settings" />
         </ProviderBasicSettings>
