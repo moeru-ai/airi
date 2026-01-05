@@ -78,4 +78,3 @@ export function createProviderRoutes(providerService: ProviderService) {
       return c.body(null, 204)
     })
 }
-

@@ -54,4 +54,3 @@ export function createProviderService(db: Database<typeof fullSchema>) {
 }
 
 export type ProviderService = ReturnType<typeof createProviderService>
-

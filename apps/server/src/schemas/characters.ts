@@ -4,7 +4,7 @@ import type { AvatarModelConfig } from '../types/character-avatar-model'
 import type { CharacterCapabilityConfig } from '../types/character-capability'
 
 import { relations } from 'drizzle-orm'
-import { index, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import { jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 import { user } from './accounts'
@@ -130,7 +130,7 @@ export const characterLikes = pgTable(
     userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
     characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
-  }
+  },
 )
 
 export const characterBookmarks = pgTable(
@@ -139,7 +139,7 @@ export const characterBookmarks = pgTable(
     userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
     characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
-  }
+  },
 )
 
 export type CharacterPrompt = InferSelectModel<typeof characterPrompts>
