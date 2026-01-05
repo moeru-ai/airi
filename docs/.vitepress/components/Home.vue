@@ -113,7 +113,7 @@ watchEffect((onCleanup) => {
                 <div i-twemoji:jack-o-lantern />Happy Halloween!<div i-twemoji:jack-o-lantern />
               </div>
               <div
-                v-if="true || isBetweenChristmasAndHalfOfJanuary(new Date())"
+                v-if="isBetweenChristmasAndHalfOfJanuary(new Date())"
                 :class="[
                   'w-fit',
                   'flex items-center gap-2',

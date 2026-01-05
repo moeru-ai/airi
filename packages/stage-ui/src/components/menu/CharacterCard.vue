@@ -127,16 +127,15 @@ const cssVars = computed(() => {
               <div font-jura relative z-3 pb-4 pl-4 pt-2>
                 <div relative z-4 class="subtitle-text">
                   <!-- Subtitle section -->
-                  <div text-base font-semibold>
+                  <!-- <div text-base font-semibold>
                     <span text-base>{{ subtitle }}</span>
-                  </div>
+                  </div> -->
                   <!-- Title section -->
                   <div
                     class="title-text"
-
-                    font-jura text-6xl font-bold font-italic text-stroke-1
                     :style="{ paintOrder: 'stroke fill' }"
                     leading="[0.75]"
+                    font-jura pt-2 text-xl font-bold font-italic text-stroke-1
                   >
                     <span>{{ title }}</span>
                   </div>
@@ -162,7 +161,7 @@ const cssVars = computed(() => {
             <div mx-5 h-0.5 rounded-full class="divider" />
             <!-- Info section -->
             <div class="description" max-h="[4.5rem]" font-quicksand mx-5 mb-4 mt-2 h-full>
-              <div h-full text-base>
+              <div h-full text-sm>
                 {{ description }}
               </div>
             </div>

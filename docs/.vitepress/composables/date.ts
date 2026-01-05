@@ -13,5 +13,5 @@ export function isBetweenChristmasAndHalfOfJanuary(date: Date) {
   const christmas = new Date(year, 11, 20) // December 20
   const halfOfJanuary = new Date(year, 0, 10) // January 10 of the next year
 
-  return isAfter(date, christmas) && isBefore(date, halfOfJanuary)
+  return isAfter(date, christmas) || isBefore(date, halfOfJanuary)
 }

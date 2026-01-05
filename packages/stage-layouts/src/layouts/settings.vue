@@ -23,6 +23,10 @@ const routeHeaderMetadataMap = computed(() => {
       subtitle: t('settings.title'),
       title: t('settings.pages.card.title'),
     },
+    '/settings/characters': {
+      subtitle: t('settings.title'),
+      title: 'Characters',
+    },
     '/settings/system': {
       subtitle: t('settings.title'),
       title: t('settings.pages.system.title'),
