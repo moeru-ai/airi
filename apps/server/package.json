@@ -18,7 +18,7 @@
     "better-auth": "^1.4.5",
     "drizzle-orm": "^0.44.7",
     "drizzle-valibot": "catalog:",
-    "hono": "^4.10.7",
+    "hono": "catalog:",
     "injeca": "catalog:",
     "postgres": "^3.4.7",
     "tsx": "^4.21.0",
