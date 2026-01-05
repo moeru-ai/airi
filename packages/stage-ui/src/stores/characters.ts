@@ -141,7 +141,7 @@ export const useCharacterStore = defineStore('characters', () => {
       })
       if (!res.ok)
         throw new Error('Failed to like character')
-      
+
       await fetchById(id)
     }
     catch (err) {
@@ -157,7 +157,7 @@ export const useCharacterStore = defineStore('characters', () => {
       })
       if (!res.ok)
         throw new Error('Failed to bookmark character')
-      
+
       await fetchById(id)
     }
     catch (err) {

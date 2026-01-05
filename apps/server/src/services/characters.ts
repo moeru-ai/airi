@@ -73,17 +73,18 @@ export function createCharacterService(db: Database<typeof fullSchema>) {
 
           await tx.update(schema.character)
             .set({
-              likesCount: sql`CAST(CAST(${schema.character.likesCount} AS INTEGER) - 1 AS TEXT)`
+              likesCount: sql`CAST(CAST(${schema.character.likesCount} AS INTEGER) - 1 AS TEXT)`,
             })
             .where(eq(schema.character.id, characterId))
 
           return { liked: false }
-        } else {
+        }
+        else {
           await tx.insert(schema.characterLikes).values({ userId, characterId })
 
           await tx.update(schema.character)
             .set({
-              likesCount: sql`CAST(CAST(${schema.character.likesCount} AS INTEGER) + 1 AS TEXT)`
+              likesCount: sql`CAST(CAST(${schema.character.likesCount} AS INTEGER) + 1 AS TEXT)`,
             })
             .where(eq(schema.character.id, characterId))
 
@@ -110,17 +111,18 @@ export function createCharacterService(db: Database<typeof fullSchema>) {
 
           await tx.update(schema.character)
             .set({
-              bookmarksCount: sql`CAST(CAST(${schema.character.bookmarksCount} AS INTEGER) - 1 AS TEXT)`
+              bookmarksCount: sql`CAST(CAST(${schema.character.bookmarksCount} AS INTEGER) - 1 AS TEXT)`,
             })
             .where(eq(schema.character.id, characterId))
 
           return { bookmarked: false }
-        } else {
+        }
+        else {
           await tx.insert(schema.characterBookmarks).values({ userId, characterId })
 
           await tx.update(schema.character)
             .set({
-              bookmarksCount: sql`CAST(CAST(${schema.character.bookmarksCount} AS INTEGER) + 1 AS TEXT)`
+              bookmarksCount: sql`CAST(CAST(${schema.character.bookmarksCount} AS INTEGER) + 1 AS TEXT)`,
             })
             .where(eq(schema.character.id, characterId))
 

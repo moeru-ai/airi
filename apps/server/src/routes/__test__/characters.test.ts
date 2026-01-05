@@ -1,13 +1,14 @@
 import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
-import * as schema from '../../schemas'
 import { createCharacterService } from '../../services/characters'
 import { ApiError } from '../../utils/error'
 import { createCharacterRoutes } from '../characters'
+
+import * as schema from '../../schemas'
 
 describe('characterRoutes', () => {
   let db: any

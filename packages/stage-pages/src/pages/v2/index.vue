@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { Button } from '@proj-airi/ui'
-import { useCharacterStore } from '@proj-airi/stage-ui/stores/characters'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { onMounted, computed } from 'vue'
+import { useCharacterStore } from '@proj-airi/stage-ui/stores/characters'
+import { Button } from '@proj-airi/ui'
+import { computed, onMounted } from 'vue'
 
 const characterStore = useCharacterStore()
 const authStore = useAuthStore()
@@ -13,9 +13,10 @@ const characterWithBackgroundAvatar = new URL('../../../../../docs/.vitepress/as
 const characterAvatarImage = new URL('../../../../stage-ui/src/assets/live2d/models/hiyori/preview.png', import.meta.url).href
 
 function formatCount(value: number | string) {
-  const num = typeof value === 'string' ? parseInt(value) : value
-  if (isNaN(num)) return '0'
-  
+  const num = typeof value === 'string' ? Number.parseInt(value) : value
+  if (isNaN(num))
+    return '0'
+
   const units = [
     { suffix: 'Q', value: 1_000_000_000_000_000 },
     { suffix: 'T', value: 1_000_000_000_000 },
@@ -39,9 +40,9 @@ onMounted(() => {
   characterStore.fetchList(true)
 })
 
-const characters = computed(() => Array.from(characterStore.characters.values()).map(char => {
+const characters = computed(() => Array.from(characterStore.characters.values()).map((char) => {
   const i18n = char.i18n[0] || { name: 'Unknown', tagline: '', description: '' }
-  
+
   return {
     id: char.id,
     name: i18n.name,
