@@ -34,6 +34,12 @@ language:
   title: 言語
   description: >
     AIRIインターフェースの言語を変更します。これはキャラクターの応答言語には影響しません。
+chat:
+  assistant-character-name:
+    title: アシスタントキャラクター名
+    description: >
+      チャット画面で表示されるアシスタントのキャラクター名を設定します。空欄の場合はデフォルトの「AIRI」が表示されます。
+    placeholder: AIRI
 live2d:
   change-model:
     from-file: ファイルから読み込む
