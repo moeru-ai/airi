@@ -1239,6 +1239,9 @@ importers:
       '@proj-airi/stage-layouts':
         specifier: workspace:^
         version: link:../../packages/stage-layouts
+      '@proj-airi/stage-shared':
+        specifier: workspace:^
+        version: link:../../packages/stage-shared
       '@proj-airi/stage-ui':
         specifier: workspace:^
         version: link:../../packages/stage-ui

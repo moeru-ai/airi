@@ -24,6 +24,7 @@ export const CONTEXT_CHANNEL_NAME = 'airi-context-update'
 export const CHAT_STREAM_CHANNEL_NAME = 'airi-chat-stream'
 
 export const useChatStore = defineStore('chat', () => {
+  const llmStore = useLLM()
   const { stream, discoverToolsCompatibility } = useLLM()
   const consciousnessStore = useConsciousnessStore()
   const { activeProvider } = storeToRefs(consciousnessStore)
@@ -237,6 +238,10 @@ export const useChatStore = defineStore('chat', () => {
     const nextGeneration = getSessionGeneration(sessionId) + 1
     sessionGenerations.value = { ...sessionGenerations.value, [sessionId]: nextGeneration }
     return nextGeneration
+  }
+
+  function getSessionGenerationValue(sessionId = activeSessionId.value) {
+    return getSessionGeneration(sessionId)
   }
 
   function generateInitialMessage() {
@@ -521,7 +526,7 @@ export const useChatStore = defineStore('chat', () => {
       if (shouldAbort())
         return
 
-      await stream(options.model, options.chatProvider, newMessages as Message[], {
+      await llmStore.stream(options.model, options.chatProvider, newMessages as Message[], {
         headers,
         tools: options.tools,
         onStreamEvent: async (event: StreamEvent) => {
@@ -593,6 +598,36 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  // ----- Remote stream helpers (for broadcast/devtools) -----
+  function beginRemoteStream() {
+    streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() }
+  }
+
+  function appendRemoteLiteral(literal: string) {
+    streamingMessage.value.content += literal
+
+    const lastSlice = streamingMessage.value.slices.at(-1)
+    if (lastSlice?.type === 'text') {
+      lastSlice.text += literal
+      return
+    }
+
+    streamingMessage.value.slices.push({
+      type: 'text',
+      text: literal,
+    })
+  }
+
+  function finalizeRemoteStream(fullText?: string) {
+    const sessionId = activeSessionId.value
+    const sessionMessagesForSend = getSessionMessagesById(sessionId)
+    if (streamingMessage.value.slices.length > 0)
+      sessionMessagesForSend.push(toRaw(streamingMessage.value))
+    streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
+    if (fullText)
+      streamingMessage.value.content = fullText
+  }
+
   async function send(
     sendingMessage: string,
     options: SendOptions,
@@ -617,7 +652,7 @@ export const useChatStore = defineStore('chat', () => {
     messages,
     streamingMessage,
 
-    discoverToolsCompatibility,
+    discoverToolsCompatibility: llmStore.discoverToolsCompatibility,
 
     send,
     setActiveSession,
@@ -640,6 +675,12 @@ export const useChatStore = defineStore('chat', () => {
     emitAssistantResponseEndHooks,
     emitAssistantMessageHooks,
     emitChatTurnCompleteHooks,
+
+    getSessionGenerationValue,
+
+    beginRemoteStream,
+    appendRemoteLiteral,
+    finalizeRemoteStream,
 
     onBeforeMessageComposed,
     onAfterMessageComposed,
