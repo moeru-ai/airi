@@ -64,44 +64,66 @@ watch([apiKeyConfigured], async () => {
 // Generate speech with VOICEVOX API (2-step process: audio_query → synthesis)
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
   const providerConfig = providersStore.getProviderConfig(providerId)
-  const baseUrl = ((providerConfig.baseUrl as string) || 'http://localhost:50021').trim().replace(/\/$/, '')
+  const baseUrl = ((providerConfig.baseUrl as string) || 'http://localhost:50021/').trim().replace(/\/$/, '')
   
-  // Step 1: Create audio query
-  const audioQueryUrl = `${baseUrl}/audio_query?text=${encodeURIComponent(input)}&speaker=${voiceId}`
-  const audioQueryResponse = await fetch(audioQueryUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  })
-  
-  if (!audioQueryResponse.ok) {
-    throw new Error(`Failed to create audio query: ${audioQueryResponse.statusText}`)
+  if (!baseUrl) {
+    throw new Error('Base URL is not configured. Please set the VOICEVOX engine URL in the settings.')
   }
   
-  let audioQuery = await audioQueryResponse.json()
-  
-  // Apply parameters
-  audioQuery.speedScale = speed.value
-  audioQuery.pitchScale = pitch.value
-  audioQuery.intonationScale = intonation.value
-  
-  // Step 2: Synthesize audio
-  const synthesisUrl = `${baseUrl}/synthesis?speaker=${voiceId}`
-  const synthesisResponse = await fetch(synthesisUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(audioQuery),
-  })
-  
-  if (!synthesisResponse.ok) {
-    throw new Error(`Failed to synthesize audio: ${synthesisResponse.statusText}`)
+  if (!voiceId) {
+    throw new Error('Voice ID is required. Please select a voice.')
   }
   
-  // Return audio data as ArrayBuffer
-  return await synthesisResponse.arrayBuffer()
+  if (!input || !input.trim()) {
+    throw new Error('Input text is required.')
+  }
+  
+  try {
+    // Step 1: Create audio query
+    const audioQueryUrl = `${baseUrl}/audio_query?text=${encodeURIComponent(input)}&speaker=${voiceId}`
+    const audioQueryResponse = await fetch(audioQueryUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    if (!audioQueryResponse.ok) {
+      const errorText = await audioQueryResponse.text().catch(() => '')
+      throw new Error(`Failed to create audio query: ${audioQueryResponse.status} ${audioQueryResponse.statusText}${errorText ? ` - ${errorText}` : ''}`)
+    }
+    
+    let audioQuery = await audioQueryResponse.json()
+    
+    // Apply parameters
+    audioQuery.speedScale = speed.value
+    audioQuery.pitchScale = pitch.value
+    audioQuery.intonationScale = intonation.value
+    
+    // Step 2: Synthesize audio
+    const synthesisUrl = `${baseUrl}/synthesis?speaker=${voiceId}`
+    const synthesisResponse = await fetch(synthesisUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(audioQuery),
+    })
+    
+    if (!synthesisResponse.ok) {
+      const errorText = await synthesisResponse.text().catch(() => '')
+      throw new Error(`Failed to synthesize audio: ${synthesisResponse.status} ${synthesisResponse.statusText}${errorText ? ` - ${errorText}` : ''}`)
+    }
+    
+    // Return audio data as ArrayBuffer
+    return await synthesisResponse.arrayBuffer()
+  }
+  catch (error) {
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error(`Failed to connect to VOICEVOX engine at ${baseUrl}. Make sure the engine is running.`)
+    }
+    throw error
+  }
 }
 
 watch(speed, () => {

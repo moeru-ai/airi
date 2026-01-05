@@ -1325,7 +1325,7 @@ export const useProvidersStore = defineStore('providers', () => {
       icon: 'i-solar:microphone-2-bold-duotone',
       iconColor: 'i-lobe-icons:voicevox',
       defaultOptions: () => ({
-        baseUrl: 'http://localhost:50021',
+        baseUrl: 'http://localhost:50021/',
         speed: 1.0,
         pitch: 0.0,
         intonation: 1.0,
@@ -1334,7 +1334,7 @@ export const useProvidersStore = defineStore('providers', () => {
         const baseUrl = (config.baseUrl as string).trim().replace(/\/$/, '')
         
         const provider: SpeechProvider = {
-          speech: (model, extraOptions) => {
+          speech: (model: string, extraOptions?: Record<string, any>) => {
             return {
               baseURL: baseUrl,
               model: 'voicevox',
@@ -1347,8 +1347,41 @@ export const useProvidersStore = defineStore('providers', () => {
                 // inputとvoiceはgenerateSpeech関数から渡される
                 const request = input instanceof Request ? input : new Request(input, init)
                 const url = new URL(request.url)
-                const text = url.searchParams.get('input') || url.searchParams.get('text') || ''
-                const speakerId = url.searchParams.get('voice') || url.searchParams.get('speaker') || ''
+                
+                // generateSpeech関数はinputとvoiceをURLのクエリパラメータとして渡す
+                let text = url.searchParams.get('input') || url.searchParams.get('text') || ''
+                let speakerId = url.searchParams.get('voice') || url.searchParams.get('speaker') || ''
+                
+                // クエリパラメータから取得できない場合、リクエストボディから取得を試みる
+                if (!text || !speakerId) {
+                  try {
+                    // Requestオブジェクトのbodyを読み取るためにclone()を使用
+                    const clonedRequest = request.clone()
+                    const bodyText = await clonedRequest.text()
+                    if (bodyText) {
+                      try {
+                        const bodyJson = JSON.parse(bodyText)
+                        text = bodyJson.input || bodyJson.text || text
+                        speakerId = bodyJson.voice || bodyJson.speaker || speakerId
+                      }
+                      catch {
+                        // JSON解析に失敗した場合、FormDataとして試みる
+                        try {
+                          const formData = await clonedRequest.formData()
+                          text = formData.get('input') as string || formData.get('text') as string || text
+                          speakerId = formData.get('voice') as string || formData.get('speaker') as string || speakerId
+                        }
+                        catch {
+                          // FormData解析にも失敗した場合、クエリパラメータに依存
+                        }
+                      }
+                    }
+                  }
+                  catch (error) {
+                    // リクエストボディの読み取りに失敗した場合、クエリパラメータに依存
+                    console.warn('Failed to read request body for VOICEVOX:', error)
+                  }
+                }
                 
                 // 設定からパラメータを取得
                 const speed = (extraOptions?.speed as number) ?? (config.speed as number) ?? 1.0
@@ -1356,7 +1389,15 @@ export const useProvidersStore = defineStore('providers', () => {
                 const intonation = (extraOptions?.intonation as number) ?? (config.intonation as number) ?? 1.0
                 
                 if (!text || !speakerId) {
-                  throw new Error('Text and speaker ID are required')
+                  // デバッグ情報を追加
+                  console.error('VOICEVOX fetch error - missing parameters:', {
+                    url: request.url,
+                    method: request.method,
+                    searchParams: Object.fromEntries(url.searchParams.entries()),
+                    text: text || '(empty)',
+                    speakerId: speakerId || '(empty)',
+                  })
+                  throw new Error(`Text and speaker ID are required. URL: ${request.url}, Text: "${text || '(empty)'}", Speaker ID: "${speakerId || '(empty)'}"`)
                 }
                 
                 // Step 1: audio_queryで音声クエリを生成
@@ -1442,7 +1483,7 @@ export const useProvidersStore = defineStore('providers', () => {
       validators: {
         validateProviderConfig: async (config) => {
           const errors = [
-            !config.baseUrl && new Error('Base URL is required. Default to http://localhost:50021 for VOICEVOX.'),
+            !config.baseUrl && new Error('Base URL is required. Default to http://localhost:50021/ for VOICEVOX.'),
           ].filter(Boolean)
           
           const res = baseUrlValidator.value(config.baseUrl)
@@ -1450,24 +1491,21 @@ export const useProvidersStore = defineStore('providers', () => {
             return res
           }
           
-          // VOICEVOXエンジンへの接続確認
+          // VOICEVOXエンジンへの接続確認（オプショナル：エンジンが起動していなくても設定は有効）
+          // エンジンが起動していない場合でも、baseUrlが設定されていればvalid: trueを返す
           try {
             const baseUrl = (config.baseUrl as string).trim().replace(/\/$/, '')
-            const response = await fetch(`${baseUrl}/speakers`)
+            const response = await fetch(`${baseUrl}/speakers`, {
+              signal: AbortSignal.timeout(3000), // 3秒でタイムアウト
+            })
             if (!response.ok) {
-              return {
-                errors: [new Error(`VOICEVOX engine returned non-ok status: ${response.statusText}`)],
-                reason: `Failed to connect to VOICEVOX engine at ${baseUrl}. Make sure the engine is running.`,
-                valid: false,
-              }
+              // エンジンが起動していない場合でも、baseUrlが設定されていれば有効とする
+              console.warn(`VOICEVOX engine returned non-ok status: ${response.statusText}. Provider will be marked as configured, but may not work until the engine is running.`)
             }
           }
           catch (err) {
-            return {
-              errors: [err instanceof Error ? err : new Error(String(err))],
-              reason: `Failed to connect to VOICEVOX engine. Make sure it's running at ${config.baseUrl}.`,
-              valid: false,
-            }
+            // エンジンが起動していない場合でも、baseUrlが設定されていれば有効とする
+            console.warn(`Failed to connect to VOICEVOX engine at ${config.baseUrl}. Provider will be marked as configured, but may not work until the engine is running.`, err)
           }
           
           return {
