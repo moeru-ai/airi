@@ -25,7 +25,6 @@ export const CHAT_STREAM_CHANNEL_NAME = 'airi-chat-stream'
 
 export const useChatStore = defineStore('chat', () => {
   const llmStore = useLLM()
-  const { stream, discoverToolsCompatibility } = useLLM()
   const consciousnessStore = useConsciousnessStore()
   const { activeProvider } = storeToRefs(consciousnessStore)
   const { systemPrompt } = storeToRefs(useCharacterStore())
