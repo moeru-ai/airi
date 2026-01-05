@@ -15,7 +15,7 @@ import { categorizeResponse, createStreamingCategorizer } from '../composables/r
 import { useLLM } from '../stores/llm'
 import { createQueue } from '../utils/queue'
 import { TTS_FLUSH_INSTRUCTION } from '../utils/tts'
-import { useAiriCardStore } from './modules'
+import { useCharacterStore } from './character'
 import { useConsciousnessStore } from './modules/consciousness'
 
 const CHAT_STORAGE_KEY = 'chat/messages/v2'
@@ -25,9 +25,9 @@ export const CHAT_STREAM_CHANNEL_NAME = 'airi-chat-stream'
 
 export const useChatStore = defineStore('chat', () => {
   const { stream, discoverToolsCompatibility } = useLLM()
-  const { systemPrompt } = storeToRefs(useAiriCardStore())
   const consciousnessStore = useConsciousnessStore()
   const { activeProvider } = storeToRefs(consciousnessStore)
+  const { systemPrompt } = storeToRefs(useCharacterStore())
   const { trackFirstMessage } = useAnalytics()
 
   const activeSessionId = useLocalStorage<string>(ACTIVE_SESSION_STORAGE_KEY, 'default')
