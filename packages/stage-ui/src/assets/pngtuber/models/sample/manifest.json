@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "name": "Sample PNGtuber",
+  "idle": {
+    "default": "idle.png",
+    "blink": "idle-blink.png"
+  },
+  "mouth": {
+    "closed": "mouth-closed.png",
+    "open": "mouth-open.png"
+  }
+}
