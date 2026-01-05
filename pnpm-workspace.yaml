@@ -12,6 +12,7 @@ catalog:
   '@capacitor/core': ^8.0.0
   '@capacitor/ios': ^8.0.0
   '@capacitor/local-notifications': ^8.0.0
+  '@electric-sql/pglite': ^0.3.14
   '@guiiai/logg': ^1.2.11
   '@iconify-json/logos': ^1.2.10
   '@iconify-json/tabler': ^1.2.26

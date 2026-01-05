@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@dotenvx/dotenvx": "^1.51.1",
+    "@electric-sql/pglite": "catalog:",
     "@guiiai/logg": "catalog:",
     "@hono/node-server": "^1.19.6",
     "better-auth": "^1.4.5",
