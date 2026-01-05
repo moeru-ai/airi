@@ -49,6 +49,15 @@ function handleAddVRMModel(file: FileList | null) {
   displayModelStore.addDisplayModel(DisplayModelFormat.VRM, file[0])
 }
 
+function handleAddPNGtuberModel(file: FileList | null) {
+  if (file === null || file.length === 0)
+    return
+  if (!file[0].name.endsWith('.zip'))
+    return
+
+  displayModelStore.addDisplayModel(DisplayModelFormat.PNGtuber, file[0])
+}
+
 const mapFormatRenderer: Record<DisplayModelFormat, string> = {
   [DisplayModelFormat.Live2dZip]: 'Live2D',
   [DisplayModelFormat.Live2dDirectory]: 'Live2D',
@@ -56,13 +65,16 @@ const mapFormatRenderer: Record<DisplayModelFormat, string> = {
   [DisplayModelFormat.PMXDirectory]: 'MMD',
   [DisplayModelFormat.PMXZip]: 'MMD',
   [DisplayModelFormat.PMD]: 'MMD',
+  [DisplayModelFormat.PNGtuber]: 'PNGtuber',
 }
 
 const live2dDialog = useFileDialog({ accept: '.zip', multiple: false, reset: true })
 const vrmDialog = useFileDialog({ accept: '.vrm', multiple: false, reset: true })
+const pngtuberDialog = useFileDialog({ accept: '.zip', multiple: false, reset: true })
 
 live2dDialog.onChange(handleAddLive2DModel)
 vrmDialog.onChange(handleAddVRMModel)
+pngtuberDialog.onChange(handleAddPNGtuberModel)
 </script>
 
 <template>
@@ -114,6 +126,12 @@ vrmDialog.onChange(handleAddVRMModel)
                 transition="colors duration-200 ease-in-out" @click="vrmDialog.open()"
               >
                 VRM
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                class="data-[disabled]:text-mauve8 relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 text-base leading-none outline-none data-[disabled]:pointer-events-none data-[highlighted]:bg-primary-100/20 sm:text-sm data-[highlighted]:text-primary-200"
+                transition="colors duration-200 ease-in-out" @click="pngtuberDialog.open()"
+              >
+                PNGtuber
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenuPortal>
