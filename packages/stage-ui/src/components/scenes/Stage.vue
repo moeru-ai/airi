@@ -24,6 +24,7 @@ import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref } from 'vue'
 
 import Live2DScene from './Live2D.vue'
+import PNGtuberScene from './PNGtuber.vue'
 
 import { useDelayMessageQueue, useEmotionsMessageQueue, usePipelineCharacterSpeechPlaybackQueueStore, usePipelineWorkflowTextSegmentationStore } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
@@ -51,6 +52,7 @@ const db = ref<DuckDBWasmDrizzleDatabase>()
 
 const vrmViewerRef = ref<InstanceType<typeof ThreeScene>>()
 const live2dSceneRef = ref<InstanceType<typeof Live2DScene>>()
+const pngtuberSceneRef = ref<InstanceType<typeof PNGtuberScene>>()
 
 const textSegmentationStore = usePipelineWorkflowTextSegmentationStore()
 const { onTextSegmented, clearHooks: clearTextSegmentationHooks } = textSegmentationStore
@@ -324,9 +326,10 @@ onMounted(async () => {
 function canvasElement() {
   if (stageModelRenderer.value === 'live2d')
     return live2dSceneRef.value?.canvasElement()
-
   else if (stageModelRenderer.value === 'vrm')
     return vrmViewerRef.value?.canvasElement()
+  else if (stageModelRenderer.value === 'pngtuber')
+    return pngtuberSceneRef.value?.canvasElement()
 }
 
 onUnmounted(() => {
@@ -389,6 +392,17 @@ onPlaybackStarted(({ text }) => {
         :show-axes="stageViewControlsEnabled"
         :current-audio-source="currentAudioSource"
         @error="console.error"
+      />
+      <PNGtuberScene
+        v-if="stageModelRenderer === 'pngtuber' && showStage"
+        ref="pngtuberSceneRef"
+        v-model:state="componentState"
+        min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
+        :model-src="stageModelSelectedUrl"
+        :model-id="stageModelSelected"
+        :focus-at="focusAt"
+        :mouth-open-size="mouthOpenSize"
+        :paused="paused"
       />
     </div>
   </div>
