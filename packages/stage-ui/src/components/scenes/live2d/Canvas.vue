@@ -20,6 +20,21 @@ const isPixiCanvasReady = ref(false)
 const pixiApp = ref<Application>()
 const pixiAppCanvas = ref<HTMLCanvasElement>()
 
+function installRenderGuard(app: Application) {
+  const guardedRender = () => {
+    try {
+      app.render()
+    }
+    catch (error) {
+      console.error('[Live2D] Pixi render error.', error)
+      app.ticker.stop()
+    }
+  }
+
+  app.ticker.remove(app.render, app)
+  app.ticker.add(guardedRender)
+}
+
 async function initLive2DPixiStage(parent: HTMLDivElement) {
   componentState.value = 'loading'
   isPixiCanvasReady.value = false
@@ -39,6 +54,7 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
     resolution: 1,
   })
 
+  installRenderGuard(pixiApp.value)
   pixiApp.value.stage.scale.set(props.resolution)
 
   pixiAppCanvas.value = pixiApp.value.view
@@ -75,7 +91,14 @@ async function captureFrame() {
     if (!pixiAppCanvas.value || !pixiApp.value)
       return resolve(null)
 
-    pixiApp.value.render()
+    try {
+      pixiApp.value.render()
+    }
+    catch (error) {
+      console.error('[Live2D] Pixi render error during capture.', error)
+      return resolve(null)
+    }
+
     pixiAppCanvas.value.toBlob(resolve)
   })
 

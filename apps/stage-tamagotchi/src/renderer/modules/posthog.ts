@@ -1,6 +1,8 @@
 import posthog from 'posthog-js'
 
-posthog.init('phc_rljw376z5gt6vXJlc3sTr7hFbXodciY9THEQXIRnW53', {
-  api_host: 'https://us.i.posthog.com',
-  person_profiles: 'identified_only', // or 'always' to create profiles for anonymous users as well
+import { DEFAULT_POSTHOG_CONFIG, POSTHOG_PROJECT_KEY_DESKTOP } from '../../../../../posthog.config'
+
+posthog.init(POSTHOG_PROJECT_KEY_DESKTOP, {
+  ...DEFAULT_POSTHOG_CONFIG,
+  // Project-specific config...
 })
