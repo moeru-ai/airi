@@ -16,6 +16,7 @@
   },
   "exports": {
     "./assets/vrm": "./src/assets/vrm/index.ts",
+    "./composables/vrm": "./src/composables/vrm/index.ts",
     ".": "./src/index.ts"
   },
   "scripts": {
