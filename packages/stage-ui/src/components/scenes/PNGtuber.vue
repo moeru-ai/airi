@@ -181,15 +181,17 @@ async function render(timestamp: number) {
   const deltaTime = timestamp - lastTime
   lastTime = timestamp
 
-  // Update blink state
-  blinkState.value.blinkTimer += deltaTime
-  if (blinkState.value.blinkTimer >= blinkState.value.nextBlinkTime) {
-    blinkState.value.isBlinking = true
-    setTimeout(() => {
-      blinkState.value.isBlinking = false
-      blinkState.value.blinkTimer = 0
-      blinkState.value.nextBlinkTime = 3000 + Math.random() * 5000
-    }, 150)
+  // Update blink state - only schedule a new blink if not already blinking
+  if (!blinkState.value.isBlinking) {
+    blinkState.value.blinkTimer += deltaTime
+    if (blinkState.value.blinkTimer >= blinkState.value.nextBlinkTime) {
+      blinkState.value.isBlinking = true
+      setTimeout(() => {
+        blinkState.value.isBlinking = false
+        blinkState.value.blinkTimer = 0
+        blinkState.value.nextBlinkTime = 3000 + Math.random() * 5000
+      }, 150)
+    }
   }
 
   // Clear canvas
@@ -231,7 +233,11 @@ async function render(timestamp: number) {
 
 // Clean up previous model resources
 function cleanupModel() {
-  // Revoke all blob URLs
+  // Revoke manifest blob URL
+  if (loadedModel.value?.manifestUrl) {
+    URL.revokeObjectURL(loadedModel.value.manifestUrl)
+  }
+  // Revoke all image blob URLs
   for (const url of imageUrls.value.values()) {
     URL.revokeObjectURL(url)
   }
