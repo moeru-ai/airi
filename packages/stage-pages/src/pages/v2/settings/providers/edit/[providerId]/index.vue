@@ -38,6 +38,13 @@ const providerSchema = computed(() => providerDefinition.value?.createProviderCo
 const providerSchemaDefault = computed(() => getSchemaDefault(providerSchema.value))
 
 const providerConfigEdit = refManualReset(providerConfig)
+
+watch(providerConfig, (newVal) => {
+  if (newVal && Object.keys(newVal).length > 0) {
+    providerConfigEdit.reset()
+  }
+}, { immediate: true })
+
 const isEdited = computed(() => {
   const currentConfig = providerConfigEdit.value?.config || {}
   const savedConfig = providerConfig.value?.config || {}
