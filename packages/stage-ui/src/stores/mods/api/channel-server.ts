@@ -11,6 +11,8 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   const client = ref<Client>()
   const initializing = ref<Promise<void> | null>(null)
   const pendingSend = ref<Array<WebSocketEvent>>([])
+  const listenersInitialized = ref(false)
+  const listenerDisposers = ref<Array<() => void>>([])
 
   const basePossibleEvents: Array<keyof WebSocketEvents> = [
     'context:update',
@@ -49,12 +51,14 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
         onError: (error) => {
           connected.value = false
           initializing.value = null
+          clearListeners()
 
           console.warn('WebSocket server connection error:', error)
         },
         onClose: () => {
           connected.value = false
           initializing.value = null
+          clearListeners()
 
           console.warn('WebSocket server connection closed')
         },
@@ -83,6 +87,19 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     if (!connected.value) {
       return await initialize()
     }
+  }
+
+  function clearListeners() {
+    for (const disposer of listenerDisposers.value) {
+      try {
+        disposer()
+      }
+      catch (error) {
+        console.warn('Failed to dispose channel listener:', error)
+      }
+    }
+    listenerDisposers.value = []
+    listenersInitialized.value = false
   }
 
   function initializeListeners() {
@@ -146,6 +163,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
   function dispose() {
     flush()
+    clearListeners()
 
     client.value?.close()
     connected.value = false

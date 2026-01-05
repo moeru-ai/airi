@@ -18,6 +18,7 @@ catalog:
   '@moeru/eslint-config': 0.1.0-beta.14
   '@moeru/std': 0.1.0-beta.14
   '@nekopaw/tempora': 0.4.0-alpha.1
+  '@pinia/testing': ^1.0.3
   '@proj-airi/drizzle-duckdb-wasm': ^0.4.29
   '@types/audioworklet': ^0.0.92
   '@types/splitpanes': ^2.2.6
@@ -51,7 +52,7 @@ catalog:
   valibot: 1.2.0
   vite-plugin-mkcert: ^1.17.9
   vue-sonner: ^2.0.9
-  xsschema: ^0.4.0-beta.12
+  xsschema: 0.4.0-beta.13
   zod: ^4.2.1
 
 catalogMode: prefer
