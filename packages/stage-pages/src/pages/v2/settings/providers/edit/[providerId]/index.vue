@@ -108,14 +108,16 @@ const basicFields = computed(() => schemaFields.value.filter(field => field.sect
 const advancedFields = computed(() => schemaFields.value.filter(field => field.section === 'advanced'))
 
 function setFieldValue(key: string, value: unknown) {
+  const currentProvider = providerCatalogStore.configs[providerId.value]
+  if (!currentProvider)
+    return
+
   providerCatalogStore.configs[providerId.value] = {
-    ...providerCatalogStore.configs[providerId.value],
+    ...currentProvider,
     config: {
-      ...providerCatalogStore.configs[providerId.value]?.config,
+      ...currentProvider.config,
       [key]: value,
     },
-    id: providerId.value,
-    definitionId: providerId.value,
   }
 }
 

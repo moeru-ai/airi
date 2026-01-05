@@ -1,8 +1,7 @@
-import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
-import { useVersionedLocalStorage } from '../composables/use-versioned-local-storage'
+import { client } from '../composables/api'
 import { getDefinedProvider, listProviders } from '../libs/providers/providers'
 
 interface ProviderCatalogProvider {
@@ -16,45 +15,147 @@ interface ProviderCatalogProvider {
 
 export const useProviderCatalogStore = defineStore('provider-catalog', () => {
   const defs = computed(() => listProviders())
-  const configs = useVersionedLocalStorage<Record<string, ProviderCatalogProvider>>('app:ui:provider-catalog:configs', {}, { defaultVersion: '1.0.0' })
+  const configs = ref<Record<string, ProviderCatalogProvider>>({})
+  const isLoading = ref(false)
+  const error = ref<unknown>(null)
 
-  function addProvider(definitionId: string, initialConfig: Record<string, any> = {}) {
+  async function fetchList() {
+    isLoading.value = true
+    error.value = null
+    try {
+      const res = await client.api.providers.$get()
+      if (!res.ok) {
+        throw new Error('Failed to fetch providers')
+      }
+      const data = await res.json()
+
+      const newConfigs: Record<string, ProviderCatalogProvider> = {}
+      for (const item of data) {
+        newConfigs[item.id] = {
+          id: item.id,
+          definitionId: item.definitionId,
+          name: item.name,
+          config: item.config as Record<string, any>,
+          validated: item.validated,
+          validationBypassed: item.validationBypassed,
+        }
+      }
+      configs.value = newConfigs
+    }
+    catch (err) {
+      error.value = err
+      throw err
+    }
+    finally {
+      isLoading.value = false
+    }
+  }
+
+  async function addProvider(definitionId: string, initialConfig: Record<string, any> = {}) {
     if (!getDefinedProvider(definitionId)) {
       throw new Error(`Provider definition with id "${definitionId}" not found.`)
     }
 
-    const providerConfig = {
-      id: nanoid(),
-      definitionId,
-      name: getDefinedProvider(definitionId)!.name,
-      config: initialConfig,
-      validated: false,
-      validationBypassed: false,
-    } satisfies ProviderCatalogProvider
+    isLoading.value = true
+    error.value = null
+    try {
+      const res = await client.api.providers.$post({
+        json: {
+          definitionId,
+          name: getDefinedProvider(definitionId)!.name,
+          config: initialConfig,
+          validated: false,
+          validationBypassed: false,
+        },
+      })
+      if (!res.ok) {
+        throw new Error('Failed to add provider')
+      }
+      const item = await res.json()
 
-    configs.value[providerConfig.id] = providerConfig
+      configs.value[item.id] = {
+        id: item.id,
+        definitionId: item.definitionId,
+        name: item.name,
+        config: item.config as Record<string, any>,
+        validated: item.validated,
+        validationBypassed: item.validationBypassed,
+      }
+      return item
+    }
+    catch (err) {
+      error.value = err
+      throw err
+    }
+    finally {
+      isLoading.value = false
+    }
   }
 
-  function removeProvider(providerId: string) {
-    delete configs.value[providerId]
+  async function removeProvider(providerId: string) {
+    isLoading.value = true
+    error.value = null
+    try {
+      const res = await client.api.providers[':id'].$delete({
+        param: { id: providerId },
+      })
+      if (!res.ok) {
+        throw new Error('Failed to remove provider')
+      }
+      delete configs.value[providerId]
+    }
+    catch (err) {
+      error.value = err
+      throw err
+    }
+    finally {
+      isLoading.value = false
+    }
   }
 
-  function commitProviderConfig(providerId: string, newConfig: Record<string, any>, options: { validated: boolean, validationBypassed: boolean }) {
+  async function commitProviderConfig(providerId: string, newConfig: Record<string, any>, options: { validated: boolean, validationBypassed: boolean }) {
     if (!configs.value[providerId]) {
       return
     }
 
-    configs.value[providerId].config = { ...newConfig }
-    configs.value[providerId].validated = options.validated
-    configs.value[providerId].validationBypassed = options.validationBypassed
+    isLoading.value = true
+    error.value = null
+    try {
+      const res = await client.api.providers[':id'].$patch({
+        param: { id: providerId },
+        json: {
+          config: newConfig,
+          validated: options.validated,
+          validationBypassed: options.validationBypassed,
+        },
+      })
+      if (!res.ok) {
+        throw new Error('Failed to update provider config')
+      }
+      const item = await res.json()
+
+      configs.value[providerId].config = { ...item.config as Record<string, any> }
+      configs.value[providerId].validated = item.validated
+      configs.value[providerId].validationBypassed = item.validationBypassed
+    }
+    catch (err) {
+      error.value = err
+      throw err
+    }
+    finally {
+      isLoading.value = false
+    }
   }
 
   return {
     configs,
     defs,
+    isLoading,
+    error,
 
     getDefinedProvider,
 
+    fetchList,
     addProvider,
     removeProvider,
     commitProviderConfig,

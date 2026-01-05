@@ -36,6 +36,13 @@
       "when": 1767639486059,
       "tag": "0004_woozy_spyke",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1767641383133,
+      "tag": "0005_familiar_chat",
+      "breakpoints": true
     }
   ]
 }

@@ -14,7 +14,7 @@ const characterAvatarImage = new URL('../../../../stage-ui/src/assets/live2d/mod
 
 function formatCount(value: number | string) {
   const num = typeof value === 'string' ? Number.parseInt(value) : value
-  if (isNaN(num))
+  if (Number.isNaN(num))
     return '0'
 
   const units = [
