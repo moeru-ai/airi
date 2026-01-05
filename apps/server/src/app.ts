@@ -55,46 +55,39 @@ async function createApp() {
   const authInstance = resolved.auth
 
   const app = new Hono<HonoEnv>()
-
-  app.use(
-    '/api/*',
-    cors({
-      origin: origin => getTrustedOrigin(origin),
-      credentials: true,
-    }),
-  )
-
-  app.use(honoLogger())
-
-  app.use('*', sessionMiddleware(authInstance))
-
-  app.get('/session', authGuard, (c) => {
-    return c.json({
-      session: c.get('session'),
-      user: c.get('user')!,
-    })
-  })
-
-  app.on(['POST', 'GET'], '/api/auth/*', c => authInstance.handler(c.req.raw))
-
-  app.route('/api/characters', createCharacterRoutes(resolved.characterService))
-
-  app.onError((err, c) => {
-    if (err instanceof ApiError) {
+    .use(
+      '/api/*',
+      cors({
+        origin: origin => getTrustedOrigin(origin),
+        credentials: true,
+      }),
+    )
+    .use(honoLogger())
+    .use('*', sessionMiddleware(authInstance))
+    .get('/session', authGuard, (c) => {
       return c.json({
-        error: err.errorCode,
-        message: err.message,
-        details: err.details,
-      }, err.statusCode)
-    }
+        session: c.get('session'),
+        user: c.get('user')!,
+      })
+    })
+    .on(['POST', 'GET'], '/api/auth/*', c => authInstance.handler(c.req.raw))
+    .route('/api/characters', createCharacterRoutes(resolved.characterService))
+    .onError((err, c) => {
+      if (err instanceof ApiError) {
+        return c.json({
+          error: err.errorCode,
+          message: err.message,
+          details: err.details,
+        }, err.statusCode)
+      }
 
-    logger.withError(err).error('Unhandled error')
-    const internalError = createInternalError()
-    return c.json({
-      error: internalError.errorCode,
-      message: internalError.message,
-    }, internalError.statusCode)
-  })
+      logger.withError(err).error('Unhandled error')
+      const internalError = createInternalError()
+      return c.json({
+        error: internalError.errorCode,
+        message: internalError.message,
+      }, internalError.statusCode)
+    })
 
   logger.withFields({ port: 3000 }).log('Server started')
 
