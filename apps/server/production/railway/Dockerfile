@@ -5,6 +5,7 @@ WORKDIR /app
 RUN corepack enable
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY patches ./
 COPY apps/server apps/server
 
 # https://docs.railway.com/guides/dockerfiles#cache-mounts
