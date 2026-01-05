@@ -9,7 +9,7 @@ import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
 import { createLoggLogger, injeca } from 'injeca'
 
-import { authGuard, sessionMiddleware } from './middlewares/auth'
+import { sessionMiddleware } from './middlewares/auth'
 import { createCharacterRoutes } from './routes/characters'
 import { createAuth } from './services/auth'
 import { createCharacterService } from './services/characters'
@@ -20,20 +20,70 @@ import { getTrustedOrigin } from './utils/origin'
 
 import * as schema from './schemas'
 
+type AuthService = ReturnType<typeof createAuth>
+type CharacterService = ReturnType<typeof createCharacterService>
+
+interface AppDeps {
+  auth: AuthService
+  characterService: CharacterService
+}
+
+function buildApp({ auth, characterService }: AppDeps) {
+  const logger = useLogger('app').useGlobalConfig()
+
+  return new Hono<HonoEnv>()
+    .use(
+      '/api/*',
+      cors({
+        origin: origin => getTrustedOrigin(origin),
+        credentials: true,
+      }),
+    )
+    .use(honoLogger())
+    .use('*', sessionMiddleware(auth))
+    .onError((err, c) => {
+      if (err instanceof ApiError) {
+        return c.json({
+          error: err.errorCode,
+          message: err.message,
+          details: err.details,
+        }, err.statusCode)
+      }
+
+      logger.withError(err).error('Unhandled error')
+      const internalError = createInternalError()
+      return c.json({
+        error: internalError.errorCode,
+        message: internalError.message,
+      }, internalError.statusCode)
+    })
+
+    /**
+     * Auth routes are handled by the auth instance directly,
+     * Powered by better-auth.
+     */
+    .on(['POST', 'GET'], '/api/auth/*', c => auth.handler(c.req.raw))
+
+    /**
+     * Character routes are handled by the character service.
+     */
+    .route('/api/characters', createCharacterRoutes(characterService))
+}
+
+export type AppType = ReturnType<typeof buildApp>
+
 async function createApp() {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
   injeca.setLogger(createLoggLogger(useLogger('injeca').useGlobalConfig()))
-
-  const logger = useLogger('app').useGlobalConfig()
 
   const db = injeca.provide('services:db', {
     dependsOn: { env: parsedEnv },
     build: ({ dependsOn }) => {
       const dbInstance = createDrizzle(dependsOn.env.DATABASE_URL, schema)
       dbInstance.execute('SELECT 1')
-        .then(() => logger.log('Connected to database'))
+        .then(() => useLogger('app').useGlobalConfig().log('Connected to database'))
         .catch((err) => {
-          logger.withError(err).error('Failed to connect to database')
+          useLogger('app').useGlobalConfig().withError(err).error('Failed to connect to database')
           exit(1)
         })
       return dbInstance
@@ -52,49 +102,15 @@ async function createApp() {
 
   await injeca.start()
   const resolved = await injeca.resolve({ auth, characterService })
-  const authInstance = resolved.auth
+  const app = buildApp({
+    auth: resolved.auth,
+    characterService: resolved.characterService,
+  })
 
-  const app = new Hono<HonoEnv>()
-    .use(
-      '/api/*',
-      cors({
-        origin: origin => getTrustedOrigin(origin),
-        credentials: true,
-      }),
-    )
-    .use(honoLogger())
-    .use('*', sessionMiddleware(authInstance))
-    .get('/session', authGuard, (c) => {
-      return c.json({
-        session: c.get('session'),
-        user: c.get('user')!,
-      })
-    })
-    .on(['POST', 'GET'], '/api/auth/*', c => authInstance.handler(c.req.raw))
-    .route('/api/characters', createCharacterRoutes(resolved.characterService))
-    .onError((err, c) => {
-      if (err instanceof ApiError) {
-        return c.json({
-          error: err.errorCode,
-          message: err.message,
-          details: err.details,
-        }, err.statusCode)
-      }
-
-      logger.withError(err).error('Unhandled error')
-      const internalError = createInternalError()
-      return c.json({
-        error: internalError.errorCode,
-        message: internalError.message,
-      }, internalError.statusCode)
-    })
-
-  logger.withFields({ port: 3000 }).log('Server started')
+  useLogger('app').useGlobalConfig().withFields({ port: 3000 }).log('Server started')
 
   return app
 }
-
-export type AppType = Awaited<ReturnType<typeof createApp>>
 
 // eslint-disable-next-line antfu/no-top-level-await
 serve(await createApp())
