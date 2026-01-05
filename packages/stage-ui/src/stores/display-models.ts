@@ -25,6 +25,36 @@ export enum DisplayModelFormat {
   PMXZip = 'pmx-zip',
   PMXDirectory = 'pmx-directory',
   PMD = 'pmd',
+  PNGtuber = 'pngtuber',
+}
+
+// PNGtuber manifest structure for defining sprite states
+export interface PNGtuberManifest {
+  version: 1
+  name: string
+  // Base images for idle state
+  idle: {
+    default: string
+    blink?: string
+  }
+  // Mouth shapes for lip sync (optional - if not provided, uses open/closed)
+  mouth?: {
+    closed: string
+    open: string
+    // Vowel-specific mouth shapes (optional)
+    a?: string
+    e?: string
+    i?: string
+    o?: string
+    u?: string
+  }
+  // Emotion overlays or full replacements (optional)
+  emotions?: {
+    [emotionName: string]: {
+      default: string
+      blink?: string
+    }
+  }
 }
 
 export type DisplayModel
@@ -285,6 +315,32 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     }
   }
 
+  async function loadPNGtuberModelPreview(file: File): Promise<string | undefined> {
+    try {
+      const { loadPNGtuberFromZip } = await import('../utils/pngtuber-zip-loader')
+      const model = await loadPNGtuberFromZip(file)
+
+      // Get the idle default image as preview
+      const idleImageBlob = model.images.get(model.manifest.idle.default)
+      if (!idleImageBlob) {
+        console.warn('PNGtuber idle image not found')
+        return undefined
+      }
+
+      // Convert blob to data URL
+      return new Promise((resolve) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result as string)
+        reader.onerror = () => resolve(undefined)
+        reader.readAsDataURL(idleImageBlob)
+      })
+    }
+    catch (error) {
+      console.error('Failed to load PNGtuber preview:', error)
+      return undefined
+    }
+  }
+
   async function addDisplayModel(format: DisplayModelFormat, file: File) {
     await until(displayModelsFromIndexedDBLoading).toBe(false)
     const newDisplayModel: DisplayModelFile = { id: `display-model-${nanoid()}`, format, type: 'file', file, name: file.name, importedAt: Date.now() }
@@ -296,6 +352,12 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     else if (format === DisplayModelFormat.VRM) {
       const previewImage = await loadVrmModelPreview(file)
       newDisplayModel.previewImage = previewImage
+    }
+    else if (format === DisplayModelFormat.PNGtuber) {
+      const previewImage = await loadPNGtuberModelPreview(file)
+      if (previewImage) {
+        newDisplayModel.previewImage = previewImage
+      }
     }
 
     displayModels.value.unshift(newDisplayModel)
