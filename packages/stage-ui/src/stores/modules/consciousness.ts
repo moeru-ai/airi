@@ -14,6 +14,15 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   const [expandedDescriptions, resetExpandedDescriptions] = createResettableRef<Record<string, boolean>>({})
   const [modelSearchQuery, resetModelSearchQuery] = createResettableRef('')
 
+  // Use custom model name when user selected the "custom" option
+  const effectiveModel = computed(() => {
+    if (activeModel.value === 'custom') {
+      const custom = activeCustomModelName.value.trim()
+      return custom || ''
+    }
+    return activeModel.value
+  })
+
   // Computed properties
   const supportsModelListing = computed(() => {
     return providersStore.getProviderMetadata(activeProvider.value)?.capabilities.listModels !== undefined
@@ -66,7 +75,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   }
 
   const configured = computed(() => {
-    return !!activeProvider.value && !!activeModel.value
+    return !!activeProvider.value && !!effectiveModel.value
   })
 
   function resetState() {
@@ -80,6 +89,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     activeProvider,
     activeModel,
     customModelName: activeCustomModelName,
+    effectiveModel,
     expandedDescriptions,
     modelSearchQuery,
 

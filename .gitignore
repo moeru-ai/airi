@@ -36,6 +36,9 @@ cert*/
 *.cer
 *.key
 *.p12
+# Environment files (contain secrets)
+**/.env
+**/.airi-data/
 
 # Test coverage
 coverage/

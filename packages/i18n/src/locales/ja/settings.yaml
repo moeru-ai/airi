@@ -397,6 +397,55 @@ pages:
     mcp-server:
       description: MCPサーバーとツールの接続と管理
       title: MCPサーバー
+  plugins:
+    title: プラグイン
+    description: 外部プラグインの接続と管理
+    empty: 利用可能なプラグインがありません
+    loading: プラグインを読み込み中...
+    retry: 再試行
+    status:
+      connected: 接続中
+      disconnected: 未接続
+    enable: プラグインを有効化
+    enable-description: このプラグインがAIRIと対話できるようにする
+    configuration: 設定
+    back: プラグイン一覧に戻る
+    start-oauth: OAuth認証を開始
+    not-connected-hint: このプラグインは現在接続されていません。設定するにはプラグインを起動してください。
+    connected-info: '{count}個のインスタンスが接続中'
+    unknown-plugin-description: 外部プラグイン
+    fields:
+      client-id: クライアントID
+      client-id-description: 認証用のOAuthクライアントID
+      client-id-placeholder: クライアントIDを入力
+      client-secret: クライアントシークレット
+      client-secret-description: 認証用のOAuthクライアントシークレット
+      client-secret-placeholder: クライアントシークレットを入力
+      stream-url: 配信URL
+      stream-url-description: ライブ配信のURL
+      stream-url-placeholder: "配信URLを入力 (例: https://youtube.com/watch?v=...)"
+      base-url: ベースURL
+      base-url-description: サービスのベースURL
+      base-url-placeholder: "ベースURLを入力 (例: http://localhost:8123)"
+      access-token: アクセストークン
+      access-token-description: 認証用のアクセストークン
+      access-token-placeholder: アクセストークンを入力
+      room-id: ルームID
+      room-id-description: ライブルームID
+      room-id-placeholder: ルームIDを入力
+    known:
+      youtube-livechat:
+        title: YouTube Live Chat
+        description: YouTubeライブチャットのメッセージを読み取り、対話する
+      discord:
+        title: Discord
+        description: Discordでのチャットとボイスチャット
+      homeassistant:
+        title: Home Assistant
+        description: Home Assistantを通じてスマートホームデバイスを制御
+      bilibili-laplace:
+        title: Bilibiliライブ
+        description: Bilibiliライブチャットのメッセージを読み取り、対話する
   providers:
     explained:
       chat: テキスト生成モデルプロバイダー。例： OpenRouter, OpenAI, Ollama。

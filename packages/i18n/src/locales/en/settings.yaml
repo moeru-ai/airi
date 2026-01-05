@@ -411,6 +411,55 @@ pages:
     mcp-server:
       description: Connect and manage MCP server and tools
       title: MCP Server
+  plugins:
+    title: Plugins
+    description: Connect and manage external plugins
+    empty: No plugins available
+    loading: Loading plugins...
+    retry: Retry
+    status:
+      connected: Connected
+      disconnected: Disconnected
+    enable: Enable Plugin
+    enable-description: Allow this plugin to interact with AIRI
+    configuration: Configuration
+    back: Back to Plugins
+    start-oauth: Start OAuth Authentication
+    not-connected-hint: This plugin is not currently connected. Start the plugin to configure it.
+    connected-info: '{count} instance(s) connected'
+    unknown-plugin-description: External plugin
+    fields:
+      client-id: Client ID
+      client-id-description: OAuth Client ID for authentication
+      client-id-placeholder: Enter Client ID
+      client-secret: Client Secret
+      client-secret-description: OAuth Client Secret for authentication
+      client-secret-placeholder: Enter Client Secret
+      stream-url: Stream URL
+      stream-url-description: URL of the live stream
+      stream-url-placeholder: Enter stream URL (e.g., https://youtube.com/watch?v=...)
+      base-url: Base URL
+      base-url-description: Base URL of the service
+      base-url-placeholder: Enter base URL (e.g., http://localhost:8123)
+      access-token: Access Token
+      access-token-description: Access token for authentication
+      access-token-placeholder: Enter access token
+      room-id: Room ID
+      room-id-description: Live room ID
+      room-id-placeholder: Enter room ID
+    known:
+      youtube-livechat:
+        title: YouTube Live Chat
+        description: Read and interact with YouTube live chat messages
+      discord:
+        title: Discord
+        description: Chat and voice chat over Discord
+      homeassistant:
+        title: Home Assistant
+        description: Control smart home devices via Home Assistant
+      bilibili-laplace:
+        title: Bilibili Live
+        description: Read and interact with Bilibili live chat messages
   providers:
     explained:
       chat: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.

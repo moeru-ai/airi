@@ -35,9 +35,35 @@ async function extractColorsFromModel() {
 <template>
   <div flex class="relative h-full flex-col-reverse md:flex-row">
     <ModelSettings
-      settings-class="w-100% md:w-40% lg:w-40% xl:w-25% 2xl:w-30% h-fit sm:max-h-80dvh overflow-y-scroll relative"
-      live-2d-scene-class="absolute max-h-[calc(100dvh-100px-56px)] w-full h-full"
-      vrm-scene-class="absolute max-h-[calc(100dvh-100px-56px)] w-full h-full"
+      :settings-class="[
+        'w-100%',
+        'md:w-40%',
+        'lg:w-40%',
+        'xl:w-25%',
+        '2xl:w-30%',
+        'h-fit',
+        'sm:max-h-80dvh',
+        'overflow-y-scroll',
+        'relative',
+      ]"
+      :live-2d-scene-class="[
+        'absolute',
+        'max-h-[calc(100dvh-100px-56px)]',
+        'w-full',
+        'h-full',
+      ]"
+      :pngtuber-scene-class="[
+        'absolute',
+        'max-h-[calc(100dvh-100px-56px)]',
+        'w-full',
+        'h-full',
+      ]"
+      :vrm-scene-class="[
+        'absolute',
+        'max-h-[calc(100dvh-100px-56px)]',
+        'w-full',
+        'h-full',
+      ]"
       :palette="palette" @extract-colors-from-model="extractColorsFromModel"
     />
   </div>

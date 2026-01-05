@@ -4,7 +4,7 @@ import type { AuthenticatedPeer, Peer } from './types'
 
 import { availableLogLevelStrings, Format, LogLevelString, logLevelStringToLogLevelMap, useLogg } from '@guiiai/logg'
 import { WebSocketEventSource } from '@proj-airi/server-shared/types'
-import { defineWebSocketHandler, H3 } from 'h3'
+import { defineWebSocketHandler, H3, setResponseHeader, setResponseStatus } from 'h3'
 
 import { optionOrEnv } from './config'
 
@@ -72,6 +72,33 @@ export function setupApp(options?: {
       }
     }
   }
+
+  // API endpoint to list connected plugins
+  app.get('/api/plugins', (event) => {
+    // Set CORS headers
+    setResponseHeader(event, 'Access-Control-Allow-Origin', '*')
+    setResponseHeader(event, 'Access-Control-Allow-Methods', 'GET, OPTIONS')
+    setResponseHeader(event, 'Access-Control-Allow-Headers', 'Content-Type')
+
+    const plugins = Array.from(peersByModule.entries()).map(([name, peersMap]) => ({
+      name,
+      connectedCount: peersMap.size,
+      peers: Array.from(peersMap.entries()).map(([index, peer]) => ({
+        index,
+        peerId: peer.peer.id,
+      })),
+    }))
+    return { plugins }
+  })
+
+  // Handle CORS preflight for /api/plugins
+  app.options('/api/plugins', (event) => {
+    setResponseHeader(event, 'Access-Control-Allow-Origin', '*')
+    setResponseHeader(event, 'Access-Control-Allow-Methods', 'GET, OPTIONS')
+    setResponseHeader(event, 'Access-Control-Allow-Headers', 'Content-Type')
+    setResponseStatus(event, 204)
+    return ''
+  })
 
   app.get('/ws', defineWebSocketHandler({
     open: (peer) => {

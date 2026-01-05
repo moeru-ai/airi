@@ -149,7 +149,14 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     if (!client.value && !initializing.value)
       void initialize()
 
-    client.value?.onEvent(type, callback as any)
+    if (client.value) {
+      client.value.onEvent(type, callback as any)
+      // eslint-disable-next-line no-console
+      console.log(`[channel-server] Registered listener for event: ${type}`)
+    }
+    else {
+      console.warn(`[channel-server] Could not register listener for ${type}: client not initialized`)
+    }
 
     return () => {
       client.value?.offEvent(type, callback as any)

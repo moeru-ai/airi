@@ -1,14 +1,17 @@
 import type { UserMessage } from '@xsai/shared-chat'
+import type { ChatProvider } from '@xsai/shared-chat'
 
 import type { ChatStreamEvent, ContextMessage } from '../../../types/chat'
 
 import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useBroadcastChannel } from '@vueuse/core'
-import { Mutex } from 'es-toolkit'
-import { defineStore } from 'pinia'
+import { Mutex, noop } from 'es-toolkit'
+import { defineStore, storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME, useChatStore } from '../../chat'
+import { useConsciousnessStore } from '../../modules/consciousness'
+import { useProvidersStore } from '../../providers'
 import { useModsServerChannelStore } from './channel-server'
 
 export const useContextBridgeStore = defineStore('mods:api:context-bridge', () => {
@@ -16,6 +19,9 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
   const chatStore = useChatStore()
   const serverChannelStore = useModsServerChannelStore()
+  const consciousnessStore = useConsciousnessStore()
+  const providersStore = useProvidersStore()
+  const { activeProvider, activeModel, effectiveModel } = storeToRefs(consciousnessStore)
 
   const { post: broadcastContext, data: incomingContext } = useBroadcastChannel<ContextMessage, ContextMessage>({ name: CONTEXT_CHANNEL_NAME })
   const { post: broadcastStreamEvent, data: incomingStreamEvent } = useBroadcastChannel<ChatStreamEvent, ChatStreamEvent>({ name: CHAT_STREAM_CHANNEL_NAME })
@@ -38,6 +44,43 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       disposeHookFns.value.push(serverChannelStore.onContextUpdate((event) => {
         chatStore.ingestContextMessage({ source: event.source, createdAt: Date.now(), ...event.data })
         broadcastContext(event.data as ContextMessage)
+      }))
+
+      // Handle input:text events from plugins (e.g., YouTube Live Chat)
+      disposeHookFns.value.push(serverChannelStore.onEvent('input:text', async (event) => {
+        const text = event.data?.text
+        if (!text || typeof text !== 'string')
+          return
+
+        // eslint-disable-next-line no-console
+        console.log('[context-bridge] Received input:text:', { source: event.source, text })
+
+        // Check if we have a valid provider and model configured
+        if (!activeProvider.value || !effectiveModel.value) {
+          console.warn('[context-bridge] Received input:text but no provider/model configured')
+          return
+        }
+
+        let chatProvider: ChatProvider
+        try {
+          chatProvider = await providersStore.getProviderInstance<ChatProvider>(activeProvider.value)
+        }
+        catch (err) {
+          console.warn('[context-bridge] Failed to create chat provider instance for:', activeProvider.value, err)
+          return
+        }
+
+        // eslint-disable-next-line no-console
+        console.log('[context-bridge] Processing input:text from plugin:', text)
+
+        // Send the message to chat
+        chatStore.send(text, {
+          model: effectiveModel.value,
+          chatProvider,
+        }).catch((err) => {
+          console.warn('[context-bridge] chatStore.send failed:', err)
+          noop(err)
+        })
       }))
 
       disposeHookFns.value.push(
