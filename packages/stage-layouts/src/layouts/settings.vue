@@ -114,6 +114,14 @@ const routeHeaderMetadataMap = computed(() => {
       subtitle: t('tamagotchi.settings.devtools.title'),
       title: t('tamagotchi.settings.devtools.pages.context-flow.title'),
     },
+    '/devtools/performance-visualizer': {
+      subtitle: t('settings.title'),
+      title: t('settings.pages.system.sections.section.developer.sections.section.performance-visualizer.title'),
+    },
+    '/devtools/markdown-stress': {
+      subtitle: t('settings.title'),
+      title: t('settings.pages.system.sections.section.developer.sections.section.markdown-stress.title'),
+    },
   }
 
   for (const metadata of allProvidersMetadata.value) {

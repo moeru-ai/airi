@@ -4,6 +4,7 @@ chat:
       airi: AIRI
       core-system: Hệ thống lõi
       you: Bạn
+  reasoning: Lý luận
 message: Nói gì đó...
 operations:
   load-models: Tải mô hình

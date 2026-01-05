@@ -15,6 +15,18 @@ const menu = computed(() => [
     to: '/devtools/audio-record',
   },
   {
+    title: t('settings.pages.system.sections.section.developer.sections.section.performance-visualizer.title'),
+    description: t('settings.pages.system.sections.section.developer.sections.section.performance-visualizer.description'),
+    icon: 'i-solar:sledgehammer-bold-duotone',
+    to: '/devtools/performance-visualizer',
+  },
+  {
+    title: t('settings.pages.system.sections.section.developer.sections.section.markdown-stress.title'),
+    description: t('settings.pages.system.sections.section.developer.sections.section.markdown-stress.description'),
+    icon: 'i-solar:sledgehammer-bold-duotone',
+    to: '/devtools/markdown-stress',
+  },
+  {
     title: 'Background Theme color blending',
     description: 'Test blending & theme',
     icon: 'i-solar:sledgehammer-bold-duotone',

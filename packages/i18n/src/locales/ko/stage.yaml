@@ -4,6 +4,7 @@ chat:
       airi: AIRI
       core-system: Core System
       you: 당신
+  reasoning: 추론
 message: 듣고 있어요...
 operations:
   load-models: 모델 불러오기

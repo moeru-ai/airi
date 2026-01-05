@@ -43,6 +43,7 @@ export interface AiriExtension {
   agents: {
     [key: string]: { // example: minecraft
       prompt: string
+      enabled?: boolean
     }
   }
 }

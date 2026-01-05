@@ -46,6 +46,7 @@
     "vue": "^3.5.25",
     "vue-i18n": "^11.2.2",
     "vue-router": "^4.6.4",
+    "xsschema": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

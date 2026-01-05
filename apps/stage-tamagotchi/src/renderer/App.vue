@@ -2,11 +2,13 @@
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
+import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character-orchestrator'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
+import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -28,7 +30,9 @@ const router = useRouter()
 const route = useRoute()
 const cardStore = useAiriCardStore()
 const serverChannelStore = useModsServerChannelStore()
+const characterOrchestratorStore = useCharacterOrchestratorStore()
 const analyticsStore = useSharedAnalyticsStore()
+usePerfTracerBridgeStore()
 
 watch(language, () => {
   i18n.locale.value = language.value
@@ -50,6 +54,7 @@ onMounted(async () => {
 
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   await contextBridgeStore.initialize()
+  characterOrchestratorStore.initialize()
 
   const context = useElectronEventaContext()
   const startTrackingCursorPoint = defineInvoke(context.value, electronStartTrackMousePosition)

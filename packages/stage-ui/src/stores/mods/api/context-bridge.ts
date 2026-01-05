@@ -21,6 +21,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   const { post: broadcastStreamEvent, data: incomingStreamEvent } = useBroadcastChannel<ChatStreamEvent, ChatStreamEvent>({ name: CHAT_STREAM_CHANNEL_NAME })
 
   const disposeHookFns = ref<Array<() => void>>([])
+  let remoteStreamGuard: { sessionId: string, generation: number } | null = null
 
   async function initialize() {
     await mutex.acquire()
@@ -137,9 +138,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         isProcessingRemoteStream = true
 
         try {
-          if (event.sessionId && chatStore.activeSessionId !== event.sessionId)
-            chatStore.setActiveSession(event.sessionId)
-
+          // Use the receiver's active session to avoid clobbering chat state when events come from other windows/devtools.
           switch (event.type) {
             case 'before-compose':
               await chatStore.emitBeforeMessageComposedHooks(event.message, event.context)
@@ -149,21 +148,52 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               break
             case 'before-send':
               await chatStore.emitBeforeSendHooks(event.message, event.context)
+              remoteStreamGuard = {
+                sessionId: chatStore.activeSessionId,
+                generation: chatStore.getSessionGenerationValue(),
+              }
+              chatStore.sending = true
+              chatStore.beginRemoteStream()
               break
             case 'after-send':
               await chatStore.emitAfterSendHooks(event.message, event.context)
               break
             case 'token-literal':
+              if (!remoteStreamGuard)
+                return
+              if (remoteStreamGuard.sessionId !== chatStore.activeSessionId)
+                return
+              if (chatStore.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
+                return
+              chatStore.appendRemoteLiteral(event.literal)
               await chatStore.emitTokenLiteralHooks(event.literal, event.context)
               break
             case 'token-special':
               await chatStore.emitTokenSpecialHooks(event.special, event.context)
               break
             case 'stream-end':
+              if (!remoteStreamGuard)
+                break
+              if (remoteStreamGuard.sessionId !== chatStore.activeSessionId)
+                break
+              if (chatStore.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
+                break
               await chatStore.emitStreamEndHooks(event.context)
+              chatStore.finalizeRemoteStream()
+              chatStore.sending = false
+              remoteStreamGuard = null
               break
             case 'assistant-end':
+              if (!remoteStreamGuard)
+                break
+              if (remoteStreamGuard.sessionId !== chatStore.activeSessionId)
+                break
+              if (chatStore.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
+                break
               await chatStore.emitAssistantResponseEndHooks(event.message, event.context)
+              chatStore.finalizeRemoteStream(event.message)
+              chatStore.sending = false
+              remoteStreamGuard = null
               break
           }
         }
