@@ -4,6 +4,7 @@ chat:
       airi: AIRI
       core-system: Système central
       you: Vous
+  reasoning: Raisonnement
 message: Dites quelque chose...
 operations:
   load-models: Charger les modèles

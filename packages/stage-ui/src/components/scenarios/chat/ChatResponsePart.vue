@@ -2,6 +2,7 @@
 import type { ChatAssistantMessage } from '../../../types/chat'
 
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import MarkdownRenderer from '../../markdown/MarkdownRenderer.vue'
 import Collapsable from '../../misc/Collapsable.vue'
@@ -10,6 +11,8 @@ const props = defineProps<{
   message: ChatAssistantMessage
   variant?: 'desktop' | 'mobile'
 }>()
+
+const { t } = useI18n()
 
 const hasReasoning = computed(() => !!props.message.categorization?.reasoning?.trim())
 
@@ -29,7 +32,7 @@ const containerClasses = computed(() => [
         >
           <div flex="~ items-center" gap-1.5>
             <div i-solar:lightbulb-bolt-bold-duotone size-3.5 text-amber-500 dark:text-amber-400 />
-            <span font-medium>Reasoning</span>
+            <span font-medium>{{ t('stage.chat.reasoning') }}</span>
           </div>
           <div
             i-solar:alt-arrow-down-linear
