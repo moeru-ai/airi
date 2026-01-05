@@ -60,9 +60,8 @@ export const useLive2d = defineStore('live2d', () => {
     x: `${position.value.x}%`,
     y: `${position.value.y}%`,
   }))
-  const [currentMotion, resetCurrentMotion] = createResettableRef<{ group: string, index?: number }>({ group: 'Idle' })
+  const [currentMotion, resetCurrentMotion] = createResettableRef<{ group: string, index?: number }>({ group: 'Idle', index: 0 })
   const [availableMotions, resetAvailableMotions] = createResettableRef<{ motionName: string, motionIndex: number, fileName: string }[]>([])
-  const [selectedRuntimeIdleMotion, resetSelectedRuntimeIdleMotion] = createResettableRef<{ path: string, name: string, group: string, index?: number } | null>(null)
   const [motionMap, resetMotionMap] = createResettableLocalStorage<Record<string, string>>('settings/live2d/motion-map', {})
   const [scale, resetScale] = createResettableLocalStorage('settings/live2d/scale', 1)
 
@@ -73,7 +72,6 @@ export const useLive2d = defineStore('live2d', () => {
     resetPosition()
     resetCurrentMotion()
     resetAvailableMotions()
-    resetSelectedRuntimeIdleMotion()
     resetMotionMap()
     resetScale()
     resetModelParameters()
@@ -85,7 +83,6 @@ export const useLive2d = defineStore('live2d', () => {
     positionInPercentageString,
     currentMotion,
     availableMotions,
-    selectedRuntimeIdleMotion,
     motionMap,
     scale,
     modelParameters,

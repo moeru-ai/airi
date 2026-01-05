@@ -1,0 +1,2 @@
+ALTER TABLE "avatar_model" ADD COLUMN "character_id" text NOT NULL;--> statement-breakpoint
+ALTER TABLE "avatar_model" ADD CONSTRAINT "avatar_model_character_id_characters_id_fk" FOREIGN KEY ("character_id") REFERENCES "public"."characters"("id") ON DELETE cascade ON UPDATE no action;
