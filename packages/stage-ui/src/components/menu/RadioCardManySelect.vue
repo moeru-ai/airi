@@ -57,7 +57,7 @@ const filteredItems = computed(() => {
   let result = [...props.items]
 
   // If a custom value is selected (and not present in items), add it to the list temporarily
-  if (modelValue.value && !props.items.some(i => i.id === modelValue.value)) {
+  if (modelValue.value && !props.items.some(i => i.id.toLowerCase() === modelValue.value.toLowerCase())) {
     result.unshift({
       id: modelValue.value,
       name: modelValue.value,
@@ -78,7 +78,7 @@ const filteredItems = computed(() => {
   if (props.allowCustom && searchQuery.value) {
     const query = searchQuery.value
     // Check against checks if the exact ID exists to avoid duplicates
-    const exactMatch = result.some(i => i.id === query)
+    const exactMatch = result.some(i => i.id.toLowerCase() === query.toLowerCase())
     if (!exactMatch) {
       result.push({
         id: query,
