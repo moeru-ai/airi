@@ -19,6 +19,11 @@ export function useLlmmarkerParser(options: {
   onLiteral?: (literal: string) => void | Promise<void>
   onSpecial?: (special: string) => void | Promise<void>
   /**
+   * Called when parsing ends with the full accumulated text.
+   * Useful for final processing like categorization or filtering.
+   */
+  onEnd?: (fullText: string) => void | Promise<void>
+  /**
    * The minimum length of text required to emit a literal part.
    * Useful for avoiding emitting literal parts too fast.
    */
@@ -27,6 +32,7 @@ export function useLlmmarkerParser(options: {
   const minLiteralEmitLength = Math.max(1, options.minLiteralEmitLength ?? 1)
   let buffer = ''
   let inTag = false
+  let fullText = ''
 
   return {
     /**
@@ -36,6 +42,7 @@ export function useLlmmarkerParser(options: {
      * @param textPart The chunk of text to consume.
      */
     async consume(textPart: string) {
+      fullText += textPart
       buffer += textPart
 
       while (buffer.length > 0) {
@@ -82,6 +89,7 @@ export function useLlmmarkerParser(options: {
         await options.onLiteral?.(buffer)
         buffer = ''
       }
+      await options.onEnd?.(fullText)
     },
   }
 }
