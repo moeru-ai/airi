@@ -14,8 +14,11 @@ export function createCharacterRoutes(characterService: CharacterService) {
 
     .get('/', async (c) => {
       const user = c.get('user')!
+      const all = c.req.query('all') === 'true'
 
-      const characters = await characterService.findByOwnerId(user.id)
+      const characters = all
+        ? await characterService.findAll()
+        : await characterService.findByOwnerId(user.id)
       return c.json(characters)
     })
 
@@ -83,5 +86,19 @@ export function createCharacterRoutes(characterService: CharacterService) {
 
       await characterService.delete(id)
       return c.body(null, 204)
+    })
+
+    .post('/:id/like', async (c) => {
+      const user = c.get('user')!
+      const id = c.req.param('id')
+      const result = await characterService.like(user.id, id)
+      return c.json(result)
+    })
+
+    .post('/:id/bookmark', async (c) => {
+      const user = c.get('user')!
+      const id = c.req.param('id')
+      const result = await characterService.bookmark(user.id, id)
+      return c.json(result)
     })
 }
