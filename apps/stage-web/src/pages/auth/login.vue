@@ -1,11 +1,10 @@
 <script setup lang="ts">
+import { authClient, fetchSession } from '@proj-airi/stage-ui/libs/auth'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Button } from '@proj-airi/ui'
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
-
-import { authClient, fetchSession } from '../../libs/auth'
-import { useAuthStore } from '../../stores/auth'
 
 const router = useRouter()
 

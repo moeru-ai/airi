@@ -12,6 +12,7 @@ import { useBackgroundThemeColor } from '@proj-airi/stage-layouts/composables/th
 import { useBackgroundStore } from '@proj-airi/stage-layouts/stores/background'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
+import { fetchSession } from '@proj-airi/stage-ui/libs/auth'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
@@ -22,8 +23,6 @@ import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
-
-import { fetchSession } from '../libs/auth'
 
 const paused = ref(false)
 

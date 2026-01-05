@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import type { Character } from '../../../types/character'
+import type { Character } from '@proj-airi/stage-ui/types/character'
 
+import { useCharacterStore } from '@proj-airi/stage-ui/stores/characters'
 import { Button, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 
 import CharacterDialog from './components/CharacterDialog.vue'
 import CharacterItem from './components/CharacterItem.vue'
-
-import { useCharacterStore } from '../../../stores/characters'
 
 const characterStore = useCharacterStore()
 const { characters, isLoading } = storeToRefs(characterStore)

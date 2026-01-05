@@ -1,12 +1,11 @@
 <script setup lang="ts">
+import { listSessions, signOut } from '@proj-airi/stage-ui/libs/auth'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { onClickOutside } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { toast } from 'vue-sonner'
-
-import { listSessions, signOut } from '../../libs/auth'
-import { useAuthStore } from '../../stores/auth'
 
 const authStore = useAuthStore()
 const { isAuthenticated, user } = storeToRefs(authStore)

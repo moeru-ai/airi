@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import type { Character, CreateCharacterPayload } from '../../../../types/character'
+import type { Character, CreateCharacterPayload } from '@proj-airi/stage-ui/types/character'
 
+import { useCharacterStore } from '@proj-airi/stage-ui/stores/characters'
+import { CreateCharacterSchema } from '@proj-airi/stage-ui/types/character'
 import { Button, FieldInput } from '@proj-airi/ui'
 import {
   DialogContent,
@@ -11,9 +13,6 @@ import {
 } from 'reka-ui'
 import { safeParse } from 'valibot'
 import { computed, reactive, ref, watch } from 'vue'
-
-import { useCharacterStore } from '../../../../stores/characters'
-import { CreateCharacterSchema } from '../../../../types/character'
 
 interface Props {
   modelValue: boolean
