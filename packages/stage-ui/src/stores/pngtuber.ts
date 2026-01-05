@@ -51,8 +51,8 @@ export const usePNGtuberStore = defineStore('pngtuber', () => {
   const [autoBlinkMaxInterval, resetAutoBlinkMaxInterval] = createResettableLocalStorage('settings/pngtuber/auto-blink-max-interval', 8000)
   const [blinkDuration, resetBlinkDuration] = createResettableLocalStorage('settings/pngtuber/blink-duration', 150)
 
-  // Mouth threshold settings
-  const [mouthOpenThreshold, resetMouthOpenThreshold] = createResettableLocalStorage('settings/pngtuber/mouth-open-threshold', 0.3)
+  // Mouth threshold settings (lower default for more responsive lip sync)
+  const [mouthOpenThreshold, resetMouthOpenThreshold] = createResettableLocalStorage('settings/pngtuber/mouth-open-threshold', 0.15)
 
   function setEmotion(emotion: string | null) {
     currentEmotion.value = emotion

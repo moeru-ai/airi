@@ -35,6 +35,7 @@ const {
   currentEmotion,
   position,
   scale,
+  mouthOpenThreshold,
 } = storeToRefs(pngtuberStore)
 
 // Image cache
@@ -47,6 +48,13 @@ const blinkState = ref({
   isBlinking: false,
   blinkTimer: 0,
   nextBlinkTime: 3000 + Math.random() * 5000,
+})
+
+// Mouth pac animation state (for lip sync during speech)
+const mouthPacState = ref({
+  isMouthOpen: false,
+  pacTimer: 0,
+  nextPacTime: 0,
 })
 
 // Animation frame ID
@@ -78,18 +86,23 @@ const currentSprite = computed(() => {
   }
 })
 
-// Get mouth sprite based on mouth open size
+// Get mouth sprite based on mouth open size with pac animation
 function getMouthSprite(): string | null {
   if (!currentSprite.value)
     return null
 
   const { mouthOpen, mouthClosed } = currentSprite.value
 
-  // Simple threshold-based mouth open/closed
-  if (props.mouthOpenSize > 0.3) {
-    return mouthOpen ?? null
+  // Use configurable threshold from store (default: 0.15 for more responsive lip sync)
+  const threshold = mouthOpenThreshold.value ?? 0.15
+  
+  // If speaking (mouthOpenSize > threshold), animate mouth pac
+  if (props.mouthOpenSize > threshold) {
+    // Use pac animation state for natural lip sync
+    return mouthPacState.value.isMouthOpen ? (mouthOpen ?? null) : (mouthClosed ?? null)
   }
 
+  // Not speaking, keep mouth closed
   return mouthClosed ?? null
 }
 
@@ -192,6 +205,28 @@ async function render(timestamp: number) {
         blinkState.value.nextBlinkTime = 3000 + Math.random() * 5000
       }, 150)
     }
+  }
+
+  // Update mouth pac animation during speech
+  const threshold = mouthOpenThreshold.value ?? 0.15
+  if (props.mouthOpenSize > threshold) {
+    // Speaking: animate mouth pac based on mouthOpenSize
+    // Higher mouthOpenSize = faster pac (more frequent open/close)
+    // Base interval: 100-200ms, adjusted by mouthOpenSize (0.15-1.0 range)
+    const baseInterval = 150 // ms
+    const speedMultiplier = Math.max(0.5, Math.min(2.0, props.mouthOpenSize / threshold))
+    const pacInterval = baseInterval / speedMultiplier
+
+    mouthPacState.value.pacTimer += deltaTime
+    if (mouthPacState.value.pacTimer >= pacInterval) {
+      mouthPacState.value.isMouthOpen = !mouthPacState.value.isMouthOpen
+      mouthPacState.value.pacTimer = 0
+    }
+  }
+  else {
+    // Not speaking: reset mouth pac state
+    mouthPacState.value.isMouthOpen = false
+    mouthPacState.value.pacTimer = 0
   }
 
   // Clear canvas
