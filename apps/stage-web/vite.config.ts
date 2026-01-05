@@ -187,6 +187,7 @@ export default defineConfig({
       '*.webp',
       '*.bmp',
       '*.ttf',
+      '*.avif',
       // Tensorflow / MediaPipe task
       '*.task',
     ] }),
