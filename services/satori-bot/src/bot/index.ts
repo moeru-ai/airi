@@ -1,11 +1,8 @@
 import type { Logg } from '@guiiai/logg'
-import type { Message as LLMMessage } from '@xsai/shared-chat'
 
 import type { SatoriClient } from '../client/satori-client'
 import type { Action, BotContext, ChatContext } from '../types/bot'
-import type { SatoriEvent, SatoriMessage } from '../types/satori'
-
-import { useLogg } from '@guiiai/logg'
+import type { SatoriMessage } from '../types/satori'
 
 import { readUnreadMessages } from '../actions/read-unread-messages'
 import { sendMessage } from '../actions/send-message'

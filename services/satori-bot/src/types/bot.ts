@@ -2,7 +2,7 @@ import type { Logg } from '@guiiai/logg'
 import type { Message as LLMMessage } from '@xsai/shared-chat'
 
 import type { CancellablePromise } from '../utils/promise'
-import type { SatoriEvent, SatoriMessage } from './satori'
+import type { SatoriMessage } from './satori'
 
 export interface PendingMessage {
   message: SatoriMessage
