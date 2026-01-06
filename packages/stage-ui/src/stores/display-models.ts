@@ -39,8 +39,8 @@ export interface PNGtuberManifest {
   }
   // Mouth shapes for lip sync (optional - if not provided, uses open/closed)
   mouth?: {
-    closed: string
-    open: string
+    closed?: string
+    open?: string
     // Vowel-specific mouth shapes (optional)
     a?: string
     e?: string
