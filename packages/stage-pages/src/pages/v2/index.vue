@@ -8,8 +8,6 @@ const characterStore = useCharacterStore()
 const authStore = useAuthStore()
 
 const coverImage = new URL('../../../../stage-ui/src/components/menu/relu.avif', import.meta.url).href
-const characterWithBackgroundBackgroundImage = new URL('../../../../../docs/.vitepress/assets/home-cover-2025-12-24-bg.avif', import.meta.url).href
-const characterWithBackgroundAvatar = new URL('../../../../../docs/.vitepress/assets/home-cover-2025-12-24.avif', import.meta.url).href
 const characterAvatarImage = new URL('../../../../stage-ui/src/assets/live2d/models/hiyori/preview.png', import.meta.url).href
 
 function formatCount(value: number | string) {
