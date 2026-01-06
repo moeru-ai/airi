@@ -28,10 +28,11 @@ import PNGtuberScene from './PNGtuber.vue'
 
 import { useDelayMessageQueue, useEmotionsMessageQueue, usePipelineCharacterSpeechPlaybackQueueStore, usePipelineWorkflowTextSegmentationStore } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
-import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
+import { EMOTION_EmotionMotionName_value, EMOTION_PNGtuberEmotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useChatStore } from '../../stores/chat'
 import { useLive2d } from '../../stores/live2d'
+import { usePNGtuberStore } from '../../stores/pngtuber'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
@@ -135,6 +136,7 @@ const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
 
 const { currentMotion } = storeToRefs(useLive2d())
+const pngtuberStore = usePNGtuberStore()
 
 const emotionsQueue = createQueue<Emotion>({
   handlers: [
@@ -149,6 +151,10 @@ const emotionsQueue = createQueue<Emotion>({
       }
       else if (stageModelRenderer.value === 'live2d') {
         currentMotion.value = { group: EMOTION_EmotionMotionName_value[ctx.data] }
+      }
+      else if (stageModelRenderer.value === 'pngtuber') {
+        const emotionName = EMOTION_PNGtuberEmotionName_value[ctx.data]
+        pngtuberStore.setEmotion(emotionName)
       }
     },
   ],
