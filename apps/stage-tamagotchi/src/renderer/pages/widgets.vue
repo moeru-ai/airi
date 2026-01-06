@@ -195,7 +195,7 @@ function handleClose() {
 </script>
 
 <template>
-  <div class="h-full w-full p-3">
+  <div class="h-full w-full">
     <div v-if="!widgetId" class="h-full flex items-center justify-center">
       <div class="border border-neutral-200/20 rounded-xl bg-neutral-900/40 px-4 py-3 text-sm text-neutral-200/80 backdrop-blur">
         Missing widget id. Launch the window via a component call to populate this view.
@@ -214,6 +214,7 @@ function handleClose() {
         :key="widget.id"
         :title="widget.componentName"
         :model-value="widget.componentProps"
+        :size="widget.size"
         v-bind="widget.componentProps"
       />
     </div>
@@ -223,7 +224,7 @@ function handleClose() {
       </div>
     </div>
   </div>
-  <div class="[-webkit-app-region:drag] pointer-events-none absolute left-1/2 top-1 h-[14px] w-[36px] rounded-[10px] bg-[rgba(125,125,125,0.28)] backdrop-blur-[6px] -translate-x-1/2">
+  <div class="[-webkit-app-region:drag] pointer-events-none absolute left-1/2 top-2 h-[14px] w-[36px] rounded-[10px] bg-[rgba(125,125,125,0.28)] backdrop-blur-[6px] -translate-x-1/2">
     <div class="absolute left-1/2 top-1/2 h-[3px] w-4 rounded-full bg-[rgba(255,255,255,0.85)] -translate-x-1/2 -translate-y-1/2" />
   </div>
 </template>

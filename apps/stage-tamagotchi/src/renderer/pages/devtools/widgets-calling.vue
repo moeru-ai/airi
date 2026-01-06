@@ -27,7 +27,13 @@ const clearWidgets = useElectronEventaInvoke(widgetsClear)
 const defaultWeatherProps = {
   city: 'Tokyo',
   temperature: '15°C',
-  condition: 'Sunny',
+  condition: 'Light rain',
+  high: '18°C',
+  low: '12°C',
+  humidity: '72%',
+  wind: '3 m/s',
+  precipitation: '40%',
+}
 }
 
 const form = reactive<FormState>({
