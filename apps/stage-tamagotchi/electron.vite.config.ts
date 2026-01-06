@@ -16,6 +16,8 @@ import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
 import { templateCompilerOptions } from '@tresjs/core'
 import { defineConfig } from 'electron-vite'
 
+import { vitePluginPluginsMetadata } from '../../packages/stage-ui/vite-plugin-plugins-metadata'
+
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 
@@ -92,6 +94,7 @@ export default defineConfig({
     },
 
     plugins: [
+      vitePluginPluginsMetadata(),
       Info(),
 
       {

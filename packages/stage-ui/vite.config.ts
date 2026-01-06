@@ -11,6 +11,8 @@ import Inspect from 'vite-plugin-inspect'
 import { createS3Provider, WarpDrivePlugin } from '@proj-airi/vite-plugin-warpdrive'
 import { defineConfig } from 'vite'
 
+import { vitePluginPluginsMetadata } from './vite-plugin-plugins-metadata'
+
 // For Histoire
 export default defineConfig({
   resolve: {
@@ -41,6 +43,7 @@ export default defineConfig({
     ],
   },
   plugins: [
+    vitePluginPluginsMetadata(),
     // TODO: Type wrong for `unplugin-yaml` in Histoire required
     // Vite version, wait until Histoire updates to support Vite 7
     Yaml() as Plugin,

@@ -19,6 +19,8 @@ import { LFS, SpaceCard } from 'hfup/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+import { vitePluginPluginsMetadata } from '../../packages/stage-ui/vite-plugin-plugins-metadata'
+
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 
@@ -73,6 +75,7 @@ export default defineConfig({
   },
 
   plugins: [
+    vitePluginPluginsMetadata(),
     Info(),
 
     Yaml(),
