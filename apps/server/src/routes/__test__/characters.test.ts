@@ -99,7 +99,7 @@ describe('characterRoutes', () => {
 
     const res2 = await app.fetch(new Request('http://localhost/'), { user: testUser } as any)
     const data = await res2.json()
-    expect(data[0].likesCount).toBe('1')
+    expect(data[0].likesCount).toBe(1)
   })
 
   it('get /:id should return 404 if not found', async () => {

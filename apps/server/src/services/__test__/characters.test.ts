@@ -58,7 +58,7 @@ describe('characterService', () => {
     expect(res1.liked).toBe(true)
 
     let char = await service.findById(charId)
-    expect(char?.likesCount).toBe('1')
+    expect(char?.likesCount).toBe(1)
     expect(char?.likes.length).toBe(1)
 
     // Second like (unlike)
@@ -66,7 +66,7 @@ describe('characterService', () => {
     expect(res2.liked).toBe(false)
 
     char = await service.findById(charId)
-    expect(char?.likesCount).toBe('0')
+    expect(char?.likesCount).toBe(0)
     expect(char?.likes.length).toBe(0)
   })
 
@@ -78,14 +78,14 @@ describe('characterService', () => {
     expect(res1.bookmarked).toBe(true)
 
     let char = await service.findById(charId)
-    expect(char?.bookmarksCount).toBe('1')
+    expect(char?.bookmarksCount).toBe(1)
 
     // Second bookmark (unbookmark)
     const res2 = await service.bookmark(testUser.id, charId)
     expect(res2.bookmarked).toBe(false)
 
     char = await service.findById(charId)
-    expect(char?.bookmarksCount).toBe('0')
+    expect(char?.bookmarksCount).toBe(0)
   })
 
   it('update should update character fields', async () => {

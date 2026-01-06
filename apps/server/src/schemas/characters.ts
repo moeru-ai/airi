@@ -4,7 +4,7 @@ import type { AvatarModelConfig } from '../types/character-avatar-model'
 import type { CharacterCapabilityConfig } from '../types/character-capability'
 
 import { relations } from 'drizzle-orm'
-import { jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import { integer, jsonb, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 import { user } from './accounts'
@@ -27,10 +27,10 @@ export const character = pgTable(
     creatorRole: text('creator_role'),
     priceCredit: text('price_credit').default('0').notNull(),
 
-    likesCount: text('likes_count').default('0').notNull(),
-    bookmarksCount: text('bookmarks_count').default('0').notNull(),
-    interactionsCount: text('interactions_count').default('0').notNull(),
-    forksCount: text('forks_count').default('0').notNull(),
+    likesCount: integer('likes_count').default(0).notNull(),
+    bookmarksCount: integer('bookmarks_count').default(0).notNull(),
+    interactionsCount: integer('interactions_count').default(0).notNull(),
+    forksCount: integer('forks_count').default(0).notNull(),
 
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -131,6 +131,9 @@ export const characterLikes = pgTable(
     characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
+  table => [
+    primaryKey({ columns: [table.userId, table.characterId] }),
+  ],
 )
 
 export const characterBookmarks = pgTable(
@@ -140,6 +143,9 @@ export const characterBookmarks = pgTable(
     characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
+  table => [
+    primaryKey({ columns: [table.userId, table.characterId] }),
+  ],
 )
 
 export type CharacterPrompt = InferSelectModel<typeof characterPrompts>
