@@ -95,7 +95,7 @@ function getMouthSprite(): string | null {
 
   // Use configurable threshold from store (default: 0.15 for more responsive lip sync)
   const threshold = mouthOpenThreshold.value ?? 0.15
-  
+
   // If speaking (mouthOpenSize > threshold), animate mouth pac
   if (props.mouthOpenSize > threshold) {
     // Use pac animation state for natural lip sync
@@ -106,7 +106,7 @@ function getMouthSprite(): string | null {
   return mouthClosed ?? null
 }
 
-// Load image and cache it
+// Load image and cache it (async, for preloading)
 async function loadImage(src: string): Promise<HTMLImageElement | null> {
   if (!src)
     return null
@@ -131,6 +131,13 @@ async function loadImage(src: string): Promise<HTMLImageElement | null> {
     }
     img.src = fullSrc
   })
+}
+
+// Get cached image synchronously (for render loop)
+function getCachedImage(src: string | null | undefined): HTMLImageElement | null {
+  if (!src)
+    return null
+  return imageCache.value.get(src) ?? null
 }
 
 // Preload all images from manifest
@@ -176,20 +183,24 @@ async function preloadImages() {
   await Promise.all(imagesToLoad.map(loadImage))
 }
 
-// Render frame
-async function render(timestamp: number) {
+// Render frame (synchronous for proper frame timing)
+function render(timestamp: number) {
   if (props.paused) {
     animationFrameId = requestAnimationFrame(render)
     return
   }
 
   const canvas = canvasRef.value
-  if (!canvas)
+  if (!canvas) {
+    animationFrameId = requestAnimationFrame(render)
     return
+  }
 
   const ctx = canvas.getContext('2d')
-  if (!ctx)
+  if (!ctx) {
+    animationFrameId = requestAnimationFrame(render)
     return
+  }
 
   const deltaTime = timestamp - lastTime
   lastTime = timestamp
@@ -232,17 +243,22 @@ async function render(timestamp: number) {
   // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-  if (!currentSprite.value)
+  if (!currentSprite.value) {
+    animationFrameId = requestAnimationFrame(render)
     return
+  }
 
   // Determine which base sprite to show
   const baseSpriteSrc = blinkState.value.isBlinking && currentSprite.value.blink
     ? currentSprite.value.blink
     : currentSprite.value.base
 
-  const baseImage = await loadImage(baseSpriteSrc)
-  if (!baseImage)
+  // Use synchronous cached image lookup (images are preloaded)
+  const baseImage = getCachedImage(baseSpriteSrc)
+  if (!baseImage) {
+    animationFrameId = requestAnimationFrame(render)
     return
+  }
 
   // Calculate position and scale
   const scaleValue = scale.value
@@ -254,13 +270,11 @@ async function render(timestamp: number) {
   // Draw base sprite
   ctx.drawImage(baseImage, x, y, imgWidth, imgHeight)
 
-  // Draw mouth overlay if available
+  // Draw mouth overlay if available (synchronous)
   const mouthSpriteSrc = getMouthSprite()
-  if (mouthSpriteSrc) {
-    const mouthImage = await loadImage(mouthSpriteSrc)
-    if (mouthImage) {
-      ctx.drawImage(mouthImage, x, y, imgWidth, imgHeight)
-    }
+  const mouthImage = getCachedImage(mouthSpriteSrc)
+  if (mouthImage) {
+    ctx.drawImage(mouthImage, x, y, imgWidth, imgHeight)
   }
 
   animationFrameId = requestAnimationFrame(render)
