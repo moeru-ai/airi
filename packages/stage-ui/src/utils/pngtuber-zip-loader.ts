@@ -18,6 +18,7 @@ export async function loadPNGtuberFromZip(zipFile: File | Blob): Promise<PNGtube
   // Find manifest.json
   const manifestPath = filePaths.find(path => path.endsWith('manifest.json'))
   if (!manifestPath) {
+    console.error('[PNGtuber ZIP Loader] manifest.json not found. Available files:', filePaths.slice(0, 10))
     throw new Error('PNGtuber manifest.json not found in ZIP file')
   }
 
@@ -27,6 +28,7 @@ export async function loadPNGtuberFromZip(zipFile: File | Blob): Promise<PNGtube
   // Read manifest
   const manifestFile = zip.file(manifestPath)
   if (!manifestFile) {
+    console.error('[PNGtuber ZIP Loader] Cannot read manifest.json file')
     throw new Error('Cannot read manifest.json')
   }
 
@@ -36,12 +38,14 @@ export async function loadPNGtuberFromZip(zipFile: File | Blob): Promise<PNGtube
   try {
     manifest = JSON.parse(manifestText)
   }
-  catch {
+  catch (error) {
+    console.error('[PNGtuber ZIP Loader] Failed to parse manifest.json:', error)
     throw new Error('Invalid manifest.json format')
   }
 
   // Validate manifest
   if (!manifest.version || !manifest.idle?.default) {
+    console.error('[PNGtuber ZIP Loader] Invalid manifest, missing required fields. Manifest:', manifest)
     throw new Error('Invalid PNGtuber manifest: missing required fields (version, idle.default)')
   }
 
@@ -85,7 +89,7 @@ export async function loadPNGtuberFromZip(zipFile: File | Blob): Promise<PNGtube
     const imageFile = zip.file(fullPath)
 
     if (!imageFile) {
-      console.warn(`PNGtuber image not found in ZIP: ${fullPath}`)
+      console.warn(`[PNGtuber ZIP Loader] Image not found in ZIP: ${fullPath}`)
       continue
     }
 
