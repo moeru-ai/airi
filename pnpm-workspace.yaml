@@ -1,3 +1,6 @@
+catalogMode: prefer
+
+shellEmulator: true
 packages:
   - packages/**
   - plugins/**
@@ -7,6 +10,18 @@ packages:
   - apps/**
   - '!**/dist/**'
 
+overrides:
+  array-flatten: npm:@nolyfill/array-flatten@^1.0.44
+  axios: npm:feaxios@^0.0.23
+  is-core-module: npm:@nolyfill/is-core-module@^1.0.39
+  isarray: npm:@nolyfill/isarray@^1.0.44
+  safe-buffer: npm:@nolyfill/safe-buffer@^1.0.44
+  safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
+  side-channel: npm:@nolyfill/side-channel@^1.0.44
+  string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
+
+patchedDependencies:
+  srvx@0.9.8: patches/srvx@0.9.8.patch
 catalog:
   '@capacitor/cli': ^8.0.0
   '@capacitor/core': ^8.0.0
@@ -57,8 +72,6 @@ catalog:
   xsschema: 0.4.0-beta.13
   zod: ^4.2.1
 
-catalogMode: prefer
-
 catalogs:
   rolldown-vite:
     vite: npm:rolldown-vite@^7.2.11
@@ -94,18 +107,3 @@ onlyBuiltDependencies:
   - spawn-sync
   - utf-8-validate
   - vue-demi
-
-overrides:
-  array-flatten: npm:@nolyfill/array-flatten@^1.0.44
-  axios: npm:feaxios@^0.0.23
-  is-core-module: npm:@nolyfill/is-core-module@^1.0.39
-  isarray: npm:@nolyfill/isarray@^1.0.44
-  safe-buffer: npm:@nolyfill/safe-buffer@^1.0.44
-  safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
-  side-channel: npm:@nolyfill/side-channel@^1.0.44
-  string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
-
-patchedDependencies:
-  srvx@0.9.8: patches/srvx@0.9.8.patch
-
-shellEmulator: true
