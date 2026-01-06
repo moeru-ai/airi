@@ -43,11 +43,18 @@ const imageCache = ref<Map<string, HTMLImageElement>>(new Map())
 const imageUrls = ref<Map<string, string>>(new Map())
 const loadedModel = ref<PNGtuberLoadedModel | null>(null)
 
+// Animation constants
+const BLINK_DURATION_MS = 150
+const BLINK_INTERVAL_MIN_MS = 3000
+const BLINK_INTERVAL_MAX_MS = 5000
+const MOUTH_PAC_BASE_INTERVAL_MS = 150
+const CANVAS_RESOLUTION_MULTIPLIER = 2
+
 // Blink state
 const blinkState = ref({
   isBlinking: false,
   blinkTimer: 0,
-  nextBlinkTime: 3000 + Math.random() * 5000,
+  nextBlinkTime: BLINK_INTERVAL_MIN_MS + Math.random() * (BLINK_INTERVAL_MAX_MS - BLINK_INTERVAL_MIN_MS),
 })
 
 // Mouth pac animation state (for lip sync during speech)
@@ -60,6 +67,7 @@ const mouthPacState = ref({
 // Animation frame ID
 let animationFrameId: number | null = null
 let lastTime = 0
+let resizeObserver: ResizeObserver | null = null
 
 // Computed current sprite based on state
 const currentSprite = computed(() => {
@@ -213,8 +221,8 @@ function render(timestamp: number) {
       setTimeout(() => {
         blinkState.value.isBlinking = false
         blinkState.value.blinkTimer = 0
-        blinkState.value.nextBlinkTime = 3000 + Math.random() * 5000
-      }, 150)
+        blinkState.value.nextBlinkTime = BLINK_INTERVAL_MIN_MS + Math.random() * (BLINK_INTERVAL_MAX_MS - BLINK_INTERVAL_MIN_MS)
+      }, BLINK_DURATION_MS)
     }
   }
 
@@ -223,8 +231,7 @@ function render(timestamp: number) {
   if (props.mouthOpenSize > threshold) {
     // Speaking: animate mouth pac based on mouthOpenSize
     // Higher mouthOpenSize = faster pac (more frequent open/close)
-    // Base interval: 100-200ms, adjusted by mouthOpenSize (0.15-1.0 range)
-    const baseInterval = 150 // ms
+    const baseInterval = MOUTH_PAC_BASE_INTERVAL_MS
     const speedMultiplier = Math.max(0.5, Math.min(2.0, props.mouthOpenSize / threshold))
     const pacInterval = baseInterval / speedMultiplier
 
@@ -344,8 +351,10 @@ const handleResize = useDebounceFn(() => {
     return
 
   const rect = containerRef.value.getBoundingClientRect()
-  canvasRef.value.width = rect.width * 2
-  canvasRef.value.height = rect.height * 2
+  if (rect.width > 0 && rect.height > 0) {
+    canvasRef.value.width = rect.width * CANVAS_RESOLUTION_MULTIPLIER
+    canvasRef.value.height = rect.height * CANVAS_RESOLUTION_MULTIPLIER
+  }
 }, 100)
 
 // Start animation loop
@@ -380,12 +389,24 @@ onMounted(() => {
   startAnimation()
 
   window.addEventListener('resize', handleResize)
+
+  // Use ResizeObserver to watch for container size changes
+  if (containerRef.value) {
+    resizeObserver = new ResizeObserver(() => {
+      handleResize()
+    })
+    resizeObserver.observe(containerRef.value)
+  }
 })
 
 onUnmounted(() => {
   stopAnimation()
   cleanupModel()
   window.removeEventListener('resize', handleResize)
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
 })
 
 function canvasElement() {
