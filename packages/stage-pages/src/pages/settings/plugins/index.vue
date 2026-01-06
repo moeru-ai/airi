@@ -53,11 +53,10 @@ const pluginsList = computed(() =>
     <!-- Empty state when no plugins -->
     <div
       v-if="pluginsList.length === 0 && !pluginsStore.loading"
-      flex="~ col items-center justify-center"
-      py-12
+      :class="['flex','flex-col','items-center','justify-center','py-12']"
     >
-      <div text-6xl text-neutral-300 i-solar:plug-circle-bold-duotone dark:text-neutral-600></div>
-      <p mt-4 text-neutral-500 dark:text-neutral-400>
+      <div :class="['text-6xl','text-neutral-300','i-solar:plug-circle-bold-duotone','dark:text-neutral-600']"></div>
+      <p :class="['mt-4','text-neutral-500','dark:text-neutral-400']">
         {{ t('settings.pages.plugins.empty') }}
       </p>
     </div>
@@ -65,11 +64,10 @@ const pluginsList = computed(() =>
     <!-- Loading state -->
     <div
       v-if="pluginsStore.loading"
-      flex="~ col items-center justify-center"
-      py-12
+      :class="['flex','flex-col','items-center','justify-center','py-12']"
     >
-      <div text-4xl text-primary-500 i-svg-spinners:ring-resize></div>
-      <p mt-4 text-neutral-500 dark:text-neutral-400>
+      <div :class="['text-4xl','text-primary-500','i-svg-spinners:ring-resize']"></div>
+      <p :class="['mt-4','text-neutral-500','dark:text-neutral-400']">
         {{ t('settings.pages.plugins.loading') }}
       </p>
     </div>
@@ -77,16 +75,20 @@ const pluginsList = computed(() =>
     <!-- Error state -->
     <div
       v-if="pluginsStore.error"
-      flex="~ col items-center justify-center"
-      rounded-lg bg-red-50 p-4 class="dark:bg-red-900/20"
+      :class="[
+        'flex','flex-col','items-center','justify-center',
+        'rounded-lg','bg-red-50','p-4','dark:bg-red-900/20',
+      ]"
     >
-      <div text-4xl text-red-500 i-solar:danger-triangle-bold-duotone></div>
-      <p mt-2 text-red-600 dark:text-red-400>
+      <div :class="['text-4xl','text-red-500','i-solar:danger-triangle-bold-duotone']"></div>
+      <p :class="['mt-2','text-red-600','dark:text-red-400']">
         {{ pluginsStore.error }}
       </p>
       <button
-        mt-4 rounded-lg bg-red-500 px-4 py-2 text-white
-        hover:bg-red-600
+        :class="[
+          'mt-4','rounded-lg','bg-red-500','px-4','py-2','text-white',
+          'hover:bg-red-600',
+        ]"
         @click="pluginsStore.fetchConnectedPlugins()"
       >
         {{ t('settings.pages.plugins.retry') }}
@@ -97,15 +99,17 @@ const pluginsList = computed(() =>
   <!-- Background decoration -->
   <div
     v-motion
-    class="text-neutral-200/50 dark:text-neutral-600/20" pointer-events-none
-    fixed top="[calc(100dvh-15rem)]" bottom-0 right--5 z--1
+    :class="[
+      'text-neutral-200/50','dark:text-neutral-600/20','pointer-events-none',
+      'fixed','bottom-0','right--5','z--1','size-60',
+      'flex','items-center','justify-center',
+    ]"
+    style="top: calc(100dvh - 15rem)"
     :initial="{ scale: 0.9, opacity: 0, y: 20 }"
     :enter="{ scale: 1, opacity: 1, y: 0 }"
     :duration="500"
-    size-60
-    flex items-center justify-center
   >
-    <div text="60" i-solar:plug-circle-bold-duotone />
+    <div :class="['text-60','i-solar:plug-circle-bold-duotone']" />
   </div>
 </template>
 

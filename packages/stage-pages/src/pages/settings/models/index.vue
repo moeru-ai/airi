@@ -52,12 +52,6 @@ async function extractColorsFromModel() {
         'w-full',
         'h-full',
       ]"
-      :pngtuber-scene-class="[
-        'absolute',
-        'max-h-[calc(100dvh-100px-56px)]',
-        'w-full',
-        'h-full',
-      ]"
       :vrm-scene-class="[
         'absolute',
         'max-h-[calc(100dvh-100px-56px)]',

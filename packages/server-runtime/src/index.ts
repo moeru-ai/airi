@@ -73,12 +73,20 @@ export function setupApp(options?: {
     }
   }
 
-  // API endpoint to list connected plugins
-  app.get('/api/plugins', (event) => {
-    // Set CORS headers
+  // Helper function to set CORS headers for plugin API
+  // NOTE: Using wildcard '*' is necessary for the plugin architecture to allow
+  // plugins running from different origins (e.g., Electron, external services)
+  // to access the API. In a production environment with a known frontend domain,
+  // consider restricting this to specific origins for better security.
+  function setApiCorsHeaders(event: H3Event) {
     setResponseHeader(event, 'Access-Control-Allow-Origin', '*')
     setResponseHeader(event, 'Access-Control-Allow-Methods', 'GET, OPTIONS')
     setResponseHeader(event, 'Access-Control-Allow-Headers', 'Content-Type')
+  }
+
+  // API endpoint to list connected plugins
+  app.get('/api/plugins', (event) => {
+    setApiCorsHeaders(event)
 
     const plugins = Array.from(peersByModule.entries()).map(([name, peersMap]) => ({
       name,
@@ -93,9 +101,7 @@ export function setupApp(options?: {
 
   // Handle CORS preflight for /api/plugins
   app.options('/api/plugins', (event) => {
-    setResponseHeader(event, 'Access-Control-Allow-Origin', '*')
-    setResponseHeader(event, 'Access-Control-Allow-Methods', 'GET, OPTIONS')
-    setResponseHeader(event, 'Access-Control-Allow-Headers', 'Content-Type')
+    setApiCorsHeaders(event)
     setResponseStatus(event, 204)
     return ''
   })

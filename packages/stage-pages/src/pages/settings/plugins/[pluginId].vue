@@ -35,58 +35,13 @@ const enabled = ref(true)
 const configFields = ref<Record<string, string>>({})
 
 // Known plugin-specific fields
-const knownPluginFields: Record<string, Array<{ key: string, type: 'text' | 'password', labelKey: string, descriptionKey: string, placeholderKey: string }>> = {
-  'youtube-livechat': [
-    {
-      key: 'clientId',
-      type: 'text',
-      labelKey: 'settings.pages.plugins.fields.client-id',
-      descriptionKey: 'settings.pages.plugins.fields.client-id-description',
-      placeholderKey: 'settings.pages.plugins.fields.client-id-placeholder',
-    },
-    {
-      key: 'clientSecret',
-      type: 'password',
-      labelKey: 'settings.pages.plugins.fields.client-secret',
-      descriptionKey: 'settings.pages.plugins.fields.client-secret-description',
-      placeholderKey: 'settings.pages.plugins.fields.client-secret-placeholder',
-    },
-    {
-      key: 'streamUrl',
-      type: 'text',
-      labelKey: 'settings.pages.plugins.fields.stream-url',
-      descriptionKey: 'settings.pages.plugins.fields.stream-url-description',
-      placeholderKey: 'settings.pages.plugins.fields.stream-url-placeholder',
-    },
-  ],
-  'homeassistant': [
-    {
-      key: 'baseUrl',
-      type: 'text',
-      labelKey: 'settings.pages.plugins.fields.base-url',
-      descriptionKey: 'settings.pages.plugins.fields.base-url-description',
-      placeholderKey: 'settings.pages.plugins.fields.base-url-placeholder',
-    },
-    {
-      key: 'accessToken',
-      type: 'password',
-      labelKey: 'settings.pages.plugins.fields.access-token',
-      descriptionKey: 'settings.pages.plugins.fields.access-token-description',
-      placeholderKey: 'settings.pages.plugins.fields.access-token-placeholder',
-    },
-  ],
-  'bilibili-laplace': [
-    {
-      key: 'roomId',
-      type: 'text',
-      labelKey: 'settings.pages.plugins.fields.room-id',
-      descriptionKey: 'settings.pages.plugins.fields.room-id-description',
-      placeholderKey: 'settings.pages.plugins.fields.room-id-placeholder',
-    },
-  ],
-}
+// NOTE: These are not yet ready. They should be able to run independently or built-in with Electron,
+// and register capability to server-runtime in order to process in multi-agent pattern instead of single roundtrip for each chat.
+// const knownPluginFields: Record<string, Array<{ key: string, type: 'text' | 'password', labelKey: string, descriptionKey: string, placeholderKey: string }>> = {
+//   ...
+// }
 
-const pluginFields = computed(() => knownPluginFields[pluginId.value] || [])
+const pluginFields = computed(() => [])
 
 // Initialize
 onMounted(() => {
@@ -142,28 +97,30 @@ function getTranslatedDescription(description: string | undefined): string {
 </script>
 
 <template>
-  <div flex="~ col gap-6">
+  <div :class="['flex','flex-col','gap-6']">
     <!-- Plugin header -->
-    <div flex="~ row items-center gap-4" pb-4 border-b="1 neutral-200 dark:neutral-700">
+    <div :class="['flex','flex-row','items-center','gap-4','pb-4','border-b','border-neutral-200','dark:border-neutral-700']">
       <div
         v-if="metadata?.icon"
-        :class="[metadata.icon, metadata.iconColor]"
-        text-4xl
+        :class="[metadata.icon, metadata.iconColor, 'text-4xl']"
       />
-      <div flex="~ col">
-        <h2 text-xl font-semibold>
+      <div :class="['flex','flex-col']">
+        <h2 :class="['text-xl','font-semibold']">
           {{ getTranslatedName(metadata?.name) }}
         </h2>
-        <p text-sm text-neutral-500 dark:text-neutral-400>
+        <p :class="['text-sm','text-neutral-500','dark:text-neutral-400']">
           {{ getTranslatedDescription(metadata?.description) }}
         </p>
       </div>
-      <div ml-auto flex="~ row items-center gap-2">
+      <div :class="['ml-auto','flex','flex-row','items-center','gap-2']">
         <span
-          :class="connected ? 'bg-green-500' : 'bg-neutral-300 dark:bg-neutral-600'"
-          size-3 rounded-full
+          :class="[
+            'size-3','rounded-full',
+            connected ? 'bg-green-500' : 'bg-neutral-300',
+            !connected && 'dark:bg-neutral-600',
+          ]"
         />
-        <span text-sm text-neutral-600 dark:text-neutral-400>
+        <span :class="['text-sm','text-neutral-600','dark:text-neutral-400']">
           {{ connected ? t('settings.pages.plugins.status.connected') : t('settings.pages.plugins.status.disconnected') }}
         </span>
       </div>
@@ -178,8 +135,8 @@ function getTranslatedDescription(description: string | undefined): string {
 
     <!-- Plugin-specific fields -->
     <template v-if="pluginFields.length > 0">
-      <div flex="~ col gap-4">
-        <h3 text-lg font-medium text-neutral-700 dark:text-neutral-300>
+      <div :class="['flex','flex-col','gap-4']">
+        <h3 :class="['text-lg','font-medium','text-neutral-700','dark:text-neutral-300']">
           {{ t('settings.pages.plugins.configuration') }}
         </h3>
 
@@ -194,7 +151,7 @@ function getTranslatedDescription(description: string | undefined): string {
         />
 
         <!-- OAuth button for YouTube -->
-        <div v-if="pluginId === 'youtube-livechat'" pt-2>
+        <div v-if="pluginId === 'youtube-livechat'" :class="['pt-2']">
           <Button
             :label="t('settings.pages.plugins.start-oauth')"
             variant="secondary"
@@ -207,15 +164,15 @@ function getTranslatedDescription(description: string | undefined): string {
     <!-- Generic message for unknown plugins -->
     <div
       v-else-if="!connected"
-      rounded-lg bg-neutral-100 p-4 dark:bg-neutral-800
+      :class="['rounded-lg','bg-neutral-100','p-4','dark:bg-neutral-800']"
     >
-      <p text-neutral-600 dark:text-neutral-400>
+      <p :class="['text-neutral-600','dark:text-neutral-400']">
         {{ t('settings.pages.plugins.not-connected-hint') }}
       </p>
     </div>
 
     <!-- Actions -->
-    <div flex="~ row gap-3" pt-4>
+    <div :class="['flex','flex-row','gap-3','pt-4']">
       <Button
         :label="t('settings.common.save')"
         variant="primary"
@@ -231,11 +188,11 @@ function getTranslatedDescription(description: string | undefined): string {
     <!-- Connection status info -->
     <div
       v-if="connected"
-      mt-4 rounded-lg bg-green-50 p-4 class="dark:bg-green-900/20"
+      :class="['mt-4','rounded-lg','bg-green-50','p-4','dark:bg-green-900/20']"
     >
-      <div flex="~ row items-center gap-2">
-        <div text-green-500 i-solar:check-circle-bold></div>
-        <span text-green-700 dark:text-green-400>
+      <div :class="['flex','flex-row','items-center','gap-2']">
+        <div :class="['text-green-500','i-solar:check-circle-bold']"></div>
+        <span :class="['text-green-700','dark:text-green-400']">
           {{ t('settings.pages.plugins.connected-info', { count: pluginInfo?.connectedCount || 0 }) }}
         </span>
       </div>
@@ -245,16 +202,18 @@ function getTranslatedDescription(description: string | undefined): string {
   <!-- Background decoration -->
   <div
     v-motion
-    class="text-neutral-200/50 dark:text-neutral-600/20" pointer-events-none
-    fixed top="[calc(100dvh-15rem)]" bottom-0 right--5 z--1
+    :class="[
+      'text-neutral-200/50','dark:text-neutral-600/20','pointer-events-none',
+      'fixed','bottom-0','right--5','z--1','size-60',
+      'flex','items-center','justify-center',
+    ]"
+    style="top: calc(100dvh - 15rem)"
     :initial="{ scale: 0.9, opacity: 0, y: 20 }"
     :enter="{ scale: 1, opacity: 1, y: 0 }"
     :duration="500"
-    size-60
-    flex items-center justify-center
   >
-    <div v-if="metadata?.icon" text="60" :class="metadata.icon"></div>
-    <div v-else text="60" i-solar:plug-circle-bold-duotone></div>
+    <div v-if="metadata?.icon" :class="[metadata.icon, 'text-60']"></div>
+    <div v-else :class="['text-60','i-solar:plug-circle-bold-duotone']"></div>
   </div>
 </template>
 
