@@ -137,12 +137,11 @@ const resolvedIconClass = computed(() => weatherIconMap[resolvedIconKey.value].i
         'justify-between',
         'gap-3',
         'overflow-x-hidden overflow-y-scroll',
-        'rounded-2xl',
         'p-3',
         'bg-gradient-to-br',
-        'from-neutral-950',
-        'via-neutral-900',
-        'to-neutral-800',
+        'from-neutral-950/65',
+        'via-neutral-900/65',
+        'to-neutral-800/65',
         'text-white',
       ]"
     >
