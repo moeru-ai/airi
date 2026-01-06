@@ -47,6 +47,7 @@
     "@formkit/auto-animate": "^0.9.0",
     "@guiiai/logg": "catalog:",
     "@huggingface/transformers": "^3.8.1",
+    "@modelcontextprotocol/sdk": "catalog:",
     "@moeru/eventa": "^1.0.0-alpha.10",
     "@moeru/std": "catalog:",
     "@proj-airi/audio": "workspace:^",
