@@ -155,6 +155,7 @@ onBeforeUnmount(() => {
 })
 
 const Registry: Record<string, ReturnType<typeof defineAsyncComponent>> = {
+  map: defineAsyncComponent(async () => (await import('../widgets/map')).Map),
   weather: defineAsyncComponent(async () => (await import('../widgets/weather')).Weather),
 }
 
