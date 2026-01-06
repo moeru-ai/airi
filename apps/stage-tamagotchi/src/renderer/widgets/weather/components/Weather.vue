@@ -127,6 +127,9 @@ const resolvedIconClass = computed(() => weatherIconMap[resolvedIconKey.value].i
         :class="['col-span-2', 'row-span-1', 'h-full', 'w-20%', 'inline-flex', 'items-end', 'justify-self-end', 'rounded-2xl', 'pr-4', 'text-gray-500', 'dark:text-gray-400']"
       />
     </Skeleton>
+    <!-- TODO: Yeah I know for Windows, rounded corner is not applied properly when background material used -->
+    <!-- https://github.com/electron/electron/issues/48340 -->
+    <!-- https://issues.chromium.org/issues/432457523 -->
     <div
       v-else
       :class="[
@@ -136,8 +139,9 @@ const resolvedIconClass = computed(() => weatherIconMap[resolvedIconKey.value].i
         'flex-col',
         'justify-between',
         'gap-3',
-        'overflow-x-hidden overflow-y-scroll',
+        'overflow-x-hidden overflow-y-scroll scrollbar-none',
         'p-3',
+        'rounded-2xl',
         'bg-gradient-to-br',
         'from-neutral-950/65',
         'via-neutral-900/65',
