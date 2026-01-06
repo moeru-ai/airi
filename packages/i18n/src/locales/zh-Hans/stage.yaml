@@ -4,7 +4,7 @@ chat:
       airi: AIRI
       core-system: 核心系统
       you: 你
-  reasoning: 推理
+  reasoning: Reasoning
 message: 说点什么...
 operations:
   load-models: 加载模型
