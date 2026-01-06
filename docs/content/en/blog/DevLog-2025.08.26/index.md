@@ -20,7 +20,7 @@ Back in June this year, [@nekomeowww](https://github.com/nekomeowww) released a 
 
 First, let me show you the results:
 
-<video src="./assets/airi-factorio-yolo-v0-playground-vnc.mp4" controls />
+<ThemedVideo src="./assets/airi-factorio-yolo-v0-playground-vnc.mp4" controls playsinline />
 
 In the video, I'm playing Factorio via VNC connection in the web page, with object detection results on the right side, almost in real-time. I've also deployed it to [HuggingFace Space](https://huggingface.co/spaces/proj-airi/factorio-yolo-v0-playground), feel free to try it out.
 

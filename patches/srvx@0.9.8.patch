@@ -1,0 +1,23 @@
+diff --git a/dist/adapters/node.mjs b/dist/adapters/node.mjs
+index 6da71ede8be15defb4f065d7eaf123ecad56afbd..5f0204722ad0a1259188a972f435d00681435d69 100644
+--- a/dist/adapters/node.mjs
++++ b/dist/adapters/node.mjs
+@@ -611,12 +611,17 @@ var NodeServer = class {
+ 	}
+ 	serve() {
+ 		if (this.#listeningPromise) return Promise.resolve(this.#listeningPromise).then(() => this);
+-		this.#listeningPromise = new Promise((resolve) => {
++		this.#listeningPromise = new Promise((resolve, reject) => {
++			this.node.server.once("error", (err) => {
++				reject(err);
++			})
+ 			this.node.server.listen(this.serveOptions, () => {
+ 				printListening(this.options, this.url);
+ 				resolve();
+ 			});
+ 		});
++
++		return this.#listeningPromise
+ 	}
+ 	get url() {
+ 		const addr = this.node?.server?.address();

@@ -24,9 +24,9 @@ const modelValue = defineModel<string>({ required: false })
           <slot name="label">
             {{ props.label }}
           </slot>
-          <span v-if="props.required !== false" class="text-red-500">*</span>
+          <span v-if="props.required" class="text-red-500">*</span>
         </div>
-        <div class="text-xs text-neutral-500 dark:text-neutral-400" text-nowrap>
+        <div class="text-xs text-neutral-500 dark:text-neutral-400" text-wrap>
           <slot name="description">
             {{ props.description }}
           </slot>

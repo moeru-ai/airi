@@ -142,4 +142,42 @@ describe('useLlmmarkerParser', async () => {
       expect(collectedSpecials).toEqual(expectedSpecials)
     }
   })
+
+  it('should call onEnd with full text', async () => {
+    const fullText = 'Hello, world!'
+    let endText = ''
+
+    const parser = useLlmmarkerParser({
+      onEnd(text) {
+        endText = text
+      },
+    })
+
+    for (const char of fullText) {
+      await parser.consume(char)
+    }
+
+    await parser.end()
+
+    expect(endText).toBe(fullText)
+  })
+
+  it('should call onEnd with full text including specials', async () => {
+    const fullText = 'Hello <|special|> world!'
+    let endText = ''
+
+    const parser = useLlmmarkerParser({
+      onEnd(text) {
+        endText = text
+      },
+    })
+
+    for (const char of fullText) {
+      await parser.consume(char)
+    }
+
+    await parser.end()
+
+    expect(endText).toBe(fullText)
+  })
 })

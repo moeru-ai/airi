@@ -4,6 +4,7 @@ chat:
       airi: AIRI
       core-system: Core система
       you: Ты
+  reasoning: Reasoning
 message: Спроси что-нибудь
 operations:
   load-models: Загрузить модели

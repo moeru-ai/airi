@@ -379,9 +379,7 @@ That was the day at **June 2, 2024**.
 Technically saying, **this is the birthday of Project AIRI** with first baby consciousness inside of it, naively.
 
 <div class="w-full flex flex-col items-center justify-center">
-  <video controls muted autoplay loop>
-    <source src="./assets/airi-demo-first-day.mp4" />
-  </video>
+  <ThemedVideo controls muted autoplay loop src="./assets/airi-demo-first-day.mp4" />
   <div>
     <a href="https://x.com/ayakaneko/status/1865420146766160114">
       First showcase on X (formerly Twitter) on December 7, 2024

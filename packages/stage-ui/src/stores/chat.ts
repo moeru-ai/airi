@@ -11,10 +11,12 @@ import { computed, ref, toRaw, watch } from 'vue'
 
 import { useAnalytics } from '../composables'
 import { useLlmmarkerParser } from '../composables/llmmarkerParser'
+import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
 import { useLLM } from '../stores/llm'
 import { createQueue } from '../utils/queue'
 import { TTS_FLUSH_INSTRUCTION } from '../utils/tts'
-import { useAiriCardStore } from './modules'
+import { useCharacterStore } from './character'
+import { useConsciousnessStore } from './modules/consciousness'
 
 const CHAT_STORAGE_KEY = 'chat/messages/v2'
 const ACTIVE_SESSION_STORAGE_KEY = 'chat/active-session'
@@ -22,8 +24,10 @@ export const CONTEXT_CHANNEL_NAME = 'airi-context-update'
 export const CHAT_STREAM_CHANNEL_NAME = 'airi-chat-stream'
 
 export const useChatStore = defineStore('chat', () => {
-  const { stream, discoverToolsCompatibility } = useLLM()
-  const { systemPrompt } = storeToRefs(useAiriCardStore())
+  const llmStore = useLLM()
+  const consciousnessStore = useConsciousnessStore()
+  const { activeProvider } = storeToRefs(consciousnessStore)
+  const { systemPrompt } = storeToRefs(useCharacterStore())
   const { trackFirstMessage } = useAnalytics()
 
   const activeSessionId = useLocalStorage<string>(ACTIVE_SESSION_STORAGE_KEY, 'default')
@@ -238,6 +242,8 @@ export const useChatStore = defineStore('chat', () => {
   function renderSystemPrompt(template: string) {
     const userName = 'User'
     return template.replaceAll('{{ user }}', userName)
+  function getSessionGenerationValue(sessionId = activeSessionId.value) {
+    return getSessionGeneration(sessionId)
   }
 
   function generateInitialMessage() {
@@ -406,32 +412,63 @@ export const useChatStore = defineStore('chat', () => {
       const sessionMessagesForSend = getSessionMessagesById(sessionId)
       sessionMessagesForSend.push({ role: 'user', content: finalContent })
 
+      // Create categorizer for response categorization
+      const categorizer = createStreamingCategorizer(activeProvider.value)
+      let streamPosition = 0 // Track position in stream for TTS filtering
+
       const parser = useLlmmarkerParser({
         onLiteral: async (literal) => {
           if (shouldAbort())
             return
 
-          await emitTokenLiteralHooks(literal, streamingMessageContext)
+          // Feed to categorizer first
+          categorizer.consume(literal)
 
-          streamingMessage.value.content += literal
+          // Filter to only include speech parts (exclude reasoning)
+          // The categorizer handles incomplete tags and filters based on detected tags during streaming
+          const speechOnly = categorizer.filterToSpeech(literal, streamPosition)
+          streamPosition += literal.length
 
-          // merge text slices for markdown
-          const lastSlice = streamingMessage.value.slices.at(-1)
-          if (lastSlice?.type === 'text') {
-            lastSlice.text += literal
-            return
+          // Only process non-empty speech content (filter empty/whitespace-only chunks)
+          // Preserve spacing in chunks with content for proper word boundaries
+          if (speechOnly.trim()) {
+            streamingMessage.value.content += speechOnly
+
+            // Emit TTS only for speech parts, not reasoning (clean data, no empty chunks)
+            await emitTokenLiteralHooks(speechOnly, streamingMessageContext)
+
+            // Add speech content to slices for rendering
+            // merge text slices for markdown
+            const lastSlice = streamingMessage.value.slices.at(-1)
+            if (lastSlice?.type === 'text') {
+              lastSlice.text += speechOnly
+              return
+            }
+
+            streamingMessage.value.slices.push({
+              type: 'text',
+              text: speechOnly,
+            })
           }
-
-          streamingMessage.value.slices.push({
-            type: 'text',
-            text: literal,
-          })
         },
         onSpecial: async (special) => {
           if (shouldAbort())
             return
 
           await emitTokenSpecialHooks(special, streamingMessageContext)
+        },
+        onEnd: async (fullText) => {
+          if (isStaleGeneration())
+            return
+
+          // Categorize the full text stream
+          const finalCategorization = categorizeResponse(fullText, activeProvider.value)
+
+          // Always store categorization (even if empty) for consistency and memory features
+          streamingMessage.value.categorization = {
+            speech: finalCategorization.speech,
+            reasoning: finalCategorization.reasoning,
+          }
         },
         minLiteralEmitLength: 24, // Avoid emitting literals too fast. This is a magic number and can be changed later.
       })
@@ -458,7 +495,7 @@ export const useChatStore = defineStore('chat', () => {
         const rawMessage = toRaw(withoutContext)
 
         if (rawMessage.role === 'assistant') {
-          const { slices: _, tool_results, ...rest } = rawMessage as ChatAssistantMessage
+          const { slices: _, tool_results, categorization: __categorization, ...rest } = rawMessage as ChatAssistantMessage
           return {
             ...toRaw(rest),
             tool_results: toRaw(tool_results),
@@ -498,7 +535,7 @@ export const useChatStore = defineStore('chat', () => {
       if (shouldAbort())
         return
 
-      await stream(options.model, options.chatProvider, newMessages as Message[], {
+      await llmStore.stream(options.model, options.chatProvider, newMessages as Message[], {
         headers,
         tools: options.tools,
         onStreamEvent: async (event: StreamEvent) => {
@@ -532,6 +569,7 @@ export const useChatStore = defineStore('chat', () => {
       })
 
       // Finalize the parsing of the actual message content
+      // Categorization and filtering happens in the onEnd callback
       await parser.end()
 
       // Add the completed message to the history only if it has content
@@ -569,6 +607,36 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  // ----- Remote stream helpers (for broadcast/devtools) -----
+  function beginRemoteStream() {
+    streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() }
+  }
+
+  function appendRemoteLiteral(literal: string) {
+    streamingMessage.value.content += literal
+
+    const lastSlice = streamingMessage.value.slices.at(-1)
+    if (lastSlice?.type === 'text') {
+      lastSlice.text += literal
+      return
+    }
+
+    streamingMessage.value.slices.push({
+      type: 'text',
+      text: literal,
+    })
+  }
+
+  function finalizeRemoteStream(fullText?: string) {
+    const sessionId = activeSessionId.value
+    const sessionMessagesForSend = getSessionMessagesById(sessionId)
+    if (streamingMessage.value.slices.length > 0)
+      sessionMessagesForSend.push(toRaw(streamingMessage.value))
+    streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
+    if (fullText)
+      streamingMessage.value.content = fullText
+  }
+
   async function send(
     sendingMessage: string,
     options: SendOptions,
@@ -593,7 +661,7 @@ export const useChatStore = defineStore('chat', () => {
     messages,
     streamingMessage,
 
-    discoverToolsCompatibility,
+    discoverToolsCompatibility: llmStore.discoverToolsCompatibility,
 
     send,
     setActiveSession,
@@ -616,6 +684,12 @@ export const useChatStore = defineStore('chat', () => {
     emitAssistantResponseEndHooks,
     emitAssistantMessageHooks,
     emitChatTurnCompleteHooks,
+
+    getSessionGenerationValue,
+
+    beginRemoteStream,
+    appendRemoteLiteral,
+    finalizeRemoteStream,
 
     onBeforeMessageComposed,
     onAfterMessageComposed,

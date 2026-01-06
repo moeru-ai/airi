@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/root",
   "type": "module",
-  "version": "0.8.0",
+  "version": "0.8.1-beta.2",
   "private": true,
   "packageManager": "pnpm@10.26.2",
   "description": "LLM powered virtual character",
@@ -17,6 +17,7 @@
     "dev:docs": "pnpm -rF @proj-airi/docs run dev",
     "dev:ui": "pnpm -rF @proj-airi/stage-ui run story:dev",
     "dev:web": "pnpm -rF @proj-airi/stage-web run dev",
+    "dev:pocket": "pnpm -rF @proj-airi/stage-pocket run dev:web",
     "dev:server": "pnpm -rF @proj-airi/server-runtime run dev",
     "dev:tamagotchi": "pnpm -rF @proj-airi/stage-tamagotchi run dev",
     "dev:apps": "pnpm -rF=\"./apps/*\" run --parallel dev",
@@ -32,10 +33,12 @@
     "lint": "moeru-lint .",
     "lint:fix": "moeru-lint --fix .",
     "lint:rust": "cargo fmt --check && cargo clippy --workspace",
+    "lint:swift": "pnpm -rF @proj-airi/stage-pocket run lint:swift",
     "to-avif": "tsx docs/scripts/avif.ts",
     "typecheck": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" -F=\"./docs\" --parallel typecheck",
     "up": "taze -w -r -I && pnpm prune && pnpm dedupe",
-    "nolyfill": "pnpm dlx nolyfill"
+    "nolyfill": "pnpm dlx nolyfill",
+    "open:ios": "pnpm -rF @proj-airi/stage-pocket run open:ios"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^6.7.3",
@@ -53,8 +56,9 @@
     "bumpp": "^10.3.2",
     "eslint": "^9.39.2",
     "eslint-plugin-oxlint": "^1.35.0",
-    "lint-staged": "^16.2.7",
+    "nano-staged": "catalog:",
     "oxlint": "^1.35.0",
+    "posthog-js": "catalog:",
     "publint": "^0.3.16",
     "rollup": "^4.54.0",
     "simple-git-hooks": "^2.13.1",
@@ -86,9 +90,9 @@
     "apps/**"
   ],
   "simple-git-hooks": {
-    "pre-commit": "pnpm lint-staged"
+    "pre-commit": "pnpm nano-staged"
   },
-  "lint-staged": {
+  "nano-staged": {
     "*": "moeru-lint --fix"
   }
 }

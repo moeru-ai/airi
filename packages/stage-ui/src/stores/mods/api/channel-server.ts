@@ -11,6 +11,8 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   const client = ref<Client>()
   const initializing = ref<Promise<void> | null>(null)
   const pendingSend = ref<Array<WebSocketEvent>>([])
+  const listenersInitialized = ref(false)
+  const listenerDisposers = ref<Array<() => void>>([])
 
   const basePossibleEvents: Array<keyof WebSocketEvents> = [
     'context:update',
@@ -29,7 +31,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     'ui:configure',
   ]
 
-  function initialize(options?: { token?: string, possibleEvents?: Array<keyof WebSocketEvents> }) {
+  async function initialize(options?: { token?: string, possibleEvents?: Array<keyof WebSocketEvents> }) {
     if (connected.value && client.value)
       return Promise.resolve()
     if (initializing.value)
@@ -40,21 +42,25 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
       ...(options?.possibleEvents ?? []),
     ]))
 
-    initializing.value = new Promise<void>((resolve, reject) => {
+    initializing.value = new Promise<void>((resolve) => {
       client.value = new Client({
         name: isStageWeb() ? WebSocketEventSource.StageWeb : isStageTamagotchi() ? WebSocketEventSource.StageTamagotchi : WebSocketEventSource.StageWeb,
         url: import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws',
         token: options?.token,
         possibleEvents,
         onError: (error) => {
-          client.value = undefined
           connected.value = false
           initializing.value = null
-          reject(error)
+          clearListeners()
+
+          console.warn('WebSocket server connection error:', error)
         },
         onClose: () => {
           connected.value = false
           initializing.value = null
+          clearListeners()
+
+          console.warn('WebSocket server connection closed')
         },
       })
 
@@ -65,14 +71,35 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           initializeListeners()
           resolve()
 
+          // eslint-disable-next-line no-console
+          console.log('WebSocket server connection established and authenticated')
+
           return
         }
 
         connected.value = false
       })
     })
+  }
 
-    return initializing.value
+  async function ensureConnected() {
+    await initializing.value
+    if (!connected.value) {
+      return await initialize()
+    }
+  }
+
+  function clearListeners() {
+    for (const disposer of listenerDisposers.value) {
+      try {
+        disposer()
+      }
+      catch (error) {
+        console.warn('Failed to dispose channel listener:', error)
+      }
+    }
+    listenerDisposers.value = []
+    listenersInitialized.value = false
   }
 
   function initializeListeners() {
@@ -136,6 +163,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
   function dispose() {
     flush()
+    clearListeners()
 
     client.value?.close()
     connected.value = false
@@ -145,6 +173,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
   return {
     connected,
+    ensureConnected,
 
     initialize,
     send,

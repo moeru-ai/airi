@@ -71,7 +71,7 @@ Web 版は手軽にアクセスでき、モバイルからでも利用できま�
       使い方を見る
     </div>
   </a>
-  <a href="../../../en/docs/overview/guide/web/" w-full flex items-center gap-2 border="2 solid gray-500/10" rounded-lg px-4 py-2>
+  <a href="./guide/web/" w-full flex items-center gap-2 border="2 solid gray-500/10" rounded-lg px-4 py-2>
     <div w-full flex items-center gap-2>
       <div flex items-center gap-2 text-2xl>
       <div i-lucide:app-window />

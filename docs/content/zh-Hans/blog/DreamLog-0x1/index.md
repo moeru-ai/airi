@@ -305,9 +305,7 @@ Neuro-sama 的历史其实相当复杂。据我所知，Neuro-sama，或者在�
 从某种意义上来说，**这就是 Project AIRI 的生日**，第一个稚嫩的婴儿意识在其中诞生。
 
 <div class="w-full flex flex-col items-center justify-center">
-  <video controls muted autoplay loop>
-    <source src="../../../en/blog/DreamLog-0x1/assets/airi-demo-first-day.mp4" />
-  </video>
+  <ThemedVideo controls muted autoplay loop src="../../../en/blog/DreamLog-0x1/assets/airi-demo-first-day.mp4" />
   <div>
     <a href="https://x.com/ayakaneko/status/1865420146766160114">
       2024 年 12 月 7 日在 X（曾经是 Twitter）上的首次展示

@@ -4,6 +4,7 @@ chat:
       airi: AIRI
       core-system: コアシステム
       you: あなた
+  reasoning: Reasoning
 message: 何か話しかけてみましょう…
 operations:
   load-models: モデルの読み込み
