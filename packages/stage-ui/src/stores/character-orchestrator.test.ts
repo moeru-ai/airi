@@ -33,7 +33,7 @@ function mockedStore<TStoreDef extends () => unknown>(
   infer Getters,
   infer Actions
 >
-? Store<
+  ? Store<
     Id,
     State,
     Record<string, never>,
@@ -92,10 +92,13 @@ describe('store character-orchestrator', () => {
     mockedStore(useLLM).stream = mockStream
     mockedStore(useLLM).stream.mockImplementation(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
       if (options?.tools?.length) {
-        await options.tools[0].execute({ commands: [{
+        await options.tools[1].execute({ commands: [{
           destinations: ['minecraft'],
           intent: 'action',
           priority: 'critical',
+          interrupt: 'false',
+          ack: 'ok',
+          guidance: null,
         }] } satisfies z.infer<typeof sparkCommandSchema>)
       }
 
