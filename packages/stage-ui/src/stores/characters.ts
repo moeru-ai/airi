@@ -1,23 +1,18 @@
-// FIXME: fix the types
-
 import type { Character, CreateCharacterPayload, UpdateCharacterPayload } from '../types/character'
 
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 import { client } from '../composables/api'
+import { useAsyncState } from '../composables/use-async-state'
 
 export const useCharacterStore = defineStore('characters', () => {
   const characters = ref<Map<string, Character>>(new Map())
-  const isLoading = ref(false)
-  const error = ref<unknown>(null)
 
   async function fetchList(all: boolean = false) {
-    isLoading.value = true
-    error.value = null
-    try {
+    return useAsyncState(async () => {
       const res = await client.api.characters.$get({
-        query: { all: all.toString() },
+        query: { all: String(all) },
       })
       if (!res.ok) {
         throw new Error('Failed to fetch characters')
@@ -26,112 +21,94 @@ export const useCharacterStore = defineStore('characters', () => {
 
       characters.value.clear()
       for (const char of data) {
-        characters.value.set(char.id, char as unknown as Character)
+        characters.value.set(char.id, char)
       }
-    }
-    catch (err) {
-      error.value = err
-      throw err
-    }
-    finally {
-      isLoading.value = false
-    }
+    }, { immediate: true })
   }
 
   async function fetchById(id: string) {
-    isLoading.value = true
-    error.value = null
-    try {
+    return useAsyncState(async () => {
       const res = await client.api.characters[':id'].$get({
         param: { id },
       })
       if (!res.ok) {
         throw new Error('Failed to fetch character')
       }
-      const data = await res.json()
+      const character = await res.json()
 
-      characters.value.set(data.id, data as unknown as Character)
-      return data
-    }
-    catch (err) {
-      error.value = err
-      throw err
-    }
-    finally {
-      isLoading.value = false
-    }
+      characters.value.set(character.id, character)
+      return character
+    }, { immediate: true })
   }
 
   async function create(payload: CreateCharacterPayload) {
-    isLoading.value = true
-    error.value = null
-    try {
+    return useAsyncState(async () => {
       const res = await client.api.characters.$post({
         json: payload,
       })
       if (!res.ok) {
         throw new Error('Failed to create character')
       }
-      const data = await res.json()
+      const character = await res.json()
 
-      characters.value.set(data.id, data as unknown as Character)
-      return data
-    }
-    catch (err) {
-      error.value = err
-      throw err
-    }
-    finally {
-      isLoading.value = false
-    }
+      characters.value.set(character.id, character)
+      return character
+    }, { immediate: true })
   }
 
   async function update(id: string, payload: UpdateCharacterPayload) {
-    isLoading.value = true
-    error.value = null
-    try {
+    return useAsyncState(async () => {
       const res = await client.api.characters[':id'].$patch({
         param: { id },
-        // @ts-expect-error - TODO: fix this
         json: payload,
       })
       if (!res.ok) {
         throw new Error('Failed to update character')
       }
-      const data = (await res.json())[0] as unknown as Character
+      const character = await res.json()
 
-      characters.value.set(data.id, data)
-      return data
-    }
-    catch (err) {
-      error.value = err
-      throw err
-    }
-    finally {
-      isLoading.value = false
-    }
+      characters.value.set(character.id, character)
+      return character
+    }, { immediate: true })
   }
 
   async function remove(id: string) {
-    isLoading.value = true
-    error.value = null
-    try {
+    return useAsyncState(async () => {
       const res = await client.api.characters[':id'].$delete({
         param: { id },
       })
       if (!res.ok) {
-        throw new Error('Failed to delete character')
+        throw new Error('Failed to remove character')
       }
 
       characters.value.delete(id)
-    }
-    catch (err) {
-      error.value = err
-      throw err
-    }
-    finally {
-      isLoading.value = false
-    }
+    }, { immediate: true })
+  }
+
+  async function like(id: string) {
+    return useAsyncState(async () => {
+      const res = await client.api.characters[':id'].$patch({
+        param: { id },
+      })
+      if (!res.ok) {
+        throw new Error('Failed to like character')
+      }
+
+      await fetchById(id)
+    }, { immediate: true })
+  }
+
+  async function bookmark(id: string) {
+    return useAsyncState(async () => {
+      const res = await client.api.characters[':id'].$patch({
+        param: { id },
+      })
+      if (!res.ok) {
+        throw new Error('Failed to bookmark character')
+      }
+
+      await fetchById(id)
+    }, { immediate: true })
   }
 
   async function like(id: string) {
@@ -172,8 +149,7 @@ export const useCharacterStore = defineStore('characters', () => {
 
   return {
     characters,
-    isLoading,
-    error,
+
     fetchList,
     fetchById,
     create,

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 import { client } from '../composables/api'
+import { useAsyncState } from '../composables/use-async-state'
 import { getDefinedProvider, listProviders } from '../libs/providers/providers'
 
 interface ProviderCatalogProvider {
@@ -16,13 +17,9 @@ interface ProviderCatalogProvider {
 export const useProviderCatalogStore = defineStore('provider-catalog', () => {
   const defs = computed(() => listProviders())
   const configs = ref<Record<string, ProviderCatalogProvider>>({})
-  const isLoading = ref(false)
-  const error = ref<unknown>(null)
 
   async function fetchList() {
-    isLoading.value = true
-    error.value = null
-    try {
+    return useAsyncState(async () => {
       const res = await client.api.providers.$get()
       if (!res.ok) {
         throw new Error('Failed to fetch providers')
@@ -41,14 +38,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
         }
       }
       configs.value = newConfigs
-    }
-    catch (err) {
-      error.value = err
-      throw err
-    }
-    finally {
-      isLoading.value = false
-    }
+    }, { immediate: true })
   }
 
   async function addProvider(definitionId: string, initialConfig: Record<string, any> = {}) {
@@ -56,9 +46,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
       throw new Error(`Provider definition with id "${definitionId}" not found.`)
     }
 
-    isLoading.value = true
-    error.value = null
-    try {
+    return useAsyncState(async () => {
       const res = await client.api.providers.$post({
         json: {
           definitionId,
@@ -82,20 +70,11 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
         validationBypassed: item.validationBypassed,
       }
       return item
-    }
-    catch (err) {
-      error.value = err
-      throw err
-    }
-    finally {
-      isLoading.value = false
-    }
+    }, { immediate: true })
   }
 
   async function removeProvider(providerId: string) {
-    isLoading.value = true
-    error.value = null
-    try {
+    return useAsyncState(async () => {
       const res = await client.api.providers[':id'].$delete({
         param: { id: providerId },
       })
@@ -103,14 +82,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
         throw new Error('Failed to remove provider')
       }
       delete configs.value[providerId]
-    }
-    catch (err) {
-      error.value = err
-      throw err
-    }
-    finally {
-      isLoading.value = false
-    }
+    }, { immediate: true })
   }
 
   async function commitProviderConfig(providerId: string, newConfig: Record<string, any>, options: { validated: boolean, validationBypassed: boolean }) {
@@ -118,11 +90,10 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
       return
     }
 
-    isLoading.value = true
-    error.value = null
-    try {
+    return useAsyncState(async () => {
       const res = await client.api.providers[':id'].$patch({
         param: { id: providerId },
+        // @ts-expect-error hono client typing misses json option for this route
         json: {
           config: newConfig,
           validated: options.validated,
@@ -137,22 +108,12 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
       configs.value[providerId].config = { ...item.config as Record<string, any> }
       configs.value[providerId].validated = item.validated
       configs.value[providerId].validationBypassed = item.validationBypassed
-    }
-    catch (err) {
-      error.value = err
-      throw err
-    }
-    finally {
-      isLoading.value = false
-    }
+    }, { immediate: true })
   }
 
   return {
     configs,
     defs,
-    isLoading,
-    error,
-
     getDefinedProvider,
 
     fetchList,
