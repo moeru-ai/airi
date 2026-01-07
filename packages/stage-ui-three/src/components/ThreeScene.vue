@@ -295,6 +295,7 @@ defineExpose({
       :antialias="true"
       :width="width"
       :height="height"
+      :window-size="true"
       :tone-mapping="ACESFilmicToneMapping"
       :tone-mapping-exposure="1"
       :clear-alpha="0"
