@@ -214,21 +214,22 @@ const sceneReady = ref(false)
 watch(
   [controlsReady, modelLoaded, dirLightRef],
   ([ctrlOk, loaded, dirLight]) => {
-    if (ctrlOk && loaded && camera.value && controlsRef.value && controlsRef.value.controls && dirLight) {
-      try {
-        // setup initial target of directional light
-        dirLight.parent?.add(dirLight.target)
-        dirLight.target.position.set(
-          directionalLightTarget.value.x,
-          directionalLightTarget.value.y,
-          directionalLightTarget.value.z,
-        )
-        dirLight.target.updateMatrixWorld()
-        sceneReady.value = true
-      }
-      catch (error) {
-        console.error('[ThreeScene] Failed to setup directional light:', error)
-      }
+    if (!ctrlOk || !loaded || !dirLight || !camera.value || !controlsRef.value?.controls)
+      return
+
+    try {
+      // setup initial target of directional light
+      dirLight.parent?.add(dirLight.target)
+      dirLight.target.position.set(
+        directionalLightTarget.value.x,
+        directionalLightTarget.value.y,
+        directionalLightTarget.value.z,
+      )
+      dirLight.target.updateMatrixWorld()
+      sceneReady.value = true
+    }
+    catch (error) {
+      console.error('[ThreeScene] Failed to setup directional light:', error)
     }
   },
 )
