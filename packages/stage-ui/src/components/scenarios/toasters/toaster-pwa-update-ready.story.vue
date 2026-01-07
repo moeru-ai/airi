@@ -4,8 +4,8 @@ import { nanoid } from 'nanoid'
 import { h, markRaw } from 'vue'
 import { toast, Toaster } from 'vue-sonner'
 
-import ToasterPWAUpdateReady from './ToasterPWAUpdateReady.vue'
-import ToasterRoot from './ToasterRoot.vue'
+import ToasterPWAUpdateReady from './toaster-pwa-update-ready.vue'
+import ToasterRoot from './toaster-root.vue'
 
 import 'vue-sonner/style.css'
 

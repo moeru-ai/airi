@@ -5,7 +5,7 @@ import { Collapsible } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import MarkdownRenderer from '../../markdown/MarkdownRenderer.vue'
+import { MarkdownRenderer } from '../../markdown'
 
 const props = defineProps<{
   message: ChatAssistantMessage

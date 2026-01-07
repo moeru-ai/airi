@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import ProviderAccountIdInput from './ProviderAccountIdInput.vue'
+import ProviderAccountIdInput from './provider-account-id-input.vue'
 
 const emptyAccountId = ref('')
 const filledAccountId = ref('1234567890abcdef1234567890abcdef')

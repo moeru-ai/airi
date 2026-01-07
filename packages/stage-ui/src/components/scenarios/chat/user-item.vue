@@ -3,7 +3,7 @@ import type { ChatMessage } from '../../../types/chat'
 
 import { computed } from 'vue'
 
-import MarkdownRenderer from '../../markdown/MarkdownRenderer.vue'
+import { MarkdownRenderer } from '../../markdown'
 
 const props = withDefaults(defineProps<{
   message: Extract<ChatMessage, { role: 'user' }>

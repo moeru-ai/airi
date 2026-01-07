@@ -3,9 +3,10 @@ import type { ChatAssistantMessage, ChatSlices, ChatSlicesText } from '../../../
 
 import { computed } from 'vue'
 
-import MarkdownRenderer from '../../markdown/MarkdownRenderer.vue'
-import ChatResponsePart from './ChatResponsePart.vue'
-import ChatToolCallBlock from './ChatToolCallBlock.vue'
+import ChatResponsePart from './response-part.vue'
+import ChatToolCallBlock from './tool-call-block.vue'
+
+import { MarkdownRenderer } from '../../markdown'
 
 const props = withDefaults(defineProps<{
   message: ChatAssistantMessage

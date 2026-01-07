@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import ProviderApiKeyInput from './ProviderApiKeyInput.vue'
+import ProviderApiKeyInput from './provider-api-key-input.vue'
 
 const apiKey = ref('')
 const filledApiKey = ref('sk-...')

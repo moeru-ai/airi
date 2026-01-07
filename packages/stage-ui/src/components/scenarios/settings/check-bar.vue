@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Bar from './Bar.vue'
+import Bar from './bar.vue'
 
 defineProps<{
   text: string

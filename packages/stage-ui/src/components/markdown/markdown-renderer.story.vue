@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import MarkdownRenderer from './MarkdownRenderer.vue'
+import MarkdownRenderer from './markdown-renderer.vue'
 
 const markdownContent = ref(`
 # Sample Markdown

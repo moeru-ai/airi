@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ProviderAdvancedSettings from './ProviderAdvancedSettings.vue'
+import ProviderAdvancedSettings from './provider-advanced-settings.vue'
 </script>
 
 <template>

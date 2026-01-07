@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import ProviderAdvancedSettings from './ProviderAdvancedSettings.vue'
-import ProviderBasicSettings from './ProviderBasicSettings.vue'
-import ProviderSettingsContainer from './ProviderSettingsContainer.vue'
+import ProviderAdvancedSettings from './provider-advanced-settings.vue'
+import ProviderBasicSettings from './provider-basic-settings.vue'
+import ProviderSettingsContainer from './provider-settings-container.vue'
 </script>
 
 <template>

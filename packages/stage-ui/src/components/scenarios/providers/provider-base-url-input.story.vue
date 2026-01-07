@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import ProviderBaseUrlInput from './ProviderBaseUrlInput.vue'
+import ProviderBaseUrlInput from './provider-base-url-input.vue'
 
 const emptyUrl = ref('')
 const defaultUrl = ref('https://api.openai.com/v1/')

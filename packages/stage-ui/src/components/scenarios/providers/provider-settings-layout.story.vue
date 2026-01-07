@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ProviderSettingsLayout from './ProviderSettingsLayout.vue'
+import ProviderSettingsLayout from './provider-settings-layout.vue'
 </script>
 
 <template>

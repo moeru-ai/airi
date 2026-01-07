@@ -3,7 +3,7 @@ import type { ChatAssistantMessage, ChatHistoryItem } from '../../../types/chat'
 
 import { computed, ref } from 'vue'
 
-import ChatHistory from './ChatHistory.vue'
+import ChatHistory from './history.vue'
 
 const markdownMessages = ref<ChatHistoryItem[]>([
   {

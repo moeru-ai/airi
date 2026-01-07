@@ -8,8 +8,8 @@ import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 
 import Live2DScene from '../../../scenes/Live2D.vue'
-import Live2D from './Live2D.vue'
-import VRM from './VRM.vue'
+import Live2D from './live2d.vue'
+import VRM from './vrm.vue'
 
 import { DisplayModelFormat } from '../../../../stores/display-models'
 import { useLive2d } from '../../../../stores/live2d'

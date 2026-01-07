@@ -4,9 +4,9 @@ import type { ChatAssistantMessage, ChatHistoryItem, ContextMessage } from '../.
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import ChatAssistantItem from './ChatAssistantItem.vue'
-import ChatErrorItem from './ChatErrorItem.vue'
-import ChatUserItem from './ChatUserItem.vue'
+import ChatAssistantItem from './assistant-item.vue'
+import ChatErrorItem from './error-item.vue'
+import ChatUserItem from './user-item.vue'
 
 const props = withDefaults(defineProps<{
   messages: ChatHistoryItem[]
