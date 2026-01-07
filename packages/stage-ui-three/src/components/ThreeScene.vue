@@ -53,6 +53,8 @@ const emit = defineEmits<{
   (e: 'error', value: unknown): void
 }>()
 
+const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
+
 const sceneContainerRef = ref<HTMLDivElement>()
 const { width, height } = useElementBounding(sceneContainerRef)
 const modelStore = useModelStore()
@@ -206,37 +208,40 @@ function applyVrmFrameHook() {
 watch(modelRef, () => applyVrmFrameHook(), { immediate: true })
 
 // === Directional Light ===
-// TODO: wrap <TresDirectionalLight> to integrate all the below code
+// Directional light setup moved inline, no ready event needed
 const sceneReady = ref(false)
-const dirLightReady = ref(false)
-
-function onDirLightReady() {
-  dirLightReady.value = true
-}
-// Then start to set the camera position and target
+// Setup directional light when controls are ready and we have the light ref
 watch(
-  [controlsReady, dirLightReady],
-  ([ctrlOk, modelOk]) => {
-    if (ctrlOk && modelOk && camera.value && controlsRef.value && controlsRef.value.controls && dirLightRef.value) {
-      // isUpdatingCamera = true
+  [controlsReady, modelLoaded, dirLightRef],
+  ([ctrlOk, loaded, dirLight]) => {
+    if (ctrlOk && loaded && camera.value && controlsRef.value && controlsRef.value.controls && dirLight) {
       try {
         // setup initial target of directional light
-        dirLightRef.value.parent?.add(dirLightRef.value.target)
-        dirLightRef.value.target.position.set(
+        dirLight.parent?.add(dirLight.target)
+        dirLight.target.position.set(
           directionalLightTarget.value.x,
           directionalLightTarget.value.y,
           directionalLightTarget.value.z,
         )
-        // console.debug("direction light target set: ", dirLightRef.value.target.position)
-        dirLightRef.value.target.updateMatrixWorld()
-      }
-      finally {
-        // isUpdatingCamera = false
+        dirLight.target.updateMatrixWorld()
         sceneReady.value = true
+      }
+      catch (error) {
+        console.error('[ThreeScene] Failed to setup directional light:', error)
       }
     }
   },
 )
+
+// Update component state based on scene readiness
+watch([sceneReady, modelLoaded], ([ready, loaded]) => {
+  if (ready && loaded) {
+    componentState.value = 'mounted'
+  }
+  else if (loaded) {
+    componentState.value = 'loading'
+  }
+}, { immediate: true })
 
 function updateDirLightTarget(newRotation: { x: number, y: number, z: number }) {
   const light = dirLightRef.value
@@ -339,7 +344,6 @@ defineExpose({
         :position="[directionalLightPosition.x, directionalLightPosition.y, directionalLightPosition.z]"
         :intensity="directionalLightIntensity"
         cast-shadow
-        @ready="onDirLightReady"
       />
       <Suspense>
         <EffectComposerPmndrs>
