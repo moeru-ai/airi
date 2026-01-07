@@ -173,7 +173,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
         sparkNoResponseTool,
         sparkCommandTool,
       ],
-      supportsTools: true, // we expect tools to be supported
+      supportsTools: true, // Force-enable tools to bypass discovery, as they are essential for this agent's reactive capabilities.
       onStreamEvent: async (streamEvent: StreamEvent) => {
         if (streamEvent.type === 'text-delta') {
           if (noResponse)
