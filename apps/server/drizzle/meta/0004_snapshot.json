@@ -1,5 +1,5 @@
 {
-  "id": "1f60ae7b-b508-4a09-9691-89537e25713f",
+  "id": "1823e32c-7110-48a9-a79b-a118866aa398",
   "prevId": "09d6ae37-aeaa-437d-a912-e6e5d5e4f5e7",
   "version": "7",
   "dialect": "postgresql",
@@ -1261,8 +1261,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.user_settings_provider_configs": {
-      "name": "user_settings_provider_configs",
+    "public.provider_configs": {
+      "name": "provider_configs",
       "schema": "",
       "columns": {
         "id": {
@@ -1333,9 +1333,9 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "user_settings_provider_configs_owner_id_user_id_fk": {
-          "name": "user_settings_provider_configs_owner_id_user_id_fk",
-          "tableFrom": "user_settings_provider_configs",
+        "provider_configs_owner_id_user_id_fk": {
+          "name": "provider_configs_owner_id_user_id_fk",
+          "tableFrom": "provider_configs",
           "tableTo": "user",
           "columnsFrom": [
             "owner_id"
