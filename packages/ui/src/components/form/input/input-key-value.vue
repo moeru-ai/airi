@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Input from './Input.vue'
+import Input from './input.vue'
 
 const props = defineProps<{
   name?: string

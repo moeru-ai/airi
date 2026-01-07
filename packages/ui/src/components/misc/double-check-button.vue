@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
-import Button from './Button.vue'
+import Button from './button.vue'
 
 type ButtonVariant = 'primary' | 'secondary' | 'secondary-muted' | 'danger' | 'caution'
 type ButtonSize = 'sm' | 'md' | 'lg'

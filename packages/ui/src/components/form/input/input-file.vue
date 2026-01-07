@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import BasicInputFile from './BasicInputFile.vue'
+import BasicInputFile from './basic-input-file.vue'
 
 defineProps<{
   accept?: string
