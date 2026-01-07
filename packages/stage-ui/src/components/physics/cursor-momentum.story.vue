@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import CursorMomentum from './CursorMomentum.vue'
+import CursorMomentum from './cursor-momentum.vue'
 </script>
 
 <template>

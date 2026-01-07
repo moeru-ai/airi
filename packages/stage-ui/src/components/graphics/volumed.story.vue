@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Volumed from './Volumed.vue'
+import Volumed from './volumed.vue'
 </script>
 
 <template>

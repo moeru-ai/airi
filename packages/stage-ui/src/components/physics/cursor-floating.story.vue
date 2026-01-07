@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import CursorFloating from './CursorFloating.vue'
+import CursorFloating from './cursor-floating.vue'
 </script>
 
 <template>

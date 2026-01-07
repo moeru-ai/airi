@@ -1,1 +1,1 @@
-export { default as Volumed } from './Volumed.vue'
+export { default as Volumed } from './volumed.vue'
