@@ -1,3 +1,5 @@
+import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
+
 import { pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm/relations'
 
@@ -16,6 +18,9 @@ export const characterLikes = pgTable(
   ],
 )
 
+export type CharacterLike = InferSelectModel<typeof characterLikes>
+export type NewCharacterLike = InferInsertModel<typeof characterLikes>
+
 export const characterBookmarks = pgTable(
   'user_character_bookmarks',
   {
@@ -27,6 +32,9 @@ export const characterBookmarks = pgTable(
     primaryKey({ columns: [table.userId, table.characterId] }),
   ],
 )
+
+export type CharacterBookmark = InferSelectModel<typeof characterBookmarks>
+export type NewCharacterBookmark = InferInsertModel<typeof characterBookmarks>
 
 export const characterLikesRelations = relations(
   characterLikes,

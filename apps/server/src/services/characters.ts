@@ -4,6 +4,7 @@ import type { Database } from './db'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 
 import * as schema from '../schemas/characters'
+import * as userCharacterSchema from '../schemas/user-character'
 
 export function createCharacterService(db: Database<typeof fullSchema>) {
   return {
@@ -21,6 +22,7 @@ export function createCharacterService(db: Database<typeof fullSchema>) {
               prompts: true,
               likes: true,
               bookmarks: true,
+              cover: true,
             }
           : undefined,
       })
@@ -37,6 +39,7 @@ export function createCharacterService(db: Database<typeof fullSchema>) {
           capabilities: true,
           likes: true,
           bookmarks: true,
+          cover: true,
         },
       })
     },
@@ -50,6 +53,7 @@ export function createCharacterService(db: Database<typeof fullSchema>) {
               capabilities: true,
               likes: true,
               bookmarks: true,
+              cover: true,
             }
           : undefined,
       })
@@ -59,16 +63,16 @@ export function createCharacterService(db: Database<typeof fullSchema>) {
       return await db.transaction(async (tx) => {
         const existing = await tx.query.characterLikes.findFirst({
           where: and(
-            eq(schema.characterLikes.userId, userId),
-            eq(schema.characterLikes.characterId, characterId),
+            eq(userCharacterSchema.characterLikes.userId, userId),
+            eq(userCharacterSchema.characterLikes.characterId, characterId),
           ),
         })
 
         if (existing) {
-          await tx.delete(schema.characterLikes)
+          await tx.delete(userCharacterSchema.characterLikes)
             .where(and(
-              eq(schema.characterLikes.userId, userId),
-              eq(schema.characterLikes.characterId, characterId),
+              eq(userCharacterSchema.characterLikes.userId, userId),
+              eq(userCharacterSchema.characterLikes.characterId, characterId),
             ))
 
           await tx.update(schema.character)
@@ -80,7 +84,7 @@ export function createCharacterService(db: Database<typeof fullSchema>) {
           return { liked: false }
         }
         else {
-          await tx.insert(schema.characterLikes).values({ userId, characterId })
+          await tx.insert(userCharacterSchema.characterLikes).values({ userId, characterId })
 
           await tx.update(schema.character)
             .set({
@@ -97,16 +101,16 @@ export function createCharacterService(db: Database<typeof fullSchema>) {
       return await db.transaction(async (tx) => {
         const existing = await tx.query.characterBookmarks.findFirst({
           where: and(
-            eq(schema.characterBookmarks.userId, userId),
-            eq(schema.characterBookmarks.characterId, characterId),
+            eq(userCharacterSchema.characterBookmarks.userId, userId),
+            eq(userCharacterSchema.characterBookmarks.characterId, characterId),
           ),
         })
 
         if (existing) {
-          await tx.delete(schema.characterBookmarks)
+          await tx.delete(userCharacterSchema.characterBookmarks)
             .where(and(
-              eq(schema.characterBookmarks.userId, userId),
-              eq(schema.characterBookmarks.characterId, characterId),
+              eq(userCharacterSchema.characterBookmarks.userId, userId),
+              eq(userCharacterSchema.characterBookmarks.characterId, characterId),
             ))
 
           await tx.update(schema.character)
@@ -118,7 +122,7 @@ export function createCharacterService(db: Database<typeof fullSchema>) {
           return { bookmarked: false }
         }
         else {
-          await tx.insert(schema.characterBookmarks).values({ userId, characterId })
+          await tx.insert(userCharacterSchema.characterBookmarks).values({ userId, characterId })
 
           await tx.update(schema.character)
             .set({
@@ -133,6 +137,7 @@ export function createCharacterService(db: Database<typeof fullSchema>) {
 
     async create(data: {
       character: schema.NewCharacter
+      cover?: Omit<schema.NewCharacterCover, 'characterId'>
       capabilities?: Omit<schema.NewCharacterCapability, 'characterId'>[]
       avatarModels?: Omit<schema.NewAvatarModel, 'characterId'>[]
       i18n?: Omit<schema.NewCharacterI18n, 'characterId'>[]
@@ -140,6 +145,13 @@ export function createCharacterService(db: Database<typeof fullSchema>) {
     }) {
       return await db.transaction(async (tx) => {
         const [inserted] = await tx.insert(schema.character).values(data.character).returning()
+
+        if (data.cover) {
+          await tx.insert(schema.characterCovers).values({
+            ...data.cover,
+            characterId: inserted.id,
+          } as schema.NewCharacterCover)
+        }
 
         if (data.capabilities?.length) {
           await tx.insert(schema.characterCapabilities).values(

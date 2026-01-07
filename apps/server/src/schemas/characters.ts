@@ -162,7 +162,17 @@ export const characterRelations = relations(
     }),
     cover: one(characterCovers, {
       fields: [character.id],
-      references: [characterCovers.id],
+      references: [characterCovers.characterId],
+    }),
+  }),
+)
+
+export const characterCoversRelations = relations(
+  characterCovers,
+  ({ one }) => ({
+    character: one(character, {
+      fields: [characterCovers.characterId],
+      references: [character.id],
     }),
   }),
 )

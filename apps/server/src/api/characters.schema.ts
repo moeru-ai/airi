@@ -57,6 +57,9 @@ export const InsertCharacterCapabilitySchema = createInsertSchema(schema.charact
 export const CharacterI18nSchema = createSelectSchema(schema.characterI18n)
 export const InsertCharacterI18nSchema = createInsertSchema(schema.characterI18n)
 
+export const CharacterCoverSchema = createSelectSchema(schema.characterCovers)
+export const InsertCharacterCoverSchema = createInsertSchema(schema.characterCovers)
+
 export const CharacterPromptSchema = createSelectSchema(schema.characterPrompts)
 export const InsertCharacterPromptSchema = createInsertSchema(schema.characterPrompts)
 
@@ -70,11 +73,12 @@ export const CreateCharacterSchema = object({
     creatorId: optional(string()),
     ownerId: optional(string()),
     avatarUrl: optional(string()),
-    characterAvatarUrl: optional(string()),
-    coverBackgroundUrl: optional(string()),
     creatorRole: optional(string()),
     priceCredit: optional(string()),
   }),
+  cover: optional(createInsertSchema(schema.characterCovers, {
+    characterId: optional(string()),
+  })),
   capabilities: optional(array(createInsertSchema(schema.characterCapabilities, {
     characterId: optional(string()),
     type: CharacterCapabilityTypeSchema,
@@ -99,8 +103,6 @@ export const UpdateCharacterSchema = createInsertSchema(schema.character, {
   version: optional(string()),
   coverUrl: optional(string()),
   avatarUrl: optional(string()),
-  characterAvatarUrl: optional(string()),
-  coverBackgroundUrl: optional(string()),
   creatorRole: optional(string()),
   priceCredit: optional(string()),
   creatorId: optional(string()),

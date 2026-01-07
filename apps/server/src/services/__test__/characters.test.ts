@@ -36,12 +36,14 @@ describe('characterService', () => {
     const result = await service.create({
       character: characterData,
       i18n: [{ language: 'en', name: 'Aster', description: 'desc', tags: [] }],
+      cover: { foregroundUrl: 'fg', backgroundUrl: 'bg' },
     })
 
     expect(result.id).toBe('char-1')
 
     const found = await service.findById('char-1')
     expect(found?.i18n[0].name).toBe('Aster')
+    expect(found?.cover?.foregroundUrl).toBe('fg')
   })
 
   it('findAll should return characters with relations', async () => {
