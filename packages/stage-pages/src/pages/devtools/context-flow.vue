@@ -433,6 +433,7 @@ async function sendTestSparkNotify() {
     return
   }
 
+  // TODO(@nekomeowww): improve server event, support to have zod or valibot schema validation for better cross runtime handling
   const notify = {
     id: typeof parsed.id === 'string' && parsed.id ? parsed.id : nanoid(),
     eventId: typeof parsed.eventId === 'string' && parsed.eventId ? parsed.eventId : nanoid(),
