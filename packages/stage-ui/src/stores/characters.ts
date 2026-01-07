@@ -1,10 +1,12 @@
 import type { Character, CreateCharacterPayload, UpdateCharacterPayload } from '../types/character'
 
 import { defineStore } from 'pinia'
+import { parse } from 'valibot'
 import { ref } from 'vue'
 
 import { client } from '../composables/api'
 import { useAsyncState } from '../composables/use-async-state'
+import { CharacterWithRelationsSchema } from '../types/character'
 
 export const useCharacterStore = defineStore('characters', () => {
   const characters = ref<Map<string, Character>>(new Map())
@@ -21,7 +23,7 @@ export const useCharacterStore = defineStore('characters', () => {
 
       characters.value.clear()
       for (const char of data) {
-        characters.value.set(char.id, char)
+        characters.value.set(char.id, parse(CharacterWithRelationsSchema, char))
       }
     }, { immediate: true })
   }
@@ -34,7 +36,8 @@ export const useCharacterStore = defineStore('characters', () => {
       if (!res.ok) {
         throw new Error('Failed to fetch character')
       }
-      const character = await res.json()
+      const data = await res.json()
+      const character = parse(CharacterWithRelationsSchema, data)
 
       characters.value.set(character.id, character)
       return character
@@ -49,7 +52,8 @@ export const useCharacterStore = defineStore('characters', () => {
       if (!res.ok) {
         throw new Error('Failed to create character')
       }
-      const character = await res.json()
+      const data = await res.json()
+      const character = parse(CharacterWithRelationsSchema, data)
 
       characters.value.set(character.id, character)
       return character
@@ -58,14 +62,16 @@ export const useCharacterStore = defineStore('characters', () => {
 
   async function update(id: string, payload: UpdateCharacterPayload) {
     return useAsyncState(async () => {
-      const res = await client.api.characters[':id'].$patch({
+      const res = await (client.api.characters[':id'].$patch)({
         param: { id },
+        // @ts-expect-error FIXME: hono client typing misses json option for this route
         json: payload,
       })
       if (!res.ok) {
         throw new Error('Failed to update character')
       }
-      const character = await res.json()
+      const data = await res.json()
+      const character = parse(CharacterWithRelationsSchema, data)
 
       characters.value.set(character.id, character)
       return character
@@ -87,7 +93,7 @@ export const useCharacterStore = defineStore('characters', () => {
 
   async function like(id: string) {
     return useAsyncState(async () => {
-      const res = await client.api.characters[':id'].$patch({
+      const res = await client.api.characters[':id'].like.$post({
         param: { id },
       })
       if (!res.ok) {
@@ -100,7 +106,7 @@ export const useCharacterStore = defineStore('characters', () => {
 
   async function bookmark(id: string) {
     return useAsyncState(async () => {
-      const res = await client.api.characters[':id'].$patch({
+      const res = await client.api.characters[':id'].bookmark.$post({
         param: { id },
       })
       if (!res.ok) {

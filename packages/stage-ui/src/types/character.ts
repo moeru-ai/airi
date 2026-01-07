@@ -77,6 +77,7 @@ export const CharacterBaseSchema = object({
   characterId: string(),
   createdAt: DateSchema,
   updatedAt: DateSchema,
+  deletedAt: optional(DateSchema),
 })
 
 export const CharacterCapabilitySchema = object({
@@ -121,12 +122,12 @@ export const CharacterPromptSchema = object({
 
 export const CharacterWithRelationsSchema = object({
   ...CharacterBaseSchema.entries,
-  capabilities: array(CharacterCapabilitySchema),
-  avatarModels: array(AvatarModelSchema),
-  i18n: array(CharacterI18nSchema),
-  prompts: array(CharacterPromptSchema),
-  likes: array(object({ userId: string(), characterId: string() })),
-  bookmarks: array(object({ userId: string(), characterId: string() })),
+  capabilities: optional(array(CharacterCapabilitySchema)),
+  avatarModels: optional(array(AvatarModelSchema)),
+  i18n: optional(array(CharacterI18nSchema)),
+  prompts: optional(array(CharacterPromptSchema)),
+  likes: optional(array(object({ userId: string(), characterId: string() }))),
+  bookmarks: optional(array(object({ userId: string(), characterId: string() }))),
 })
 
 // --- API Request Schemas ---

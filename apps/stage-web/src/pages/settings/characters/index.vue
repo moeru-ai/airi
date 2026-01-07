@@ -10,7 +10,7 @@ import CharacterDialog from './components/CharacterDialog.vue'
 import CharacterItem from './components/CharacterItem.vue'
 
 const characterStore = useCharacterStore()
-const { characters, isLoading } = storeToRefs(characterStore)
+const { characters } = storeToRefs(characterStore)
 
 // Fetch on mount
 onMounted(() => {
@@ -22,7 +22,7 @@ const searchQuery = ref('')
 const filteredCharacters = computed(() => {
   const query = searchQuery.value.toLowerCase()
   return Array.from(characters.value.values()).filter((char) => {
-    const i18n = char.i18n.find(i => i.language === 'en') || char.i18n[0]
+    const i18n = char.i18n?.find(i => i.language === 'en') || char.i18n?.[0]
     return i18n?.name.toLowerCase().includes(query) || i18n?.description.toLowerCase().includes(query)
   })
 })
@@ -87,7 +87,7 @@ function handleActivate(char: Character) {
     </div>
 
     <!-- Content -->
-    <div v-if="isLoading && characters.size === 0" class="flex flex-1 items-center justify-center">
+    <div v-if="characters.size === 0" class="flex flex-1 items-center justify-center">
       <div class="i-svg-spinners:90-ring-with-bg text-4xl text-primary-500" />
     </div>
 

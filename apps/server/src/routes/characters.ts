@@ -41,6 +41,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
         throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', result.issues)
       }
 
+      // @ts-expect-error - TODO: Fix this
       const character = await characterService.create({
         ...result.output,
         character: {
@@ -48,7 +49,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
           ownerId: user.id,
           creatorId: user.id,
         },
-      } as any)
+      })
 
       return c.json(character, 201)
     })
@@ -64,7 +65,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
         throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', result.issues)
       }
 
-      const existing = await characterService.findById(id, { withRelations: false })
+      const existing = await characterService.findById(id)
       if (!existing)
         throw createNotFoundError()
       if (existing.ownerId !== user.id)
@@ -78,7 +79,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
       const user = c.get('user')!
 
       const id = c.req.param('id')
-      const existing = await characterService.findById(id, { withRelations: false })
+      const existing = await characterService.findById(id)
       if (!existing)
         throw createNotFoundError()
       if (existing.ownerId !== user.id)

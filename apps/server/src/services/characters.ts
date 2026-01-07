@@ -8,23 +8,21 @@ import * as userCharacterSchema from '../schemas/user-character'
 
 export function createCharacterService(db: Database<typeof fullSchema>) {
   return {
-    async findById(id: string, options: { withRelations?: boolean } = { withRelations: true }) {
+    async findById(id: string) {
       return await db.query.character.findFirst({
         where: and(
           eq(schema.character.id, id),
           isNull(schema.character.deletedAt),
         ),
-        with: options.withRelations
-          ? {
-              capabilities: true,
-              avatarModels: true,
-              i18n: true,
-              prompts: true,
-              likes: true,
-              bookmarks: true,
-              cover: true,
-            }
-          : undefined,
+        with: {
+          capabilities: true,
+          avatarModels: true,
+          i18n: true,
+          prompts: true,
+          likes: true,
+          bookmarks: true,
+          cover: true,
+        },
       })
     },
 
@@ -44,18 +42,16 @@ export function createCharacterService(db: Database<typeof fullSchema>) {
       })
     },
 
-    async findAll(options: { withRelations?: boolean } = { withRelations: true }) {
+    async findAll() {
       return await db.query.character.findMany({
         where: isNull(schema.character.deletedAt),
-        with: options.withRelations
-          ? {
-              i18n: true,
-              capabilities: true,
-              likes: true,
-              bookmarks: true,
-              cover: true,
-            }
-          : undefined,
+        with: {
+          i18n: true,
+          capabilities: true,
+          likes: true,
+          bookmarks: true,
+          cover: true,
+        },
       })
     },
 
@@ -150,30 +146,30 @@ export function createCharacterService(db: Database<typeof fullSchema>) {
           await tx.insert(schema.characterCovers).values({
             ...data.cover,
             characterId: inserted.id,
-          } as schema.NewCharacterCover)
+          })
         }
 
         if (data.capabilities?.length) {
           await tx.insert(schema.characterCapabilities).values(
-            data.capabilities.map(c => ({ ...c, characterId: inserted.id }) as schema.NewCharacterCapability),
+            data.capabilities.map(c => ({ ...c, characterId: inserted.id })),
           )
         }
 
         if (data.avatarModels?.length) {
           await tx.insert(schema.avatarModel).values(
-            data.avatarModels.map(a => ({ ...a, characterId: inserted.id }) as schema.NewAvatarModel),
+            data.avatarModels.map(a => ({ ...a, characterId: inserted.id })),
           )
         }
 
         if (data.i18n?.length) {
           await tx.insert(schema.characterI18n).values(
-            data.i18n.map(i => ({ ...i, characterId: inserted.id }) as schema.NewCharacterI18n),
+            data.i18n.map(i => ({ ...i, characterId: inserted.id })),
           )
         }
 
         if (data.prompts?.length) {
           await tx.insert(schema.characterPrompts).values(
-            data.prompts.map(p => ({ ...p, characterId: inserted.id }) as schema.NewCharacterPrompt),
+            data.prompts.map(p => ({ ...p, characterId: inserted.id })),
           )
         }
 

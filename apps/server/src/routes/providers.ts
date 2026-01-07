@@ -40,7 +40,7 @@ export function createProviderRoutes(providerService: ProviderService) {
       const provider = await providerService.createUserConfig({
         ...result.output,
         ownerId: user.id,
-      } as any)
+      })
 
       return c.json(provider, 201)
     })
