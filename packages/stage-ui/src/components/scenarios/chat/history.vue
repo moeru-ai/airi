@@ -49,10 +49,10 @@ const streaming = computed<ChatAssistantMessage & { context?: ContextMessage } &
 const showStreamingPlaceholder = computed(() => (streaming.value.slices?.length ?? 0) === 0 && !streaming.value.content)
 const streamingTs = computed(() => streaming.value?.createdAt)
 function shouldShowPlaceholder(message: ChatHistoryItem) {
-  if (!streamingTs.value)
+  const ts = streamingTs.value
+  if (ts == null)
     return false
 
-  const ts = streamingTs.value
   return message.context?.createdAt === ts || message.createdAt === ts
 }
 const renderMessages = computed<ChatHistoryItem[]>(() => {
