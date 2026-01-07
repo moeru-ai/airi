@@ -104,8 +104,7 @@ type PresentEvent
     | { type: 'assistant-append', text: string }
 const { post: postPresent } = useBroadcastChannel<PresentEvent, PresentEvent>({ name: 'airi-chat-present' })
 
-// TODO: duplicate calls may happen if this component mounted multiple times
-live2dStore.onShouldUpdateView(async () => {
+const disposeLive2DUpdate = live2dStore.onShouldUpdateView(async () => {
   showStage.value = false
   await settingsStore.updateStageModel()
   setTimeout(() => {
@@ -113,8 +112,7 @@ live2dStore.onShouldUpdateView(async () => {
   }, 100)
 })
 
-// TODO: duplicate calls may happen if this component mounted multiple times
-vrmStore.onShouldUpdateView(async () => {
+const disposeVRMUpdate = vrmStore.onShouldUpdateView(async () => {
   showStage.value = false
   await settingsStore.updateStageModel()
   setTimeout(() => {
@@ -335,6 +333,8 @@ onUnmounted(() => {
     lipSyncLoopId.value = undefined
   }
 
+  disposeLive2DUpdate?.()
+  disposeVRMUpdate?.()
   chatHookCleanups.forEach(dispose => dispose?.())
 })
 
