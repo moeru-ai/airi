@@ -71,7 +71,7 @@ catalogs:
       version: 0.4.0-beta.13
     builder-util-runtime:
       specifier: ^9.3.1
-      version: 9.3.1
+      version: 9.5.1
     embla-carousel-vue:
       specifier: ^8.6.0
       version: 8.6.0
@@ -1035,7 +1035,7 @@ importers:
         version: 0.0.11(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
       builder-util-runtime:
         specifier: 'catalog:'
-        version: 9.3.1
+        version: 9.5.1
       cac:
         specifier: ^6.7.14
         version: 6.7.14
