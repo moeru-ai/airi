@@ -4,10 +4,11 @@ import type { AvatarModelConfig } from '../types/character-avatar-model'
 import type { CharacterCapabilityConfig } from '../types/character-capability'
 
 import { relations } from 'drizzle-orm'
-import { integer, jsonb, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
+import { integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 import { user } from './accounts'
+import { characterBookmarks, characterLikes } from './user-character'
 
 export const character = pgTable(
   'characters',
@@ -22,8 +23,6 @@ export const character = pgTable(
     ownerId: text('owner_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
     characterId: text('character_id').notNull(),
     avatarUrl: text('avatar_url'),
-    characterAvatarUrl: text('character_avatar_url'),
-    coverBackgroundUrl: text('cover_background_url'),
     creatorRole: text('creator_role'),
     priceCredit: text('price_credit').default('0').notNull(),
 
@@ -40,6 +39,23 @@ export const character = pgTable(
 
 export type Character = InferSelectModel<typeof character>
 export type NewCharacter = InferInsertModel<typeof character>
+
+export const characterCovers = pgTable(
+  'character_covers',
+  {
+    id: text('id').primaryKey().$defaultFn(() => nanoid()),
+    characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
+
+    foregroundUrl: text('foreground_url').notNull(),
+    backgroundUrl: text('background_url').notNull(),
+
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    deletedAt: timestamp('deleted_at'),
+  },
+)
+export type CharacterCover = InferSelectModel<typeof characterCovers>
+export type NewCharacterCover = InferInsertModel<typeof characterCovers>
 
 export const avatarModel = pgTable(
   'avatar_model',
@@ -124,30 +140,6 @@ export const characterPrompts = pgTable(
   },
 )
 
-export const characterLikes = pgTable(
-  'character_likes',
-  {
-    userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
-    characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-  },
-  table => [
-    primaryKey({ columns: [table.userId, table.characterId] }),
-  ],
-)
-
-export const characterBookmarks = pgTable(
-  'character_bookmarks',
-  {
-    userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
-    characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-  },
-  table => [
-    primaryKey({ columns: [table.userId, table.characterId] }),
-  ],
-)
-
 export type CharacterPrompt = InferSelectModel<typeof characterPrompts>
 export type NewCharacterPrompt = InferInsertModel<typeof characterPrompts>
 
@@ -163,6 +155,14 @@ export const characterRelations = relations(
     owner: one(user, {
       fields: [character.ownerId],
       references: [user.id],
+    }),
+    creator: one(user, {
+      fields: [character.creatorId],
+      references: [user.id],
+    }),
+    cover: one(characterCovers, {
+      fields: [character.id],
+      references: [characterCovers.id],
     }),
   }),
 )
@@ -202,34 +202,6 @@ export const characterPromptsRelations = relations(
   ({ one }) => ({
     character: one(character, {
       fields: [characterPrompts.characterId],
-      references: [character.id],
-    }),
-  }),
-)
-
-export const characterLikesRelations = relations(
-  characterLikes,
-  ({ one }) => ({
-    user: one(user, {
-      fields: [characterLikes.userId],
-      references: [user.id],
-    }),
-    character: one(character, {
-      fields: [characterLikes.characterId],
-      references: [character.id],
-    }),
-  }),
-)
-
-export const characterBookmarksRelations = relations(
-  characterBookmarks,
-  ({ one }) => ({
-    user: one(user, {
-      fields: [characterBookmarks.userId],
-      references: [user.id],
-    }),
-    character: one(character, {
-      fields: [characterBookmarks.characterId],
       references: [character.id],
     }),
   }),
