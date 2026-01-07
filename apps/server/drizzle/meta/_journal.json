@@ -36,6 +36,13 @@
       "when": 1767780176520,
       "tag": "0004_rare_monster_badoon",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1767792829241,
+      "tag": "0005_true_namor",
+      "breakpoints": true
     }
   ]
 }
