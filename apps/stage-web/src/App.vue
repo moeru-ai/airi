@@ -20,8 +20,6 @@ import PerformanceOverlay from './components/Devtools/PerformanceOverlay.vue'
 
 import { usePWAStore } from './stores/pwa'
 
-import 'vue-sonner/style.css'
-
 usePWAStore()
 
 const contextBridgeStore = useContextBridgeStore()

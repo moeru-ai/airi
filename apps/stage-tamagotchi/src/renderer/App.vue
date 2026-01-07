@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
+import { ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character-orchestrator'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
@@ -15,6 +16,7 @@ import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute, useRouter } from 'vue-router'
+import { toast, Toaster } from 'vue-sonner'
 
 import { electronOpenSettings, electronStartTrackMousePosition } from '../shared/eventa'
 import { useElectronEventaContext } from './composables/electron-vueuse'
@@ -76,6 +78,9 @@ onUnmounted(() => contextBridgeStore.dispose())
 </script>
 
 <template>
+  <ToasterRoot @close="id => toast.dismiss(id)">
+    <Toaster />
+  </ToasterRoot>
   <RouterView />
 </template>
 
