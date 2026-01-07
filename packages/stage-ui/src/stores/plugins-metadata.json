@@ -1,0 +1,46 @@
+{
+  "youtube-livechat": {
+    "icon": "i-simple-icons:youtube",
+    "iconColor": "text-red-500",
+    "i18nKey": {
+      "name": "settings.pages.plugins.known.youtube-livechat.title",
+      "description": "settings.pages.plugins.known.youtube-livechat.description"
+    }
+  },
+  "discord": {
+    "icon": "i-simple-icons:discord",
+    "iconColor": "text-indigo-500",
+    "i18nKey": {
+      "name": "settings.pages.plugins.known.discord.title",
+      "description": "settings.pages.plugins.known.discord.description"
+    }
+  },
+  "homeassistant": {
+    "icon": "i-simple-icons:homeassistant",
+    "iconColor": "text-cyan-500",
+    "i18nKey": {
+      "name": "settings.pages.plugins.known.homeassistant.title",
+      "description": "settings.pages.plugins.known.homeassistant.description"
+    }
+  },
+  "bilibili-laplace": {
+    "icon": "i-simple-icons:bilibili",
+    "iconColor": "text-pink-500",
+    "i18nKey": {
+      "name": "settings.pages.plugins.known.bilibili-laplace.title",
+      "description": "settings.pages.plugins.known.bilibili-laplace.description"
+    }
+  },
+  "claude-code": {
+    "icon": "i-simple-icons:anthropic",
+    "iconColor": "text-orange-500"
+  },
+  "vscode": {
+    "icon": "i-simple-icons:visualstudiocode",
+    "iconColor": "text-blue-500"
+  },
+  "web-extension": {
+    "icon": "i-simple-icons:googlechrome",
+    "iconColor": "text-blue-400"
+  }
+}

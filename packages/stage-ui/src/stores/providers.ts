@@ -1018,7 +1018,10 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'ai.google.dev',
       defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
       creator: createGoogleGenerativeAI,
-      validation: ['health', 'model_list'],
+      // NOTE: Health check triggers an actual generation request which consumes Gemini quota.
+      // For free-tier users this frequently results in 429 / quota exceeded and blocks configuration UI.
+      // Model list check is enough to validate credentials and base URL.
+      validation: ['model_list'],
     }),
     'deepseek': buildOpenAICompatibleProvider({
       id: 'deepseek',

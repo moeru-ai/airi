@@ -40,11 +40,17 @@ const viewControlsValueX = computed({
 })
 
 const viewControlsValueXMin = computed(() => {
-  return stageModelRenderer.value === 'live2d' ? -1000 : (-vrmModelSize.value.x - 10) * 10
+  if (stageModelRenderer.value === 'live2d')
+    return -1000
+
+  return (-vrmModelSize.value.x - 10) * 10
 })
 
 const viewControlsValueXMax = computed(() => {
-  return stageModelRenderer.value === 'live2d' ? 1000 : (vrmModelSize.value.x + 10) * 10
+  if (stageModelRenderer.value === 'live2d')
+    return 1000
+
+  return (vrmModelSize.value.x + 10) * 10
 })
 
 const viewControlsValueY = computed({
@@ -73,11 +79,17 @@ const viewControlsValueY = computed({
 })
 
 const viewControlsValueYMin = computed(() => {
-  return stageModelRenderer.value === 'live2d' ? -1000 : (-vrmModelSize.value.y - 10) * 10
+  if (stageModelRenderer.value === 'live2d')
+    return -1000
+
+  return (-vrmModelSize.value.y - 10) * 10
 })
 
 const viewControlsValueYMax = computed(() => {
-  return stageModelRenderer.value === 'live2d' ? 1000 : (vrmModelSize.value.y + 10) * 10
+  if (stageModelRenderer.value === 'live2d')
+    return 1000
+
+  return (vrmModelSize.value.y + 10) * 10
 })
 
 const viewControlsValueZ = computed({
