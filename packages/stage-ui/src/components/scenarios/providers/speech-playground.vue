@@ -5,7 +5,7 @@ import { FieldCheckbox, FieldSelect } from '@proj-airi/ui'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import SpeechStreamingPlayground from './SpeechStreamingPlayground.vue'
+import SpeechStreamingPlayground from './speech-streaming-playground.vue'
 
 import { TestDummyMarker } from '../../gadgets'
 
