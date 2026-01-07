@@ -382,6 +382,7 @@ onPlaybackStarted(({ text }) => {
       <ThreeScene
         v-if="stageModelRenderer === 'vrm' && showStage"
         ref="vrmViewerRef"
+        v-model:state="componentState"
         :model-src="stageModelSelectedUrl"
         :idle-animation="animations.idleLoop.toString()"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
