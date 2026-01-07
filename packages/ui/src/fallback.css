@@ -13,3 +13,7 @@
   --chromatic-chroma-900: calc(var(--chromatic-chroma) * 0.7);
   --chromatic-chroma-950: calc(var(--chromatic-chroma) * 0.5);
 }
+
+.is-interacting {
+  transition-property: none !important;
+}
