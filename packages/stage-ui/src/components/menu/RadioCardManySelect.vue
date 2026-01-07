@@ -24,6 +24,8 @@ interface Props {
   collapseButtonText?: string
   showMore?: boolean
   listClass?: string
+  allowCustom?: boolean
+  customOptionDescription?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -37,6 +39,8 @@ const props = withDefaults(defineProps<Props>(), {
   collapseButtonText: 'Show less',
   showMore: true,
   listClass: '',
+  allowCustom: false,
+  customOptionDescription: 'Custom Value',
 })
 
 const emit = defineEmits<{
@@ -50,14 +54,42 @@ const isListExpanded = ref(false)
 const customValue = ref('')
 
 const filteredItems = computed(() => {
-  if (!searchQuery.value)
-    return props.items
+  let result = [...props.items]
 
-  const query = searchQuery.value.toLowerCase()
-  return props.items.filter(item =>
-    item.name.toLowerCase().includes(query)
-    || (item.description && item.description.toLowerCase().includes(query)),
-  )
+  // If a custom value is selected (and not present in items), add it to the list temporarily
+  if (modelValue.value && !props.items.some(i => i.id.toLowerCase() === modelValue.value.toLowerCase())) {
+    result.unshift({
+      id: modelValue.value,
+      name: modelValue.value,
+      description: props.customOptionDescription,
+      customizable: false,
+    })
+  }
+
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase()
+    result = result.filter(item =>
+      item.name.toLowerCase().includes(query)
+      || (item.description && item.description.toLowerCase().includes(query)),
+    )
+  }
+
+  // Add "Use custom: ..." option if searching and custom input is allowed
+  if (props.allowCustom && searchQuery.value) {
+    const query = searchQuery.value
+    // Check against checks if the exact ID exists to avoid duplicates
+    const exactMatch = result.some(i => i.id.toLowerCase() === query.toLowerCase())
+    if (!exactMatch) {
+      result.push({
+        id: query,
+        name: query,
+        description: props.customOptionDescription,
+        customizable: false,
+      })
+    }
+  }
+
+  return result
 })
 
 function updateCustomValue(value: string) {
