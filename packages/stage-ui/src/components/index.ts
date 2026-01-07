@@ -1,7 +1,6 @@
 export * from './data-pane'
 export * from './gadgets'
 export * from './graphics'
-export { default as RippleGrid } from './layout/ripple-grid/RippleGrid.vue'
 export * from './layouts'
 export * from './markdown'
 export * from './menu'

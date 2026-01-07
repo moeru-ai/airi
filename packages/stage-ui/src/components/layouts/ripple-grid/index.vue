@@ -2,7 +2,7 @@
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { computed, toRef } from 'vue'
 
-import { useGridRipple } from './useGridRipple'
+import { useGridRipple } from './use-grid-ripple'
 
 interface VirtualSection {
   _isVirtual: true

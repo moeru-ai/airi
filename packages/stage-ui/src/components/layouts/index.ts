@@ -1,6 +1,7 @@
 export * from './backgrounds'
 export { default as Callout } from './Callout.vue'
 export { default as PageHeader } from './PageHeader.vue'
+export * from './ripple-grid'
 export { default as Section } from './Section.vue'
 export * from './splitpanes'
 export { default as Tabs } from './Tabs.vue'
