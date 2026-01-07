@@ -2175,12 +2175,22 @@ export const useProvidersStore = defineStore('providers', () => {
       }
     }
   }
+  const previousCredentialHashes = ref<Record<string, string>>({})
+
   // Watch for credential changes and refetch models accordingly
-  watch(providerCredentials, (newCreds, oldCreds) => {
-    // Determine which providers have changed credentials
-    const changedProviders = Object.keys(newCreds).filter(providerId =>
-      JSON.stringify(newCreds[providerId]) !== JSON.stringify(oldCreds?.[providerId]),
-    )
+  watch(providerCredentials, (newCreds) => {
+    const changedProviders: string[] = []
+
+    for (const providerId in newCreds) {
+      const currentConfig = newCreds[providerId]
+      const currentHash = JSON.stringify(currentConfig)
+      const previousHash = previousCredentialHashes.value[providerId]
+
+      if (currentHash !== previousHash) {
+        changedProviders.push(providerId)
+        previousCredentialHashes.value[providerId] = currentHash
+      }
+    }
 
     for (const providerId of changedProviders) {
       // Since credentials changed, dispose the cached instance so new creds take effect.
@@ -2191,7 +2201,7 @@ export const useProvidersStore = defineStore('providers', () => {
         fetchModelsForProvider(providerId)
       }
     }
-  }, { deep: true })
+  }, { deep: true, immediate: true })
 
   // Function to get localized provider metadata
   function getProviderMetadata(providerId: string) {
