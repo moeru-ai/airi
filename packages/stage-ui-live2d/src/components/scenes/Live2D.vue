@@ -19,11 +19,24 @@ withDefaults(defineProps<{
   mouthOpenSize?: number
   focusAt?: { x: number, y: number }
   disableFocusAt?: boolean
+  scale?: number
+  themeColorsHue?: number
+  themeColorsHueDynamic?: boolean
+  live2dIdleAnimationEnabled?: boolean
+  live2dAutoBlinkEnabled?: boolean
+  live2dForceAutoBlinkEnabled?: boolean
+  live2dShadowEnabled?: boolean
 }>(), {
   paused: false,
   focusAt: () => ({ x: 0, y: 0 }),
   mouthOpenSize: 0,
   scale: 1,
+  themeColorsHue: 220.44,
+  themeColorsHueDynamic: false,
+  live2dIdleAnimationEnabled: true,
+  live2dAutoBlinkEnabled: true,
+  live2dForceAutoBlinkEnabled: false,
+  live2dShadowEnabled: true,
 })
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
@@ -77,6 +90,12 @@ defineExpose({
         :y-offset="position.y"
         :scale="scale"
         :disable-focus-at="disableFocusAt"
+        :theme-colors-hue="themeColorsHue"
+        :theme-colors-hue-dynamic="themeColorsHueDynamic"
+        :live2d-idle-animation-enabled="live2dIdleAnimationEnabled"
+        :live2d-auto-blink-enabled="live2dAutoBlinkEnabled"
+        :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
+        :live2d-shadow-enabled="live2dShadowEnabled"
       />
     </Live2DCanvas>
   </Screen>

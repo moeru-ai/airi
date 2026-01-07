@@ -4,7 +4,7 @@ import { isStageTamagotchi } from '@proj-airi/stage-shared'
 
 import { useChatStore } from '../stores/chat'
 import { useDisplayModelsStore } from '../stores/display-models'
-import { useLive2d } from '../stores/live2d'
+import { useLive2d } from '@proj-airi/stage-ui-live2d'
 import { useMcpStore } from '../stores/mcp'
 import { useAiriCardStore } from '../stores/modules/airi-card'
 import { useConsciousnessStore } from '../stores/modules/consciousness'

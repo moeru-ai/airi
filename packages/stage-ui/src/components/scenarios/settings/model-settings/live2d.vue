@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import { defaultModelParameters, useLive2d } from '@proj-airi/stage-ui-live2d'
 import { Button, Checkbox, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { defaultModelParameters, useLive2d } from '../../../../stores/live2d'
 import { useSettings } from '../../../../stores/settings'
 import { Section } from '../../../layouts'
 import { ColorPalette } from '../../../widgets'

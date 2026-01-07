@@ -24,7 +24,6 @@ import {
 } from '../../../composables/live2d'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
 import { useLive2d } from '../../../stores/live2d'
-import { useSettings } from '../../../stores/settings'
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
@@ -40,12 +39,24 @@ const props = withDefaults(defineProps<{
   xOffset?: number | string
   yOffset?: number | string
   scale?: number
+  themeColorsHue?: number
+  themeColorsHueDynamic?: boolean
+  live2dIdleAnimationEnabled?: boolean
+  live2dAutoBlinkEnabled?: boolean
+  live2dForceAutoBlinkEnabled?: boolean
+  live2dShadowEnabled?: boolean
 }>(), {
   mouthOpenSize: 0,
   paused: false,
   focusAt: () => ({ x: 0, y: 0 }),
   disableFocusAt: false,
   scale: 1,
+  themeColorsHue: 220.44,
+  themeColorsHueDynamic: false,
+  live2dIdleAnimationEnabled: true,
+  live2dAutoBlinkEnabled: true,
+  live2dForceAutoBlinkEnabled: false,
+  live2dShadowEnabled: true,
 })
 
 const emits = defineEmits<{
@@ -136,14 +147,12 @@ const {
   modelParameters,
 } = storeToRefs(live2dStore)
 
-const {
-  themeColorsHue,
-  themeColorsHueDynamic,
-  live2dIdleAnimationEnabled,
-  live2dAutoBlinkEnabled,
-  live2dForceAutoBlinkEnabled,
-  live2dShadowEnabled,
-} = storeToRefs(useSettings())
+const themeColorsHue = toRef(() => props.themeColorsHue)
+const themeColorsHueDynamic = toRef(() => props.themeColorsHueDynamic)
+const live2dIdleAnimationEnabled = toRef(() => props.live2dIdleAnimationEnabled)
+const live2dAutoBlinkEnabled = toRef(() => props.live2dAutoBlinkEnabled)
+const live2dForceAutoBlinkEnabled = toRef(() => props.live2dForceAutoBlinkEnabled)
+const live2dShadowEnabled = toRef(() => props.live2dShadowEnabled)
 
 const localCurrentMotion = ref<{ group: string, index: number }>({ group: 'Idle', index: 0 })
 const beatSync = createBeatSyncController({
