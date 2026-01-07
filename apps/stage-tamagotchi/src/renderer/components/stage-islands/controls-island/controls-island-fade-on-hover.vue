@@ -2,8 +2,8 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import ControlButton from './control-button.vue'
 import ControlButtonTooltip from './control-button-tooltip.vue'
+import ControlButton from './control-button.vue'
 
 import { noticeWindowEventa } from '../../../../shared/eventa'
 import { useElectronEventaInvoke } from '../../../composables/electron-vueuse/use-electron-eventa-context'

@@ -39,7 +39,7 @@ onMounted(() => {
 })
 
 const characters = computed(() => Array.from(characterStore.characters.values()).map((char) => {
-  const i18n = char.i18n[0] || { name: 'Unknown', tagline: '', description: '' }
+  const i18n = char.i18n?.[0] || { name: 'Unknown', tagline: '', description: '' }
 
   return {
     id: char.id,
