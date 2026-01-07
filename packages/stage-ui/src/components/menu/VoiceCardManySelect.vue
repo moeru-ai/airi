@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
-import Alert from '../misc/Alert.vue'
+import Alert from '../misc/alert.vue'
 import VoiceCard from './VoiceCard.vue'
 
 interface VoiceLanguage {

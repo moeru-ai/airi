@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import PropertyNumber from './PropertyNumber.vue'
+import PropertyNumber from './property-number.vue'
 
 const minValue = ref(0)
 const midValue = ref(50)

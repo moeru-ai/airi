@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
-import Alert from '../misc/Alert.vue'
+import Alert from '../misc/alert.vue'
 import RadioCardDetail from './RadioCardDetail.vue'
 
 interface Item {

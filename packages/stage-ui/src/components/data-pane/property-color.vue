@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DataType, Globals } from 'csstype'
 
-import ColorPicker from './ColorPicker.vue'
+import ColorPicker from './color-picker.vue'
 
 const props = withDefaults(defineProps<{
   label?: string
