@@ -54,8 +54,8 @@ const characters = computed(() => Array.from(characterStore.characters.values())
     likes: char.likesCount,
     bookmarks: char.bookmarksCount,
     forks: char.forksCount,
-    liked: char.likes.some(l => l.userId === authStore.user?.id),
-    bookmarked: char.bookmarks.some(b => b.userId === authStore.user?.id),
+    liked: char.likes?.some(l => l.userId === authStore.user?.id),
+    bookmarked: char.bookmarks?.some(b => b.userId === authStore.user?.id),
     priceCredit: char.priceCredit,
   }
 }))

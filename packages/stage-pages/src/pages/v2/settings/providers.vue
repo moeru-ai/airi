@@ -14,7 +14,7 @@ import { RouterView, useRouter } from 'vue-router'
 const { t } = useI18n()
 const router = useRouter()
 const providerCatalogStore = useProviderCatalogStore()
-const { configs } = storeToRefs(providerCatalogStore)
+const { configs } = storeToRefs(useProviderCatalogStore())
 
 onMounted(() => {
   providerCatalogStore.fetchList()

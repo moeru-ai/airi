@@ -2018,6 +2018,9 @@ importers:
       '@proj-airi/stage-ui':
         specifier: workspace:*
         version: link:../stage-ui
+      '@proj-airi/stage-ui-live2d':
+        specifier: workspace:*
+        version: link:../stage-ui-live2d
       '@proj-airi/ui':
         specifier: workspace:*
         version: link:../ui
