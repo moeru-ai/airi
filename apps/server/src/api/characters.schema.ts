@@ -69,6 +69,11 @@ export const CreateCharacterSchema = object({
   character: createInsertSchema(schema.character, {
     creatorId: optional(string()),
     ownerId: optional(string()),
+    avatarUrl: optional(string()),
+    characterAvatarUrl: optional(string()),
+    coverBackgroundUrl: optional(string()),
+    creatorRole: optional(string()),
+    priceCredit: optional(string()),
   }),
   capabilities: optional(array(createInsertSchema(schema.characterCapabilities, {
     characterId: optional(string()),
@@ -82,6 +87,7 @@ export const CreateCharacterSchema = object({
   }))),
   i18n: optional(array(createInsertSchema(schema.characterI18n, {
     characterId: optional(string()),
+    tagline: optional(string()),
   }))),
   prompts: optional(array(createInsertSchema(schema.characterPrompts, {
     characterId: optional(string()),
@@ -92,6 +98,11 @@ export const UpdateCharacterSchema = createInsertSchema(schema.character, {
   id: optional(string()),
   version: optional(string()),
   coverUrl: optional(string()),
+  avatarUrl: optional(string()),
+  characterAvatarUrl: optional(string()),
+  coverBackgroundUrl: optional(string()),
+  creatorRole: optional(string()),
+  priceCredit: optional(string()),
   creatorId: optional(string()),
   ownerId: optional(string()),
   characterId: optional(string()),

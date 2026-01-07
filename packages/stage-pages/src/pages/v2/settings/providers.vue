@@ -7,7 +7,7 @@ import { breakpointsTailwind, refDebounced, useBreakpoints } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { Pane, Splitpanes } from 'splitpanes'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRouter } from 'vue-router'
 
@@ -15,6 +15,10 @@ const { t } = useI18n()
 const router = useRouter()
 const providerCatalogStore = useProviderCatalogStore()
 const { configs } = storeToRefs(providerCatalogStore)
+
+onMounted(() => {
+  providerCatalogStore.fetchList()
+})
 
 const availableProviderSearchQuery = ref('')
 const availableProviderSearchQueryDebounced = refDebounced(availableProviderSearchQuery, 250)

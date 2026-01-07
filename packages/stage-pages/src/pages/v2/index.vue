@@ -1,12 +1,22 @@
 <script setup lang="ts">
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
+import { useCharacterStore } from '@proj-airi/stage-ui/stores/characters'
 import { Button } from '@proj-airi/ui'
+import { computed, onMounted } from 'vue'
+
+const characterStore = useCharacterStore()
+const authStore = useAuthStore()
 
 const coverImage = new URL('../../../../stage-ui/src/components/menu/relu.avif', import.meta.url).href
 const characterWithBackgroundBackgroundImage = new URL('../../../../../docs/.vitepress/assets/home-cover-2025-12-24-bg.avif', import.meta.url).href
 const characterWithBackgroundAvatar = new URL('../../../../../docs/.vitepress/assets/home-cover-2025-12-24.avif', import.meta.url).href
 const characterAvatarImage = new URL('../../../../stage-ui/src/assets/live2d/models/hiyori/preview.png', import.meta.url).href
 
-function formatCount(value: number) {
+function formatCount(value: number | string) {
+  const num = typeof value === 'string' ? Number.parseInt(value) : value
+  if (Number.isNaN(num))
+    return '0'
+
   const units = [
     { suffix: 'Q', value: 1_000_000_000_000_000 },
     { suffix: 'T', value: 1_000_000_000_000 },
@@ -16,163 +26,41 @@ function formatCount(value: number) {
   ]
 
   for (const unit of units) {
-    if (value >= unit.value) {
-      const scaled = value / unit.value
+    if (num >= unit.value) {
+      const scaled = num / unit.value
       const digits = scaled >= 10 ? 0 : 1
       return `${scaled.toFixed(digits)}${unit.suffix}`
     }
   }
 
-  return value.toString()
+  return num.toString()
 }
 
-const characters = [
-  {
-    id: 'nyx-001',
-    name: 'Aster Nyx',
-    tagline: 'Solar striker with a radiant core.',
-    creator: 'Kara Lin',
-    creatorRole: 'Concept Artist',
-    avatarUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80',
-    characterAvatarUrl: characterWithBackgroundAvatar,
-    coverUrl: characterWithBackgroundAvatar,
-    coverBackgroundUrl: characterWithBackgroundBackgroundImage,
-    usedBy: 24891,
-    interactions: 482000,
-    likes: 94000,
-    bookmarks: 12000,
-    forks: 1840,
-    liked: true,
-    bookmarked: false,
-    priceCredit: 49,
-    accent: {
-      ring: 'ring-amber-400/60',
-      chip: 'bg-amber-400/20 text-amber-100',
-      glow: 'bg-amber-400/20',
-      text: 'text-amber-200',
-    },
-  },
-  {
-    id: 'vale-008',
-    name: 'Mira Vale',
-    tagline: 'Glacial tactician who remains calm under pressure, analyzing every battlefield with precision and executing strategies that turn the tide of combat through calculated frost manipulation.',
-    creator: 'Evan Wu',
-    creatorRole: 'Gameplay Designer',
-    avatarUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=200&q=80',
-    characterAvatarUrl: characterAvatarImage,
-    coverUrl: coverImage,
-    usedBy: 17210,
-    interactions: 361000,
-    likes: 68300,
-    bookmarks: 9200,
-    forks: 1320,
-    liked: false,
-    bookmarked: true,
-    priceCredit: 0,
-    accent: {
-      ring: 'ring-cyan-400/60',
-      chip: 'bg-cyan-400/20 text-cyan-100',
-      glow: 'bg-cyan-400/20',
-      text: 'text-cyan-200',
-    },
-  },
-  {
-    id: 'sable-014',
-    name: 'Rook Sable',
-    tagline: 'Umbral runner who moves before you blink.',
-    creator: 'Nina Park',
-    creatorRole: 'Rigger',
-    avatarUrl: 'https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=crop&w=200&q=80',
-    characterAvatarUrl: characterAvatarImage,
-    coverUrl: coverImage,
-    usedBy: 31400,
-    interactions: 509500,
-    likes: 118200,
-    bookmarks: 19200,
-    forks: 2650,
-    liked: true,
-    bookmarked: true,
-    priceCredit: 49,
-    accent: {
-      ring: 'ring-fuchsia-400/60',
-      chip: 'bg-fuchsia-400/20 text-fuchsia-100',
-      glow: 'bg-fuchsia-400/20',
-      text: 'text-fuchsia-200',
-    },
-  },
-  {
-    id: 'sol-021',
-    name: 'Iri Sol',
-    tagline: 'Storm weaver with precision control.',
-    creator: 'Daisuke Ito',
-    creatorRole: 'Tech Artist',
-    avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=80',
-    characterAvatarUrl: characterAvatarImage,
-    coverUrl: coverImage,
-    usedBy: 20980000000000000,
-    interactions: 2984000000000000,
-    likes: 64300,
-    bookmarks: 870000000,
-    forks: 1150,
-    liked: false,
-    bookmarked: false,
-    priceCredit: 49,
-    accent: {
-      ring: 'ring-sky-400/60',
-      chip: 'bg-sky-400/20 text-sky-100',
-      glow: 'bg-sky-400/20',
-      text: 'text-sky-200',
-    },
-  },
-  {
-    id: 'rin-034',
-    name: 'Kael Rin of the Earthbound Vanguard',
-    tagline: 'Terra guardian, resilient and steady.',
-    creator: 'Mara Voss',
-    creatorRole: 'Animator',
-    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80',
-    characterAvatarUrl: characterAvatarImage,
-    coverUrl: coverImage,
-    usedBy: 15860,
-    interactions: 244200,
-    likes: 51400,
-    bookmarks: 6900,
-    forks: 940,
-    liked: false,
-    bookmarked: true,
-    priceCredit: 49,
-    accent: {
-      ring: 'ring-emerald-400/60',
-      chip: 'bg-emerald-400/20 text-emerald-100',
-      glow: 'bg-emerald-400/20',
-      text: 'text-emerald-200',
-    },
-  },
-  {
-    id: 'lux-047',
-    name: 'Nova Lux',
-    tagline: 'Astral support, lifts the whole squad.',
-    creator: 'Yuki Tan',
-    creatorRole: 'Illustrator',
-    avatarUrl: 'https://images.unsplash.com/photo-1525134479668-1bee5c7c6845?auto=format&fit=crop&w=200&q=80',
-    characterAvatarUrl: characterAvatarImage,
-    coverUrl: coverImage,
-    usedBy: 11420,
-    interactions: 189000,
-    likes: 40200,
-    bookmarks: 5400,
-    forks: 680,
-    liked: true,
-    bookmarked: false,
-    priceCredit: 49,
-    accent: {
-      ring: 'ring-rose-400/60',
-      chip: 'bg-rose-400/20 text-rose-100',
-      glow: 'bg-rose-400/20',
-      text: 'text-rose-200',
-    },
-  },
-]
+onMounted(() => {
+  characterStore.fetchList(true)
+})
+
+const characters = computed(() => Array.from(characterStore.characters.values()).map((char) => {
+  const i18n = char.i18n[0] || { name: 'Unknown', tagline: '', description: '' }
+
+  return {
+    id: char.id,
+    name: i18n.name,
+    tagline: i18n.tagline || i18n.description,
+    avatarUrl: char.avatarUrl || 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80',
+    characterAvatarUrl: char.characterAvatarUrl || characterAvatarImage,
+    coverUrl: char.coverUrl || coverImage,
+    coverBackgroundUrl: char.coverBackgroundUrl,
+    usedBy: char.interactionsCount,
+    interactions: char.interactionsCount,
+    likes: char.likesCount,
+    bookmarks: char.bookmarksCount,
+    forks: char.forksCount,
+    liked: char.likes.some(l => l.userId === authStore.user?.id),
+    bookmarked: char.bookmarks.some(b => b.userId === authStore.user?.id),
+    priceCredit: char.priceCredit,
+  }
+}))
 </script>
 
 <template>
@@ -284,7 +172,7 @@ const characters = [
                 </div>
                 <div :class="['grid grid-cols-3 items-center']">
                   <div :class="['flex items-center justify-start']">
-                    <Button variant="ghost" size="sm" aria-label="Bookmark">
+                    <Button variant="ghost" size="sm" aria-label="Bookmark" @click="characterStore.bookmark(character.id)">
                       <div
                         :class="[
                           character.bookmarked ? 'i-solar-star-bold' : 'i-solar-star-linear',
@@ -303,7 +191,7 @@ const characters = [
                     </Button>
                   </div>
                   <div :class="['flex items-center justify-center']">
-                    <Button variant="ghost" size="sm" aria-label="Like">
+                    <Button variant="ghost" size="sm" aria-label="Like" @click="characterStore.like(character.id)">
                       <div
                         :class="[
                           character.liked ? 'i-solar-heart-bold' : 'i-solar-heart-outline',

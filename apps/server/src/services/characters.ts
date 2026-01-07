@@ -1,7 +1,7 @@
 import type * as fullSchema from '../schemas'
 import type { Database } from './db'
 
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, isNull, sql } from 'drizzle-orm'
 
 import * as schema from '../schemas/characters'
 
@@ -19,6 +19,8 @@ export function createCharacterService(db: Database<typeof fullSchema>) {
               avatarModels: true,
               i18n: true,
               prompts: true,
+              likes: true,
+              bookmarks: true,
             }
           : undefined,
       })
@@ -33,7 +35,99 @@ export function createCharacterService(db: Database<typeof fullSchema>) {
         with: {
           i18n: true,
           capabilities: true,
+          likes: true,
+          bookmarks: true,
         },
+      })
+    },
+
+    async findAll(options: { withRelations?: boolean } = { withRelations: true }) {
+      return await db.query.character.findMany({
+        where: isNull(schema.character.deletedAt),
+        with: options.withRelations
+          ? {
+              i18n: true,
+              capabilities: true,
+              likes: true,
+              bookmarks: true,
+            }
+          : undefined,
+      })
+    },
+
+    async like(userId: string, characterId: string) {
+      return await db.transaction(async (tx) => {
+        const existing = await tx.query.characterLikes.findFirst({
+          where: and(
+            eq(schema.characterLikes.userId, userId),
+            eq(schema.characterLikes.characterId, characterId),
+          ),
+        })
+
+        if (existing) {
+          await tx.delete(schema.characterLikes)
+            .where(and(
+              eq(schema.characterLikes.userId, userId),
+              eq(schema.characterLikes.characterId, characterId),
+            ))
+
+          await tx.update(schema.character)
+            .set({
+              likesCount: sql`${schema.character.likesCount} - 1`,
+            })
+            .where(eq(schema.character.id, characterId))
+
+          return { liked: false }
+        }
+        else {
+          await tx.insert(schema.characterLikes).values({ userId, characterId })
+
+          await tx.update(schema.character)
+            .set({
+              likesCount: sql`${schema.character.likesCount} + 1`,
+            })
+            .where(eq(schema.character.id, characterId))
+
+          return { liked: true }
+        }
+      })
+    },
+
+    async bookmark(userId: string, characterId: string) {
+      return await db.transaction(async (tx) => {
+        const existing = await tx.query.characterBookmarks.findFirst({
+          where: and(
+            eq(schema.characterBookmarks.userId, userId),
+            eq(schema.characterBookmarks.characterId, characterId),
+          ),
+        })
+
+        if (existing) {
+          await tx.delete(schema.characterBookmarks)
+            .where(and(
+              eq(schema.characterBookmarks.userId, userId),
+              eq(schema.characterBookmarks.characterId, characterId),
+            ))
+
+          await tx.update(schema.character)
+            .set({
+              bookmarksCount: sql`${schema.character.bookmarksCount} - 1`,
+            })
+            .where(eq(schema.character.id, characterId))
+
+          return { bookmarked: false }
+        }
+        else {
+          await tx.insert(schema.characterBookmarks).values({ userId, characterId })
+
+          await tx.update(schema.character)
+            .set({
+              bookmarksCount: sql`${schema.character.bookmarksCount} + 1`,
+            })
+            .where(eq(schema.character.id, characterId))
+
+          return { bookmarked: true }
+        }
       })
     },
 

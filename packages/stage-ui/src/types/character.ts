@@ -63,6 +63,15 @@ export const CharacterBaseSchema = object({
   id: string(),
   version: string(),
   coverUrl: string(),
+  avatarUrl: optional(string()),
+  characterAvatarUrl: optional(string()),
+  coverBackgroundUrl: optional(string()),
+  creatorRole: optional(string()),
+  priceCredit: string(),
+  likesCount: number(),
+  bookmarksCount: number(),
+  interactionsCount: number(),
+  forksCount: number(),
   creatorId: string(),
   ownerId: string(),
   characterId: string(),
@@ -93,6 +102,7 @@ export const CharacterI18nSchema = object({
   characterId: string(),
   language: string(),
   name: string(),
+  tagline: optional(string()),
   description: string(),
   tags: array(string()),
   createdAt: DateSchema,
@@ -115,6 +125,8 @@ export const CharacterWithRelationsSchema = object({
   avatarModels: array(AvatarModelSchema),
   i18n: array(CharacterI18nSchema),
   prompts: array(CharacterPromptSchema),
+  likes: array(object({ userId: string(), characterId: string() })),
+  bookmarks: array(object({ userId: string(), characterId: string() })),
 })
 
 // --- API Request Schemas ---

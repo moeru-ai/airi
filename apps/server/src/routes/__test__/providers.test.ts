@@ -4,21 +4,21 @@ import { Hono } from 'hono'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
-import { createCharacterService } from '../../services/characters'
+import { createProviderService } from '../../services/providers'
 import { ApiError } from '../../utils/error'
-import { createCharacterRoutes } from '../characters'
+import { createProviderRoutes } from '../providers'
 
 import * as schema from '../../schemas'
 
-describe('characterRoutes', () => {
+describe('providerRoutes', () => {
   let db: any
-  let characterService: any
+  let providerService: any
   let app: Hono<HonoEnv>
   let testUser: any
 
   beforeAll(async () => {
     db = await mockDB(schema)
-    characterService = createCharacterService(db)
+    providerService = createProviderService(db)
 
     // Create a test user
     const [user] = await db.insert(schema.user).values({
@@ -28,7 +28,7 @@ describe('characterRoutes', () => {
     }).returning()
     testUser = user
 
-    const routes = createCharacterRoutes(characterService)
+    const routes = createProviderRoutes(providerService)
     app = new Hono<HonoEnv>()
 
     app.onError((err, c) => {
@@ -64,10 +64,11 @@ describe('characterRoutes', () => {
     expect(await res.json()).toEqual([])
   })
 
-  it('post / should create character', async () => {
+  it('post / should create provider config', async () => {
     const payload = {
-      character: { version: '1', coverUrl: 'url', characterId: 'cid' },
-      i18n: [{ language: 'en', name: 'Aster', description: 'desc', tags: [] }],
+      definitionId: 'openai',
+      name: 'My OpenAI',
+      config: { apiKey: 'sk-123' },
     }
 
     const res = await app.fetch(new Request('http://localhost/', {
@@ -79,47 +80,40 @@ describe('characterRoutes', () => {
     expect(res.status).toBe(201)
     const data = await res.json()
     expect(data.id).toBeDefined()
+    expect(data.name).toBe('My OpenAI')
   })
 
-  it('get / should return created character', async () => {
+  it('get / should return created provider', async () => {
     const res = await app.fetch(new Request('http://localhost/'), { user: testUser } as any)
     expect(res.status).toBe(200)
     const data = await res.json()
     expect(data.length).toBe(1)
-    expect(data[0].i18n[0].name).toBe('Aster')
+    expect(data[0].definitionId).toBe('openai')
   })
 
-  it('post /:id/like should toggle like', async () => {
-    const characters = await characterService.findAll()
-    const charId = characters[0].id
+  it('get /:id should return specific provider', async () => {
+    const providers = await providerService.findByOwnerId(testUser.id)
+    const providerId = providers[0].id
 
-    const res = await app.fetch(new Request(`http://localhost/${charId}/like`, { method: 'POST' }), { user: testUser } as any)
+    const res = await app.fetch(new Request(`http://localhost/${providerId}`), { user: testUser } as any)
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ liked: true })
-
-    const res2 = await app.fetch(new Request('http://localhost/'), { user: testUser } as any)
-    const data = await res2.json()
-    expect(data[0].likesCount).toBe(1)
+    const data = await res.json()
+    expect(data.id).toBe(providerId)
   })
 
-  it('get /:id should return 404 if not found', async () => {
-    const res = await app.fetch(new Request('http://localhost/non-existent'), { user: testUser } as any)
-    expect(res.status).toBe(404)
-  })
+  it('patch /:id should update provider config', async () => {
+    const providers = await providerService.findByOwnerId(testUser.id)
+    const providerId = providers[0].id
 
-  it('patch /:id should update character', async () => {
-    const characters = await characterService.findAll()
-    const charId = characters[0].id
-
-    const res = await app.fetch(new Request(`http://localhost/${charId}`, {
+    const res = await app.fetch(new Request(`http://localhost/${providerId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ version: '2.0' }),
+      body: JSON.stringify({ name: 'Updated Name' }),
       headers: { 'Content-Type': 'application/json' },
     }), { user: testUser } as any)
 
     expect(res.status).toBe(200)
-    const char = await characterService.findById(charId)
-    expect(char?.version).toBe('2.0')
+    const updated = await providerService.findById(providerId)
+    expect(updated?.name).toBe('Updated Name')
   })
 
   it('patch /:id should return 403 if not owner', async () => {
@@ -130,28 +124,28 @@ describe('characterRoutes', () => {
       email: 'other@example.com',
     }).returning()
 
-    const characters = await characterService.findAll()
-    const charId = characters[0].id
+    const providers = await providerService.findByOwnerId(testUser.id)
+    const providerId = providers[0].id
 
-    const res = await app.fetch(new Request(`http://localhost/${charId}`, {
+    const res = await app.fetch(new Request(`http://localhost/${providerId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ version: '3.0' }),
+      body: JSON.stringify({ name: 'Hacked Name' }),
       headers: { 'Content-Type': 'application/json' },
     }), { user: otherUser } as any)
 
     expect(res.status).toBe(403)
   })
 
-  it('delete /:id should soft delete', async () => {
-    const characters = await characterService.findAll()
-    const charId = characters[0].id
+  it('delete /:id should soft delete provider', async () => {
+    const providers = await providerService.findByOwnerId(testUser.id)
+    const providerId = providers[0].id
 
-    const res = await app.fetch(new Request(`http://localhost/${charId}`, {
+    const res = await app.fetch(new Request(`http://localhost/${providerId}`, {
       method: 'DELETE',
     }), { user: testUser } as any)
 
     expect(res.status).toBe(204)
-    const char = await characterService.findById(charId)
-    expect(char).toBeUndefined()
+    const deleted = await providerService.findById(providerId)
+    expect(deleted).toBeUndefined()
   })
 })
