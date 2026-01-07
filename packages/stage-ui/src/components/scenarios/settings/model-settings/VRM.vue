@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { useModelStore } from '@proj-airi/stage-ui-three'
-import { Button } from '@proj-airi/ui'
+import { Button, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { Container, PropertyColor, PropertyNumber, PropertyPoint } from '../../../data-pane'
-import { Callout, Tabs } from '../../../layouts'
+import { Callout } from '../../../layouts'
 import { ColorPalette } from '../../../widgets'
 
 defineProps<{
@@ -49,24 +49,22 @@ const trackingOptions = computed(() => [
 ])
 
 // switch between hemisphere light and sky box
-const tabList = [
+const envOptions = computed(() => [
   {
     value: 'hemisphere',
     label: 'Hemisphere',
-    icon: {
-      idle: 'i-solar:forbidden-circle-linear rotate-45',
-      active: 'i-solar:forbidden-circle-bold rotate-45',
-    },
+    icon: envSelect.value === 'hemisphere'
+      ? 'i-solar:forbidden-circle-bold rotate-45'
+      : 'i-solar:forbidden-circle-linear rotate-45',
   },
   {
     value: 'skyBox',
     label: 'SkyBox',
-    icon: {
-      idle: 'i-solar:gallery-circle-linear',
-      active: 'i-solar:gallery-circle-bold',
-    },
+    icon: envSelect.value === 'skyBox'
+      ? 'i-solar:gallery-circle-bold'
+      : 'i-solar:gallery-circle-linear',
   },
-]
+])
 </script>
 
 <template>
@@ -157,38 +155,48 @@ const tabList = [
       />
     </div>
     <div>
-      <Tabs v-model="envSelect" :tabs="tabList" label="Environment">
-        <template #default>
-          <div v-if="envSelect === 'hemisphere'">
-            <!-- hemisphere settings -->
-            <div grid="~ cols-5 gap-1" p-2>
-              <PropertyNumber
-                v-model="hemisphereLightIntensity"
-                :config="{ min: 0, max: 10, step: 0.01, label: 'Intensity' }"
-                label="Hemisphere Light Intensity"
-              />
-              <PropertyColor
-                v-model="hemisphereSkyColor"
-                label="Hemisphere Sky Color"
-              />
-              <PropertyColor
-                v-model="hemisphereGroundColor"
-                label="Hemisphere Ground Color"
-              />
-            </div>
-          </div>
-          <div v-else>
-            <!-- skybox settings -->
-            <div grid="~ cols-5 gap-1" p-2>
-              <PropertyNumber
-                v-model="skyBoxIntensity"
-                :config="{ min: 0, max: 1, step: 0.01, label: 'Intensity' }"
-                :label="t('settings.vrm.skybox.skybox-intensity')"
-              />
-            </div>
-          </div>
-        </template>
-      </Tabs>
+      <div
+        :class="[
+          'px-2',
+          'pt-2',
+          'text-xs',
+          'text-neutral-500',
+          'dark:text-neutral-400',
+        ]"
+      >
+        Environment
+      </div>
+      <div :class="['p-2']">
+        <SelectTab v-model="envSelect" :options="envOptions" size="sm" />
+      </div>
+      <div v-if="envSelect === 'hemisphere'">
+        <!-- hemisphere settings -->
+        <div grid="~ cols-5 gap-1" p-2>
+          <PropertyNumber
+            v-model="hemisphereLightIntensity"
+            :config="{ min: 0, max: 10, step: 0.01, label: 'Intensity' }"
+            label="Hemisphere Light Intensity"
+          />
+          <PropertyColor
+            v-model="hemisphereSkyColor"
+            label="Hemisphere Sky Color"
+          />
+          <PropertyColor
+            v-model="hemisphereGroundColor"
+            label="Hemisphere Ground Color"
+          />
+        </div>
+      </div>
+      <div v-else>
+        <!-- skybox settings -->
+        <div grid="~ cols-5 gap-1" p-2>
+          <PropertyNumber
+            v-model="skyBoxIntensity"
+            :config="{ min: 0, max: 1, step: 0.01, label: 'Intensity' }"
+            :label="t('settings.vrm.skybox.skybox-intensity')"
+          />
+        </div>
+      </div>
     </div>
   </Container>
   <Container
