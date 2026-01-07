@@ -11,7 +11,7 @@ const props = defineProps<{
 }>()
 
 const { stageModelRenderer, stageViewControlsEnabled } = storeToRefs(useSettings())
-const { scale: vrmScale, modelOffset: vrmPosition, modelSize: vrmModelSize } = storeToRefs(useModelStore())
+const { modelOffset: vrmPosition, modelSize: vrmModelSize, cameraDistance: vrmCameraDistance } = storeToRefs(useModelStore())
 const { scale: live2dScale, position: live2dPosition } = storeToRefs(useLive2d())
 
 const viewControlsValueX = computed({
@@ -118,14 +118,14 @@ const viewControlsValueScale = computed({
       return live2dScale.value
     }
 
-    return vrmScale.value
+    return vrmCameraDistance.value
   },
   set: (value) => {
     if (stageModelRenderer.value === 'live2d') {
       live2dScale.value = value
     }
     else {
-      vrmScale.value = value
+      vrmCameraDistance.value = value
     }
   },
 })

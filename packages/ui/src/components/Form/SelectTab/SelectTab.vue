@@ -48,6 +48,7 @@ const rootStyle = computed(() => ({
     :aria-readonly="props.readonly"
     :class="[
       'select-tab',
+      'is-interacting',
       'relative', 'flex', 'w-full', 'items-stretch', 'rounded-lg',
       'overflow-hidden',
       'bg-white-400/6', 'dark:bg-neutral-950/70',
