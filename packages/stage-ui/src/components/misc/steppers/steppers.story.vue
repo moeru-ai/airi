@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import Steppers from './Steppers.vue' // Import the new component
+import Steppers from './steppers.vue' // Import the new component
 
 interface Step {
   id: number

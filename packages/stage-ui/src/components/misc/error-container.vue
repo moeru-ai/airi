@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Alert from './Alert.vue'
+import Alert from './alert.vue'
 
 defineProps<{
   title?: string

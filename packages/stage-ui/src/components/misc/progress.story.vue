@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import Progress from './Progress.vue'
+import Progress from './progress.vue'
 </script>
 
 <template>
