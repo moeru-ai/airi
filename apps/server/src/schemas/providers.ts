@@ -7,7 +7,7 @@ import { nanoid } from '../utils/id'
 import { user } from './accounts'
 
 export const providerConfigs = pgTable(
-  'provider_configs',
+  'user_settings_provider_configs',
   {
     id: text('id').primaryKey().$defaultFn(() => nanoid()),
     ownerId: text('owner_id').notNull().references(() => user.id, { onDelete: 'cascade' }),

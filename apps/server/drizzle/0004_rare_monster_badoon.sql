@@ -12,7 +12,7 @@ CREATE TABLE "character_likes" (
 	CONSTRAINT "character_likes_user_id_character_id_pk" PRIMARY KEY("user_id","character_id")
 );
 --> statement-breakpoint
-CREATE TABLE "provider_configs" (
+CREATE TABLE "user_settings_provider_configs" (
 	"id" text PRIMARY KEY NOT NULL,
 	"owner_id" text NOT NULL,
 	"definition_id" text NOT NULL,
@@ -39,4 +39,4 @@ ALTER TABLE "character_bookmarks" ADD CONSTRAINT "character_bookmarks_user_id_us
 ALTER TABLE "character_bookmarks" ADD CONSTRAINT "character_bookmarks_character_id_characters_id_fk" FOREIGN KEY ("character_id") REFERENCES "public"."characters"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "character_likes" ADD CONSTRAINT "character_likes_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "character_likes" ADD CONSTRAINT "character_likes_character_id_characters_id_fk" FOREIGN KEY ("character_id") REFERENCES "public"."characters"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "provider_configs" ADD CONSTRAINT "provider_configs_owner_id_user_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "user_settings_provider_configs" ADD CONSTRAINT "user_settings_provider_configs_owner_id_user_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
