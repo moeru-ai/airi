@@ -1,6 +1,4 @@
 export { default as Alert } from './alert.vue'
 export { default as ErrorContainer } from './error-container.vue'
-export { default as Progress } from './progress.vue'
-export { default as Skeleton } from './skeleton.vue'
 export * from './steppers'
 export { default as WIP } from './wip.vue'
