@@ -1808,6 +1808,9 @@ importers:
       '@mediapipe/tasks-vision':
         specifier: ^0.10.0
         version: 0.10.21
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.14
       '@pixiv/three-vrm':
         specifier: ^3.4.4
         version: 3.4.4(three@0.182.0)
