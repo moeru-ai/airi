@@ -45,16 +45,26 @@ const providerBlocksConfig = [
 
 const providerBlocks = computed(() => {
   let globalIndex = 0
-  return providerBlocksConfig.map(block => ({
-    id: block.id,
-    icon: block.icon,
-    title: block.title,
-    description: block.description,
-    providers: block.providersRef.value.map(provider => ({
+  const blocks = providerBlocksConfig.map(block => {
+    const providers = block.providersRef.value.map(provider => ({
       ...provider,
       renderIndex: globalIndex++,
-    })),
-  }))
+    }))
+    
+    // Debug: Log speech providers to check if VOICEVOX is included
+    if (block.id === 'speech') {
+      console.log('[Providers] Speech providers:', providers.map(p => ({ id: p.id, name: p.localizedName })))
+    }
+    
+    return {
+      id: block.id,
+      icon: block.icon,
+      title: block.title,
+      description: block.description,
+      providers,
+    }
+  })
+  return blocks
 })
 
 useScrollToHash(() => route.hash, {
@@ -89,7 +99,10 @@ useScrollToHash(() => route.hash, {
       :get-items="block => block.providers"
       :columns="{ default: 1, sm: 2, xl: 3 }"
       :origin-index="lastClickedIndex"
-      @item-click="({ globalIndex }) => setLastClickedIndex(globalIndex)"
+      @item-click="({ item: provider, globalIndex }) => {
+        setLastClickedIndex(globalIndex)
+        trackProviderClick(provider.id, provider.category)
+      }"
     >
       <template #header="{ section: block }">
         <div flex="~ row items-center gap-2">
@@ -108,16 +121,17 @@ useScrollToHash(() => route.hash, {
       </template>
 
       <template #item="{ item: provider }">
-        <IconStatusItem
-          :title="provider.localizedName || 'Unknown'"
-          :description="provider.localizedDescription"
-          :icon="provider.icon"
-          :icon-color="provider.iconColor"
-          :icon-image="provider.iconImage"
-          :to="`/settings/providers/${provider.category}/${provider.id}`"
-          :configured="provider.configured"
-          @click="trackProviderClick(provider.id, provider.category)"
-        />
+        <div @click.stop>
+          <IconStatusItem
+            :title="provider.localizedName || 'Unknown'"
+            :description="provider.localizedDescription"
+            :icon="provider.icon"
+            :icon-color="provider.iconColor"
+            :icon-image="provider.iconImage"
+            :to="`/settings/providers/${provider.category}/${provider.id}`"
+            :configured="provider.configured"
+          />
+        </div>
       </template>
     </RippleGrid>
   </div>
