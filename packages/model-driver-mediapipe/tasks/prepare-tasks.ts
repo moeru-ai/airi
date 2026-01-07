@@ -6,9 +6,10 @@ import type { VisionTaskAssets } from './tasks'
 import fs from 'node:fs/promises'
 
 import { Buffer } from 'node:buffer'
-import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 
+import { withRetry } from '@moeru/std'
+import { attemptAsync } from 'es-toolkit'
 import { ofetch } from 'ofetch'
 
 import { visionTaskAssets } from './tasks'
@@ -19,8 +20,6 @@ const taskSources: Record<keyof VisionTaskAssets, string> = {
   face: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
 }
 
-const MAX_DOWNLOAD_RETRIES = 3
-const RETRY_BACKOFF_STEP_MS = 500
 const assetsRoot = fileURLToPath(new URL('./assets', import.meta.url))
 const wasmSourceDir = fileURLToPath(new URL('../node_modules/@mediapipe/tasks-vision/wasm', import.meta.url))
 const wasmOutputDir = fileURLToPath(new URL('./assets/wasm', import.meta.url))
@@ -41,36 +40,41 @@ async function isUsableFile(path: string) {
 }
 
 async function downloadAsset(key: string, url: string, outputPath: string) {
-  let lastError: unknown
   const tempPath = `${outputPath}.download`
+  let attempt = 0
 
-  for (let attempt = 1; attempt <= MAX_DOWNLOAD_RETRIES; attempt++) {
+  const downloadWithRetry = withRetry(async () => {
+    attempt += 1
+    console.log(`Downloading MediaPipe vision task asset for ${key} from ${url} (attempt ${attempt})...`)
+
     try {
-      console.log(`Downloading MediaPipe vision task asset for ${key} from ${url} (attempt ${attempt}/${MAX_DOWNLOAD_RETRIES})...`)
-      const res = await ofetch(url, { responseType: 'arrayBuffer' })
-      await fs.writeFile(tempPath, Buffer.from(res))
+      const [fetchError, response] = await attemptAsync(() => ofetch(url, { responseType: 'arrayBuffer' }))
+
+      if (fetchError || !response)
+        throw fetchError ?? new Error(`Missing response while downloading MediaPipe vision task asset for ${key}`)
+
+      await fs.writeFile(tempPath, Buffer.from(response))
       await fs.rename(tempPath, outputPath)
       console.log(`MediaPipe vision task asset for ${key} saved to ${outputPath}`)
-      return
-    }
-    catch (error) {
-      lastError = error
-      const message = error instanceof Error ? error.message : String(error)
-      console.warn(`Failed to download MediaPipe vision task asset for ${key} (attempt ${attempt}/${MAX_DOWNLOAD_RETRIES}): ${message}`)
-      if (attempt < MAX_DOWNLOAD_RETRIES) {
-        const backoff = RETRY_BACKOFF_STEP_MS * attempt
-        console.log(`Retrying ${key} download in ${backoff}ms...`)
-        await delay(backoff)
-      }
     }
     finally {
       await fs.rm(tempPath, { force: true })
     }
-  }
-
-  throw new Error(`Failed to download MediaPipe vision task asset for ${key} after ${MAX_DOWNLOAD_RETRIES} attempts`, {
-    cause: lastError,
+  }, {
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : String(error)
+      console.warn(`Failed to download MediaPipe vision task asset for ${key} (attempt ${attempt}): ${message}`)
+    },
   })
+
+  try {
+    await downloadWithRetry()
+  }
+  catch (error) {
+    throw new Error(`Failed to download MediaPipe vision task asset for ${key} after ${attempt} attempts`, {
+      cause: error,
+    })
+  }
 }
 
 await fs.mkdir(assetsRoot, { recursive: true })
