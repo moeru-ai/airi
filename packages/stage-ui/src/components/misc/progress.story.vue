@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import Progress from './progress.vue'
+import { Progress } from '@proj-airi/ui'
 </script>
 
 <template>
