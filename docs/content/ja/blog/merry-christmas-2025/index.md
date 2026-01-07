@@ -4,13 +4,13 @@ description: 'Neuro-sama、お誕生日おめでとう！2025 年も一緒に歩
 date: 2025-12-24
 excerpt: 'Neuro-sama、お誕生日おめでとう！2025 年を共に過ごしてくれてありがとう。冬の時間が安らぎと喜びでありますように。'
 preview-cover:
-  light: "@assets('../../../en/blog/merry-christmas-2025/assets/merry-christmas-iru.avif')"
-  dark: "@assets('../../../en/blog/merry-christmas-2025/assets/merry-christmas-iru.avif')"
+  light: "@assets('/en/blog/merry-christmas-2025/assets/merry-christmas-iru.avif')"
+  dark: "@assets('/en/blog/merry-christmas-2025/assets/merry-christmas-iru.avif')"
 ---
 
 AIRI チームからの **メリークリスマス** をお届けします！
 
-![クリスマスイラスト](../../../en/blog/merry-christmas-2025/assets/merry-christmas-iru.avif)
+![クリスマスイラスト](/en/blog/merry-christmas-2025/assets/merry-christmas-iru.avif)
 
 > Iru があたたかくて楽しいホリデーシーズンを願っています！🎅🎁
 >
@@ -28,7 +28,7 @@ AIRI チームからの **メリークリスマス** をお届けします！
 
 Neuro-sama、お誕生日おめでとう。そしてクリエイターの Vedal、アーティストの Camila、おめでとう。ここまでたどり着いたのは驚くべきことです。あなたたち、そしてコミュニティの Swarm がいるからこそ、私が思い描くサイバー生命を届けようと、AIRI を育て続けられています。
 
-![](../../../en/blog/merry-christmas-2025/assets/neuro-sama-happy-birthday-live.avif)
+![](/en/blog/merry-christmas-2025/assets/neuro-sama-happy-birthday-live.avif)
 
 ## 2025 年末のハイライト
 

@@ -20,16 +20,12 @@ import airiMcpArch from './assets/airi-mcp-arch.avif'
 
 <details>
   <summary>AIRI 的 MCP 服务器设置</summary>
-  <video controls muted style="{ height: '640px' }">
-    <source src="./assets/airi-mcp-settings.mp4"/>
-  </video>
+  <ThemedVideo controls muted src="./assets/airi-mcp-settings.mp4" style="height: 640px;" />
 </details>
 
 <details>
   <summary>AIRI 在手机上输入 `Hello World`</summary>
-  <video controls muted>
-    <source src="./assets/airi-mcp-input-text.mp4"/>
-  </video>
+  <ThemedVideo controls muted src="./assets/airi-mcp-input-text.mp4" />
 </details>
 
 开发时，为了理清思路，我画了一张图，从 LLM 调用安卓手机：

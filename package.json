@@ -33,6 +33,7 @@
     "lint": "moeru-lint .",
     "lint:fix": "moeru-lint --fix .",
     "lint:rust": "cargo fmt --check && cargo clippy --workspace",
+    "lint:swift": "pnpm -rF @proj-airi/stage-pocket run lint:swift",
     "to-avif": "tsx docs/scripts/avif.ts",
     "typecheck": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" -F=\"./docs\" --parallel typecheck",
     "up": "taze -w -r -I && pnpm prune && pnpm dedupe",
@@ -55,8 +56,9 @@
     "bumpp": "^10.3.2",
     "eslint": "^9.39.2",
     "eslint-plugin-oxlint": "^1.35.0",
-    "lint-staged": "^16.2.7",
+    "nano-staged": "catalog:",
     "oxlint": "^1.35.0",
+    "posthog-js": "catalog:",
     "publint": "^0.3.16",
     "rollup": "^4.54.0",
     "simple-git-hooks": "^2.13.1",
@@ -88,9 +90,9 @@
     "apps/**"
   ],
   "simple-git-hooks": {
-    "pre-commit": "pnpm lint-staged"
+    "pre-commit": "pnpm nano-staged"
   },
-  "lint-staged": {
+  "nano-staged": {
     "*": "moeru-lint --fix"
   }
 }

@@ -255,7 +255,7 @@ async function loadModel() {
     const selectedMotionIndex = localStorage.getItem('selected-runtime-motion-index')
 
     // Configure the selected motion to loop
-    if (selectedMotionGroup && selectedMotionIndex) {
+    if (selectedMotionGroup !== null && selectedMotionIndex) {
       const groupIndex = (motionManager.groups as Record<string, any>)[selectedMotionGroup]
       if (groupIndex !== undefined && motionManager.motionGroups[groupIndex]) {
         const motionIndex = Number.parseInt(selectedMotionIndex)
@@ -268,7 +268,7 @@ async function loadModel() {
       }
     }
 
-    if (selectedMotionGroup && selectedMotionIndex && live2dIdleAnimationEnabled.value) {
+    if (selectedMotionGroup !== null && selectedMotionIndex && live2dIdleAnimationEnabled.value) {
       setTimeout(() => {
         console.info('Playing selected runtime motion:', selectedMotionGroup, selectedMotionIndex)
         currentMotion.value = {
@@ -322,7 +322,7 @@ async function loadModel() {
       const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
       const selectedMotionIndex = localStorage.getItem('selected-runtime-motion-index')
 
-      if (selectedMotionGroup && selectedMotionIndex && live2dIdleAnimationEnabled.value) {
+      if (selectedMotionGroup !== null && selectedMotionIndex && live2dIdleAnimationEnabled.value) {
         // Restart the selected runtime motion immediately for seamless looping
         console.info('Motion finished, restarting runtime motion:', selectedMotionGroup, selectedMotionIndex)
         // Use requestAnimationFrame to restart on the next frame for smooth transition

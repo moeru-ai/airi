@@ -40,20 +40,20 @@ const viewControlsValueX = computed({
 })
 
 const viewControlsValueXMin = computed(() => {
-  return stageModelRenderer.value === 'live2d' ? -500 : -vrmModelSize.value.x - 10
+  return stageModelRenderer.value === 'live2d' ? -1000 : (-vrmModelSize.value.x - 10) * 10
 })
 
 const viewControlsValueXMax = computed(() => {
-  return stageModelRenderer.value === 'vrm' ? 500 : vrmModelSize.value.x + 10
+  return stageModelRenderer.value === 'live2d' ? 1000 : (vrmModelSize.value.x + 10) * 10
 })
 
 const viewControlsValueY = computed({
   get: () => {
     switch (stageModelRenderer.value) {
       case 'live2d':
-        return live2dPosition.value.y
+        return -live2dPosition.value.y
       case 'vrm':
-        return vrmPosition.value.y
+        return vrmPosition.value.y * 100
       default:
         return 0
     }
@@ -61,10 +61,10 @@ const viewControlsValueY = computed({
   set: (value) => {
     switch (stageModelRenderer.value) {
       case 'live2d':
-        live2dPosition.value.y = value
+        live2dPosition.value.y = -value
         break
       case 'vrm':
-        vrmPosition.value.y = value
+        vrmPosition.value.y = value * 0.01
         break
       default:
         break
@@ -73,11 +73,11 @@ const viewControlsValueY = computed({
 })
 
 const viewControlsValueYMin = computed(() => {
-  return stageModelRenderer.value === 'live2d' ? -500 : -vrmModelSize.value.y - 10
+  return stageModelRenderer.value === 'live2d' ? -1000 : (-vrmModelSize.value.y - 10) * 10
 })
 
 const viewControlsValueYMax = computed(() => {
-  return stageModelRenderer.value === 'vrm' ? 500 : vrmModelSize.value.y + 10
+  return stageModelRenderer.value === 'live2d' ? 1000 : (vrmModelSize.value.y + 10) * 10
 })
 
 const viewControlsValueZ = computed({

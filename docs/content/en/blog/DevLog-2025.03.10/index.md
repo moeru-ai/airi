@@ -80,9 +80,7 @@ At the end of March 8th, [@LemonNekoGH](https://github.com/LemonNekoGH) and
 [@junkwarrior87](https://github.com/junkwarrior87) made it possible to have customizable
 colors for the entire stage! (I never thought this could be done within hours...)
 
-<video controls muted>
-  <source src="./assets/customizable-theme-colors.mp4">
-</video>
+<ThemedVideo controls muted src="./assets/customizable-theme-colors.mp4" />
 
 - https://github.com/moeru-ai/airi/pull/53
 - https://github.com/moeru-ai/airi/pull/60

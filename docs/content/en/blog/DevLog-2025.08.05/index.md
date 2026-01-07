@@ -87,10 +87,7 @@ To toggle off the **Fade on hover** feature, default shortcut is <kbd aria-label
 
 <br />
 
-<video autoplay controls muted loop>
-  <source src="./assets/airi-demo-fade-on-hover.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+<ThemedVideo autoplay src="./assets/airi-demo-fade-on-hover.mp4" />
 
 Many users found it quite confusing why every time cursor hovers over the
 characters, entire window fades out. Apologies for the lack of documentation
@@ -145,10 +142,7 @@ The default shortcut of Move mode is <kbd aria-label="Shift" data-keyboard-key="
 
 <br />
 
-<video autoplay controls muted loop>
-  <source src="./assets/airi-demo-move.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+<ThemedVideo autoplay src="./assets/airi-demo-move.mp4" />
 
 A draggable area will appear when entering Move mode, besides moving position
 with mouse, using the Position > Center / Bottom Left / Bottom Right in Tray
@@ -168,10 +162,7 @@ The default shortcut of Move mode is <kbd aria-label="Shift" data-keyboard-key="
 
 <br />
 
-<video autoplay controls muted loop>
-  <source src="./assets/airi-demo-resize.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+<ThemedVideo autoplay src="./assets/airi-demo-resize.mp4" />
 
 #### Resource Island
 
@@ -240,15 +231,11 @@ experience contributing Project AIRI: [AIRIプロジェクトに参加した話 
 
 See it in action:
 
-<video class="light" autoplay controls muted loop>
-  <source src="./assets/airi-demo-onboarding-light.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
-
-<video class="dark" autoplay controls muted loop>
-  <source src="./assets/airi-demo-onboarding-dark.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+<ThemedVideo
+  autoplay
+  light="./assets/airi-demo-onboarding-light.mp4"
+  dark="./assets/airi-demo-onboarding-dark.mp4"
+/>
 
 #### VRM
 
@@ -265,15 +252,11 @@ mechanism.
 
 Onboarding is also available for Mobile Web version:
 
-<video class="light" autoplay controls muted loop>
-  <source src="./assets/airi-demo-onboarding-mobile-light.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
-
-<video class="dark" autoplay controls muted loop>
-  <source src="./assets/airi-demo-onboarding-mobile-dark.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+<ThemedVideo
+  autoplay
+  light="./assets/airi-demo-onboarding-mobile-light.mp4"
+  dark="./assets/airi-demo-onboarding-mobile-dark.mp4"
+/>
 
 #### Scene
 
@@ -361,15 +344,11 @@ There are many more components we added...
 
 We got a brand new documentation site right now:
 
-<video class="light" autoplay controls muted loop>
-  <source src="./assets/airi-docs-light.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
-
-<video class="dark" autoplay controls muted loop>
-  <source src="./assets/airi-docs-dark.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+<ThemedVideo
+  autoplay
+  light="./assets/airi-docs-light.mp4"
+  dark="./assets/airi-docs-dark.mp4"
+/>
 
 It looks stunning good, we completely rewrite it based on the work
 done by [Reka UI](https://reka-ui.com) but added loads of features,

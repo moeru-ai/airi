@@ -20,6 +20,7 @@ import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
 import { setupCaptionWindowManager } from './windows/caption'
 import { setupChatWindowReusableFunc } from './windows/chat'
+import { setupDevtoolsWindow } from './windows/devtools'
 import { setupMainWindow } from './windows/main'
 import { setupNoticeWindowManager } from './windows/notice'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
@@ -82,6 +83,7 @@ app.whenReady().then(async () => {
 
   // BeatSync will create a background window to capture and process audio.
   const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
+  const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
 
   const chatWindow = injeca.provide('windows:chat', {
     dependsOn: { widgetsManager },
@@ -89,7 +91,7 @@ app.whenReady().then(async () => {
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater },
+    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsMarkdownStressWindow },
     build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
 

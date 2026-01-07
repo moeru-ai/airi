@@ -19,8 +19,9 @@ import './modules/posthog'
 
 // eslint-disable-next-line perfectionist/sort-imports
 import '@unocss/reset/tailwind.css'
-import 'uno.css'
+import 'splitpanes/dist/splitpanes.css'
 import './styles/main.css'
+import 'uno.css'
 // Fonts
 import '@proj-airi/font-cjkfonts-allseto/index.css'
 import '@proj-airi/font-xiaolai/index.css'

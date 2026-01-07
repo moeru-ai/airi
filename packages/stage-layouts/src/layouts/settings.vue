@@ -23,6 +23,10 @@ const routeHeaderMetadataMap = computed(() => {
       subtitle: t('settings.title'),
       title: t('settings.pages.card.title'),
     },
+    '/settings/characters': {
+      subtitle: t('settings.title'),
+      title: 'Characters',
+    },
     '/settings/system': {
       subtitle: t('settings.title'),
       title: t('settings.pages.system.title'),
@@ -109,6 +113,14 @@ const routeHeaderMetadataMap = computed(() => {
     '/devtools/context-flow': {
       subtitle: t('tamagotchi.settings.devtools.title'),
       title: t('tamagotchi.settings.devtools.pages.context-flow.title'),
+    },
+    '/devtools/performance-visualizer': {
+      subtitle: t('settings.title'),
+      title: t('settings.pages.system.sections.section.developer.sections.section.performance-visualizer.title'),
+    },
+    '/devtools/markdown-stress': {
+      subtitle: t('settings.title'),
+      title: t('settings.pages.system.sections.section.developer.sections.section.markdown-stress.title'),
     },
   }
 
