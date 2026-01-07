@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { useModelStore } from '@proj-airi/stage-ui-three'
-import { Button, SelectTab } from '@proj-airi/ui'
+import { Button, Callout, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { Container, PropertyColor, PropertyNumber, PropertyPoint } from '../../../data-pane'
-import { Callout } from '../../../layouts'
 import { ColorPalette } from '../../../widgets'
 
 defineProps<{

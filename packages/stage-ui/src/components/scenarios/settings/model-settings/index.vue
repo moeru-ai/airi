@@ -2,12 +2,11 @@
 import type { DisplayModel } from '../../../../stores/display-models'
 
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
-import { Button } from '@proj-airi/ui'
+import { Button, Callout } from '@proj-airi/ui'
 import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 
-import Callout from '../../../layouts/Callout.vue'
 import Live2DScene from '../../../scenes/Live2D.vue'
 import Live2D from './Live2D.vue'
 import VRM from './VRM.vue'

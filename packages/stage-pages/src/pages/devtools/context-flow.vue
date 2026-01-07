@@ -4,11 +4,11 @@ import type { ChatStreamEvent, ContextMessage } from '@proj-airi/stage-ui/types/
 
 import { errorMessageFrom } from '@moeru/std'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
-import { Callout, Section } from '@proj-airi/stage-ui/components'
+import { Section } from '@proj-airi/stage-ui/components'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character-orchestrator'
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME, useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
-import { Button, FieldCheckbox, FieldInput, FieldTextArea, Input, SelectTab } from '@proj-airi/ui'
+import { Button, Callout, FieldCheckbox, FieldInput, FieldTextArea, Input, SelectTab } from '@proj-airi/ui'
 import { useBroadcastChannel } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'

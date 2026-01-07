@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Callout from './Callout.vue'
+import { Callout } from '@proj-airi/ui'
 </script>
 
 <template>
