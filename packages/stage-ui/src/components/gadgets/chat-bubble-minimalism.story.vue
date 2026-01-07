@@ -2,7 +2,7 @@
 import { sleep } from '@moeru/std'
 import { onMounted, ref } from 'vue'
 
-import ChatBubbleMinimalism from './ChatBubbleMinimalism.vue'
+import ChatBubbleMinimalism from './chat-bubble-minimalism.vue'
 
 function createStream(text: string) {
   let doneFunc = () => {}

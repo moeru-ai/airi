@@ -2,8 +2,8 @@
 import { FieldRange, Radio } from '@proj-airi/ui'
 import { onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 
-import AudioSpectrum from './AudioSpectrum.vue'
-import AudioSpectrumVisualizer from './AudioSpectrumVisualizer.vue'
+import AudioSpectrumVisualizer from './audio-spectrum-visualizer.vue'
+import AudioSpectrum from './audio-spectrum.vue'
 
 // Create a mock oscillator to generate audio for demonstration
 const audioContext = shallowRef<AudioContext>()

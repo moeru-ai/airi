@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import Volumed from '../graphics/Volumed.vue'
 import CursorMomentum from '../physics/CursorMomentum.vue'
-import TestDummyMarkerFlat from './TestDummyMarkerFlat.vue'
+import TestDummyMarkerFlat from './test-dummy-marker-flat.vue'
 </script>
 
 <template>

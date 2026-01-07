@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 
-import TimeSeriesChart from './TimeSeriesChart.vue'
+import TimeSeriesChart from './time-series-chart.vue'
 
 // Data arrays for different scenarios
 const performanceHistory = ref<number[]>([])

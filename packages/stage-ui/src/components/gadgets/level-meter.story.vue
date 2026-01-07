@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 
-import LevelMeter from './LevelMeter.vue'
+import LevelMeter from './level-meter.vue'
 
 // Reactive data for demos
 const audioLevel = ref(45)

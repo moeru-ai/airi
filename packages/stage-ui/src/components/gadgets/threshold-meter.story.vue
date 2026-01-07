@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 
-import ThresholdMeter from './ThresholdMeter.vue'
+import ThresholdMeter from './threshold-meter.vue'
 
 // Reactive data for demos
 const probability = ref(0.65)
