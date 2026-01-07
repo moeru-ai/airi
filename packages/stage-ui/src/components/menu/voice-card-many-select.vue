@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import Alert from '../misc/alert.vue'
-import VoiceCard from './VoiceCard.vue'
+import VoiceCard from './voice-card.vue'
 
 interface VoiceLanguage {
   name: string

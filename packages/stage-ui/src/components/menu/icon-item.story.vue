@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import IconItem from './IconItem.vue'
+import IconItem from './icon-item.vue'
 </script>
 
 <template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import RadioCardSimple from './RadioCardSimple.vue'
+import RadioCardSimple from './radio-card-simple.vue'
 
 const modelValue = ref('test')
 </script>

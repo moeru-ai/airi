@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue'
 
-import VoiceCard from './VoiceCard.vue'
+import VoiceCard from './voice-card.vue'
 
 // Sample voice data
 const selectedVoiceId = ref('lNxY9WuCBCZCISASyJ55')

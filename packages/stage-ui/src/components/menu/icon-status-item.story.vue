@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import IconStatusItem from './IconStatusItem.vue'
+import IconStatusItem from './icon-status-item.vue'
 </script>
 
 <template>

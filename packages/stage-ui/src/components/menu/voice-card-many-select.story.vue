@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import VoiceCardManySelect from './VoiceCardManySelect.vue'
+import VoiceCardManySelect from './voice-card-many-select.vue'
 
 const selectedVoiceId = ref('voice1')
 const customValue = ref('')

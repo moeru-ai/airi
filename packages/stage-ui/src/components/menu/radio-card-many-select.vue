@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 
 import Alert from '../misc/alert.vue'
-import RadioCardDetail from './RadioCardDetail.vue'
+import RadioCardDetail from './radio-card-detail.vue'
 
 interface Item {
   id: string

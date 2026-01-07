@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import CharacterCard from './CharacterCard.vue'
+import CharacterCard from './character-card.vue'
 import characterImage from './relu.avif'
 
 const primaryColor = ref('#f0f9fe')
