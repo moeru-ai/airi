@@ -16,8 +16,6 @@ import { useI18n } from 'vue-i18n'
 import { RouterView } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
-import 'vue-sonner/style.css'
-
 const contextBridgeStore = useContextBridgeStore()
 const i18n = useI18n()
 const displayModelsStore = useDisplayModelsStore()

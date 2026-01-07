@@ -119,6 +119,7 @@
     "vue-demi": "^0.14.10",
     "vue-i18n": "^11.2.2",
     "vue-router": "^4.6.4",
+    "vue-sonner": "catalog:",
     "xsschema": "catalog:",
     "yauzl": "^3.2.0",
     "zod": "^4.2.1"
@@ -136,6 +137,7 @@
     "@iconify-json/vscode-icons": "^1.2.37",
     "@iconify/utils": "^3.1.0",
     "@intlify/unplugin-vue-i18n": "^11.0.1",
+    "@proj-airi/iconify-meteocons": "catalog:",
     "@proj-airi/lobe-icons": "^1.0.18",
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/ui-transitions": "workspace:^",

@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import { Screen } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 
-import Screen from '../misc/Screen.vue'
 import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
 

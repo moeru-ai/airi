@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { Button, FieldInput } from '@proj-airi/ui'
+import { Button, Callout, FieldInput } from '@proj-airi/ui'
 import { computed, inject, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useProvidersStore } from '../../../../stores/providers'
-import { Callout } from '../../../layouts'
 import { Alert } from '../../../misc'
 import { ProviderAccountIdInput } from '../../../scenarios/providers'
 import { OnboardingContextKey } from './utils'

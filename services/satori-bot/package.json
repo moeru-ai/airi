@@ -1,0 +1,41 @@
+{
+  "name": "@proj-airi/satori-bot",
+  "type": "module",
+  "private": true,
+  "description": "Satori protocol adapter for AIRI - Connect to multiple chat platforms via Satori",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "services/satori-bot"
+  },
+  "scripts": {
+    "start": "tsx --env-file=.env --env-file-if-exists=.env.local src/index.ts",
+    "dev": "tsx watch --env-file=.env --env-file-if-exists=.env.local src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "@moeru/std": "catalog:",
+    "@velin-dev/core": "^0.3.4",
+    "@xsai/generate-text": "catalog:",
+    "@xsai/shared-chat": "catalog:",
+    "@xsai/utils-chat": "catalog:",
+    "best-effort-json-parser": "^1.2.1",
+    "es-toolkit": "^1.43.0",
+    "lowdb": "^7.0.1",
+    "nanoid": "^5.1.6",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,7 +1,6 @@
 <script setup lang="ts">
+import { Collapsible } from '@proj-airi/ui'
 import { ref } from 'vue'
-
-import Collapsable from '../../misc/Collapsable.vue'
 
 const props = defineProps<{
   title?: string
@@ -16,7 +15,7 @@ function toggleVisible() {
 </script>
 
 <template>
-  <Collapsable w-full>
+  <Collapsible w-full>
     <template #trigger="slotProps">
       <button
         transition="all ease-in-out duration-250"
@@ -35,5 +34,5 @@ function toggleVisible() {
     <div mt-4>
       <slot />
     </div>
-  </Collapsable>
+  </Collapsible>
 </template>

@@ -1,7 +1,6 @@
 <script setup lang="ts">
+import { Callout } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
-
-import Callout from '../layouts/Callout.vue'
 
 const { t } = useI18n()
 </script>

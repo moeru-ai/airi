@@ -20,6 +20,7 @@ import './modules/posthog'
 // eslint-disable-next-line perfectionist/sort-imports
 import '@unocss/reset/tailwind.css'
 import 'splitpanes/dist/splitpanes.css'
+import 'vue-sonner/style.css'
 import './styles/main.css'
 import 'uno.css'
 // Fonts

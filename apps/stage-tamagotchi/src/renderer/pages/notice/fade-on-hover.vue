@@ -238,11 +238,6 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
   </div>
 </template>
 
-<route lang="yaml">
-meta:
-  layout: plain
-</route>
-
 <style scoped>
 .heading-backdrop {
   mask-image: radial-gradient(200% 150% at top left, black 20%, transparent 30%);

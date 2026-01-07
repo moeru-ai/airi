@@ -109,23 +109,23 @@ export default defineConfig({
         ],
         outline: {
           level: 'deep',
-          label: 'このページの内容',
+          label: 'On this page',
         },
         docFooter: {
-          prev: '前のページ',
-          next: '次のページ',
+          prev: 'Previous page',
+          next: 'Next page',
         },
         editLink: {
           pattern: 'https://github.com/moeru-ai/airi/edit/main/docs/content/:path',
-          text: 'GitHub でこのページを編集',
+          text: 'Edit this page on GitHub',
         },
         lastUpdated: {
-          text: '最終更新',
+          text: 'Last updated',
         },
-        darkModeSwitchLabel: '外観モード',
-        sidebarMenuLabel: 'メニュー',
-        returnToTopLabel: 'トップに戻る',
-        langMenuLabel: '言語を変更',
+        darkModeSwitchLabel: 'Appearance',
+        sidebarMenuLabel: 'Menu',
+        returnToTopLabel: 'Return to top',
+        langMenuLabel: 'Change language',
         logo: withBase('/favicon.svg'),
 
         sidebar: [
@@ -213,7 +213,23 @@ export default defineConfig({
         ],
         outline: {
           level: 'deep',
+          label: '本页内容',
         },
+        docFooter: {
+          prev: '上一页',
+          next: '下一页',
+        },
+        editLink: {
+          pattern: 'https://github.com/moeru-ai/airi/edit/main/docs/content/:path',
+          text: '在 GitHub 编辑此页',
+        },
+        lastUpdated: {
+          text: '最后更新',
+        },
+        darkModeSwitchLabel: '外观模式',
+        sidebarMenuLabel: '菜单',
+        returnToTopLabel: '返回顶部',
+        langMenuLabel: '切换语言',
         logo: withBase('/favicon.svg'),
 
         sidebar: [
@@ -297,7 +313,23 @@ export default defineConfig({
         ],
         outline: {
           level: 'deep',
+          label: 'このページの内容',
         },
+        docFooter: {
+          prev: '前のページ',
+          next: '次のページ',
+        },
+        editLink: {
+          pattern: 'https://github.com/moeru-ai/airi/edit/main/docs/content/:path',
+          text: 'GitHub でこのページを編集',
+        },
+        lastUpdated: {
+          text: '最終更新',
+        },
+        darkModeSwitchLabel: '外観モード',
+        sidebarMenuLabel: 'メニュー',
+        returnToTopLabel: 'トップに戻る',
+        langMenuLabel: '言語を変更',
         logo: withBase('/favicon.svg'),
 
         sidebar: [
@@ -352,7 +384,7 @@ export default defineConfig({
           {
             text: 'キャラクター',
             icon: 'lucide:scan-face',
-            link: withBase('/en/characters/'),
+            link: withBase('/ja/characters/'),
           },
         ] as (DefaultTheme.SidebarItem & { icon?: string })[],
       },
