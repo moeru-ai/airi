@@ -14,8 +14,11 @@ export function createCharacterRoutes(characterService: CharacterService) {
 
     .get('/', async (c) => {
       const user = c.get('user')!
+      const all = c.req.query('all') === 'true'
 
-      const characters = await characterService.findByOwnerId(user.id)
+      const characters = all
+        ? await characterService.findAll()
+        : await characterService.findByOwnerId(user.id)
       return c.json(characters)
     })
 
@@ -38,6 +41,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
         throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', result.issues)
       }
 
+      // @ts-expect-error - TODO: Fix this
       const character = await characterService.create({
         ...result.output,
         character: {
@@ -45,7 +49,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
           ownerId: user.id,
           creatorId: user.id,
         },
-      } as any)
+      })
 
       return c.json(character, 201)
     })
@@ -61,7 +65,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
         throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', result.issues)
       }
 
-      const existing = await characterService.findById(id, { withRelations: false })
+      const existing = await characterService.findById(id)
       if (!existing)
         throw createNotFoundError()
       if (existing.ownerId !== user.id)
@@ -75,7 +79,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
       const user = c.get('user')!
 
       const id = c.req.param('id')
-      const existing = await characterService.findById(id, { withRelations: false })
+      const existing = await characterService.findById(id)
       if (!existing)
         throw createNotFoundError()
       if (existing.ownerId !== user.id)
@@ -83,5 +87,19 @@ export function createCharacterRoutes(characterService: CharacterService) {
 
       await characterService.delete(id)
       return c.body(null, 204)
+    })
+
+    .post('/:id/like', async (c) => {
+      const user = c.get('user')!
+      const id = c.req.param('id')
+      const result = await characterService.like(user.id, id)
+      return c.json(result)
+    })
+
+    .post('/:id/bookmark', async (c) => {
+      const user = c.get('user')!
+      const id = c.req.param('id')
+      const result = await characterService.bookmark(user.id, id)
+      return c.json(result)
     })
 }

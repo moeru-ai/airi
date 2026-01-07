@@ -4,8 +4,8 @@ import type { Ref } from 'vue'
 
 import { ref } from 'vue'
 
-import PropertyColor from './PropertyColor.vue'
-import PropertyNumber from './PropertyNumber.vue'
+import PropertyColor from './property-color.vue'
+import PropertyNumber from './property-number.vue'
 
 type DataPaneSchemaTypes
   = | DataPaneSchemaNumber

@@ -1,8 +1,8 @@
-import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
-import { useVersionedLocalStorage } from '../composables/use-versioned-local-storage'
+import { client } from '../composables/api'
+import { useAsyncState } from '../composables/use-async-state'
 import { getDefinedProvider, listProviders } from '../libs/providers/providers'
 
 interface ProviderCatalogProvider {
@@ -16,45 +16,107 @@ interface ProviderCatalogProvider {
 
 export const useProviderCatalogStore = defineStore('provider-catalog', () => {
   const defs = computed(() => listProviders())
-  const configs = useVersionedLocalStorage<Record<string, ProviderCatalogProvider>>('app:ui:provider-catalog:configs', {}, { defaultVersion: '1.0.0' })
+  const configs = ref<Record<string, ProviderCatalogProvider>>({})
 
-  function addProvider(definitionId: string, initialConfig: Record<string, any> = {}) {
+  async function fetchList() {
+    return useAsyncState(async () => {
+      const res = await client.api.providers.$get()
+      if (!res.ok) {
+        throw new Error('Failed to fetch providers')
+      }
+      const data = await res.json()
+
+      const newConfigs: Record<string, ProviderCatalogProvider> = {}
+      for (const item of data) {
+        newConfigs[item.id] = {
+          id: item.id,
+          definitionId: item.definitionId,
+          name: item.name,
+          config: item.config as Record<string, any>,
+          validated: item.validated,
+          validationBypassed: item.validationBypassed,
+        }
+      }
+      configs.value = newConfigs
+    }, { immediate: true })
+  }
+
+  async function addProvider(definitionId: string, initialConfig: Record<string, any> = {}) {
     if (!getDefinedProvider(definitionId)) {
       throw new Error(`Provider definition with id "${definitionId}" not found.`)
     }
 
-    const providerConfig = {
-      id: nanoid(),
-      definitionId,
-      name: getDefinedProvider(definitionId)!.name,
-      config: initialConfig,
-      validated: false,
-      validationBypassed: false,
-    } satisfies ProviderCatalogProvider
+    return useAsyncState(async () => {
+      const res = await client.api.providers.$post({
+        json: {
+          definitionId,
+          name: getDefinedProvider(definitionId)!.name,
+          config: initialConfig,
+          validated: false,
+          validationBypassed: false,
+        },
+      })
+      if (!res.ok) {
+        throw new Error('Failed to add provider')
+      }
+      const item = await res.json()
 
-    configs.value[providerConfig.id] = providerConfig
+      configs.value[item.id] = {
+        id: item.id,
+        definitionId: item.definitionId,
+        name: item.name,
+        config: item.config as Record<string, any>,
+        validated: item.validated,
+        validationBypassed: item.validationBypassed,
+      }
+      return item
+    }, { immediate: true })
   }
 
-  function removeProvider(providerId: string) {
-    delete configs.value[providerId]
+  async function removeProvider(providerId: string) {
+    return useAsyncState(async () => {
+      const res = await client.api.providers[':id'].$delete({
+        param: { id: providerId },
+      })
+      if (!res.ok) {
+        throw new Error('Failed to remove provider')
+      }
+      delete configs.value[providerId]
+    }, { immediate: true })
   }
 
-  function commitProviderConfig(providerId: string, newConfig: Record<string, any>, options: { validated: boolean, validationBypassed: boolean }) {
+  async function commitProviderConfig(providerId: string, newConfig: Record<string, any>, options: { validated: boolean, validationBypassed: boolean }) {
     if (!configs.value[providerId]) {
       return
     }
 
-    configs.value[providerId].config = { ...newConfig }
-    configs.value[providerId].validated = options.validated
-    configs.value[providerId].validationBypassed = options.validationBypassed
+    return useAsyncState(async () => {
+      const res = await client.api.providers[':id'].$patch({
+        param: { id: providerId },
+        // @ts-expect-error hono client typing misses json option for this route
+        json: {
+          config: newConfig,
+          validated: options.validated,
+          validationBypassed: options.validationBypassed,
+        },
+      })
+      if (!res.ok) {
+        throw new Error('Failed to update provider config')
+      }
+      const item = await res.json()
+
+      configs.value[providerId].config = { ...item.config as Record<string, any> }
+      configs.value[providerId].validated = item.validated
+      configs.value[providerId].validationBypassed = item.validationBypassed
+    }, { immediate: true })
   }
 
   return {
     configs,
     defs,
-
     getDefinedProvider,
 
+    fetchList,
     addProvider,
     removeProvider,
     commitProviderConfig,

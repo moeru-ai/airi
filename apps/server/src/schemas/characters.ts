@@ -4,10 +4,11 @@ import type { AvatarModelConfig } from '../types/character-avatar-model'
 import type { CharacterCapabilityConfig } from '../types/character-capability'
 
 import { relations } from 'drizzle-orm'
-import { jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import { integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 import { user } from './accounts'
+import { characterBookmarks, characterLikes } from './user-character'
 
 export const character = pgTable(
   'characters',
@@ -21,10 +22,14 @@ export const character = pgTable(
     creatorId: text('creator_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
     ownerId: text('owner_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
     characterId: text('character_id').notNull(),
+    avatarUrl: text('avatar_url'),
+    creatorRole: text('creator_role'),
+    priceCredit: text('price_credit').default('0').notNull(),
 
-    // TODO: Live2d and VRM
-    // TODO: Memory
-    // TODO: Skills and MCP
+    likesCount: integer('likes_count').default(0).notNull(),
+    bookmarksCount: integer('bookmarks_count').default(0).notNull(),
+    interactionsCount: integer('interactions_count').default(0).notNull(),
+    forksCount: integer('forks_count').default(0).notNull(),
 
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -34,6 +39,23 @@ export const character = pgTable(
 
 export type Character = InferSelectModel<typeof character>
 export type NewCharacter = InferInsertModel<typeof character>
+
+export const characterCovers = pgTable(
+  'character_covers',
+  {
+    id: text('id').primaryKey().$defaultFn(() => nanoid()),
+    characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
+
+    foregroundUrl: text('foreground_url').notNull(),
+    backgroundUrl: text('background_url').notNull(),
+
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    deletedAt: timestamp('deleted_at'),
+  },
+)
+export type CharacterCover = InferSelectModel<typeof characterCovers>
+export type NewCharacterCover = InferInsertModel<typeof characterCovers>
 
 export const avatarModel = pgTable(
   'avatar_model',
@@ -79,6 +101,7 @@ export const characterI18n = pgTable(
     language: text('language').notNull(),
 
     name: text('name').notNull(),
+    tagline: text('tagline'),
     description: text('description').notNull(),
     tags: text('tags').array().notNull(),
 
@@ -127,9 +150,29 @@ export const characterRelations = relations(
     avatarModels: many(avatarModel),
     i18n: many(characterI18n),
     prompts: many(characterPrompts),
+    likes: many(characterLikes),
+    bookmarks: many(characterBookmarks),
     owner: one(user, {
       fields: [character.ownerId],
       references: [user.id],
+    }),
+    creator: one(user, {
+      fields: [character.creatorId],
+      references: [user.id],
+    }),
+    cover: one(characterCovers, {
+      fields: [character.id],
+      references: [characterCovers.characterId],
+    }),
+  }),
+)
+
+export const characterCoversRelations = relations(
+  characterCovers,
+  ({ one }) => ({
+    character: one(character, {
+      fields: [characterCovers.characterId],
+      references: [character.id],
     }),
   }),
 )

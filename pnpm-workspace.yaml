@@ -12,6 +12,7 @@ catalog:
   '@capacitor/core': ^8.0.0
   '@capacitor/ios': ^8.0.0
   '@capacitor/local-notifications': ^8.0.0
+  '@electric-sql/pglite': ^0.3.14
   '@guiiai/logg': ^1.2.11
   '@iconify-json/logos': ^1.2.10
   '@iconify-json/tabler': ^1.2.26
@@ -76,8 +77,9 @@ ignoredBuiltDependencies:
 
 onlyBuiltDependencies:
   - '@discordjs/opus'
-  - '@napi-rs/image'
   - '@ffmpeg-installer/darwin-arm64'
+  - '@ffmpeg-installer/linux-x64'
+  - '@napi-rs/image'
   - '@parcel/watcher'
   - bufferutil
   - core-js
@@ -87,6 +89,7 @@ onlyBuiltDependencies:
   - es5-ext
   - esbuild
   - ffmpeg-static
+  - less
   - msw
   - onnxruntime-node
   - protobufjs

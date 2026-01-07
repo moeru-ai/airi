@@ -63,11 +63,21 @@ export const CharacterBaseSchema = object({
   id: string(),
   version: string(),
   coverUrl: string(),
+  avatarUrl: optional(string()),
+  characterAvatarUrl: optional(string()),
+  coverBackgroundUrl: optional(string()),
+  creatorRole: optional(string()),
+  priceCredit: string(),
+  likesCount: number(),
+  bookmarksCount: number(),
+  interactionsCount: number(),
+  forksCount: number(),
   creatorId: string(),
   ownerId: string(),
   characterId: string(),
   createdAt: DateSchema,
   updatedAt: DateSchema,
+  deletedAt: optional(DateSchema),
 })
 
 export const CharacterCapabilitySchema = object({
@@ -93,6 +103,7 @@ export const CharacterI18nSchema = object({
   characterId: string(),
   language: string(),
   name: string(),
+  tagline: optional(string()),
   description: string(),
   tags: array(string()),
   createdAt: DateSchema,
@@ -111,10 +122,12 @@ export const CharacterPromptSchema = object({
 
 export const CharacterWithRelationsSchema = object({
   ...CharacterBaseSchema.entries,
-  capabilities: array(CharacterCapabilitySchema),
-  avatarModels: array(AvatarModelSchema),
-  i18n: array(CharacterI18nSchema),
-  prompts: array(CharacterPromptSchema),
+  capabilities: optional(array(CharacterCapabilitySchema)),
+  avatarModels: optional(array(AvatarModelSchema)),
+  i18n: optional(array(CharacterI18nSchema)),
+  prompts: optional(array(CharacterPromptSchema)),
+  likes: optional(array(object({ userId: string(), characterId: string() }))),
+  bookmarks: optional(array(object({ userId: string(), characterId: string() }))),
 })
 
 // --- API Request Schemas ---

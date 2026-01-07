@@ -1,22 +1,14 @@
-import type { VRM } from '@pixiv/three-vrm'
-
-import cropImg from '@lemonneko/crop-empty-pixels'
 import localforage from 'localforage'
 
-import { Application } from '@pixi/app'
-import { extensions } from '@pixi/extensions'
-import { Ticker, TickerPlugin } from '@pixi/ticker'
-import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
-import { clipFromVRMAnimation, loadVrm, loadVRMAnimation, reAnchorRootPositionTrack } from '@proj-airi/stage-ui-three/composables/vrm'
+import { loadLive2DModelPreview as generateLive2DPreview } from '@proj-airi/stage-ui-live2d/utils/live2d-preview'
+import { loadVrmModelPreview as generateVrmPreview } from '@proj-airi/stage-ui-three/utils/vrm-preview'
 import { until } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
-import { Live2DFactory, Live2DModel } from 'pixi-live2d-display/cubism4'
-import { AmbientLight, AnimationMixer, DirectionalLight, PerspectiveCamera, Scene, WebGLRenderer } from 'three'
 import { ref } from 'vue'
 
-import '../utils/live2d-zip-loader'
-import '../utils/live2d-opfs-registration'
+import '@proj-airi/stage-ui-live2d/utils/live2d-zip-loader'
+import '@proj-airi/stage-ui-live2d/utils/live2d-opfs-registration'
 
 export enum DisplayModelFormat {
   Live2dZip = 'live2d-zip',
@@ -103,186 +95,10 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     return displayModelsPresets.find(model => model.id === id)
   }
 
-  async function loadLive2DModelPreview(file: File) {
-    Live2DModel.registerTicker(Ticker)
-    extensions.add(TickerPlugin)
-
-    const previewWidth = 1440
-    const previewHeight = 2560
-    const previewResolution = 2
-
-    const offscreenCanvas = document.createElement('canvas')
-    offscreenCanvas.width = previewWidth * previewResolution
-    offscreenCanvas.height = previewHeight * previewResolution
-    offscreenCanvas.style.position = 'absolute'
-    offscreenCanvas.style.top = '0'
-    offscreenCanvas.style.left = '0'
-    offscreenCanvas.style.objectFit = 'cover'
-    offscreenCanvas.style.display = 'block'
-    offscreenCanvas.style.zIndex = '10000000000'
-    offscreenCanvas.style.opacity = '0'
-    document.body.appendChild(offscreenCanvas)
-
-    const app = new Application({
-      view: offscreenCanvas,
-      width: offscreenCanvas.width,
-      height: offscreenCanvas.height,
-      // Ensure the drawing buffer persists so toDataURL() can read pixels
-      preserveDrawingBuffer: true,
-      backgroundAlpha: 0,
-      autoDensity: false,
-      resolution: 1,
-      autoStart: false,
-    })
-    app.stage.scale.set(previewResolution)
-    app.ticker.stop()
-
-    const modelInstance = new Live2DModel()
-    const objUrl = URL.createObjectURL(file)
-    const res = await fetch(objUrl)
-    const blob = await res.blob()
-
-    const cleanup = () => {
-      app.destroy()
-      if (offscreenCanvas.isConnected)
-        document.body.removeChild(offscreenCanvas)
-      URL.revokeObjectURL(objUrl)
-    }
-
-    try {
-      await Live2DFactory.setupLive2DModel(modelInstance, [new File([blob], file.name)], { autoInteract: false })
-      app.stage.addChild(modelInstance)
-
-      // transforms
-      modelInstance.x = 275
-      modelInstance.y = 450
-      modelInstance.width = previewWidth
-      modelInstance.height = previewHeight
-      modelInstance.scale.set(0.1, 0.1)
-      modelInstance.anchor.set(0.5, 0.5)
-
-      await new Promise(resolve => setTimeout(resolve, 500))
-      // Force a render to ensure the latest frame is in the drawing buffer
-      app.renderer.render(app.stage)
-
-      const croppedCanvas = cropImg(offscreenCanvas)
-
-      // padding to 12:16
-      const paddingCanvas = document.createElement('canvas')
-      paddingCanvas.width = croppedCanvas.width > croppedCanvas.height / 16 * 12 ? croppedCanvas.width : croppedCanvas.height / 16 * 12
-      paddingCanvas.height = paddingCanvas.width / 12 * 16
-      const paddingCanvasCtx = paddingCanvas.getContext('2d')!
-
-      paddingCanvasCtx.drawImage(croppedCanvas, (paddingCanvas.width - croppedCanvas.width) / 2, (paddingCanvas.height - croppedCanvas.height) / 2, croppedCanvas.width, croppedCanvas.height)
-      const paddingDataUrl = paddingCanvas.toDataURL()
-
-      cleanup()
-
-      // return dataUrl
-      return paddingDataUrl
-    }
-    catch (error) {
-      console.error(error)
-      cleanup()
-    }
-  }
+  const loadLive2DModelPreview = (file: File) => generateLive2DPreview(file)
 
   async function loadVrmModelPreview(file: File) {
-    const offscreenCanvas = document.createElement('canvas')
-    offscreenCanvas.width = 1440
-    offscreenCanvas.height = 2560
-    offscreenCanvas.style.position = 'absolute'
-    offscreenCanvas.style.top = '0'
-    offscreenCanvas.style.left = '0'
-    offscreenCanvas.style.objectFit = 'cover'
-    offscreenCanvas.style.display = 'block'
-    offscreenCanvas.style.zIndex = '10000000000'
-    offscreenCanvas.style.opacity = '0'
-    document.body.appendChild(offscreenCanvas)
-
-    const renderer = new WebGLRenderer({
-      canvas: offscreenCanvas,
-      alpha: true,
-      antialias: true,
-      preserveDrawingBuffer: true,
-    })
-    renderer.setSize(offscreenCanvas.width, offscreenCanvas.height, false)
-    renderer.setPixelRatio(1)
-
-    const scene = new Scene()
-    const camera = new PerspectiveCamera(40, offscreenCanvas.width / offscreenCanvas.height, 0.01, 1000)
-    const ambientLight = new AmbientLight(0xFFFFFF, 0.8)
-    const directionalLight = new DirectionalLight(0xFFFFFF, 0.8)
-    directionalLight.position.set(1, 1, 1)
-    scene.add(ambientLight, directionalLight)
-
-    const objUrl = URL.createObjectURL(file)
-    let vrmInstance: VRM | undefined
-
-    try {
-      const vrmData = await loadVrm(objUrl, { scene, lookAt: true })
-      if (!vrmData) {
-        return
-      }
-
-      vrmInstance = vrmData._vrm
-      const { modelCenter, initialCameraOffset } = vrmData
-
-      camera.position.copy(modelCenter).add(initialCameraOffset)
-      camera.lookAt(modelCenter)
-      camera.updateProjectionMatrix()
-
-      try {
-        const animation = await loadVRMAnimation(animations.idleLoop.toString())
-        const clip = await clipFromVRMAnimation(vrmData._vrm, animation)
-        if (clip) {
-          reAnchorRootPositionTrack(clip, vrmData._vrm)
-          const mixer = new AnimationMixer(vrmData._vrm.scene)
-          mixer.clipAction(clip).play()
-          mixer.update(1 / 60)
-        }
-      }
-      catch (error) {
-        console.warn('Failed to load VRM idle animation for preview.', error)
-      }
-
-      await new Promise<void>((resolve) => {
-        const start = performance.now()
-        const step = (time: number) => {
-          if (time - start >= 2000) {
-            resolve()
-            return
-          }
-          requestAnimationFrame(step)
-        }
-        requestAnimationFrame(step)
-      })
-      renderer.render(scene, camera)
-
-      const croppedCanvas = cropImg(offscreenCanvas)
-
-      // padding to 12:16
-      const paddingCanvas = document.createElement('canvas')
-      paddingCanvas.width = croppedCanvas.width > croppedCanvas.height / 16 * 12 ? croppedCanvas.width : croppedCanvas.height / 16 * 12
-      paddingCanvas.height = paddingCanvas.width / 12 * 16
-      const paddingCanvasCtx = paddingCanvas.getContext('2d')!
-
-      paddingCanvasCtx.drawImage(croppedCanvas, (paddingCanvas.width - croppedCanvas.width) / 2, (paddingCanvas.height - croppedCanvas.height) / 2, croppedCanvas.width, croppedCanvas.height)
-      return paddingCanvas.toDataURL()
-    }
-    catch (error) {
-      console.error(error)
-      return
-    }
-    finally {
-      if (vrmInstance && 'dispose' in vrmInstance) {
-        (vrmInstance as { dispose: () => void }).dispose()
-      }
-
-      renderer.dispose()
-      document.body.removeChild(offscreenCanvas)
-      URL.revokeObjectURL(objUrl)
-    }
+    return generateVrmPreview(file)
   }
 
   async function addDisplayModel(format: DisplayModelFormat, file: File) {

@@ -6,7 +6,6 @@ import {
   ErrorContainer,
   RadioCardManySelect,
   RadioCardSimple,
-  Skeleton,
   TestDummyMarker,
   VoiceCardManySelect,
 } from '@proj-airi/stage-ui/components'
@@ -17,6 +16,7 @@ import {
   FieldCheckbox,
   FieldInput,
   FieldRange,
+  Skeleton,
   Textarea,
 } from '@proj-airi/ui'
 import { generateSpeech } from '@xsai/generate-speech'

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { MarkdownRenderer, Progress } from '@proj-airi/stage-ui/components'
+import { MarkdownRenderer } from '@proj-airi/stage-ui/components'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics/index'
-import { Button, DoubleCheckButton } from '@proj-airi/ui'
+import { Button, DoubleCheckButton, Progress } from '@proj-airi/ui'
 import { useMediaQuery } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'

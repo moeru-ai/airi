@@ -1,8 +1,8 @@
 import './fallback.css'
 
-export * from './components/Animations'
-export * from './components/Form'
+export * from './components/animations'
+export * from './components/form'
 export * from './components/layouts'
-export * from './components/Misc'
+export * from './components/misc'
 export * from './composables/use-deferred-mount'
 export * from './composables/use-theme'

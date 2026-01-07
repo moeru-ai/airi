@@ -1,2 +1,2 @@
-export { default as ToasterPWAUpdateReady } from './ToasterPWAUpdateReady.vue'
-export { default as ToasterRoot } from './ToasterRoot.vue'
+export { default as ToasterPWAUpdateReady } from './toaster-pwa-update-ready.vue'
+export { default as ToasterRoot } from './toaster-root.vue'

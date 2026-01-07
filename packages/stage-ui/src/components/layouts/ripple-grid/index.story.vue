@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import RippleGrid from './RippleGrid.vue'
+import RippleGrid from './index.vue'
 
 const sections = ref([
   {
