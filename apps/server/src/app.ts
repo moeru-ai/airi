@@ -11,10 +11,12 @@ import { createLoggLogger, injeca } from 'injeca'
 
 import { sessionMiddleware } from './middlewares/auth'
 import { createCharacterRoutes } from './routes/characters'
+import { createProviderRoutes } from './routes/providers'
 import { createAuth } from './services/auth'
 import { createCharacterService } from './services/characters'
 import { createDrizzle } from './services/db'
 import { parsedEnv } from './services/env'
+import { createProviderService } from './services/providers'
 import { ApiError, createInternalError } from './utils/error'
 import { getTrustedOrigin } from './utils/origin'
 
@@ -22,13 +24,15 @@ import * as schema from './schemas'
 
 type AuthService = ReturnType<typeof createAuth>
 type CharacterService = ReturnType<typeof createCharacterService>
+type ProviderService = ReturnType<typeof createProviderService>
 
 interface AppDeps {
   auth: AuthService
   characterService: CharacterService
+  providerService: ProviderService
 }
 
-function buildApp({ auth, characterService }: AppDeps) {
+function buildApp({ auth, characterService, providerService }: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
   return new Hono<HonoEnv>()
@@ -68,6 +72,11 @@ function buildApp({ auth, characterService }: AppDeps) {
      * Character routes are handled by the character service.
      */
     .route('/api/characters', createCharacterRoutes(characterService))
+
+    /**
+     * Provider routes are handled by the provider service.
+     */
+    .route('/api/providers', createProviderRoutes(providerService))
 }
 
 export type AppType = ReturnType<typeof buildApp>
@@ -100,11 +109,17 @@ async function createApp() {
     build: ({ dependsOn }) => createCharacterService(dependsOn.db),
   })
 
+  const providerService = injeca.provide('services:providers', {
+    dependsOn: { db },
+    build: ({ dependsOn }) => createProviderService(dependsOn.db),
+  })
+
   await injeca.start()
-  const resolved = await injeca.resolve({ auth, characterService })
+  const resolved = await injeca.resolve({ auth, characterService, providerService })
   const app = buildApp({
     auth: resolved.auth,
     characterService: resolved.characterService,
+    providerService: resolved.providerService,
   })
 
   useLogger('app').useGlobalConfig().withFields({ port: 3000 }).log('Server started')

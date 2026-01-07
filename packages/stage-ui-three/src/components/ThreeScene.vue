@@ -13,6 +13,7 @@ import type { DirectionalLight, SphericalHarmonics3, Texture, WebGLRenderTarget 
 
 import type { Vec3 } from '../stores/model-store'
 
+import { Screen } from '@proj-airi/ui'
 import { TresCanvas } from '@tresjs/core'
 import { EffectComposerPmndrs, HueSaturationPmndrs } from '@tresjs/post-processing'
 import { useElementBounding } from '@vueuse/core'
@@ -52,6 +53,8 @@ const emit = defineEmits<{
   (e: 'loadModelProgress', value: number): void
   (e: 'error', value: unknown): void
 }>()
+
+const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 
 const sceneContainerRef = ref<HTMLDivElement>()
 const { width, height } = useElementBounding(sceneContainerRef)
@@ -206,37 +209,41 @@ function applyVrmFrameHook() {
 watch(modelRef, () => applyVrmFrameHook(), { immediate: true })
 
 // === Directional Light ===
-// TODO: wrap <TresDirectionalLight> to integrate all the below code
+// Directional light setup moved inline, no ready event needed
 const sceneReady = ref(false)
-const dirLightReady = ref(false)
-
-function onDirLightReady() {
-  dirLightReady.value = true
-}
-// Then start to set the camera position and target
+// Setup directional light when controls are ready and we have the light ref
 watch(
-  [controlsReady, dirLightReady],
-  ([ctrlOk, modelOk]) => {
-    if (ctrlOk && modelOk && camera.value && controlsRef.value && controlsRef.value.controls && dirLightRef.value) {
-      // isUpdatingCamera = true
-      try {
-        // setup initial target of directional light
-        dirLightRef.value.parent?.add(dirLightRef.value.target)
-        dirLightRef.value.target.position.set(
-          directionalLightTarget.value.x,
-          directionalLightTarget.value.y,
-          directionalLightTarget.value.z,
-        )
-        // console.debug("direction light target set: ", dirLightRef.value.target.position)
-        dirLightRef.value.target.updateMatrixWorld()
-      }
-      finally {
-        // isUpdatingCamera = false
-        sceneReady.value = true
-      }
+  [controlsReady, modelLoaded, dirLightRef],
+  ([ctrlOk, loaded, dirLight]) => {
+    if (!ctrlOk || !loaded || !dirLight || !camera.value || !controlsRef.value?.controls)
+      return
+
+    try {
+      // setup initial target of directional light
+      dirLight.parent?.add(dirLight.target)
+      dirLight.target.position.set(
+        directionalLightTarget.value.x,
+        directionalLightTarget.value.y,
+        directionalLightTarget.value.z,
+      )
+      dirLight.target.updateMatrixWorld()
+      sceneReady.value = true
+    }
+    catch (error) {
+      console.error('[ThreeScene] Failed to setup directional light:', error)
     }
   },
 )
+
+// Update component state based on scene readiness
+watch([sceneReady, modelLoaded], ([ready, loaded]) => {
+  if (ready && loaded) {
+    componentState.value = 'mounted'
+  }
+  else if (loaded) {
+    componentState.value = 'loading'
+  }
+}, { immediate: true })
 
 function updateDirLightTarget(newRotation: { x: number, y: number, z: number }) {
   const light = dirLightRef.value
@@ -288,94 +295,95 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="sceneContainerRef" w="100%" h="100%">
-    <TresCanvas
-      v-show="true"
-      :camera="camera"
-      :antialias="true"
-      :width="width"
-      :height="height"
-      :tone-mapping="ACESFilmicToneMapping"
-      :tone-mapping-exposure="1"
-      :clear-alpha="0"
-      @ready="onTresReady"
-    >
-      <OrbitControls
-        ref="controlsRef"
-        :control-enable="controlEnable"
-        :model-loaded="modelLoaded"
-        :model-size="modelSize"
-        :camera-position="cameraPosition"
-        :camera-target="modelOrigin"
-        :camera-f-o-v="cameraFOV"
-        :camera-distance="cameraDistance"
-        @orbit-controls-camera-changed="onOrbitControlsCameraChanged"
-        @orbit-controls-ready="onOrbitControlsReady"
-      />
-      <SkyBox
-        v-if="envSelect === 'skyBox'"
-        ref="skyBoxEnvRef"
-        :sky-box-src="skyBoxSrc"
-        :as-background="true"
-        @sky-box-ready="onSkyBoxReady"
-      />
-      <TresHemisphereLight
-        v-else
-        :color="formatHex(hemisphereSkyColor)"
-        :ground-color="formatHex(hemisphereGroundColor)"
-        :position="[0, 1, 0]"
-        :intensity="hemisphereLightIntensity"
-        cast-shadow
-      />
-      <TresAmbientLight
-        :color="formatHex(ambientLightColor)"
-        :intensity="ambientLightIntensity"
-        cast-shadow
-      />
-      <TresDirectionalLight
-        ref="dirLightRef"
-        :color="formatHex(directionalLightColor)"
-        :position="[directionalLightPosition.x, directionalLightPosition.y, directionalLightPosition.z]"
-        :intensity="directionalLightIntensity"
-        cast-shadow
-        @ready="onDirLightReady"
-      />
-      <Suspense>
-        <EffectComposerPmndrs>
-          <HueSaturationPmndrs v-bind="effectProps" />
-        </EffectComposerPmndrs>
-      </Suspense>
-      <VRMModel
-        ref="modelRef"
-
-        :current-audio-source="props.currentAudioSource"
-        :model-src="props.modelSrc"
-        :last-model-src="lastModelSrc"
-        :idle-animation="props.idleAnimation"
-        :paused="props.paused"
-        :env-select="envSelect"
-        :sky-box-intensity="skyBoxIntensity"
-        :npr-irr-s-h="irrSHTex"
-        :model-offset="modelOffset"
-        :model-rotation-y="modelRotationY"
-        :look-at-target="lookAtTarget"
-        :tracking-mode="trackingMode"
-        :eye-height="eyeHeight"
-        :camera-position="cameraPosition"
+  <Screen>
+    <div ref="sceneContainerRef" class="h-full w-full">
+      <TresCanvas
+        v-show="true"
         :camera="camera"
+        :antialias="true"
+        :width="width"
+        :height="height"
+        :tone-mapping="ACESFilmicToneMapping"
+        :tone-mapping-exposure="1"
+        :clear-alpha="0"
+        @ready="onTresReady"
+      >
+        <OrbitControls
+          ref="controlsRef"
+          :control-enable="controlEnable"
+          :model-loaded="modelLoaded"
+          :model-size="modelSize"
+          :camera-position="cameraPosition"
+          :camera-target="modelOrigin"
+          :camera-f-o-v="cameraFOV"
+          :camera-distance="cameraDistance"
+          @orbit-controls-camera-changed="onOrbitControlsCameraChanged"
+          @orbit-controls-ready="onOrbitControlsReady"
+        />
+        <SkyBox
+          v-if="envSelect === 'skyBox'"
+          ref="skyBoxEnvRef"
+          :sky-box-src="skyBoxSrc"
+          :as-background="true"
+          @sky-box-ready="onSkyBoxReady"
+        />
+        <TresHemisphereLight
+          v-else
+          :color="formatHex(hemisphereSkyColor)"
+          :ground-color="formatHex(hemisphereGroundColor)"
+          :position="[0, 1, 0]"
+          :intensity="hemisphereLightIntensity"
+          cast-shadow
+        />
+        <TresAmbientLight
+          :color="formatHex(ambientLightColor)"
+          :intensity="ambientLightIntensity"
+          cast-shadow
+        />
+        <TresDirectionalLight
+          ref="dirLightRef"
+          :color="formatHex(directionalLightColor)"
+          :position="[directionalLightPosition.x, directionalLightPosition.y, directionalLightPosition.z]"
+          :intensity="directionalLightIntensity"
+          cast-shadow
+        />
+        <Suspense>
+          <EffectComposerPmndrs>
+            <HueSaturationPmndrs v-bind="effectProps" />
+          </EffectComposerPmndrs>
+        </Suspense>
+        <VRMModel
+          ref="modelRef"
 
-        @loading-progress="(val: number) => emit('loadModelProgress', val)"
-        @load-start="onVRMModelLoadStart"
-        @camera-position="onVRMModelCameraPosition"
-        @model-origin="onVRMModelModelOrigin"
-        @model-size="onVRMModelModelSize"
-        @model-rotation-y="onVRMModelRotationY"
-        @eye-height="onVRMModelEyeHeight"
-        @look-at-target="onVRMModelLookAtTarget"
-        @error="(err: unknown) => emit('error', err)"
-        @loaded="onVRMModelLoaded"
-      />
-      <TresAxesHelper v-if="props.showAxes" :size="1" />
-    </TresCanvas>
-  </div>
+          :current-audio-source="props.currentAudioSource"
+          :model-src="props.modelSrc"
+          :last-model-src="lastModelSrc"
+          :idle-animation="props.idleAnimation"
+          :paused="props.paused"
+          :env-select="envSelect"
+          :sky-box-intensity="skyBoxIntensity"
+          :npr-irr-s-h="irrSHTex"
+          :model-offset="modelOffset"
+          :model-rotation-y="modelRotationY"
+          :look-at-target="lookAtTarget"
+          :tracking-mode="trackingMode"
+          :eye-height="eyeHeight"
+          :camera-position="cameraPosition"
+          :camera="camera"
+
+          @loading-progress="(val: number) => emit('loadModelProgress', val)"
+          @load-start="onVRMModelLoadStart"
+          @camera-position="onVRMModelCameraPosition"
+          @model-origin="onVRMModelModelOrigin"
+          @model-size="onVRMModelModelSize"
+          @model-rotation-y="onVRMModelRotationY"
+          @eye-height="onVRMModelEyeHeight"
+          @look-at-target="onVRMModelLookAtTarget"
+          @error="(err: unknown) => emit('error', err)"
+          @loaded="onVRMModelLoaded"
+        />
+        <TresAxesHelper v-if="props.showAxes" :size="1" />
+      </TresCanvas>
+    </div>
+  </Screen>
 </template>

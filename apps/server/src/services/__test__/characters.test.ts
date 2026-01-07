@@ -1,156 +1,104 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 
+import { mockDB } from '../../libs/mock-db'
 import { createCharacterService } from '../characters'
 
-import * as schema from '../../schemas/characters'
+import * as schema from '../../schemas'
 
 describe('characterService', () => {
   let db: any
   let service: ReturnType<typeof createCharacterService>
+  let testUser: any
 
-  beforeEach(() => {
-    db = {
-      query: {
-        character: {
-          findFirst: vi.fn(),
-          findMany: vi.fn(),
-        },
-      },
-      insert: vi.fn(() => ({
-        values: vi.fn(() => ({
-          returning: vi.fn(),
-        })),
-      })),
-      update: vi.fn(() => ({
-        set: vi.fn(() => ({
-          where: vi.fn(() => ({
-            returning: vi.fn(),
-          })),
-        })),
-      })),
-      delete: vi.fn(() => ({
-        where: vi.fn(() => ({
-          returning: vi.fn(),
-        })),
-      })),
-      transaction: vi.fn(async (cb: any) => {
-        const tx = {
-          insert: vi.fn(() => ({
-            values: vi.fn(() => ({
-              returning: vi.fn(),
-            })),
-          })),
-        }
-        return await cb(tx)
-      }),
-    }
+  beforeAll(async () => {
+    db = await mockDB(schema)
     service = createCharacterService(db)
+
+    // Create a test user for foreign key constraints
+    const [user] = await db.insert(schema.user).values({
+      id: 'user-1',
+      name: 'Test User',
+      email: 'test@example.com',
+    }).returning()
+    testUser = user
   })
 
-  it('findById should return a character with relations', async () => {
-    const mockChar = { id: '1', name: 'Test' }
-    db.query.character.findFirst.mockResolvedValue(mockChar)
-
-    const result = await service.findById('1')
-    expect(result).toEqual(mockChar)
-    expect(db.query.character.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.any(Object),
-      with: {
-        capabilities: true,
-        avatarModels: true,
-        i18n: true,
-        prompts: true,
-      },
-    }))
-  })
-
-  it('findByOwnerId should return user characters', async () => {
-    const mockChars = [{ id: '1' }]
-    db.query.character.findMany.mockResolvedValue(mockChars)
-
-    const result = await service.findByOwnerId('user-1')
-    expect(result).toEqual(mockChars)
-    expect(db.query.character.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.any(Object),
-      with: { i18n: true },
-    }))
-  })
-
-  it('create should handle full character creation in transaction', async () => {
-    const characterData = { id: 'char-1', name: 'Test' } as any
-    const insertedChar = { id: 'char-1' }
-
-    db.transaction.mockImplementation(async (cb: any) => {
-      const tx = {
-        insert: vi.fn(() => ({
-          values: vi.fn(() => ({
-            returning: vi.fn().mockResolvedValue([insertedChar]),
-          })),
-        })),
-      }
-      return await cb(tx)
-    })
+  it('create should handle full character creation', async () => {
+    const characterData = {
+      id: 'char-1',
+      version: '1.0',
+      coverUrl: 'url',
+      characterId: 'cid',
+      ownerId: testUser.id,
+      creatorId: testUser.id,
+    }
 
     const result = await service.create({
       character: characterData,
-      capabilities: [{ id: 'cap-1', type: 'llm', config: {} } as any],
+      i18n: [{ language: 'en', name: 'Aster', description: 'desc', tags: [] }],
+      cover: { foregroundUrl: 'fg', backgroundUrl: 'bg' },
     })
 
-    expect(result).toEqual(insertedChar)
-    expect(db.transaction).toHaveBeenCalled()
+    expect(result.id).toBe('char-1')
+
+    const found = await service.findById('char-1')
+    expect(found?.i18n[0].name).toBe('Aster')
+    expect(found?.cover?.foregroundUrl).toBe('fg')
   })
 
-  it('create should handle all optional relations', async () => {
-    const characterData = { id: 'char-1' } as any
-    const insertedChar = { id: 'char-1' }
-
-    db.transaction.mockImplementation(async (cb: any) => {
-      const tx = {
-        insert: vi.fn(() => ({
-          values: vi.fn(() => ({
-            returning: vi.fn().mockResolvedValue([insertedChar]),
-          })),
-        })),
-      }
-      return await cb(tx)
-    })
-
-    await service.create({
-      character: characterData,
-      avatarModels: [{ id: 'am-1' } as any],
-      i18n: [{ id: 'i18n-1' } as any],
-      prompts: [{ id: 'p-1' } as any],
-    })
-
-    expect(db.transaction).toHaveBeenCalled()
+  it('findAll should return characters with relations', async () => {
+    const result = await service.findAll()
+    expect(result.length).toBeGreaterThan(0)
+    expect(result[0].i18n).toBeDefined()
   })
 
-  it('update should update character and updatedAt', async () => {
-    const updateData = { version: '2.0' }
-    const mockReturning = [{ id: '1', ...updateData }]
+  it('like should toggle like status and update counter', async () => {
+    const charId = 'char-1'
 
-    // Setup nested mocks for update chain
-    const returningMock = vi.fn().mockResolvedValue(mockReturning)
-    const whereMock = vi.fn(() => ({ returning: returningMock }))
-    const setMock = vi.fn(() => ({ where: whereMock }))
-    db.update.mockReturnValue({ set: setMock })
+    // First like
+    const res1 = await service.like(testUser.id, charId)
+    expect(res1.liked).toBe(true)
 
-    const result = await service.update('1', updateData)
-    expect(result).toEqual(mockReturning)
-    expect(setMock).toHaveBeenCalledWith(expect.objectContaining({
-      ...updateData,
-      updatedAt: expect.any(Date),
-    }))
+    let char = await service.findById(charId)
+    expect(char?.likesCount).toBe(1)
+    expect(char?.likes.length).toBe(1)
+
+    // Second like (unlike)
+    const res2 = await service.like(testUser.id, charId)
+    expect(res2.liked).toBe(false)
+
+    char = await service.findById(charId)
+    expect(char?.likesCount).toBe(0)
+    expect(char?.likes.length).toBe(0)
   })
 
-  it('delete should remove character', async () => {
-    const mockReturning = [{ id: '1' }]
-    const returningMock = vi.fn().mockResolvedValue(mockReturning)
-    const whereMock = vi.fn(() => ({ returning: returningMock }))
-    db.delete.mockReturnValue({ where: whereMock })
+  it('bookmark should toggle bookmark status and update counter', async () => {
+    const charId = 'char-1'
 
-    const result = await service.delete('1')
-    expect(result).toEqual(mockReturning)
-    expect(db.delete).toHaveBeenCalledWith(schema.character)
+    // First bookmark
+    const res1 = await service.bookmark(testUser.id, charId)
+    expect(res1.bookmarked).toBe(true)
+
+    let char = await service.findById(charId)
+    expect(char?.bookmarksCount).toBe(1)
+
+    // Second bookmark (unbookmark)
+    const res2 = await service.bookmark(testUser.id, charId)
+    expect(res2.bookmarked).toBe(false)
+
+    char = await service.findById(charId)
+    expect(char?.bookmarksCount).toBe(0)
+  })
+
+  it('update should update character fields', async () => {
+    await service.update('char-1', { version: '2.0' })
+    const char = await service.findById('char-1')
+    expect(char?.version).toBe('2.0')
+  })
+
+  it('delete should soft delete character', async () => {
+    await service.delete('char-1')
+    const char = await service.findById('char-1')
+    expect(char).toBeUndefined()
   })
 })

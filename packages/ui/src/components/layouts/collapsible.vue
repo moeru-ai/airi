@@ -1,6 +1,7 @@
 <script lang="ts" setup>
-import { TransitionVertical } from '@proj-airi/ui'
 import { watchEffect } from 'vue'
+
+import { TransitionVertical } from '../animations'
 
 const props = defineProps<{
   default?: boolean

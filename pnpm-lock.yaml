@@ -18,6 +18,9 @@ catalogs:
     '@capacitor/local-notifications':
       specifier: ^8.0.0
       version: 8.0.0
+    '@electric-sql/pglite':
+      specifier: ^0.3.14
+      version: 0.3.14
     '@guiiai/logg':
       specifier: ^1.2.11
       version: 1.2.11
@@ -378,6 +381,9 @@ importers:
       '@dotenvx/dotenvx':
         specifier: ^1.51.1
         version: 1.51.4
+      '@electric-sql/pglite':
+        specifier: 'catalog:'
+        version: 0.3.14
       '@guiiai/logg':
         specifier: 'catalog:'
         version: 1.2.11
@@ -386,13 +392,13 @@ importers:
         version: 1.19.7(hono@4.11.3)
       better-auth:
         specifier: ^1.4.5
-        version: 1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.44.7(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3))
+        version: 1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.44.7(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3))
       drizzle-orm:
         specifier: ^0.44.7
-        version: 0.44.7(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
+        version: 0.44.7(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
       drizzle-valibot:
         specifier: 'catalog:'
-        version: 0.4.2(drizzle-orm@0.44.7(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))(valibot@1.2.0(typescript@5.9.3))
+        version: 0.4.2(drizzle-orm@0.44.7(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))(valibot@1.2.0(typescript@5.9.3))
       hono:
         specifier: 'catalog:'
         version: 4.11.3
@@ -411,7 +417,7 @@ importers:
     devDependencies:
       '@better-auth/cli':
         specifier: ^1.4.5
-        version: 1.4.10(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.0)(better-call@1.1.7(zod@4.2.1))(drizzle-kit@0.31.8)(jose@6.1.3)(kysely@0.28.9)(magicast@0.5.1)(nanostores@1.1.0)(postgres@3.4.7)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3))
+        version: 1.4.10(@better-fetch/fetch@1.1.21)(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(better-call@1.1.7(zod@4.2.1))(drizzle-kit@0.31.8)(jose@6.1.3)(kysely@0.28.9)(magicast@0.5.1)(nanostores@1.1.0)(postgres@3.4.7)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3))
       drizzle-kit:
         specifier: ^0.31.7
         version: 0.31.8
@@ -450,7 +456,7 @@ importers:
         version: link:../../packages/ccc
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
-        version: 0.4.29(drizzle-orm@0.45.1(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))
+        version: 0.4.29(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))
       '@proj-airi/font-cjkfonts-allseto':
         specifier: workspace:^
         version: link:../../packages/font-cjkfonts-allseto
@@ -555,7 +561,7 @@ importers:
         version: 0.31.8
       drizzle-orm:
         specifier: ^0.45.1
-        version: 0.45.1(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
+        version: 0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
       gpuu:
         specifier: ^1.0.6
         version: 1.0.6
@@ -697,7 +703,7 @@ importers:
         version: 1.0.18
       '@proj-airi/unplugin-fetch':
         specifier: ^0.2.1
-        version: 0.2.1(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+        version: 0.2.1(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       '@proj-airi/unplugin-live2d-sdk':
         specifier: ^0.1.6
         version: 0.1.6(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
@@ -730,7 +736,7 @@ importers:
         version: 66.5.11
       '@vitejs/plugin-vue':
         specifier: ^6.0.3
-        version: 6.0.3(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
+        version: 6.0.3(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
       '@vue-macros/volar':
         specifier: ^3.1.1
         version: 3.1.1(typescript@5.9.3)(vue-tsc@3.2.1(typescript@5.9.3))(vue@3.5.25(typescript@5.9.3))
@@ -748,34 +754,34 @@ importers:
         version: 4.5.1
       unplugin-info:
         specifier: ^1.2.4
-        version: 1.2.4(esbuild@0.27.2)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rollup@2.79.2)
+        version: 1.2.4(esbuild@0.25.12)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rollup@2.79.2)
       unplugin-vue-router:
         specifier: ^0.19.0
         version: 0.19.2(@vue/compiler-sfc@3.5.26)(vue-router@4.6.4(vue@3.5.25(typescript@5.9.3)))(vue@3.5.25(typescript@5.9.3))
       unplugin-yaml:
         specifier: ^3.0.7
-        version: 3.0.7(esbuild@0.27.2)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@2.79.2)
+        version: 3.0.7(esbuild@0.25.12)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@2.79.2)
       vite:
         specifier: catalog:rolldown-vite
-        version: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+        version: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
       vite-bundle-visualizer:
         specifier: ^1.2.1
         version: 1.2.1(rolldown@1.0.0-beta.53)(rollup@2.79.2)
       vite-plugin-mkcert:
         specifier: 'catalog:'
-        version: 1.17.9(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+        version: 1.17.9(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       vite-plugin-pwa:
         specifier: ^1.2.0
-        version: 1.2.0(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(workbox-build@7.4.0)(workbox-window@7.4.0)
+        version: 1.2.0(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(workbox-build@7.4.0)(workbox-window@7.4.0)
       vite-plugin-vue-devtools:
         specifier: ^8.0.5
-        version: 8.0.5(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
+        version: 8.0.5(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
       vite-plugin-vue-layouts:
         specifier: ^0.11.0
-        version: 0.11.0(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue-router@4.6.4(vue@3.5.25(typescript@5.9.3)))(vue@3.5.25(typescript@5.9.3))
+        version: 0.11.0(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue-router@4.6.4(vue@3.5.25(typescript@5.9.3)))(vue@3.5.25(typescript@5.9.3))
       vue-macros:
         specifier: ^3.1.1
-        version: 3.1.1(@vueuse/core@14.1.0(vue@3.5.25(typescript@5.9.3)))(esbuild@0.27.2)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@2.79.2)(typescript@5.9.3)(vue-tsc@3.2.1(typescript@5.9.3))(vue@3.5.25(typescript@5.9.3))
+        version: 3.1.1(@vueuse/core@14.1.0(vue@3.5.25(typescript@5.9.3)))(esbuild@0.25.12)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@2.79.2)(typescript@5.9.3)(vue-tsc@3.2.1(typescript@5.9.3))(vue@3.5.25(typescript@5.9.3))
       vue-tsc:
         specifier: ^3.1.8
         version: 3.2.1(typescript@5.9.3)
@@ -847,7 +853,7 @@ importers:
         version: link:../../packages/ccc
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
-        version: 0.4.29(drizzle-orm@0.45.1(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))
+        version: 0.4.29(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))
       '@proj-airi/font-cjkfonts-allseto':
         specifier: workspace:^
         version: link:../../packages/font-cjkfonts-allseto
@@ -949,7 +955,7 @@ importers:
         version: 0.31.8
       drizzle-orm:
         specifier: ^0.45.1
-        version: 0.45.1(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
+        version: 0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
       electron-audio-loopback:
         specifier: ^1.0.6
         version: 1.0.6(electron@39.2.7)
@@ -1112,7 +1118,7 @@ importers:
         version: link:../../packages/ui-transitions
       '@proj-airi/unplugin-fetch':
         specifier: ^0.2.1
-        version: 0.2.1(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+        version: 0.2.1(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       '@proj-airi/unplugin-live2d-sdk':
         specifier: ^0.1.6
         version: 0.1.6(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
@@ -1142,7 +1148,7 @@ importers:
         version: 66.5.11
       '@vitejs/plugin-vue':
         specifier: ^6.0.3
-        version: 6.0.3(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
+        version: 6.0.3(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
       '@vue-macros/volar':
         specifier: ^3.1.1
         version: 3.1.1(typescript@5.9.3)(vue-tsc@3.2.1(typescript@5.9.3))(vue@3.5.25(typescript@5.9.3))
@@ -1169,37 +1175,37 @@ importers:
         version: 26.4.0(electron-builder-squirrel-windows@26.4.0)
       electron-vite:
         specifier: ^5.0.0
-        version: 5.0.0(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+        version: 5.0.0(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       less:
         specifier: ^4.5.1
         version: 4.5.1
       unocss-preset-scrollbar:
         specifier: ^3.2.0
-        version: 3.2.0(unocss@66.5.11(postcss@8.5.6)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)))
+        version: 3.2.0(unocss@66.5.11(postcss@8.5.6)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)))
       unplugin-info:
         specifier: ^1.2.4
-        version: 1.2.4(esbuild@0.25.12)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rollup@4.54.0)
+        version: 1.2.4(esbuild@0.27.2)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rollup@4.54.0)
       unplugin-vue-router:
         specifier: ^0.19.0
         version: 0.19.2(@vue/compiler-sfc@3.5.26)(vue-router@4.6.4(vue@3.5.25(typescript@5.9.3)))(vue@3.5.25(typescript@5.9.3))
       unplugin-yaml:
         specifier: ^3.0.7
-        version: 3.0.7(esbuild@0.25.12)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@4.54.0)
+        version: 3.0.7(esbuild@0.27.2)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@4.54.0)
       vite:
         specifier: catalog:rolldown-vite
-        version: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+        version: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
       vite-bundle-visualizer:
         specifier: ^1.2.1
         version: 1.2.1(rolldown@1.0.0-beta.53)(rollup@4.54.0)
       vite-plugin-vue-devtools:
         specifier: ^8.0.5
-        version: 8.0.5(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
+        version: 8.0.5(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
       vite-plugin-vue-layouts:
         specifier: ^0.11.0
-        version: 0.11.0(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue-router@4.6.4(vue@3.5.25(typescript@5.9.3)))(vue@3.5.25(typescript@5.9.3))
+        version: 0.11.0(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue-router@4.6.4(vue@3.5.25(typescript@5.9.3)))(vue@3.5.25(typescript@5.9.3))
       vue-macros:
         specifier: ^3.1.1
-        version: 3.1.1(@vueuse/core@14.1.0(vue@3.5.25(typescript@5.9.3)))(esbuild@0.25.12)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@4.54.0)(typescript@5.9.3)(vue-tsc@3.2.1(typescript@5.9.3))(vue@3.5.25(typescript@5.9.3))
+        version: 3.1.1(@vueuse/core@14.1.0(vue@3.5.25(typescript@5.9.3)))(esbuild@0.27.2)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@4.54.0)(typescript@5.9.3)(vue-tsc@3.2.1(typescript@5.9.3))(vue@3.5.25(typescript@5.9.3))
       vue-tsc:
         specifier: ^3.1.8
         version: 3.2.1(typescript@5.9.3)
@@ -1232,7 +1238,7 @@ importers:
         version: link:../../packages/ccc
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
-        version: 0.4.29(drizzle-orm@0.45.1(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))
+        version: 0.4.29(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))
       '@proj-airi/font-cjkfonts-allseto':
         specifier: workspace:^
         version: link:../../packages/font-cjkfonts-allseto
@@ -1325,7 +1331,7 @@ importers:
         version: 4.2.2
       better-auth:
         specifier: ^1.4.5
-        version: 1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.45.1(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3))
+        version: 1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3))
       colorjs.io:
         specifier: ^0.5.2
         version: 0.5.2
@@ -1346,7 +1352,7 @@ importers:
         version: 0.31.8
       drizzle-orm:
         specifier: ^0.45.1
-        version: 0.45.1(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
+        version: 0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
       gpuu:
         specifier: ^1.0.6
         version: 1.0.6
@@ -1791,7 +1797,7 @@ importers:
         version: link:../server-sdk
       drizzle-orm:
         specifier: ^0.45.1
-        version: 0.45.1(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
+        version: 0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
       postgres:
         specifier: ^3.4.7
         version: 3.4.7
@@ -2012,6 +2018,12 @@ importers:
       '@proj-airi/stage-ui':
         specifier: workspace:*
         version: link:../stage-ui
+      '@proj-airi/stage-ui-live2d':
+        specifier: workspace:*
+        version: link:../stage-ui-live2d
+      '@proj-airi/stage-ui-three':
+        specifier: workspace:*
+        version: link:../stage-ui-three
       '@proj-airi/ui':
         specifier: workspace:*
         version: link:../ui
@@ -2127,60 +2139,9 @@ importers:
       '@huggingface/transformers':
         specifier: ^3.8.1
         version: 3.8.1
-      '@lemonneko/crop-empty-pixels':
-        specifier: 0.1.1
-        version: 0.1.1
       '@moeru/eventa':
         specifier: ^1.0.0-alpha.10
         version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
-      '@pixi/app':
-        specifier: ^6.5.10
-        version: 6.5.10(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/display@6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
-      '@pixi/constants':
-        specifier: ^6.5.10
-        version: 6.5.10
-      '@pixi/core':
-        specifier: ^6.5.10
-        version: 6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
-      '@pixi/display':
-        specifier: ^6.5.10
-        version: 6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
-      '@pixi/extensions':
-        specifier: ^6.5.10
-        version: 6.5.10
-      '@pixi/interaction':
-        specifier: ^6.5.10
-        version: 6.5.10(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/display@6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
-      '@pixi/loaders':
-        specifier: ^6.5.10
-        version: 6.5.10(@pixi/constants@6.5.10)(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
-      '@pixi/math':
-        specifier: ^6.5.10
-        version: 6.5.10
-      '@pixi/runner':
-        specifier: ^6.5.10
-        version: 6.5.10
-      '@pixi/settings':
-        specifier: ^6.5.10
-        version: 6.5.10(@pixi/constants@6.5.10)
-      '@pixi/sprite':
-        specifier: ^6.5.10
-        version: 6.5.10(@pixi/constants@6.5.10)(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/display@6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
-      '@pixi/ticker':
-        specifier: ^6.5.10
-        version: 6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))
-      '@pixi/utils':
-        specifier: '6'
-        version: 6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))
-      '@pixiv/three-vrm':
-        specifier: ^3.4.4
-        version: 3.4.4(three@0.182.0)
-      '@pixiv/three-vrm-animation':
-        specifier: ^3.4.4
-        version: 3.4.4(three@0.182.0)
-      '@pixiv/three-vrm-core':
-        specifier: ^3.4.4
-        version: 3.4.4(three@0.182.0)
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../audio
@@ -2192,7 +2153,7 @@ importers:
         version: 1.0.2
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
-        version: 0.4.29(drizzle-orm@0.45.1(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))
+        version: 0.4.29(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))
       '@proj-airi/font-cjkfonts-allseto':
         specifier: workspace:^
         version: link:../font-cjkfonts-allseto
@@ -2211,6 +2172,9 @@ importers:
       '@proj-airi/stage-shared':
         specifier: workspace:^
         version: link:../stage-shared
+      '@proj-airi/stage-ui-live2d':
+        specifier: workspace:^
+        version: link:../stage-ui-live2d
       '@proj-airi/stage-ui-three':
         specifier: workspace:^
         version: link:../stage-ui-three
@@ -2282,7 +2246,7 @@ importers:
         version: 4.2.2
       better-auth:
         specifier: 'catalog:'
-        version: 1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.45.1(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3))
+        version: 1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3))
       culori:
         specifier: ^4.0.2
         version: 4.0.2
@@ -2304,9 +2268,6 @@ importers:
       html2canvas:
         specifier: ^1.4.1
         version: 1.4.1
-      jszip:
-        specifier: ^3.10.1
-        version: 3.10.1
       localforage:
         specifier: ^1.10.0
         version: 1.10.0
@@ -2325,18 +2286,9 @@ importers:
       pinia:
         specifier: ^3.0.4
         version: 3.0.4(typescript@5.9.3)(vue@3.5.25(typescript@5.9.3))
-      pixi-filters:
-        specifier: '4'
-        version: 4.2.0(5af797a0b5bd919a06578c24a7479046)
-      pixi-live2d-display:
-        specifier: ^0.4.0
-        version: 0.4.0(0736f5bd67d2e4de7e9fff36ad63fa2e)
       posthog-js:
         specifier: 'catalog:'
         version: 1.306.1
-      postprocessing:
-        specifier: ^6.38.2
-        version: 6.38.2(three@0.182.0)
       rehype-katex:
         specifier: ^7.0.1
         version: 7.0.1
@@ -2364,9 +2316,6 @@ importers:
       splitpanes:
         specifier: 'catalog:'
         version: 4.0.4(vue@3.5.25(typescript@5.9.3))
-      three:
-        specifier: ^0.182.0
-        version: 0.182.0
       unified:
         specifier: ^11.0.5
         version: 11.0.5
@@ -2491,9 +2440,6 @@ importers:
       '@types/splitpanes':
         specifier: 'catalog:'
         version: 2.2.6
-      '@types/three':
-        specifier: ^0.182.0
-        version: 0.182.0
       '@types/unist':
         specifier: 'catalog:'
         version: 3.0.3
@@ -2534,6 +2480,94 @@ importers:
         specifier: ^3.1.8
         version: 3.2.1(typescript@5.9.3)
 
+  packages/stage-ui-live2d:
+    dependencies:
+      '@lemonneko/crop-empty-pixels':
+        specifier: 0.1.1
+        version: 0.1.1
+      '@pixi/app':
+        specifier: ^6.5.10
+        version: 6.5.10(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/display@6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
+      '@pixi/constants':
+        specifier: ^6.5.10
+        version: 6.5.10
+      '@pixi/core':
+        specifier: ^6.5.10
+        version: 6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
+      '@pixi/display':
+        specifier: ^6.5.10
+        version: 6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
+      '@pixi/extensions':
+        specifier: ^6.5.10
+        version: 6.5.10
+      '@pixi/interaction':
+        specifier: ^6.5.10
+        version: 6.5.10(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/display@6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
+      '@pixi/loaders':
+        specifier: ^6.5.10
+        version: 6.5.10(@pixi/constants@6.5.10)(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
+      '@pixi/math':
+        specifier: ^6.5.10
+        version: 6.5.10
+      '@pixi/runner':
+        specifier: ^6.5.10
+        version: 6.5.10
+      '@pixi/settings':
+        specifier: ^6.5.10
+        version: 6.5.10(@pixi/constants@6.5.10)
+      '@pixi/sprite':
+        specifier: ^6.5.10
+        version: 6.5.10(@pixi/constants@6.5.10)(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/display@6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
+      '@pixi/ticker':
+        specifier: ^6.5.10
+        version: 6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))
+      '@pixi/utils':
+        specifier: ^6.5.10
+        version: 6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))
+      '@proj-airi/stage-shared':
+        specifier: workspace:^
+        version: link:../stage-shared
+      '@proj-airi/ui':
+        specifier: workspace:^
+        version: link:../ui
+      '@vueuse/core':
+        specifier: ^14.1.0
+        version: 14.1.0(vue@3.5.25(typescript@5.9.3))
+      culori:
+        specifier: ^4.0.2
+        version: 4.0.2
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.43.0
+      jszip:
+        specifier: ^3.10.1
+        version: 3.10.1
+      pinia:
+        specifier: ^3.0.4
+        version: 3.0.4(typescript@5.9.3)(vue@3.5.25(typescript@5.9.3))
+      pixi-filters:
+        specifier: '4'
+        version: 4.2.0(5af797a0b5bd919a06578c24a7479046)
+      pixi-live2d-display:
+        specifier: ^0.4.0
+        version: 0.4.0(0736f5bd67d2e4de7e9fff36ad63fa2e)
+      three:
+        specifier: ^0.182.0
+        version: 0.182.0
+      vue:
+        specifier: ^3.5.25
+        version: 3.5.25(typescript@5.9.3)
+    devDependencies:
+      '@types/culori':
+        specifier: ^4.0.1
+        version: 4.0.1
+      '@types/three':
+        specifier: ^0.182.0
+        version: 0.182.0
+      vue-tsc:
+        specifier: ^3.1.8
+        version: 3.2.1(typescript@5.9.3)
+
   packages/stage-ui-three:
     dependencies:
       '@pixiv/three-vrm':
@@ -2548,6 +2582,9 @@ importers:
       '@proj-airi/stage-shared':
         specifier: workspace:*
         version: link:../stage-shared
+      '@proj-airi/ui':
+        specifier: workspace:*
+        version: link:../ui
       '@tresjs/cientos':
         specifier: ^5.2.1
         version: 5.2.1(@tresjs/core@5.2.1(three@0.182.0)(vue@3.5.25(typescript@5.9.3)))(@types/three@0.182.0)(react@19.2.3)(three@0.182.0)(vue@3.5.25(typescript@5.9.3))
@@ -2838,7 +2875,7 @@ importers:
         version: 66.5.11
       '@wxt-dev/module-vue':
         specifier: ^1.0.3
-        version: 1.0.3(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+        version: 1.0.3(vite@8.0.0-beta.5(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       vue-tsc:
         specifier: ^3.1.8
         version: 3.2.1(typescript@5.9.3)
@@ -3097,7 +3134,7 @@ importers:
         version: 1.2.1
       drizzle-orm:
         specifier: ^0.45.1
-        version: 0.45.1(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
+        version: 0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
       es-toolkit:
         specifier: ^1.43.0
         version: 1.43.0
@@ -4288,6 +4325,9 @@ packages:
     engines: {bun: '>=1', deno: '>=2', node: '>=16'}
     peerDependencies:
       '@noble/ciphers': ^1.0.0
+
+  '@electric-sql/pglite@0.3.14':
+    resolution: {integrity: sha512-3DB258dhqdsArOI1fIt7cb9RpUOgcDg5hXWVgVHAeqVQ/qxtFy605QKs4gx6mFq3jWsSPqDN8TgSEsqC3OfV9Q==}
 
   '@electron-toolkit/eslint-config-ts@3.1.0':
     resolution: {integrity: sha512-MowZQKd3yxXSDLack5QvjQwYHhpOJFoWBGBwJ/k+DCd7NUSendplECbQGFp86tPQYPUrPBPceR/hdsSAnaY5ZQ==}
@@ -17528,7 +17568,7 @@ snapshots:
 
   '@bcoe/v8-coverage@1.0.2': {}
 
-  '@better-auth/cli@1.4.10(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.0)(better-call@1.1.7(zod@4.2.1))(drizzle-kit@0.31.8)(jose@6.1.3)(kysely@0.28.9)(magicast@0.5.1)(nanostores@1.1.0)(postgres@3.4.7)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3))':
+  '@better-auth/cli@1.4.10(@better-fetch/fetch@1.1.21)(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(better-call@1.1.7(zod@4.2.1))(drizzle-kit@0.31.8)(jose@6.1.3)(kysely@0.28.9)(magicast@0.5.1)(nanostores@1.1.0)(postgres@3.4.7)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3))':
     dependencies:
       '@babel/core': 7.28.5
       '@babel/preset-react': 7.28.5(@babel/core@7.28.5)
@@ -17540,13 +17580,13 @@ snapshots:
       '@mrleebo/prisma-ast': 0.13.1
       '@prisma/client': 5.22.0
       '@types/pg': 8.16.0
-      better-auth: 1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.33.0(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)(react@19.2.3))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3))
+      better-auth: 1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.33.0(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)(react@19.2.3))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3))
       better-sqlite3: 12.5.0
       c12: 3.3.3(magicast@0.5.1)
       chalk: 5.6.2
       commander: 12.1.0
       dotenv: 17.2.3
-      drizzle-orm: 0.33.0(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)(react@19.2.3)
+      drizzle-orm: 0.33.0(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)(react@19.2.3)
       open: 10.2.0
       pg: 8.16.3
       prettier: 3.7.4
@@ -17963,6 +18003,8 @@ snapshots:
   '@ecies/ciphers@0.2.5(@noble/ciphers@1.3.0)':
     dependencies:
       '@noble/ciphers': 1.3.0
+
+  '@electric-sql/pglite@0.3.14': {}
 
   '@electron-toolkit/eslint-config-ts@3.1.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)':
     dependencies:
@@ -20781,20 +20823,20 @@ snapshots:
     dependencies:
       culori: 4.0.2
 
-  '@proj-airi/drizzle-duckdb-wasm@0.4.29(drizzle-orm@0.45.1(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))':
+  '@proj-airi/drizzle-duckdb-wasm@0.4.29(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))':
     dependencies:
       '@date-fns/tz': 1.4.1
       '@duckdb/duckdb-wasm': 1.29.1-dev68.0
       '@moeru/std': 0.1.0-beta.1
-      '@proj-airi/duckdb-wasm': 0.4.29(drizzle-orm@0.45.1(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))
+      '@proj-airi/duckdb-wasm': 0.4.29(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))
       apache-arrow: 21.1.0
       date-fns: 4.1.0
-      drizzle-orm: 0.45.1(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
+      drizzle-orm: 0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
       es-toolkit: 1.43.0
     transitivePeerDependencies:
       - '@75lb/nature'
 
-  '@proj-airi/duckdb-wasm@0.4.29(drizzle-orm@0.45.1(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))':
+  '@proj-airi/duckdb-wasm@0.4.29(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))':
     dependencies:
       '@date-fns/tz': 1.4.1
       '@duckdb/duckdb-wasm': 1.29.1-dev68.0
@@ -20802,7 +20844,7 @@ snapshots:
       apache-arrow: 21.1.0
       date-fns: 4.1.0
       defu: 6.1.4
-      drizzle-orm: 0.45.1(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
+      drizzle-orm: 0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
       es-toolkit: 1.43.0
     transitivePeerDependencies:
       - '@75lb/nature'
@@ -21717,13 +21759,13 @@ snapshots:
 
   '@ungap/structured-clone@1.3.0': {}
 
-  '@unocss/astro@66.5.11(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
+  '@unocss/astro@66.5.11(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
       '@unocss/core': 66.5.11
       '@unocss/reset': 66.5.11
-      '@unocss/vite': 66.5.11(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+      '@unocss/vite': 66.5.11(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
     optionalDependencies:
-      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
   '@unocss/astro@66.5.11(vite@6.4.1(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
@@ -21905,7 +21947,7 @@ snapshots:
     dependencies:
       '@unocss/core': 66.5.11
 
-  '@unocss/vite@66.5.11(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
+  '@unocss/vite@66.5.11(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
       '@jridgewell/remapping': 2.3.5
       '@unocss/config': 66.5.11
@@ -21916,7 +21958,7 @@ snapshots:
       pathe: 2.0.3
       tinyglobby: 0.2.15
       unplugin-utils: 0.3.1
-      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
   '@unocss/vite@66.5.11(vite@6.4.1(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
@@ -22063,6 +22105,12 @@ snapshots:
     dependencies:
       '@rolldown/pluginutils': 1.0.0-beta.53
       vite: 7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vue: 3.5.25(typescript@5.9.3)
+
+  '@vitejs/plugin-vue@6.0.3(vite@8.0.0-beta.5(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))':
+    dependencies:
+      '@rolldown/pluginutils': 1.0.0-beta.53
+      vite: 8.0.0-beta.5(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
       vue: 3.5.25(typescript@5.9.3)
 
   '@vitest/browser-playwright@4.0.16(bufferutil@4.1.0)(playwright@1.57.0)(utf-8-validate@5.0.10)(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vitest@4.0.16)':
@@ -22831,9 +22879,9 @@ snapshots:
       '@types/filesystem': 0.0.36
       '@types/har-format': 1.2.16
 
-  '@wxt-dev/module-vue@1.0.3(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
+  '@wxt-dev/module-vue@1.0.3(vite@8.0.0-beta.5(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
-      '@vitejs/plugin-vue': 6.0.3(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
+      '@vitejs/plugin-vue': 6.0.3(vite@8.0.0-beta.5(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
       wxt: 0.20.13(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - vite
@@ -23353,7 +23401,7 @@ snapshots:
 
   best-effort-json-parser@1.2.1: {}
 
-  better-auth@1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.33.0(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)(react@19.2.3))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3)):
+  better-auth@1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.33.0(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)(react@19.2.3))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3)):
     dependencies:
       '@better-auth/core': 1.4.10(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.7(zod@4.2.1))(jose@6.1.3)(kysely@0.28.9)(nanostores@1.1.0)
       '@better-auth/telemetry': 1.4.10(@better-auth/core@1.4.10(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.7(zod@4.2.1))(jose@6.1.3)(kysely@0.28.9)(nanostores@1.1.0))
@@ -23371,13 +23419,13 @@ snapshots:
       '@prisma/client': 5.22.0
       better-sqlite3: 12.5.0
       drizzle-kit: 0.31.8
-      drizzle-orm: 0.33.0(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)(react@19.2.3)
+      drizzle-orm: 0.33.0(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)(react@19.2.3)
       pg: 8.16.3
       react: 19.2.3
       vitest: 4.0.16(@opentelemetry/api@1.9.0)(@types/node@24.10.4)(@vitest/browser-playwright@4.0.16)(jiti@2.6.1)(jsdom@25.0.1(bufferutil@4.1.0)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
       vue: 3.5.25(typescript@5.9.3)
 
-  better-auth@1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.44.7(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3)):
+  better-auth@1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.44.7(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3)):
     dependencies:
       '@better-auth/core': 1.4.10(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.7(zod@4.2.1))(jose@6.1.3)(kysely@0.28.9)(nanostores@1.1.0)
       '@better-auth/telemetry': 1.4.10(@better-auth/core@1.4.10(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.7(zod@4.2.1))(jose@6.1.3)(kysely@0.28.9)(nanostores@1.1.0))
@@ -23395,13 +23443,13 @@ snapshots:
       '@prisma/client': 5.22.0
       better-sqlite3: 12.5.0
       drizzle-kit: 0.31.8
-      drizzle-orm: 0.44.7(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
+      drizzle-orm: 0.44.7(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
       pg: 8.16.3
       react: 19.2.3
       vitest: 4.0.16(@opentelemetry/api@1.9.0)(@types/node@24.10.4)(@vitest/browser-playwright@4.0.16)(jiti@2.6.1)(jsdom@25.0.1(bufferutil@4.1.0)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
       vue: 3.5.25(typescript@5.9.3)
 
-  better-auth@1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.45.1(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3)):
+  better-auth@1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3)):
     dependencies:
       '@better-auth/core': 1.4.10(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.7(zod@4.2.1))(jose@6.1.3)(kysely@0.28.9)(nanostores@1.1.0)
       '@better-auth/telemetry': 1.4.10(@better-auth/core@1.4.10(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.7(zod@4.2.1))(jose@6.1.3)(kysely@0.28.9)(nanostores@1.1.0))
@@ -23419,7 +23467,7 @@ snapshots:
       '@prisma/client': 5.22.0
       better-sqlite3: 12.5.0
       drizzle-kit: 0.31.8
-      drizzle-orm: 0.45.1(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
+      drizzle-orm: 0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
       pg: 8.16.3
       react: 19.2.3
       vitest: 4.0.16(@opentelemetry/api@1.9.0)(@types/node@24.10.4)(@vitest/browser-playwright@4.0.16)(jiti@2.6.1)(jsdom@25.0.1(bufferutil@4.1.0)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
@@ -24299,8 +24347,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.33.0(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)(react@19.2.3):
+  drizzle-orm@0.33.0(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)(react@19.2.3):
     optionalDependencies:
+      '@electric-sql/pglite': 0.3.14
       '@opentelemetry/api': 1.9.0
       '@prisma/client': 5.22.0
       '@types/pg': 8.16.0
@@ -24310,8 +24359,9 @@ snapshots:
       postgres: 3.4.7
       react: 19.2.3
 
-  drizzle-orm@0.44.7(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7):
+  drizzle-orm@0.44.7(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7):
     optionalDependencies:
+      '@electric-sql/pglite': 0.3.14
       '@opentelemetry/api': 1.9.0
       '@prisma/client': 5.22.0
       '@types/pg': 8.16.0
@@ -24320,8 +24370,9 @@ snapshots:
       pg: 8.16.3
       postgres: 3.4.7
 
-  drizzle-orm@0.45.1(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7):
+  drizzle-orm@0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7):
     optionalDependencies:
+      '@electric-sql/pglite': 0.3.14
       '@opentelemetry/api': 1.9.0
       '@prisma/client': 5.22.0
       '@types/pg': 8.16.0
@@ -24330,9 +24381,9 @@ snapshots:
       pg: 8.16.3
       postgres: 3.4.7
 
-  drizzle-valibot@0.4.2(drizzle-orm@0.44.7(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))(valibot@1.2.0(typescript@5.9.3)):
+  drizzle-valibot@0.4.2(drizzle-orm@0.44.7(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))(valibot@1.2.0(typescript@5.9.3)):
     dependencies:
-      drizzle-orm: 0.44.7(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
+      drizzle-orm: 0.44.7(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
       valibot: 1.2.0(typescript@5.9.3)
 
   dts-resolver@2.1.3(oxc-resolver@11.16.2):
@@ -24427,7 +24478,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  electron-vite@5.0.0(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)):
+  electron-vite@5.0.0(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)):
     dependencies:
       '@babel/core': 7.28.5
       '@babel/plugin-transform-arrow-functions': 7.27.1(@babel/core@7.28.5)
@@ -24435,7 +24486,7 @@ snapshots:
       esbuild: 0.25.12
       magic-string: 0.30.21
       picocolors: 1.1.1
-      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - supports-color
 
@@ -30429,19 +30480,19 @@ snapshots:
 
   universalify@2.0.1: {}
 
-  unocss-preset-scrollbar@3.2.0(unocss@66.5.11(postcss@8.5.6)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))):
+  unocss-preset-scrollbar@3.2.0(unocss@66.5.11(postcss@8.5.6)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))):
     dependencies:
       '@unocss/preset-mini': 65.5.0
-      unocss: 66.5.11(postcss@8.5.6)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+      unocss: 66.5.11(postcss@8.5.6)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
 
   unocss-preset-scrollbar@3.2.0(unocss@66.5.11(postcss@8.5.6)(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))):
     dependencies:
       '@unocss/preset-mini': 65.5.0
       unocss: 66.5.11(postcss@8.5.6)(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
 
-  unocss@66.5.11(postcss@8.5.6)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)):
+  unocss@66.5.11(postcss@8.5.6)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)):
     dependencies:
-      '@unocss/astro': 66.5.11(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+      '@unocss/astro': 66.5.11(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       '@unocss/cli': 66.5.11
       '@unocss/core': 66.5.11
       '@unocss/postcss': 66.5.11(postcss@8.5.6)
@@ -30459,9 +30510,9 @@ snapshots:
       '@unocss/transformer-compile-class': 66.5.11
       '@unocss/transformer-directives': 66.5.11
       '@unocss/transformer-variant-group': 66.5.11
-      '@unocss/vite': 66.5.11(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+      '@unocss/vite': 66.5.11(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
     optionalDependencies:
-      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - postcss
       - supports-color
@@ -30522,21 +30573,13 @@ snapshots:
 
   unpipe@1.0.0: {}
 
-  unplugin-combine@2.1.3(esbuild@0.25.12)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@4.54.0)(unplugin@2.3.11):
+  unplugin-combine@2.1.3(esbuild@0.25.12)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@2.79.2)(unplugin@2.3.11):
     optionalDependencies:
       esbuild: 0.25.12
       rolldown: 1.0.0-beta.53
-      rollup: 4.54.0
-      unplugin: 2.3.11
-      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
-
-  unplugin-combine@2.1.3(esbuild@0.27.2)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@2.79.2)(unplugin@2.3.11):
-    optionalDependencies:
-      esbuild: 0.27.2
-      rolldown: 1.0.0-beta.53
       rollup: 2.79.2
       unplugin: 2.3.11
-      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
   unplugin-combine@2.1.3(esbuild@0.27.2)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@4.54.0)(unplugin@2.3.11):
     optionalDependencies:
@@ -30546,7 +30589,7 @@ snapshots:
       unplugin: 2.3.11
       vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
-  unplugin-info@1.2.4(esbuild@0.25.12)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rollup@4.54.0):
+  unplugin-info@1.2.4(esbuild@0.25.12)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rollup@2.79.2):
     dependencies:
       ci-info: 4.3.1
       git-url-parse: 16.1.0
@@ -30554,21 +30597,8 @@ snapshots:
       unplugin: 2.3.11
     optionalDependencies:
       esbuild: 0.25.12
-      rollup: 4.54.0
-      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
-    transitivePeerDependencies:
-      - supports-color
-
-  unplugin-info@1.2.4(esbuild@0.27.2)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rollup@2.79.2):
-    dependencies:
-      ci-info: 4.3.1
-      git-url-parse: 16.1.0
-      simple-git: 3.30.0
-      unplugin: 2.3.11
-    optionalDependencies:
-      esbuild: 0.27.2
       rollup: 2.79.2
-      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - supports-color
 
@@ -30707,27 +30737,16 @@ snapshots:
       rollup: 4.54.0
       vite: 7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
-  unplugin-yaml@3.0.7(esbuild@0.25.12)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@4.54.0):
-    dependencies:
-      '@rollup/pluginutils': 5.3.0(rollup@4.54.0)
-      unplugin: 2.3.10
-      yaml: 2.8.1
-    optionalDependencies:
-      esbuild: 0.25.12
-      rolldown: 1.0.0-beta.53
-      rollup: 4.54.0
-      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
-
-  unplugin-yaml@3.0.7(esbuild@0.27.2)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@2.79.2):
+  unplugin-yaml@3.0.7(esbuild@0.25.12)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@2.79.2):
     dependencies:
       '@rollup/pluginutils': 5.3.0(rollup@2.79.2)
       unplugin: 2.3.10
       yaml: 2.8.1
     optionalDependencies:
-      esbuild: 0.27.2
+      esbuild: 0.25.12
       rolldown: 1.0.0-beta.53
       rollup: 2.79.2
-      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
   unplugin-yaml@3.0.7(esbuild@0.27.2)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@4.54.0):
     dependencies:
@@ -31040,12 +31059,23 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  vite-plugin-mkcert@1.17.9(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)):
+  vite-plugin-mkcert@1.17.9(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)):
     dependencies:
       axios: feaxios@0.0.23
       debug: 4.4.3
       picocolors: 1.1.1
-      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+    transitivePeerDependencies:
+      - supports-color
+
+  vite-plugin-pwa@1.2.0(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(workbox-build@7.4.0)(workbox-window@7.4.0):
+    dependencies:
+      debug: 4.4.3
+      pretty-bytes: 6.1.1
+      tinyglobby: 0.2.15
+      vite: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      workbox-build: 7.4.0
+      workbox-window: 7.4.0
     transitivePeerDependencies:
       - supports-color
 
@@ -31329,7 +31359,7 @@ snapshots:
       '@vue/devtools-api': 6.6.4
       vue: 3.5.25(typescript@5.9.3)
 
-  vue-macros@3.1.1(@vueuse/core@14.1.0(vue@3.5.25(typescript@5.9.3)))(esbuild@0.25.12)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@4.54.0)(typescript@5.9.3)(vue-tsc@3.2.1(typescript@5.9.3))(vue@3.5.25(typescript@5.9.3)):
+  vue-macros@3.1.1(@vueuse/core@14.1.0(vue@3.5.25(typescript@5.9.3)))(esbuild@0.25.12)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@2.79.2)(typescript@5.9.3)(vue-tsc@3.2.1(typescript@5.9.3))(vue@3.5.25(typescript@5.9.3)):
     dependencies:
       '@vue-macros/better-define': 3.1.1(vue@3.5.25(typescript@5.9.3))
       '@vue-macros/boolean-prop': 3.1.1(vue@3.5.25(typescript@5.9.3))
@@ -31361,53 +31391,7 @@ snapshots:
       '@vue-macros/short-vmodel': 3.1.1(vue@3.5.25(typescript@5.9.3))
       '@vue-macros/volar': 3.1.1(typescript@5.9.3)(vue-tsc@3.2.1(typescript@5.9.3))(vue@3.5.25(typescript@5.9.3))
       unplugin: 2.3.11
-      unplugin-combine: 2.1.3(esbuild@0.25.12)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@4.54.0)(unplugin@2.3.11)
-      unplugin-vue-define-options: 3.1.1(vue@3.5.25(typescript@5.9.3))
-      vue: 3.5.25(typescript@5.9.3)
-    transitivePeerDependencies:
-      - '@rspack/core'
-      - '@vueuse/core'
-      - esbuild
-      - rolldown
-      - rollup
-      - typescript
-      - vite
-      - vue-tsc
-      - webpack
-
-  vue-macros@3.1.1(@vueuse/core@14.1.0(vue@3.5.25(typescript@5.9.3)))(esbuild@0.27.2)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@2.79.2)(typescript@5.9.3)(vue-tsc@3.2.1(typescript@5.9.3))(vue@3.5.25(typescript@5.9.3)):
-    dependencies:
-      '@vue-macros/better-define': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/boolean-prop': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/chain-call': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/common': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/config': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/define-emit': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/define-models': 3.1.1(@vueuse/core@14.1.0(vue@3.5.25(typescript@5.9.3)))(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/define-prop': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/define-props': 3.1.1(@vue-macros/reactivity-transform@3.1.1(vue@3.5.25(typescript@5.9.3)))(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/define-props-refs': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/define-render': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/define-slots': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/define-stylex': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/devtools': 3.1.1(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)
-      '@vue-macros/export-expose': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/export-props': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/export-render': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/hoist-static': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/jsx-directive': 3.1.1(typescript@5.9.3)
-      '@vue-macros/named-template': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/reactivity-transform': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/script-lang': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/setup-block': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/setup-component': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/setup-sfc': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/short-bind': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/short-emits': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/short-vmodel': 3.1.1(vue@3.5.25(typescript@5.9.3))
-      '@vue-macros/volar': 3.1.1(typescript@5.9.3)(vue-tsc@3.2.1(typescript@5.9.3))(vue@3.5.25(typescript@5.9.3))
-      unplugin: 2.3.11
-      unplugin-combine: 2.1.3(esbuild@0.27.2)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@2.79.2)(unplugin@2.3.11)
+      unplugin-combine: 2.1.3(esbuild@0.25.12)(rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(rolldown@1.0.0-beta.53)(rollup@2.79.2)(unplugin@2.3.11)
       unplugin-vue-define-options: 3.1.1(vue@3.5.25(typescript@5.9.3))
       vue: 3.5.25(typescript@5.9.3)
     transitivePeerDependencies:

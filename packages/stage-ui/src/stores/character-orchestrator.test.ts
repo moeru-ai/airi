@@ -1,3 +1,6 @@
+/* eslint-disable style/indent-binary-ops */
+/* eslint-disable style/operator-linebreak */
+
 import type { WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-sdk'
 import type { Store, StoreDefinition } from 'pinia'
 import type { Mock } from 'vitest'

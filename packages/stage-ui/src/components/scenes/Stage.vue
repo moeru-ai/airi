@@ -13,6 +13,7 @@ import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
 import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
+import { Live2DScene, useLive2d } from '@proj-airi/stage-ui-live2d'
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { useBroadcastChannel } from '@vueuse/core'
@@ -23,14 +24,11 @@ import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref } from 'vue'
 
-import Live2DScene from './Live2D.vue'
-
 import { useDelayMessageQueue, useEmotionsMessageQueue, usePipelineCharacterSpeechPlaybackQueueStore, usePipelineWorkflowTextSegmentationStore } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useChatStore } from '../../stores/chat'
-import { useLive2d } from '../../stores/live2d'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
@@ -75,7 +73,19 @@ const { connectAudioContext, connectAudioAnalyser, connectLipSyncNode, clearAll,
 const { currentAudioSource, playbackQueue } = storeToRefs(characterSpeechPlaybackQueue)
 
 const settingsStore = useSettings()
-const { stageModelRenderer, stageViewControlsEnabled, live2dDisableFocus, stageModelSelectedUrl, stageModelSelected } = storeToRefs(settingsStore)
+const {
+  stageModelRenderer,
+  stageViewControlsEnabled,
+  live2dDisableFocus,
+  stageModelSelectedUrl,
+  stageModelSelected,
+  themeColorsHue,
+  themeColorsHueDynamic,
+  live2dIdleAnimationEnabled,
+  live2dAutoBlinkEnabled,
+  live2dForceAutoBlinkEnabled,
+  live2dShadowEnabled,
+} = storeToRefs(settingsStore)
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext } = useAudioContext()
 connectAudioContext(audioContext)
@@ -378,10 +388,17 @@ onPlaybackStarted(({ text }) => {
         :y-offset="yOffset"
         :scale="scale"
         :disable-focus-at="live2dDisableFocus"
+        :theme-colors-hue="themeColorsHue"
+        :theme-colors-hue-dynamic="themeColorsHueDynamic"
+        :live2d-idle-animation-enabled="live2dIdleAnimationEnabled"
+        :live2d-auto-blink-enabled="live2dAutoBlinkEnabled"
+        :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
+        :live2d-shadow-enabled="live2dShadowEnabled"
       />
       <ThreeScene
         v-if="stageModelRenderer === 'vrm' && showStage"
         ref="vrmViewerRef"
+        v-model:state="componentState"
         :model-src="stageModelSelectedUrl"
         :idle-animation="animations.idleLoop.toString()"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
