@@ -45,7 +45,7 @@ export const useSettings = defineStore('settings', () => {
   const [stageModelSelected, resetStageModelSelected] = createResettableLocalStorage<string | undefined>('settings/stage/model', 'preset-live2d-1')
   const [stageModelSelectedDisplayModel, resetStageModelSelectedDisplayModel] = createResettableRef<DisplayModel | undefined>(undefined)
   const [stageModelSelectedUrl, resetStageModelSelectedUrl] = createResettableRef<string | undefined>(undefined)
-  const [stageModelRenderer, resetStageModelRenderer] = createResettableRef<'live2d' | 'vrm' | 'disabled' | undefined>(undefined)
+  const [stageModelRenderer, resetStageModelRenderer] = createResettableRef<'live2d' | 'vrm' | 'pngtuber' | 'disabled' | undefined>(undefined)
 
   async function updateStageModel() {
     if (!stageModelSelected.value) {
@@ -69,6 +69,9 @@ export const useSettings = defineStore('settings', () => {
         break
       case DisplayModelFormat.VRM:
         stageModelRenderer.value = 'vrm'
+        break
+      case DisplayModelFormat.PNGtuber:
+        stageModelRenderer.value = 'pngtuber'
         break
       default:
         stageModelRenderer.value = 'disabled'

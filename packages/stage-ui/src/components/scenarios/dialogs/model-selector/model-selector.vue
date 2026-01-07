@@ -5,7 +5,7 @@ import { Button } from '@proj-airi/ui'
 import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger, EditableArea, EditableEditTrigger, EditableInput, EditablePreview, EditableRoot, EditableSubmitTrigger } from 'reka-ui'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
 
@@ -49,6 +49,15 @@ function handleAddVRMModel(file: FileList | null) {
   displayModelStore.addDisplayModel(DisplayModelFormat.VRM, file[0])
 }
 
+function handleAddPNGtuberModel(file: FileList | null) {
+  if (file === null || file.length === 0)
+    return
+  if (!file[0].name.endsWith('.zip'))
+    return
+
+  displayModelStore.addDisplayModel(DisplayModelFormat.PNGtuber, file[0])
+}
+
 const mapFormatRenderer: Record<DisplayModelFormat, string> = {
   [DisplayModelFormat.Live2dZip]: 'Live2D',
   [DisplayModelFormat.Live2dDirectory]: 'Live2D',
@@ -56,13 +65,16 @@ const mapFormatRenderer: Record<DisplayModelFormat, string> = {
   [DisplayModelFormat.PMXDirectory]: 'MMD',
   [DisplayModelFormat.PMXZip]: 'MMD',
   [DisplayModelFormat.PMD]: 'MMD',
+  [DisplayModelFormat.PNGtuber]: 'PNGtuber',
 }
 
 const live2dDialog = useFileDialog({ accept: '.zip', multiple: false, reset: true })
 const vrmDialog = useFileDialog({ accept: '.vrm', multiple: false, reset: true })
+const pngtuberDialog = useFileDialog({ accept: '.zip', multiple: false, reset: true })
 
 live2dDialog.onChange(handleAddLive2DModel)
 vrmDialog.onChange(handleAddVRMModel)
+pngtuberDialog.onChange(handleAddPNGtuberModel)
 </script>
 
 <template>
@@ -114,6 +126,12 @@ vrmDialog.onChange(handleAddVRMModel)
                 transition="colors duration-200 ease-in-out" @click="vrmDialog.open()"
               >
                 VRM
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                class="data-[disabled]:text-mauve8 relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 text-base leading-none outline-none data-[disabled]:pointer-events-none data-[highlighted]:bg-primary-100/20 sm:text-sm data-[highlighted]:text-primary-200"
+                transition="colors duration-200 ease-in-out" @click="pngtuberDialog.open()"
+              >
+                PNGtuber
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenuPortal>
@@ -180,7 +198,14 @@ vrmDialog.onChange(handleAddVRMModel)
             aspect="12/16"
             px-1 py-2
           >
-            <img v-if="model.previewImage" :src="model.previewImage" h-full w-full rounded-lg object-cover :class="[highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent']" transition="all duration-200 ease-in-out">
+            <img
+              v-if="model.previewImage"
+              :src="model.previewImage"
+              h-full w-full rounded-lg object-cover
+              :class="[highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent']"
+              transition="all duration-200 ease-in-out"
+              @error="() => console.error('[Model Selector] Image load error for model:', model.id, model.name)"
+            >
             <div v-else bg="neutral-100 dark:neutral-900" relative h-full w-full flex flex-col items-center justify-center gap-2 overflow-hidden rounded-lg :class="[highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent']" transition="all duration-200 ease-in-out">
               <div i-solar:question-square-bold-duotone text-4xl opacity-75 />
               <div translate-y="100%" absolute top-0 flex flex-col translate-x--7 rotate-45 scale-250 gap-0 opacity-5>

@@ -8,11 +8,14 @@ import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 
 import Live2DScene from '../../../scenes/Live2D.vue'
+import PNGtuberScene from '../../../scenes/PNGtuber.vue'
 import Live2D from './Live2D.vue'
+import PNGtuber from './PNGtuber.vue'
 import VRM from './VRM.vue'
 
 import { DisplayModelFormat } from '../../../../stores/display-models'
 import { useLive2d } from '../../../../stores/live2d'
+import { usePNGtuberStore } from '../../../../stores/pngtuber'
 import { useSettings } from '../../../../stores/settings'
 import { ModelSelectorDialog } from '../../dialogs/model-selector'
 
@@ -21,6 +24,7 @@ const props = defineProps<{
   settingsClass?: string | string[]
 
   live2dSceneClass?: string | string[]
+  pngtuberSceneClass?: string | string[]
   vrmSceneClass?: string | string[]
 }>()
 
@@ -45,6 +49,9 @@ watch(selectedModel, async () => {
         break
       case DisplayModelFormat.VRM:
         useModelStore().shouldUpdateView()
+        break
+      case DisplayModelFormat.PNGtuber:
+        usePNGtuberStore().shouldUpdateView()
         break
     }
   }
@@ -76,6 +83,7 @@ watch(selectedModel, async () => {
       </Button>
     </ModelSelectorDialog>
     <Live2D v-if="stageModelRenderer === 'live2d'" :palette="palette" @extract-colors-from-model="$emit('extractColorsFromModel')" />
+    <PNGtuber v-if="stageModelRenderer === 'pngtuber'" />
     <VRM v-if="stageModelRenderer === 'vrm'" :palette="palette" @extract-colors-from-model="$emit('extractColorsFromModel')" />
   </div>
   <!-- Live2D component for 2D stage view -->
@@ -93,6 +101,15 @@ watch(selectedModel, async () => {
   <template v-if="stageModelRenderer === 'vrm'">
     <div :class="[...(props.vrmSceneClass ? (typeof props.vrmSceneClass === 'string' ? [props.vrmSceneClass] : props.vrmSceneClass) : [])]">
       <ThreeScene :model-src="stageModelSelectedUrl" />
+    </div>
+  </template>
+  <!-- PNGtuber component for 2D stage view -->
+  <template v-if="stageModelRenderer === 'pngtuber'">
+    <div :class="[...(props.pngtuberSceneClass ? (typeof props.pngtuberSceneClass === 'string' ? [props.pngtuberSceneClass] : props.pngtuberSceneClass) : [])]">
+      <PNGtuberScene
+        :model-src="stageModelSelectedUrl"
+        :model-id="stageModelSelected"
+      />
     </div>
   </template>
 </template>

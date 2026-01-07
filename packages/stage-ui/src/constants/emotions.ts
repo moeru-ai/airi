@@ -54,3 +54,16 @@ export const EMOTION_VRMExpressionName_value = {
   [Emotion.Idle]: undefined,
   [Emotion.Curious]: 'surprised',
 } satisfies Record<Emotion, string | undefined>
+
+// PNGtuber emotion names (matches manifest.emotions keys)
+export const EMOTION_PNGtuberEmotionName_value = {
+  [Emotion.Happy]: 'happy',
+  [Emotion.Sad]: 'sad',
+  [Emotion.Angry]: 'angry',
+  [Emotion.Think]: 'think',
+  [Emotion.Surprise]: 'surprise',
+  [Emotion.Awkward]: 'awkward',
+  [Emotion.Question]: 'question',
+  [Emotion.Idle]: null, // null means use default idle sprite
+  [Emotion.Curious]: 'curious',
+} satisfies Record<Emotion, string | null>
