@@ -58,7 +58,7 @@ describe('providerRoutes', () => {
     expect(res.status).toBe(401)
   })
 
-  it('get / should return empty list initially', async () => {
+  it('get / should return empty list initially (only user configs, system configs tested later)', async () => {
     const res = await app.fetch(new Request('http://localhost/'), { user: testUser } as any)
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual([])
@@ -83,26 +83,43 @@ describe('providerRoutes', () => {
     expect(data.name).toBe('My OpenAI')
   })
 
-  it('get / should return created provider', async () => {
+  it('get / should return unified list (user + system)', async () => {
+    // Create a system config directly in DB
+    await db.insert(schema.systemProviderConfigs).values({
+      id: 'sys-1',
+      definitionId: 'anthropic',
+      name: 'System Anthropic',
+      config: { apiKey: 'sys-sk' },
+    })
+
     const res = await app.fetch(new Request('http://localhost/'), { user: testUser } as any)
     expect(res.status).toBe(200)
     const data = await res.json()
-    expect(data.length).toBe(1)
-    expect(data[0].definitionId).toBe('openai')
+    expect(data.length).toBe(2)
+    expect(data.some((p: any) => p.isSystem === true)).toBe(true)
+    expect(data.some((p: any) => p.isSystem === false)).toBe(true)
   })
 
-  it('get /:id should return specific provider', async () => {
-    const providers = await providerService.findByOwnerId(testUser.id)
+  it('get /:id should return specific provider (user or system)', async () => {
+    const providers = await providerService.findUserConfigsByOwnerId(testUser.id)
     const providerId = providers[0].id
 
     const res = await app.fetch(new Request(`http://localhost/${providerId}`), { user: testUser } as any)
     expect(res.status).toBe(200)
     const data = await res.json()
     expect(data.id).toBe(providerId)
+    expect(data.isSystem).toBe(false)
+
+    // Test system config access
+    const resSys = await app.fetch(new Request('http://localhost/sys-1'), { user: testUser } as any)
+    expect(resSys.status).toBe(200)
+    const dataSys = await resSys.json()
+    expect(dataSys.id).toBe('sys-1')
+    expect(dataSys.isSystem).toBe(true)
   })
 
   it('patch /:id should update provider config', async () => {
-    const providers = await providerService.findByOwnerId(testUser.id)
+    const providers = await providerService.findUserConfigsByOwnerId(testUser.id)
     const providerId = providers[0].id
 
     const res = await app.fetch(new Request(`http://localhost/${providerId}`, {
@@ -112,7 +129,7 @@ describe('providerRoutes', () => {
     }), { user: testUser } as any)
 
     expect(res.status).toBe(200)
-    const updated = await providerService.findById(providerId)
+    const updated = await providerService.findUserConfigById(providerId)
     expect(updated?.name).toBe('Updated Name')
   })
 
@@ -124,7 +141,7 @@ describe('providerRoutes', () => {
       email: 'other@example.com',
     }).returning()
 
-    const providers = await providerService.findByOwnerId(testUser.id)
+    const providers = await providerService.findUserConfigsByOwnerId(testUser.id)
     const providerId = providers[0].id
 
     const res = await app.fetch(new Request(`http://localhost/${providerId}`, {
@@ -137,7 +154,7 @@ describe('providerRoutes', () => {
   })
 
   it('delete /:id should soft delete provider', async () => {
-    const providers = await providerService.findByOwnerId(testUser.id)
+    const providers = await providerService.findUserConfigsByOwnerId(testUser.id)
     const providerId = providers[0].id
 
     const res = await app.fetch(new Request(`http://localhost/${providerId}`, {
@@ -145,7 +162,7 @@ describe('providerRoutes', () => {
     }), { user: testUser } as any)
 
     expect(res.status).toBe(204)
-    const deleted = await providerService.findById(providerId)
+    const deleted = await providerService.findUserConfigById(providerId)
     expect(deleted).toBeUndefined()
   })
 })

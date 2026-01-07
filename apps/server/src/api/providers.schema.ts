@@ -3,8 +3,11 @@ import { boolean, object, optional, record, string } from 'valibot'
 
 import * as schema from '../schemas/providers'
 
-export const ProviderConfigSchema = createSelectSchema(schema.providerConfigs)
-export const InsertProviderConfigSchema = createInsertSchema(schema.providerConfigs)
+export const UserProviderConfigSchema = createSelectSchema(schema.userProviderConfigs)
+export const InsertUserProviderConfigSchema = createInsertSchema(schema.userProviderConfigs)
+
+export const SystemProviderConfigSchema = createSelectSchema(schema.systemProviderConfigs)
+export const InsertSystemProviderConfigSchema = createInsertSchema(schema.systemProviderConfigs)
 
 export const CreateProviderConfigSchema = object({
   definitionId: string(),

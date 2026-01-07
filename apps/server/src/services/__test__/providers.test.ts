@@ -23,7 +23,7 @@ describe('providerService', () => {
     testUser = user
   })
 
-  it('create should handle provider config creation', async () => {
+  it('createUserConfig should handle provider config creation', async () => {
     const providerData = {
       id: 'prov-1',
       ownerId: testUser.id,
@@ -34,30 +34,58 @@ describe('providerService', () => {
       validationBypassed: false,
     }
 
-    const result = await service.create(providerData)
+    const result = await service.createUserConfig(providerData)
     expect(result.id).toBe('prov-1')
     expect(result.name).toBe('My OpenAI')
 
-    const found = await service.findById('prov-1')
+    const found = await service.findUserConfigById('prov-1')
     expect(found?.definitionId).toBe('openai')
     expect((found?.config as any).apiKey).toBe('sk-123')
   })
 
-  it('findByOwnerId should return providers for the user', async () => {
-    const result = await service.findByOwnerId(testUser.id)
+  it('findUserConfigsByOwnerId should return providers for the user', async () => {
+    const result = await service.findUserConfigsByOwnerId(testUser.id)
     expect(result.length).toBe(1)
     expect(result[0].ownerId).toBe(testUser.id)
   })
 
-  it('update should update provider fields', async () => {
-    await service.update('prov-1', { name: 'Updated OpenAI' })
-    const prov = await service.findById('prov-1')
+  it('findAll should return both user and system configs', async () => {
+    // Create a system config
+    await db.insert(schema.systemProviderConfigs).values({
+      id: 'sys-1',
+      definitionId: 'anthropic',
+      name: 'System Anthropic',
+      config: { apiKey: 'sys-sk' },
+    })
+
+    const result = await service.findAll(testUser.id)
+    expect(result.length).toBe(2)
+
+    const userConfig = result.find(r => r.id === 'prov-1')
+    const systemConfig = result.find(r => r.id === 'sys-1')
+
+    expect(userConfig?.isSystem).toBe(false)
+    expect(systemConfig?.isSystem).toBe(true)
+    expect(systemConfig?.name).toBe('System Anthropic')
+  })
+
+  it('findById should find both user and system configs', async () => {
+    const userFound = await service.findById('prov-1', testUser.id)
+    expect(userFound?.isSystem).toBe(false)
+
+    const sysFound = await service.findById('sys-1', testUser.id)
+    expect(sysFound?.isSystem).toBe(true)
+  })
+
+  it('updateUserConfig should update provider fields', async () => {
+    await service.updateUserConfig('prov-1', { name: 'Updated OpenAI' })
+    const prov = await service.findUserConfigById('prov-1')
     expect(prov?.name).toBe('Updated OpenAI')
   })
 
-  it('delete should soft delete provider', async () => {
-    await service.delete('prov-1')
-    const prov = await service.findById('prov-1')
+  it('deleteUserConfig should soft delete provider', async () => {
+    await service.deleteUserConfig('prov-1')
+    const prov = await service.findUserConfigById('prov-1')
     expect(prov).toBeUndefined()
   })
 })

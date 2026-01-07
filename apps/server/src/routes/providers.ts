@@ -14,13 +14,14 @@ export function createProviderRoutes(providerService: ProviderService) {
 
     .get('/', async (c) => {
       const user = c.get('user')!
-      const providers = await providerService.findByOwnerId(user.id)
+      const providers = await providerService.findAll(user.id)
       return c.json(providers)
     })
 
     .get('/:id', async (c) => {
+      const user = c.get('user')!
       const id = c.req.param('id')
-      const provider = await providerService.findById(id)
+      const provider = await providerService.findById(id, user.id)
       if (!provider)
         throw createNotFoundError()
 
@@ -36,10 +37,10 @@ export function createProviderRoutes(providerService: ProviderService) {
         throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', result.issues)
       }
 
-      const provider = await providerService.create({
+      const provider = await providerService.createUserConfig({
         ...result.output,
         ownerId: user.id,
-      })
+      } as any)
 
       return c.json(provider, 201)
     })
@@ -54,13 +55,13 @@ export function createProviderRoutes(providerService: ProviderService) {
         throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', result.issues)
       }
 
-      const existing = await providerService.findById(id)
+      const existing = await providerService.findUserConfigById(id)
       if (!existing)
         throw createNotFoundError()
       if (existing.ownerId !== user.id)
         throw createForbiddenError()
 
-      const updated = await providerService.update(id, result.output)
+      const updated = await providerService.updateUserConfig(id, result.output)
       return c.json(updated)
     })
 
@@ -68,13 +69,13 @@ export function createProviderRoutes(providerService: ProviderService) {
       const user = c.get('user')!
       const id = c.req.param('id')
 
-      const existing = await providerService.findById(id)
+      const existing = await providerService.findUserConfigById(id)
       if (!existing)
         throw createNotFoundError()
       if (existing.ownerId !== user.id)
         throw createForbiddenError()
 
-      await providerService.delete(id)
+      await providerService.deleteUserConfig(id)
       return c.body(null, 204)
     })
 }

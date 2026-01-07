@@ -64,10 +64,11 @@ describe('characterRoutes', () => {
     expect(await res.json()).toEqual([])
   })
 
-  it('post / should create character', async () => {
+  it('post / should create character with cover', async () => {
     const payload = {
       character: { version: '1', coverUrl: 'url', characterId: 'cid' },
       i18n: [{ language: 'en', name: 'Aster', description: 'desc', tags: [] }],
+      cover: { foregroundUrl: 'fg', backgroundUrl: 'bg' },
     }
 
     const res = await app.fetch(new Request('http://localhost/', {
@@ -79,6 +80,9 @@ describe('characterRoutes', () => {
     expect(res.status).toBe(201)
     const data = await res.json()
     expect(data.id).toBeDefined()
+    
+    const char = await characterService.findById(data.id)
+    expect(char?.cover?.foregroundUrl).toBe('fg')
   })
 
   it('get / should return created character', async () => {
