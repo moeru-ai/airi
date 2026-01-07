@@ -4,7 +4,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import WindowRouterLink from '../../WindowRouterLink.vue'
-import LoadingComponent from './LoadingComponent.vue'
+import LoadingComponent from './loading-component.vue'
 
 import { useResourcesStore } from '../../../stores/resources'
 

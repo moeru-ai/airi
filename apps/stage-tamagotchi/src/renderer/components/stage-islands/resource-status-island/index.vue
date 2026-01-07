@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia'
 import { TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
 import { ref, watch } from 'vue'
 
-import LoadingModules from './LoadingModules.vue'
+import LoadingModules from './loading-modules.vue'
 
 import { useResourcesStore } from '../../../stores/resources'
 
