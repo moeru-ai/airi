@@ -2,6 +2,7 @@
 import type { WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-sdk'
 import type { ChatStreamEvent, ContextMessage } from '@proj-airi/stage-ui/types/chat'
 
+import { errorMessageFrom } from '@moeru/std'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { Callout, Section } from '@proj-airi/stage-ui/components'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character-orchestrator'
@@ -11,6 +12,7 @@ import { Button, FieldCheckbox, FieldInput, FieldTextArea, Input, SelectTab } fr
 import { useBroadcastChannel } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { toast } from 'vue-sonner'
 
 type FlowDirection = 'incoming' | 'outgoing'
 type FlowChannel = 'server' | 'broadcast' | 'chat' | 'devtools'
@@ -46,8 +48,8 @@ const testStrategy = ref<ContextUpdateStrategy>(ContextUpdateStrategy.ReplaceSel
 const testSparkNotifyPayload = ref(JSON.stringify({
   kind: 'ping',
   urgency: 'immediate',
-  headline: 'Devtools spark:notify test',
-  note: 'Triggered from Context Flow devtools',
+  headline: 'Minecraft entity `zombie` attacked you, health dropped 2 points.',
+  note: 'Triggered from minecraft',
   destinations: ['character'],
   payload: {
     message: 'Hello from Context Flow devtools',
@@ -410,26 +412,14 @@ async function sendTestSparkNotify() {
   try {
     parsed = JSON.parse(raw)
   }
-  catch {
-    pushEntry({
-      direction: 'incoming',
-      channel: 'devtools',
-      type: 'spark:notify',
-      summary: 'invalid json',
-      payload: { raw },
-    })
+  catch (err) {
+    toast(`Invalid spark:notify: ${errorMessageFrom(err)}`)
     return
   }
 
   const destinations = Array.isArray(parsed?.destinations) ? parsed.destinations.filter((d: unknown) => typeof d === 'string') : []
   if (!parsed?.headline || !destinations.length) {
-    pushEntry({
-      direction: 'incoming',
-      channel: 'devtools',
-      type: 'spark:notify',
-      summary: 'missing required fields (headline, destinations[])',
-      payload: parsed,
-    })
+    toast('Missing required fields (headline, destinations[]) for spark:notify')
     return
   }
 
@@ -475,13 +465,7 @@ async function sendTestSparkNotify() {
     }
   }
   catch (error) {
-    pushEntry({
-      direction: 'incoming',
-      channel: 'devtools',
-      type: 'spark:notify',
-      summary: `handler error: ${String(error)}`,
-      payload: simulatedEvent,
-    })
+    toast(`Error handling spark:notify: ${errorMessageFrom(error)}`)
   }
 }
 
@@ -767,16 +751,14 @@ onUnmounted(() => {
           </div>
         </Section>
         <Section title="Simulate incoming" icon="i-solar:plain-2-bold-duotone" inner-class="gap-3" :expand="false">
-          <div :class="['mt-4', 'border-t', 'border-neutral-200/70', 'pt-4', 'dark:border-neutral-800/80']">
-            <FieldTextArea
-              v-model="testSparkNotifyPayload"
-              label="spark:notify"
-              description="Raw JSON payload for spark:notify. Required: headline, destinations[]. id/eventId will be auto-filled if missing."
-              :input-class="['font-mono', 'min-h-44']"
-            />
-            <div :class="['flex', 'justify-end']">
-              <Button label="Send spark:notify" icon="i-solar:bell-bing-bold-duotone" size="sm" @click="sendTestSparkNotify" />
-            </div>
+          <FieldTextArea
+            v-model="testSparkNotifyPayload"
+            label="spark:notify"
+            description="Raw JSON payload for spark:notify. Required: headline, destinations[]. id/eventId will be auto-filled if missing."
+            :input-class="['font-mono', 'min-h-44', 'overflow-hidden']"
+          />
+          <div :class="['flex', 'justify-end']">
+            <Button label="Send spark:notify" icon="i-solar:bell-bing-bold-duotone" size="sm" @click="sendTestSparkNotify" />
           </div>
         </Section>
 
