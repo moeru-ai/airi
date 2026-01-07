@@ -712,6 +712,12 @@ pages:
           title: Desarrollador
           sections:
             section:
+              performance-visualizer:
+                title: Performance Visualizer
+                description: Toggle FPS/long task/memory overlay
+              markdown-stress:
+                title: Markdown Stress
+                description: Stress markdown parsing and rendering with heavy chat payloads
               use-magic-keys:
                 title: useMagicKeys
                 description: Test shortcuts

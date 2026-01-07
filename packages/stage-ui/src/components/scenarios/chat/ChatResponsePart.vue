@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { ChatAssistantMessage } from '../../../types/chat'
 
+import { Collapsible } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import MarkdownRenderer from '../../markdown/MarkdownRenderer.vue'
-import Collapsable from '../../misc/Collapsable.vue'
 
 const props = defineProps<{
   message: ChatAssistantMessage
@@ -24,7 +24,7 @@ const containerClasses = computed(() => [
 
 <template>
   <div v-if="hasReasoning" :class="containerClasses" flex="~ col" gap-1>
-    <Collapsable :default="false">
+    <Collapsible :default="false">
       <template #trigger="slotProps">
         <button
           class="w-full flex items-center justify-between rounded-lg bg-neutral-100/50 px-2 py-1 text-xs text-neutral-600 outline-none transition-all duration-200 dark:bg-neutral-800/50 hover:bg-neutral-200/50 dark:text-neutral-400 dark:hover:bg-neutral-700/50"
@@ -51,6 +51,6 @@ const containerClasses = computed(() => [
           text="xs neutral-700 dark:neutral-300"
         />
       </div>
-    </Collapsable>
+    </Collapsible>
   </div>
 </template>

@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.0",
+    "@moeru/std": "catalog:",
     "@pixiv/three-vrm": "^3.4.4",
     "es-toolkit": "catalog:",
     "three": "^0.182.0"

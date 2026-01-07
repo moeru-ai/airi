@@ -1,13 +1,18 @@
 <script setup lang="ts">
+import type { WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-sdk'
 import type { ChatStreamEvent, ContextMessage } from '@proj-airi/stage-ui/types/chat'
 
+import { errorMessageFrom } from '@moeru/std'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
-import { Callout, Section } from '@proj-airi/stage-ui/components'
+import { Section } from '@proj-airi/stage-ui/components'
+import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character-orchestrator'
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME, useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
-import { Button, FieldCheckbox, FieldInput, FieldTextArea, Input, SelectTab } from '@proj-airi/ui'
+import { Button, Callout, FieldCheckbox, FieldInput, FieldTextArea, Input, SelectTab } from '@proj-airi/ui'
 import { useBroadcastChannel } from '@vueuse/core'
+import { nanoid } from 'nanoid'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { toast } from 'vue-sonner'
 
 type FlowDirection = 'incoming' | 'outgoing'
 type FlowChannel = 'server' | 'broadcast' | 'chat' | 'devtools'
@@ -24,6 +29,7 @@ interface FlowEntry {
 }
 
 const chatStore = useChatStore()
+const characterOrchestratorStore = useCharacterOrchestratorStore()
 const serverChannelStore = useModsServerChannelStore()
 
 const entries = ref<FlowEntry[]>([])
@@ -38,6 +44,17 @@ const maxEntries = ref('200')
 
 const testPayload = ref('{"type":"coding:context","data":{"file":{"path":"README.md"}}}')
 const testStrategy = ref<ContextUpdateStrategy>(ContextUpdateStrategy.ReplaceSelf)
+
+const testSparkNotifyPayload = ref(JSON.stringify({
+  kind: 'ping',
+  urgency: 'immediate',
+  headline: 'Minecraft entity `zombie` attacked you, health dropped 2 points.',
+  note: 'Triggered from minecraft',
+  destinations: ['character'],
+  payload: {
+    message: 'Hello from Context Flow devtools',
+  },
+}, null, 2))
 
 const streamContainer = ref<HTMLDivElement>()
 
@@ -386,6 +403,72 @@ function sendTestContextUpdate() {
   })
 }
 
+async function sendTestSparkNotify() {
+  const raw = testSparkNotifyPayload.value.trim()
+  if (!raw)
+    return
+
+  let parsed: any
+  try {
+    parsed = JSON.parse(raw)
+  }
+  catch (err) {
+    toast(`Invalid spark:notify: ${errorMessageFrom(err)}`)
+    return
+  }
+
+  const destinations = Array.isArray(parsed?.destinations) ? parsed.destinations.filter((d: unknown) => typeof d === 'string') : []
+  if (!parsed?.headline || !destinations.length) {
+    toast('Missing required fields (headline, destinations[]) for spark:notify')
+    return
+  }
+
+  // TODO(@nekomeowww): improve server event, support to have zod or valibot schema validation for better cross runtime handling
+  const notify = {
+    id: typeof parsed.id === 'string' && parsed.id ? parsed.id : nanoid(),
+    eventId: typeof parsed.eventId === 'string' && parsed.eventId ? parsed.eventId : nanoid(),
+    lane: typeof parsed.lane === 'string' ? parsed.lane : undefined,
+    kind: parsed.kind === 'alarm' || parsed.kind === 'ping' || parsed.kind === 'reminder' ? parsed.kind : 'ping',
+    urgency: parsed.urgency === 'immediate' || parsed.urgency === 'soon' || parsed.urgency === 'later' ? parsed.urgency : 'immediate',
+    headline: String(parsed.headline),
+    note: typeof parsed.note === 'string' ? parsed.note : undefined,
+    payload: parsed.payload && typeof parsed.payload === 'object' ? parsed.payload : undefined,
+    ttlMs: typeof parsed.ttlMs === 'number' ? parsed.ttlMs : undefined,
+    requiresAck: typeof parsed.requiresAck === 'boolean' ? parsed.requiresAck : undefined,
+    destinations,
+    metadata: parsed.metadata && typeof parsed.metadata === 'object' ? parsed.metadata : undefined,
+  }
+
+  const simulatedEvent: WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify']> = {
+    type: 'spark:notify',
+    source: 'devtools',
+    data: notify,
+  }
+
+  pushEntry({
+    direction: 'incoming',
+    channel: 'server',
+    type: 'spark:notify',
+    summary: summarizeServerEvent(simulatedEvent as any),
+    payload: simulatedEvent,
+  })
+
+  try {
+    const result = await characterOrchestratorStore.handleSparkNotify(simulatedEvent)
+    if (result?.commands?.length) {
+      for (const command of result.commands) {
+        serverChannelStore.send({
+          type: 'spark:command',
+          data: command,
+        })
+      }
+    }
+  }
+  catch (error) {
+    toast(`Error handling spark:notify: ${errorMessageFrom(error)}`)
+  }
+}
+
 const { data: incomingContext } = useBroadcastChannel<ContextMessage, ContextMessage>({
   name: CONTEXT_CHANNEL_NAME,
 })
@@ -665,6 +748,17 @@ onUnmounted(() => {
             <div :class="['flex', 'justify-end']">
               <Button label="Send context update" icon="i-solar:plain-2-bold-duotone" size="sm" @click="sendTestContextUpdate" />
             </div>
+          </div>
+        </Section>
+        <Section title="Simulate incoming" icon="i-solar:plain-2-bold-duotone" inner-class="gap-3" :expand="false">
+          <FieldTextArea
+            v-model="testSparkNotifyPayload"
+            label="spark:notify"
+            description="Raw JSON payload for spark:notify. Required: headline, destinations[]. id/eventId will be auto-filled if missing."
+            :input-class="['font-mono', 'min-h-44', 'overflow-hidden']"
+          />
+          <div :class="['flex', 'justify-end']">
+            <Button label="Send spark:notify" icon="i-solar:bell-bing-bold-duotone" size="sm" @click="sendTestSparkNotify" />
           </div>
         </Section>
 

@@ -6,7 +6,6 @@ import type { $ZodType } from 'zod/v4/core'
 import { merge } from '@moeru/std'
 import {
   Alert,
-  Callout,
   ProviderAccountIdInput,
   ProviderAdvancedSettings,
   ProviderApiKeyInput,
@@ -18,7 +17,7 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
 import { useProviderCatalogStore } from '@proj-airi/stage-ui/stores/provider-catalog'
-import { Button, FieldInput, FieldKeyValues } from '@proj-airi/ui'
+import { Button, Callout, FieldInput, FieldKeyValues } from '@proj-airi/ui'
 import { refManualReset, useDebounceFn } from '@vueuse/core'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, onMounted, ref, watch } from 'vue'

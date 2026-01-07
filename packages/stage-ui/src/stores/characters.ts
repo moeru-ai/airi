@@ -111,6 +111,38 @@ export const useCharacterStore = defineStore('characters', () => {
     }, { immediate: true })
   }
 
+  async function like(id: string) {
+    try {
+      const res = await client.api.characters[':id'].like.$post({
+        param: { id },
+      })
+      if (!res.ok)
+        throw new Error('Failed to like character')
+
+      await fetchById(id)
+    }
+    catch (err) {
+      error.value = err
+      throw err
+    }
+  }
+
+  async function bookmark(id: string) {
+    try {
+      const res = await client.api.characters[':id'].bookmark.$post({
+        param: { id },
+      })
+      if (!res.ok)
+        throw new Error('Failed to bookmark character')
+
+      await fetchById(id)
+    }
+    catch (err) {
+      error.value = err
+      throw err
+    }
+  }
+
   function getCharacter(id: string) {
     return characters.value.get(id)
   }

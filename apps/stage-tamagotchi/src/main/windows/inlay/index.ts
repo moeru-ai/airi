@@ -8,6 +8,7 @@ import icon from '../../../../resources/icon.png?asset'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { currentDisplayBounds, mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
 import { spotlightLikeWindowConfig } from '../shared/window'
+import { setupInlayWindowInvokes } from './rpc/index.electron'
 
 export async function setupInlayWindow() {
   const window = new BrowserWindow({
@@ -61,6 +62,8 @@ export async function setupInlayWindow() {
   })
 
   await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/inlay'))
+
+  setupInlayWindowInvokes({ inlayWindow: window })
 
   return window
 }

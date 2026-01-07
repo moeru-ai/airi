@@ -1,7 +1,6 @@
 <script setup lang="ts">
+import { Collapsible } from '@proj-airi/ui'
 import { computed } from 'vue'
-
-import Collapsable from '../../misc/Collapsable.vue'
 
 const props = defineProps<{
   toolName: string
@@ -20,7 +19,7 @@ const formattedArgs = computed(() => {
 </script>
 
 <template>
-  <Collapsable
+  <Collapsible
     :class="[
       'bg-primary-100/40 dark:bg-primary-900/60 rounded-lg px-2 pb-2 pt-2',
       'flex flex-col gap-2 items-start',
@@ -47,5 +46,5 @@ const formattedArgs = computed(() => {
         {{ formattedArgs }}
       </div>
     </div>
-  </Collapsable>
+  </Collapsible>
 </template>

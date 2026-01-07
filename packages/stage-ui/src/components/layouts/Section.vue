@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Collapsable from '../misc/Collapsable.vue'
+import { Collapsible } from '@proj-airi/ui'
 
 withDefaults(defineProps<{
   title: string
@@ -13,7 +13,7 @@ withDefaults(defineProps<{
 </script>
 
 <template>
-  <Collapsable :default="expand">
+  <Collapsible :default="expand">
     <template #trigger="slotProps">
       <button
         class="w-full flex items-center justify-between rounded-lg px-3 py-2 outline-none transition-all duration-250 ease-in-out sm:px-4 sm:py-3"
@@ -36,5 +36,5 @@ withDefaults(defineProps<{
     <div grid gap-2 :class="[innerClass, size === 'sm' ? 'p-2' : 'p-4']">
       <slot />
     </div>
-  </Collapsable>
+  </Collapsible>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Callout } from '@proj-airi/stage-ui/components'
+import { Callout } from '@proj-airi/ui'
 </script>
 
 <template>

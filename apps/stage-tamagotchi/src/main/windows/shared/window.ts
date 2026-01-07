@@ -29,7 +29,7 @@ export function transparentWindowConfig(): BrowserWindowConstructorOptions {
 
 export function blurryWindowConfig(): BrowserWindowConstructorOptions {
   return {
-    vibrancy: 'under-window',
+    vibrancy: 'hud',
     backgroundMaterial: 'acrylic',
   }
 }

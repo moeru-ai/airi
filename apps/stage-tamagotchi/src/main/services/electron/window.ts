@@ -40,4 +40,16 @@ export function createWindowService(params: { context: ReturnType<typeof createC
       params.window.setIgnoreMouseEvents(...opts)
     }
   })
+
+  defineInvokeHandler(params.context, electron.window.setVibrancy, (vibrancy, options) => {
+    if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
+      params.window.setVibrancy(vibrancy[0])
+    }
+  })
+
+  defineInvokeHandler(params.context, electron.window.setBackgroundMaterial, (backgroundMaterial, options) => {
+    if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
+      params.window.setBackgroundMaterial(backgroundMaterial[0])
+    }
+  })
 }
