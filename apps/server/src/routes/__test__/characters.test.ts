@@ -80,7 +80,7 @@ describe('characterRoutes', () => {
     expect(res.status).toBe(201)
     const data = await res.json()
     expect(data.id).toBeDefined()
-    
+
     const char = await characterService.findById(data.id)
     expect(char?.cover?.foregroundUrl).toBe('fg')
   })
