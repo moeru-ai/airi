@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { PaneArea } from '@proj-airi/stage-ui/components'
-import { getDefinedProvider, listProviders } from '@proj-airi/stage-ui/libs'
+import { listProviders } from '@proj-airi/stage-ui/libs'
 import { useProviderCatalogStore } from '@proj-airi/stage-ui/stores/provider-catalog'
 import { Button, Input } from '@proj-airi/ui'
 import { breakpointsTailwind, refDebounced, useBreakpoints } from '@vueuse/core'
-import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { Pane, Splitpanes } from 'splitpanes'
 import { computed, onMounted, ref } from 'vue'
@@ -14,7 +13,6 @@ import { RouterView, useRouter } from 'vue-router'
 const { t } = useI18n()
 const router = useRouter()
 const providerCatalogStore = useProviderCatalogStore()
-const { configs } = storeToRefs(useProviderCatalogStore())
 
 onMounted(() => {
   providerCatalogStore.fetchList()
@@ -112,7 +110,7 @@ function handleClick(providerId: string) {
                 </DropdownMenuRoot>
               </div>
 
-              <div v-if="Object.keys(configs).length === 0" class="text-neutral-500 <lg:px-4" flex flex-1 flex-col items-center justify-center gap-2>
+              <div v-if="Object.keys(providerCatalogStore.configs).length === 0" class="text-neutral-500 <lg:px-4" flex flex-1 flex-col items-center justify-center gap-2>
                 <div i-ph:rectangle-dashed-light text-4xl />
                 <div flex items-center justify-center gap-2>
                   <span>No providers</span>
@@ -121,7 +119,7 @@ function handleClick(providerId: string) {
 
               <div v-auto-animate gap="0.5" h-fit max-h="[calc(100dvh-12.5rem)]" flex flex-col overflow-y-scroll>
                 <div
-                  v-for="(providerEntry, index) in Object.entries(configs)"
+                  v-for="(providerEntry, index) in Object.entries(providerCatalogStore.configs)"
                   :key="index"
                   @click="() => handleClick(providerEntry[0])"
                 >
@@ -131,7 +129,7 @@ function handleClick(providerId: string) {
                     flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1 text-sm
                   >
                     <div class="relative w-4">
-                      <div :class="[getDefinedProvider(providerEntry[1].definitionId)?.iconColor || getDefinedProvider(providerEntry[1].definitionId)?.icon, 'absolute left-50% top-50% -translate-x-1/2 -translate-y-1/2']" />
+                      <div :class="[providerCatalogStore.getDefinedProvider(providerEntry[1].definitionId)?.iconColor || providerCatalogStore.getDefinedProvider(providerEntry[1].definitionId)?.icon, 'absolute left-50% top-50% -translate-x-1/2 -translate-y-1/2']" />
                     </div>
                     <div>{{ providerEntry[1].name }}</div>
                   </div>
