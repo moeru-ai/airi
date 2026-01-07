@@ -48,6 +48,13 @@ onMounted(scrollToBottom)
 const streaming = computed<ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number }>(() => props.streamingMessage ?? { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() })
 const showStreamingPlaceholder = computed(() => (streaming.value.slices?.length ?? 0) === 0 && !streaming.value.content)
 const streamingTs = computed(() => streaming.value?.createdAt)
+function shouldShowPlaceholder(message: ChatHistoryItem) {
+  const ts = streamingTs.value
+  if (ts == null)
+    return false
+
+  return message.context?.createdAt === ts || message.createdAt === ts
+}
 const renderMessages = computed<ChatHistoryItem[]>(() => {
   if (!props.sending)
     return props.messages
@@ -80,7 +87,7 @@ const renderMessages = computed<ChatHistoryItem[]>(() => {
         <ChatAssistantItem
           :message="message"
           :label="labels.assistant"
-          :show-placeholder="message.context?.createdAt === streamingTs ? showStreamingPlaceholder : false"
+          :show-placeholder="shouldShowPlaceholder(message) && showStreamingPlaceholder"
           :variant="variant"
         />
       </div>
