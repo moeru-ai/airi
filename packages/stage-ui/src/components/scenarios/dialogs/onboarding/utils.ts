@@ -1,4 +1,4 @@
-import type { InjectionKey, Ref } from 'vue'
+import type { Component, InjectionKey, Ref } from 'vue'
 
 import type { ProviderMetadata } from '../../../../stores/providers'
 
@@ -13,3 +13,21 @@ export interface OnboardingContext {
 }
 
 export const OnboardingContextKey: InjectionKey<OnboardingContext> = Symbol('onboarding-context')
+
+export interface OnboardingStep {
+  stepNumber: number
+  component: Component
+  condition?: () => boolean
+}
+
+const additionalStepsRegistry: OnboardingStep[] = []
+
+export function registerOnboardingStep(step: OnboardingStep) {
+  additionalStepsRegistry.push(step)
+  // Sort by step number
+  additionalStepsRegistry.sort((a, b) => a.stepNumber - b.stepNumber)
+}
+
+export function getAdditionalOnboardingSteps(): OnboardingStep[] {
+  return additionalStepsRegistry.filter(step => !step.condition || step.condition())
+}

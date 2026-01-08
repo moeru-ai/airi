@@ -30,6 +30,13 @@ dialogs:
     no-models: No available models
     no-models-help: >-
       Please return to the previous step and check your API key, or check the network connection.
+    notification-permission:
+      title: 알림 권한
+      description: >-
+        멀티 디바이스 협업 중 데스크톱 앱의 메시지 알림을 제때 받으려면 앱이 시스템 알림을 보낼 수 있도록 허용하세요.
+      granted: 알림 권한이 부여되었습니다
+      denied: 알림 권한이 거부되었습니다. 시스템 설정에서 수동으로 활성화할 수 있습니다.
+      request-button: 알림 권한 요청
 language:
   title: Language
   description: >

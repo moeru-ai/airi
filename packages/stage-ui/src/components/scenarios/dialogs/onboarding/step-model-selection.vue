@@ -70,7 +70,7 @@ const {
       :disabled="!activeModel"
       :loading="isLoadingActiveProviderModels"
       :label="t('settings.dialogs.onboarding.saveAndContinue')"
-      @click="context.handleSave"
+      @click="context.handleNextStep"
     />
   </div>
 </template>

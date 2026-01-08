@@ -5,6 +5,8 @@ chat:
       core-system: 核心系統
       you: 你
   reasoning: Reasoning
+  notification:
+    new-message: 新訊息
 message: 說點什麼...
 operations:
   load-models: 載入模型

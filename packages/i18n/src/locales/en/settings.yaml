@@ -32,6 +32,13 @@ dialogs:
     no-models-help: >-
       Please return to the previous step and check your API key, or check the
       network connection.
+    notification-permission:
+      title: Notification Permission
+      description: >-
+        To receive timely notifications from the desktop app during multi-device collaboration, please allow the app to send system notifications.
+      granted: Notification permission granted
+      denied: Notification permission denied. You can enable it manually in system settings.
+      request-button: Request Notification Permission
 language:
   title: Language
   description: >

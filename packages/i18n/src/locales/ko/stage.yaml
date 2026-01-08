@@ -5,6 +5,8 @@ chat:
       core-system: Core System
       you: 당신
   reasoning: Reasoning
+  notification:
+    new-message: 새 메시지
 message: 듣고 있어요...
 operations:
   load-models: 모델 불러오기

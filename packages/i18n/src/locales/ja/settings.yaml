@@ -30,6 +30,13 @@ dialogs:
     no-models: 利用可能なモデルがありません
     no-models-help: >-
       前のステップに戻ってAPIキーを確認するか、ネットワーク接続を確認してください。
+    notification-permission:
+      title: 通知権限
+      description: >-
+        マルチデバイス連携時にデスクトップアプリからのメッセージ通知をタイムリーに受信するため、アプリがシステム通知を送信することを許可してください。
+      granted: 通知権限が付与されました
+      denied: 通知権限が拒否されました。システム設定で手動で有効にできます。
+      request-button: 通知権限をリクエスト
 language:
   title: 言語
   description: >

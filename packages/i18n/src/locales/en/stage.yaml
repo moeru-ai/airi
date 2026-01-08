@@ -5,6 +5,8 @@ chat:
       core-system: Core System
       you: You
   reasoning: Reasoning
+  notification:
+    new-message: New Message
 message: Say something...
 operations:
   load-models: Load Models

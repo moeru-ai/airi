@@ -30,6 +30,13 @@ dialogs:
     no-models: 找不到可用的模型
     no-models-help: >-
       請返回上一步並檢查您的 API Key，或檢查網路連線。
+    notification-permission:
+      title: 通知權限
+      description: >-
+        為了在多設備協同時及時收到來自桌面端的訊息通知，請允許應用程式發送系統通知。
+      granted: 通知權限已授予
+      denied: 通知權限被拒絕，您可以在系統設定中手動開啟
+      request-button: 請求通知權限
 language:
   title: 語言
   description: >

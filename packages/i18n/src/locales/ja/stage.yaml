@@ -5,6 +5,8 @@ chat:
       core-system: コアシステム
       you: あなた
   reasoning: Reasoning
+  notification:
+    new-message: 新しいメッセージ
 message: 何か話しかけてみましょう…
 operations:
   load-models: モデルの読み込み

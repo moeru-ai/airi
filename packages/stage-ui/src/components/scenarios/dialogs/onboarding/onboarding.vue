@@ -9,7 +9,7 @@ import StepWelcome from './step-welcome.vue'
 
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
 import { useProvidersStore } from '../../../../stores/providers'
-import { OnboardingContextKey } from './utils'
+import { getAdditionalOnboardingSteps, OnboardingContextKey } from './utils'
 
 interface Emits {
   (e: 'configured'): void
@@ -66,7 +66,9 @@ async function handleNextStep(configData?: { apiKey: string, baseUrl: string, ac
   }
 
   // Other steps: just proceed
-  if (step.value < 4) {
+  const additionalSteps = getAdditionalOnboardingSteps()
+  const maxStep = 4 + additionalSteps.length
+  if (step.value < maxStep) {
     direction.value = 'next'
     step.value++
   }
@@ -108,6 +110,12 @@ async function handleSave() {
   emit('configured')
 }
 
+function getStepComponent(currentStep: number) {
+  const additionalSteps = getAdditionalOnboardingSteps()
+  const step = additionalSteps.find(s => s.stepNumber === currentStep)
+  return step?.component
+}
+
 provide(OnboardingContextKey, {
   selectedProviderId,
   selectedProvider,
@@ -126,6 +134,11 @@ provide(OnboardingContextKey, {
       <StepProviderSelection v-else-if="step === 2" :key="2" />
       <StepProviderConfiguration v-else-if="step === 3" :key="3" />
       <StepModelSelection v-else-if="step === 4" :key="4" />
+      <component
+        :is="getStepComponent(step)"
+        v-else
+        :key="step"
+      />
     </Transition>
   </div>
 </template>
