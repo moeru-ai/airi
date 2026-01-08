@@ -215,28 +215,39 @@ Player: "build a house"
 
 ```
 src/
-├── cognitive/              # 🧠 Three-layer cognitive system
-│   ├── perception/        # Layer A: Event processing
-│   │   └── event-manager.ts
-│   ├── reflex/            # Layer B: Instant reactions
+├── cognitive/                  # 🧠 Perception → Reflex → Conscious → Action
+│   ├── perception/            # Event ingestion
+│   │   └── event-manager.ts   # Normalizes raw Mineflayer events
+│   ├── reflex/                # Fast, rule-based reactions
 │   │   └── reflex-manager.ts
-│   ├── conscious/         # Layer C: LLM-powered reasoning
-│   │   ├── orchestrator.ts
-│   │   ├── completion.ts
-│   │   ├── prompt.ts
-│   │   └── handler.ts
-│   ├── container.ts       # Dependency injection
-│   ├── index.ts           # Cognitive system entry
-│   └── types.ts           # Shared type definitions
-├── agents/                # Specialized AI agents
-│   ├── action/           # Action execution agent
-│   ├── planning/         # Goal planning agent
-│   └── chat/             # Conversation agent
+│   ├── conscious/             # LLM-powered reasoning
+│   │   ├── blackboard.ts      # Shared working memory
+│   │   ├── brain.ts           # Core reasoning loop/orchestration
+│   │   ├── completion.ts      # LLM completion helper
+│   │   ├── handler.ts         # Routes stimuli into the brain
+│   │   ├── task-manager.ts    # Manages concurrent tasks
+│   │   ├── task-state.ts      # Task lifecycle enums/helpers
+│   │   └── prompts/           # Prompt definitions (e.g., brain-prompt.ts)
+│   ├── action/                # Task execution layer
+│   │   ├── task-executor.ts   # Executes planned steps with retries
+│   │   └── types.ts
+│   ├── container.ts           # Dependency injection wiring
+│   ├── index.ts               # Cognitive system entrypoint
+│   └── types.ts               # Shared cognitive types
+├── agents/                    # Specialized agents
+│   ├── action/               # Low-level actuator bridge
+│   ├── planning/             # Goal planner (LLM)
+│   ├── chat/                 # Conversational responses
+│   └── memory/               # Memory-related helpers
 ├── libs/
-│   └── mineflayer/       # Mineflayer bot wrapper
-├── skills/               # Atomic bot capabilities
-├── composables/          # Reusable functions
-└── utils/                # Helper utilities
+│   └── mineflayer/           # Mineflayer bot wrapper/adapters
+├── skills/                   # Atomic bot capabilities
+├── composables/              # Reusable functions (config, etc.)
+├── plugins/                  # Mineflayer/bot plugins
+├── web/                      # Debug web dashboard
+├── utils/                    # Helpers
+├── debug-server.ts           # Local debug server entry
+└── main.ts                   # Bot entrypoint
 ```
 
 ### 🎯 Design Principles
