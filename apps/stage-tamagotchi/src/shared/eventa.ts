@@ -266,3 +266,5 @@ export const i18nGetLocale = defineInvokeEventa<Locale>('eventa:invoke:electron:
 
 export { electron } from '@proj-airi/electron-eventa'
 export * from '@proj-airi/electron-eventa/electron-updater'
+
+export const modulesVisionPrepareScreenSourceSelection = defineInvokeEventa('eventa:invoke:modules:vision:prepare-screen-source-selection')

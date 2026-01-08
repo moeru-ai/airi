@@ -69,6 +69,12 @@ const menu = computed(() => [
     to: '/devtools/context-flow',
   },
   {
+    title: 'Context Observer',
+    description: 'Track how active context entries merge over time',
+    icon: 'i-solar:chat-square-bold-duotone',
+    to: '/devtools/context-observer',
+  },
+  {
     title: 'WebSocket Inspector',
     description: 'Inspect raw WebSocket traffic',
     icon: 'i-solar:transfer-horizontal-bold-duotone',

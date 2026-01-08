@@ -86,6 +86,7 @@
     "async-mutex": "catalog:",
     "colorjs.io": "^0.6.1",
     "culori": "^4.0.2",
+    "d3": "catalog:",
     "date-fns": "^4.1.0",
     "defu": "^6.1.4",
     "destr": "^2.0.5",
