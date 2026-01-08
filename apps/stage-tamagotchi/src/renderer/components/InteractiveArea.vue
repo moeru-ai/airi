@@ -11,6 +11,7 @@ import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
 import { useActiveElement, useLocalStorage, useMagicKeys, whenever } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
+import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -33,7 +34,6 @@ const isComposing = ref(false)
 type SendMode = 'enter' | 'ctrl-enter' | 'double-enter'
 
 const sendMode = useLocalStorage<SendMode>('chat-send-mode', 'enter')
-const showSendModeMenu = ref(false)
 const lastEnterTime = ref(0)
 
 const { enter, control, meta, shift } = useMagicKeys()
@@ -230,37 +230,42 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
     </div>
     <div class="flex items-center justify-end gap-2 py-1">
       <div class="relative">
-        <div
-          v-if="showSendModeMenu"
-          class="absolute bottom-full right-0 z-50 mb-2 min-w-[140px] w-max flex flex-col gap-1 overflow-hidden border border-primary-200 rounded-lg bg-white p-1 shadow-xl dark:border-primary-700 dark:bg-neutral-800"
-        >
-          <button
-            v-for="mode in ['enter', 'ctrl-enter', 'double-enter']"
-            :key="mode"
-            class="w-full flex items-center rounded-md px-3 py-2 text-left text-xs transition-colors hover:bg-primary-100 dark:hover:bg-primary-900/50"
-            :class="sendMode === mode ? 'text-primary-600 font-bold bg-primary-50 dark:bg-primary-900/20' : 'text-neutral-500'"
-            @click="sendMode = mode as any; showSendModeMenu = false"
-          >
-            <div class="mr-2 w-4 flex shrink-0 items-center justify-center">
-              <div v-if="sendMode === mode" class="i-ph:check-bold text-base" />
-            </div>
-
-            <span>
-              {{ mode === 'enter' ? 'Enter' : mode === 'ctrl-enter' ? 'Ctrl + Enter' : 'Double-click Enter' }}
-            </span>
-          </button>
-        </div>
-
-        <button
-          class="max-h-[10lh] min-h-[1lh] flex items-center justify-center rounded-md p-2 outline-none transition-colors transition-transform active:scale-95"
-          bg="neutral-100 dark:neutral-800"
-          text="lg neutral-500 dark:neutral-400"
-          hover="text-primary-500 dark:text-primary-400"
-          :title="t('stage.message')"
-          @click="showSendModeMenu = !showSendModeMenu"
-        >
-          <div class="i-solar:keyboard-bold-duotone" />
-        </button>
+        <DropdownMenuRoot>
+          <DropdownMenuTrigger as-child>
+            <button
+              class="max-h-[10lh] min-h-[1lh] flex items-center justify-center rounded-md p-2 outline-none transition-colors transition-transform active:scale-95"
+              bg="neutral-100 dark:neutral-800"
+              text="lg neutral-500 dark:neutral-400"
+              hover="text-primary-500 dark:text-primary-400"
+              :title="t('stage.message')"
+            >
+              <div class="i-solar:keyboard-bold-duotone" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuContent
+              align="end"
+              side="top"
+              :side-offset="8"
+              class="z-50 min-w-[140px] w-max flex flex-col gap-1 overflow-hidden border border-primary-200 rounded-lg bg-white p-1 shadow-xl dark:border-primary-700 dark:bg-neutral-800"
+            >
+              <DropdownMenuItem
+                v-for="mode in ['enter', 'ctrl-enter', 'double-enter']"
+                :key="mode"
+                class="w-full flex cursor-pointer items-center rounded-md px-3 py-2 text-left text-xs outline-none transition-colors hover:bg-primary-100 dark:hover:bg-primary-900/50"
+                :class="sendMode === mode ? 'text-primary-600 font-bold bg-primary-50 dark:bg-primary-900/20' : 'text-neutral-500'"
+                @select="sendMode = mode as any"
+              >
+                <div class="mr-2 w-4 flex shrink-0 items-center justify-center">
+                  <div v-if="sendMode === mode" class="i-ph:check-bold text-base" />
+                </div>
+                <span>
+                  {{ mode === 'enter' ? 'Enter' : mode === 'ctrl-enter' ? 'Ctrl + Enter' : 'Double-click Enter' }}
+                </span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenuPortal>
+        </DropdownMenuRoot>
       </div>
 
       <button
