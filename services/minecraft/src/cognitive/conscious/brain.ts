@@ -20,7 +20,7 @@ interface BrainDeps {
   taskExecutor: TaskExecutor
 }
 
-interface BrainResponse {
+interface LLMResponse {
   thought: string
   blackboard: {
     currentGoal?: string
@@ -159,7 +159,7 @@ export class Brain {
     const additionalCtx = this.contextFromEvent(event)
 
     // 3. Decide (LLM Call)
-    const systemPrompt = this.generateSystemPrompt(this.blackboard)
+    const systemPrompt = generateBrainSystemPrompt(this.blackboard, this.deps.taskExecutor.getAvailableActions())
     const decision = await this.decide(systemPrompt, additionalCtx)
 
     if (!decision) {
@@ -204,7 +204,7 @@ export class Brain {
     this.debugService.updateBlackboard(this.blackboard)
   }
 
-  private async decide(sysPrompt: string, userMsg: string): Promise<BrainResponse | null> {
+  private async decide(sysPrompt: string, userMsg: string): Promise<LLMResponse | null> {
     try {
       const request_start = Date.now()
       const response = await this.deps.neuri.handleStateless(
@@ -237,19 +237,14 @@ export class Brain {
 
       if (!response)
         return null
-
-      const parsed = JSON.parse(response) as BrainResponse
+      // TODO: use toolcall instead of outputing json directly
+      const parsed = JSON.parse(response) as LLMResponse
       return parsed
     }
     catch (err) {
       this.log('ERROR', 'Brain: Decision failed', { error: err })
       return null
     }
-  }
-
-  private generateSystemPrompt(blackboard: Blackboard): string {
-    const actions = this.deps.taskExecutor.getAvailableActions()
-    return generateBrainSystemPrompt(blackboard, actions)
   }
 
   // --- Debug Helpers ---

@@ -14,6 +14,8 @@ export function generateBrainSystemPrompt(
 
   const availableActionsJson = JSON.stringify(actionDefinitions, null, 2)
 
+  // TODO extract prompt components later
+  // e.g. personality should be included from somewhere else
   return `
 # Role Definition
 You are **Airi**, a sentient digital companion embodied within a Minecraft avatar.
