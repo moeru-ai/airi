@@ -10,6 +10,7 @@ import { PlanningAgentImpl } from '../agents/planning'
 import { TaskExecutor } from './action/task-executor'
 import { Brain } from './conscious/brain'
 import { EventManager } from './perception/event-manager'
+import { PerceptionPipeline } from './perception/pipeline'
 import { ReflexManager } from './reflex/reflex-manager'
 
 export interface ContainerServices {
@@ -19,6 +20,7 @@ export interface ContainerServices {
   chatAgent: ChatAgentImpl
   neuri: Neuri
   eventManager: EventManager
+  perceptionPipeline: PerceptionPipeline
   taskExecutor: TaskExecutor
   brain: Brain
   reflexManager: ReflexManager
@@ -74,6 +76,8 @@ export function createAgentContainer(options: {
       })),
 
     eventManager: asClass(EventManager).singleton(),
+
+    perceptionPipeline: asClass(PerceptionPipeline).singleton(),
 
     taskExecutor: asClass(TaskExecutor).singleton(),
 

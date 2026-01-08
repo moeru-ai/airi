@@ -19,6 +19,7 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
       const actionAgent = container.resolve('actionAgent')
       const chatAgent = container.resolve('chatAgent')
       const eventManager = container.resolve('eventManager')
+      const perceptionPipeline = container.resolve('perceptionPipeline')
       const brain = container.resolve('brain')
       const reflexManager = container.resolve('reflexManager')
       const taskExecutor = container.resolve('taskExecutor')
@@ -36,6 +37,13 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
       // Initialize layers
       reflexManager.init(botWithAgents)
       brain.init(botWithAgents)
+
+      // Initialize perception pipeline (raw events + detectors)
+      perceptionPipeline.init(botWithAgents)
+
+      bot.onTick('tick', ({ delta }) => {
+        perceptionPipeline.tick(delta)
+      })
 
       // Set message handling via EventManager
       const chatHandler = new ChatMessageHandler(bot.username)
@@ -89,6 +97,9 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
       if (container) {
         const taskExecutor = container.resolve('taskExecutor')
         await taskExecutor.destroy()
+
+        const perceptionPipeline = container.resolve('perceptionPipeline')
+        perceptionPipeline.destroy()
       }
 
       bot.bot.removeAllListeners('chat')
