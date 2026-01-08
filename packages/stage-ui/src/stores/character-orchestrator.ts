@@ -55,7 +55,7 @@ export const sparkCommandSchema = z.object({
       persona: z.array(z.object({
         strength: z.enum(['very-high', 'high', 'medium', 'low', 'very-low']),
         traits: z.string().describe('Trait name to adjust behavior. For example, "bravery", "cautiousness", "friendliness".'),
-      })).nullable().describe('Personas can be used to adjust the behavior of sub-agents. For example, when using as NPC in games, or player in Minecraft, the persona can help define the character\'s traits and decision-making style.'),
+      }).strict()).nullable().describe('Personas can be used to adjust the behavior of sub-agents. For example, when using as NPC in games, or player in Minecraft, the persona can help define the character\'s traits and decision-making style.'),
       options: z.array(z.object({
         label: z.string().describe('Short and brief label for this option, used for identification, should be within a sentence.'),
         steps: z.array(z.string()).describe('Step-by-step instructions for the sub-agent to follow, useful when providing detailed guidance.'),
@@ -65,10 +65,10 @@ export const sparkCommandSchema = z.object({
         fallback: z.array(z.string()).nullable().describe('Fallback steps if the main steps cannot be completed.'),
         // TODO: consider to remove or enrich how triggers should work later
         triggers: z.array(z.string()).nullable().describe('Conditions or events that would trigger this option.'),
-      })),
-    }).nullable().describe('Guidance for the sub-agent on how to interpret and execute the command with given context, persona settings, and reasoning.'),
-  })).describe('List of commands to issue to sub-agents, you may produce multiple commands in response to multiple sub-agents by specifying their IDs in destination field. Empty array can be used for zero commands.'),
-})
+      }).strict()),
+    }).strict().nullable().describe('Guidance for the sub-agent on how to interpret and execute the command with given context, persona settings, and reasoning.'),
+  }).strict()).describe('List of commands to issue to sub-agents, you may produce multiple commands in response to multiple sub-agents by specifying their IDs in destination field. Empty array can be used for zero commands.'),
+}).strict()
 
 export type SparkCommandSchema = z.infer<typeof sparkCommandSchema>
 
@@ -97,7 +97,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     const sparkNoResponseTool = await tool({
       name: 'builtIn_sparkNoResponse',
       description: `Indicate that no response or action is needed for the current spark:notify event.`,
-      parameters: z.object({}),
+      parameters: z.object({}).strict(),
       execute: async (_payload) => {
         noResponse = true
         return 'AIRI System: Acknowledged, no response or action will be processed.'
