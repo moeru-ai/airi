@@ -44,6 +44,11 @@
 > У нас есть целая выделенная организация [@proj-airi](https://github.com/proj-airi) для всех подпроектов, родившихся из Проекта AIRI. Проверьте её!
 >
 > RAG, система памяти, встроенная база данных, иконки, утилиты Live2D и многое другое!
+
+> [!TIP]
+> У нас есть проект переводов на [Crowdin](https://crowdin.com/project/proj-airi). Если заметили неточность, помогите с переводом или исправлением на Crowdin.
+> <a href="https://crowdin.com/project/proj-airi" target="_blank" rel="nofollow"><img style="width: 140px; height: 40px;" src="https://badges.crowdin.net/badge/light/crowdin-on-dark.png" srcset="https://badges.crowdin.net/badge/light/crowdin-on-dark.png 1x, https://badges.crowdin.net/badge/light/crowdin-on-dark@2x.png 2x" alt="Crowdin | Agile localization for tech companies" width="140" height="40" /></a>
+
 Вы когда-нибудь мечтали о кибер-живом существе (кибер-вайфу, цифровом питомце) или цифровом компаньоне, который мог бы играть с вами и разговаривать?
 
 С силой современных больших языковых моделей, таких как [ChatGPT](https://chatgpt.com) и знаменитый [Claude](https://claude.ai), попросить виртуальное существо ролеплей и общаться с нами уже достаточно просто для всех. Платформы вроде [Character.ai (a.k.a. c.ai)](https://character.ai) и [JanitorAI](https://janitorai.com/), а также локальные площадки вроде [SillyTavern](https://github.com/SillyTavern/SillyTavern) уже являются достаточно хорошими решениями для чат-основанного или визуального опыта, похожего на приключенческую игру.
