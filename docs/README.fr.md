@@ -45,6 +45,10 @@
 >
 > RAG, système de mémoire, base de données intégrée, icônes, utilitaires Live2D, et plus encore !
 
+> [!TIP]
+> Nous avons un projet de traduction sur [Crowdin](https://crowdin.com/project/proj-airi). Si vous repérez une traduction inexacte, n’hésitez pas à contribuer ou à proposer une correction sur Crowdin.
+> <a href="https://crowdin.com/project/proj-airi" target="_blank" rel="nofollow"><img style="width: 140px; height: 40px;" src="https://badges.crowdin.net/badge/light/crowdin-on-dark.png" srcset="https://badges.crowdin.net/badge/light/crowdin-on-dark.png 1x, https://badges.crowdin.net/badge/light/crowdin-on-dark@2x.png 2x" alt="Crowdin | Agile localization for tech companies" width="140" height="40" /></a>
+
 Avez-vous rêvé d’avoir un être cyber vivant (waifu numérique, animal de compagnie digital) ou un compagnon numérique avec lequel jouer et discuter ?
 
 Avec la puissance des modèles de langage modernes comme [ChatGPT](https://chatgpt.com) et le célèbre [Claude](https://claude.ai), demander à un être virtuel de jouer un rôle et de discuter est déjà simple pour tout le monde. Des plateformes comme [Character.ai (c.ai)](https://character.ai) et [JanitorAI](https://janitorai.com/) ainsi que des playgrounds locaux comme [SillyTavern](https://github.com/SillyTavern/SillyTavern) offrent déjà des solutions assez bonnes pour une expérience de chat ou de jeu d’aventure visuel.
