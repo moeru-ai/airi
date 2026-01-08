@@ -1,5 +1,6 @@
-import { BrowserWindow, type BrowserWindowConstructorOptions, ipcMain } from 'electron'
+import type { BrowserWindowConstructorOptions } from 'electron'
 
+import { BrowserWindow, ipcMain } from 'electron'
 import { isMacOS } from 'std-env'
 
 export function toggleWindowShow(window?: BrowserWindow | null): void {

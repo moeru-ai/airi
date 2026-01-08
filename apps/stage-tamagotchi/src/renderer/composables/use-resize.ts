@@ -4,7 +4,8 @@ export function useResize() {
   const isWin = window.platform === 'win32'
 
   const handleResizeStart = (e: MouseEvent, direction: ResizeDirection) => {
-    if (!isWin) return
+    if (!isWin)
+      return
     e.preventDefault()
     e.stopPropagation()
 
