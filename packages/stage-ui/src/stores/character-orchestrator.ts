@@ -173,6 +173,8 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
         sparkNoResponseTool,
         sparkCommandTool,
       ],
+      supportsTools: true, // we expect tools to be supported
+      waitForTools: true, // see https://github.com/moeru-ai/airi/issues/907
       onStreamEvent: async (streamEvent: StreamEvent) => {
         if (streamEvent.type === 'text-delta') {
           if (noResponse)

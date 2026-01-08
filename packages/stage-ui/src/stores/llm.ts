@@ -21,6 +21,7 @@ export interface StreamOptions {
   onStreamEvent?: (event: StreamEvent) => void | Promise<void>
   toolsCompatibility?: Map<string, boolean>
   supportsTools?: boolean
+  waitForTools?: boolean // when true,won't resolve on finishReason=='tool_calls';
   tools?: Tool[] | (() => Promise<Tool[] | undefined>)
 }
 
@@ -72,7 +73,7 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
         async onEvent(event) {
           try {
             await options?.onStreamEvent?.(event as StreamEvent)
-            if (event.type === 'finish')
+            if (event.type === 'finish' && (event.finishReason !== 'tool_calls' || !options?.waitForTools))
               resolve()
             else if (event.type === 'error')
               reject(event.error ?? new Error('Stream error'))
