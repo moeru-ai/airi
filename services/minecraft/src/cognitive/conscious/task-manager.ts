@@ -30,7 +30,8 @@ export class TaskManager {
     if (!this.primaryTask) {
       this.primaryTask = task
       this.logger.withFields({ taskId: task.id, goal, type: 'primary' }).log('TaskManager: Created new primary task')
-    } else {
+    }
+    else {
       this.secondaryTasks.set(task.id, task)
       this.logger.withFields({ taskId: task.id, goal, type: 'secondary' }).log('TaskManager: Created new secondary task')
     }
@@ -94,7 +95,7 @@ export class TaskManager {
 
     // We don't remove it yet, we wait for completeTask to be called
     this.addToHistory(task)
-    
+
     // Cleanup reference immediately to allow new primary tasks if this was primary?
     // No, we should wait for the orchestrator to call completeTask/cleanup.
   }
@@ -113,14 +114,16 @@ export class TaskManager {
    */
   public completeTask(taskId: string): void {
     const task = this.getTaskById(taskId)
-    if (!task) return
+    if (!task)
+      return
 
     this.logger.withFields({ taskId: task.id }).log('TaskManager: Task completed')
     this.addToHistory(task)
 
     if (this.primaryTask?.id === taskId) {
       this.primaryTask = null
-    } else {
+    }
+    else {
       this.secondaryTasks.delete(taskId)
     }
   }
@@ -143,7 +146,8 @@ export class TaskManager {
    * Get a task by ID
    */
   public getTaskById(taskId: string): TaskContext | null {
-    if (this.primaryTask?.id === taskId) return this.primaryTask
+    if (this.primaryTask?.id === taskId)
+      return this.primaryTask
     return this.secondaryTasks.get(taskId) || null
   }
 
@@ -160,9 +164,12 @@ export class TaskManager {
       const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000)
       lines.push(`[PRIMARY TASK] (${status.toUpperCase()}): "${goal}"`)
       lines.push(`- Duration: ${elapsedSeconds}s`)
-      if (currentStep) lines.push(`- Step: ${currentStep}`)
-      if (plan) lines.push(`- Plan: ${plan.steps.length} steps (${plan.status})`)
-    } else {
+      if (currentStep)
+        lines.push(`- Step: ${currentStep}`)
+      if (plan)
+        lines.push(`- Plan: ${plan.steps.length} steps (${plan.status})`)
+    }
+    else {
       lines.push('No primary task active.')
     }
 
@@ -182,7 +189,8 @@ export class TaskManager {
    */
   public getAllActiveTasks(): TaskContext[] {
     const tasks: TaskContext[] = []
-    if (this.primaryTask) tasks.push(this.primaryTask)
+    if (this.primaryTask)
+      tasks.push(this.primaryTask)
     tasks.push(...this.secondaryTasks.values())
     return tasks
   }
@@ -200,8 +208,9 @@ export class TaskManager {
 
   private addToHistory(task: TaskContext): void {
     // Only add if not already in history (simple check)
-    if (this.taskHistory.some(t => t.id === task.id)) return
-    
+    if (this.taskHistory.some(t => t.id === task.id))
+      return
+
     this.taskHistory.push(task)
     if (this.taskHistory.length > this.maxHistorySize) {
       this.taskHistory.shift()
