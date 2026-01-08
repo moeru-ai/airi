@@ -90,7 +90,7 @@ export const actionsList: Action[] = [
       // await ctx.actions.stop()
       // ctx.clearBotLogs()
       // ctx.actions.cancelResume()
-      mineflayer.emit('interrupt') // FIXME: this doesn't work!
+      mineflayer.interrupt('stop tool called')
       const msg = 'Agent stopped.'
       // if (mineflayer.self_prompter.on)
       //   msg += ' Self-prompting still active.'
