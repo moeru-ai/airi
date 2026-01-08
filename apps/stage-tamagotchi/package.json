@@ -59,6 +59,8 @@
     "@proj-airi/server-sdk": "workspace:*",
     "@proj-airi/stage-layouts": "workspace:^",
     "@proj-airi/stage-ui": "workspace:^",
+    "@proj-airi/stage-ui-live2d": "workspace:^",
+    "@proj-airi/stage-ui-three": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@stdlib/string-base-kebabcase": "^0.2.2",
     "@tresjs/cientos": "^5.2.1",

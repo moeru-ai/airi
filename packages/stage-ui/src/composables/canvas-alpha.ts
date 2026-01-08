@@ -132,7 +132,7 @@ export function useCanvasPixelAtPoint(
     const scaleY = gl.drawingBufferHeight / height.value
     const pixelX = Math.floor(xIn * scaleX)
     // Flip Y; subtract 1 to avoid top-edge off-by-one
-    const pixelY = Math.floor(gl.drawingBufferHeight - 1 - yIn * scaleY)
+    const pixelY = Math.floor(gl.drawingBufferHeight + yIn * scaleY)
 
     const data = new Uint8Array(4)
     try {
@@ -141,6 +141,7 @@ export function useCanvasPixelAtPoint(
     catch {
       return new Uint8Array([0, 0, 0, 0])
     }
+
     return data
   })
 

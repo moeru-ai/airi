@@ -106,7 +106,7 @@ catalogs:
       specifier: ^8.6.0
       version: 8.6.0
     es-toolkit:
-      specifier: ^1.43.0
+      specifier: 1.43.0
       version: 1.43.0
     hono:
       specifier: 4.11.3
@@ -875,6 +875,12 @@ importers:
       '@proj-airi/stage-ui':
         specifier: workspace:^
         version: link:../../packages/stage-ui
+      '@proj-airi/stage-ui-live2d':
+        specifier: workspace:^
+        version: link:../../packages/stage-ui-live2d
+      '@proj-airi/stage-ui-three':
+        specifier: workspace:^
+        version: link:../../packages/stage-ui-three
       '@proj-airi/ui':
         specifier: workspace:^
         version: link:../../packages/ui
@@ -2600,6 +2606,9 @@ importers:
       culori:
         specifier: ^4.0.2
         version: 4.0.2
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.43.0
       pinia:
         specifier: ^3.0.4
         version: 3.0.4(typescript@5.9.3)(vue@3.5.25(typescript@5.9.3))

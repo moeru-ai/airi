@@ -339,6 +339,13 @@ function canvasElement() {
     return vrmViewerRef.value?.canvasElement()
 }
 
+function readRenderTargetRegionAtClientPoint(clientX: number, clientY: number, radius: number) {
+  if (stageModelRenderer.value !== 'vrm')
+    return null
+
+  return vrmViewerRef.value?.readRenderTargetRegionAtClientPoint?.(clientX, clientY, radius) ?? null
+}
+
 onUnmounted(() => {
   if (lipSyncLoopId.value) {
     cancelAnimationFrame(lipSyncLoopId.value)
@@ -350,6 +357,7 @@ onUnmounted(() => {
 
 defineExpose({
   canvasElement,
+  readRenderTargetRegionAtClientPoint,
 })
 
 onPlaybackFinished(() => {

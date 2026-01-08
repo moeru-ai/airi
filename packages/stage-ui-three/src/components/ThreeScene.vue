@@ -9,7 +9,7 @@
 
 import type { VRM } from '@pixiv/three-vrm'
 import type { TresContext } from '@tresjs/core'
-import type { DirectionalLight, SphericalHarmonics3, Texture, WebGLRenderTarget } from 'three'
+import type { DirectionalLight, SphericalHarmonics3, Texture, WebGLRenderer, WebGLRenderTarget } from 'three'
 
 import type { Vec3 } from '../stores/model-store'
 
@@ -29,9 +29,10 @@ import {
 } from 'three'
 import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 
+// From stage-ui-three package
+import { useRenderTargetRegionAtClientPoint } from '../composables/render-target'
 // pinia store
 import { useModelStore } from '../stores/model-store'
-// From stage-ui-three package
 import { OrbitControls } from './Controls'
 import { SkyBox } from './Environment'
 import { VRMModel } from './Model'
@@ -99,6 +100,12 @@ const controlsRef = shallowRef<InstanceType<typeof OrbitControls>>()
 const tresCanvasRef = shallowRef<TresContext>()
 const skyBoxEnvRef = ref<InstanceType<typeof SkyBox>>()
 const dirLightRef = ref<InstanceType<typeof DirectionalLight>>()
+const { readRenderTargetRegionAtClientPoint, disposeRenderTarget } = useRenderTargetRegionAtClientPoint({
+  getRenderer: () => tresCanvasRef.value?.renderer.instance as WebGLRenderer | undefined,
+  getScene: () => tresCanvasRef.value?.scene.value,
+  getCamera: () => camera.value,
+  getCanvas: () => tresCanvasRef.value?.renderer.instance.domElement,
+})
 
 /*
   * Pinia store definition
@@ -194,7 +201,9 @@ onMounted(() => {
   }
 })
 
-onUnmounted(() => {})
+onUnmounted(() => {
+  disposeRenderTarget()
+})
 
 const effectProps = {
   saturation: 0.3,
@@ -291,6 +300,10 @@ defineExpose({
   canvasElement: () => {
     return tresCanvasRef.value?.renderer.instance.domElement
   },
+  camera: () => camera.value,
+  renderer: () => tresCanvasRef.value?.renderer.instance,
+  scene: () => modelRef.value?.scene,
+  readRenderTargetRegionAtClientPoint,
 })
 </script>
 

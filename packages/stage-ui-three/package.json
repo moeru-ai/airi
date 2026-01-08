@@ -34,6 +34,7 @@
     "@tresjs/post-processing": "^3.2.0",
     "@vueuse/core": "^14.1.0",
     "culori": "^4.0.2",
+    "es-toolkit": "catalog:",
     "pinia": "^3.0.4",
     "postprocessing": "^6.38.2",
     "three": "^0.182.0",
