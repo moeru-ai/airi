@@ -74,3 +74,5 @@ export const widgetsUpdateEvent = defineEventa<{ id: string, componentProps?: Re
 
 export { electron } from './electron'
 export * from './electron-updater'
+
+export const modulesVisionPrepareScreenSourceSelection = defineInvokeEventa('eventa:invoke:modules:vision:prepare-screen-source-selection')

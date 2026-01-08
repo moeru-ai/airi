@@ -71,6 +71,12 @@ const menu = computed(() => [
     icon: 'i-solar:screen-share-bold-duotone',
     to: '/devtools/screen-capture',
   },
+  {
+    title: 'Vision Capture',
+    description: 'Capture a screen frame and inspect the output payload',
+    icon: 'i-solar:eye-closed-bold-duotone',
+    to: '/devtools/vision',
+  },
 ])
 
 const openDevTools = useElectronEventaInvoke(electronOpenMainDevtools)
