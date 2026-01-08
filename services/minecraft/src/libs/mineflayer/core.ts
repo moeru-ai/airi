@@ -53,6 +53,45 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
     })
   }
 
+  public interrupt(reason?: string) {
+    this.logger.withFields({ reason }).log('Interrupt requested')
+
+    try {
+      (this.bot as any).pathfinder?.stop?.()
+    }
+    catch { }
+
+    try {
+      (this.bot as any).pvp?.stop?.()
+    }
+    catch { }
+
+    try {
+      ; (this.bot as any).stopDigging?.()
+    }
+    catch { }
+
+    try {
+      ; (this.bot as any).deactivateItem?.()
+    }
+    catch { }
+
+    try {
+      if (typeof (this.bot as any).clearControlStates === 'function') {
+        ; (this.bot as any).clearControlStates()
+      }
+      else {
+        ; (['forward', 'back', 'left', 'right', 'jump', 'sprint', 'sneak'] as const).forEach((control) => {
+          this.bot.setControlState(control as any, false)
+        })
+      }
+    }
+    catch { }
+
+    this.logger.withFields({ reason }).log('Interrupted')
+    this.emit('interrupt')
+  }
+
   public static async asyncBuild(options: MineflayerOptions) {
     const mineflayer = new Mineflayer(options)
 
