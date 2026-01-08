@@ -18,6 +18,8 @@ import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
+import ResizeHandler from './components/ResizeHandler.vue'
+
 import { electronOpenSettings, electronStartTrackMousePosition } from '../shared/eventa'
 import { useElectronEventaContext } from './composables/electron-vueuse'
 
@@ -81,6 +83,7 @@ onUnmounted(() => contextBridgeStore.dispose())
   <ToasterRoot @close="id => toast.dismiss(id)">
     <Toaster />
   </ToasterRoot>
+  <ResizeHandler />
   <RouterView />
 </template>
 
