@@ -115,6 +115,10 @@ export const useSettings = defineStore('settings', () => {
 
   const [allowVisibleOnAllWorkspaces, resetAllowVisibleOnAllWorkspaces] = createResettableLocalStorage('settings/allow-visible-on-all-workspaces', true)
 
+  const [websocketServerUrl, resetWebsocketServerUrl] = createResettableLocalStorage('settings/websocket-server-url', '')
+
+  const [websocketSecureEnabled, resetWebsocketSecureEnabled] = createResettableLocalStorage('settings/websocket-secure-enabled', false)
+
   function getLanguage() {
     let language = localStorage.getItem('settings/language')
 
@@ -186,6 +190,8 @@ export const useSettings = defineStore('settings', () => {
     resetThemeColorsHueDynamic()
 
     resetAllowVisibleOnAllWorkspaces()
+    resetWebsocketServerUrl()
+    resetWebsocketSecureEnabled()
 
     await updateStageModel()
   }
@@ -212,6 +218,8 @@ export const useSettings = defineStore('settings', () => {
     themeColorsHueDynamic,
 
     allowVisibleOnAllWorkspaces,
+    websocketServerUrl,
+    websocketSecureEnabled,
 
     setThemeColorsHue,
     applyPrimaryColorFrom,

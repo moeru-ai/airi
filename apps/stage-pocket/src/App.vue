@@ -69,7 +69,6 @@ watch(settings.themeColorsHueDynamic, () => {
   document.documentElement.classList.toggle('dynamic-hue', settings.themeColorsHueDynamic.value)
 }, { immediate: true })
 
-// Send system notification for message completion
 async function sendSystemNotification(title: string, body: string) {
   try {
     const permission = await LocalNotifications.checkPermissions()
@@ -98,61 +97,67 @@ async function sendSystemNotification(title: string, body: string) {
   }
 }
 
-// Register pocket-specific onboarding steps
 registerOnboardingStep({
   stepNumber: 5,
   component: StepNotificationPermission,
 })
 
-// Initialize first-time setup check when app mounts
+function handleMessageComplete(event: { data: { 'message': { content?: string | Array<{ type: string, text?: string }> }, 'stage-tamagotchi'?: boolean } }) {
+  if (event.data['stage-tamagotchi']) {
+    const message = event.data.message
+    let messageText = ''
+
+    if (typeof message.content === 'string') {
+      messageText = message.content
+    }
+    else if (Array.isArray(message.content)) {
+      messageText = message.content
+        .filter(part => part.type === 'text')
+        .map(part => part.text || '')
+        .join('')
+    }
+
+    const truncatedText = messageText.length > 100 ? `${messageText.slice(0, 100)}...` : messageText
+
+    if (truncatedText.trim()) {
+      const notificationTitle = i18n.t('stage.chat.notification.new-message')
+
+      toast.info(notificationTitle, {
+        description: truncatedText,
+        duration: 5000,
+      })
+
+      sendSystemNotification(notificationTitle, truncatedText)
+    }
+  }
+}
+
+async function initializeServerChannel() {
+  const websocketUrl = settingsStore.websocketServerUrl || import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws'
+  await serverChannelStore.dispose()
+  await serverChannelStore.initialize({ possibleEvents: ['ui:configure', 'output:gen-ai:chat:complete'], url: websocketUrl }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
+
+  if (messageCompleteDisposer) {
+    messageCompleteDisposer()
+  }
+  messageCompleteDisposer = serverChannelStore.onEvent('output:gen-ai:chat:complete', handleMessageComplete)
+}
+
 onMounted(async () => {
   analyticsStore.initialize()
   cardStore.initialize()
 
   onboardingStore.initializeSetupCheck()
 
-  await serverChannelStore.initialize({ possibleEvents: ['ui:configure', 'output:gen-ai:chat:complete'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
+  await initializeServerChannel()
   await contextBridgeStore.initialize()
   characterOrchestratorStore.initialize()
 
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
 
-  // Listen for message completion events from tamagotchi
-  messageCompleteDisposer = serverChannelStore.onEvent('output:gen-ai:chat:complete', (event) => {
-    // Only show notification if message is from tamagotchi
-    if (event.data['stage-tamagotchi']) {
-      const message = event.data.message
-      let messageText = ''
-
-      // Extract text content from message
-      if (typeof message.content === 'string') {
-        messageText = message.content
-      }
-      else if (Array.isArray(message.content)) {
-        // Extract text from content parts
-        messageText = message.content
-          .filter((part: any) => part.type === 'text')
-          .map((part: any) => part.text || '')
-          .join('')
-      }
-
-      // Truncate long messages for notification
-      const truncatedText = messageText.length > 100 ? `${messageText.slice(0, 100)}...` : messageText
-
-      if (truncatedText.trim()) {
-        const notificationTitle = i18n.t('stage.chat.notification.new-message')
-
-        // Show toast notification
-        toast.info(notificationTitle, {
-          description: truncatedText,
-          duration: 5000,
-        })
-
-        // Send system notification
-        sendSystemNotification(notificationTitle, truncatedText)
-      }
-    }
+  watch(() => settingsStore.websocketServerUrl, async () => {
+    await initializeServerChannel()
   })
 })
 
@@ -163,7 +168,6 @@ onUnmounted(() => {
   }
 })
 
-// Handle first-time setup events
 function handleSetupConfigured() {
   onboardingStore.markSetupCompleted()
 }

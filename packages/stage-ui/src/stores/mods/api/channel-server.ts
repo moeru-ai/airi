@@ -31,7 +31,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     'ui:configure',
   ]
 
-  async function initialize(options?: { token?: string, possibleEvents?: Array<keyof WebSocketEvents> }) {
+  async function initialize(options?: { token?: string, possibleEvents?: Array<keyof WebSocketEvents>, url?: string }) {
     if (connected.value && client.value)
       return Promise.resolve()
     if (initializing.value)
@@ -42,10 +42,12 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
       ...(options?.possibleEvents ?? []),
     ]))
 
+    const serverUrl = options?.url || import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws'
+
     initializing.value = new Promise<void>((resolve) => {
       client.value = new Client({
         name: isStageWeb() ? WebSocketEventSource.StageWeb : isStageTamagotchi() ? WebSocketEventSource.StageTamagotchi : WebSocketEventSource.StageWeb,
-        url: import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws',
+        url: serverUrl,
         token: options?.token,
         possibleEvents,
         onError: (error) => {

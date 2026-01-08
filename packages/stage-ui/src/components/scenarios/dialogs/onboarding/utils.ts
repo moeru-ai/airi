@@ -24,7 +24,6 @@ const additionalStepsRegistry: OnboardingStep[] = []
 
 export function registerOnboardingStep(step: OnboardingStep) {
   additionalStepsRegistry.push(step)
-  // Sort by step number
   additionalStepsRegistry.sort((a, b) => a.stepNumber - b.stepNumber)
 }
 

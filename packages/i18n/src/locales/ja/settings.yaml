@@ -41,6 +41,14 @@ language:
   title: 言語
   description: >
     AIRIインターフェースの言語を変更します。これはキャラクターの応答言語には影響しません。
+websocket-server-url:
+  title: WebSocketサーバーURL
+  description: >-
+    マルチデバイス連携用のWebSocketサーバーURL。デスクトップアプリ（tamagotchi）とモバイルアプリ（pocket）が異なるデバイスにある場合、デスクトップのIPアドレスとポートを入力してください。例：ws://192.168.1.100:6121/ws
+websocket-secure-enabled:
+  title: セキュアWebSocket (WSS) を有効化
+  description: >-
+    開発モードでモバイルアプリ（pocket）からのHTTPS接続を許可するためにWSS（WebSocket Secure）を有効化します。これにより自動的に自己署名証明書が生成されます。
 live2d:
   change-model:
     from-file: ファイルから読み込む

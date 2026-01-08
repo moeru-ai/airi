@@ -75,6 +75,12 @@ const settings = computed(() => [
     icon: 'i-solar:filters-bold-duotone',
     to: '/settings/system',
   },
+  {
+    title: t('settings.pages.connection.title'),
+    description: t('settings.pages.connection.description'),
+    icon: 'i-solar:link-bold-duotone',
+    to: '/settings/connection',
+  },
 ])
 </script>
 

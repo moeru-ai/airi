@@ -44,6 +44,14 @@ language:
   description: >
     Change the language of the AIRI interface. This will not affect the language
     of the character's responses.
+websocket-server-url:
+  title: WebSocket Server URL
+  description: >-
+    WebSocket server URL for multi-device collaboration. If the desktop app (tamagotchi) and mobile app (pocket) are on different devices, enter the desktop's IP address and port. Example: ws://192.168.1.100:6121/ws
+websocket-secure-enabled:
+  title: Enable Secure WebSocket (WSS)
+  description: >-
+    Enable WSS (WebSocket Secure) to allow HTTPS connections from mobile app (pocket) in development mode. This will generate a self-signed certificate automatically.
 live2d:
   change-model:
     from-file: Load from File

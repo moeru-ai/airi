@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { all } from '@proj-airi/i18n'
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { FieldCheckbox, FieldSelect, useTheme } from '@proj-airi/ui'
-import { computed } from 'vue'
+import { FieldCheckbox, FieldInput, FieldSelect, useTheme } from '@proj-airi/ui'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const settings = useSettings()
@@ -13,6 +14,32 @@ const { isDark: dark } = useTheme()
 const languages = computed(() => {
   return Object.entries(all).map(([value, label]) => ({ value, label }))
 })
+
+if (isStageTamagotchi()) {
+  watch(() => settings.websocketSecureEnabled, async (newValue) => {
+    try {
+      const electron = await import('electron')
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+      const userDataPath = electron.app.getPath('userData')
+      const settingsPath = path.join(userDataPath, 'websocket-settings.json')
+      fs.writeFileSync(settingsPath, JSON.stringify({ websocketSecureEnabled: newValue }))
+
+      // @ts-expect-error - Dynamic import for tamagotchi-specific modules
+      const { useElectronEventaContext } = await import('@proj-airi/stage-tamagotchi/renderer/composables/electron-vueuse/use-electron-eventa-context')
+      // @ts-expect-error - Dynamic import for tamagotchi-specific modules
+      const { electronRestartWebSocketServer } = await import('@proj-airi/stage-tamagotchi/shared/eventa')
+      const { defineInvoke } = await import('@moeru/eventa')
+
+      const context = useElectronEventaContext()
+      const restartServer = defineInvoke(context.value, electronRestartWebSocketServer)
+      await restartServer()
+    }
+    catch (error) {
+      console.error('Failed to restart WebSocket server:', error)
+    }
+  })
+}
 </script>
 
 <template>
@@ -29,7 +56,6 @@ const languages = computed(() => {
       :description="t('settings.theme.description')"
     />
 
-    <!-- Language Setting -->
     <FieldSelect
       v-model="settings.language"
       v-motion
@@ -41,6 +67,31 @@ const languages = computed(() => {
       :label="t('settings.language.title')"
       :description="t('settings.language.description')"
       :options="languages"
+    />
+
+    <FieldInput
+      v-model="settings.websocketServerUrl"
+      v-motion
+      :initial="{ opacity: 0, y: 10 }"
+      :enter="{ opacity: 1, y: 0 }"
+      :duration="250 + (4 * 10)"
+      :delay="4 * 50"
+      type="url"
+      :label="t('settings.websocket-server-url.title')"
+      :description="t('settings.websocket-server-url.description')"
+      placeholder="ws://192.168.1.100:6121/ws"
+    />
+
+    <FieldCheckbox
+      v-if="isStageTamagotchi()"
+      v-model="settings.websocketSecureEnabled"
+      v-motion
+      :initial="{ opacity: 0, y: 10 }"
+      :enter="{ opacity: 1, y: 0 }"
+      :duration="250 + (5 * 10)"
+      :delay="5 * 50"
+      :label="t('settings.websocket-secure-enabled.title')"
+      :description="t('settings.websocket-secure-enabled.description')"
     />
 
     <div

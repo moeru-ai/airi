@@ -57,7 +57,6 @@ function handlePreviousStep() {
 }
 
 async function handleNextStep(configData?: { apiKey: string, baseUrl: string, accountId: string }) {
-  // Step 3: Provider configuration - validate and save before proceeding
   if (step.value === 3 && configData) {
     await saveProviderConfiguration(configData)
     direction.value = 'next'
@@ -65,7 +64,6 @@ async function handleNextStep(configData?: { apiKey: string, baseUrl: string, ac
     return
   }
 
-  // Other steps: just proceed
   const additionalSteps = getAdditionalOnboardingSteps()
   const maxStep = 4 + additionalSteps.length
   if (step.value < maxStep) {

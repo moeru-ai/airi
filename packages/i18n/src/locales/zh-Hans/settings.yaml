@@ -41,6 +41,14 @@ language:
   title: 语言
   description: >
     切换显示界面的语言
+websocket-server-url:
+  title: WebSocket 服务器地址
+  description: >-
+    用于多设备协同的 WebSocket 服务器地址。如果桌面端（tamagotchi）和移动端（pocket）不在同一设备上，请填写桌面端的 IP 地址和端口。例如：ws://192.168.1.100:6121/ws
+websocket-secure-enabled:
+  title: 启用安全 WebSocket (WSS)
+  description: >-
+    启用 WSS（WebSocket Secure）以允许开发模式下移动端（pocket）的 HTTPS 连接。这将自动生成自签名证书。
 live2d:
   change-model:
     from-file: 从文件加载
