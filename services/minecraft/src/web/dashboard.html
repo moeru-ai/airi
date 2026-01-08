@@ -1,372 +1,389 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minecraft Service Debugger</title>
-    <style>
-        :root {
-            --bg-color: #1a1a1a;
-            --text-color: #e0e0e0;
-            --sidebar-width: 250px;
-            --accent-color: #4a9eff;
-            --border-color: #333;
-            --log-bg: #111;
-            --log-info: #4a9eff;
-            --log-warn: #ffb74d;
-            --log-error: #ef5350;
-            --log-debug: #888;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minecraft Service Debugger</title>
+  <style>
+    :root {
+      --bg-color: #1a1a1a;
+      --text-color: #e0e0e0;
+      --sidebar-width: 250px;
+      --accent-color: #4a9eff;
+      --border-color: #333;
+      --log-bg: #111;
+      --log-info: #4a9eff;
+      --log-warn: #ffb74d;
+      --log-error: #ef5350;
+      --log-debug: #888;
+    }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
 
-        header {
-            background-color: #252525;
-            padding: 1rem;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+    header {
+      background-color: #252525;
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
 
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background-color: #f44336;
-            display: inline-block;
-            margin-right: 8px;
-        }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: #f44336;
+      display: inline-block;
+      margin-right: 8px;
+    }
 
-        .status-dot.connected {
-            background-color: #4caf50;
-        }
+    .status-dot.connected {
+      background-color: #4caf50;
+    }
 
-        main {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-        }
+    main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
 
-        nav {
-            width: var(--sidebar-width);
-            background-color: #252525;
-            border-right: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-        }
+    nav {
+      width: var(--sidebar-width);
+      background-color: #252525;
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+    }
 
-        .nav-item {
-            padding: 1rem;
-            cursor: pointer;
-            border-bottom: 1px solid var(--border-color);
-            transition: background-color 0.2s;
-        }
+    .nav-item {
+      padding: 1rem;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border-color);
+      transition: background-color 0.2s;
+    }
 
-        .nav-item:hover {
-            background-color: #333;
-        }
+    .nav-item:hover {
+      background-color: #333;
+    }
 
-        .nav-item.active {
-            background-color: #333;
-            border-left: 3px solid var(--accent-color);
-        }
+    .nav-item.active {
+      background-color: #333;
+      border-left: 3px solid var(--accent-color);
+    }
 
-        .content-panel {
-            flex: 1;
-            display: none;
-            flex-direction: column;
-            overflow: hidden;
-        }
+    .content-panel {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
 
-        .content-panel.active {
-            display: flex;
-        }
+    .content-panel.active {
+      display: flex;
+    }
 
-        .toolbar {
-            padding: 0.5rem;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            gap: 1rem;
-        }
+    .toolbar {
+      padding: 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      gap: 1rem;
+    }
 
-        .log-container {
-            flex: 1;
-            overflow-y: auto;
-            padding: 1rem;
-            background-color: var(--log-bg);
-            font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 14px;
-        }
+    .log-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      background-color: var(--log-bg);
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 14px;
+    }
 
-        .log-entry {
-            margin-bottom: 4px;
-            line-height: 1.4;
-            white-space: pre-wrap;
-            border-bottom: 1px solid #222;
-        }
+    .log-entry {
+      margin-bottom: 4px;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      border-bottom: 1px solid #222;
+    }
 
-        .log-time {
-            color: #666;
-            margin-right: 8px;
-        }
+    .log-time {
+      color: #666;
+      margin-right: 8px;
+    }
 
-        .level-info { color: var(--log-info); }
-        .level-warn { color: var(--log-warn); }
-        .level-error { color: var(--log-error); }
-        .level-debug { color: var(--log-debug); }
+    .level-info {
+      color: var(--log-info);
+    }
 
-        .llm-card {
-            background-color: #252525;
-            margin-bottom: 1rem;
-            border-radius: 4px;
-            overflow: hidden;
-        }
+    .level-warn {
+      color: var(--log-warn);
+    }
 
-        .llm-header {
-            padding: 0.8rem;
-            background-color: #333;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-        }
+    .level-error {
+      color: var(--log-error);
+    }
 
-        .llm-body {
-            padding: 1rem;
-            display: none;
-            border-top: 1px solid var(--border-color);
-        }
+    .level-debug {
+      color: var(--log-debug);
+    }
 
-        .llm-body.open {
-            display: block;
-        }
+    .llm-card {
+      background-color: #252525;
+      margin-bottom: 1rem;
+      border-radius: 4px;
+      overflow: hidden;
+    }
 
-        .json-block {
-            background-color: #111;
-            padding: 1rem;
-            border-radius: 4px;
-            overflow-x: auto;
-        }
+    .llm-header {
+      padding: 0.8rem;
+      background-color: #333;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+    }
 
-        .badge {
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 0.8em;
-            background-color: #555;
-        }
+    .llm-body {
+      padding: 1rem;
+      display: none;
+      border-top: 1px solid var(--border-color);
+    }
 
-        .section-title {
-            color: #888;
-            font-size: 0.85em;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin: 1rem 0 0.5rem 0;
-            font-weight: 600;
-        }
+    .llm-body.open {
+      display: block;
+    }
 
-        .content-block {
-            background-color: #1e1e1e;
-            padding: 1rem;
-            border-radius: 4px;
-            white-space: pre-wrap;
-            margin: 0;
-            border-left: 3px solid var(--accent-color);
-        }
+    .json-block {
+      background-color: #111;
+      padding: 1rem;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
 
-        .messages-list {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
+    .badge {
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 0.8em;
+      background-color: #555;
+    }
 
-        .message {
-            padding: 0.8rem;
-            border-radius: 4px;
-            background-color: #1e1e1e;
-            border-left: 3px solid transparent;
-        }
+    .section-title {
+      color: #888;
+      font-size: 0.85em;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 1rem 0 0.5rem 0;
+      font-weight: 600;
+    }
 
-        .message-role {
-            font-size: 0.75em;
-            text-transform: uppercase;
-            margin-bottom: 0.5rem;
-            opacity: 0.7;
-            font-weight: bold;
-        }
+    .content-block {
+      background-color: #1e1e1e;
+      padding: 1rem;
+      border-radius: 4px;
+      white-space: pre-wrap;
+      margin: 0;
+      border-left: 3px solid var(--accent-color);
+    }
 
-        .message-content {
-            white-space: pre-wrap;
-            line-height: 1.4;
-        }
+    .messages-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
 
-        .role-system {
-            border-left-color: #e91e63;
-            background-color: #2a1a20;
-        }
+    .message {
+      padding: 0.8rem;
+      border-radius: 4px;
+      background-color: #1e1e1e;
+      border-left: 3px solid transparent;
+    }
 
-        .role-user {
-            border-left-color: #4caf50;
-            background-color: #1a2a1a;
-        }
+    .message-role {
+      font-size: 0.75em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+      opacity: 0.7;
+      font-weight: bold;
+    }
 
-        .role-assistant {
-            border-left-color: #2196f3;
-            background-color: #1a202a;
-        }
-    </style>
+    .message-content {
+      white-space: pre-wrap;
+      line-height: 1.4;
+    }
+
+    .role-system {
+      border-left-color: #e91e63;
+      background-color: #2a1a20;
+    }
+
+    .role-user {
+      border-left-color: #4caf50;
+      background-color: #1a2a1a;
+    }
+
+    .role-assistant {
+      border-left-color: #2196f3;
+      background-color: #1a202a;
+    }
+  </style>
 </head>
+
 <body>
-    <header>
-        <div>Minecraft Service Debugger</div>
-        <div>
-            <span id="connection-status" class="status-dot"></span> 
-            <span id="status-text">Disconnected</span>
-            <button onclick="reconnect()" style="margin-left: 1rem; padding: 0.25rem 0.75rem; cursor: pointer;">Reconnect</button>
-        </div>
-    </header>
-    <main>
-        <nav>
-            <div class="nav-item active" onclick="switchTab('overview')">Overview</div>
-            <div class="nav-item" onclick="switchTab('logs')">Logs</div>
-            <div class="nav-item" onclick="switchTab('llm')">LLM Traces</div>
-            <div class="nav-item" onclick="switchTab('blackboard')">Blackboard</div>
-        </nav>
-        
-        <div id="overview-panel" class="content-panel active">
-            <div class="toolbar">
-                <h3 style="margin: 0;">System Overview</h3>
-            </div>
-            <div class="log-container" style="padding: 2rem;">
-                <!-- Event Queue -->
-                <div id="queue-section" style="margin-bottom: 2rem;">
-                    <div class="section-title">Event Queue (<span id="queue-size">0</span>)</div>
-                    <div id="queue-list" style="display: flex; flex-direction: column; gap: 0.5rem; min-height: 50px; background: #111; padding: 1rem; border-radius: 4px;">
-                        <div style="color: #666;">Queue is empty</div>
-                    </div>
-                </div>
+  <header>
+    <div>Minecraft Service Debugger</div>
+    <div>
+      <span id="connection-status" class="status-dot"></span>
+      <span id="status-text">Disconnected</span>
+      <button onclick="reconnect()"
+        style="margin-left: 1rem; padding: 0.25rem 0.75rem; cursor: pointer;">Reconnect</button>
+    </div>
+  </header>
+  <main>
+    <nav>
+      <div class="nav-item active" onclick="switchTab('overview')">Overview</div>
+      <div class="nav-item" onclick="switchTab('logs')">Logs</div>
+      <div class="nav-item" onclick="switchTab('llm')">LLM Traces</div>
+      <div class="nav-item" onclick="switchTab('blackboard')">Blackboard</div>
+    </nav>
 
-                <!-- Current Processing -->
-                <div id="processing-section">
-                    <div class="section-title">Currently Processing</div>
-                    <div id="current-event" class="llm-card" style="background-color: #1e1e1e;">
-                        <div style="padding: 1rem; color: #666;">Idle</div>
-                    </div>
-                </div>
-            </div>
+    <div id="overview-panel" class="content-panel active">
+      <div class="toolbar">
+        <h3 style="margin: 0;">System Overview</h3>
+      </div>
+      <div class="log-container" style="padding: 2rem;">
+        <!-- Event Queue -->
+        <div id="queue-section" style="margin-bottom: 2rem;">
+          <div class="section-title">Event Queue (<span id="queue-size">0</span>)</div>
+          <div id="queue-list"
+            style="display: flex; flex-direction: column; gap: 0.5rem; min-height: 50px; background: #111; padding: 1rem; border-radius: 4px;">
+            <div style="color: #666;">Queue is empty</div>
+          </div>
         </div>
 
-        <div id="blackboard-panel" class="content-panel">
-            <div class="toolbar">
-                <h3 style="margin: 0;">Blackboard State</h3>
-            </div>
-            <div class="log-container">
-                <pre id="blackboard-content" class="json-block" style="height: 100%; border: none;">{}</pre>
-            </div>
+        <!-- Current Processing -->
+        <div id="processing-section">
+          <div class="section-title">Currently Processing</div>
+          <div id="current-event" class="llm-card" style="background-color: #1e1e1e;">
+            <div style="padding: 1rem; color: #666;">Idle</div>
+          </div>
         </div>
+      </div>
+    </div>
 
-        <div id="logs-panel" class="content-panel">
-            <div class="toolbar">
-                <button onclick="clearLogs()">Clear</button>
-                <label><input type="checkbox" id="auto-scroll" checked> Auto-scroll</label>
-            </div>
-            <div id="logs-list" class="log-container"></div>
-        </div>
+    <div id="blackboard-panel" class="content-panel">
+      <div class="toolbar">
+        <h3 style="margin: 0;">Blackboard State</h3>
+      </div>
+      <div class="log-container">
+        <pre id="blackboard-content" class="json-block" style="height: 100%; border: none;">{}</pre>
+      </div>
+    </div>
 
-        <div id="llm-panel" class="content-panel">
-            <div class="toolbar">
-                <button onclick="clearLLM()">Clear</button>
-            </div>
-            <div id="llm-list" class="log-container"></div>
-        </div>
-    </main>
+    <div id="logs-panel" class="content-panel">
+      <div class="toolbar">
+        <button onclick="clearLogs()">Clear</button>
+        <label><input type="checkbox" id="auto-scroll" checked> Auto-scroll</label>
+      </div>
+      <div id="logs-list" class="log-container"></div>
+    </div>
 
-    <script>
-        var autoScroll = true;
-        var sseClient = null;
-        const statusDot = document.getElementById('connection-status');
-        const statusText = document.getElementById('status-text');
-        
-        document.getElementById('auto-scroll').addEventListener('change', (e) => {
-            autoScroll = e.target.checked;
-        });
+    <div id="llm-panel" class="content-panel">
+      <div class="toolbar">
+        <button onclick="clearLLM()">Clear</button>
+      </div>
+      <div id="llm-list" class="log-container"></div>
+    </div>
+  </main>
+
+  <script>
+    var autoScroll = true;
+    var sseClient = null;
+    const statusDot = document.getElementById('connection-status');
+    const statusText = document.getElementById('status-text');
+
+    document.getElementById('auto-scroll').addEventListener('change', (e) => {
+      autoScroll = e.target.checked;
+    });
 
 
 
 
 
-        function switchTab(tabId) {
-            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.content-panel').forEach(el => el.classList.remove('active'));
-            
-            event.target.classList.add('active');
-            document.getElementById(tabId + '-panel').classList.add('active');
-        }
+    function switchTab(tabId) {
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.content-panel').forEach(el => el.classList.remove('active'));
 
-        function clearLogs() {
-            document.getElementById('logs-list').innerHTML = '';
-        }
+      event.target.classList.add('active');
+      document.getElementById(tabId + '-panel').classList.add('active');
+    }
 
-        function clearLLM() {
-            document.getElementById('llm-list').innerHTML = '';
-        }
+    function clearLogs() {
+      document.getElementById('logs-list').innerHTML = '';
+    }
 
-        function addLog(entry) {
-            const container = document.getElementById('logs-list');
-            const div = document.createElement('div');
-            div.className = 'log-entry level-' + (entry.level || 'info').toLowerCase();
-            
-            const time = new Date(entry.timestamp || Date.now()).toLocaleTimeString();
-            const fieldsJson = entry.fields ? JSON.stringify(entry.fields) : '';
-            
-            div.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-level">[${entry.level}]</span> ${entry.message} ${fieldsJson ? `<br><span style="color:#666;font-size:0.9em">${fieldsJson}</span>` : ''}`;
-            
-            container.appendChild(div);
-            
-            if (autoScroll) {
-                container.scrollTop = container.scrollHeight;
-            }
-        }
+    function clearLLM() {
+      document.getElementById('llm-list').innerHTML = '';
+    }
 
-        function addLLMTrace(trace) {
-            if (!trace) return;
+    function addLog(entry) {
+      const container = document.getElementById('logs-list');
+      const div = document.createElement('div');
+      div.className = 'log-entry level-' + (entry.level || 'info').toLowerCase();
 
-            const container = document.getElementById('llm-list');
-            const div = document.createElement('div');
-            div.className = 'llm-card';
-            
-            const time = new Date(trace.timestamp || Date.now()).toLocaleTimeString();
-            const usage = trace.usage || {};
-            const tokens = usage.total_tokens || '?';
-            
-            // Format messages
-            let messagesHtml = '';
-            if (trace.messages && Array.isArray(trace.messages)) {
-                messagesHtml = trace.messages.map(msg => {
-                    const roleClass = 'role-' + (msg.role || 'unknown');
-                    const content = (msg.content || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                    return `
+      const time = new Date(entry.timestamp || Date.now()).toLocaleTimeString();
+      const fieldsJson = entry.fields ? JSON.stringify(entry.fields) : '';
+
+      div.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-level">[${entry.level}]</span> ${entry.message} ${fieldsJson ? `<br><span style="color:#666;font-size:0.9em">${fieldsJson}</span>` : ''}`;
+
+      container.appendChild(div);
+
+      if (autoScroll) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }
+
+    function addLLMTrace(trace) {
+      if (!trace) return;
+
+      const container = document.getElementById('llm-list');
+      const div = document.createElement('div');
+      div.className = 'llm-card';
+
+      const time = new Date(trace.timestamp || Date.now()).toLocaleTimeString();
+      const usage = trace.usage || {};
+      const tokens = usage.total_tokens || '?';
+      const durationMs = trace.duration;
+      const durationText = Number.isFinite(durationMs) ? `${durationMs} ms` : 'n/a';
+
+      // Format messages
+      let messagesHtml = '';
+      if (trace.messages && Array.isArray(trace.messages)) {
+        messagesHtml = trace.messages.map(msg => {
+          const roleClass = 'role-' + (msg.role || 'unknown');
+          const content = (msg.content || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          return `
                         <div class="message ${roleClass}">
                             <div class="message-role">${msg.role || 'unknown'}</div>
                             <div class="message-content">${content}</div>
                         </div>
                     `;
-                }).join('');
-            }
+        }).join('');
+      }
 
-            // Format extra details (excluding messages/content/usage which are shown separately)
-            const { messages, content, usage: _u, timestamp, ...other } = trace;
-            const otherJson = Object.keys(other).length > 0 ? JSON.stringify(other, null, 2) : '';
+      // Format extra details (excluding messages/content/usage which are shown separately)
+      const { messages, content, usage: _u, timestamp, ...other } = trace;
+      const otherJson = Object.keys(other).length > 0 ? JSON.stringify(other, null, 2) : '';
 
-            div.innerHTML = `
+      div.innerHTML = `
                 <div class="llm-header" onclick="this.nextElementSibling.classList.toggle('open')">
                     <div>
                         <span class="badge">${time}</span>
@@ -374,12 +391,13 @@
                     </div>
                     <div>
                         <span class="badge">${tokens} tokens</span>
+                        <span class="badge">${durationText}</span>
                     </div>
                 </div>
                 <div class="llm-body">
                     <div class="section-title">Result</div>
                     <pre class="content-block">${(trace.content || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
-                    
+
                     <div class="section-title">Messages</div>
                     <div class="messages-list">
                         ${messagesHtml || '<div style="color:#666">No messages</div>'}
@@ -389,32 +407,32 @@
                         <div class="section-title">Metadata</div>
                         <pre class="json-block">${otherJson}</pre>
                     ` : ''}
-                    
+
                     <div class="section-title">Usage</div>
                     <pre class="json-block">${JSON.stringify(usage, null, 2)}</pre>
                 </div>
             `;
-            
-            container.insertBefore(div, container.firstChild);
-        }
 
-        function updateQueue(data) {
-            const queueList = document.getElementById('queue-list');
-            const queueSize = document.getElementById('queue-size');
-            const currentEventEl = document.getElementById('current-event');
+      container.insertBefore(div, container.firstChild);
+    }
 
-            if (!data) return;
+    function updateQueue(data) {
+      const queueList = document.getElementById('queue-list');
+      const queueSize = document.getElementById('queue-size');
+      const currentEventEl = document.getElementById('current-event');
 
-            // Update Header
-            queueSize.textContent = data.queue ? data.queue.length : 0;
+      if (!data) return;
 
-            // Render Queue
-            if (data.queue && data.queue.length > 0) {
-                queueList.innerHTML = data.queue.map((item, idx) => {
-                    return `
+      // Update Header
+      queueSize.textContent = data.queue ? data.queue.length : 0;
+
+      // Render Queue
+      if (data.queue && data.queue.length > 0) {
+        queueList.innerHTML = data.queue.map((item, idx) => {
+          return `
                     <div class="llm-card" style="margin-bottom: 0.5rem; background-color: #1e1e1e;">
                         <div style="padding: 0.5rem; display: flex; justify-content: space-between;">
-                            <span><span style="color: #666; margin-right: 0.5rem;">#${idx+1}</span> ${item.type}</span>
+                            <span><span style="color: #666; margin-right: 0.5rem;">#${idx + 1}</span> ${item.type}</span>
                             <span class="badge">${item.source?.id || 'unknown'}</span>
                         </div>
                         <div style="padding: 0 0.5rem 0.5rem 0.5rem; color: #aaa; font-size: 0.9em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
@@ -422,15 +440,15 @@
                         </div>
                     </div>
                     `
-                }).join('');
-            } else {
-                queueList.innerHTML = '<div style="color: #666;">Queue is empty</div>';
-            }
+        }).join('');
+      } else {
+        queueList.innerHTML = '<div style="color: #666;">Queue is empty</div>';
+      }
 
-            // Render Current Processing
-            if (data.processing) {
-                const item = data.processing;
-                currentEventEl.innerHTML = `
+      // Render Current Processing
+      if (data.processing) {
+        const item = data.processing;
+        currentEventEl.innerHTML = `
                     <div style="padding: 1rem;">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
                             <span style="color: var(--accent-color); font-weight: bold;">${item.type}</span>
@@ -444,73 +462,74 @@
                         </div>
                     </div>
                 `;
-            } else {
-                currentEventEl.innerHTML = '<div style="padding: 1rem; color: #666;">Idle</div>';
-            }
-        }
+      } else {
+        currentEventEl.innerHTML = '<div style="padding: 1rem; color: #666;">Idle</div>';
+      }
+    }
 
-        function updateBlackboard(data) {
-            const el = document.getElementById('blackboard-content');
-            if (data && data.state) {
-                el.textContent = JSON.stringify(data.state, null, 2);
-            }
-        }
+    function updateBlackboard(data) {
+      const el = document.getElementById('blackboard-content');
+      if (data && data.state) {
+        el.textContent = JSON.stringify(data.state, null, 2);
+      }
+    }
 
-        function reconnect() {
-            if (sseClient) {
-                sseClient.close();
-                sseClient = null;
-            }
-            statusDot.classList.remove('connected');
-            statusText.textContent = 'Reconnecting...';
-            setTimeout(connectSSE, 100);
-        }
+    function reconnect() {
+      if (sseClient) {
+        sseClient.close();
+        sseClient = null;
+      }
+      statusDot.classList.remove('connected');
+      statusText.textContent = 'Reconnecting...';
+      setTimeout(connectSSE, 100);
+    }
 
-        function connectSSE() {
-            if (sseClient) {
-                sseClient.close();
-            }
+    function connectSSE() {
+      if (sseClient) {
+        sseClient.close();
+      }
 
-            sseClient = new EventSource('/events');
-            
-            sseClient.onopen = () => {
-                statusDot.classList.add('connected');
-                statusText.textContent = 'Connected';
-                addLog({ level: 'SYSTEM', message: 'Connected to debug server' });
-            };
+      sseClient = new EventSource('/events');
 
-            sseClient.onerror = (err) => {
-                console.error('SSE error:', err);
-                statusDot.classList.remove('connected');
-                statusText.textContent = 'Disconnected';
-            };
+      sseClient.onopen = () => {
+        statusDot.classList.add('connected');
+        statusText.textContent = 'Connected';
+        addLog({ level: 'SYSTEM', message: 'Connected to debug server' });
+      };
 
-            sseClient.addEventListener('log', (e) => {
-                try {
-                    addLog(JSON.parse(e.data));
-                } catch (e) { console.error(e); }
-            });
+      sseClient.onerror = (err) => {
+        console.error('SSE error:', err);
+        statusDot.classList.remove('connected');
+        statusText.textContent = 'Disconnected';
+      };
 
-            sseClient.addEventListener('llm', (e) => {
-                try {
-                    addLLMTrace(JSON.parse(e.data));
-                } catch (e) { console.error(e); }
-            });
+      sseClient.addEventListener('log', (e) => {
+        try {
+          addLog(JSON.parse(e.data));
+        } catch (e) { console.error(e); }
+      });
 
-            sseClient.addEventListener('queue', (e) => {
-                try {
-                    updateQueue(JSON.parse(e.data));
-                } catch (e) { console.error(e); }
-            });
+      sseClient.addEventListener('llm', (e) => {
+        try {
+          addLLMTrace(JSON.parse(e.data));
+        } catch (e) { console.error(e); }
+      });
 
-            sseClient.addEventListener('blackboard', (e) => {
-                try {
-                    updateBlackboard(JSON.parse(e.data));
-                } catch (e) { console.error(e); }
-            });
-        }
+      sseClient.addEventListener('queue', (e) => {
+        try {
+          updateQueue(JSON.parse(e.data));
+        } catch (e) { console.error(e); }
+      });
 
-        connectSSE();
-    </script>
+      sseClient.addEventListener('blackboard', (e) => {
+        try {
+          updateBlackboard(JSON.parse(e.data));
+        } catch (e) { console.error(e); }
+      });
+    }
+
+    connectSSE();
+  </script>
 </body>
+
 </html>

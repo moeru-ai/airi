@@ -52,7 +52,6 @@ export class Brain {
   public init(bot: MineflayerWithAgents): void {
     this.log('INFO', 'Brain: Initializing...')
 
-    // Listen to Stimuli (Chat/Voice)
     // We treat these as "Sensory Inputs" that trigger the Cognitive Cycle
     this.deps.eventManager.on<StimulusPayload>('stimulus', async (event) => {
       if (event.handled) {
@@ -207,6 +206,7 @@ export class Brain {
 
   private async decide(sysPrompt: string, userMsg: string): Promise<BrainResponse | null> {
     try {
+      const request_start = Date.now()
       const response = await this.deps.neuri.handleStateless(
         [
           system(sysPrompt),
@@ -225,6 +225,7 @@ export class Brain {
             content: completion?.choices?.[0]?.message?.content,
             usage: completion?.usage,
             model: config.openai.model,
+            duration: Date.now() - request_start,
           })
 
           if (!completion || !completion.choices?.[0]?.message?.content) {
