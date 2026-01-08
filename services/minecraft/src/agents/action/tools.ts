@@ -3,7 +3,7 @@ import type { Action } from '../../libs/mineflayer'
 import { z } from 'zod'
 
 import { collectBlock } from '../../skills/actions/collect-block'
-import { discard, equip, putInChest, takeFromChest, viewChest } from '../../skills/actions/inventory'
+import { discard, equip, putInChest, takeFromChest } from '../../skills/actions/inventory'
 import { activateNearestBlock, placeBlock } from '../../skills/actions/world-interactions'
 import { useLogger } from '../../utils/logger'
 
@@ -110,11 +110,12 @@ export const actionsList: Action[] = [
     description: 'Go to the given player.',
     schema: z.object({
       player_name: z.string().describe('The name of the player to go to.'),
-      closeness: z.number().describe('How close to get to the player.').min(0),
+      closeness: z.number().describe('How close to get to the player in blocks.').min(0),
     }),
     perform: mineflayer => async (player_name: string, closeness: number) => {
+      // TODO estimate time cost based on distance, trigger failure if time runs out
       await skills.goToPlayer(mineflayer, player_name, closeness)
-      return 'Moving to player...'
+      return `Arrived at player [${player_name}]`
     },
   },
   {
@@ -126,7 +127,7 @@ export const actionsList: Action[] = [
     }),
     perform: mineflayer => async (player_name: string, follow_dist: number) => {
       await skills.followPlayer(mineflayer, player_name, follow_dist)
-      return 'Following player...'
+      return `Followed player [${player_name}]`
     },
   },
   {
@@ -136,11 +137,11 @@ export const actionsList: Action[] = [
       x: z.number().describe('The x coordinate.'),
       y: z.number().describe('The y coordinate.').min(-64).max(320),
       z: z.number().describe('The z coordinate.'),
-      closeness: z.number().describe('How close to get to the location.').min(0),
+      closeness: z.number().describe('How close to get to the location in blocks.').min(0),
     }),
     perform: mineflayer => async (x: number, y: number, z: number, closeness: number) => {
       await skills.goToPosition(mineflayer, x, y, z, closeness)
-      return 'Moving to coordinates...'
+      return `Arrived at coordinate [${x}, ${y}, ${z}]`
     },
   },
   {
@@ -152,7 +153,7 @@ export const actionsList: Action[] = [
     }),
     perform: mineflayer => async (block_type: string, range: number) => {
       await skills.goToNearestBlock(mineflayer, block_type, 4, range)
-      return 'Searching for block...'
+      return `Arrived at nearest [${block_type}]` // TODO more spacial context?
     },
   },
   {
@@ -164,20 +165,20 @@ export const actionsList: Action[] = [
     }),
     perform: mineflayer => async (entity_type: string, range: number) => {
       await skills.goToNearestEntity(mineflayer, entity_type, 4, range)
-      return 'Searching for entity...'
+      return `Arrived at nearest [${entity_type}]`
     },
   },
-  {
-    name: 'moveAway',
-    description: 'Move away from the current location in any direction by a given distance.',
-    schema: z.object({
-      distance: z.number().describe('The distance to move away.').min(0),
-    }),
-    perform: mineflayer => async (distance: number) => {
-      await skills.moveAway(mineflayer, distance)
-      return 'Moving away...'
-    },
-  },
+  // {
+  //   name: 'moveAway',
+  //   description: 'Move away from the current location in any direction by a given distance.',
+  //   schema: z.object({
+  //     distance: z.number().describe('The distance to move away.').min(0),
+  //   }),
+  //   perform: mineflayer => async (distance: number) => {
+  //     await skills.moveAway(mineflayer, distance)
+  //     return 'Moved away'
+  //   },
+  // },
   {
     name: 'givePlayer',
     description: 'Give the specified item to the given player.',
@@ -188,7 +189,7 @@ export const actionsList: Action[] = [
     }),
     perform: mineflayer => async (player_name: string, item_name: string, num: number) => {
       await skills.giveToPlayer(mineflayer, item_name, player_name, num)
-      return 'Giving items to player...'
+      return `Gave [${item_name}]x${num} to player [${player_name}]`
     },
   },
   {
@@ -199,7 +200,7 @@ export const actionsList: Action[] = [
     }),
     perform: mineflayer => async (item_name: string) => {
       await skills.consume(mineflayer, item_name)
-      return 'Consuming item...'
+      return `Consumed [${item_name}]`
     },
   },
   {
@@ -210,7 +211,7 @@ export const actionsList: Action[] = [
     }),
     perform: mineflayer => async (item_name: string) => {
       await equip(mineflayer, item_name)
-      return 'Equipping item...'
+      return `Equipped [${item_name}]`
     },
   },
   {
@@ -222,7 +223,7 @@ export const actionsList: Action[] = [
     }),
     perform: mineflayer => async (item_name: string, num: number) => {
       await putInChest(mineflayer, item_name, num)
-      return 'Putting items in chest...'
+      return `Put [${item_name}]x${num} in chest`
     },
   },
   {
@@ -234,18 +235,18 @@ export const actionsList: Action[] = [
     }),
     perform: mineflayer => async (item_name: string, num: number) => {
       await takeFromChest(mineflayer, item_name, num)
-      return 'Taking items from chest...'
+      return `Took [${item_name}]x${num} from chest`
     },
   },
-  {
-    name: 'viewChest',
-    description: 'View the items/counts of the nearest chest.',
-    schema: z.object({}),
-    perform: mineflayer => async () => {
-      await viewChest(mineflayer)
-      return 'Viewing chest contents...'
-    },
-  },
+  // {
+  //   name: 'viewChest',
+  //   description: 'View the items/counts of the nearest chest.',
+  //   schema: z.object({}),
+  //   perform: mineflayer => async () => {
+  //     await viewChest(mineflayer)
+  //     return 'Viewed chest contents'
+  //   },
+  // },
   {
     name: 'discard',
     description: 'Discard the given item from the inventory.',
@@ -255,7 +256,7 @@ export const actionsList: Action[] = [
     }),
     perform: mineflayer => async (item_name: string, num: number) => {
       await discard(mineflayer, item_name, num)
-      return 'Discarding items...'
+      return `Discarded [${item_name}]x${num}`
     },
   },
   {
@@ -267,7 +268,7 @@ export const actionsList: Action[] = [
     }),
     perform: mineflayer => async (type: string, num: number) => {
       await collectBlock(mineflayer, type, num)
-      return 'Collecting blocks...'
+      return `Collected [${type}] x${num}`
     },
   },
   {
@@ -279,7 +280,7 @@ export const actionsList: Action[] = [
     }),
     perform: mineflayer => async (recipe_name: string, num: number) => {
       await skills.craftRecipe(mineflayer, recipe_name, num)
-      return 'Crafting items...'
+      return `Crafted [${recipe_name}] ${num} time(s)`
     },
   },
   {
@@ -291,7 +292,7 @@ export const actionsList: Action[] = [
     }),
     perform: mineflayer => async (item_name: string, num: number) => {
       await skills.smeltItem(mineflayer, item_name, num)
-      return 'Smelting items...'
+      return `Smelted [${item_name}] ${num} time(s)`
     },
   },
   {
@@ -300,7 +301,7 @@ export const actionsList: Action[] = [
     schema: z.object({}),
     perform: mineflayer => async () => {
       await skills.clearNearestFurnace(mineflayer)
-      return 'Clearing furnace...'
+      return 'Cleared furnace'
     },
   },
   {
@@ -312,7 +313,7 @@ export const actionsList: Action[] = [
     perform: mineflayer => async (type: string) => {
       const pos = mineflayer.bot.entity.position
       await placeBlock(mineflayer, type, pos.x, pos.y, pos.z)
-      return 'Placing block...'
+      return `Placed [${type}] here`
     },
   },
   {
@@ -323,7 +324,7 @@ export const actionsList: Action[] = [
     }),
     perform: mineflayer => async (type: string) => {
       await skills.attackNearest(mineflayer, type, true)
-      return 'Attacking entity...'
+      return `Attacked nearest [${type}]`
     },
   },
   {
@@ -339,7 +340,7 @@ export const actionsList: Action[] = [
         return 'Player not found'
       }
       await skills.attackEntity(mineflayer, player, true)
-      return 'Attacking player...'
+      return `Attacked player [${player_name}]`
     },
   },
   {
@@ -348,7 +349,7 @@ export const actionsList: Action[] = [
     schema: z.object({}),
     perform: mineflayer => async () => {
       await skills.goToBed(mineflayer)
-      return 'Going to bed...'
+      return 'Slept in a bed'
     },
   },
   {
@@ -359,18 +360,20 @@ export const actionsList: Action[] = [
     }),
     perform: mineflayer => async (type: string) => {
       await activateNearestBlock(mineflayer, type)
-      return 'Activating block...'
+      return `Activated nearest [${type}]`
     },
   },
   {
     name: 'stay',
     description: 'Stay in the current location no matter what. Pauses all modes.',
     schema: z.object({
-      type: z.number().int().describe('The number of seconds to stay. -1 for forever.').min(-1),
+      type: z.number().int().describe('The number of seconds to stay. -1 for forever.').min(-1), // why would you want to stay forever?
     }),
     perform: mineflayer => async (seconds: number) => {
       await skills.stay(mineflayer, seconds)
-      return 'Staying in place...'
+      return seconds === -1
+        ? 'Stayed in place indefinitely'
+        : `Stayed in place for ${seconds}s`
     },
   },
 ]
