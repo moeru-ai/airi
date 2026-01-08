@@ -16,8 +16,8 @@ notice:
   'fade-on-hover':
     title: 悬停淡出
     intro: 当光标靠近时自动让角色变淡，减少干扰又保持可见。
-    opacity: 开启后，不透明度会降到 {value} ，作用于 {targets} ，当光标靠近时。
-    toggle: 想关闭，移动到 {controls} 区域，再点击一次 {icon}。
+    opacity: 开启后，当光标靠近时， {targets} 的不透明度会降到 {value}。
+    toggle: 可以通过将光标移动到 {controls} 区域，再次点击 {icon} 来关闭此功能。
     controls-label: 控制岛
     icon-label: 隐藏图标
     value: '0'
