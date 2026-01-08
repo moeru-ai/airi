@@ -133,14 +133,14 @@ export class TaskExecutor extends EventEmitter {
           // Just emit completed for now if it finished.
         }
 
-        this.emit('action:completed', { action, result })
+        if (action.require_feedback) {
+          this.emit('action:completed', { action, result })
+        }
       }
       catch (error) {
         this.logger.withError(error).error('Action execution failed')
-        // Only emit action:failed for physical actions
-        if (action.type === 'physical') {
-          this.emit('action:failed', { action, error })
-        }
+        // failed actions always emit feedback
+        this.emit('action:failed', { action, error })
       }
     })
   }

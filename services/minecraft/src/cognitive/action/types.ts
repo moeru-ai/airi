@@ -5,6 +5,7 @@ export type ActionType = 'physical' | 'chat'
 export interface BaseActionInstruction {
   type: ActionType
   description?: string
+  require_feedback?: boolean
 }
 
 export interface PhysicalActionInstruction extends BaseActionInstruction {
