@@ -317,6 +317,10 @@ jobs:
         if: ${{ github.event_name == 'release' }}
         uses: softprops/action-gh-release@v2
         with:
+          # Possible auto updater files:
+          # Windows: latest.yml
+          # macOS: latest-mac.yml (arm64), latest-mac.yml (x64)
+          # Linux: latest-linux-arm64.yml (arm64), latest-linux.yml (x64)
           files: |
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.exe
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.zip
@@ -324,6 +328,7 @@ jobs:
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.deb
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.rpm
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.flatpak
+            apps/stage-tamagotchi/bundle/latest.yml
             apps/stage-tamagotchi/bundle/latest-*.yml
           append_body: true
 
@@ -364,8 +369,7 @@ jobs:
       - name: Merge latest-mac.yml
         run: |
           pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/merge-latest-mac.ts \
-            --input artifacts/x64/latest-mac.yml \
-            --input artifacts/arm64/latest-mac.yml \
+            --dir artifacts \
             --output apps/stage-tamagotchi/bundle/latest-mac.yml
 
       - name: Upload merged latest-mac.yml

@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, statSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { exit } from 'node:process'
@@ -78,6 +78,22 @@ async function readUpdateInfo(filePath: string): Promise<UpdateInfo> {
   return yaml.parse(raw) as UpdateInfo
 }
 
+function collectLatestMacFiles(rootDir: string): string[] {
+  const results: string[] = []
+  const entries = readdirSync(rootDir, { withFileTypes: true })
+  for (const entry of entries) {
+    const fullPath = resolve(rootDir, entry.name)
+    if (entry.isDirectory()) {
+      results.push(...collectLatestMacFiles(fullPath))
+      continue
+    }
+    if (entry.isFile() && entry.name.startsWith('latest-mac') && entry.name.endsWith('.yml')) {
+      results.push(fullPath)
+    }
+  }
+  return results
+}
+
 async function main() {
   const cli = cac('merge-latest-mac')
     .option('--input <path>', 'Input latest-mac yml file', { default: [], type: [String] })
@@ -90,16 +106,25 @@ async function main() {
 
   let files: string[] = []
   if (inputs.length > 0) {
-    files = inputs.map(file => resolve(file))
+    for (const input of inputs) {
+      const resolved = resolve(input)
+      if (!existsSync(resolved)) {
+        continue
+      }
+      if (statSync(resolved).isDirectory()) {
+        files.push(...collectLatestMacFiles(resolved))
+      }
+      else {
+        files.push(resolved)
+      }
+    }
   }
   else {
     const scanDir = dir || resolve('bundle')
-    const candidates = readdirSync(scanDir).filter(
-      file => file.startsWith('latest-mac') && file.endsWith('.yml'),
-    )
-    files = candidates.map(file => resolve(scanDir, file))
+    files = collectLatestMacFiles(scanDir)
   }
 
+  console.info('merge-latest-mac: found candidates', files)
   if (files.length === 0) {
     throw new Error('No latest-mac*.yml files found')
   }
@@ -107,10 +132,12 @@ async function main() {
   const entries: { filePath: string, updateInfo: UpdateInfo, platform: Platform }[] = []
   for (const filePath of files) {
     if (!existsSync(filePath)) {
+      console.warn('merge-latest-mac: missing file', filePath)
       continue
     }
     const updateInfo = await readUpdateInfo(filePath)
     const platform = detectPlatform(updateInfo)
+    console.info('merge-latest-mac: detected platform', { filePath, platform })
     entries.push({ filePath, updateInfo, platform })
   }
 
