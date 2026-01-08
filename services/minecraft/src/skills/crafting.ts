@@ -70,8 +70,8 @@ export async function craftRecipe(
         )
         const recipes = mineflayer.bot.recipesFor(itemId, null, 1, craftingTable)
         if (!recipes || recipes.length === 0) {
-            // If we have a crafting table but still no recipes, we are missing materials
-            return false // Let the caller decide or fall through
+          // If we have a crafting table but still no recipes, we are missing materials
+          return false // Let the caller decide or fall through
         }
         success = await attemptCraft(recipes, craftingTable)
       }
@@ -81,13 +81,14 @@ export async function craftRecipe(
             (err as Error).message
           }`,
         )
-        if (err instanceof ActionError) throw err
+        if (err instanceof ActionError)
+          throw err
       }
       attempts++
     }
 
     if (!success) {
-         throw new ActionError('NAVIGATION_FAILED', 'Could not reach crafting table')
+      throw new ActionError('NAVIGATION_FAILED', 'Could not reach crafting table')
     }
 
     return success
@@ -129,19 +130,19 @@ export async function craftRecipe(
   logger.log(`Step 1: Try to craft without a crafting table`)
   const recipes = mineflayer.bot.recipesFor(itemId, null, 1, null)
   if (recipes && recipes.length > 0) {
-      // We have recipes without table
-      if (await attemptCraft(recipes)) {
-        return true
-      }
+    // We have recipes without table
+    if (await attemptCraft(recipes)) {
+      return true
+    }
   }
 
   // RECURSION GUARD:
-  // If we failed to craft basic items (planks, sticks) without a table, 
+  // If we failed to craft basic items (planks, sticks) without a table,
   // do NOT try to find a table. These items do not need a table.
   // Seeking a table often triggers "ensureCraftingTable" -> "ensurePlanks" -> infinite loop.
   if (itemName.includes('planks') || itemName === 'stick' || itemName === 'crafting_table') {
-     logger.log(`Recursion Guard: Skipping crafting table search for basic item: ${itemName}`)
-     throw new ActionError('RESOURCE_MISSING', `Cannot craft ${itemName} - missing ingredients`, { item: itemName })
+    logger.log(`Recursion Guard: Skipping crafting table search for basic item: ${itemName}`)
+    throw new ActionError('RESOURCE_MISSING', `Cannot craft ${itemName} - missing ingredients`, { item: itemName })
   }
 
   // Step 2: Find and use a crafting table
@@ -151,7 +152,7 @@ export async function craftRecipe(
   if (await findAndUseCraftingTable(craftingTableRange)) {
     return true
   }
-  
+
   // If we got here, maybe we didn't have recipes even with a table?
   // Let's verify if resources are missing
   // We can check recipes again assuming table is available (which we tried to ensure)
@@ -172,7 +173,7 @@ export async function smeltItem(mineflayer: Mineflayer, itemName: string, num = 
   ]
   if (!itemName.includes('raw') && !foods.includes(itemName)) {
     throw new ActionError('CRAFTING_FAILED', `Cannot smelt ${itemName}, must be a "raw" item`)
-  } 
+  }
 
   let placedFurnace = false
   let furnaceBlock = getNearestBlock(mineflayer, 'furnace', 32)
@@ -192,9 +193,9 @@ export async function smeltItem(mineflayer: Mineflayer, itemName: string, num = 
     }
   }
   if (!furnaceBlock) {
-     throw new ActionError('RESOURCE_MISSING', 'There is no furnace nearby and I have no furnace to place')
+    throw new ActionError('RESOURCE_MISSING', 'There is no furnace nearby and I have no furnace to place')
   }
-  
+
   if (mineflayer.bot.entity.position.distanceTo(furnaceBlock.position) > 4) {
     await goToNearestBlock(mineflayer, 'furnace', 4, 32)
   }
@@ -209,14 +210,16 @@ export async function smeltItem(mineflayer: Mineflayer, itemName: string, num = 
     && inputItem.type !== getItemId(itemName)
     && inputItem.count > 0
   ) {
-    if (placedFurnace) await collectBlock(mineflayer, 'furnace', 1)
+    if (placedFurnace)
+      await collectBlock(mineflayer, 'furnace', 1)
     throw new ActionError('CRAFTING_FAILED', `The furnace is currently smelting ${getItemName(inputItem.type)}`)
   }
-  
+
   // Check if the bot has enough items to smelt
   const invCounts = getInventoryCounts(mineflayer)
   if (!invCounts[itemName] || invCounts[itemName] < num) {
-    if (placedFurnace) await collectBlock(mineflayer, 'furnace', 1)
+    if (placedFurnace)
+      await collectBlock(mineflayer, 'furnace', 1)
     throw new ActionError('RESOURCE_MISSING', `I do not have enough ${itemName} to smelt`, { required: num })
   }
 
@@ -227,20 +230,22 @@ export async function smeltItem(mineflayer: Mineflayer, itemName: string, num = 
       .find(item => item.name === 'coal' || item.name === 'charcoal')
     const putFuel = Math.ceil(num / 8)
     if (!fuel || fuel.count < putFuel) {
-      if (placedFurnace) await collectBlock(mineflayer, 'furnace', 1)
+      if (placedFurnace)
+        await collectBlock(mineflayer, 'furnace', 1)
       throw new ActionError('RESOURCE_MISSING', `I do not have enough coal or charcoal to smelt`, { required: putFuel })
     }
     await furnace.putFuel(fuel.type, null, putFuel)
   }
-  
+
   // Put the items in the furnace
   const itemId = getItemId(itemName)
   if (itemId === null) {
-      if (placedFurnace) await collectBlock(mineflayer, 'furnace', 1)
-      throw new ActionError('UNKNOWN', `Invalid item name: ${itemName}`)
+    if (placedFurnace)
+      await collectBlock(mineflayer, 'furnace', 1)
+    throw new ActionError('UNKNOWN', `Invalid item name: ${itemName}`)
   }
   await furnace.putInput(itemId, null, num)
-  
+
   // Wait for the items to smelt
   let total = 0
   let collectedLast = true
@@ -249,16 +254,16 @@ export async function smeltItem(mineflayer: Mineflayer, itemName: string, num = 
   // Wait limit 30s per item?
   const maxWait = num * 12000 // approx 10s per item + buffer
   let waited = 0
-  
+
   while (total < num) {
     await new Promise(resolve => setTimeout(resolve, 5000))
     waited += 5000
-    
+
     // Safety break
     if (waited > maxWait) {
-        break
+      break
     }
-    
+
     logger.log('checking...')
     let collected = false
     if (furnace.outputItem()) {
@@ -272,7 +277,7 @@ export async function smeltItem(mineflayer: Mineflayer, itemName: string, num = 
       // If we didn't collect anything twice in a row, maybe it stopped?
       // Check input
       if (!furnace.inputItem() && !furnace.outputItem()) {
-          break // empty?
+        break // empty?
       }
     }
     collectedLast = collected
@@ -282,11 +287,11 @@ export async function smeltItem(mineflayer: Mineflayer, itemName: string, num = 
   if (placedFurnace) {
     await collectBlock(mineflayer, 'furnace', 1)
   }
-  
+
   if (total < num) {
-      throw new ActionError('CRAFTING_FAILED', `Failed to smelt all items, only got ${total}/${num}`)
+    throw new ActionError('CRAFTING_FAILED', `Failed to smelt all items, only got ${total}/${num}`)
   }
-  
+
   logger.log(
     `Successfully smelted ${itemName}, got ${total} ${getItemName(
       smeltedItem?.type || 0,
@@ -311,7 +316,7 @@ export async function clearNearestFurnace(mineflayer: Mineflayer): Promise<boole
     await furnace.takeInput()
   if (furnace.fuelItem())
     await furnace.takeFuel()
-    
+
   await mineflayer.bot.closeWindow(furnace)
   return true
 }

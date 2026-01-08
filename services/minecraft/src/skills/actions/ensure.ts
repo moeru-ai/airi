@@ -179,7 +179,8 @@ export async function ensureSticks(mineflayer: Mineflayer, neededAmount: number)
     sticksCount = getItemCount(mineflayer, 'stick')
   }
 
-  if (sticksCount >= neededAmount) return true
+  if (sticksCount >= neededAmount)
+    return true
 
   throw new ActionError('RESOURCE_MISSING', 'Failed to ensure sticks', { needed: neededAmount, current: sticksCount })
 }
@@ -188,7 +189,7 @@ export async function ensureSticks(mineflayer: Mineflayer, neededAmount: number)
 export async function ensureChests(mineflayer: Mineflayer, quantity: number = 1): Promise<boolean> {
   logger.log(`Bot: Checking for ${quantity} chest(s)...`)
 
-  let chestCount = getItemCount(mineflayer, 'chest')
+  const chestCount = getItemCount(mineflayer, 'chest')
 
   if (chestCount >= quantity) {
     return true
@@ -196,11 +197,11 @@ export async function ensureChests(mineflayer: Mineflayer, quantity: number = 1)
 
   await ensurePlanks(mineflayer, 8 * (quantity - chestCount))
   const crafted = await craftRecipe(mineflayer, 'chest', quantity - chestCount)
-  
+
   if (!crafted) {
     throw new ActionError('CRAFTING_FAILED', 'Failed to craft chests')
   }
-  
+
   return true
 }
 
@@ -208,7 +209,7 @@ export async function ensureChests(mineflayer: Mineflayer, quantity: number = 1)
 export async function ensureFurnaces(mineflayer: Mineflayer, quantity: number = 1): Promise<boolean> {
   logger.log(`Bot: Checking for ${quantity} furnace(s)...`)
 
-  let furnaceCount = getItemCount(mineflayer, 'furnace')
+  const furnaceCount = getItemCount(mineflayer, 'furnace')
 
   if (furnaceCount >= quantity) {
     return true
@@ -217,15 +218,16 @@ export async function ensureFurnaces(mineflayer: Mineflayer, quantity: number = 
   const stoneNeeded = 8 * (quantity - furnaceCount)
   try {
     await ensureCobblestone(mineflayer, stoneNeeded)
-  } catch (e) {
-    throw new ActionError('RESOURCE_MISSING', 'Failed to gather cobblestone for furnace', { error: e }) 
+  }
+  catch (e) {
+    throw new ActionError('RESOURCE_MISSING', 'Failed to gather cobblestone for furnace', { error: e })
   }
 
   const crafted = await craftRecipe(mineflayer, 'furnace', quantity - furnaceCount)
   if (!crafted) {
     throw new ActionError('CRAFTING_FAILED', 'Failed to craft furnace')
   }
-  
+
   return true
 }
 
@@ -233,7 +235,7 @@ export async function ensureFurnaces(mineflayer: Mineflayer, quantity: number = 
 export async function ensureTorches(mineflayer: Mineflayer, quantity: number = 1): Promise<boolean> {
   logger.log(`Bot: Checking for ${quantity} torch(es)...`)
 
-  let torchCount = getItemCount(mineflayer, 'torch')
+  const torchCount = getItemCount(mineflayer, 'torch')
 
   if (torchCount >= quantity) {
     return true
@@ -241,11 +243,12 @@ export async function ensureTorches(mineflayer: Mineflayer, quantity: number = 1
 
   const needed = quantity - torchCount
   await ensureSticks(mineflayer, Math.ceil(needed / 4))
-  
+
   try {
     await ensureCoal(mineflayer, Math.ceil(needed / 4))
-  } catch (e) {
-      throw new ActionError('RESOURCE_MISSING', 'Failed to gather coal for torches', { error: e })
+  }
+  catch (e) {
+    throw new ActionError('RESOURCE_MISSING', 'Failed to gather coal for torches', { error: e })
   }
 
   const crafted = await craftRecipe(mineflayer, 'torch', Math.ceil(needed / 4))
@@ -261,19 +264,21 @@ export async function ensureCampfire(mineflayer: Mineflayer): Promise<boolean> {
   logger.log('Bot: Checking for a campfire...')
 
   const hasCampfire = getItemCount(mineflayer, 'campfire') > 0
-  if (hasCampfire) return true
+  if (hasCampfire)
+    return true
 
   await ensurePlanks(mineflayer, 3)
   await ensureSticks(mineflayer, 3)
   try {
     await ensureCoal(mineflayer, 1)
-  } catch (e) {
-      throw new ActionError('RESOURCE_MISSING', 'Failed to gather coal/charcoal for campfire', { error: e })
+  }
+  catch (e) {
+    throw new ActionError('RESOURCE_MISSING', 'Failed to gather coal/charcoal for campfire', { error: e })
   }
 
   const crafted = await craftRecipe(mineflayer, 'campfire', 1)
   if (!crafted) {
-     throw new ActionError('CRAFTING_FAILED', 'Failed to craft campfire')
+    throw new ActionError('CRAFTING_FAILED', 'Failed to craft campfire')
   }
 
   return true
@@ -315,7 +320,8 @@ export async function ensureCobblestone(mineflayer: Mineflayer, requiredCobblest
     cobblestoneCount = getItemCount(mineflayer, 'cobblestone')
   }
 
-  if (cobblestoneCount >= requiredCobblestone) return true
+  if (cobblestoneCount >= requiredCobblestone)
+    return true
 
   throw new ActionError('RESOURCE_MISSING', 'Could not gather enough cobblestone', { required: requiredCobblestone, current: cobblestoneCount })
 }
@@ -347,7 +353,8 @@ export async function ensureCoal(mineflayer: Mineflayer, neededAmount: number, m
     coalCount = getItemCount(mineflayer, 'coal')
   }
 
-  if (coalCount >= neededAmount) return true
+  if (coalCount >= neededAmount)
+    return true
   throw new ActionError('RESOURCE_MISSING', 'Could not gather enough coal', { required: neededAmount, current: coalCount })
 }
 
@@ -404,31 +411,37 @@ async function ensureTool(mineflayer: Mineflayer, toolType: ToolType, quantity: 
       try {
         await ensureCraftingTable(mineflayer)
         await ensureSticks(mineflayer, 2)
-        
+
         const crafted = await craftRecipe(mineflayer, toolRecipe, 1)
         if (crafted) {
           toolCount++
           mineflayer.bot.chat(`I have crafted a ${material} ${toolType}.`)
-          if (toolCount >= quantity) return true
+          if (toolCount >= quantity)
+            return true
         }
-      } catch (err) {
-         if (err instanceof ActionError && err.code === 'RESOURCE_MISSING') {
-             // Just fall through to next material if resources missing
-         } else {
-             logger.error(`Failed to craft ${material} ${toolType}, trying next material.`)
-         }
       }
-    } else if (material === 'wooden') {
+      catch (err) {
+        if (err instanceof ActionError && err.code === 'RESOURCE_MISSING') {
+          // Just fall through to next material if resources missing
+        }
+        else {
+          logger.error(`Failed to craft ${material} ${toolType}, trying next material.`)
+        }
+      }
+    }
+    else if (material === 'wooden') {
       // Last resort: make wooden tools
       // This will try to gather wood if needed, or throw if it fails
       try {
-         await ensurePlanks(mineflayer, 4)
-         await ensureCraftingTable(mineflayer)
-         await ensureSticks(mineflayer, 2)
-         const crafted = await craftRecipe(mineflayer, `wooden_${toolType}`, 1)
-         if (crafted) return true
-      } catch (err) {
-          throw new ActionError('CRAFTING_FAILED', `Could not craft any ${toolType}`, { error: err })
+        await ensurePlanks(mineflayer, 4)
+        await ensureCraftingTable(mineflayer)
+        await ensureSticks(mineflayer, 2)
+        const crafted = await craftRecipe(mineflayer, `wooden_${toolType}`, 1)
+        if (crafted)
+          return true
+      }
+      catch (err) {
+        throw new ActionError('CRAFTING_FAILED', `Could not craft any ${toolType}`, { error: err })
       }
     }
   }
