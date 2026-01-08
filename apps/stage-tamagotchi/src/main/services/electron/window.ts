@@ -7,6 +7,7 @@ import { bounds, startLoopGetBounds } from '../../../shared/electron/window'
 import { electron } from '../../../shared/eventa'
 import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecycle'
 import { useLoop } from '../../libs/event-loop'
+import { resizeWindowByDelta } from '../../windows/shared/window'
 
 export function createWindowService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
   const { start, stop } = useLoop(() => {
@@ -35,6 +36,13 @@ export function createWindowService(params: { context: ReturnType<typeof createC
       height: 0,
     }
   })
+
+  defineInvokeHandler(params.context, electron.window.setBounds, (newBounds, options) => {
+    if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
+      params.window.setBounds(newBounds[0])
+    }
+  })
+
   defineInvokeHandler(params.context, electron.window.setIgnoreMouseEvents, (opts, options) => {
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
       params.window.setIgnoreMouseEvents(...opts)
@@ -51,5 +59,18 @@ export function createWindowService(params: { context: ReturnType<typeof createC
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
       params.window.setBackgroundMaterial(backgroundMaterial[0])
     }
+  })
+
+  defineInvokeHandler(params.context, electron.window.resize, (payload, options) => {
+    if (params.window.webContents.id !== options?.raw.ipcMainEvent.sender.id) {
+      return
+    }
+
+    resizeWindowByDelta({
+      window: params.window,
+      deltaX: payload.deltaX,
+      deltaY: payload.deltaY,
+      direction: payload.direction,
+    })
   })
 }

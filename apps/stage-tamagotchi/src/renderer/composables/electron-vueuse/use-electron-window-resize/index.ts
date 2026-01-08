@@ -1,11 +1,16 @@
-export type ResizeDirection = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
+import type { ResizeDirection } from '../../../../shared/electron/window'
 
-export function useResize() {
-  const isWin = window.platform === 'win32'
+import { useElectronEventaInvoke } from '..'
+import { electron } from '../../../../shared/eventa'
 
-  const handleResizeStart = (e: MouseEvent, direction: ResizeDirection) => {
-    if (!isWin)
+export function useElectronWindowResize() {
+  const isWindows = useElectronEventaInvoke(electron.app.isWindows)
+  const resizeWindow = useElectronEventaInvoke(electron.window.resize)
+
+  const handleResizeStart = async (e: MouseEvent, direction: ResizeDirection) => {
+    if (!await isWindows())
       return
+
     e.preventDefault()
     e.stopPropagation()
 
@@ -17,8 +22,7 @@ export function useResize() {
       const deltaY = moveEvent.screenY - lastY
 
       if (deltaX !== 0 || deltaY !== 0) {
-        // @ts-ignore
-        window.api?.resizeWindow(deltaX, deltaY, direction)
+        resizeWindow({ deltaX, deltaY, direction })
         lastX = moveEvent.screenX
         lastY = moveEvent.screenY
       }
@@ -35,6 +39,5 @@ export function useResize() {
 
   return {
     handleResizeStart,
-    isWin,
   }
 }
