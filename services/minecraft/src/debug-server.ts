@@ -18,6 +18,15 @@ interface DebugEvent {
   timestamp: number
 }
 
+interface LlmTrace {
+  route: string
+  messages: any
+  content: any
+  usage?: any
+  model?: string
+  duration?: number // ms
+}
+
 export class DebugService {
   private static instance: DebugService
   private clients: Set<ServerResponse> = new Set()
@@ -102,7 +111,7 @@ export class DebugService {
     this.emit('log', { level, message, fields, timestamp: Date.now() })
   }
 
-  public traceLLM(trace: any) {
+  public traceLLM(trace: LlmTrace) {
     this.emit('llm', { ...trace, timestamp: Date.now() })
   }
 
