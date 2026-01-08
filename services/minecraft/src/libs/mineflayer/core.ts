@@ -49,7 +49,6 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
 
     this.on('interrupt', () => {
       this.logger.log('Interrupted')
-      this.bot.chat('Interrupted')
     })
   }
 

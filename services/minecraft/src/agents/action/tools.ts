@@ -81,20 +81,14 @@ export const actionsList: Action[] = [
       return pad(`NEARBY_ENTITIES${result.length ? `\n${result.join('\n')}` : ': none'}`)
     },
   },
-  // todo: must 'stop now' can be used to stop the agent
   {
     name: 'stop',
-    description: 'Force stop all actions and commands that are currently executing.',
+    description: 'Force stop all actions', // TODO: include name of the current action in description?
     schema: z.object({}),
     perform: mineflayer => async () => {
-      // await ctx.actions.stop()
-      // ctx.clearBotLogs()
-      // ctx.actions.cancelResume()
       mineflayer.interrupt('stop tool called')
-      const msg = 'Agent stopped.'
-      // if (mineflayer.self_prompter.on)
-      //   msg += ' Self-prompting still active.'
-      return msg
+
+      return 'all actions stopped'
     },
   },
   {
@@ -119,7 +113,7 @@ export const actionsList: Action[] = [
     }),
     perform: mineflayer => async (player_name: string, follow_dist: number) => {
       await skills.followPlayer(mineflayer, player_name, follow_dist)
-      return `Followed player [${player_name}]`
+      return `Following player [${player_name}]`
     },
   },
   {

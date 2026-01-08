@@ -212,26 +212,27 @@ export async function listInventory(mineflayer: Mineflayer): Promise<{ name: str
   }))
 }
 
-export async function checkForItem(mineflayer: Mineflayer, itemName: string): Promise<void> {
-  const items = await mineflayer.bot.inventory.items()
-  const searchableItems = items.filter(item => item.name.includes(itemName))
-  sayItems(mineflayer, searchableItems)
-}
+// === we probably won't need this ===
+// export async function checkForItem(mineflayer: Mineflayer, itemName: string): Promise<void> {
+//   const items = await mineflayer.bot.inventory.items()
+//   const searchableItems = items.filter(item => item.name.includes(itemName))
+//   sayItems(mineflayer, searchableItems)
+// }
 
-export async function sayItems(mineflayer: Mineflayer, items: Array<Item> | null = null) {
-  if (!items) {
-    items = mineflayer.bot.inventory.items()
-    if (mineflayer.bot.registry.isNewerOrEqualTo('1.9') && mineflayer.bot.inventory.slots[45])
-      items.push(mineflayer.bot.inventory.slots[45])
-  }
-  const output = items.map(item => `${item.name} x ${item.count}`).join(', ')
-  if (output) {
-    mineflayer.bot.chat(`My inventory contains: ${output}`)
-  }
-  else {
-    mineflayer.bot.chat('My inventory is empty.')
-  }
-}
+// export async function sayItems(mineflayer: Mineflayer, items: Array<Item> | null = null) {
+//   if (!items) {
+//     items = mineflayer.bot.inventory.items()
+//     if (mineflayer.bot.registry.isNewerOrEqualTo('1.9') && mineflayer.bot.inventory.slots[45])
+//       items.push(mineflayer.bot.inventory.slots[45])
+//   }
+//   const output = items.map(item => `${item.name} x ${item.count}`).join(', ')
+//   if (output) {
+//     mineflayer.bot.chat(`My inventory contains: ${output}`)
+//   }
+//   else {
+//     mineflayer.bot.chat('My inventory is empty.')
+//   }
+// }
 
 /**
  * Find the number of free slots in the bot's inventory.
