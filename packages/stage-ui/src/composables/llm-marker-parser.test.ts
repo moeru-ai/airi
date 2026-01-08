@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { useLlmmarkerParser } from './llmmarkerParser'
+import { useLlmmarkerParser } from './llm-marker-parser'
 
 describe('useLlmmarkerParser', async () => {
   it('should parse pure literals', async () => {

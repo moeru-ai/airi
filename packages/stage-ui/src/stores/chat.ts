@@ -10,7 +10,7 @@ import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
 
 import { useAnalytics } from '../composables'
-import { useLlmmarkerParser } from '../composables/llmmarkerParser'
+import { useLlmmarkerParser } from '../composables/llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
 import { useLLM } from '../stores/llm'
 import { createQueue } from '../utils/queue'
