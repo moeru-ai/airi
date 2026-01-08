@@ -35,7 +35,6 @@ export async function ensureCraftingTable(mineflayer: Mineflayer): Promise<boole
     // Craft crafting table
     const result = await craftRecipe(mineflayer, 'crafting_table', 1)
     if (result) {
-      mineflayer.bot.chat('I have made a crafting table.')
       logger.log('Bot: Crafting table crafted.')
       return true
     }
