@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HearingTranscriptionResult } from '@proj-airi/stage-ui/stores/modules/hearing'
+import type { HearingTranscriptionResult } from '../../../stores/modules/hearing'
 
 import { Button, FieldRange, FieldSelect } from '@proj-airi/ui'
 import { until } from '@vueuse/core'

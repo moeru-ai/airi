@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { useTwitterStore } from '@proj-airi/stage-ui/stores/modules/twitter'
 import { Button, FieldCheckbox, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
+
+import { useTwitterStore } from '../../stores/modules/twitter'
 
 const { t } = useI18n()
 const twitterStore = useTwitterStore()

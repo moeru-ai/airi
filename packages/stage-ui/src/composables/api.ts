@@ -1,9 +1,9 @@
 import type { AppType } from '../../../../apps/server/src/app'
 
-import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { hc } from 'hono/client'
 
 import { SERVER_URL } from '../libs/auth'
+import { useAuthStore } from '../stores/auth'
 
 export const client = hc<AppType>(SERVER_URL, {
   fetch: (input: RequestInfo | URL, init?: RequestInit) => {
