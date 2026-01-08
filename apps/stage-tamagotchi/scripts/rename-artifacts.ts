@@ -1,6 +1,6 @@
 import process from 'node:process'
 
-import { mkdirSync, readdirSync, renameSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { cac } from 'cac'
@@ -73,6 +73,14 @@ async function main() {
     const renameFrom = join(srcPrefix, filename.outputFilename)
     const renameTo = join(bundlePrefix, filename.releaseArtifactFilename)
     console.info('renaming, from:', renameFrom, 'to:', renameTo)
+    if (!existsSync(renameFrom)) {
+      const message = `missing artifact: ${renameFrom}`
+      if (filename.optional) {
+        console.warn(message)
+        continue
+      }
+      throw new Error(message)
+    }
     renameSync(renameFrom, renameTo)
   }
 }

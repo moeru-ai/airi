@@ -305,6 +305,14 @@ jobs:
         run: |
           pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release --auto-tag
 
+      - name: Upload macOS update info (Automatic + macOS Only)
+        if: ${{ github.event_name == 'release' && (matrix.os == 'macos-latest' || matrix.os == 'macos-15-intel') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: latest-mac-yml-${{ matrix.arch }}
+          path: apps/stage-tamagotchi/bundle/latest-mac.yml
+          if-no-files-found: error
+
       - name: Upload To GitHub Releases (Automatic)
         if: ${{ github.event_name == 'release' }}
         uses: softprops/action-gh-release@v2
@@ -316,9 +324,52 @@ jobs:
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.deb
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.rpm
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.flatpak
+            apps/stage-tamagotchi/bundle/latest-*.yml
           append_body: true
 
       # - name: Clean up keychain and provisioning profile (macOS Only)
       #   if: ${{ always() && (matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest') }}
       #   run: |
       #     security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
+
+  merge-mac-latest:
+    name: Merge macOS latest-mac.yml
+    if: ${{ github.event_name == 'release' }}
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Download latest-mac.yml (x64)
+        uses: actions/download-artifact@v4
+        with:
+          name: latest-mac-yml-x64
+          path: artifacts/x64
+
+      - name: Download latest-mac.yml (arm64)
+        uses: actions/download-artifact@v4
+        with:
+          name: latest-mac-yml-arm64
+          path: artifacts/arm64
+
+      - name: Merge latest-mac.yml
+        run: |
+          pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/merge-latest-mac.ts \
+            --input artifacts/x64/latest-mac.yml \
+            --input artifacts/arm64/latest-mac.yml \
+            --output apps/stage-tamagotchi/bundle/latest-mac.yml
+
+      - name: Upload merged latest-mac.yml
+        uses: softprops/action-gh-release@v2
+        with:
+          files: apps/stage-tamagotchi/bundle/latest-mac.yml
+          tag_name: ${{ github.event.release.tag_name }}

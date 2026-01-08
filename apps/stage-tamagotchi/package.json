@@ -27,6 +27,7 @@
     "build:mac": "pnpm run build && electron-builder --mac",
     "build:linux": "pnpm run build && electron-builder --linux",
     "rename-artifacts": "mkdir -p bundle && tsx scripts/rename-artifacts.ts",
+    "merge-latest-mac": "tsx scripts/merge-latest-mac.ts",
     "artifacts-metadata": "tsx scripts/artifacts-metadata.ts"
   },
   "dependencies": {
