@@ -9,13 +9,12 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
+import { useActiveElement, useLocalStorage, useMagicKeys, whenever } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { widgetsTools } from '../stores/tools/builtin/widgets'
-
-import { useLocalStorage } from '@vueuse/core' // save the settings in the browser
 
 const messageInput = ref('')
 const listening = ref(false)
@@ -31,58 +30,58 @@ const providersStore = useProvidersStore()
 const { activeModel, activeProvider } = storeToRefs(useConsciousnessStore())
 const isComposing = ref(false)
 
-// --- new feature ---
-type SendMode = 'enter' | 'ctrl-enter' | 'double-enter' // define three sending modes
+type SendMode = 'enter' | 'ctrl-enter' | 'double-enter'
 
-const sendMode = useLocalStorage<SendMode>('chat-send-mode', 'enter') // use useLocalStorage to make the browser remember the user's choice. The default is 'enter'
-const showSendModeMenu = ref(false) // whether the menu is displayed
+const sendMode = useLocalStorage<SendMode>('chat-send-mode', 'enter')
+const showSendModeMenu = ref(false)
+const lastEnterTime = ref(0)
 
-let lastEnterPressTime = 0 // timer of double-enter
+const { enter, control, meta, shift } = useMagicKeys()
+const activeElement = useActiveElement()
 
+whenever(enter, () => {
+  if (isComposing.value || activeElement.value?.tagName !== 'TEXTAREA')
+    return
 
-function handleKeydown(e: KeyboardEvent) { // new key processing function
+  const isCtrl = control.value || meta.value
+  const isShift = shift.value
 
-  if (isComposing.value) return
-
-  const isEnter = e.key === 'Enter'
-  const isCtrl = e.ctrlKey || e.metaKey
-
-if (!isEnter) return
-
-  // 1. Enter mode(default)
   if (sendMode.value === 'enter') {
-    if (!e.shiftKey && !isCtrl) {
-      e.preventDefault() // 
-      handleSend()
-      return
-    }
-  }
-
-  // 2. Ctrl + Enter mode
-  if (sendMode.value === 'ctrl-enter') {
-    if (isCtrl) {
-      e.preventDefault()
-      handleSend()
-      return
-    }
-  }
-
-  // 3. Double Enter mode
-  if (sendMode.value === 'double-enter') {
-    if (!e.shiftKey && !isCtrl) {
-      const now = Date.now()
-      if (now - lastEnterPressTime < 300) {
-        e.preventDefault() // prevent line break caused by the second press
+    if (!isShift && !isCtrl) {
+      setTimeout(() => {
+        messageInput.value = messageInput.value.replace(/[\r\n]+$/, '')
         handleSend()
-        lastEnterPressTime = 0
-      } else {
-        lastEnterPressTime = now
-        // for the first time, don't stop it
+      }, 0)
+    }
+  }
+
+  else if (sendMode.value === 'ctrl-enter') {
+    if (isCtrl) {
+      setTimeout(() => {
+        messageInput.value = messageInput.value.replace(/[\r\n]+$/, '')
+        handleSend()
+      }, 0)
+    }
+  }
+
+  else if (sendMode.value === 'double-enter') {
+    if (!isShift && !isCtrl) {
+      const now = Date.now()
+
+      if (now - lastEnterTime.value < 300) {
+        setTimeout(() => {
+          messageInput.value = messageInput.value.replace(/[\r\n]+$/, '')
+          handleSend()
+        }, 0)
+        lastEnterTime.value = 0
+      }
+      else {
+        lastEnterTime.value = now
       }
     }
   }
-}
-// --- end feature ---
+})
+
 async function handleSend() {
   if (isComposing.value) {
     return
@@ -230,21 +229,25 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
       </div>
     </div>
     <div class="flex items-center justify-end gap-2 py-1">
-      
       <div class="relative">
-        <div 
-          v-if="showSendModeMenu" 
-          class="absolute bottom-full right-0 mb-2 w-max min-w-[140px] flex flex-col gap-1 overflow-hidden rounded-lg border border-primary-200 bg-white p-1 shadow-xl z-50 dark:border-primary-700 dark:bg-neutral-800"
+        <div
+          v-if="showSendModeMenu"
+          class="absolute bottom-full right-0 z-50 mb-2 min-w-[140px] w-max flex flex-col gap-1 overflow-hidden border border-primary-200 rounded-lg bg-white p-1 shadow-xl dark:border-primary-700 dark:bg-neutral-800"
         >
-          <button 
-            v-for="mode in ['enter', 'ctrl-enter', 'double-enter']" 
+          <button
+            v-for="mode in ['enter', 'ctrl-enter', 'double-enter']"
             :key="mode"
-            class="px-3 py-2 text-left text-xs transition-colors hover:bg-primary-100 rounded-md dark:hover:bg-primary-900/50"
+            class="w-full flex items-center rounded-md px-3 py-2 text-left text-xs transition-colors hover:bg-primary-100 dark:hover:bg-primary-900/50"
             :class="sendMode === mode ? 'text-primary-600 font-bold bg-primary-50 dark:bg-primary-900/20' : 'text-neutral-500'"
             @click="sendMode = mode as any; showSendModeMenu = false"
           >
-            <span class="mr-1">{{ sendMode === mode ? '✓' : ' ' }}</span>
-            {{ mode === 'enter' ? 'Enter' : mode === 'ctrl-enter' ? 'Ctrl + Enter' : 'Double-click Enter' }}
+            <div class="mr-2 w-4 flex shrink-0 items-center justify-center">
+              <div v-if="sendMode === mode" class="i-ph:check-bold text-base" />
+            </div>
+
+            <span>
+              {{ mode === 'enter' ? 'Enter' : mode === 'ctrl-enter' ? 'Ctrl + Enter' : 'Double-click Enter' }}
+            </span>
           </button>
         </div>
 
@@ -256,8 +259,8 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
           :title="t('stage.message')"
           @click="showSendModeMenu = !showSendModeMenu"
         >
-          <div class="i-solar:keyboard-bold-duotone" /> 
-          </button>
+          <div class="i-solar:keyboard-bold-duotone" />
+        </button>
       </div>
 
       <button
@@ -272,7 +275,7 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
         <div class="i-solar:trash-bin-2-bold-duotone" />
       </button>
     </div>
-    
+
     <BasicTextarea
       v-model="messageInput"
       :placeholder="t('stage.message')"
@@ -285,7 +288,6 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
       transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
       @compositionstart="isComposing = true"
       @compositionend="isComposing = false"
-      @keydown="handleKeydown" 
       @paste-file="handleFilePaste"
     />
   </div>
