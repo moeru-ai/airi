@@ -1,3 +1,4 @@
+// TODO: move this file to action layer, and rename to `llm-actions.ts`
 import type { Action } from '../../libs/mineflayer'
 
 import { z } from 'zod'
@@ -23,17 +24,8 @@ function formatWearingItem(slot: string, item: string | undefined): string {
 
 export const actionsList: Action[] = [
   {
-    name: 'stats',
-    description: 'Get your bot\'s location, health, hunger, and time of day.',
-    schema: z.object({}),
-    perform: mineflayer => (): string => {
-      const status = mineflayer.status.toOneLiner()
-      return status
-    },
-  },
-  {
     name: 'inventory',
-    description: 'Get your bot\'s inventory.',
+    description: 'Get your inventory.',
     schema: z.object({}),
     perform: mineflayer => (): string => {
       const inventory = world.getInventoryCounts(mineflayer)
@@ -55,7 +47,7 @@ export const actionsList: Action[] = [
   },
   {
     name: 'nearbyBlocks',
-    description: 'Get the blocks near the bot.',
+    description: 'Get the blocks near you.',
     schema: z.object({}),
     perform: mineflayer => (): string => {
       const blocks = world.getNearbyBlockTypes(mineflayer)
@@ -65,7 +57,7 @@ export const actionsList: Action[] = [
   },
   {
     name: 'craftable',
-    description: 'Get the craftable items with the bot\'s inventory.',
+    description: 'Get the craftable items with your inventory.',
     schema: z.object({}),
     perform: mineflayer => (): string => {
       const craftable = world.getCraftableItems(mineflayer)
@@ -361,19 +353,6 @@ export const actionsList: Action[] = [
     perform: mineflayer => async (type: string) => {
       await activateNearestBlock(mineflayer, type)
       return `Activated nearest [${type}]`
-    },
-  },
-  {
-    name: 'stay',
-    description: 'Stay in the current location no matter what. Pauses all modes.',
-    schema: z.object({
-      type: z.number().int().describe('The number of seconds to stay. -1 for forever.').min(-1), // why would you want to stay forever?
-    }),
-    perform: mineflayer => async (seconds: number) => {
-      await skills.stay(mineflayer, seconds)
-      return seconds === -1
-        ? 'Stayed in place indefinitely'
-        : `Stayed in place for ${seconds}s`
     },
   },
 ]
