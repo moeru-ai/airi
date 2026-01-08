@@ -1,8 +1,7 @@
-import type { BrowserWindowConstructorOptions } from 'electron'
+import type { BrowserWindow, BrowserWindowConstructorOptions } from 'electron'
 
 import type { ResizeDirection } from '../../../shared/electron/window'
 
-import { BrowserWindow, ipcMain } from 'electron'
 import { isMacOS } from 'std-env'
 
 export function toggleWindowShow(window?: BrowserWindow | null): void {
@@ -81,24 +80,4 @@ export function resizeWindowByDelta(params: {
   }
 
   params.window.setBounds({ x, y, width, height })
-}
-
-export function setupManualResize(window: BrowserWindow): void {
-  ipcMain.handle('window:resize', (event, deltaX: number, deltaY: number, direction: string) => {
-    const senderWindow = BrowserWindow.fromWebContents(event.sender)
-    if (senderWindow !== window) {
-      return
-    }
-
-    resizeWindowByDelta({
-      window,
-      deltaX,
-      deltaY,
-      direction: direction as ResizeDirection,
-    })
-  })
-
-  window.on('closed', () => {
-    ipcMain.removeHandler('window:resize')
-  })
 }

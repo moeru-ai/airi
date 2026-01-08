@@ -23,7 +23,6 @@ import { electronStartDraggingWindow } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load } from '../../libs/electron/location'
 import { transparentWindowConfig } from '../shared'
 import { createConfig } from '../shared/persistence'
-import { setupManualResize } from '../shared/window'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
 
 interface AppConfig {
@@ -113,8 +112,6 @@ export async function setupMainWindow(params: {
 
     updateConfig(config)
   }
-
-  setupManualResize(window)
 
   window.on('resize', () => handleNewBounds(window.getBounds()))
   window.on('move', () => handleNewBounds(window.getBounds()))

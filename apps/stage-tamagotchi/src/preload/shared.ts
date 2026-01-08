@@ -18,10 +18,6 @@ export function expose() {
     try {
       contextBridge.exposeInMainWorld('electron', electronAPI)
       contextBridge.exposeInMainWorld('platform', platform)
-      contextBridge.exposeInMainWorld('api', {
-        resizeWindow: (deltaX: number, deltaY: number, direction: string) =>
-          ipcRenderer.invoke('window:resize', deltaX, deltaY, direction),
-      })
     }
     catch (error) {
       console.error(error)
