@@ -31,8 +31,8 @@ catalogs:
       specifier: ^1.2.26
       version: 1.2.26
     '@moeru/eslint-config':
-      specifier: 0.1.0-beta.14
-      version: 0.1.0-beta.14
+      specifier: 0.1.0-beta.15
+      version: 0.1.0-beta.15
     '@moeru/std':
       specifier: 0.1.0-beta.14
       version: 0.1.0-beta.14
@@ -208,7 +208,7 @@ importers:
         version: 3.1.0
       '@moeru/eslint-config':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14(@antfu/eslint-config@6.7.3(@unocss/eslint-plugin@66.5.11(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)(vitest@4.0.16))(eslint-plugin-oxlint@1.36.0)(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
+        version: 0.1.0-beta.15(@antfu/eslint-config@6.7.3(@unocss/eslint-plugin@66.5.11(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)(vitest@4.0.16))(eslint-plugin-oxlint@1.36.0)(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       '@proj-airi/unocss-preset-chromatic':
         specifier: ^1.0.2
         version: 1.0.2
@@ -2884,7 +2884,7 @@ importers:
         version: 66.5.11
       '@wxt-dev/module-vue':
         specifier: ^1.0.3
-        version: 1.0.3(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+        version: 1.0.3(vite@8.0.0-beta.5(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       vue-tsc:
         specifier: ^3.1.8
         version: 3.2.1(typescript@5.9.3)
@@ -5933,8 +5933,8 @@ packages:
       '@cfworker/json-schema':
         optional: true
 
-  '@moeru/eslint-config@0.1.0-beta.14':
-    resolution: {integrity: sha512-++smAFXF4789xAGuBMwD7XzVlyf4QBi2x35yhvtLxkHSwGV2WUBYaRMy3mpzs+wHG3SJLX1XDbE7/HF/du4c1g==}
+  '@moeru/eslint-config@0.1.0-beta.15':
+    resolution: {integrity: sha512-MXJ5P69XYMVGMzPytyqj8xZNpqdom3R4W61NR3bhL1YpVpLCjTFIekKfvx3lc+Rg2nozvEP8rYsrLYs4f98rUg==}
     hasBin: true
     peerDependencies:
       '@antfu/eslint-config': ^6.2.0
@@ -5977,6 +5977,9 @@ packages:
 
   '@moeru/std@0.1.0-beta.14':
     resolution: {integrity: sha512-MFeOb5CEvwbUoR2RgwkvNXQinIq+4lc5ZdNzACk2NYag8bBnkg5H+VTT/gJ4uB0chusqSUF+fQ82CQ1T+2UJAg==}
+
+  '@moeru/std@0.1.0-beta.15':
+    resolution: {integrity: sha512-lTi/b2ysilOSE/yo9uY9JIaNOE32kHpemWMxA4ZDIMxWeHZAEXK+jLi8EiXHtdBltjDlBYfNWeWcfH0KKiEJQA==}
 
   '@mrleebo/prisma-ast@0.13.1':
     resolution: {integrity: sha512-XyroGQXcHrZdvmrGJvsA9KNeOOgGMg1Vg9OlheUsBOSKznLMDl+YChxbkboRHvtFYJEMRYmlV3uoo/njCw05iw==}
@@ -19432,11 +19435,11 @@ snapshots:
       - hono
       - supports-color
 
-  '@moeru/eslint-config@0.1.0-beta.14(@antfu/eslint-config@6.7.3(@unocss/eslint-plugin@66.5.11(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)(vitest@4.0.16))(eslint-plugin-oxlint@1.36.0)(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)':
+  '@moeru/eslint-config@0.1.0-beta.15(@antfu/eslint-config@6.7.3(@unocss/eslint-plugin@66.5.11(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)(vitest@4.0.16))(eslint-plugin-oxlint@1.36.0)(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)':
     dependencies:
       '@antfu/eslint-config': 6.7.3(@unocss/eslint-plugin@66.5.11(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.26)(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)(vitest@4.0.16)
       '@masknet/eslint-plugin': 0.4.1(eslint@9.39.2(jiti@2.6.1))
-      '@moeru/std': 0.1.0-beta.14
+      '@moeru/std': 0.1.0-beta.15
       eslint: 9.39.2(jiti@2.6.1)
       eslint-flat-config-utils: 2.1.4
       eslint-plugin-de-morgan: 2.0.0(eslint@9.39.2(jiti@2.6.1))
@@ -19470,6 +19473,8 @@ snapshots:
   '@moeru/std@0.1.0-beta.1': {}
 
   '@moeru/std@0.1.0-beta.14': {}
+
+  '@moeru/std@0.1.0-beta.15': {}
 
   '@mrleebo/prisma-ast@0.13.1':
     dependencies:
@@ -22105,6 +22110,12 @@ snapshots:
       vite: 7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
       vue: 3.5.25(typescript@5.9.3)
 
+  '@vitejs/plugin-vue@6.0.3(vite@8.0.0-beta.5(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))':
+    dependencies:
+      '@rolldown/pluginutils': 1.0.0-beta.53
+      vite: 8.0.0-beta.5(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vue: 3.5.25(typescript@5.9.3)
+
   '@vitest/browser-playwright@4.0.16(bufferutil@4.1.0)(playwright@1.57.0)(utf-8-validate@5.0.10)(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vitest@4.0.16)':
     dependencies:
       '@vitest/browser': 4.0.16(bufferutil@4.1.0)(utf-8-validate@5.0.10)(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vitest@4.0.16)
@@ -22850,9 +22861,9 @@ snapshots:
       '@types/filesystem': 0.0.36
       '@types/har-format': 1.2.16
 
-  '@wxt-dev/module-vue@1.0.3(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
+  '@wxt-dev/module-vue@1.0.3(vite@8.0.0-beta.5(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
-      '@vitejs/plugin-vue': 6.0.3(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
+      '@vitejs/plugin-vue': 6.0.3(vite@8.0.0-beta.5(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
       wxt: 0.20.13(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - vite

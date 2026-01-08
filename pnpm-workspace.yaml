@@ -31,7 +31,7 @@ catalog:
   '@guiiai/logg': ^1.2.11
   '@iconify-json/logos': ^1.2.10
   '@iconify-json/tabler': ^1.2.26
-  '@moeru/eslint-config': 0.1.0-beta.14
+  '@moeru/eslint-config': 0.1.0-beta.15
   '@moeru/std': 0.1.0-beta.14
   '@nekopaw/tempora': 0.4.0-alpha.1
   '@pinia/testing': ^1.0.3
