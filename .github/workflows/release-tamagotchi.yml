@@ -32,13 +32,18 @@ on:
         required: false
         type: string
       platform:
-        description: Target platform (leave empty to build for all)
-        required: false
+        description: Platform
         type: choice
         options:
+          - all
           - windows
           - macos
           - linux
+      ssh_into_runner:
+        description: SSH into runner for debugging
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: '0 0 * * *'
 
@@ -49,35 +54,35 @@ jobs:
       matrix:
         include:
 
-          - if: ${{ inputs.platform == '' || inputs.platform == 'macos' }}
+          - if: ${{ inputs.platform == 'all' || inputs.platform == 'macos' }}
             os: macos-15-intel
             artifact: darwin-x64
             target: x86_64-apple-darwin
             arch: x64
             builder-args: --macos --x64
 
-          - if: ${{ inputs.platform == '' || inputs.platform == 'macos' }}
+          - if: ${{ inputs.platform == 'all' || inputs.platform == 'macos' }}
             os: macos-latest
             artifact: darwin-arm64
             target: aarch64-apple-darwin
             builder-args: --macos --arm64
             arch: arm64
 
-          - if: ${{ inputs.platform == '' || inputs.platform == 'linux' }}
+          - if: ${{ inputs.platform == 'all' || inputs.platform == 'linux' }}
             os: ubuntu-latest
             artifact: linux-x64
             target: x86_64-unknown-linux-gnu
             builder-args: --linux --x64
             arch: x64
 
-          - if: ${{ inputs.platform == '' || inputs.platform == 'linux' }}
+          - if: ${{ inputs.platform == 'all' || inputs.platform == 'linux' }}
             os: ubuntu-24.04-arm
             artifact: linux-arm64
             target: aarch64-unknown-linux-gnu
             builder-args: --linux --arm64
             arch: arm64
 
-          - if: ${{ inputs.platform == '' || inputs.platform == 'windows' }}
+          - if: ${{ inputs.platform == 'all' || inputs.platform == 'windows' }}
             os: windows-latest
             artifact: windows-x64-setup
             target: x86_64-pc-windows-msvc
@@ -86,6 +91,12 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     steps:
+      - if: ${{ inputs.ssh_into_runner }}
+        name: Debug - Setup upterm session
+        uses: owenthereal/action-upterm@v1
+        with:
+          limit-access-to-users: sumimakito
+
       # Why?
       #
       # failed to build archive at `/home/runner/work/airi/airi/target/x86_64-unknown-linux-gnu/release/deps/libapp_lib.rlib`:
