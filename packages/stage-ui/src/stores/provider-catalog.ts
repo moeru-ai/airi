@@ -1,24 +1,24 @@
+import type { ProviderCatalogProvider } from '../database/repos/providers.repo'
+
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 import { client } from '../composables/api'
 import { useAsyncState } from '../composables/use-async-state'
+import { providersRepo } from '../database/repos/providers.repo'
 import { getDefinedProvider, listProviders } from '../libs/providers/providers'
-
-interface ProviderCatalogProvider {
-  id: string
-  definitionId: string
-  name: string
-  config: Record<string, any>
-  validated: boolean
-  validationBypassed: boolean
-}
 
 export const useProviderCatalogStore = defineStore('provider-catalog', () => {
   const defs = computed(() => listProviders())
   const configs = ref<Record<string, ProviderCatalogProvider>>({})
 
   async function fetchList() {
+    // Load from storage immediately
+    const cached = await providersRepo.getAll()
+    if (Object.keys(cached).length > 0) {
+      configs.value = cached
+    }
+
     return useAsyncState(async () => {
       const res = await client.api.providers.$get()
       if (!res.ok) {
@@ -38,6 +38,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
         }
       }
       configs.value = newConfigs
+      await providersRepo.saveAll(newConfigs)
     }, { immediate: true })
   }
 
@@ -61,7 +62,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
       }
       const item = await res.json()
 
-      configs.value[item.id] = {
+      const provider: ProviderCatalogProvider = {
         id: item.id,
         definitionId: item.definitionId,
         name: item.name,
@@ -69,6 +70,8 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
         validated: item.validated,
         validationBypassed: item.validationBypassed,
       }
+      configs.value[item.id] = provider
+      await providersRepo.upsert(provider)
       return item
     }, { immediate: true })
   }
@@ -82,6 +85,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
         throw new Error('Failed to remove provider')
       }
       delete configs.value[providerId]
+      await providersRepo.remove(providerId)
     }, { immediate: true })
   }
 
@@ -105,9 +109,11 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
       }
       const item = await res.json()
 
-      configs.value[providerId].config = { ...item.config as Record<string, any> }
-      configs.value[providerId].validated = item.validated
-      configs.value[providerId].validationBypassed = item.validationBypassed
+      const provider = configs.value[providerId]
+      provider.config = { ...item.config as Record<string, any> }
+      provider.validated = item.validated
+      provider.validationBypassed = item.validationBypassed
+      await providersRepo.upsert(provider)
     }, { immediate: true })
   }
 
