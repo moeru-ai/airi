@@ -115,7 +115,7 @@ async function handleImport(event: Event) {
               {{ t('settings.pages.data.confirmations.yes') }}
             </template>
             <template #cancel>
-              {{ t('pages.card.cancel') }}
+              {{ t('settings.pages.card.cancel') }}
             </template>
           </DoubleCheckButton>
         </div>
@@ -147,7 +147,7 @@ async function handleImport(event: Event) {
                 {{ t('settings.pages.data.confirmations.yes') }}
               </template>
               <template #cancel>
-                {{ t('pages.card.cancel') }}
+                {{ t('settings.pages.card.cancel') }}
               </template>
             </DoubleCheckButton>
           </div>
@@ -172,7 +172,7 @@ async function handleImport(event: Event) {
                 {{ t('settings.pages.data.confirmations.yes') }}
               </template>
               <template #cancel>
-                {{ t('pages.card.cancel') }}
+                {{ t('settings.pages.card.cancel') }}
               </template>
             </DoubleCheckButton>
           </div>
@@ -213,7 +213,7 @@ async function handleImport(event: Event) {
                       {{ t('settings.pages.data.confirmations.yes') }}
                     </template>
                     <template #cancel>
-                      {{ t('pages.card.cancel') }}
+                      {{ t('settings.pages.card.cancel') }}
                     </template>
                   </DoubleCheckButton>
                 </div>
@@ -240,7 +240,7 @@ async function handleImport(event: Event) {
                       {{ t('settings.pages.data.confirmations.yes') }}
                     </template>
                     <template #cancel>
-                      {{ t('pages.card.cancel') }}
+                      {{ t('settings.pages.card.cancel') }}
                     </template>
                   </DoubleCheckButton>
                 </div>
@@ -274,7 +274,7 @@ async function handleImport(event: Event) {
               {{ t('settings.pages.data.confirmations.yes') }}
             </template>
             <template #cancel>
-              {{ t('pages.card.cancel') }}
+              {{ t('settings.pages.card.cancel') }}
             </template>
           </DoubleCheckButton>
         </div>
