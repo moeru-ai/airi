@@ -31,6 +31,14 @@ on:
         description: Specific tag/commit for the release (leave empty to auto-detect latest tag)
         required: false
         type: string
+      platform:
+        description: Target platform (leave empty to build for all)
+        required: false
+        type: choice
+        options:
+          - windows
+          - macos
+          - linux
   schedule:
     - cron: '0 0 * * *'
 
@@ -41,31 +49,36 @@ jobs:
       matrix:
         include:
 
-          - os: macos-15-intel
+          - if: ${{ inputs.platform == '' || inputs.platform == 'macos' }}
+            os: macos-15-intel
             artifact: darwin-x64
             target: x86_64-apple-darwin
             arch: x64
             builder-args: --macos --x64
 
-          - os: macos-latest
+          - if: ${{ inputs.platform == '' || inputs.platform == 'macos' }}
+            os: macos-latest
             artifact: darwin-arm64
             target: aarch64-apple-darwin
             builder-args: --macos --arm64
             arch: arm64
 
-          - os: ubuntu-latest
+          - if: ${{ inputs.platform == '' || inputs.platform == 'linux' }}
+            os: ubuntu-latest
             artifact: linux-x64
             target: x86_64-unknown-linux-gnu
             builder-args: --linux --x64
             arch: x64
 
-          - os: ubuntu-24.04-arm
+          - if: ${{ inputs.platform == '' || inputs.platform == 'linux' }}
+            os: ubuntu-24.04-arm
             artifact: linux-arm64
             target: aarch64-unknown-linux-gnu
             builder-args: --linux --arm64
             arch: arm64
 
-          - os: windows-latest
+          - if: ${{ inputs.platform == '' || inputs.platform == 'windows' }}
+            os: windows-latest
             artifact: windows-x64-setup
             target: x86_64-pc-windows-msvc
             builder-args: --windows --x64
