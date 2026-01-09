@@ -341,9 +341,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.51"
+version = "1.2.52"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a0aeaff4ff1a90589618835a598e545176939b97874f7abc7851caa0618f203"
+checksum = "cd4932aefd12402b36c60956a4fe0035421f544799057659ff86f923657aada3"
 dependencies = [
  "find-msvc-tools",
  "shlex",
@@ -1021,9 +1021,9 @@ dependencies = [
 
 [[package]]
 name = "find-msvc-tools"
-version = "0.1.6"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "645cbb3a84e60b7531617d5ae4e57f7e27308f6445f5abf653209ea76dec8dff"
+checksum = "f449e6c6c08c865631d4890cfacf252b3d396c9bcc83adb6623cdb02a8336c41"
 
 [[package]]
 name = "flate2"
@@ -4641,7 +4641,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-ipc-audio-transcription-ort"
-version = "0.8.1-beta.6"
+version = "0.8.1-beta.7"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -4663,7 +4663,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-ipc-audio-vad-ort"
-version = "0.8.1-beta.6"
+version = "0.8.1-beta.7"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -4687,7 +4687,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-mcp"
-version = "0.8.1-beta.6"
+version = "0.8.1-beta.7"
 dependencies = [
  "anyhow",
  "log",
@@ -4701,7 +4701,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-rdev"
-version = "0.8.1-beta.6"
+version = "0.8.1-beta.7"
 dependencies = [
  "anyhow",
  "log",
@@ -4715,7 +4715,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-window-pass-through-on-hover"
-version = "0.8.1-beta.6"
+version = "0.8.1-beta.7"
 dependencies = [
  "anyhow",
  "log",
@@ -4734,7 +4734,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-window-router-link"
-version = "0.8.1-beta.6"
+version = "0.8.1-beta.7"
 dependencies = [
  "anyhow",
  "log",
