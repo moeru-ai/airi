@@ -71,7 +71,7 @@ pages:
     activate: 激活
     active: 已激活
     active_badge: 当前使用中
-    cancel: Cancel action
+    cancel: 取消操作
     card_not_found: 未找到角色卡
     character: 角色设定
     close: 关闭
