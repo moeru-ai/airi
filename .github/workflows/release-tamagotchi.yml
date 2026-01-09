@@ -91,12 +91,6 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     steps:
-      - if: ${{ inputs.ssh_into_runner }}
-        name: Debug - Setup upterm session
-        uses: owenthereal/action-upterm@v1
-        with:
-          limit-access-to-users: sumimakito
-
       # Why?
       #
       # failed to build archive at `/home/runner/work/airi/airi/target/x86_64-unknown-linux-gnu/release/deps/libapp_lib.rlib`:
@@ -158,6 +152,12 @@ jobs:
       # ---------
 
       - run: pnpm run build:packages
+
+      - if: ${{ inputs.ssh_into_runner }}
+        name: Debug - Setup upterm session
+        uses: owenthereal/action-upterm@v1
+        with:
+          limit-access-to-users: sumimakito
 
       - name: Build (Windows Only) # Windows
         if: matrix.os == 'windows-latest'
