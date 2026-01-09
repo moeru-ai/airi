@@ -8952,6 +8952,7 @@ packages:
 
   '@xsai-ext/shared-providers@0.4.0-beta.12':
     resolution: {integrity: sha512-ME9L8BtapghM0W2SiTdulq0IvU3WR0h7dZ3k1bg/eXag2XUdbh1jy0zYY3oGmpMBmKXO8JXcArS1mq87gpsK0A==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   '@xsai-transformers/embed@0.0.11':
     resolution: {integrity: sha512-O00P0omx3DwPGf66WSU7y3ERmH4r25skxwaBCUp4DZleHNqQEN5okbgDIZJUSE+0SCsKpXRcmhLCWyM+WpfQvw==}
