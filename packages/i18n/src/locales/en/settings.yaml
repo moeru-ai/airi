@@ -37,6 +37,12 @@ language:
   description: >
     Change the language of the AIRI interface. This will not affect the language
     of the character's responses.
+chat:
+  assistant-character-name:
+    title: Assistant Character Name
+    description: >
+      Set the character name displayed for the assistant in the chat screen. If left empty, the default "AIRI" will be displayed.
+    placeholder: AIRI
 live2d:
   change-model:
     from-file: Load from File

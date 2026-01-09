@@ -5,6 +5,7 @@ import type { ChatProvider } from '@xsai-ext/providers/utils'
 import { ChatHistory } from '@proj-airi/stage-ui/components'
 import { useMicVAD } from '@proj-airi/stage-ui/composables'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -21,6 +22,8 @@ const attachments = ref<{ type: 'image', data: string, mimeType: string, url: st
 
 const { askPermission } = useSettingsAudioDevice()
 const { enabled, selectedAudioInput } = storeToRefs(useSettingsAudioDevice())
+const airiCardStore = useAiriCardStore()
+const { activeCard } = storeToRefs(airiCardStore)
 const chatStore = useChatStore()
 const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = chatStore
 const { messages, sending, streamingMessage } = storeToRefs(chatStore)
@@ -28,6 +31,15 @@ const { t } = useI18n()
 const providersStore = useProvidersStore()
 const { activeModel, activeProvider } = storeToRefs(useConsciousnessStore())
 const isComposing = ref(false)
+
+const assistantLabel = computed(() => {
+  // アクティブなカードからキャラクター名を取得
+  if (activeCard.value) {
+    const name = activeCard.value.name?.trim()
+    return name || undefined
+  }
+  return undefined
+})
 
 async function handleSend() {
   if (isComposing.value) {
@@ -165,6 +177,7 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
         :messages="historyMessages"
         :sending="sending"
         :streaming-message="streamingMessage"
+        :assistant-label="assistantLabel"
       />
     </div>
     <div v-if="attachments.length > 0" class="flex flex-wrap gap-2 border-t border-primary-100 p-2">

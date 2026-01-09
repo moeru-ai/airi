@@ -3,6 +3,7 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { ChatHistory } from '@proj-airi/stage-ui/components'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useDeferredMount } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
@@ -13,9 +14,19 @@ import ChatContainer from '../Widgets/ChatContainer.vue'
 
 const { isReady } = useDeferredMount()
 const { messages, sending, streamingMessage } = storeToRefs(useChatStore())
+const airiCardStore = useAiriCardStore()
+const { activeCard } = storeToRefs(airiCardStore)
 
 const isLoading = ref(true)
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+const assistantLabel = computed(() => {
+  // アクティブなカードからキャラクター名を取得
+  if (activeCard.value) {
+    const name = activeCard.value.name?.trim()
+    return name || undefined
+  }
+  return undefined
+})
 </script>
 
 <template>
@@ -35,6 +46,7 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
             :messages="historyMessages"
             :sending="sending"
             :streaming-message="streamingMessage"
+            :assistant-label="assistantLabel"
             h-full
             variant="desktop"
             @vue:mounted="isLoading = false"

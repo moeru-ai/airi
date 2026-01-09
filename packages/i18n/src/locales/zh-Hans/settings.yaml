@@ -34,6 +34,12 @@ language:
   title: 语言
   description: >
     切换显示界面的语言
+chat:
+  assistant-character-name:
+    title: 助手角色名称
+    description: >
+      设置在聊天界面中显示的助手角色名称。如果留空，将显示默认的「AIRI」。
+    placeholder: AIRI
 live2d:
   change-model:
     from-file: 从文件加载
