@@ -101,6 +101,7 @@ const live2dStore = useLive2d()
 const vrmStore = useModelStore()
 
 const showStage = ref(true)
+const viewUpdateCleanups: Array<() => void> = []
 
 // Caption + Presentation broadcast channels
 type CaptionChannelEvent
@@ -114,23 +115,21 @@ type PresentEvent
     | { type: 'assistant-append', text: string }
 const { post: postPresent } = useBroadcastChannel<PresentEvent, PresentEvent>({ name: 'airi-chat-present' })
 
-// TODO: duplicate calls may happen if this component mounted multiple times
-live2dStore.onShouldUpdateView(async () => {
+viewUpdateCleanups.push(live2dStore.onShouldUpdateView(async () => {
   showStage.value = false
   await settingsStore.updateStageModel()
   setTimeout(() => {
     showStage.value = true
   }, 100)
-})
+}))
 
-// TODO: duplicate calls may happen if this component mounted multiple times
-vrmStore.onShouldUpdateView(async () => {
+viewUpdateCleanups.push(vrmStore.onShouldUpdateView(async () => {
   showStage.value = false
   await settingsStore.updateStageModel()
   setTimeout(() => {
     showStage.value = true
   }, 100)
-})
+}))
 
 const audioAnalyser = ref<AnalyserNode>()
 const nowSpeaking = ref(false)
@@ -353,6 +352,7 @@ onUnmounted(() => {
   }
 
   chatHookCleanups.forEach(dispose => dispose?.())
+  viewUpdateCleanups.forEach(dispose => dispose?.())
 })
 
 defineExpose({

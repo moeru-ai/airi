@@ -165,7 +165,7 @@ const beatSync = createBeatSyncController({
 })
 
 // Listen for model reload requests (e.g., when runtime motion is uploaded)
-live2dStore.onShouldUpdateView(() => {
+const disposeShouldUpdateView = live2dStore.onShouldUpdateView(() => {
   loadModel()
 })
 
@@ -620,6 +620,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   isUnmounted = true
+  disposeShouldUpdateView?.()
 })
 
 function listMotionGroups() {
