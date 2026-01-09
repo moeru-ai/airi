@@ -45,7 +45,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'before-compose', message: toRaw(message), sessionId: chatStore.activeSessionId, context: toRaw(context) })
+          broadcastStreamEvent({ type: 'before-compose', message, sessionId: chatStore.activeSessionId, context: toRaw(context) })
         }),
         chatStore.onAfterMessageComposed(async (message, context) => {
           if (isProcessingRemoteStream)
