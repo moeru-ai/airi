@@ -31,6 +31,19 @@ on:
         description: Specific tag/commit for the release (leave empty to auto-detect latest tag)
         required: false
         type: string
+      platform:
+        description: Platform
+        type: choice
+        options:
+          - all
+          - windows
+          - macos
+          - linux
+      ssh_into_runner:
+        description: SSH into runner for debugging
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: '0 0 * * *'
 
@@ -41,31 +54,36 @@ jobs:
       matrix:
         include:
 
-          - os: macos-15-intel
+          - if: ${{ inputs.platform == 'all' || inputs.platform == 'macos' }}
+            os: macos-15-intel
             artifact: darwin-x64
             target: x86_64-apple-darwin
             arch: x64
             builder-args: --macos --x64
 
-          - os: macos-latest
+          - if: ${{ inputs.platform == 'all' || inputs.platform == 'macos' }}
+            os: macos-latest
             artifact: darwin-arm64
             target: aarch64-apple-darwin
             builder-args: --macos --arm64
             arch: arm64
 
-          - os: ubuntu-latest
+          - if: ${{ inputs.platform == 'all' || inputs.platform == 'linux' }}
+            os: ubuntu-latest
             artifact: linux-x64
             target: x86_64-unknown-linux-gnu
             builder-args: --linux --x64
             arch: x64
 
-          - os: ubuntu-24.04-arm
+          - if: ${{ inputs.platform == 'all' || inputs.platform == 'linux' }}
+            os: ubuntu-24.04-arm
             artifact: linux-arm64
             target: aarch64-unknown-linux-gnu
             builder-args: --linux --arm64
             arch: arm64
 
-          - os: windows-latest
+          - if: ${{ inputs.platform == 'all' || inputs.platform == 'windows' }}
+            os: windows-latest
             artifact: windows-x64-setup
             target: x86_64-pc-windows-msvc
             builder-args: --windows --x64
@@ -108,6 +126,18 @@ jobs:
       #     security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
       #     security list-keychain -d user -s $KEYCHAIN_PATH
 
+      - name: macOS Show Xcode 26.1
+        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest'
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.1.app
+          xcodebuild -version
+
+      - name: macOS Show Toolchain
+        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest'
+        run: |
+          xcodebuild -version
+          actool --version
+
       - uses: pnpm/action-setup@v4
         with:
           run_install: false
@@ -122,6 +152,12 @@ jobs:
       # ---------
 
       - run: pnpm run build:packages
+
+      - if: ${{ inputs.ssh_into_runner }}
+        name: Debug - Setup upterm session
+        uses: owenthereal/action-upterm@v1
+        with:
+          limit-access-to-users: sumimakito
 
       - name: Build (Windows Only) # Windows
         if: matrix.os == 'windows-latest'

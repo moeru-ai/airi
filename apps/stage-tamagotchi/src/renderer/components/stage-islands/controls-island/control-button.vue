@@ -1,3 +1,7 @@
+<script setup lang="ts">
+const props = defineProps<{ buttonStyle?: string }>()
+</script>
+
 <template>
   <button
     :class="[
@@ -6,6 +10,7 @@
       'w-fit flex items-center self-end justify-center p-2',
       'rounded-xl backdrop-blur-md',
       'transition-all hover:transition-none transition-duration-300 transition-ease-out',
+      props.buttonStyle,
     ]"
   >
     <slot />

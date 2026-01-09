@@ -1,18 +1,32 @@
-import type { WebSocketEvent } from '@proj-airi/server-shared/types'
+import type { MetadataEventSource, WebSocketEvent } from '@proj-airi/server-shared/types'
 
+import type {
+  RouteContext,
+  RouteDecision,
+  RouteMiddleware,
+  RoutingPolicy,
+} from './middlewares'
 import type { AuthenticatedPeer, Peer } from './types'
 
 import { availableLogLevelStrings, Format, LogLevelString, logLevelStringToLogLevelMap, useLogg } from '@guiiai/logg'
-import { WebSocketEventSource } from '@proj-airi/server-shared/types'
+import { MessageHeartbeat, MessageHeartbeatKind, WebSocketEventSource } from '@proj-airi/server-shared/types'
 import { defineWebSocketHandler, H3 } from 'h3'
 
 import { optionOrEnv } from './config'
+import {
+  collectDestinations,
+  createPolicyMiddleware,
+  isDevtoolsPeer,
+  matchesDestinations,
+} from './middlewares'
 
 // pre-stringified responses
 const RESPONSES = {
   authenticated: JSON.stringify({ type: 'module:authenticated', data: { authenticated: true }, source: WebSocketEventSource.Server } satisfies WebSocketEvent),
   notAuthenticated: JSON.stringify({ type: 'error', data: { message: 'not authenticated' }, source: WebSocketEventSource.Server } satisfies WebSocketEvent),
 }
+
+const DEFAULT_HEARTBEAT_TTL_MS = 60_000
 
 // helper send function
 function send(peer: Peer, event: WebSocketEvent<Record<string, unknown>> | string) {
@@ -26,6 +40,15 @@ export function setupApp(options?: {
   logger?: {
     app?: { level?: LogLevelString, format?: Format }
     websocket?: { level?: LogLevelString, format?: Format }
+  }
+  routing?: {
+    middleware?: RouteMiddleware[]
+    allowBypass?: boolean
+    policy?: RoutingPolicy
+  }
+  heartbeat?: {
+    readTimeout?: number
+    message?: MessageHeartbeat | string
   }
 }): H3 {
   const authToken = optionOrEnv(options?.auth?.token, 'AUTHENTICATION_TOKEN', '')
@@ -44,6 +67,33 @@ export function setupApp(options?: {
 
   const peers = new Map<string, AuthenticatedPeer>()
   const peersByModule = new Map<string, Map<number | undefined, AuthenticatedPeer>>()
+  const heartbeatTtlMs = options?.heartbeat?.readTimeout ?? DEFAULT_HEARTBEAT_TTL_MS
+  const heartbeatMessage = options?.heartbeat?.message ?? MessageHeartbeat.Pong
+  const routingMiddleware = [
+    ...(options?.routing?.policy ? [createPolicyMiddleware(options.routing.policy)] : []),
+    ...(options?.routing?.middleware ?? []),
+  ]
+
+  setInterval(() => {
+    const now = Date.now()
+    for (const [id, peerInfo] of peers.entries()) {
+      if (!peerInfo.lastHeartbeatAt) {
+        continue
+      }
+
+      if (now - peerInfo.lastHeartbeatAt > heartbeatTtlMs) {
+        logger.withFields({ peer: id, peerName: peerInfo.name }).debug('heartbeat expired, dropping peer')
+        try {
+          (peerInfo.peer as Peer & { close?: () => void }).close?.()
+        }
+        catch (error) {
+          logger.withFields({ peer: id, peerName: peerInfo.name }).withError(error as Error).debug('failed to close expired peer')
+        }
+        peers.delete(id)
+        unregisterModulePeer(peerInfo)
+      }
+    }
+  }, Math.max(5_000, Math.floor(heartbeatTtlMs / 2)))
 
   function registerModulePeer(p: AuthenticatedPeer, name: string, index?: number) {
     if (!peersByModule.has(name)) {
@@ -76,11 +126,11 @@ export function setupApp(options?: {
   app.get('/ws', defineWebSocketHandler({
     open: (peer) => {
       if (authToken) {
-        peers.set(peer.id, { peer, authenticated: false, name: '' })
+        peers.set(peer.id, { peer, authenticated: false, name: '', lastHeartbeatAt: Date.now() })
       }
       else {
         peer.send(RESPONSES.authenticated)
-        peers.set(peer.id, { peer, authenticated: true, name: '' })
+        peers.set(peer.id, { peer, authenticated: true, name: '', lastHeartbeatAt: Date.now() })
       }
 
       logger.withFields({ peer: peer.id, activePeers: peers.size }).log('connected')
@@ -106,7 +156,35 @@ export function setupApp(options?: {
         peerModuleIndex: authenticatedPeer?.index,
       }).debug('received event')
 
+      if (authenticatedPeer) {
+        authenticatedPeer.lastHeartbeatAt = Date.now()
+        if (event.metadata?.source) {
+          authenticatedPeer.identity = event.metadata.source
+        }
+      }
+
       switch (event.type) {
+        case 'transport:connection:heartbeat': {
+          const p = peers.get(peer.id)
+          if (p) {
+            p.lastHeartbeatAt = Date.now()
+          }
+
+          if (event.data.kind === MessageHeartbeatKind.Ping) {
+            send(peer, {
+              type: 'transport:connection:heartbeat',
+              data: {
+                kind: MessageHeartbeatKind.Pong,
+                message: heartbeatMessage,
+                at: Date.now(),
+              },
+              source: WebSocketEventSource.Server,
+            })
+          }
+
+          return
+        }
+
         case 'module:authenticate': {
           if (authToken && event.data.token !== authToken) {
             logger.withFields({ peer: peer.id, peerRemote: peer.remoteAddress, peerRequest: peer.request.url }).log('authentication failed')
@@ -137,7 +215,7 @@ export function setupApp(options?: {
           unregisterModulePeer(p)
 
           // verify
-          const { name, index } = event.data as { name: string, index?: number }
+          const { name, index, identity } = event.data as { name: string, index?: number, identity?: MetadataEventSource }
           if (!name || typeof name !== 'string') {
             send(peer, {
               type: 'error',
@@ -170,6 +248,9 @@ export function setupApp(options?: {
 
           p.name = name
           p.index = index
+          if (identity) {
+            p.identity = identity
+          }
 
           registerModulePeer(p, name, index)
 
@@ -231,11 +312,46 @@ export function setupApp(options?: {
       }
 
       const payload = JSON.stringify(event)
+      const allowBypass = options?.routing?.allowBypass !== false
+      const shouldBypass = Boolean(event.route?.bypass && allowBypass && isDevtoolsPeer(p))
+      const destinations = shouldBypass ? undefined : collectDestinations(event)
+      const routingContext: RouteContext = {
+        event,
+        fromPeer: p,
+        peers,
+        destinations,
+      }
+
+      let decision: RouteDecision | undefined
+      for (const middleware of routingMiddleware) {
+        const result = middleware(routingContext)
+        if (result) {
+          decision = result
+          break
+        }
+      }
+
+      if (decision?.type === 'drop') {
+        logger.withFields({ peer: peer.id, peerName: p.name, event }).debug('routing dropped event')
+        return
+      }
+
+      const targetIds = decision?.type === 'targets' ? decision.targetIds : undefined
+      const shouldBroadcast = decision?.type === 'broadcast' || !targetIds
+
       logger.withFields({ peer: peer.id, peerName: p.name, event }).debug('broadcasting event to peers')
 
       for (const [id, other] of peers.entries()) {
         if (id === peer.id) {
           logger.withFields({ peer: peer.id, peerName: p.name, event }).debug('not sending event to self')
+          continue
+        }
+
+        if (!shouldBroadcast && targetIds && !targetIds.has(id)) {
+          continue
+        }
+
+        if (shouldBroadcast && destinations && destinations.length > 0 && !matchesDestinations(destinations, other)) {
           continue
         }
 

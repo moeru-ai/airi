@@ -8,12 +8,20 @@ docs:
     navbar:
       appearance:
         title: 外观
-'controls-island':
-  'fade-on-hover':
+controls-island:
+  fade-on-hover:
     enable: 悬停时隐藏
     disable: 总是显示
+  open-settings: 打开设置
+  open-chat: 打开聊天
+  refresh: 刷新
+  open-hearing-controls: 打开听力控制
+  drag-to-move-window: 拖拽移动窗口
+  switch-to-light: 切换到亮色模式
+  switch-to-dark: 切换到暗色模式
+  switch-to-dark-mode: 切换到黑暗模式
 notice:
-  'fade-on-hover':
+  fade-on-hover:
     title: 悬停淡出
     intro: 当光标靠近时自动让角色变淡，减少干扰又保持可见。
     opacity: 开启后，当光标靠近时， {targets} 的不透明度会降到 {value}。

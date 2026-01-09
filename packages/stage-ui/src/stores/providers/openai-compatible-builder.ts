@@ -71,7 +71,7 @@ export function buildOpenAICompatibleProvider(
     ...rest
   } = options
 
-  const finalCapabilities = capabilities || {
+  const defaultCapabilities = {
     listModels: async (config: Record<string, unknown>) => {
       // Safer casting of apiKey/baseUrl (prevents .trim() crash if not a string)
       const apiKey = normalizeString(config.apiKey)
@@ -106,6 +106,11 @@ export function buildOpenAICompatibleProvider(
         } satisfies ModelInfo
       })
     },
+  }
+
+  const finalCapabilities = {
+    ...defaultCapabilities,
+    ...capabilities,
   }
 
   const finalValidators = validators || {

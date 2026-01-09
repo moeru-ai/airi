@@ -286,6 +286,7 @@ export const useChatStore = defineStore('chat', () => {
   function cleanupMessages(sessionId = activeSessionId.value) {
     bumpSessionGeneration(sessionId)
     sessionMessages.value[sessionId] = [generateInitialMessage()]
+    activeContexts.value = {}
 
     // Reject pending sends for this session so callers don't hang after cleanup
     for (const queued of pendingQueuedSends.value) {
@@ -358,7 +359,7 @@ export const useChatStore = defineStore('chat', () => {
     const sendingCreatedAt = Date.now()
     const streamingMessageContext: ChatStreamEventContext = {
       input: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt },
-      contexts: { ...activeContexts.value },
+      contexts: toRaw(activeContexts.value),
       composedMessage: [],
     }
 
