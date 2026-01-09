@@ -13,12 +13,9 @@ const { buildSparkCommandPreview } = useContextFlowFormatters()
     :class="[
       'mt-3',
       'rounded-lg',
-      'border',
-      'border-neutral-200/70',
       'bg-white/80',
       'p-3',
       'text-xs',
-      'dark:border-neutral-800/80',
       'dark:bg-neutral-900/70',
       'grid',
       'gap-3',
@@ -29,7 +26,7 @@ const { buildSparkCommandPreview } = useContextFlowFormatters()
         <div :class="['flex', 'items-center', 'gap-2', 'text-neutral-700', 'dark:text-neutral-200']">
           <span
             v-if="state.handling"
-            :class="['size-3.5', 'i-solar:spinner-line-duotone', 'animate-spin']"
+            :class="['size-3.5', 'i-svg-spinners:ring-resize', 'animate-spin']"
           />
           <span>
             {{ state.handling ? 'Handling spark:notify...' : 'spark:notify handled' }}

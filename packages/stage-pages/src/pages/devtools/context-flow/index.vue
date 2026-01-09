@@ -6,8 +6,7 @@ import type { FlowDirection, FlowEntry, SparkNotifyEntryState } from './context-
 
 import { errorMessageFrom } from '@moeru/std'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
-import { useCharacterStore } from '@proj-airi/stage-ui/stores/character'
-import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character-orchestrator'
+import { useCharacterOrchestratorStore, useCharacterStore } from '@proj-airi/stage-ui/stores/character'
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME, useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { Callout } from '@proj-airi/ui'

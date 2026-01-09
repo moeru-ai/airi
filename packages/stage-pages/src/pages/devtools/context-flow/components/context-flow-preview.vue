@@ -19,11 +19,8 @@ const { buildPreviewItems } = useContextFlowFormatters()
         :key="`${entry.id}-${item.label}`"
         :class="[
           'rounded-lg',
-          'border',
-          'border-neutral-200/70',
           'bg-white/80',
           'p-3',
-          'dark:border-neutral-800/80',
           'dark:bg-neutral-900/70',
         ]"
       >

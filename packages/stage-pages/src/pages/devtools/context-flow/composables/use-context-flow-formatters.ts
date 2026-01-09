@@ -1,6 +1,6 @@
 import type { WebSocketEvents } from '@proj-airi/server-sdk'
 
-import type { FlowChannel, FlowDirection, FlowEntry, PreviewItem } from '../context-flow-types'
+import type { FlowEntry, PreviewItem } from '../context-flow-types'
 
 const previewMaxLength = 420
 
@@ -187,57 +187,15 @@ function formatPayload(payload: unknown) {
   }
 }
 
-function directionBadgeClasses(direction: FlowDirection) {
-  if (direction === 'incoming') {
-    return [
-      'bg-complementary-500/15',
-      'text-complementary-600',
-      'dark:text-complementary-300',
-      'border-complementary-500/30',
-    ]
-  }
-  return [
-    'bg-primary-500/15',
-    'text-primary-600',
-    'dark:text-primary-300',
-    'border-primary-500/30',
-  ]
-}
-
-function directionIconClass(direction: FlowDirection) {
-  return direction === 'incoming' ? 'i-solar:arrow-down-linear' : 'i-solar:arrow-up-linear'
-}
-
-function channelBadgeClasses(channel: FlowChannel) {
-  switch (channel) {
-    case 'server':
-      return ['bg-orange-500/15', 'text-orange-600', 'dark:text-orange-300', 'border-orange-500/30']
-    case 'broadcast':
-      return ['bg-violet-500/15', 'text-violet-600', 'dark:text-violet-300', 'border-violet-500/30']
-    case 'chat':
-      return ['bg-lime-500/15', 'text-lime-600', 'dark:text-lime-300', 'border-lime-500/30']
-    default:
-      return ['bg-neutral-400/15', 'text-neutral-600', 'dark:text-neutral-300', 'border-neutral-500/30']
-  }
-}
-
-function sourceBadgeClasses() {
-  return ['bg-neutral-400/15', 'text-neutral-600', 'dark:text-neutral-300', 'border-neutral-500/30']
-}
-
 export function useContextFlowFormatters() {
   return {
     buildPreviewItems,
     buildSparkCommandPreview,
-    channelBadgeClasses,
-    directionBadgeClasses,
-    directionIconClass,
     formatDestinations,
     formatPayload,
     formatTimestamp,
     getEventSource,
     getPayloadData,
-    sourceBadgeClasses,
     summarizeContextUpdate,
     truncateText,
   }
