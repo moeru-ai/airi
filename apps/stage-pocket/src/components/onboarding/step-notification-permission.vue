@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { LocalNotifications } from '@capacitor/local-notifications'
+import { OnboardingContextKey } from '@proj-airi/stage-ui/components/scenarios/dialogs/onboarding/utils'
 import { Button } from '@proj-airi/ui'
 import { inject, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-
-import { OnboardingContextKey } from '@proj-airi/stage-ui/components/scenarios/dialogs/onboarding/utils'
 
 const { t } = useI18n()
 const context = inject(OnboardingContextKey)!
