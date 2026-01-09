@@ -5,6 +5,7 @@ import type { ChatStreamEvent, ContextMessage } from '@proj-airi/stage-ui/types/
 import { errorMessageFrom } from '@moeru/std'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { Section } from '@proj-airi/stage-ui/components'
+import { useCharacterStore } from '@proj-airi/stage-ui/stores/character'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character-orchestrator'
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME, useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
@@ -29,6 +30,7 @@ interface FlowEntry {
 }
 
 const chatStore = useChatStore()
+const characterStore = useCharacterStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
 const serverChannelStore = useModsServerChannelStore()
 
@@ -66,6 +68,19 @@ const directionOptions = [
 
 const directionFilter = ref<'all' | FlowDirection>('all')
 const previewMaxLength = 420
+
+interface SparkNotifyEntryState {
+  eventId: string
+  sparkId?: string
+  handling: boolean
+  commands: WebSocketEvents['spark:command'][]
+  reaction: string
+  startedAt: number
+  endedAt?: number
+  error?: string
+}
+
+const sparkNotifyStates = ref<Map<string, SparkNotifyEntryState>>(new Map())
 
 interface PreviewItem {
   label: string
@@ -255,6 +270,57 @@ function buildPreviewItems(entry: FlowEntry): PreviewItem[] {
     items.push({ label: 'Summary', value: formatPreviewValue(entry.summary) })
   }
 
+  return items
+}
+
+function getSparkNotifyReaction(eventId: string) {
+  const reactions = characterStore.reactions
+  for (let index = reactions.length - 1; index >= 0; index -= 1) {
+    const reaction = reactions[index]
+    if (reaction.sourceEventId === eventId)
+      return reaction
+  }
+  return undefined
+}
+
+function getSparkNotifyEntryState(entry: FlowEntry) {
+  if (entry.type !== 'spark:notify')
+    return undefined
+  const payload = getPayloadData(entry) as { id?: string } | undefined
+  if (!payload?.id)
+    return undefined
+  return sparkNotifyStates.value.get(payload.id)
+}
+
+function setSparkNotifyState(nextState: SparkNotifyEntryState) {
+  const nextMap = new Map(sparkNotifyStates.value)
+  nextMap.set(nextState.eventId, nextState)
+  sparkNotifyStates.value = nextMap
+}
+
+function updateSparkNotifyState(eventId: string, updater: (state: SparkNotifyEntryState) => SparkNotifyEntryState) {
+  const current = sparkNotifyStates.value.get(eventId)
+  if (!current)
+    return
+  setSparkNotifyState(updater(current))
+}
+
+function buildSparkCommandPreview(command: WebSocketEvents['spark:command']): PreviewItem[] {
+  const items: PreviewItem[] = []
+  if (command.intent)
+    items.push({ label: 'Intent', value: formatPreviewValue(command.intent) })
+  if (command.priority)
+    items.push({ label: 'Priority', value: formatPreviewValue(command.priority) })
+  if (command.interrupt !== undefined)
+    items.push({ label: 'Interrupt', value: formatPreviewValue(command.interrupt) })
+  if (command.destinations?.length)
+    items.push({ label: 'Destinations', value: formatPreviewValue(formatDestinations(command.destinations)) })
+  if (command.ack)
+    items.push({ label: 'Ack', value: formatPreviewValue(command.ack) })
+  if (command.guidance !== undefined)
+    items.push({ label: 'Guidance', value: formatPreviewValue(command.guidance) })
+  if (command.contexts !== undefined)
+    items.push({ label: 'Contexts', value: formatPreviewValue(command.contexts) })
   return items
 }
 
@@ -454,7 +520,26 @@ async function sendTestSparkNotify() {
   })
 
   try {
+    setSparkNotifyState({
+      eventId: notify.id,
+      sparkId: notify.eventId,
+      handling: true,
+      commands: [],
+      reaction: '',
+      startedAt: Date.now(),
+    })
+
     const result = await characterOrchestratorStore.handleSparkNotify(simulatedEvent)
+    const reaction = getSparkNotifyReaction(notify.id)
+    updateSparkNotifyState(notify.id, current => ({
+      ...current,
+      sparkId: notify.eventId,
+      handling: false,
+      commands: result?.commands ?? [],
+      reaction: reaction?.message ?? '',
+      endedAt: Date.now(),
+    }))
+
     if (result?.commands?.length) {
       for (const command of result.commands) {
         serverChannelStore.send({
@@ -466,6 +551,12 @@ async function sendTestSparkNotify() {
   }
   catch (error) {
     toast(`Error handling spark:notify: ${errorMessageFrom(error)}`)
+    updateSparkNotifyState(notify.id, current => ({
+      ...current,
+      handling: false,
+      endedAt: Date.now(),
+      error: errorMessageFrom(error),
+    }))
   }
 }
 
@@ -510,6 +601,21 @@ onMounted(() => {
 
   for (const type of serverEventTypes) {
     cleanupFns.push(serverChannelStore.onEvent(type, (event) => {
+      if (event.type === 'spark:notify') {
+        const eventId = (event as WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify']>).data?.id
+        if (eventId && !sparkNotifyStates.value.has(eventId)) {
+          const sparkId = (event as WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify']>).data?.eventId
+          setSparkNotifyState({
+            eventId,
+            sparkId,
+            handling: true,
+            commands: [],
+            reaction: '',
+            startedAt: Date.now(),
+          })
+        }
+      }
+
       pushEntry({
         direction: 'incoming',
         channel: 'server',
@@ -656,6 +762,22 @@ watch(() => entries.value.length, async () => {
     streamContainer.value.scrollTop = 0
 })
 
+watch(() => characterStore.reactions.length, () => {
+  for (const state of sparkNotifyStates.value.values()) {
+    if (state.reaction)
+      continue
+    const reaction = getSparkNotifyReaction(state.eventId)
+    if (!reaction)
+      continue
+    updateSparkNotifyState(state.eventId, current => ({
+      ...current,
+      reaction: reaction.message,
+      handling: false,
+      endedAt: current.endedAt ?? Date.now(),
+    }))
+  }
+})
+
 watch(maxEntriesValue, () => {
   if (entries.value.length > maxEntriesValue.value)
     entries.value.splice(0, entries.value.length - maxEntriesValue.value)
@@ -758,7 +880,12 @@ onUnmounted(() => {
             :input-class="['font-mono', 'min-h-44', 'overflow-hidden']"
           />
           <div :class="['flex', 'justify-end']">
-            <Button label="Send spark:notify" icon="i-solar:bell-bing-bold-duotone" size="sm" @click="sendTestSparkNotify" />
+            <Button
+              label="Send spark:notify"
+              icon="i-solar:bell-bing-bold-duotone"
+              size="sm"
+              @click="sendTestSparkNotify"
+            />
           </div>
         </Section>
 
@@ -826,6 +953,123 @@ onUnmounted(() => {
 
               <div v-if="entry.summary" :class="['mt-2', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
                 {{ entry.summary }}
+              </div>
+
+              <div
+                v-if="entry.type === 'spark:notify'"
+                :class="[
+                  'mt-3',
+                  'rounded-lg',
+                  'border',
+                  'border-neutral-200/70',
+                  'bg-white/80',
+                  'p-3',
+                  'text-xs',
+                  'dark:border-neutral-800/80',
+                  'dark:bg-neutral-900/70',
+                  'grid',
+                  'gap-3',
+                ]"
+              >
+                <div v-if="getSparkNotifyEntryState(entry)" :class="['grid', 'gap-3']">
+                  <div :class="['flex', 'items-center', 'justify-between', 'gap-2']">
+                    <div :class="['flex', 'items-center', 'gap-2', 'text-neutral-700', 'dark:text-neutral-200']">
+                      <span
+                        v-if="getSparkNotifyEntryState(entry)?.handling"
+                        :class="['size-3.5', 'i-solar:spinner-line-duotone', 'animate-spin']"
+                      />
+                      <span>
+                        {{ getSparkNotifyEntryState(entry)?.handling ? 'Handling spark:notify...' : 'spark:notify handled' }}
+                      </span>
+                    </div>
+                    <span
+                      v-if="getSparkNotifyEntryState(entry)?.endedAt"
+                      :class="['text-[11px]', 'text-neutral-400', 'dark:text-neutral-500']"
+                    >
+                      {{
+                        Math.max(
+                          0,
+                          (getSparkNotifyEntryState(entry)?.endedAt ?? 0)
+                            - (getSparkNotifyEntryState(entry)?.startedAt ?? 0),
+                        )
+                      }}ms
+                    </span>
+                  </div>
+                  <div :class="['text-[11px]', 'text-neutral-500', 'dark:text-neutral-400']">
+                    eventId: {{ getSparkNotifyEntryState(entry)?.eventId }} · sparkId: {{ getSparkNotifyEntryState(entry)?.sparkId ?? '-' }}
+                  </div>
+                  <div
+                    v-if="getSparkNotifyEntryState(entry)?.error"
+                    :class="['rounded-md', 'border', 'border-rose-500/40', 'bg-rose-500/10', 'px-2', 'py-1.5', 'text-rose-600', 'dark:text-rose-300']"
+                  >
+                    {{ getSparkNotifyEntryState(entry)?.error }}
+                  </div>
+                  <div :class="['grid', 'gap-2']">
+                    <div :class="['text-[11px]', 'uppercase', 'tracking-[0.06em]', 'text-neutral-400', 'dark:text-neutral-500']">
+                      Output text
+                    </div>
+                    <pre :class="['max-h-40', 'overflow-auto', 'whitespace-pre-wrap', 'break-words', 'text-xs', 'font-mono', 'text-neutral-800', 'dark:text-neutral-100']">
+{{ getSparkNotifyEntryState(entry)?.reaction || '-' }}
+                    </pre>
+                  </div>
+                  <div :class="['grid', 'gap-2']">
+                    <div :class="['text-[11px]', 'uppercase', 'tracking-[0.06em]', 'text-neutral-400', 'dark:text-neutral-500']">
+                      Commands
+                    </div>
+                    <div v-if="getSparkNotifyEntryState(entry)?.commands.length" :class="['grid', 'gap-2']">
+                      <div
+                        v-for="(command, index) in getSparkNotifyEntryState(entry)?.commands ?? []"
+                        :key="command.commandId ?? `${entry.id}-${index}`"
+                        :class="[
+                          'rounded-lg',
+                          'border',
+                          'border-neutral-200/70',
+                          'bg-white/80',
+                          'p-3',
+                          'dark:border-neutral-800/80',
+                          'dark:bg-neutral-950/60',
+                          'grid',
+                          'gap-2',
+                        ]"
+                      >
+                        <div :class="['text-xs', 'font-semibold', 'text-neutral-700', 'dark:text-neutral-200']">
+                          Command {{ index + 1 }}
+                        </div>
+                        <div v-if="buildSparkCommandPreview(command).length" :class="['grid', 'gap-2', 'sm:grid-cols-2']">
+                          <div
+                            v-for="item in buildSparkCommandPreview(command)"
+                            :key="`${entry.id}-${index}-${item.label}`"
+                            :class="[
+                              'rounded-lg',
+                              'border',
+                              'border-neutral-200/70',
+                              'bg-white/80',
+                              'p-2.5',
+                              'dark:border-neutral-800/80',
+                              'dark:bg-neutral-900/70',
+                            ]"
+                          >
+                            <div :class="['text-[11px]', 'uppercase', 'tracking-[0.06em]', 'text-neutral-400', 'dark:text-neutral-500']">
+                              {{ item.label }}
+                            </div>
+                            <pre :class="['mt-1.5', 'max-h-32', 'overflow-auto', 'whitespace-pre-wrap', 'break-words', 'text-xs', 'font-mono', 'text-neutral-800', 'dark:text-neutral-100']">
+{{ item.value || '-' }}
+                            </pre>
+                          </div>
+                        </div>
+                        <div v-else :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
+                          No command details available.
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
+                      No commands returned.
+                    </div>
+                  </div>
+                </div>
+                <div v-else :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
+                  No spark:notify handling data yet.
+                </div>
               </div>
 
               <div :class="['mt-3', 'grid', 'gap-2']">
