@@ -9,6 +9,14 @@ import { noticeWindowEventa } from '../../../../shared/eventa'
 import { useElectronEventaInvoke } from '../../../composables/electron-vueuse/use-electron-eventa-context'
 import { useControlsIslandStore } from '../../../stores/controls-island'
 
+interface Props {
+  iconClass?: string
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  iconClass: 'size-5',
+})
+
 const uiStore = useControlsIslandStore()
 const enabled = computed(() => uiStore.fadeOnHoverEnabled)
 const { t } = useI18n()
@@ -49,8 +57,8 @@ async function handleToggle() {
       @click="handleToggle"
     >
       <Transition name="fade" mode="out-in">
-        <div v-if="enabled" i-ph:eye size-5 text="primary-700 dark:primary-300" />
-        <div v-else i-ph:eye-slash size-5 text="neutral-800 dark:neutral-300" />
+        <div v-if="enabled" i-ph:eye :class="props.iconClass" text="primary-700 dark:primary-300" />
+        <div v-else i-ph:eye-slash :class="props.iconClass" text="neutral-800 dark:neutral-300" />
       </Transition>
     </ControlButton>
 
