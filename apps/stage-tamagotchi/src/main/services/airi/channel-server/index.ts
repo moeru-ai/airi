@@ -6,7 +6,7 @@ import { env, platform } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { app } from 'electron'
-import { toNodeListener } from 'h3'
+import { toNodeListener } from 'h3/node'
 import { createCA, createCert } from 'mkcert'
 
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
@@ -155,15 +155,10 @@ export async function setupServerChannel() {
     if (secureEnabled) {
       const { cert, key } = await getOrCreateCertificate()
 
-      const httpsServer = createHttpsServer({ cert, key }, toNodeListener(h3App))
+      // Register WebSocket plugin to h3 app
+      h3App.use(ws({ resolve: async event => (await h3App.fetch(event.req)).crossws }))
 
-      const wsPlugin = ws({ resolve: async (req) => {
-        // @ts-expect-error - the .crossws property wasn't extended in types
-        return (await h3App.fetch(req)).crossws
-      } })
-      httpsServer.on('upgrade', async (request, socket, head) => {
-        await wsPlugin.upgrade(request, socket, head)
-      })
+      const httpsServer = createHttpsServer({ cert, key }, toNodeListener(h3App))
 
       await new Promise<void>((resolve, reject) => {
         httpsServer.listen(port, hostname, () => {

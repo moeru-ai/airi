@@ -76,7 +76,8 @@ onMounted(async () => {
 
   onboardingStore.initializeSetupCheck()
 
-  await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
+  const websocketUrl = settingsStore.websocketServerUrl || import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws'
+  await serverChannelStore.initialize({ possibleEvents: ['ui:configure'], url: websocketUrl }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   await contextBridgeStore.initialize()
   characterOrchestratorStore.initialize()
 

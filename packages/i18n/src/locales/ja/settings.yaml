@@ -44,7 +44,7 @@ language:
 websocket-server-url:
   title: WebSocketサーバーURL
   description: >-
-    マルチデバイス連携用のWebSocketサーバーURL。デスクトップアプリ（tamagotchi）とモバイルアプリ（pocket）が異なるデバイスにある場合、デスクトップのIPアドレスとポートを入力してください。例：ws://192.168.1.100:6121/ws
+    マルチデバイス連携用のWebSocketサーバーURL。デスクトップアプリ（tamagotchi）とモバイルアプリ（pocket）が異なるデバイスにある場合、デスクトップのIPアドレスとポートを入力してください。例：ws://localhost:6121/ws
 websocket-secure-enabled:
   title: セキュアWebSocket (WSS) を有効化
   description: >-
@@ -82,6 +82,9 @@ live2d:
 microphone: マイク
 models: モデル
 pages:
+  connection:
+    title: マルチデバイス接続
+    description: 複数のデバイス間の連携を設定
   card:
     activate: 有効化
     active: 有効

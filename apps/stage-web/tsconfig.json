@@ -14,6 +14,9 @@
       ],
       "@proj-airi/stage-layouts/*": [
         "../../packages/stage-layouts/src/*"
+      ],
+      "@proj-airi/stage-pages/*": [
+        "../../packages/stage-pages/src/*"
       ]
     },
     "resolveJsonModule": true,

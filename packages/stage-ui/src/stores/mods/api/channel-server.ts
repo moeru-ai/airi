@@ -43,6 +43,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     ]))
 
     const serverUrl = options?.url || import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws'
+    console.log('connecting to server:', options)
 
     initializing.value = new Promise<void>((resolve) => {
       client.value = new Client({

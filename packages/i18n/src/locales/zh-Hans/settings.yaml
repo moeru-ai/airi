@@ -44,7 +44,7 @@ language:
 websocket-server-url:
   title: WebSocket 服务器地址
   description: >-
-    用于多设备协同的 WebSocket 服务器地址。如果桌面端（tamagotchi）和移动端（pocket）不在同一设备上，请填写桌面端的 IP 地址和端口。例如：ws://192.168.1.100:6121/ws
+    用于多设备协同的 WebSocket 服务器地址。如果桌面端（tamagotchi）和移动端（pocket）不在同一设备上，请填写桌面端的 IP 地址和端口。例如：ws://localhost:6121/ws
 websocket-secure-enabled:
   title: 启用安全 WebSocket (WSS)
   description: >-
@@ -82,6 +82,9 @@ live2d:
 microphone: 麦克风
 models: 模型
 pages:
+  connection:
+    title: 多设备连接
+    description: 配置多种设备的协同连接
   card:
     activate: 激活
     active: 已激活

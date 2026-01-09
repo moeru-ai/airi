@@ -67,6 +67,9 @@ live2d:
 microphone: Micrófono
 models: Modelo
 pages:
+  connection:
+    title: Conexión Multi-Dispositivo
+    description: Configurar la colaboración entre múltiples dispositivos
   card:
     activate: Activar
     active: Activo

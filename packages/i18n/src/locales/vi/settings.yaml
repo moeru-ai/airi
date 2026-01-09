@@ -67,6 +67,9 @@ live2d:
 microphone: Micro
 models: Mô hình
 pages:
+  connection:
+    title: Kết Nối Đa Thiết Bị
+    description: Cấu hình cộng tác giữa nhiều thiết bị
   card:
     activate: Kích hoạt
     active: Đang hoạt động

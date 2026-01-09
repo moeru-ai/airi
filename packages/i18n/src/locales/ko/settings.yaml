@@ -44,7 +44,7 @@ language:
 websocket-server-url:
   title: WebSocket 서버 URL
   description: >-
-    멀티 디바이스 협업을 위한 WebSocket 서버 URL. 데스크톱 앱(tamagotchi)과 모바일 앱(pocket)이 다른 디바이스에 있는 경우 데스크톱의 IP 주소와 포트를 입력하세요. 예: ws://192.168.1.100:6121/ws
+    멀티 디바이스 협업을 위한 WebSocket 서버 URL. 데스크톱 앱(tamagotchi)과 모바일 앱(pocket)이 다른 디바이스에 있는 경우 데스크톱의 IP 주소와 포트를 입력하세요. 예: ws://localhost:6121/ws
 websocket-secure-enabled:
   title: 보안 WebSocket (WSS) 활성화
   description: >-
@@ -82,6 +82,9 @@ live2d:
 microphone: Microphone
 models: Model
 pages:
+  connection:
+    title: 멀티 디바이스 연결
+    description: 여러 장치 간의 협업 구성
   card:
     activate: Activate
     active: Active

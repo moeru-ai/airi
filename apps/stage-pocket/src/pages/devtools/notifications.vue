@@ -50,5 +50,5 @@ async function sendNotification() {
 
 <route lang="yaml">
 meta:
-  layout: plain
+  layout: settings
 </route>

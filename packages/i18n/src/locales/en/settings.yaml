@@ -47,7 +47,7 @@ language:
 websocket-server-url:
   title: WebSocket Server URL
   description: >-
-    WebSocket server URL for multi-device collaboration. If the desktop app (tamagotchi) and mobile app (pocket) are on different devices, enter the desktop's IP address and port. Example: ws://192.168.1.100:6121/ws
+    WebSocket server URL for multi-device collaboration. If the desktop app (tamagotchi) and mobile app (pocket) are on different devices, enter the desktop's IP address and port. Example: ws://localhost:6121/ws
 websocket-secure-enabled:
   title: Enable Secure WebSocket (WSS)
   description: >-
@@ -85,6 +85,9 @@ live2d:
 microphone: Microphone
 models: Model
 pages:
+  connection:
+    title: Multi-Device Connection
+    description: Configure collaboration across multiple devices
   card:
     activate: Activate
     active: Active

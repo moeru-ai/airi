@@ -35,7 +35,15 @@ export async function setupSettingsWindowInvokes(params: {
   defineInvokeHandler(context, electronOpenDevtoolsWindow, async (payload) => {
     await params.devtoolsMarkdownStressWindow.openWindow(payload?.route)
   })
-  defineInvokeHandler(context, electronRestartWebSocketServer, async () => {
+  defineInvokeHandler(context, electronRestartWebSocketServer, async (req) => {
+    if (req?.websocketSecureEnabled !== undefined) {
+      const { writeFileSync } = await import('node:fs')
+      const { join } = await import('node:path')
+      const { app } = await import('electron')
+      const userDataPath = app.getPath('userData')
+      const settingsPath = join(userDataPath, 'websocket-settings.json')
+      writeFileSync(settingsPath, JSON.stringify({ websocketSecureEnabled: req.websocketSecureEnabled }))
+    }
     await restartServerChannel()
   })
 }
