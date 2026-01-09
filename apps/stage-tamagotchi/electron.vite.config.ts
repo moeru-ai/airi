@@ -132,6 +132,7 @@ export default defineConfig({
           resolve(import.meta.dirname, 'src', 'renderer', 'pages'),
           resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
         ],
+        exclude: ['**/components/**'],
       }),
 
       VitePluginVueDevTools(),
