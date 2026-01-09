@@ -12,6 +12,39 @@ export interface Discord {
   channelId?: string
 }
 
+export interface MetadataEventSource {
+  plugin: string
+  instanceId: string
+  version?: string
+  labels?: Record<string, string>
+}
+
+export type RouteTargetExpression
+  = | { type: 'and', all: RouteTargetExpression[] }
+    | { type: 'or', any: RouteTargetExpression[] }
+    | { type: 'glob', glob: string, inverted?: boolean }
+    | { type: 'ids', ids: string[], inverted?: boolean }
+    | { type: 'plugin', plugins: string[], inverted?: boolean }
+    | { type: 'instance', instances: string[], inverted?: boolean }
+    | { type: 'label', selectors: string[], inverted?: boolean }
+    | { type: 'module', modules: string[], inverted?: boolean }
+    | { type: 'source', sources: string[], inverted?: boolean }
+
+export interface RouteConfig {
+  destinations?: Array<string | RouteTargetExpression>
+  bypass?: boolean
+}
+
+export enum MessageHeartbeat {
+  Ping = 'ping',
+  Pong = 'pong',
+}
+
+export enum MessageHeartbeatMark {
+  Ping = '🩵',
+  Pong = '💛',
+}
+
 export enum WebSocketEventSource {
   Server = 'proj-airi:server-runtime',
   StageWeb = 'proj-airi:stage-web',
@@ -74,7 +107,14 @@ export interface ContextUpdate<
 export interface WebSocketBaseEvent<T, D, S extends string = string> {
   type: T
   data: D
+  /**
+   * @deprecated Prefer metadata.source.
+   */
   source: WebSocketEventSource | S
+  metadata?: {
+    source: MetadataEventSource
+  }
+  route?: RouteConfig
 }
 
 export type WithInputSource<Source extends keyof InputSource> = {
@@ -102,6 +142,7 @@ export interface WebSocketEvents<C = undefined> {
   }
   'module:announce': {
     name: string
+    identity?: MetadataEventSource
     possibleEvents: Array<(keyof WebSocketEvents<C>)>
   }
   'module:configure': {
@@ -243,6 +284,12 @@ export interface WebSocketEvents<C = undefined> {
     }
     contexts?: Array<ContextUpdate>
     destinations: Array<string>
+  }
+
+  'transport:connection:heartbeat': {
+    message: MessageHeartbeat | string
+    mark?: '🩵' | '💛'
+    at?: number
   }
 
   'context:update': ContextUpdate

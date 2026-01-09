@@ -1,4 +1,7 @@
 import type {
+  MessageHeartbeat,
+  MessageHeartbeatMark,
+  MetadataEventSource,
   WebSocketBaseEvent,
   WebSocketEvent,
   WebSocketEventOptionalSource,
@@ -15,11 +18,20 @@ export interface ClientOptions<C = undefined> {
   name: string
   possibleEvents?: Array<keyof WebSocketEvents<C>>
   token?: string
+  identity?: MetadataEventSource
+  heartbeat?: {
+    readTimeout?: number
+    message?: MessageHeartbeat | string
+  }
   onError?: (error: unknown) => void
   onClose?: () => void
   autoConnect?: boolean
   autoReconnect?: boolean
   maxReconnectAttempts?: number
+}
+
+function createInstanceId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 export class Client<C = undefined> {
@@ -29,6 +41,8 @@ export class Client<C = undefined> {
   private shouldClose = false
   private connectAttempt?: Promise<void>
   private connectTask?: Promise<void>
+  private heartbeatTimer?: ReturnType<typeof setInterval>
+  private readonly identity: MetadataEventSource
 
   private readonly opts: Required<Omit<ClientOptions<C>, 'token'>> & Pick<ClientOptions<C>, 'token'>
   private readonly eventListeners = new Map<
@@ -37,6 +51,11 @@ export class Client<C = undefined> {
   >()
 
   constructor(options: ClientOptions<C>) {
+    const identity = options.identity ?? {
+      plugin: options.name,
+      instanceId: createInstanceId(),
+    }
+
     this.opts = {
       url: 'ws://localhost:6121/ws',
       possibleEvents: [],
@@ -45,8 +64,15 @@ export class Client<C = undefined> {
       autoConnect: true,
       autoReconnect: true,
       maxReconnectAttempts: -1,
+      heartbeat: {
+        readTimeout: 30_000,
+        message: MessageHeartbeat.Ping,
+      },
       ...options,
+      identity,
     }
+
+    this.identity = identity
 
     // Authentication listener is registered once only
     this.onEvent('module:authenticated', async (event) => {
@@ -61,6 +87,12 @@ export class Client<C = undefined> {
     this.onEvent('error', async (event) => {
       if (event.data.message === 'not authenticated') {
         await this._reconnectDueToUnauthorized()
+      }
+    })
+
+    this.onEvent('transport:connection:heartbeat', (event) => {
+      if (event.data.message === MessageHeartbeat.Ping) {
+        this.sendHeartbeatPong()
       }
     })
 
@@ -145,6 +177,7 @@ export class Client<C = undefined> {
 
         if (this.connected) {
           this.connected = false
+          this.stopHeartbeat()
           this.opts.onClose?.()
         }
         if (this.opts.autoReconnect && !this.shouldClose) {
@@ -154,6 +187,8 @@ export class Client<C = undefined> {
       ws.onopen = () => {
         settle(() => {
           this.connected = true
+
+          this.startHeartbeat()
 
           if (this.opts.token)
             this.tryAuthenticate()
@@ -186,6 +221,7 @@ export class Client<C = undefined> {
       type: 'module:announce',
       data: {
         name: this.opts.name,
+        identity: this.identity,
         possibleEvents: this.opts.possibleEvents,
       },
     })
@@ -261,7 +297,11 @@ export class Client<C = undefined> {
 
   send(data: WebSocketEventOptionalSource<C>): void {
     if (this.websocket && this.connected) {
-      this.websocket.send(JSON.stringify({ source: this.opts.name as WebSocketEventSource | string, ...data } as WebSocketEvent<C>))
+      this.websocket.send(JSON.stringify({
+        source: this.opts.name as WebSocketEventSource | string,
+        metadata: { source: this.identity },
+        ...data,
+      } as WebSocketEvent<C>))
     }
   }
 
@@ -273,10 +313,69 @@ export class Client<C = undefined> {
 
   close(): void {
     this.shouldClose = true
+    this.stopHeartbeat()
     if (this.websocket) {
       this.websocket.close()
       this.connected = false
     }
+  }
+
+  private startHeartbeat() {
+    if (!this.opts.heartbeat?.readTimeout) {
+      return
+    }
+
+    this.stopHeartbeat()
+
+    const ping = () => this.sendHeartbeatPing()
+
+    ping()
+    this.heartbeatTimer = setInterval(ping, this.opts.heartbeat.readTimeout)
+  }
+
+  private stopHeartbeat() {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer)
+      this.heartbeatTimer = undefined
+    }
+  }
+
+  private sendNativeHeartbeat(kind: 'ping' | 'pong') {
+    const websocket = this.websocket as WebSocket & {
+      ping?: () => void
+      pong?: () => void
+    }
+
+    if (kind === 'ping') {
+      websocket.ping?.()
+    }
+    else {
+      websocket.pong?.()
+    }
+  }
+
+  private sendHeartbeatPing() {
+    this.send({
+      type: 'transport:connection:heartbeat',
+      data: {
+        message: this.opts.heartbeat?.message ?? MessageHeartbeat.Ping,
+        mark: MessageHeartbeatMark.Ping,
+        at: Date.now(),
+      },
+    })
+    this.sendNativeHeartbeat('ping')
+  }
+
+  private sendHeartbeatPong() {
+    this.send({
+      type: 'transport:connection:heartbeat',
+      data: {
+        message: MessageHeartbeat.Pong,
+        mark: MessageHeartbeatMark.Pong,
+        at: Date.now(),
+      },
+    })
+    this.sendNativeHeartbeat('pong')
   }
 
   private async _reconnectDueToUnauthorized() {
