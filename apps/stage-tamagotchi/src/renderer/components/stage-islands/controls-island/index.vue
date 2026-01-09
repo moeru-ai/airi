@@ -33,13 +33,13 @@ const ICON_PLACEHOLDER_PX = 50
 const BUTTON_COUNT = 7
 const LARGE_THRESHOLD = ICON_PLACEHOLDER_PX * BUTTON_COUNT
 
-// Grouped classes for icon / border / padding and combined adjust class
-const buttonClasses = computed(() => {
+// Grouped classes for icon / border / padding and combined style class
+const adjustStyleClasses = computed(() => {
   const isLarge = windowHeight.value > LARGE_THRESHOLD
   const icon = isLarge ? 'size-5' : 'size-3'
   const border = isLarge ? 'border-2' : 'border-0'
   const padding = isLarge ? 'p-2' : 'p-0.5'
-  return { icon, border, padding, adjust: `${border} ${padding}` }
+  return { icon, border, padding, button: `${border} ${padding}` }
 })
 
 /**
@@ -63,8 +63,8 @@ function refreshWindow() {
   <div fixed bottom-2 right-2>
     <div flex flex-col gap-1>
       <ControlButtonTooltip>
-        <ControlButton :adjust-class="buttonClasses.adjust" @click="openSettings">
-          <div i-solar:settings-minimalistic-outline :class="buttonClasses.icon" text="neutral-800 dark:neutral-300" />
+        <ControlButton :button-style="adjustStyleClasses.button" @click="openSettings">
+          <div i-solar:settings-minimalistic-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
         </ControlButton>
 
         <template #tooltip>
@@ -73,8 +73,8 @@ function refreshWindow() {
       </ControlButtonTooltip>
 
       <ControlButtonTooltip>
-        <ControlButton :adjust-class="buttonClasses.adjust" @click="openChat">
-          <div i-solar:chat-line-line-duotone :class="buttonClasses.icon" text="neutral-800 dark:neutral-300" />
+        <ControlButton :button-style="adjustStyleClasses.button" @click="openChat">
+          <div i-solar:chat-line-line-duotone :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
         </ControlButton>
 
         <template #tooltip>
@@ -83,8 +83,8 @@ function refreshWindow() {
       </ControlButtonTooltip>
 
       <ControlButtonTooltip>
-        <ControlButton :adjust-class="buttonClasses.adjust" @click="refreshWindow">
-          <div i-solar:refresh-linear :class="buttonClasses.icon" text="neutral-800 dark:neutral-300" />
+        <ControlButton :button-style="adjustStyleClasses.button" @click="refreshWindow">
+          <div i-solar:refresh-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
         </ControlButton>
 
         <template #tooltip>
@@ -95,10 +95,10 @@ function refreshWindow() {
       <ControlButtonTooltip>
         <ControlsIslandHearingConfig v-model:show="hearingDialogOpen">
           <div class="relative">
-            <ControlButton :adjust-class="buttonClasses.adjust">
+            <ControlButton :button-style="adjustStyleClasses.button">
               <Transition name="fade" mode="out-in">
-                <IndicatorMicVolume v-if="enabled" :class="buttonClasses.icon" />
-                <div v-else i-ph:microphone-slash :class="buttonClasses.icon" text="neutral-800 dark:neutral-300" />
+                <IndicatorMicVolume v-if="enabled" :class="adjustStyleClasses.icon" />
+                <div v-else i-ph:microphone-slash :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
               </Transition>
             </ControlButton>
           </div>
@@ -109,11 +109,11 @@ function refreshWindow() {
         </template>
       </ControlButtonTooltip>
 
-      <ControlsIslandFadeOnHover :icon-class="buttonClasses.icon" />
+      <ControlsIslandFadeOnHover :icon-class="adjustStyleClasses.icon" :button-style="adjustStyleClasses.button" />
 
       <ControlButtonTooltip>
-        <ControlButton :adjust-class="buttonClasses.adjust" cursor-move :class="{ 'drag-region': isLinux }" @mousedown="startDraggingWindow?.()">
-          <div i-ph:arrows-out-cardinal :class="buttonClasses.icon" text="neutral-800 dark:neutral-300" />
+        <ControlButton :button-style="adjustStyleClasses.button" cursor-move :class="{ 'drag-region': isLinux }" @mousedown="startDraggingWindow?.()">
+          <div i-ph:arrows-out-cardinal :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
         </ControlButton>
 
         <template #tooltip>
@@ -124,10 +124,10 @@ function refreshWindow() {
       <ControlButtonTooltip>
         <!-- Recommended to use `toggleDark()` instead of `toggleDark` -->
         <!-- See: https://vueuse.org/shared/useToggle/#usage -->
-        <ControlButton :adjust-class="buttonClasses.adjust" @click="toggleDark()">
+        <ControlButton :button-style="adjustStyleClasses.button" @click="toggleDark()">
           <Transition name="fade" mode="out-in">
-            <div v-if="isDark" i-solar:moon-outline :class="buttonClasses.icon" text="neutral-800 dark:neutral-300" />
-            <div v-else i-solar:sun-2-outline :class="buttonClasses.icon" text="neutral-800 dark:neutral-300" />
+            <div v-if="isDark" i-solar:moon-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+            <div v-else i-solar:sun-2-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
           </Transition>
         </ControlButton>
 

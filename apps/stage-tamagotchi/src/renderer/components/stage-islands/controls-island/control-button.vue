@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const props = defineProps<{ adjustClass?: string }>()
+const props = defineProps<{ buttonStyle?: string }>()
 </script>
 
 <template>
@@ -10,7 +10,7 @@ const props = defineProps<{ adjustClass?: string }>()
       'w-fit flex items-center self-end justify-center p-2',
       'rounded-xl backdrop-blur-md',
       'transition-all hover:transition-none transition-duration-300 transition-ease-out',
-      props.adjustClass,
+      props.buttonStyle,
     ]"
   >
     <slot />
