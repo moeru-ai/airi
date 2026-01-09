@@ -1,6 +1,4 @@
 import type {
-  MessageHeartbeat,
-  MessageHeartbeatMark,
   MetadataEventSource,
   WebSocketBaseEvent,
   WebSocketEvent,
@@ -12,6 +10,10 @@ import type {
 import WebSocket from 'crossws/websocket'
 
 import { sleep } from '@moeru/std'
+import {
+  MessageHeartbeat,
+  MessageHeartbeatKind,
+} from '@proj-airi/server-shared/types'
 
 export interface ClientOptions<C = undefined> {
   url?: string
@@ -91,7 +93,7 @@ export class Client<C = undefined> {
     })
 
     this.onEvent('transport:connection:heartbeat', (event) => {
-      if (event.data.message === MessageHeartbeat.Ping) {
+      if (event.data.kind === MessageHeartbeatKind.Ping) {
         this.sendHeartbeatPong()
       }
     })
@@ -358,8 +360,8 @@ export class Client<C = undefined> {
     this.send({
       type: 'transport:connection:heartbeat',
       data: {
+        kind: MessageHeartbeatKind.Ping,
         message: this.opts.heartbeat?.message ?? MessageHeartbeat.Ping,
-        mark: MessageHeartbeatMark.Ping,
         at: Date.now(),
       },
     })
@@ -370,8 +372,8 @@ export class Client<C = undefined> {
     this.send({
       type: 'transport:connection:heartbeat',
       data: {
+        kind: MessageHeartbeatKind.Pong,
         message: MessageHeartbeat.Pong,
-        mark: MessageHeartbeatMark.Pong,
         at: Date.now(),
       },
     })

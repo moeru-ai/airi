@@ -9,7 +9,7 @@ import type {
 import type { AuthenticatedPeer, Peer } from './types'
 
 import { availableLogLevelStrings, Format, LogLevelString, logLevelStringToLogLevelMap, useLogg } from '@guiiai/logg'
-import { MessageHeartbeat, MessageHeartbeatMark, WebSocketEventSource } from '@proj-airi/server-shared/types'
+import { MessageHeartbeat, MessageHeartbeatKind, WebSocketEventSource } from '@proj-airi/server-shared/types'
 import { defineWebSocketHandler, H3 } from 'h3'
 
 import { optionOrEnv } from './config'
@@ -48,6 +48,7 @@ export function setupApp(options?: {
   }
   heartbeat?: {
     readTimeout?: number
+    message?: MessageHeartbeat | string
   }
 }): H3 {
   const authToken = optionOrEnv(options?.auth?.token, 'AUTHENTICATION_TOKEN', '')
@@ -67,6 +68,7 @@ export function setupApp(options?: {
   const peers = new Map<string, AuthenticatedPeer>()
   const peersByModule = new Map<string, Map<number | undefined, AuthenticatedPeer>>()
   const heartbeatTtlMs = options?.heartbeat?.readTimeout ?? DEFAULT_HEARTBEAT_TTL_MS
+  const heartbeatMessage = options?.heartbeat?.message ?? MessageHeartbeat.Pong
   const routingMiddleware = [
     ...(options?.routing?.policy ? [createPolicyMiddleware(options.routing.policy)] : []),
     ...(options?.routing?.middleware ?? []),
@@ -168,12 +170,12 @@ export function setupApp(options?: {
             p.lastHeartbeatAt = Date.now()
           }
 
-          if (event.data.message === MessageHeartbeat.Ping) {
+          if (event.data.kind === MessageHeartbeatKind.Ping) {
             send(peer, {
               type: 'transport:connection:heartbeat',
               data: {
-                message: MessageHeartbeat.Pong,
-                mark: MessageHeartbeatMark.Pong,
+                kind: MessageHeartbeatKind.Pong,
+                message: heartbeatMessage,
                 at: Date.now(),
               },
               source: WebSocketEventSource.Server,

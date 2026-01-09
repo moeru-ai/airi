@@ -35,12 +35,12 @@ export interface RouteConfig {
   bypass?: boolean
 }
 
-export enum MessageHeartbeat {
+export enum MessageHeartbeatKind {
   Ping = 'ping',
   Pong = 'pong',
 }
 
-export enum MessageHeartbeatMark {
+export enum MessageHeartbeat {
   Ping = '🩵',
   Pong = '💛',
 }
@@ -287,8 +287,8 @@ export interface WebSocketEvents<C = undefined> {
   }
 
   'transport:connection:heartbeat': {
+    kind: MessageHeartbeatKind
     message: MessageHeartbeat | string
-    mark?: '🩵' | '💛'
     at?: number
   }
 
