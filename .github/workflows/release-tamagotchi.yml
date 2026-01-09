@@ -108,6 +108,18 @@ jobs:
       #     security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
       #     security list-keychain -d user -s $KEYCHAIN_PATH
 
+      - name: macOS Show Xcode 26.1
+        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest'
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.1.app
+          xcodebuild -version
+
+      - name: macOS Show Toolchain
+        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest'
+        run: |
+          xcodebuild -version
+          actool --version
+
       - uses: pnpm/action-setup@v4
         with:
           run_install: false
