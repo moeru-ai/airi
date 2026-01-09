@@ -5,14 +5,14 @@
   "private": true,
   "description": "manifest.json description",
   "scripts": {
-    "dev": "wxt",
-    "dev:firefox": "wxt -b firefox",
-    "build": "wxt build",
-    "build:firefox": "wxt build -b firefox",
-    "zip": "wxt zip",
-    "zip:firefox": "wxt zip -b firefox",
+    "dev": "NODE_OPTIONS='--localstorage-file=/tmp/airi-wxt-ls' wxt",
+    "dev:firefox": "NODE_OPTIONS='--localstorage-file=/tmp/airi-wxt-ls' wxt -b firefox",
+    "build": "NODE_OPTIONS='--localstorage-file=/tmp/airi-wxt-ls' wxt build",
+    "build:firefox": "NODE_OPTIONS='--localstorage-file=/tmp/airi-wxt-ls' wxt build -b firefox",
+    "zip": "NODE_OPTIONS='--localstorage-file=/tmp/airi-wxt-ls' wxt zip",
+    "zip:firefox": "NODE_OPTIONS='--localstorage-file=/tmp/airi-wxt-ls' wxt zip -b firefox",
     "compile": "vue-tsc --noEmit",
-    "postinstall": "wxt prepare"
+    "postinstall": "NODE_OPTIONS='--localstorage-file=/tmp/airi-wxt-ls' wxt prepare"
   },
   "dependencies": {
     "vue": "^3.5.25"
