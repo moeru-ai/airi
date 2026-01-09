@@ -1,5 +1,5 @@
 import type { Discord } from '@proj-airi/server-shared/types'
-import type { Interaction } from 'discord.js'
+import type { Interaction, TextBasedChannel } from 'discord.js'
 
 import { env } from 'node:process'
 
@@ -137,11 +137,15 @@ export class DiscordAdapter {
     // Handle output from AIRI system (IA response)
     this.airiClient.onEvent('output:gen-ai:chat:message', async (event) => {
       try {
-        const { message, discord } = event.data as any
+        const { message, discord } = event.data as {
+          message: { content: string }
+          discord?: { channelId: string }
+        }
+
         if (discord?.channelId) {
           const channel = await this.discordClient.channels.fetch(discord.channelId)
           if (channel?.isTextBased()) {
-            await (channel as any).send(message.content)
+            await (channel as TextBasedChannel).send(message.content)
           }
         }
       }
