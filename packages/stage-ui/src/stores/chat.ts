@@ -369,7 +369,19 @@ export const useChatStore = defineStore('chat', () => {
 
     sending.value = true
 
-    streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() }
+    const isForegroundSession = () => sessionId === activeSessionId.value
+
+    // Use a local object for building the message to avoid polluting the UI for background sessions
+    const buildingMessage: StreamingAssistantMessage = { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() }
+
+    const updateUI = () => {
+      if (isForegroundSession()) {
+        streamingMessage.value = JSON.parse(JSON.stringify(buildingMessage))
+      }
+    }
+
+    // Initialize UI if foreground
+    updateUI()
 
     trackFirstMessage()
     try {
@@ -420,7 +432,7 @@ export const useChatStore = defineStore('chat', () => {
           // Only process non-empty speech content (filter empty/whitespace-only chunks)
           // Preserve spacing in chunks with content for proper word boundaries
           if (speechOnly.trim()) {
-            streamingMessage.value.content += speechOnly
+            buildingMessage.content += speechOnly
 
             console.log('speechOnly', speechOnly)
             // Emit TTS only for speech parts, not reasoning (clean data, no empty chunks)
@@ -428,16 +440,17 @@ export const useChatStore = defineStore('chat', () => {
 
             // Add speech content to slices for rendering
             // merge text slices for markdown
-            const lastSlice = streamingMessage.value.slices.at(-1)
+            const lastSlice = buildingMessage.slices.at(-1)
             if (lastSlice?.type === 'text') {
               lastSlice.text += speechOnly
-              return
             }
-
-            streamingMessage.value.slices.push({
-              type: 'text',
-              text: speechOnly,
-            })
+            else {
+              buildingMessage.slices.push({
+                type: 'text',
+                text: speechOnly,
+              })
+            }
+            updateUI()
           }
         },
         onSpecial: async (special) => {
@@ -454,10 +467,11 @@ export const useChatStore = defineStore('chat', () => {
           const finalCategorization = categorizeResponse(fullText, activeProvider.value)
 
           // Always store categorization (even if empty) for consistency and memory features
-          streamingMessage.value.categorization = {
+          buildingMessage.categorization = {
             speech: finalCategorization.speech,
             reasoning: finalCategorization.reasoning,
           }
+          updateUI()
         },
         minLiteralEmitLength: 24, // Avoid emitting literals too fast. This is a magic number and can be changed later.
       })
@@ -468,12 +482,14 @@ export const useChatStore = defineStore('chat', () => {
             if (shouldAbort())
               return
             if (ctx.data.type === 'tool-call') {
-              streamingMessage.value.slices.push(ctx.data)
+              buildingMessage.slices.push(ctx.data)
+              updateUI()
               return
             }
 
             if (ctx.data.type === 'tool-call-result') {
-              streamingMessage.value.tool_results.push(ctx.data)
+              buildingMessage.tool_results.push(ctx.data)
+              updateUI()
             }
           },
         ],
@@ -565,8 +581,8 @@ export const useChatStore = defineStore('chat', () => {
       await parser.end()
 
       // Add the completed message to the history only if it has content
-      if (!isStaleGeneration() && streamingMessage.value.slices.length > 0) {
-        sessionMessagesForSend.push(toRaw(streamingMessage.value))
+      if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
+        sessionMessagesForSend.push(toRaw(buildingMessage))
       }
 
       // Call the end-of-stream hooks
@@ -576,15 +592,17 @@ export const useChatStore = defineStore('chat', () => {
       await emitAssistantResponseEndHooks(fullText, streamingMessageContext)
 
       await emitAfterSendHooks(sendingMessage, streamingMessageContext)
-      await emitAssistantMessageHooks({ ...streamingMessage.value }, fullText, streamingMessageContext)
+      await emitAssistantMessageHooks({ ...buildingMessage }, fullText, streamingMessageContext)
       await emitChatTurnCompleteHooks({
-        output: { ...streamingMessage.value },
+        output: { ...buildingMessage },
         outputText: fullText,
         toolCalls: sessionMessagesForSend.filter(msg => msg.role === 'tool') as ToolMessage[],
       }, streamingMessageContext)
 
       // Reset the streaming message for the next turn
-      streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
+      if (isForegroundSession()) {
+        streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
+      }
     }
     catch (error) {
       console.error('Error sending message:', error)
@@ -628,8 +646,9 @@ export const useChatStore = defineStore('chat', () => {
   async function send(
     sendingMessage: string,
     options: SendOptions,
+    targetSessionId?: string,
   ) {
-    const sessionId = activeSessionId.value
+    const sessionId = targetSessionId || activeSessionId.value
     const generation = getSessionGeneration(sessionId)
 
     return new Promise<void>((resolve, reject) => {

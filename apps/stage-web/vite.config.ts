@@ -61,6 +61,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: true,
     warmup: {
       clientFiles: [
         `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src'))}/*.vue`,
