@@ -6,7 +6,7 @@ import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useBroadcastChannel } from '@vueuse/core'
 import { Mutex } from 'es-toolkit'
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { ref, watch, toRaw } from 'vue'
 
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME, useChatStore } from '../../chat'
 import { useModsServerChannelStore } from './channel-server'
@@ -37,7 +37,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
       disposeHookFns.value.push(serverChannelStore.onContextUpdate((event) => {
         chatStore.ingestContextMessage({ source: event.source, createdAt: Date.now(), ...event.data })
-        broadcastContext(event.data as ContextMessage)
+        broadcastContext(toRaw(event.data) as ContextMessage)
       }))
 
       disposeHookFns.value.push(
@@ -45,7 +45,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'before-compose', message, sessionId: chatStore.activeSessionId, context })
+          broadcastStreamEvent({ type: 'before-compose', message: toRaw(message), sessionId: chatStore.activeSessionId, context: toRaw(context) })
         }),
         chatStore.onAfterMessageComposed(async (message, context) => {
           if (isProcessingRemoteStream)
