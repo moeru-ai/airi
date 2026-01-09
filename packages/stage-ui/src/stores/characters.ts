@@ -6,12 +6,22 @@ import { ref } from 'vue'
 
 import { client } from '../composables/api'
 import { useAsyncState } from '../composables/use-async-state'
+import { charactersRepo } from '../database/repos/characters.repo'
 import { CharacterWithRelationsSchema } from '../types/character'
 
 export const useCharacterStore = defineStore('characters', () => {
   const characters = ref<Map<string, Character>>(new Map())
 
   async function fetchList(all: boolean = false) {
+    // Load from storage immediately
+    const cached = await charactersRepo.getAll()
+    if (cached.length > 0) {
+      characters.value.clear()
+      for (const char of cached) {
+        characters.value.set(char.id, char)
+      }
+    }
+
     return useAsyncState(async () => {
       const res = await client.api.characters.$get({
         query: { all: String(all) },
@@ -22,9 +32,13 @@ export const useCharacterStore = defineStore('characters', () => {
       const data = await res.json()
 
       characters.value.clear()
+      const parsedData: Character[] = []
       for (const char of data) {
-        characters.value.set(char.id, parse(CharacterWithRelationsSchema, char))
+        const parsed = parse(CharacterWithRelationsSchema, char)
+        characters.value.set(char.id, parsed)
+        parsedData.push(parsed)
       }
+      await charactersRepo.saveAll(parsedData)
     }, { immediate: true })
   }
 
@@ -40,6 +54,7 @@ export const useCharacterStore = defineStore('characters', () => {
       const character = parse(CharacterWithRelationsSchema, data)
 
       characters.value.set(character.id, character)
+      await charactersRepo.upsert(character)
       return character
     }, { immediate: true })
   }
@@ -56,6 +71,7 @@ export const useCharacterStore = defineStore('characters', () => {
       const character = parse(CharacterWithRelationsSchema, data)
 
       characters.value.set(character.id, character)
+      await charactersRepo.upsert(character)
       return character
     }, { immediate: true })
   }
@@ -74,6 +90,7 @@ export const useCharacterStore = defineStore('characters', () => {
       const character = parse(CharacterWithRelationsSchema, data)
 
       characters.value.set(character.id, character)
+      await charactersRepo.upsert(character)
       return character
     }, { immediate: true })
   }
@@ -88,6 +105,7 @@ export const useCharacterStore = defineStore('characters', () => {
       }
 
       characters.value.delete(id)
+      await charactersRepo.remove(id)
     }, { immediate: true })
   }
 
