@@ -166,7 +166,7 @@ export interface WebSocketBaseEvent<T, D, S extends string = string> {
   /**
    * @deprecated Prefer metadata.source.
    */
-  source: WebSocketEventSource | S
+  source?: WebSocketEventSource | S
   metadata?: {
     source: MetadataEventSource
   }
