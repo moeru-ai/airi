@@ -45,7 +45,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     initializing.value = new Promise<void>((resolve) => {
       client.value = new Client({
         name: isStageWeb() ? WebSocketEventSource.StageWeb : isStageTamagotchi() ? WebSocketEventSource.StageTamagotchi : WebSocketEventSource.StageWeb,
-        url: import.meta.env.VITE_AIRI_WS_URL || `ws://${window.location.hostname}:6121/ws`,
+        url: import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws',
         token: options?.token,
         possibleEvents,
         onError: (error) => {
