@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { cwd, exit } from 'node:process'
 
+import { findWorkspaceDir } from '@pnpm/find-workspace-dir'
 import { cac } from 'cac'
 
 import * as yaml from 'yaml'
@@ -129,22 +130,27 @@ async function main() {
   const dir = String(args.options.dir || '').trim()
 
   let files: string[] = []
+  const workspaceRoot = await findWorkspaceDir(cwd()) || cwd()
   if (inputs.length > 0) {
     for (const input of inputs) {
       const resolved = resolve(input)
-      if (!existsSync(resolved)) {
+      const fallback = resolve(workspaceRoot, input)
+      const target = existsSync(resolved) ? resolved : fallback
+      if (!existsSync(target)) {
         continue
       }
-      if (statSync(resolved).isDirectory()) {
-        files.push(...collectLatestMacFiles(resolved))
+      if (statSync(target).isDirectory()) {
+        files.push(...collectLatestMacFiles(target))
       }
       else {
-        files.push(resolved)
+        files.push(target)
       }
     }
   }
   else {
-    const scanDir = dir || resolve('bundle')
+    const scanDir = dir
+      ? (existsSync(resolve(dir)) ? resolve(dir) : resolve(workspaceRoot, dir))
+      : resolve('bundle')
     files = collectLatestMacFiles(scanDir)
   }
 
