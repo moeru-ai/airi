@@ -7,6 +7,7 @@ import { createAgentContainer } from './container'
 
 export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlugin {
   let container: ReturnType<typeof createAgentContainer>
+  let tickHandler: ((ctx: { delta: number }) => void) | null = null
 
   return {
     async created(bot) {
@@ -41,9 +42,11 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
       // Initialize perception pipeline (raw events + detectors)
       perceptionPipeline.init(botWithAgents)
 
-      bot.onTick('tick', ({ delta }) => {
+      tickHandler = ({ delta }) => {
         perceptionPipeline.tick(delta)
-      })
+      }
+
+      bot.onTick('tick', tickHandler)
 
       // Set message handling via EventManager
       const chatHandler = new ChatMessageHandler(bot.username)
@@ -100,6 +103,11 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
 
         const perceptionPipeline = container.resolve('perceptionPipeline')
         perceptionPipeline.destroy()
+      }
+
+      if (tickHandler) {
+        bot.offTick('tick', tickHandler)
+        tickHandler = null
       }
 
       bot.bot.removeAllListeners('chat')
