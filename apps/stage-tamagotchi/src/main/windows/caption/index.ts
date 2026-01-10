@@ -15,6 +15,7 @@ import icon from '../../../../resources/icon.png?asset'
 import { captionGetIsFollowingWindow, captionIsFollowingWindowChanged } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
+import { setupBaseWindowElectronInvokes } from '../main/rpc/index.electron'
 import { mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
 import { createConfig } from '../shared/persistence'
 import { transparentWindowConfig } from '../shared/window'
@@ -254,6 +255,8 @@ export function setupCaptionWindowManager(params: { mainWindow: BrowserWindow })
     const window = createCaptionWindow()
     const { context } = createContext(ipcMain, window)
     eventaContext = context
+
+    setupBaseWindowElectronInvokes({ context, window })
 
     const cfg = getConfig()
     const saved = cfg?.matrices?.[matrixHash]?.bounds
