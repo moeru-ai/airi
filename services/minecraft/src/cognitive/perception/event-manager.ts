@@ -9,7 +9,6 @@ export class EventManager {
     // TODO: Temporal Context tracking
     // TODO: Salience Detection / Filtering noise
 
-    // Sort/Filter logic could go here in the future
     if (!event.priority) {
       event.priority = 0 // Default priority
     }
