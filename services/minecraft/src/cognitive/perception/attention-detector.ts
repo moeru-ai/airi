@@ -35,6 +35,21 @@ export class AttentionDetector {
     }
   >()
 
+  private readonly dispatch: Record<string, Record<string, (event: RawPerceptionEvent) => void>> = {
+    sighted: {
+      arm_swing: event => this.onPunch(event as any),
+      sneak_toggle: event => this.onSneakToggle(event as any),
+      entity_moved: event => this.onMove(event as any),
+    },
+    heard: {
+      sound: event => this.onSound(event as any),
+    },
+    felt: {
+      damage_taken: event => this.onDamage(event as any),
+      item_collected: event => this.onPickup(event as any),
+    },
+  }
+
   constructor(
     private readonly deps: {
       eventManager: EventManager
@@ -56,21 +71,7 @@ export class AttentionDetector {
   }
 
   public ingest(event: RawPerceptionEvent): void {
-    const dispatch: Record<string, Record<string, (event: RawPerceptionEvent) => void>> = {
-      sighted: {
-        arm_swing: event => this.onPunch(event as any),
-        sneak_toggle: event => this.onSneakToggle(event as any),
-        entity_moved: event => this.onMove(event as any),
-      },
-      heard: {
-        sound: event => this.onSound(event as any),
-      },
-      felt: {
-        damage_taken: event => this.onDamage(event as any),
-        item_collected: event => this.onPickup(event as any),
-      },
-    }
-    dispatch[event.modality]?.[event.kind]?.(event)
+    this.dispatch[event.modality]?.[event.kind]?.(event)
   }
 
   private onPunch(event: Extract<RawPerceptionEvent, { modality: 'sighted', kind: 'arm_swing' }>): void {
