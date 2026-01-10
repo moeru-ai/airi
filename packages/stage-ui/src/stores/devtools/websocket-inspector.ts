@@ -1,5 +1,6 @@
 import type { WebSocketEvent } from '@proj-airi/server-sdk'
 
+import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
