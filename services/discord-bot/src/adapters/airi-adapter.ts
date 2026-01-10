@@ -1,5 +1,5 @@
 import type { Discord } from '@proj-airi/server-shared/types'
-import type { Interaction, TextBasedChannel } from 'discord.js'
+import type { Interaction } from 'discord.js'
 
 import { env } from 'node:process'
 
@@ -144,8 +144,8 @@ export class DiscordAdapter {
 
         if (discord?.channelId) {
           const channel = await this.discordClient.channels.fetch(discord.channelId)
-          if (channel?.isTextBased()) {
-            await (channel as TextBasedChannel).send(message.content)
+          if (channel?.isTextBased() && 'send' in channel) {
+            await (channel as any).send(message.content)
           }
         }
       }

@@ -1,9 +1,10 @@
+import type { Discord } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { UserMessage } from '@xsai/shared-chat'
 
 import type { ChatStreamEvent, ChatStreamEventContext, ContextMessage } from '../../../types/chat'
 
-import { ContextUpdateStrategy, type Discord } from '@proj-airi/server-sdk'
+import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useBroadcastChannel } from '@vueuse/core'
 import { Mutex } from 'es-toolkit'
