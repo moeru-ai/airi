@@ -26,6 +26,9 @@ export type AttentionEventPayload = PlayerAttentionEventPayload | MobAttentionEv
 export class AttentionDetector {
   private readonly buckets = new Map<string, LeakyBucket>()
 
+  private lastStatsAt = 0
+  private emittedSinceStats: Record<string, number> = {}
+
   private readonly movementState = new Map<
     string,
     {
@@ -67,6 +70,16 @@ export class AttentionDetector {
       if (now - state.lastSeenMove > 250) {
         this.movementState.delete(id)
       }
+    }
+
+    if (now - this.lastStatsAt >= 2000) {
+      this.deps.logger.withFields({
+        deltaMs,
+        ...this.emittedSinceStats,
+      }).log('AttentionDetector: stats')
+
+      this.lastStatsAt = now
+      this.emittedSinceStats = {}
     }
   }
 
@@ -216,6 +229,30 @@ export class AttentionDetector {
   }
 
   private emitAttention(payload: AttentionEventPayload): void {
+    const key = payload.kind === 'player'
+      ? `emit.player.${payload.playerAction}`
+      : 'emit.mob'
+    this.emittedSinceStats[key] = (this.emittedSinceStats[key] ?? 0) + 1
+
+    if (payload.kind === 'player') {
+      this.deps.logger.withFields({
+        kind: payload.kind,
+        action: payload.playerAction,
+        playerName: payload.playerName,
+        distance: payload.distance,
+        hasLineOfSight: payload.hasLineOfSight,
+      }).log('AttentionDetector: emit')
+    }
+    else {
+      this.deps.logger.withFields({
+        kind: payload.kind,
+        mobName: payload.mobName,
+        action: payload.mobAction,
+        distance: payload.distance,
+        hasLineOfSight: payload.hasLineOfSight,
+      }).log('AttentionDetector: emit')
+    }
+
     this.deps.eventManager.emit<AttentionEventPayload>({
       type: 'perception',
       payload,

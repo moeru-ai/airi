@@ -7,6 +7,10 @@ export class RawEventBuffer {
     this.queue.push(event)
   }
 
+  public size(): number {
+    return this.queue.length
+  }
+
   public drain(): RawPerceptionEvent[] {
     if (this.queue.length === 0)
       return []
