@@ -8,20 +8,19 @@ docs:
     navbar:
       appearance:
         title: 外观
-controls-island:
-  fade-on-hover:
+'controls-island':
+  'fade-on-hover':
     enable: 悬停时隐藏
     disable: 总是显示
-  open-settings: 打开设置
-  open-chat: 打开聊天
-  refresh: 刷新
-  open-hearing-controls: 打开听力控制
-  drag-to-move-window: 拖拽移动窗口
-  switch-to-light: 切换到亮色模式
-  switch-to-dark: 切换到暗色模式
-  switch-to-dark-mode: 切换到黑暗模式
+  'open-settings': Open settings
+  'open-chat': Open Chat
+  'refresh': Refresh
+  'open-hearing-controls': Open hearing Controls
+  'drag-to-move-window': Drag to move window
+  'switch-to-light-mode': Switch to light mode
+  'switch-to-dark-mode': Switch to dark mode
 notice:
-  fade-on-hover:
+  'fade-on-hover':
     title: 悬停淡出
     intro: 当光标靠近时自动让角色变淡，减少干扰又保持可见。
     opacity: 开启后，当光标靠近时， {targets} 的不透明度会降到 {value}。
