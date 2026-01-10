@@ -1,4 +1,4 @@
-import type { RawPerceptionEvent } from './raw-events'
+import type { RawPerceptionEvent } from './types/raw-events'
 
 export type PerceptionFrameSource = 'minecraft'
 

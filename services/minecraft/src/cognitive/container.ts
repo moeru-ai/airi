@@ -81,7 +81,13 @@ export function createAgentContainer(options: {
 
     taskExecutor: asClass(TaskExecutor).singleton(),
 
-    brain: asClass(Brain).singleton(),
+    brain: asClass(Brain)
+      .singleton()
+      .inject((c) => {
+        return {
+          reflexManager: c.resolve('reflexManager'),
+        }
+      }),
 
     reflexManager: asClass(ReflexManager).singleton(),
   })

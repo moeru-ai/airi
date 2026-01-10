@@ -12,7 +12,7 @@ import { createPerceptionFrameFromRawEvent } from './frame'
 import { MineflayerPerceptionCollector } from './mineflayer-perception-collector'
 import { NormalizerStage } from './normalizer-stage'
 import { RawEventBuffer } from './raw-event-buffer'
-import type { PerceptionStage } from './stage'
+import type { PerceptionStage } from './types/stage'
 
 export class PerceptionPipeline {
   private readonly buffer = new RawEventBuffer()

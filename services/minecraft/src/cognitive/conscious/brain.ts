@@ -5,12 +5,14 @@ import type { TaskExecutor } from '../action/task-executor'
 import type { ActionInstruction } from '../action/types'
 import type { EventManager } from '../perception/event-manager'
 import type { BotEvent, MineflayerWithAgents, StimulusPayload } from '../types'
+import type { ReflexManager } from '../reflex/reflex-manager'
 
 import { system, user } from 'neuri/openai'
 
 import { config } from '../../composables/config'
 import { DebugService } from '../../debug-server'
 import { Blackboard } from './blackboard'
+import { buildConsciousContextView } from './context-view'
 import { generateBrainSystemPrompt } from './prompts/brain-prompt'
 
 interface BrainDeps {
@@ -18,6 +20,7 @@ interface BrainDeps {
   neuri: Neuri
   logger: Logg
   taskExecutor: TaskExecutor
+  reflexManager: ReflexManager
 }
 
 interface LLMResponse {
@@ -186,19 +189,10 @@ export class Brain {
     }
   }
 
-  private updatePerception(bot: MineflayerWithAgents): void {
-    const pos = bot.bot.entity.position
-    this.blackboard.updateSelf({
-      location: pos,
-      health: bot.bot.health,
-      food: bot.bot.food,
-    })
-
-    this.blackboard.updateEnvironment({
-      time: bot.bot.time.isDay ? 'day' : 'night',
-      weather: bot.bot.isRaining ? 'rain' : 'clear',
-      nearbyPlayers: Object.keys(bot.bot.players).filter(p => p !== bot.bot.username),
-    })
+  private updatePerception(_bot: MineflayerWithAgents): void {
+    const ctx = this.deps.reflexManager.getContextSnapshot()
+    const view = buildConsciousContextView(ctx)
+    this.blackboard.updateContextView(view)
 
     // Sync Blackboard to Debug
     this.debugService.updateBlackboard(this.blackboard)

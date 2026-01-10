@@ -1,6 +1,6 @@
 import type { Logg } from '@guiiai/logg'
 
-import type { RawPerceptionEvent } from './raw-events'
+import type { RawPerceptionEvent } from './types/raw-events'
 
 import { LeakyBucket } from './leaky-bucket'
 
