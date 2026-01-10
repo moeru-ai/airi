@@ -23,6 +23,11 @@ export class MineflayerPerceptionCollector {
   private readonly lastSneak = new Map<string, boolean>()
   private lastSelfHealth: number | null = null
 
+  private lastStatsAt = 0
+  private stats: Record<string, number> = {}
+  private losSamples = 0
+  private losTotalMs = 0
+
   constructor(
     private readonly deps: {
       logger: Logg
@@ -34,6 +39,13 @@ export class MineflayerPerceptionCollector {
   public init(bot: MineflayerWithAgents): void {
     this.bot = bot
     this.lastSelfHealth = bot.bot.health
+
+    this.lastStatsAt = Date.now()
+    this.stats = {}
+    this.losSamples = 0
+    this.losTotalMs = 0
+
+    this.deps.logger.withFields({ maxDistance: this.deps.maxDistance }).log('MineflayerPerceptionCollector: init')
 
     this.onBot('entityMoved', (entity: any) => {
       const now = Date.now()
@@ -61,6 +73,8 @@ export class MineflayerPerceptionCollector {
       }
 
       this.deps.emitRaw(event)
+      this.bumpStat('sighted.entity_moved')
+      this.maybeLogStats()
     })
 
     this.onBot('entitySwingArm', (entity: any) => {
@@ -83,6 +97,8 @@ export class MineflayerPerceptionCollector {
       }
 
       this.deps.emitRaw(event)
+      this.bumpStat('sighted.arm_swing')
+      this.maybeLogStats()
     })
 
     this.onBot('entityUpdate', (entity: any) => {
@@ -119,6 +135,8 @@ export class MineflayerPerceptionCollector {
       }
 
       this.deps.emitRaw(event)
+      this.bumpStat('sighted.sneak_toggle')
+      this.maybeLogStats()
     })
 
     this.onBot('soundEffectHeard', (soundId: string, pos: Vec3) => {
@@ -167,6 +185,8 @@ export class MineflayerPerceptionCollector {
       }
 
       this.deps.emitRaw(event)
+      this.bumpStat('felt.damage_taken')
+      this.maybeLogStats()
     })
 
     // Felt: item collected (best-effort; depends on mineflayer version/events)
@@ -190,6 +210,8 @@ export class MineflayerPerceptionCollector {
       }
 
       this.deps.emitRaw(event)
+      this.bumpStat('felt.item_collected')
+      this.maybeLogStats()
     })
 
     this.onBot('entityCollect', (collector: any, collected: any) => {
@@ -212,6 +234,8 @@ export class MineflayerPerceptionCollector {
       }
 
       this.deps.emitRaw(event)
+      this.bumpStat('felt.item_collected')
+      this.maybeLogStats()
     })
   }
 
@@ -219,10 +243,12 @@ export class MineflayerPerceptionCollector {
     if (!this.bot)
       return
 
+    this.deps.logger.withFields({ listeners: this.listeners.length }).log('MineflayerPerceptionCollector: destroy')
+
     for (const { event, handler } of this.listeners) {
       try {
-        (this.bot.bot as any).off?.(event, handler);
-        (this.bot.bot as any).removeListener?.(event, handler)
+        (this.bot.bot as any).off?.(event, handler)
+          (this.bot.bot as any).removeListener?.(event, handler)
       }
       catch (err) {
         this.deps.logger.withError(err as Error).error('MineflayerPerceptionCollector: failed to remove listener')
@@ -234,6 +260,29 @@ export class MineflayerPerceptionCollector {
     this.lastSneak.clear()
     this.lastSelfHealth = null
     this.bot = null
+  }
+
+  private bumpStat(key: string): void {
+    this.stats[key] = (this.stats[key] ?? 0) + 1
+  }
+
+  private maybeLogStats(): void {
+    const now = Date.now()
+    if (now - this.lastStatsAt < 2000)
+      return
+
+    const losAvgMs = this.losSamples > 0 ? this.losTotalMs / this.losSamples : 0
+
+    this.deps.logger.withFields({
+      ...this.stats,
+      losSamples: this.losSamples,
+      losAvgMs,
+    }).log('MineflayerPerceptionCollector: stats')
+
+    this.lastStatsAt = now
+    this.stats = {}
+    this.losSamples = 0
+    this.losTotalMs = 0
   }
 
   private onBot(event: string, handler: (...args: any[]) => void): void {
@@ -273,41 +322,52 @@ export class MineflayerPerceptionCollector {
     if (!this.bot)
       return false
 
+    const startedAt = Date.now()
+
     try {
-      const canSee = (this.bot.bot as any).canSeeEntity
-      if (typeof canSee === 'function')
-        return !!canSee.call(this.bot.bot, entity)
-    }
-    catch { }
-
-    // Fallback ray-march; intentionally simple (we'll optimize later)
-    try {
-      const from = this.bot.bot.entity.position.offset(0, this.bot.bot.entity.height * 0.9, 0)
-      const to = entity.position.offset(0, entity.height * 0.9, 0)
-      const dir = to.minus(from)
-      const total = dir.norm()
-      if (total <= 0)
-        return true
-
-      const stepSize = 0.25
-      const steps = Math.ceil(total / stepSize)
-      const step = dir.normalize().scaled(stepSize)
-
-      let cur = from.clone()
-      for (let i = 0; i < steps; i++) {
-        cur = cur.plus(step)
-        const block = this.bot.bot.blockAt(cur)
-        if (!block)
-          continue
-
-        if (block.boundingBox === 'block' && !block.transparent)
-          return false
+      try {
+        const canSee = (this.bot.bot as any).canSeeEntity
+        if (typeof canSee === 'function')
+          return !!canSee.call(this.bot.bot, entity)
       }
+      catch { }
 
-      return true
+      // Fallback ray-march; intentionally simple (we'll optimize later)
+      try {
+        const from = this.bot.bot.entity.position.offset(0, this.bot.bot.entity.height * 0.9, 0)
+        const to = entity.position.offset(0, entity.height * 0.9, 0)
+        const dir = to.minus(from)
+        const total = dir.norm()
+        if (total <= 0)
+          return true
+
+        const stepSize = 0.25
+        const steps = Math.ceil(total / stepSize)
+        const step = dir.normalize().scaled(stepSize)
+
+        let cur = from.clone()
+        for (let i = 0; i < steps; i++) {
+          cur = cur.plus(step)
+          const block = this.bot.bot.blockAt(cur)
+          if (!block)
+            continue
+
+          if (block.boundingBox === 'block' && !block.transparent)
+            return false
+        }
+
+        return true
+      }
+      catch {
+        return false
+      }
     }
-    catch {
-      return false
+    finally {
+      const costMs = Date.now() - startedAt
+      if (costMs > 0) {
+        this.losSamples++
+        this.losTotalMs += costMs
+      }
     }
   }
 }
