@@ -6,6 +6,8 @@ import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
+import { useWebSocketInspectorStore } from '../../devtools/websocket-inspector'
+
 export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:server', () => {
   const connected = ref(false)
   const client = ref<Client>()
@@ -48,6 +50,12 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
         url: import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws',
         token: options?.token,
         possibleEvents,
+        onAnyMessage: (event) => {
+          useWebSocketInspectorStore().add('incoming', event)
+        },
+        onAnySend: (event) => {
+          useWebSocketInspectorStore().add('outgoing', event)
+        },
         onError: (error) => {
           connected.value = false
           initializing.value = null

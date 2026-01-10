@@ -59,6 +59,12 @@ const menu = computed(() => [
     icon: 'i-solar:chart-bold-duotone',
     to: '/devtools/beat-sync',
   },
+  {
+    title: 'WebSocket Inspector',
+    description: 'Inspect raw WebSocket traffic',
+    icon: 'i-solar:transfer-horizontal-bold-duotone',
+    to: '/devtools/websocket-inspector',
+  },
 ])
 
 const openDevTools = useElectronEventaInvoke(electronOpenMainDevtools)

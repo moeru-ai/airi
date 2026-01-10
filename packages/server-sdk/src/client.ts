@@ -30,6 +30,8 @@ export interface ClientOptions<C = undefined> {
   autoConnect?: boolean
   autoReconnect?: boolean
   maxReconnectAttempts?: number
+  onAnyMessage?: (data: WebSocketEvent<C>) => void
+  onAnySend?: (data: WebSocketEvent<C>) => void
 }
 
 function createInstanceId() {
@@ -246,6 +248,7 @@ export class Client<C = undefined> {
   private async handleMessage(event: MessageEvent) {
     try {
       const data = JSON.parse(event.data as string) as WebSocketEvent<C>
+      this.opts.onAnyMessage?.(data)
       const listeners = this.eventListeners.get(data.type)
       if (!listeners?.size) {
         return
@@ -299,11 +302,15 @@ export class Client<C = undefined> {
 
   send(data: WebSocketEventOptionalSource<C>): void {
     if (this.websocket && this.connected) {
-      this.websocket.send(JSON.stringify({
+      const payload = {
         source: this.opts.name as WebSocketEventSource | string,
         metadata: { source: this.identity },
         ...data,
-      } as WebSocketEvent<C>))
+      } as WebSocketEvent<C>
+
+      this.opts.onAnySend?.(payload)
+
+      this.websocket.send(JSON.stringify(payload))
     }
   }
 

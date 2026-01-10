@@ -6,7 +6,7 @@ import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useBroadcastChannel } from '@vueuse/core'
 import { Mutex } from 'es-toolkit'
 import { defineStore } from 'pinia'
-import { ref, watch, toRaw } from 'vue'
+import { ref, toRaw, watch } from 'vue'
 
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME, useChatStore } from '../../chat'
 import { useModsServerChannelStore } from './channel-server'
