@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
-import { exit } from 'node:process'
+import { cwd, exit } from 'node:process'
 
 import { cac } from 'cac'
 
@@ -80,7 +80,30 @@ async function readUpdateInfo(filePath: string): Promise<UpdateInfo> {
 
 function collectLatestMacFiles(rootDir: string): string[] {
   const results: string[] = []
+  // eslint-disable-next-line no-console
+  console.debug('merge-latest-mac: scan context', {
+    cwd: cwd(),
+    rootDir,
+  })
+  if (!existsSync(rootDir)) {
+    console.warn('merge-latest-mac: scan directory missing', rootDir)
+    return results
+  }
+  if (!statSync(rootDir).isDirectory()) {
+    return results
+  }
+
   const entries = readdirSync(rootDir, { withFileTypes: true })
+  // eslint-disable-next-line no-console
+  console.debug('merge-latest-mac: scan directory entries', {
+    rootDir,
+    entries: entries.map(entry => ({
+      name: entry.name,
+      isDirectory: entry.isDirectory(),
+      isFile: entry.isFile(),
+    })),
+  })
+
   for (const entry of entries) {
     const fullPath = resolve(rootDir, entry.name)
     if (entry.isDirectory()) {
@@ -91,6 +114,7 @@ function collectLatestMacFiles(rootDir: string): string[] {
       results.push(fullPath)
     }
   }
+
   return results
 }
 
