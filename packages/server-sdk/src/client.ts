@@ -62,6 +62,8 @@ export class Client<C = undefined> {
 
     this.opts = {
       url: 'ws://localhost:6121/ws',
+      onAnyMessage: () => {},
+      onAnySend: () => {},
       possibleEvents: [],
       onError: () => {},
       onClose: () => {},
