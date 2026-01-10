@@ -115,9 +115,9 @@ export const useSettings = defineStore('settings', () => {
 
   const [allowVisibleOnAllWorkspaces, resetAllowVisibleOnAllWorkspaces] = createResettableLocalStorage('settings/allow-visible-on-all-workspaces', true)
 
-  const [websocketServerUrl, resetWebsocketServerUrl] = createResettableLocalStorage('settings/websocket-server-url', '')
-
-  const [websocketSecureEnabled, resetWebsocketSecureEnabled] = createResettableLocalStorage('settings/websocket-secure-enabled', false)
+  const [websocketEnabled, resetWebsocketEnabled] = createResettableLocalStorage('settings/websocket/enabled', true)
+  const [websocketServerUrl, resetWebsocketServerUrl] = createResettableLocalStorage('settings/websocket/server-url', '')
+  const [websocketSecureEnabled, resetWebsocketSecureEnabled] = createResettableLocalStorage('settings/websocket/secure-enabled', false)
 
   function getLanguage() {
     let language = localStorage.getItem('settings/language')

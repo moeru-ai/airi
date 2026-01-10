@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { FieldInput } from '@proj-airi/ui'
+import { FieldCheckbox, FieldInput } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
 
 const settings = useSettings()
@@ -9,6 +9,17 @@ const { t } = useI18n()
 
 <template>
   <div rounded-lg bg-neutral-50 p-4 dark:bg-neutral-800 flex="~ col gap-4">
+    <FieldCheckbox
+      v-model="settings.websocketEnabled"
+      v-motion
+      :initial="{ opacity: 0, y: 10 }"
+      :enter="{ opacity: 1, y: 0 }"
+      :duration="250 + (4 * 10)"
+      :delay="4 * 50"
+      :label="t('settings.websocket-enabled.title')"
+      :description="t('settings.websocket-enabled.description')"
+      placeholder="ws://localhost:6121/ws"
+    />
     <FieldInput
       v-model="settings.websocketServerUrl"
       v-motion

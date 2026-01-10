@@ -1,4 +1,5 @@
 import type { MetadataEventSource, WebSocketEvent } from '@proj-airi/server-shared/types'
+import type { H3 } from 'h3'
 
 import type {
   RouteContext,
@@ -10,7 +11,7 @@ import type { AuthenticatedPeer, Peer } from './types'
 
 import { availableLogLevelStrings, Format, LogLevelString, logLevelStringToLogLevelMap, useLogg } from '@guiiai/logg'
 import { MessageHeartbeat, MessageHeartbeatKind, WebSocketEventSource } from '@proj-airi/server-shared/types'
-import { defineWebSocketHandler, H3 } from 'h3'
+import { createApp, defineWebSocketHandler } from 'h3'
 
 import { optionOrEnv } from './config'
 import {
@@ -61,7 +62,7 @@ export function setupApp(options?: {
   const appLogger = useLogg('@proj-airi/server-runtime').withLogLevel(logLevelStringToLogLevelMap[appLogLevel]).withFormat(appLogFormat)
   const logger = useLogg('@proj-airi/server-runtime:websocket').withLogLevel(logLevelStringToLogLevelMap[websocketLogLevel]).withFormat(websocketLogFormat)
 
-  const app = new H3({
+  const app = createApp({
     onError: error => appLogger.withError(error).error('an error occurred'),
   })
 
