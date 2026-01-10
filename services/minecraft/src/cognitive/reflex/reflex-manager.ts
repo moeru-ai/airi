@@ -3,38 +3,69 @@ import type { Logg } from '@guiiai/logg'
 import type { EventManager } from '../perception/event-manager'
 import type { BotEvent, MineflayerWithAgents, StimulusPayload } from '../types'
 
+import type { ReflexContextState } from './context'
+
+import { greetingBehavior } from './behaviors/greeting'
+import { ReflexRuntime } from './runtime'
+
 export class ReflexManager {
+  private bot: MineflayerWithAgents | null = null
+  private readonly runtime: ReflexRuntime
+
+  private readonly onStimulusHandler = (event: BotEvent<StimulusPayload>) => {
+    this.onStimulus(event)
+  }
+
   constructor(
     private readonly deps: {
       eventManager: EventManager
       logger: Logg
     },
-  ) {}
-
-  public init(bot: MineflayerWithAgents): void {
-    // Listen to stimuli as a "subconscious" filter
-    this.deps.eventManager.on<StimulusPayload>('stimulus', (event) => {
-      this.onStimulus(bot, event)
+  ) {
+    this.runtime = new ReflexRuntime({
+      logger: this.deps.logger,
     })
 
-    // TODO: Listen to world_update for physical reflexes (dodge, flee)
+    this.runtime.registerBehavior(greetingBehavior)
   }
 
-  private onStimulus(bot: MineflayerWithAgents, event: BotEvent<StimulusPayload>): void {
-    const { content } = event.payload
-    const lowerContent = content.toLowerCase().trim()
+  public init(bot: MineflayerWithAgents): void {
+    this.bot = bot
+    this.deps.eventManager.on<StimulusPayload>('stimulus', this.onStimulusHandler)
+  }
 
-    if (lowerContent === 'hi' || lowerContent === 'hello') {
-      this.deps.logger.log('Reflex: Handling greeting')
+  public destroy(): void {
+    this.deps.eventManager.off<StimulusPayload>('stimulus', this.onStimulusHandler)
+    this.bot = null
+  }
 
-      const reply = 'Hi there! (Reflex)'
-      if (event.source.reply) {
-        event.source.reply(reply)
-      }
-      else {
-        bot.bot.chat(reply)
-      }
+  public tick(deltaMs: number): void {
+    if (!this.bot)
+      return
 
+    this.runtime.tick(this.bot, deltaMs)
+  }
+
+  public getContextSnapshot(): ReflexContextState {
+    return this.runtime.getContext().getSnapshot()
+  }
+
+  private onStimulus(event: BotEvent<StimulusPayload>): void {
+    const bot = this.bot
+    if (!bot)
+      return
+
+    const now = Date.now()
+
+    this.runtime.getContext().updateNow(now)
+    this.runtime.getContext().updateSocial({
+      lastSpeaker: event.source.id,
+      lastMessage: event.payload.content,
+      lastMessageAt: now,
+    })
+
+    const behaviorId = this.runtime.tick(bot, 0)
+    if (behaviorId) {
       event.handled = true
     }
   }

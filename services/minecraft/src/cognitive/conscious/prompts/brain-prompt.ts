@@ -68,7 +68,7 @@ The following blackboard provides you with information about your current state:
 Goal: "${blackboard.goal}"
 Thought: "${blackboard.thought}"
 Strategy: "${blackboard.strategy}"
-Self: Position ${blackboard.self.location} Health ${blackboard.self.health}/20 Food ${blackboard.self.food}/20
-Environment: ${blackboard.environment.time} ${blackboard.environment.weather} Nearby entities [${blackboard.environment.nearbyEntities.join(',')}]
+Self: ${blackboard.selfSummary}
+Environment: ${blackboard.environmentSummary}
 `
 }

@@ -44,6 +44,7 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
       perceptionPipeline.init(botWithAgents)
 
       tickHandler = ({ delta }) => {
+        reflexManager.tick(delta)
         perceptionPipeline.tick(delta)
       }
 
@@ -91,6 +92,9 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
 
         const perceptionPipeline = container.resolve('perceptionPipeline')
         perceptionPipeline.destroy()
+
+        const reflexManager = container.resolve('reflexManager')
+        reflexManager.destroy()
       }
 
       if (tickHandler) {

@@ -10,7 +10,7 @@ import type {
   SightedArmSwingEvent,
   SightedEntityMovedEvent,
   SightedSneakToggleEvent,
-} from './raw-events'
+} from './types/raw-events'
 
 export class MineflayerPerceptionCollector {
   private bot: MineflayerWithAgents | null = null

@@ -1,6 +1,6 @@
 import type { PerceptionFrame } from './frame'
-import type { RawPerceptionEvent } from './raw-events'
-import type { PerceptionStage } from './stage'
+import type { RawPerceptionEvent } from './types/raw-events'
+import type { PerceptionStage } from './types/stage'
 
 function getDistance(raw: RawPerceptionEvent): number | undefined {
   return (raw as any).distance
