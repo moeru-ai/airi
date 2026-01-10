@@ -13,6 +13,15 @@ import { createWidgetsService } from '../../../services/airi/widgets'
 import { createAppService, createAutoUpdaterService, createScreenService, createWindowService } from '../../../services/electron'
 import { toggleWindowShow } from '../../shared'
 
+export function setupBaseWindowElectronInvokes(params: {
+  context: ReturnType<typeof createContext>['context']
+  window: BrowserWindow
+}) {
+  createScreenService({ context: params.context, window: params.window })
+  createWindowService({ context: params.context, window: params.window })
+  createAppService({ context: params.context, window: params.window })
+}
+
 export function setupMainWindowElectronInvokes(params: {
   window: BrowserWindow
   settingsWindow: () => Promise<BrowserWindow>
@@ -28,11 +37,9 @@ export function setupMainWindowElectronInvokes(params: {
 
   const { context } = createContext(ipcMain, params.window)
 
-  createScreenService({ context, window: params.window })
-  createWindowService({ context, window: params.window })
+  setupBaseWindowElectronInvokes({ context, window: params.window })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
   createAutoUpdaterService({ context, window: params.window, service: params.autoUpdater })
-  createAppService({ context, window: params.window })
 
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenSettings, async () => toggleWindowShow(await params.settingsWindow()))
