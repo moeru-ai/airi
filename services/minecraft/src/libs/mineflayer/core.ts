@@ -200,6 +200,10 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
     this.ticker.on(event, cb)
   }
 
+  public offTick(event: TickEvents, cb: TickEventsHandler<TickEvents>) {
+    this.ticker.off(event, cb)
+  }
+
   public async stop() {
     for (const plugin of this.options?.plugins || []) {
       if (plugin.beforeCleanup) {

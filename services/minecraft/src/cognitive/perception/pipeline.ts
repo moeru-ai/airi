@@ -5,11 +5,13 @@ import type { EventManager } from './event-manager'
 import type { RawPerceptionEvent } from './raw-events'
 
 import { AttentionDetector } from './attention-detector'
+import { MineflayerPerceptionCollector } from './mineflayer-perception-collector'
 import { RawEventBuffer } from './raw-event-buffer'
 
 export class PerceptionPipeline {
   private readonly buffer = new RawEventBuffer()
   private readonly detector: AttentionDetector
+  private collector: MineflayerPerceptionCollector | null = null
   private initialized = false
 
   constructor(
@@ -18,14 +20,28 @@ export class PerceptionPipeline {
       logger: Logg
     },
   ) {
-    this.detector = new AttentionDetector({ eventManager: this.deps.eventManager })
+    this.detector = new AttentionDetector({
+      eventManager: this.deps.eventManager,
+      logger: this.deps.logger,
+    })
   }
 
-  public init(_bot: MineflayerWithAgents): void {
+  public init(bot: MineflayerWithAgents): void {
     this.initialized = true
+
+    this.collector = new MineflayerPerceptionCollector({
+      logger: this.deps.logger,
+      emitRaw: (event) => {
+        this.collect(event)
+      },
+      maxDistance: 32,
+    })
+    this.collector.init(bot)
   }
 
   public destroy(): void {
+    this.collector?.destroy()
+    this.collector = null
     this.buffer.clear()
     this.initialized = false
   }
