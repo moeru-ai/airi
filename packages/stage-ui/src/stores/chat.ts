@@ -5,6 +5,7 @@ import type { StreamEvent, StreamOptions } from '../stores/llm'
 import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatStreamEventContext, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
+import { createQueue } from '@proj-airi/stream-kit'
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
@@ -13,8 +14,6 @@ import { useAnalytics } from '../composables'
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
 import { useLLM } from '../stores/llm'
-import { createQueue } from '../utils/queue'
-import { TTS_FLUSH_INSTRUCTION } from '../utils/tts'
 import { useCharacterStore } from './character'
 import { useConsciousnessStore } from './modules/consciousness'
 
@@ -409,6 +408,7 @@ export const useChatStore = defineStore('chat', () => {
           if (shouldAbort())
             return
 
+          console.log('literal', literal)
           // Feed to categorizer first
           categorizer.consume(literal)
 
@@ -422,6 +422,7 @@ export const useChatStore = defineStore('chat', () => {
           if (speechOnly.trim()) {
             streamingMessage.value.content += speechOnly
 
+            console.log('speechOnly', speechOnly)
             // Emit TTS only for speech parts, not reasoning (clean data, no empty chunks)
             await emitTokenLiteralHooks(speechOnly, streamingMessageContext)
 
@@ -567,10 +568,6 @@ export const useChatStore = defineStore('chat', () => {
       if (!isStaleGeneration() && streamingMessage.value.slices.length > 0) {
         sessionMessagesForSend.push(toRaw(streamingMessage.value))
       }
-
-      // Instruct the TTS pipeline to flush by calling hooks directly
-      const flushSignal = `${TTS_FLUSH_INSTRUCTION}${TTS_FLUSH_INSTRUCTION}`
-      await emitTokenLiteralHooks(flushSignal, streamingMessageContext)
 
       // Call the end-of-stream hooks
       await emitStreamEndHooks(streamingMessageContext)

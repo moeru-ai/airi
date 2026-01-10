@@ -1,12 +1,12 @@
-import type { TextSegmentationItem } from '../../composables/queues'
+import type { IntentHandle } from '@proj-airi/pipelines-audio'
 
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 
-import { usePipelineWorkflowTextSegmentationStore } from '../../composables/queues'
-import { TTS_FLUSH_INSTRUCTION } from '../../utils/tts'
+import { useLlmmarkerParser } from '../../composables/llm-marker-parser'
 import { useAiriCardStore } from '../modules'
+import { useSpeechRuntimeStore } from '../speech-runtime'
 
 export * from './orchestrator'
 
@@ -18,19 +18,47 @@ export interface CharacterSparkNotifyReaction {
   metadata?: Record<string, unknown>
 }
 
+interface StreamingReactionState {
+  reaction: CharacterSparkNotifyReaction
+  intent: IntentHandle
+  parser: ReturnType<typeof useLlmmarkerParser>
+}
+
 const MAX_REACTIONS = 200
 
 export const useCharacterStore = defineStore('character', () => {
   const { activeCard, systemPrompt } = storeToRefs(useAiriCardStore())
-  const textSegmentationStore = usePipelineWorkflowTextSegmentationStore()
-  const { textSegmentationQueue } = storeToRefs(textSegmentationStore)
 
   const name = computed(() => activeCard.value?.name ?? '')
-  const reactions = ref<CharacterSparkNotifyReaction[]>([])
-  const streamingReactions = ref<Map<string, CharacterSparkNotifyReaction>>(new Map())
+  const ownerId = computed(() => activeCard.value?.name ?? 'default')
 
-  function emitTextOutput(text: string) {
-    textSegmentationQueue.value.enqueue({ type: 'literal', value: text } as TextSegmentationItem)
+  const reactions = ref<CharacterSparkNotifyReaction[]>([])
+  const streamingReactions = ref<Map<string, StreamingReactionState>>(new Map())
+  const speechRuntimeStore = useSpeechRuntimeStore()
+
+  async function emitTextOutput(text: string) {
+    const intent = speechRuntimeStore.openIntent({
+      ownerId: ownerId.value,
+      priority: 'normal',
+      behavior: 'queue',
+    })
+
+    const parser = useLlmmarkerParser({
+      onLiteral: async (literal) => {
+        if (literal)
+          intent.writeLiteral(literal)
+      },
+      onSpecial: async (special) => {
+        if (special)
+          intent.writeSpecial(special)
+      },
+    })
+
+    await parser.consume(text)
+    await parser.end()
+
+    intent.writeFlush()
+    intent.end()
   }
 
   function onSparkNotifyReactionStreamEvent(sparkEventId: string, chunk: string, options?: { metadata?: Record<string, unknown> }) {
@@ -43,27 +71,45 @@ export const useCharacterStore = defineStore('character', () => {
         metadata: options?.metadata,
       }) satisfies CharacterSparkNotifyReaction
 
-      streamingReactions.value.set(sparkEventId, newReaction)
+      const intent = speechRuntimeStore.openIntent({
+        intentId: `spark:${sparkEventId}`,
+        ownerId: ownerId.value,
+        priority: 'high',
+        behavior: 'interrupt',
+      })
+
+      const parser = useLlmmarkerParser({
+        onLiteral: async (literal) => {
+          if (literal)
+            intent.writeLiteral(literal)
+        },
+        onSpecial: async (special) => {
+          if (special)
+            intent.writeSpecial(special)
+        },
+      })
+
+      streamingReactions.value.set(sparkEventId, { reaction: newReaction, intent, parser })
     }
 
-    const reaction = streamingReactions.value.get(sparkEventId)!
-    reaction.message += chunk
-
-    emitTextOutput(chunk)
+    const state = streamingReactions.value.get(sparkEventId)!
+    state.reaction.message += chunk
+    void state.parser.consume(chunk)
   }
 
   function onSparkNotifyReactionStreamEnd(sparkEventId: string, fullText: string, options?: { metadata?: Record<string, unknown> }) {
-    if (!streamingReactions.value.has(sparkEventId)) {
+    const state = streamingReactions.value.get(sparkEventId)
+    if (!state)
       return
-    }
 
-    const reaction = streamingReactions.value.get(sparkEventId)!
-    reaction.message = fullText
+    state.reaction.message = fullText
     recordSparkNotifyReaction(sparkEventId, fullText, { metadata: options?.metadata })
 
-    streamingReactions.value.delete(sparkEventId)
-
-    emitTextOutput(`${TTS_FLUSH_INSTRUCTION}${TTS_FLUSH_INSTRUCTION}`)
+    void state.parser.end().then(() => {
+      state.intent.writeFlush()
+      state.intent.end()
+      streamingReactions.value.delete(sparkEventId)
+    })
   }
 
   function recordSparkNotifyReaction(sparkEventId: string, message: string, options?: { metadata?: Record<string, unknown> }) {
@@ -77,7 +123,6 @@ export const useCharacterStore = defineStore('character', () => {
 
     reactions.value.push(newReaction)
 
-    // Trim reactions if exceeding max limit
     if (reactions.value.length > MAX_REACTIONS) {
       reactions.value.splice(0, reactions.value.length - MAX_REACTIONS)
     }

@@ -472,6 +472,9 @@ importers:
       '@proj-airi/i18n':
         specifier: workspace:^
         version: link:../../packages/i18n
+      '@proj-airi/pipelines-audio':
+        specifier: workspace:^
+        version: link:../../packages/pipelines-audio
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../../packages/server-sdk
@@ -487,6 +490,9 @@ importers:
       '@proj-airi/stage-ui-three-performance-runtime':
         specifier: workspace:^
         version: link:../../packages/stage-ui-three-performance-runtime
+      '@proj-airi/stream-kit':
+        specifier: workspace:^
+        version: link:../../packages/stream-kit
       '@proj-airi/ui':
         specifier: workspace:^
         version: link:../../packages/ui
@@ -1263,6 +1269,9 @@ importers:
       '@proj-airi/model-driver-mediapipe':
         specifier: workspace:^
         version: link:../../packages/model-driver-mediapipe
+      '@proj-airi/pipelines-audio':
+        specifier: workspace:^
+        version: link:../../packages/pipelines-audio
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../../packages/server-sdk
@@ -1281,6 +1290,9 @@ importers:
       '@proj-airi/stage-ui-three-performance-runtime':
         specifier: workspace:^
         version: link:../../packages/stage-ui-three-performance-runtime
+      '@proj-airi/stream-kit':
+        specifier: workspace:^
+        version: link:../../packages/stream-kit
       '@proj-airi/ui':
         specifier: workspace:^
         version: link:../../packages/ui
@@ -1854,6 +1866,9 @@ importers:
 
   packages/pipelines-audio:
     dependencies:
+      '@moeru/eventa':
+        specifier: ^1.0.0-alpha.10
+        version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.14
@@ -2178,6 +2193,9 @@ importers:
       '@proj-airi/model-driver-lipsync':
         specifier: workspace:^
         version: link:../model-driver-lipsync
+      '@proj-airi/pipelines-audio':
+        specifier: workspace:^
+        version: link:../pipelines-audio
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../server-sdk
@@ -2443,6 +2461,9 @@ importers:
       '@proj-airi/lobe-icons':
         specifier: ^1.0.18
         version: 1.0.18
+      '@proj-airi/stream-kit':
+        specifier: workspace:*
+        version: link:../stream-kit
       '@proj-airi/vite-plugin-warpdrive':
         specifier: workspace:*
         version: link:../vite-plugin-warpdrive
@@ -2655,6 +2676,8 @@ importers:
       vue:
         specifier: ^3.5.25
         version: 3.5.25(typescript@5.9.3)
+
+  packages/stream-kit: {}
 
   packages/tauri-plugin-mcp:
     dependencies:

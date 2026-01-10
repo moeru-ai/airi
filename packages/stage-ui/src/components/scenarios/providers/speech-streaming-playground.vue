@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import type { TTSInputChunk } from '../../../utils/tts'
 
+import { createQueue } from '@proj-airi/stream-kit'
 import { animate } from 'animejs'
-import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
-import { usePipelineWorkflowTextSegmentationStore } from '../../../composables/queues'
 import { useAudioContext } from '../../../stores/audio'
-import { createQueue } from '../../../utils/queue'
 import { chunkTTSInput } from '../../../utils/tts'
 
 const props = defineProps<{
@@ -17,8 +15,6 @@ const props = defineProps<{
   voice: string
 }>()
 
-const { onTextSegmented } = usePipelineWorkflowTextSegmentationStore()
-const { textSegmentationQueue } = storeToRefs(usePipelineWorkflowTextSegmentationStore())
 const { audioContext } = useAudioContext()
 const nowSpeaking = ref(false)
 const ttsInputChunks = ref<TTSInputChunk[]>([])
@@ -28,14 +24,10 @@ const audioQueue = createQueue<{ audioBuffer: AudioBuffer, text: string }>({
   handlers: [
     (ctx) => {
       return new Promise((resolve) => {
-        // Create an AudioBufferSourceNode
         const source = audioContext.createBufferSource()
         source.buffer = ctx.data.audioBuffer
-
-        // Connect the source to the AudioContext's destination (the speakers)
         source.connect(audioContext.destination)
 
-        // Start playing the audio
         nowSpeaking.value = true
         source.start(0)
         source.onended = () => {
@@ -55,7 +47,6 @@ async function handleSpeechGeneration(ctx: { data: string }) {
 
     const res = await props.generateSpeech(input, props.voice, false)
 
-    // Decode the ArrayBuffer into an AudioBuffer
     const audioBuffer = await audioContext.decodeAudioData(res)
     audioQueue.enqueue({ audioBuffer, text: ctx.data })
   }
@@ -66,16 +57,17 @@ async function handleSpeechGeneration(ctx: { data: string }) {
 
 const ttsQueue = createQueue<string>({ handlers: [handleSpeechGeneration] })
 
-onTextSegmented((chunk) => {
-  ttsQueue.enqueue(chunk.chunk)
-})
-
 async function testStreaming() {
-  textSegmentationQueue.value.enqueue({ type: 'literal', value: props.text })
+  speechGenerationIndex.value = -1
+  for await (const chunk of chunkTTSInput(props.text, { boost: 1, minimumWords: 4, maximumWords: 12 })) {
+    if (!chunk.text)
+      continue
+    ttsQueue.enqueue(chunk.text)
+  }
 }
 
 async function testChunking() {
-  const chunks = []
+  const chunks: TTSInputChunk[] = []
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       controller.enqueue(new TextEncoder().encode(props.text))

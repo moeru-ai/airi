@@ -3,11 +3,9 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { ChatHistory } from '@proj-airi/stage-ui/components'
-import { useMicVAD } from '@proj-airi/stage-ui/composables'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
@@ -16,11 +14,8 @@ import { useI18n } from 'vue-i18n'
 import { widgetsTools } from '../stores/tools/builtin/widgets'
 
 const messageInput = ref('')
-const listening = ref(false)
 const attachments = ref<{ type: 'image', data: string, mimeType: string, url: string }[]>([])
 
-const { askPermission } = useSettingsAudioDevice()
-const { enabled, selectedAudioInput } = storeToRefs(useSettingsAudioDevice())
 const chatStore = useChatStore()
 const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = chatStore
 const { messages, sending, streamingMessage } = storeToRefs(chatStore)
@@ -99,49 +94,6 @@ function removeAttachment(index: number) {
     attachments.value.splice(index, 1)
   }
 }
-
-const { destroy, start } = useMicVAD(selectedAudioInput, {
-  onSpeechStart: () => {
-    // TODO: interrupt the playback
-    // TODO: interrupt any of the ongoing TTS
-    // TODO: interrupt any of the ongoing LLM requests
-    // TODO: interrupt any of the ongoing animation of Live2D or VRM
-    // TODO: once interrupted, we should somehow switch to listen or thinking
-    //       emotion / expression?
-    listening.value = true
-  },
-  // VAD misfire means while speech end is detected but
-  // the frames of the segment of the audio buffer
-  // is not enough to be considered as a speech segment
-  // which controlled by the `minSpeechFrames` parameter
-  onVADMisfire: () => {
-    // TODO: do audio buffer send to whisper
-    listening.value = false
-  },
-  onSpeechEnd: (buffer) => {
-    // TODO: do audio buffer send to whisper
-    listening.value = false
-    handleTranscription(buffer)
-  },
-  auto: false,
-})
-
-function handleTranscription(_buffer: Float32Array) {
-  // eslint-disable-next-line no-alert
-  alert('Transcription is not implemented yet')
-}
-
-watch(enabled, async (value) => {
-  if (value === false) {
-    destroy()
-  }
-  else {
-    await askPermission()
-    start()
-  }
-}, {
-  immediate: true,
-})
 
 watch([activeProvider, activeModel], async () => {
   if (activeProvider.value && activeModel.value) {
