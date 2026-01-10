@@ -7,8 +7,8 @@ import type { Mock } from 'vitest'
 import type { UnwrapRef } from 'vue'
 import type z from 'zod'
 
-import type { StreamEvent } from './llm'
-import type { AiriCard } from './modules'
+import type { StreamEvent } from '../../llm'
+import type { AiriCard } from '../../modules'
 
 import { createTestingPinia } from '@pinia/testing'
 import { tool } from '@xsai/tool'
@@ -16,11 +16,11 @@ import { nanoid } from 'nanoid'
 import { setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useCharacterStore } from './character'
-import { sparkCommandSchema, useCharacterOrchestratorStore } from './character-orchestrator'
-import { useLLM } from './llm'
-import { useAiriCardStore, useConsciousnessStore } from './modules'
-import { useProvidersStore } from './providers'
+import { sparkCommandSchema, useCharacterOrchestratorStore } from '.'
+import { useCharacterStore } from '..'
+import { useLLM } from '../../llm'
+import { useAiriCardStore, useConsciousnessStore } from '../../modules'
+import { useProvidersStore } from '../../providers'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({

@@ -12,6 +12,13 @@ docs:
   'fade-on-hover':
     enable: Masquer au survol
     disable: Toujours afficher
+  'open-settings': Open settings
+  'open-chat': Open Chat
+  'refresh': Refresh
+  'open-hearing-controls': Open hearing Controls
+  'drag-to-move-window': Drag to move window
+  'switch-to-light-mode': Switch to light mode
+  'switch-to-dark-mode': Switch to dark mode
 notice:
   'fade-on-hover':
     title: Disparaître au survol
