@@ -379,6 +379,8 @@ export const useChatStore = defineStore('chat', () => {
     // Use a local object for building the message to avoid polluting the UI for background sessions
     const buildingMessage: StreamingAssistantMessage = { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() }
 
+    // NOTICE: Clone into reactive state only for the foreground session
+    // to avoid background streams mutating UI.
     const updateUI = () => {
       if (isForegroundSession()) {
         streamingMessage.value = JSON.parse(JSON.stringify(buildingMessage))
