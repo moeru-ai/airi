@@ -42,19 +42,23 @@ export class ReflexRuntime {
 
     this.context.updateNow(now)
 
+    const entity = bot.bot.entity
+    if (!entity)
+      return null
+
     // TODO: future refactor: update ReflexContext via world_update/self_update events instead of polling Mineflayer state.
     this.context.updateSelf({
-      location: bot.bot.entity.position,
-      health: bot.bot.health,
-      food: bot.bot.food,
-      oxygen: bot.bot.oxygenLevel,
+      location: entity.position,
+      health: bot.bot.health ?? 0,
+      food: bot.bot.food ?? 0,
+      oxygen: bot.bot.oxygenLevel ?? 0,
       holding: bot.bot.heldItem?.name ?? null,
     })
 
     this.context.updateEnvironment({
-      time: bot.bot.time.isDay ? 'day' : 'night',
+      time: bot.bot.time?.isDay ? 'day' : 'night',
       weather: bot.bot.isRaining ? 'rain' : 'clear',
-      nearbyPlayers: Object.keys(bot.bot.players)
+      nearbyPlayers: Object.keys(bot.bot.players ?? {})
         .filter(p => p !== bot.bot.username)
         .map(name => ({ name })),
     })
