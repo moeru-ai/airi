@@ -144,8 +144,8 @@ export class DiscordAdapter {
 
         if (discord?.channelId) {
           const channel = await this.discordClient.channels.fetch(discord.channelId)
-          if (channel?.isTextBased() && 'send' in channel) {
-            await (channel as any).send(message.content)
+          if (channel?.isTextBased() && 'send' in channel && typeof channel.send === 'function') {
+            await channel.send(message.content)
           }
         }
       }

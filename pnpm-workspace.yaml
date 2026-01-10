@@ -1,7 +1,6 @@
 catalogMode: prefer
 
 shellEmulator: true
-
 packages:
   - packages/**
   - plugins/**
@@ -23,7 +22,6 @@ overrides:
 
 patchedDependencies:
   srvx@0.9.8: patches/srvx@0.9.8.patch
-
 catalog:
   '@capacitor/cli': ^8.0.0
   '@capacitor/core': ^8.0.0
@@ -39,7 +37,6 @@ catalog:
   '@pinia/testing': ^1.0.3
   '@proj-airi/drizzle-duckdb-wasm': ^0.4.29
   '@proj-airi/iconify-meteocons': ^0.1.4
-  '@snazzah/davey': ^0.1.9
   '@types/audioworklet': ^0.0.92
   '@types/hast': ^3.0.4
   '@types/splitpanes': ^2.2.6

@@ -48,9 +48,6 @@ catalogs:
     '@proj-airi/iconify-meteocons':
       specifier: ^0.1.4
       version: 0.1.4
-    '@snazzah/davey':
-      specifier: ^0.1.9
-      version: 0.1.9
     '@types/audioworklet':
       specifier: ^0.0.92
       version: 0.0.92
@@ -2951,7 +2948,7 @@ importers:
         specifier: workspace:^
         version: link:../../packages/server-shared
       '@snazzah/davey':
-        specifier: 'catalog:'
+        specifier: ^0.1.9
         version: 0.1.9
       '@xsai-ext/providers':
         specifier: 'catalog:'

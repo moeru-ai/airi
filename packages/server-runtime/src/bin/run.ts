@@ -12,5 +12,4 @@ serve(app, {
   // @ts-expect-error - the .crossws property wasn't extended in types
   plugins: [ws({ resolve: async req => (await app.fetch(req)).crossws })],
   port: env.PORT ? Number(env.PORT) : 6121,
-  hostname: env.HOST || '0.0.0.0',
 })
