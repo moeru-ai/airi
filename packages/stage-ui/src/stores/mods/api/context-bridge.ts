@@ -1,10 +1,8 @@
-import type { Discord } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { UserMessage } from '@xsai/shared-chat'
 
-import type { ChatStreamEvent, ChatStreamEventContext, ContextMessage } from '../../../types/chat'
+import type { ChatStreamEvent, ContextMessage } from '../../../types/chat'
 
-import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useBroadcastChannel } from '@vueuse/core'
 import { Mutex } from 'es-toolkit'
@@ -16,25 +14,6 @@ import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME, useChatStore } from '..
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useProvidersStore } from '../../providers'
 import { useModsServerChannelStore } from './channel-server'
-
-function normalizeDiscordMetadata(discord?: Discord): Discord | undefined {
-  if (!discord)
-    return undefined
-
-  if (!discord.guildMember)
-    return discord
-
-  const { guildMember } = discord
-
-  return {
-    ...discord,
-    guildMember: {
-      id: guildMember.id ?? guildMember.displayName ?? guildMember.nickname ?? '',
-      nickname: guildMember.nickname ?? guildMember.displayName ?? '',
-      displayName: guildMember.displayName ?? guildMember.nickname ?? '',
-    },
-  }
-}
 
 export const useContextBridgeStore = defineStore('mods:api:context-bridge', () => {
   const mutex = new Mutex()
@@ -51,18 +30,6 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   const disposeHookFns = ref<Array<() => void>>([])
   let remoteStreamGuard: { sessionId: string, generation: number } | null = null
 
-  function getDiscordContextFrom(context: ChatStreamEventContext): Discord | undefined {
-    const inputContent = Array.isArray(context.input.content)
-      ? context.input.content.map(c => c.type === 'text' ? c.text : '').join('')
-      : context.input.content
-
-    if (typeof inputContent === 'string' && inputContent.includes('(From Discord user')) {
-      const candidate = Object.values(context.contexts).flat().find(c => c.metadata?.discord)?.metadata?.discord as Discord | undefined
-      return normalizeDiscordMetadata(candidate)
-    }
-    return undefined
-  }
-
   async function initialize() {
     await mutex.acquire()
 
@@ -76,46 +43,64 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       disposeHookFns.value.push(stop)
 
       disposeHookFns.value.push(serverChannelStore.onContextUpdate((event) => {
-        chatStore.ingestContextMessage({ source: event.source, createdAt: Date.now(), ...event.data })
-        broadcastContext(toRaw(event.data) as ContextMessage)
+        const contextMessage: ContextMessage = {
+          ...event.data,
+          metadata: event.metadata,
+          createdAt: Date.now(),
+        }
+        chatStore.ingestContextMessage(contextMessage)
+        broadcastContext(toRaw(contextMessage))
       }))
 
       disposeHookFns.value.push(serverChannelStore.onEvent('input:text', async (event) => {
-        const { text, discord } = event.data as { text: string, discord?: Discord }
-        const normalizedDiscord = normalizeDiscordMetadata(discord)
+        const {
+          text,
+          textRaw,
+          overrides,
+          contextUpdates,
+        } = event.data
 
-        if (normalizedDiscord) {
-          const id = nanoid()
-          const discordNotice = `The input is coming from Discord channel ${normalizedDiscord.channelId} (Guild: ${normalizedDiscord.guildId}).`
-          chatStore.ingestContextMessage({
+        const normalizedContextUpdates = contextUpdates?.map((update) => {
+          const id = update.id ?? nanoid()
+          const contextId = update.contextId ?? id
+          return {
+            ...update,
             id,
-            contextId: id,
-            source: event.source,
-            strategy: ContextUpdateStrategy.AppendSelf,
-            createdAt: Date.now(),
-            text: discordNotice,
-            content: discordNotice,
-            metadata: {
-              discord: normalizedDiscord,
-            },
-          })
+            contextId,
+          }
+        })
+
+        if (normalizedContextUpdates?.length) {
+          const createdAt = Date.now()
+          for (const update of normalizedContextUpdates) {
+            chatStore.ingestContextMessage({
+              ...update,
+              metadata: event.metadata,
+              createdAt,
+            })
+          }
         }
 
         if (activeProvider.value && activeModel.value) {
           const chatProvider = await providersStore.getProviderInstance<ChatProvider>(activeProvider.value)
 
           let messageText = text
-          let targetSessionId: string | undefined
-
-          if (normalizedDiscord?.guildMember?.displayName) {
-            messageText = `(From Discord user ${normalizedDiscord.guildMember.displayName}): ${text}`
-            targetSessionId = 'discord'
-          }
+          if (overrides?.messagePrefix)
+            messageText = `${overrides.messagePrefix}${text}`
 
           await chatStore.send(messageText, {
             model: activeModel.value,
             chatProvider,
-          }, targetSessionId)
+            input: {
+              type: 'input:text',
+              data: {
+                text,
+                textRaw,
+                overrides,
+                contextUpdates: normalizedContextUpdates,
+              },
+            },
+          }, overrides?.sessionId)
         }
       }))
 
@@ -170,32 +155,29 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }),
 
         chatStore.onAssistantMessage(async (message, _messageText, context) => {
-          const discord = getDiscordContextFrom(context)
-
           serverChannelStore.send({
             type: 'output:gen-ai:chat:message',
             data: {
               message,
-              discord,
+              ...context.input?.metadata?.source,
               'stage-web': isStageWeb(),
               'stage-tamagotchi': isStageTamagotchi(),
               'gen-ai:chat': {
-                input: context.input as UserMessage,
+                message: context.message as UserMessage,
                 composedMessage: context.composedMessage,
                 contexts: context.contexts,
+                input: context.input,
               },
             },
           })
         }),
 
         chatStore.onChatTurnComplete(async (chat, context) => {
-          const discord = getDiscordContextFrom(context)
-
           serverChannelStore.send({
             type: 'output:gen-ai:chat:complete',
             data: {
               'message': chat.output,
-              discord,
+              ...context.input?.metadata?.source,
               'toolCalls': [],
               'stage-web': isStageWeb(),
               'stage-tamagotchi': isStageTamagotchi(),
@@ -207,9 +189,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                 source: 'estimate-based',
               },
               'gen-ai:chat': {
-                input: context.input as UserMessage,
+                message: context.message as UserMessage,
                 composedMessage: context.composedMessage,
                 contexts: context.contexts,
+                input: context.input,
               },
             },
           })

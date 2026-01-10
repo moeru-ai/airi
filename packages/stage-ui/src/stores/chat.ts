@@ -1,3 +1,4 @@
+import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { CommonContentPart, Message, SystemMessage, ToolMessage } from '@xsai/shared-chat'
 
@@ -14,6 +15,7 @@ import { useAnalytics } from '../composables'
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
 import { useLLM } from '../stores/llm'
+import { getEventSourceKey } from '../utils/event-source'
 import { useCharacterStore } from './character'
 import { useConsciousnessStore } from './modules/consciousness'
 
@@ -44,6 +46,7 @@ export const useChatStore = defineStore('chat', () => {
     providerConfig?: Record<string, unknown>
     attachments?: { type: 'image', data: string, mimeType: string }[]
     tools?: StreamOptions['tools']
+    input?: WebSocketEventInputs
   }
 
   interface QueuedSend {
@@ -331,15 +334,16 @@ export const useChatStore = defineStore('chat', () => {
   }, { immediate: true })
 
   function ingestContextMessage(envelope: ContextMessage) {
-    if (!activeContexts.value[envelope.source]) {
-      activeContexts.value[envelope.source] = []
+    const sourceKey = getEventSourceKey(envelope)
+    if (!activeContexts.value[sourceKey]) {
+      activeContexts.value[sourceKey] = []
     }
 
     if (envelope.strategy === ContextUpdateStrategy.ReplaceSelf) {
-      activeContexts.value[envelope.source] = [envelope]
+      activeContexts.value[sourceKey] = [envelope]
     }
     else if (envelope.strategy === ContextUpdateStrategy.AppendSelf) {
-      activeContexts.value[envelope.source].push(envelope)
+      activeContexts.value[sourceKey].push(envelope)
     }
   }
 
@@ -357,9 +361,10 @@ export const useChatStore = defineStore('chat', () => {
 
     const sendingCreatedAt = Date.now()
     const streamingMessageContext: ChatStreamEventContext = {
-      input: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt },
+      message: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt },
       contexts: toRaw(activeContexts.value),
       composedMessage: [],
+      input: options.input,
     }
 
     const isStaleGeneration = () => getSessionGeneration(sessionId) !== generation
@@ -403,7 +408,14 @@ export const useChatStore = defineStore('chat', () => {
       }
 
       const finalContent = contentParts.length > 1 ? contentParts : sendingMessage
-      streamingMessageContext.input.content = finalContent
+      if (!streamingMessageContext.input) {
+        streamingMessageContext.input = {
+          type: 'input:text',
+          data: {
+            text: sendingMessage,
+          },
+        }
+      }
 
       if (shouldAbort())
         return
@@ -420,7 +432,6 @@ export const useChatStore = defineStore('chat', () => {
           if (shouldAbort())
             return
 
-          console.log('literal', literal)
           // Feed to categorizer first
           categorizer.consume(literal)
 
@@ -434,7 +445,6 @@ export const useChatStore = defineStore('chat', () => {
           if (speechOnly.trim()) {
             buildingMessage.content += speechOnly
 
-            console.log('speechOnly', speechOnly)
             // Emit TTS only for speech parts, not reasoning (clean data, no empty chunks)
             await emitTokenLiteralHooks(speechOnly, streamingMessageContext)
 

@@ -5,6 +5,7 @@ import { env } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { Client as AiriClient } from '@proj-airi/server-sdk'
+import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
 import { Client, Events, GatewayIntentBits } from 'discord.js'
 
 import { handlePing, registerCommands, VoiceManager } from '../bots/discord/commands'
@@ -30,6 +31,25 @@ function isDiscordConfig(config: unknown): config is DiscordConfig {
   const c = config as Record<string, unknown>
   return (typeof c.token === 'string' || typeof c.token === 'undefined')
     && (typeof c.enabled === 'boolean' || typeof c.enabled === 'undefined')
+}
+
+function normalizeDiscordMetadata(discord?: Discord): Discord | undefined {
+  if (!discord)
+    return undefined
+
+  if (!discord.guildMember)
+    return discord
+
+  const { guildMember } = discord
+
+  return {
+    ...discord,
+    guildMember: {
+      id: guildMember.id ?? guildMember.displayName ?? guildMember.nickname ?? '',
+      nickname: guildMember.nickname ?? guildMember.displayName ?? '',
+      displayName: guildMember.displayName ?? guildMember.nickname ?? '',
+    },
+  }
 }
 
 export class DiscordAdapter {
@@ -168,7 +188,8 @@ export class DiscordAdapter {
 
       // Respond if the bot is mentioned
       if (this.discordClient.user && message.mentions.has(this.discordClient.user)) {
-        const content = message.content.replace(/<@!?\d+>/g, '').trim()
+        const rawContent = message.content
+        const content = rawContent.replace(/<@!?\d+>/g, '').trim()
         if (!content)
           return
 
@@ -183,12 +204,34 @@ export class DiscordAdapter {
             nickname: message.member?.nickname ?? message.author.username,
           },
         }
+        const normalizedDiscord = normalizeDiscordMetadata(discordContext)
+        const displayName = normalizedDiscord?.guildMember?.displayName
+        const discordNotice = normalizedDiscord
+          ? `The input is coming from Discord channel ${normalizedDiscord.channelId} (Guild: ${normalizedDiscord.guildId ?? 'unknown'}).`
+          : undefined
 
         this.airiClient.send({
           type: 'input:text',
           data: {
             text: content,
-            discord: discordContext,
+            textRaw: rawContent,
+            overrides: displayName
+              ? {
+                  messagePrefix: `(From Discord user ${displayName}): `,
+                  sessionId: 'discord',
+                }
+              : undefined,
+            contextUpdates: discordNotice
+              ? [{
+                  strategy: ContextUpdateStrategy.AppendSelf,
+                  text: discordNotice,
+                  content: discordNotice,
+                  metadata: {
+                    discord: normalizedDiscord,
+                  },
+                }]
+              : undefined,
+            discord: normalizedDiscord,
           },
         })
       }
