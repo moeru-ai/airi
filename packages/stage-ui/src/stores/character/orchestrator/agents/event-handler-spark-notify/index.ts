@@ -10,6 +10,8 @@ import { nanoid } from 'nanoid'
 import { validate } from 'xsschema'
 import { z } from 'zod'
 
+import { getEventSourceKey } from '../../../../../utils'
+
 export interface SparkNotifyCommandDraft {
   destinations: string[]
   interrupt?: 'force' | 'soft' | boolean
@@ -172,7 +174,7 @@ export function setupAgentSparkNotifyHandler(deps: SparkNotifyAgentDeps) {
       role: 'system',
       content: [
         deps.getSystemPrompt(),
-        getSparkNotifyHandlingAgentInstruction(event.source),
+        getSparkNotifyHandlingAgentInstruction(getEventSourceKey(event)),
       ].filter(Boolean).join('\n\n'),
     }
 

@@ -25,6 +25,7 @@
     "@proj-airi/audio": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/server-shared": "workspace:^",
+    "@snazzah/davey": "^0.1.9",
     "@xsai-ext/providers": "catalog:",
     "@xsai/generate-speech": "catalog:",
     "@xsai/generate-text": "catalog:",

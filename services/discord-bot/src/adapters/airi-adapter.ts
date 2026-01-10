@@ -1,9 +1,11 @@
+import type { Discord } from '@proj-airi/server-shared/types'
 import type { Interaction } from 'discord.js'
 
 import { env } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { Client as AiriClient } from '@proj-airi/server-sdk'
+import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
 import { Client, Events, GatewayIntentBits } from 'discord.js'
 
 import { handlePing, registerCommands, VoiceManager } from '../bots/discord/commands'
@@ -31,6 +33,25 @@ function isDiscordConfig(config: unknown): config is DiscordConfig {
     && (typeof c.enabled === 'boolean' || typeof c.enabled === 'undefined')
 }
 
+function normalizeDiscordMetadata(discord?: Discord): Discord | undefined {
+  if (!discord)
+    return undefined
+
+  if (!discord.guildMember)
+    return discord
+
+  const { guildMember } = discord
+
+  return {
+    ...discord,
+    guildMember: {
+      id: guildMember.id ?? guildMember.displayName ?? guildMember.nickname ?? '',
+      nickname: guildMember.nickname ?? guildMember.displayName ?? '',
+      displayName: guildMember.displayName ?? guildMember.nickname ?? '',
+    },
+  }
+}
+
 export class DiscordAdapter {
   private airiClient: AiriClient
   private discordClient: Client
@@ -43,17 +64,23 @@ export class DiscordAdapter {
 
     // Initialize Discord client
     this.discordClient = new Client({
-      intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
+      intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+      ],
     })
 
     // Initialize AIRI client
     this.airiClient = new AiriClient({
-      name: 'discord-bot',
+      name: 'discord',
       possibleEvents: [
         'input:text',
         'input:text:voice',
         'input:voice',
-        'ui:configure',
+        'module:configure',
+        'output:gen-ai:chat:message',
       ],
       token: config.airiToken,
       url: config.airiUrl,
@@ -66,59 +93,57 @@ export class DiscordAdapter {
 
   private setupEventHandlers(): void {
     // Handle configuration from UI
-    this.airiClient.onEvent('ui:configure', async (event) => {
-      if (event.data.moduleName === 'discord') {
-        if (this.isReconnecting) {
-          log.warn('A reconnect is already in progress, skipping this configuration event.')
-          return
-        }
-        this.isReconnecting = true
-        try {
-          log.log('Received Discord configuration:', event.data.config)
+    this.airiClient.onEvent('module:configure', async (event) => {
+      if (this.isReconnecting) {
+        log.warn('A reconnect is already in progress, skipping this configuration event.')
+        return
+      }
+      this.isReconnecting = true
+      try {
+        log.log('Received Discord configuration:', event.data.config)
 
-          if (isDiscordConfig(event.data.config)) {
-            const config = event.data.config as DiscordConfig
-            const { token, enabled } = config
+        if (isDiscordConfig(event.data.config)) {
+          const config = event.data.config as DiscordConfig
+          const { token, enabled } = config
 
-            if (enabled === false) {
-              if (this.discordClient.isReady) {
-                log.log('Disabling Discord bot as per configuration...')
-                await this.discordClient.destroy()
-              }
-              return
+          if (enabled === false) {
+            if (this.discordClient.isReady) {
+              log.log('Disabling Discord bot as per configuration...')
+              await this.discordClient.destroy()
             }
-
-            // If enabled, but no token is provided, stop the bot if it's running.
-            if (!token) {
-              log.warn('Discord bot enabled, but no token provided. Stopping bot.')
-              if (this.discordClient.isReady) {
-                await this.discordClient.destroy()
-              }
-              return
-            }
-
-            // Connect or reconnect if token changed or client is not ready.
-            if (this.discordToken !== token || !this.discordClient.isReady) {
-              this.discordToken = token
-              if (this.discordClient.isReady) {
-                log.log('Reconnecting Discord client with new token...')
-                await this.discordClient.destroy()
-              }
-              log.log('Connecting Discord client...')
-              await this.discordClient.login(this.discordToken)
-              log.log('Discord client connected.')
-            }
+            return
           }
-          else {
-            log.warn('Invalid Discord configuration received, skipping...')
+
+          // If enabled, but no token is provided, stop the bot if it's running.
+          if (!token) {
+            log.warn('Discord bot enabled, but no token provided. Stopping bot.')
+            if (this.discordClient.isReady) {
+              await this.discordClient.destroy()
+            }
+            return
+          }
+
+          // Connect or reconnect if token changed or client is not ready.
+          if (this.discordToken !== token || !this.discordClient.isReady) {
+            this.discordToken = token
+            if (this.discordClient.isReady) {
+              log.log('Reconnecting Discord client with new token...')
+              await this.discordClient.destroy()
+            }
+            log.log('Connecting Discord client...')
+            await this.discordClient.login(this.discordToken)
+            log.log('Discord client connected.')
           }
         }
-        catch (error) {
-          log.withError(error as Error).error('Failed to apply Discord configuration.')
+        else {
+          log.warn('Invalid Discord configuration received, skipping...')
         }
-        finally {
-          this.isReconnecting = false
-        }
+      }
+      catch (error) {
+        log.withError(error as Error).error('Failed to apply Discord configuration.')
+      }
+      finally {
+        this.isReconnecting = false
       }
     })
 
@@ -129,16 +154,94 @@ export class DiscordAdapter {
       // For now, we'll just log the input
     })
 
+    // Handle output from AIRI system (IA response)
+    this.airiClient.onEvent('output:gen-ai:chat:message', async (event) => {
+      try {
+        const { message, discord } = event.data as {
+          message: { content: string }
+          discord?: { channelId: string }
+        }
+
+        if (discord?.channelId) {
+          const channel = await this.discordClient.channels.fetch(discord.channelId)
+          if (channel?.isTextBased() && 'send' in channel && typeof channel.send === 'function') {
+            await channel.send(message.content)
+          }
+        }
+      }
+      catch (error) {
+        log.withError(error as Error).error('Failed to send response to Discord')
+      }
+    })
+
     // Set up Discord event handlers
-    this.discordClient.once(Events.ClientReady, (readyClient) => {
+    this.discordClient.once(Events.ClientReady, async (readyClient) => {
       log.log(`Discord bot ready! User: ${readyClient.user.tag}`)
+      // Register commands dynamically using the authenticated client's ID and token
+      await registerCommands(this.discordToken, readyClient.user.id)
+    })
+
+    // Handle text messages from Discord
+    this.discordClient.on(Events.MessageCreate, async (message) => {
+      if (message.author.bot)
+        return
+
+      // Respond if the bot is mentioned
+      if (this.discordClient.user && message.mentions.has(this.discordClient.user)) {
+        const rawContent = message.content
+        const content = rawContent.replace(/<@!?\d+>/g, '').trim()
+        if (!content)
+          return
+
+        log.log(`Received text mention from ${message.author.tag} in ${message.channelId}`)
+
+        const discordContext: Discord = {
+          channelId: message.channelId,
+          guildId: message.guildId ?? undefined,
+          guildMember: {
+            id: message.author.id,
+            displayName: message.member?.displayName ?? message.author.username,
+            nickname: message.member?.nickname ?? message.author.username,
+          },
+        }
+        const normalizedDiscord = normalizeDiscordMetadata(discordContext)
+        const displayName = normalizedDiscord?.guildMember?.displayName
+        const discordNotice = normalizedDiscord
+          ? `The input is coming from Discord channel ${normalizedDiscord.channelId} (Guild: ${normalizedDiscord.guildId ?? 'unknown'}).`
+          : undefined
+
+        this.airiClient.send({
+          type: 'input:text',
+          data: {
+            text: content,
+            textRaw: rawContent,
+            overrides: displayName
+              ? {
+                  messagePrefix: `(From Discord user ${displayName}): `,
+                  sessionId: 'discord',
+                }
+              : undefined,
+            contextUpdates: discordNotice
+              ? [{
+                  strategy: ContextUpdateStrategy.AppendSelf,
+                  text: discordNotice,
+                  content: discordNotice,
+                  metadata: {
+                    discord: normalizedDiscord,
+                  },
+                }]
+              : undefined,
+            discord: normalizedDiscord,
+          },
+        })
+      }
     })
 
     this.discordClient.on(Events.InteractionCreate, async (interaction: Interaction) => {
       if (!interaction.isChatInputCommand())
         return
 
-      log.log('Interaction received:', interaction)
+      log.log(`Interaction received: /${interaction.commandName} from ${interaction.user.tag}`)
 
       switch (interaction.commandName) {
         case 'ping':
@@ -155,9 +258,6 @@ export class DiscordAdapter {
     log.log('Starting Discord adapter...')
 
     try {
-      // Register commands
-      await registerCommands()
-
       // Log in to Discord if token is available
       if (this.discordToken) {
         await this.discordClient.login(this.discordToken)
