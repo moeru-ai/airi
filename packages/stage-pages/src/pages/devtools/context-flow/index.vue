@@ -9,6 +9,7 @@ import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { useCharacterOrchestratorStore, useCharacterStore } from '@proj-airi/stage-ui/stores/character'
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME, useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
+import { getEventSourceKey } from '@proj-airi/stage-ui/utils'
 import { Callout } from '@proj-airi/ui'
 import { useBroadcastChannel } from '@vueuse/core'
 import { nanoid } from 'nanoid'
@@ -331,7 +332,7 @@ onMounted(() => {
       channel: 'server',
       type: event.type,
       summary: [
-        `source=${event.source}`,
+        `source=${getEventSourceKey(event)}`,
         `strategy=${event.data.strategy}`,
         summarizeContextUpdate(event.data),
       ].filter(Boolean).join(' '),
@@ -484,7 +485,7 @@ watch(incomingContext, (event) => {
     channel: 'broadcast',
     type: 'context:broadcast',
     summary: [
-      `source=${event.source}`,
+      `source=${getEventSourceKey(event)}`,
       `strategy=${event.strategy}`,
       summarizeContextUpdate(event),
     ].filter(Boolean).join(' '),

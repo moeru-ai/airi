@@ -144,13 +144,15 @@ describe('createStreamingCategorizer', () => {
     const result = categorizer.end()
 
     // Log what was recognized
-    console.info('📋 Test: should handle <think> tag with special tokens')
-    console.info('  Input text:', text)
-    console.info('  Segments found:', result.segments.length)
-    console.info('  Tag name:', result.segments[0]?.tagName)
-    console.info('  Segment content:', result.segments[0]?.content)
-    console.info('  Reasoning:', result.reasoning)
-    console.info('  Speech:', result.speech)
+    // eslint-disable-next-line no-console
+    console.log({
+      input: text,
+      segmentsFound: result.segments.length,
+      tagName: result.segments[0]?.tagName,
+      segmentContent: result.segments[0]?.content,
+      reasoning: result.reasoning,
+      speech: result.speech,
+    })
 
     // Verify tag is recognized
     expect(result.segments).toHaveLength(1)
@@ -180,15 +182,15 @@ describe('createStreamingCategorizer', () => {
     const result = categorizer.end()
 
     // Log what was recognized
-    console.info('📋 Test: should handle <think> with special tokens like <|EMOTE_HAPPY|>')
-    console.info('  Input text:', text)
-    console.info('  Segments found:', result.segments.length)
-    console.info('  Tag name:', result.segments[0]?.tagName)
-    console.info('  Segment content:', result.segments[0]?.content)
-    console.info('  Has <|EMOTE_HAPPY|>:', result.segments[0]?.content.includes('<|EMOTE_HAPPY|>'))
-    console.info('  Has <|DELAY:1|>:', result.segments[0]?.content.includes('<|DELAY:1|>'))
-    console.info('  Reasoning:', result.reasoning)
-    console.info('  Speech:', result.speech)
+    // eslint-disable-next-line no-console
+    console.log({
+      input: text,
+      segmentsFound: result.segments.length,
+      tagName: result.segments[0]?.tagName,
+      segmentContent: result.segments[0]?.content,
+      reasoning: result.reasoning,
+      speech: result.speech,
+    })
 
     // Verify tag is recognized
     expect(result.segments).toHaveLength(1)

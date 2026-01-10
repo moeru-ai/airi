@@ -1,4 +1,4 @@
-import type { ContextUpdate, WebSocketEventSource } from '@proj-airi/server-sdk'
+import type { ContextUpdate, MetadataEventSource, WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { AssistantMessage, CommonContentPart, CompletionToolCall, Message, SystemMessage, ToolMessage, UserMessage } from '@xsai/shared-chat'
 
 export interface ChatSlicesText {
@@ -38,17 +38,20 @@ export interface ErrorMessage {
   content: string
 }
 
-export interface ContextMessage extends ContextUpdate {
-  source: WebSocketEventSource | string
+export interface ContextMessage extends ContextUpdate<Record<string, unknown>, string | CommonContentPart[]> {
+  metadata?: {
+    source: MetadataEventSource
+  }
   createdAt: number
 }
 
 export type ChatHistoryItem = (ChatMessage | ErrorMessage) & { context?: ContextMessage } & { createdAt?: number }
 
 export interface ChatStreamEventContext {
-  input: ChatHistoryItem
+  message: ChatHistoryItem
   contexts: Record<string, ContextMessage[]>
-  composedMessage: Message[]
+  composedMessage: Array<Message>
+  input?: WebSocketEventInputs
 }
 
 export type ChatStreamEvent

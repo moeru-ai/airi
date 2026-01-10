@@ -78,11 +78,11 @@ function resolveInvokers(override?: WidgetInvokers): WidgetInvokers {
 
 const widgetParams = z.object({
   action: z.enum(['spawn', 'update', 'remove', 'clear', 'open']).describe('Choose one: spawn, update, remove, clear, open'),
-  id: z.string().default('').describe('Widget id; required for update/remove, optional for spawn/open'),
-  componentName: z.string().default('').describe('Widget component to render, e.g. weather (required for spawn)'),
-  componentProps: z.string().default('{}').describe('Widget props as JSON string (e.g. {"city":"Tokyo"})'),
-  size: z.enum(['s', 'm', 'l']).default('m'),
-  ttlSeconds: z.number().int().nonnegative().default(0).describe('Auto-close timer in seconds (spawn only)'),
+  id: z.string().describe('Widget id; required for update/remove, optional for spawn/open'),
+  componentName: z.string().describe('Widget component to render, e.g. weather (required for spawn)'),
+  componentProps: z.string().describe('Widget props as JSON string (e.g. {"city":"Tokyo"})'),
+  size: z.enum(['s', 'm', 'l']),
+  ttlSeconds: z.number().int().nonnegative().describe('Auto-close timer in seconds (spawn only)'),
 }).strict()
 
 export function normalizeComponentProps(raw?: string | Record<string, any>) {

@@ -59,14 +59,8 @@ export function createQueue<T>(options: {
     queue.length = 0
   }
 
-  // Internal
-  // Drain the queue and call the handlers with each dequeued item
   async function drain() {
     while (queue.length > 0) {
-      // The async func should never yield at here, and shift() should
-      // always return an item from the queue.
-      // We cannot check for `undefined` here, because there could be
-      // someone using the queue to enqueue and dequeue `undefined`.
       const payload = queue.shift() as T
       emit('dequeue', payload, queue.length)
       for (const handler of options.handlers) {
@@ -76,7 +70,6 @@ export function createQueue<T>(options: {
           emit('result', payload, result, handler)
         }
         catch (err) {
-          // Keep `unknown` and let the event listener handle the error type
           emit('error', payload, err, handler)
           continue
         }

@@ -11,7 +11,7 @@
   "license": "MIT",
   "scripts": {
     "build": "vite build",
-    "dev": "vite",
+    "dev": "vite --host",
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit"
@@ -29,12 +29,14 @@
     "@proj-airi/font-xiaolai": "workspace:^",
     "@proj-airi/i18n": "workspace:^",
     "@proj-airi/model-driver-mediapipe": "workspace:^",
+    "@proj-airi/pipelines-audio": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/stage-layouts": "workspace:^",
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/stage-ui": "workspace:^",
     "@proj-airi/stage-ui-three": "workspace:^",
     "@proj-airi/stage-ui-three-performance-runtime": "workspace:^",
+    "@proj-airi/stream-kit": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@proj-airi/ui-transitions": "workspace:^",
     "@standard-schema/spec": "^1.1.0",

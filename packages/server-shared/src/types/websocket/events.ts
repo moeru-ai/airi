@@ -1,4 +1,4 @@
-import type { AssistantMessage, Message, ToolMessage, UserMessage } from '@xsai/shared-chat'
+import type { AssistantMessage, CommonContentPart, Message, ToolMessage, UserMessage } from '@xsai/shared-chat'
 
 export interface DiscordGuildMember {
   nickname: string
@@ -13,9 +13,25 @@ export interface Discord {
 }
 
 export interface MetadataEventSource {
+  /**
+   * Stable module/plugin identifier (shared across instances).
+   * Example: "telegram-bot", "stage-tamagotchi".
+   */
   plugin: string
+  /**
+   * Unique instance id for this module run (per process/deployment).
+   * Example: "telegram-01", "stage-ui-2f7c9".
+   */
   instanceId: string
+  /**
+   * Optional semantic version for the module/plugin.
+   * Example: "0.8.1-beta.7".
+   */
   version?: string
+  /**
+   * K8s-style labels for routing and policy selectors.
+   * Example: { env: "prod", app: "telegram", devtools: "true" }.
+   */
   labels?: Record<string, string>
 }
 
@@ -59,9 +75,10 @@ interface InputSource {
 
 interface OutputSource {
   'gen-ai:chat': {
-    input: UserMessage
-    contexts: Record<string, ContextUpdate[]>
+    message: UserMessage
+    contexts: Record<string, ContextUpdate<Record<string, any>, string | CommonContentPart[]>[]>
     composedMessage: Array<Message>
+    input?: WebSocketEventInputs
   }
 }
 
@@ -103,6 +120,45 @@ export interface ContextUpdate<
   destinations?: Array<string> | ContextUpdateDestinationFilter
   metadata?: Metadata
 }
+
+export interface InputMessageOverrides {
+  sessionId?: string
+  messagePrefix?: string
+}
+
+export type InputContextUpdate
+  = Omit<ContextUpdate<Record<string, unknown>, string | CommonContentPart[]>, 'id' | 'contextId'>
+    & Partial<Pick<ContextUpdate<Record<string, unknown>, string | CommonContentPart[]>, 'id' | 'contextId'>>
+
+export interface WebSocketEventInputTextBase {
+  text: string
+  textRaw?: string
+  overrides?: InputMessageOverrides
+  contextUpdates?: InputContextUpdate[]
+}
+
+export type WebSocketEventInputText = WebSocketEventInputTextBase & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
+
+export interface WebSocketEventInputTextVoiceBase {
+  transcription: string
+  textRaw?: string
+  overrides?: InputMessageOverrides
+  contextUpdates?: InputContextUpdate[]
+}
+
+export type WebSocketEventInputTextVoice = WebSocketEventInputTextVoiceBase & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
+
+export interface WebSocketEventInputVoiceBase {
+  audio: ArrayBuffer
+  overrides?: InputMessageOverrides
+  contextUpdates?: InputContextUpdate[]
+}
+
+export type WebSocketEventInputVoice = WebSocketEventInputVoiceBase & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
+
+export type WebSocketEventDataInputs = WebSocketEventInputText | WebSocketEventInputTextVoice | WebSocketEventInputVoice
+
+export type WebSocketEventInputs = WebSocketBaseEvent<'input:text' | 'input:text:voice' | 'input:voice', WebSocketEventInputText | WebSocketEventInputTextVoice | WebSocketEventInputVoice>
 
 export interface WebSocketBaseEvent<T, D, S extends string = string> {
   type: T
@@ -155,15 +211,9 @@ export interface WebSocketEvents<C = undefined> {
     config: C | Record<string, unknown>
   }
 
-  'input:text': {
-    text: string
-  } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
-  'input:text:voice': {
-    transcription: string
-  } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
-  'input:voice': {
-    audio: ArrayBuffer
-  } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
+  'input:text': WebSocketEventInputText
+  'input:text:voice': WebSocketEventInputTextVoice
+  'input:voice': WebSocketEventInputVoice
 
   'output:gen-ai:chat:tool-call': {
     toolCalls: ToolMessage[]
