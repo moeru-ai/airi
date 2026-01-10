@@ -170,6 +170,7 @@ onMounted(() => updateThemeColor())
       <PageHeader
         :title="routeHeaderMetadata?.title"
         :subtitle="routeHeaderMetadata?.subtitle"
+        :disable-back-button="route.path === '/settings'"
       />
       <RouterView />
     </div>
