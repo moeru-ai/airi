@@ -9,6 +9,8 @@ import { createPerceptionFrameFromChat } from './perception/frame'
 export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlugin {
   let container: ReturnType<typeof createAgentContainer>
   let tickHandler: ((ctx: { delta: number }) => void) | null = null
+  let spawnHandler: (() => void) | null = null
+  let started = false
 
   return {
     async created(bot) {
@@ -36,28 +38,42 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
       botWithAgents.action = actionAgent
       botWithAgents.chat = chatAgent
 
-      // Initialize layers
-      reflexManager.init(botWithAgents)
-      brain.init(botWithAgents)
+      const startCognitive = () => {
+        if (started)
+          return
+        started = true
 
-      // Initialize perception pipeline (raw events + detectors)
-      perceptionPipeline.init(botWithAgents)
+        // Initialize layers
+        reflexManager.init(botWithAgents)
+        brain.init(botWithAgents)
 
-      tickHandler = ({ delta }) => {
-        reflexManager.tick(delta)
-        perceptionPipeline.tick(delta)
+        // Initialize perception pipeline (raw events + detectors)
+        perceptionPipeline.init(botWithAgents)
+
+        tickHandler = ({ delta }) => {
+          reflexManager.tick(delta)
+          perceptionPipeline.tick(delta)
+        }
+
+        bot.onTick('tick', tickHandler)
+
+        // Set message handling via EventManager
+        const chatHandler = new ChatMessageHandler(bot.username)
+        bot.bot.on('chat', (username, message) => {
+          if (chatHandler.isBotMessage(username))
+            return
+
+          perceptionPipeline.ingest(createPerceptionFrameFromChat(username, message))
+        })
       }
 
-      bot.onTick('tick', tickHandler)
-
-      // Set message handling via EventManager
-      const chatHandler = new ChatMessageHandler(bot.username)
-      bot.bot.on('chat', (username, message) => {
-        if (chatHandler.isBotMessage(username))
-          return
-
-        perceptionPipeline.ingest(createPerceptionFrameFromChat(username, message))
-      })
+      if (bot.bot.entity) {
+        startCognitive()
+      }
+      else {
+        spawnHandler = () => startCognitive()
+        bot.bot.once('spawn', spawnHandler)
+      }
 
       options.airiClient.onEvent('input:text:voice', (event) => {
         eventManager.emit({
@@ -96,6 +112,12 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
         const reflexManager = container.resolve('reflexManager')
         reflexManager.destroy()
       }
+
+      if (spawnHandler) {
+        bot.bot.off('spawn', spawnHandler)
+        spawnHandler = null
+      }
+      started = false
 
       if (tickHandler) {
         bot.offTick('tick', tickHandler)
