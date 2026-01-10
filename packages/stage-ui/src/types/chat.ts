@@ -38,7 +38,7 @@ export interface ErrorMessage {
   content: string
 }
 
-export interface ContextMessage extends ContextUpdate {
+export interface ContextMessage extends ContextUpdate<Record<string, unknown>, string | CommonContentPart[]> {
   source: WebSocketEventSource | string
   createdAt: number
 }

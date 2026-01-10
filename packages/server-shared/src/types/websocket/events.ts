@@ -1,4 +1,4 @@
-import type { AssistantMessage, Message, ToolMessage, UserMessage } from '@xsai/shared-chat'
+import type { AssistantMessage, CommonContentPart, Message, ToolMessage, UserMessage } from '@xsai/shared-chat'
 
 export interface DiscordGuildMember {
   nickname: string
@@ -60,7 +60,7 @@ interface InputSource {
 interface OutputSource {
   'gen-ai:chat': {
     input: UserMessage
-    contexts: Record<string, ContextUpdate[]>
+    contexts: Record<string, ContextUpdate<Record<string, any>, string | CommonContentPart[]>[]>
     composedMessage: Array<Message>
   }
 }

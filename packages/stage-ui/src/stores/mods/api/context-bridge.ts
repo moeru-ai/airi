@@ -56,8 +56,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       : context.input.content
 
     if (typeof inputContent === 'string' && inputContent.includes('(From Discord user')) {
-  const candidate = Object.values(context.contexts).flat().find(c => c.metadata?.discord)?.metadata?.discord as Discord | undefined
-  return normalizeDiscordMetadata(candidate)
+      const candidate = Object.values(context.contexts).flat().find(c => c.metadata?.discord)?.metadata?.discord as Discord | undefined
+      return normalizeDiscordMetadata(candidate)
     }
     return undefined
   }
@@ -170,7 +170,6 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
         chatStore.onAssistantMessage(async (message, _messageText, context) => {
           const discord = getDiscordContextFrom(context)
-          const discord = getDiscordContextFrom(context)
 
           serverChannelStore.send({
             type: 'output:gen-ai:chat:message',
@@ -189,7 +188,6 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }),
 
         chatStore.onChatTurnComplete(async (chat, context) => {
-          const discord = getDiscordContextFrom(context)
           const discord = getDiscordContextFrom(context)
 
           serverChannelStore.send({

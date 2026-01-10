@@ -17,9 +17,8 @@ export async function setupServerChannel() {
     const app = serverRuntime.setupApp()
 
     const serverInstance = serve(app, {
-      // TODO: fix types
-      // @ts-expect-error - the .crossws property wasn't extended in types
-      plugins: [ws({ resolve: async req => (await app.fetch(req)).crossws })],
+      // TODO: add proper crossws typing upstream
+      plugins: [ws({ resolve: async req => (await app.fetch(req) as any).crossws })],
       port: env.PORT ? Number(env.PORT) : 6121,
       hostname: env.SERVER_RUNTIME_HOSTNAME || 'localhost',
       reusePort: true,
