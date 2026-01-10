@@ -20,7 +20,7 @@ export const useWebSocketInspectorStore = defineStore('devtools:websocket-inspec
       return
 
     history.value.unshift({
-      id: Math.random().toString(36).substring(2),
+      id: nanoid(),
       timestamp: Date.now(),
       direction,
       event,
