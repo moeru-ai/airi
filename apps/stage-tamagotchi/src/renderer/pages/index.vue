@@ -125,6 +125,7 @@ watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTrans
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
+const { askPermission } = settingsAudioDeviceStore
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
 const {
@@ -163,33 +164,14 @@ type CaptionChannelEvent
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
 
 async function handleSpeechStart() {
-  if (shouldUseStreamInput.value && stream.value) {
-    await transcribeForMediaStream(stream.value, {
-      onSentenceEnd: (delta) => {
-        const finalText = delta
-        if (!finalText || !finalText.trim()) {
-          return
-        }
-
-        postCaption({ type: 'caption-speaker', text: finalText })
-
-        void (async () => {
-          try {
-            const provider = await providersStore.getProviderInstance(activeChatProvider.value)
-            if (!provider || !activeChatModel.value)
-              return
-
-            await chatStore.ingest(finalText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
-          }
-          catch (err) {
-            console.error('Failed to send chat from voice:', err)
-          }
-        })()
-      },
-      onSpeechEnd: (text) => {
-        postCaption({ type: 'caption-speaker', text })
-      },
-    })
+  // For streaming providers, transcription should already be started in startAudioInteraction
+  // VAD just detected speech - the transcription session should already be running
+  // For Web Speech API, we don't need to do anything here as it's already listening
+  // The callbacks are set up in startAudioInteraction
+  if (shouldUseStreamInput.value) {
+    // Session is already running from startAudioInteraction
+    // Just log that speech was detected
+    console.info('Speech detected - transcription session should already be active')
     return
   }
 
@@ -207,9 +189,67 @@ async function handleSpeechEnd() {
 
 async function startAudioInteraction() {
   try {
-    await initVAD()
-    if (stream.value)
-      await startVAD(stream.value)
+    console.info('[Main Page] Starting audio interaction...')
+
+    // Initialize VAD in the background - don't block on it
+    // For Web Speech API, VAD is optional as it has built-in speech detection
+    initVAD().then(() => {
+      if (stream.value)
+        return startVAD(stream.value)
+    }).catch((err) => {
+      console.warn('[Main Page] VAD initialization failed (non-critical for Web Speech API):', err)
+    })
+
+    // For Web Speech API and other streaming providers, start transcription immediately when stream is enabled
+    // This ensures recognition starts listening before speech is detected
+    // Note: We don't wait for VAD to initialize - streaming providers can work without it
+    if (shouldUseStreamInput.value && stream.value) {
+      console.info('[Main Page] Starting streaming transcription...', {
+        supportsStreamInput: supportsStreamInput.value,
+        hasStream: !!stream.value,
+      })
+
+      await transcribeForMediaStream(stream.value, {
+        onSentenceEnd: (delta) => {
+          console.info('[Main Page] Received transcription delta:', delta)
+          const finalText = delta
+          if (!finalText || !finalText.trim()) {
+            return
+          }
+
+          postCaption({ type: 'caption-speaker', text: finalText })
+
+          void (async () => {
+            try {
+              const provider = await providersStore.getProviderInstance(activeChatProvider.value)
+              if (!provider || !activeChatModel.value) {
+                console.warn('[Main Page] No provider or model available, skipping chat send')
+                return
+              }
+
+              console.info('[Main Page] Sending transcription to chat:', finalText)
+              await chatStore.send(finalText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+            }
+            catch (err) {
+              console.error('[Main Page] Failed to send chat from voice:', err)
+            }
+          })()
+        },
+        onSpeechEnd: (text) => {
+          console.info('[Main Page] Speech ended, final text:', text)
+          postCaption({ type: 'caption-speaker', text })
+        },
+      })
+
+      console.info('[Main Page] Streaming transcription started successfully')
+    }
+    else {
+      console.warn('[Main Page] Not starting streaming transcription:', {
+        shouldUseStreamInput: shouldUseStreamInput.value,
+        hasStream: !!stream.value,
+        supportsStreamInput: supportsStreamInput.value,
+      })
+    }
 
     // Hook once
     stopOnStopRecord = onStopRecord(async (recording) => {
@@ -251,7 +291,9 @@ function stopAudioInteraction() {
 }
 
 watch(enabled, async (val) => {
+  console.info('[Main Page] Audio enabled changed:', val, 'stream available:', !!stream.value)
   if (val) {
+    await askPermission()
     await startAudioInteraction()
   }
   else {

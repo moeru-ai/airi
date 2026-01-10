@@ -63,6 +63,7 @@ import { useI18n } from 'vue-i18n'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
+import { createWebSpeechAPIProvider } from './providers/web-speech-api'
 
 const ALIYUN_NLS_REGIONS = [
   'cn-shanghai',
@@ -965,6 +966,75 @@ export const useProvidersStore = defineStore('providers', () => {
             errors,
             reason: errors.length > 0 ? errors.map(error => error.message).join(', ') : '',
             valid: errors.length === 0,
+          }
+        },
+      },
+    },
+    'browser-web-speech-api': {
+      id: 'browser-web-speech-api',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
+      nameKey: 'settings.pages.providers.provider.browser-web-speech-api.title',
+      name: 'Web Speech API (Browser)',
+      descriptionKey: 'settings.pages.providers.provider.browser-web-speech-api.description',
+      description: 'Browser-native speech recognition. No API keys.',
+      icon: 'i-solar:microphone-bold-duotone',
+      defaultOptions: () => ({
+        language: 'en-US',
+        continuous: true,
+        interimResults: true,
+        maxAlternatives: 1,
+      }),
+      transcriptionFeatures: {
+        supportsGenerate: false,
+        supportsStreamOutput: true,
+        supportsStreamInput: true,
+      },
+      isAvailableBy: async () => {
+        // Check if Web Speech API is available (browser context required)
+        if (typeof window === 'undefined')
+          return false
+
+        return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window
+      },
+      createProvider: async (_config) => {
+        // Web Speech API doesn't need config, but we accept it for consistency
+        return createWebSpeechAPIProvider()
+      },
+      capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'web-speech-api',
+              name: 'Web Speech API',
+              provider: 'browser-web-speech-api',
+              description: 'Browser-native speech recognition (no API keys required)',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
+      },
+      validators: {
+        validateProviderConfig: () => {
+          // Web Speech API requires no configuration, just browser support
+          // Always return valid if browser supports it, so it auto-configures
+          const isAvailable = typeof window !== 'undefined'
+            && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
+
+          if (!isAvailable) {
+            return {
+              errors: [new Error('Web Speech API is not available. It requires a browser context with SpeechRecognition support (Chrome, Edge, Safari).')],
+              reason: 'Web Speech API is not available in this environment.',
+              valid: false,
+            }
+          }
+
+          // Auto-configure if available (no credentials needed)
+          return {
+            errors: [],
+            reason: '',
+            valid: true,
           }
         },
       },
@@ -1972,8 +2042,19 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Configuration validation functions
   async function validateProvider(providerId: string): Promise<boolean> {
+    const metadata = providerMetadata[providerId]
+    if (!metadata)
+      return false
+
+    // Web Speech API doesn't require credentials - use empty config if not present
+    if (providerId === 'browser-web-speech-api') {
+      if (!providerCredentials.value[providerId]) {
+        providerCredentials.value[providerId] = getDefaultProviderConfig(providerId)
+      }
+    }
+
     const config = providerCredentials.value[providerId]
-    if (!config)
+    if (!config && providerId !== 'browser-web-speech-api')
       return false
 
     const configString = JSON.stringify(config || {})
@@ -1982,19 +2063,19 @@ export const useProvidersStore = defineStore('providers', () => {
     if (runtimeState?.validatedCredentialHash === configString && typeof runtimeState.isConfigured === 'boolean')
       return runtimeState.isConfigured
 
-    const metadata = providerMetadata[providerId]
-    if (!metadata)
-      return false
-
     // Always cache the current config string to prevent re-validating the same config
     if (providerRuntimeState.value[providerId]) {
       providerRuntimeState.value[providerId].validatedCredentialHash = configString
     }
 
-    const validationResult = await metadata.validators.validateProviderConfig(config)
+    const validationResult = await metadata.validators.validateProviderConfig(config || {})
 
     if (providerRuntimeState.value[providerId]) {
       providerRuntimeState.value[providerId].isConfigured = validationResult.valid
+      // Auto-mark Web Speech API as added if valid and available
+      if (providerId === 'browser-web-speech-api' && validationResult.valid) {
+        markProviderAdded(providerId)
+      }
     }
 
     return validationResult.valid
@@ -2037,7 +2118,8 @@ export const useProvidersStore = defineStore('providers', () => {
       .map(async ([providerId]) => {
         try {
           if (providerRuntimeState.value[providerId]) {
-            providerRuntimeState.value[providerId].isConfigured = await validateProvider(providerId)
+            const isValid = await validateProvider(providerId)
+            providerRuntimeState.value[providerId].isConfigured = isValid
           }
         }
         catch {
@@ -2253,16 +2335,22 @@ export const useProvidersStore = defineStore('providers', () => {
     if (cached)
       return cached
 
-    const config = providerCredentials.value[providerId]
-    if (!config)
-      throw new Error(`Provider credentials for ${providerId} not found`)
-
     const metadata = providerMetadata[providerId]
     if (!metadata)
       throw new Error(`Provider metadata for ${providerId} not found`)
 
+    // Web Speech API doesn't require credentials - use empty config
+    let config = providerCredentials.value[providerId]
+    if (!config && providerId === 'browser-web-speech-api') {
+      config = getDefaultProviderConfig(providerId)
+      providerCredentials.value[providerId] = config
+    }
+
+    if (!config && providerId !== 'browser-web-speech-api')
+      throw new Error(`Provider credentials for ${providerId} not found`)
+
     try {
-      const instance = await metadata.createProvider(config) as R
+      const instance = await metadata.createProvider(config || {}) as R
       providerInstanceCache.value[providerId] = instance
       return instance
     }
