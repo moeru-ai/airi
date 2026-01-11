@@ -160,6 +160,14 @@ export type WebSocketEventDataInputs = WebSocketEventInputText | WebSocketEventI
 
 export type WebSocketEventInputs = WebSocketBaseEvent<'input:text' | 'input:text:voice' | 'input:voice', WebSocketEventInputText | WebSocketEventInputTextVoice | WebSocketEventInputVoice>
 
+export interface WebSocketEventBaseMetadata {
+  source?: MetadataEventSource
+  event?: {
+    id?: string
+    parentId?: string
+  }
+}
+
 export interface WebSocketBaseEvent<T, D, S extends string = string> {
   type: T
   data: D
@@ -167,8 +175,12 @@ export interface WebSocketBaseEvent<T, D, S extends string = string> {
    * @deprecated Prefer metadata.source.
    */
   source?: WebSocketEventSource | S
-  metadata?: {
+  metadata: {
     source: MetadataEventSource
+    event: {
+      id: string
+      parentId?: string
+    }
   }
   route?: RouteConfig
 }
@@ -350,5 +362,5 @@ export type WebSocketEvent<C = undefined> = {
 }[keyof WebSocketEvents<C>]
 
 export type WebSocketEventOptionalSource<C = undefined> = {
-  [K in keyof WebSocketEvents<C>]: Omit<WebSocketBaseEvent<K, WebSocketEvents<C>[K]>, 'source'> & Partial<Pick<WebSocketBaseEvent<K, WebSocketEvents<C>[K]>, 'source'>>;
+  [K in keyof WebSocketEvents<C>]: Omit<WebSocketBaseEvent<K, WebSocketEvents<C>[K]>, 'metadata'> & { metadata?: WebSocketEventBaseMetadata };
 }[keyof WebSocketEvents<C>]
