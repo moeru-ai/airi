@@ -8,6 +8,7 @@ import { useLlmmarkerParser } from '../../composables/llm-marker-parser'
 import { useAiriCardStore } from '../modules'
 import { useSpeechRuntimeStore } from '../speech-runtime'
 
+export * from './notebook'
 export * from './orchestrator'
 
 export interface CharacterSparkNotifyReaction {

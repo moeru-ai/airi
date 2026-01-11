@@ -3,7 +3,8 @@ import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
-import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -25,9 +26,10 @@ const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
 const { askPermission } = useSettingsAudioDevice()
 const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(useSettingsAudioDevice())
-const chatStore = useChatStore()
-const { send, onAfterMessageComposed, discoverToolsCompatibility } = chatStore
-const { messages } = storeToRefs(useChatStore())
+const chatOrchestrator = useChatOrchestratorStore()
+const chatSession = useChatSessionStore()
+const { ingest, onAfterMessageComposed, discoverToolsCompatibility } = chatOrchestrator
+const { messages } = storeToRefs(chatSession)
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
 
@@ -42,7 +44,7 @@ async function handleSend() {
   try {
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
 
-    await send(textToSend, {
+    await ingest(textToSend, {
       chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
       model: activeModel.value,
       providerConfig,

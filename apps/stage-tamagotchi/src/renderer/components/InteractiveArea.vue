@@ -3,7 +3,10 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { ChatHistory } from '@proj-airi/stage-ui/components'
-import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
+import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { BasicTextarea } from '@proj-airi/ui'
@@ -16,9 +19,14 @@ import { widgetsTools } from '../stores/tools/builtin/widgets'
 const messageInput = ref('')
 const attachments = ref<{ type: 'image', data: string, mimeType: string, url: string }[]>([])
 
-const chatStore = useChatStore()
-const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = chatStore
-const { messages, sending, streamingMessage } = storeToRefs(chatStore)
+const chatOrchestrator = useChatOrchestratorStore()
+const chatSession = useChatSessionStore()
+const chatStream = useChatStreamStore()
+const { cleanupMessages } = useChatMaintenanceStore()
+const { ingest, onAfterMessageComposed, discoverToolsCompatibility } = chatOrchestrator
+const { messages } = storeToRefs(chatSession)
+const { streamingMessage } = storeToRefs(chatStream)
+const { sending } = storeToRefs(chatOrchestrator)
 const { t } = useI18n()
 const providersStore = useProvidersStore()
 const { activeModel, activeProvider } = storeToRefs(useConsciousnessStore())
@@ -42,7 +50,7 @@ async function handleSend() {
 
   try {
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
-    await send(textToSend, {
+    await ingest(textToSend, {
       model: activeModel.value,
       chatProvider: await providersStore.getProviderInstance<ChatProvider>(activeProvider.value),
       providerConfig,

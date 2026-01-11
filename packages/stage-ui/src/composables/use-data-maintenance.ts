@@ -3,7 +3,8 @@ import type { ChatHistoryItem } from '../types/chat'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useLive2d } from '@proj-airi/stage-ui-live2d'
 
-import { useChatStore } from '../stores/chat'
+import { useChatOrchestratorStore } from '../stores/chat'
+import { useChatSessionStore } from '../stores/chat/session-store'
 import { useDisplayModelsStore } from '../stores/display-models'
 import { useMcpStore } from '../stores/mcp'
 import { useAiriCardStore } from '../stores/modules/airi-card'
@@ -19,7 +20,8 @@ import { useProvidersStore } from '../stores/providers'
 import { useSettings, useSettingsAudioDevice } from '../stores/settings'
 
 export function useDataMaintenance() {
-  const chatStore = useChatStore()
+  const chatStore = useChatSessionStore()
+  const chatOrchestrator = useChatOrchestratorStore()
   const displayModelsStore = useDisplayModelsStore()
   const providersStore = useProvidersStore()
   const settingsStore = useSettings()
@@ -57,6 +59,7 @@ export function useDataMaintenance() {
   }
 
   function deleteAllChatSessions() {
+    chatOrchestrator.cancelPendingSends()
     chatStore.resetAllSessions()
   }
 

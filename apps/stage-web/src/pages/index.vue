@@ -14,7 +14,7 @@ import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
 import { fetchSession } from '@proj-airi/stage-ui/libs/auth'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
-import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
@@ -52,7 +52,7 @@ const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
-const chatStore = useChatStore()
+const chatStore = useChatOrchestratorStore()
 
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
@@ -86,7 +86,7 @@ async function startAudioInteraction() {
         if (!provider || !activeChatModel.value)
           return
 
-        await chatStore.send(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+        await chatStore.ingest(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
       }
       catch (err) {
         console.error('Failed to send chat from voice:', err)
@@ -113,7 +113,7 @@ async function handleSpeechStart() {
             if (!provider || !activeChatModel.value)
               return
 
-            await chatStore.send(finalText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+            await chatStore.ingest(finalText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
           }
           catch (err) {
             console.error('Failed to send chat from voice:', err)

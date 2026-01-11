@@ -8,7 +8,9 @@ import { useDelayMessageQueue, useEmotionsMessageQueue } from '@proj-airi/stage-
 import { llmInferenceEndToken } from '@proj-airi/stage-ui/constants'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '@proj-airi/stage-ui/constants/emotions'
 import { useAudioContext, useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
-import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
@@ -62,9 +64,11 @@ const nowSpeaking = ref(false)
 const currentMotion = ref<{ group: string }>({ group: EmotionThinkMotionName })
 const logLines = ref<string[]>([])
 const chatInput = ref('')
-const chatStore = useChatStore()
+const chatOrchestrator = useChatOrchestratorStore()
+const chatSession = useChatSessionStore()
+const chatMaintenance = useChatMaintenanceStore()
 const chatMessages = computed(() => {
-  return chatStore.messages
+  return chatSession.messages
     .filter(msg => msg.role !== 'system')
     .map((msg) => {
       const text = typeof msg.content === 'string'
@@ -196,7 +200,7 @@ async function sendChat() {
   }
 
   try {
-    await chatStore.send(content, {
+    await chatOrchestrator.ingest(content, {
       model: activeChatModel.value,
       chatProvider: provider as ChatProvider,
     })
@@ -209,13 +213,13 @@ async function sendChat() {
 }
 
 function resetChat() {
-  chatStore.cleanupMessages()
+  chatMaintenance.cleanupMessages()
   chatInput.value = ''
   logLines.value = []
   playbackManager.stopAll('reset')
 }
 
-const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = chatStore
+const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = chatOrchestrator
 const chatHookCleanups: Array<() => void> = []
 let currentIntent: ReturnType<typeof speechPipeline.openIntent> | null = null
 
