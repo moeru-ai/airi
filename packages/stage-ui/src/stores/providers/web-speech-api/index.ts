@@ -289,16 +289,7 @@ export function streamWebSpeechAPITranscription(
           console.warn('Web Speech API failed to restart, creating new instance:', err)
           // If restart fails, create a new instance
           try {
-            const newRecognition = new SpeechRecognition()
-            newRecognition.lang = recognition.lang
-            newRecognition.continuous = recognition.continuous
-            newRecognition.interimResults = recognition.interimResults
-            newRecognition.maxAlternatives = recognition.maxAlternatives
-            newRecognition.onresult = recognition.onresult
-            newRecognition.onerror = recognition.onerror
-            newRecognition.onend = recognition.onend
-            recognitionInstance = newRecognition
-            newRecognition.start()
+            createAndStartNewRecognitionInstance(recognition)
             console.info('Web Speech API created new instance and started')
           }
           catch (newErr) {
@@ -348,6 +339,20 @@ export function streamWebSpeechAPITranscription(
     })
   }
 
+  function createAndStartNewRecognitionInstance(sourceRecognition: any): any {
+    const newRecognition = new SpeechRecognition()
+    newRecognition.lang = sourceRecognition.lang
+    newRecognition.continuous = sourceRecognition.continuous
+    newRecognition.interimResults = sourceRecognition.interimResults
+    newRecognition.maxAlternatives = sourceRecognition.maxAlternatives
+    newRecognition.onresult = sourceRecognition.onresult
+    newRecognition.onerror = sourceRecognition.onerror
+    newRecognition.onend = sourceRecognition.onend
+    recognitionInstance = newRecognition
+    newRecognition.start()
+    return newRecognition
+  }
+
   function startRecognition() {
     try {
       recognition.start()
@@ -382,16 +387,7 @@ export function streamWebSpeechAPITranscription(
       // For other errors, try creating a new instance
       console.warn('Creating new recognition instance due to error')
       try {
-        const newRecognition = new SpeechRecognition()
-        newRecognition.lang = recognition.lang
-        newRecognition.continuous = recognition.continuous
-        newRecognition.interimResults = recognition.interimResults
-        newRecognition.maxAlternatives = recognition.maxAlternatives
-        newRecognition.onresult = recognition.onresult
-        newRecognition.onerror = recognition.onerror
-        newRecognition.onend = recognition.onend
-        recognitionInstance = newRecognition
-        newRecognition.start()
+        createAndStartNewRecognitionInstance(recognition)
         console.info('Web Speech API recognition restarted successfully with new instance')
         return true
       }

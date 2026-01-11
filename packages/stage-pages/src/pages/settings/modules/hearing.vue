@@ -9,8 +9,9 @@ import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Button, FieldCheckbox, FieldRange, FieldSelect } from '@proj-airi/ui'
+import { until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -264,15 +265,18 @@ async function startSTTTest() {
       testStreamWasStarted.value = true
       await startStream()
 
-      // Wait a moment for stream to initialize
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // Wait for the stream to become available with a 3-second timeout.
+      try {
+        await until(stream).toBeTruthy({ timeout: 3000, throwOnTimeout: true })
+      }
+      catch {
+        handleStreamStartError()
+        return
+      }
 
+      // Type guard: until guarantees stream.value is truthy, but TypeScript doesn't know this
       if (!stream.value) {
-        testTranscriptionError.value = 'Failed to start audio stream. Please check microphone permissions.'
-        testStatusMessage.value = 'Error: Failed to start audio stream'
-        isTranscribing.value = false
-        isTestingSTT.value = false
-        testStreamWasStarted.value = false
+        handleStreamStartError()
         return
       }
     }
@@ -281,7 +285,7 @@ async function startSTTTest() {
     }
 
     // Check if provider supports streaming input
-    if (shouldUseStreamInput.value) {
+    if (shouldUseStreamInput.value && stream.value) {
       testStatusMessage.value = 'Starting streaming transcription...'
       console.info('Starting STT test with streaming input for provider:', activeTranscriptionProvider.value)
 
@@ -406,6 +410,14 @@ watch(() => audios.value.length, async (newLength, oldLength) => {
 
 watch(selectedAudioInput, async () => isMonitoring.value && await setupAudioMonitoring())
 
+function handleStreamStartError() {
+  testTranscriptionError.value = 'Failed to start audio stream. Please check microphone permissions.'
+  testStatusMessage.value = 'Error: Failed to start audio stream'
+  isTranscribing.value = false
+  isTestingSTT.value = false
+  testStreamWasStarted.value = false
+}
+
 watch(activeTranscriptionProvider, async (provider) => {
   if (!provider)
     return
@@ -421,19 +433,6 @@ watch(activeTranscriptionProvider, async (provider) => {
     }
   }
 }, { immediate: true })
-
-onMounted(async () => {
-  await hearingStore.loadModelsForProvider(activeTranscriptionProvider.value)
-
-  // Auto-select first model for Web Speech API if no model is selected
-  if (activeTranscriptionProvider.value === 'browser-web-speech-api' && !activeTranscriptionModel.value) {
-    const models = providerModels.value
-    if (models.length > 0) {
-      activeTranscriptionModel.value = models[0].id
-      console.info('Auto-selected Web Speech API model:', models[0].id)
-    }
-  }
-})
 
 onUnmounted(() => {
   stopSTTTest()

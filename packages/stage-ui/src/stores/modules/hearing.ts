@@ -452,9 +452,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
             // This ensures callbacks are always up-to-date
             console.info('Web Speech API: New callbacks provided, restarting session to use them')
             await stopStreamingTranscription(false, existingSession.providerId)
-            // Small delay to ensure cleanup completes
-            await new Promise(resolve => setTimeout(resolve, 100))
             // Continue to create new session below
+            // Note: stopStreamingTranscription already clears streamingSession.value and waits for async cleanup
           }
           else {
             // No new callbacks - just bump idle timer and reuse existing session
@@ -548,26 +547,22 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
         // Stream out text deltas
         if (result.textStream) {
           void (async () => {
-            let fullText = ''
             try {
               const reader = result.textStream.getReader()
 
               while (true) {
-                const { done, value } = await reader.read()
+                const { done } = await reader.read()
                 if (done)
                   break
-                if (value) {
-                  fullText += value
-                  // onSentenceEnd is already called from the recognition.onresult handler
-                }
+                // onSentenceEnd is already called from the recognition.onresult handler
+                // Note: onSpeechEnd is called from web-speech-api/index.ts recognition.onend handler
+                // (line 332 for non-continuous mode, line 271 for errors)
+                // We don't call it here to avoid duplicate calls
               }
             }
             catch (err) {
               console.error('Error reading text stream:', err)
             }
-            // Note: onSpeechEnd is called from web-speech-api/index.ts recognition.onend handler
-            // (line 332 for non-continuous mode, line 271 for errors)
-            // We don't call it here to avoid duplicate calls
           })()
         }
 

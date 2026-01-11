@@ -12,6 +12,7 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { streamWebSpeechAPITranscription } from '@proj-airi/stage-ui/stores/providers/web-speech-api'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Button, FieldSelect } from '@proj-airi/ui'
+import { until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -122,6 +123,14 @@ const testStreamWasStarted = ref(false)
 const testRecognitionInstance = ref<any>(null)
 const testAbortController = ref<AbortController | null>(null)
 
+function handleStreamStartError() {
+  testTranscriptionError.value = 'Failed to start audio stream. Please check microphone permissions.'
+  testStatusMessage.value = 'Error: Failed to start audio stream'
+  isTranscribing.value = false
+  isTestingSTT.value = false
+  testStreamWasStarted.value = false
+}
+
 // Speech-to-Text test functions (hardcoded to use Web Speech API)
 async function startSTTTest() {
   if (!selectedAudioInput.value) {
@@ -148,14 +157,18 @@ async function startSTTTest() {
       testStreamWasStarted.value = true
       await startStream()
 
-      // Wait a moment for stream to initialize
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // Wait for the stream to become available with a 3-second timeout.
+      try {
+        await until(stream).toBeTruthy({ timeout: 3000, throwOnTimeout: true })
+      }
+      catch {
+        handleStreamStartError()
+        return
+      }
 
+      // Type guard: until guarantees stream.value is truthy, but TypeScript doesn't know this
       if (!stream.value) {
-        testTranscriptionError.value = 'Failed to start audio stream. Please check microphone permissions.'
-        testStatusMessage.value = 'Error: Failed to start audio stream'
-        isTranscribing.value = false
-        isTestingSTT.value = false
+        handleStreamStartError()
         return
       }
     }
@@ -171,6 +184,14 @@ async function startSTTTest() {
     // This ensures we always use Web Speech API on this page
     const abortController = new AbortController()
     testAbortController.value = abortController
+
+    if (!stream.value) {
+      testTranscriptionError.value = 'Audio stream is not available'
+      testStatusMessage.value = 'Error: Audio stream is not available'
+      isTranscribing.value = false
+      isTestingSTT.value = false
+      return
+    }
 
     const result = streamWebSpeechAPITranscription(stream.value, {
       language: language.value,
@@ -227,7 +248,7 @@ async function stopSTTTest() {
       try {
         testRecognitionInstance.value.stop()
       }
-      catch {}
+      catch (err) { console.warn('Error stopping recognition instance:', err) }
       testRecognitionInstance.value = null
     }
 
