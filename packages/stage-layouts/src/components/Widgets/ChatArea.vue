@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
@@ -10,6 +11,7 @@ import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea, FieldSelect } from '@proj-airi/ui'
+import { until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { TooltipContent, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
@@ -180,7 +182,10 @@ async function startListening() {
     // Auto-configure Web Speech API as default if no provider is configured
     if (!hearingConfigured.value) {
       // Check if Web Speech API is available in the browser
+      // Web Speech API is NOT available in Electron (stage-tamagotchi) - it requires Google's embedded API keys
+      // which are not available in Electron, causing it to fail at runtime
       const isWebSpeechAvailable = typeof window !== 'undefined'
+        && !isStageTamagotchi() // Explicitly exclude Electron
         && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
 
       if (isWebSpeechAvailable) {
@@ -231,8 +236,15 @@ async function startListening() {
       if (!stream.value && enabled.value) {
         console.info('[ChatArea] Attempting to start stream manually...')
         startStream()
-        // Wait a moment for stream to initialize after starting
-        await new Promise(resolve => setTimeout(resolve, 300))
+        // Wait for the stream to become available with a timeout.
+        try {
+          await until(stream).toBeTruthy({ timeout: 3000, throwOnTimeout: true })
+        }
+        catch {
+          console.error('[ChatArea] Timed out waiting for audio stream.')
+          isListening.value = false
+          return
+        }
       }
     }
 

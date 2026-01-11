@@ -192,11 +192,16 @@ async function startAudioInteraction() {
       console.warn('[Main Page] VAD initialization failed (non-critical for Web Speech API):', err)
     })
 
-    if (shouldUseStreamInput.value && stream.value) {
+    if (shouldUseStreamInput.value) {
       console.info('[Main Page] Starting streaming transcription...', {
         supportsStreamInput: supportsStreamInput.value,
         hasStream: !!stream.value,
       })
+
+      if (!stream.value) {
+        console.warn('[Main Page] Stream not available despite shouldUseStreamInput being true')
+        return
+      }
 
       await transcribeForMediaStream(stream.value, {
         onSentenceEnd: (delta) => {
