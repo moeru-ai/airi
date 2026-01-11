@@ -62,7 +62,7 @@ export function createAgentContainer(options: {
         eventBus,
         logger: useLogg('ruleEngine').useGlobalConfig(),
         config: {
-          rulesDir: new URL('../rules', import.meta.url).pathname,
+          rulesDir: new URL('./rules', import.meta.url).pathname,
           slotMs: 20,
         },
       })
