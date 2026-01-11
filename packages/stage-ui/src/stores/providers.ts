@@ -991,10 +991,17 @@ export const useProvidersStore = defineStore('providers', () => {
         supportsStreamInput: true,
       },
       isAvailableBy: async () => {
-        // Check if Web Speech API is available (browser context required)
+        // Web Speech API is only available in browser contexts, NOT in Electron
+        // Even though Electron uses Chromium, Web Speech API requires Google's embedded API keys
+        // which are not available in Electron, causing it to fail at runtime
         if (typeof window === 'undefined')
           return false
 
+        // Explicitly exclude Electron - Web Speech API doesn't work there
+        if (isStageTamagotchi())
+          return false
+
+        // Check if API is available in browser
         return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window
       },
       createProvider: async (_config) => {

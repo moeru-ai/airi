@@ -506,19 +506,12 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           abortSignal: abortController.signal,
           onSentenceEnd: (delta) => {
             bumpIdle() // Bump idle timer on activity
-            // Call both the options callback and the session callback (if it exists)
+            // Call the options callback - session callbacks are the same, so no need to call both
             options?.onSentenceEnd?.(delta)
-            // Also store in session for later retrieval if needed
-            if (streamingSession.value) {
-              streamingSession.value.callbacks?.onSentenceEnd?.(delta)
-            }
           },
           onSpeechEnd: (text) => {
+            // Call the options callback - session callbacks are the same, so no need to call both
             options?.onSpeechEnd?.(text)
-            // Also store in session for later retrieval if needed
-            if (streamingSession.value) {
-              streamingSession.value.callbacks?.onSpeechEnd?.(text)
-            }
           },
         })
 

@@ -313,6 +313,11 @@ export function streamWebSpeechAPITranscription(
       }, 100)
     }
     else {
+      // Don't try to enqueue/close if the stream has already been aborted/errored
+      if (options?.abortSignal?.aborted || deferredText.isRejected) {
+        return
+      }
+
       const doneDelta: StreamTranscriptionDelta = {
         type: 'transcript.text.done',
         delta: '',
