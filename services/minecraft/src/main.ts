@@ -13,7 +13,7 @@ import { CognitiveEngine } from './cognitive'
 import { initBot } from './composables/bot'
 import { config, initEnv } from './composables/config'
 import { createNeuriAgent } from './composables/neuri'
-import { DebugService } from './debug-server'
+import { DebugService } from './debug'
 import { wrapPlugin } from './libs/mineflayer'
 import { initLogger, useLogger } from './utils/logger'
 

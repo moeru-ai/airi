@@ -60,6 +60,9 @@ catalogs:
     '@types/unist':
       specifier: ^3.0.3
       version: 3.0.3
+    '@types/ws':
+      specifier: ^8.18.1
+      version: 8.18.1
     '@xsai-ext/providers':
       specifier: ^0.4.0-beta.13
       version: 0.4.0
@@ -150,6 +153,9 @@ catalogs:
     vue-sonner:
       specifier: 2.0.9
       version: 2.0.9
+    ws:
+      specifier: ^8.18.3
+      version: 8.18.3
     xsschema:
       specifier: 0.4.0-beta.13
       version: 0.4.0-beta.13
@@ -3014,12 +3020,19 @@ importers:
       vec3:
         specifier: ^0.1.10
         version: 0.1.10
+      ws:
+        specifier: 'catalog:'
+        version: 8.18.3(bufferutil@4.1.0)(utf-8-validate@5.0.10)
       zod:
         specifier: ^4.2.1
         version: 4.2.1
       zod-to-json-schema:
         specifier: ^3.25.1
         version: 3.25.1(zod@4.2.1)
+    devDependencies:
+      '@types/ws':
+        specifier: 'catalog:'
+        version: 8.18.1
 
   services/satori-bot:
     dependencies:

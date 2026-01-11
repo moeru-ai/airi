@@ -6,10 +6,10 @@ import type { PerceptionFrame } from './frame'
 import type { PerceptionSignal } from './types/signals'
 import type { PerceptionStage } from './types/stage'
 
-import { DebugService } from '../../debug-server'
-import { SaliencyDetector } from './saliency-detector'
+import { DebugService } from '../../debug'
 import { createPerceptionFrameFromRawEvent } from './frame'
 import { MineflayerPerceptionCollector } from './mineflayer-perception-collector'
+import { SaliencyDetector } from './saliency-detector'
 
 export class PerceptionPipeline {
   private readonly detector: SaliencyDetector
@@ -119,7 +119,7 @@ export class PerceptionPipeline {
     this.saliencyEmitTimer = setInterval(() => {
       if (!this.initialized)
         return
-      DebugService.getInstance().emit('saliency', this.detector.getDebugSnapshot({ maxKeys: 30 }))
+      DebugService.getInstance().emit('saliency', this.detector.getDebugSnapshot())
     }, 100)
 
     this.collector = new MineflayerPerceptionCollector({

@@ -1,6 +1,6 @@
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 
-import { DebugService } from '../debug-server'
+import { DebugService } from '../debug'
 
 export type Logger = ReturnType<typeof useLogg>
 

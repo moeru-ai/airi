@@ -1,41 +1,76 @@
 import type { Logg } from '@guiiai/logg'
 
-import { DEFAULT_THRESHOLD, DEFAULT_WINDOW_TICKS, SALIENCY_RULES, type SaliencyRuleBook } from './saliency-rules'
+import type { SaliencyRuleBook } from './saliency-rules'
 import type { RawPerceptionEvent } from './types/raw-events'
 import type { PerceptionSignal } from './types/signals'
 
-type WindowCounter = {
-  windowTicks: number
+import { EVENT_KEYS, SALIENCY_RULES, WINDOW_SIZE } from './saliency-rules'
+
+/**
+ * Circular buffer counter for a single event type
+ */
+interface WindowCounter {
+  /** Current head position in circular buffer */
   head: number
+  /** Event counts per slot */
   counts: number[]
+  /** Trigger markers per slot (1 = fired in this slot) */
   triggers: number[]
+  /** Running total of counts in window */
   total: number
+  /** Slot when last event was received */
   lastEventSlot: number
+  /** Slot when threshold was last triggered */
+  lastFireSlot: number | null
+  /** Total count when last fired */
+  lastFireTotal: number
+}
+
+/**
+ * Debug snapshot data for a single counter
+ */
+export interface CounterSnapshot {
+  key: string
+  total: number
+  window: number[]
+  triggers: number[]
   lastFireSlot: number | null
   lastFireTotal: number
 }
 
-export class SaliencyDetector {
-  private readonly counters = new Map<string, WindowCounter>()
+/**
+ * Debug snapshot for the entire saliency system
+ */
+export interface SaliencySnapshot {
+  slot: number
+  counters: CounterSnapshot[]
+}
 
+export class SaliencyDetector {
+  /** Fixed set of counters - one per event key, never deleted */
+  private readonly counters: Map<string, WindowCounter> = new Map()
+
+  /** Current slot (advances every slotMs) */
   private currentSlot = 0
 
+  /** Timer for advancing slots */
   private timer: ReturnType<typeof setInterval> | null = null
 
+  /** Milliseconds per slot */
   private readonly slotMs = 20
-
-  private lastStatsAt = 0
-  private emittedSinceStats: Record<string, number> = {}
 
   constructor(
     private readonly deps: {
       logger: Logg
       onAttention: (signal: PerceptionSignal) => void
       rules?: SaliencyRuleBook
-      windowTicks?: number
-      threshold?: number
     },
-  ) { }
+  ) {
+    // Initialize all counters at construction (fixed set)
+    for (const key of EVENT_KEYS) {
+      this.counters.set(key, this.createCounter())
+    }
+  }
 
   public start(): void {
     if (this.timer)
@@ -44,12 +79,6 @@ export class SaliencyDetector {
     this.timer = setInterval(() => {
       this.currentSlot += 1
       this.advanceWindows()
-
-      const now = Date.now()
-      if (now - this.lastStatsAt >= 2000) {
-        this.lastStatsAt = now
-        this.emittedSinceStats = {}
-      }
     }, this.slotMs)
   }
 
@@ -60,6 +89,9 @@ export class SaliencyDetector {
     this.timer = null
   }
 
+  /**
+   * Process an incoming perception event
+   */
   public ingest(event: RawPerceptionEvent): void {
     const rule = this.lookupRule(event)
     if (!rule)
@@ -68,159 +100,135 @@ export class SaliencyDetector {
     if (rule.predicate && !rule.predicate(event))
       return
 
-    const tick = this.currentSlot
-    const windowTicks = rule.windowTicks ?? this.deps.windowTicks ?? DEFAULT_WINDOW_TICKS
-    const threshold = rule.threshold ?? this.deps.threshold ?? DEFAULT_THRESHOLD
-    const key = rule.key(event)
+    const counter = this.counters.get(rule.key)
+    if (!counter) {
+      // Unknown key - should not happen with fixed key set
+      return
+    }
 
-    const counter = this.getOrCreateCounter(key, windowTicks)
-
+    // Increment count in current slot
     counter.counts[counter.head] = (counter.counts[counter.head] ?? 0) + 1
     counter.total += 1
-    counter.lastEventSlot = tick
+    counter.lastEventSlot = this.currentSlot
 
-    if (counter.total >= threshold) {
-      counter.lastFireSlot = tick
+    // Check threshold
+    if (counter.total >= rule.threshold) {
+      counter.lastFireSlot = this.currentSlot
       counter.lastFireTotal = counter.total
       counter.triggers[counter.head] = 1
       this.resetCounter(counter)
-      const signal = rule.buildSignal(event)
-      this.emitSignal(signal)
+      this.emitSignal(rule.buildSignal(event))
     }
   }
 
-  public getDebugSnapshot(options?: { maxKeys?: number }): {
-    slot: number
-    keys: Array<{
-      key: string
-      total: number
-      windowTicks: number
-      window: number[]
-      triggers: number[]
-      lastFireSlot: number | null
-      lastFireTotal: number
-    }>
-  } {
-    const maxKeys = options?.maxKeys ?? 30
+  /**
+   * Get debug snapshot for visualization
+   * Returns all counters in fixed order (always same keys, same order)
+   */
+  public getDebugSnapshot(): SaliencySnapshot {
+    const counters: CounterSnapshot[] = []
 
-    const rows = Array.from(this.counters.entries()).map(([key, counter]) => {
-      const window = this.exportWindow(counter)
-      const triggers = this.exportTriggers(counter)
-      const triggerSum = triggers.reduce((acc, v) => acc + (v ? 1 : 0), 0)
-      const firedRecently = counter.lastFireSlot !== null && (this.currentSlot - counter.lastFireSlot) <= counter.windowTicks
+    for (const key of EVENT_KEYS) {
+      const counter = this.counters.get(key)
+      if (!counter)
+        continue
 
-      return {
+      counters.push({
         key,
         total: counter.total,
-        windowTicks: counter.windowTicks,
-        window,
-        triggers,
+        window: this.exportWindow(counter),
+        triggers: this.exportTriggers(counter),
         lastFireSlot: counter.lastFireSlot,
         lastFireTotal: counter.lastFireTotal,
-        _triggerSum: triggerSum,
-        _firedRecently: firedRecently,
-      }
-    })
-
-    // Ensure keys with triggers/recent fires stay visible even if total was reset.
-    rows.sort((a, b) => {
-      if (a._triggerSum !== b._triggerSum)
-        return b._triggerSum - a._triggerSum
-
-      const af = a._firedRecently ? 1 : 0
-      const bf = b._firedRecently ? 1 : 0
-      if (af !== bf)
-        return bf - af
-
-      const at = a.lastFireSlot ?? -1
-      const bt = b.lastFireSlot ?? -1
-      if (at !== bt)
-        return bt - at
-
-      return b.total - a.total
-    })
+      })
+    }
 
     return {
       slot: this.currentSlot,
-      keys: rows.slice(0, maxKeys).map(({ _triggerSum: _ts, _firedRecently: _fr, ...row }) => row),
+      counters,
     }
   }
 
+  /**
+   * Advance all windows by one slot
+   * Never deletes counters - they persist with zeroed values
+   */
   private advanceWindows(): void {
-    for (const [key, counter] of this.counters.entries()) {
-      counter.head = (counter.head + 1) % counter.windowTicks
+    for (const counter of this.counters.values()) {
+      // Move head forward in circular buffer
+      counter.head = (counter.head + 1) % WINDOW_SIZE
+
+      // Subtract expired slot from total
       const expired = counter.counts[counter.head] ?? 0
       if (expired > 0) {
         counter.total = Math.max(0, counter.total - expired)
-        counter.counts[counter.head] = 0
-      }
-      else {
-        counter.counts[counter.head] = 0
       }
 
+      // Clear the slot for new data
+      counter.counts[counter.head] = 0
       counter.triggers[counter.head] = 0
-
-      if (counter.total === 0 && this.currentSlot - counter.lastEventSlot >= counter.windowTicks) {
-        this.counters.delete(key)
-      }
     }
   }
 
-  private getOrCreateCounter(key: string, windowTicks: number): WindowCounter {
-    const existing = this.counters.get(key)
-    if (existing && existing.windowTicks === windowTicks)
-      return existing
-
-    const created: WindowCounter = {
-      windowTicks,
+  /**
+   * Create a new counter with zeroed circular buffer
+   */
+  private createCounter(): WindowCounter {
+    return {
       head: 0,
-      counts: Array.from({ length: windowTicks }, () => 0),
-      triggers: Array.from({ length: windowTicks }, () => 0),
+      counts: new Array(WINDOW_SIZE).fill(0),
+      triggers: new Array(WINDOW_SIZE).fill(0),
       total: 0,
-      lastEventSlot: this.currentSlot,
+      lastEventSlot: 0,
       lastFireSlot: null,
       lastFireTotal: 0,
     }
-    this.counters.set(key, created)
-    return created
   }
 
+  /**
+   * Reset counter counts (after threshold triggered)
+   */
   private resetCounter(counter: WindowCounter): void {
     counter.total = 0
     counter.counts.fill(0)
   }
 
+  /**
+   * Export window data in chronological order (oldest -> newest)
+   */
   private exportWindow(counter: WindowCounter): number[] {
-    const w = counter.windowTicks
-    const out = new Array<number>(w)
-    // Oldest -> newest. The newest bucket is at `head`.
-    for (let i = 0; i < w; i++) {
-      const idx = (counter.head + 1 + i) % w
+    const out = new Array<number>(WINDOW_SIZE)
+    for (let i = 0; i < WINDOW_SIZE; i++) {
+      const idx = (counter.head + 1 + i) % WINDOW_SIZE
       out[i] = counter.counts[idx] ?? 0
     }
     return out
   }
 
+  /**
+   * Export trigger markers in chronological order (oldest -> newest)
+   */
   private exportTriggers(counter: WindowCounter): number[] {
-    const w = counter.windowTicks
-    const out = new Array<number>(w)
-    // Oldest -> newest. The newest bucket is at `head`.
-    for (let i = 0; i < w; i++) {
-      const idx = (counter.head + 1 + i) % w
+    const out = new Array<number>(WINDOW_SIZE)
+    for (let i = 0; i < WINDOW_SIZE; i++) {
+      const idx = (counter.head + 1 + i) % WINDOW_SIZE
       out[i] = counter.triggers[idx] ?? 0
     }
     return out
   }
 
+  /**
+   * Find matching rule for an event
+   */
   private lookupRule(event: RawPerceptionEvent) {
     const rules = this.deps.rules ?? SALIENCY_RULES
     return rules[event.modality]?.[event.kind]
   }
 
+  /**
+   * Emit a perception signal via callback
+   */
   private emitSignal(signal: PerceptionSignal): void {
-    const key = `emit.${signal.type}.${signal.metadata.action || 'unknown'}`
-    this.emittedSinceStats[key] = (this.emittedSinceStats[key] ?? 0) + 1
-
     this.deps.logger.withFields({
       type: signal.type,
       desc: signal.description,
