@@ -7,14 +7,15 @@ import { screen } from 'electron'
 import { cursorScreenPoint, startLoopGetCursorScreenPoint } from '../../../shared/electron/screen'
 import { electron } from '../../../shared/eventa'
 import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecycle'
-import { useLoop } from '../../libs/event-loop'
+import { createRendererLoop } from '../../libs/electron/renderer-loop'
 
 export function createScreenService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
-  const { start, stop } = useLoop(() => {
-    const dipPos = screen.getCursorScreenPoint()
-    params.context.emit(cursorScreenPoint, dipPos)
-  }, {
-    autoStart: false,
+  const { start, stop } = createRendererLoop({
+    window: params.window,
+    run: () => {
+      const dipPos = screen.getCursorScreenPoint()
+      params.context.emit(cursorScreenPoint, dipPos)
+    },
   })
 
   onAppWindowAllClosed(() => stop())
