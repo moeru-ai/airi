@@ -78,16 +78,20 @@ describe('perceptionPipeline (e2e)', () => {
       .filter(e => e.type === 'perception')
 
     expect(perceptionEvents.length).toBeGreaterThanOrEqual(1)
-    expect((perceptionEvents[0] as any).payload).toMatchObject({
+
+    // Updated assertion for PerceptionSignal
+    const signal = (perceptionEvents[0] as any).payload
+    expect(signal.type).toBe('entity_attention')
+    expect(signal.metadata).toMatchObject({
       kind: 'player',
-      playerAction: 'punch',
-      playerName: 'alice',
+      action: 'punch',
+      displayName: 'alice',
     })
 
     pipeline.destroy()
   })
 
-  it('router emits stimulus for chat frames ingested into pipeline', () => {
+  it('router emits perception signal for chat frames ingested into pipeline', () => {
     const logger = makeLogger()
     const eventManager = new EventManager()
     const emitSpy = vi.spyOn(eventManager, 'emit')
@@ -100,14 +104,20 @@ describe('perceptionPipeline (e2e)', () => {
     pipeline.ingest(createPerceptionFrameFromChat('alice', 'hi'))
     pipeline.tick(0)
 
-    const stimulusEvents = emitSpy.mock.calls
+    // Should now be a 'perception' event
+    const perceptionEvents = emitSpy.mock.calls
       .map(c => c[0])
-      .filter(e => e.type === 'stimulus')
+      .filter(e => e.type === 'perception')
 
-    expect(stimulusEvents.length).toBe(1)
-    expect((stimulusEvents[0] as any).payload).toMatchObject({
-      content: 'hi',
-      metadata: { displayName: 'alice' },
+    expect(perceptionEvents.length).toBe(1)
+
+    const signal = (perceptionEvents[0] as any).payload
+    expect(signal.type).toBe('chat_message')
+    expect(signal.description).toContain('alice')
+    expect(signal.description).toContain('hi')
+    expect(signal.metadata).toMatchObject({
+      username: 'alice',
+      message: 'hi',
     })
 
     pipeline.destroy()

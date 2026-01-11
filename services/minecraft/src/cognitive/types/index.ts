@@ -29,7 +29,7 @@ export interface CognitiveEngineOptions {
 }
 
 // TODO: currently stimulus is just chat events, consider renaming to 'input' or 'user_interaction'
-export type EventCategory = 'stimulus' | 'perception' | 'feedback' | 'world_update' | 'system_alert'
+export type EventCategory = 'perception' | 'feedback' | 'world_update' | 'system_alert'
 
 export interface BotEventSource {
     type: 'minecraft' | 'airi' | 'system'
@@ -45,14 +45,6 @@ export interface BotEvent<T = any> {
     // Layered Architecture Metadata
     priority?: number // Higher is more urgent
     handled?: boolean // Set by Reflex layer to inhibit Conscious layer
-}
-
-export interface StimulusPayload {
-    content: string
-    metadata?: {
-        entity?: any // prismarine-entity Entity
-        displayName?: string
-    }
 }
 
 export interface WorldUpdatePayload {
