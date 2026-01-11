@@ -4,6 +4,7 @@ import type { CognitiveEngineOptions, MineflayerWithAgents } from './types'
 import { config } from '../composables/config'
 import { ChatMessageHandler } from '../libs/mineflayer'
 import { createAgentContainer } from './container'
+import { createPerceptionFrameFromChat } from './perception/frame'
 
 export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlugin {
   let container: ReturnType<typeof createAgentContainer>
@@ -54,20 +55,7 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
         if (chatHandler.isBotMessage(username))
           return
 
-        eventManager.emit({
-          type: 'stimulus',
-          payload: {
-            content: message,
-            metadata: {
-              displayName: username,
-            },
-          },
-          source: {
-            type: 'minecraft',
-            id: username,
-          },
-          timestamp: Date.now(),
-        })
+        perceptionPipeline.ingest(createPerceptionFrameFromChat(username, message))
       })
 
       options.airiClient.onEvent('input:text:voice', (event) => {

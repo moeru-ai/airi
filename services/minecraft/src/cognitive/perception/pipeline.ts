@@ -1,18 +1,28 @@
 import type { Logg } from '@guiiai/logg'
 
 import type { MineflayerWithAgents } from '../types'
+import type { StimulusPayload } from '../types'
 import type { EventManager } from './event-manager'
-import type { RawPerceptionEvent } from './raw-events'
 
+import type { PerceptionFrame } from './frame'
+
+import type { AttentionEventPayload } from './attention-detector'
 import { AttentionDetector } from './attention-detector'
+import { createPerceptionFrameFromRawEvent } from './frame'
 import { MineflayerPerceptionCollector } from './mineflayer-perception-collector'
+import { NormalizerStage } from './normalizer-stage'
 import { RawEventBuffer } from './raw-event-buffer'
+import type { PerceptionStage } from './stage'
 
 export class PerceptionPipeline {
   private readonly buffer = new RawEventBuffer()
   private readonly detector: AttentionDetector
   private collector: MineflayerPerceptionCollector | null = null
   private initialized = false
+
+  private readonly stages: PerceptionStage[]
+
+  private currentFrame: PerceptionFrame | null = null
 
   private lastStatsAt = 0
   private collectedSinceStats = 0
@@ -25,9 +35,81 @@ export class PerceptionPipeline {
     },
   ) {
     this.detector = new AttentionDetector({
-      eventManager: this.deps.eventManager,
       logger: this.deps.logger,
+      onAttention: (payload) => {
+        // This is only called synchronously while we're handling a specific frame.
+        // Attach derived signals to that frame; router stage will emit them.
+        this.currentFrame?.signals.push({
+          type: 'attention',
+          payload,
+        })
+      },
     })
+
+    this.stages = [
+      new NormalizerStage({
+        maxDistance: 32,
+      }),
+      {
+        name: 'attention',
+        tick: (deltaMs) => {
+          this.detector.tick(deltaMs)
+        },
+        handle: (frame) => {
+          if (frame.kind !== 'world_raw')
+            return frame
+
+          this.currentFrame = frame
+          try {
+            const raw = frame.raw as any
+            this.detector.ingest(raw)
+          }
+          finally {
+            this.currentFrame = null
+          }
+          return frame
+        },
+      },
+      {
+        name: 'router',
+        handle: (frame) => {
+          if (frame.kind === 'chat_raw') {
+            const raw = frame.raw as { username: string, message: string }
+            this.deps.eventManager.emit<StimulusPayload>({
+              type: 'stimulus',
+              payload: {
+                content: raw.message,
+                metadata: {
+                  displayName: raw.username,
+                },
+              },
+              source: {
+                type: 'minecraft',
+                id: raw.username,
+              },
+              timestamp: Date.now(),
+            })
+          }
+
+          // Emit all attention signals centrally as BotEvents
+          for (const signal of frame.signals) {
+            if (signal.type !== 'attention')
+              continue
+
+            const payload = signal.payload as AttentionEventPayload
+
+            this.deps.eventManager.emit<AttentionEventPayload>({
+              type: 'perception',
+              payload,
+              source: { type: 'minecraft', id: 'perception' },
+              timestamp: Date.now(),
+            })
+          }
+
+          return frame
+        },
+      },
+    ]
   }
 
   public init(bot: MineflayerWithAgents): void {
@@ -42,7 +124,7 @@ export class PerceptionPipeline {
     this.collector = new MineflayerPerceptionCollector({
       logger: this.deps.logger,
       emitRaw: (event) => {
-        this.collect(event)
+        this.ingest(createPerceptionFrameFromRawEvent(event))
       },
       maxDistance: 32,
     })
@@ -57,10 +139,10 @@ export class PerceptionPipeline {
     this.initialized = false
   }
 
-  public collect(event: RawPerceptionEvent): void {
+  public ingest(frame: PerceptionFrame): void {
     if (!this.initialized)
       return
-    this.buffer.push(event)
+    this.buffer.push(frame)
     this.collectedSinceStats++
   }
 
@@ -70,16 +152,24 @@ export class PerceptionPipeline {
 
     const startedAt = Date.now()
 
-    this.detector.tick(deltaMs)
+    for (const stage of this.stages) {
+      stage.tick?.(deltaMs)
+    }
 
-    const events = this.buffer.drain()
-    this.processedSinceStats += events.length
-    for (const event of events) {
-      try {
-        this.detector.ingest(event)
-      }
-      catch (err) {
-        this.deps.logger.withError(err as Error).error('PerceptionPipeline: detector error')
+    const frames = this.buffer.drain()
+    this.processedSinceStats += frames.length
+    for (const frame of frames) {
+      let current: PerceptionFrame | null = frame
+      for (const stage of this.stages) {
+        if (!current)
+          break
+        try {
+          current = stage.handle(current)
+        }
+        catch (err) {
+          this.deps.logger.withError(err as Error).error('PerceptionPipeline: stage error')
+          break
+        }
       }
     }
 
@@ -89,7 +179,7 @@ export class PerceptionPipeline {
         deltaMs,
         tickCostMs: now - startedAt,
         queueDepth: this.buffer.size(),
-        drained: events.length,
+        drained: frames.length,
         collected: this.collectedSinceStats,
         processed: this.processedSinceStats,
       }).log('PerceptionPipeline: stats')

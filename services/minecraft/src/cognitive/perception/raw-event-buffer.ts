@@ -1,9 +1,9 @@
-import type { RawPerceptionEvent } from './raw-events'
+import type { PerceptionFrame } from './frame'
 
 export class RawEventBuffer {
-  private queue: RawPerceptionEvent[] = []
+  private queue: PerceptionFrame[] = []
 
-  public push(event: RawPerceptionEvent): void {
+  public push(event: PerceptionFrame): void {
     this.queue.push(event)
   }
 
@@ -11,7 +11,7 @@ export class RawEventBuffer {
     return this.queue.length
   }
 
-  public drain(): RawPerceptionEvent[] {
+  public drain(): PerceptionFrame[] {
     if (this.queue.length === 0)
       return []
     const drained = this.queue
