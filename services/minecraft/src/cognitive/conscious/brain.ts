@@ -57,10 +57,10 @@ export class Brain {
     this.log('INFO', 'Brain: Initializing...')
 
     // Unified Perception Signal Handler
-    this.deps.eventManager.on<PerceptionSignal>('perception', async (event) => {
-      this.log('INFO', `Brain: Received perception signal: ${event.payload.type} - ${event.payload.description}`)
-      await this.enqueueEvent(bot, event)
-    })
+    // this.deps.eventManager.on<PerceptionSignal>('perception', async (event) => {
+    //   this.log('INFO', `Brain: Received perception signal: ${event.payload.type} - ${event.payload.description}`)
+    //   await this.enqueueEvent(bot, event)
+    // })
 
     // Listen to Task Execution Events (Action Feedback)
     this.deps.taskExecutor.on('action:completed', async ({ action, result }) => {

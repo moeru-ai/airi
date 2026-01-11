@@ -66,6 +66,36 @@
       flex-direction: column;
     }
 
+    .heatmap-wrap {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+
+    .heatmap-legend {
+      color: #888;
+      font-size: 0.85em;
+      margin-top: 0.5rem;
+    }
+
+    .heatmap-labels {
+      width: 260px;
+      max-width: 260px;
+      overflow: hidden;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 12px;
+      line-height: 16px;
+      color: #aaa;
+    }
+
+    .heatmap-label {
+      height: 16px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      border-bottom: 1px solid #222;
+    }
+
     .nav-item {
       padding: 1rem;
       cursor: pointer;
@@ -253,6 +283,7 @@
       <div class="nav-item" onclick="switchTab('logs')">Logs</div>
       <div class="nav-item" onclick="switchTab('llm')">LLM Traces</div>
       <div class="nav-item" onclick="switchTab('blackboard')">Blackboard</div>
+      <div class="nav-item" onclick="switchTab('saliency')">Saliency</div>
     </nav>
 
     <div id="overview-panel" class="content-panel active">
@@ -302,11 +333,39 @@
       </div>
       <div id="llm-list" class="log-container"></div>
     </div>
+
+    <div id="saliency-panel" class="content-panel">
+      <div class="toolbar" style="align-items: center;">
+        <h3 style="margin: 0;">Saliency Window</h3>
+        <div style="margin-left: auto; display: flex; gap: 0.75rem; align-items: center; color:#aaa; font-size: 0.9em;">
+          <span>Top</span>
+          <input id="saliency-topn" type="number" min="1" max="100" value="30" style="width: 64px;" />
+          <span>Slot</span>
+          <span id="saliency-slot" class="badge">0</span>
+        </div>
+      </div>
+      <div class="log-container" style="padding: 1rem;">
+        <div class="heatmap-wrap">
+          <div>
+            <canvas id="saliency-canvas" width="800" height="480"
+              style="border: 1px solid #222; background:#0f0f0f;"></canvas>
+            <div class="heatmap-legend">Columns: oldest → newest (100 slots). Rows: counter keys (top-N by total).</div>
+          </div>
+          <div>
+            <div class="section-title" style="margin-top:0;">Keys</div>
+            <div id="saliency-labels" class="heatmap-labels"></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <script>
     var autoScroll = true;
     var sseClient = null;
+    var latestSaliency = null;
+    var saliencyKeyOrder = [];
+    var saliencyKeyMap = new Map();
     const statusDot = document.getElementById('connection-status');
     const statusText = document.getElementById('status-text');
 
@@ -526,7 +585,124 @@
           updateBlackboard(JSON.parse(e.data));
         } catch (e) { console.error(e); }
       });
+
+      sseClient.addEventListener('saliency', (e) => {
+        try {
+          latestSaliency = JSON.parse(e.data);
+          ingestSaliency(latestSaliency);
+          renderSaliency();
+        } catch (e) { console.error(e); }
+      });
     }
+
+    function ingestSaliency(snapshot) {
+      if (!snapshot || !snapshot.keys) return;
+
+      const slot = snapshot.slot || 0;
+      const TTL_SLOTS = 300;
+
+      for (const row of snapshot.keys) {
+        const key = row.key;
+        if (!key) continue;
+
+        if (!saliencyKeyMap.has(key)) {
+          saliencyKeyOrder.push(key);
+        }
+
+        saliencyKeyMap.set(key, {
+          key,
+          total: row.total || 0,
+          windowTicks: row.windowTicks || 100,
+          window: Array.isArray(row.window) ? row.window : [],
+          triggers: Array.isArray(row.triggers) ? row.triggers : [],
+          lastFireSlot: (row.lastFireSlot === null || row.lastFireSlot === undefined) ? null : row.lastFireSlot,
+          lastFireTotal: row.lastFireTotal || 0,
+          lastSeenSlot: slot,
+        });
+      }
+
+      // Cleanup stale keys to avoid unbounded growth
+      saliencyKeyOrder = saliencyKeyOrder.filter((key) => {
+        const item = saliencyKeyMap.get(key);
+        if (!item) return false;
+        if (slot - item.lastSeenSlot > TTL_SLOTS) {
+          saliencyKeyMap.delete(key);
+          return false;
+        }
+        return true;
+      });
+    }
+
+    function colorFor(value, maxValue) {
+      if (!maxValue || maxValue <= 0) return 'rgba(0,0,0,0)';
+      const t = Math.max(0, Math.min(1, value / maxValue));
+      // dark -> bright blue
+      const r = Math.round(20 + 30 * t);
+      const g = Math.round(40 + 80 * t);
+      const b = Math.round(80 + 170 * t);
+      const a = 0.15 + 0.85 * t;
+      return `rgba(${r},${g},${b},${a})`;
+    }
+
+    function renderSaliency() {
+      if (!latestSaliency) return;
+
+      const topNInput = document.getElementById('saliency-topn');
+      const topN = Math.max(1, Math.min(100, parseInt(topNInput.value || '30', 10)));
+      const tickBadge = document.getElementById('saliency-slot');
+      tickBadge.textContent = String(latestSaliency.slot || 0);
+
+      const order = saliencyKeyOrder.slice(Math.max(0, saliencyKeyOrder.length - topN));
+      const keys = order.map(k => saliencyKeyMap.get(k)).filter(Boolean);
+      const labels = document.getElementById('saliency-labels');
+      labels.innerHTML = keys.map(k => {
+        const fire = (k.lastFireSlot !== null && k.lastFireSlot !== undefined)
+          ? ` <span style="color:#666">fire:${k.lastFireTotal || 0}@${k.lastFireSlot}</span>`
+          : '';
+        return `<div class="heatmap-label">${(k.key || '')} <span style="color:#666">(${k.total || 0})</span>${fire}</div>`;
+      }).join('') || '<div style="color:#666">No data</div>';
+
+      const canvas = document.getElementById('saliency-canvas');
+      const ctx = canvas.getContext('2d');
+
+      const cols = 100;
+      const rows = keys.length;
+
+      const cellW = 6;
+      const cellH = 16;
+
+      canvas.width = cols * cellW;
+      canvas.height = Math.max(1, rows) * cellH;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#0f0f0f';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      let maxCell = 0;
+      for (const row of keys) {
+        const w = row.window || [];
+        for (let i = 0; i < Math.min(cols, w.length); i++) {
+          const v = w[i] || 0;
+          if (v > maxCell) maxCell = v;
+        }
+      }
+
+      for (let y = 0; y < rows; y++) {
+        const row = keys[y];
+        const w = row.window || [];
+        const t = row.triggers || [];
+        for (let x = 0; x < cols; x++) {
+          const v = (x < w.length) ? (w[x] || 0) : 0;
+          const fired = (x < t.length) ? (t[x] || 0) : 0;
+          ctx.fillStyle = fired ? 'rgba(255, 80, 80, 0.95)' : colorFor(v, maxCell);
+          ctx.fillRect(x * cellW, y * cellH, cellW - 1, cellH - 1);
+        }
+      }
+    }
+
+    document.getElementById('saliency-topn').addEventListener('change', () => {
+      renderSaliency();
+    });
 
     connectSSE();
   </script>

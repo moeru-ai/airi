@@ -39,13 +39,6 @@ export class ReflexManager {
     this.bot = null
   }
 
-  public tick(deltaMs: number): void {
-    if (!this.bot)
-      return
-
-    this.runtime.tick(this.bot, deltaMs)
-  }
-
   public getContextSnapshot(): ReflexContextState {
     return this.runtime.getContext().getSnapshot()
   }
@@ -56,13 +49,10 @@ export class ReflexManager {
       return
 
     const signal = event.payload
-    // Only care about chat messages for now for social context
-    if (signal.type !== 'chat_message')
-      return
+    const message = `Signal triggered: ${signal.type} - ${signal.description}`
+    bot.bot.chat(message)
 
     const now = Date.now()
-    const message = signal.metadata.message || signal.description
-
     this.runtime.getContext().updateNow(now)
     this.runtime.getContext().updateSocial({
       lastSpeaker: event.source.id,
@@ -71,8 +61,7 @@ export class ReflexManager {
     })
 
     const behaviorId = this.runtime.tick(bot, 0)
-    if (behaviorId) {
+    if (behaviorId)
       event.handled = true
-    }
   }
 }

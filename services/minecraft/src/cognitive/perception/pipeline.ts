@@ -6,14 +6,13 @@ import type { PerceptionFrame } from './frame'
 import type { PerceptionSignal } from './types/signals'
 import type { PerceptionStage } from './types/stage'
 
-import { AttentionDetector } from './attention-detector'
+import { DebugService } from '../../debug-server'
+import { SaliencyDetector } from './saliency-detector'
 import { createPerceptionFrameFromRawEvent } from './frame'
 import { MineflayerPerceptionCollector } from './mineflayer-perception-collector'
-import { RawEventBuffer } from './raw-event-buffer'
 
 export class PerceptionPipeline {
-  private readonly buffer = new RawEventBuffer()
-  private readonly detector: AttentionDetector
+  private readonly detector: SaliencyDetector
   private collector: MineflayerPerceptionCollector | null = null
   private initialized = false
 
@@ -21,9 +20,7 @@ export class PerceptionPipeline {
 
   private currentFrame: PerceptionFrame | null = null
 
-  private lastStatsAt = 0
-  private collectedSinceStats = 0
-  private processedSinceStats = 0
+  private saliencyEmitTimer: ReturnType<typeof setInterval> | null = null
 
   constructor(
     private readonly deps: {
@@ -31,7 +28,7 @@ export class PerceptionPipeline {
       logger: Logg
     },
   ) {
-    this.detector = new AttentionDetector({
+    this.detector = new SaliencyDetector({
       logger: this.deps.logger,
       onAttention: (signal) => {
         // This is only called synchronously while we're handling a specific frame.
@@ -46,9 +43,6 @@ export class PerceptionPipeline {
     this.stages = [
       {
         name: 'attention',
-        tick: (deltaMs) => {
-          this.detector.tick(deltaMs)
-        },
         handle: (frame) => {
           if (frame.kind !== 'world_raw')
             return frame
@@ -118,11 +112,15 @@ export class PerceptionPipeline {
   public init(bot: MineflayerWithAgents): void {
     this.initialized = true
 
-    this.lastStatsAt = Date.now()
-    this.collectedSinceStats = 0
-    this.processedSinceStats = 0
-
     this.deps.logger.withFields({ maxDistance: 32 }).log('PerceptionPipeline: init')
+
+    this.detector.start()
+
+    this.saliencyEmitTimer = setInterval(() => {
+      if (!this.initialized)
+        return
+      DebugService.getInstance().emit('saliency', this.detector.getDebugSnapshot({ maxKeys: 30 }))
+    }, 100)
 
     this.collector = new MineflayerPerceptionCollector({
       logger: this.deps.logger,
@@ -138,58 +136,31 @@ export class PerceptionPipeline {
     this.deps.logger.log('PerceptionPipeline: destroy')
     this.collector?.destroy()
     this.collector = null
-    this.buffer.clear()
+
+    if (this.saliencyEmitTimer) {
+      clearInterval(this.saliencyEmitTimer)
+      this.saliencyEmitTimer = null
+    }
+
+    this.detector.stop()
     this.initialized = false
   }
 
   public ingest(frame: PerceptionFrame): void {
     if (!this.initialized)
       return
-    this.buffer.push(frame)
-    this.collectedSinceStats++
-  }
 
-  public tick(deltaMs: number): void {
-    if (!this.initialized)
-      return
-
-    const startedAt = Date.now()
-
+    let current: PerceptionFrame | null = frame
     for (const stage of this.stages) {
-      stage.tick?.(deltaMs)
-    }
-
-    const frames = this.buffer.drain()
-    this.processedSinceStats += frames.length
-    for (const frame of frames) {
-      let current: PerceptionFrame | null = frame
-      for (const stage of this.stages) {
-        if (!current)
-          break
-        try {
-          current = stage.handle(current)
-        }
-        catch (err) {
-          this.deps.logger.withError(err as Error).error('PerceptionPipeline: stage error')
-          break
-        }
+      if (!current)
+        break
+      try {
+        current = stage.handle(current)
       }
-    }
-
-    const now = Date.now()
-    if (now - this.lastStatsAt >= 2000) {
-      this.deps.logger.withFields({
-        deltaMs,
-        tickCostMs: now - startedAt,
-        queueDepth: this.buffer.size(),
-        drained: frames.length,
-        collected: this.collectedSinceStats,
-        processed: this.processedSinceStats,
-      }).log('PerceptionPipeline: stats')
-
-      this.lastStatsAt = now
-      this.collectedSinceStats = 0
-      this.processedSinceStats = 0
+      catch (err) {
+        this.deps.logger.withError(err as Error).error('PerceptionPipeline: stage error')
+        break
+      }
     }
   }
 }

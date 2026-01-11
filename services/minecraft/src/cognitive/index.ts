@@ -8,7 +8,6 @@ import { createPerceptionFrameFromChat } from './perception/frame'
 
 export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlugin {
   let container: ReturnType<typeof createAgentContainer>
-  let tickHandler: ((ctx: { delta: number }) => void) | null = null
   let spawnHandler: (() => void) | null = null
   let started = false
 
@@ -22,7 +21,6 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
 
       const actionAgent = container.resolve('actionAgent')
       const chatAgent = container.resolve('chatAgent')
-      const eventManager = container.resolve('eventManager')
       const perceptionPipeline = container.resolve('perceptionPipeline')
       const brain = container.resolve('brain')
       const reflexManager = container.resolve('reflexManager')
@@ -50,13 +48,6 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
         // Initialize perception pipeline (raw events + detectors)
         perceptionPipeline.init(botWithAgents)
 
-        tickHandler = ({ delta }) => {
-          reflexManager.tick(delta)
-          perceptionPipeline.tick(delta)
-        }
-
-        bot.onTick('tick', tickHandler)
-
         // Set message handling via EventManager
         const chatHandler = new ChatMessageHandler(bot.username)
         bot.bot.on('chat', (username, message) => {
@@ -74,27 +65,6 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
         spawnHandler = () => startCognitive()
         bot.bot.once('spawn', spawnHandler)
       }
-
-      options.airiClient.onEvent('input:text:voice', (event) => {
-        eventManager.emit({
-          type: 'stimulus',
-          payload: {
-            content: event.data.transcription,
-            metadata: {
-              displayName: (event.data.discord?.guildMember as any)?.nick || (event.data.discord?.guildMember as any)?.user?.username || 'Voice Stimulus',
-            },
-          },
-          source: {
-            type: 'airi',
-            id: (event.data.discord?.guildMember as any)?.user?.id || 'unknown',
-            reply: (msg) => {
-              // TODO: implement Airi voice reply if needed, or just chat in MC
-              bot.bot.chat(msg)
-            },
-          },
-          timestamp: Date.now(),
-        })
-      })
     },
 
     async beforeCleanup(bot) {
@@ -118,11 +88,6 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
         spawnHandler = null
       }
       started = false
-
-      if (tickHandler) {
-        bot.offTick('tick', tickHandler)
-        tickHandler = null
-      }
 
       bot.bot.removeAllListeners('chat')
     },
