@@ -207,20 +207,16 @@ async function startListening() {
         }
         else {
           console.error('[ChatArea] Failed to set Web Speech API as default provider')
-          const errorMsg = 'Failed to configure transcription provider. Please go to Settings > Modules > Hearing to configure a transcription provider.'
-          alert(errorMsg)
           isListening.value = false
           return
         }
       }
       else {
-        const errorMsg = 'No transcription provider configured and Web Speech API is not available in this browser. Please go to Settings > Modules > Hearing to configure a transcription provider.'
-        console.error('[ChatArea] Web Speech API not available. Browser support:', {
+        console.error('[ChatArea] Web Speech API not available. No transcription provider configured and Web Speech API is not available in this browser. Please go to Settings > Modules > Hearing to configure a transcription provider. Browser support:', {
           hasWindow: typeof window !== 'undefined',
           hasWebkitSpeechRecognition: typeof window !== 'undefined' && 'webkitSpeechRecognition' in window,
           hasSpeechRecognition: typeof window !== 'undefined' && 'SpeechRecognition' in window,
         })
-        alert(errorMsg)
         isListening.value = false
         return
       }
