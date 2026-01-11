@@ -74,11 +74,7 @@ function handleActivate(char: Character) {
           v-model="searchQuery"
           placeholder="Search..."
           class="w-64"
-        >
-          <template #prefix>
-            <div class="i-solar:magnifer-linear text-neutral-400" />
-          </template>
-        </FieldInput>
+        />
         <Button @click="handleCreate">
           <div class="i-solar:add-circle-bold mr-2" />
           Create New

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-sdk'
+import type { WebSocketBaseEvent, WebSocketEventOf, WebSocketEvents } from '@proj-airi/server-sdk'
 import type { ChatStreamEvent, ContextMessage } from '@proj-airi/stage-ui/types/chat'
 
 import type { FlowDirection, FlowEntry, SparkNotifyEntryState } from './context-flow-types'
@@ -262,7 +262,7 @@ async function sendTestSparkNotify() {
     metadata: parsed.metadata && typeof parsed.metadata === 'object' ? parsed.metadata : undefined,
   }
 
-  const simulatedEvent: WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify']> = {
+  const simulatedEvent: WebSocketEventOf<'spark:notify'> = {
     type: 'spark:notify',
     source: 'devtools',
     data: notify,

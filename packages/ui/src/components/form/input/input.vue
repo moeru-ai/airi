@@ -1,4 +1,8 @@
-<script setup lang="ts">
+<script
+  setup
+  lang="ts"
+  generic="InputType extends 'number' | string, T = InputType extends 'number' ? (number | undefined) : ((string | undefined))"
+>
 // Define button variants for better type safety and maintainability
 type InputVariant = 'primary' | 'secondary' | 'primary-dimmed'
 
@@ -8,7 +12,7 @@ type InputTheme = 'default'
 type InputSize = 'sm' | 'md' | 'lg'
 
 const props = withDefaults(defineProps<{
-  type?: string
+  type?: InputType
   variant?: InputVariant // Button style variant
   size?: InputSize // Button size variant
   theme?: InputTheme // Button theme
@@ -18,7 +22,7 @@ const props = withDefaults(defineProps<{
   theme: 'default',
 })
 
-const modelValue = defineModel<string | number>({ required: false })
+const modelValue = defineModel<T>({ required: false })
 
 const variantClasses: Record<InputVariant, Record<InputTheme, {
   default: string[]
