@@ -1,10 +1,10 @@
-export type ActionErrorCode =
-  | 'RESOURCE_MISSING'
-  | 'CRAFTING_FAILED'
-  | 'NAVIGATION_FAILED'
-  | 'INTERRUPTED'
-  | 'INVENTORY_FULL'
-  | 'UNKNOWN'
+export type ActionErrorCode
+  = | 'RESOURCE_MISSING'
+    | 'CRAFTING_FAILED'
+    | 'NAVIGATION_FAILED'
+    | 'INTERRUPTED'
+    | 'INVENTORY_FULL'
+    | 'UNKNOWN'
 
 export class ActionError extends Error {
   public readonly code: ActionErrorCode

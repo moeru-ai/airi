@@ -18,6 +18,7 @@ export class MineflayerPerceptionCollector {
     event: string
     handler: (...args: any[]) => void
   }> = []
+
   private lastSelfHealth: number | null = null
 
   private lastStatsAt = 0
@@ -231,8 +232,9 @@ export class MineflayerPerceptionCollector {
 
     for (const { event, handler } of this.listeners) {
       try {
-        (this.bot.bot as any).off?.(event, handler)
-          (this.bot.bot as any).removeListener?.(event, handler)
+        const b = this.bot.bot as any
+        b.off?.(event, handler)
+        b.removeListener?.(event, handler)
       }
       catch (err) {
         this.deps.logger.withError(err as Error).error('MineflayerPerceptionCollector: failed to remove listener')
@@ -293,5 +295,4 @@ export class MineflayerPerceptionCollector {
       return null
     }
   }
-
 }
