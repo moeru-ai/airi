@@ -124,6 +124,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     const streamExecutor = STREAM_TRANSCRIPTION_EXECUTORS[providerId]
 
     if (features.supportsStreamOutput && streamExecutor) {
+      // TODO: integrate VAD-driven silence detection to stop and restart realtime sessions based on silence thresholds.
       const request = provider.transcription(model, options?.providerOptions)
 
       if (features.supportsStreamInput && normalizedInput.inputAudioStream) {
@@ -131,7 +132,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
           ...request,
           inputAudioStream: normalizedInput.inputAudioStream,
         } as Parameters<typeof streamExecutor>[0])
-        // TODO: integrate VAD-driven silence detection to stop and restart realtime sessions based on silence thresholds.
         return {
           mode: 'stream',
           ...streamResult,
@@ -143,7 +143,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
           ...request,
           file: normalizedInput.file,
         } as Parameters<typeof streamExecutor>[0])
-        // TODO: integrate VAD-driven silence detection to stop and restart realtime sessions based on silence thresholds.
         return {
           mode: 'stream',
           ...streamResult,
@@ -155,7 +154,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
           ...request,
           file: normalizedInput.file,
         } as Parameters<typeof streamExecutor>[0])
-        // TODO: integrate VAD-driven silence detection to stop and restart realtime sessions based on silence thresholds.
         return {
           mode: 'stream',
           ...streamResult,

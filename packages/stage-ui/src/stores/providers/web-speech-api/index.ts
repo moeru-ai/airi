@@ -67,8 +67,6 @@ export function createWebSpeechAPIProvider(): TranscriptionProviderWithExtraOpti
         baseURL: 'about:blank', // Web Speech API doesn't use HTTP endpoints
         model: model || 'web-speech-api',
         fetch: async (_request: RequestInfo | URL, _init?: RequestInit) => {
-          // For Web Speech API, we create a stream that emits transcription results
-          // This is a simplified implementation - for MediaStream input, we use continuous recognition
           const deferredText = createDeferred<string>()
           let fullText = ''
           let textStreamCtrl: ReadableStreamDefaultController<string> | undefined
@@ -253,27 +251,18 @@ export function streamWebSpeechAPITranscription(
     const errorType = event.error || 'unknown'
     console.warn('Web Speech API error:', errorType)
 
-    // Don't treat 'no-speech' or 'audio-capture' as fatal errors for continuous recognition
-    // 'no-speech' means no speech was detected (user is silent)
-    // 'audio-capture' means microphone access was denied or unavailable
     if (errorType === 'no-speech') {
-      // This is normal - just means no speech was detected yet
       return
     }
 
     if (errorType === 'audio-capture') {
-      // Microphone access issue - log but don't crash, user may grant permission later
       console.warn('Web Speech API: Microphone access issue. Please check microphone permissions.')
       return
     }
 
-    // For other errors, log and potentially stop
     if (errorType === 'network' || errorType === 'aborted') {
-      // Network errors or aborted - these are recoverable in continuous mode
       return
     }
-
-    // For fatal errors (service-not-allowed, not-allowed, etc.), stop recognition
     const error = new Error(`Speech recognition error: ${errorType}`)
     fullStreamCtrl?.error(error)
     textStreamCtrl?.error(error)
@@ -354,11 +343,6 @@ export function streamWebSpeechAPITranscription(
     })
   }
 
-  // Start recognition
-  // Note: Web Speech API uses the default microphone, not the provided MediaStream directly
-  // The MediaStream parameter is kept for API consistency with other providers
-  // In practice, Web Speech API accesses the system's default microphone
-  // Important: Recognition must be started in response to a user gesture in some browsers
   function startRecognition() {
     try {
       recognition.start()
@@ -451,10 +435,6 @@ export function streamWebSpeechAPITranscription(
     console.info('Web Speech API: No speech match')
   }
 
-  // Start recognition immediately - Web Speech API requires a user gesture in some browsers
-  // Note: This is called from transcribeForMediaStream, which should be triggered by a user action
-  // (enabling microphone or VAD detecting speech after user enables microphone)
-  // Try starting immediately first, then retry if needed
   const started = startRecognition()
   if (!started) {
     // If immediate start failed, it might be a permission issue

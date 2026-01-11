@@ -164,13 +164,7 @@ type CaptionChannelEvent
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
 
 async function handleSpeechStart() {
-  // For streaming providers, transcription should already be started in startAudioInteraction
-  // VAD just detected speech - the transcription session should already be running
-  // For Web Speech API, we don't need to do anything here as it's already listening
-  // The callbacks are set up in startAudioInteraction
   if (shouldUseStreamInput.value) {
-    // Session is already running from startAudioInteraction
-    // Just log that speech was detected
     console.info('Speech detected - transcription session should already be active')
     return
   }
@@ -191,8 +185,6 @@ async function startAudioInteraction() {
   try {
     console.info('[Main Page] Starting audio interaction...')
 
-    // Initialize VAD in the background - don't block on it
-    // For Web Speech API, VAD is optional as it has built-in speech detection
     initVAD().then(() => {
       if (stream.value)
         return startVAD(stream.value)
@@ -200,9 +192,6 @@ async function startAudioInteraction() {
       console.warn('[Main Page] VAD initialization failed (non-critical for Web Speech API):', err)
     })
 
-    // For Web Speech API and other streaming providers, start transcription immediately when stream is enabled
-    // This ensures recognition starts listening before speech is detected
-    // Note: We don't wait for VAD to initialize - streaming providers can work without it
     if (shouldUseStreamInput.value && stream.value) {
       console.info('[Main Page] Starting streaming transcription...', {
         supportsStreamInput: supportsStreamInput.value,
