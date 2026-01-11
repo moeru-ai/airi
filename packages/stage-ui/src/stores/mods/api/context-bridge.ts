@@ -15,6 +15,10 @@ import { useConsciousnessStore } from '../../modules/consciousness'
 import { useProvidersStore } from '../../providers'
 import { useModsServerChannelStore } from './channel-server'
 
+function hasDiscordContext(data: unknown): data is { discord: unknown } {
+  return !!data && typeof data === 'object' && 'discord' in data
+}
+
 export const useContextBridgeStore = defineStore('mods:api:context-bridge', () => {
   const mutex = new Mutex()
 
@@ -94,6 +98,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             input: {
               type: 'input:text',
               data: {
+                ...event.data,
                 text,
                 textRaw,
                 overrides,
@@ -155,11 +160,16 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }),
 
         chatStore.onAssistantMessage(async (message, _messageText, context) => {
+          const discordContext = hasDiscordContext(context.input?.data)
+            ? { discord: context.input.data.discord }
+            : {}
+
           serverChannelStore.send({
             type: 'output:gen-ai:chat:message',
             data: {
               message,
               ...context.input?.metadata?.source,
+              ...discordContext,
               'stage-web': isStageWeb(),
               'stage-tamagotchi': isStageTamagotchi(),
               'gen-ai:chat': {
@@ -173,11 +183,16 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }),
 
         chatStore.onChatTurnComplete(async (chat, context) => {
+          const discordContext = hasDiscordContext(context.input?.data)
+            ? { discord: context.input.data.discord }
+            : {}
+
           serverChannelStore.send({
             type: 'output:gen-ai:chat:complete',
             data: {
               'message': chat.output,
               ...context.input?.metadata?.source,
+              ...discordContext,
               'toolCalls': [],
               'stage-web': isStageWeb(),
               'stage-tamagotchi': isStageTamagotchi(),
