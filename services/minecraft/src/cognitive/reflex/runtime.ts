@@ -1,10 +1,11 @@
 import type { Logg } from '@guiiai/logg'
 
 import type { MineflayerWithAgents } from '../types'
+import type { ReflexModeId } from './modes'
+import type { ReflexBehavior } from './types/behavior'
 
 import { ReflexContext } from './context'
-import type { ReflexBehavior } from './types/behavior'
-import { selectMode, type ReflexModeId } from './modes'
+import { selectMode } from './modes'
 
 export class ReflexRuntime {
   private readonly context = new ReflexContext()

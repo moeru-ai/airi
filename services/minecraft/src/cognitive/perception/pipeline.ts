@@ -2,15 +2,14 @@ import type { Logg } from '@guiiai/logg'
 
 import type { MineflayerWithAgents } from '../types'
 import type { EventManager } from './event-manager'
-
 import type { PerceptionFrame } from './frame'
-
 import type { PerceptionSignal } from './types/signals'
+import type { PerceptionStage } from './types/stage'
+
 import { AttentionDetector } from './attention-detector'
 import { createPerceptionFrameFromRawEvent } from './frame'
 import { MineflayerPerceptionCollector } from './mineflayer-perception-collector'
 import { RawEventBuffer } from './raw-event-buffer'
-import type { PerceptionStage } from './types/stage'
 
 export class PerceptionPipeline {
   private readonly buffer = new RawEventBuffer()

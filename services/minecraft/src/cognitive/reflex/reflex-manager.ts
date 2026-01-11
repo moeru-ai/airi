@@ -3,7 +3,6 @@ import type { Logg } from '@guiiai/logg'
 import type { EventManager } from '../perception/event-manager'
 import type { PerceptionSignal } from '../perception/types/signals'
 import type { BotEvent, MineflayerWithAgents } from '../types'
-
 import type { ReflexContextState } from './context'
 
 import { greetingBehavior } from './behaviors/greeting'
