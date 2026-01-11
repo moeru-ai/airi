@@ -230,6 +230,10 @@ onStopRecord(async (recording) => {
   if (shouldUseStreamInput.value)
     return
 
+  // Skip onStopRecord handler during STT test - the watch handler handles transcription for tests
+  if (isTestingSTT.value)
+    return
+
   if (recording && recording.size > 0)
     audios.value.push(recording)
 

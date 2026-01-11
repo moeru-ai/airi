@@ -67,6 +67,18 @@ export function createWebSpeechAPIProvider(): TranscriptionProviderWithExtraOpti
         baseURL: 'about:blank', // Web Speech API doesn't use HTTP endpoints
         model: model || 'web-speech-api',
         fetch: async (_request: RequestInfo | URL, _init?: RequestInit) => {
+          // Web Speech API does not support file-based transcription - it only supports live streaming
+          // Check if a file is provided in the request body and reject it
+          if (_init?.body) {
+            // If body is FormData, it likely contains a file
+            // If body is a Blob/File, it's definitely a file
+            const body = _init.body
+            if (body instanceof FormData || body instanceof Blob || body instanceof File) {
+              const error = new Error('Web Speech API does not support file-based transcription. It only supports live streaming from a MediaStream. Please use the streaming transcription API or select a different provider that supports file-based transcription.')
+              throw error
+            }
+          }
+
           const deferredText = createDeferred<string>()
           let fullText = ''
           let textStreamCtrl: ReadableStreamDefaultController<string> | undefined
