@@ -1,47 +1,68 @@
-export function useLoop(fn: () => Promise<void> | void, options?: { interval?: number, autoStart?: boolean }) {
-  let timer: NodeJS.Timeout | null = null
+import { clearClockInterval, setClockInterval } from '@moeru/std'
+import { Mutex } from 'es-toolkit/promise'
+
+interface LoopOptions {
+  interval?: number
+  autoStart?: boolean
+}
+
+export function useLoop(fn: () => Promise<void> | void, options?: LoopOptions) {
+  const mutex = new Mutex()
+  const interval = options?.interval ?? 1000 / 60
+  let timerId: number | null = null
   let shouldRun = options?.autoStart ?? true
 
-  const loopIteration = async () => {
-    if (!shouldRun) {
+  const tick = async () => {
+    if (!shouldRun || mutex.isLocked) {
       return
     }
 
+    await mutex.acquire()
     try {
       await fn()
     }
     finally {
-      timer = setTimeout(loopIteration, options?.interval ?? 1000 / 60) // Default to ~60 FPS
+      mutex.release()
     }
   }
 
+  const startTimer = () => {
+    if (!shouldRun || timerId !== null) {
+      return
+    }
+
+    timerId = setClockInterval(() => {
+      void tick()
+    }, interval)
+  }
+
+  const stopTimer = () => {
+    if (timerId === null) {
+      return
+    }
+
+    clearClockInterval(timerId)
+    timerId = null
+  }
+
+  const toggleRunState = (next: boolean) => {
+    shouldRun = next
+    if (shouldRun) {
+      startTimer()
+      return
+    }
+
+    stopTimer()
+  }
+
   if (shouldRun) {
-    loopIteration()
+    startTimer()
   }
 
   return {
-    start: () => {
-      shouldRun = true
-      if (!timer) {
-        loopIteration()
-      }
-    },
-    resume: () => {
-      shouldRun = true
-      if (!timer) {
-        loopIteration()
-      }
-    },
-    pause: () => {
-      shouldRun = false
-    },
-    stop: () => {
-      shouldRun = false
-
-      if (timer) {
-        clearTimeout(timer)
-        timer = null
-      }
-    },
+    start: () => toggleRunState(true),
+    resume: () => toggleRunState(true),
+    pause: () => toggleRunState(false),
+    stop: () => toggleRunState(false),
   }
 }

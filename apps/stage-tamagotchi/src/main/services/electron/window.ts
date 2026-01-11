@@ -6,18 +6,15 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { bounds, startLoopGetBounds } from '../../../shared/electron/window'
 import { electron } from '../../../shared/eventa'
 import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecycle'
-import { useLoop } from '../../libs/event-loop'
+import { createRendererLoop } from '../../libs/electron/renderer-loop'
 import { resizeWindowByDelta } from '../../windows/shared/window'
 
 export function createWindowService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
-  const { start, stop } = useLoop(() => {
-    if (params.window.isDestroyed()) {
-      return
-    }
-
-    params.context.emit(bounds, params.window.getBounds())
-  }, {
-    autoStart: false,
+  const { start, stop } = createRendererLoop({
+    window: params.window,
+    run: () => {
+      params.context.emit(bounds, params.window.getBounds())
+    },
   })
 
   onAppWindowAllClosed(() => stop())
