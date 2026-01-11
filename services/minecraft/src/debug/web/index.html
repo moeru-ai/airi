@@ -95,6 +95,34 @@
             </div>
         </section>
 
+        <!-- Timeline: Event Trace View -->
+        <section id="timeline-section" class="panel panel-full-width">
+            <div class="panel-header">
+                <h2>Event Timeline</h2>
+                <div class="panel-controls">
+                    <input type="search" id="timeline-search" placeholder="Filter events..." />
+                    <select id="timeline-type-filter">
+                        <option value="all">All Types</option>
+                        <option value="raw:">Raw Events</option>
+                        <option value="signal:">Signals</option>
+                    </select>
+                    <button id="timeline-clear-btn" class="icon-btn" title="Clear timeline">🗑️</button>
+                </div>
+            </div>
+            <div class="panel-content">
+                <div id="timeline-container" class="timeline-container">
+                    <div id="timeline-list" class="timeline-list"></div>
+                </div>
+                <div id="trace-detail" class="trace-detail hidden">
+                    <div class="trace-detail-header">
+                        <span id="trace-detail-title">Trace Details</span>
+                        <button id="trace-detail-close" class="icon-btn">✕</button>
+                    </div>
+                    <div id="trace-detail-content"></div>
+                </div>
+            </div>
+        </section>
+
         <!-- Bottom Row: LLM Traces -->
         <section id="llm-section" class="panel panel-full-width">
             <div class="panel-header">

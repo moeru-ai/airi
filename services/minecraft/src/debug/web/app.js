@@ -592,13 +592,230 @@ class SaliencyPanel {
   }
 
   colorFor(value, maxValue) {
-    if (!maxValue)
-      return 'rgba(0,0,0,0)'
-    const t = Math.min(1, value / maxValue)
+    // Always show a subtle color for empty cells, never fully transparent
+    if (value === 0) {
+      return 'rgba(30, 38, 50, 1)' // Dark background for empty cells
+    }
+    // Normalize value when we have data
+    const max = maxValue || 1
+    const t = Math.min(1, value / max)
     const r = Math.round(88 + 80 * t)
     const g = Math.round(166 + 80 * t)
     const b = Math.round(255 * t)
-    return `rgba(${r},${g},${b},${0.2 + 0.8 * t})`
+    return `rgba(${r},${g},${b},${0.3 + 0.7 * t})`
+  }
+}
+
+// =============================================================================
+// Timeline Panel (Event Tracing)
+// =============================================================================
+
+class TimelinePanel {
+  constructor(client) {
+    this.client = client
+    this.events = []
+    this.filter = { type: 'all', search: '' }
+    this.selectedTraceId = null
+    this.elements = {
+      list: document.getElementById('timeline-list'),
+      container: document.getElementById('timeline-container'),
+      search: document.getElementById('timeline-search'),
+      typeFilter: document.getElementById('timeline-type-filter'),
+      clearBtn: document.getElementById('timeline-clear-btn'),
+      detail: document.getElementById('trace-detail'),
+      detailTitle: document.getElementById('trace-detail-title'),
+      detailContent: document.getElementById('trace-detail-content'),
+      detailClose: document.getElementById('trace-detail-close'),
+    }
+  }
+
+  init() {
+    this.client.on('trace', data => this.addEvent(data))
+    this.client.on('trace_batch', (data) => {
+      if (data.events) {
+        data.events.forEach(e => this.addEvent(e))
+      }
+    })
+    this.client.on('connected', () => this.reset())
+
+    this.elements.search?.addEventListener('input', (e) => {
+      this.filter.search = e.target.value.toLowerCase()
+      this.renderThrottled()
+    })
+
+    this.elements.typeFilter?.addEventListener('change', (e) => {
+      this.filter.type = e.target.value
+      this.renderThrottled()
+    })
+
+    this.elements.clearBtn?.addEventListener('click', () => this.clear())
+    this.elements.detailClose?.addEventListener('click', () => this.hideDetail())
+
+    this.renderThrottled = throttle(() => this.render(), CONFIG.UPDATE_THROTTLE)
+  }
+
+  addEvent(event) {
+    this.events.push(event)
+    if (this.events.length > 1000) {
+      this.events.shift()
+    }
+    this.renderThrottled()
+  }
+
+  reset() {
+    this.events = []
+    this.selectedTraceId = null
+    this.hideDetail()
+    this.render()
+  }
+
+  clear() {
+    this.reset()
+  }
+
+  render() {
+    const filtered = this.events.filter(e => this.matchesFilter(e))
+    const recent = filtered.slice(-200) // Show last 200
+
+    if (recent.length === 0) {
+      this.elements.list.innerHTML = '<div class="empty-state">No events</div>'
+      return
+    }
+
+    this.elements.list.innerHTML = recent.map(e => this.renderEvent(e)).join('')
+
+    // Attach click handlers
+    this.elements.list.querySelectorAll('.timeline-event').forEach((el) => {
+      el.addEventListener('click', () => {
+        const traceId = el.dataset.traceId
+        this.showTraceDetail(traceId)
+      })
+    })
+
+    // Auto-scroll
+    this.elements.container.scrollTop = this.elements.container.scrollHeight
+  }
+
+  matchesFilter(event) {
+    if (this.filter.type !== 'all' && !event.type.startsWith(this.filter.type)) {
+      return false
+    }
+    if (this.filter.search) {
+      const searchStr = `${event.type} ${JSON.stringify(event.payload)}`.toLowerCase()
+      if (!searchStr.includes(this.filter.search)) {
+        return false
+      }
+    }
+    return true
+  }
+
+  renderEvent(event) {
+    const time = new Date(event.timestamp).toLocaleTimeString('en-US', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      fractionalSecondDigits: 3,
+    })
+
+    const isSignal = event.type.startsWith('signal:')
+    const isRaw = event.type.startsWith('raw:')
+    const typeClass = isSignal ? 'type-signal' : (isRaw ? 'type-raw' : 'type-other')
+
+    // Extract useful info from payload
+    let info = ''
+    if (event.payload) {
+      const p = event.payload
+      if (p.description)
+        info = p.description
+      else if (p.displayName)
+        info = p.displayName
+      else if (p.entityType)
+        info = p.entityType
+    }
+
+    const hasParent = event.parentId ? 'has-parent' : ''
+
+    return `
+            <div class="timeline-event ${typeClass} ${hasParent}" 
+                 data-trace-id="${event.traceId}" 
+                 data-event-id="${event.id}">
+                <span class="timeline-time">${time}</span>
+                <span class="timeline-type">${escapeHtml(event.type)}</span>
+                ${info ? `<span class="timeline-info">${escapeHtml(info)}</span>` : ''}
+                <span class="timeline-trace" title="Trace: ${event.traceId}">⎘</span>
+            </div>
+        `
+  }
+
+  showTraceDetail(traceId) {
+    this.selectedTraceId = traceId
+    const traceEvents = this.events.filter(e => e.traceId === traceId)
+
+    if (traceEvents.length === 0) {
+      return
+    }
+
+    // Build event tree
+    const tree = this.buildEventTree(traceEvents)
+
+    this.elements.detailTitle.textContent = `Trace: ${traceId.slice(0, 8)}...`
+    this.elements.detailContent.innerHTML = this.renderEventTree(tree)
+    this.elements.detail.classList.remove('hidden')
+
+    // Highlight in main list
+    this.elements.list.querySelectorAll('.timeline-event').forEach((el) => {
+      el.classList.toggle('selected', el.dataset.traceId === traceId)
+    })
+  }
+
+  hideDetail() {
+    this.elements.detail?.classList.add('hidden')
+    this.selectedTraceId = null
+    this.elements.list?.querySelectorAll('.timeline-event.selected').forEach((el) => {
+      el.classList.remove('selected')
+    })
+  }
+
+  buildEventTree(events) {
+    const eventMap = new Map()
+    const roots = []
+
+    // Index all events
+    events.forEach(e => eventMap.set(e.id, { event: e, children: [] }))
+
+    // Build tree
+    events.forEach((e) => {
+      const node = eventMap.get(e.id)
+      if (e.parentId && eventMap.has(e.parentId)) {
+        eventMap.get(e.parentId).children.push(node)
+      }
+      else {
+        roots.push(node)
+      }
+    })
+
+    return roots
+  }
+
+  renderEventTree(nodes, depth = 0) {
+    return nodes.map((node) => {
+      const e = node.event
+      const indent = depth * 16
+      const time = new Date(e.timestamp).toLocaleTimeString('en-US', { hour12: false })
+
+      return `
+                <div class="trace-tree-node" style="padding-left: ${indent}px">
+                    <div class="trace-node-header">
+                        ${depth > 0 ? '<span class="trace-connector">↳</span>' : ''}
+                        <span class="trace-node-type">${escapeHtml(e.type)}</span>
+                        <span class="trace-node-time">${time}</span>
+                    </div>
+                    <div class="trace-node-payload">${escapeHtml(JSON.stringify(e.payload, null, 2))}</div>
+                    ${node.children.length > 0 ? this.renderEventTree(node.children, depth + 1) : ''}
+                </div>
+            `
+    }).join('')
   }
 }
 
@@ -615,6 +832,7 @@ class DebugApp {
       logs: new LogsPanel(this.client),
       llm: new LLMPanel(this.client),
       saliency: new SaliencyPanel(this.client),
+      timeline: new TimelinePanel(this.client),
     }
     this.paused = false
   }

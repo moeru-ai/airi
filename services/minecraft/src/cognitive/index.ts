@@ -2,6 +2,7 @@ import type { MineflayerPlugin } from '../libs/mineflayer'
 import type { CognitiveEngineOptions, MineflayerWithAgents } from './types'
 
 import { config } from '../composables/config'
+import { DebugService } from '../debug'
 import { ChatMessageHandler } from '../libs/mineflayer'
 import { createAgentContainer } from './container'
 import { createPerceptionFrameFromChat } from './perception/frame'
@@ -48,6 +49,21 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
         // Initialize perception pipeline (raw events + detectors)
         perceptionPipeline.init(botWithAgents)
 
+        // Resolve EventBus and subscribe to forward events to debug timeline
+        const eventBus = container.resolve('eventBus')
+        eventBus.subscribe('*', (event) => {
+          // Forward to debug service for timeline visualization
+          DebugService.getInstance().emitTrace({
+            id: event.id,
+            traceId: event.traceId,
+            parentId: event.parentId,
+            type: event.type,
+            payload: event.payload,
+            timestamp: event.timestamp,
+            source: event.source,
+          })
+        })
+
         // Set message handling via EventManager
         const chatHandler = new ChatMessageHandler(bot.username)
         bot.bot.on('chat', (username, message) => {
@@ -78,6 +94,9 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
 
         const perceptionPipeline = container.resolve('perceptionPipeline')
         perceptionPipeline.destroy()
+
+        const ruleEngine = container.resolve('ruleEngine')
+        ruleEngine.destroy()
 
         const reflexManager = container.resolve('reflexManager')
         reflexManager.destroy()

@@ -93,6 +93,7 @@ catalog:
   vue-sonner: 2.0.9
   ws: ^8.18.3
   xsschema: 0.4.0-beta.13
+  yaml: ^2.8.2
   zod: ^4.3.5
 
 catalogs:

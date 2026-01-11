@@ -210,6 +210,9 @@ catalogs:
     xsschema:
       specifier: 0.4.0-beta.13
       version: 0.4.0-beta.13
+    yaml:
+      specifier: ^2.8.2
+      version: 2.8.2
     zod:
       specifier: ^4.3.5
       version: 4.3.5
@@ -3166,6 +3169,9 @@ importers:
       mineflayer-tool:
         specifier: ^1.2.0
         version: 1.2.0(encoding@0.1.13)
+      nanoid:
+        specifier: 'catalog:'
+        version: 5.1.6
       neuri:
         specifier: ^0.2.1
         version: 0.2.1(zod-to-json-schema@3.25.1(zod@4.3.5))(zod@4.3.5)
@@ -3196,6 +3202,9 @@ importers:
       ws:
         specifier: 'catalog:'
         version: 8.19.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
+      yaml:
+        specifier: 'catalog:'
+        version: 2.8.2
       zod:
         specifier: ^4.3.5
         version: 4.3.5

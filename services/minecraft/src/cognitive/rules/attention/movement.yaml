@@ -1,0 +1,22 @@
+name: player-movement
+version: 1
+
+trigger:
+  modality: sighted
+  kind: entity_moved
+  where:
+    entityType: player
+
+accumulator:
+  threshold: 5
+  window: 2s
+
+signal:
+  type: entity_attention
+  description: 'Player {{ displayName }} is moving nearby'
+  confidence: 0.8
+  metadata:
+    action: move
+    distance: '{{ distance }}'
+    displayName: '{{ displayName }}'
+    hasLineOfSight: '{{ hasLineOfSight }}'

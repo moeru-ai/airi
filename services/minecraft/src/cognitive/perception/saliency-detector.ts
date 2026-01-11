@@ -187,10 +187,13 @@ export class SaliencyDetector {
 
   /**
    * Reset counter counts (after threshold triggered)
+   * Note: We only reset the counts, not triggers - triggers are visual markers
+   * that should persist until they naturally expire in the circular buffer
    */
   private resetCounter(counter: WindowCounter): void {
     counter.total = 0
     counter.counts.fill(0)
+    // Don't reset triggers - they're historical markers for visualization
   }
 
   /**
