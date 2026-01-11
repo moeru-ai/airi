@@ -7,7 +7,7 @@ import type { MineflayerWithAgents } from '../types'
 import { assistant } from 'neuri/openai'
 
 import { config } from '../../composables/config'
-import { DebugService } from '../../debug-server'
+import { DebugService } from '../../debug'
 
 export async function handleLLMCompletion(context: NeuriContext, bot: MineflayerWithAgents, logger: Logger): Promise<string> {
   logger.log('rerouting...')

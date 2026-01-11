@@ -7,7 +7,7 @@ import type { LLMConfig, LLMResponse } from '../types'
 import { withRetry } from '@moeru/std'
 
 import { config } from '../../composables/config'
-import { DebugService } from '../../debug-server'
+import { DebugService } from '../../debug'
 import { useLogger } from '../../utils/logger'
 
 export abstract class BaseLLMHandler {

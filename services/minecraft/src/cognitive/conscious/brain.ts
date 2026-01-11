@@ -11,7 +11,7 @@ import type { BotEvent, MineflayerWithAgents } from '../types'
 import { system, user } from 'neuri/openai'
 
 import { config } from '../../composables/config'
-import { DebugService } from '../../debug-server'
+import { DebugService } from '../../debug'
 import { Blackboard } from './blackboard'
 import { buildConsciousContextView } from './context-view'
 import { generateBrainSystemPrompt } from './prompts/brain-prompt'

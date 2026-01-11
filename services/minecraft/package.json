@@ -36,6 +36,10 @@
     "valibot": "^1.2.0",
     "vec3": "^0.1.10",
     "zod": "^4.3.5",
+    "ws": "catalog:",
     "zod-to-json-schema": "^3.25.1"
+  },
+  "devDependencies": {
+    "@types/ws": "catalog:"
   }
 }
