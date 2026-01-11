@@ -1,6 +1,5 @@
 import type { Logg } from '@guiiai/logg'
 
-import type { EventManager } from './event-manager'
 import type { RawPerceptionEvent } from './raw-events'
 
 import { LeakyBucket } from './leaky-bucket'
@@ -55,8 +54,8 @@ export class AttentionDetector {
 
   constructor(
     private readonly deps: {
-      eventManager: EventManager
       logger: Logg
+      onAttention: (payload: AttentionEventPayload) => void
     },
   ) { }
 
@@ -253,12 +252,7 @@ export class AttentionDetector {
       }).log('AttentionDetector: emit')
     }
 
-    this.deps.eventManager.emit<AttentionEventPayload>({
-      type: 'perception',
-      payload,
-      source: { type: 'minecraft', id: 'perception' },
-      timestamp: Date.now(),
-    })
+    this.deps.onAttention(payload)
   }
 
   private getBucket(key: string, config: { capacity: number, leakPerSecond: number, trigger: number }): LeakyBucket {
