@@ -26,6 +26,7 @@
     "mineflayer-pathfinder": "^2.4.5",
     "mineflayer-pvp": "^1.3.2",
     "mineflayer-tool": "^1.2.0",
+    "nanoid": "catalog:",
     "neuri": "^0.2.1",
     "prismarine-block": "^1.22.0",
     "prismarine-entity": "^2.5.0",
@@ -36,6 +37,7 @@
     "valibot": "^1.2.0",
     "vec3": "^0.1.10",
     "ws": "catalog:",
+    "yaml": "catalog:",
     "zod": "^4.2.1",
     "zod-to-json-schema": "^3.25.1"
   },

@@ -1,4 +1,4 @@
-import type { BlackboardEvent, ClientCommand, LLMTraceEvent, LogEvent, QueueEvent, SaliencyEvent, ServerEvent } from './types'
+import type { BlackboardEvent, ClientCommand, LLMTraceEvent, LogEvent, QueueEvent, SaliencyEvent, ServerEvent, TraceEvent } from './types'
 
 import { DebugServer } from './server'
 
@@ -114,6 +114,34 @@ export class DebugService {
       payload: {
         slot,
         counters,
+        timestamp: Date.now(),
+      },
+    }
+    this.server.broadcast(event)
+  }
+
+  /**
+   * Emit a single trace event from the EventBus
+   */
+  public emitTrace(trace: TraceEvent): void {
+    const event: ServerEvent = {
+      type: 'trace',
+      payload: trace,
+    }
+    this.server.broadcast(event)
+  }
+
+  /**
+   * Emit a batch of trace events (more efficient for high-frequency events)
+   */
+  public emitTraceBatch(traces: TraceEvent[]): void {
+    if (traces.length === 0)
+      return
+
+    const event: ServerEvent = {
+      type: 'trace_batch',
+      payload: {
+        events: traces,
         timestamp: Date.now(),
       },
     }

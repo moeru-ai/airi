@@ -1,8 +1,10 @@
 import type { Logg } from '@guiiai/logg'
 
+import type { EventBus } from '../os'
 import type { MineflayerWithAgents } from '../types'
 import type { EventManager } from './event-manager'
 import type { PerceptionFrame } from './frame'
+import type { RawPerceptionEvent } from './types/raw-events'
 import type { PerceptionSignal } from './types/signals'
 import type { PerceptionStage } from './types/stage'
 
@@ -24,6 +26,7 @@ export class PerceptionPipeline {
 
   constructor(
     private readonly deps: {
+      eventBus: EventBus
       eventManager: EventManager
       logger: Logg
     },
@@ -49,8 +52,11 @@ export class PerceptionPipeline {
 
           this.currentFrame = frame
           try {
-            const raw = frame.raw as any
+            const raw = frame.raw as RawPerceptionEvent
             this.detector.ingest(raw)
+
+            // Also emit to EventBus for rule processing
+            this.emitRawToEventBus(raw)
           }
           finally {
             this.currentFrame = null
@@ -162,5 +168,22 @@ export class PerceptionPipeline {
         break
       }
     }
+  }
+
+  /**
+   * Emit a raw perception event to the EventBus
+   * This bridges the perception system to the rule engine
+   */
+  private emitRawToEventBus(raw: RawPerceptionEvent): void {
+    const eventType = `raw:${raw.modality}:${raw.kind}`
+
+    this.deps.eventBus.emit({
+      type: eventType,
+      payload: Object.freeze(raw),
+      source: {
+        component: 'perception',
+        id: raw.source,
+      },
+    })
   }
 }

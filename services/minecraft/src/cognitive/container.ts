@@ -1,6 +1,8 @@
 import type { Logg } from '@guiiai/logg'
 import type { Neuri } from 'neuri'
 
+import type { EventBus, RuleEngine } from './os'
+
 import { useLogg } from '@guiiai/logg'
 import { asClass, asFunction, createContainer, InjectionMode } from 'awilix'
 
@@ -9,12 +11,15 @@ import { ChatAgentImpl } from '../agents/chat'
 import { PlanningAgentImpl } from '../agents/planning'
 import { TaskExecutor } from './action/task-executor'
 import { Brain } from './conscious/brain'
+import { createEventBus, createRuleEngine } from './os'
 import { EventManager } from './perception/event-manager'
 import { PerceptionPipeline } from './perception/pipeline'
 import { ReflexManager } from './reflex/reflex-manager'
 
 export interface ContainerServices {
   logger: Logg
+  eventBus: EventBus
+  ruleEngine: RuleEngine
   actionAgent: ActionAgentImpl
   planningAgent: PlanningAgentImpl
   chatAgent: ChatAgentImpl
@@ -42,6 +47,28 @@ export function createAgentContainer(options: {
 
     // Register neuri client
     neuri: asFunction(() => options.neuri).singleton(),
+
+    // Register EventBus (Cognitive OS core)
+    eventBus: asFunction(() =>
+      createEventBus({
+        logger: useLogg('eventBus').useGlobalConfig(),
+        config: { historySize: 10000 },
+      }),
+    ).singleton(),
+
+    // Register RuleEngine (YAML rules processing)
+    ruleEngine: asFunction(({ eventBus }) => {
+      const engine = createRuleEngine({
+        eventBus,
+        logger: useLogg('ruleEngine').useGlobalConfig(),
+        config: {
+          rulesDir: new URL('../rules', import.meta.url).pathname,
+          slotMs: 20,
+        },
+      })
+      engine.init()
+      return engine
+    }).singleton(),
 
     // Register agents
     actionAgent: asClass(ActionAgentImpl)
