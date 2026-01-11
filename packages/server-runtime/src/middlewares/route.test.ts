@@ -1,4 +1,4 @@
-import type { RouteTargetExpression, WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-shared/types'
+import type { RouteTargetExpression, WebSocketBaseEvent, WebSocketEventOf, WebSocketEvents } from '@proj-airi/server-shared/types'
 
 import type { AuthenticatedPeer } from '../types'
 
@@ -24,20 +24,26 @@ function createPeer(options: {
   }
 }
 
-function createSparkNotifyEvent(overrides?: Partial<WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify'], any>>): WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify'], any> {
+function createSparkNotifyEvent(overrides: Partial<WebSocketEventOf<'spark:notify'>> = {}): WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify'], any> {
+  const data: WebSocketEvents['spark:notify'] = {
+    id: 'evt-1',
+    eventId: 'spark-1',
+    kind: 'ping',
+    urgency: 'soon',
+    headline: 'hello',
+    destinations: ['module:character'],
+    ...overrides.data,
+  }
+
   return {
     type: 'spark:notify',
-    data: {
-      id: 'evt-1',
-      eventId: 'spark-1',
-      kind: 'ping',
-      urgency: 'soon',
-      headline: 'hello',
-      destinations: ['module:character'],
+    data,
+    metadata: overrides.metadata ?? {
+      source: { plugin: 'server-runtime', instanceId: 'test' },
+      event: { id: data.id },
     },
-    source: 'proj-airi:server-runtime',
-    ...overrides,
-  }
+    route: overrides.route,
+  } as WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify'], any>
 }
 
 describe('match-expression', () => {

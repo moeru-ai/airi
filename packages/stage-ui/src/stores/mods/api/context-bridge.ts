@@ -101,6 +101,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             input: {
               type: 'input:text',
               data: {
+                ...event.data,
                 text,
                 textRaw,
                 overrides,
@@ -165,8 +166,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           serverChannelStore.send({
             type: 'output:gen-ai:chat:message',
             data: {
+              ...context.input?.data,
               message,
-              ...context.input?.metadata?.source,
               'stage-web': isStageWeb(),
               'stage-tamagotchi': isStageTamagotchi(),
               'gen-ai:chat': {
@@ -183,8 +184,9 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           serverChannelStore.send({
             type: 'output:gen-ai:chat:complete',
             data: {
+              ...context.input?.data,
               'message': chat.output,
-              ...context.input?.metadata?.source,
+              // TODO: tool calls should be captured properly
               'toolCalls': [],
               'stage-web': isStageWeb(),
               'stage-tamagotchi': isStageTamagotchi(),

@@ -1,4 +1,4 @@
-import type { WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-sdk'
+import type { WebSocketBaseEvent, WebSocketEventOf, WebSocketEvents } from '@proj-airi/server-sdk'
 
 import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
@@ -22,9 +22,9 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   const modsServerChannelStore = useModsServerChannelStore()
 
   const processing = ref(false)
-  const pendingNotifies = ref<Array<WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify']>>>([])
+  const pendingNotifies = ref<Array<WebSocketEventOf<'spark:notify'>>>([])
   const scheduledNotifies = ref<Array<{
-    event: WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify']>
+    event: WebSocketEventOf<'spark:notify'>
     enqueuedAt: number
     nextRunAt: number
     attempts: number
@@ -52,7 +52,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     setPending: next => pendingNotifies.value = next,
   })
 
-  function computeNextRunAt(event: WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify']>, attempts: number) {
+  function computeNextRunAt(event: WebSocketEventOf<'spark:notify'>, attempts: number) {
     const now = Date.now()
     const baseDelay = (() => {
       switch (event.data.urgency) {
@@ -74,7 +74,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     pendingNotifies.value = pendingNotifies.value.filter(item => item.data.id !== eventId)
   }
 
-  function enqueueSparkNotify(event: WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify']>, options?: { reason?: string, nextRunAt?: number, maxAttempts?: number }) {
+  function enqueueSparkNotify(event: WebSocketEventOf<'spark:notify'>, options?: { reason?: string, nextRunAt?: number, maxAttempts?: number }) {
     if (!pendingNotifies.value.find(item => item.data.id === event.data.id)) {
       pendingNotifies.value = [...pendingNotifies.value, event]
     }
@@ -89,7 +89,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     }]
   }
 
-  async function processSparkNotify(event: WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify']>) {
+  async function processSparkNotify(event: WebSocketEventOf<'spark:notify'>) {
     const result = await sparkNotifyAgent.handle(event)
     if (!result?.commands?.length)
       return result
@@ -104,7 +104,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     return result
   }
 
-  async function handleIncomingSparkNotify(event: WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify']>) {
+  async function handleIncomingSparkNotify(event: WebSocketEventOf<'spark:notify'>) {
     if (event.data.urgency === 'immediate' && !processing.value) {
       return await processSparkNotify(event)
     }
@@ -119,7 +119,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       return
 
     for (const task of dueTasks) {
-      const event: WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify']> = {
+      const event: WebSocketEventOf<'spark:notify'> = {
         type: 'spark:notify',
         source: 'character:task-scheduler',
         data: {

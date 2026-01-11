@@ -4,7 +4,6 @@ import type {
   WebSocketEvent,
   WebSocketEventOptionalSource,
   WebSocketEvents,
-  WebSocketEventSource,
 } from '@proj-airi/server-shared/types'
 
 import WebSocket from 'crossws/websocket'
@@ -36,6 +35,10 @@ export interface ClientOptions<C = undefined> {
 
 function createInstanceId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+function createEventId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 }
 
 export class Client<C = undefined> {
@@ -305,9 +308,15 @@ export class Client<C = undefined> {
   send(data: WebSocketEventOptionalSource<C>): void {
     if (this.websocket && this.connected) {
       const payload = {
-        source: this.opts.name as WebSocketEventSource | string,
-        metadata: { source: this.identity },
         ...data,
+        metadata: {
+          ...data?.metadata,
+          source: data?.metadata?.source ?? this.identity,
+          event: {
+            id: data?.metadata?.event?.id ?? createEventId(),
+            ...data?.metadata?.event,
+          },
+        },
       } as WebSocketEvent<C>
 
       this.opts.onAnySend?.(payload)

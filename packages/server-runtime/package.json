@@ -39,6 +39,7 @@
     "@proj-airi/server-shared": "workspace:^",
     "crossws": "^0.4.1",
     "h3": "^2.0.1-rc.6",
-    "listhen": "^1.9.0"
+    "listhen": "^1.9.0",
+    "nanoid": "catalog:"
   }
 }

@@ -1,7 +1,7 @@
 /* eslint-disable style/indent-binary-ops */
 /* eslint-disable style/operator-linebreak */
 
-import type { WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-sdk'
+import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 import type { Store, StoreDefinition } from 'pinia'
 import type { Mock } from 'vitest'
 import type { UnwrapRef } from 'vue'
@@ -163,7 +163,7 @@ describe('store character-orchestrator', () => {
     mockedStore(useCharacterStore).onSparkNotifyReactionStreamEnd = mockOnSparkNotifyReactionStreamEnd
 
     const store = useCharacterOrchestratorStore()
-    const event: WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify']> = {
+    const event: WebSocketEventOf<'spark:notify'> = {
       type: 'spark:notify',
       source: 'minecraft',
       data: {
