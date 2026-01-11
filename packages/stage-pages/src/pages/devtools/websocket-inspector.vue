@@ -148,7 +148,7 @@ function payloadClasses(direction: 'incoming' | 'outgoing') {
       >
         No messages found.
       </div>
-      <div v-else class="grid gap-3">
+      <div v-else v-auto-animate class="grid gap-3">
         <div
           v-for="item in filteredHistory"
           :key="item.id"

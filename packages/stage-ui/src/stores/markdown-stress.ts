@@ -7,7 +7,7 @@ import { defaultPerfTracer, exportCsv as exportCsvFile } from '@proj-airi/stage-
 import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
-import { useChatStore } from './chat'
+import { useChatOrchestratorStore } from './chat'
 import { useLLM } from './llm'
 import { useConsciousnessStore } from './modules/consciousness'
 import { usePerfTracerBridgeStore } from './perf-tracer-bridge'
@@ -292,7 +292,7 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
   }
 
   async function runOnlineScenario() {
-    const chatStore = useChatStore()
+    const chatStore = useChatOrchestratorStore()
     const targetScenario = ensureScenario()
 
     const provider = await providersStore.getProviderInstance(activeProvider.value) as ChatProvider | undefined
@@ -309,7 +309,7 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
       const delay = Math.max(0, runStart + message.atMs - performance.now())
       const timer = setTimeout(async () => {
         try {
-          await chatStore.send(message.text, {
+          await chatStore.ingest(message.text, {
             model: activeModel.value!,
             chatProvider: provider,
           })
@@ -323,7 +323,7 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
   }
 
   async function runMockScenario() {
-    const chatStore = useChatStore()
+    const chatStore = useChatOrchestratorStore()
     const llm = useLLM()
     const targetScenario = ensureScenario()
     const modelToUse = mockModelId
@@ -365,7 +365,7 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
       const delay = Math.max(0, runStart + message.atMs - performance.now())
       const timer = setTimeout(async () => {
         try {
-          await chatStore.send(message.text, {
+          await chatStore.ingest(message.text, {
             model: modelToUse,
             chatProvider: mockProvider,
           })

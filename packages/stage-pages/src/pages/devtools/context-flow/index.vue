@@ -7,7 +7,8 @@ import type { FlowDirection, FlowEntry, SparkNotifyEntryState } from './context-
 import { errorMessageFrom } from '@moeru/std'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { useCharacterOrchestratorStore, useCharacterStore } from '@proj-airi/stage-ui/stores/character'
-import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME, useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
+import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME } from '@proj-airi/stage-ui/stores/chat/constants'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { getEventSourceKey } from '@proj-airi/stage-ui/utils'
 import { Callout } from '@proj-airi/ui'
@@ -31,7 +32,7 @@ const {
   truncateText,
 } = useContextFlowFormatters()
 
-const chatStore = useChatStore()
+const chatStore = useChatOrchestratorStore()
 const characterStore = useCharacterStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
 const serverChannelStore = useModsServerChannelStore()
@@ -564,6 +565,10 @@ onUnmounted(() => {
           v-model:test-strategy="testStrategy"
           v-model:test-payload="testPayload"
           v-model:test-spark-notify-payload="testSparkNotifyPayload"
+          v-model:attention-tick-interval="characterOrchestratorStore.attentionConfig.tickIntervalMs"
+          v-model:attention-task-window="characterOrchestratorStore.attentionConfig.taskNotifyWindowMs"
+          v-model:attention-requeue-delay="characterOrchestratorStore.attentionConfig.requeueDelayMs"
+          v-model:attention-max-attempts="characterOrchestratorStore.attentionConfig.maxAttempts"
           @send-context-update="sendTestContextUpdate"
           @send-spark-notify="sendTestSparkNotify"
         />

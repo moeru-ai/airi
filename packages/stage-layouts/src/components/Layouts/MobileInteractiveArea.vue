@@ -5,7 +5,10 @@ import type { ChatProvider } from '@xsai-ext/providers/utils'
 import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
-import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
+import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -25,8 +28,13 @@ import { BackgroundDialogPicker } from '../Backgrounds'
 
 const { isDark, toggleDark } = useTheme()
 const hearingDialogOpen = ref(false)
-const chatStore = useChatStore()
-const { messages, sending, streamingMessage } = storeToRefs(chatStore)
+const chatOrchestrator = useChatOrchestratorStore()
+const chatSession = useChatSessionStore()
+const chatStream = useChatStreamStore()
+const { cleanupMessages } = useChatMaintenanceStore()
+const { messages } = storeToRefs(chatSession)
+const { streamingMessage } = storeToRefs(chatStream)
+const { sending } = storeToRefs(chatOrchestrator)
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 
 const viewControlsActiveMode = ref<'x' | 'y' | 'z' | 'scale'>('scale')
@@ -44,7 +52,7 @@ useResizeObserver(document.documentElement, () => screenSafeArea.update())
 const { themeColorsHueDynamic, stageViewControlsEnabled } = storeToRefs(useSettings())
 const settingsAudioDevice = useSettingsAudioDevice()
 const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(settingsAudioDevice)
-const { send, onAfterMessageComposed, discoverToolsCompatibility, cleanupMessages } = chatStore
+const { ingest, onAfterMessageComposed, discoverToolsCompatibility } = chatOrchestrator
 const { t } = useI18n()
 const { audioContext } = useAudioContext()
 const { startAnalyzer, stopAnalyzer, volumeLevel } = useAudioAnalyzer()
@@ -71,7 +79,7 @@ async function handleSend() {
   try {
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
 
-    await send(textToSend, {
+    await ingest(textToSend, {
       chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
       model: activeModel.value,
       providerConfig,
