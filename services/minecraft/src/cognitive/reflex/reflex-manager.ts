@@ -1,24 +1,22 @@
 import type { Logg } from '@guiiai/logg'
 
-import type { EventManager } from '../perception/event-manager'
+import type { EventBus, TracedEvent } from '../os'
 import type { PerceptionSignal } from '../perception/types/signals'
-import type { BotEvent, MineflayerWithAgents } from '../types'
+import type { MineflayerWithAgents } from '../types'
 import type { ReflexContextState } from './context'
 
 import { greetingBehavior } from './behaviors/greeting'
+import { lookAtBehavior } from './behaviors/look-at'
 import { ReflexRuntime } from './runtime'
 
 export class ReflexManager {
   private bot: MineflayerWithAgents | null = null
   private readonly runtime: ReflexRuntime
-
-  private readonly onPerceptionHandler = (event: BotEvent<PerceptionSignal>) => {
-    this.onPerception(event)
-  }
+  private unsubscribe: (() => void) | null = null
 
   constructor(
     private readonly deps: {
-      eventManager: EventManager
+      eventBus: EventBus
       logger: Logg
     },
   ) {
@@ -27,15 +25,22 @@ export class ReflexManager {
     })
 
     this.runtime.registerBehavior(greetingBehavior)
+    this.runtime.registerBehavior(lookAtBehavior)
   }
 
   public init(bot: MineflayerWithAgents): void {
     this.bot = bot
-    this.deps.eventManager.on<PerceptionSignal>('perception', this.onPerceptionHandler)
+    // Subscribe to all signals from RuleEngine
+    this.unsubscribe = this.deps.eventBus.subscribe('signal:*', (event) => {
+      this.onSignal(event as TracedEvent<PerceptionSignal>)
+    })
   }
 
   public destroy(): void {
-    this.deps.eventManager.off<PerceptionSignal>('perception', this.onPerceptionHandler)
+    if (this.unsubscribe) {
+      this.unsubscribe()
+      this.unsubscribe = null
+    }
     this.bot = null
   }
 
@@ -43,25 +48,34 @@ export class ReflexManager {
     return this.runtime.getContext().getSnapshot()
   }
 
-  private onPerception(event: BotEvent<PerceptionSignal>): void {
+  private onSignal(event: TracedEvent<PerceptionSignal>): void {
     const bot = this.bot
     if (!bot)
       return
 
     const signal = event.payload
-    const message = `Signal triggered: ${signal.type} - ${signal.description}`
-    bot.bot.chat(message)
-
     const now = Date.now()
+
+    // Create log message (can be throttled later if too spammy)
+    this.deps.logger.withFields({
+      type: signal.type,
+      description: signal.description,
+    }).log('ReflexManager: signal received')
+
+    // Update Context
     this.runtime.getContext().updateNow(now)
-    this.runtime.getContext().updateSocial({
-      lastSpeaker: event.source.id,
-      lastMessage: message,
-      lastMessageAt: now,
+    this.runtime.getContext().updateAttention({
+      lastSignalType: signal.type,
+      lastSignalSourceId: signal.sourceId ?? null,
+      lastSignalAt: now,
     })
 
-    const behaviorId = this.runtime.tick(bot, 0)
-    if (behaviorId)
-      event.handled = true
+    // If it's a chat message (simulated via signal for now, or direct?)
+    // For now we rely on signal metadata or separate chat event.
+    // Assuming 'signal:social:chat' or similar might exist later.
+    // For greeting behavior compatibility, we might need to map specific signals to social state.
+
+    // Trigger behavior selection
+    this.runtime.tick(bot, 0)
   }
 }

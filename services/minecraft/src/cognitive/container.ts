@@ -116,7 +116,10 @@ export function createAgentContainer(options: {
         }
       }),
 
-    reflexManager: asClass(ReflexManager).singleton(),
+    // Reflex Manager (Reactive Layer)
+    reflexManager: asFunction(({ eventBus, logger }) =>
+      new ReflexManager({ eventBus, logger }),
+    ).singleton(),
   })
 
   return container
