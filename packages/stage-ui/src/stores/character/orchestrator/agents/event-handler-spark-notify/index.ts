@@ -1,4 +1,4 @@
-import type { WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-sdk'
+import type { WebSocketEventOf, WebSocketEvents } from '@proj-airi/server-sdk'
 import type { ChatProvider, ChatProviderWithExtraOptions, EmbedProvider, EmbedProviderWithExtraOptions, SpeechProvider, SpeechProviderWithExtraOptions, TranscriptionProvider, TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 
@@ -57,8 +57,8 @@ export interface SparkNotifyAgentDeps {
   getSystemPrompt: () => string
   getProcessing: () => boolean
   setProcessing: (next: boolean) => void
-  getPending: () => Array<WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify']>>
-  setPending: (next: Array<WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify']>>) => void
+  getPending: () => Array<WebSocketEventOf<'spark:notify'>>
+  setPending: (next: Array<WebSocketEventOf<'spark:notify'>>) => void
 }
 
 function getSparkNotifyHandlingAgentInstruction(moduleName: string) {
@@ -101,7 +101,7 @@ export const sparkCommandSchema = z.object({
 export type SparkCommandSchema = z.infer<typeof sparkCommandSchema>
 
 export function setupAgentSparkNotifyHandler(deps: SparkNotifyAgentDeps) {
-  async function runNotifyAgent(event: WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify']>) {
+  async function runNotifyAgent(event: WebSocketEventOf<'spark:notify'>) {
     const activeProvider = deps.getActiveProvider()
     const activeModel = deps.getActiveModel()
     if (!activeProvider || !activeModel) {
@@ -225,7 +225,7 @@ export function setupAgentSparkNotifyHandler(deps: SparkNotifyAgentDeps) {
     } satisfies SparkNotifyResponse
   }
 
-  async function handle(event: WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify']>) {
+  async function handle(event: WebSocketEventOf<'spark:notify'>) {
     if (event.data.urgency !== 'immediate' && deps.getPending().length > 0) {
       deps.setPending([...deps.getPending(), event])
       return undefined

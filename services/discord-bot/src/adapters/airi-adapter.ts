@@ -157,13 +157,10 @@ export class DiscordAdapter {
     // Handle output from AIRI system (IA response)
     this.airiClient.onEvent('output:gen-ai:chat:message', async (event) => {
       try {
-        const { message, discord } = event.data as {
-          message: { content: string }
-          discord?: { channelId: string }
-        }
-
-        if (discord?.channelId) {
-          const channel = await this.discordClient.channels.fetch(discord.channelId)
+        const message = (event.data as { message?: { content: string } }).message
+        const discordContext = (event.data)['gen-ai:chat'].input.data.discord
+        if (message?.content && discordContext?.channelId) {
+          const channel = await this.discordClient.channels.fetch(discordContext.channelId)
           if (channel?.isTextBased() && 'send' in channel && typeof channel.send === 'function') {
             await channel.send(message.content)
           }
