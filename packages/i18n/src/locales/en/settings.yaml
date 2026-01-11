@@ -707,7 +707,7 @@ pages:
         description: Aliyun NLS
         title: Aliyun NLS
       browser-web-speech-api:
-        description: Browser-native Speech-to-Text (requires Chrome/Edge/Safari)
+        description: Browser-native STT (requires Chrome/Edge/Safari)
         title: Web Speech API
       transcriptions:
         playground:
