@@ -4,6 +4,8 @@
 // Server -> Client events
 // ============================================================
 
+import type { ReflexContextState } from '../cognitive/reflex/context'
+
 export interface LogEvent {
   level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG'
   message: string
@@ -58,6 +60,16 @@ export interface SaliencyEvent {
 }
 
 /**
+ * Reflex system state update
+ */
+export interface ReflexStateEvent {
+  mode: string
+  activeBehaviorId: string | null
+  context: ReflexContextState
+  timestamp: number
+}
+
+/**
  * Traced event from the Cognitive OS EventBus
  */
 export interface TraceEvent {
@@ -95,6 +107,7 @@ export type ServerEvent
     | { type: 'blackboard', payload: BlackboardEvent }
     | { type: 'queue', payload: QueueEvent }
     | { type: 'saliency', payload: SaliencyEvent }
+    | { type: 'reflex', payload: ReflexStateEvent }
     | { type: 'trace', payload: TraceEvent }
     | { type: 'trace_batch', payload: TraceBatchEvent }
     | { type: 'history', payload: ServerEvent[] }

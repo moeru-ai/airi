@@ -267,6 +267,78 @@ class QueuePanel {
 }
 
 // =============================================================================
+// Reflex Panel
+// =============================================================================
+
+class ReflexPanel {
+  constructor(client) {
+    this.client = client
+    this.state = null
+    this.elements = {
+      mode: document.getElementById('reflex-mode'),
+      activeBehavior: document.getElementById('reflex-active-behavior'),
+      signalType: document.getElementById('reflex-signal-type'),
+      signalSource: document.getElementById('reflex-signal-source'),
+      socialSpeaker: document.getElementById('reflex-social-speaker'),
+    }
+  }
+
+  init() {
+    this.client.on('reflex', data => this.update(data))
+    this.client.on('connected', () => this.reset())
+    this.render()
+  }
+
+  update(data) {
+    this.state = data
+    this.render()
+  }
+
+  reset() {
+    this.state = null
+    this.render()
+  }
+
+  render() {
+    if (!this.state) {
+      this.elements.mode.textContent = 'unknown'
+      this.elements.mode.className = 'panel-badge'
+      this.elements.activeBehavior.textContent = 'None'
+      this.elements.signalType.textContent = 'None'
+      this.elements.signalSource.textContent = '-'
+      this.elements.socialSpeaker.textContent = 'None'
+      return
+    }
+
+    const { mode, activeBehaviorId, context } = this.state
+
+    // Mode
+    this.elements.mode.textContent = mode
+    this.elements.mode.className = `panel-badge ${mode === 'alert' ? 'badge-error' : (mode === 'social' ? 'badge-success' : '')}`
+
+    // Behavior
+    this.elements.activeBehavior.textContent = activeBehaviorId ? escapeHtml(activeBehaviorId) : 'None'
+
+    // Attention
+    if (context.attention?.lastSignalType) {
+      this.elements.signalType.textContent = escapeHtml(context.attention.lastSignalType)
+      this.elements.signalSource.textContent = escapeHtml(context.attention.lastSignalSourceId || '-')
+    }
+    else {
+      this.elements.signalType.textContent = 'None'
+    }
+
+    // Social
+    if (context.social?.lastSpeaker) {
+      this.elements.socialSpeaker.textContent = escapeHtml(context.social.lastSpeaker)
+    }
+    else {
+      this.elements.socialSpeaker.textContent = 'None'
+    }
+  }
+}
+
+// =============================================================================
 // Blackboard Panel
 // =============================================================================
 
@@ -826,13 +898,22 @@ class TimelinePanel {
 class DebugApp {
   constructor() {
     this.client = new DebugClient()
+    this.queuePanel = new QueuePanel(this.client)
+    this.reflexPanel = new ReflexPanel(this.client)
+    this.blackboardPanel = new BlackboardPanel(this.client)
+    this.logsPanel = new LogsPanel(this.client)
+    this.llmPanel = new LLMPanel(this.client)
+    this.saliencyPanel = new SaliencyPanel(this.client)
+    this.timelinePanel = new TimelinePanel(this.client)
+
     this.panels = {
-      queue: new QueuePanel(this.client),
-      blackboard: new BlackboardPanel(this.client),
-      logs: new LogsPanel(this.client),
-      llm: new LLMPanel(this.client),
-      saliency: new SaliencyPanel(this.client),
-      timeline: new TimelinePanel(this.client),
+      queue: this.queuePanel,
+      reflex: this.reflexPanel,
+      blackboard: this.blackboardPanel,
+      logs: this.logsPanel,
+      llm: this.llmPanel,
+      saliency: this.saliencyPanel,
+      timeline: this.timelinePanel,
     }
     this.paused = false
   }

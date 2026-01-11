@@ -5,6 +5,7 @@ import type { PerceptionSignal } from '../perception/types/signals'
 import type { MineflayerWithAgents } from '../types'
 import type { ReflexContextState } from './context'
 
+import { DebugService } from '../../debug'
 import { greetingBehavior } from './behaviors/greeting'
 import { lookAtBehavior } from './behaviors/look-at'
 import { ReflexRuntime } from './runtime'
@@ -77,5 +78,12 @@ export class ReflexManager {
 
     // Trigger behavior selection
     this.runtime.tick(bot, 0)
+
+    // Emit reflex state for observability
+    DebugService.getInstance().emitReflexState({
+      mode: this.runtime.getMode(),
+      activeBehaviorId: this.runtime.getActiveBehaviorId(),
+      context: this.runtime.getContext().getSnapshot(),
+    })
   }
 }

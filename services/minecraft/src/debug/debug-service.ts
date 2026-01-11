@@ -1,4 +1,4 @@
-import type { BlackboardEvent, ClientCommand, LLMTraceEvent, LogEvent, QueueEvent, SaliencyEvent, ServerEvent, TraceEvent } from './types'
+import type { BlackboardEvent, ClientCommand, LLMTraceEvent, LogEvent, QueueEvent, ReflexStateEvent, SaliencyEvent, ServerEvent, TraceEvent } from './types'
 
 import { DebugServer } from './server'
 
@@ -148,6 +148,20 @@ export class DebugService {
     this.server.broadcast(event)
   }
 
+  /**
+   * Emit a reflex state update
+   */
+  public emitReflexState(state: Omit<ReflexStateEvent, 'timestamp'>): void {
+    const event: ServerEvent = {
+      type: 'reflex',
+      payload: {
+        ...state,
+        timestamp: Date.now(),
+      },
+    }
+    this.server.broadcast(event)
+  }
+
   // ============================================================
   // Generic emit for custom events
   // ============================================================
@@ -183,6 +197,9 @@ export class DebugService {
         })
         break
       }
+      case 'reflex':
+        this.emitReflexState(payload as Omit<ReflexStateEvent, 'timestamp'>)
+        break
       default:
         // For unknown types, emit as log
         this.log('DEBUG', `Unknown event type: ${type}`, { payload })
