@@ -47,7 +47,7 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
-const { transcribeForRecording, transcribeForMediaStream } = hearingPipeline
+const { transcribeForRecording } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
@@ -99,28 +99,9 @@ async function startAudioInteraction() {
 }
 
 async function handleSpeechStart() {
-  if (shouldUseStreamInput.value && stream.value) {
-    await transcribeForMediaStream(stream.value, {
-      onSentenceEnd: (delta) => {
-        const finalText = delta
-        if (!finalText || !finalText.trim()) {
-          return
-        }
-
-        void (async () => {
-          try {
-            const provider = await providersStore.getProviderInstance(activeChatProvider.value)
-            if (!provider || !activeChatModel.value)
-              return
-
-            await chatStore.ingest(finalText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
-          }
-          catch (err) {
-            console.error('Failed to send chat from voice:', err)
-          }
-        })()
-      },
-    })
+  // For streaming providers, ChatArea component handles transcription manually
+  // The main page should not start automatic transcription to avoid duplicate sessions
+  if (shouldUseStreamInput.value) {
     return
   }
 

@@ -66,13 +66,15 @@ const modelValue = defineModel<string>({ required: true })
       </span>
       <span
         v-if="description"
-        class="radio-item-description"
+        class="radio-item-description line-clamp-2"
+        text="xs"
         :class="[
           modelValue === value
             ? 'text-neutral-600 dark:text-neutral-400'
             : 'text-neutral-400 dark:text-neutral-600',
         ]"
         transition="all duration-200 ease-in-out"
+        :title="description"
       >
         {{ description }}
       </span>
