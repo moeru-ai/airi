@@ -43,7 +43,7 @@ export class MineflayerPerceptionCollector {
     this.onBot('entityMoved', (entity: any) => {
       const now = Date.now()
       const dist = this.distanceTo(entity)
-      if (dist === null)
+      if (dist === null || dist > this.deps.maxDistance)
         return
 
       const entityId = this.entityId(entity)
@@ -69,7 +69,7 @@ export class MineflayerPerceptionCollector {
     this.onBot('entitySwingArm', (entity: any) => {
       const now = Date.now()
       const dist = this.distanceTo(entity)
-      if (dist === null)
+      if (dist === null || dist > this.deps.maxDistance)
         return
 
       const event: SightedArmSwingEvent = {
@@ -96,7 +96,7 @@ export class MineflayerPerceptionCollector {
 
       const now = Date.now()
       const dist = this.distanceTo(entity)
-      if (dist === null)
+      if (dist === null || dist > this.deps.maxDistance)
         return
 
       const entityId = this.entityId(entity)
@@ -129,7 +129,7 @@ export class MineflayerPerceptionCollector {
         return
 
       const dist = this.distanceToPos(pos)
-      if (dist === null)
+      if (dist === null || dist > this.deps.maxDistance)
         return
 
       const event: HeardSoundEvent = {

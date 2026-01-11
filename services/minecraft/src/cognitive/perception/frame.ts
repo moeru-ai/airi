@@ -2,9 +2,9 @@ import type { RawPerceptionEvent } from './types/raw-events'
 
 export type PerceptionFrameSource = 'minecraft'
 
-export type PerceptionFrameKind =
-  | 'world_raw'
-  | 'chat_raw'
+export type PerceptionFrameKind
+  = | 'world_raw'
+    | 'chat_raw'
 
 export interface PerceptionFrame {
   id: string
@@ -12,12 +12,6 @@ export interface PerceptionFrame {
   source: PerceptionFrameSource
   kind: PerceptionFrameKind
   raw: RawPerceptionEvent | { username: string, message: string }
-  norm?: {
-    entityId?: string
-    distance?: number
-    within32?: boolean
-    displayName?: string
-  }
   signals: Array<{ type: string, payload: any }>
 }
 
