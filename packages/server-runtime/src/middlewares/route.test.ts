@@ -24,19 +24,26 @@ function createPeer(options: {
   }
 }
 
-function createSparkNotifyEvent(overrides?: Partial<WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify'], any>>): WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify'], any> {
+function createSparkNotifyEvent(overrides: Partial<WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify'], any>> = {}): WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify'], any> {
+  const data: WebSocketEvents['spark:notify'] = {
+    id: 'evt-1',
+    eventId: 'spark-1',
+    kind: 'ping',
+    urgency: 'soon',
+    headline: 'hello',
+    destinations: ['module:character'],
+    ...overrides.data,
+  }
+
   return {
     type: 'spark:notify',
-    data: {
-      id: 'evt-1',
-      eventId: 'spark-1',
-      kind: 'ping',
-      urgency: 'soon',
-      headline: 'hello',
-      destinations: ['module:character'],
+    data,
+    source: overrides.source ?? 'proj-airi:server-runtime',
+    metadata: overrides.metadata ?? {
+      source: { plugin: 'server-runtime', instanceId: 'test' },
+      event: { id: data.id },
     },
-    source: 'proj-airi:server-runtime',
-    ...overrides,
+    route: overrides.route,
   }
 }
 
