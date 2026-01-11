@@ -53,6 +53,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const [activeTranscriptionModel, resetActiveTranscriptionModel] = createResettableLocalStorage('settings/hearing/active-model', '')
   const [activeCustomModelName, resetActiveCustomModelName] = createResettableLocalStorage('settings/hearing/active-custom-model', '')
   const [transcriptionModelSearchQuery, resetTranscriptionModelSearchQuery] = createResettableRef('')
+  const [autoSendEnabled, resetAutoSendEnabled] = createResettableLocalStorage('settings/hearing/auto-send-enabled', false)
+  const [autoSendDelay, resetAutoSendDelay] = createResettableLocalStorage('settings/hearing/auto-send-delay', 2000) // Default 2 seconds
 
   // Computed properties
   const availableProvidersMetadata = computed(() => allAudioTranscriptionProvidersMetadata.value)
@@ -106,6 +108,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
     resetActiveTranscriptionModel()
     resetActiveCustomModelName()
     resetTranscriptionModelSearchQuery()
+    resetAutoSendEnabled()
+    resetAutoSendDelay()
   }
 
   async function transcription(
@@ -187,6 +191,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
     availableProvidersMetadata,
     activeCustomModelName,
     transcriptionModelSearchQuery,
+    autoSendEnabled,
+    autoSendDelay,
 
     supportsModelListing,
     providerModels,
@@ -488,14 +494,18 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           || (providerConfig.language as string)
           || 'en-US'
 
-        const idleTimeout = options?.idleTimeoutMs ?? DEFAULT_STREAM_IDLE_TIMEOUT
+        // Web Speech API in continuous mode should run indefinitely - no idle timeout
+        // Only stop when explicitly requested (e.g., microphone disabled)
+        const idleTimeout = options?.idleTimeoutMs ?? 0 // 0 = disabled
         let idleTimer: ReturnType<typeof setTimeout> | undefined
         const bumpIdle = () => {
-          if (idleTimer)
-            clearTimeout(idleTimer)
-          idleTimer = setTimeout(async () => {
-            await stopStreamingTranscription(false, providerId)
-          }, idleTimeout)
+          if (idleTimeout > 0) {
+            if (idleTimer)
+              clearTimeout(idleTimer)
+            idleTimer = setTimeout(async () => {
+              await stopStreamingTranscription(false, providerId)
+            }, idleTimeout)
+          }
         }
 
         const result = streamWebSpeechAPITranscription(stream, {
@@ -505,12 +515,12 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           maxAlternatives: (options?.providerOptions?.maxAlternatives as number) ?? (providerConfig.maxAlternatives as number) ?? 1,
           abortSignal: abortController.signal,
           onSentenceEnd: (delta) => {
-            bumpIdle() // Bump idle timer on activity
-            // Call the options callback - session callbacks are the same, so no need to call both
+            bumpIdle() // Bump idle timer on activity (only if enabled)
+            // Call the options callback
             options?.onSentenceEnd?.(delta)
           },
           onSpeechEnd: (text) => {
-            // Call the options callback - session callbacks are the same, so no need to call both
+            // Call the options callback
             options?.onSpeechEnd?.(text)
           },
         })
@@ -532,7 +542,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           },
         } as any // Type assertion needed because recognition is extra
 
-        // Initial idle timer
+        // Initial idle timer (only if enabled)
         bumpIdle()
 
         // Stream out text deltas
@@ -555,9 +565,9 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
             catch (err) {
               console.error('Error reading text stream:', err)
             }
-            finally {
-              options?.onSpeechEnd?.(fullText)
-            }
+            // Note: onSpeechEnd is called from web-speech-api/index.ts recognition.onend handler
+            // (line 332 for non-continuous mode, line 271 for errors)
+            // We don't call it here to avoid duplicate calls
           })()
         }
 

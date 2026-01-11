@@ -25,6 +25,8 @@ const {
   supportsModelListing,
   transcriptionModelSearchQuery,
   activeCustomModelName,
+  autoSendEnabled,
+  autoSendDelay,
 } = storeToRefs(hearingStore)
 const providersStore = useProvidersStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
@@ -598,6 +600,37 @@ onUnmounted(() => {
                 @update:custom-value="updateCustomModelName"
               />
             </template>
+          </div>
+        </div>
+
+        <!-- Auto-send settings -->
+        <div class="border-t border-neutral-200 pt-4 dark:border-neutral-700">
+          <div class="mb-4">
+            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
+              Auto-send Settings
+            </h2>
+            <div text="neutral-400 dark:neutral-400">
+              Configure automatic sending of transcribed text to chat
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <FieldCheckbox
+              v-model="autoSendEnabled"
+              label="Auto-send transcribed text"
+              description="Automatically send transcribed text to chat after a delay. This may consume tokens, so disable if you want to manually review and edit transcriptions before sending."
+            />
+
+            <FieldRange
+              v-if="autoSendEnabled"
+              v-model="autoSendDelay"
+              label="Auto-send delay"
+              description="Delay in milliseconds before automatically sending transcribed text (0 = send immediately, recommended: 1000-3000ms)"
+              :min="0"
+              :max="10000"
+              :step="100"
+              :format-value="value => value === 0 ? 'Immediate' : `${(value / 1000).toFixed(1)}s`"
+            />
           </div>
         </div>
       </div>

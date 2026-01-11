@@ -40,8 +40,48 @@ const hearingStore = useHearingStore()
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
-const { configured: hearingConfigured } = storeToRefs(hearingStore)
+const { configured: hearingConfigured, autoSendEnabled, autoSendDelay } = storeToRefs(hearingStore)
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
+
+// Auto-send logic
+let autoSendTimeout: ReturnType<typeof setTimeout> | undefined
+const pendingAutoSendText = ref('')
+
+async function debouncedAutoSend(text: string) {
+  if (!autoSendEnabled.value) {
+    return
+  }
+
+  // Add text to pending buffer
+  pendingAutoSendText.value = pendingAutoSendText.value ? `${pendingAutoSendText.value} ${text}` : text
+
+  // Clear existing timeout
+  if (autoSendTimeout) {
+    clearTimeout(autoSendTimeout)
+  }
+
+  // Set new timeout
+  autoSendTimeout = setTimeout(async () => {
+    const textToSend = pendingAutoSendText.value.trim()
+    if (textToSend && autoSendEnabled.value) {
+      try {
+        const providerConfig = providersStore.getProviderConfig(activeProvider.value)
+        await send(textToSend, {
+          chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
+          model: activeModel.value,
+          providerConfig,
+        })
+        // Clear the message input after sending
+        messageInput.value = ''
+        pendingAutoSendText.value = ''
+      }
+      catch (err) {
+        console.error('[ChatArea] Auto-send error:', err)
+      }
+    }
+    autoSendTimeout = undefined
+  }, autoSendDelay.value)
+}
 
 async function handleSend() {
   if (!messageInput.value.trim() || isComposing.value) {
@@ -118,15 +158,17 @@ watch([hearingTooltipOpen, enabled, stream], () => {
 onUnmounted(() => {
   teardownAnalyzer()
   stopListening()
+
+  // Clear auto-send timeout on unmount
+  if (autoSendTimeout) {
+    clearTimeout(autoSendTimeout)
+    autoSendTimeout = undefined
+  }
 })
 
 // Transcription listening functions
 async function startListening() {
-  if (isListening.value) {
-    console.info('[ChatArea] Already listening, skipping...')
-    return
-  }
-
+  // Allow calling this even if already listening - transcribeForMediaStream will handle session reuse/restart
   try {
     console.info('[ChatArea] Starting listening...', {
       enabled: enabled.value,
@@ -184,26 +226,17 @@ async function startListening() {
       }
     }
 
-    // Ensure microphone is enabled first (it's required for transcription)
-    if (!enabled.value) {
-      console.info('[ChatArea] Enabling microphone for transcription...')
-      enabled.value = true
-      // Wait longer for stream to initialize after enabling
-      await new Promise(resolve => setTimeout(resolve, 500))
-    }
-
-    // Request microphone permission if needed
+    // Request microphone permission if needed (microphone should already be enabled by the user)
     if (!stream.value) {
       console.info('[ChatArea] Requesting microphone permission...')
       await askPermission()
-      // Wait for stream to initialize after permission request
-      await new Promise(resolve => setTimeout(resolve, 500))
 
       // If still no stream, try starting it manually
       if (!stream.value && enabled.value) {
         console.info('[ChatArea] Attempting to start stream manually...')
         startStream()
-        await new Promise(resolve => setTimeout(resolve, 500))
+        // Wait a moment for stream to initialize after starting
+        await new Promise(resolve => setTimeout(resolve, 300))
       }
     }
 
@@ -234,18 +267,15 @@ async function startListening() {
             const currentText = messageInput.value.trim()
             messageInput.value = currentText ? `${currentText} ${delta}` : delta
             console.info('[ChatArea] Received transcription delta:', delta)
-          }
-        },
-        onSpeechEnd: (text) => {
-          if (text && text.trim()) {
-            // Final transcription - ensure it's in the input
-            const currentText = messageInput.value.trim()
-            if (!currentText.includes(text.trim())) {
-              messageInput.value = currentText ? `${currentText} ${text.trim()}` : text.trim()
+
+            // Auto-send if enabled
+            if (autoSendEnabled.value) {
+              debouncedAutoSend(delta)
             }
-            console.info('[ChatArea] Speech ended, final text:', text)
           }
         },
+        // Don't use onSpeechEnd - it re-adds text that users may have deleted
+        // onSentenceEnd handles all text updates as transcription happens
       })
 
       // Only set listening to true if transcription started successfully
@@ -271,6 +301,31 @@ async function stopListening() {
 
   try {
     console.info('[ChatArea] Stopping transcription...')
+
+    // Clear auto-send timeout
+    if (autoSendTimeout) {
+      clearTimeout(autoSendTimeout)
+      autoSendTimeout = undefined
+    }
+
+    // Send any pending text immediately if auto-send is enabled
+    if (autoSendEnabled.value && pendingAutoSendText.value.trim()) {
+      const textToSend = pendingAutoSendText.value.trim()
+      pendingAutoSendText.value = ''
+      try {
+        const providerConfig = providersStore.getProviderConfig(activeProvider.value)
+        await send(textToSend, {
+          chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
+          model: activeModel.value,
+          providerConfig,
+        })
+        messageInput.value = ''
+      }
+      catch (err) {
+        console.error('[ChatArea] Auto-send error on stop:', err)
+      }
+    }
+
     await stopStreamingTranscription(true)
     isListening.value = false
     console.info('[ChatArea] Transcription stopped')
@@ -281,26 +336,27 @@ async function stopListening() {
   }
 }
 
-async function toggleListening() {
-  if (isListening.value) {
-    await stopListening()
-  }
-  else {
+// Start listening when microphone is enabled and stream is available
+watch(enabled, async (val) => {
+  if (val && stream.value) {
+    // Microphone was just enabled and we have a stream, start transcription
     await startListening()
   }
-}
-
-// Stop listening if microphone is disabled
-watch(enabled, (val) => {
-  if (!val && isListening.value) {
-    stopListening()
+  else if (!val && isListening.value) {
+    // Microphone was disabled, stop transcription
+    await stopListening()
   }
 })
 
-// Stop listening if stream is lost
-watch(stream, (val) => {
-  if (!val && isListening.value) {
-    stopListening()
+// Start listening when stream becomes available (if microphone is enabled)
+watch(stream, async (val) => {
+  if (val && enabled.value && !isListening.value) {
+    // Stream became available and microphone is enabled, start transcription
+    await startListening()
+  }
+  else if (!val && isListening.value) {
+    // Stream was lost, stop transcription
+    await stopListening()
   }
 })
 </script>
@@ -330,39 +386,10 @@ watch(stream, (val) => {
         @compositionend="isComposing = false"
       />
 
-      <!-- Bottom-left action buttons: Listening (transcription) and Microphone -->
+      <!-- Bottom-left action button: Microphone -->
       <div
         absolute bottom-2 left-2 z-10 flex items-center gap-2
       >
-        <!-- Listening icon button for transcription -->
-        <TooltipProvider :delay-duration="300">
-          <TooltipRoot>
-            <TooltipTrigger as-child>
-              <button
-                type="button"
-                class="h-8 w-8 flex items-center justify-center border rounded-md shadow-sm outline-none transition-all duration-200 active:scale-95"
-                :class="isListening
-                  ? ['bg-primary-500', 'text-white', 'border-primary-600', 'hover:bg-primary-600', 'dark:bg-primary-600', 'dark:border-primary-700', 'dark:hover:bg-primary-700']
-                  : ['bg-white', 'text-neutral-600', 'border-neutral-300', 'hover:bg-neutral-50', 'dark:bg-neutral-800', 'dark:text-neutral-300', 'dark:border-neutral-600', 'dark:hover:bg-neutral-700']"
-                :title="isListening ? 'Stop listening' : 'Start listening'"
-                @click="toggleListening"
-              >
-                <Transition name="fade" mode="out-in">
-                  <div v-if="isListening" class="i-solar:microphone-bold-duotone h-5 w-5" />
-                  <div v-else class="i-solar:microphone-line-duotone h-5 w-5" />
-                </Transition>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent
-              side="top"
-              :side-offset="8"
-              class="rounded-lg bg-neutral-900 px-2 py-1 text-xs text-white dark:bg-neutral-100 dark:text-neutral-900"
-            >
-              {{ isListening ? 'Stop listening' : 'Start listening' }}
-            </TooltipContent>
-          </TooltipRoot>
-        </TooltipProvider>
-
         <!-- Microphone icon button -->
         <TooltipProvider :delay-duration="0" :skip-delay-duration="0">
           <TooltipRoot v-model:open="hearingTooltipOpen">
