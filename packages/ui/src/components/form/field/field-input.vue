@@ -13,7 +13,7 @@ const props = withDefaults(defineProps<{
   singleLine: true,
 })
 
-const modelValue = defineModel<string>({ required: false })
+const modelValue = defineModel<string | number>({ required: false })
 </script>
 
 <template>
@@ -33,7 +33,14 @@ const modelValue = defineModel<string>({ required: false })
         </div>
       </div>
       <Input
-        v-if="singleLine"
+        v-if="singleLine && props.type === 'number'"
+        v-model.number="modelValue"
+        :type="props.type"
+        :placeholder="props.placeholder"
+        :class="props.inputClass"
+      />
+      <Input
+        v-else-if="singleLine"
         v-model="modelValue"
         :type="props.type"
         :placeholder="props.placeholder"

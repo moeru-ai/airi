@@ -18,7 +18,7 @@ const props = withDefaults(defineProps<{
   theme: 'default',
 })
 
-const modelValue = defineModel<string>({ required: false })
+const modelValue = defineModel<string | number>({ required: false })
 
 const variantClasses: Record<InputVariant, Record<InputTheme, {
   default: string[]
@@ -59,13 +59,26 @@ const variantClasses: Record<InputVariant, Record<InputTheme, {
 </script>
 
 <template>
-  <input
-    v-model="modelValue"
-    :type="props.type || 'text'"
-    :class="[
-      'transition-all duration-200 ease-in-out',
-      'cursor-disabled:not-allowed',
-      ...variantClasses[props.variant][props.theme].default,
-    ]"
-  >
+  <template v-if="props.type === 'number'">
+    <input
+      v-model.number="modelValue"
+      :type="props.type || 'text'"
+      :class="[
+        'transition-all duration-200 ease-in-out',
+        'cursor-disabled:not-allowed',
+        ...variantClasses[props.variant][props.theme].default,
+      ]"
+    >
+  </template>
+  <template v-else>
+    <input
+      v-model="modelValue"
+      :type="props.type || 'text'"
+      :class="[
+        'transition-all duration-200 ease-in-out',
+        'cursor-disabled:not-allowed',
+        ...variantClasses[props.variant][props.theme].default,
+      ]"
+    >
+  </template>
 </template>
