@@ -126,6 +126,10 @@ const routeHeaderMetadataMap = computed(() => {
       subtitle: t('settings.title'),
       title: t('settings.pages.system.sections.section.developer.sections.section.markdown-stress.title'),
     },
+    '/devtools/screen-capture': {
+      subtitle: t('settings.title'),
+      title: 'Screen Capture',
+    },
   }
 
   for (const metadata of allProvidersMetadata.value) {

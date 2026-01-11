@@ -52,6 +52,7 @@ export default defineConfig({
         '@proj-airi/stage-ui/*',
         '@proj-airi/drizzle-duckdb-wasm',
         '@proj-airi/drizzle-duckdb-wasm/*',
+        '@proj-airi/electron-screen-capture',
 
         // Static Assets: Models, Images, etc.
         'src/renderer/public/assets/*',

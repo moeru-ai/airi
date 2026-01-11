@@ -21,6 +21,9 @@ catalogs:
     '@electric-sql/pglite':
       specifier: ^0.3.14
       version: 0.3.14
+    '@electron-toolkit/preload':
+      specifier: ^3.0.2
+      version: 3.0.2
     '@guiiai/logg':
       specifier: ^1.2.11
       version: 1.2.11
@@ -33,6 +36,9 @@ catalogs:
     '@moeru/eslint-config':
       specifier: 0.1.0-beta.15
       version: 0.1.0-beta.15
+    '@moeru/eventa':
+      specifier: 1.0.0-alpha.10
+      version: 1.0.0-alpha.10
     '@moeru/std':
       specifier: 0.1.0-beta.14
       version: 0.1.0-beta.14
@@ -93,6 +99,9 @@ catalogs:
     '@xsai/utils-chat':
       specifier: 0.4.0-beta.13
       version: 0.4.0-beta.13
+    async-mutex:
+      specifier: 0.5.0
+      version: 0.5.0
     better-auth:
       specifier: ^1.4.9
       version: 1.4.10
@@ -102,6 +111,9 @@ catalogs:
     drizzle-valibot:
       specifier: ^0.4.2
       version: 0.4.2
+    electron:
+      specifier: ^39.2.7
+      version: 39.2.7
     embla-carousel-vue:
       specifier: ^8.6.0
       version: 8.6.0
@@ -304,7 +316,7 @@ importers:
         version: 0.5.6
       unplugin-vue:
         specifier: ^7.1.0
-        version: 7.1.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(vue@3.5.25(typescript@5.9.3))(yaml@2.8.2)
+        version: 7.1.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(vue@3.5.26(typescript@5.9.3))(yaml@2.8.2)
       vite:
         specifier: ^7.3.0
         version: 7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
@@ -398,7 +410,7 @@ importers:
         version: 1.19.7(hono@4.11.3)
       better-auth:
         specifier: ^1.4.5
-        version: 1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.44.7(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3))
+        version: 1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.44.7(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.26(typescript@5.9.3))
       drizzle-orm:
         specifier: ^0.44.7
         version: 0.44.7(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
@@ -423,7 +435,7 @@ importers:
     devDependencies:
       '@better-auth/cli':
         specifier: ^1.4.5
-        version: 1.4.10(@better-fetch/fetch@1.1.21)(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(better-call@1.1.7(zod@4.2.1))(drizzle-kit@0.31.8)(jose@6.1.3)(kysely@0.28.9)(magicast@0.5.1)(nanostores@1.1.0)(postgres@3.4.7)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3))
+        version: 1.4.10(@better-fetch/fetch@1.1.21)(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(better-call@1.1.7(zod@4.2.1))(drizzle-kit@0.31.8)(jose@6.1.3)(kysely@0.28.9)(magicast@0.5.1)(nanostores@1.1.0)(postgres@3.4.7)(react@19.2.3)(vitest@4.0.16)(vue@3.5.26(typescript@5.9.3))
       drizzle-kit:
         specifier: ^0.31.7
         version: 0.31.8
@@ -866,6 +878,9 @@ importers:
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
         version: 0.4.29(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))
+      '@proj-airi/electron-screen-capture':
+        specifier: workspace:^
+        version: link:../../packages/electron-screen-capture
       '@proj-airi/font-cjkfonts-allseto':
         specifier: workspace:^
         version: link:../../packages/font-cjkfonts-allseto
@@ -974,9 +989,6 @@ importers:
       drizzle-orm:
         specifier: ^0.45.1
         version: 0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)
-      electron-audio-loopback:
-        specifier: ^1.0.6
-        version: 1.0.6(electron@39.2.7)
       electron-click-drag-plugin:
         specifier: ^2.0.2
         version: 2.0.2
@@ -1802,6 +1814,37 @@ importers:
         specifier: ^1.0.2
         version: 1.0.2
 
+  packages/electron-screen-capture:
+    dependencies:
+      vue:
+        specifier: '>=3'
+        version: 3.5.25(typescript@5.9.3)
+    devDependencies:
+      '@electron-toolkit/preload':
+        specifier: 'catalog:'
+        version: 3.0.2(electron@39.2.7)
+      '@guiiai/logg':
+        specifier: 'catalog:'
+        version: 1.2.11
+      '@moeru/eventa':
+        specifier: 'catalog:'
+        version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.14
+      async-mutex:
+        specifier: 'catalog:'
+        version: 0.5.0
+      electron:
+        specifier: 'catalog:'
+        version: 39.2.7
+      nanoid:
+        specifier: 'catalog:'
+        version: 5.1.6
+      vite:
+        specifier: catalog:rolldown-vite
+        version: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+
   packages/font-cjkfonts-allseto: {}
 
   packages/font-departure-mono: {}
@@ -2157,6 +2200,9 @@ importers:
       '@nekopaw/tempora':
         specifier: 'catalog:'
         version: 0.4.0-alpha.1
+      '@proj-airi/electron-screen-capture':
+        specifier: workspace:^
+        version: link:../electron-screen-capture
       '@types/audioworklet':
         specifier: 'catalog:'
         version: 0.0.92
@@ -8939,6 +8985,9 @@ packages:
   '@vue/runtime-dom@3.5.25':
     resolution: {integrity: sha512-a4WrkYFbb19i9pjkz38zJBg8wa/rboNERq3+hRRb0dHiJh13c+6kAbgqCPfMaJ2gg4weWD3APZswASOfmKwamA==}
 
+  '@vue/runtime-dom@3.5.26':
+    resolution: {integrity: sha512-XLLd/+4sPC2ZkN/6+V4O4gjJu6kSDbHAChvsyWgm1oGbdSO3efvGYnm25yCjtFm/K7rrSDvSfPDgN1pHgS4VNQ==}
+
   '@vue/server-renderer@3.5.25':
     resolution: {integrity: sha512-UJaXR54vMG61i8XNIzTSf2Q7MOqZHpp8+x3XLGtE3+fL+nQd+k7O5+X3D/uWrnQXOdMw5VPih+Uremcw+u1woQ==}
     peerDependencies:
@@ -10703,11 +10752,6 @@ packages:
     resolution: {integrity: sha512-UeJmFfOrAQS8OJWPZ4qtgHyWExa088/MtK5UEyoJGFH67cDEXkZSviOiKRCZ4Xij0zxI3JECgYs3oKx+AizQBA==}
     engines: {node: '>=0.10.0'}
     hasBin: true
-
-  electron-audio-loopback@1.0.6:
-    resolution: {integrity: sha512-QW0ogDqMpWHDAQHmQyssJ+Yh4qR3kWCP3Q4H9WuIXKwVlgkqOYGyt0v/JzbK3tBNTwfqbuHZy86kwCCajxqAdg==}
-    peerDependencies:
-      electron: '>=31.0.1'
 
   electron-builder-squirrel-windows@26.4.0:
     resolution: {integrity: sha512-7dvalY38xBzWNaoOJ4sqy2aGIEpl2S1gLPkkB0MHu1Hu5xKQ82il1mKSFlXs6fLpXUso/NmyjdHGlSHDRoG8/w==}
@@ -16259,6 +16303,14 @@ packages:
       typescript:
         optional: true
 
+  vue@3.5.26:
+    resolution: {integrity: sha512-SJ/NTccVyAoNUJmkM9KUqPcYlY+u8OVL1X5EW9RIs3ch5H2uERxyyIUI4MRxVCSOiEcupX9xNGde1tL9ZKpimA==}
+    peerDependencies:
+      typescript: '*'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   w3c-keyname@2.2.8:
     resolution: {integrity: sha512-dpojBhNsCNN7T82Tm7k26A6G9ML3NkhDsnw9n/eoxSRlVBB4CEtIQ/KTCLI2Fwf3ataSXRhYFkQi3SlnFwPvPQ==}
 
@@ -17793,7 +17845,7 @@ snapshots:
 
   '@bcoe/v8-coverage@1.0.2': {}
 
-  '@better-auth/cli@1.4.10(@better-fetch/fetch@1.1.21)(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(better-call@1.1.7(zod@4.2.1))(drizzle-kit@0.31.8)(jose@6.1.3)(kysely@0.28.9)(magicast@0.5.1)(nanostores@1.1.0)(postgres@3.4.7)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3))':
+  '@better-auth/cli@1.4.10(@better-fetch/fetch@1.1.21)(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(better-call@1.1.7(zod@4.2.1))(drizzle-kit@0.31.8)(jose@6.1.3)(kysely@0.28.9)(magicast@0.5.1)(nanostores@1.1.0)(postgres@3.4.7)(react@19.2.3)(vitest@4.0.16)(vue@3.5.26(typescript@5.9.3))':
     dependencies:
       '@babel/core': 7.28.5
       '@babel/preset-react': 7.28.5(@babel/core@7.28.5)
@@ -17805,7 +17857,7 @@ snapshots:
       '@mrleebo/prisma-ast': 0.13.1
       '@prisma/client': 5.22.0
       '@types/pg': 8.16.0
-      better-auth: 1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.33.0(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)(react@19.2.3))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3))
+      better-auth: 1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.33.0(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)(react@19.2.3))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.26(typescript@5.9.3))
       better-sqlite3: 12.5.0
       c12: 3.3.3(magicast@0.5.1)
       chalk: 5.6.2
@@ -23015,6 +23067,13 @@ snapshots:
       '@vue/shared': 3.5.25
       csstype: 3.2.3
 
+  '@vue/runtime-dom@3.5.26':
+    dependencies:
+      '@vue/reactivity': 3.5.26
+      '@vue/runtime-core': 3.5.26
+      '@vue/shared': 3.5.26
+      csstype: 3.2.3
+
   '@vue/server-renderer@3.5.25(vue@3.5.25(typescript@5.9.3))':
     dependencies:
       '@vue/compiler-ssr': 3.5.25
@@ -23026,6 +23085,12 @@ snapshots:
       '@vue/compiler-ssr': 3.5.26
       '@vue/shared': 3.5.26
       vue: 3.5.25(typescript@5.9.3)
+
+  '@vue/server-renderer@3.5.26(vue@3.5.26(typescript@5.9.3))':
+    dependencies:
+      '@vue/compiler-ssr': 3.5.26
+      '@vue/shared': 3.5.26
+      vue: 3.5.26(typescript@5.9.3)
 
   '@vue/shared@3.5.25': {}
 
@@ -23668,7 +23733,7 @@ snapshots:
 
   best-effort-json-parser@1.2.1: {}
 
-  better-auth@1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.33.0(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)(react@19.2.3))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3)):
+  better-auth@1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.33.0(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7)(react@19.2.3))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.26(typescript@5.9.3)):
     dependencies:
       '@better-auth/core': 1.4.10(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.7(zod@4.2.1))(jose@6.1.3)(kysely@0.28.9)(nanostores@1.1.0)
       '@better-auth/telemetry': 1.4.10(@better-auth/core@1.4.10(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.7(zod@4.2.1))(jose@6.1.3)(kysely@0.28.9)(nanostores@1.1.0))
@@ -23690,9 +23755,9 @@ snapshots:
       pg: 8.16.3
       react: 19.2.3
       vitest: 4.0.16(@opentelemetry/api@1.9.0)(@types/node@24.10.4)(@vitest/browser-playwright@4.0.16)(jiti@2.6.1)(jsdom@25.0.1(bufferutil@4.1.0)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
-      vue: 3.5.25(typescript@5.9.3)
+      vue: 3.5.26(typescript@5.9.3)
 
-  better-auth@1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.44.7(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3)):
+  better-auth@1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.44.7(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.26(typescript@5.9.3)):
     dependencies:
       '@better-auth/core': 1.4.10(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.7(zod@4.2.1))(jose@6.1.3)(kysely@0.28.9)(nanostores@1.1.0)
       '@better-auth/telemetry': 1.4.10(@better-auth/core@1.4.10(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.7(zod@4.2.1))(jose@6.1.3)(kysely@0.28.9)(nanostores@1.1.0))
@@ -23714,7 +23779,7 @@ snapshots:
       pg: 8.16.3
       react: 19.2.3
       vitest: 4.0.16(@opentelemetry/api@1.9.0)(@types/node@24.10.4)(@vitest/browser-playwright@4.0.16)(jiti@2.6.1)(jsdom@25.0.1(bufferutil@4.1.0)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
-      vue: 3.5.25(typescript@5.9.3)
+      vue: 3.5.26(typescript@5.9.3)
 
   better-auth@1.4.10(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.16.3)(postgres@3.4.7))(pg@8.16.3)(react@19.2.3)(vitest@4.0.16)(vue@3.5.25(typescript@5.9.3)):
     dependencies:
@@ -24685,10 +24750,6 @@ snapshots:
   ejs@3.1.10:
     dependencies:
       jake: 10.9.4
-
-  electron-audio-loopback@1.0.6(electron@39.2.7):
-    dependencies:
-      electron: 39.2.7
 
   electron-builder-squirrel-windows@26.4.0(dmg-builder@26.4.0):
     dependencies:
@@ -30953,7 +31014,7 @@ snapshots:
     transitivePeerDependencies:
       - vue
 
-  unplugin-vue@7.1.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(vue@3.5.25(typescript@5.9.3))(yaml@2.8.2):
+  unplugin-vue@7.1.0(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(vue@3.5.26(typescript@5.9.3))(yaml@2.8.2):
     dependencies:
       '@jridgewell/gen-mapping': 0.3.13
       '@jridgewell/trace-mapping': 0.3.31
@@ -30961,7 +31022,7 @@ snapshots:
       obug: 2.1.1
       unplugin: 2.3.11
       vite: 8.0.0-beta.5(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
-      vue: 3.5.25(typescript@5.9.3)
+      vue: 3.5.26(typescript@5.9.3)
     transitivePeerDependencies:
       - '@types/node'
       - esbuild
@@ -31668,6 +31729,16 @@ snapshots:
       '@vue/runtime-dom': 3.5.25
       '@vue/server-renderer': 3.5.25(vue@3.5.25(typescript@5.9.3))
       '@vue/shared': 3.5.25
+    optionalDependencies:
+      typescript: 5.9.3
+
+  vue@3.5.26(typescript@5.9.3):
+    dependencies:
+      '@vue/compiler-dom': 3.5.26
+      '@vue/compiler-sfc': 3.5.26
+      '@vue/runtime-dom': 3.5.26
+      '@vue/server-renderer': 3.5.26(vue@3.5.26(typescript@5.9.3))
+      '@vue/shared': 3.5.26
     optionalDependencies:
       typescript: 5.9.3
 

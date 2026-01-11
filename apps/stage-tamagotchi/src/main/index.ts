@@ -2,8 +2,8 @@ import { env, platform } from 'node:process'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
+import { initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
 import { app, ipcMain } from 'electron'
-import { initMain as initAudioLoopback } from 'electron-audio-loopback'
 import { noop } from 'es-toolkit'
 import { createLoggLogger, injeca } from 'injeca'
 import { isLinux } from 'std-env'
@@ -67,7 +67,7 @@ if (isLinux) {
 app.dock?.setIcon(icon)
 electronApp.setAppUserModelId('ai.moeru.airi')
 
-initAudioLoopback()
+initScreenCaptureForMain()
 
 app.whenReady().then(async () => {
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))

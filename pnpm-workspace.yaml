@@ -28,10 +28,12 @@ catalog:
   '@capacitor/ios': ^8.0.0
   '@capacitor/local-notifications': ^8.0.0
   '@electric-sql/pglite': ^0.3.14
+  '@electron-toolkit/preload': ^3.0.2
   '@guiiai/logg': ^1.2.11
   '@iconify-json/logos': ^1.2.10
   '@iconify-json/tabler': ^1.2.26
   '@moeru/eslint-config': 0.1.0-beta.15
+  '@moeru/eventa': 1.0.0-alpha.10
   '@moeru/std': 0.1.0-beta.14
   '@nekopaw/tempora': 0.4.0-alpha.1
   '@pinia/testing': ^1.0.3
@@ -52,9 +54,11 @@ catalog:
   '@xsai/stream-text': ^0.4.0-beta.13
   '@xsai/tool': ^0.4.0-beta.13
   '@xsai/utils-chat': 0.4.0-beta.13
+  async-mutex: 0.5.0
   better-auth: ^1.4.9
   builder-util-runtime: ^9.3.1
   drizzle-valibot: ^0.4.2
+  electron: ^39.2.7
   embla-carousel-vue: ^8.6.0
   es-toolkit: 1.43.0
   hono: 4.11.3
