@@ -158,7 +158,7 @@ export type WebSocketEventInputVoice = WebSocketEventInputVoiceBase & Partial<Wi
 
 export type WebSocketEventDataInputs = WebSocketEventInputText | WebSocketEventInputTextVoice | WebSocketEventInputVoice
 
-export type WebSocketEventInputs = WebSocketBaseEvent<'input:text' | 'input:text:voice' | 'input:voice', WebSocketEventInputText | WebSocketEventInputTextVoice | WebSocketEventInputVoice>
+export type WebSocketEventInputs = WebSocketEventOf<'input:text'> | WebSocketEventOf<'input:text:voice'> | WebSocketEventOf<'input:voice'>
 
 export interface WebSocketEventBaseMetadata {
   source?: MetadataEventSource
@@ -364,3 +364,7 @@ export type WebSocketEvent<C = undefined> = {
 export type WebSocketEventOptionalSource<C = undefined> = {
   [K in keyof WebSocketEvents<C>]: Omit<WebSocketBaseEvent<K, WebSocketEvents<C>[K]>, 'metadata'> & { metadata?: WebSocketEventBaseMetadata };
 }[keyof WebSocketEvents<C>]
+
+export type WebSocketEventOf<E, C = undefined> = E extends keyof WebSocketEvents<C>
+  ? Omit<WebSocketBaseEvent<E, WebSocketEvents<C>[E]>, 'metadata'> & { metadata?: WebSocketEventBaseMetadata }
+  : never
