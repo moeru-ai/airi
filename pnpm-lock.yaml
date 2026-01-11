@@ -124,7 +124,7 @@ catalogs:
       specifier: ^0.9.0
       version: 0.9.0
     nanoid:
-      specifier: ^5.1.6
+      specifier: 5.1.6
       version: 5.1.6
     ofetch:
       specifier: ^1.5.1
@@ -1896,6 +1896,9 @@ importers:
       listhen:
         specifier: ^1.9.0
         version: 1.9.0
+      nanoid:
+        specifier: 'catalog:'
+        version: 5.1.6
 
   packages/server-sdk:
     dependencies:
