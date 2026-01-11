@@ -1,26 +1,9 @@
 import type { Logg } from '@guiiai/logg'
 
 import type { RawPerceptionEvent } from './types/raw-events'
+import type { PerceptionSignal } from './types/signals'
 
 import { LeakyBucket } from './leaky-bucket'
-
-export interface PlayerAttentionEventPayload {
-  kind: 'player'
-  playerName?: string
-  hasLineOfSight?: boolean
-  distance?: number
-  playerAction: 'move' | 'punch' | 'teabag' | 'sound' | 'damage' | 'pickup'
-}
-
-export interface MobAttentionEventPayload {
-  kind: 'mob'
-  mobName?: string
-  hasLineOfSight?: boolean
-  distance?: number
-  mobAction: string
-}
-
-export type AttentionEventPayload = PlayerAttentionEventPayload | MobAttentionEventPayload
 
 export class AttentionDetector {
   private readonly buckets = new Map<string, LeakyBucket>()
@@ -55,7 +38,7 @@ export class AttentionDetector {
   constructor(
     private readonly deps: {
       logger: Logg
-      onAttention: (payload: AttentionEventPayload) => void
+      onAttention: (signal: PerceptionSignal) => void
     },
   ) { }
 
@@ -98,12 +81,19 @@ export class AttentionDetector {
     if (!fired)
       return
 
-    this.emitAttention({
-      kind: 'player',
-      playerName: event.displayName,
-      hasLineOfSight: event.hasLineOfSight,
-      distance: event.distance,
-      playerAction: 'punch',
+    this.emitSignal({
+      type: 'entity_attention',
+      description: `Player ${event.displayName || 'unknown'} is punching nearby`,
+      sourceId: event.entityId,
+      confidence: 1.0,
+      timestamp: Date.now(),
+      metadata: {
+        kind: 'player',
+        action: 'punch',
+        distance: event.distance,
+        hasLineOfSight: event.hasLineOfSight,
+        displayName: event.displayName,
+      },
     })
   }
 
@@ -119,12 +109,19 @@ export class AttentionDetector {
     if (!fired)
       return
 
-    this.emitAttention({
-      kind: 'player',
-      playerName: event.displayName,
-      hasLineOfSight: event.hasLineOfSight,
-      distance: event.distance,
-      playerAction: 'teabag',
+    this.emitSignal({
+      type: 'entity_attention',
+      description: `Player ${event.displayName || 'unknown'} is teabagging (rapid sneaking)`,
+      sourceId: event.entityId,
+      confidence: 1.0,
+      timestamp: Date.now(),
+      metadata: {
+        kind: 'player',
+        action: 'teabag',
+        distance: event.distance,
+        hasLineOfSight: event.hasLineOfSight,
+        displayName: event.displayName,
+      },
     })
   }
 
@@ -163,12 +160,19 @@ export class AttentionDetector {
       return
 
     state.emitted = true
-    this.emitAttention({
-      kind: 'player',
-      playerName: event.displayName,
-      hasLineOfSight: event.hasLineOfSight,
-      distance: event.distance,
-      playerAction: 'move',
+    this.emitSignal({
+      type: 'entity_attention',
+      description: `Player ${event.displayName || 'unknown'} is moving nearby`,
+      sourceId: event.entityId,
+      confidence: 0.8,
+      timestamp: Date.now(),
+      metadata: {
+        kind: 'player',
+        action: 'move',
+        distance: event.distance,
+        hasLineOfSight: event.hasLineOfSight,
+        displayName: event.displayName,
+      },
     })
   }
 
@@ -184,10 +188,18 @@ export class AttentionDetector {
     if (!fired)
       return
 
-    this.emitAttention({
-      kind: 'player',
-      playerAction: 'sound',
-      distance: event.distance,
+    this.emitSignal({
+      type: 'environmental_anomaly',
+      description: `Heard sound: ${event.soundId}`,
+      sourceId: event.soundId,
+      confidence: 1.0,
+      timestamp: Date.now(),
+      metadata: {
+        kind: 'sound',
+        action: 'sound',
+        soundId: event.soundId,
+        distance: event.distance,
+      },
     })
   }
 
@@ -203,9 +215,15 @@ export class AttentionDetector {
     if (!fired)
       return
 
-    this.emitAttention({
-      kind: 'player',
-      playerAction: 'damage',
+    this.emitSignal({
+      type: 'saliency_high',
+      description: 'Taken damage!',
+      confidence: 1.0,
+      timestamp: Date.now(),
+      metadata: {
+        kind: 'felt',
+        action: 'damage',
+      },
     })
   }
 
@@ -221,38 +239,29 @@ export class AttentionDetector {
     if (!fired)
       return
 
-    this.emitAttention({
-      kind: 'player',
-      playerAction: 'pickup',
+    this.emitSignal({
+      type: 'entity_attention',
+      description: 'Picked up an item',
+      confidence: 1.0,
+      timestamp: Date.now(),
+      metadata: {
+        kind: 'felt',
+        action: 'pickup',
+      },
     })
   }
 
-  private emitAttention(payload: AttentionEventPayload): void {
-    const key = payload.kind === 'player'
-      ? `emit.player.${payload.playerAction}`
-      : 'emit.mob'
+  private emitSignal(signal: PerceptionSignal): void {
+    const key = `emit.${signal.type}.${signal.metadata.action || 'unknown'}`
     this.emittedSinceStats[key] = (this.emittedSinceStats[key] ?? 0) + 1
 
-    if (payload.kind === 'player') {
-      this.deps.logger.withFields({
-        kind: payload.kind,
-        action: payload.playerAction,
-        playerName: payload.playerName,
-        distance: payload.distance,
-        hasLineOfSight: payload.hasLineOfSight,
-      }).log('AttentionDetector: emit')
-    }
-    else {
-      this.deps.logger.withFields({
-        kind: payload.kind,
-        mobName: payload.mobName,
-        action: payload.mobAction,
-        distance: payload.distance,
-        hasLineOfSight: payload.hasLineOfSight,
-      }).log('AttentionDetector: emit')
-    }
+    this.deps.logger.withFields({
+      type: signal.type,
+      desc: signal.description,
+      meta: signal.metadata,
+    }).log('AttentionDetector: emit')
 
-    this.deps.onAttention(payload)
+    this.deps.onAttention(signal)
   }
 
   private getBucket(key: string, config: { capacity: number, leakPerSecond: number, trigger: number }): LeakyBucket {

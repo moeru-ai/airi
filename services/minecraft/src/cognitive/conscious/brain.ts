@@ -4,8 +4,9 @@ import type { Neuri } from 'neuri'
 import type { TaskExecutor } from '../action/task-executor'
 import type { ActionInstruction } from '../action/types'
 import type { EventManager } from '../perception/event-manager'
-import type { BotEvent, MineflayerWithAgents, StimulusPayload } from '../types'
+import type { PerceptionSignal } from '../perception/types/signals'
 import type { ReflexManager } from '../reflex/reflex-manager'
+import type { BotEvent, MineflayerWithAgents } from '../types'
 
 import { system, user } from 'neuri/openai'
 
@@ -55,13 +56,9 @@ export class Brain {
   public init(bot: MineflayerWithAgents): void {
     this.log('INFO', 'Brain: Initializing...')
 
-    // We treat these as "Sensory Inputs" that trigger the Cognitive Cycle
-    this.deps.eventManager.on<StimulusPayload>('stimulus', async (event) => {
-      if (event.handled) {
-        this.log('INFO', `Brain: Stimulus from ${event.source.id} already handled by reflex, ignoring.`)
-        return
-      }
-      this.log('INFO', `Brain: Received stimulus from ${event.source.id}: ${event.payload.content}`)
+    // Unified Perception Signal Handler
+    this.deps.eventManager.on<PerceptionSignal>('perception', async (event) => {
+      this.log('INFO', `Brain: Received perception signal: ${event.payload.type} - ${event.payload.description}`)
       await this.enqueueEvent(bot, event)
     })
 
@@ -140,8 +137,11 @@ export class Brain {
 
   private contextFromEvent(event: BotEvent): string {
     switch (event.type) {
-      case 'stimulus':
-        return `${event.source.type} stimulus from ${event.source.id}: "${event.payload.content}"`
+      case 'perception': {
+        const signal = event.payload as PerceptionSignal
+        const sourceInfo = signal.sourceId ? ` (source: ${signal.sourceId})` : ''
+        return `Perception [${signal.type}]${sourceInfo}: ${signal.description}`
+      }
       case 'feedback': {
         const { status, result, error } = event.payload
         return `Internal Feedback: ${status}. Result: ${JSON.stringify(result || error)}`

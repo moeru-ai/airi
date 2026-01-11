@@ -1,16 +1,14 @@
 import type { Logg } from '@guiiai/logg'
 
 import type { MineflayerWithAgents } from '../types'
-import type { StimulusPayload } from '../types'
 import type { EventManager } from './event-manager'
 
 import type { PerceptionFrame } from './frame'
 
-import type { AttentionEventPayload } from './attention-detector'
+import type { PerceptionSignal } from './types/signals'
 import { AttentionDetector } from './attention-detector'
 import { createPerceptionFrameFromRawEvent } from './frame'
 import { MineflayerPerceptionCollector } from './mineflayer-perception-collector'
-import { NormalizerStage } from './normalizer-stage'
 import { RawEventBuffer } from './raw-event-buffer'
 import type { PerceptionStage } from './types/stage'
 
@@ -36,20 +34,17 @@ export class PerceptionPipeline {
   ) {
     this.detector = new AttentionDetector({
       logger: this.deps.logger,
-      onAttention: (payload) => {
+      onAttention: (signal) => {
         // This is only called synchronously while we're handling a specific frame.
         // Attach derived signals to that frame; router stage will emit them.
         this.currentFrame?.signals.push({
-          type: 'attention',
-          payload,
+          type: 'perception_signal',
+          payload: signal,
         })
       },
     })
 
     this.stages = [
-      new NormalizerStage({
-        maxDistance: 32,
-      }),
       {
         name: 'attention',
         tick: (deltaMs) => {
@@ -75,14 +70,23 @@ export class PerceptionPipeline {
         handle: (frame) => {
           if (frame.kind === 'chat_raw') {
             const raw = frame.raw as { username: string, message: string }
-            this.deps.eventManager.emit<StimulusPayload>({
-              type: 'stimulus',
-              payload: {
-                content: raw.message,
-                metadata: {
-                  displayName: raw.username,
-                },
+
+            // Convert chat to PerceptionSignal
+            const signal: PerceptionSignal = {
+              type: 'chat_message',
+              description: `Chat from ${raw.username}: "${raw.message}"`,
+              sourceId: raw.username,
+              timestamp: Date.now(),
+              confidence: 1.0,
+              metadata: {
+                username: raw.username,
+                message: raw.message,
               },
+            }
+
+            this.deps.eventManager.emit<PerceptionSignal>({
+              type: 'perception',
+              payload: signal,
               source: {
                 type: 'minecraft',
                 id: raw.username,
@@ -91,16 +95,16 @@ export class PerceptionPipeline {
             })
           }
 
-          // Emit all attention signals centrally as BotEvents
-          for (const signal of frame.signals) {
-            if (signal.type !== 'attention')
+          // Emit all perception signals centrally as BotEvents
+          for (const signalWrapper of frame.signals) {
+            if (signalWrapper.type !== 'perception_signal')
               continue
 
-            const payload = signal.payload as AttentionEventPayload
+            const signal = signalWrapper.payload as PerceptionSignal
 
-            this.deps.eventManager.emit<AttentionEventPayload>({
+            this.deps.eventManager.emit<PerceptionSignal>({
               type: 'perception',
-              payload,
+              payload: signal,
               source: { type: 'minecraft', id: 'perception' },
               timestamp: Date.now(),
             })

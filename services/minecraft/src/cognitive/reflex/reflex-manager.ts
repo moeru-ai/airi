@@ -1,7 +1,8 @@
 import type { Logg } from '@guiiai/logg'
 
 import type { EventManager } from '../perception/event-manager'
-import type { BotEvent, MineflayerWithAgents, StimulusPayload } from '../types'
+import type { PerceptionSignal } from '../perception/types/signals'
+import type { BotEvent, MineflayerWithAgents } from '../types'
 
 import type { ReflexContextState } from './context'
 
@@ -12,8 +13,8 @@ export class ReflexManager {
   private bot: MineflayerWithAgents | null = null
   private readonly runtime: ReflexRuntime
 
-  private readonly onStimulusHandler = (event: BotEvent<StimulusPayload>) => {
-    this.onStimulus(event)
+  private readonly onPerceptionHandler = (event: BotEvent<PerceptionSignal>) => {
+    this.onPerception(event)
   }
 
   constructor(
@@ -31,11 +32,11 @@ export class ReflexManager {
 
   public init(bot: MineflayerWithAgents): void {
     this.bot = bot
-    this.deps.eventManager.on<StimulusPayload>('stimulus', this.onStimulusHandler)
+    this.deps.eventManager.on<PerceptionSignal>('perception', this.onPerceptionHandler)
   }
 
   public destroy(): void {
-    this.deps.eventManager.off<StimulusPayload>('stimulus', this.onStimulusHandler)
+    this.deps.eventManager.off<PerceptionSignal>('perception', this.onPerceptionHandler)
     this.bot = null
   }
 
@@ -50,17 +51,23 @@ export class ReflexManager {
     return this.runtime.getContext().getSnapshot()
   }
 
-  private onStimulus(event: BotEvent<StimulusPayload>): void {
+  private onPerception(event: BotEvent<PerceptionSignal>): void {
     const bot = this.bot
     if (!bot)
       return
 
+    const signal = event.payload
+    // Only care about chat messages for now for social context
+    if (signal.type !== 'chat_message')
+      return
+
     const now = Date.now()
+    const message = signal.metadata.message || signal.description
 
     this.runtime.getContext().updateNow(now)
     this.runtime.getContext().updateSocial({
       lastSpeaker: event.source.id,
-      lastMessage: event.payload.content,
+      lastMessage: message,
       lastMessageAt: now,
     })
 
