@@ -7,8 +7,10 @@ import analyserWorklet from '@nekopaw/tempora/worklet?url'
 
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { startAnalyser as startTemporaAnalyser } from '@nekopaw/tempora'
+import { setupElectronScreenCapture } from '@proj-airi/electron-screen-capture/renderer'
 
 import { isStageTamagotchi, isStageWeb, StageEnvironment } from '../environment'
+import { isElectronWindow } from '../window'
 import {
   beatSyncBeatSignaledInvokeEventa,
   beatSyncGetInputByteFrequencyDataInvokeEventa,
@@ -35,17 +37,10 @@ export interface BeatSyncDetector {
   readonly source: AudioNode | undefined
 }
 
-export type CreateBeatSyncDetectorOptions = |
-  {
-    env: StageEnvironment.Tamagotchi
-    enableLoopbackAudio: () => Promise<any>
-    disableLoopbackAudio: () => Promise<any>
-  }
-  | {
-    env: StageEnvironment.Web
-  } | {
-    env: StageEnvironment.Capacitor
-  }
+export type CreateBeatSyncDetectorOptions
+  = | { env: StageEnvironment.Tamagotchi }
+    | { env: StageEnvironment.Web }
+    | { env: StageEnvironment.Capacitor }
 
 export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): BeatSyncDetector {
   let context: AudioContext | undefined
@@ -161,12 +156,26 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
         return node
       }
       case StageEnvironment.Tamagotchi: {
-        await options.enableLoopbackAudio()
+        if (!isElectronWindow(window)) {
+          throw new Error(`Electron window is required for this environment: ${options.env}`)
+        }
 
-        const stream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: true,
-        })
+        // FIXME(Makito): Will refactor later
+        const { createContext } = await import('@moeru/eventa/adapters/electron/renderer')
+        const { selectWithSource } = setupElectronScreenCapture(createContext(window.electron.ipcRenderer).context)
+
+        const stream = await selectWithSource(
+          (sources) => {
+            if (sources.length === 0)
+              throw new Error('No screen source available')
+            return sources[0].id
+          },
+          async () => await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: true,
+          }),
+          { sourcesOptions: { types: ['screen'] } },
+        )
 
         const videoTracks = stream.getVideoTracks()
 
@@ -178,9 +187,7 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
         const node = ctx.createMediaStreamSource(stream)
         stopSource = () => {
           stream.getTracks().forEach(track => track.stop())
-          options.disableLoopbackAudio()
         }
-        await options.disableLoopbackAudio()
 
         return node
       }
