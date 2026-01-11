@@ -29,12 +29,19 @@ export interface ReflexThreatState {
   lastThreatSource: string | null
 }
 
+export interface ReflexAttentionState {
+  lastSignalType: string | null
+  lastSignalSourceId: string | null
+  lastSignalAt: number | null
+}
+
 export interface ReflexContextState {
   now: number
   self: ReflexSelfState
   environment: ReflexEnvironmentState
   social: ReflexSocialState
   threat: ReflexThreatState
+  attention: ReflexAttentionState
 }
 
 export class ReflexContext {
@@ -68,6 +75,11 @@ export class ReflexContext {
         lastThreatAt: null,
         lastThreatSource: null,
       },
+      attention: {
+        lastSignalType: null,
+        lastSignalSourceId: null,
+        lastSignalAt: null,
+      },
     }
   }
 
@@ -85,6 +97,7 @@ export class ReflexContext {
         lastGreetingAtBySpeaker: { ...this.state.social.lastGreetingAtBySpeaker },
       },
       threat: { ...this.state.threat },
+      attention: { ...this.state.attention },
     }
   }
 
@@ -106,5 +119,9 @@ export class ReflexContext {
 
   public updateThreat(patch: Partial<ReflexThreatState>): void {
     this.state.threat = { ...this.state.threat, ...patch }
+  }
+
+  public updateAttention(patch: Partial<ReflexAttentionState>): void {
+    this.state.attention = { ...this.state.attention, ...patch }
   }
 }

@@ -46,6 +46,9 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
         reflexManager.init(botWithAgents)
         brain.init(botWithAgents)
 
+        const ruleEngine = container.resolve('ruleEngine')
+        ruleEngine.init()
+
         // Initialize perception pipeline (raw events + detectors)
         perceptionPipeline.init(botWithAgents)
 
