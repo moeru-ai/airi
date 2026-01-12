@@ -274,3 +274,16 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     resetState,
   }
 })
+
+export const useControlsIslandIconSize = defineStore('controls-island-icon-size', () => {
+  const [iconSize, resetIconSize] = createResettableLocalStorage<'auto' | 'large' | 'small'>('settings/controls-island/icon-size', 'auto')
+
+  function resetState() {
+    resetIconSize()
+  }
+
+  return {
+    iconSize,
+    resetState,
+  }
+})

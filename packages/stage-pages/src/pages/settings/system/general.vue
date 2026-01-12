@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { all } from '@proj-airi/i18n'
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { useControlsIslandIconSize, useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { FieldCheckbox, FieldSelect, useTheme } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const settings = useSettings()
+const controlsIslandIconSizeStore = useControlsIslandIconSize()
 
 const { t } = useI18n()
 const { isDark: dark } = useTheme()
@@ -41,6 +42,24 @@ const languages = computed(() => {
       :label="t('settings.language.title')"
       :description="t('settings.language.description')"
       :options="languages"
+    />
+
+    <!-- Controls Island Icon Size -->
+    <FieldSelect
+      v-model="controlsIslandIconSizeStore.iconSize"
+      v-motion
+      :initial="{ opacity: 0, y: 10 }"
+      :enter="{ opacity: 1, y: 0 }"
+      :duration="250 + (4 * 10)"
+      :delay="4 * 50"
+      transition="all ease-in-out duration-250"
+      :label="t('settings.controls-island.icon-size.title')"
+      :description="t('settings.controls-island.icon-size.description')"
+      :options="[
+        { value: 'auto', label: t('settings.controls-island.icon-size.auto') },
+        { value: 'large', label: t('settings.controls-island.icon-size.large') },
+        { value: 'small', label: t('settings.controls-island.icon-size.small') },
+      ]"
     />
 
     <div

@@ -10,6 +10,7 @@ import {
   ComboboxItem,
   ComboboxItemIndicator,
   ComboboxLabel,
+  ComboboxPortal,
   ComboboxRoot,
   ComboboxSeparator,
   ComboboxTrigger,
@@ -62,69 +63,76 @@ function toDisplayValue(value: T): string {
       </ComboboxTrigger>
     </ComboboxAnchor>
 
-    <ComboboxContent
-      :avoid-collisions="true"
-      :class="[
-        'absolute z-10 w-full mt-1 min-w-[160px] overflow-hidden rounded-xl shadow-sm border will-change-[opacity,transform] max-h-50dvh',
-        'data-[side=top]:animate-slideDownAndFade data-[side=right]:animate-slideLeftAndFade data-[side=bottom]:animate-slideUpAndFade data-[side=left]:animate-slideRightAndFade',
-        'bg-white dark:bg-neutral-900',
-        'border-neutral-200 dark:border-neutral-800 border-solid border-2 focus:border-neutral-300 dark:focus:border-neutral-600',
-      ]"
-    >
-      <ComboboxViewport class="p-[2px]">
-        <ComboboxEmpty
-          :class="[
-            'font-medium py-2 px-2',
-            'text-xs text-neutral-700 dark:text-neutral-200',
-            'transition-colors duration-200 ease-in-out',
-          ]"
-        />
+    <ComboboxPortal>
+      <ComboboxContent
+        position="popper"
+        side="bottom"
+        align="start"
+        :side-offset="4"
+        :avoid-collisions="true"
+        :class="[
+          'z-150 w-full min-w-[160px] overflow-hidden rounded-xl shadow-sm border will-change-[opacity,transform]',
+          'data-[side=top]:animate-slideDownAndFade data-[side=right]:animate-slideLeftAndFade data-[side=bottom]:animate-slideUpAndFade data-[side=left]:animate-slideRightAndFade',
+          'bg-white dark:bg-neutral-900',
+          'border-neutral-200 dark:border-neutral-800 border-solid border-2 focus:border-neutral-300 dark:focus:border-neutral-600',
+        ]"
+        :style="{ width: 'var(--reka-combobox-trigger-width)' }"
+      >
+        <ComboboxViewport :class="['p-[2px]', 'max-h-50dvh', 'overflow-y-auto']">
+          <ComboboxEmpty
+            :class="[
+              'font-medium py-2 px-2',
+              'text-xs text-neutral-700 dark:text-neutral-200',
+              'transition-colors duration-200 ease-in-out',
+            ]"
+          />
 
-        <template
-          v-for="(group, index) in options"
-          :key="group.groupLabel"
-        >
-          <ComboboxGroup :class="['overflow-x-hidden']">
-            <ComboboxSeparator
-              v-if="index !== 0"
-              :class="['m-[5px]', 'h-[1px]', 'bg-neutral-400']"
-            />
+          <template
+            v-for="(group, index) in options"
+            :key="group.groupLabel"
+          >
+            <ComboboxGroup :class="['overflow-x-hidden']">
+              <ComboboxSeparator
+                v-if="index !== 0"
+                :class="['m-[5px]', 'h-[1px]', 'bg-neutral-400']"
+              />
 
-            <ComboboxLabel
-              :class="[
-                'px-[25px] text-xs leading-[25px]',
-                'text-neutral-500 dark:text-neutral-400',
-                'transition-colors duration-200 ease-in-out',
-              ]"
-            >
-              {{ group.groupLabel }}
-            </ComboboxLabel>
-
-            <ComboboxItem
-              v-for="option in group.children"
-              :key="option.label"
-              :text-value="option.label"
-              :value="option.value"
-              :class="[
-                'leading-none rounded-lg flex items-center h-8 pr-[0.5rem] pl-[1.5rem] relative select-none data-[disabled]:pointer-events-none data-[highlighted]:outline-none',
-                'data-[highlighted]:bg-neutral-100 dark:data-[highlighted]:bg-neutral-800',
-                'text-sm text-neutral-700 dark:text-neutral-200 data-[disabled]:text-neutral-400 dark:data-[disabled]:text-neutral-600 data-[highlighted]:text-grass1',
-                'transition-colors duration-200 ease-in-out',
-                'cursor-pointer',
-              ]"
-            >
-              <ComboboxItemIndicator
-                :class="['absolute', 'left-0', 'w-[25px]', 'inline-flex', 'items-center', 'justify-center', 'opacity-30']"
+              <ComboboxLabel
+                :class="[
+                  'px-[25px] text-xs leading-[25px]',
+                  'text-neutral-500 dark:text-neutral-400',
+                  'transition-colors duration-200 ease-in-out',
+                ]"
               >
-                <div i-solar:alt-arrow-right-outline />
-              </ComboboxItemIndicator>
-              <span :class="['line-clamp-1', 'overflow-hidden', 'text-ellipsis', 'whitespace-nowrap']">
-                {{ option.label }}
-              </span>
-            </ComboboxItem>
-          </ComboboxGroup>
-        </template>
-      </ComboboxViewport>
-    </ComboboxContent>
+                {{ group.groupLabel }}
+              </ComboboxLabel>
+
+              <ComboboxItem
+                v-for="option in group.children"
+                :key="option.label"
+                :text-value="option.label"
+                :value="option.value"
+                :class="[
+                  'leading-normal rounded-lg flex items-center h-8 pr-[0.5rem] pl-[1.5rem] relative select-none data-[disabled]:pointer-events-none data-[highlighted]:outline-none',
+                  'data-[highlighted]:bg-neutral-100 dark:data-[highlighted]:bg-neutral-800',
+                  'text-sm text-neutral-700 dark:text-neutral-200 data-[disabled]:text-neutral-400 dark:data-[disabled]:text-neutral-600 data-[highlighted]:text-grass1',
+                  'transition-colors duration-200 ease-in-out',
+                  'cursor-pointer',
+                ]"
+              >
+                <ComboboxItemIndicator
+                  :class="['absolute', 'left-0', 'w-[25px]', 'inline-flex', 'items-center', 'justify-center', 'opacity-30']"
+                >
+                  <div i-solar:alt-arrow-right-outline />
+                </ComboboxItemIndicator>
+                <span :class="['line-clamp-1', 'overflow-hidden', 'text-ellipsis', 'whitespace-nowrap']">
+                  {{ option.label }}
+                </span>
+              </ComboboxItem>
+            </ComboboxGroup>
+          </template>
+        </ComboboxViewport>
+      </ComboboxContent>
+    </ComboboxPortal>
   </ComboboxRoot>
 </template>

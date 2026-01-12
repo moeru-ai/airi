@@ -37,6 +37,13 @@ language:
   description: >
     Change the language of the AIRI interface. This will not affect the language
     of the character's responses.
+controls-island:
+  icon-size:
+    title: Controls Island Icon Size
+    description: Adjust the size of the controls island icons
+    auto: Auto (responsive)
+    large: Large (default)
+    small: Small
 live2d:
   change-model:
     from-file: Load from File

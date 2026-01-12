@@ -34,6 +34,13 @@ language:
   title: 语言
   description: >
     切换显示界面的语言
+controls-island:
+  icon-size:
+    title: 侧边控制栏图标大小
+    description: 调整侧边控制栏图标的大小
+    auto: 自动（响应式）
+    large: 默认
+    small: 小图标
 live2d:
   change-model:
     from-file: 从文件加载
