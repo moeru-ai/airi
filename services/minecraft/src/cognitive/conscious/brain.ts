@@ -56,11 +56,16 @@ export class Brain {
   public init(bot: MineflayerWithAgents): void {
     this.log('INFO', 'Brain: Initializing...')
 
-    // Unified Perception Signal Handler
-    // this.deps.eventManager.on<PerceptionSignal>('perception', async (event) => {
-    //   this.log('INFO', `Brain: Received perception signal: ${event.payload.type} - ${event.payload.description}`)
-    //   await this.enqueueEvent(bot, event)
-    // })
+    // Perception Signal Handler - Only process chat messages for now
+    this.deps.eventManager.on<PerceptionSignal>('perception', async (event) => {
+      const signal = event.payload
+      // Only handle chat messages in the deliberative layer
+      if (signal.type !== 'chat_message')
+        return
+
+      this.log('INFO', `Brain: Received chat: ${signal.description}`)
+      await this.enqueueEvent(bot, event)
+    })
 
     // Listen to Task Execution Events (Action Feedback)
     this.deps.taskExecutor.on('action:completed', async ({ action, result }) => {

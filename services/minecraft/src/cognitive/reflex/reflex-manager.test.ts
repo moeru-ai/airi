@@ -43,7 +43,14 @@ describe('reflexManager', () => {
     } as any
 
     const logger = makeLogger()
-    const reflex = new ReflexManager({ eventBus, logger }) // Now accepts eventBus
+    const perception = {
+      getPlayers: vi.fn(() => []),
+      getEntity: vi.fn(() => null),
+      entitiesWithBelief: vi.fn(() => []),
+      updateEntity: vi.fn(),
+      updateSelfPosition: vi.fn(),
+    } as any
+    const reflex = new ReflexManager({ eventBus, perception, logger })
 
     const bot = makeBot()
     reflex.init(bot)
