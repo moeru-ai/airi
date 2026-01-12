@@ -253,7 +253,12 @@ export class Client<C = undefined> {
 
   private async handleMessage(event: MessageEvent) {
     try {
-      const data = superjson.parse(event.data as string) as WebSocketEvent<C>
+      const data = superjson.parse<WebSocketEvent<C> | undefined>(event.data as string)
+      if (!data) {
+        console.warn('Received empty message')
+        return
+      }
+
       this.opts.onAnyMessage?.(data)
       const listeners = this.eventListeners.get(data.type)
       if (!listeners?.size) {
