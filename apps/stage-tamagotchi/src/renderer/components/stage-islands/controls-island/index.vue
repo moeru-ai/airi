@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { defineInvoke } from '@moeru/eventa'
-import { useControlsIslandIconSize, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { useWindowSize } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -21,10 +21,10 @@ const { isDark, toggleDark } = useTheme()
 const { t } = useI18n()
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
-const controlsIslandIconSizeStore = useControlsIslandIconSize()
+const settingsStore = useSettings()
 const context = useElectronEventaContext()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
-const { iconSize: controlsIslandIconSize } = storeToRefs(controlsIslandIconSizeStore)
+const { controlsIslandIconSize } = storeToRefs(settingsStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const openChat = useElectronEventaInvoke(electronOpenChat)
 

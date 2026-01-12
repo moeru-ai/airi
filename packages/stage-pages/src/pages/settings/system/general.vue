@@ -1,20 +1,19 @@
 <script setup lang="ts">
 import { all } from '@proj-airi/i18n'
-import { useControlsIslandIconSize, useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { FieldCheckbox, FieldSelect, useTheme } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = withDefaults(defineProps<{
-  needcontrolsIslandIconSizeSetting?: boolean
+  needscontrolsIslandIconSizeSetting?: boolean
 }>(), {
-  needcontrolsIslandIconSizeSetting: import.meta.env.RUNTIME_ENVIRONMENT === 'electron',
+  needscontrolsIslandIconSizeSetting: import.meta.env.RUNTIME_ENVIRONMENT === 'electron',
 })
 
-const showControlsIsland = computed(() => props.needcontrolsIslandIconSizeSetting)
+const showControlsIsland = computed(() => props.needscontrolsIslandIconSizeSetting)
 
 const settings = useSettings()
-const controlsIslandIconSizeStore = useControlsIslandIconSize()
 
 const { t } = useI18n()
 const { isDark: dark } = useTheme()
@@ -55,7 +54,7 @@ const languages = computed(() => {
     <!-- Controls Island Icon Size -->
     <FieldSelect
       v-if="showControlsIsland"
-      v-model="controlsIslandIconSizeStore.iconSize"
+      v-model="settings.controlsIslandIconSize"
       v-motion
       :initial="{ opacity: 0, y: 10 }"
       :enter="{ opacity: 1, y: 0 }"
