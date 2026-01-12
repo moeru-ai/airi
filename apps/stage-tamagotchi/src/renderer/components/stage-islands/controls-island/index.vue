@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { defineInvoke } from '@moeru/eventa'
-import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { useWindowSize } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -21,8 +21,10 @@ const { isDark, toggleDark } = useTheme()
 const { t } = useI18n()
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
+const settingsStore = useSettings()
 const context = useElectronEventaContext()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
+const { controlsIslandIconSize } = storeToRefs(settingsStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const openChat = useElectronEventaInvoke(electronOpenChat)
 
@@ -35,7 +37,22 @@ const LARGE_THRESHOLD = ICON_PLACEHOLDER_PX * BUTTON_COUNT
 
 // Grouped classes for icon / border / padding and combined style class
 const adjustStyleClasses = computed(() => {
-  const isLarge = windowHeight.value > LARGE_THRESHOLD
+  let isLarge: boolean
+
+  // Determine size based on setting
+  switch (controlsIslandIconSize.value) {
+    case 'large':
+      isLarge = true
+      break
+    case 'small':
+      isLarge = false
+      break
+    case 'auto':
+    default:
+      isLarge = windowHeight.value > LARGE_THRESHOLD
+      break
+  }
+
   const icon = isLarge ? 'size-5' : 'size-3'
   const border = isLarge ? 'border-2' : 'border-0'
   const padding = isLarge ? 'p-2' : 'p-0.5'

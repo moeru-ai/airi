@@ -115,6 +115,8 @@ export const useSettings = defineStore('settings', () => {
 
   const [allowVisibleOnAllWorkspaces, resetAllowVisibleOnAllWorkspaces] = createResettableLocalStorage('settings/allow-visible-on-all-workspaces', true)
 
+  const [controlsIslandIconSize, resetControlsIslandIconSize] = createResettableLocalStorage<'auto' | 'large' | 'small'>('settings/controls-island/icon-size', 'auto')
+
   function getLanguage() {
     let language = localStorage.getItem('settings/language')
 
@@ -186,6 +188,7 @@ export const useSettings = defineStore('settings', () => {
     resetThemeColorsHueDynamic()
 
     resetAllowVisibleOnAllWorkspaces()
+    resetControlsIslandIconSize()
 
     await updateStageModel()
   }
@@ -212,6 +215,7 @@ export const useSettings = defineStore('settings', () => {
     themeColorsHueDynamic,
 
     allowVisibleOnAllWorkspaces,
+    controlsIslandIconSize,
 
     setThemeColorsHue,
     applyPrimaryColorFrom,
