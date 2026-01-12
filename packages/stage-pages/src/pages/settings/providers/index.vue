@@ -45,17 +45,17 @@ const providerBlocksConfig = [
 
 const providerBlocks = computed(() => {
   let globalIndex = 0
-  const blocks = providerBlocksConfig.map(block => {
+  const blocks = providerBlocksConfig.map((block) => {
     const providers = block.providersRef.value.map(provider => ({
       ...provider,
       renderIndex: globalIndex++,
     }))
-    
+
     // Debug: Log speech providers to check if VOICEVOX is included
     if (block.id === 'speech') {
       console.log('[Providers] Speech providers:', providers.map(p => ({ id: p.id, name: p.localizedName })))
     }
-    
+
     return {
       id: block.id,
       icon: block.icon,

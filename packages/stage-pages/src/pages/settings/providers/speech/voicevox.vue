@@ -29,7 +29,7 @@ const intonation = ref<number>(1.0)
 onMounted(async () => {
   // Initialize provider first
   providersStore.initializeProvider(providerId)
-  
+
   // Load saved parameters
   const providerConfig = providersStore.getProviderConfig(providerId)
   if (providerConfig.speed !== undefined) {
@@ -41,7 +41,7 @@ onMounted(async () => {
   if (providerConfig.intonation !== undefined) {
     intonation.value = providerConfig.intonation as number
   }
-  
+
   // Try to load voices (will fail gracefully if engine is not running)
   try {
     await speechStore.loadVoicesForProvider(providerId)
@@ -65,19 +65,19 @@ watch([apiKeyConfigured], async () => {
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
   const providerConfig = providersStore.getProviderConfig(providerId)
   const baseUrl = ((providerConfig.baseUrl as string) || 'http://localhost:50021/').trim().replace(/\/$/, '')
-  
+
   if (!baseUrl) {
     throw new Error('Base URL is not configured. Please set the VOICEVOX engine URL in the settings.')
   }
-  
+
   if (!voiceId) {
     throw new Error('Voice ID is required. Please select a voice.')
   }
-  
+
   if (!input || !input.trim()) {
     throw new Error('Input text is required.')
   }
-  
+
   try {
     // Step 1: Create audio query
     const audioQueryUrl = `${baseUrl}/audio_query?text=${encodeURIComponent(input)}&speaker=${voiceId}`
@@ -87,19 +87,19 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
         'Content-Type': 'application/json',
       },
     })
-    
+
     if (!audioQueryResponse.ok) {
       const errorText = await audioQueryResponse.text().catch(() => '')
       throw new Error(`Failed to create audio query: ${audioQueryResponse.status} ${audioQueryResponse.statusText}${errorText ? ` - ${errorText}` : ''}`)
     }
-    
-    let audioQuery = await audioQueryResponse.json()
-    
+
+    const audioQuery = await audioQueryResponse.json()
+
     // Apply parameters
     audioQuery.speedScale = speed.value
     audioQuery.pitchScale = pitch.value
     audioQuery.intonationScale = intonation.value
-    
+
     // Step 2: Synthesize audio
     const synthesisUrl = `${baseUrl}/synthesis?speaker=${voiceId}`
     const synthesisResponse = await fetch(synthesisUrl, {
@@ -109,12 +109,12 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
       },
       body: JSON.stringify(audioQuery),
     })
-    
+
     if (!synthesisResponse.ok) {
       const errorText = await synthesisResponse.text().catch(() => '')
       throw new Error(`Failed to synthesize audio: ${synthesisResponse.status} ${synthesisResponse.statusText}${errorText ? ` - ${errorText}` : ''}`)
     }
-    
+
     // Return audio data as ArrayBuffer
     return await synthesisResponse.arrayBuffer()
   }
@@ -155,7 +155,7 @@ watch(intonation, () => {
         :max="2.0"
         :step="0.01"
       />
-      
+
       <!-- Pitch control -->
       <FieldRange
         v-model="pitch"
@@ -165,7 +165,7 @@ watch(intonation, () => {
         :max="0.15"
         :step="0.01"
       />
-      
+
       <!-- Intonation control -->
       <FieldRange
         v-model="intonation"

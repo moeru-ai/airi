@@ -1332,7 +1332,7 @@ export const useProvidersStore = defineStore('providers', () => {
       }),
       createProvider: async (config) => {
         const baseUrl = (config.baseUrl as string).trim().replace(/\/$/, '')
-        
+
         const provider: SpeechProvider = {
           speech: (model: string, extraOptions?: Record<string, any>) => {
             return {
@@ -1342,16 +1342,16 @@ export const useProvidersStore = defineStore('providers', () => {
                 // VOICEVOX APIの2段階フローを実装
                 // 1. audio_queryで音声クエリを生成
                 // 2. synthesisで音声を合成
-                
+
                 // generateSpeech関数から渡されるパラメータを取得
                 // inputとvoiceはgenerateSpeech関数から渡される
                 const request = input instanceof Request ? input : new Request(input, init)
                 const url = new URL(request.url)
-                
+
                 // generateSpeech関数はinputとvoiceをURLのクエリパラメータとして渡す
                 let text = url.searchParams.get('input') || url.searchParams.get('text') || ''
                 let speakerId = url.searchParams.get('voice') || url.searchParams.get('speaker') || ''
-                
+
                 // クエリパラメータから取得できない場合、リクエストボディから取得を試みる
                 if (!text || !speakerId) {
                   try {
@@ -1382,12 +1382,12 @@ export const useProvidersStore = defineStore('providers', () => {
                     console.warn('Failed to read request body for VOICEVOX:', error)
                   }
                 }
-                
+
                 // 設定からパラメータを取得
                 const speed = (extraOptions?.speed as number) ?? (config.speed as number) ?? 1.0
                 const pitch = (extraOptions?.pitch as number) ?? (config.pitch as number) ?? 0.0
                 const intonation = (extraOptions?.intonation as number) ?? (config.intonation as number) ?? 1.0
-                
+
                 if (!text || !speakerId) {
                   // デバッグ情報を追加
                   console.error('VOICEVOX fetch error - missing parameters:', {
@@ -1399,7 +1399,7 @@ export const useProvidersStore = defineStore('providers', () => {
                   })
                   throw new Error(`Text and speaker ID are required. URL: ${request.url}, Text: "${text || '(empty)'}", Speaker ID: "${speakerId || '(empty)'}"`)
                 }
-                
+
                 // Step 1: audio_queryで音声クエリを生成
                 const audioQueryUrl = `${baseUrl}/audio_query?text=${encodeURIComponent(text)}&speaker=${speakerId}`
                 const audioQueryResponse = await fetch(audioQueryUrl, {
@@ -1408,13 +1408,13 @@ export const useProvidersStore = defineStore('providers', () => {
                     'Content-Type': 'application/json',
                   },
                 })
-                
+
                 if (!audioQueryResponse.ok) {
                   throw new Error(`Failed to create audio query: ${audioQueryResponse.statusText}`)
                 }
-                
-                let audioQuery = await audioQueryResponse.json()
-                
+
+                const audioQuery = await audioQueryResponse.json()
+
                 // パラメータを設定
                 if (speed !== undefined && speed !== 1.0) {
                   audioQuery.speedScale = speed
@@ -1425,7 +1425,7 @@ export const useProvidersStore = defineStore('providers', () => {
                 if (intonation !== undefined && intonation !== 1.0) {
                   audioQuery.intonationScale = intonation
                 }
-                
+
                 // Step 2: synthesisで音声を合成
                 const synthesisUrl = `${baseUrl}/synthesis?speaker=${speakerId}`
                 const synthesisResponse = await fetch(synthesisUrl, {
@@ -1435,11 +1435,11 @@ export const useProvidersStore = defineStore('providers', () => {
                   },
                   body: JSON.stringify(audioQuery),
                 })
-                
+
                 if (!synthesisResponse.ok) {
                   throw new Error(`Failed to synthesize audio: ${synthesisResponse.statusText}`)
                 }
-                
+
                 // WAV形式の音声データを返す
                 return synthesisResponse
               },
@@ -1463,7 +1463,7 @@ export const useProvidersStore = defineStore('providers', () => {
               id: number
             }>
           }>
-          
+
           // 各話者のスタイルを展開してVoiceInfoとして返す
           const voices: VoiceInfo[] = []
           for (const speaker of speakers) {
@@ -1476,7 +1476,7 @@ export const useProvidersStore = defineStore('providers', () => {
               })
             }
           }
-          
+
           return voices
         },
       },
@@ -1485,12 +1485,12 @@ export const useProvidersStore = defineStore('providers', () => {
           const errors = [
             !config.baseUrl && new Error('Base URL is required. Default to http://localhost:50021/ for VOICEVOX.'),
           ].filter(Boolean)
-          
+
           const res = baseUrlValidator.value(config.baseUrl)
           if (res) {
             return res
           }
-          
+
           // VOICEVOXエンジンへの接続確認（オプショナル：エンジンが起動していなくても設定は有効）
           // エンジンが起動していない場合でも、baseUrlが設定されていればvalid: trueを返す
           try {
@@ -1507,7 +1507,7 @@ export const useProvidersStore = defineStore('providers', () => {
             // エンジンが起動していない場合でも、baseUrlが設定されていれば有効とする
             console.warn(`Failed to connect to VOICEVOX engine at ${config.baseUrl}. Provider will be marked as configured, but may not work until the engine is running.`, err)
           }
-          
+
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
