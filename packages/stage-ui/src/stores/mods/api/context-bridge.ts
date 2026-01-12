@@ -66,9 +66,9 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           overrides,
           contextUpdates,
           discord,
-        } = event.data as any
+        } = event.data
 
-        const normalizedContextUpdates = (contextUpdates as any[])?.map((update) => {
+        const normalizedContextUpdates = contextUpdates?.map((update) => {
           const id = update.id ?? nanoid()
           const contextId = update.contextId ?? id
           return {
