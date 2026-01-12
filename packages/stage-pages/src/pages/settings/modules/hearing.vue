@@ -498,17 +498,7 @@ onUnmounted(() => {
                 :title="metadata.localizedName || 'Unknown'"
                 :description="metadata.localizedDescription"
                 @click="trackProviderClick(metadata.id, 'hearing')"
-              >
-                <template #topRight>
-                  <div
-                    v-if="activeTranscriptionProvider === metadata.id"
-                    class="size-5 flex items-center justify-center rounded-full bg-green-500 shadow-green-500/50 shadow-lg"
-                    title="Active provider"
-                  >
-                    <div i-solar:check-circle-bold-duotone class="text-xs text-white" />
-                  </div>
-                </template>
-              </RadioCardSimple>
+              />
               <RouterLink
                 to="/settings/providers#transcription"
                 border="2px solid"
