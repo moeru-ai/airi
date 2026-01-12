@@ -5,6 +5,14 @@ import { FieldCheckbox, FieldSelect, useTheme } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+const props = withDefaults(defineProps<{
+  needcontrolsIslandIconSizeSetting?: boolean
+}>(), {
+  needcontrolsIslandIconSizeSetting: import.meta.env.RUNTIME_ENVIRONMENT === 'electron',
+})
+
+const showControlsIsland = computed(() => props.needcontrolsIslandIconSizeSetting)
+
 const settings = useSettings()
 const controlsIslandIconSizeStore = useControlsIslandIconSize()
 
@@ -46,6 +54,7 @@ const languages = computed(() => {
 
     <!-- Controls Island Icon Size -->
     <FieldSelect
+      v-if="showControlsIsland"
       v-model="controlsIslandIconSizeStore.iconSize"
       v-motion
       :initial="{ opacity: 0, y: 10 }"
