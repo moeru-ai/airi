@@ -17,6 +17,7 @@ const emit = defineEmits<{
   (e: 'select'): void
   (e: 'activate'): void
   (e: 'delete'): void
+  (e: 'edit'): void
 }>()
 </script>
 
@@ -47,8 +48,17 @@ const emit = defineEmits<{
         <h3 flex-1 truncate text-lg font-normal>
           {{ name }}
         </h3>
-        <div v-if="isActive" shrink-0 rounded-md p-1 bg="primary-100 dark:primary-900/40" text="primary-600 dark:primary-400">
-          <div i-solar:check-circle-bold-duotone text-sm />
+        <div flex shrink-0 items-center gap-2>
+          <button
+            rounded-lg p-1 text-neutral-500 transition-colors dark:text-neutral-400 hover="bg-neutral-200 dark:bg-neutral-700/50"
+            title="Edit card"
+            @click.stop="emit('edit')"
+          >
+            <div i-solar:pen-2-bold-duotone text-sm />
+          </button>
+          <div v-if="isActive" rounded-md p-1 bg="primary-100 dark:primary-900/40" text="primary-600 dark:primary-400">
+            <div i-solar:check-circle-bold-duotone text-sm />
+          </div>
         </div>
       </div>
 
