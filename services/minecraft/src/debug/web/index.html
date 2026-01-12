@@ -47,7 +47,10 @@
             <section id="queue-section" class="panel">
                 <div class="panel-header">
                     <h2>Queue & Processing</h2>
-                    <span class="panel-badge" id="queue-count">0</span>
+                    <div class="panel-controls">
+                        <span class="panel-badge" id="queue-count">0</span>
+                        <button class="icon-btn maximize-btn" title="Toggle maximize">⤢</button>
+                    </div>
                 </div>
                 <div class="panel-content">
                     <div id="queue-list" class="queue-list"></div>
@@ -63,7 +66,10 @@
             <section id="reflex-section" class="panel">
                 <div class="panel-header">
                     <h2>Reflex State</h2>
-                    <span class="panel-badge" id="reflex-mode">idle</span>
+                    <div class="panel-controls">
+                        <span class="panel-badge" id="reflex-mode">idle</span>
+                        <button class="icon-btn maximize-btn" title="Toggle maximize">⤢</button>
+                    </div>
                 </div>
                 <div class="panel-content">
                     <div class="kv-row">
@@ -93,13 +99,19 @@
             <section id="blackboard-section" class="panel">
                 <div class="panel-header">
                     <h2>Blackboard</h2>
-                    <button id="blackboard-copy-btn" class="icon-btn" title="Copy JSON">📋</button>
+                    <div class="panel-controls">
+                        <button id="blackboard-copy-btn" class="icon-btn" title="Copy JSON">📋</button>
+                        <button class="icon-btn maximize-btn" title="Toggle maximize">⤢</button>
+                    </div>
                 </div>
                 <div class="panel-content">
                     <pre id="blackboard-json" class="json-display">{}</pre>
                 </div>
             </section>
         </div>
+
+        <!-- Splitter V1 (Left vs Logs/Timeline/etc) -->
+        <div class="splitter-v" id="splitter-v1"></div>
 
         <!-- Right Column: Logs -->
         <section id="logs-section" class="panel">
@@ -118,6 +130,7 @@
                         <input type="checkbox" id="auto-scroll" checked />
                         Auto-scroll
                     </label>
+                    <button class="icon-btn maximize-btn" title="Toggle maximize">⤢</button>
                 </div>
             </div>
             <div class="panel-content">
@@ -125,8 +138,11 @@
             </div>
         </section>
 
+        <!-- Splitter H1 (Logs vs Timeline) -->
+        <div class="splitter-h" id="splitter-h1"></div>
+
         <!-- Timeline: Event Trace View -->
-        <section id="timeline-section" class="panel panel-full-width">
+        <section id="timeline-section" class="panel">
             <div class="panel-header">
                 <h2>Event Timeline</h2>
                 <div class="panel-controls">
@@ -137,6 +153,7 @@
                         <option value="signal:">Signals</option>
                     </select>
                     <button id="timeline-clear-btn" class="icon-btn" title="Clear timeline">🗑️</button>
+                    <button class="icon-btn maximize-btn" title="Toggle maximize">⤢</button>
                 </div>
             </div>
             <div class="panel-content">
@@ -153,23 +170,33 @@
             </div>
         </section>
 
+        <!-- Splitter H2 (Timeline vs LLM) -->
+        <div class="splitter-h" id="splitter-h2"></div>
+
         <!-- Bottom Row: LLM Traces -->
-        <section id="llm-section" class="panel panel-full-width">
+        <section id="llm-section" class="panel">
             <div class="panel-header">
                 <h2>LLM Traces</h2>
-                <span class="panel-badge" id="llm-count">0</span>
+                <div class="panel-controls">
+                    <span class="panel-badge" id="llm-count">0</span>
+                    <button class="icon-btn maximize-btn" title="Toggle maximize">⤢</button>
+                </div>
             </div>
             <div class="panel-content">
                 <div id="llm-list" class="llm-list"></div>
             </div>
         </section>
 
+        <!-- Splitter H3 (LLM vs Saliency) -->
+        <div class="splitter-h" id="splitter-h3"></div>
+
         <!-- Bottom Row: Saliency -->
-        <section id="saliency-section" class="panel panel-full-width">
+        <section id="saliency-section" class="panel">
             <div class="panel-header">
                 <h2>Saliency Heatmap</h2>
                 <div class="panel-controls">
                     <span>Slot: <span id="saliency-slot" class="panel-badge">0</span></span>
+                    <button class="icon-btn maximize-btn" title="Toggle maximize">⤢</button>
                 </div>
             </div>
             <div class="panel-content">

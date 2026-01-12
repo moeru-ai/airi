@@ -895,9 +895,95 @@ class TimelinePanel {
 // Application
 // =============================================================================
 
+// =============================================================================
+// Layout Manager (Resizing & Maximizing)
+// =============================================================================
+
+class LayoutManager {
+  constructor() {
+    this.root = document.documentElement
+    this.activeSplitter = null
+    this.startPos = 0
+    this.startSize = 0
+  }
+
+  init() {
+    this.setupSplitters()
+    this.setupMaximizeButtons()
+  }
+
+  setupSplitters() {
+    const splitters = [
+      { id: 'splitter-v1', var: '--col-left', type: 'v' },
+      { id: 'splitter-h1', var: '--row-1', type: 'h' },
+      { id: 'splitter-h2', var: '--row-2', type: 'h' },
+      { id: 'splitter-h3', var: '--row-3', type: 'h' },
+    ]
+
+    splitters.forEach((config) => {
+      const el = document.getElementById(config.id)
+      if (!el)
+        return
+
+      el.addEventListener('mousedown', (e) => {
+        this.activeSplitter = { el, ...config }
+        this.startPos = config.type === 'v' ? e.clientX : e.clientY
+
+        const style = getComputedStyle(this.root)
+        this.startSize = Number.parseInt(style.getPropertyValue(config.var), 10)
+
+        el.classList.add('dragging')
+        document.body.style.cursor = config.type === 'v' ? 'col-resize' : 'row-resize'
+        document.body.style.userSelect = 'none' // Prevent text selection
+      })
+    })
+
+    document.addEventListener('mousemove', e => this.handleDrag(e))
+    document.addEventListener('mouseup', () => this.handleDragEnd())
+  }
+
+  handleDrag(e) {
+    if (!this.activeSplitter)
+      return
+
+    const currentPos = this.activeSplitter.type === 'v' ? e.clientX : e.clientY
+    const delta = currentPos - this.startPos
+    const newSize = Math.max(50, this.startSize + delta) // Min 50px
+
+    this.root.style.setProperty(this.activeSplitter.var, `${newSize}px`)
+  }
+
+  handleDragEnd() {
+    if (!this.activeSplitter)
+      return
+
+    this.activeSplitter.el.classList.remove('dragging')
+    this.activeSplitter = null
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }
+
+  setupMaximizeButtons() {
+    document.querySelectorAll('.maximize-btn').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation() // Prevent bubbling
+        const panel = btn.closest('.panel')
+        if (!panel)
+          return
+
+        panel.classList.toggle('maximized')
+        const isMaximized = panel.classList.contains('maximized')
+        btn.textContent = isMaximized ? '✕' : '⤢'
+        btn.title = isMaximized ? 'Restore' : 'Maximize'
+      })
+    })
+  }
+}
+
 class DebugApp {
   constructor() {
     this.client = new DebugClient()
+    this.layoutManager = new LayoutManager()
     this.queuePanel = new QueuePanel(this.client)
     this.reflexPanel = new ReflexPanel(this.client)
     this.blackboardPanel = new BlackboardPanel(this.client)
@@ -919,6 +1005,9 @@ class DebugApp {
   }
 
   init() {
+    // Initialize layout
+    this.layoutManager.init()
+
     // Initialize all panels
     Object.values(this.panels).forEach(panel => panel.init())
 
