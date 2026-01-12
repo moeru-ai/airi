@@ -29,7 +29,7 @@ interface LLMResponse {
   blackboard: {
     currentGoal?: string
     currentThought?: string
-    executionStrategy?: string
+    strategy?: string
   }
   actions: ActionInstruction[]
 }
@@ -55,6 +55,7 @@ export class Brain {
 
   public init(bot: MineflayerWithAgents): void {
     this.log('INFO', 'Brain: Initializing...')
+    this.blackboard.update({ selfUsername: bot.username })
 
     // Perception Signal Handler - Only process chat messages for now
     this.deps.eventManager.on<PerceptionSignal>('perception', async (event) => {
@@ -64,7 +65,35 @@ export class Brain {
         return
 
       this.log('INFO', `Brain: Received chat: ${signal.description}`)
-      await this.enqueueEvent(bot, event)
+
+      // Add to blackboard chat history
+      // signal.description usually is "User: message"
+      // We'll parse it simply or use the whole string as content if format varies
+      // Assuming signal.description is the formatted message or we extract it.
+      // Based on previous logs, it looks like "Sender: message"
+      // Let's just use the description for now, or split it if possible.
+      // Actually `signal.content` might hold the raw message if available, but checking types it seems signal has description and properties.
+      // Let's assume description is "Sender: content" for now or just store it.
+      // A better way is to try to parse it if needed, but for now we trust `signal.description`.
+
+      const parts = signal.description.split(': ')
+      const sender = parts.length > 1 ? parts[0] : 'Unknown'
+      const content = parts.length > 1 ? parts.slice(1).join(': ') : signal.description
+
+      this.blackboard.addChatMessage({
+        sender,
+        content,
+        timestamp: Date.now(),
+      })
+
+      try {
+        this.log('DEBUG', `Brain: About to enqueue chat event`)
+        await this.enqueueEvent(bot, event)
+        this.log('DEBUG', `Brain: Chat event enqueued successfully`)
+      }
+      catch (err) {
+        this.log('ERROR', `Brain: Failed to enqueue chat event`, { error: err })
+      }
     })
 
     // Listen to Task Execution Events (Action Feedback)
@@ -103,21 +132,29 @@ export class Brain {
   // --- Event Queue Logic ---
 
   private async enqueueEvent(bot: MineflayerWithAgents, event: BotEvent): Promise<void> {
+    this.log('DEBUG', `Brain: Enqueueing event type=${event.type}`)
     return new Promise((resolve, reject) => {
       this.queue.push({ event, resolve, reject })
+      this.log('DEBUG', `Brain: Queue length now: ${this.queue.length}`)
       this.updateDebugState()
       this.processQueue(bot)
     })
   }
 
   private async processQueue(bot: MineflayerWithAgents): Promise<void> {
-    if (this.isProcessing)
+    if (this.isProcessing) {
+      this.log('DEBUG', 'Brain: Already processing, skipping')
       return
-    if (this.queue.length === 0)
+    }
+    if (this.queue.length === 0) {
+      this.log('DEBUG', 'Brain: Queue empty')
       return
+    }
 
+    this.log('DEBUG', `Brain: Processing queue item, queue length: ${this.queue.length}`)
     this.isProcessing = true
     const item = this.queue.shift()!
+    this.log('DEBUG', `Brain: Processing event type=${item.event.type}`)
     this.updateDebugState(item.event)
 
     try {
@@ -180,9 +217,9 @@ export class Brain {
 
     // Update Blackboard
     this.blackboard.update({
-      currentGoal: decision.blackboard.currentGoal || this.blackboard.goal,
-      currentThought: decision.blackboard.currentThought || this.blackboard.thought,
-      executionStrategy: decision.blackboard.executionStrategy || this.blackboard.strategy,
+      ultimateGoal: decision.blackboard.currentGoal || this.blackboard.ultimate_goal,
+      currentTask: decision.blackboard.currentThought || this.blackboard.current_task,
+      strategy: decision.blackboard.strategy || this.blackboard.strategy,
     })
 
     // Sync Blackboard to Debug
@@ -190,6 +227,17 @@ export class Brain {
 
     // Issue Actions
     if (decision.actions && decision.actions.length > 0) {
+      // Record own chat actions to memory
+      for (const action of decision.actions) {
+        if (action.type === 'chat') {
+          this.blackboard.addChatMessage({
+            sender: config.bot.username || '[Me]',
+            content: action.message,
+            timestamp: Date.now(), // FIXME: should be the time the action was issued
+          })
+        }
+      }
+
       this.deps.taskExecutor.executeActions(decision.actions)
     }
   }
