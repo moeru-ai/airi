@@ -147,6 +147,9 @@ catalogs:
     splitpanes:
       specifier: ^4.0.4
       version: 4.0.4
+    std-env:
+      specifier: ^3.10.0
+      version: 3.10.0
     superjson:
       specifier: ^2.2.6
       version: 2.2.6
@@ -1204,7 +1207,7 @@ importers:
         specifier: ^3.2.3
         version: 3.2.3
       electron:
-        specifier: ^39.2.7
+        specifier: 'catalog:'
         version: 39.2.7
       electron-builder:
         specifier: ^26.4.0
@@ -1822,6 +1825,15 @@ importers:
 
   packages/electron-screen-capture:
     dependencies:
+      '@guiiai/logg':
+        specifier: '>=1 <2'
+        version: 1.2.11
+      electron:
+        specifier: '>=39 <40'
+        version: 39.2.7
+      std-env:
+        specifier: 'catalog:'
+        version: 3.10.0
       vue:
         specifier: '>=3'
         version: 3.5.25(typescript@5.9.3)
@@ -1829,9 +1841,6 @@ importers:
       '@electron-toolkit/preload':
         specifier: 'catalog:'
         version: 3.0.2(electron@39.2.7)
-      '@guiiai/logg':
-        specifier: 'catalog:'
-        version: 1.2.11
       '@moeru/eventa':
         specifier: 'catalog:'
         version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
@@ -1841,9 +1850,6 @@ importers:
       async-mutex:
         specifier: 'catalog:'
         version: 0.5.0
-      electron:
-        specifier: 'catalog:'
-        version: 39.2.7
       nanoid:
         specifier: 'catalog:'
         version: 5.1.6
@@ -2983,7 +2989,7 @@ importers:
         version: 66.5.11
       '@wxt-dev/module-vue':
         specifier: ^1.0.3
-        version: 1.0.3(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+        version: 1.0.3(vite@8.0.0-beta.5(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       vue-tsc:
         specifier: ^3.1.8
         version: 3.2.1(typescript@5.9.3)
@@ -22459,6 +22465,12 @@ snapshots:
       vite: 7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
       vue: 3.5.25(typescript@5.9.3)
 
+  '@vitejs/plugin-vue@6.0.3(vite@8.0.0-beta.5(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))':
+    dependencies:
+      '@rolldown/pluginutils': 1.0.0-beta.53
+      vite: 8.0.0-beta.5(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vue: 3.5.25(typescript@5.9.3)
+
   '@vitest/browser-playwright@4.0.16(bufferutil@4.1.0)(playwright@1.57.0)(utf-8-validate@5.0.10)(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vitest@4.0.16)':
     dependencies:
       '@vitest/browser': 4.0.16(bufferutil@4.1.0)(utf-8-validate@5.0.10)(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vitest@4.0.16)
@@ -23218,9 +23230,9 @@ snapshots:
       '@types/filesystem': 0.0.36
       '@types/har-format': 1.2.16
 
-  '@wxt-dev/module-vue@1.0.3(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
+  '@wxt-dev/module-vue@1.0.3(vite@8.0.0-beta.5(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
-      '@vitejs/plugin-vue': 6.0.3(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
+      '@vitejs/plugin-vue': 6.0.3(vite@8.0.0-beta.5(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.25(typescript@5.9.3))
       wxt: 0.20.13(@types/node@24.10.4)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - vite

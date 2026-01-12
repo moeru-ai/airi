@@ -22,6 +22,7 @@ overrides:
 
 patchedDependencies:
   srvx@0.9.8: patches/srvx@0.9.8.patch
+
 catalog:
   '@capacitor/cli': ^8.0.0
   '@capacitor/core': ^8.0.0
@@ -70,6 +71,7 @@ catalog:
   ofetch: ^1.5.1
   posthog-js: 1.306.1
   splitpanes: ^4.0.4
+  std-env: ^3.10.0
   superjson: ^2.2.6
   tsx: ^4.21.0
   uncrypto: ^0.1.3

@@ -8,17 +8,17 @@ import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { toRaw, toValue } from 'vue'
 
-import { screenCaptureCheckMacOSPermission, screenCaptureGetSources, screenCaptureRequestMacOSPermission, screenCaptureResetSource, screenCaptureSetSourceEx } from '..'
+import { screenCapture } from '..'
 
 export function useElectronScreenCapture(ipcRenderer: IpcRenderer, sourcesOptions: MaybeRefOrGetter<SourcesOptions>) {
   const context = createContext(ipcRenderer).context
 
-  const invokeGetSources = defineInvoke(context, screenCaptureGetSources)
-  const setSource = defineInvoke(context, screenCaptureSetSourceEx)
-  const resetSource = defineInvoke(context, screenCaptureResetSource)
+  const invokeGetSources = defineInvoke(context, screenCapture.getSources)
+  const setSource = defineInvoke(context, screenCapture.setSource)
+  const resetSource = defineInvoke(context, screenCapture.resetSource)
 
-  const checkMacOSPermission = defineInvoke(context, screenCaptureCheckMacOSPermission)
-  const requestMacOSPermission = defineInvoke(context, screenCaptureRequestMacOSPermission)
+  const checkMacOSPermission = defineInvoke(context, screenCapture.checkMacOSPermission)
+  const requestMacOSPermission = defineInvoke(context, screenCapture.requestMacOSPermission)
 
   async function getSources() {
     return invokeGetSources(toRaw(toValue(sourcesOptions)))

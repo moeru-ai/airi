@@ -162,7 +162,7 @@
     "builder-util-runtime": "catalog:",
     "cac": "^6.7.14",
     "csstype": "^3.2.3",
-    "electron": "^39.2.7",
+    "electron": "catalog:",
     "electron-builder": "^26.4.0",
     "electron-vite": "^5.0.0",
     "less": "^4.5.1",
