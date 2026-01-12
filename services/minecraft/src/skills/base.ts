@@ -9,7 +9,7 @@ const logger = useLogger()
  */
 export function log(mineflayer: Mineflayer, message: string): void {
   logger.log(message)
-  mineflayer.bot.chat(message)
+  // mineflayer.bot.chat(message)
 }
 
 /**
