@@ -196,7 +196,7 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
     // NOTICE(@sumimakito): Not only thumbnail is empty, the appIcon could be empty as well with nothing returned.
     // REVIEW(@sumimakito): This has nothing to do with out side, probably related to Electron Bug, you can
     // read more here https://github.com/electron/electron/issues/44504
-    const sources = (await desktopCapturer.getSources(sourcesOptions))
+    const sources = await desktopCapturer.getSources(sourcesOptions)
     return sources.map(source => toSerializableDesktopCapturerSource(source))
   })
 
