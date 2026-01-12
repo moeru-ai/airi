@@ -84,6 +84,20 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     cards.value.delete(id)
   }
 
+  const updateCard = (id: string, updates: AiriCard | Card | ccv3.CharacterCardV3) => {
+    const existingCard = cards.value.get(id)
+    if (!existingCard)
+      return false
+
+    const updatedCard = {
+      ...existingCard,
+      ...updates,
+    }
+
+    cards.value.set(id, newAiriCard(updatedCard))
+    return true
+  }
+
   const getCard = (id: string) => {
     return cards.value.get(id)
   }
@@ -223,6 +237,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     activeCardId,
     addCard,
     removeCard,
+    updateCard,
     getCard,
     resetState,
     initialize,

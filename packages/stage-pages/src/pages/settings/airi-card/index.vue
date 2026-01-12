@@ -22,6 +22,8 @@ const { cards, activeCardId } = storeToRefs(cardStore)
 
 // Currently selected card ID (different from active card ID)
 const selectedCardId = ref<string>('')
+// Currently editing card ID
+const editingCardId = ref<string>('')
 // Dialog state
 const isCardDialogOpen = ref(false)
 const isCardCreationDialogOpen = ref(false)
@@ -120,7 +122,13 @@ function handleSelectCard(cardId: string) {
   isCardDialogOpen.value = true
 }
 
+function handleEditCard(cardId: string) {
+  editingCardId.value = cardId
+  isCardCreationDialogOpen.value = true
+}
+
 function handleCardCreationDialog() {
+  editingCardId.value = '' // Clear editing state for new card creation
   isCardCreationDialogOpen.value = true
 }
 
@@ -128,6 +136,13 @@ function handleCardCreationDialog() {
 function activateCard(id: string) {
   activeCardId.value = id
 }
+
+// Clear editing state when creation/edit dialog closes
+watch(isCardCreationDialogOpen, (isOpen) => {
+  if (!isOpen) {
+    editingCardId.value = ''
+  }
+})
 
 // Card version number
 function getVersionNumber(id: string) {
@@ -241,6 +256,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
           @select="handleSelectCard(item.id)"
           @activate="activateCard(item.id)"
           @delete="confirmDelete(item.id)"
+          @edit="handleEditCard(item.id)"
         />
       </template>
 
@@ -281,9 +297,10 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
     :card-id="selectedCardId"
   />
 
-  <!-- Card detail dialog -->
+  <!-- Card creation/edit dialog -->
   <CardCreationDialog
     v-model="isCardCreationDialogOpen"
+    :card-id="editingCardId"
   />
 
   <!-- Background decoration -->

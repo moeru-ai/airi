@@ -75,6 +75,7 @@ pages:
     active: Active
     active_badge: Currently Active
     cancel: Cancel action
+    save: Save changes
     card_not_found: Card not found
     character: Character
     close: Close
@@ -89,6 +90,7 @@ pages:
     description_label: Description
     drop_here: Drop to upload
     create_card: Create a new Card
+    edit_card: Edit Card
     creation:
       identity: Identity
       name: Name
