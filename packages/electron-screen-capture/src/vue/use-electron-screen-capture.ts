@@ -6,9 +6,9 @@ import type { ScreenCaptureSetSourceRequest, SerializableDesktopCapturerSource }
 
 import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
-import { toValue } from 'vue'
+import { toRaw, toValue } from 'vue'
 
-import { screenCaptureGetSources, screenCaptureResetSource, screenCaptureSetSourceEx } from '..'
+import { screenCaptureCheckMacOSPermission, screenCaptureGetSources, screenCaptureRequestMacOSPermission, screenCaptureResetSource, screenCaptureSetSourceEx } from '..'
 
 export function useElectronScreenCapture(ipcRenderer: IpcRenderer, sourcesOptions: MaybeRefOrGetter<SourcesOptions>) {
   const context = createContext(ipcRenderer).context
@@ -17,8 +17,11 @@ export function useElectronScreenCapture(ipcRenderer: IpcRenderer, sourcesOption
   const setSource = defineInvoke(context, screenCaptureSetSourceEx)
   const resetSource = defineInvoke(context, screenCaptureResetSource)
 
+  const checkMacOSPermission = defineInvoke(context, screenCaptureCheckMacOSPermission)
+  const requestMacOSPermission = defineInvoke(context, screenCaptureRequestMacOSPermission)
+
   async function getSources() {
-    return invokeGetSources(toValue(sourcesOptions))
+    return invokeGetSources(toRaw(toValue(sourcesOptions)))
   }
 
   async function selectWithSource<R>(
@@ -32,7 +35,7 @@ export function useElectronScreenCapture(ipcRenderer: IpcRenderer, sourcesOption
     let handle: string | undefined
     try {
       handle = await setSource({
-        options: toValue(sourcesOptions),
+        options: toRaw(toValue(sourcesOptions)),
         sourceId,
         timeout: request?.timeout,
       })
@@ -45,5 +48,12 @@ export function useElectronScreenCapture(ipcRenderer: IpcRenderer, sourcesOption
     }
   }
 
-  return { getSources, setSource, resetSource, selectWithSource }
+  return {
+    getSources,
+    setSource,
+    resetSource,
+    selectWithSource,
+    checkMacOSPermission,
+    requestMacOSPermission,
+  }
 }
