@@ -23,6 +23,7 @@ export class MineflayerPerceptionCollector {
 
   private lastStatsAt = 0
   private stats: Record<string, number> = {}
+  private sneakingState: Map<string, boolean> = new Map()
 
   constructor(
     private readonly deps: {
@@ -45,6 +46,10 @@ export class MineflayerPerceptionCollector {
       const now = Date.now()
       const dist = this.distanceTo(entity)
       if (dist === null || dist > this.deps.maxDistance)
+        return
+
+      // Ignore self
+      if (entity.username === this.bot?.bot.username)
         return
 
       const entityId = this.entityId(entity)
@@ -73,6 +78,10 @@ export class MineflayerPerceptionCollector {
       if (dist === null || dist > this.deps.maxDistance)
         return
 
+      // Ignore self
+      if (entity.username === this.bot?.bot.username)
+        return
+
       const event: SightedArmSwingEvent = {
         modality: 'sighted',
         kind: 'arm_swing',
@@ -95,15 +104,26 @@ export class MineflayerPerceptionCollector {
       if (!entity || entity.type !== 'player')
         return
 
+      // Ignore self
+      if (entity.username === this.bot?.bot.username)
+        return
+
+      const entityId = this.entityId(entity)
+      const flags = entity?.metadata?.[0]
+      // Bit 1 (0x02) is sneaking
+      const isSneaking = typeof flags === 'number' ? !!(flags & 0x02) : false
+
+      // Check if state actually changed
+      const lastState = this.sneakingState.get(entityId)
+      if (lastState === isSneaking) {
+        return
+      }
+      this.sneakingState.set(entityId, isSneaking)
+
       const now = Date.now()
       const dist = this.distanceTo(entity)
       if (dist === null || dist > this.deps.maxDistance)
         return
-
-      const entityId = this.entityId(entity)
-
-      const flags = entity?.metadata?.[0]
-      const sneaking = typeof flags === 'number' ? !!(flags & 0x02) : false
 
       const event: SightedSneakToggleEvent = {
         modality: 'sighted',
@@ -113,11 +133,13 @@ export class MineflayerPerceptionCollector {
         displayName: entity?.username,
         distance: dist,
         hasLineOfSight: true,
-        sneaking,
+        sneaking: isSneaking,
         timestamp: now,
         source: 'minecraft',
         pos: entity?.position,
       }
+
+      this.deps.logger.withFields({ entity: entity.username, sneaking: isSneaking }).log('MineflayerPerceptionCollector: sneak_toggle')
 
       this.deps.emitRaw(event)
       this.bumpStat('sighted.sneak_toggle')

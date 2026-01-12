@@ -21,6 +21,8 @@ export interface ReflexSocialState {
   lastMessage: string | null
   lastMessageAt: number | null
   lastGreetingAtBySpeaker: Record<string, number>
+  lastGesture: string | null
+  lastGestureAt: number | null
 }
 
 export interface ReflexThreatState {
@@ -69,6 +71,8 @@ export class ReflexContext {
         lastMessage: null,
         lastMessageAt: null,
         lastGreetingAtBySpeaker: {},
+        lastGesture: null,
+        lastGestureAt: null,
       },
       threat: {
         threatScore: 0,

@@ -8,6 +8,7 @@ import type { ReflexContextState } from './context'
 import { DebugService } from '../../debug'
 import { greetingBehavior } from './behaviors/greeting'
 import { lookAtBehavior } from './behaviors/look-at'
+import { teabagBehavior } from './behaviors/teabag'
 import { ReflexRuntime } from './runtime'
 
 export class ReflexManager {
@@ -27,6 +28,7 @@ export class ReflexManager {
 
     this.runtime.registerBehavior(greetingBehavior)
     this.runtime.registerBehavior(lookAtBehavior)
+    this.runtime.registerBehavior(teabagBehavior)
   }
 
   public init(bot: MineflayerWithAgents): void {
@@ -70,6 +72,13 @@ export class ReflexManager {
       lastSignalSourceId: signal.sourceId ?? null,
       lastSignalAt: now,
     })
+
+    if (signal.type === 'social_gesture') {
+      this.runtime.getContext().updateSocial({
+        lastGesture: (signal.metadata as any)?.gesture ?? 'unknown',
+        lastGestureAt: now,
+      })
+    }
 
     // If it's a chat message (simulated via signal for now, or direct?)
     // For now we rely on signal metadata or separate chat event.
