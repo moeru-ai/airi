@@ -1,29 +1,39 @@
 <script setup lang="ts">
 import type { SerializableDesktopCapturerSource } from '@proj-airi/electron-screen-capture'
+import type { SourcesOptions } from 'electron'
 
 import { useElectronScreenCapture } from '@proj-airi/electron-screen-capture/vue'
 import { Button } from '@proj-airi/ui'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
-const sources = ref<ScreenCaptureSource[]>([])
-const isRefetching = ref(false)
-const activeStreams = ref<MediaStream[]>([])
+import WithScreenCapture from '../../components/WithScreenCapture.vue'
 
 interface ScreenCaptureSource extends SerializableDesktopCapturerSource {
   appIconURL?: string
   thumbnailURL?: string
 }
 
-const { getSources, selectWithSource } = useElectronScreenCapture(window.electron.ipcRenderer, {
+const sources = ref<ScreenCaptureSource[]>([])
+const isRefetching = ref(false)
+const activeStreams = ref<MediaStream[]>([])
+
+const sourcesOptions = ref<SourcesOptions>({
   types: ['screen', 'window'],
   fetchWindowIcons: true,
 })
 
+const { t } = useI18n()
+const {
+  getSources,
+  selectWithSource,
+} = useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions)
+
 function toLocalArrayBuffer(bytes: Uint8Array) {
-  if (bytes.buffer instanceof SharedArrayBuffer) {
+  if (typeof SharedArrayBuffer !== 'undefined' && bytes.buffer instanceof SharedArrayBuffer) {
     return bytes.slice().buffer
   }
-  return bytes.buffer
+  return bytes.buffer as ArrayBuffer
 }
 
 function toObjectUrl(bytes: Uint8Array, mime: string) {
@@ -80,6 +90,9 @@ async function refetchSources() {
       thumbnailURL: source.thumbnail && source.thumbnail.length > 0 ? toObjectUrl(source.thumbnail, 'image/jpeg') : undefined,
     }))
   }
+  catch (err) {
+    console.error('Error fetching sources:', err)
+  }
   finally {
     isRefetching.value = false
   }
@@ -100,133 +113,146 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div
-    flex="~ col gap-4 items-start" w-full
-    text="neutral-500 dark:neutral-400"
-  >
-    <div
-      v-if="activeStreams.length > 0"
-      bg="primary-300/10"
-      b="2 solid primary-400/70"
-      w-full overflow-hidden rounded-2xl p-3
-      flex="~ col gap-2"
-    >
-      <div flex="~ row items-center gap-2">
-        <div class="i-solar:videocamera-record-line-duotone" />
-        <div>Capturing</div>
-      </div>
+  <WithScreenCapture :sources-options="sourcesOptions">
+    <template #default="{ hasPermissions, requestPermission }">
       <div
-        flex="~ row items-center gap-3"
-        w-full overflow-x-auto
+        v-if="hasPermissions"
+        flex="~ col gap-4 items-start" w-full
+        text="neutral-500 dark:neutral-400"
       >
         <div
-          v-for="stream in activeStreams" :key="stream.id"
-          relative overflow-hidden rounded-lg
+          v-if="activeStreams.length > 0"
+          bg="primary-300/10"
+          b="2 solid primary-400/70"
+          w-full overflow-hidden rounded-2xl p-3
+          flex="~ col gap-2"
         >
-          <div
-            flex="~ col items-center justify-center gap-1"
-            absolute right-0 top-0 z-10 h-full w-full cursor-pointer
-            rounded-lg op-0 backdrop-blur-sm hover:op-100
-            transition="all duration-200"
-            text="light"
-            bg="black/30"
-            @click="stopStream(stream)"
-          >
-            <div class="i-solar:stop-line-duotone" />
-            <div text-sm>
-              Stop
-            </div>
-          </div>
-          <video
-            autoplay
-            muted
-            playsinline
-            :srcObject="stream"
-            h-140px
-            w-auto
-          />
-        </div>
-      </div>
-    </div>
-
-    <div
-      flex="~ col gap-3"
-      w-full pb-6
-    >
-      <div flex="~ row items-center justify-between" w-full>
-        <div>{{ sources.length }} source(s)</div>
-        <Button
-          :label="isRefetching ? 'Refetching...' : 'Refetch'"
-          icon="i-solar:refresh-line-duotone"
-          size="sm"
-          :disabled="isRefetching"
-          @click="refetchSources()"
-        />
-      </div>
-      <div grid="~ cols-1 sm:cols-2 md:cols-3 lg:cols-4 xl:cols-5 gap-3">
-        <div
-          v-for="source in sources"
-          :key="source.id"
-          flex="~ col justify-between gap-3"
-          w-full cursor-pointer rounded-2xl p-3
-          transition="all duration-200"
-          border="2 solid neutral-200/60 dark:neutral-800/10 hover:primary-400/70"
-          @click="startCapture(source)"
-        >
-          <div flex="~ col items-start w-full">
-            <div flex="~ row items-center gap-1">
-              <div class="h-16px w-16px">
-                <img
-                  v-if="source.appIconURL"
-                  :src="source.appIconURL"
-                  :alt="source.id.startsWith('screen:') ? 'Screen Icon' : 'Window Icon'"
-                  class="h-full w-full shrink-0"
-                >
-                <div
-                  v-else-if="source.id.startsWith('screen:')"
-                  h-full w-full
-                  class="i-solar:screencast-2-line-duotone"
-                />
-                <div
-                  v-else
-                  h-full w-full
-                  class="i-solar:window-frame-line-duotone"
-                />
-              </div>
-
-              <div text-sm>
-                {{ source.id.startsWith('screen:') ? 'Screen' : 'Window' }}
-              </div>
-            </div>
-
-            <div text-ellipsis break-all>
-              {{ source.name }}
-            </div>
-            <div text-sm font-mono text="neutral-400 dark:neutral-600">
-              {{ source.id }}
-            </div>
+          <div flex="~ row items-center gap-2">
+            <div class="i-solar:videocamera-record-line-duotone" />
+            <div>Capturing</div>
           </div>
           <div
-            h-200px w-full overflow-hidden rounded-2xl bg-black
-            flex="~ items-center justify-center shrink-0"
+            flex="~ row items-center gap-3"
+            w-full overflow-x-auto
           >
-            <img
-              v-if="source.thumbnailURL"
-              :src="source.thumbnailURL"
-              alt="Thumbnail"
-              h-full
-              w-full object-contain
-            >
             <div
-              v-else
-              class="i-solar:forbidden-circle-line-duotone"
-              h-10 w-10 bg-light
+              v-for="stream in activeStreams" :key="stream.id"
+              relative overflow-hidden rounded-lg
+            >
+              <div
+                flex="~ col items-center justify-center gap-1"
+                absolute right-0 top-0 z-10 h-full w-full cursor-pointer
+                rounded-lg op-0 backdrop-blur-sm hover:op-100
+                transition="all duration-200"
+                text="light"
+                bg="black/30"
+                @click="stopStream(stream)"
+              >
+                <div class="i-solar:stop-line-duotone" />
+                <div text-sm>
+                  Stop
+                </div>
+              </div>
+              <video
+                autoplay
+                muted
+                playsinline
+                :srcObject="stream"
+                h-140px
+                w-auto
+              />
+            </div>
+          </div>
+        </div>
+
+        <div
+          flex="~ col gap-3"
+          w-full pb-6
+        >
+          <div flex="~ row items-center justify-between" w-full>
+            <div>{{ sources.length }} source(s)</div>
+            <Button
+              :label="isRefetching ? 'Refetching...' : 'Refetch'"
+              icon="i-solar:refresh-line-duotone"
+              size="sm"
+              :disabled="isRefetching"
+              @click="refetchSources()"
             />
           </div>
+          <div grid="~ cols-1 sm:cols-2 md:cols-3 lg:cols-4 xl:cols-5 gap-3">
+            <div
+              v-for="source in sources"
+              :key="source.id"
+              flex="~ col justify-between gap-3"
+              w-full cursor-pointer rounded-2xl p-3
+              transition="all duration-200"
+              border="2 solid neutral-200/60 dark:neutral-800/10 hover:primary-400/70"
+              @click="startCapture(source)"
+            >
+              <div flex="~ col items-start w-full">
+                <div flex="~ row items-center gap-1">
+                  <div class="h-16px w-16px">
+                    <img
+                      v-if="source.appIconURL"
+                      :src="source.appIconURL"
+                      :alt="source.id.startsWith('screen:') ? 'Screen Icon' : 'Window Icon'"
+                      class="h-full w-full shrink-0"
+                    >
+                    <div
+                      v-else-if="source.id.startsWith('screen:')"
+                      h-full w-full
+                      class="i-solar:screencast-2-line-duotone"
+                    />
+                    <div
+                      v-else
+                      h-full w-full
+                      class="i-solar:window-frame-line-duotone"
+                    />
+                  </div>
+
+                  <div text-sm>
+                    {{ source.id.startsWith('screen:') ? 'Screen' : 'Window' }}
+                  </div>
+                </div>
+
+                <div text-ellipsis break-all>
+                  {{ source.name }}
+                </div>
+                <div text-sm font-mono text="neutral-400 dark:neutral-600">
+                  {{ source.id }}
+                </div>
+              </div>
+              <div
+                h-200px w-full overflow-hidden rounded-2xl bg-black
+                flex="~ items-center justify-center shrink-0"
+              >
+                <img
+                  v-if="source.thumbnailURL"
+                  :src="source.thumbnailURL"
+                  alt="Thumbnail"
+                  h-full
+                  w-full object-contain
+                >
+                <div
+                  v-else
+                  class="i-solar:forbidden-circle-line-duotone"
+                  h-10 w-10 bg-light
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  </div>
+      <div v-else flex="~ col gap-4 items-center justify-center" h-full p-6>
+        <div>
+          {{ t('tamagotchi.settings.screen-capture.permissions-prompt.description') }}
+        </div>
+        <Button @click="requestPermission()">
+          {{ t('tamagotchi.settings.screen-capture.permissions-prompt.open-preferences') }}
+        </Button>
+      </div>
+    </template>
+  </WithScreenCapture>
 </template>
 
 <route lang="yaml">

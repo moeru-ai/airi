@@ -42,3 +42,14 @@ devtools:
       description: Stress markdown parsing and rendering with heavy chat payloads
     widgets-calling:
       title: Widget Calling
+
+screen-capture:
+  permissions-prompt:
+    title: Screen Capture
+    description: To capture screens or windows, screen and system audio recording permissions are required.
+    open-preferences: Open System Preferences
+    dismiss: Dismiss
+    instructions:
+      step-1: Open "System Preferences", select "Privacy & Security" from the sidebar.
+      step-2: In the "Screen & System Audio Recording" and "System Audio Recording Only" sections, turn on the switches for AIRI.
+      step-2-note: If AIRI is not listed, please add it manually by clicking the "+" button and selecting AIRI from the Applications folder.
