@@ -49,7 +49,7 @@ const languages = computed(() => {
       transition="all ease-in-out duration-250"
       :label="t('settings.language.title')"
       :description="t('settings.language.description')"
-      :options="languages"
+      :options="languages as Array<{ value: string; label: string }>"
     />
 
     <!-- Controls Island Icon Size -->
