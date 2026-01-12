@@ -6,7 +6,7 @@ import { env } from 'node:process'
 import { useLogg } from '@guiiai/logg'
 import { Client as AiriClient } from '@proj-airi/server-sdk'
 import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
-import { Client, Events, GatewayIntentBits } from 'discord.js'
+import { Client, Events, GatewayIntentBits, Partials } from 'discord.js'
 
 import { handlePing, registerCommands, VoiceManager } from '../bots/discord/commands'
 
@@ -69,7 +69,9 @@ export class DiscordAdapter {
         GatewayIntentBits.GuildVoiceStates,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
+        GatewayIntentBits.DirectMessages,
       ],
+      partials: [Partials.Channel],
     })
 
     // Initialize AIRI client
@@ -183,18 +185,25 @@ export class DiscordAdapter {
       if (message.author.bot)
         return
 
-      // Respond if the bot is mentioned
-      if (this.discordClient.user && message.mentions.has(this.discordClient.user)) {
+      const isDM = !message.guild
+      const isMentioned = this.discordClient.user && message.mentions.has(this.discordClient.user)
+
+      // Respond if the bot is mentioned OR if it's a DM
+      if (isMentioned || isDM) {
         const rawContent = message.content
-        const content = rawContent.replace(/<@!?\d+>/g, '').trim()
+        const content = isMentioned
+          ? rawContent.replace(/<@!?\d+>/g, '').trim()
+          : rawContent.trim()
+
         if (!content)
           return
 
-        log.log(`Received text mention from ${message.author.tag} in ${message.channelId}`)
+        log.log(`Received text message from ${message.author.tag} in ${isDM ? 'DM' : message.channelId}`)
 
         const discordContext: Discord = {
           channelId: message.channelId,
           guildId: message.guildId ?? undefined,
+          guildName: message.guild?.name ?? undefined,
           guildMember: {
             id: message.author.id,
             displayName: message.member?.displayName ?? message.author.username,

@@ -65,9 +65,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           textRaw,
           overrides,
           contextUpdates,
-        } = event.data
+          discord,
+        } = event.data as any
 
-        const normalizedContextUpdates = contextUpdates?.map((update) => {
+        const normalizedContextUpdates = (contextUpdates as any[])?.map((update) => {
           const id = update.id ?? nanoid()
           const contextId = update.contextId ?? id
           return {
@@ -92,8 +93,30 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           const chatProvider = await providersStore.getProviderInstance<ChatProvider>(activeProvider.value)
 
           let messageText = text
-          if (overrides?.messagePrefix)
+          let targetSessionId = overrides?.sessionId
+
+          // Discord Specific Logic: segmentation and enriched prefix
+          if (discord) {
+            const userName = discord.guildMember?.displayName || 'Unknown'
+            const serverName = discord.guildName
+
+            const contextPrefix = serverName
+              ? `on server '${serverName}'`
+              : 'in Direct Message'
+
+            messageText = `(From Discord user ${userName} ${contextPrefix}): ${text}`
+
+            // Session Segmentation: ID du serveur ou 'discord-dm' + ID User
+            if (discord.guildId) {
+              targetSessionId = `discord-guild-${discord.guildId}`
+            }
+            else {
+              targetSessionId = `discord-dm-${discord.guildMember?.id || 'unknown'}`
+            }
+          }
+          else if (overrides?.messagePrefix) {
             messageText = `${overrides.messagePrefix}${text}`
+          }
 
           await chatOrchestrator.ingest(messageText, {
             model: activeModel.value,
@@ -108,7 +131,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                 contextUpdates: normalizedContextUpdates,
               },
             },
-          }, overrides?.sessionId)
+          }, targetSessionId)
         }
       }))
 

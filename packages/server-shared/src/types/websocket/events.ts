@@ -9,6 +9,7 @@ export interface DiscordGuildMember {
 export interface Discord {
   guildMember?: DiscordGuildMember
   guildId?: string
+  guildName?: string
   channelId?: string
 }
 
