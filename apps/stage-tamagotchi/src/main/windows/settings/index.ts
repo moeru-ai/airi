@@ -4,6 +4,7 @@ import type { WidgetsWindowManager } from '../widgets'
 
 import { join, resolve } from 'node:path'
 
+import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { BrowserWindow, shell } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -48,6 +49,8 @@ export function setupSettingsWindowReusableFunc(params: {
       autoUpdater: params.autoUpdater,
       devtoolsMarkdownStressWindow: params.devtoolsMarkdownStressWindow,
     })
+
+    initScreenCaptureForWindow(window)
 
     return window
   }).getWindow
