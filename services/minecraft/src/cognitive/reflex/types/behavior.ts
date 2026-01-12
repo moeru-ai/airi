@@ -1,3 +1,4 @@
+import type { PerceptionAPI } from '../../perception/perception-api'
 import type { MineflayerWithAgents } from '../../types'
 import type { ReflexContext } from '../context'
 import type { ReflexModeId } from '../modes'
@@ -5,14 +6,15 @@ import type { ReflexModeId } from '../modes'
 export interface ReflexApi {
   bot: MineflayerWithAgents
   context: ReflexContext
+  perception: PerceptionAPI
 }
 
 export interface ReflexBehavior {
   id: string
   modes: ReflexModeId[]
   cooldownMs?: number
-  when: (ctx: ReturnType<ReflexContext['getSnapshot']>) => boolean
-  score: (ctx: ReturnType<ReflexContext['getSnapshot']>) => number
+  when: (ctx: ReturnType<ReflexContext['getSnapshot']>, api?: ReflexApi) => boolean
+  score: (ctx: ReturnType<ReflexContext['getSnapshot']>, api?: ReflexApi) => number
   run: (api: ReflexApi) => Promise<void> | void
 }
 

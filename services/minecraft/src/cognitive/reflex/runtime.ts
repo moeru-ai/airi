@@ -1,5 +1,6 @@
 import type { Logg } from '@guiiai/logg'
 
+import type { PerceptionAPI } from '../perception/perception-api'
 import type { MineflayerWithAgents } from '../types'
 import type { ReflexModeId } from './modes'
 import type { ReflexBehavior } from './types/behavior'
@@ -38,7 +39,7 @@ export class ReflexRuntime {
     this.behaviors.push(behavior)
   }
 
-  public tick(bot: MineflayerWithAgents, deltaMs: number): string | null {
+  public tick(bot: MineflayerWithAgents, deltaMs: number, perception: PerceptionAPI): string | null {
     const now = Date.now()
 
     this.context.updateNow(now)
@@ -73,16 +74,17 @@ export class ReflexRuntime {
     this.activeBehaviorUntil = null
 
     const ctx = this.context.getSnapshot()
+    const api = { bot, context: this.context, perception }
 
     let best: { behavior: ReflexBehavior, score: number } | null = null
     for (const behavior of this.behaviors) {
       if (!behavior.modes.includes(this.mode))
         continue
 
-      if (!behavior.when(ctx))
+      if (!behavior.when(ctx, api))
         continue
 
-      const score = behavior.score(ctx)
+      const score = behavior.score(ctx, api)
       if (score <= 0)
         continue
 
@@ -102,7 +104,7 @@ export class ReflexRuntime {
     this.runHistory.set(best.behavior.id, { lastRunAt: now })
 
     try {
-      const maybePromise = best.behavior.run({ bot, context: this.context })
+      const maybePromise = best.behavior.run(api)
       if (maybePromise && typeof (maybePromise as any).then === 'function') {
         this.activeBehaviorUntil = now + Math.max(deltaMs, 50)
         void (maybePromise as Promise<void>).finally(() => {

@@ -11,10 +11,12 @@ import type { PerceptionStage } from './types/stage'
 import { DebugService } from '../../debug'
 import { createPerceptionFrameFromRawEvent } from './frame'
 import { MineflayerPerceptionCollector } from './mineflayer-perception-collector'
+import { PerceptionAPI } from './perception-api'
 import { SaliencyDetector } from './saliency-detector'
 
 export class PerceptionPipeline {
   private readonly detector: SaliencyDetector
+  private readonly perception: PerceptionAPI
   private collector: MineflayerPerceptionCollector | null = null
   private initialized = false
 
@@ -31,6 +33,8 @@ export class PerceptionPipeline {
       logger: Logg
     },
   ) {
+    this.perception = new PerceptionAPI({ logger: this.deps.logger })
+
     this.detector = new SaliencyDetector({
       logger: this.deps.logger,
       onAttention: (signal) => {
@@ -44,6 +48,31 @@ export class PerceptionPipeline {
     })
 
     this.stages = [
+      {
+        name: 'entity_update',
+        handle: (frame) => {
+          if (frame.kind !== 'world_raw')
+            return frame
+
+          const raw = frame.raw as RawPerceptionEvent
+
+          // Feed entity updates to PerceptionAPI
+          if ('entityId' in raw && 'entityType' in raw) {
+            const entityRaw = raw as RawPerceptionEvent & { entityId: string, entityType: string, displayName?: string, pos?: { x: number, y: number, z: number } }
+            if (entityRaw.entityType === 'player') {
+              this.perception.updateEntity(entityRaw.entityId, {
+                id: entityRaw.entityId,
+                type: 'player',
+                name: entityRaw.displayName,
+                position: entityRaw.pos as any,
+                isSneaking: 'sneaking' in entityRaw ? (entityRaw as any).sneaking : undefined,
+              })
+            }
+          }
+
+          return frame
+        },
+      },
       {
         name: 'attention',
         handle: (frame) => {
@@ -150,6 +179,13 @@ export class PerceptionPipeline {
 
     this.detector.stop()
     this.initialized = false
+  }
+
+  /**
+   * Get the PerceptionAPI for querying entity beliefs
+   */
+  public getPerceptionAPI(): PerceptionAPI {
+    return this.perception
   }
 
   public ingest(frame: PerceptionFrame): void {

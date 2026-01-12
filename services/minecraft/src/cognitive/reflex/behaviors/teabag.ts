@@ -5,22 +5,24 @@ export const teabagBehavior: ReflexBehavior = {
   modes: ['social', 'idle'],
   cooldownMs: 5000,
 
-  when: (ctx) => {
-    // Check if we recently received a teabag signal
-    // Check if we recently received a teabag signal
-    if (ctx.social.lastGesture === 'teabag') {
-      const now = Date.now()
-      const signalAge = now - (ctx.social.lastGestureAt || 0)
-
-      // Only respond if signal is fresh (< 2s)
-      return signalAge < 2000
-    }
-    return false
+  when: (_ctx, api) => {
+    // Check if any player is teabagging with high confidence
+    if (!api?.perception)
+      return false
+    const teabaggers = api.perception.entitiesWithBelief('teabag', 0.6)
+    return teabaggers.length > 0
   },
 
-  score: () => {
-    // Higher priority than LookAt (50)
-    return 60
+  score: (_ctx, api) => {
+    // Higher priority than LookAt (50), scaled by confidence
+    if (!api?.perception)
+      return 0
+    const teabaggers = api.perception.entitiesWithBelief('teabag', 0.6)
+    if (teabaggers.length === 0)
+      return 0
+    // Use highest confidence as score boost
+    const maxConfidence = Math.max(...teabaggers.map(e => e.beliefs.teabag?.confidence ?? 0))
+    return 60 + (maxConfidence * 20)
   },
 
   run: async ({ bot }) => {

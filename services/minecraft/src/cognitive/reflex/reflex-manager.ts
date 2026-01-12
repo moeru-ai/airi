@@ -1,6 +1,7 @@
 import type { Logg } from '@guiiai/logg'
 
 import type { EventBus, TracedEvent } from '../os'
+import type { PerceptionAPI } from '../perception/perception-api'
 import type { PerceptionSignal } from '../perception/types/signals'
 import type { MineflayerWithAgents } from '../types'
 import type { ReflexContextState } from './context'
@@ -19,6 +20,7 @@ export class ReflexManager {
   constructor(
     private readonly deps: {
       eventBus: EventBus
+      perception: PerceptionAPI
       logger: Logg
     },
   ) {
@@ -86,7 +88,7 @@ export class ReflexManager {
     // For greeting behavior compatibility, we might need to map specific signals to social state.
 
     // Trigger behavior selection
-    this.runtime.tick(bot, 0)
+    this.runtime.tick(bot, 0, this.deps.perception)
 
     // Emit reflex state for observability
     DebugService.getInstance().emitReflexState({
