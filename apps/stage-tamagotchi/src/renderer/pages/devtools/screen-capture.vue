@@ -19,8 +19,15 @@ const { getSources, selectWithSource } = useElectronScreenCapture(window.electro
   fetchWindowIcons: true,
 })
 
+function toLocalArrayBuffer(bytes: Uint8Array) {
+  if (bytes.buffer instanceof SharedArrayBuffer) {
+    return bytes.slice().buffer
+  }
+  return bytes.buffer
+}
+
 function toObjectUrl(bytes: Uint8Array, mime: string) {
-  return URL.createObjectURL(new Blob([bytes.slice().buffer], { type: mime }))
+  return URL.createObjectURL(new Blob([toLocalArrayBuffer(bytes)], { type: mime }))
 }
 
 async function startCapture(source: SerializableDesktopCapturerSource) {
@@ -52,10 +59,11 @@ async function refetchSources() {
 
     const nextSources = (await getSources())
       .sort((a, b) => {
-        if (a.id.startsWith('screen:') && b.id.startsWith('window:'))
-          return -1
-        if (a.id.startsWith('window:') && b.id.startsWith('screen:'))
-          return 1
+        const aIsScreen = a.id.startsWith('screen:')
+        const bIsScreen = b.id.startsWith('screen:')
+        if (aIsScreen !== bIsScreen)
+          return aIsScreen ? -1 : 1
+
         return a.name.localeCompare(b.name)
       })
 
