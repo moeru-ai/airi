@@ -97,30 +97,30 @@ function getTranslatedDescription(description: string | undefined): string {
 </script>
 
 <template>
-  <div :class="['flex','flex-col','gap-6']">
+  <div :class="['flex', 'flex-col', 'gap-6']">
     <!-- Plugin header -->
-    <div :class="['flex','flex-row','items-center','gap-4','pb-4','border-b','border-neutral-200','dark:border-neutral-700']">
+    <div :class="['flex', 'flex-row', 'items-center', 'gap-4', 'pb-4', 'border-b', 'border-neutral-200', 'dark:border-neutral-700']">
       <div
         v-if="metadata?.icon"
         :class="[metadata.icon, metadata.iconColor, 'text-4xl']"
       />
-      <div :class="['flex','flex-col']">
-        <h2 :class="['text-xl','font-semibold']">
+      <div :class="['flex', 'flex-col']">
+        <h2 :class="['text-xl', 'font-semibold']">
           {{ getTranslatedName(metadata?.name) }}
         </h2>
-        <p :class="['text-sm','text-neutral-500','dark:text-neutral-400']">
+        <p :class="['text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
           {{ getTranslatedDescription(metadata?.description) }}
         </p>
       </div>
-      <div :class="['ml-auto','flex','flex-row','items-center','gap-2']">
+      <div :class="['ml-auto', 'flex', 'flex-row', 'items-center', 'gap-2']">
         <span
           :class="[
-            'size-3','rounded-full',
+            'size-3', 'rounded-full',
             connected ? 'bg-green-500' : 'bg-neutral-300',
             !connected && 'dark:bg-neutral-600',
           ]"
         />
-        <span :class="['text-sm','text-neutral-600','dark:text-neutral-400']">
+        <span :class="['text-sm', 'text-neutral-600', 'dark:text-neutral-400']">
           {{ connected ? t('settings.pages.plugins.status.connected') : t('settings.pages.plugins.status.disconnected') }}
         </span>
       </div>
@@ -135,8 +135,8 @@ function getTranslatedDescription(description: string | undefined): string {
 
     <!-- Plugin-specific fields -->
     <template v-if="pluginFields.length > 0">
-      <div :class="['flex','flex-col','gap-4']">
-        <h3 :class="['text-lg','font-medium','text-neutral-700','dark:text-neutral-300']">
+      <div :class="['flex', 'flex-col', 'gap-4']">
+        <h3 :class="['text-lg', 'font-medium', 'text-neutral-700', 'dark:text-neutral-300']">
           {{ t('settings.pages.plugins.configuration') }}
         </h3>
 
@@ -164,15 +164,15 @@ function getTranslatedDescription(description: string | undefined): string {
     <!-- Generic message for unknown plugins -->
     <div
       v-else-if="!connected"
-      :class="['rounded-lg','bg-neutral-100','p-4','dark:bg-neutral-800']"
+      :class="['rounded-lg', 'bg-neutral-100', 'p-4', 'dark:bg-neutral-800']"
     >
-      <p :class="['text-neutral-600','dark:text-neutral-400']">
+      <p :class="['text-neutral-600', 'dark:text-neutral-400']">
         {{ t('settings.pages.plugins.not-connected-hint') }}
       </p>
     </div>
 
     <!-- Actions -->
-    <div :class="['flex','flex-row','gap-3','pt-4']">
+    <div :class="['flex', 'flex-row', 'gap-3', 'pt-4']">
       <Button
         :label="t('settings.common.save')"
         variant="primary"
@@ -188,11 +188,11 @@ function getTranslatedDescription(description: string | undefined): string {
     <!-- Connection status info -->
     <div
       v-if="connected"
-      :class="['mt-4','rounded-lg','bg-green-50','p-4','dark:bg-green-900/20']"
+      :class="['mt-4', 'rounded-lg', 'bg-green-50', 'p-4', 'dark:bg-green-900/20']"
     >
-      <div :class="['flex','flex-row','items-center','gap-2']">
-        <div :class="['text-green-500','i-solar:check-circle-bold']"></div>
-        <span :class="['text-green-700','dark:text-green-400']">
+      <div :class="['flex', 'flex-row', 'items-center', 'gap-2']">
+        <div :class="['text-green-500', 'i-solar:check-circle-bold']" />
+        <span :class="['text-green-700', 'dark:text-green-400']">
           {{ t('settings.pages.plugins.connected-info', { count: pluginInfo?.connectedCount || 0 }) }}
         </span>
       </div>
@@ -203,17 +203,17 @@ function getTranslatedDescription(description: string | undefined): string {
   <div
     v-motion
     :class="[
-      'text-neutral-200/50','dark:text-neutral-600/20','pointer-events-none',
-      'fixed','bottom-0','right--5','z--1','size-60',
-      'flex','items-center','justify-center',
+      'text-neutral-200/50', 'dark:text-neutral-600/20', 'pointer-events-none',
+      'fixed', 'bottom-0', 'right--5', 'z--1', 'size-60',
+      'flex', 'items-center', 'justify-center',
     ]"
     style="top: calc(100dvh - 15rem)"
     :initial="{ scale: 0.9, opacity: 0, y: 20 }"
     :enter="{ scale: 1, opacity: 1, y: 0 }"
     :duration="500"
   >
-    <div v-if="metadata?.icon" :class="[metadata.icon, 'text-60']"></div>
-    <div v-else :class="['text-60','i-solar:plug-circle-bold-duotone']"></div>
+    <div v-if="metadata?.icon" :class="[metadata.icon, 'text-60']" />
+    <div v-else :class="['text-60', 'i-solar:plug-circle-bold-duotone']" />
   </div>
 </template>
 

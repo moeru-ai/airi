@@ -423,10 +423,10 @@ pages:
       client-secret-placeholder: クライアントシークレットを入力
       stream-url: 配信URL
       stream-url-description: ライブ配信のURL
-      stream-url-placeholder: "配信URLを入力 (例: https://youtube.com/watch?v=...)"
+      stream-url-placeholder: '配信URLを入力 (例: https://youtube.com/watch?v=...)'
       base-url: ベースURL
       base-url-description: サービスのベースURL
-      base-url-placeholder: "ベースURLを入力 (例: http://localhost:8123)"
+      base-url-placeholder: 'ベースURLを入力 (例: http://localhost:8123)'
       access-token: アクセストークン
       access-token-description: 認証用のアクセストークン
       access-token-placeholder: アクセストークンを入力

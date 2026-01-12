@@ -179,7 +179,7 @@ function getTranslatedDescription(description: string | undefined): string {
     <!-- Plugin-specific fields -->
     <template v-if="pluginFields.length > 0">
       <div flex="~ col gap-4">
-        <h3 text-lg font-medium text-neutral-700 dark:text-neutral-300>
+        <h3 text-lg text-neutral-700 font-medium dark:text-neutral-300>
           {{ t('settings.pages.plugins.configuration') }}
         </h3>
 
@@ -231,10 +231,10 @@ function getTranslatedDescription(description: string | undefined): string {
     <!-- Connection status info -->
     <div
       v-if="connected"
-      mt-4 rounded-lg bg-green-50 p-4 dark:bg-green-900/20
+          / 20 mt-4 rounded-lg bg-green-50 p-4 dark:bg-green-900
     >
       <div flex="~ row items-center gap-2">
-        <div text-green-500 i-solar:check-circle-bold />
+        <div i-solar:check-circle-bold text-green-500 />
         <span text-green-700 dark:text-green-400>
           {{ t('settings.pages.plugins.connected-info', { count: pluginInfo?.connectedCount || 0 }) }}
         </span>

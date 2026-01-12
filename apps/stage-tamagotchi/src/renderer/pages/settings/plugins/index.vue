@@ -56,7 +56,7 @@ const pluginsList = computed(() =>
       flex="~ col items-center justify-center"
       py-12
     >
-      <div text-6xl text-neutral-300 i-solar:plug-circle-bold-duotone dark:text-neutral-600 />
+      <div i-solar:plug-circle-bold-duotone text-6xl text-neutral-300 dark:text-neutral-600 />
       <p mt-4 text-neutral-500 dark:text-neutral-400>
         {{ t('settings.pages.plugins.empty') }}
       </p>
@@ -68,7 +68,7 @@ const pluginsList = computed(() =>
       flex="~ col items-center justify-center"
       py-12
     >
-      <div text-4xl text-primary-500 i-svg-spinners:ring-resize />
+      <div i-svg-spinners:ring-resize text-4xl text-primary-500 />
       <p mt-4 text-neutral-500 dark:text-neutral-400>
         {{ t('settings.pages.plugins.loading') }}
       </p>
@@ -78,9 +78,9 @@ const pluginsList = computed(() =>
     <div
       v-if="pluginsStore.error"
       flex="~ col items-center justify-center"
-      rounded-lg bg-red-50 p-4 dark:bg-red-900/20
+         / 20 rounded-lg bg-red-50 p-4 dark:bg-red-900
     >
-      <div text-4xl text-red-500 i-solar:danger-triangle-bold-duotone />
+      <div i-solar:danger-triangle-bold-duotone text-4xl text-red-500 />
       <p mt-2 text-red-600 dark:text-red-400>
         {{ pluginsStore.error }}
       </p>

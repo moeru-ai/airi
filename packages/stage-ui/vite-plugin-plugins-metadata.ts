@@ -1,5 +1,6 @@
 import type { Plugin } from 'vite'
-import { readdir, readFile, stat, writeFile } from 'node:fs/promises'
+
+import { readdir, readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -85,7 +86,7 @@ async function scanPlugins(): Promise<PluginInfo[]> {
 
 async function generateMetadataFile(plugins: PluginInfo[]): Promise<void> {
   // Load metadata map from JSON file
-  let metadataMap: Record<string, { icon?: string; iconColor?: string; i18nKey?: { name?: string; description?: string } }> = {}
+  let metadataMap: Record<string, { icon?: string, iconColor?: string, i18nKey?: { name?: string, description?: string } }> = {}
   try {
     const metadataMapContent = await readFile(METADATA_MAP_FILE, 'utf-8')
     metadataMap = JSON.parse(metadataMapContent)
