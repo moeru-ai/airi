@@ -22,7 +22,6 @@ function makeBot() {
       },
       health: 20,
       food: 20,
-      oxygenLevel: 20,
       heldItem: null,
       time: { isDay: true },
       isRaining: false,

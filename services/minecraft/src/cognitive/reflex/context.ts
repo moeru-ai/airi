@@ -1,11 +1,10 @@
 import type { Vec3 } from 'vec3'
 
 export interface ReflexSelfState {
-  location: Vec3 | null
+  location: Vec3
   holding: string | null
   health: number
   food: number
-  oxygen: number
 }
 
 export interface ReflexEnvironmentState {
@@ -53,11 +52,10 @@ export class ReflexContext {
     this.state = {
       now: Date.now(),
       self: {
-        location: null,
+        location: { x: 0, y: 0, z: 0 } as Vec3,
         holding: null,
         health: 20,
         food: 20,
-        oxygen: 20,
       },
       environment: {
         time: 'day',

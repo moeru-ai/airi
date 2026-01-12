@@ -53,7 +53,6 @@ export class ReflexRuntime {
       location: entity.position,
       health: bot.bot.health ?? 0,
       food: bot.bot.food ?? 0,
-      oxygen: bot.bot.oxygenLevel ?? 0,
       holding: bot.bot.heldItem?.name ?? null,
     })
 
