@@ -1,4 +1,4 @@
-import type { DesktopCapturerSource, SourcesOptions } from 'electron'
+import type { DesktopCapturerSource, SourcesOptions, systemPreferences } from 'electron'
 
 import { defineInvokeEventa } from '@moeru/eventa'
 
@@ -19,5 +19,8 @@ export interface ScreenCaptureSetSourceRequest {
 }
 
 export const screenCaptureGetSources = defineInvokeEventa<SerializableDesktopCapturerSource[], SourcesOptions>('eventa:invoke:electron:screen-capture:get-sources')
-export const screenCaptureSetSourceEx = defineInvokeEventa<any, ScreenCaptureSetSourceRequest>('eventa:invoke:electron:screen-capture:set-source')
-export const screenCaptureResetSource = defineInvokeEventa<any, string>('eventa:invoke:electron:screen-capture:reset-source')
+export const screenCaptureSetSourceEx = defineInvokeEventa<string, ScreenCaptureSetSourceRequest>('eventa:invoke:electron:screen-capture:set-source')
+export const screenCaptureResetSource = defineInvokeEventa<void, string>('eventa:invoke:electron:screen-capture:reset-source')
+
+export const screenCaptureCheckMacOSPermission = defineInvokeEventa<ReturnType<typeof systemPreferences.getMediaAccessStatus>, never>('eventa:invoke:electron:screen-capture:check-macos-permission')
+export const screenCaptureRequestMacOSPermission = defineInvokeEventa<void, never>('eventa:invoke:electron:screen-capture:request-macos-permission')

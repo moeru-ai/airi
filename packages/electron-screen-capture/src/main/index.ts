@@ -11,8 +11,8 @@ import { Mutex, withTimeout } from 'async-mutex'
 import { app, desktopCapturer, ipcMain, session as sessionModule } from 'electron'
 import { nanoid } from 'nanoid'
 
-import { screenCaptureGetSources, screenCaptureResetSource, screenCaptureSetSourceEx } from '..'
-import { toSerializableDesktopCapturerSource } from './utils'
+import { screenCaptureCheckMacOSPermission, screenCaptureGetSources, screenCaptureRequestMacOSPermission, screenCaptureResetSource, screenCaptureSetSourceEx } from '..'
+import { checkMacOSScreenCapturePermission, requestMacOSScreenCapturePermission, toSerializableDesktopCapturerSource } from './utils'
 
 export const defaultSourcesOptions: SourcesOptions = { types: ['screen'] }
 
@@ -143,6 +143,9 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
 
   const { context } = createContext(ipcMain, window, { onlySameWindow: true })
   const session = sessionModule.defaultSession
+
+  defineInvokeHandler(context, screenCaptureCheckMacOSPermission, async () => checkMacOSScreenCapturePermission())
+  defineInvokeHandler(context, screenCaptureRequestMacOSPermission, async () => requestMacOSScreenCapturePermission())
 
   defineInvokeHandler(context, screenCaptureGetSources, async (sourcesOptions) => {
     const sources = await desktopCapturer.getSources(sourcesOptions)
