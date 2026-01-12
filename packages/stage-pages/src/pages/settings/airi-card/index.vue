@@ -118,11 +118,21 @@ function confirmDelete(id: string) {
 }
 
 function handleSelectCard(cardId: string) {
+  // Verify card exists before opening dialog
+  if (!cards.value.has(cardId)) {
+    console.error(`Card with id ${cardId} not found`)
+    return
+  }
   selectedCardId.value = cardId
   isCardDialogOpen.value = true
 }
 
 function handleEditCard(cardId: string) {
+  // Verify card exists before opening edit dialog
+  if (!cards.value.has(cardId)) {
+    console.error(`Card with id ${cardId} not found`)
+    return
+  }
   editingCardId.value = cardId
   isCardCreationDialogOpen.value = true
 }

@@ -136,19 +136,7 @@ function initializeCard(): Card {
   if (isEditMode.value && props.cardId) {
     const existingCard = cardStore.getCard(props.cardId)
     if (existingCard) {
-      return {
-        name: existingCard.name,
-        nickname: existingCard.nickname,
-        version: existingCard.version,
-        description: existingCard.description || '',
-        notes: existingCard.notes,
-        personality: existingCard.personality || '',
-        scenario: existingCard.scenario || '',
-        systemPrompt: existingCard.systemPrompt || '',
-        postHistoryInstructions: existingCard.postHistoryInstructions || '',
-        greetings: existingCard.greetings || [],
-        messageExample: existingCard.messageExample || [],
-      }
+      return { ...toRaw(existingCard) }
     }
   }
 
