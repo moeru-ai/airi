@@ -24,3 +24,11 @@ export const screenCaptureResetSource = defineInvokeEventa<void, string>('eventa
 
 export const screenCaptureCheckMacOSPermission = defineInvokeEventa<ReturnType<typeof systemPreferences.getMediaAccessStatus>, never>('eventa:invoke:electron:screen-capture:check-macos-permission')
 export const screenCaptureRequestMacOSPermission = defineInvokeEventa<void, never>('eventa:invoke:electron:screen-capture:request-macos-permission')
+
+export const screenCapture = {
+  getSources: screenCaptureGetSources,
+  setSource: screenCaptureSetSourceEx,
+  resetSource: screenCaptureResetSource,
+  checkMacOSPermission: screenCaptureCheckMacOSPermission,
+  requestMacOSPermission: screenCaptureRequestMacOSPermission,
+}

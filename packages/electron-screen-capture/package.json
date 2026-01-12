@@ -35,15 +35,18 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
+    "@guiiai/logg": ">=1 <2",
+    "electron": ">=39 <40",
     "vue": ">=3"
+  },
+  "dependencies": {
+    "std-env": "catalog:"
   },
   "devDependencies": {
     "@electron-toolkit/preload": "catalog:",
-    "@guiiai/logg": "catalog:",
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
     "async-mutex": "catalog:",
-    "electron": "catalog:",
     "nanoid": "catalog:",
     "vite": "catalog:rolldown-vite"
   }

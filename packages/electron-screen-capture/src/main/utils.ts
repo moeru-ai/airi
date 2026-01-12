@@ -2,9 +2,8 @@ import type { DesktopCapturerSource } from 'electron'
 
 import type { SerializableDesktopCapturerSource } from '..'
 
-import process from 'node:process'
-
 import { shell, systemPreferences } from 'electron'
+import { isMacOS } from 'std-env'
 
 /**
  * Serializes a DesktopCapturerSource to a format that can be sent over IPC.
@@ -30,7 +29,7 @@ export function toSerializableDesktopCapturerSource(source: DesktopCapturerSourc
 }
 
 export function checkMacOSScreenCapturePermission(): ReturnType<typeof systemPreferences.getMediaAccessStatus> {
-  if (process.platform !== 'darwin') {
+  if (!isMacOS) {
     throw new Error('checkMacOSScreenCapturePermission is only available on macOS (darwin)')
   }
 
@@ -38,7 +37,7 @@ export function checkMacOSScreenCapturePermission(): ReturnType<typeof systemPre
 }
 
 export function requestMacOSScreenCapturePermission(): void {
-  if (process.platform !== 'darwin') {
+  if (!isMacOS) {
     throw new Error('requestMacOSScreenCapturePermission is only available on macOS (darwin)')
   }
 
