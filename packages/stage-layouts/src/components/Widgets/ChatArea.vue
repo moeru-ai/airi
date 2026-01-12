@@ -68,7 +68,7 @@ async function debouncedAutoSend(text: string) {
     if (textToSend && autoSendEnabled.value) {
       try {
         const providerConfig = providersStore.getProviderConfig(activeProvider.value)
-        await send(textToSend, {
+        await ingest(textToSend, {
           chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
           model: activeModel.value,
           providerConfig,
@@ -322,7 +322,7 @@ async function stopListening() {
       pendingAutoSendText.value = ''
       try {
         const providerConfig = providersStore.getProviderConfig(activeProvider.value)
-        await send(textToSend, {
+        await ingest(textToSend, {
           chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
           model: activeModel.value,
           providerConfig,

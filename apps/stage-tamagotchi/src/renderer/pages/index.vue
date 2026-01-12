@@ -222,7 +222,7 @@ async function startAudioInteraction() {
               }
 
               console.info('[Main Page] Sending transcription to chat:', finalText)
-              await chatStore.send(finalText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+              await chatStore.ingest(finalText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
             }
             catch (err) {
               console.error('[Main Page] Failed to send chat from voice:', err)

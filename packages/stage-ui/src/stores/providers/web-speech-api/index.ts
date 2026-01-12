@@ -158,7 +158,7 @@ export function createWebSpeechAPIProvider(): TranscriptionProviderWithExtraOpti
  * This is designed to work with the existing hearing pipeline
  */
 export function streamWebSpeechAPITranscription(
-  mediaStream: MediaStream,
+  _mediaStream: MediaStream,
   options?: WebSpeechAPIExtraOptions & {
     onSentenceEnd?: (delta: string) => void
     onSpeechEnd?: (text: string) => void
