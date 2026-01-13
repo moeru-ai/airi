@@ -9,7 +9,7 @@ import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const speechStore = useSpeechStore()
@@ -32,6 +32,11 @@ const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
 const availableVoices = computed(() => {
   return speechStore.availableVoices[providerId] || []
+})
+
+// Load voices on mount - OpenAI voices are hardcoded and don't require API key
+onMounted(async () => {
+  await speechStore.loadVoicesForProvider(providerId)
 })
 
 // Generate speech with ElevenLabs-specific parameters

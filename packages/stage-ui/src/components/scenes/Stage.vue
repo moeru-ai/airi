@@ -221,11 +221,6 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       return null
     }
 
-    if (!activeSpeechVoice.value) {
-      console.warn('No active speech voice configured')
-      return null
-    }
-
     const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
     if (!provider) {
       console.error('Failed to initialize speech provider')
@@ -236,14 +231,41 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       return null
 
     const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+
+    // For OpenAI Compatible providers, fall back to provider config for model and voice
+    let model = activeSpeechModel.value
+    let voice = activeSpeechVoice.value
+
+    if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
+      if (!model && providerConfig?.model) {
+        model = providerConfig.model as string
+      }
+      if (!voice && providerConfig?.voice) {
+        voice = {
+          id: providerConfig.voice as string,
+          name: providerConfig.voice as string,
+          description: providerConfig.voice as string,
+          previewURL: '',
+          languages: [{ code: 'en', title: 'English' }],
+          provider: activeSpeechProvider.value,
+          gender: 'neutral',
+        }
+      }
+    }
+
+    if (!voice) {
+      console.warn('No active speech voice configured')
+      return null
+    }
+
     const input = ssmlEnabled.value
-      ? speechStore.generateSSML(request.text, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value })
+      ? speechStore.generateSSML(request.text, voice, { ...providerConfig, pitch: pitch.value })
       : request.text
 
     const res = await generateSpeech({
-      ...provider.speech(activeSpeechModel.value, providerConfig),
+      ...provider.speech(model || '', providerConfig),
       input,
-      voice: activeSpeechVoice.value.id,
+      voice: voice.id,
     })
 
     if (signal.aborted)

@@ -75,16 +75,6 @@ async function generateTestSpeech() {
   if (useSSML.value && !ssmlText.value.trim())
     return
 
-  if (!activeSpeechModel.value) {
-    console.error('No model selected')
-    return
-  }
-
-  if (!activeSpeechVoice.value) {
-    console.error('No voice selected')
-    return
-  }
-
   const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, any>
   if (!provider) {
     console.error('Failed to initialize speech provider')
@@ -92,6 +82,37 @@ async function generateTestSpeech() {
   }
 
   const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+
+  // For OpenAI Compatible providers, fall back to provider config for model and voice
+  let model = activeSpeechModel.value
+  let voice = activeSpeechVoice.value
+
+  if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
+    if (!model && providerConfig?.model) {
+      model = providerConfig.model as string
+    }
+    if (!voice && providerConfig?.voice) {
+      voice = {
+        id: providerConfig.voice as string,
+        name: providerConfig.voice as string,
+        description: providerConfig.voice as string,
+        previewURL: '',
+        languages: [{ code: 'en', title: 'English' }],
+        provider: activeSpeechProvider.value,
+        gender: 'neutral',
+      }
+    }
+  }
+
+  if (!model) {
+    console.error('No model selected')
+    return
+  }
+
+  if (!voice) {
+    console.error('No voice selected')
+    return
+  }
 
   isGenerating.value = true
   errorMessage.value = ''
@@ -104,12 +125,12 @@ async function generateTestSpeech() {
 
     const input = useSSML.value
       ? ssmlText.value
-      : speechStore.supportsSSML ? speechStore.generateSSML(testText.value, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value }) : testText.value
+      : speechStore.supportsSSML ? speechStore.generateSSML(testText.value, voice, { ...providerConfig, pitch: pitch.value }) : testText.value
 
     const response = await generateSpeech({
-      ...provider.speech(activeSpeechModel.value, providerConfig),
+      ...provider.speech(model, providerConfig),
       input,
-      voice: activeSpeechVoice.value.id,
+      voice: voice.id,
     })
 
     // Convert the response to a blob and create an object URL
@@ -340,6 +361,11 @@ function updateCustomModelName(value: string) {
               v-model:search-query="voiceSearchQuery"
               v-model:voice-id="activeSpeechVoiceId"
               :voices="availableVoices[activeSpeechProvider]?.filter(voice => {
+                // If no model is selected, show all voices
+                if (!activeSpeechModel) {
+                  return true
+                }
+                // If a model is selected, filter by compatibility
                 return !voice.compatibleModels || voice.compatibleModels.includes(activeSpeechModel)
               }).map(voice => ({
                 id: voice.id,
