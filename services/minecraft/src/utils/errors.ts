@@ -5,6 +5,10 @@ export type ActionErrorCode
     | 'INTERRUPTED'
     | 'INVENTORY_FULL'
     | 'UNKNOWN'
+    | 'TARGET_NOT_FOUND'
+    | 'ITEM_NOT_FOUND'
+    | 'PLACEMENT_FAILED'
+    | 'ACTIVATION_FAILED'
 
 export class ActionError extends Error {
   public readonly code: ActionErrorCode

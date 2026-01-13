@@ -8,12 +8,23 @@ import pathfinder from 'mineflayer-pathfinder'
 import { sleep } from '@moeru/std'
 import { Vec3 } from 'vec3'
 
+import { ActionError } from '../../utils/errors'
 import { useLogger } from '../../utils/logger'
 import { getNearestBlock, makeItem } from '../../utils/mcdata'
 import { goToPosition } from '../movement'
 
 const logger = useLogger()
 
+/**
+ * Place a block at the given position.
+ * @param mineflayer The mineflayer instance.
+ * @param blockType The type of block to place.
+ * @param x The x coordinate.
+ * @param y The y coordinate.
+ * @param z The z coordinate.
+ * @param placeOn The side to place the block on.
+ * @throws {ActionError} When the block is not in inventory or cannot be placed.
+ */
 export async function placeBlock(
   mineflayer: Mineflayer,
   blockType: string,
@@ -21,7 +32,7 @@ export async function placeBlock(
   y: number,
   z: number,
   placeOn: string = 'bottom',
-): Promise<boolean> {
+): Promise<void> {
   // if (!gameData.getBlockId(blockType)) {
   //   logger.log(`Invalid block type: ${blockType}.`);
   //   return false;
@@ -39,18 +50,18 @@ export async function placeBlock(
   }
   if (!block) {
     logger.log(`Don't have any ${blockType} to place.`)
-    return false
+    throw new ActionError('ITEM_NOT_FOUND', `Don't have any ${blockType} to place`, { item: blockType })
   }
 
   const targetBlock = mineflayer.bot.blockAt(targetDest)
   if (!targetBlock) {
     logger.log(`No block found at ${targetDest}.`)
-    return false
+    throw new ActionError('TARGET_NOT_FOUND', `No block found at ${targetDest}`, { position: targetDest })
   }
 
   if (targetBlock.name === blockType) {
     logger.log(`${blockType} already at ${targetBlock.position}.`)
-    return false
+    throw new ActionError('PLACEMENT_FAILED', `${blockType} already at ${targetBlock.position}`, { blockType, position: targetBlock.position })
   }
 
   const emptyBlocks = [
@@ -67,13 +78,7 @@ export async function placeBlock(
     logger.log(
       `${targetBlock.name} is in the way at ${targetBlock.position}.`,
     )
-    const removed = await breakBlockAt(mineflayer, x, y, z)
-    if (!removed) {
-      logger.log(
-        `Cannot place ${blockType} at ${targetBlock.position}: block in the way.`,
-      )
-      return false
-    }
+    await breakBlockAt(mineflayer, x, y, z)
     await new Promise(resolve => setTimeout(resolve, 200)) // Wait for block to break
   }
 
@@ -118,7 +123,7 @@ export async function placeBlock(
     logger.log(
       `Cannot place ${blockType} at ${targetBlock.position}: nothing to place on.`,
     )
-    return false
+    throw new ActionError('PLACEMENT_FAILED', `Cannot place ${blockType} at ${targetBlock.position}: nothing to place on`, { blockType, position: targetBlock.position })
   }
 
   // Move away if too close
@@ -174,37 +179,45 @@ export async function placeBlock(
     await mineflayer.bot.placeBlock(buildOffBlock, faceVec)
     logger.log(`Placed ${blockType} at ${targetDest}.`)
     await new Promise(resolve => setTimeout(resolve, 200))
-    return true
   }
   catch (err) {
     if (err instanceof Error) {
       logger.log(
         `Failed to place ${blockType} at ${targetDest}: ${err.message}`,
       )
+      throw new ActionError('PLACEMENT_FAILED', `Failed to place ${blockType} at ${targetDest}: ${err.message}`, { blockType, position: targetDest, error: err.message })
     }
     else {
       logger.log(
         `Failed to place ${blockType} at ${targetDest}: ${String(err)}`,
       )
+      throw new ActionError('PLACEMENT_FAILED', `Failed to place ${blockType} at ${targetDest}: ${String(err)}`, { blockType, position: targetDest, error: String(err) })
     }
-    return false
   }
 }
 
+/**
+ * Break a block at the given position.
+ * @param mineflayer The mineflayer instance.
+ * @param x The x coordinate.
+ * @param y The y coordinate.
+ * @param z The z coordinate.
+ * @throws {ActionError} When the block is unbreakable or missing tools.
+ */
 export async function breakBlockAt(
   mineflayer: Mineflayer,
   x: number,
   y: number,
   z: number,
-): Promise<boolean> {
+): Promise<void> {
   if (x == null || y == null || z == null) {
-    throw new Error('Invalid position to break block at.')
+    throw new ActionError('UNKNOWN', 'Invalid position to break block at')
   }
   const blockPos = new Vec3(Math.floor(x), Math.floor(y), Math.floor(z))
   const block = mineflayer.bot.blockAt(blockPos)
   if (!block) {
     logger.log(`No block found at position ${blockPos}.`)
-    return false
+    throw new ActionError('TARGET_NOT_FOUND', `No block found at position ${blockPos}`, { position: blockPos })
   }
   if (block.name !== 'air' && block.name !== 'water' && block.name !== 'lava') {
     if (mineflayer.bot.entity.position.distanceTo(block.position) > 4.5) {
@@ -215,12 +228,12 @@ export async function breakBlockAt(
       const itemId = mineflayer.bot.heldItem ? mineflayer.bot.heldItem.type : null
       if (!block.canHarvest(itemId)) {
         logger.log(`Don't have right tools to break ${block.name}.`)
-        return false
+        throw new ActionError('RESOURCE_MISSING', `Don't have right tools to break ${block.name}`, { blockType: block.name })
       }
     }
     if (!mineflayer.bot.canDigBlock(block)) {
       logger.log(`Cannot break ${block.name} at ${blockPos}.`)
-      return false
+      throw new ActionError('UNKNOWN', `Cannot break ${block.name} at ${blockPos}`, { blockType: block.name, position: blockPos })
     }
     await mineflayer.bot.lookAt(block.position, true) // Ensure the bot has finished turning
     await sleep(500)
@@ -231,11 +244,10 @@ export async function breakBlockAt(
           1,
         )}, z:${z.toFixed(1)}.`,
       )
-      return true
     }
     catch (err) {
       console.error(`Failed to dig the block: ${err}`)
-      return false
+      throw new ActionError('UNKNOWN', `Failed to dig the block: ${String(err)}`, { blockType: block.name, position: blockPos, error: String(err) })
     }
   }
   else {
@@ -244,23 +256,21 @@ export async function breakBlockAt(
         1,
       )} because it is ${block.name}.`,
     )
-    return false
+    throw new ActionError('UNKNOWN', `Cannot break ${block.name} block`, { blockType: block.name, position: blockPos })
   }
 }
 
-export async function activateNearestBlock(mineflayer: Mineflayer, type: string) {
-  /**
-   * Activate the nearest block of the given type.
-   * @param {string} type, the type of block to activate.
-   * @returns {Promise<boolean>} true if the block was activated, false otherwise.
-   * @example
-   * await skills.activateNearestBlock( "lever");
-   *
-   */
+/**
+ * Activate the nearest block of the given type.
+ * @param mineflayer The mineflayer instance.
+ * @param type The type of block to activate.
+ * @throws {ActionError} When the block is not found or cannot be activated.
+ */
+export async function activateNearestBlock(mineflayer: Mineflayer, type: string): Promise<void> {
   const block = getNearestBlock(mineflayer.bot, type, 16)
   if (!block) {
     logger.log(`Could not find any ${type} to activate.`)
-    return false
+    throw new ActionError('TARGET_NOT_FOUND', `Could not find any ${type} to activate`, { blockType: type })
   }
   if (mineflayer.bot.entity.position.distanceTo(block.position) > 4.5) {
     const pos = block.position
@@ -273,16 +283,24 @@ export async function activateNearestBlock(mineflayer: Mineflayer, type: string)
       1,
     )}, y:${block.position.y.toFixed(1)}, z:${block.position.z.toFixed(1)}.`,
   )
-  return true
 }
 
+/**
+ * Till the soil and sow seeds at the given position.
+ * @param mineflayer The mineflayer instance.
+ * @param x The x coordinate.
+ * @param y The y coordinate.
+ * @param z The z coordinate.
+ * @param seedType The type of seed to sow.
+ * @throws {ActionError} When the block cannot be tilled or seeds are missing.
+ */
 export async function tillAndSow(
   mineflayer: Mineflayer,
   x: number,
   y: number,
   z: number,
   seedType: string | null = null,
-): Promise<boolean> {
+): Promise<void> {
   x = Math.round(x)
   y = Math.round(y)
   z = Math.round(z)
@@ -290,7 +308,7 @@ export async function tillAndSow(
   const block = mineflayer.bot.blockAt(blockPos)
   if (!block) {
     logger.log(`No block found at ${blockPos}.`)
-    return false
+    throw new ActionError('TARGET_NOT_FOUND', `No block found at ${blockPos}`, { position: blockPos })
   }
   if (
     block.name !== 'grass_block'
@@ -298,12 +316,12 @@ export async function tillAndSow(
     && block.name !== 'farmland'
   ) {
     logger.log(`Cannot till ${block.name}, must be grass_block or dirt.`)
-    return false
+    throw new ActionError('UNKNOWN', `Cannot till ${block.name}, must be grass_block or dirt`, { blockType: block.name })
   }
   const above = mineflayer.bot.blockAt(blockPos.offset(0, 1, 0))
   if (above && above.name !== 'air') {
     logger.log(`Cannot till, there is ${above.name} above the block.`)
-    return false
+    throw new ActionError('UNKNOWN', `Cannot till, there is ${above.name} above the block`, { blockType: above.name })
   }
   // Move closer if too far
   if (mineflayer.bot.entity.position.distanceTo(block.position) > 4.5) {
@@ -313,7 +331,7 @@ export async function tillAndSow(
     const hoe = mineflayer.bot.inventory.items().find(item => item.name.includes('hoe'))
     if (!hoe) {
       logger.log(`Cannot till, no hoes.`)
-      return false
+      throw new ActionError('RESOURCE_MISSING', 'Cannot till, no hoes', { item: 'hoe' })
     }
     await mineflayer.bot.equip(hoe, 'hand')
     await mineflayer.bot.activateBlock(block)
@@ -330,7 +348,7 @@ export async function tillAndSow(
       .find(item => item.name.includes(seedType || 'seed'))
     if (!seeds) {
       logger.log(`No ${seedType} to plant.`)
-      return false
+      throw new ActionError('ITEM_NOT_FOUND', `No ${seedType} to plant`, { item: seedType })
     }
     await mineflayer.bot.equip(seeds, 'hand')
     await mineflayer.bot.placeBlock(block, new Vec3(0, -1, 0))
@@ -340,13 +358,17 @@ export async function tillAndSow(
       )}, z:${z.toFixed(1)}.`,
     )
   }
-  return true
 }
 
+/**
+ * Pick up nearby items.
+ * @param mineflayer The mineflayer instance.
+ * @param distance The maximum distance to pick up items. Default is 8.
+ */
 export async function pickupNearbyItems(
   mineflayer: Mineflayer,
   distance = 8,
-): Promise<boolean> {
+): Promise<void> {
   const getNearestItem = (bot: Bot) =>
     bot.nearestEntity(
       entity =>
@@ -361,7 +383,7 @@ export async function pickupNearbyItems(
     // bot.pathfinder.setMovements(new pf.Movements(bot));
     await mineflayer.bot.pathfinder.goto(
       new pathfinder.goals.GoalFollow(nearestItem, 0.8),
-      () => {},
+      () => { },
     )
     await sleep(500)
     const prev = nearestItem
@@ -372,5 +394,4 @@ export async function pickupNearbyItems(
     pickedUp++
   }
   logger.log(`Picked up ${pickedUp} items.`)
-  return true
 }

@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { collectBlock } from '../../skills/actions/collect-block'
 import { discard, equip, putInChest, takeFromChest } from '../../skills/actions/inventory'
 import { activateNearestBlock, placeBlock } from '../../skills/actions/world-interactions'
+import { ActionError } from '../../utils/errors'
 import { useLogger } from '../../utils/logger'
 
 import * as skills from '../../skills'
@@ -322,8 +323,7 @@ export const actionsList: Action[] = [
     perform: mineflayer => async (player_name: string) => {
       const player = mineflayer.bot.players[player_name]?.entity
       if (!player) {
-        skills.log(mineflayer, `Could not find player ${player_name}.`)
-        return 'Player not found'
+        throw new ActionError('TARGET_NOT_FOUND', `Could not find player ${player_name}`, { playerName: player_name })
       }
       await skills.attackEntity(mineflayer, player, true)
       return `Attacked player [${player_name}]`
