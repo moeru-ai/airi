@@ -61,12 +61,6 @@ export class ReflexManager {
     const signal = event.payload
     const now = Date.now()
 
-    // Create log message (can be throttled later if too spammy)
-    this.deps.logger.withFields({
-      type: signal.type,
-      description: signal.description,
-    }).log('ReflexManager: signal received')
-
     // Update Context
     this.runtime.getContext().updateNow(now)
     this.runtime.getContext().updateAttention({

@@ -232,11 +232,11 @@ export class SaliencyDetector {
    * Emit a perception signal via callback
    */
   private emitSignal(signal: PerceptionSignal): void {
-    this.deps.logger.withFields({
-      type: signal.type,
-      desc: signal.description,
-      meta: signal.metadata,
-    }).log('SaliencyDetector: emit')
+    // this.deps.logger.withFields({
+    //   type: signal.type,
+    //   desc: signal.description,
+    //   meta: signal.metadata,
+    // }).log('SaliencyDetector: emit')
 
     this.deps.onAttention(signal)
   }

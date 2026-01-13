@@ -117,12 +117,6 @@ export class ReflexRuntime {
         this.activeBehaviorId = null
       }
 
-      this.deps.logger.withFields({
-        mode: this.mode,
-        behavior: best.behavior.id,
-        score: best.score,
-      }).log('ReflexRuntime: selected')
-
       return best.behavior.id
     }
     catch (err) {
