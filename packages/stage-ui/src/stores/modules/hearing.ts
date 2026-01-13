@@ -101,12 +101,13 @@ export const useHearingStore = defineStore('hearing-store', () => {
     }
 
     // For OpenAI Compatible providers, check provider config as fallback
+    let hasProviderModel = false
     if (activeTranscriptionProvider.value === 'openai-compatible-audio-transcription') {
       const providerConfig = providersStore.getProviderConfig(activeTranscriptionProvider.value)
-      return !!activeTranscriptionModel.value || !!providerConfig?.model
+      hasProviderModel = !!providerConfig?.model
     }
 
-    return !!activeTranscriptionModel.value
+    return !!activeTranscriptionModel.value || hasProviderModel
   })
 
   function resetState() {
