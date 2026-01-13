@@ -138,8 +138,8 @@ export const actionsList: Action[] = [
       search_range: z.number().describe('The range to search for the block.').min(32).max(512),
     }),
     perform: mineflayer => async (block_type: string, range: number) => {
-      await skills.goToNearestBlock(mineflayer, block_type, 4, range)
-      return `Arrived at nearest [${block_type}]` // TODO more spacial context?
+      const block = await skills.goToNearestBlock(mineflayer, block_type, 4, range)
+      return `Arrived at nearest [${block.name}] at (${block.position.x}, ${block.position.y}, ${block.position.z})` // TODO more spacial context?
     },
   },
   {
