@@ -7,7 +7,7 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { FieldRange } from '@proj-airi/ui'
+import { FieldRange, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -27,6 +27,25 @@ const defaultModel = 'gpt-4o-mini-tts'
 
 const speed = ref<number>(1.0)
 
+// Model selection
+const model = computed({
+  get: () => providers.value[providerId]?.model as string | undefined || defaultModel,
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].model = value
+  },
+})
+
+// Load models and voices
+const providerModels = computed(() => {
+  return providersStore.getModelsForProvider(providerId)
+})
+
+const isLoadingModels = computed(() => {
+  return providersStore.isLoadingModels[providerId] || false
+})
+
 // Check if API key is configured
 const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
@@ -34,8 +53,10 @@ const availableVoices = computed(() => {
   return speechStore.availableVoices[providerId] || []
 })
 
-// Load voices on mount - OpenAI voices are hardcoded and don't require API key
+// Load models and voices on mount
 onMounted(async () => {
+  await providersStore.loadModelsForConfiguredProviders()
+  await providersStore.fetchModelsForProvider(providerId)
   await speechStore.loadVoicesForProvider(providerId)
 })
 
@@ -69,6 +90,11 @@ watch(speed, async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.speed = speed.value
 })
+
+watch(model, async () => {
+  const providerConfig = providersStore.getProviderConfig(providerId)
+  providerConfig.model = model.value
+})
 </script>
 
 <template>
@@ -77,8 +103,17 @@ watch(speed, async () => {
     :default-model="defaultModel"
     :additional-settings="defaultVoiceSettings"
   >
-    <!-- Voice settings specific to ElevenLabs -->
+    <!-- Voice settings specific to OpenAI -->
     <template #voice-settings>
+      <!-- Model selection -->
+      <FieldSelect
+        v-model="model"
+        label="Model"
+        description="Select the TTS model to use for speech generation"
+        :options="providerModels.map(m => ({ value: m.id, label: m.name }))"
+        :disabled="isLoadingModels || providerModels.length === 0"
+        placeholder="Select a model..."
+      />
       <!-- Speed control - common to most providers -->
       <FieldRange
         v-model="speed"
