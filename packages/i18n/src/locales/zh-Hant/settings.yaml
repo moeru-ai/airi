@@ -34,6 +34,13 @@ language:
   title: 語言
   description: >
     切換顯示介面的語言
+controls-island:
+  icon-size:
+    title: Controls Island Icon Size
+    description: Adjust the size of the controls island icons
+    auto: Auto (responsive)
+    large: Large (default)
+    small: Small
 live2d:
   change-model:
     from-file: 從檔案載入
@@ -72,6 +79,7 @@ pages:
     active: 已啟用
     active_badge: 目前使用中
     cancel: Cancel action
+    save: Save changes
     card_not_found: 找不到角色卡
     character: 角色設定
     close: 關閉
@@ -86,6 +94,7 @@ pages:
     description_label: 描述
     drop_here: 放開以上傳檔案
     create_card: 建立新角色卡
+    edit_card: Edit Card
     creation:
       identity: 身分
       name: 名字
@@ -680,6 +689,9 @@ pages:
       aliyun-nls:
         description: Aliyun NLS
         title: Aliyun NLS
+      browser-web-speech-api:
+        description: Browser-native STT (requires Chrome/Edge/Safari)
+        title: Web Speech API
       transcriptions:
         playground:
           title: 實驗平台

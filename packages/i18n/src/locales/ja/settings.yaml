@@ -34,6 +34,13 @@ language:
   title: 言語
   description: >
     AIRIインターフェースの言語を変更します。これはキャラクターの応答言語には影響しません。
+controls-island:
+  icon-size:
+    title: Controls Island Icon Size
+    description: Adjust the size of the controls island icons
+    auto: Auto (responsive)
+    large: Large (default)
+    small: Small
 live2d:
   change-model:
     from-file: ファイルから読み込む
@@ -72,6 +79,7 @@ pages:
     active: 有効
     active_badge: 現在有効
     cancel: 操作の取消
+    save: Save changes
     card_not_found: カードが見つかりません
     character: キャラクター
     close: 閉じる
@@ -86,6 +94,7 @@ pages:
     description_label: 説明
     drop_here: アップロードするにはここにドラッグ
     create_card: 新しいカードを作成
+    edit_card: Edit Card
     creation:
       identity: 識別子
       name: 名前
@@ -680,6 +689,9 @@ pages:
       aliyun-nls:
         description: Aliyun NLS
         title: Aliyun NLS
+      browser-web-speech-api:
+        description: Browser-native STT (requires Chrome/Edge/Safari)
+        title: Web Speech API
       transcriptions:
         playground:
           title: 文字起こし実験場

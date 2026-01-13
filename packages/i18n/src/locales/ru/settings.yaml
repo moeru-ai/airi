@@ -34,6 +34,13 @@ language:
   title: Language
   description: >
     Change the language of the AIRI interface. This will not affect the language of the character's responses.
+controls-island:
+  icon-size:
+    title: Controls Island Icon Size
+    description: Adjust the size of the controls island icons
+    auto: Auto (responsive)
+    large: Large (default)
+    small: Small
 live2d:
   change-model:
     from-file: Загрузить из файла
@@ -72,6 +79,7 @@ pages:
     active: Активно
     active_badge: Текущая
     cancel: Cancel action
+    save: Save changes
     card_not_found: Карта не найдена
     character: Персонаж
     close: Закрыть
@@ -86,6 +94,7 @@ pages:
     description_label: Описание
     drop_here: Перетащите сюда для загрузки
     create_card: Создать новую карту
+    edit_card: Edit Card
     creation:
       identity: Личность
       name: Имя
@@ -680,6 +689,9 @@ pages:
       aliyun-nls:
         description: Aliyun NLS
         title: Aliyun NLS
+      browser-web-speech-api:
+        description: Browser-native STT (requires Chrome/Edge/Safari)
+        title: Web Speech API
       transcriptions:
         playground:
           title: Песочница транскрипции
