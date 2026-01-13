@@ -164,7 +164,33 @@ export class DiscordAdapter {
         if (message?.content && discordContext?.channelId) {
           const channel = await this.discordClient.channels.fetch(discordContext.channelId)
           if (channel?.isTextBased() && 'send' in channel && typeof channel.send === 'function') {
-            await channel.send(message.content)
+            const content = message.content
+            if (content.length <= 2000) {
+              await channel.send(content)
+            }
+            else {
+              let remaining = content
+              while (remaining.length > 0) {
+                let chunkSize = 2000
+                if (remaining.length > 2000) {
+                  // Try to split at the last newline before 2000
+                  const lastNewline = remaining.lastIndexOf('\n', 2000)
+                  if (lastNewline > -1) {
+                    chunkSize = lastNewline
+                  }
+                  else {
+                    // Fallback to last space
+                    const lastSpace = remaining.lastIndexOf(' ', 2000)
+                    if (lastSpace > -1)
+                      chunkSize = lastSpace
+                  }
+                }
+
+                const chunk = remaining.slice(0, chunkSize)
+                await channel.send(chunk)
+                remaining = remaining.slice(chunkSize).trim()
+              }
+            }
           }
         }
       }
