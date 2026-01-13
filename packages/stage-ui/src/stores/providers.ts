@@ -962,6 +962,14 @@ export const useProvidersStore = defineStore('providers', () => {
       category: 'transcription',
       tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
       creator: createOpenAI,
+      capabilities: {
+        // Override listModels to return empty array - transcription models cannot be fetched from /v1/models
+        // Users must manually enter transcription model names (e.g., whisper-1, gpt-4o-transcribe)
+        // The /v1/models endpoint only returns chat models, not transcription models
+        listModels: async () => {
+          return []
+        },
+      },
     }),
     'aliyun-nls-transcription': {
       id: 'aliyun-nls-transcription',

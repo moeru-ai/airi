@@ -11,7 +11,7 @@ import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Button, FieldCheckbox, FieldRange, FieldSelect } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -33,7 +33,7 @@ const providersStore = useProvidersStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
 const { trackProviderClick } = useAnalytics()
-const { stopStream, startStream } = useSettingsAudioDevice()
+const { stopStream, startStream, askPermission } = useSettingsAudioDevice()
 const { audioInputs, selectedAudioInput, stream } = storeToRefs(useSettingsAudioDevice())
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioAnalyzer()
@@ -437,6 +437,16 @@ watch(activeTranscriptionProvider, async (provider) => {
     }
   }
 }, { immediate: true })
+
+onMounted(async () => {
+  // Ensure audio devices are loaded
+  try {
+    await askPermission()
+  }
+  catch (err) {
+    console.warn('Could not load audio devices:', err)
+  }
+})
 
 onUnmounted(() => {
   stopSTTTest()

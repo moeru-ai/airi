@@ -178,6 +178,14 @@ onUnmounted(() => {
       {{ isMonitoring ? 'Stop Monitoring' : 'Start Monitoring' }}
     </Button>
 
+    <!-- Error message display -->
+    <div v-if="errorMessage" class="mb-4 border border-red-200 rounded-lg bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
+      <div class="flex items-center gap-2 text-red-700 dark:text-red-400">
+        <div i-solar:warning-circle-line-duotone class="text-lg" />
+        <span class="text-sm font-medium">{{ errorMessage }}</span>
+      </div>
+    </div>
+
     <div>
       <div v-for="(audio, index) in audioURLs" :key="index" class="mb-2">
         <audio :src="audio" controls class="w-full" />
