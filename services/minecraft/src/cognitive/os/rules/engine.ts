@@ -261,12 +261,6 @@ export class RuleEngine {
       timestamp: Date.now(),
     })
 
-    this.deps.logger.withFields({
-      ruleName: rule.name,
-      signalType: signal.type,
-      description: signal.description,
-    }).log('RuleEngine: signal emitted')
-
     // Emit as child of source event
     this.deps.eventBus.emitChild(sourceEvent, {
       type: `signal:${signal.type}`,

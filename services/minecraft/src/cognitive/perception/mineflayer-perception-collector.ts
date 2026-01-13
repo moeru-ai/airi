@@ -277,9 +277,9 @@ export class MineflayerPerceptionCollector {
     if (now - this.lastStatsAt < 2000)
       return
 
-    this.deps.logger.withFields({
-      ...this.stats,
-    }).log('MineflayerPerceptionCollector: stats')
+    // this.deps.logger.withFields({
+    //   ...this.stats,
+    // }).log('MineflayerPerceptionCollector: stats')
 
     this.lastStatsAt = now
     this.stats = {}
