@@ -58,11 +58,25 @@ export function getNearestFreeSpace(
 }
 
 export function getNearestBlocks(mineflayer: Mineflayer, blockTypes: string[] | string | null = null, distance: number = 16, count: number = 10000): Block[] {
-  const blockIds = blockTypes === null
-    ? mc.getAllBlockIds(['air'])
-    : (Array.isArray(blockTypes) ? blockTypes : [blockTypes]).map(mc.getBlockId).filter((id): id is number => id !== null)
+  const blockNames = blockTypes === null
+    ? mc.getAllBlocks(['air']).map(block => block.name)
+    : (Array.isArray(blockTypes) ? blockTypes : [blockTypes])
+        .map((name) => {
+          const id = mc.getBlockId(name)
+          if (id)
+            return name
 
-  const positions = mineflayer.bot.findBlocks({ matching: blockIds, maxDistance: distance, count })
+          const closest = mc.getClosestBlockName(name)
+          const suggestion = closest ? `; did you mean ${closest}?` : ''
+          throw new Error(`Unknown block type: ${name}${suggestion}`)
+        })
+
+  const blockNameSet = new Set(blockNames)
+  const positions = mineflayer.bot.findBlocks({
+    matching: block => block && blockNameSet.has(block.name),
+    maxDistance: distance,
+    count,
+  })
 
   return positions
     .map((pos) => {

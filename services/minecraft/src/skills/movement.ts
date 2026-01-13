@@ -1,3 +1,4 @@
+import type { Block } from 'prismarine-block'
 import type { Entity } from 'prismarine-entity'
 
 import type { Mineflayer } from '../libs/mineflayer'
@@ -43,7 +44,7 @@ export async function goToNearestBlock(
   blockType: string,
   minDistance = 2,
   range = 64,
-): Promise<boolean> {
+): Promise<Block> {
   const MAX_RANGE = 512
   if (range > MAX_RANGE) {
     log(mineflayer, `Maximum search range capped at ${MAX_RANGE}.`)
@@ -52,13 +53,12 @@ export async function goToNearestBlock(
 
   const block = getNearestBlock(mineflayer, blockType, range)
   if (!block) {
-    log(mineflayer, `Could not find any ${blockType} in ${range} blocks.`)
-    return false
+    throw new Error(`Could not find any ${blockType} in ${range} blocks.`)
   }
 
   log(mineflayer, `Found ${blockType} at ${block.position}.`)
   await goToPosition(mineflayer, block.position.x, block.position.y, block.position.z, minDistance)
-  return true
+  return block
 }
 
 export async function goToNearestEntity(
