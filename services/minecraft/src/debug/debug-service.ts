@@ -200,6 +200,18 @@ export class DebugService {
       case 'reflex':
         this.emitReflexState(payload as Omit<ReflexStateEvent, 'timestamp'>)
         break
+      case 'debug:tools_list':
+        this.server.broadcast({
+          type: 'debug:tools_list',
+          payload: payload as { tools: any[] },
+        })
+        break
+      case 'debug:tool_result':
+        this.server.broadcast({
+          type: 'debug:tool_result',
+          payload: payload as any,
+        })
+        break
       default:
         // For unknown types, emit as log
         this.log('DEBUG', `Unknown event type: ${type}`, { payload })

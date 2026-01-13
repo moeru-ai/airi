@@ -48,6 +48,10 @@ async function main() {
   const agent = await createNeuriAgent(bot)
   await bot.loadPlugin(CognitiveEngine({ agent, airiClient }))
 
+  // Setup Tool Executor for Debug Dashboard
+  const { setupToolExecutor } = await import('./debug/tool-executor')
+  setupToolExecutor(bot)
+
   process.on('SIGINT', () => {
     bot.stop()
     exit(0)

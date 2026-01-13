@@ -8,7 +8,7 @@ trigger:
     entityType: player
 
 accumulator:
-  threshold: 5
+  threshold: 14
   window: 2s
 
 signal:

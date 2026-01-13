@@ -679,8 +679,239 @@ class SaliencyPanel {
 }
 
 // =============================================================================
-// Timeline Panel (Event Tracing)
+// Tools Panel
 // =============================================================================
+
+class ToolsPanel {
+  constructor(client) {
+    this.client = client
+    this.tools = []
+    this.filter = ''
+    this.executingTools = new Set()
+    this.elements = {
+      grid: document.getElementById('tools-grid'),
+      search: document.getElementById('tools-search'),
+    }
+  }
+
+  init() {
+    this.client.on('debug:tools_list', data => this.updateTools(data))
+    this.client.on('debug:tool_result', data => this.handleResult(data))
+    this.client.on('connected', () => this.requestTools())
+
+    this.elements.search?.addEventListener('input', (e) => {
+      this.filter = e.target.value.toLowerCase()
+      this.render()
+    })
+  }
+
+  requestTools() {
+    console.log('[ToolsPanel] Requesting tools...')
+    // Check if we already have tools to avoid re-rendering on reconnect if not needed
+    // But re-requesting ensures we are in sync with server capabilities
+    this.client.send({ type: 'request_tools' })
+  }
+
+  updateTools(data) {
+    if (data && data.tools) {
+      this.tools = data.tools
+      this.render()
+    }
+  }
+
+  render() {
+    if (!this.tools || this.tools.length === 0) {
+      this.elements.grid.innerHTML = '<div class="empty-state">Loading tools...</div>'
+      return
+    }
+
+    const filtered = this.tools.filter((tool) => {
+      if (!this.filter)
+        return true
+      return tool.name.toLowerCase().includes(this.filter)
+        || (tool.description && tool.description.toLowerCase().includes(this.filter))
+    })
+
+    if (filtered.length === 0) {
+      this.elements.grid.innerHTML = '<div class="empty-state">No tools match filter</div>'
+      return
+    }
+
+    // Don't nuke usage of existing DOM elements if possible to preserve form state?
+    // For simplicity, re-render is fine for this debug tool.
+
+    this.elements.grid.innerHTML = filtered.map(tool => this.renderCard(tool)).join('')
+
+    // Attach event listeners
+    filtered.forEach((tool) => {
+      const card = document.getElementById(`tool-card-${tool.name}`)
+      const executeBtn = card?.querySelector('.btn-execute')
+
+      executeBtn?.addEventListener('click', () => this.executeTool(tool))
+    })
+  }
+
+  renderCard(tool) {
+    const isExecuting = this.executingTools.has(tool.name)
+    const cardState = isExecuting ? 'executing' : ''
+    const paramCount = tool.params.length
+
+    return `
+      <div id="tool-card-${tool.name}" class="tool-card ${cardState}">
+        <div class="tool-card-header">
+          <span class="tool-name">${escapeHtml(tool.name)}</span>
+          ${paramCount > 0 ? `<span class="tool-badge">${paramCount} param${paramCount > 1 ? 's' : ''}</span>` : ''}
+        </div>
+        <div class="tool-description">${escapeHtml(tool.description || '')}</div>
+        ${this.renderParams(tool)}
+        <div class="tool-actions">
+          <button class="btn-execute" ${isExecuting ? 'disabled' : ''}>
+            ${isExecuting ? 'Executing...' : 'Execute'}
+          </button>
+        </div>
+        <div id="result-${tool.name}" class="tool-result hidden"></div>
+      </div>
+    `
+  }
+
+  renderParams(tool) {
+    if (tool.params.length === 0)
+      return ''
+
+    return `
+      <div class="tool-params">
+        ${tool.params.map(param => `
+          <div class="param-group">
+            <label class="param-label">${escapeHtml(param.name)} (${param.type})</label>
+            <input 
+              type="${param.type === 'number' ? 'number' : 'text'}" 
+              class="param-input"
+              data-param="${param.name}"
+              ${param.min !== undefined ? `min="${param.min}"` : ''}
+              ${param.max !== undefined ? `max="${param.max}"` : ''}
+              ${param.default !== undefined ? `value="${param.default}"` : ''}
+              placeholder="${escapeHtml(param.description || '')}"
+            />
+          </div>
+        `).join('')}
+      </div>
+    `
+  }
+
+  executeTool(tool) {
+    const card = document.getElementById(`tool-card-${tool.name}`)
+    if (!card)
+      return
+
+    // Collect parameter values
+    const params = {}
+    const inputs = card.querySelectorAll('.param-input')
+
+    for (const input of inputs) {
+      const paramName = input.dataset.param
+      let value = input.value
+
+      // Convert to appropriate type based on definition
+      const paramDef = tool.params.find(p => p.name === paramName)
+      if (paramDef) {
+        if (paramDef.type === 'number') {
+          if (value === '') {
+            // Handle empty number input if needed?
+          }
+          else {
+            value = Number.parseFloat(value)
+            if (isNaN(value)) {
+              this.showResult(tool.name, { error: `Invalid number for ${paramName}` }, true)
+              return
+            }
+          }
+        }
+      }
+
+      // Simple type conversion could be improved but sufficient for now
+      params[paramName] = value
+    }
+
+    // Mark as executing
+    this.executingTools.add(tool.name)
+    this.updateCardState(tool.name, 'executing')
+    this.hideResult(tool.name)
+
+    // Send command to server
+    this.client.send({
+      type: 'execute_tool',
+      payload: {
+        toolName: tool.name,
+        params,
+      },
+    })
+  }
+
+  handleResult(data) {
+    const { toolName, result, error } = data
+
+    this.executingTools.delete(toolName)
+    this.updateCardState(toolName, error ? 'error' : 'success')
+    this.showResult(toolName, data, !!error)
+
+    if (!error) {
+      setTimeout(() => {
+        // Reset state visual but keep result visible for a bit?
+        // Or remove success styling
+        const card = document.getElementById(`tool-card-${toolName}`)
+        if (card) {
+          card.classList.remove('success')
+          // Don't auto-hide result immediately, maybe user wants to read it
+        }
+      }, 3000)
+    }
+  }
+
+  updateCardState(toolName, state) {
+    const card = document.getElementById(`tool-card-${toolName}`)
+    if (!card)
+      return
+
+    card.classList.remove('executing', 'success', 'error')
+    if (state)
+      card.classList.add(state)
+
+    const btn = card.querySelector('.btn-execute')
+    if (btn) {
+      if (state === 'executing') {
+        btn.disabled = true
+        btn.textContent = 'Executing...'
+      }
+      else {
+        btn.disabled = false
+        btn.textContent = 'Execute'
+      }
+    }
+  }
+
+  showResult(toolName, data, isError) {
+    const resultEl = document.getElementById(`result-${toolName}`)
+    if (!resultEl)
+      return
+
+    resultEl.classList.remove('hidden')
+
+    const label = isError ? 'Error' : 'Result'
+    const content = isError ? data.error : data.result
+
+    resultEl.innerHTML = `
+      <span class="result-label">${label}</span>
+      <div class="result-content">${escapeHtml(content || 'No result')}</div>
+    `
+  }
+
+  hideResult(toolName) {
+    const resultEl = document.getElementById(`result-${toolName}`)
+    if (resultEl) {
+      resultEl.classList.add('hidden')
+    }
+  }
+}
 
 class TimelinePanel {
   constructor(client) {
@@ -991,6 +1222,7 @@ class DebugApp {
     this.llmPanel = new LLMPanel(this.client)
     this.saliencyPanel = new SaliencyPanel(this.client)
     this.timelinePanel = new TimelinePanel(this.client)
+    this.toolsPanel = new ToolsPanel(this.client)
 
     this.panels = {
       queue: this.queuePanel,
@@ -1000,6 +1232,7 @@ class DebugApp {
       llm: this.llmPanel,
       saliency: this.saliencyPanel,
       timeline: this.timelinePanel,
+      tools: this.toolsPanel,
     }
     this.paused = false
   }
