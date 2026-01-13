@@ -20,7 +20,6 @@ export class MineflayerPerceptionCollector {
   }> = []
 
   private lastSelfHealth: number | null = null
-
   private lastStatsAt = 0
   private stats: Record<string, number> = {}
   private sneakingState: Map<string, boolean> = new Map()
@@ -36,214 +35,12 @@ export class MineflayerPerceptionCollector {
   public init(bot: MineflayerWithAgents): void {
     this.bot = bot
     this.lastSelfHealth = bot.bot.health
-
     this.lastStatsAt = Date.now()
     this.stats = {}
 
     this.deps.logger.withFields({ maxDistance: this.deps.maxDistance }).log('MineflayerPerceptionCollector: init')
 
-    this.onBot('entityMoved', (entity: any) => {
-      const now = Date.now()
-      const dist = this.distanceTo(entity)
-      if (dist === null || dist > this.deps.maxDistance)
-        return
-
-      // Ignore self
-      if (entity.username === this.bot?.bot.username)
-        return
-
-      const entityId = this.entityId(entity)
-
-      const event: SightedEntityMovedEvent = {
-        modality: 'sighted',
-        kind: 'entity_moved',
-        entityType: entity?.type === 'player' ? 'player' : 'mob',
-        entityId,
-        displayName: entity?.username,
-        distance: dist,
-        hasLineOfSight: true,
-        timestamp: now,
-        source: 'minecraft',
-        pos: entity?.position,
-      }
-
-      this.deps.emitRaw(event)
-      this.bumpStat('sighted.entity_moved')
-      this.maybeLogStats()
-    })
-
-    this.onBot('entitySwingArm', (entity: any) => {
-      const now = Date.now()
-      const dist = this.distanceTo(entity)
-      if (dist === null || dist > this.deps.maxDistance)
-        return
-
-      // Ignore self
-      if (entity.username === this.bot?.bot.username)
-        return
-
-      const event: SightedArmSwingEvent = {
-        modality: 'sighted',
-        kind: 'arm_swing',
-        entityType: 'player',
-        entityId: this.entityId(entity),
-        displayName: entity?.username,
-        distance: dist,
-        hasLineOfSight: true,
-        timestamp: now,
-        source: 'minecraft',
-        pos: entity?.position,
-      }
-
-      this.deps.emitRaw(event)
-      this.bumpStat('sighted.arm_swing')
-      this.maybeLogStats()
-    })
-
-    this.onBot('entityUpdate', (entity: any) => {
-      if (!entity || entity.type !== 'player')
-        return
-
-      // Ignore self
-      if (entity.username === this.bot?.bot.username)
-        return
-
-      const entityId = this.entityId(entity)
-      const flags = entity?.metadata?.[0]
-      // Bit 1 (0x02) is sneaking
-      const isSneaking = typeof flags === 'number' ? !!(flags & 0x02) : false
-
-      // Check if state actually changed
-      const lastState = this.sneakingState.get(entityId)
-      if (lastState === isSneaking) {
-        return
-      }
-      this.sneakingState.set(entityId, isSneaking)
-
-      const now = Date.now()
-      const dist = this.distanceTo(entity)
-      if (dist === null || dist > this.deps.maxDistance)
-        return
-
-      const event: SightedSneakToggleEvent = {
-        modality: 'sighted',
-        kind: 'sneak_toggle',
-        entityType: 'player',
-        entityId,
-        displayName: entity?.username,
-        distance: dist,
-        hasLineOfSight: true,
-        sneaking: isSneaking,
-        timestamp: now,
-        source: 'minecraft',
-        pos: entity?.position,
-      }
-
-      this.deps.logger.withFields({ entity: entity.username, sneaking: isSneaking }).log('MineflayerPerceptionCollector: sneak_toggle')
-
-      this.deps.emitRaw(event)
-      this.bumpStat('sighted.sneak_toggle')
-      this.maybeLogStats()
-    })
-
-    this.onBot('soundEffectHeard', (soundId: string, pos: Vec3) => {
-      const now = Date.now()
-      if (!pos)
-        return
-
-      const dist = this.distanceToPos(pos)
-      if (dist === null || dist > this.deps.maxDistance)
-        return
-
-      const event: HeardSoundEvent = {
-        modality: 'heard',
-        kind: 'sound',
-        soundId,
-        distance: dist,
-        timestamp: now,
-        source: 'minecraft',
-        pos,
-      }
-
-      this.deps.emitRaw(event)
-    })
-
-    // Felt: damage taken (self health decreased)
-    this.onBot('health', () => {
-      if (!this.bot)
-        return
-
-      const now = Date.now()
-      const current = this.bot.bot.health
-      const prev = this.lastSelfHealth
-      this.lastSelfHealth = current
-      if (typeof prev !== 'number')
-        return
-
-      if (current >= prev)
-        return
-
-      const event: FeltDamageTakenEvent = {
-        modality: 'felt',
-        kind: 'damage_taken',
-        amount: prev - current,
-        timestamp: now,
-        source: 'minecraft',
-      }
-
-      this.deps.emitRaw(event)
-      this.bumpStat('felt.damage_taken')
-      this.maybeLogStats()
-    })
-
-    // Felt: item collected (best-effort; depends on mineflayer version/events)
-    this.onBot('playerCollect', (collector: any, collected: any) => {
-      if (!this.bot)
-        return
-      if (!collector)
-        return
-      if (collector.username !== this.bot.bot.username)
-        return
-
-      const now = Date.now()
-      const itemName = String(collected?.name ?? collected?.displayName ?? collected?.type ?? 'unknown')
-
-      const event: FeltItemCollectedEvent = {
-        modality: 'felt',
-        kind: 'item_collected',
-        itemName,
-        timestamp: now,
-        source: 'minecraft',
-      }
-
-      this.deps.emitRaw(event)
-      this.bumpStat('felt.item_collected')
-      this.maybeLogStats()
-    })
-
-    this.onBot('entityCollect', (collector: any, collected: any) => {
-      if (!this.bot)
-        return
-      if (!collector)
-        return
-      if (collector.username !== this.bot.bot.username)
-        return
-
-      const now = Date.now()
-      const itemName = String(collected?.name ?? collected?.displayName ?? collected?.type ?? 'unknown')
-
-      const event: FeltItemCollectedEvent = {
-        modality: 'felt',
-        kind: 'item_collected',
-        itemName,
-        timestamp: now,
-        source: 'minecraft',
-      }
-
-      this.deps.emitRaw(event)
-      this.bumpStat('felt.item_collected')
-      this.maybeLogStats()
-    })
+    this.registerEventHandlers()
   }
 
   public destroy(): void {
@@ -266,6 +63,211 @@ export class MineflayerPerceptionCollector {
     this.listeners.length = 0
     this.lastSelfHealth = null
     this.bot = null
+  }
+
+  // ========================================
+  // Event Handler Registration
+  // ========================================
+
+  private registerEventHandlers(): void {
+    this.onBot('entityMoved', entity => this.handleEntityMoved(entity))
+    this.onBot('entitySwingArm', entity => this.handleEntitySwingArm(entity))
+    this.onBot('entityUpdate', entity => this.handleEntityUpdate(entity))
+    this.onBot('soundEffectHeard', (soundId, pos) => this.handleSoundHeard(soundId, pos))
+    this.onBot('health', () => this.handleHealthChange())
+    this.onBot('playerCollect', (collector, collected) => this.handleItemCollected(collector, collected))
+    this.onBot('entityCollect', (collector, collected) => this.handleItemCollected(collector, collected))
+  }
+
+  // ========================================
+  // Sighted Event Handlers
+  // ========================================
+
+  private handleEntityMoved(entity: any): void {
+    if (!this.isValidEntityInRange(entity))
+      return
+
+    const event: SightedEntityMovedEvent = {
+      modality: 'sighted',
+      kind: 'entity_moved',
+      entityType: entity?.type === 'player' ? 'player' : 'mob',
+      entityId: this.entityId(entity),
+      displayName: entity?.username,
+      distance: this.distanceTo(entity)!,
+      hasLineOfSight: true,
+      timestamp: Date.now(),
+      source: 'minecraft',
+      pos: entity?.position,
+    }
+
+    this.emitEvent(event, 'sighted.entity_moved')
+  }
+
+  private handleEntitySwingArm(entity: any): void {
+    if (!this.isValidEntityInRange(entity))
+      return
+
+    const event: SightedArmSwingEvent = {
+      modality: 'sighted',
+      kind: 'arm_swing',
+      entityType: 'player',
+      entityId: this.entityId(entity),
+      displayName: entity?.username,
+      distance: this.distanceTo(entity)!,
+      hasLineOfSight: true,
+      timestamp: Date.now(),
+      source: 'minecraft',
+      pos: entity?.position,
+    }
+
+    this.emitEvent(event, 'sighted.arm_swing')
+  }
+
+  private handleEntityUpdate(entity: any): void {
+    if (!entity || entity.type !== 'player')
+      return
+
+    if (this.isSelfEntity(entity))
+      return
+
+    const entityId = this.entityId(entity)
+    const isSneaking = this.extractSneakingState(entity)
+
+    if (!this.hasSneakingStateChanged(entityId, isSneaking))
+      return
+
+    this.sneakingState.set(entityId, isSneaking)
+
+    const dist = this.distanceTo(entity)
+    if (dist === null || dist > this.deps.maxDistance)
+      return
+
+    const event: SightedSneakToggleEvent = {
+      modality: 'sighted',
+      kind: 'sneak_toggle',
+      entityType: 'player',
+      entityId,
+      displayName: entity?.username,
+      distance: dist,
+      hasLineOfSight: true,
+      sneaking: isSneaking,
+      timestamp: Date.now(),
+      source: 'minecraft',
+      pos: entity?.position,
+    }
+
+    this.emitEvent(event, 'sighted.sneak_toggle')
+  }
+
+  // ========================================
+  // Heard Event Handlers
+  // ========================================
+
+  private handleSoundHeard(soundId: string, pos: Vec3): void {
+    if (!pos)
+      return
+
+    const dist = this.distanceToPos(pos)
+    if (dist === null || dist > this.deps.maxDistance)
+      return
+
+    const event: HeardSoundEvent = {
+      modality: 'heard',
+      kind: 'sound',
+      soundId,
+      distance: dist,
+      timestamp: Date.now(),
+      source: 'minecraft',
+      pos,
+    }
+
+    this.deps.emitRaw(event)
+  }
+
+  // ========================================
+  // Felt Event Handlers
+  // ========================================
+
+  private handleHealthChange(): void {
+    if (!this.bot)
+      return
+
+    const current = this.bot.bot.health
+    const prev = this.lastSelfHealth
+    this.lastSelfHealth = current
+
+    if (typeof prev !== 'number' || current >= prev)
+      return
+
+    const event: FeltDamageTakenEvent = {
+      modality: 'felt',
+      kind: 'damage_taken',
+      amount: prev - current,
+      timestamp: Date.now(),
+      source: 'minecraft',
+    }
+
+    this.emitEvent(event, 'felt.damage_taken')
+  }
+
+  private handleItemCollected(collector: any, collected: any): void {
+    if (!this.bot || !collector)
+      return
+
+    if (collector.username !== this.bot.bot.username)
+      return
+
+    const itemName = String(collected?.name ?? collected?.displayName ?? collected?.type ?? 'unknown')
+
+    const event: FeltItemCollectedEvent = {
+      modality: 'felt',
+      kind: 'item_collected',
+      itemName,
+      timestamp: Date.now(),
+      source: 'minecraft',
+    }
+
+    this.emitEvent(event, 'felt.item_collected')
+  }
+
+  // ========================================
+  // Validation Helpers
+  // ========================================
+
+  private isValidEntityInRange(entity: any): boolean {
+    const dist = this.distanceTo(entity)
+    if (dist === null || dist > this.deps.maxDistance)
+      return false
+
+    if (this.isSelfEntity(entity))
+      return false
+
+    return true
+  }
+
+  private isSelfEntity(entity: any): boolean {
+    return entity.username === this.bot?.bot.username
+  }
+
+  private extractSneakingState(entity: any): boolean {
+    const flags = entity?.metadata?.[0]
+    // Bit 1 (0x02) is sneaking
+    return typeof flags === 'number' ? !!(flags & 0x02) : false
+  }
+
+  private hasSneakingStateChanged(entityId: string, isSneaking: boolean): boolean {
+    const lastState = this.sneakingState.get(entityId)
+    return lastState !== isSneaking
+  }
+
+  // ========================================
+  // Utilities
+  // ========================================
+
+  private emitEvent(event: RawPerceptionEvent, statKey: string): void {
+    this.deps.emitRaw(event)
+    this.bumpStat(statKey)
+    this.maybeLogStats()
   }
 
   private bumpStat(key: string): void {

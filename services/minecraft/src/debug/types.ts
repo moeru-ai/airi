@@ -101,6 +101,41 @@ export interface TraceBatchEvent {
 }
 
 // Union type for all server events
+
+// ============================================================
+// Tool types
+// ============================================================
+
+export interface ToolParameter {
+  name: string
+  type: 'string' | 'number' | 'boolean'
+  description?: string
+  required?: boolean
+  min?: number
+  max?: number
+  default?: unknown
+}
+
+export interface ToolDefinition {
+  name: string
+  description: string
+  params: ToolParameter[]
+}
+
+export interface ToolExecutionResultEvent {
+  toolName: string
+  params: Record<string, unknown>
+  result?: string
+  error?: string
+  timestamp: number
+}
+
+// ============================================================
+// Server Events Extension
+// ============================================================
+
+// ... (previous events)
+
 export type ServerEvent
   = | { type: 'log', payload: LogEvent }
     | { type: 'llm', payload: LLMTraceEvent }
@@ -112,6 +147,8 @@ export type ServerEvent
     | { type: 'trace_batch', payload: TraceBatchEvent }
     | { type: 'history', payload: ServerEvent[] }
     | { type: 'pong', payload: { timestamp: number } }
+    | { type: 'debug:tools_list', payload: { tools: ToolDefinition[] } }
+    | { type: 'debug:tool_result', payload: ToolExecutionResultEvent }
 
 // ============================================================
 // Client -> Server commands
@@ -146,13 +183,30 @@ export interface RequestHistoryCommand {
   type: 'request_history'
 }
 
-// Union type for all client commands
+// ============================================================
+// Client Commands Extension
+// ============================================================
+
+export interface ExecuteToolCommand {
+  type: 'execute_tool'
+  payload: {
+    toolName: string
+    params: Record<string, unknown>
+  }
+}
+
+export interface RequestToolsCommand {
+  type: 'request_tools'
+}
+
 export type ClientCommand
   = | ClearLogsCommand
     | SetFilterCommand
     | InjectEventCommand
     | PingCommand
     | RequestHistoryCommand
+    | ExecuteToolCommand
+    | RequestToolsCommand
 
 // ============================================================
 // Wire format

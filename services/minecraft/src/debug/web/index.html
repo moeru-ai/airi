@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Debug Dashboard</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="tools.css">
 </head>
 
 <body>
@@ -106,6 +107,20 @@
                 </div>
                 <div class="panel-content">
                     <pre id="blackboard-json" class="json-display">{}</pre>
+                </div>
+            </section>
+
+            <!-- Tools Panel -->
+            <section id="tools-section" class="panel">
+                <div class="panel-header">
+                    <h2>Tools</h2>
+                    <div class="panel-controls">
+                        <input type="search" id="tools-search" placeholder="Filter tools..." />
+                        <button class="icon-btn maximize-btn" title="Toggle maximize">⤢</button>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div id="tools-grid" class="tools-grid"></div>
                 </div>
             </section>
         </div>
