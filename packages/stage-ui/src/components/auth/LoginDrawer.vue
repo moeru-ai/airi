@@ -1,22 +1,12 @@
 <script setup lang="ts">
 import { Button } from '@proj-airi/ui'
-import { onClickOutside, useResizeObserver, useScreenSafeArea } from '@vueuse/core'
+import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot } from 'vaul-vue'
-import { ref } from 'vue'
 import { toast } from 'vue-sonner'
 
 import { signIn } from '../../libs/auth'
 
-withDefaults(defineProps<{
-  open: boolean
-  dismissible?: boolean
-}>(), {
-  dismissible: false,
-})
-
-const emit = defineEmits<{
-  (e: 'update:open', value: boolean): void
-}>()
+const open = defineModel<boolean>('open', { required: true })
 
 const screenSafeArea = useScreenSafeArea()
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
@@ -29,13 +19,10 @@ async function handleSignIn(provider: 'google' | 'github') {
     toast.error(error instanceof Error ? error.message : 'An unknown error occurred')
   }
 }
-
-const drawerRef = ref(null)
-onClickOutside(drawerRef, () => emit('update:open', false))
 </script>
 
 <template>
-  <DrawerRoot ref="drawerRef" :open="open" :dismissible="dismissible" @update:open="emit('update:open', $event)">
+  <DrawerRoot v-model:open="open" should-scale-background>
     <DrawerPortal>
       <DrawerOverlay class="fixed inset-0 z-1000 bg-black/40" />
       <DrawerContent
