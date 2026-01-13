@@ -201,7 +201,18 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 
   const configured = computed(() => {
-    return !!activeSpeechProvider.value && !!activeSpeechModel.value && !!activeSpeechVoiceId.value
+    if (!activeSpeechProvider.value)
+      return false
+
+    // For OpenAI Compatible providers, check provider config as fallback
+    if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
+      const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+      const hasModel = !!activeSpeechModel.value || !!providerConfig?.model
+      const hasVoice = !!activeSpeechVoiceId.value || !!providerConfig?.voice
+      return hasModel && hasVoice
+    }
+
+    return !!activeSpeechModel.value && !!activeSpeechVoiceId.value
   })
 
   function resetState() {
