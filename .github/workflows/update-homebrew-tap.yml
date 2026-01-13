@@ -1,0 +1,126 @@
+name: Update Homebrew Tap
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: write
+
+jobs:
+  update-homebrew:
+    name: Update Homebrew Cask
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tap repository
+        uses: actions/checkout@v6
+        with:
+          repository: moeru-ai/tap
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: tap
+
+      - name: Get release version
+        id: release
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          # Remove 'v' prefix if present
+          VERSION="${VERSION#v}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+
+      - name: Download DMG files
+        run: |
+          VERSION="${{ steps.release.outputs.version }}"
+          TAG="${{ steps.release.outputs.tag }}"
+
+          # Download arm64 DMG
+          if ! curl -fL -o /tmp/airi-arm64.dmg \
+            "https://github.com/${{ github.repository }}/releases/download/${TAG}/AIRI-${VERSION}-darwin-arm64.dmg"; then
+            echo "Error: Failed to download arm64 DMG"
+            exit 1
+          fi
+
+          # Download x64 DMG
+          if ! curl -fL -o /tmp/airi-x64.dmg \
+            "https://github.com/${{ github.repository }}/releases/download/${TAG}/AIRI-${VERSION}-darwin-x64.dmg"; then
+            echo "Error: Failed to download x64 DMG"
+            exit 1
+          fi
+
+      - name: Calculate SHA256 checksums
+        id: checksums
+        run: |
+          SHA256_ARM64=$(sha256sum /tmp/airi-arm64.dmg | cut -d ' ' -f 1)
+          SHA256_X64=$(sha256sum /tmp/airi-x64.dmg | cut -d ' ' -f 1)
+          echo "sha256_arm64=${SHA256_ARM64}" >> $GITHUB_OUTPUT
+          echo "sha256_x64=${SHA256_X64}" >> $GITHUB_OUTPUT
+
+      - name: Update Cask file
+        run: |
+          cd tap
+
+          VERSION="${{ steps.release.outputs.version }}"
+          TAG="${{ steps.release.outputs.tag }}"
+          SHA256_ARM64="${{ steps.checksums.outputs.sha256_arm64 }}"
+          SHA256_X64="${{ steps.checksums.outputs.sha256_x64 }}"
+
+          # Create Casks directory if it doesn't exist
+          mkdir -p Casks
+
+          # Generate the Cask file
+          cat > Casks/airi.rb << CASK_EOF
+          cask "airi" do
+            arch arm: "arm64", intel: "x64"
+
+            version "${VERSION}"
+            sha256 arm:   "${SHA256_ARM64}",
+                   intel: "${SHA256_X64}"
+
+            url "https://github.com/moeru-ai/airi/releases/download/${TAG}/AIRI-${VERSION}-darwin-\#{arch}.dmg",
+                verified: "github.com/moeru-ai/airi/"
+            name "AIRI"
+            desc "AI VTuber application, similar to Neuro-sama"
+            homepage "https://airi.moeru.ai/"
+
+            app "AIRI.app"
+
+            # The application is not notarized by Apple yet, so you may need to clear the quarantine attribute.
+            caveats do
+              <<~EOS
+                If you receive a "damaged" or "can't be opened" error, run the following command:
+                  sudo xattr -c '/Applications/AIRI.app'
+              EOS
+            end
+
+            zap trash: [
+              "~/Library/Application Support/airi",
+              "~/Library/Preferences/moeru-ai.airi.plist",
+              "~/Library/Saved Application State/moeru-ai.airi.savedState",
+            ]
+          end
+          CASK_EOF
+
+      - name: Commit and push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd tap
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Check if file exists and has changes
+          if [ -f Casks/airi.rb ]; then
+            if git diff --quiet Casks/airi.rb 2>/dev/null; then
+              echo "No changes to commit"
+              exit 0
+            fi
+          fi
+
+          git add Casks/airi.rb
+          git commit -m "Update airi to ${{ steps.release.outputs.version }}"
+
+          # Configure remote URL with token for authentication
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/moeru-ai/tap.git"
+          git push origin HEAD:main
