@@ -1,9 +1,11 @@
 import type { BeatSyncDetectorState } from '@proj-airi/stage-shared/beat-sync'
 
 import { getBeatSyncState, listenBeatSyncStateChange } from '@proj-airi/stage-shared/beat-sync'
+import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { useMcpStore } from '../stores/mcp'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
@@ -35,6 +37,8 @@ export function useModulesList() {
   const twitterStore = useTwitterStore()
   const minecraftStore = useMinecraftStore()
   const factorioStore = useFactorioStore()
+  const mcpStore = useMcpStore()
+  const { connected: mcpConnected, serverCmd: mcpServerCmd } = storeToRefs(mcpStore)
   const beatSyncState = ref<BeatSyncDetectorState>()
 
   const modulesList = computed<Module[]>(() => [
@@ -133,7 +137,7 @@ export function useModulesList() {
       description: t('settings.pages.modules.mcp-server.description'),
       icon: 'i-solar:server-bold-duotone',
       to: '/settings/modules/mcp',
-      configured: false,
+      configured: mcpConnected.value && !!mcpServerCmd.value,
       category: 'essential',
     },
     {

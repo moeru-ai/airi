@@ -26,6 +26,7 @@
     "build": "pkgroll"
   },
   "dependencies": {
+    "@moeru/eventa": "^1.0.0-alpha.10",
     "@tauri-apps/api": "^2.9.1"
   },
   "devDependencies": {

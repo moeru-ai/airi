@@ -420,6 +420,16 @@ pages:
     mcp-server:
       description: Connect and manage MCP server and tools
       title: MCP Server
+      command: Command
+      command-description: The command to run the MCP server (e.g., npx, python, node)
+      command-placeholder: Enter command (e.g., npx -y @modelcontextprotocol/server-filesystem)
+      args: Arguments
+      args-description: Arguments to pass to the MCP server command (space-separated)
+      args-placeholder: Enter arguments (e.g., /path/to/directory)
+      connect: Connect
+      disconnect: Disconnect
+      connected: MCP server is connected
+      command-required: Command is required
   providers:
     explained:
       chat: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
