@@ -65,7 +65,6 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           textRaw,
           overrides,
           contextUpdates,
-          discord,
         } = event.data
 
         const normalizedContextUpdates = contextUpdates?.map((update) => {
@@ -93,28 +92,9 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           const chatProvider = await providersStore.getProviderInstance<ChatProvider>(activeProvider.value)
 
           let messageText = text
-          let targetSessionId = overrides?.sessionId
+          const targetSessionId = overrides?.sessionId
 
-          // Discord Specific Logic: segmentation and enriched prefix
-          if (discord) {
-            const userName = discord.guildMember?.displayName || 'Unknown'
-            const serverName = discord.guildName
-
-            const contextPrefix = serverName
-              ? `on server '${serverName}'`
-              : 'in Direct Message'
-
-            messageText = `(From Discord user ${userName} ${contextPrefix}): ${text}`
-
-            // Session Segmentation: ID du serveur ou 'discord-dm' + ID User
-            if (discord.guildId) {
-              targetSessionId = `discord-guild-${discord.guildId}`
-            }
-            else {
-              targetSessionId = `discord-dm-${discord.guildMember?.id || 'unknown'}`
-            }
-          }
-          else if (overrides?.messagePrefix) {
+          if (overrides?.messagePrefix) {
             messageText = `${overrides.messagePrefix}${text}`
           }
 

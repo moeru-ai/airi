@@ -212,6 +212,22 @@ export class DiscordAdapter {
         }
         const normalizedDiscord = normalizeDiscordMetadata(discordContext)
         const displayName = normalizedDiscord?.guildMember?.displayName
+
+        // Enrich context and segment memory (moved from frontend)
+        const serverName = normalizedDiscord?.guildName
+        const contextPrefix = serverName
+          ? `on server '${serverName}'`
+          : 'in Direct Message'
+
+        // Calculate sessionId based on guild or DM
+        let targetSessionId = 'discord'
+        if (normalizedDiscord?.guildId) {
+          targetSessionId = `discord-guild-${normalizedDiscord.guildId}`
+        }
+        else {
+          targetSessionId = `discord-dm-${normalizedDiscord?.guildMember?.id || 'unknown'}`
+        }
+
         const discordNotice = normalizedDiscord
           ? `The input is coming from Discord channel ${normalizedDiscord.channelId} (Guild: ${normalizedDiscord.guildId ?? 'unknown'}).`
           : undefined
@@ -221,12 +237,12 @@ export class DiscordAdapter {
           data: {
             text: content,
             textRaw: rawContent,
-            overrides: displayName
-              ? {
-                  messagePrefix: `(From Discord user ${displayName}): `,
-                  sessionId: 'discord',
-                }
-              : undefined,
+            overrides: {
+              messagePrefix: displayName
+                ? `(From Discord user ${displayName} ${contextPrefix}): `
+                : `(From Discord user ${contextPrefix}): `,
+              sessionId: targetSessionId,
+            },
             contextUpdates: discordNotice
               ? [{
                   strategy: ContextUpdateStrategy.AppendSelf,
