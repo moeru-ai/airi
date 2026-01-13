@@ -16,6 +16,8 @@ const CONFIG = {
   UPDATE_THROTTLE: 100, // ms
 }
 
+const SYSTEM_STATE_MARKER = 'The following blackboard provides you with information about your current state:'
+
 // =============================================================================
 // Utility Functions
 // =============================================================================
@@ -24,6 +26,17 @@ function escapeHtml(text) {
   const div = document.createElement('div')
   div.textContent = text
   return div.innerHTML
+}
+
+function formatSystemMessageContent(content) {
+  if (typeof content !== 'string')
+    return content
+
+  const idx = content.indexOf(SYSTEM_STATE_MARKER)
+  if (idx === -1)
+    return content
+
+  return `===TRUNCATED===\n${content.slice(idx + SYSTEM_STATE_MARKER.length).trimStart()}`
 }
 
 function throttle(func, wait) {
@@ -537,7 +550,9 @@ class LLMPanel {
       messagesHtml = trace.messages.map(msg => `
         <div class="llm-message role-${msg.role || 'unknown'}">
           <div class="llm-message-role">${msg.role || 'unknown'}</div>
-          <div class="llm-message-content">${escapeHtml(msg.content || '')}</div>
+          <div class="llm-message-content">${escapeHtml(msg.role === 'system'
+            ? formatSystemMessageContent(msg.content || '')
+            : (msg.content || ''))}</div>
         </div>
       `).join('')
     }
@@ -556,12 +571,12 @@ class LLMPanel {
       <div class="llm-body">
         <div class="llm-section-title">Result</div>
         <div class="llm-content">${escapeHtml(trace.content || '')}</div>
-        
+
         <div class="llm-section-title">Messages</div>
         <div class="llm-messages">
           ${messagesHtml || '<div class="empty-state">No messages</div>'}
         </div>
-        
+
         <div class="llm-section-title">Usage</div>
         <div class="llm-content">${JSON.stringify(trace.usage || {}, null, 2)}</div>
       </div>
@@ -783,8 +798,8 @@ class ToolsPanel {
         ${tool.params.map(param => `
           <div class="param-group">
             <label class="param-label">${escapeHtml(param.name)} (${param.type})</label>
-            <input 
-              type="${param.type === 'number' ? 'number' : 'text'}" 
+            <input
+              type="${param.type === 'number' ? 'number' : 'text'}"
               class="param-input"
               data-param="${param.name}"
               ${param.min !== undefined ? `min="${param.min}"` : ''}
@@ -1040,8 +1055,8 @@ class TimelinePanel {
     const hasParent = event.parentId ? 'has-parent' : ''
 
     return `
-            <div class="timeline-event ${typeClass} ${hasParent}" 
-                 data-trace-id="${event.traceId}" 
+            <div class="timeline-event ${typeClass} ${hasParent}"
+                 data-trace-id="${event.traceId}"
                  data-event-id="${event.id}">
                 <span class="timeline-time">${time}</span>
                 <span class="timeline-type">${escapeHtml(event.type)}</span>
