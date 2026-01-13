@@ -17,7 +17,7 @@ import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 
 const providerId = 'openai-compatible-audio-transcription'
 const hearingStore = useHearingStore()
@@ -35,7 +35,14 @@ const apiKey = computed({
 })
 
 const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || '',
+  get: () => {
+    const stored = providers.value[providerId]?.baseUrl
+    if (stored)
+      return stored
+    // Use default from provider metadata if available
+    const metadata = providersStore.getProviderMetadata(providerId)
+    return metadata?.defaultOptions?.().baseUrl as string | undefined || ''
+  },
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -81,6 +88,28 @@ const {
   handleResetSettings,
   forceValid,
 } = useProviderValidation(providerId)
+
+// Expand Advanced section if there's a base URL validation error
+const shouldExpandAdvanced = computed(() => {
+  if (!validationMessage.value)
+    return false
+  // Check if validation message mentions base URL
+  const message = validationMessage.value.toLowerCase()
+  return message.includes('base url') || message.includes('baseurl')
+})
+
+// Initialize provider settings on mount
+onMounted(() => {
+  providersStore.initializeProvider(providerId)
+  // Initialize baseUrl with default if not set
+  if (!providers.value[providerId]?.baseUrl) {
+    const metadata = providersStore.getProviderMetadata(providerId)
+    const defaultBaseUrl = metadata?.defaultOptions?.().baseUrl as string | undefined
+    if (defaultBaseUrl) {
+      baseUrl.value = defaultBaseUrl
+    }
+  }
+})
 </script>
 
 <template>
@@ -107,10 +136,14 @@ const {
         />
       </ProviderBasicSettings>
 
-      <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
+      <ProviderAdvancedSettings
+        :title="t('settings.pages.providers.common.section.advanced.title')"
+        :initial-visible="shouldExpandAdvanced"
+      >
         <ProviderBaseUrlInput
           v-model="baseUrl"
           placeholder="https://api.openai.com/v1/"
+          required
         />
       </ProviderAdvancedSettings>
 
