@@ -20,7 +20,7 @@ const viewControlsValueX = computed({
       case 'live2d':
         return live2dPosition.value.x
       case 'vrm':
-        return vrmPosition.value.x
+        return vrmPosition.value.x * 100
       default:
         return 0
     }
@@ -31,7 +31,7 @@ const viewControlsValueX = computed({
         live2dPosition.value.x = value
         break
       case 'vrm':
-        vrmPosition.value.x = value
+        vrmPosition.value.x = value / 100
         break
       default:
         break
@@ -64,7 +64,7 @@ const viewControlsValueY = computed({
         live2dPosition.value.y = -value
         break
       case 'vrm':
-        vrmPosition.value.y = value * 0.01
+        vrmPosition.value.y = value / 100
         break
       default:
         break

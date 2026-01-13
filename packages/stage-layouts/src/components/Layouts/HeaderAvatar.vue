@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { listSessions, signOut } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { onClickOutside } from '@vueuse/core'
+import { onClickOutside, useMediaQuery } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -9,6 +9,8 @@ import { toast } from 'vue-sonner'
 
 const authStore = useAuthStore()
 const { isAuthenticated, user } = storeToRefs(authStore)
+
+const isMobile = useMediaQuery('(max-width: 768px)')
 
 const userName = computed(() => user.value?.name)
 const userAvatar = computed(() => user.value?.image)
@@ -51,15 +53,29 @@ async function handleListSessions() {
         <div i-solar:settings-minimalistic-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
       </RouterLink>
 
-      <RouterLink
-        border="2 solid neutral-100/60 dark:neutral-800/30"
-        bg="neutral-50/70 dark:neutral-800/70"
-        w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
-        :title="isAuthenticated ? `Logged in as ${userName}` : 'Login'"
-        to="/auth/login"
-      >
-        <div i-solar:user-bold-duotone />
-      </RouterLink>
+      <template v-if="isMobile">
+        <button
+          border="2 solid neutral-100/60 dark:neutral-800/30"
+          bg="neutral-50/70 dark:neutral-800/70"
+          w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
+          title="Login"
+          type="button"
+          @click="authStore.isLoginOpen = true"
+        >
+          <div i-solar:user-bold-duotone />
+        </button>
+      </template>
+      <template v-else>
+        <RouterLink
+          border="2 solid neutral-100/60 dark:neutral-800/30"
+          bg="neutral-50/70 dark:neutral-800/70"
+          w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
+          :title="isAuthenticated ? `Logged in as ${userName}` : 'Login'"
+          to="/auth/login"
+        >
+          <div i-solar:user-bold-duotone />
+        </RouterLink>
+      </template>
     </template>
 
     <!-- Authenticated: Avatar Dropdown -->
