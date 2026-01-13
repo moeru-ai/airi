@@ -60,7 +60,7 @@ onMounted(async () => {
   await speechStore.loadVoicesForProvider(providerId)
 })
 
-// Generate speech with ElevenLabs-specific parameters
+// Generate speech with OpenAI-specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
   const provider = await providersStore.getProviderInstance<SpeechProvider<string>>(providerId)
   if (!provider) {
@@ -70,13 +70,12 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   // Get provider configuration
   const providerConfig = providersStore.getProviderConfig(providerId)
 
-  // Get model from configuration or use default
-  const model = providerConfig.model as string | undefined || defaultModel
+  // Use the reactive model computed property (not a local variable)
+  const modelToUse = model.value || defaultModel
 
-  // ElevenLabs doesn't need SSML conversion, but if SSML is provided, use it directly
   return await speechStore.speech(
     provider,
-    model,
+    modelToUse,
     input,
     voiceId,
     {
