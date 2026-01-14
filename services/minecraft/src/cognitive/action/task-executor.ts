@@ -1,14 +1,11 @@
 import type { ActionAgent, ChatAgent, Plan } from '../../libs/mineflayer/base-agent'
 import type { Logger } from '../../utils/logger'
+import type { CancellationToken } from '../conscious/task-state'
 import type { ActionInstruction } from './types'
 
 import { EventEmitter } from 'node:events'
 
 import { ActionError } from '../../utils/errors'
-
-interface CancellationToken {
-  isCancelled: boolean
-}
 
 interface TaskExecutorConfig {
   logger: Logger
@@ -148,33 +145,31 @@ export class TaskExecutor extends EventEmitter {
 
         // failed actions always emit feedback
         this.emit('action:failed', { action, error })
+
+        // Fail fast for all actions: cancel the whole chain (including any remaining queued actions)
+        cancellationToken?.cancel?.()
         throw error
       }
     }
 
-    const sequentialActions = actions.filter(a => a.type === 'sequential')
-    const parallelActions = actions.filter(a => a.type === 'parallel' || a.type === 'chat')
-
-    // Fire and forget: parallel-safe actions can run concurrently.
-    parallelActions.forEach((action) => {
-      void runSingleAction(action).catch(() => {
-        // errors are emitted via events; nothing else to do here
-      })
-    })
-
-    // Sequential actions must be executed strictly in order.
     void (async () => {
-      for (const action of sequentialActions) {
+      for (const action of actions) {
         if (cancellationToken?.isCancelled) {
           this.logger.log('Action execution cancelled before start')
           return
+        }
+
+        if (action.type === 'parallel') {
+          void runSingleAction(action).catch(() => {
+            // errors are emitted via events; nothing else to do here
+          })
+          continue
         }
 
         try {
           await runSingleAction(action)
         }
         catch (error) {
-          // Fail fast: stop executing remaining physical actions.
           return
         }
       }
