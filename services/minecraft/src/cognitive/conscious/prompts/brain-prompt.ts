@@ -85,6 +85,10 @@ Output format:
 }
 
 # Understanding the Context
+
+Hint: When a player is talking about "there" or "that", it's possible that they're referencing the block they're currently looking at.
+But you should always try to infer it from the context.
+
 The following blackboard provides you with information about your current state:
 
 Goal: "${blackboard.ultimate_goal}"
@@ -93,14 +97,14 @@ Strategy: "${blackboard.strategy}"
 Self: ${blackboard.selfSummary}
 Environment: ${blackboard.environmentSummary}
 
-# Execution State (IMPORTANT)
+# Execution State
 Pending actions (started and still running):
 ${blackboard.pendingActions.map(a => `- ${a}`).join('\n') || '- none'}
 
-Recent action results (most recent last):
+Recent action results
 ${recentActionLines || '- none'}
 
-# Chat History (Recents):
+# Chat History
 ${recentChatLines || 'No recent messages.'}
 `
 }
