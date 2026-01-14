@@ -33,6 +33,14 @@ export async function goToPosition(
     log(mineflayer, `Teleported to ${x}, ${y}, ${z}.`)
     return true
   }
+  const targetBlock = mineflayer.bot.blockAt(new Vec3(Math.floor(x), Math.floor(y), Math.floor(z)))
+  const blockAbove1 = mineflayer.bot.blockAt(new Vec3(Math.floor(x), Math.floor(y) + 1, Math.floor(z)))
+  const blockAbove2 = mineflayer.bot.blockAt(new Vec3(Math.floor(x), Math.floor(y) + 2, Math.floor(z)))
+
+  if (targetBlock?.name !== 'air' && blockAbove1?.name === 'air' && blockAbove2?.name === 'air') {
+    // Nudge one block up so we don't dig a silly hole in the ground when using the ground block as reference
+    y += 1
+  }
 
   await mineflayer.bot.pathfinder.goto(new goals.GoalNear(x, y, z, minDistance))
   log(mineflayer, `You have reached ${x}, ${y}, ${z}.`)
