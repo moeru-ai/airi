@@ -33,8 +33,12 @@ ${availableActionsJson}
 
 Rules:
 1. You can execute sequential actions, parallel actions, or chat actions
-1.1. Sequential actions are executed strictly in order.
-1.2. Parallel actions are parallel-safe and can be used for fast information gathering.
+1.1. Actions are processed in the order you output them.
+1.2. Sequential actions are awaited strictly in order.
+1.3. Chat actions are also awaited in order.
+1.4. Parallel actions are started immediately and run concurrently with later actions.
+1.5. If you need to claim an action succeeded, place that chat action AFTER the action that requires feedback.
+1.6. You do not have to react on partial feedback. If you are waiting for results, you can update thoughts and output an empty action list.
 2. The output must be valid JSON following the schema below
 3. Specify if a feedback is required for the action, i.e. whether you need to know the execution result for a good reason
 4. Failed actions will always result in a feedback

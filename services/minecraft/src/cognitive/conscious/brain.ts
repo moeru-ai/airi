@@ -50,6 +50,10 @@ export class Brain {
   private feedbackDebounceMs = Number.parseInt(process.env.BRAIN_FEEDBACK_DEBOUNCE_MS ?? '200')
   private feedbackDebounceTimer: NodeJS.Timeout | undefined
 
+  private feedbackBarrierTimeoutMs = Number.parseInt(process.env.BRAIN_FEEDBACK_BARRIER_TIMEOUT_MS ?? '1000')
+  private waitingForFeedbackIds = new Set<string>()
+  private feedbackBarrierTimer: NodeJS.Timeout | undefined
+
   // Event Queue
   private queue: QueuedEvent[] = []
   private isProcessing = false
@@ -116,8 +120,16 @@ export class Brain {
       const id = action.id
       if (id)
         this.inFlightActions.delete(id)
+      if (id)
+        this.waitingForFeedbackIds.delete(id)
       this.updatePendingActionsOnBlackboard()
       this.blackboard.addActionHistoryLine(this.formatActionHistoryLine(action, 'success', result))
+
+      if (this.waitingForFeedbackIds.size === 0 && this.feedbackBarrierTimer) {
+        clearTimeout(this.feedbackBarrierTimer)
+        this.feedbackBarrierTimer = undefined
+        void this.processQueue(bot)
+      }
 
       if (!action.require_feedback)
         return
@@ -140,8 +152,16 @@ export class Brain {
       const id = action.id
       if (id)
         this.inFlightActions.delete(id)
+      if (id)
+        this.waitingForFeedbackIds.delete(id)
       this.updatePendingActionsOnBlackboard()
       this.blackboard.addActionHistoryLine(this.formatActionHistoryLine(action, 'failure', undefined, error))
+
+      if (this.waitingForFeedbackIds.size === 0 && this.feedbackBarrierTimer) {
+        clearTimeout(this.feedbackBarrierTimer)
+        this.feedbackBarrierTimer = undefined
+        void this.processQueue(bot)
+      }
 
       await this.enqueueEvent(bot, {
         type: 'feedback',
@@ -197,6 +217,15 @@ export class Brain {
     const item = this.queue.shift()!
     this.log('DEBUG', `Brain: Processing event type=${item.event.type}`)
     this.updateDebugState(item.event)
+
+    if (item.event.type === 'feedback' && this.waitingForFeedbackIds.size > 0) {
+      // Defer feedback-triggered replans until the current "turn" feedback barrier is released.
+      // We keep collecting feedback events into the queue, but we avoid calling the LLM on partial results.
+      this.queue.unshift(item)
+      this.isProcessing = false
+      this.updateDebugState()
+      return
+    }
 
     // Coalesce consecutive feedback events into a single LLM turn.
     // This prevents the LLM from being spammed with partial results while still supporting streaming replans.
@@ -290,6 +319,8 @@ export class Brain {
 
   private updatePendingActionsOnBlackboard(): void {
     const pending = [...this.inFlightActions.values()].map(a => this.formatPendingActionLine(a))
+    if (this.waitingForFeedbackIds.size > 0)
+      pending.unshift(`[barrier] waiting for ${this.waitingForFeedbackIds.size} required feedback(s)`)
     this.blackboard.setPendingActions(pending)
   }
 
@@ -347,6 +378,23 @@ export class Brain {
     // Issue Actions
     if (decision.actions && decision.actions.length > 0) {
       const actionsWithIds = this.ensureActionIds(decision.actions)
+
+      // Start feedback barrier for this turn if any actions require feedback.
+      const required = actionsWithIds.filter(a => a.require_feedback && a.id).map(a => a.id as string)
+      if (required.length > 0) {
+        required.forEach(id => this.waitingForFeedbackIds.add(id))
+
+        if (this.feedbackBarrierTimer)
+          clearTimeout(this.feedbackBarrierTimer)
+        this.feedbackBarrierTimer = setTimeout(() => {
+          this.feedbackBarrierTimer = undefined
+          this.waitingForFeedbackIds.clear()
+          this.updatePendingActionsOnBlackboard()
+          void this.processQueue(bot)
+        }, this.feedbackBarrierTimeoutMs)
+
+        this.updatePendingActionsOnBlackboard()
+      }
 
       // Record own chat actions to memory
       for (const action of actionsWithIds) {
