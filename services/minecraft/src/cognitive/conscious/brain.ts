@@ -27,9 +27,9 @@ interface BrainDeps {
 interface LLMResponse {
   thought: string
   blackboard: {
-    currentGoal?: string
-    currentThought?: string
-    strategy?: string
+    UltimateGoal?: string
+    CurrentTask?: string
+    executionStrategy?: string
   }
   actions: ActionInstruction[]
 }
@@ -217,9 +217,9 @@ export class Brain {
 
     // Update Blackboard
     this.blackboard.update({
-      ultimateGoal: decision.blackboard.currentGoal || this.blackboard.ultimate_goal,
-      currentTask: decision.blackboard.currentThought || this.blackboard.current_task,
-      strategy: decision.blackboard.strategy || this.blackboard.strategy,
+      ultimateGoal: decision.blackboard.UltimateGoal || this.blackboard.ultimate_goal,
+      currentTask: decision.blackboard.CurrentTask || this.blackboard.current_task,
+      strategy: decision.blackboard.executionStrategy || this.blackboard.strategy,
     })
 
     // Sync Blackboard to Debug
