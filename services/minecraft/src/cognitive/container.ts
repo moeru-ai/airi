@@ -117,10 +117,11 @@ export function createAgentContainer(options: {
       }),
 
     // Reflex Manager (Reactive Layer)
-    reflexManager: asFunction(({ eventBus, perceptionPipeline, logger }) =>
+    reflexManager: asFunction(({ eventBus, perceptionPipeline, taskExecutor, logger }) =>
       new ReflexManager({
         eventBus,
         perception: perceptionPipeline.getPerceptionAPI(),
+        taskExecutor,
         logger,
       }),
     ).singleton(),

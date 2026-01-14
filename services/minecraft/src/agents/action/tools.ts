@@ -25,6 +25,24 @@ function formatWearingItem(slot: string, item: string | undefined): string {
 }
 
 export const actionsList: Action[] = [
+  // {
+  //   name: 'setReflexMode',
+  //   description: 'Set (or clear) your reflex mode override. Use work/wander to disable idle-only reflex behaviors. Set override to null to return to automatic mode selection.',
+  //   execution: 'sequential',
+  //   schema: z.object({
+  //     mode: z.enum(['idle', 'social', 'alert', 'work', 'wander']).nullable().describe('Mode override to set'),
+  //   }),
+  //   perform: mineflayer => async (mode: 'idle' | 'social' | 'alert' | 'work' | 'wander' | null) => {
+  //     const reflexManager = (mineflayer as any).reflexManager
+  //     if (!reflexManager || typeof reflexManager.setModeOverride !== 'function')
+  //       throw new Error('ReflexManager is not available on this bot. Is CognitiveEngine enabled?')
+
+  //     reflexManager.setModeOverride(mode)
+  //     return mode
+  //       ? `Reflex mode override set to '${mode}'.`
+  //       : 'Reflex mode override cleared (automatic mode selection resumed).'
+  //   },
+  // },
   {
     name: 'inventory',
     description: 'Get your inventory.',

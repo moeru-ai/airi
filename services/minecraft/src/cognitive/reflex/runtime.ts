@@ -31,6 +31,10 @@ export class ReflexRuntime {
     return this.mode
   }
 
+  public setMode(mode: ReflexModeId): void {
+    this.mode = mode
+  }
+
   public getActiveBehaviorId(): string | null {
     return this.activeBehaviorId
   }
@@ -64,7 +68,11 @@ export class ReflexRuntime {
         .map(name => ({ name })),
     })
 
-    this.mode = selectMode(this.context.getSnapshot())
+    // Allow explicit modes like 'work' / 'wander' to remain until changed by caller.
+    // Otherwise, compute from context automatically.
+    // TODO: consider letting 'alert' preempt work/wander so survival can override tasks.
+    if (this.mode !== 'work' && this.mode !== 'wander')
+      this.mode = selectMode(this.context.getSnapshot())
 
     if (this.activeBehaviorUntil && now < this.activeBehaviorUntil)
       return null

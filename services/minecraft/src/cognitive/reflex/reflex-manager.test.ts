@@ -41,6 +41,12 @@ describe('reflexManager', () => {
       emitChild: vi.fn(),
     } as any
 
+    const taskExecutor = {
+      on: vi.fn(),
+      off: vi.fn(),
+      removeListener: vi.fn(),
+    } as any
+
     const logger = makeLogger()
     const perception = {
       getPlayers: vi.fn(() => []),
@@ -49,7 +55,7 @@ describe('reflexManager', () => {
       updateEntity: vi.fn(),
       updateSelfPosition: vi.fn(),
     } as any
-    const reflex = new ReflexManager({ eventBus, perception, logger })
+    const reflex = new ReflexManager({ eventBus, perception, taskExecutor, logger })
 
     const bot = makeBot()
     reflex.init(bot)
