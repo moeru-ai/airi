@@ -38,6 +38,7 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
       const botWithAgents = bot as unknown as MineflayerWithAgents
       botWithAgents.action = actionAgent
       botWithAgents.chat = chatAgent
+      botWithAgents.reflexManager = reflexManager
 
       const startCognitive = () => {
         if (started)

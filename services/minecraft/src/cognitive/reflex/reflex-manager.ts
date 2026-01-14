@@ -1,5 +1,6 @@
 import type { Logg } from '@guiiai/logg'
 
+import type { TaskExecutor } from '../action/task-executor'
 import type { EventBus, TracedEvent } from '../os'
 import type { PerceptionAPI } from '../perception/perception-api'
 import type { PerceptionSignal } from '../perception/types/signals'
@@ -16,11 +17,14 @@ export class ReflexManager {
   private bot: MineflayerWithAgents | null = null
   private readonly runtime: ReflexRuntime
   private unsubscribe: (() => void) | null = null
+  private unsubscribeTaskExecutor: (() => void) | null = null
+  private inFlightActionsCount = 0
 
   constructor(
     private readonly deps: {
       eventBus: EventBus
       perception: PerceptionAPI
+      taskExecutor: TaskExecutor
       logger: Logg
     },
   ) {
@@ -39,6 +43,32 @@ export class ReflexManager {
     this.unsubscribe = this.deps.eventBus.subscribe('signal:*', (event) => {
       this.onSignal(event as TracedEvent<PerceptionSignal>)
     })
+
+    const onStarted = () => {
+      if (this.inFlightActionsCount === 0)
+        this.runtime.setMode('work')
+      this.inFlightActionsCount++
+    }
+
+    const onEnded = () => {
+      this.inFlightActionsCount = Math.max(0, this.inFlightActionsCount - 1)
+      if (this.inFlightActionsCount === 0)
+        this.runtime.setMode('idle')
+    }
+
+    this.deps.taskExecutor.on('action:started', onStarted)
+    this.deps.taskExecutor.on('action:completed', onEnded)
+    this.deps.taskExecutor.on('action:failed', onEnded)
+
+    this.unsubscribeTaskExecutor = () => {
+      // Node's EventEmitter supports off() but we keep a fallback for compatibility.
+      ; (this.deps.taskExecutor as any).off?.('action:started', onStarted)
+      ; (this.deps.taskExecutor as any).off?.('action:completed', onEnded)
+      ; (this.deps.taskExecutor as any).off?.('action:failed', onEnded)
+      ; (this.deps.taskExecutor as any).removeListener?.('action:started', onStarted)
+      ; (this.deps.taskExecutor as any).removeListener?.('action:completed', onEnded)
+      ; (this.deps.taskExecutor as any).removeListener?.('action:failed', onEnded)
+    }
   }
 
   public destroy(): void {
@@ -46,11 +76,20 @@ export class ReflexManager {
       this.unsubscribe()
       this.unsubscribe = null
     }
+    if (this.unsubscribeTaskExecutor) {
+      this.unsubscribeTaskExecutor()
+      this.unsubscribeTaskExecutor = null
+    }
+    this.inFlightActionsCount = 0
     this.bot = null
   }
 
   public getContextSnapshot(): ReflexContextState {
     return this.runtime.getContext().getSnapshot()
+  }
+
+  public getMode(): ReturnType<ReflexRuntime['getMode']> {
+    return this.runtime.getMode()
   }
 
   public updateEnvironment(patch: Partial<ReflexContextState['environment']>): void {

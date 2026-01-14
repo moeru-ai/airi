@@ -3,6 +3,7 @@ import type { Neuri } from 'neuri'
 
 import type { Mineflayer } from '../../libs/mineflayer'
 import type { ActionAgent, ChatAgent, PlanningAgent } from '../../libs/mineflayer/base-agent'
+import type { ReflexManager } from '../reflex/reflex-manager'
 
 export interface LLMConfig {
   agent: Neuri
@@ -21,6 +22,7 @@ export interface MineflayerWithAgents extends Mineflayer {
   planning: PlanningAgent
   action: ActionAgent
   chat: ChatAgent
+  reflexManager: ReflexManager
 }
 
 export interface CognitiveEngineOptions {
