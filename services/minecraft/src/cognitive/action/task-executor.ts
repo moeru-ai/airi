@@ -139,6 +139,11 @@ export class TaskExecutor extends EventEmitter {
       }
       catch (error) {
         this.logger.withError(error).error('Action execution failed')
+        if (error instanceof ActionError && error.code === 'INTERRUPTED') {
+          // Foreseeable interruption (e.g. stop tool). Don't send feedback to LLM.
+          return
+        }
+
         // failed actions always emit feedback
         this.emit('action:failed', { action, error })
       }
