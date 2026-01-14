@@ -295,13 +295,13 @@ export async function ensureCobblestone(mineflayer: Mineflayer, requiredCobblest
     const cobblestoneShortage = requiredCobblestone - cobblestoneCount
 
     try {
-      const success = await collectBlock(
+      const collected = await collectBlock(
         mineflayer,
         'stone',
         cobblestoneShortage,
         maxDistance,
       )
-      if (!success) {
+      if (collected <= 0) {
         await moveAway(mineflayer, 10)
         continue
       }
@@ -337,7 +337,10 @@ export async function ensureCoal(mineflayer: Mineflayer, neededAmount: number, m
     const coalShortage = neededAmount - coalCount
 
     try {
-      await collectBlock(mineflayer, 'coal_ore', coalShortage, maxDistance)
+      const collected = await collectBlock(mineflayer, 'coal_ore', coalShortage, maxDistance)
+      if (collected <= 0) {
+        continue
+      }
     }
     catch (err: unknown) {
       if (err instanceof Error && err.message.includes('right tools')) {

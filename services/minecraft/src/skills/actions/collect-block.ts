@@ -4,6 +4,7 @@ import type { Mineflayer } from '../../libs/mineflayer'
 
 import pathfinder from 'mineflayer-pathfinder'
 
+import { ActionError } from '../../utils/errors'
 import { useLogger } from '../../utils/logger'
 import { breakBlockAt } from '../blocks'
 import { getNearestBlocks } from '../world'
@@ -21,10 +22,10 @@ export async function collectBlock(
   blockType: string,
   num = 1,
   range = 16,
-): Promise<boolean> {
+): Promise<number> {
   if (num < 1) {
     logger.log(`Invalid number of blocks to collect: ${num}.`)
-    return false
+    return 0
   }
 
   const blockTypes = [blockType]
@@ -112,12 +113,17 @@ export async function collectBlock(
         break
       }
 
+      if (err instanceof ActionError && (err.code === 'CRAFTING_FAILED' || err.code === 'RESOURCE_MISSING')) {
+        // Don't get stuck in retry loop
+        throw err
+      }
+
       continue
     }
   }
 
   logger.log(`Collected ${collected} ${blockType}(s).`)
-  return collected > 0
+  return collected
 }
 
 // Helper function to mine a block and collect drops
