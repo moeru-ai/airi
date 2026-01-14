@@ -18,6 +18,24 @@ import { useLogger } from '../utils/logger'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+function createViewerHtml(targetUrl: string): string {
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mineflayer Viewer</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      iframe { width: 100%; height: 100%; border: 0; }
+    </style>
+  </head>
+  <body>
+    <iframe src="${targetUrl}" allow="fullscreen" referrerpolicy="no-referrer"></iframe>
+  </body>
+</html>`
+}
+
 interface ClientInfo {
   ws: WebSocket
   id: string
@@ -162,6 +180,16 @@ export class DebugServer {
     if (req.method === 'OPTIONS') {
       res.writeHead(200)
       res.end()
+      return
+    }
+
+    if (req.method === 'GET' && (req.url === '/viewer' || req.url?.startsWith('/viewer?'))) {
+      const html = createViewerHtml('http://localhost:3007')
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-cache',
+      })
+      res.end(html)
       return
     }
 
