@@ -7,7 +7,7 @@ const logger = useLogger()
 /**
  * Log a message to the context's output buffer
  */
-export function log(mineflayer: Mineflayer, message: string): void {
+export function log(_mineflayer: Mineflayer, message: string): void {
   logger.log(message)
   // mineflayer.bot.chat(message)
 }
