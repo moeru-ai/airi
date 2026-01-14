@@ -160,7 +160,7 @@ defineExpose({
       <!-- Playground actions -->
       <button
         border="neutral-800 dark:neutral-200 solid 2" transition="border duration-250 ease-in-out"
-        rounded-lg px-4 text="neutral-100 dark:neutral-900" py-2 text-sm
+        rounded-lg px-3 text="neutral-100 dark:neutral-900" py-1.5 text-sm
         :disabled="isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !apiKeyConfigured"
         :class="{ 'opacity-50 cursor-not-allowed': isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !apiKeyConfigured }"
         bg="neutral-700 dark:neutral-300" @click="handleGenerateTestSpeech"
