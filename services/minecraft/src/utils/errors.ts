@@ -9,6 +9,7 @@ export type ActionErrorCode
     | 'ITEM_NOT_FOUND'
     | 'PLACEMENT_FAILED'
     | 'ACTIVATION_FAILED'
+    | 'SYNC_ONLY'
 
 export class ActionError extends Error {
   public readonly code: ActionErrorCode

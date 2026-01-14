@@ -78,7 +78,7 @@ Output format:
     "executionStrategy": "Short-term plan if any."
   },
   "actions": [
-    {"type":"chat","message":"...","require_feedback": false},
+    {"type":"sequential","step":{"tool":"chat","params":{"message":"..."}},"require_feedback": false},
     {"type":"parallel","step":{"tool":"action name","params":{...}},"require_feedback": true},
     {"type":"sequential","step":{"tool":"action name","params":{...}},"require_feedback": false}
   ]
