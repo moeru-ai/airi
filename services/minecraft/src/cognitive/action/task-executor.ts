@@ -113,18 +113,36 @@ export class TaskExecutor extends EventEmitter {
       try {
         let result: string | void
         if (action.type === 'sequential' || action.type === 'parallel') {
-          if (action.type === 'parallel') {
-            const available = this.actionAgent.getAvailableActions()
-            const def = available.find(a => a.name === action.step.tool)
-            if (!def || def.execution !== 'parallel') {
-              throw new ActionError('UNKNOWN', `Tool '${action.step.tool}' is not allowed for parallel actions`, {
+          if (action.step.tool === 'chat') {
+            const message = (action.step.params as any)?.message
+            if (typeof message !== 'string' || message.trim().length === 0)
+              throw new Error('Invalid chat tool params: expected params.message to be a non-empty string')
+
+            if (action.type === 'parallel') {
+              throw new ActionError('SYNC_ONLY', 'Tool \'chat\' is not allowed for parallel actions', {
                 tool: action.step.tool,
                 requestedExecution: action.type,
-                allowedExecution: def?.execution,
+                allowedExecution: 'sequential',
               })
             }
+
+            await this.chatAgent.sendMessage(message)
+            result = 'Message sent'
           }
-          result = await this.actionAgent.performAction(action.step)
+          else {
+            if (action.type === 'parallel') {
+              const available = this.actionAgent.getAvailableActions()
+              const def = available.find(a => a.name === action.step.tool)
+              if (!def || def.execution !== 'parallel') {
+                throw new ActionError('UNKNOWN', `Tool '${action.step.tool}' is not allowed for parallel actions`, {
+                  tool: action.step.tool,
+                  requestedExecution: action.type,
+                  allowedExecution: def?.execution,
+                })
+              }
+            }
+            result = await this.actionAgent.performAction(action.step)
+          }
         }
         else if (action.type === 'chat') {
           await this.chatAgent.sendMessage(action.message)
