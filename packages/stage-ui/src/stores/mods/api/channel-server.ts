@@ -2,9 +2,10 @@ import type { ContextUpdate, WebSocketBaseEvent, WebSocketEvent, WebSocketEventO
 
 import { Client, WebSocketEventSource } from '@proj-airi/server-sdk'
 import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
+import { useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 import { useWebSocketInspectorStore } from '../../devtools/websocket-inspector'
 
@@ -15,6 +16,9 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   const pendingSend = ref<Array<WebSocketEvent>>([])
   const listenersInitialized = ref(false)
   const listenerDisposers = ref<Array<() => void>>([])
+
+  const defaultWebSocketUrl = import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws'
+  const websocketUrl = useLocalStorage('settings/connection/websocket-url', defaultWebSocketUrl)
 
   const basePossibleEvents: Array<keyof WebSocketEvents> = [
     'context:update',
@@ -47,7 +51,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     initializing.value = new Promise<void>((resolve) => {
       client.value = new Client({
         name: isStageWeb() ? WebSocketEventSource.StageWeb : isStageTamagotchi() ? WebSocketEventSource.StageTamagotchi : WebSocketEventSource.StageWeb,
-        url: import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws',
+        url: websocketUrl.value || defaultWebSocketUrl,
         token: options?.token,
         possibleEvents,
         onAnyMessage: (event) => {
@@ -173,11 +177,23 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     flush()
     clearListeners()
 
-    client.value?.close()
+    if (client.value) {
+      client.value.close()
+      client.value = undefined
+    }
     connected.value = false
-    client.value = undefined
     initializing.value = null
   }
+
+  watch(websocketUrl, (newUrl, oldUrl) => {
+    if (newUrl === oldUrl)
+      return
+
+    if (client.value || initializing.value) {
+      dispose()
+      void initialize()
+    }
+  })
 
   return {
     connected,

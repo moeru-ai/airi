@@ -696,6 +696,13 @@ pages:
         playground:
           title: Transcription Playground
     title: Providers
+  connection:
+    description: WebSocket 서버 연결 구성
+    title: 연결
+    websocket-url:
+      description: 'WebSocket 서버의 전체 주소 (예: ws://localhost:6121/ws)'
+      label: WebSocket 서버 주소
+      placeholder: ws://localhost:6121/ws
   scene:
     description: Configure the environment where the character lives
     title: Scene
