@@ -2,6 +2,8 @@ import { createAuthClient } from 'better-auth/vue'
 
 import { useAuthStore } from '../stores/auth'
 
+export type OAuthProvider = 'google' | 'github'
+
 export const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://airi-api.moeru.ai'
 
 export const authClient = createAuthClient({
@@ -34,16 +36,9 @@ export async function signOut() {
   authStore.session = undefined
 }
 
-export async function signIn(provider: 'google' | 'github') {
-  const authStore = useAuthStore()
-  authStore.isLoggingIn = true
-  try {
-    return await authClient.signIn.social({
-      provider,
-      callbackURL: window.location.origin,
-    })
-  }
-  finally {
-    authStore.isLoggingIn = false
-  }
+export async function signIn(provider: OAuthProvider) {
+  return await authClient.signIn.social({
+    provider,
+    callbackURL: window.location.origin,
+  })
 }
