@@ -81,12 +81,11 @@ async function handleGenerateTranscription(file: File) {
   const providerConfig = providersStore.getProviderConfig(providerId)
 
   // Get model from configuration or use the reactive model value
-  let modelToUse = providerConfig.model as string | undefined || model.value || 'whisper-1'
+  const modelToUse = providerConfig.model as string | undefined || model.value
 
-  // Validate model - if invalid, default to whisper-1
-  if (!isValidTranscriptionModel(modelToUse)) {
-    console.warn(`Invalid transcription model "${modelToUse}" detected. Using default "whisper-1" instead.`)
-    modelToUse = 'whisper-1'
+  // Validate model - throw error if no valid model configured
+  if (!modelToUse || !isValidTranscriptionModel(modelToUse)) {
+    throw new Error(`Invalid or missing transcription model. Please configure a valid model in the provider settings.`)
   }
 
   return await hearingStore.transcription(

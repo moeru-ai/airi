@@ -53,6 +53,7 @@ const voice = computed({
   },
 })
 
+// TODO: use `useRefHistory` for this
 // Watch provider config changes to sync local refs (for reset functionality)
 watch(
   () => providers.value[providerId],

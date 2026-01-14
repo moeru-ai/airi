@@ -106,13 +106,7 @@ const isWebSpeechAPIAvailable = computed(() => {
 
 onMounted(async () => {
   ensureProviderSettings()
-  // Ensure audio devices are loaded
-  try {
-    await askPermission()
-  }
-  catch (err) {
-    console.warn('Could not load audio devices:', err)
-  }
+  // Audio devices are loaded on demand when user requests them
 })
 
 // Speech-to-Text test state (always uses Web Speech API)

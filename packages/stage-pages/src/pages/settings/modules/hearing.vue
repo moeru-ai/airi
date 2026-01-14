@@ -439,13 +439,7 @@ watch(activeTranscriptionProvider, async (provider) => {
 }, { immediate: true })
 
 onMounted(async () => {
-  // Ensure audio devices are loaded
-  try {
-    await askPermission()
-  }
-  catch (err) {
-    console.warn('Could not load audio devices:', err)
-  }
+  // Audio devices are loaded on demand when user requests them
 })
 
 onUnmounted(() => {
