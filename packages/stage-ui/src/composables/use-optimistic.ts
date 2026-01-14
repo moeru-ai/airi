@@ -24,7 +24,7 @@ export interface UseOptimisticOptions<T, R> {
  * A wrapper for performing optimistic updates with automatic rollback.
  * Integrates with useAsyncState for loading/error tracking.
  */
-export function useOptimistic<T, R = void>(options: UseOptimisticOptions<T, R>) {
+export function useOptimistic<T, R = T>(options: UseOptimisticOptions<T, R>) {
   const { apply, action, onSuccess, onError } = options
 
   return useAsyncState(async () => {
