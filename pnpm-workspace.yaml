@@ -41,6 +41,7 @@ catalog:
   '@proj-airi/drizzle-duckdb-wasm': ^0.4.29
   '@proj-airi/iconify-meteocons': ^0.1.4
   '@types/audioworklet': ^0.0.92
+  '@types/d3': ^7.4.3
   '@types/hast': ^3.0.4
   '@types/splitpanes': ^2.2.6
   '@types/unist': ^3.0.3
@@ -59,6 +60,7 @@ catalog:
   async-mutex: 0.5.0
   better-auth: ^1.4.9
   builder-util-runtime: ^9.3.1
+  d3: 7.9.0
   drizzle-valibot: ^0.4.2
   electron: ^39.2.7
   embla-carousel-vue: ^8.6.0

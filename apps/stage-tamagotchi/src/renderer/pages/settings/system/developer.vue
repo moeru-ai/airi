@@ -42,6 +42,12 @@ const menu = computed(() => [
     to: '/devtools/context-flow',
   },
   {
+    title: 'Context Observer',
+    description: 'Track how active context entries merge over time',
+    icon: 'i-solar:chat-square-bold-duotone',
+    to: '/devtools/context-observer',
+  },
+  {
     title: 'Relative Mouse',
     description: 'Get mouse position relative to the window',
     icon: 'i-solar:sledgehammer-bold-duotone',

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { PageHeader } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useTheme } from '@proj-airi/ui'
@@ -178,7 +179,7 @@ onMounted(() => updateThemeColor())
       <PageHeader
         :title="routeHeaderMetadata?.title"
         :subtitle="routeHeaderMetadata?.subtitle"
-        :disable-back-button="route.path === '/settings'"
+        :disable-back-button="isStageTamagotchi() && route.path === '/settings'"
       />
       <RouterView />
     </div>

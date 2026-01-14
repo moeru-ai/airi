@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
-import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
+import { useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
 const providersStore = useProvidersStore()
 const visionStore = useVisionStore()
+const visionProcessingStore = useVisionProcessingStore()
 const { persistedChatProvidersMetadata, configuredProviders } = storeToRefs(providersStore)
 const {
   activeProvider,
@@ -21,6 +23,14 @@ const {
   isLoadingActiveProviderModels,
   activeProviderModelError,
 } = storeToRefs(visionStore)
+const {
+  captureIntervalMs,
+  captureCount,
+  contextUpdateCount,
+  lastCaptureAt,
+  lastContextUpdateAt,
+  isRunning,
+} = storeToRefs(visionProcessingStore)
 
 const { t } = useI18n()
 const { trackProviderClick } = useAnalytics()
@@ -41,6 +51,24 @@ function handleDeleteProvider(providerId: string) {
     activeModel.value = ''
   }
   providersStore.deleteProvider(providerId)
+}
+
+const formattedLastCapture = computed(() => formatRelativeTime(lastCaptureAt.value))
+const formattedLastContextUpdate = computed(() => formatRelativeTime(lastContextUpdateAt.value))
+
+function formatRelativeTime(timestamp: number | null) {
+  if (!timestamp)
+    return 'Never'
+
+  const diffMs = Date.now() - timestamp
+  const diffSeconds = Math.max(0, Math.floor(diffMs / 1000))
+  if (diffSeconds < 60)
+    return `${diffSeconds}s ago`
+  const diffMinutes = Math.floor(diffSeconds / 60)
+  if (diffMinutes < 60)
+    return `${diffMinutes}m ago`
+  const diffHours = Math.floor(diffMinutes / 60)
+  return `${diffHours}h ago`
 }
 </script>
 
@@ -289,6 +317,67 @@ function handleDeleteProvider(providerId: string) {
             ]"
             :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
           >
+        </div>
+      </div>
+    </div>
+
+    <div :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
+      <div :class="['flex', 'flex-col', 'gap-4']">
+        <div>
+          <h2 :class="['text-lg', 'text-neutral-500', 'md:text-2xl', 'dark:text-neutral-400']">
+            Vision capture cadence
+          </h2>
+          <div :class="['text-neutral-400', 'dark:text-neutral-400']">
+            Tune how frequently the vision ticker captures a frame.
+          </div>
+        </div>
+
+        <FieldRange
+          v-model="captureIntervalMs"
+          label="Capture interval"
+          description="Lower values capture more frequently and may increase resource use."
+          :min="500"
+          :max="15000"
+          :step="250"
+          :format-value="value => `${(value / 1000).toFixed(2)}s`"
+        />
+
+        <div :class="['grid', 'gap-4', 'md:grid-cols-3']">
+          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+            <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
+              Ticker
+            </div>
+            <div :class="['text-sm', 'font-medium', 'text-neutral-600', 'dark:text-neutral-200']">
+              {{ isRunning ? 'Active' : 'Idle' }}
+            </div>
+            <div :class="['text-xs', 'text-neutral-400']">
+              Last capture {{ formattedLastCapture }}
+            </div>
+          </div>
+
+          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+            <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
+              Captures
+            </div>
+            <div :class="['text-sm', 'font-medium', 'text-neutral-600', 'dark:text-neutral-200']">
+              {{ captureCount }}
+            </div>
+            <div :class="['text-xs', 'text-neutral-400']">
+              Last update {{ formattedLastCapture }}
+            </div>
+          </div>
+
+          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+            <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
+              Context updates
+            </div>
+            <div :class="['text-sm', 'font-medium', 'text-neutral-600', 'dark:text-neutral-200']">
+              {{ contextUpdateCount }}
+            </div>
+            <div :class="['text-xs', 'text-neutral-400']">
+              Last update {{ formattedLastContextUpdate }}
+            </div>
+          </div>
         </div>
       </div>
     </div>
