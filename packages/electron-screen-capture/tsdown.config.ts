@@ -4,7 +4,6 @@ import { defineConfig } from 'tsdown'
 
 const sharedConfig: UserConfig = {
   format: 'esm',
-  unbundle: true,
   external: [
     'electron',
     'vue',
@@ -29,6 +28,7 @@ export default defineConfig([
   },
   {
     ...sharedConfig,
+    unbundle: true,
     platform: 'browser',
     entry: {
       vue: 'src/vue/index.ts',
