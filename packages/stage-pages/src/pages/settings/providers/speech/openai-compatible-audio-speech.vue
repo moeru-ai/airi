@@ -1,27 +1,23 @@
 <script setup lang="ts">
-import type { RemovableRef } from '@vueuse/core'
 import type { SpeechProvider } from '@xsai-ext/providers/utils'
 
 import {
   Alert,
-  ProviderAdvancedSettings,
-  ProviderApiKeyInput,
-  ProviderBaseUrlInput,
-  ProviderBasicSettings,
-  ProviderSettingsContainer,
-  ProviderSettingsLayout,
   SpeechPlaygroundOpenAICompatible,
+  SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { FieldRange } from '@proj-airi/ui'
+import { FieldRange, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const { providers } = storeToRefs(providersStore)
+const { t } = useI18n()
 
 const defaultVoiceSettings = {
   speed: 1.0,
@@ -29,56 +25,63 @@ const defaultVoiceSettings = {
 
 // Get provider metadata
 const providerId = 'openai-compatible-audio-speech'
+const defaultModel = 'tts-1'
 
-// Settings refs
-const apiKey = computed({
-  get: () => providers.value[providerId]?.apiKey || '',
-  set: (value) => {
-    if (providers.value[providerId])
-      providers.value[providerId].apiKey = value
-  },
-})
+const speed = ref<number>(1.0)
 
-const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || '',
-  set: (value) => {
-    if (providers.value[providerId])
-      providers.value[providerId].baseUrl = value
-  },
-})
-
+// Model selection
 const model = computed({
-  get: () => providers.value[providerId]?.model || 'tts-1',
+  get: () => providers.value[providerId]?.model as string | undefined || defaultModel,
   set: (value) => {
-    if (providers.value[providerId])
-      providers.value[providerId].model = value
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].model = value
   },
 })
 
 const voice = computed({
   get: () => providers.value[providerId]?.voice || 'alloy',
   set: (value) => {
-    if (providers.value[providerId])
-      providers.value[providerId].voice = value
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].voice = value
   },
 })
 
-const speed = ref<number>(1.0)
+// Load models
+const providerModels = computed(() => {
+  return providersStore.getModelsForProvider(providerId)
+})
+
+const isLoadingModels = computed(() => {
+  return providersStore.isLoadingModels[providerId] || false
+})
 
 // Check if API key is configured
 const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
-// Generate speech with specific parameters
+// Load models on mount
+onMounted(async () => {
+  await providersStore.loadModelsForConfiguredProviders()
+  await providersStore.fetchModelsForProvider(providerId)
+})
+
+// Generate speech with OpenAI-compatible parameters
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean, modelId?: string) {
   const provider = await providersStore.getProviderInstance<SpeechProvider<string>>(providerId)
-  if (!provider)
+  if (!provider) {
     throw new Error('Failed to initialize speech provider')
+  }
 
+  // Get provider configuration
   const providerConfig = providersStore.getProviderConfig(providerId)
+
+  // Use the reactive model computed property (not a local variable)
+  const modelToUse = modelId || model.value || defaultModel
 
   return await speechStore.speech(
     provider,
-    modelId || model.value,
+    modelToUse,
     input,
     voiceId || voice.value,
     {
@@ -89,54 +92,65 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   )
 }
 
+watch(speed, async () => {
+  const providerConfig = providersStore.getProviderConfig(providerId)
+  providerConfig.speed = speed.value
+})
+
+watch(model, async () => {
+  const providerConfig = providersStore.getProviderConfig(providerId)
+  providerConfig.model = model.value
+})
+
 // Use the composable to get validation logic and state
 const {
-  t,
-  router,
-  providerMetadata,
   isValidating,
   isValid,
   validationMessage,
-  handleResetSettings,
   forceValid,
 } = useProviderValidation(providerId)
 </script>
 
 <template>
-  <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName"
-    :provider-icon-color="providerMetadata?.iconColor"
-    :on-back="() => router.back()"
+  <SpeechProviderSettings
+    :provider-id="providerId"
+    :default-model="defaultModel"
+    :additional-settings="defaultVoiceSettings"
+    placeholder="sk-..."
   >
-    <ProviderSettingsContainer>
-      <ProviderBasicSettings
-        :title="t('settings.pages.providers.common.section.basic.title')"
-        :description="t('settings.pages.providers.common.section.basic.description')"
-        :on-reset="handleResetSettings"
-      >
-        <ProviderApiKeyInput
-          v-model="apiKey"
-          :required="false"
-          :provider-name="providerMetadata?.localizedName"
-          placeholder="sk-..."
-        />
-      </ProviderBasicSettings>
+    <!-- Voice settings specific to OpenAI Compatible -->
+    <template #voice-settings>
+      <!-- Model selection -->
+      <FieldSelect
+        v-model="model"
+        label="Model"
+        description="Select the TTS model to use for speech generation"
+        :options="providerModels.map(m => ({ value: m.id, label: m.name }))"
+        :disabled="isLoadingModels || providerModels.length === 0"
+        placeholder="Select a model..."
+      />
+      <!-- Speed control - common to most providers -->
+      <FieldRange
+        v-model="speed"
+        :label="t('settings.pages.providers.provider.common.fields.field.speed.label')"
+        :description="t('settings.pages.providers.provider.common.fields.field.speed.description')"
+        :min="0.5"
+        :max="2.0" :step="0.01"
+      />
+    </template>
 
-      <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
-        <ProviderBaseUrlInput
-          v-model="baseUrl"
-          placeholder="https://api.openai.com/v1/"
-        />
-        <FieldRange
-          v-model="speed"
-          :label="t('settings.pages.providers.provider.common.fields.field.speed.label')"
-          :description="t('settings.pages.providers.provider.common.fields.field.speed.description')"
-          :min="0.5"
-          :max="2.0" :step="0.01"
-        />
-      </ProviderAdvancedSettings>
+    <template #playground>
+      <SpeechPlaygroundOpenAICompatible
+        v-model:model-value="model"
+        v-model:voice="voice"
+        :generate-speech="handleGenerateSpeech"
+        :api-key-configured="apiKeyConfigured"
+        default-text="Hello! This is a test of the OpenAI Compatible Speech."
+      />
+    </template>
 
-      <!-- Validation Status -->
+    <!-- Validation Status -->
+    <template #advanced-settings>
       <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
         <template #title>
           <div class="w-full flex items-center justify-between">
@@ -161,16 +175,8 @@ const {
           {{ t('settings.dialogs.onboarding.validationSuccess') }}
         </template>
       </Alert>
-    </ProviderSettingsContainer>
-
-    <SpeechPlaygroundOpenAICompatible
-      v-model:model-value="model"
-      v-model:voice="voice"
-      :generate-speech="handleGenerateSpeech"
-      :api-key-configured="apiKeyConfigured"
-      default-text="Hello! This is a test of the OpenAI Compatible Speech."
-    />
-  </ProviderSettingsLayout>
+    </template>
+  </SpeechProviderSettings>
 </template>
 
 <route lang="yaml">
