@@ -126,14 +126,14 @@ export const actionsList: Action[] = [
     },
   },
   {
-    name: 'goToCoordinates',
+    name: 'goToCoordinate',
     description: 'Go to the given x, y, z location.',
     execution: 'sequential',
     schema: z.object({
       x: z.number().describe('The x coordinate.'),
       y: z.number().describe('The y coordinate.').min(-64).max(320),
       z: z.number().describe('The z coordinate.'),
-      closeness: z.number().describe('How close to get to the location in blocks.').min(0),
+      closeness: z.number().describe('0 If want to be exactly at the position, otherwise a positive number in blocks for leniency.').min(0),
     }),
     perform: mineflayer => async (x: number, y: number, z: number, closeness: number) => {
       await skills.goToPosition(mineflayer, x, y, z, closeness)
