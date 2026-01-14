@@ -54,12 +54,17 @@ runs:
             VERSION=$(echo "$API_RESPONSE" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
           fi
 
-          # Validate the version looks correct (should start with 'v' and contain version numbers)
-          if [[ -z "$VERSION" ]] || [[ "$VERSION" == "null" ]] || [[ ! "$VERSION" =~ ^v[0-9] ]]; then
+          # Validate the version looks correct (should contain version numbers, may or may not have 'v' prefix)
+          if [[ -z "$VERSION" ]] || [[ "$VERSION" == "null" ]] || [[ ! "$VERSION" =~ ^v?[0-9] ]]; then
             echo "Error: Failed to get latest version or got invalid version: '$VERSION'"
             echo "API Response (first 50 lines):"
             echo "$API_RESPONSE" | head -50
             exit 1
+          fi
+
+          # Normalize version to have 'v' prefix for download URL
+          if [[ ! "$VERSION" =~ ^v ]]; then
+            VERSION="v$VERSION"
           fi
           echo "Latest version: $VERSION"
         else
