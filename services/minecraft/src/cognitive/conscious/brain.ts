@@ -16,6 +16,71 @@ import { Blackboard } from './blackboard'
 import { buildConsciousContextView } from './context-view'
 import { generateBrainSystemPrompt } from './prompts/brain-prompt'
 
+function toErrorMessage(err: unknown): string {
+  if (err instanceof Error)
+    return err.message
+  if (typeof err === 'string')
+    return err
+  try {
+    return JSON.stringify(err)
+  }
+  catch {
+    return String(err)
+  }
+}
+
+function getErrorStatus(err: unknown): number | undefined {
+  const anyErr = err as any
+  const status = anyErr?.status ?? anyErr?.response?.status ?? anyErr?.cause?.status
+  return typeof status === 'number' ? status : undefined
+}
+
+function getErrorCode(err: unknown): string | undefined {
+  const anyErr = err as any
+  const code = anyErr?.code ?? anyErr?.cause?.code
+  return typeof code === 'string' ? code : undefined
+}
+
+function isLikelyAuthOrBadArgError(err: unknown): boolean {
+  const msg = toErrorMessage(err).toLowerCase()
+  const status = getErrorStatus(err)
+  if (status === 401 || status === 403)
+    return true
+
+  return (
+    msg.includes('unauthorized')
+    || msg.includes('invalid api key')
+    || msg.includes('authentication')
+    || msg.includes('forbidden')
+    || msg.includes('badarg')
+    || msg.includes('bad arg')
+    || msg.includes('invalid argument')
+    || msg.includes('invalid_request_error')
+  )
+}
+
+function isLikelyRecoverableError(err: unknown): boolean {
+  const status = getErrorStatus(err)
+  if (status === 429)
+    return true
+  if (typeof status === 'number' && status >= 500)
+    return true
+
+  const code = getErrorCode(err)
+  if (code && ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'].includes(code))
+    return true
+
+  const msg = toErrorMessage(err).toLowerCase()
+  return (
+    msg.includes('timeout')
+    || msg.includes('timed out')
+    || msg.includes('rate limit')
+    || msg.includes('overloaded')
+    || msg.includes('temporarily')
+    || msg.includes('try again')
+  )
+}
+
 interface BrainDeps {
   eventManager: EventManager
   neuri: Neuri
@@ -44,6 +109,8 @@ export class Brain {
   private blackboard: Blackboard
   private debugService: DebugService
 
+  private bot: MineflayerWithAgents | undefined
+
   private nextActionId = 1
   private inFlightActions = new Map<string, ActionInstruction>()
 
@@ -65,6 +132,7 @@ export class Brain {
 
   public init(bot: MineflayerWithAgents): void {
     this.log('INFO', 'Brain: Initializing...')
+    this.bot = bot
     this.blackboard.update({ selfUsername: bot.username })
 
     // Perception Signal Handler - Only process chat messages for now
@@ -421,7 +489,9 @@ export class Brain {
   }
 
   private async decide(sysPrompt: string, userMsg: string): Promise<LLMResponse | null> {
-    try {
+    const maxAttempts = 3
+
+    const decideOnce = async (): Promise<LLMResponse | null> => {
       const request_start = Date.now()
       const response = await this.deps.neuri.handleStateless(
         [
@@ -453,14 +523,42 @@ export class Brain {
 
       if (!response)
         return null
+
       // TODO: use toolcall instead of outputing json directly
-      const parsed = JSON.parse(response) as LLMResponse
-      return parsed
+      return JSON.parse(response) as LLMResponse
     }
-    catch (err) {
-      this.log('ERROR', 'Brain: Decision failed', { error: err })
-      return null
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await decideOnce()
+      }
+      catch (err) {
+        const remaining = maxAttempts - attempt
+        const shouldRetry = remaining > 0 && !isLikelyAuthOrBadArgError(err) && isLikelyRecoverableError(err)
+        this.log('ERROR', 'Brain: Decision attempt failed', {
+          error: err,
+          attempt,
+          remaining,
+          shouldRetry,
+          status: getErrorStatus(err),
+          code: getErrorCode(err),
+        })
+
+        if (shouldRetry)
+          continue
+
+        const errMsg = toErrorMessage(err)
+        try {
+          this.bot?.bot?.chat?.(`[Brain] decide failed: ${errMsg}`)
+        }
+        catch (chatErr) {
+          this.log('ERROR', 'Brain: Failed to send error message to chat', { error: chatErr })
+        }
+        throw err
+      }
     }
+
+    return null
   }
 
   // --- Debug Helpers ---
