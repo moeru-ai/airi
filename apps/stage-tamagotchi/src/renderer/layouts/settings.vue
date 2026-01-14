@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { PageHeader } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
@@ -164,7 +165,7 @@ const routeHeaderMetadata = computed(() => {
           <PageHeader
             :title="routeHeaderMetadata?.title"
             :subtitle="routeHeaderMetadata?.subtitle"
-            :disable-back-button="route.path === '/settings'"
+            :disable-back-button="isStageTamagotchi() && route.path === '/settings'"
             px-4
           />
           <div min-h-0 flex-1 px-4>

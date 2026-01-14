@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import type { OAuthProvider } from '@proj-airi/stage-ui/libs/auth'
+
 import { LoginDrawer } from '@proj-airi/stage-ui/components/auth'
 import { fetchSession, signIn } from '@proj-airi/stage-ui/libs/auth'
 import { Button } from '@proj-airi/ui'
 import { useMediaQuery } from '@vueuse/core'
-import { onMounted, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
@@ -11,12 +13,21 @@ const router = useRouter()
 
 const isDesktop = useMediaQuery('(min-width: 768px)')
 
-async function handleSignIn(provider: 'google' | 'github') {
+const loading = ref<Record<OAuthProvider, boolean>>({
+  google: false,
+  github: false,
+})
+
+async function handleSignIn(provider: OAuthProvider) {
+  loading.value[provider] = true
   try {
     await signIn(provider)
   }
   catch (error) {
     toast.error(error instanceof Error ? error.message : 'An unknown error occurred')
+  }
+  finally {
+    loading.value[provider] = false
   }
 }
 
@@ -46,12 +57,20 @@ watch(isDesktop, (val) => {
       Sign in to AIRI Stage
     </div>
     <div class="max-w-xs w-full flex flex-col gap-3">
-      <Button :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']" @click="handleSignIn('google')">
-        <div class="i-simple-icons-google" />
+      <Button
+        :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
+        :loading="loading.google"
+        @click="handleSignIn('google')"
+      >
+        <div v-if="!loading.google" class="i-simple-icons-google" />
         <span>Google</span>
       </Button>
-      <Button :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']" @click="handleSignIn('github')">
-        <div class="i-simple-icons-github" />
+      <Button
+        :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
+        :loading="loading.github"
+        @click="handleSignIn('github')"
+      >
+        <div v-if="!loading.github" class="i-simple-icons-github" />
         <span>GitHub</span>
       </Button>
     </div>

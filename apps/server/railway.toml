@@ -8,4 +8,4 @@ watchPatterns = [
 ]
 
 [deploy]
-startCommand = "pnpm -F @proj-airi/api-server start"
+startCommand = "pnpm -F @proj-airi/server start"

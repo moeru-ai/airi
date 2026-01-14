@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import type { OAuthProvider } from '../../libs/auth'
+
 import { Button } from '@proj-airi/ui'
 import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot } from 'vaul-vue'
+import { ref } from 'vue'
 import { toast } from 'vue-sonner'
 
 import { signIn } from '../../libs/auth'
@@ -11,12 +14,21 @@ const open = defineModel<boolean>('open', { required: true })
 const screenSafeArea = useScreenSafeArea()
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
 
-async function handleSignIn(provider: 'google' | 'github') {
+const loading = ref<Record<OAuthProvider, boolean>>({
+  google: false,
+  github: false,
+})
+
+async function handleSignIn(provider: OAuthProvider) {
+  loading.value[provider] = true
   try {
     await signIn(provider)
   }
   catch (error) {
     toast.error(error instanceof Error ? error.message : 'An unknown error occurred')
+  }
+  finally {
+    loading.value[provider] = false
   }
 }
 </script>
@@ -35,12 +47,20 @@ async function handleSignIn(provider: 'google' | 'github') {
             Sign in
           </div>
           <div class="flex flex-col gap-4">
-            <Button :class="['w-full', 'py-4', 'flex', 'items-center', 'justify-center', 'gap-3', 'text-lg', 'rounded-2xl']" @click="handleSignIn('google')">
-              <div class="i-simple-icons-google text-xl" />
+            <Button
+              :class="['w-full', 'py-4', 'flex', 'items-center', 'justify-center', 'gap-3', 'text-lg', 'rounded-2xl']"
+              :loading="loading.google"
+              @click="handleSignIn('google')"
+            >
+              <div v-if="!loading.google" class="i-simple-icons-google text-xl" />
               <span>Sign in with Google</span>
             </Button>
-            <Button :class="['w-full', 'py-4', 'flex', 'items-center', 'justify-center', 'gap-3', 'text-lg', 'rounded-2xl']" @click="handleSignIn('github')">
-              <div class="i-simple-icons-github text-xl" />
+            <Button
+              :class="['w-full', 'py-4', 'flex', 'items-center', 'justify-center', 'gap-3', 'text-lg', 'rounded-2xl']"
+              :loading="loading.github"
+              @click="handleSignIn('github')"
+            >
+              <div v-if="!loading.github" class="i-simple-icons-github text-xl" />
               <span>Sign in with GitHub</span>
             </Button>
           </div>

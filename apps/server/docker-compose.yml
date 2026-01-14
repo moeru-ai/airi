@@ -1,4 +1,4 @@
-name: proj-airi-api-server
+name: proj-airi-server
 
 services:
   db:
