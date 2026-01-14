@@ -9,13 +9,18 @@ export interface ChatMessage {
   timestamp: number
 }
 
+export interface ActionHistoryLine {
+  line: string
+  timestamp: number
+}
+
 export interface BlackboardState {
   ultimateGoal: string
   currentTask: string
   strategy: string
   contextView: contextViewState
   chatHistory: ChatMessage[]
-  recentActionHistory: string[]
+  recentActionHistory: ActionHistoryLine[]
   pendingActions: string[]
   selfUsername: string
 }
@@ -49,7 +54,7 @@ export class Blackboard {
   public get selfSummary(): string { return this._state.contextView.selfSummary }
   public get environmentSummary(): string { return this._state.contextView.environmentSummary }
   public get chatHistory(): ChatMessage[] { return this._state.chatHistory }
-  public get recentActionHistory(): string[] { return this._state.recentActionHistory }
+  public get recentActionHistory(): ActionHistoryLine[] { return this._state.recentActionHistory }
   public get pendingActions(): string[] { return this._state.pendingActions }
   public get selfUsername(): string { return this._state.selfUsername }
 
@@ -70,8 +75,8 @@ export class Blackboard {
     this._state = { ...this._state, chatHistory: newHistory }
   }
 
-  public addActionHistoryLine(line: string): void {
-    const next = [...this._state.recentActionHistory, line]
+  public addActionHistoryLine(line: string, timestamp: number = Date.now()): void {
+    const next = [...this._state.recentActionHistory, { line, timestamp }]
     const trimmed = next.length > Blackboard.MAX_ACTION_HISTORY ? next.slice(-Blackboard.MAX_ACTION_HISTORY) : next
     this._state = { ...this._state, recentActionHistory: trimmed }
   }
@@ -86,7 +91,7 @@ export class Blackboard {
       ...this._state,
       contextView: { ...this._state.contextView },
       chatHistory: [...this._state.chatHistory],
-      recentActionHistory: [...this._state.recentActionHistory],
+      recentActionHistory: this._state.recentActionHistory.map(l => ({ ...l })),
       pendingActions: [...this._state.pendingActions],
     }
   }

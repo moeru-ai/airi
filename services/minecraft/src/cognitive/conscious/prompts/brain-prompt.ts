@@ -5,6 +5,18 @@ export function generateBrainSystemPrompt(
   blackboard: Blackboard,
   availableActions: Action[],
 ): string {
+  const now = Date.now()
+
+  const formatAgo = (timestamp: number): string => {
+    const diffMs = Math.max(0, now - timestamp)
+    const s = Math.floor(diffMs / 1000)
+    return `${s}s ago`
+  }
+
+  const withinLast = (timestamp: number, windowMs: number): boolean => {
+    return now - timestamp <= windowMs
+  }
+
   const actionDefinitions = availableActions.map((a) => {
     return {
       name: a.name,
@@ -14,6 +26,18 @@ export function generateBrainSystemPrompt(
   })
 
   const availableActionsJson = JSON.stringify(actionDefinitions, null, 2)
+
+  const recentWindowMs = 30_000
+
+  const recentActionLines = blackboard.recentActionHistory
+    .filter(a => withinLast(a.timestamp, recentWindowMs))
+    .map(a => `- [${formatAgo(a.timestamp)}] ${a.line}`)
+    .join('\n')
+
+  const recentChatLines = blackboard.chatHistory
+    .filter(m => withinLast(m.timestamp, recentWindowMs))
+    .map(m => `- [${formatAgo(m.timestamp)}] ${m.sender}: ${m.content}`)
+    .join('\n')
 
   // TODO extract prompt components later
   // e.g. personality should be included from somewhere else
@@ -74,9 +98,9 @@ Pending actions (started and still running):
 ${blackboard.pendingActions.map(a => `- ${a}`).join('\n') || '- none'}
 
 Recent action results (most recent last):
-${blackboard.recentActionHistory.map(a => `- ${a}`).join('\n') || '- none'}
+${recentActionLines || '- none'}
 
 # Chat History (Recents):
-${blackboard.chatHistory.map(msg => `- ${msg.sender}: ${msg.content}`).join('\n') || 'No recent messages.'}
+${recentChatLines || 'No recent messages.'}
 `
 }
