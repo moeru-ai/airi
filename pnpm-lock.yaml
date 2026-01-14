@@ -905,6 +905,9 @@ importers:
       '@proj-airi/stage-layouts':
         specifier: workspace:^
         version: link:../../packages/stage-layouts
+      '@proj-airi/stage-pages':
+        specifier: workspace:^
+        version: link:../../packages/stage-pages
       '@proj-airi/stage-ui':
         specifier: workspace:^
         version: link:../../packages/stage-ui
