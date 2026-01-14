@@ -158,29 +158,18 @@ defineExpose({
       </template>
 
       <!-- Playground actions -->
-      <div flex="~ row" gap-4>
-        <button
-          border="neutral-800 dark:neutral-200 solid 2" transition="border duration-250 ease-in-out"
-          rounded-lg px-4 text="neutral-100 dark:neutral-900" py-2 text-sm
-          :disabled="isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !apiKeyConfigured"
-          :class="{ 'opacity-50 cursor-not-allowed': isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !apiKeyConfigured }"
-          bg="neutral-700 dark:neutral-300" @click="handleGenerateTestSpeech"
-        >
-          <div flex="~ row" items-center gap-2>
-            <div i-solar:play-circle-bold-duotone />
-            <span>{{ isGenerating ? t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.generating') : t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.label') }}</span>
-          </div>
-        </button>
-        <button
-          v-if="audioUrl" border="primary-300 dark:primary-800 solid 2"
-          transition="border duration-250 ease-in-out" rounded-lg px-4 py-2 text-sm @click="stopTestAudio"
-        >
-          <div flex="~ row" items-center gap-2>
-            <div i-solar:stop-circle-bold-duotone />
-            <span>{{ t('settings.pages.modules.speech.sections.section.playground.buttons.stop.label') }}</span>
-          </div>
-        </button>
-      </div>
+      <button
+        border="neutral-800 dark:neutral-200 solid 2" transition="border duration-250 ease-in-out"
+        rounded-lg px-4 text="neutral-100 dark:neutral-900" py-2 text-sm
+        :disabled="isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !apiKeyConfigured"
+        :class="{ 'opacity-50 cursor-not-allowed': isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !apiKeyConfigured }"
+        bg="neutral-700 dark:neutral-300" @click="handleGenerateTestSpeech"
+      >
+        <div flex="~ row" items-center gap-2>
+          <div i-solar:play-circle-bold-duotone />
+          <span>{{ isGenerating ? t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.generating') : t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.label') }}</span>
+        </div>
+      </button>
       <!-- Error messages -->
       <div v-if="!apiKeyConfigured" class="mt-2 text-sm text-red-500">
         {{ t('settings.pages.providers.provider.elevenlabs.playground.validation.error-missing-api-key') }}
