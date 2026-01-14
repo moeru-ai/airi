@@ -9,6 +9,7 @@ export function generateBrainSystemPrompt(
     return {
       name: a.name,
       description: a.description,
+      execution: a.execution,
     }
   })
 
@@ -31,7 +32,9 @@ Available Actions:
 ${availableActionsJson}
 
 Rules:
-1. You can execute physical actions or chat actions
+1. You can execute sequential actions, parallel actions, or chat actions
+1.1. Sequential actions are executed strictly in order.
+1.2. Parallel actions are parallel-safe and can be used for fast information gathering.
 2. The output must be valid JSON following the schema below
 3. Specify if a feedback is required for the action, i.e. whether you need to know the execution result for a good reason
 4. Failed actions will always result in a feedback
@@ -48,7 +51,8 @@ Output format:
   },
   "actions": [
     {"type":"chat","message":"...","require_feedback": false},
-    {"type":"physical","step":{"tool":"action name","params":{...}},"require_feedback": false}
+    {"type":"parallel","step":{"tool":"action name","params":{...}},"require_feedback": true},
+    {"type":"sequential","step":{"tool":"action name","params":{...}},"require_feedback": false}
   ]
 }
 
@@ -60,6 +64,13 @@ Thought: "${blackboard.current_task}"
 Strategy: "${blackboard.strategy}"
 Self: ${blackboard.selfSummary}
 Environment: ${blackboard.environmentSummary}
+
+# Execution State (IMPORTANT)
+Pending actions (started and still running):
+${blackboard.pendingActions.map(a => `- ${a}`).join('\n') || '- none'}
+
+Recent action results (most recent last):
+${blackboard.recentActionHistory.map(a => `- ${a}`).join('\n') || '- none'}
 
 # Chat History (Recents):
 ${blackboard.chatHistory.map(msg => `- ${msg.sender}: ${msg.content}`).join('\n') || 'No recent messages.'}

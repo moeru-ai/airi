@@ -4,9 +4,12 @@ import type { Mineflayer } from './core'
 
 type ActionResult = string | Promise<string>
 
+export type ActionExecutionMode = 'sequential' | 'parallel'
+
 export interface Action {
   readonly name: string
   readonly description: string
+  readonly execution: ActionExecutionMode
   readonly schema: z.ZodObject<any>
   readonly perform: (mineflayer: Mineflayer) => (...args: any[]) => ActionResult
 }

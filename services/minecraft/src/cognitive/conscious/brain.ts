@@ -44,6 +44,12 @@ export class Brain {
   private blackboard: Blackboard
   private debugService: DebugService
 
+  private nextActionId = 1
+  private inFlightActions = new Map<string, ActionInstruction>()
+
+  private feedbackDebounceMs = Number.parseInt(process.env.BRAIN_FEEDBACK_DEBOUNCE_MS ?? '200')
+  private feedbackDebounceTimer: NodeJS.Timeout | undefined
+
   // Event Queue
   private queue: QueuedEvent[] = []
   private isProcessing = false
@@ -97,8 +103,25 @@ export class Brain {
     })
 
     // Listen to Task Execution Events (Action Feedback)
+    this.deps.taskExecutor.on('action:started', ({ action }) => {
+      const id = action.id
+      if (id)
+        this.inFlightActions.set(id, action)
+      this.updatePendingActionsOnBlackboard()
+    })
+
     this.deps.taskExecutor.on('action:completed', async ({ action, result }) => {
       this.log('INFO', `Brain: Action completed: ${action.type}`)
+
+      const id = action.id
+      if (id)
+        this.inFlightActions.delete(id)
+      this.updatePendingActionsOnBlackboard()
+      this.blackboard.addActionHistoryLine(this.formatActionHistoryLine(action, 'success', result))
+
+      if (!action.require_feedback)
+        return
+
       await this.enqueueEvent(bot, {
         type: 'feedback',
         payload: {
@@ -113,6 +136,13 @@ export class Brain {
 
     this.deps.taskExecutor.on('action:failed', async ({ action, error }) => {
       this.log('WARN', `Brain: Action failed: ${action.type}`, { error })
+
+      const id = action.id
+      if (id)
+        this.inFlightActions.delete(id)
+      this.updatePendingActionsOnBlackboard()
+      this.blackboard.addActionHistoryLine(this.formatActionHistoryLine(action, 'failure', undefined, error))
+
       await this.enqueueEvent(bot, {
         type: 'feedback',
         payload: {
@@ -137,7 +167,18 @@ export class Brain {
       this.queue.push({ event, resolve, reject })
       this.log('DEBUG', `Brain: Queue length now: ${this.queue.length}`)
       this.updateDebugState()
-      this.processQueue(bot)
+
+      if (event.type === 'feedback' && this.feedbackDebounceMs > 0) {
+        if (this.feedbackDebounceTimer)
+          clearTimeout(this.feedbackDebounceTimer)
+        this.feedbackDebounceTimer = setTimeout(() => {
+          this.feedbackDebounceTimer = undefined
+          void this.processQueue(bot)
+        }, this.feedbackDebounceMs)
+        return
+      }
+
+      void this.processQueue(bot)
     })
   }
 
@@ -157,8 +198,14 @@ export class Brain {
     this.log('DEBUG', `Brain: Processing event type=${item.event.type}`)
     this.updateDebugState(item.event)
 
+    // Coalesce consecutive feedback events into a single LLM turn.
+    // This prevents the LLM from being spammed with partial results while still supporting streaming replans.
+    const coalescedEvent = item.event.type === 'feedback'
+      ? this.coalesceFeedbackEvents(item.event)
+      : item.event
+
     try {
-      await this.processEvent(bot, item.event)
+      await this.processEvent(bot, coalescedEvent)
       item.resolve()
     }
     catch (err) {
@@ -185,15 +232,84 @@ export class Brain {
         return `Perception [${signal.type}]${sourceInfo}: ${signal.description}`
       }
       case 'feedback': {
-        const { status, action, result, error } = event.payload
+        const payload = event.payload as any
+        if (payload?.status === 'batch' && Array.isArray(payload.feedbacks)) {
+          return `Internal Feedback (batched): ${JSON.stringify(payload.feedbacks)}`
+        }
+
+        const { status, action, result, error } = payload
         const actionCtx = action
-          ? { type: action.type, ...(action.type === 'physical' ? { tool: action.step.tool, params: action.step.params } : { message: action.message }) }
+          ? {
+              id: action.id,
+              type: action.type,
+              ...(action.type === 'sequential' || action.type === 'parallel'
+                ? { tool: action.step.tool, params: action.step.params }
+                : { message: action.message }),
+            }
           : undefined
         return `Internal Feedback: ${status}. Last Action: ${JSON.stringify(actionCtx)}. Result: ${JSON.stringify(result || error)}`
       }
       default:
         return ''
     }
+  }
+
+  private coalesceFeedbackEvents(first: BotEvent): BotEvent {
+    const feedbacks: any[] = [first.payload]
+
+    while (this.queue.length > 0 && this.queue[0]?.event.type === 'feedback') {
+      const next = this.queue.shift()!
+      feedbacks.push(next.event.payload)
+      next.resolve()
+    }
+
+    if (feedbacks.length === 1)
+      return first
+
+    return {
+      type: 'feedback',
+      payload: {
+        status: 'batch',
+        feedbacks,
+      },
+      source: first.source,
+      timestamp: first.timestamp,
+    }
+  }
+
+  private ensureActionIds(actions: ActionInstruction[]): ActionInstruction[] {
+    return actions.map((action) => {
+      if (action.id)
+        return action
+      return {
+        ...action,
+        id: `a${this.nextActionId++}`,
+      }
+    })
+  }
+
+  private updatePendingActionsOnBlackboard(): void {
+    const pending = [...this.inFlightActions.values()].map(a => this.formatPendingActionLine(a))
+    this.blackboard.setPendingActions(pending)
+  }
+
+  private formatPendingActionLine(action: ActionInstruction): string {
+    if (action.type === 'chat')
+      return `${action.id ?? '?'} chat: ${action.message}`
+    return `${action.id ?? '?'} ${action.type}: ${action.step.tool} ${JSON.stringify(action.step.params ?? {})}`
+  }
+
+  private formatActionHistoryLine(
+    action: ActionInstruction,
+    status: 'success' | 'failure',
+    result?: unknown,
+    error?: unknown,
+  ): string {
+    const base = this.formatPendingActionLine(action)
+    const suffix = status === 'success'
+      ? `=> ok ${result ? JSON.stringify(result) : ''}`
+      : `=> failed ${error instanceof Error ? error.message : JSON.stringify(error)}`
+    return `${base} ${suffix}`
   }
 
   private async processEvent(bot: MineflayerWithAgents, event: BotEvent): Promise<void> {
@@ -230,8 +346,10 @@ export class Brain {
 
     // Issue Actions
     if (decision.actions && decision.actions.length > 0) {
+      const actionsWithIds = this.ensureActionIds(decision.actions)
+
       // Record own chat actions to memory
-      for (const action of decision.actions) {
+      for (const action of actionsWithIds) {
         if (action.type === 'chat') {
           this.blackboard.addChatMessage({
             sender: config.bot.username || '[Me]',
@@ -241,7 +359,7 @@ export class Brain {
         }
       }
 
-      this.deps.taskExecutor.executeActions(decision.actions)
+      this.deps.taskExecutor.executeActions(actionsWithIds)
     }
   }
 
