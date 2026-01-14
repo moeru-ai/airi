@@ -9,6 +9,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!user.value && !!session.value)
 
   const isLoginOpen = ref(false)
+  const isLoggingIn = ref(false)
 
   // TODO: include fetchSession here for pulling and updating better-auth session with initialize(...) action
 
@@ -17,5 +18,6 @@ export const useAuthStore = defineStore('auth', () => {
     session,
     isAuthenticated,
     isLoginOpen,
+    isLoggingIn,
   }
 })

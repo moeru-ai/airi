@@ -5,7 +5,9 @@ import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot } 
 import { toast } from 'vue-sonner'
 
 import { signIn } from '../../libs/auth'
+import { useAuthStore } from '../../stores/auth'
 
+const authStore = useAuthStore()
 const open = defineModel<boolean>('open', { required: true })
 
 const screenSafeArea = useScreenSafeArea()
@@ -35,11 +37,19 @@ async function handleSignIn(provider: 'google' | 'github') {
             Sign in
           </div>
           <div class="flex flex-col gap-4">
-            <Button :class="['w-full', 'py-4', 'flex', 'items-center', 'justify-center', 'gap-3', 'text-lg', 'rounded-2xl']" @click="handleSignIn('google')">
+            <Button
+              :class="['w-full', 'py-4', 'flex', 'items-center', 'justify-center', 'gap-3', 'text-lg', 'rounded-2xl']"
+              :loading="authStore.isLoggingIn"
+              @click="handleSignIn('google')"
+            >
               <div class="i-simple-icons-google text-xl" />
               <span>Sign in with Google</span>
             </Button>
-            <Button :class="['w-full', 'py-4', 'flex', 'items-center', 'justify-center', 'gap-3', 'text-lg', 'rounded-2xl']" @click="handleSignIn('github')">
+            <Button
+              :class="['w-full', 'py-4', 'flex', 'items-center', 'justify-center', 'gap-3', 'text-lg', 'rounded-2xl']"
+              :loading="authStore.isLoggingIn"
+              @click="handleSignIn('github')"
+            >
               <div class="i-simple-icons-github text-xl" />
               <span>Sign in with GitHub</span>
             </Button>

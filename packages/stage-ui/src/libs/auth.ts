@@ -35,8 +35,15 @@ export async function signOut() {
 }
 
 export async function signIn(provider: 'google' | 'github') {
-  return await authClient.signIn.social({
-    provider,
-    callbackURL: window.location.origin,
-  })
+  const authStore = useAuthStore()
+  authStore.isLoggingIn = true
+  try {
+    return await authClient.signIn.social({
+      provider,
+      callbackURL: window.location.origin,
+    })
+  }
+  finally {
+    authStore.isLoggingIn = false
+  }
 }

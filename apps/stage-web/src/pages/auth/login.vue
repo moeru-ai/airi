@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { LoginDrawer } from '@proj-airi/stage-ui/components/auth'
 import { fetchSession, signIn } from '@proj-airi/stage-ui/libs/auth'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Button } from '@proj-airi/ui'
 import { useMediaQuery } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
 import { onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
 const router = useRouter()
+const authStore = useAuthStore()
+const { isLoggingIn } = storeToRefs(authStore)
 
 const isDesktop = useMediaQuery('(min-width: 768px)')
 
@@ -46,11 +50,19 @@ watch(isDesktop, (val) => {
       Sign in to AIRI Stage
     </div>
     <div class="max-w-xs w-full flex flex-col gap-3">
-      <Button :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']" @click="handleSignIn('google')">
+      <Button
+        :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
+        :loading="isLoggingIn"
+        @click="handleSignIn('google')"
+      >
         <div class="i-simple-icons-google" />
         <span>Google</span>
       </Button>
-      <Button :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']" @click="handleSignIn('github')">
+      <Button
+        :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
+        :loading="isLoggingIn"
+        @click="handleSignIn('github')"
+      >
         <div class="i-simple-icons-github" />
         <span>GitHub</span>
       </Button>
