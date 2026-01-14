@@ -870,6 +870,46 @@ export const useProvidersStore = defineStore('providers', () => {
         listVoices: async () => {
           return []
         },
+        listModels: async (config: Record<string, unknown>) => {
+          // Filter models to only include TTS models
+          const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+          let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+
+          if (!baseUrl.endsWith('/'))
+            baseUrl += '/'
+
+          if (!apiKey || !baseUrl) {
+            return []
+          }
+
+          const provider = await createOpenAI(apiKey, baseUrl)
+          if (!provider || typeof provider.model !== 'function') {
+            return []
+          }
+
+          const models = await listModels({
+            apiKey,
+            baseURL: baseUrl,
+          })
+
+          // Filter for TTS models - look for models with "tts" in the ID
+          return models
+            .filter((model: any) => {
+              const modelId = model.id.toLowerCase()
+              // Include models that contain "tts" in their ID
+              return modelId.includes('tts')
+            })
+            .map((model: any) => {
+              return {
+                id: model.id,
+                name: model.name || model.display_name || model.id,
+                provider: 'openai-compatible-audio-speech',
+                description: model.description || '',
+                contextLength: model.context_length || 0,
+                deprecated: false,
+              } satisfies ModelInfo
+            })
+        },
       },
       creator: createOpenAI,
     }),

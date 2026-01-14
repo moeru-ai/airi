@@ -125,13 +125,9 @@ defineExpose({
     </h2>
     <div flex="~ col gap-4">
       <FieldInput
-        v-model="model"
-        label="Model ID"
-        placeholder="tts-1"
-      />
-      <FieldInput
         v-model="voice"
         label="Voice"
+        description="Enter the voice ID for your OpenAI-compatible API"
         placeholder="alloy"
       />
       <FieldCheckbox
