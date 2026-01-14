@@ -11,6 +11,7 @@ const [websocketUrl] = createResettableLocalStorage('settings/connection/websock
 
 <template>
   <div :class="['rounded-lg', 'bg-neutral-50', 'p-4', 'dark:bg-neutral-800', 'flex', '~', 'col', 'gap-4']">
+    <!-- // TODO: Make this array, support to connect to multiple WebSocket server -->
     <FieldInput
       v-model="websocketUrl"
       :label="t('settings.pages.connection.websocket-url.label')"
