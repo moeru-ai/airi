@@ -1,11 +1,12 @@
 // TODO: move this file to action layer, and rename to `llm-actions.ts`
 import type { Action } from '../../libs/mineflayer'
 
+import { Vec3 } from 'vec3'
 import { z } from 'zod'
 
 import { collectBlock } from '../../skills/actions/collect-block'
 import { discard, equip, putInChest, takeFromChest } from '../../skills/actions/inventory'
-import { activateNearestBlock, placeBlock } from '../../skills/actions/world-interactions'
+import { activateNearestBlock, breakBlockAt, placeBlock } from '../../skills/actions/world-interactions'
 import { ActionError } from '../../utils/errors'
 import { useLogger } from '../../utils/logger'
 
@@ -264,7 +265,7 @@ export const actionsList: Action[] = [
   },
   {
     name: 'collectBlocks',
-    description: 'Collect the nearest blocks of a given type.',
+    description: 'Automatically collect the nearest blocks of a given type.',
     execution: 'sequential',
     schema: z.object({
       type: z.string().describe('The block type to collect.'),
@@ -276,6 +277,37 @@ export const actionsList: Action[] = [
         throw new ActionError('RESOURCE_MISSING', `Failed to collect any ${type}`, { type, requested: num, collected })
       }
       return `Collected [${type}] x${collected}`
+    },
+  },
+  {
+    name: 'mineBlockAt',
+    description: 'Mine (break) a block at a specific position. Do NOT use this for regular resource collection. Use collectBlocks instead.',
+    execution: 'sequential',
+    schema: z.object({
+      x: z.number().describe('The x coordinate.'),
+      y: z.number().describe('The y coordinate.'),
+      z: z.number().describe('The z coordinate.'),
+      expected_block_type: z.string().optional().describe('Optional: expected block type at the position (e.g. oak_log). If provided and mismatched, the action fails.'),
+    }),
+    perform: mineflayer => async (x: number, y: number, z: number, expected_block_type?: string) => {
+      const pos = new Vec3(Math.floor(x), Math.floor(y), Math.floor(z))
+      if (expected_block_type) {
+        const block = mineflayer.bot.blockAt(pos)
+        if (!block) {
+          throw new ActionError('TARGET_NOT_FOUND', `No block found at ${pos}`, { position: pos })
+        }
+
+        if (block.name !== expected_block_type) {
+          throw new ActionError('UNKNOWN', `Block type mismatch at ${pos}: expected ${expected_block_type}, got ${block.name}`, {
+            position: pos,
+            expected: expected_block_type,
+            actual: block.name,
+          })
+        }
+      }
+
+      await breakBlockAt(mineflayer, pos.x, pos.y, pos.z)
+      return `Mined block at (${pos.x}, ${pos.y}, ${pos.z})`
     },
   },
   {
