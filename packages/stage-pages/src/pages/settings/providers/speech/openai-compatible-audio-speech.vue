@@ -27,7 +27,12 @@ const defaultVoiceSettings = {
 const providerId = 'openai-compatible-audio-speech'
 const defaultModel = 'tts-1'
 
-const speed = ref<number>(1.0)
+// Initialize speed from provider config or default
+const speed = ref<number>(
+  (providers.value[providerId] as any)?.voiceSettings?.speed
+  || (providers.value[providerId] as any)?.speed
+  || defaultVoiceSettings.speed,
+)
 
 // Model selection
 const model = computed({
@@ -47,6 +52,35 @@ const voice = computed({
     providers.value[providerId].voice = value
   },
 })
+
+// Watch provider config changes to sync local refs (for reset functionality)
+watch(
+  () => providers.value[providerId],
+  (newConfig) => {
+    if (newConfig) {
+      // Sync speed from voiceSettings or direct speed property
+      const config = newConfig as any
+      const newSpeed = config.voiceSettings?.speed || config.speed || defaultVoiceSettings.speed
+      if (Math.abs(speed.value - newSpeed) > 0.001) // Use small epsilon for float comparison
+        speed.value = newSpeed
+
+      // Sync model if it was reset
+      if (!config.model && model.value !== defaultModel)
+        model.value = defaultModel
+
+      // Sync voice if it was reset
+      if (!config.voice && voice.value !== 'alloy')
+        voice.value = 'alloy'
+    }
+    else {
+      // Provider config was reset, reset our local refs to defaults
+      speed.value = defaultVoiceSettings.speed
+      model.value = defaultModel
+      voice.value = 'alloy'
+    }
+  },
+  { deep: true, immediate: true },
+)
 
 // Load models
 const providerModels = computed(() => {
@@ -83,7 +117,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
     provider,
     modelToUse,
     input,
-    voiceId || voice.value,
+    voiceId || (voice.value as string),
     {
       ...providerConfig,
       ...defaultVoiceSettings,
@@ -142,7 +176,7 @@ const {
     <template #playground>
       <SpeechPlaygroundOpenAICompatible
         v-model:model-value="model"
-        v-model:voice="voice"
+        v-model:voice="voice as any"
         :generate-speech="handleGenerateSpeech"
         :api-key-configured="apiKeyConfigured"
         default-text="Hello! This is a test of the OpenAI Compatible Speech."
