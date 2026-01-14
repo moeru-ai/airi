@@ -130,30 +130,10 @@ export class Brain {
     this.debugService = DebugService.getInstance()
   }
 
-  public init(bot: MineflayerWithAgents): void {
-    this.log('INFO', 'Brain: Initializing...')
-    this.bot = bot
-    this.blackboard.update({ selfUsername: bot.username })
+  private async handlePerceptionSignal(bot: MineflayerWithAgents, signal: PerceptionSignal): Promise<void> {
+    this.log('INFO', `Brain: Received perception: ${signal.description}`)
 
-    // Perception Signal Handler - Only process chat messages for now
-    this.deps.eventManager.on<PerceptionSignal>('perception', async (event) => {
-      const signal = event.payload
-      // Only handle chat messages in the deliberative layer
-      if (signal.type !== 'chat_message')
-        return
-
-      this.log('INFO', `Brain: Received chat: ${signal.description}`)
-
-      // Add to blackboard chat history
-      // signal.description usually is "User: message"
-      // We'll parse it simply or use the whole string as content if format varies
-      // Assuming signal.description is the formatted message or we extract it.
-      // Based on previous logs, it looks like "Sender: message"
-      // Let's just use the description for now, or split it if possible.
-      // Actually `signal.content` might hold the raw message if available, but checking types it seems signal has description and properties.
-      // Let's assume description is "Sender: content" for now or just store it.
-      // A better way is to try to parse it if needed, but for now we trust `signal.description`.
-
+    if (signal.type === 'chat_message') {
       const parts = signal.description.split(': ')
       const sender = parts.length > 1 ? parts[0] : 'Unknown'
       const content = parts.length > 1 ? parts.slice(1).join(': ') : signal.description
@@ -163,11 +143,33 @@ export class Brain {
         content,
         timestamp: Date.now(),
       })
+    }
+
+    await this.enqueueEvent(bot, {
+      type: 'perception',
+      payload: signal,
+      source: {
+        type: 'minecraft',
+        id: signal.sourceId ?? 'perception',
+      },
+      timestamp: Date.now(),
+    })
+  }
+
+  public init(bot: MineflayerWithAgents): void {
+    this.log('INFO', 'Brain: Initializing...')
+    this.bot = bot
+    this.blackboard.update({ selfUsername: bot.username })
+
+    // Perception Signal Handler - Only process chat messages for now
+    this.deps.eventManager.on<PerceptionSignal>('perception', async (event) => {
+      const signal = event.payload
+      // Only handle chat messages in the deliberative layer
+      if (signal.type !== 'chat_message' && signal.type !== 'social_presence')
+        return
 
       try {
-        this.log('DEBUG', `Brain: About to enqueue chat event`)
-        await this.enqueueEvent(bot, event)
-        this.log('DEBUG', `Brain: Chat event enqueued successfully`)
+        await this.handlePerceptionSignal(bot, signal)
       }
       catch (err) {
         this.log('ERROR', `Brain: Failed to enqueue chat event`, { error: err })
@@ -245,6 +247,9 @@ export class Brain {
 
     this.log('INFO', 'Brain: Online.')
     this.updateDebugState()
+  }
+
+  public destroy(): void {
   }
 
   // --- Event Queue Logic ---

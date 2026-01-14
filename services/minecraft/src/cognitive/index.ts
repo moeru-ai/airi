@@ -24,6 +24,7 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
       const actionAgent = container.resolve('actionAgent')
       const chatAgent = container.resolve('chatAgent')
       const perceptionPipeline = container.resolve('perceptionPipeline')
+      const eventManager = container.resolve('eventManager')
       const brain = container.resolve('brain')
       const reflexManager = container.resolve('reflexManager')
       const taskExecutor = container.resolve('taskExecutor')
@@ -47,8 +48,8 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
         reflexManager.init(botWithAgents)
         brain.init(botWithAgents)
 
-        const ruleEngine = container.resolve('ruleEngine')
-        ruleEngine.init()
+        // Ensure RuleEngine is instantiated (Awilix is lazy). It subscribes to raw:* during construction init.
+        void container.resolve('ruleEngine')
 
         // Initialize perception pipeline (raw events + detectors)
         perceptionPipeline.init(botWithAgents)
@@ -72,6 +73,17 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
 
         // Resolve EventBus and subscribe to forward events to debug timeline
         const eventBus = container.resolve('eventBus')
+
+        // Bridge selected EventBus signals into EventManager perception stream for Brain.
+        eventBus.subscribe('signal:social_presence', (event) => {
+          eventManager.emit({
+            type: 'perception',
+            payload: event.payload as any,
+            source: { type: 'minecraft', id: 'eventBus' },
+            timestamp: Date.now(),
+          })
+        })
+
         eventBus.subscribe('*', (event) => {
           // Forward to debug service for timeline visualization
           DebugService.getInstance().emitTrace({

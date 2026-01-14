@@ -1,6 +1,6 @@
 import type { Vec3 } from 'vec3'
 
-export type PerceptionModality = 'sighted' | 'heard' | 'felt'
+export type PerceptionModality = 'sighted' | 'heard' | 'felt' | 'system'
 
 export interface RawPerceptionEventBase {
   modality: PerceptionModality
@@ -71,4 +71,13 @@ export interface FeltItemCollectedEvent extends RawPerceptionEventBase {
 
 export type FeltEvent = FeltDamageTakenEvent | FeltItemCollectedEvent
 
-export type RawPerceptionEvent = SightedEvent | HeardEvent | FeltEvent
+export interface PlayerJoinedEvent extends RawPerceptionEventBase {
+  modality: 'system'
+  kind: 'player_joined'
+  playerId: string
+  displayName?: string
+}
+
+export type SystemEvent = PlayerJoinedEvent
+
+export type RawPerceptionEvent = SightedEvent | HeardEvent | FeltEvent | SystemEvent

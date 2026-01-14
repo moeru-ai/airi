@@ -4,6 +4,7 @@ export type PerceptionSignalType
     | 'environmental_anomaly' // e.g. sudden loud sound
     | 'saliency_high' // generic high saliency event
     | 'social_gesture' // e.g. teabagging, waving
+    | 'social_presence'
 
 export interface PerceptionSignal {
   type: PerceptionSignalType

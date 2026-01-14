@@ -6,6 +6,7 @@ import type {
   FeltDamageTakenEvent,
   FeltItemCollectedEvent,
   HeardSoundEvent,
+  PlayerJoinedEvent,
   RawPerceptionEvent,
   SightedArmSwingEvent,
   SightedEntityMovedEvent,
@@ -18,6 +19,8 @@ export class MineflayerPerceptionCollector {
     event: string
     handler: (...args: any[]) => void
   }> = []
+
+  private knownPlayerIds: Set<string> = new Set()
 
   private lastSelfHealth: number | null = null
   private lastStatsAt = 0
@@ -37,6 +40,7 @@ export class MineflayerPerceptionCollector {
     this.lastSelfHealth = bot.bot.health
     this.lastStatsAt = Date.now()
     this.stats = {}
+    this.knownPlayerIds = this.snapshotKnownPlayers(bot)
 
     this.deps.logger.withFields({ maxDistance: this.deps.maxDistance }).log('MineflayerPerceptionCollector: init')
 
@@ -73,6 +77,8 @@ export class MineflayerPerceptionCollector {
     this.onBot('entityMoved', entity => this.handleEntityMoved(entity))
     this.onBot('entitySwingArm', entity => this.handleEntitySwingArm(entity))
     this.onBot('entityUpdate', entity => this.handleEntityUpdate(entity))
+    this.onBot('playerJoined', player => this.handlePlayerJoined(player))
+    this.onBot('playerUpdated', () => this.handlePlayersMaybeChanged())
     this.onBot('soundEffectHeard', (soundId, pos) => this.handleSoundHeard(soundId, pos))
     this.onBot('health', () => this.handleHealthChange())
     this.onBot('playerCollect', (collector, collected) => this.handleItemCollected(collector, collected))
@@ -228,6 +234,82 @@ export class MineflayerPerceptionCollector {
     }
 
     this.emitEvent(event, 'felt.item_collected')
+  }
+
+  private handlePlayerJoined(player: any): void {
+    if (!player)
+      return
+
+    if (player.username === this.bot?.bot.username)
+      return
+
+    const playerId = String(player.uuid ?? player.id ?? player.username ?? 'unknown')
+    if (this.knownPlayerIds.has(playerId))
+      return
+
+    this.knownPlayerIds.add(playerId)
+
+    const event: PlayerJoinedEvent = {
+      modality: 'system',
+      kind: 'player_joined',
+      playerId,
+      displayName: player.username,
+      timestamp: Date.now(),
+      source: 'minecraft',
+    }
+
+    this.emitEvent(event, 'system.player_joined')
+  }
+
+  private handlePlayersMaybeChanged(): void {
+    const bot = this.bot
+    if (!bot)
+      return
+
+    const current = this.snapshotKnownPlayers(bot)
+
+    for (const playerId of current) {
+      if (this.knownPlayerIds.has(playerId))
+        continue
+
+      this.knownPlayerIds.add(playerId)
+
+      const player = (bot.bot as any).players?.[playerId]
+      const username = player?.username
+
+      const event: PlayerJoinedEvent = {
+        modality: 'system',
+        kind: 'player_joined',
+        playerId,
+        displayName: typeof username === 'string' ? username : undefined,
+        timestamp: Date.now(),
+        source: 'minecraft',
+      }
+
+      this.emitEvent(event, 'system.player_joined')
+    }
+  }
+
+  private snapshotKnownPlayers(bot: MineflayerWithAgents): Set<string> {
+    const out = new Set<string>()
+    const players = (bot.bot as any).players as Record<string, any> | undefined
+    if (!players)
+      return out
+
+    const selfUsername = bot.bot.username
+
+    for (const [id, player] of Object.entries(players)) {
+      if (!id)
+        continue
+
+      const username = player?.username
+      if (username && username === selfUsername)
+        continue
+
+      out.add(String(id))
+    }
+
+    return out
   }
 
   // ========================================
