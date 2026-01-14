@@ -53,6 +53,10 @@ export class ReflexManager {
     return this.runtime.getContext().getSnapshot()
   }
 
+  public updateEnvironment(patch: Partial<ReflexContextState['environment']>): void {
+    this.runtime.getContext().updateEnvironment(patch)
+  }
+
   private onSignal(event: TracedEvent<PerceptionSignal>): void {
     const bot = this.bot
     if (!bot)

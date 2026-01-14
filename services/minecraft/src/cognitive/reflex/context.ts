@@ -11,6 +11,12 @@ export interface ReflexEnvironmentState {
   time: 'day' | 'night' | 'sunset' | 'sunrise'
   weather: 'clear' | 'rain' | 'thunder'
   nearbyPlayers: Array<{ name: string, distance?: number }>
+  nearbyPlayersGaze: Array<{
+    name: string
+    distanceToSelf: number
+    lookPoint: { x: number, y: number, z: number }
+    hitBlock: null | { name: string, pos: { x: number, y: number, z: number } }
+  }>
   nearbyEntities: Array<{ name: string, distance?: number, kind?: string }>
   lightLevel: number
 }
@@ -61,6 +67,7 @@ export class ReflexContext {
         time: 'day',
         weather: 'clear',
         nearbyPlayers: [],
+        nearbyPlayersGaze: [],
         nearbyEntities: [],
         lightLevel: 15,
       },
@@ -92,6 +99,16 @@ export class ReflexContext {
       environment: {
         ...this.state.environment,
         nearbyPlayers: this.state.environment.nearbyPlayers.map(p => ({ ...p })),
+        nearbyPlayersGaze: this.state.environment.nearbyPlayersGaze.map(p => ({
+          ...p,
+          lookPoint: { ...p.lookPoint },
+          hitBlock: p.hitBlock
+            ? {
+                ...p.hitBlock,
+                pos: { ...p.hitBlock.pos },
+              }
+            : null,
+        })),
         nearbyEntities: this.state.environment.nearbyEntities.map(e => ({ ...e })),
       },
       social: {
