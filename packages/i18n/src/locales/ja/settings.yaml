@@ -696,6 +696,13 @@ pages:
         playground:
           title: 文字起こし実験場
     title: プロバイダー
+  connection:
+    description: WebSocket サーバー接続を設定
+    title: 接続
+    websocket-url:
+      description: WebSocket サーバーの完全なアドレス（例：ws://localhost:6121/ws）
+      label: WebSocket サーバーアドレス
+      placeholder: ws://localhost:6121/ws
   scene:
     description: キャラクターが過ごす環境を設定する
     title: シーン
