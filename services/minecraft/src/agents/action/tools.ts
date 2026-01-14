@@ -254,8 +254,11 @@ export const actionsList: Action[] = [
       num: z.number().int().describe('The number of blocks to collect.').min(1),
     }),
     perform: mineflayer => async (type: string, num: number) => {
-      await collectBlock(mineflayer, type, num)
-      return `Collected [${type}] x${num}`
+      const collected = await collectBlock(mineflayer, type, num)
+      if (collected <= 0) {
+        throw new ActionError('RESOURCE_MISSING', `Failed to collect any ${type}`, { type, requested: num, collected })
+      }
+      return `Collected [${type}] x${collected}`
     },
   },
   {

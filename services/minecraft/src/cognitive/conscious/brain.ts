@@ -185,8 +185,11 @@ export class Brain {
         return `Perception [${signal.type}]${sourceInfo}: ${signal.description}`
       }
       case 'feedback': {
-        const { status, result, error } = event.payload
-        return `Internal Feedback: ${status}. Result: ${JSON.stringify(result || error)}`
+        const { status, action, result, error } = event.payload
+        const actionCtx = action
+          ? { type: action.type, ...(action.type === 'physical' ? { tool: action.step.tool, params: action.step.params } : { message: action.message }) }
+          : undefined
+        return `Internal Feedback: ${status}. Last Action: ${JSON.stringify(actionCtx)}. Result: ${JSON.stringify(result || error)}`
       }
       default:
         return ''
