@@ -6,7 +6,7 @@ import { env } from 'node:process'
 import { useLogg } from '@guiiai/logg'
 import { Client as AiriClient } from '@proj-airi/server-sdk'
 import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
-import { Client, Events, GatewayIntentBits } from 'discord.js'
+import { Client, Events, GatewayIntentBits, Partials } from 'discord.js'
 
 import { handlePing, registerCommands, VoiceManager } from '../bots/discord/commands'
 
@@ -69,7 +69,9 @@ export class DiscordAdapter {
         GatewayIntentBits.GuildVoiceStates,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
+        GatewayIntentBits.DirectMessages,
       ],
+      partials: [Partials.Channel],
     })
 
     // Initialize AIRI client
@@ -162,7 +164,33 @@ export class DiscordAdapter {
         if (message?.content && discordContext?.channelId) {
           const channel = await this.discordClient.channels.fetch(discordContext.channelId)
           if (channel?.isTextBased() && 'send' in channel && typeof channel.send === 'function') {
-            await channel.send(message.content)
+            const content = message.content
+            if (content.length <= 2000) {
+              await channel.send(content)
+            }
+            else {
+              let remaining = content
+              while (remaining.length > 0) {
+                let chunkSize = 2000
+                if (remaining.length > 2000) {
+                  // Try to split at the last newline before 2000
+                  const lastNewline = remaining.lastIndexOf('\n', 2000)
+                  if (lastNewline > -1) {
+                    chunkSize = lastNewline
+                  }
+                  else {
+                    // Fallback to last space
+                    const lastSpace = remaining.lastIndexOf(' ', 2000)
+                    if (lastSpace > -1)
+                      chunkSize = lastSpace
+                  }
+                }
+
+                const chunk = remaining.slice(0, chunkSize)
+                await channel.send(chunk)
+                remaining = remaining.slice(chunkSize).trim()
+              }
+            }
           }
         }
       }
@@ -183,18 +211,25 @@ export class DiscordAdapter {
       if (message.author.bot)
         return
 
-      // Respond if the bot is mentioned
-      if (this.discordClient.user && message.mentions.has(this.discordClient.user)) {
+      const isDM = !message.guild
+      const isMentioned = this.discordClient.user && message.mentions.has(this.discordClient.user)
+
+      // Respond if the bot is mentioned OR if it's a DM
+      if (isMentioned || isDM) {
         const rawContent = message.content
-        const content = rawContent.replace(/<@!?\d+>/g, '').trim()
+        const content = isMentioned
+          ? rawContent.replace(/<@!?\d+>/g, '').trim()
+          : rawContent.trim()
+
         if (!content)
           return
 
-        log.log(`Received text mention from ${message.author.tag} in ${message.channelId}`)
+        log.log(`Received text message from ${message.author.tag} in ${isDM ? 'DM' : message.channelId}`)
 
         const discordContext: Discord = {
           channelId: message.channelId,
           guildId: message.guildId ?? undefined,
+          guildName: message.guild?.name ?? undefined,
           guildMember: {
             id: message.author.id,
             displayName: message.member?.displayName ?? message.author.username,
@@ -203,6 +238,22 @@ export class DiscordAdapter {
         }
         const normalizedDiscord = normalizeDiscordMetadata(discordContext)
         const displayName = normalizedDiscord?.guildMember?.displayName
+
+        // Enrich context and segment memory (moved from frontend)
+        const serverName = normalizedDiscord?.guildName
+        const contextPrefix = serverName
+          ? `on server '${serverName}'`
+          : 'in Direct Message'
+
+        // Calculate sessionId based on guild or DM
+        let targetSessionId = 'discord'
+        if (normalizedDiscord?.guildId) {
+          targetSessionId = `discord-guild-${normalizedDiscord.guildId}`
+        }
+        else {
+          targetSessionId = `discord-dm-${normalizedDiscord?.guildMember?.id || 'unknown'}`
+        }
+
         const discordNotice = normalizedDiscord
           ? `The input is coming from Discord channel ${normalizedDiscord.channelId} (Guild: ${normalizedDiscord.guildId ?? 'unknown'}).`
           : undefined
@@ -212,12 +263,12 @@ export class DiscordAdapter {
           data: {
             text: content,
             textRaw: rawContent,
-            overrides: displayName
-              ? {
-                  messagePrefix: `(From Discord user ${displayName}): `,
-                  sessionId: 'discord',
-                }
-              : undefined,
+            overrides: {
+              messagePrefix: displayName
+                ? `(From Discord user ${displayName} ${contextPrefix}): `
+                : `(From Discord user ${contextPrefix}): `,
+              sessionId: targetSessionId,
+            },
             contextUpdates: discordNotice
               ? [{
                   strategy: ContextUpdateStrategy.AppendSelf,
