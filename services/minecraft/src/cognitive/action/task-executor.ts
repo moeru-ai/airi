@@ -105,8 +105,7 @@ export class TaskExecutor extends EventEmitter {
 
     this.logger.withField('count', actions.length).log('Executing actions')
 
-    // Execute each action independently and asynchronously
-    actions.forEach(async (action) => {
+    const runSingleAction = async (action: ActionInstruction): Promise<void> => {
       if (cancellationToken?.isCancelled) {
         this.logger.log('Action execution cancelled before start')
         return
@@ -116,7 +115,18 @@ export class TaskExecutor extends EventEmitter {
 
       try {
         let result: string | void
-        if (action.type === 'physical') {
+        if (action.type === 'sequential' || action.type === 'parallel') {
+          if (action.type === 'parallel') {
+            const available = this.actionAgent.getAvailableActions()
+            const def = available.find(a => a.name === action.step.tool)
+            if (!def || def.execution !== 'parallel') {
+              throw new ActionError('UNKNOWN', `Tool '${action.step.tool}' is not allowed for parallel actions`, {
+                tool: action.step.tool,
+                requestedExecution: action.type,
+                allowedExecution: def?.execution,
+              })
+            }
+          }
           result = await this.actionAgent.performAction(action.step)
         }
         else if (action.type === 'chat') {
@@ -127,15 +137,7 @@ export class TaskExecutor extends EventEmitter {
           throw new Error(`Unknown action type: ${(action as any).type}`)
         }
 
-        if (cancellationToken?.isCancelled) {
-          // If cancelled during execution (and agent didn't throw), we might still consider it cancelled?
-          // But usually agents throw if cancelled.
-          // Just emit completed for now if it finished.
-        }
-
-        if (action.require_feedback) {
-          this.emit('action:completed', { action, result })
-        }
+        this.emit('action:completed', { action, result })
       }
       catch (error) {
         this.logger.withError(error).error('Action execution failed')
@@ -146,8 +148,37 @@ export class TaskExecutor extends EventEmitter {
 
         // failed actions always emit feedback
         this.emit('action:failed', { action, error })
+        throw error
       }
+    }
+
+    const sequentialActions = actions.filter(a => a.type === 'sequential')
+    const parallelActions = actions.filter(a => a.type === 'parallel' || a.type === 'chat')
+
+    // Fire and forget: parallel-safe actions can run concurrently.
+    parallelActions.forEach((action) => {
+      void runSingleAction(action).catch(() => {
+        // errors are emitted via events; nothing else to do here
+      })
     })
+
+    // Sequential actions must be executed strictly in order.
+    void (async () => {
+      for (const action of sequentialActions) {
+        if (cancellationToken?.isCancelled) {
+          this.logger.log('Action execution cancelled before start')
+          return
+        }
+
+        try {
+          await runSingleAction(action)
+        }
+        catch (error) {
+          // Fail fast: stop executing remaining physical actions.
+          return
+        }
+      }
+    })()
   }
 
   public getAvailableActions() {

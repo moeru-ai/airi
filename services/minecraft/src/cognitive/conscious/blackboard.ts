@@ -15,12 +15,16 @@ export interface BlackboardState {
   strategy: string
   contextView: contextViewState
   chatHistory: ChatMessage[]
+  recentActionHistory: string[]
+  pendingActions: string[]
   selfUsername: string
 }
 
 export class Blackboard {
   private _state: BlackboardState
   private static readonly MAX_CHAT_HISTORY = 8
+  private static readonly MAX_ACTION_HISTORY = 12
+  private static readonly MAX_PENDING_ACTIONS = 12
 
   constructor() {
     this._state = {
@@ -32,6 +36,8 @@ export class Blackboard {
         environmentSummary: 'Unknown',
       },
       chatHistory: [],
+      recentActionHistory: [],
+      pendingActions: [],
       selfUsername: 'Bot',
     }
   }
@@ -43,6 +49,8 @@ export class Blackboard {
   public get selfSummary(): string { return this._state.contextView.selfSummary }
   public get environmentSummary(): string { return this._state.contextView.environmentSummary }
   public get chatHistory(): ChatMessage[] { return this._state.chatHistory }
+  public get recentActionHistory(): string[] { return this._state.recentActionHistory }
+  public get pendingActions(): string[] { return this._state.pendingActions }
   public get selfUsername(): string { return this._state.selfUsername }
 
   // Setters (Partial updates allowed)
@@ -62,11 +70,24 @@ export class Blackboard {
     this._state = { ...this._state, chatHistory: newHistory }
   }
 
+  public addActionHistoryLine(line: string): void {
+    const next = [...this._state.recentActionHistory, line]
+    const trimmed = next.length > Blackboard.MAX_ACTION_HISTORY ? next.slice(-Blackboard.MAX_ACTION_HISTORY) : next
+    this._state = { ...this._state, recentActionHistory: trimmed }
+  }
+
+  public setPendingActions(lines: string[]): void {
+    const trimmed = lines.length > Blackboard.MAX_PENDING_ACTIONS ? lines.slice(0, Blackboard.MAX_PENDING_ACTIONS) : lines
+    this._state = { ...this._state, pendingActions: trimmed }
+  }
+
   public getSnapshot(): BlackboardState {
     return {
       ...this._state,
       contextView: { ...this._state.contextView },
       chatHistory: [...this._state.chatHistory],
+      recentActionHistory: [...this._state.recentActionHistory],
+      pendingActions: [...this._state.pendingActions],
     }
   }
 }
