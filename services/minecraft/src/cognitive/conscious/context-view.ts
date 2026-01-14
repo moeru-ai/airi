@@ -12,7 +12,23 @@ export function buildConsciousContextView(ctx: ReflexContextState): ConsciousCon
 
   const players = ctx.environment.nearbyPlayers.map(p => p.name).join(',')
   const entities = ctx.environment.nearbyEntities.map(e => e.name).join(',')
-  const environmentSummary = `${ctx.environment.time} ${ctx.environment.weather} Nearby players [${players}] Nearby entities [${entities}] Light ${ctx.environment.lightLevel}`
+
+  const gaze = ctx.environment.nearbyPlayersGaze
+    .map((g) => {
+      const hit = g.hitBlock
+        ? `${g.hitBlock.name}@(${Math.round(g.hitBlock.pos.x)}, ${Math.round(g.hitBlock.pos.y)}, ${Math.round(g.hitBlock.pos.z)})`
+        : 'air'
+
+      if (g.hitBlock)
+        return `${g.name}->${hit}`
+
+      const lp = `(${Math.round(g.lookPoint.x)}, ${Math.round(g.lookPoint.y)}, ${Math.round(g.lookPoint.z)})`
+      return `${g.name}->${hit} lookPoint${lp}`
+    })
+    .join(' | ')
+  const gazeSummary = ctx.environment.nearbyPlayersGaze.length > 0 ? ` Nearby player gaze [${gaze}]` : ''
+
+  const environmentSummary = `${ctx.environment.time} ${ctx.environment.weather} Nearby players [${players}] Nearby entities [${entities}] Light ${ctx.environment.lightLevel}${gazeSummary}`
 
   return {
     selfSummary,
