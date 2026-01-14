@@ -14,6 +14,7 @@ import { initBot } from './composables/bot'
 import { config, initEnv } from './composables/config'
 import { createNeuriAgent } from './composables/neuri'
 import { DebugService } from './debug'
+import { setupMineflayerViewer } from './debug/mineflayer-viewer'
 import { wrapPlugin } from './libs/mineflayer'
 import { initLogger, useLogger } from './utils/logger'
 
@@ -37,6 +38,8 @@ async function main() {
       wrapPlugin(MineflayerTool),
     ],
   })
+
+  setupMineflayerViewer(bot, { port: 3007, firstPerson: true })
 
   // Connect airi server
   const airiClient = new Client({
