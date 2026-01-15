@@ -323,6 +323,36 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     }),
+    'siliconflow': buildOpenAICompatibleProvider({
+      id: 'siliconflow',
+      name: 'SiliconFlow',
+      nameKey: 'siliconflow',
+      descriptionKey: 'siliconflow',
+      icon: 'i-lobe-icons:siliconcloud',
+      description: 'siliconflow.cn',
+      defaultBaseUrl: 'https://api.siliconflow.cn/v1/',
+      creator: createOpenAI,
+      validation: ['health', 'model_list'],
+      validators: {
+        validateProviderConfig: (config) => {
+          const errors = [
+            !config.apiKey && new Error('API Key is required'),
+            !config.baseUrl && new Error('Base URL is required. Default to https://api.siliconflow.cn/v1/ for SiliconFlow.'),
+          ].filter(Boolean)
+
+          const res = baseUrlValidator.value(config.baseUrl)
+          if (res) {
+            return res
+          }
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
+        },
+      },
+    }),
     'app-local-audio-speech': buildOpenAICompatibleProvider({
       id: 'app-local-audio-speech',
       name: 'App (Local)',
@@ -852,26 +882,50 @@ export const useProvidersStore = defineStore('providers', () => {
       validation: [],
       capabilities: {
         // Note: SiliconFlow requires voice parameter in format "model:voice_name"
-        // We provide voices for the default model (MOSS-TTSD-v0.5)
+        // We provide voices for all supported models
         listVoices: async (_config) => {
-          const defaultModel = 'fnlp/MOSS-TTSD-v0.5'
-          return [
+          const models = [
+            'FunAudioLLM/CosyVoice2-0.5B',
+            'fnlp/MOSS-TTSD-v0.5',
+            'IndexTeam/IndexTTS-2',
+          ]
+
+          const voiceDefinitions = [
             // Male voices
-            { id: `${defaultModel}:alex`, name: 'Alex - 沉稳男声', provider: 'siliconflow-speech', languages: [], compatibleModels: [defaultModel] },
-            { id: `${defaultModel}:benjamin`, name: 'Benjamin - 低沉男声', provider: 'siliconflow-speech', languages: [], compatibleModels: [defaultModel] },
-            { id: `${defaultModel}:charles`, name: 'Charles - 磁性男声', provider: 'siliconflow-speech', languages: [], compatibleModels: [defaultModel] },
-            { id: `${defaultModel}:david`, name: 'David - 欢快男声', provider: 'siliconflow-speech', languages: [], compatibleModels: [defaultModel] },
+            { shortId: 'alex', name: 'Alex', description: '沉稳男声 - 专业稳重的声音', gender: 'male' },
+            { shortId: 'benjamin', name: 'Benjamin', description: '低沉男声 - 深沉有磁性', gender: 'male' },
+            { shortId: 'charles', name: 'Charles', description: '磁性男声 - 富有魅力', gender: 'male' },
+            { shortId: 'david', name: 'David', description: '欢快男声 - 活力阳光', gender: 'male' },
             // Female voices
-            { id: `${defaultModel}:anna`, name: 'Anna - 沉稳女声', provider: 'siliconflow-speech', languages: [], compatibleModels: [defaultModel] },
-            { id: `${defaultModel}:bella`, name: 'Bella - 激情女声', provider: 'siliconflow-speech', languages: [], compatibleModels: [defaultModel] },
-            { id: `${defaultModel}:claire`, name: 'Claire - 温柔女声', provider: 'siliconflow-speech', languages: [], compatibleModels: [defaultModel] },
-            { id: `${defaultModel}:diana`, name: 'Diana - 欢快女声', provider: 'siliconflow-speech', languages: [], compatibleModels: [defaultModel] },
-          ] satisfies VoiceInfo[]
+            { shortId: 'anna', name: 'Anna', description: '沉稳女声 - 温和知性', gender: 'female' },
+            { shortId: 'bella', name: 'Bella', description: '激情女声 - 热情洋溢', gender: 'female' },
+            { shortId: 'claire', name: 'Claire', description: '温柔女声 - 柔和亲切', gender: 'female' },
+            { shortId: 'diana', name: 'Diana', description: '欢快女声 - 活泼开朗', gender: 'female' },
+          ]
+
+          // Generate voices for all models
+          const voices: VoiceInfo[] = []
+          for (const model of models) {
+            for (const voice of voiceDefinitions) {
+              voices.push({
+                id: `${model}:${voice.shortId}`,
+                name: voice.name,
+                description: voice.description,
+                provider: 'siliconflow-speech',
+                languages: [],
+                compatibleModels: [model],
+                gender: voice.gender,
+              })
+            }
+          }
+
+          return voices
         },
         listModels: async () => {
           return [
-            { id: 'fnlp/MOSS-TTSD-v0.5', name: 'MOSS-TTSD-v0.5', provider: 'siliconflow-speech', description: 'Bilingual dialogue synthesis (Chinese/English)', contextLength: 0, deprecated: false },
-            { id: 'FunAudioLLM/CosyVoice2-0.5B', name: 'CosyVoice2-0.5B', provider: 'siliconflow-speech', description: 'Fast and natural Chinese TTS', contextLength: 0, deprecated: false },
+            { id: 'FunAudioLLM/CosyVoice2-0.5B', name: 'CosyVoice2-0.5B', provider: 'siliconflow-speech', description: '多语言情感语音 (推荐)', contextLength: 0, deprecated: false },
+            { id: 'fnlp/MOSS-TTSD-v0.5', name: 'MOSS-TTSD-v0.5', provider: 'siliconflow-speech', description: '双语对话合成', contextLength: 0, deprecated: false },
+            { id: 'IndexTeam/IndexTTS-2', name: 'IndexTTS-2', provider: 'siliconflow-speech', description: '高质量 TTS', contextLength: 0, deprecated: false },
           ]
         },
       },

@@ -23,7 +23,7 @@ const defaultVoiceSettings = {
 
 // Get provider metadata
 const providerId = 'siliconflow-speech'
-const defaultModel = 'fnlp/MOSS-TTSD-v0.5'
+const defaultModel = 'FunAudioLLM/CosyVoice2-0.5B'
 
 const speed = ref<number>(1.0)
 
