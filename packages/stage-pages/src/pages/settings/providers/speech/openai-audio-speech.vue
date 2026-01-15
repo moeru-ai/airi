@@ -49,8 +49,20 @@ const isLoadingModels = computed(() => {
 // Check if API key is configured
 const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
+// Filter voices based on the selected model's compatibility
 const availableVoices = computed(() => {
-  return speechStore.availableVoices[providerId] || []
+  const allVoices = speechStore.availableVoices[providerId] || []
+  const selectedModel = model.value || defaultModel
+
+  // Filter voices to only show those compatible with the selected model
+  return allVoices.filter((voice) => {
+    // If voice has no compatibleModels array, include it (backward compatibility)
+    if (!voice.compatibleModels || voice.compatibleModels.length === 0) {
+      return true
+    }
+    // Check if the selected model is in the voice's compatibleModels array
+    return voice.compatibleModels.includes(selectedModel)
+  })
 })
 
 // Load models and voices on mount
@@ -96,8 +108,8 @@ watch(speed, async () => {
 watch(model, async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.model = model.value
-  // Reload voices when model changes (though all OpenAI voices are compatible with all models)
-  // This ensures the voice list is refreshed and properly filtered if needed
+  // Reload voices when model changes to ensure compatibility filtering is applied
+  // Note: Voice compatibility varies by model - some voices (ballad, verse, marin, cedar) are only compatible with gpt-4o-mini-tts models
   await speechStore.loadVoicesForProvider(providerId)
 })
 </script>
