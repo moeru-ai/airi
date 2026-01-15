@@ -2,13 +2,13 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import type { VoiceInfo } from '../providers'
 
+import { refManualReset, useLocalStorage } from '@vueuse/core'
 import { generateSpeech } from '@xsai/generate-speech'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
 
-import { createResettableLocalStorage, createResettableRef } from '../../utils/resettable'
 import { useProvidersStore } from '../providers'
 
 export const useSpeechStore = defineStore('speech', () => {
@@ -16,19 +16,19 @@ export const useSpeechStore = defineStore('speech', () => {
   const { allAudioSpeechProvidersMetadata } = storeToRefs(providersStore)
 
   // State
-  const [activeSpeechProvider, resetActiveSpeechProvider] = createResettableLocalStorage('settings/speech/active-provider', '')
-  const [activeSpeechModel, resetActiveSpeechModel] = createResettableLocalStorage('settings/speech/active-model', 'eleven_multilingual_v2')
-  const [activeSpeechVoiceId, resetActiveSpeechVoiceId] = createResettableLocalStorage<string>('settings/speech/voice', '')
-  const [activeSpeechVoice, resetActiveSpeechVoice] = createResettableRef<VoiceInfo | undefined>(undefined)
+  const activeSpeechProvider = refManualReset<string>(useLocalStorage<string>('settings/speech/active-provider', ''))
+  const activeSpeechModel = refManualReset<string>(useLocalStorage<string>('settings/speech/active-model', 'eleven_multilingual_v2'))
+  const activeSpeechVoiceId = refManualReset<string>(useLocalStorage<string>('settings/speech/voice', ''))
+  const activeSpeechVoice = refManualReset<VoiceInfo | undefined>(undefined)
 
-  const [pitch, resetPitch] = createResettableLocalStorage('settings/speech/pitch', 0)
-  const [rate, resetRate] = createResettableLocalStorage('settings/speech/rate', 1)
-  const [ssmlEnabled, resetSsmlEnabled] = createResettableLocalStorage('settings/speech/ssml-enabled', false)
-  const [isLoadingSpeechProviderVoices, resetIsLoadingSpeechProviderVoices] = createResettableRef(false)
-  const [speechProviderError, resetSpeechProviderError] = createResettableRef<string | null>(null)
-  const [availableVoices, resetAvailableVoices] = createResettableRef<Record<string, VoiceInfo[]>>({})
-  const [selectedLanguage, resetSelectedLanguage] = createResettableLocalStorage('settings/speech/language', 'en-US')
-  const [modelSearchQuery, resetModelSearchQuery] = createResettableRef('')
+  const pitch = refManualReset<number>(useLocalStorage<number>('settings/speech/pitch', 0))
+  const rate = refManualReset<number>(useLocalStorage<number>('settings/speech/rate', 1))
+  const ssmlEnabled = refManualReset<boolean>(useLocalStorage<boolean>('settings/speech/ssml-enabled', false))
+  const isLoadingSpeechProviderVoices = refManualReset<boolean>(false)
+  const speechProviderError = refManualReset<string | null>(null)
+  const availableVoices = refManualReset<Record<string, VoiceInfo[]>>(() => ({}))
+  const selectedLanguage = refManualReset<string>(useLocalStorage<string>('settings/speech/language', 'en-US'))
+  const modelSearchQuery = refManualReset<string>('')
 
   // Computed properties
   const availableSpeechProvidersMetadata = computed(() => allAudioSpeechProvidersMetadata.value)
@@ -205,18 +205,18 @@ export const useSpeechStore = defineStore('speech', () => {
   })
 
   function resetState() {
-    resetActiveSpeechProvider()
-    resetActiveSpeechModel()
-    resetActiveSpeechVoiceId()
-    resetActiveSpeechVoice()
-    resetPitch()
-    resetRate()
-    resetSsmlEnabled()
-    resetSelectedLanguage()
-    resetModelSearchQuery()
-    resetAvailableVoices()
-    resetSpeechProviderError()
-    resetIsLoadingSpeechProviderVoices()
+    activeSpeechProvider.reset()
+    activeSpeechModel.reset()
+    activeSpeechVoiceId.reset()
+    activeSpeechVoice.reset()
+    pitch.reset()
+    rate.reset()
+    ssmlEnabled.reset()
+    selectedLanguage.reset()
+    modelSearchQuery.reset()
+    availableVoices.reset()
+    speechProviderError.reset()
+    isLoadingSpeechProviderVoices.reset()
   }
 
   return {
