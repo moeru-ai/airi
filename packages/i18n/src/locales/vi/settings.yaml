@@ -697,11 +697,11 @@ pages:
           title: Transcription Playground
     title: Nhà cung cấp
   connection:
-    description: Cấu hình kết nối máy chủ WebSocket
-    title: Kết nối
+    description: Configure WebSocket server connection
+    title: Connection
     websocket-url:
-      description: 'Địa chỉ đầy đủ của máy chủ WebSocket (ví dụ: ws://localhost:6121/ws)'
-      label: Địa chỉ máy chủ WebSocket
+      description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
+      label: WebSocket Server Address
       placeholder: ws://localhost:6121/ws
   scene:
     description: Cấu hình môi trường nhân vật sinh sống

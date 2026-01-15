@@ -1,13 +1,13 @@
+import { refManualReset, useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 
-import { createResettableLocalStorage } from '../../utils/resettable'
 import { useConfiguratorByModsChannelServer } from '../configurator'
 
 export const useDiscordStore = defineStore('discord', () => {
   const configurator = useConfiguratorByModsChannelServer()
-  const [enabled, resetEnabled] = createResettableLocalStorage('settings/discord/enabled', false)
-  const [token, resetToken] = createResettableLocalStorage('settings/discord/token', '')
+  const enabled = refManualReset<boolean>(useLocalStorage<boolean>('settings/discord/enabled', false))
+  const token = refManualReset<string>(useLocalStorage<string>('settings/discord/token', ''))
 
   function saveSettings() {
     // Data is automatically saved to localStorage via useLocalStorage
@@ -23,8 +23,8 @@ export const useDiscordStore = defineStore('discord', () => {
   })
 
   function resetState() {
-    resetEnabled()
-    resetToken()
+    enabled.reset()
+    token.reset()
     saveSettings()
   }
 

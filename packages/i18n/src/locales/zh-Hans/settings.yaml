@@ -696,16 +696,16 @@ pages:
         playground:
           title: 实验平台
     title: 服务来源
+  connection:
+    description: Configure WebSocket server connection
+    title: Connection
+    websocket-url:
+      description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
+      label: WebSocket Server Address
+      placeholder: ws://localhost:6121/ws
   scene:
     description: 配置角色所在环境
     title: 场景
-  connection:
-    description: 配置 WebSocket 服务器连接
-    title: 连接
-    websocket-url:
-      description: WebSocket 服务器的完整地址（例如：ws://localhost:6121/ws）
-      label: WebSocket 服务器地址
-      placeholder: ws://localhost:6121/ws
   system:
     color-scheme:
       description: 更改舞台的配色方案

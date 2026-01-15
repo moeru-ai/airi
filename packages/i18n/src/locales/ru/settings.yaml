@@ -697,11 +697,11 @@ pages:
           title: Песочница транскрипции
     title: Провайдеры
   connection:
-    description: Настроить подключение к WebSocket серверу
-    title: Подключение
+    description: Configure WebSocket server connection
+    title: Connection
     websocket-url:
-      description: 'Полный адрес WebSocket сервера (например: ws://localhost:6121/ws)'
-      label: Адрес WebSocket сервера
+      description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
+      label: WebSocket Server Address
       placeholder: ws://localhost:6121/ws
   scene:
     description: Настройте окружение, в котором живёт персонаж
