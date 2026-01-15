@@ -122,3 +122,4 @@ plugins-development
 
 #ia
 GEMINI.md
+.agent/*

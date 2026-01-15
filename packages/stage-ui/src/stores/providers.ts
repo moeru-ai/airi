@@ -838,6 +838,63 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       creator: createOpenAI,
     }),
+    'siliconflow-speech': buildOpenAICompatibleProvider({
+      id: 'siliconflow-speech',
+      name: 'SiliconFlow',
+      nameKey: 'siliconflow-speech',
+      descriptionKey: 'siliconflow-speech',
+      icon: 'i-lobe-icons:siliconcloud',
+      description: 'siliconflow.cn',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      defaultBaseUrl: 'https://api.siliconflow.cn/v1/',
+      creator: createOpenAI,
+      validation: [],
+      capabilities: {
+        // Note: SiliconFlow requires voice parameter in format "model:voice_name"
+        // We provide voices for the default model (MOSS-TTSD-v0.5)
+        listVoices: async (_config) => {
+          const defaultModel = 'fnlp/MOSS-TTSD-v0.5'
+          return [
+            // Male voices
+            { id: `${defaultModel}:alex`, name: 'Alex - 沉稳男声', provider: 'siliconflow-speech', languages: [], compatibleModels: [defaultModel] },
+            { id: `${defaultModel}:benjamin`, name: 'Benjamin - 低沉男声', provider: 'siliconflow-speech', languages: [], compatibleModels: [defaultModel] },
+            { id: `${defaultModel}:charles`, name: 'Charles - 磁性男声', provider: 'siliconflow-speech', languages: [], compatibleModels: [defaultModel] },
+            { id: `${defaultModel}:david`, name: 'David - 欢快男声', provider: 'siliconflow-speech', languages: [], compatibleModels: [defaultModel] },
+            // Female voices
+            { id: `${defaultModel}:anna`, name: 'Anna - 沉稳女声', provider: 'siliconflow-speech', languages: [], compatibleModels: [defaultModel] },
+            { id: `${defaultModel}:bella`, name: 'Bella - 激情女声', provider: 'siliconflow-speech', languages: [], compatibleModels: [defaultModel] },
+            { id: `${defaultModel}:claire`, name: 'Claire - 温柔女声', provider: 'siliconflow-speech', languages: [], compatibleModels: [defaultModel] },
+            { id: `${defaultModel}:diana`, name: 'Diana - 欢快女声', provider: 'siliconflow-speech', languages: [], compatibleModels: [defaultModel] },
+          ] satisfies VoiceInfo[]
+        },
+        listModels: async () => {
+          return [
+            { id: 'fnlp/MOSS-TTSD-v0.5', name: 'MOSS-TTSD-v0.5', provider: 'siliconflow-speech', description: 'Bilingual dialogue synthesis (Chinese/English)', contextLength: 0, deprecated: false },
+            { id: 'FunAudioLLM/CosyVoice2-0.5B', name: 'CosyVoice2-0.5B', provider: 'siliconflow-speech', description: 'Fast and natural Chinese TTS', contextLength: 0, deprecated: false },
+          ]
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          const errors = [
+            !config.apiKey && new Error('API Key is required'),
+            !config.baseUrl && new Error('Base URL is required. Default to https://api.siliconflow.cn/v1/ for SiliconFlow.'),
+          ].filter(Boolean)
+
+          const res = baseUrlValidator.value(config.baseUrl)
+          if (res) {
+            return res
+          }
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
+        },
+      },
+    }),
     'openai-audio-transcription': buildOpenAICompatibleProvider({
       id: 'openai-audio-transcription',
       name: 'OpenAI',
