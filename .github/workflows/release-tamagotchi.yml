@@ -50,6 +50,7 @@ on:
 jobs:
   build:
     name: Build
+    continue-on-error: ${{ matrix.skip }} # WORKAROUND: Skipping subsequent steps without failing the whole workflow
     strategy:
       matrix:
         include:
@@ -59,35 +60,35 @@ jobs:
             target: x86_64-apple-darwin
             arch: x64
             builder-args: --macos --x64
-            skip: ${{ inputs.platform == 'all' || inputs.platform == 'macos' }}
+            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'macos' }}
 
           - os: macos-latest
             artifact: darwin-arm64
             target: aarch64-apple-darwin
             builder-args: --macos --arm64
             arch: arm64
-            skip: ${{ inputs.platform == 'all' || inputs.platform == 'macos' }}
+            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'macos' }}
 
           - os: ubuntu-latest
             artifact: linux-x64
             target: x86_64-unknown-linux-gnu
             builder-args: --linux --x64
             arch: x64
-            skip: ${{ inputs.platform == 'all' || inputs.platform == 'linux' }}
+            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'linux' }}
 
           - os: ubuntu-24.04-arm
             artifact: linux-arm64
             target: aarch64-unknown-linux-gnu
             builder-args: --linux --arm64
             arch: arm64
-            skip: ${{ inputs.platform == 'all' || inputs.platform == 'linux' }}
+            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'linux' }}
 
           - os: windows-latest
             artifact: windows-x64-setup
             target: x86_64-pc-windows-msvc
             builder-args: --windows --x64
             arch: x64
-            skip: ${{ inputs.platform == 'all' || inputs.platform == 'windows' }}
+            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'windows' }}
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -382,7 +383,7 @@ jobs:
 
   merge-mac-latest:
     name: Merge macOS latest-mac.yml
-    if: ${{ github.event_name == 'release' }}
+    if: ${{ github.event_name == 'release' }} # Skipping will only exist when triggered by workflow_dispatch. No need to handle here
     needs: build
     runs-on: ubuntu-latest
     steps:
