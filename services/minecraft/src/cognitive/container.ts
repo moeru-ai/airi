@@ -12,7 +12,6 @@ import { PlanningAgentImpl } from '../agents/planning'
 import { TaskExecutor } from './action/task-executor'
 import { Brain } from './conscious/brain'
 import { createEventBus, createRuleEngine } from './os'
-import { EventManager } from './perception/event-manager'
 import { PerceptionPipeline } from './perception/pipeline'
 import { ReflexManager } from './reflex/reflex-manager'
 
@@ -24,7 +23,6 @@ export interface ContainerServices {
   planningAgent: PlanningAgentImpl
   chatAgent: ChatAgentImpl
   neuri: Neuri
-  eventManager: EventManager
   perceptionPipeline: PerceptionPipeline
   taskExecutor: TaskExecutor
   brain: Brain
@@ -102,8 +100,6 @@ export function createAgentContainer(options: {
         idleTimeout: 5 * 60 * 1000, // 5 minutes
       })),
 
-    eventManager: asClass(EventManager).singleton(),
-
     perceptionPipeline: asClass(PerceptionPipeline).singleton(),
 
     taskExecutor: asClass(TaskExecutor).singleton(),
@@ -112,6 +108,7 @@ export function createAgentContainer(options: {
       .singleton()
       .inject((c) => {
         return {
+          eventBus: c.resolve('eventBus'),
           reflexManager: c.resolve('reflexManager'),
         }
       }),

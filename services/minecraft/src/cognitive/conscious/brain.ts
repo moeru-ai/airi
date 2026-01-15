@@ -3,7 +3,7 @@ import type { Neuri } from 'neuri'
 
 import type { TaskExecutor } from '../action/task-executor'
 import type { ActionInstruction } from '../action/types'
-import type { EventManager } from '../perception/event-manager'
+import type { EventBus, TracedEvent } from '../os'
 import type { PerceptionSignal } from '../perception/types/signals'
 import type { ReflexManager } from '../reflex/reflex-manager'
 import type { BotEvent, MineflayerWithAgents } from '../types'
@@ -82,7 +82,7 @@ function isLikelyRecoverableError(err: unknown): boolean {
 }
 
 interface BrainDeps {
-  eventManager: EventManager
+  eventBus: EventBus
   neuri: Neuri
   logger: Logg
   taskExecutor: TaskExecutor
@@ -161,10 +161,7 @@ export class Brain {
     this.bot = bot
     this.blackboard.update({ selfUsername: bot.username })
 
-    // Perception Signal Handler - Only process chat messages for now
-    this.deps.eventManager.on<PerceptionSignal>('perception', async (event) => {
-      const signal = event.payload
-      // Only handle chat messages in the deliberative layer
+    const handleSignal = async (signal: PerceptionSignal) => {
       if (signal.type !== 'chat_message' && signal.type !== 'social_presence')
         return
 
@@ -172,8 +169,17 @@ export class Brain {
         await this.handlePerceptionSignal(bot, signal)
       }
       catch (err) {
-        this.log('ERROR', `Brain: Failed to enqueue chat event`, { error: err })
+        this.log('ERROR', 'Brain: Failed to enqueue chat event', { error: err })
       }
+    }
+
+    // Perception Signal Handler - unified on EventBus
+    this.deps.eventBus.subscribe<PerceptionSignal>('signal:chat_message', (event: TracedEvent<PerceptionSignal>) => {
+      void handleSignal(event.payload)
+    })
+
+    this.deps.eventBus.subscribe<PerceptionSignal>('signal:social_presence', (event: TracedEvent<PerceptionSignal>) => {
+      void handleSignal(event.payload)
     })
 
     // Listen to Task Execution Events (Action Feedback)

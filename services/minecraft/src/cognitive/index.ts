@@ -5,7 +5,6 @@ import { config } from '../composables/config'
 import { DebugService } from '../debug'
 import { ChatMessageHandler } from '../libs/mineflayer'
 import { createAgentContainer } from './container'
-import { createPerceptionFrameFromChat } from './perception/frame'
 import { computeNearbyPlayerGaze } from './reflex/gaze'
 
 export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlugin {
@@ -24,7 +23,6 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
       const actionAgent = container.resolve('actionAgent')
       const chatAgent = container.resolve('chatAgent')
       const perceptionPipeline = container.resolve('perceptionPipeline')
-      const eventManager = container.resolve('eventManager')
       const brain = container.resolve('brain')
       const reflexManager = container.resolve('reflexManager')
       const taskExecutor = container.resolve('taskExecutor')
@@ -75,16 +73,6 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
         // Resolve EventBus and subscribe to forward events to debug timeline
         const eventBus = container.resolve('eventBus')
 
-        // Bridge selected EventBus signals into EventManager perception stream for Brain.
-        eventBus.subscribe('signal:social_presence', (event) => {
-          eventManager.emit({
-            type: 'perception',
-            payload: event.payload as any,
-            source: { type: 'minecraft', id: 'eventBus' },
-            timestamp: Date.now(),
-          })
-        })
-
         eventBus.subscribe('*', (event) => {
           // Forward to debug service for timeline visualization
           DebugService.getInstance().emitTrace({
@@ -98,14 +86,13 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
           })
         })
 
-        // Set message handling via EventManager
+        // Set message handling via EventBus
         const chatHandler = new ChatMessageHandler(bot.username)
         bot.bot.on('chat', (username, message) => {
           if (chatHandler.isBotMessage(username))
             return
 
           // Bridge chat directly into EventBus as a signal so Reflex can react to it.
-          // (PerceptionPipeline will also ingest this for Brain via EventManager.)
           eventBus.emit({
             type: 'signal:chat_message',
             payload: Object.freeze({
@@ -125,7 +112,7 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
             },
           })
 
-          perceptionPipeline.ingest(createPerceptionFrameFromChat(username, message))
+          // Chat is handled via signal:chat_message only; no extra perception emission needed.
         })
       }
 

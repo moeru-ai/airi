@@ -2,7 +2,6 @@ import type { Logg } from '@guiiai/logg'
 
 import type { EventBus } from '../os'
 import type { MineflayerWithAgents } from '../types'
-import type { EventManager } from './event-manager'
 import type { PerceptionFrame } from './frame'
 import type { RawPerceptionEvent } from './types/raw-events'
 import type { PerceptionSignal } from './types/signals'
@@ -29,7 +28,6 @@ export class PerceptionPipeline {
   constructor(
     private readonly deps: {
       eventBus: EventBus
-      eventManager: EventManager
       logger: Logg
     },
   ) {
@@ -96,33 +94,6 @@ export class PerceptionPipeline {
       {
         name: 'router',
         handle: (frame) => {
-          if (frame.kind === 'chat_raw') {
-            const raw = frame.raw as { username: string, message: string }
-
-            // Convert chat to PerceptionSignal
-            const signal: PerceptionSignal = {
-              type: 'chat_message',
-              description: `Chat from ${raw.username}: "${raw.message}"`,
-              sourceId: raw.username,
-              timestamp: Date.now(),
-              confidence: 1.0,
-              metadata: {
-                username: raw.username,
-                message: raw.message,
-              },
-            }
-
-            this.deps.eventManager.emit<PerceptionSignal>({
-              type: 'perception',
-              payload: signal,
-              source: {
-                type: 'minecraft',
-                id: raw.username,
-              },
-              timestamp: Date.now(),
-            })
-          }
-
           // Emit all perception signals centrally as BotEvents
           for (const signalWrapper of frame.signals) {
             if (signalWrapper.type !== 'perception_signal')
@@ -130,11 +101,10 @@ export class PerceptionPipeline {
 
             const signal = signalWrapper.payload as PerceptionSignal
 
-            this.deps.eventManager.emit<PerceptionSignal>({
+            this.deps.eventBus.emit<PerceptionSignal>({
               type: 'perception',
               payload: signal,
-              source: { type: 'minecraft', id: 'perception' },
-              timestamp: Date.now(),
+              source: { component: 'perception', id: 'perception' },
             })
           }
 

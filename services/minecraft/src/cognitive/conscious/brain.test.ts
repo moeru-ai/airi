@@ -45,14 +45,14 @@ describe('brain decide retry', () => {
     } as any
 
     const brain = new Brain({
-      eventManager: {} as any,
+      eventBus: { subscribe: vi.fn() } as any,
       neuri,
       logger,
       taskExecutor: { getAvailableActions: () => [] } as any,
       reflexManager: { getContextSnapshot: () => ({}) } as any,
     })
 
-            ; (brain as any).bot = { bot: { chat: vi.fn() } }
+      ; (brain as any).bot = { bot: { chat: vi.fn() } }
 
     const res = await (brain as any).decide('sys', 'user')
     expect(res?.thought).toBe('ok')
@@ -77,7 +77,7 @@ describe('brain decide retry', () => {
     } as any
 
     const brain = new Brain({
-      eventManager: {} as any,
+      eventBus: { subscribe: vi.fn() } as any,
       neuri,
       logger,
       taskExecutor: { getAvailableActions: () => [] } as any,
@@ -85,7 +85,7 @@ describe('brain decide retry', () => {
     })
 
     const chat = vi.fn()
-            ; (brain as any).bot = { bot: { chat } }
+      ; (brain as any).bot = { bot: { chat } }
 
     await expect((brain as any).decide('sys', 'user')).rejects.toThrow('unauthorized')
     expect(neuri.handleStateless).toHaveBeenCalledTimes(1)
