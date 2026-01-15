@@ -9,7 +9,7 @@ import {
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { FieldRange, FieldSelect } from '@proj-airi/ui'
+import { FieldInput, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -83,22 +83,21 @@ watch(
   { deep: true, immediate: true },
 )
 
-// Load models
-const providerModels = computed(() => {
-  return providersStore.getModelsForProvider(providerId)
-})
-
-const isLoadingModels = computed(() => {
-  return providersStore.isLoadingModels[providerId] || false
-})
-
 // Check if API key is configured
 const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
-// Load models on mount
-onMounted(async () => {
-  await providersStore.loadModelsForConfiguredProviders()
-  await providersStore.fetchModelsForProvider(providerId)
+// Ensure provider config is initialized on mount
+onMounted(() => {
+  if (!providers.value[providerId]) {
+    providers.value[providerId] = {}
+  }
+  // Initialize model and voice if they don't exist
+  if (!providers.value[providerId].model) {
+    providers.value[providerId].model = defaultModel
+  }
+  if (!providers.value[providerId].voice) {
+    providers.value[providerId].voice = 'alloy'
+  }
 })
 
 // Generate speech with OpenAI-compatible parameters
@@ -128,13 +127,25 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 }
 
 watch(speed, async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  providerConfig.speed = speed.value
+  if (!providers.value[providerId])
+    providers.value[providerId] = {}
+  providers.value[providerId].speed = speed.value
 })
 
-watch(model, async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  providerConfig.model = model.value
+watch(model, () => {
+  // Ensure provider config exists
+  if (!providers.value[providerId])
+    providers.value[providerId] = {}
+  // Save model to provider config (this persists to localStorage automatically)
+  providers.value[providerId].model = model.value
+})
+
+watch(voice, () => {
+  // Ensure provider config exists
+  if (!providers.value[providerId])
+    providers.value[providerId] = {}
+  // Save voice to provider config (this persists to localStorage automatically)
+  providers.value[providerId].voice = voice.value
 })
 
 // Use the composable to get validation logic and state
@@ -155,14 +166,12 @@ const {
   >
     <!-- Voice settings specific to OpenAI Compatible -->
     <template #voice-settings>
-      <!-- Model selection -->
-      <FieldSelect
+      <!-- Model input -->
+      <FieldInput
         v-model="model"
         label="Model"
-        description="Select the TTS model to use for speech generation"
-        :options="providerModels.map(m => ({ value: m.id, label: m.name }))"
-        :disabled="isLoadingModels || providerModels.length === 0"
-        placeholder="Select a model..."
+        description="Enter the TTS model to use for speech generation"
+        placeholder="tts-1"
       />
       <!-- Speed control - common to most providers -->
       <FieldRange

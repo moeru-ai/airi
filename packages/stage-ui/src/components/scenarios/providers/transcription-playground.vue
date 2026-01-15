@@ -10,7 +10,6 @@ import { useAudioAnalyzer } from '../../../composables/audio/audio-analyzer'
 import { useAudioRecorder } from '../../../composables/audio/audio-recorder'
 import { useAudioDevice } from '../../../composables/audio/device'
 import { LevelMeter, TestDummyMarker, ThresholdMeter } from '../../gadgets'
-import { ErrorContainer } from '../../misc'
 
 const props = defineProps<{
   // Provider-specific handlers (provided from parent)
@@ -107,11 +106,15 @@ onStopRecord(async (recording) => {
   try {
     if (recording && recording.size > 0) {
       audios.value.push(recording)
+      // Clear any previous error message
+      errorMessage.value = ''
       const result = await props.generateTranscription(new File([recording], 'recording.wav'))
       const text = result.mode === 'stream'
         ? await result.text
         : result.text
       transcriptions.value.push(text)
+      // Clear error message on success
+      errorMessage.value = ''
     }
   }
   catch (err) {
@@ -123,6 +126,15 @@ onStopRecord(async (recording) => {
 // Monitoring toggle
 async function toggleMonitoring() {
   if (!isMonitoring.value) {
+    // Clear previous recordings and transcriptions when starting a new monitoring session
+    // Clean up previous audio URLs
+    audioCleanups.value.forEach(cleanup => cleanup())
+    audioCleanups.value = []
+    audios.value = []
+    transcriptions.value = []
+    // Clear any previous error messages
+    errorMessage.value = ''
+
     await setupAudioMonitoring()
     await startRecord()
     isMonitoring.value = true
@@ -180,12 +192,12 @@ onUnmounted(() => {
     </Button>
 
     <!-- Error message display -->
-    <ErrorContainer
-      v-if="errorMessage"
-      class="mb-4"
-      title="Error"
-      :error="errorMessage"
-    />
+    <div v-if="errorMessage" class="mb-4 border border-red-200 rounded-lg bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
+      <div class="flex items-center gap-2 text-red-700 dark:text-red-400">
+        <div i-solar:warning-circle-line-duotone class="text-lg" />
+        <span class="text-sm font-medium">{{ errorMessage }}</span>
+      </div>
+    </div>
 
     <div>
       <div v-for="(audio, index) in audioURLs" :key="index" class="mb-2">

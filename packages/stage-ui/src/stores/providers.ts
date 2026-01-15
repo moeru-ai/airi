@@ -700,7 +700,12 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: ['health'],
       capabilities: {
-        listVoices: async () => {
+        // NOTE: OpenAI does not provide an API endpoint to retrieve available voices.
+        // Voices are hardcoded here - this is a provider limitation, not an application limitation.
+        // Voice compatibility per https://platform.openai.com/docs/api-reference/audio/createSpeech:
+        // - tts-1 and tts-1-hd support: alloy, ash, coral, echo, fable, onyx, nova, sage, shimmer (9 voices)
+        // - gpt-4o-mini-tts supports all 13 voices: alloy, ash, ballad, coral, echo, fable, nova, onyx, sage, shimmer, verse, marin, cedar
+        listVoices: async (_config: Record<string, unknown>) => {
           return [
             {
               id: 'alloy',
@@ -721,7 +726,7 @@ export const useProvidersStore = defineStore('providers', () => {
               name: 'Ballad',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
+              compatibleModels: ['gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'coral',
@@ -777,21 +782,21 @@ export const useProvidersStore = defineStore('providers', () => {
               name: 'Verse',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
+              compatibleModels: ['gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'marin',
               name: 'Marin',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
+              compatibleModels: ['gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'cedar',
               name: 'Cedar',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
+              compatibleModels: ['gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
           ] satisfies VoiceInfo[]
         },

@@ -57,6 +57,9 @@ const availableVoices = computed(() => {
 onMounted(async () => {
   await providersStore.loadModelsForConfiguredProviders()
   await providersStore.fetchModelsForProvider(providerId)
+  // Load voices
+  // NOTE: OpenAI does not provide an API endpoint to retrieve available voices.
+  // Voices are hardcoded in provider metadata - this is a provider limitation, not an application limitation.
   await speechStore.loadVoicesForProvider(providerId)
 })
 
@@ -93,6 +96,9 @@ watch(speed, async () => {
 watch(model, async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.model = model.value
+  // Reload voices when model changes (though all OpenAI voices are compatible with all models)
+  // This ensures the voice list is refreshed and properly filtered if needed
+  await speechStore.loadVoicesForProvider(providerId)
 })
 </script>
 

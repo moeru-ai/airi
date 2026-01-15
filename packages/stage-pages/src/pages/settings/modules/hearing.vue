@@ -8,7 +8,7 @@ import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { Button, FieldCheckbox, FieldRange, FieldSelect } from '@proj-airi/ui'
+import { Button, FieldCheckbox, FieldInput, FieldRange, FieldSelect } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -222,8 +222,10 @@ const speakingIndicatorClass = computed(() => {
   }
 })
 
-function updateCustomModelName(value: string) {
-  activeCustomModelName.value = value
+function updateCustomModelName(value: string | undefined) {
+  const modelValue = value || ''
+  activeCustomModelName.value = modelValue
+  activeTranscriptionModel.value = modelValue
 }
 
 onStopRecord(async (recording) => {
@@ -428,8 +430,23 @@ watch(activeTranscriptionProvider, async (provider) => {
 
   await hearingStore.loadModelsForProvider(provider)
 
+  // For OpenAI Compatible, always sync model from provider config
+  if (provider === 'openai-compatible-audio-transcription') {
+    const providerConfig = providersStore.getProviderConfig(provider)
+    // Always sync model from provider config (override any existing value from previous provider)
+    if (providerConfig?.model) {
+      activeTranscriptionModel.value = providerConfig.model as string
+      updateCustomModelName(providerConfig.model as string)
+    }
+    else {
+      // If no model in provider config, use default
+      const defaultModel = 'whisper-1'
+      activeTranscriptionModel.value = defaultModel
+      updateCustomModelName(defaultModel)
+    }
+  }
   // Auto-select first model for Web Speech API if no model is selected
-  if (provider === 'browser-web-speech-api' && !activeTranscriptionModel.value) {
+  else if (provider === 'browser-web-speech-api' && !activeTranscriptionModel.value) {
     const models = providerModels.value
     if (models.length > 0) {
       activeTranscriptionModel.value = models[0].id
@@ -440,6 +457,21 @@ watch(activeTranscriptionProvider, async (provider) => {
 
 onMounted(async () => {
   // Audio devices are loaded on demand when user requests them
+
+  // Sync model from provider config for OpenAI Compatible on initial load
+  if (activeTranscriptionProvider.value === 'openai-compatible-audio-transcription') {
+    const providerConfig = providersStore.getProviderConfig(activeTranscriptionProvider.value)
+    if (providerConfig?.model) {
+      activeTranscriptionModel.value = providerConfig.model as string
+      updateCustomModelName(providerConfig.model as string)
+    }
+    else {
+      // If no model in provider config, use default
+      const defaultModel = 'whisper-1'
+      activeTranscriptionModel.value = defaultModel
+      updateCustomModelName(defaultModel)
+    }
+  }
 })
 
 onUnmounted(() => {
@@ -541,19 +573,25 @@ onUnmounted(() => {
         </div>
 
         <!-- Model selection section -->
-        <div v-if="activeTranscriptionProvider && supportsModelListing">
+        <div v-if="activeTranscriptionProvider">
           <div flex="~ col gap-4">
             <div>
               <h2 class="text-lg md:text-2xl">
                 {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.title') }}
               </h2>
               <div text="neutral-400 dark:neutral-400">
-                <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}</span>
+                <!-- Show different description based on whether provider supports model listing and has models -->
+                <span v-if="supportsModelListing && providerModels.length > 0">
+                  {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}
+                </span>
+                <span v-else>
+                  Enter the transcription model to use (e.g., 'whisper-1', 'gpt-4o-transcribe')
+                </span>
               </div>
             </div>
 
             <!-- Loading state -->
-            <div v-if="isLoadingActiveProviderModels" class="flex items-center justify-center py-4">
+            <div v-if="isLoadingActiveProviderModels && supportsModelListing" class="flex items-center justify-center py-4">
               <div class="mr-2 animate-spin">
                 <div i-solar:spinner-line-duotone text-xl />
               </div>
@@ -562,14 +600,26 @@ onUnmounted(() => {
 
             <!-- Error state -->
             <ErrorContainer
-              v-else-if="activeProviderModelError"
+              v-else-if="activeProviderModelError && supportsModelListing"
               :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
               :error="activeProviderModelError"
             />
 
-            <!-- No models available -->
+            <!-- Manual input for providers without model listing or when no models are available -->
+            <div
+              v-else-if="!supportsModelListing || (activeTranscriptionProvider === 'openai-compatible-audio-transcription' && providerModels.length === 0 && !isLoadingActiveProviderModels)"
+              class="mt-2"
+            >
+              <FieldInput
+                :model-value="activeTranscriptionModel || activeCustomModelName || ''"
+                placeholder="whisper-1"
+                @update:model-value="updateCustomModelName"
+              />
+            </div>
+
+            <!-- No models available (for other providers with model listing but no models) -->
             <Alert
-              v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels"
+              v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels && supportsModelListing"
               type="warning"
             >
               <template #title>
@@ -580,8 +630,8 @@ onUnmounted(() => {
               </template>
             </Alert>
 
-            <!-- Using the new RadioCardManySelect component -->
-            <template v-else-if="providerModels.length > 0">
+            <!-- Using the new RadioCardManySelect component for providers with models -->
+            <template v-else-if="providerModels.length > 0 && supportsModelListing">
               <RadioCardManySelect
                 v-model="activeTranscriptionModel"
                 v-model:search-query="transcriptionModelSearchQuery"
