@@ -18,6 +18,11 @@ export interface UseOptimisticOptions<T, R, E = unknown> {
    * Optional callback on error. Rollback is handled automatically.
    */
   onError?: (error?: E | null) => void | Promise<void>
+
+  /**
+   * Whether to execute the action lazily.
+   */
+  lazy?: boolean
 }
 
 /**
@@ -25,7 +30,7 @@ export interface UseOptimisticOptions<T, R, E = unknown> {
  * Integrates with useAsyncState for loading/error tracking.
  */
 export function useOptimistic<T, R = T, E = unknown>(options: UseOptimisticOptions<T, R>) {
-  const { apply, action, onSuccess, onError } = options
+  const { apply, action, onSuccess, onError, lazy = false } = options
 
   return useAsyncState(async () => {
     const rollback = await apply()
@@ -37,14 +42,14 @@ export function useOptimistic<T, R = T, E = unknown>(options: UseOptimisticOptio
       }
       return result as unknown as R
     }
-    catch (err: E) {
+    catch (err) {
       if (typeof rollback === 'function') {
         await rollback()
       }
       if (onError) {
-        await onError(err)
+        await onError(err as E)
       }
       throw err
     }
-  }, { immediate: true })
+  }, { immediate: !lazy })
 }
