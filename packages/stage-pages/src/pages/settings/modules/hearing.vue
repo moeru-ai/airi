@@ -228,6 +228,25 @@ function updateCustomModelName(value: string | undefined) {
   activeTranscriptionModel.value = modelValue
 }
 
+// Sync OpenAI Compatible model from provider config
+function syncOpenAICompatibleSettings() {
+  if (activeTranscriptionProvider.value !== 'openai-compatible-audio-transcription')
+    return
+
+  const providerConfig = providersStore.getProviderConfig(activeTranscriptionProvider.value)
+  // Always sync model from provider config (override any existing value from previous provider)
+  if (providerConfig?.model) {
+    activeTranscriptionModel.value = providerConfig.model as string
+    updateCustomModelName(providerConfig.model as string)
+  }
+  else {
+    // If no model in provider config, use default
+    const defaultModel = 'whisper-1'
+    activeTranscriptionModel.value = defaultModel
+    updateCustomModelName(defaultModel)
+  }
+}
+
 onStopRecord(async (recording) => {
   if (shouldUseStreamInput.value)
     return
@@ -429,24 +448,10 @@ watch(activeTranscriptionProvider, async (provider) => {
     return
 
   await hearingStore.loadModelsForProvider(provider)
+  syncOpenAICompatibleSettings()
 
-  // For OpenAI Compatible, always sync model from provider config
-  if (provider === 'openai-compatible-audio-transcription') {
-    const providerConfig = providersStore.getProviderConfig(provider)
-    // Always sync model from provider config (override any existing value from previous provider)
-    if (providerConfig?.model) {
-      activeTranscriptionModel.value = providerConfig.model as string
-      updateCustomModelName(providerConfig.model as string)
-    }
-    else {
-      // If no model in provider config, use default
-      const defaultModel = 'whisper-1'
-      activeTranscriptionModel.value = defaultModel
-      updateCustomModelName(defaultModel)
-    }
-  }
   // Auto-select first model for Web Speech API if no model is selected
-  else if (provider === 'browser-web-speech-api' && !activeTranscriptionModel.value) {
+  if (provider === 'browser-web-speech-api' && !activeTranscriptionModel.value) {
     const models = providerModels.value
     if (models.length > 0) {
       activeTranscriptionModel.value = models[0].id
@@ -457,21 +462,7 @@ watch(activeTranscriptionProvider, async (provider) => {
 
 onMounted(async () => {
   // Audio devices are loaded on demand when user requests them
-
-  // Sync model from provider config for OpenAI Compatible on initial load
-  if (activeTranscriptionProvider.value === 'openai-compatible-audio-transcription') {
-    const providerConfig = providersStore.getProviderConfig(activeTranscriptionProvider.value)
-    if (providerConfig?.model) {
-      activeTranscriptionModel.value = providerConfig.model as string
-      updateCustomModelName(providerConfig.model as string)
-    }
-    else {
-      // If no model in provider config, use default
-      const defaultModel = 'whisper-1'
-      activeTranscriptionModel.value = defaultModel
-      updateCustomModelName(defaultModel)
-    }
-  }
+  syncOpenAICompatibleSettings()
 })
 
 onUnmounted(() => {

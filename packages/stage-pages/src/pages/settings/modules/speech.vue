@@ -57,59 +57,43 @@ const audioUrl = ref('')
 const audioPlayer = ref<HTMLAudioElement | null>(null)
 const errorMessage = ref('')
 
+// Sync OpenAI Compatible model and voice from provider config
+function syncOpenAICompatibleSettings() {
+  if (activeSpeechProvider.value !== 'openai-compatible-audio-speech')
+    return
+
+  const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+  // Sync model from provider config (override any existing value from previous provider)
+  if (providerConfig?.model) {
+    activeSpeechModel.value = providerConfig.model as string
+  }
+  else {
+    // If no model in provider config, use default
+    activeSpeechModel.value = 'tts-1'
+  }
+  // Sync voice from provider config (override any existing value from previous provider)
+  // Use updateCustomVoiceName to ensure proper reactivity
+  if (providerConfig?.voice) {
+    activeSpeechVoiceId.value = providerConfig.voice as string
+    updateCustomVoiceName(providerConfig.voice as string)
+  }
+  else {
+    // If no voice in provider config, use default
+    activeSpeechVoiceId.value = 'alloy'
+    updateCustomVoiceName('alloy')
+  }
+}
+
 onMounted(async () => {
   await providersStore.loadModelsForConfiguredProviders()
   await speechStore.loadVoicesForProvider(activeSpeechProvider.value)
-
-  // If OpenAI Compatible is already selected, sync model and voice from provider config
-  if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
-    const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
-    // Sync model from provider config
-    if (providerConfig?.model) {
-      activeSpeechModel.value = providerConfig.model as string
-    }
-    else {
-      activeSpeechModel.value = 'tts-1'
-    }
-    // Sync voice from provider config using updateCustomVoiceName to ensure proper reactivity
-    if (providerConfig?.voice) {
-      activeSpeechVoiceId.value = providerConfig.voice as string
-      updateCustomVoiceName(providerConfig.voice as string)
-    }
-    else {
-      activeSpeechVoiceId.value = 'alloy'
-      updateCustomVoiceName('alloy')
-    }
-  }
+  syncOpenAICompatibleSettings()
 })
 
 watch(activeSpeechProvider, async (newProvider) => {
   await providersStore.loadModelsForConfiguredProviders()
   await speechStore.loadVoicesForProvider(newProvider)
-
-  // For OpenAI Compatible, always sync model and voice from provider config
-  if (newProvider === 'openai-compatible-audio-speech') {
-    const providerConfig = providersStore.getProviderConfig(newProvider)
-    // Always sync model from provider config (override any existing value from previous provider)
-    if (providerConfig?.model) {
-      activeSpeechModel.value = providerConfig.model as string
-    }
-    else {
-      // If no model in provider config, use default
-      activeSpeechModel.value = 'tts-1'
-    }
-    // Always sync voice from provider config (override any existing value from previous provider)
-    // Use updateCustomVoiceName to ensure proper reactivity
-    if (providerConfig?.voice) {
-      activeSpeechVoiceId.value = providerConfig.voice as string
-      updateCustomVoiceName(providerConfig.voice as string)
-    }
-    else {
-      // If no voice in provider config, use default
-      activeSpeechVoiceId.value = 'alloy'
-      updateCustomVoiceName('alloy')
-    }
-  }
+  syncOpenAICompatibleSettings()
 })
 
 // Function to generate speech
