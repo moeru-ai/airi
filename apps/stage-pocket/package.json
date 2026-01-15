@@ -65,7 +65,6 @@
     "date-fns": "^4.1.0",
     "dompurify": "^3.3.1",
     "driver.js": "^1.4.0",
-    "drizzle-kit": "^0.31.8",
     "drizzle-orm": "^0.45.1",
     "gpuu": "^1.0.6",
     "html2canvas": "^1.4.1",

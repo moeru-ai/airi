@@ -89,7 +89,6 @@
     "defu": "^6.1.4",
     "destr": "^2.0.5",
     "dompurify": "^3.3.1",
-    "drizzle-kit": "^0.31.8",
     "drizzle-orm": "^0.45.1",
     "electron-click-drag-plugin": "^2.0.2",
     "electron-updater": "^6.6.2",
