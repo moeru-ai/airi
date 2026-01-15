@@ -6,7 +6,7 @@ import { computed, ref } from 'vue'
 
 import { client } from '../composables/api'
 import { useAsyncState } from '../composables/use-async-state'
-import { useOptimistic } from '../composables/use-optimistic'
+import { useOptimisticMutation } from '../composables/use-optimistic'
 import { providersRepo } from '../database/repos/providers.repo'
 import { getDefinedProvider, listProviders } from '../libs/providers/providers'
 
@@ -60,7 +60,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
       validationBypassed: false,
     }
 
-    return useOptimistic<any, any>({
+    return useOptimisticMutation<any, any>({
       apply: async () => {
         configs.value[id] = provider
         await providersRepo.upsert(provider)
@@ -108,7 +108,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
       return
     }
 
-    return useOptimistic<void, void>({
+    return useOptimisticMutation<void, void>({
       apply: async () => {
         delete configs.value[providerId]
         await providersRepo.remove(providerId)
@@ -138,7 +138,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
     const originalValidated = provider.validated
     const originalValidationBypassed = provider.validationBypassed
 
-    return useOptimistic<any, void>({
+    return useOptimisticMutation<any, void>({
       apply: async () => {
         provider.config = { ...newConfig }
         provider.validated = options.validated

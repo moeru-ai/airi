@@ -1,6 +1,6 @@
 import { useAsyncState } from './use-async-state'
 
-export interface UseOptimisticOptions<T, R, E = unknown> {
+export interface UseOptimisticMutationOptions<T, R, E = unknown> {
   /**
    * The optimistic update logic.
    * Should return a rollback function.
@@ -26,10 +26,11 @@ export interface UseOptimisticOptions<T, R, E = unknown> {
 }
 
 /**
- * A wrapper for performing optimistic updates with automatic rollback.
+ * A wrapper for performing optimistic mutations with automatic rollback.
  * Integrates with useAsyncState for loading/error tracking.
+ * TODO: use https://pinia-colada.esm.dev/guide/mutations.html instead.
  */
-export function useOptimistic<T, R = T, E = unknown>(options: UseOptimisticOptions<T, R, E>) {
+export function useOptimisticMutation<T, R = T, E = unknown>(options: UseOptimisticMutationOptions<T, R, E>) {
   const { apply, action, onSuccess, onError, lazy = false } = options
 
   return useAsyncState(async () => {

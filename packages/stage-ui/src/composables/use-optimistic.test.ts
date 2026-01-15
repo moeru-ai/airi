@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
 
-import { useOptimistic } from './use-optimistic'
+import { useOptimisticMutation } from './use-optimistic'
 
 describe('useOptimistic', () => {
   it('should perform a successful optimistic update', async () => {
@@ -25,7 +25,7 @@ describe('useOptimistic', () => {
       return state.value
     })
 
-    const { state: resultState, isLoading } = useOptimistic({
+    const { state: resultState, isLoading } = useOptimisticMutation({
       apply,
       action,
       onSuccess,
@@ -63,7 +63,7 @@ describe('useOptimistic', () => {
       throw error
     })
 
-    const { error: errorState, isLoading } = useOptimistic({
+    const { error: errorState, isLoading } = useOptimisticMutation({
       apply,
       action,
     })
@@ -96,7 +96,7 @@ describe('useOptimistic', () => {
       throw new Error('fail')
     }
 
-    const { execute } = useOptimistic({
+    const { execute } = useOptimisticMutation({
       apply,
       action,
     })
@@ -111,7 +111,7 @@ describe('useOptimistic', () => {
       throw new Error('fail')
     })
 
-    const { execute, error } = useOptimistic({
+    const { execute, error } = useOptimisticMutation({
       // @ts-expect-error - testing invalid return
       apply: () => null,
       action,
