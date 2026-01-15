@@ -1,6 +1,6 @@
 import { useAsyncState } from './use-async-state'
 
-export interface UseOptimisticOptions<T, R> {
+export interface UseOptimisticOptions<T, R, E = unknown> {
   /**
    * The optimistic update logic.
    * Should return a rollback function.
@@ -17,14 +17,14 @@ export interface UseOptimisticOptions<T, R> {
   /**
    * Optional callback on error. Rollback is handled automatically.
    */
-  onError?: (error: unknown) => void | Promise<void>
+  onError?: (error?: E | null) => void | Promise<void>
 }
 
 /**
  * A wrapper for performing optimistic updates with automatic rollback.
  * Integrates with useAsyncState for loading/error tracking.
  */
-export function useOptimistic<T, R = T>(options: UseOptimisticOptions<T, R>) {
+export function useOptimistic<T, R = T, E = unknown>(options: UseOptimisticOptions<T, R>) {
   const { apply, action, onSuccess, onError } = options
 
   return useAsyncState(async () => {
@@ -37,7 +37,7 @@ export function useOptimistic<T, R = T>(options: UseOptimisticOptions<T, R>) {
       }
       return result as unknown as R
     }
-    catch (err) {
+    catch (err: E) {
       if (typeof rollback === 'function') {
         await rollback()
       }
