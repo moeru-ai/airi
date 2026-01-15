@@ -114,7 +114,7 @@ export const useSettings = defineStore('settings', () => {
 
   const allowVisibleOnAllWorkspaces = refManualReset<boolean>(useLocalStorage<boolean>('settings/allow-visible-on-all-workspaces', true))
 
-  const controlsIslandIconSize = refManualReset(useLocalStorage<'auto' | 'large' | 'small'>('settings/controls-island/icon-size', 'auto'))
+  const controlsIslandIconSize = refManualReset<'auto' | 'large' | 'small'>(useLocalStorage<'auto' | 'large' | 'small'>('settings/controls-island/icon-size', 'auto'))
 
   function getLanguage() {
     let language = localStorage.getItem('settings/language')
