@@ -697,11 +697,11 @@ pages:
           title: 實驗平台
     title: 服務來源
   connection:
-    description: 設定 WebSocket 伺服器連線
-    title: 連線
+    description: Configure WebSocket server connection
+    title: Connection
     websocket-url:
-      description: WebSocket 伺服器的完整位址（例如：ws://localhost:6121/ws）
-      label: WebSocket 伺服器位址
+      description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
+      label: WebSocket Server Address
       placeholder: ws://localhost:6121/ws
   scene:
     description: 設定角色所在環境
