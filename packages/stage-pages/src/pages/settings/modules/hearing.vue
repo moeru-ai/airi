@@ -33,7 +33,7 @@ const providersStore = useProvidersStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
 const { trackProviderClick } = useAnalytics()
-const { stopStream, startStream, askPermission } = useSettingsAudioDevice()
+const { stopStream, startStream } = useSettingsAudioDevice()
 const { audioInputs, selectedAudioInput, stream } = storeToRefs(useSettingsAudioDevice())
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioAnalyzer()
@@ -138,14 +138,6 @@ async function setupAudioMonitoring() {
     }
 
     await stopAudioMonitoring()
-
-    // Ask for permission when user initiates monitoring
-    try {
-      await askPermission()
-    }
-    catch (err) {
-      console.warn('Could not get audio device permission:', err)
-    }
 
     await startStream()
     if (!stream.value) {
@@ -271,14 +263,6 @@ async function startSTTTest() {
   isTranscribing.value = true
 
   try {
-    // Ask for permission when user initiates test
-    try {
-      await askPermission()
-    }
-    catch (err) {
-      console.warn('Could not get audio device permission:', err)
-    }
-
     // Ensure audio stream is available
     if (!stream.value) {
       testStatusMessage.value = 'Starting audio stream...'

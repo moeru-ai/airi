@@ -110,7 +110,7 @@ onMounted(async () => {
 })
 
 // Speech-to-Text test state (always uses Web Speech API)
-const { stopStream, startStream, askPermission } = useSettingsAudioDevice()
+const { stopStream, startStream } = useSettingsAudioDevice()
 const { audioInputs, selectedAudioInput, stream } = storeToRefs(useSettingsAudioDevice())
 
 const isTestingSTT = ref(false)
@@ -152,14 +152,6 @@ async function startSTTTest() {
   isTranscribing.value = true
 
   try {
-    // Ask for permission when user initiates test
-    try {
-      await askPermission()
-    }
-    catch (err) {
-      console.warn('Could not get audio device permission:', err)
-    }
-
     // Ensure audio stream is available
     if (!stream.value) {
       testStatusMessage.value = 'Starting audio stream...'
