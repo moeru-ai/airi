@@ -289,6 +289,7 @@ class ReflexPanel {
     this.state = null
     this.elements = {
       mode: document.getElementById('reflex-mode'),
+      statMode: document.getElementById('stat-reflex-mode'),
       activeBehavior: document.getElementById('reflex-active-behavior'),
       signalType: document.getElementById('reflex-signal-type'),
       signalSource: document.getElementById('reflex-signal-source'),
@@ -316,6 +317,8 @@ class ReflexPanel {
     if (!this.state) {
       this.elements.mode.textContent = 'unknown'
       this.elements.mode.className = 'panel-badge'
+      if (this.elements.statMode)
+        this.elements.statMode.textContent = 'unknown'
       this.elements.activeBehavior.textContent = 'None'
       this.elements.signalType.textContent = 'None'
       this.elements.signalSource.textContent = '-'
@@ -328,6 +331,8 @@ class ReflexPanel {
     // Mode
     this.elements.mode.textContent = mode
     this.elements.mode.className = `panel-badge ${mode === 'alert' ? 'badge-error' : (mode === 'social' ? 'badge-success' : '')}`
+    if (this.elements.statMode)
+      this.elements.statMode.textContent = mode
 
     // Behavior
     this.elements.activeBehavior.textContent = activeBehaviorId ? escapeHtml(activeBehaviorId) : 'None'
