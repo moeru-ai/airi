@@ -3,7 +3,7 @@ import type { ReflexBehavior } from '../types/behavior'
 export const lookAtBehavior: ReflexBehavior = {
   id: 'look-at',
   modes: ['idle', 'social'],
-  cooldownMs: 1000,
+  cooldownMs: 100,
 
   when: (ctx) => {
     // Check if we have a recent attention signal

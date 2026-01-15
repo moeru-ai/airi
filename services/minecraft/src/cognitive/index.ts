@@ -104,6 +104,27 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
           if (chatHandler.isBotMessage(username))
             return
 
+          // Bridge chat directly into EventBus as a signal so Reflex can react to it.
+          // (PerceptionPipeline will also ingest this for Brain via EventManager.)
+          eventBus.emit({
+            type: 'signal:chat_message',
+            payload: Object.freeze({
+              type: 'chat_message',
+              description: `Chat from ${username}: "${message}"`,
+              sourceId: username,
+              confidence: 1.0,
+              timestamp: Date.now(),
+              metadata: {
+                username,
+                message,
+              },
+            }),
+            source: {
+              component: 'perception',
+              id: 'chat',
+            },
+          })
+
           perceptionPipeline.ingest(createPerceptionFrameFromChat(username, message))
         })
       }

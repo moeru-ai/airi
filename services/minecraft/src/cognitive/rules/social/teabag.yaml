@@ -8,8 +8,8 @@ trigger:
     entityType: player
 
 accumulator:
-  threshold: 4
-  window: 2s
+  threshold: 6
+  window: 1s
   mode: sliding
 
 signal:

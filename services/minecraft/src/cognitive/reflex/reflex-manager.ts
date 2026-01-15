@@ -48,14 +48,14 @@ export class ReflexManager {
 
     const onStarted = () => {
       if (this.inFlightActionsCount === 0)
-        this.runtime.setMode('work')
+        this.runtime.transitionMode('work', this.bot)
       this.inFlightActionsCount++
     }
 
     const onEnded = () => {
       this.inFlightActionsCount = Math.max(0, this.inFlightActionsCount - 1)
       if (this.inFlightActionsCount === 0)
-        this.runtime.setMode('idle')
+        this.runtime.transitionMode('idle', this.bot)
     }
 
     this.deps.taskExecutor.on('action:started', onStarted)
@@ -74,6 +74,9 @@ export class ReflexManager {
   }
 
   public destroy(): void {
+    if (this.bot)
+      this.runtime.transitionMode('idle', this.bot)
+
     if (this.unsubscribe) {
       this.unsubscribe()
       this.unsubscribe = null
@@ -118,6 +121,22 @@ export class ReflexManager {
       this.runtime.getContext().updateSocial({
         lastGesture: (signal.metadata as any)?.gesture ?? 'unknown',
         lastGestureAt: now,
+      })
+    }
+
+    if (signal.type === 'chat_message') {
+      const username = typeof (signal.metadata as any)?.username === 'string'
+        ? String((signal.metadata as any).username)
+        : (signal.sourceId ?? null)
+
+      const message = typeof (signal.metadata as any)?.message === 'string'
+        ? String((signal.metadata as any).message)
+        : null
+
+      this.runtime.getContext().updateSocial({
+        lastSpeaker: username,
+        lastMessage: message,
+        lastMessageAt: now,
       })
     }
 

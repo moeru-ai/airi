@@ -27,13 +27,14 @@ function makeBot() {
       isRaining: false,
       players: {},
     },
+    interrupt: vi.fn(),
   }
 
   return bot as any
 }
 
 describe('reflexManager', () => {
-  it('handles greeting via reflex and marks stimulus event handled', () => {
+  it('handles signals without crashing', () => {
     // Mock EventBus
     const eventBus = {
       subscribe: vi.fn(),
@@ -67,7 +68,12 @@ describe('reflexManager', () => {
     const handler = eventBus.subscribe.mock.calls[0][1]
     const signalEvent = {
       type: 'signal:social',
-      payload: { type: 'social', description: 'hello' },
+      payload: {
+        type: 'social_gesture',
+        description: 'someone teabagged',
+        timestamp: Date.now(),
+        metadata: { gesture: 'teabag' },
+      },
       source: { component: 'ruleEngine', id: 'test' },
       timestamp: Date.now(),
       // ... other traced event props ...
@@ -80,5 +86,121 @@ describe('reflexManager', () => {
     // For now, ensure it doesn't crash.
 
     reflex.destroy()
+  })
+
+  it('updates social context from chat_message and enters social mode', () => {
+    const eventBus = {
+      subscribe: vi.fn(),
+      emit: vi.fn(),
+      emitChild: vi.fn(),
+    } as any
+
+    const taskExecutor = {
+      on: vi.fn(),
+      off: vi.fn(),
+      removeListener: vi.fn(),
+    } as any
+
+    const logger = makeLogger()
+    const perception = {
+      getPlayers: vi.fn(() => []),
+      getEntity: vi.fn(() => null),
+      entitiesWithBelief: vi.fn(() => []),
+      updateEntity: vi.fn(),
+      updateSelfPosition: vi.fn(),
+    } as any
+
+    const reflex = new ReflexManager({ eventBus, perception, taskExecutor, logger })
+
+    const bot = makeBot()
+    bot.bot.players = {
+      alice: { entity: { position: { x: 1, y: 0, z: 1 }, username: 'alice' } },
+    }
+    reflex.init(bot)
+
+    const handler = eventBus.subscribe.mock.calls[0][1]
+    handler({
+      type: 'signal:chat_message',
+      payload: {
+        type: 'chat_message',
+        description: 'Chat from alice: "hi"',
+        sourceId: 'alice',
+        timestamp: Date.now(),
+        metadata: { username: 'alice', message: 'hi' },
+      },
+      source: { component: 'ruleEngine', id: 'test' },
+      timestamp: Date.now(),
+    })
+
+    const snap = reflex.getContextSnapshot()
+    expect(snap.social.lastSpeaker).toBe('alice')
+    expect(snap.social.lastMessage).toBe('hi')
+    expect(reflex.getMode()).toBe('social')
+
+    reflex.destroy()
+  })
+
+  it('leaving social interrupts follow cleanup', () => {
+    const eventBus = {
+      subscribe: vi.fn(),
+      emit: vi.fn(),
+      emitChild: vi.fn(),
+    } as any
+
+    const taskExecutor = {
+      on: vi.fn(),
+      off: vi.fn(),
+      removeListener: vi.fn(),
+    } as any
+
+    const logger = makeLogger()
+    const perception = {
+      getPlayers: vi.fn(() => []),
+      getEntity: vi.fn(() => null),
+      entitiesWithBelief: vi.fn(() => []),
+      updateEntity: vi.fn(),
+      updateSelfPosition: vi.fn(),
+    } as any
+
+    const reflex = new ReflexManager({ eventBus, perception, taskExecutor, logger })
+
+    const bot = makeBot()
+    bot.bot.players = {
+      alice: { entity: { position: { x: 1, y: 0, z: 1 }, username: 'alice' } },
+    }
+    reflex.init(bot)
+
+    const handler = eventBus.subscribe.mock.calls[0][1]
+    handler({
+      type: 'signal:chat_message',
+      payload: {
+        type: 'chat_message',
+        description: 'Chat from alice: "hi"',
+        sourceId: 'alice',
+        timestamp: Date.now(),
+        metadata: { username: 'alice', message: 'hi' },
+      },
+      source: { component: 'ruleEngine', id: 'test' },
+      timestamp: Date.now(),
+    })
+
+    expect(reflex.getMode()).toBe('social')
+
+    // Force social timeout by moving time forward and triggering another signal.
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 20_000)
+    handler({
+      type: 'signal:social_gesture',
+      payload: {
+        type: 'social_gesture',
+        description: 'noop',
+        timestamp: Date.now(),
+        metadata: { gesture: 'wave' },
+      },
+      source: { component: 'ruleEngine', id: 'test' },
+      timestamp: Date.now(),
+    })
+
+    expect(reflex.getMode()).toBe('idle')
+    expect(bot.interrupt).toHaveBeenCalledWith('reflex:social_exit')
   })
 })
