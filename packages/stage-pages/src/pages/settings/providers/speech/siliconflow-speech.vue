@@ -17,10 +17,6 @@ const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore)
 const { t } = useI18n()
 
-const defaultVoiceSettings = {
-  speed: 1.0,
-}
-
 // Get provider metadata
 const providerId = 'siliconflow-speech'
 const defaultModel = 'FunAudioLLM/CosyVoice2-0.5B'
@@ -53,10 +49,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
     model,
     input,
     voiceId,
-    {
-      ...providerConfig,
-      ...defaultVoiceSettings,
-    },
+    providerConfig,
   )
 }
 
@@ -70,7 +63,6 @@ watch(speed, async () => {
   <SpeechProviderSettings
     :provider-id="providerId"
     :default-model="defaultModel"
-    :additional-settings="defaultVoiceSettings"
   >
     <!-- Voice settings specific to SiliconFlow -->
     <template #voice-settings>
