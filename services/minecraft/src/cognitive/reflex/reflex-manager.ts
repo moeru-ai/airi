@@ -30,6 +30,8 @@ export class ReflexManager {
   ) {
     this.runtime = new ReflexRuntime({
       logger: this.deps.logger,
+      onBehaviorEnd: () => this.emitReflexState(),
+      onModeChange: () => this.emitReflexState(),
     })
 
     this.runtime.registerBehavior(greetingBehavior)
@@ -127,7 +129,10 @@ export class ReflexManager {
     // Trigger behavior selection
     this.runtime.tick(bot, 0, this.deps.perception)
 
-    // Emit reflex state for observability
+    this.emitReflexState()
+  }
+
+  private emitReflexState(): void {
     DebugService.getInstance().emitReflexState({
       mode: this.runtime.getMode(),
       activeBehaviorId: this.runtime.getActiveBehaviorId(),
