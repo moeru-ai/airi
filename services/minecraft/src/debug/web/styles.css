@@ -19,10 +19,10 @@
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
   /* Resizable Grid Defaults */
-  --col-left: 350px;
-  --row-1: 300px;
-  --row-2: 200px;
-  --row-3: 200px;
+  --col-left: clamp(260px, 24vw, 420px);
+  --row-1: clamp(220px, 35vh, 1fr);
+  --row-2: clamp(180px, 28vh, 1fr);
+  --row-3: clamp(180px, 26vh, 1fr);
 }
 
 /* Base Styles */
@@ -56,6 +56,42 @@ body {
   border-bottom: 1px solid var(--border-color);
   height: 48px;
   flex-shrink: 0;
+}
+
+/* Tabs */
+.tab-bar {
+  display: flex;
+  gap: 8px;
+  padding: 8px 8px 0 8px;
+  background-color: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  height: 40px;
+  box-sizing: border-box;
+}
+
+.tab-button {
+  padding: 6px 12px;
+  font-size: 12px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+}
+
+.tab-button.active {
+  background: var(--bg-tertiary);
+  border-bottom-color: var(--bg-tertiary);
+  font-weight: 600;
+}
+
+.view {
+  display: none;
+  height: calc(100vh - 48px - 40px);
+}
+
+.view.active {
+  display: block;
 }
 
 .header-left {
@@ -145,36 +181,77 @@ button:hover,
 #main-grid {
   display: grid;
   /* Columns: Left Panel | Splitter | Right Content */
-  grid-template-columns: var(--col-left) 8px 1fr;
+  grid-template-columns: 1fr;
   /* Rows: Logs | Splitter | Timeline | Splitter | LLM | Splitter | Saliency */
-  grid-template-rows: var(--row-1) 8px var(--row-2) 8px var(--row-3) 8px 1fr;
+  grid-template-rows:
+    minmax(var(--row-1), 1fr) 8px minmax(var(--row-2), 1fr) 8px minmax(var(--row-3), 1fr) 8px 1fr;
   gap: 0;
-  padding: 8px;
-  height: calc(100vh - 48px);
+  padding: 0;
+  height: 100%;
   overflow: hidden;
+  align-items: stretch;
+  align-content: stretch;
 }
 
 #left-column {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  grid-column: 1 / 2;
-  grid-row: 1 / -1;
-  /* Span full height */
-  overflow: hidden;
+  overflow: auto;
   padding-right: 4px;
-  /* Padding for visual separation */
+  min-height: 0;
+  width: var(--col-left);
+  flex-shrink: 0;
+  height: 100%;
+}
+
+/* Keep left-column panels visible; let tools consume remaining space */
+#left-column>.panel {
+  flex: 0 0 auto;
+}
+
+#tools-section {
+  flex: 1 1 auto;
+  min-height: 240px;
+}
+
+/* Tools standalone view */
+#tools-view {
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.tools-view-shell {
+  height: 100%;
+}
+
+.panel.full-height {
+  height: 100%;
+}
+
+/* Main layout wrapper: left column + splitter + right grid */
+.main-layout {
+  display: flex;
+  height: calc(100vh - 48px - 40px);
+  padding: 8px;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+#main-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 8px;
 }
 
 /* Splitters */
 .splitter-v {
-  grid-row: 1 / -1;
-  grid-column: 2 / 3;
   cursor: col-resize;
   background-color: transparent;
   width: 8px;
   z-index: 10;
   position: relative;
+  flex: 0 0 8px;
 }
 
 .splitter-v::after {
@@ -271,6 +348,7 @@ button:hover,
   border: 1px solid var(--border-color);
   border-radius: 4px;
   overflow: hidden;
+  min-height: 0;
 }
 
 .panel-header {
@@ -664,8 +742,8 @@ button:hover,
 
 .timeline-container {
   flex: 1;
-  overflow-y: auto;
-  max-height: 300px;
+  overflow: auto;
+  min-height: 0;
 }
 
 .timeline-list {

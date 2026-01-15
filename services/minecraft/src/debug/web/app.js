@@ -1176,7 +1176,22 @@ class LayoutManager {
         this.startPos = config.type === 'v' ? e.clientX : e.clientY
 
         const style = getComputedStyle(this.root)
-        this.startSize = Number.parseInt(style.getPropertyValue(config.var), 10)
+        const raw = style.getPropertyValue(config.var)
+        const parsed = Number.parseFloat(raw)
+
+        const fallbackSize = () => {
+          if (config.var === '--col-left')
+            return document.getElementById('left-column')?.getBoundingClientRect().width
+          if (config.var === '--row-1')
+            return document.getElementById('logs-section')?.getBoundingClientRect().height
+          if (config.var === '--row-2')
+            return document.getElementById('timeline-section')?.getBoundingClientRect().height
+          if (config.var === '--row-3')
+            return document.getElementById('llm-section')?.getBoundingClientRect().height
+          return undefined
+        }
+
+        this.startSize = Number.isFinite(parsed) ? parsed : (fallbackSize() || 200)
 
         el.classList.add('dragging')
         document.body.style.cursor = config.type === 'v' ? 'col-resize' : 'row-resize'
@@ -1256,6 +1271,9 @@ class DebugApp {
     // Initialize layout
     this.layoutManager.init()
 
+    // Tabs
+    this.setupTabs()
+
     // Initialize all panels
     Object.values(this.panels).forEach(panel => panel.init())
 
@@ -1276,6 +1294,23 @@ class DebugApp {
 
     // Connect
     this.client.connect()
+  }
+
+  setupTabs() {
+    const tabs = Array.from(document.querySelectorAll('.tab-button'))
+    const views = Array.from(document.querySelectorAll('.view'))
+
+    const activate = (target) => {
+      tabs.forEach(btn => btn.classList.toggle('active', btn.dataset.target === target))
+      views.forEach(view => view.classList.toggle('active', view.id === target))
+    }
+
+    tabs.forEach((btn) => {
+      btn.addEventListener('click', () => activate(btn.dataset.target))
+    })
+
+    // Default
+    activate('main-view')
   }
 }
 
