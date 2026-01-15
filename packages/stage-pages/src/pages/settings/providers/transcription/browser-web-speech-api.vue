@@ -106,13 +106,7 @@ const isWebSpeechAPIAvailable = computed(() => {
 
 onMounted(async () => {
   ensureProviderSettings()
-  // Ensure audio devices are loaded
-  try {
-    await askPermission()
-  }
-  catch (err) {
-    console.warn('Could not load audio devices:', err)
-  }
+  // Audio devices are loaded on demand when user requests them
 })
 
 // Speech-to-Text test state (always uses Web Speech API)
@@ -158,6 +152,14 @@ async function startSTTTest() {
   isTranscribing.value = true
 
   try {
+    // Ask for permission when user initiates test
+    try {
+      await askPermission()
+    }
+    catch (err) {
+      console.warn('Could not get audio device permission:', err)
+    }
+
     // Ensure audio stream is available
     if (!stream.value) {
       testStatusMessage.value = 'Starting audio stream...'
