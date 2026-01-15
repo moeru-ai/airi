@@ -3,13 +3,13 @@ import type { WithUnknown } from '@xsai/shared'
 import type { StreamTranscriptionResult, StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
 
 import { tryCatch } from '@moeru/std'
+import { refManualReset, useLocalStorage } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 
 import vadWorkletUrl from '../../workers/vad/process.worklet?worker&url'
 
-import { createResettableLocalStorage, createResettableRef } from '../../utils/resettable'
 import { useProvidersStore } from '../providers'
 import { streamAliyunTranscription } from '../providers/aliyun/stream-transcription'
 import { streamWebSpeechAPITranscription } from '../providers/web-speech-api'
@@ -49,12 +49,12 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const { allAudioTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
   // State
-  const [activeTranscriptionProvider, resetActiveTranscriptionProvider] = createResettableLocalStorage('settings/hearing/active-provider', '')
-  const [activeTranscriptionModel, resetActiveTranscriptionModel] = createResettableLocalStorage('settings/hearing/active-model', '')
-  const [activeCustomModelName, resetActiveCustomModelName] = createResettableLocalStorage('settings/hearing/active-custom-model', '')
-  const [transcriptionModelSearchQuery, resetTranscriptionModelSearchQuery] = createResettableRef('')
-  const [autoSendEnabled, resetAutoSendEnabled] = createResettableLocalStorage('settings/hearing/auto-send-enabled', false)
-  const [autoSendDelay, resetAutoSendDelay] = createResettableLocalStorage('settings/hearing/auto-send-delay', 2000) // Default 2 seconds
+  const activeTranscriptionProvider = refManualReset<string>(useLocalStorage('settings/hearing/active-provider', ''))
+  const activeTranscriptionModel = refManualReset<string>(useLocalStorage('settings/hearing/active-model', ''))
+  const activeCustomModelName = refManualReset<string>(useLocalStorage('settings/hearing/active-custom-model', ''))
+  const transcriptionModelSearchQuery = refManualReset<string>('')
+  const autoSendEnabled = refManualReset<boolean>(useLocalStorage('settings/hearing/auto-send-enabled', false))
+  const autoSendDelay = refManualReset<number>(useLocalStorage('settings/hearing/auto-send-delay', 2000)) // Default 2 seconds
 
   // Computed properties
   const availableProvidersMetadata = computed(() => allAudioTranscriptionProvidersMetadata.value)
@@ -104,12 +104,12 @@ export const useHearingStore = defineStore('hearing-store', () => {
   })
 
   function resetState() {
-    resetActiveTranscriptionProvider()
-    resetActiveTranscriptionModel()
-    resetActiveCustomModelName()
-    resetTranscriptionModelSearchQuery()
-    resetAutoSendEnabled()
-    resetAutoSendDelay()
+    activeTranscriptionProvider.reset()
+    activeTranscriptionModel.reset()
+    activeCustomModelName.reset()
+    transcriptionModelSearchQuery.reset()
+    autoSendEnabled.reset()
+    autoSendDelay.reset()
   }
 
   async function transcription(

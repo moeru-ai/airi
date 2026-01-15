@@ -696,6 +696,13 @@ pages:
         playground:
           title: Песочница транскрипции
     title: Провайдеры
+  connection:
+    description: Configure WebSocket server connection
+    title: Connection
+    websocket-url:
+      description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
+      label: WebSocket Server Address
+      placeholder: ws://localhost:6121/ws
   scene:
     description: Настройте окружение, в котором живёт персонаж
     title: Сцена

@@ -2,12 +2,11 @@ import type { DisplayModel } from './display-models'
 
 import messages from '@proj-airi/i18n/locales'
 
-import { useEventListener } from '@vueuse/core'
+import { refManualReset, useEventListener, useLocalStorage } from '@vueuse/core'
 import { converter } from 'culori'
 import { defineStore } from 'pinia'
 import { onMounted, watch } from 'vue'
 
-import { createResettableLocalStorage, createResettableRef } from '../utils/resettable'
 import { useAudioDevice } from './audio'
 import { DisplayModelFormat, useDisplayModelsStore } from './display-models'
 
@@ -40,12 +39,12 @@ const getHueFrom = (color?: string) => color ? convert(color)?.h : DEFAULT_THEME
 export const useSettings = defineStore('settings', () => {
   const displayModelsStore = useDisplayModelsStore()
 
-  const [language, resetLanguage] = createResettableLocalStorage('settings/language', '')
+  const language = refManualReset<string>(useLocalStorage('settings/language', ''))
 
-  const [stageModelSelected, resetStageModelSelected] = createResettableLocalStorage<string | undefined>('settings/stage/model', 'preset-live2d-1')
-  const [stageModelSelectedDisplayModel, resetStageModelSelectedDisplayModel] = createResettableRef<DisplayModel | undefined>(undefined)
-  const [stageModelSelectedUrl, resetStageModelSelectedUrl] = createResettableRef<string | undefined>(undefined)
-  const [stageModelRenderer, resetStageModelRenderer] = createResettableRef<'live2d' | 'vrm' | 'disabled' | undefined>(undefined)
+  const stageModelSelected = refManualReset<string | undefined>(useLocalStorage('settings/stage/model', 'preset-live2d-1'))
+  const stageModelSelectedDisplayModel = refManualReset<DisplayModel | undefined>(undefined)
+  const stageModelSelectedUrl = refManualReset<string | undefined>(undefined)
+  const stageModelRenderer = refManualReset<'live2d' | 'vrm' | 'disabled' | undefined>(undefined)
 
   async function updateStageModel() {
     if (!stageModelSelected.value) {
@@ -99,23 +98,23 @@ export const useSettings = defineStore('settings', () => {
     }
   })
 
-  const [stageViewControlsEnabled, resetStageViewControlsEnabled] = createResettableRef(false)
+  const stageViewControlsEnabled = refManualReset<boolean>(false)
 
-  const [live2dDisableFocus, resetLive2dDisableFocus] = createResettableLocalStorage('settings/live2d/disable-focus', false)
-  const [live2dIdleAnimationEnabled, resetLive2dIdleAnimationEnabled] = createResettableLocalStorage('settings/live2d/idle-animation-enabled', true)
-  const [live2dAutoBlinkEnabled, resetLive2dAutoBlinkEnabled] = createResettableLocalStorage('settings/live2d/auto-blink-enabled', true)
-  const [live2dForceAutoBlinkEnabled, resetLive2dForceAutoBlinkEnabled] = createResettableLocalStorage('settings/live2d/force-auto-blink-enabled', false)
-  const [live2dShadowEnabled, resetLive2dShadowEnabled] = createResettableLocalStorage('settings/live2d/shadow-enabled', true)
+  const live2dDisableFocus = refManualReset<boolean>(useLocalStorage<boolean>('settings/live2d/disable-focus', false))
+  const live2dIdleAnimationEnabled = refManualReset<boolean>(useLocalStorage<boolean>('settings/live2d/idle-animation-enabled', true))
+  const live2dAutoBlinkEnabled = refManualReset<boolean>(useLocalStorage<boolean>('settings/live2d/auto-blink-enabled', true))
+  const live2dForceAutoBlinkEnabled = refManualReset<boolean>(useLocalStorage<boolean>('settings/live2d/force-auto-blink-enabled', false))
+  const live2dShadowEnabled = refManualReset<boolean>(useLocalStorage<boolean>('settings/live2d/shadow-enabled', true))
 
-  const [disableTransitions, resetDisableTransitions] = createResettableLocalStorage('settings/disable-transitions', true)
-  const [usePageSpecificTransitions, resetUsePageSpecificTransitions] = createResettableLocalStorage('settings/use-page-specific-transitions', true)
+  const disableTransitions = refManualReset<boolean>(useLocalStorage<boolean>('settings/disable-transitions', true))
+  const usePageSpecificTransitions = refManualReset<boolean>(useLocalStorage<boolean>('settings/use-page-specific-transitions', true))
 
-  const [themeColorsHue, resetThemeColorsHue] = createResettableLocalStorage('settings/theme/colors/hue', DEFAULT_THEME_COLORS_HUE)
-  const [themeColorsHueDynamic, resetThemeColorsHueDynamic] = createResettableLocalStorage('settings/theme/colors/hue-dynamic', false)
+  const themeColorsHue = refManualReset<number>(useLocalStorage<number>('settings/theme/colors/hue', DEFAULT_THEME_COLORS_HUE))
+  const themeColorsHueDynamic = refManualReset<boolean>(useLocalStorage<boolean>('settings/theme/colors/hue-dynamic', false))
 
-  const [allowVisibleOnAllWorkspaces, resetAllowVisibleOnAllWorkspaces] = createResettableLocalStorage('settings/allow-visible-on-all-workspaces', true)
+  const allowVisibleOnAllWorkspaces = refManualReset<boolean>(useLocalStorage<boolean>('settings/allow-visible-on-all-workspaces', true))
 
-  const [controlsIslandIconSize, resetControlsIslandIconSize] = createResettableLocalStorage<'auto' | 'large' | 'small'>('settings/controls-island/icon-size', 'auto')
+  const controlsIslandIconSize = refManualReset(useLocalStorage<'auto' | 'large' | 'small'>('settings/controls-island/icon-size', 'auto'))
 
   function getLanguage() {
     let language = localStorage.getItem('settings/language')
@@ -168,27 +167,27 @@ export const useSettings = defineStore('settings', () => {
     if (stageModelSelectedUrl.value)
       URL.revokeObjectURL(stageModelSelectedUrl.value)
 
-    resetLanguage()
-    resetStageModelSelected()
-    resetStageModelSelectedDisplayModel()
-    resetStageModelSelectedUrl()
-    resetStageModelRenderer()
-    resetStageViewControlsEnabled()
+    language.reset()
+    stageModelSelected.reset()
+    stageModelSelectedDisplayModel.reset()
+    stageModelSelectedUrl.reset()
+    stageModelRenderer.reset()
+    stageViewControlsEnabled.reset()
 
-    resetLive2dDisableFocus()
-    resetLive2dIdleAnimationEnabled()
-    resetLive2dAutoBlinkEnabled()
-    resetLive2dForceAutoBlinkEnabled()
-    resetLive2dShadowEnabled()
+    live2dDisableFocus.reset()
+    live2dIdleAnimationEnabled.reset()
+    live2dAutoBlinkEnabled.reset()
+    live2dForceAutoBlinkEnabled.reset()
+    live2dShadowEnabled.reset()
 
-    resetDisableTransitions()
-    resetUsePageSpecificTransitions()
+    disableTransitions.reset()
+    usePageSpecificTransitions.reset()
 
-    resetThemeColorsHue()
-    resetThemeColorsHueDynamic()
+    themeColorsHue.reset()
+    themeColorsHueDynamic.reset()
 
-    resetAllowVisibleOnAllWorkspaces()
-    resetControlsIslandIconSize()
+    allowVisibleOnAllWorkspaces.reset()
+    controlsIslandIconSize.reset()
 
     await updateStageModel()
   }
@@ -229,8 +228,8 @@ export const useSettings = defineStore('settings', () => {
 export const useSettingsAudioDevice = defineStore('settings-audio-devices', () => {
   const { audioInputs, deviceConstraints, selectedAudioInput: selectedAudioInputNonPersist, startStream, stopStream, stream, askPermission } = useAudioDevice()
 
-  const [selectedAudioInputPersist, resetSelectedAudioInputPersist] = createResettableLocalStorage('settings/audio/input', selectedAudioInputNonPersist.value)
-  const [selectedAudioInputEnabledPersist, resetSelectedAudioInputEnabledPersist] = createResettableLocalStorage('settings/audio/input/enabled', false)
+  const selectedAudioInputPersist = refManualReset<string>(useLocalStorage('settings/audio/input', selectedAudioInputNonPersist.value))
+  const selectedAudioInputEnabledPersist = refManualReset<boolean>(useLocalStorage('settings/audio/input/enabled', false))
 
   watch(selectedAudioInputPersist, (newValue) => {
     selectedAudioInputNonPersist.value = newValue
@@ -258,9 +257,9 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   })
 
   function resetState() {
-    resetSelectedAudioInputPersist()
+    selectedAudioInputPersist.reset()
     selectedAudioInputNonPersist.value = ''
-    resetSelectedAudioInputEnabledPersist()
+    selectedAudioInputEnabledPersist.reset()
     stopStream()
   }
 

@@ -696,6 +696,13 @@ pages:
         playground:
           title: Transcription Playground
     title: Nhà cung cấp
+  connection:
+    description: Configure WebSocket server connection
+    title: Connection
+    websocket-url:
+      description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
+      label: WebSocket Server Address
+      placeholder: ws://localhost:6121/ws
   scene:
     description: Cấu hình môi trường nhân vật sinh sống
     title: Bối cảnh

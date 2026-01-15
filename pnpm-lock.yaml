@@ -905,6 +905,9 @@ importers:
       '@proj-airi/stage-layouts':
         specifier: workspace:^
         version: link:../../packages/stage-layouts
+      '@proj-airi/stage-pages':
+        specifier: workspace:^
+        version: link:../../packages/stage-pages
       '@proj-airi/stage-ui':
         specifier: workspace:^
         version: link:../../packages/stage-ui
@@ -2948,16 +2951,6 @@ importers:
         version: link:../../packages/server-sdk
 
   plugins/airi-plugin-vscode:
-    dependencies:
-      es-toolkit:
-        specifier: 'catalog:'
-        version: 1.43.0
-      injeca:
-        specifier: 'catalog:'
-        version: 0.1.5(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6)
-      nanoid:
-        specifier: 'catalog:'
-        version: 5.1.6
     devDependencies:
       '@guiiai/logg':
         specifier: 'catalog:'
@@ -2971,6 +2964,15 @@ importers:
       '@types/vscode':
         specifier: ^1.107.0
         version: 1.107.0
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.43.0
+      injeca:
+        specifier: 'catalog:'
+        version: 0.1.5(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6)
+      nanoid:
+        specifier: 'catalog:'
+        version: 5.1.6
       tinyexec:
         specifier: ^1.0.2
         version: 1.0.2
