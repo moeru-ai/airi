@@ -20,6 +20,8 @@ export class ReflexRuntime {
   public constructor(
     private readonly deps: {
       logger: Logg
+      onBehaviorEnd?: () => void
+      onModeChange?: (mode: ReflexModeId) => void
     },
   ) { }
 
@@ -32,7 +34,11 @@ export class ReflexRuntime {
   }
 
   public setMode(mode: ReflexModeId): void {
+    if (this.mode === mode)
+      return
+
     this.mode = mode
+    this.deps.onModeChange?.(mode)
   }
 
   public getActiveBehaviorId(): string | null {
@@ -72,7 +78,7 @@ export class ReflexRuntime {
     // Otherwise, compute from context automatically.
     // TODO: consider letting 'alert' preempt work/wander so survival can override tasks.
     if (this.mode !== 'work' && this.mode !== 'wander')
-      this.mode = selectMode(this.context.getSnapshot())
+      this.setMode(selectMode(this.context.getSnapshot()))
 
     if (this.activeBehaviorUntil && now < this.activeBehaviorUntil)
       return null
@@ -118,11 +124,13 @@ export class ReflexRuntime {
           // Behavior ends naturally; next tick can run a new one.
           this.activeBehaviorUntil = null
           this.activeBehaviorId = null
+          this.deps.onBehaviorEnd?.()
         })
       }
       else {
         // Synchronous behavior ends immediately.
         this.activeBehaviorId = null
+        this.deps.onBehaviorEnd?.()
       }
 
       return best.behavior.id
@@ -131,6 +139,7 @@ export class ReflexRuntime {
       this.deps.logger.withError(err as Error).error('ReflexRuntime: behavior failed')
       this.activeBehaviorId = null
       this.activeBehaviorUntil = null
+      this.deps.onBehaviorEnd?.()
       return null
     }
   }
