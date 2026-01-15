@@ -92,12 +92,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Skip the build (fail fast)
-        if: matrix.skip
         run: |
           echo "Skipping build for ${{ matrix.os }}..."
           echo "This will fail the job, but don't panic—this is expected when not building for all."
           echo "This will be improved in the future."
-          exit 1
+          exit ${{ matrix.skip && '1' || '0' }}
 
       # Why?
       #
