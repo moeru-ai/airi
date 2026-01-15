@@ -8207,18 +8207,23 @@ packages:
 
   '@xsai-ext/providers-cloud@0.4.0-beta.10':
     resolution: {integrity: sha512-Y9jz2PjEsSQxJC4NpVDMzGA2VJoZ1Nkww9N0Hl2qtcynjwzdFeeyuSRXnTxcBjb0K3RagmiLXTx1VftdBKgCJw==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   '@xsai-ext/providers-local@0.4.0-beta.10':
     resolution: {integrity: sha512-UGYAQ7SCWpSz+Pps52KdFX5g+Z1UF2c0/m8LSiVP26x6RQO4WqfLlFtSDmdgheV1oUIUyE3XYq0qVg3Zb24c+Q==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   '@xsai-ext/shared-providers@0.2.2':
     resolution: {integrity: sha512-yHQ3RQf3yb/xD5neQGFKmY/9+TmNFDZmH2aOSiS11rqAZwd6wPr/Wkvo/Ls1yiVGYVfZpzZGYp9Q+0iELt5MhA==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   '@xsai-ext/shared-providers@0.4.0-beta.10':
     resolution: {integrity: sha512-L5w0RO3lBi+ZdlOMXzUSSEBGmHrdZHNBaYUYm0UYIAZ8IRHWcv/YETd6DdlF6idhHSRJfxMNNO3EerL+EWQknw==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   '@xsai-ext/shared-providers@0.4.0-beta.5':
     resolution: {integrity: sha512-FntXIaqEDjNX2kkiqyQEJtJSsfVoVBdVtx5nRVQhIZbPbYy4tZUgIKolzPuzt4JllEmpxcwSR6smKISpuw886A==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   '@xsai-transformers/embed@0.0.11':
     resolution: {integrity: sha512-O00P0omx3DwPGf66WSU7y3ERmH4r25skxwaBCUp4DZleHNqQEN5okbgDIZJUSE+0SCsKpXRcmhLCWyM+WpfQvw==}
@@ -8271,6 +8276,9 @@ packages:
 
   '@xsai/shared@0.4.0-beta.10':
     resolution: {integrity: sha512-PWqktpzSQGQwqn4JsUpAmkNrP48/uL4pjNR9sjLugmw71hHpXcAeppGKLokiPusl2BnDvAW2kDSJRzNPBHSejw==}
+
+  '@xsai/shared@0.4.1':
+    resolution: {integrity: sha512-WptfJwv0ajc22UNvMgSbM2wCtJDWok6x3svljETMc3ycknHE3w5XQ6whbASdbeDJomb/MtGhFhaHYVQZQnqHIw==}
 
   '@xsai/stream-text@0.3.5':
     resolution: {integrity: sha512-XUyM3/jo9FulWoqmQU6vvHFOoRZzr3rcsTGm0MY8hUXg9HJl91N0voQGb6R5AMlo5XgoSbO3GMFzJ26AVxmRMg==}
@@ -15816,6 +15824,7 @@ packages:
   vue-i18n@11.2.2:
     resolution: {integrity: sha512-ULIKZyRluUPRCZmihVgUvpq8hJTtOqnbGZuv4Lz+byEKZq4mU0g92og414l6f/4ju+L5mORsiUuEPYrAuX2NJg==}
     engines: {node: '>= 16'}
+    deprecated: This version is NOT deprecated. Previous deprecation was a mistake.
     peerDependencies:
       vue: ^3.0.0
 
@@ -15923,6 +15932,7 @@ packages:
   whatwg-encoding@3.1.1:
     resolution: {integrity: sha512-6qN4hJdMwfYBtE3YBTTHhoeuUrDBPZmbQaxWAqSALV/MeEnR5z1xd8UKud2RAkFoPkmB+hli1TZSnyi84xz1vQ==}
     engines: {node: '>=18'}
+    deprecated: Use @exodus/bytes instead for a more spec-conformant and faster implementation
 
   whatwg-fetch@3.6.20:
     resolution: {integrity: sha512-EqhiFU6daOA8kpjOWTL0olhVOF3i7OrFzSYiGsEMB8GcXS+RrzauAERX65xMeNWVqxA6HXH2m69Z9LaKKdisfg==}
@@ -23234,7 +23244,7 @@ snapshots:
 
   '@xsai-ext/shared-providers@0.2.2':
     dependencies:
-      '@xsai/shared': 0.4.0-beta.10
+      '@xsai/shared': 0.4.1
 
   '@xsai-ext/shared-providers@0.4.0-beta.10':
     dependencies:
@@ -23329,6 +23339,8 @@ snapshots:
   '@xsai/shared@0.3.5': {}
 
   '@xsai/shared@0.4.0-beta.10': {}
+
+  '@xsai/shared@0.4.1': {}
 
   '@xsai/stream-text@0.3.5':
     dependencies:
