@@ -10,11 +10,13 @@ export interface ToolInputSchema {
   }>
 }
 
+export type CallToolResultContentPart
+  = | { type: 'text', text: string }
+    | { type: 'image', data: string, mimeType?: string }
+    | { type: string, [key: string]: unknown }
+
 export interface CallToolResult {
-  content: {
-    type: string
-    text: string
-  }[]
+  content: CallToolResultContentPart[]
   isError: boolean
 }
 
@@ -24,87 +26,34 @@ export interface Tool {
   inputSchema: ToolInputSchema
 }
 
-// Platform detection and conditional exports
-// In Electron, use Eventa-based implementation
-// In Tauri, use Tauri invoke (legacy support)
-// In web/other, these will throw (expected behavior)
+// Tauri plugin - uses Tauri invoke for all operations
+let cachedInvokeModule: { invoke: typeof import('@tauri-apps/api/core').invoke } | null = null
 
-async function isElectron(): Promise<boolean> {
-  if (typeof window === 'undefined')
-    return false
-  // Check if we're in Electron by checking for the electron context
-  try {
-    return !!(window.electron?.ipcRenderer)
+async function getInvoke() {
+  if (cachedInvokeModule) {
+    return cachedInvokeModule.invoke
   }
-  catch {
-    return false
-  }
-}
-
-async function isTauri(): Promise<boolean> {
-  if (typeof window === 'undefined')
-    return false
-  try {
-    // Check for Tauri by trying to access __TAURI_INTERNALS__
-    return !!(window as any).__TAURI_INTERNALS__
-  }
-  catch {
-    return false
-  }
+  const invokeModule = await import('@tauri-apps/api/core')
+  cachedInvokeModule = invokeModule
+  return invokeModule.invoke
 }
 
 export async function connectServer(command: string, args: string[]): Promise<void> {
-  if (await isElectron()) {
-    const electronModule = await import('./electron')
-    return electronModule.connectServer(command, args)
-  }
-  else if (await isTauri()) {
-    const { invoke } = await import('@tauri-apps/api/core')
-    await invoke('plugin:mcp|connect_server', { command, args })
-  }
-  else {
-    throw new Error('MCP is only supported in Electron or Tauri environments')
-  }
+  const invoke = await getInvoke()
+  await invoke('plugin:mcp|connect_server', { command, args })
 }
 
 export async function disconnectServer(): Promise<void> {
-  if (await isElectron()) {
-    const electronModule = await import('./electron')
-    return electronModule.disconnectServer()
-  }
-  else if (await isTauri()) {
-    const { invoke } = await import('@tauri-apps/api/core')
-    await invoke('plugin:mcp|disconnect_server')
-  }
-  else {
-    throw new Error('MCP is only supported in Electron or Tauri environments')
-  }
+  const invoke = await getInvoke()
+  await invoke('plugin:mcp|disconnect_server')
 }
 
 export async function listTools(): Promise<Tool[]> {
-  if (await isElectron()) {
-    const electronModule = await import('./electron')
-    return electronModule.listTools()
-  }
-  else if (await isTauri()) {
-    const { invoke } = await import('@tauri-apps/api/core')
-    return await invoke('plugin:mcp|list_tools')
-  }
-  else {
-    throw new Error('MCP is only supported in Electron or Tauri environments')
-  }
+  const invoke = await getInvoke()
+  return await invoke('plugin:mcp|list_tools')
 }
 
 export async function callTool(name: string, args: Record<string, unknown>): Promise<CallToolResult> {
-  if (await isElectron()) {
-    const electronModule = await import('./electron')
-    return electronModule.callTool(name, args)
-  }
-  else if (await isTauri()) {
-    const { invoke } = await import('@tauri-apps/api/core')
-    return await invoke('plugin:mcp|call_tool', { name, args })
-  }
-  else {
-    throw new Error('MCP is only supported in Electron or Tauri environments')
-  }
+  const invoke = await getInvoke()
+  return await invoke('plugin:mcp|call_tool', { name, args })
 }

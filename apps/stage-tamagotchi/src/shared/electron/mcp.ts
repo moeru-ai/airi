@@ -15,18 +15,20 @@ export interface McpTool {
   }
 }
 
+export type McpContentPart
+  = | { type: 'text', text: string }
+    | { type: 'image', data: string, mimeType?: string }
+    | { type: string, [key: string]: unknown }
+
 export interface McpCallToolResult {
-  content: {
-    type: string
-    text: string
-  }[]
+  content: McpContentPart[]
   isError: boolean
 }
 
-const connectServer = defineInvokeEventa<void, { command: string, args: string[] }>('eventa:invoke:electron:mcp:connect-server')
-const disconnectServer = defineInvokeEventa<void>('eventa:invoke:electron:mcp:disconnect-server')
-const listTools = defineInvokeEventa<McpTool[]>('eventa:invoke:electron:mcp:list-tools')
-const callTool = defineInvokeEventa<McpCallToolResult, { name: string, args: Record<string, unknown> }>('eventa:invoke:electron:mcp:call-tool')
+const connectServer = defineInvokeEventa<string, { command: string, args: string[] }>('eventa:invoke:electron:mcp:connect-server')
+const disconnectServer = defineInvokeEventa<void, { serverId: string }>('eventa:invoke:electron:mcp:disconnect-server')
+const listTools = defineInvokeEventa<McpTool[], { serverId: string }>('eventa:invoke:electron:mcp:list-tools')
+const callTool = defineInvokeEventa<McpCallToolResult, { serverId: string, name: string, args: Record<string, unknown> }>('eventa:invoke:electron:mcp:call-tool')
 
 export const mcp = {
   connectServer,
