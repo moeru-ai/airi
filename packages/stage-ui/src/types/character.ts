@@ -134,6 +134,7 @@ export const CharacterWithRelationsSchema = object({
 
 export const CreateCharacterSchema = object({
   character: object({
+    id: optional(string()),
     version: string(),
     coverUrl: string(),
     characterId: string(),

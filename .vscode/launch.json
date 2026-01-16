@@ -34,7 +34,7 @@
         "--extensionDevelopmentPath=${workspaceFolder}/plugins/airi-plugin-vscode"
       ],
       "outFiles": [
-        "${workspaceFolder}/plugins/airi-plugin-vscode/dist/**/*.js"
+        "${workspaceFolder}/plugins/airi-plugin-vscode/dist/**/*.cjs"
       ]
     }
   ],

@@ -15,4 +15,4 @@ RUN --mount=type=cache,id=s/fec8bf0d-37e0-4283-8202-5f1bd7e6cd0e-/root/.pnpm-sto
 
 EXPOSE 3000
 
-CMD ["pnpm", "-F", "@proj-airi/api-server", "start"]
+CMD ["pnpm", "-F", "@proj-airi/server", "start"]

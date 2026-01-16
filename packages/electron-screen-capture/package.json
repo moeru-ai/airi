@@ -1,6 +1,7 @@
 {
   "name": "@proj-airi/electron-screen-capture",
   "type": "module",
+  "version": "0.8.1-beta.12",
   "private": true,
   "description": "Screen capture",
   "author": {

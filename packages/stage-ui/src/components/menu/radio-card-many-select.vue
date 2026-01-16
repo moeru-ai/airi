@@ -24,6 +24,8 @@ interface Props {
   collapseButtonText?: string
   showMore?: boolean
   listClass?: string
+  allowCustom?: boolean
+  customOptionDescription?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -37,6 +39,8 @@ const props = withDefaults(defineProps<Props>(), {
   collapseButtonText: 'Show less',
   showMore: true,
   listClass: '',
+  allowCustom: false,
+  customOptionDescription: 'Custom Value',
 })
 
 const emit = defineEmits<{
@@ -50,14 +54,42 @@ const isListExpanded = ref(false)
 const customValue = ref('')
 
 const filteredItems = computed(() => {
-  if (!searchQuery.value)
-    return props.items
+  let result = [...props.items]
 
-  const query = searchQuery.value.toLowerCase()
-  return props.items.filter(item =>
-    item.name.toLowerCase().includes(query)
-    || (item.description && item.description.toLowerCase().includes(query)),
-  )
+  // If a custom value is selected (and not present in items), add it to the list temporarily
+  if (modelValue.value && !props.items.some(i => i.id.toLowerCase() === modelValue.value.toLowerCase())) {
+    result.unshift({
+      id: modelValue.value,
+      name: modelValue.value,
+      description: props.customOptionDescription,
+      customizable: false,
+    })
+  }
+
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase()
+    result = result.filter(item =>
+      item.name.toLowerCase().includes(query)
+      || (item.description && item.description.toLowerCase().includes(query)),
+    )
+  }
+
+  // Add "Use custom: ..." option if searching and custom input is allowed
+  if (props.allowCustom && searchQuery.value) {
+    const query = searchQuery.value
+    // Check against checks if the exact ID exists to avoid duplicates
+    const exactMatch = result.some(i => i.id.toLowerCase() === query.toLowerCase())
+    if (!exactMatch) {
+      result.push({
+        id: query,
+        name: query,
+        description: props.customOptionDescription,
+        customizable: false,
+      })
+    }
+  }
+
+  return result
 })
 
 function updateCustomValue(value: string) {
@@ -103,21 +135,24 @@ function updateCustomValue(value: string) {
 
       <!-- Items grid -->
       <div class="relative">
-        <!-- Horizontally scrollable container -->
+        <!-- Responsive grid container -->
         <div
-          class="grid auto-cols-[350px] grid-flow-col gap-4 overflow-x-auto pb-4 scrollbar-none"
           :class="[
-            isListExpanded ? 'grid-cols-1 md:grid-cols-2 grid-flow-row auto-cols-auto' : '',
+            isListExpanded
+              ? 'grid grid-cols-1 md:grid-cols-2 gap-4'
+              : 'grid auto-cols-[min(300px,calc((100vw-5rem)/2))] grid-flow-col gap-4 overflow-x-auto scrollbar-none pb-2',
             ...(props.listClass
               ? (typeof props.listClass === 'string'
                 ? [props.listClass]
                 : props.listClass
               )
-              : ['max-h-[calc(100dvh-7lh)]']
+              : isListExpanded
+                ? ['max-h-[calc(100dvh-7lh)] overflow-y-auto']
+                : []
             ),
           ]"
           transition="all duration-200 ease-in-out"
-          style="scroll-snap-type: x mandatory;"
+          :style="isListExpanded ? '' : 'scroll-snap-type: x mandatory;'"
         >
           <RadioCardDetail
             v-for="item in filteredItems"

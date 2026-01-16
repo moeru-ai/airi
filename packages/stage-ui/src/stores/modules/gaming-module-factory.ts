@@ -1,17 +1,17 @@
+import { refManualReset, useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 
-import { createResettableLocalStorage } from '../../utils/resettable'
 import { useConfiguratorByModsChannelServer } from '../configurator'
 
 export function createGamingModuleStore(moduleName: string, defaultPort: number) {
   return defineStore(moduleName, () => {
     const configurator = useConfiguratorByModsChannelServer()
 
-    const [enabled, resetEnabled] = createResettableLocalStorage(`settings/${moduleName}/enabled`, false)
-    const [serverAddress, resetServerAddress] = createResettableLocalStorage(`settings/${moduleName}/server-address`, '')
-    const [serverPort, resetServerPort] = createResettableLocalStorage<number | null>(`settings/${moduleName}/server-port`, defaultPort)
-    const [username, resetUsername] = createResettableLocalStorage(`settings/${moduleName}/username`, '')
+    const enabled = refManualReset<boolean>(useLocalStorage<boolean>(`settings/${moduleName}/enabled`, false))
+    const serverAddress = refManualReset<string>(useLocalStorage<string>(`settings/${moduleName}/server-address`, ''))
+    const serverPort = refManualReset<number | null>(useLocalStorage<number | null>(`settings/${moduleName}/server-port`, defaultPort))
+    const username = refManualReset<string>(useLocalStorage<string>(`settings/${moduleName}/username`, ''))
 
     function saveSettings() {
       configurator.updateFor(moduleName, {
@@ -23,10 +23,10 @@ export function createGamingModuleStore(moduleName: string, defaultPort: number)
     }
 
     function resetState() {
-      resetEnabled()
-      resetServerAddress()
-      resetServerPort()
-      resetUsername()
+      enabled.reset()
+      serverAddress.reset()
+      serverPort.reset()
+      username.reset()
       saveSettings()
     }
 

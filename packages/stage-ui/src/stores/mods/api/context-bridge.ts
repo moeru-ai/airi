@@ -92,8 +92,11 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           const chatProvider = await providersStore.getProviderInstance<ChatProvider>(activeProvider.value)
 
           let messageText = text
-          if (overrides?.messagePrefix)
+          const targetSessionId = overrides?.sessionId
+
+          if (overrides?.messagePrefix) {
             messageText = `${overrides.messagePrefix}${text}`
+          }
 
           await chatOrchestrator.ingest(messageText, {
             model: activeModel.value,
@@ -108,7 +111,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                 contextUpdates: normalizedContextUpdates,
               },
             },
-          }, overrides?.sessionId)
+          }, targetSessionId)
         }
       }))
 

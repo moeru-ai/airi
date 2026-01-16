@@ -696,6 +696,13 @@ pages:
         playground:
           title: Terrain de test de transcription
     title: Fournisseurs
+  connection:
+    description: Configure WebSocket server connection
+    title: Connection
+    websocket-url:
+      description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
+      label: WebSocket Server Address
+      placeholder: ws://localhost:6121/ws
   scene:
     description: Configurer l’environnement où vit le personnage
     title: Scène

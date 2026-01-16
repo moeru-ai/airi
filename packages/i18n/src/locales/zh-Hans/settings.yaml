@@ -696,6 +696,13 @@ pages:
         playground:
           title: 实验平台
     title: 服务来源
+  connection:
+    description: Configure WebSocket server connection
+    title: Connection
+    websocket-url:
+      description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
+      label: WebSocket Server Address
+      placeholder: ws://localhost:6121/ws
   scene:
     description: 配置角色所在环境
     title: 场景

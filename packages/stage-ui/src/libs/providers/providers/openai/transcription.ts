@@ -63,20 +63,13 @@ export const openaiTranscriptionProvider: BaseTranscriptionProviderDefinition = 
   },
 
   async listModels(_config: BaseTranscriptionProviderConfig): Promise<ModelInfo[]> {
+    // OpenAI transcription models are hardcoded (no API endpoint to list them)
     return [
-      {
-        id: 'whisper-1',
-        name: 'Whisper-1',
-        provider: 'openai-audio-transcription',
-        description: 'OpenAI Whisper v1 model',
-        contextLength: 0,
-        deprecated: false,
-      },
       {
         id: 'gpt-4o-transcribe',
         name: 'GPT-4o Transcribe',
         provider: 'openai-audio-transcription',
-        description: 'GPT-4o transcription model',
+        description: 'High-quality transcription model',
         contextLength: 0,
         deprecated: false,
       },
@@ -84,7 +77,31 @@ export const openaiTranscriptionProvider: BaseTranscriptionProviderDefinition = 
         id: 'gpt-4o-mini-transcribe',
         name: 'GPT-4o Mini Transcribe',
         provider: 'openai-audio-transcription',
-        description: 'GPT-4o Mini transcription model',
+        description: 'Faster, cost-effective transcription model',
+        contextLength: 0,
+        deprecated: false,
+      },
+      {
+        id: 'gpt-4o-mini-transcribe-2025-12-15',
+        name: 'GPT-4o Mini Transcribe (2025-12-15)',
+        provider: 'openai-audio-transcription',
+        description: 'GPT-4o Mini Transcribe snapshot from 2025-12-15',
+        contextLength: 0,
+        deprecated: false,
+      },
+      {
+        id: 'whisper-1',
+        name: 'Whisper-1',
+        provider: 'openai-audio-transcription',
+        description: 'Powered by our open source Whisper V2 model',
+        contextLength: 0,
+        deprecated: false,
+      },
+      {
+        id: 'gpt-4o-transcribe-diarize',
+        name: 'GPT-4o Transcribe Diarize',
+        provider: 'openai-audio-transcription',
+        description: 'Transcription with speaker diarization',
         contextLength: 0,
         deprecated: false,
       },

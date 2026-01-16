@@ -1,8 +1,32 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { providerOpenAICompatible } from '../libs/providers/providers/openai-compatible'
 import { useProviderCatalogStore } from './provider-catalog'
+
+vi.mock('../database/repos/providers.repo', () => ({
+  providersRepo: {
+    getAll: vi.fn(async () => ({})),
+    saveAll: vi.fn(async () => {}),
+    upsert: vi.fn(async () => {}),
+    remove: vi.fn(async () => {}),
+  },
+}))
+
+vi.mock('../composables/api', () => ({
+  client: {
+    api: {
+      providers: {
+        '$get': vi.fn(async () => ({ ok: true, json: async () => [] })),
+        '$post': vi.fn(async () => ({ ok: true, json: async () => ({ id: 'real-id', definitionId: 'openai-compatible', name: 'OpenAI Compatible', config: {}, validated: false, validationBypassed: false }) })),
+        ':id': {
+          $delete: vi.fn(async () => ({ ok: true })),
+          $patch: vi.fn(async () => ({ ok: true, json: async () => ({}) })),
+        },
+      },
+    },
+  },
+}))
 
 describe('store provider-catalog', () => {
   beforeEach(() => {

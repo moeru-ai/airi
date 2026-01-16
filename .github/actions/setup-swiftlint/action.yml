@@ -44,17 +44,28 @@ runs:
       shell: bash
       run: |
         if [[ "${{ inputs.version }}" == "latest" ]]; then
-          VERSION=$(curl -s https://api.github.com/repos/realm/SwiftLint/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-          if [[ -z "$VERSION" ]]; then
-            echo "Error: Failed to get latest version"
+          # Fetch the latest release tag using a more robust method
+          API_RESPONSE=$(curl -s https://api.github.com/repos/realm/SwiftLint/releases/latest)
+          # Try using jq if available (most GitHub Actions runners have it)
+          if command -v jq >/dev/null 2>&1; then
+            VERSION=$(echo "$API_RESPONSE" | jq -r '.tag_name // empty')
+          else
+            # Fallback: parse JSON manually with sed, being very specific about the tag_name field
+            VERSION=$(echo "$API_RESPONSE" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+          fi
+
+          # Validate the version looks correct (should contain version numbers)
+          if [[ -z "$VERSION" ]] || [[ "$VERSION" == "null" ]] || [[ ! "$VERSION" =~ ^[0-9] ]]; then
+            echo "Error: Failed to get latest version or got invalid version: '$VERSION'"
+            echo "API Response (first 50 lines):"
+            echo "$API_RESPONSE" | head -50
             exit 1
           fi
           echo "Latest version: $VERSION"
         else
           VERSION="${{ inputs.version }}"
-          if [[ ! "$VERSION" =~ ^v ]]; then
-            VERSION="v$VERSION"
-          fi
+          # Remove 'v' prefix if user provided it, since SwiftLint tags don't use it
+          VERSION="${VERSION#v}"
           echo "Using specified version: $VERSION"
         fi
         echo "version=$VERSION" >> $GITHUB_OUTPUT

@@ -6,12 +6,12 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = withDefaults(defineProps<{
-  needscontrolsIslandIconSizeSetting?: boolean
+  needsControlsIslandIconSizeSetting?: boolean
 }>(), {
-  needscontrolsIslandIconSizeSetting: import.meta.env.RUNTIME_ENVIRONMENT === 'electron',
+  needsControlsIslandIconSizeSetting: import.meta.env.RUNTIME_ENVIRONMENT === 'electron',
 })
 
-const showControlsIsland = computed(() => props.needscontrolsIslandIconSizeSetting)
+const showControlsIsland = computed(() => props.needsControlsIslandIconSizeSetting)
 
 const settings = useSettings()
 
