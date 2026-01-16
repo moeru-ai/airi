@@ -1,0 +1,167 @@
+/* Tools Panel */
+.tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    max-height: 100%;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.tool-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+}
+
+.tool-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.tool-card.executing {
+    border-color: var(--accent);
+    background: rgba(102, 126, 234, 0.05);
+}
+
+.tool-card.success {
+    border-color: var(--success);
+    background: rgba(46, 160, 67, 0.05);
+}
+
+.tool-card.error {
+    border-color: var(--error);
+    background: rgba(248, 81, 73, 0.05);
+}
+
+.tool-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.tool-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-primary);
+    font-family: monospace;
+}
+
+.tool-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    background: var(--bg-primary);
+    border-radius: 3px;
+    color: var(--text-muted);
+}
+
+.tool-description {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    line-height: 1.4;
+    flex-grow: 1;
+}
+
+.tool-params {
+    margin-bottom: 10px;
+}
+
+.param-group {
+    margin-bottom: 8px;
+}
+
+.param-label {
+    display: block;
+    margin-bottom: 3px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.param-input {
+    width: 100%;
+    padding: 5px 7px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-primary);
+    font-size: 11px;
+    font-family: monospace;
+}
+
+.param-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.param-description {
+    margin-top: 2px;
+    font-size: 10px;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.tool-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: auto;
+}
+
+.btn-execute {
+    flex: 1;
+    padding: 7px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 4px;
+    color: white;
+    font-weight: 600;
+    font-size: 11px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.btn-execute:hover:not(:disabled) {
+    opacity: 0.9;
+}
+
+.btn-execute:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.tool-result {
+    margin-top: 8px;
+    padding: 8px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 10px;
+    line-height: 1.4;
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+.tool-result.hidden {
+    display: none;
+}
+
+.result-label {
+    font-weight: 600;
+    margin-bottom: 4px;
+    display: block;
+    text-transform: uppercase;
+    font-size: 9px;
+    letter-spacing: 0.5px;
+}
+
+.result-content {
+    white-space: pre-wrap;
+    word-break: break-word;
+}

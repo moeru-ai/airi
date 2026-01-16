@@ -2,11 +2,12 @@ import type { NeuriContext } from 'neuri'
 import type { ChatCompletion, Message } from 'neuri/openai'
 
 import type { Logger } from '../../utils/logger'
-import type { LLMConfig, LLMResponse } from './types'
+import type { LLMConfig, LLMResponse } from '../types'
 
 import { withRetry } from '@moeru/std'
 
 import { config } from '../../composables/config'
+import { DebugService } from '../../debug'
 import { useLogger } from '../../utils/logger'
 
 export abstract class BaseLLMHandler {
@@ -32,6 +33,15 @@ export abstract class BaseLLMHandler {
 
     const content = await completion.firstContent()
     this.logger.withFields({ usage: completion.usage, content }).log('Generated content')
+
+    // Broadcast LLM trace
+    DebugService.getInstance().traceLLM({
+      route,
+      messages,
+      content,
+      usage: completion.usage,
+      model: this.config.model ?? config.openai.model,
+    })
 
     return {
       content,

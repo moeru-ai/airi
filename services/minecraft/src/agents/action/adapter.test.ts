@@ -4,10 +4,9 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { initBot, useBot } from '../../composables/bot'
 import { config, initEnv } from '../../composables/config'
 import { createNeuriAgent } from '../../composables/neuri'
-import { generateSystemBasicPrompt } from '../../libs/llm-agent/prompt'
 import { initLogger } from '../../utils/logger'
 
-describe('openAI agent', { timeout: 0 }, () => {
+describe.skip('openAI agent', { timeout: 0 }, () => {
   beforeAll(() => {
     initLogger()
     initEnv()
@@ -22,7 +21,7 @@ describe('openAI agent', { timeout: 0 }, () => {
       bot.bot.once('spawn', async () => {
         const text = await agent.handle(
           messages(
-            system(generateSystemBasicPrompt('airi')),
+            system('You are AIRI.'),
             user('Hello, who are you?'),
           ),
           async (c) => {

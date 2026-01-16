@@ -1,3 +1,4 @@
+import type { Block } from 'prismarine-block'
 import type { Entity } from 'prismarine-entity'
 
 import type { Mineflayer } from '../libs/mineflayer'
@@ -32,6 +33,14 @@ export async function goToPosition(
     log(mineflayer, `Teleported to ${x}, ${y}, ${z}.`)
     return true
   }
+  const targetBlock = mineflayer.bot.blockAt(new Vec3(Math.floor(x), Math.floor(y), Math.floor(z)))
+  const blockAbove1 = mineflayer.bot.blockAt(new Vec3(Math.floor(x), Math.floor(y) + 1, Math.floor(z)))
+  const blockAbove2 = mineflayer.bot.blockAt(new Vec3(Math.floor(x), Math.floor(y) + 2, Math.floor(z)))
+
+  if (targetBlock?.name !== 'air' && blockAbove1?.name === 'air' && blockAbove2?.name === 'air') {
+    // Nudge one block up so we don't dig a silly hole in the ground when using the ground block as reference
+    y += 1
+  }
 
   await mineflayer.bot.pathfinder.goto(new goals.GoalNear(x, y, z, minDistance))
   log(mineflayer, `You have reached ${x}, ${y}, ${z}.`)
@@ -43,7 +52,7 @@ export async function goToNearestBlock(
   blockType: string,
   minDistance = 2,
   range = 64,
-): Promise<boolean> {
+): Promise<Block> {
   const MAX_RANGE = 512
   if (range > MAX_RANGE) {
     log(mineflayer, `Maximum search range capped at ${MAX_RANGE}.`)
@@ -52,13 +61,12 @@ export async function goToNearestBlock(
 
   const block = getNearestBlock(mineflayer, blockType, range)
   if (!block) {
-    log(mineflayer, `Could not find any ${blockType} in ${range} blocks.`)
-    return false
+    throw new Error(`Could not find any ${blockType} in ${range} blocks.`)
   }
 
   log(mineflayer, `Found ${blockType} at ${block.position}.`)
   await goToPosition(mineflayer, block.position.x, block.position.y, block.position.z, minDistance)
-  return true
+  return block
 }
 
 export async function goToNearestEntity(

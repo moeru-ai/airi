@@ -16,6 +16,7 @@
     "@moeru/std": "catalog:",
     "@proj-airi/server-sdk": "^0.8.0-beta.9",
     "awilix": "^12.0.5",
+    "canvas": "^3.2.1",
     "es-toolkit": "^1.43.0",
     "eventemitter3": "^5.0.1",
     "minecraft-data": "^3.101.0",
@@ -26,6 +27,7 @@
     "mineflayer-pathfinder": "^2.4.5",
     "mineflayer-pvp": "^1.3.2",
     "mineflayer-tool": "^1.2.0",
+    "nanoid": "catalog:",
     "neuri": "^0.2.1",
     "prismarine-block": "^1.22.0",
     "prismarine-entity": "^2.5.0",
@@ -35,7 +37,12 @@
     "prismarine-windows": "^2.9.0",
     "valibot": "^1.2.0",
     "vec3": "^0.1.10",
+    "ws": "catalog:",
+    "yaml": "catalog:",
     "zod": "^4.2.1",
     "zod-to-json-schema": "^3.25.1"
+  },
+  "devDependencies": {
+    "@types/ws": "catalog:"
   }
 }

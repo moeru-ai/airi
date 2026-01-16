@@ -9,16 +9,23 @@ import { pathfinder as MineflayerPathfinder } from 'mineflayer-pathfinder'
 import { plugin as MineflayerPVP } from 'mineflayer-pvp'
 import { plugin as MineflayerTool } from 'mineflayer-tool'
 
+import { CognitiveEngine } from './cognitive'
 import { initBot } from './composables/bot'
 import { config, initEnv } from './composables/config'
 import { createNeuriAgent } from './composables/neuri'
-import { LLMAgent } from './libs/llm-agent'
+import { DebugService } from './debug'
+import { setupMineflayerViewer } from './debug/mineflayer-viewer'
 import { wrapPlugin } from './libs/mineflayer'
 import { initLogger, useLogger } from './utils/logger'
+
+// ...
 
 async function main() {
   initLogger() // todo: save logs to file
   initEnv()
+
+  // Start debug server
+  DebugService.getInstance().start()
 
   const { bot } = await initBot({
     botConfig: config.bot,
@@ -32,15 +39,21 @@ async function main() {
     ],
   })
 
+  setupMineflayerViewer(bot, { port: 3007, firstPerson: true })
+
   // Connect airi server
   const airiClient = new Client({
     name: config.airi.clientName,
     url: config.airi.wsBaseUrl,
   })
 
-  // Dynamically load LLMAgent after the bot is initialized
+  // Dynamically load CognitiveEngine after the bot is initialized
   const agent = await createNeuriAgent(bot)
-  await bot.loadPlugin(LLMAgent({ agent, airiClient }))
+  await bot.loadPlugin(CognitiveEngine({ agent, airiClient }))
+
+  // Setup Tool Executor for Debug Dashboard
+  const { setupToolExecutor } = await import('./debug/tool-executor')
+  setupToolExecutor(bot)
 
   process.on('SIGINT', () => {
     bot.stop()
