@@ -1,7 +1,6 @@
+import { refManualReset, useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
-
-import { createResettableLocalStorage } from '../../../utils/resettable'
 
 export interface VisionTickOutcome {
   capturedAt?: number
@@ -32,10 +31,10 @@ function countInWindow(history: number[], windowMs: number) {
 }
 
 export const useVisionProcessingStore = defineStore('vision-processing', () => {
-  const [captureIntervalMs, resetCaptureIntervalMs] = createResettableLocalStorage(
+  const captureIntervalMs = refManualReset<number>(useLocalStorage<number>(
     'settings/vision/capture-interval-ms',
     DEFAULT_CAPTURE_INTERVAL_MS,
-  )
+  ))
 
   const isRunning = ref(false)
   const isProcessing = ref(false)
@@ -161,7 +160,7 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
   function resetState() {
     stopTicker()
     resetMetrics()
-    resetCaptureIntervalMs()
+    captureIntervalMs.reset()
   }
 
   watch(captureIntervalMs, (next, previous) => {

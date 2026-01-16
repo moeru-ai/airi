@@ -1,16 +1,16 @@
+import { refManualReset, useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 
-import { createResettableLocalStorage, createResettableRef } from '../../../utils/resettable'
 import { useProvidersStore } from '../../providers'
 
 export const useVisionStore = defineStore('vision', () => {
   const providersStore = useProvidersStore()
 
-  const [activeProvider, resetActiveProvider] = createResettableLocalStorage('settings/vision/active-provider', '')
-  const [activeModel, resetActiveModel] = createResettableLocalStorage('settings/vision/active-model', '')
-  const [activeCustomModelName, resetActiveCustomModelName] = createResettableLocalStorage('settings/vision/active-custom-model', '')
-  const [modelSearchQuery, resetModelSearchQuery] = createResettableRef('')
+  const activeProvider = refManualReset(useLocalStorage('settings/vision/active-provider', ''))
+  const activeModel = refManualReset(useLocalStorage('settings/vision/active-model', ''))
+  const activeCustomModelName = refManualReset(useLocalStorage('settings/vision/active-custom-model', ''))
+  const modelSearchQuery = refManualReset('')
 
   const providerMetadata = computed(() => {
     if (!activeProvider.value)
@@ -49,9 +49,9 @@ export const useVisionStore = defineStore('vision', () => {
   })
 
   function resetModelSelection() {
-    resetActiveModel()
-    resetActiveCustomModelName()
-    resetModelSearchQuery()
+    activeModel.reset()
+    activeCustomModelName.reset()
+    modelSearchQuery.reset()
   }
 
   async function loadModelsForProvider(provider: string) {
@@ -69,7 +69,7 @@ export const useVisionStore = defineStore('vision', () => {
   }
 
   function resetState() {
-    resetActiveProvider()
+    activeProvider.reset()
     resetModelSelection()
   }
 
