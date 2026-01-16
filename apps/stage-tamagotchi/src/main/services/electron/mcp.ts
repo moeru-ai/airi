@@ -2,8 +2,12 @@ import type { createContext } from '@moeru/eventa/adapters/electron/main'
 
 import type { McpCallToolResult, McpContentPart, McpTool } from '../../../shared/electron/mcp'
 
+import { env as processEnv } from 'node:process'
+
 import { useLogg } from '@guiiai/logg'
+// @ts-expect-error - @modelcontextprotocol/sdk types may not be resolved during type checking
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
+// @ts-expect-error - @modelcontextprotocol/sdk types may not be resolved during type checking
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { defineInvokeHandler } from '@moeru/eventa'
 
@@ -30,7 +34,7 @@ async function connectServer(command: string, args: string[]): Promise<string> {
   try {
     // Create stdio transport (it handles process spawning internally)
     const env = Object.fromEntries(
-      Object.entries(process.env).filter(([, value]) => value !== undefined),
+      Object.entries(processEnv).filter(([, value]) => value !== undefined),
     ) as Record<string, string>
 
     const transport = new StdioClientTransport({
@@ -102,7 +106,7 @@ async function listTools(serverId: string): Promise<McpTool[]> {
 
   try {
     const response = await connection.client.listTools()
-    return response.tools.map(tool => ({
+    return response.tools.map((tool: { name: string, description?: string, inputSchema: unknown }) => ({
       name: tool.name,
       description: tool.description || '',
       inputSchema: tool.inputSchema as McpTool['inputSchema'],
@@ -128,8 +132,13 @@ async function callTool(serverId: string, name: string, args: Record<string, unk
       arguments: args,
     })
 
+    // Type assertion: response.content is an array of content parts
+    // The MCP SDK returns content as unknown, so we need to assert its type
+    const rawContent = response.content as unknown
+    const content: Array<{ type: string, [key: string]: unknown }> = Array.isArray(rawContent) ? rawContent : []
+
     const result: McpCallToolResult = {
-      content: response.content.map((item): McpContentPart => {
+      content: content.map((item: { type: string, [key: string]: unknown }): McpContentPart => {
         if (item.type === 'text' && 'text' in item && typeof item.text === 'string') {
           return { type: 'text', text: item.text }
         }
