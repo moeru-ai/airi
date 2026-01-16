@@ -100,7 +100,14 @@ export const useHearingStore = defineStore('hearing-store', () => {
       return true // Web Speech API is ready if provider is selected and available
     }
 
-    return !!activeTranscriptionModel.value
+    // For OpenAI Compatible providers, check provider config as fallback
+    let hasProviderModel = false
+    if (activeTranscriptionProvider.value === 'openai-compatible-audio-transcription') {
+      const providerConfig = providersStore.getProviderConfig(activeTranscriptionProvider.value)
+      hasProviderModel = !!providerConfig?.model
+    }
+
+    return !!activeTranscriptionModel.value || hasProviderModel
   })
 
   function resetState() {

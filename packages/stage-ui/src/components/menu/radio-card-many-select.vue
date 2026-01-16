@@ -135,21 +135,24 @@ function updateCustomValue(value: string) {
 
       <!-- Items grid -->
       <div class="relative">
-        <!-- Horizontally scrollable container -->
+        <!-- Responsive grid container -->
         <div
-          class="grid auto-cols-[350px] grid-flow-col gap-4 overflow-x-auto pb-4 scrollbar-none"
           :class="[
-            isListExpanded ? 'grid-cols-1 md:grid-cols-2 grid-flow-row auto-cols-auto' : '',
+            isListExpanded
+              ? 'grid grid-cols-1 md:grid-cols-2 gap-4'
+              : 'grid auto-cols-[min(300px,calc((100vw-5rem)/2))] grid-flow-col gap-4 overflow-x-auto scrollbar-none pb-2',
             ...(props.listClass
               ? (typeof props.listClass === 'string'
                 ? [props.listClass]
                 : props.listClass
               )
-              : ['max-h-[calc(100dvh-7lh)]']
+              : isListExpanded
+                ? ['max-h-[calc(100dvh-7lh)] overflow-y-auto']
+                : []
             ),
           ]"
           transition="all duration-200 ease-in-out"
-          style="scroll-snap-type: x mandatory;"
+          :style="isListExpanded ? '' : 'scroll-snap-type: x mandatory;'"
         >
           <RadioCardDetail
             v-for="item in filteredItems"

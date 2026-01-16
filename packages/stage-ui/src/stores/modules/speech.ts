@@ -121,7 +121,27 @@ export const useSpeechStore = defineStore('speech', () => {
 
   watch([activeSpeechVoiceId, availableVoices], ([voiceId, voices]) => {
     if (voiceId) {
-      activeSpeechVoice.value = voices[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
+      // For OpenAI Compatible, create a custom voice object (no voices available from API)
+      if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
+        // Always update to match voiceId (in case it changed)
+        activeSpeechVoice.value = {
+          id: voiceId,
+          name: voiceId,
+          description: voiceId,
+          previewURL: '',
+          languages: [{ code: 'en', title: 'English' }],
+          provider: activeSpeechProvider.value,
+          gender: 'neutral',
+        }
+      }
+      else {
+        // For other providers, find voice in available voices
+        const foundVoice = voices[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
+        // Only update if we found a voice, or if activeSpeechVoice is not set
+        if (foundVoice || !activeSpeechVoice.value) {
+          activeSpeechVoice.value = foundVoice
+        }
+      }
     }
   }, {
     immediate: true,
@@ -201,7 +221,20 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 
   const configured = computed(() => {
-    return !!activeSpeechProvider.value && !!activeSpeechModel.value && !!activeSpeechVoiceId.value
+    if (!activeSpeechProvider.value)
+      return false
+
+    let hasModel = !!activeSpeechModel.value
+    let hasVoice = !!activeSpeechVoiceId.value
+
+    // For OpenAI Compatible providers, check provider config as fallback
+    if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
+      const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+      hasModel ||= !!providerConfig?.model
+      hasVoice ||= !!providerConfig?.voice
+    }
+
+    return hasModel && hasVoice
   })
 
   function resetState() {
