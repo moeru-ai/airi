@@ -95,7 +95,7 @@
     "electron-updater": "^6.6.2",
     "es-toolkit": "^1.43.0",
     "h3": "2.0.1-rc.5",
-    "injeca": "^0.1.5",
+    "injeca": "catalog:",
     "jszip": "^3.10.1",
     "localforage": "^1.10.0",
     "mediabunny": "^1.27.2",
