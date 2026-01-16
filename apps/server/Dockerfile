@@ -13,4 +13,4 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
 
 EXPOSE 3000
 
-CMD ["pnpm", "-F", "@proj-airi/api-server", "start"]
+CMD ["pnpm", "-F", "@proj-airi/server", "start"]

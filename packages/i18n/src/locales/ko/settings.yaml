@@ -34,6 +34,13 @@ language:
   title: Language
   description: >
     Change the language of the AIRI interface. This will not affect the language of the character's responses.
+controls-island:
+  icon-size:
+    title: Controls Island Icon Size
+    description: Adjust the size of the controls island icons
+    auto: Auto (responsive)
+    large: Large (default)
+    small: Small
 live2d:
   change-model:
     from-file: Load from File
@@ -72,6 +79,7 @@ pages:
     active: Active
     active_badge: Currently Active
     cancel: Cancel action
+    save: Save changes
     card_not_found: Card not found
     character: Character
     close: Close
@@ -86,6 +94,7 @@ pages:
     description_label: Description
     drop_here: Drop to upload
     create_card: Create a new Card
+    edit_card: Edit Card
     creation:
       identity: Identity
       name: Name
@@ -680,10 +689,20 @@ pages:
       aliyun-nls:
         description: Aliyun NLS
         title: Aliyun NLS
+      browser-web-speech-api:
+        description: Browser-native STT (requires Chrome/Edge/Safari)
+        title: Web Speech API
       transcriptions:
         playground:
           title: Transcription Playground
     title: Providers
+  connection:
+    description: Configure WebSocket server connection
+    title: Connection
+    websocket-url:
+      description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
+      label: WebSocket Server Address
+      placeholder: ws://localhost:6121/ws
   scene:
     description: Configure the environment where the character lives
     title: Scene

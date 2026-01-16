@@ -2,31 +2,20 @@ import { createAuthClient } from 'better-auth/vue'
 
 import { useAuthStore } from '../stores/auth'
 
-export const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://airi-api.moeru.ai'
+export type OAuthProvider = 'google' | 'github'
 
-const authStore = useAuthStore()
+export const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://airi-api.moeru.ai'
 
 export const authClient = createAuthClient({
   baseURL: SERVER_URL,
-
   credentials: 'include',
-  fetchOptions: {
-    auth: {
-      type: 'Bearer',
-      token: () => authStore.authToken,
-    },
-    onSuccess: (ctx) => {
-      const newToken = ctx.response.headers.get('set-auth-token')
-      if (newToken) {
-        authStore.authToken = newToken
-      }
-    },
-  },
 })
 
 export async function fetchSession() {
   const { data } = await authClient.getSession()
   if (data) {
+    const authStore = useAuthStore()
+
     authStore.user = data.user
     authStore.session = data.session
     return true
@@ -42,7 +31,14 @@ export async function listSessions() {
 export async function signOut() {
   await authClient.signOut()
 
+  const authStore = useAuthStore()
   authStore.user = undefined
   authStore.session = undefined
-  authStore.authToken = ''
+}
+
+export async function signIn(provider: OAuthProvider) {
+  return await authClient.signIn.social({
+    provider,
+    callbackURL: window.location.origin,
+  })
 }

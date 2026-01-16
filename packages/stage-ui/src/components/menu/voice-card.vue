@@ -147,12 +147,6 @@ function togglePlayback() {
           <div v-if="currentlyPlayingId === voice.id" class="i-solar:pause-circle-bold-duotone text-xl text-neutral-400 dark:text-neutral-500" />
           <div v-else class="i-solar:play-circle-bold-duotone text-xl text-neutral-400 dark:text-neutral-500" />
         </button>
-        <div
-          v-else
-          class="mt-auto w-full flex items-center justify-center bg-neutral-50 py-3 text-xs text-neutral-400 italic dark:bg-neutral-800/50 dark:text-neutral-600"
-        >
-          No preview available. You can select it and test voice on the right experiment.
-        </div>
 
         <!-- Voice info -->
         <div class="flex-1 cursor-pointer">

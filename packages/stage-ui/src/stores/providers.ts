@@ -700,94 +700,118 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: ['health'],
       capabilities: {
-        listVoices: async () => {
+        // NOTE: OpenAI does not provide an API endpoint to retrieve available voices.
+        // Voices are hardcoded here - this is a provider limitation, not an application limitation.
+        // Voice compatibility per https://platform.openai.com/docs/api-reference/audio/createSpeech:
+        // - tts-1 and tts-1-hd support: alloy, ash, coral, echo, fable, onyx, nova, sage, shimmer (9 voices)
+        // - gpt-4o-mini-tts supports all 13 voices: alloy, ash, ballad, coral, echo, fable, nova, onyx, sage, shimmer, verse, marin, cedar
+        listVoices: async (_config: Record<string, unknown>) => {
           return [
             {
               id: 'alloy',
               name: 'Alloy',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'ash',
               name: 'Ash',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'ballad',
               name: 'Ballad',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'coral',
               name: 'Coral',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'echo',
               name: 'Echo',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'fable',
               name: 'Fable',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'onyx',
               name: 'Onyx',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'nova',
               name: 'Nova',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'sage',
               name: 'Sage',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'shimmer',
               name: 'Shimmer',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'verse',
               name: 'Verse',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
+            },
+            {
+              id: 'marin',
+              name: 'Marin',
+              provider: 'openai-audio-speech',
+              languages: [],
+              compatibleModels: ['gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
+            },
+            {
+              id: 'cedar',
+              name: 'Cedar',
+              provider: 'openai-audio-speech',
+              languages: [],
+              compatibleModels: ['gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
           ] satisfies VoiceInfo[]
         },
         listModels: async () => {
+          // TESTING NOTES: All 4 models tested and confirmed working with fable voice:
+          // - tts-1: {model: "tts-1", input: "test", voice: "fable"} ✓
+          // - tts-1-hd: {model: "tts-1-hd", input: "test", voice: "fable"} ✓
+          // - gpt-4o-mini-tts: {model: "gpt-4o-mini-tts", input: "test", voice: "fable"} ✓
+          // - gpt-4o-mini-tts-2025-12-15: {model: "gpt-4o-mini-tts-2025-12-15", input: "test", voice: "fable"} ✓
           return [
             {
               id: 'tts-1',
               name: 'TTS-1',
               provider: 'openai-audio-speech',
-              description: '',
+              description: 'Optimized for real-time text-to-speech tasks',
               contextLength: 0,
               deprecated: false,
             },
@@ -795,7 +819,23 @@ export const useProvidersStore = defineStore('providers', () => {
               id: 'tts-1-hd',
               name: 'TTS-1-HD',
               provider: 'openai-audio-speech',
-              description: '',
+              description: 'Higher fidelity audio output',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: 'gpt-4o-mini-tts',
+              name: 'GPT-4o Mini TTS',
+              provider: 'openai-audio-speech',
+              description: 'GPT-4o Mini optimized for text-to-speech',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: 'gpt-4o-mini-tts-2025-12-15',
+              name: 'GPT-4o Mini TTS (2025-12-15)',
+              provider: 'openai-audio-speech',
+              description: 'GPT-4o Mini TTS snapshot from 2025-12-15',
               contextLength: 0,
               deprecated: false,
             },
@@ -835,6 +875,46 @@ export const useProvidersStore = defineStore('providers', () => {
         listVoices: async () => {
           return []
         },
+        listModels: async (config: Record<string, unknown>) => {
+          // Filter models to only include TTS models
+          const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+          let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+
+          if (!baseUrl.endsWith('/'))
+            baseUrl += '/'
+
+          if (!apiKey || !baseUrl) {
+            return []
+          }
+
+          const provider = await createOpenAI(apiKey, baseUrl)
+          if (!provider || typeof provider.model !== 'function') {
+            return []
+          }
+
+          const models = await listModels({
+            apiKey,
+            baseURL: baseUrl,
+          })
+
+          // Filter for TTS models - look for models with "tts" in the ID
+          return models
+            .filter((model: any) => {
+              const modelId = model.id.toLowerCase()
+              // Include models that contain "tts" in their ID
+              return modelId.includes('tts')
+            })
+            .map((model: any) => {
+              return {
+                id: model.id,
+                name: model.name || model.display_name || model.id,
+                provider: 'openai-compatible-audio-speech',
+                description: model.description || '',
+                contextLength: model.context_length || 0,
+                deprecated: false,
+              } satisfies ModelInfo
+            })
+        },
       },
       creator: createOpenAI,
     }),
@@ -850,6 +930,53 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultBaseUrl: 'https://api.openai.com/v1/',
       creator: createOpenAI,
       validation: ['health'],
+      capabilities: {
+        listModels: async () => {
+          // OpenAI transcription models are hardcoded (no API endpoint to list them)
+          return [
+            {
+              id: 'gpt-4o-transcribe',
+              name: 'GPT-4o Transcribe',
+              provider: 'openai-audio-transcription',
+              description: 'High-quality transcription model',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: 'gpt-4o-mini-transcribe',
+              name: 'GPT-4o Mini Transcribe',
+              provider: 'openai-audio-transcription',
+              description: 'Faster, cost-effective transcription model',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: 'gpt-4o-mini-transcribe-2025-12-15',
+              name: 'GPT-4o Mini Transcribe (2025-12-15)',
+              provider: 'openai-audio-transcription',
+              description: 'GPT-4o Mini Transcribe snapshot from 2025-12-15',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: 'whisper-1',
+              name: 'Whisper-1',
+              provider: 'openai-audio-transcription',
+              description: 'Powered by our open source Whisper V2 model',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: 'gpt-4o-transcribe-diarize',
+              name: 'GPT-4o Transcribe Diarize',
+              provider: 'openai-audio-transcription',
+              description: 'Transcription with speaker diarization',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ] satisfies ModelInfo[]
+        },
+      },
       validators: {
         validateProviderConfig: (config) => {
           const errors = [
@@ -880,6 +1007,14 @@ export const useProvidersStore = defineStore('providers', () => {
       category: 'transcription',
       tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
       creator: createOpenAI,
+      capabilities: {
+        // Override listModels to return empty array - transcription models cannot be fetched from /v1/models
+        // Users must manually enter transcription model names (e.g., whisper-1, gpt-4o-transcribe)
+        // The /v1/models endpoint only returns chat models, not transcription models
+        listModels: async () => {
+          return []
+        },
+      },
     }),
     'aliyun-nls-transcription': {
       id: 'aliyun-nls-transcription',

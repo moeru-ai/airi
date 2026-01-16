@@ -31,14 +31,24 @@ devtools:
   title: 開発者
   pages:
     context-flow:
-      title: Context Flow
+      title: コンテキストのフロー
     lag-visualizer:
-      title: Lag Visualizer
+      title: ラグビジュアライザー
     performance-visualizer:
-      title: Performance Visualizer
-      description: Toggle FPS/long task/memory overlay
+      title: パフォーマンスビジュアライザー
+      description: FPS/ロングタスク/メモリーオーバーレイの切り替え
     markdown-stress:
-      title: Markdown Stress
-      description: Stress markdown parsing and rendering with heavy chat payloads
+      title: Markdown ストレス
+      description: 大量のチャットデータを含むMarkdownの解析とレンダリング負荷のテスト
     widgets-calling:
       title: ウィジェット呼び出し
+screen-capture:
+  permissions-prompt:
+    title: 画面キャプチャ
+    description: 画面またはウィンドウをキャプチャするには、画面とシステムのオーディオ録音の許可が必要です。
+    open-preferences: システム設定を開く
+    dismiss: 閉じる
+    instructions:
+      step-1: '「システム設定」を開き、サイドバーから「プライバシーとセキュリティ」を選択します。'
+      step-2: '「画面&システム音声録音」および「システム音声録音のみ」のセクションで、AIRI用のスイッチをオンにしてください。'
+      step-2-note: AIRIが表示されていない場合は、「+」ボタンをクリックして「アプリケーション」フォルダから「AIRI」を選択して手動で追加してください。

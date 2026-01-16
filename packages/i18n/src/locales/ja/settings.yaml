@@ -34,6 +34,13 @@ language:
   title: 言語
   description: >
     AIRIインターフェースの言語を変更します。これはキャラクターの応答言語には影響しません。
+controls-island:
+  icon-size:
+    title: アイランドアイコンのサイズを制御
+    description: アイランドアイコンのサイズを調整します
+    auto: 自動 (レスポンシブ)
+    large: 大 (デフォルト)
+    small: 小
 live2d:
   change-model:
     from-file: ファイルから読み込む
@@ -72,6 +79,7 @@ pages:
     active: 有効
     active_badge: 現在有効
     cancel: 操作の取消
+    save: 変更を保存
     card_not_found: カードが見つかりません
     character: キャラクター
     close: 閉じる
@@ -86,6 +94,7 @@ pages:
     description_label: 説明
     drop_here: アップロードするにはここにドラッグ
     create_card: 新しいカードを作成
+    edit_card: カードを編集
     creation:
       identity: 識別子
       name: 名前
@@ -183,7 +192,7 @@ pages:
         reset: デスクトップのデータをリセット
     confirmations:
       tooltip: 本当によろしいですか？
-      'yes': 'Yes'
+      'yes': 'はい'
     status:
       exported: チャットセッションをエクスポートしました。
       imported: チャットセッションをインポートしました。
@@ -409,63 +418,63 @@ pages:
         AIRIが正常に思考し動作するためには、少なくとも1つの{chat}プロバイダーの設定が必要です。 これはAIRIシステム内に存在するキャラクターの脳と考えることができます。
     catalog:
       edit:
-        config-id-not-found: Provider configuration not found.
-        definition-id-not-found: Provider definition not found.
+        config-id-not-found: プロバイダ設定が見つかりません。
+        definition-id-not-found: プロバイダーの定義が見つかりません。
         actions:
-          more-options: More options
-          delete: Delete
+          more-options: その他のオプション
+          delete: 削除
         validation:
           failed:
-            title: Please check your provider settings, validation failed.
-            description: You can still save the current configuration if you want to proceed.
-            action: Save anyway
+            title: プロバイダ設定を確認してください。認証に失敗しました。
+            description: 続行する場合は、現在の設定を保存することができます。
+            action: このまま保存
         config:
           common:
             fields:
               field:
                 api-key:
-                  label: API Key
-                  description: API Key used to authorize requests to this provider
+                  label: APIキー
+                  description: このプロバイダへのリクエストを承認するために使用されるAPIキー
                   placeholder: sk-...
                 base-url:
-                  label: Base URL
+                  label: ベースURL
                   description: >-
-                    The base url used to connect to remote service. Often looks like http://localhost:11434/v1 or https://example.com/v1.
-                  placeholder: Base url...
+                    リモートサービスへの接続に使用されるベースURL。多くの場合、http://localhost:11434/v1 または https://example.com/v1 のようになります。
+                  placeholder: ベースURL…
                 headers:
-                  label: Custom HTTP Headers
-                  description: Add custom HTTP headers
+                  label: カスタムHTTPヘッダー
+                  description: カスタムHTTPヘッダーを追加
                   key:
-                    placeholder: Key
+                    placeholder: キー
                   value:
-                    placeholder: Value
+                    placeholder: 値
         validators:
           actions:
-            validate: Validate
-          empty: No validation steps available.
+            validate: 検証
+          empty: 検証ステップは利用できません。
           openai-compatible:
             check-config:
-              title: Configuration
+              title: 構成
             check-connectivity:
-              title: Connectivity
+              title: 接続性
             check-supports-model-listing:
-              title: List Models
+              title: モデル一覧
             check-supports-chat-completion:
-              title: Chat Completion
+              title: チャット補完
           status:
-            validating: Validating...
-            valid: Passed
-            invalid: Errored
-          title: Checks
+            validating: 検証中…
+            valid: 検証成功
+            invalid: エラー
+          title: チェック
         providers:
           provider:
             ollama:
               troubleshooting:
                 validators:
                   openai-compatible-check-connectivity:
-                    label: Extra configuration needed for Ollama
+                    label: Ollamaに追加設定が必要です
                     content: >-
-                      Sorry to hear that Connectivity check failed for Ollama. Don't worry, for Ollama instances, extra configuration is needed for making it pass for Ollama. You need to set <code>OLLAMA_HOST</code> explicitly when start the Ollama application or Ollama CLI server, for detailed information, check <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama integration guide</a>.
+                      残念ながら、Ollamaの接続チェックが失敗したようです。Ollamaインスタンスの場合、正常に動作させるためには追加の設定が必要です。OllamaアプリケーションまたはOllama CLIサーバーを起動する際には、<code>OLLAMA_HOST</code>環境変数を明示的に設定する必要があります。詳細な手順については、<a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama統合ガイド</a>をご参照ください。
     common:
       continueAnyway: 続行する
       fields:
@@ -680,10 +689,20 @@ pages:
       aliyun-nls:
         description: Aliyun NLS
         title: Aliyun NLS
+      browser-web-speech-api:
+        description: ブラウザネイティブSTT (Chrome/Edge/Safariが必要)
+        title: Web Speech API
       transcriptions:
         playground:
           title: 文字起こし実験場
     title: プロバイダー
+  connection:
+    description: Configure WebSocket server connection
+    title: Connection
+    websocket-url:
+      description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
+      label: WebSocket Server Address
+      placeholder: ws://localhost:6121/ws
   scene:
     description: キャラクターが過ごす環境を設定する
     title: シーン
@@ -713,11 +732,11 @@ pages:
           sections:
             section:
               performance-visualizer:
-                title: Performance Visualizer
-                description: Toggle FPS/long task/memory overlay
+                title: パフォーマンスビジュアライザー
+                description: FPS/ロングタスク/メモリーオーバーレイの切り替え
               markdown-stress:
-                title: Markdown Stress
-                description: Stress markdown parsing and rendering with heavy chat payloads
+                title: Markdown ストレス
+                description: 大量のチャットデータを含むMarkdownの解析とレンダリング負荷のテスト
               use-magic-keys:
                 title: マジックキーを使用
                 description: ショートカットをテスト

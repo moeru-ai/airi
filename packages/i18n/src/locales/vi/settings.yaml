@@ -34,6 +34,13 @@ language:
   title: Ngôn ngữ
   description: >
     Thay đổi ngôn ngữ giao diện AIRI. Điều này sẽ không ảnh hưởng đến ngôn ngữ phản hồi của nhân vật.
+controls-island:
+  icon-size:
+    title: Controls Island Icon Size
+    description: Adjust the size of the controls island icons
+    auto: Auto (responsive)
+    large: Large (default)
+    small: Small
 live2d:
   change-model:
     from-file: Tải từ tệp
@@ -72,6 +79,7 @@ pages:
     active: Đang hoạt động
     active_badge: Hiện đang hoạt động
     cancel: Cancel action
+    save: Save changes
     card_not_found: Không tìm thấy thẻ
     character: Nhân vật
     close: Đóng
@@ -86,6 +94,7 @@ pages:
     description_label: Mô tả
     drop_here: Kéo vào đây để tải lên
     create_card: Tạo thẻ mới
+    edit_card: Edit Card
     creation:
       identity: Danh tính
       name: Tên
@@ -680,10 +689,20 @@ pages:
       aliyun-nls:
         description: Aliyun NLS
         title: Aliyun NLS
+      browser-web-speech-api:
+        description: Browser-native STT (requires Chrome/Edge/Safari)
+        title: Web Speech API
       transcriptions:
         playground:
           title: Transcription Playground
     title: Nhà cung cấp
+  connection:
+    description: Configure WebSocket server connection
+    title: Connection
+    websocket-url:
+      description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
+      label: WebSocket Server Address
+      placeholder: ws://localhost:6121/ws
   scene:
     description: Cấu hình môi trường nhân vật sinh sống
     title: Bối cảnh
