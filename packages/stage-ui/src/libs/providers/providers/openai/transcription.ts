@@ -1,0 +1,99 @@
+import type {
+  TranscriptionProvider,
+  TranscriptionProviderWithExtraOptions,
+} from '@xsai-ext/providers/utils'
+
+import type { ModelInfo } from '../../../../stores/providers'
+import type {
+  BaseTranscriptionProviderConfig,
+  BaseTranscriptionProviderDefinition,
+} from '../../base-transcription'
+import type { ProviderValidationResult } from '../../base-types'
+
+import { createTranscriptionProvider } from '@xsai-ext/providers/utils'
+
+/**
+ * OpenAI Transcription/STT Provider Implementation
+ *
+ * Implements BaseTranscriptionProviderDefinition for OpenAI's Whisper API.
+ */
+export const openaiTranscriptionProvider: BaseTranscriptionProviderDefinition = {
+  id: 'openai-audio-transcription',
+  defaultModel: 'whisper-1',
+  transcriptionFeatures: {
+    supportsGenerate: true,
+    supportsStreamOutput: false,
+    supportsStreamInput: false,
+  },
+
+  async validateConfig(config: BaseTranscriptionProviderConfig): Promise<ProviderValidationResult> {
+    const errors: Error[] = []
+
+    if (!config.apiKey) {
+      errors.push(new Error('API Key is required'))
+    }
+
+    if (!config.baseUrl) {
+      errors.push(new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'))
+    }
+
+    if (errors.length > 0) {
+      return {
+        errors,
+        reason: errors.map(e => e.message).join(', '),
+        valid: false,
+      }
+    }
+
+    return {
+      errors: [],
+      reason: '',
+      valid: true,
+    }
+  },
+
+  async createProvider(config: BaseTranscriptionProviderConfig) {
+    const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+    let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+
+    if (!baseUrl.endsWith('/'))
+      baseUrl += '/'
+
+    return createTranscriptionProvider({ apiKey, baseURL: baseUrl }) as TranscriptionProvider | TranscriptionProviderWithExtraOptions<string, any>
+  },
+
+  async listModels(_config: BaseTranscriptionProviderConfig): Promise<ModelInfo[]> {
+    return [
+      {
+        id: 'whisper-1',
+        name: 'Whisper-1',
+        provider: 'openai-audio-transcription',
+        description: 'OpenAI Whisper v1 model',
+        contextLength: 0,
+        deprecated: false,
+      },
+      {
+        id: 'gpt-4o-transcribe',
+        name: 'GPT-4o Transcribe',
+        provider: 'openai-audio-transcription',
+        description: 'GPT-4o transcription model',
+        contextLength: 0,
+        deprecated: false,
+      },
+      {
+        id: 'gpt-4o-mini-transcribe',
+        name: 'GPT-4o Mini Transcribe',
+        provider: 'openai-audio-transcription',
+        description: 'GPT-4o Mini transcription model',
+        contextLength: 0,
+        deprecated: false,
+      },
+    ]
+  },
+
+  getDefaultConfig(): Partial<BaseTranscriptionProviderConfig> {
+    return {
+      baseUrl: 'https://api.openai.com/v1/',
+    }
+  },
+}

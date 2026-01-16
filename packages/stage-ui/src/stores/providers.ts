@@ -60,7 +60,12 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { openaiCompatibleSpeechProvider } from '../libs/providers/providers/openai-compatible/speech'
+import { openaiCompatibleTranscriptionProvider } from '../libs/providers/providers/openai-compatible/transcription'
+import { openaiSpeechProvider } from '../libs/providers/providers/openai/speech'
+import { openaiTranscriptionProvider } from '../libs/providers/providers/openai/transcription'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
+import { convertSpeechProviderToMetadata, convertTranscriptionProviderToMetadata } from './providers/converters'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 import { createWebSpeechAPIProvider } from './providers/web-speech-api'
@@ -687,200 +692,46 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: ['health'],
     }),
-    'openai-audio-speech': buildOpenAICompatibleProvider({
-      id: 'openai-audio-speech',
-      name: 'OpenAI',
-      nameKey: 'settings.pages.providers.provider.openai.title',
-      descriptionKey: 'settings.pages.providers.provider.openai.description',
-      icon: 'i-lobe-icons:openai',
-      description: 'openai.com',
-      category: 'speech',
-      tasks: ['text-to-speech'],
-      defaultBaseUrl: 'https://api.openai.com/v1/',
-      creator: createOpenAI,
-      validation: ['health'],
-      capabilities: {
-        listVoices: async () => {
-          return [
-            {
-              id: 'alloy',
-              name: 'Alloy',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
-            },
-            {
-              id: 'ash',
-              name: 'Ash',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
-            },
-            {
-              id: 'ballad',
-              name: 'Ballad',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
-            },
-            {
-              id: 'coral',
-              name: 'Coral',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
-            },
-            {
-              id: 'echo',
-              name: 'Echo',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
-            },
-            {
-              id: 'fable',
-              name: 'Fable',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
-            },
-            {
-              id: 'onyx',
-              name: 'Onyx',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
-            },
-            {
-              id: 'nova',
-              name: 'Nova',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
-            },
-            {
-              id: 'sage',
-              name: 'Sage',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
-            },
-            {
-              id: 'shimmer',
-              name: 'Shimmer',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
-            },
-            {
-              id: 'verse',
-              name: 'Verse',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
-            },
-          ] satisfies VoiceInfo[]
-        },
-        listModels: async () => {
-          return [
-            {
-              id: 'tts-1',
-              name: 'TTS-1',
-              provider: 'openai-audio-speech',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            },
-            {
-              id: 'tts-1-hd',
-              name: 'TTS-1-HD',
-              provider: 'openai-audio-speech',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            },
-          ]
-        },
+    'openai-audio-speech': convertSpeechProviderToMetadata(
+      openaiSpeechProvider,
+      {
+        name: 'OpenAI',
+        nameKey: 'settings.pages.providers.provider.openai.title',
+        descriptionKey: 'settings.pages.providers.provider.openai.description',
+        icon: 'i-lobe-icons:openai',
+        description: 'openai.com',
       },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API Key is required'),
-            !config.baseUrl && new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'),
-          ].filter(Boolean)
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
+    ),
+    'openai-compatible-audio-speech': convertSpeechProviderToMetadata(
+      openaiCompatibleSpeechProvider,
+      {
+        name: 'OpenAI Compatible',
+        nameKey: 'settings.pages.providers.provider.openai-compatible.title',
+        descriptionKey: 'settings.pages.providers.provider.openai-compatible.description',
+        icon: 'i-lobe-icons:openai',
+        description: 'Connect to any API that follows the OpenAI specification.',
       },
-    }),
-    'openai-compatible-audio-speech': buildOpenAICompatibleProvider({
-      id: 'openai-compatible-audio-speech',
-      name: 'OpenAI Compatible',
-      nameKey: 'settings.pages.providers.provider.openai-compatible.title',
-      descriptionKey: 'settings.pages.providers.provider.openai-compatible.description',
-      icon: 'i-lobe-icons:openai',
-      description: 'Connect to any API that follows the OpenAI specification.',
-      category: 'speech',
-      tasks: ['text-to-speech'],
-      capabilities: {
-        listVoices: async () => {
-          return []
-        },
+    ),
+    'openai-audio-transcription': convertTranscriptionProviderToMetadata(
+      openaiTranscriptionProvider,
+      {
+        name: 'OpenAI',
+        nameKey: 'settings.pages.providers.provider.openai.title',
+        descriptionKey: 'settings.pages.providers.provider.openai.description',
+        icon: 'i-lobe-icons:openai',
+        description: 'openai.com',
       },
-      creator: createOpenAI,
-    }),
-    'openai-audio-transcription': buildOpenAICompatibleProvider({
-      id: 'openai-audio-transcription',
-      name: 'OpenAI',
-      nameKey: 'settings.pages.providers.provider.openai.title',
-      descriptionKey: 'settings.pages.providers.provider.openai.description',
-      icon: 'i-lobe-icons:openai',
-      description: 'openai.com',
-      category: 'transcription',
-      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
-      defaultBaseUrl: 'https://api.openai.com/v1/',
-      creator: createOpenAI,
-      validation: ['health'],
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API Key is required'),
-            !config.baseUrl && new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'),
-          ].filter(Boolean)
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
+    ),
+    'openai-compatible-audio-transcription': convertTranscriptionProviderToMetadata(
+      openaiCompatibleTranscriptionProvider,
+      {
+        name: 'OpenAI Compatible',
+        nameKey: 'settings.pages.providers.provider.openai-compatible.title',
+        descriptionKey: 'settings.pages.providers.provider.openai-compatible.description',
+        icon: 'i-lobe-icons:openai',
+        description: 'Connect to any API that follows the OpenAI specification.',
       },
-    }),
-    'openai-compatible-audio-transcription': buildOpenAICompatibleProvider({
-      id: 'openai-compatible-audio-transcription',
-      name: 'OpenAI Compatible',
-      nameKey: 'settings.pages.providers.provider.openai-compatible.title',
-      descriptionKey: 'settings.pages.providers.provider.openai-compatible.description',
-      icon: 'i-lobe-icons:openai',
-      description: 'Connect to any API that follows the OpenAI specification.',
-      category: 'transcription',
-      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
-      creator: createOpenAI,
-    }),
+    ),
     'aliyun-nls-transcription': {
       id: 'aliyun-nls-transcription',
       category: 'transcription',
