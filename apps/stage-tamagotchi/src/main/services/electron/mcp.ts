@@ -5,11 +5,10 @@ import type { McpCallToolResult, McpContentPart, McpTool } from '../../../shared
 import { env as processEnv } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
-// @ts-expect-error - @modelcontextprotocol/sdk types may not be resolved during type checking
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-// @ts-expect-error - @modelcontextprotocol/sdk types may not be resolved during type checking
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { defineInvokeHandler } from '@moeru/eventa'
+import { nanoid } from 'nanoid'
 
 import { mcp } from '../../../shared/electron/mcp'
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
@@ -24,7 +23,7 @@ interface McpServerConnection {
 const connections = new Map<string, McpServerConnection>()
 
 function generateServerId(): string {
-  return Math.random().toString(36).slice(2, 15) + Math.random().toString(36).slice(2, 15)
+  return nanoid()
 }
 
 async function connectServer(command: string, args: string[]): Promise<string> {
@@ -106,11 +105,30 @@ async function listTools(serverId: string): Promise<McpTool[]> {
 
   try {
     const response = await connection.client.listTools()
-    return response.tools.map((tool: { name: string, description?: string, inputSchema: unknown }) => ({
-      name: tool.name,
-      description: tool.description || '',
-      inputSchema: tool.inputSchema as McpTool['inputSchema'],
-    }))
+    return response.tools.map((tool: { name: string, description?: string, inputSchema: unknown }) => {
+      // Runtime validation for inputSchema
+      const rawSchema = tool.inputSchema
+      const isObject = rawSchema && typeof rawSchema === 'object' && !Array.isArray(rawSchema)
+
+      const validatedSchema: McpTool['inputSchema'] = {
+        required: isObject && 'required' in rawSchema && Array.isArray((rawSchema as any).required)
+          ? (rawSchema as any).required
+          : [],
+        title: isObject && 'title' in rawSchema && typeof (rawSchema as any).title === 'string'
+          ? (rawSchema as any).title
+          : '',
+        type: 'object', // Always 'object' for MCP tools
+        properties: isObject && 'properties' in rawSchema && typeof (rawSchema as any).properties === 'object' && !Array.isArray((rawSchema as any).properties)
+          ? (rawSchema as any).properties
+          : {},
+      }
+
+      return {
+        name: tool.name,
+        description: tool.description || '',
+        inputSchema: validatedSchema,
+      }
+    })
   }
   catch (error) {
     log.withError(error as Error).error(`[${serverId}] Failed to list tools`)
@@ -149,8 +167,17 @@ async function callTool(serverId: string, name: string, args: Record<string, unk
             ...('mimeType' in item && typeof item.mimeType === 'string' ? { mimeType: item.mimeType } : {}),
           }
         }
-        // For other content types, preserve the structure
-        return item as McpContentPart
+        // For other content types, validate structure and preserve it
+        // Runtime validation: ensure the item has the basic structure of McpContentPart
+        if (item && typeof item === 'object' && 'type' in item && typeof item.type === 'string') {
+          return item as McpContentPart
+        }
+        // Fallback: if validation fails, create a valid text content part
+        log.withError(new Error('Invalid content part structure')).warn(`[${serverId}] Invalid content part, converting to text`)
+        return {
+          type: 'text',
+          text: JSON.stringify(item),
+        }
       }),
       isError: Boolean(response.isError),
     }
