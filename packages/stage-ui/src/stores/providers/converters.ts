@@ -6,9 +6,11 @@ import type {
 } from '@xsai-ext/providers/utils'
 
 import type {
+  BaseSpeechProviderConfig,
   BaseSpeechProviderDefinition,
 } from '../../libs/providers/base-speech'
 import type {
+  BaseTranscriptionProviderConfig,
   BaseTranscriptionProviderDefinition,
 } from '../../libs/providers/base-transcription'
 import type { ProviderMetadata } from '../providers'
@@ -30,16 +32,16 @@ export function convertSpeechProviderToMetadata(
     ...metadata,
     defaultOptions: () => definition.getDefaultConfig?.() || {},
     createProvider: async (config: Record<string, unknown>) => {
-      const result = await definition.createProvider(config as any)
+      const result = await definition.createProvider(config as BaseSpeechProviderConfig)
       return result as SpeechProvider | SpeechProviderWithExtraOptions
     },
     capabilities: {
-      listModels: definition.listModels ? async (config: Record<string, unknown>) => await definition.listModels!(config as any) : undefined,
-      listVoices: definition.listVoices ? async (config: Record<string, unknown>) => await definition.listVoices!(config as any) : undefined,
+      listModels: definition.listModels ? (config: Record<string, unknown>) => definition.listModels!(config as BaseSpeechProviderConfig) : undefined,
+      listVoices: definition.listVoices ? (config: Record<string, unknown>) => definition.listVoices!(config as BaseSpeechProviderConfig) : undefined,
     },
     validators: {
-      validateProviderConfig: async (config: Record<string, unknown>) => {
-        return await definition.validateConfig(config as any)
+      validateProviderConfig: (config: Record<string, unknown>) => {
+        return definition.validateConfig(config as BaseSpeechProviderConfig)
       },
     },
   }
@@ -62,15 +64,15 @@ export function convertTranscriptionProviderToMetadata(
     ...metadata,
     defaultOptions: () => definition.getDefaultConfig?.() || {},
     createProvider: async (config: Record<string, unknown>) => {
-      const result = await definition.createProvider(config as any)
+      const result = await definition.createProvider(config as BaseTranscriptionProviderConfig)
       return result as TranscriptionProvider | TranscriptionProviderWithExtraOptions
     },
     capabilities: {
-      listModels: definition.listModels ? async (config: Record<string, unknown>) => await definition.listModels!(config as any) : undefined,
+      listModels: definition.listModels ? (config: Record<string, unknown>) => definition.listModels!(config as BaseTranscriptionProviderConfig) : undefined,
     },
     validators: {
-      validateProviderConfig: async (config: Record<string, unknown>) => {
-        return await definition.validateConfig(config as any)
+      validateProviderConfig: (config: Record<string, unknown>) => {
+        return definition.validateConfig(config as BaseTranscriptionProviderConfig)
       },
     },
     transcriptionFeatures: definition.transcriptionFeatures,

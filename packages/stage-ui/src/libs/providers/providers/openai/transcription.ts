@@ -12,6 +12,8 @@ import type { ProviderValidationResult } from '../../base-types'
 
 import { createTranscriptionProvider } from '@xsai-ext/providers/utils'
 
+import { normalizeBaseUrl } from '../../utils'
+
 /**
  * OpenAI Transcription/STT Provider Implementation
  *
@@ -54,10 +56,7 @@ export const openaiTranscriptionProvider: BaseTranscriptionProviderDefinition = 
 
   async createProvider(config: BaseTranscriptionProviderConfig) {
     const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
-    let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
-
-    if (!baseUrl.endsWith('/'))
-      baseUrl += '/'
+    const baseUrl = normalizeBaseUrl(config.baseUrl)
 
     return createTranscriptionProvider({ apiKey, baseURL: baseUrl }) as TranscriptionProvider | TranscriptionProviderWithExtraOptions<string, any>
   },

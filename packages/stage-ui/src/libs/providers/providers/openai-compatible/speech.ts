@@ -12,6 +12,8 @@ import type { ProviderValidationResult } from '../../base-types'
 
 import { createSpeechProvider } from '@xsai-ext/providers/utils'
 
+import { normalizeBaseUrl } from '../../utils'
+
 /**
  * OpenAI Compatible Speech/TTS Provider Implementation
  *
@@ -51,10 +53,7 @@ export const openaiCompatibleSpeechProvider: BaseSpeechProviderDefinition = {
 
   async createProvider(config: BaseSpeechProviderConfig) {
     const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
-    let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
-
-    if (!baseUrl.endsWith('/'))
-      baseUrl += '/'
+    const baseUrl = normalizeBaseUrl(config.baseUrl)
 
     return createSpeechProvider({ apiKey, baseURL: baseUrl }) as SpeechProvider | SpeechProviderWithExtraOptions<string, any>
   },
