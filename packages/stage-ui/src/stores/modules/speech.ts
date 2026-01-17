@@ -83,7 +83,11 @@ export const useSpeechStore = defineStore('speech', () => {
 
     try {
       const voices = await providersStore.getProviderMetadata(provider).capabilities.listVoices?.(providersStore.getProviderConfig(provider)) || []
-      availableVoices.value[provider] = voices
+      // Reassign to trigger reactivity when adding/updating provider entries
+      availableVoices.value = {
+        ...availableVoices.value,
+        [provider]: voices,
+      }
       return voices
     }
     catch (error) {
