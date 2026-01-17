@@ -40,17 +40,13 @@ withDefaults(defineProps<{
 })
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
-
 const componentStateCanvas = defineModel<'pending' | 'loading' | 'mounted'>('canvasState', { default: 'pending' })
 const componentStateModel = defineModel<'pending' | 'loading' | 'mounted'>('modelState', { default: 'pending' })
 
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 
 const live2d = useLive2d()
-const {
-  scale,
-  position,
-} = storeToRefs(live2d)
+const { scale, position } = storeToRefs(live2d)
 
 watch([componentStateModel, componentStateCanvas], () => {
   componentState.value = (componentStateModel.value === 'mounted' && componentStateCanvas.value === 'mounted')
