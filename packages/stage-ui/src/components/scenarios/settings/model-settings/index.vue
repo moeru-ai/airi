@@ -45,12 +45,7 @@ const {
 } = storeToRefs(settingsStore)
 
 watch(selectedModel, async () => {
-  if (selectedModel.value?.id) {
-    stageModelSelected.value = selectedModel.value.id
-  }
-  else if (selectedModel.value) {
-    console.error('[ModelSettings] Selected model is missing an id:', selectedModel.value)
-  }
+  stageModelSelected.value = selectedModel.value?.id ?? ''
   await settingsStore.updateStageModel()
 
   if (selectedModel.value) {

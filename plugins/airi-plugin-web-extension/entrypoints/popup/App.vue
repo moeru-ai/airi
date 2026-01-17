@@ -1,15 +1,53 @@
 <script lang="ts" setup>
-import HelloWorld from '../../components/HelloWorld.vue'
+import { Button, Callout } from '@proj-airi/ui'
+import { onMounted } from 'vue'
+
+import {
+  HeaderPopup,
+  PreferenceCapture,
+  SettingsConnection,
+  VisualizeLiveVision,
+} from './components'
+import { usePopupStore } from './stores'
+
+const popup = usePopupStore()
+
+onMounted(() => popup.init())
 </script>
 
 <template>
-  <div flex justify-center>
-    <a href="https://wxt.dev" target="_blank">
-      <img src="/wxt.svg" h-24 p-6 transition-filter duration-300 will-change-filter class="hover:drop-shadow-[0_0_2em_#54bc4ae0]" alt="WXT logo">
-    </a>
-    <a href="https://vuejs.org/" target="_blank">
-      <img src="@/assets/vue.svg" h-24 p-6 transition-filter duration-300 will-change-filter class="hover:drop-shadow-[0_0_2em_#42b883aa]" alt="Vue logo">
-    </a>
-  </div>
-  <HelloWorld msg="WXT + Vue" />
+  <main :class="['flex', 'flex-col', 'gap-4', 'w-full']">
+    <HeaderPopup :syncing="popup.syncing.value" :connected="popup.connected.value" @refresh="popup.refresh" />
+
+    <Callout v-if="popup.lastError.value" theme="orange" label="Connection error">
+      <div :class="['flex', 'items-start', 'gap-2']">
+        <div :class="['flex-1', 'text-xs', 'leading-snug', 'opacity-80']">
+          {{ popup.lastError.value }}
+        </div>
+        <Button variant="danger" size="sm" @click="popup.clearLastError">
+          Clear
+        </Button>
+      </div>
+    </Callout>
+
+    <PreferenceCapture
+      v-model:send-page-context="popup.form.sendPageContext"
+      v-model:send-video-context="popup.form.sendVideoContext"
+      v-model:send-subtitles="popup.form.sendSubtitles"
+      v-model:send-spark-notify="popup.form.sendSparkNotify"
+      v-model:enable-vision="popup.form.enableVision"
+      @capture="popup.captureFrame"
+    />
+
+    <VisualizeLiveVision :last-video="popup.lastVideo.value" :last-subtitle="popup.lastSubtitle.value" />
+
+    <SettingsConnection
+      v-model:ws-url="popup.form.wsUrl"
+      v-model:token="popup.form.token"
+      :enabled="popup.form.enabled"
+      :syncing="popup.syncing.value"
+      @toggle="popup.toggle"
+      @apply="popup.applySettings"
+    />
+  </main>
 </template>
