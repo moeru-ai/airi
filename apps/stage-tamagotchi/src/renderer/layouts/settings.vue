@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { PageHeader } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { computed, ref } from 'vue'
@@ -67,11 +68,7 @@ const routeHeaderMetadata = computed(() => {
 
 <template>
   <div h-full w-full bg="$bg-color" flex="~ col">
-    <<<<<<< HEAD
-    <WindowTitleBar :title="routeHeaderMetadata?.title || ''" icon="i-solar:settings-bold" />
-    =======
     <WindowTitleBar :title="routeHeaderMetadata?.title ?? ''" icon="i-solar:settings-bold" />
-    >>>>>>> upstream/main
     <div
       :style="{
         paddingTop: `44px`,
@@ -85,22 +82,15 @@ const routeHeaderMetadata = computed(() => {
       <div ref="scrollContainer" relative h-full w-full overflow-y-auto scrollbar-none>
         <div flex="~ col" mx-auto h-full max-w-screen-xl>
           <PageHeader
-            v-if="routeHeaderMetadata && routeHeaderMetadata.title" <<<<<<<
-            HEAD
+            v-if="routeHeaderMetadata && routeHeaderMetadata.title"
             :title="routeHeaderMetadata.title"
             :subtitle="routeHeaderMetadata.subtitle"
-            =="====="
-            :title="routeHeaderMetadata?.title ?? ''"
-            :subtitle="routeHeaderMetadata?.subtitle ?? ''"
-          >
-            >>>>>> upstream/main
             :disable-back-button="isStageTamagotchi() && route.path === '/settings'"
             px-4
-            />
-            <div min-h-0 flex-1 px-4>
-              <RouterView />
-            </div>
-          </pageheader>
+          />
+          <div min-h-0 flex-1 px-4>
+            <RouterView />
+          </div>
         </div>
       </div>
     </div>

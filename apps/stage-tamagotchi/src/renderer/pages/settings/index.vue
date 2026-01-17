@@ -28,7 +28,6 @@ const settings = computed(() => {
     .getRoutes()
     .filter(route => route.meta?.settingsEntry)
     .sort((a, b) => (Number(a.meta?.order ?? 0) - Number(b.meta?.order ?? 0)))
-<<<<<<< HEAD
     .map((route) => {
       const title = route.meta?.titleKey ? t(route.meta.titleKey as string) : (route.meta?.title as string | undefined)
       return {
@@ -39,13 +38,6 @@ const settings = computed(() => {
       }
     })
     .filter(setting => setting.title)
-    .map(route => ({
-      title: route.meta?.titleKey ? t(route.meta.titleKey as string) : (route.meta?.title as string | undefined) ?? '',
-      description: route.meta?.descriptionKey ? t(route.meta.descriptionKey as string) : (route.meta?.description as string | undefined) || '',
-      icon: (route.meta?.icon as string | undefined) ?? '',
-      to: route.path,
-    }))
->>>>>>> upstream/main
 })
 </script>
 
