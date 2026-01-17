@@ -17,10 +17,16 @@
   "exports": {
     ".": "./src/index.ts",
     "./beat-sync": "./src/beat-sync/index.ts",
-    "./electron-renderer": "./src/electron-renderer.d.ts"
+    "./electron-renderer": "./src/electron-renderer.d.ts",
+    "./composables": "./src/composables/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vueuse/core": "catalog:",
+    "pinia": "catalog:",
+    "vue": "catalog:"
   },
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.2",

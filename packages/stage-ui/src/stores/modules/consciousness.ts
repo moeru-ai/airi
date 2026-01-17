@@ -1,4 +1,5 @@
-import { refManualReset, useLocalStorage } from '@vueuse/core'
+import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { refManualReset } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 
@@ -8,9 +9,9 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   const providersStore = useProvidersStore()
 
   // State
-  const activeProvider = refManualReset<string>(useLocalStorage<string>('settings/consciousness/active-provider', ''))
-  const activeModel = refManualReset<string>(useLocalStorage<string>('settings/consciousness/active-model', ''))
-  const activeCustomModelName = refManualReset<string>(useLocalStorage<string>('settings/consciousness/active-custom-model', ''))
+  const activeProvider = useLocalStorageManualReset<string>('settings/consciousness/active-provider', '')
+  const activeModel = useLocalStorageManualReset<string>('settings/consciousness/active-model', '')
+  const activeCustomModelName = useLocalStorageManualReset<string>('settings/consciousness/active-custom-model', '')
   const expandedDescriptions = refManualReset<Record<string, boolean>>(() => ({}))
   const modelSearchQuery = refManualReset<string>('')
 

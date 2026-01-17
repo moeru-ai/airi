@@ -1,6 +1,6 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
 
-import { refManualReset, useLocalStorage } from '@vueuse/core'
+import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, watch } from 'vue'
@@ -57,8 +57,8 @@ export interface AiriCard extends Card {
 export const useAiriCardStore = defineStore('airi-card', () => {
   const { t } = useI18n()
 
-  const cards = refManualReset<Map<string, AiriCard>>(useLocalStorage('airi-cards', new Map()))
-  const activeCardId = refManualReset<string>(useLocalStorage('airi-card-active-id', 'default'))
+  const cards = useLocalStorageManualReset<Map<string, AiriCard>>('airi-cards', new Map())
+  const activeCardId = useLocalStorageManualReset<string>('airi-card-active-id', 'default')
 
   const activeCard = computed(() => cards.value.get(activeCardId.value))
 
