@@ -39,7 +39,6 @@ const settings = computed(() => {
       }
     })
     .filter(setting => setting.title)
-=======
     .map(route => ({
       title: route.meta?.titleKey ? t(route.meta.titleKey as string) : (route.meta?.title as string | undefined) ?? '',
       description: route.meta?.descriptionKey ? t(route.meta.descriptionKey as string) : (route.meta?.description as string | undefined) || '',
