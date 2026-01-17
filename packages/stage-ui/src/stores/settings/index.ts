@@ -1,6 +1,5 @@
 import { defineStore, storeToRefs } from 'pinia'
 
-import { useSettingsAudioDevice } from './audio-device'
 import { useSettingsControlsIsland } from './controls-island'
 import { useSettingsGeneral } from './general'
 import { useSettingsLive2d } from './live2d'
@@ -83,6 +82,3 @@ export const useSettings = defineStore('settings', () => {
     resetState,
   }
 })
-
-// Re-export useSettingsAudioDevice for convenience
-export { useSettingsAudioDevice }
