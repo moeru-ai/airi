@@ -13,11 +13,8 @@ export default defineConfig({
     name: 'AIRI Web Extension',
     description: 'Capture web context (videos, pages, subtitles) for Project AIRI.',
     permissions: ['storage', 'tabs'],
-    host_permissions: [
-      '*://*.youtube.com/*',
-      '*://*.youtu.be/*',
-      '*://*.bilibili.com/*',
-      '*://*.b23.tv/*',
+    optional_host_permissions: [
+      '*://*/*',
     ],
     action: {
       default_title: 'AIRI Web Extension',

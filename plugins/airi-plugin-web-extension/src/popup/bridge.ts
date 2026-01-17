@@ -1,32 +1,22 @@
-import type { BackgroundToPopupMessage, ExtensionSettings, ExtensionStatus, PopupToBackgroundMessage } from '../shared/types'
+import type { ExtensionStatus } from '../shared/types'
 
-export async function requestStatus(): Promise<ExtensionStatus> {
-  return await browser.runtime.sendMessage({ type: 'popup:get-status' } satisfies PopupToBackgroundMessage)
-}
+import { defineInvoke } from '@moeru/eventa'
 
-export async function updateSettings(partial: Partial<ExtensionSettings>): Promise<ExtensionStatus> {
-  return await browser.runtime.sendMessage({ type: 'popup:update-settings', payload: partial } satisfies PopupToBackgroundMessage)
-}
+import { backgroundStatusChanged, popupClearError, popupGetStatus, popupRequestVisionFrame, popupToggleEnabled, popupUpdateSettings } from '../shared/eventa'
+import { createRuntimeEventaContext } from '../shared/eventa-runtime'
 
-export async function toggleEnabled(enabled: boolean): Promise<ExtensionStatus> {
-  return await browser.runtime.sendMessage({ type: 'popup:toggle-enabled', payload: enabled } satisfies PopupToBackgroundMessage)
-}
+const { context } = createRuntimeEventaContext()
 
-export async function requestVisionFrame(): Promise<ExtensionStatus> {
-  return await browser.runtime.sendMessage({ type: 'popup:request-vision-frame' } satisfies PopupToBackgroundMessage)
-}
-
-export async function clearError(): Promise<ExtensionStatus> {
-  return await browser.runtime.sendMessage({ type: 'popup:clear-error' } satisfies PopupToBackgroundMessage)
-}
+export const requestStatus = defineInvoke(context, popupGetStatus)
+export const updateSettings = defineInvoke(context, popupUpdateSettings)
+export const toggleEnabled = defineInvoke(context, popupToggleEnabled)
+export const requestVisionFrame = defineInvoke(context, popupRequestVisionFrame)
+export const clearError = defineInvoke(context, popupClearError)
 
 export function onBackgroundStatus(callback: (status: ExtensionStatus) => void) {
-  const listener = (message: BackgroundToPopupMessage) => {
-    if (message?.type === 'background:status')
-      callback(message.payload)
-  }
+  const off = context.on(backgroundStatusChanged, (event) => {
+    callback(event.body!)
+  })
 
-  browser.runtime.onMessage.addListener(listener)
-
-  return () => browser.runtime.onMessage.removeListener(listener)
+  return () => off()
 }

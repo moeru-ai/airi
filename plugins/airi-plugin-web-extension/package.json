@@ -14,15 +14,14 @@
     "compile": "vue-tsc --noEmit",
     "postinstall": "wxt prepare"
   },
-  "dependencies": {
-    "@vueuse/core": "catalog:"
-  },
   "devDependencies": {
     "@iconify-json/solar": "^1.2.5",
     "@iconify-json/svg-spinners": "^1.2.4",
+    "@moeru/eventa": "^1.0.0-alpha.10",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@unocss/reset": "^66.5.11",
+    "@vueuse/core": "catalog:",
     "@wxt-dev/module-vue": "^1.0.3",
     "nanoid": "^5.1.6",
     "vue": "catalog:",
