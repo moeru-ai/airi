@@ -1,7 +1,14 @@
+import { startContentObserver } from '../src/content'
+
 export default defineContentScript({
-  matches: ['*://*.google.com/*'],
+  matches: [
+    '*://*.youtube.com/*',
+    '*://*.youtu.be/*',
+    '*://*.bilibili.com/*',
+    '*://*.b23.tv/*',
+  ],
+  runAt: 'document_idle',
   main() {
-    // eslint-disable-next-line no-console
-    console.log('Hello content.')
+    startContentObserver()
   },
 })

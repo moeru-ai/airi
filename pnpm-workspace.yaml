@@ -30,6 +30,7 @@ catalog:
   '@electric-sql/pglite': ^0.3.14
   '@electron-toolkit/preload': ^3.0.2
   '@guiiai/logg': ^1.2.11
+  '@histoire/plugin-vue': 1.0.0-beta.1
   '@iconify-json/logos': ^1.2.10
   '@iconify-json/tabler': ^1.2.26
   '@moeru/eslint-config': 0.1.0-beta.15
@@ -43,7 +44,7 @@ catalog:
   '@types/hast': ^3.0.4
   '@types/splitpanes': ^2.2.6
   '@types/unist': ^3.0.3
-  '@vueuse/core': ^14.1.0
+  '@vueuse/core': 14.1.0
   '@xsai-ext/providers': ^0.4.0-beta.13
   '@xsai/embed': ^0.4.0-beta.13
   '@xsai/generate-speech': 0.4.0-beta.13
@@ -62,6 +63,7 @@ catalog:
   electron: ^39.2.7
   embla-carousel-vue: ^8.6.0
   es-toolkit: 1.43.0
+  histoire: 1.0.0-beta.1
   hono: 4.11.3
   idb-keyval: ^6.2.2
   injeca: ^0.1.7
