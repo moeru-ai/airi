@@ -122,7 +122,7 @@ Linux コマンドラインの使い方を少し知っていて、助けを求�
     <img :src="EMOSYSLogo" alt="logo of EMOSYS" class="w-30!" />
   </div>
   <div>
-    [EMOSYS](https://github.com/emosys) のロゴ
+    <a href="https://github.com/emosys">EMOSYS</a> のロゴ
   </div>
 </div>
 
