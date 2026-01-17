@@ -29,6 +29,7 @@
     "./stores/providers/aliyun": "./src/stores/providers/aliyun/index.ts",
     "./stores/analytics": "./src/stores/analytics/index.ts",
     "./stores/character": "./src/stores/character/index.ts",
+    "./stores/settings": "./src/stores/settings/index.ts",
     "./stores/*": "./src/stores/*.ts",
     "./stores": "./src/stores/index.ts",
     "./workers/vad": "./src/workers/vad/index.ts",

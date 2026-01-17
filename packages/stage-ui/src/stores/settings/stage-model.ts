@@ -9,7 +9,7 @@ import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const displayModelsStore = useDisplayModelsStore()
 
-  const stageModelSelected = useLocalStorageManualReset('settings/stage/model', 'preset-live2d-1')
+  const stageModelSelected = useLocalStorageManualReset<string>('settings/stage/model', 'preset-live2d-1')
   const stageModelSelectedDisplayModel = refManualReset<DisplayModel | undefined>(undefined)
   const stageModelSelectedUrl = refManualReset<string | undefined>(undefined)
   const stageModelRenderer = refManualReset<'live2d' | 'vrm' | 'disabled' | undefined>(undefined)

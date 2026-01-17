@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia'
+import { defineStore, storeToRefs } from 'pinia'
 
 import { useSettingsAudioDevice } from './audio-device'
 import { useSettingsControlsIsland } from './controls-island'
@@ -39,33 +39,40 @@ export const useSettings = defineStore('settings', () => {
     controlsIsland.resetState()
   }
 
+  // Extract refs from sub-stores to maintain proper reactivity
+  const generalRefs = storeToRefs(general)
+  const stageModelRefs = storeToRefs(stageModel)
+  const live2dRefs = storeToRefs(live2d)
+  const themeRefs = storeToRefs(theme)
+  const controlsIslandRefs = storeToRefs(controlsIsland)
+
   return {
     // Core settings
-    disableTransitions: general.disableTransitions,
-    usePageSpecificTransitions: general.usePageSpecificTransitions,
-    language: general.language,
+    disableTransitions: generalRefs.disableTransitions,
+    usePageSpecificTransitions: generalRefs.usePageSpecificTransitions,
+    language: generalRefs.language,
 
     // Stage model settings
-    stageModelRenderer: stageModel.stageModelRenderer,
-    stageModelSelected: stageModel.stageModelSelected,
-    stageModelSelectedUrl: stageModel.stageModelSelectedUrl,
-    stageModelSelectedDisplayModel: stageModel.stageModelSelectedDisplayModel,
-    stageViewControlsEnabled: stageModel.stageViewControlsEnabled,
+    stageModelRenderer: stageModelRefs.stageModelRenderer,
+    stageModelSelected: stageModelRefs.stageModelSelected,
+    stageModelSelectedUrl: stageModelRefs.stageModelSelectedUrl,
+    stageModelSelectedDisplayModel: stageModelRefs.stageModelSelectedDisplayModel,
+    stageViewControlsEnabled: stageModelRefs.stageViewControlsEnabled,
 
     // Live2D settings
-    live2dDisableFocus: live2d.live2dDisableFocus,
-    live2dIdleAnimationEnabled: live2d.live2dIdleAnimationEnabled,
-    live2dAutoBlinkEnabled: live2d.live2dAutoBlinkEnabled,
-    live2dForceAutoBlinkEnabled: live2d.live2dForceAutoBlinkEnabled,
-    live2dShadowEnabled: live2d.live2dShadowEnabled,
+    live2dDisableFocus: live2dRefs.live2dDisableFocus,
+    live2dIdleAnimationEnabled: live2dRefs.live2dIdleAnimationEnabled,
+    live2dAutoBlinkEnabled: live2dRefs.live2dAutoBlinkEnabled,
+    live2dForceAutoBlinkEnabled: live2dRefs.live2dForceAutoBlinkEnabled,
+    live2dShadowEnabled: live2dRefs.live2dShadowEnabled,
 
     // Theme settings
-    themeColorsHue: theme.themeColorsHue,
-    themeColorsHueDynamic: theme.themeColorsHueDynamic,
+    themeColorsHue: themeRefs.themeColorsHue,
+    themeColorsHueDynamic: themeRefs.themeColorsHueDynamic,
 
     // UI settings
-    allowVisibleOnAllWorkspaces: controlsIsland.allowVisibleOnAllWorkspaces,
-    controlsIslandIconSize: controlsIsland.controlsIslandIconSize,
+    allowVisibleOnAllWorkspaces: controlsIslandRefs.allowVisibleOnAllWorkspaces,
+    controlsIslandIconSize: controlsIslandRefs.controlsIslandIconSize,
 
     // Methods
     setThemeColorsHue: theme.setThemeColorsHue,
