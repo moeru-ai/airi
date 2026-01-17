@@ -15,11 +15,17 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
-    "vue": "catalog:"
+    "@vueuse/core": "catalog:"
   },
   "devDependencies": {
+    "@iconify-json/solar": "^1.2.5",
+    "@iconify-json/svg-spinners": "^1.2.4",
+    "@proj-airi/server-sdk": "workspace:^",
+    "@proj-airi/ui": "workspace:^",
     "@unocss/reset": "^66.5.11",
     "@wxt-dev/module-vue": "^1.0.3",
+    "nanoid": "^5.1.6",
+    "vue": "catalog:",
     "vue-tsc": "^3.1.8",
     "wxt": "^0.20.13"
   }
