@@ -6,20 +6,20 @@ import type {
 import type { ModelInfo, VoiceInfo } from '../../../../stores/providers'
 import type {
   BaseSpeechProviderConfig,
-  BaseSpeechProviderDefinition,
 } from '../../base-speech'
 import type { ProviderValidationResult } from '../../base-types'
 
 import { createSpeechProvider } from '@xsai-ext/providers/utils'
 
 import { normalizeBaseUrl } from '../../utils'
+import { defineSpeechProvider } from '../registry-speech'
 
 /**
  * OpenAI Speech/TTS Provider Implementation
  *
  * Implements BaseSpeechProviderDefinition for OpenAI's text-to-speech API.
  */
-export const openaiSpeechProvider: BaseSpeechProviderDefinition = {
+export const openaiSpeechProvider = defineSpeechProvider({
   id: 'openai-audio-speech',
   defaultModel: 'gpt-4o-mini-tts',
   defaultVoice: 'alloy',
@@ -209,4 +209,4 @@ export const openaiSpeechProvider: BaseSpeechProviderDefinition = {
   supportsSSML(): boolean {
     return false
   },
-}
+})

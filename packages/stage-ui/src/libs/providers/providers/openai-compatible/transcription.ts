@@ -6,13 +6,13 @@ import type {
 import type { ModelInfo } from '../../../../stores/providers'
 import type {
   BaseTranscriptionProviderConfig,
-  BaseTranscriptionProviderDefinition,
 } from '../../base-transcription'
 import type { ProviderValidationResult } from '../../base-types'
 
 import { createTranscriptionProvider } from '@xsai-ext/providers/utils'
 
 import { normalizeBaseUrl } from '../../utils'
+import { defineTranscriptionProvider } from '../registry-transcription'
 
 /**
  * OpenAI Compatible Transcription/STT Provider Implementation
@@ -20,7 +20,7 @@ import { normalizeBaseUrl } from '../../utils'
  * Implements BaseTranscriptionProviderDefinition for any API that follows the OpenAI specification.
  * This is a generic implementation that works with OpenAI-compatible endpoints.
  */
-export const openaiCompatibleTranscriptionProvider: BaseTranscriptionProviderDefinition = {
+export const openaiCompatibleTranscriptionProvider = defineTranscriptionProvider({
   id: 'openai-compatible-audio-transcription',
   defaultModel: 'whisper-1',
   transcriptionFeatures: {
@@ -71,4 +71,4 @@ export const openaiCompatibleTranscriptionProvider: BaseTranscriptionProviderDef
   getDefaultConfig(): Partial<BaseTranscriptionProviderConfig> {
     return {}
   },
-}
+})

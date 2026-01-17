@@ -6,13 +6,13 @@ import type {
 import type { ModelInfo, VoiceInfo } from '../../../../stores/providers'
 import type {
   BaseSpeechProviderConfig,
-  BaseSpeechProviderDefinition,
 } from '../../base-speech'
 import type { ProviderValidationResult } from '../../base-types'
 
 import { createSpeechProvider } from '@xsai-ext/providers/utils'
 
 import { normalizeBaseUrl } from '../../utils'
+import { defineSpeechProvider } from '../registry-speech'
 
 /**
  * OpenAI Compatible Speech/TTS Provider Implementation
@@ -20,7 +20,7 @@ import { normalizeBaseUrl } from '../../utils'
  * Implements BaseSpeechProviderDefinition for any API that follows the OpenAI specification.
  * This is a generic implementation that works with OpenAI-compatible endpoints.
  */
-export const openaiCompatibleSpeechProvider: BaseSpeechProviderDefinition = {
+export const openaiCompatibleSpeechProvider = defineSpeechProvider({
   id: 'openai-compatible-audio-speech',
   defaultModel: 'tts-1',
   defaultVoice: 'alloy',
@@ -77,4 +77,4 @@ export const openaiCompatibleSpeechProvider: BaseSpeechProviderDefinition = {
   supportsSSML(): boolean {
     return false
   },
-}
+})

@@ -19,8 +19,25 @@ import './moonshot-ai'
 import './modelscope'
 import './ollama'
 import './cloudflare-workers-ai'
+// Import speech and transcription providers to register them
+import './openai/speech'
+import './openai/transcription'
+import './openai-compatible/speech'
+import './openai-compatible/transcription'
 
 export {
   getDefinedProvider,
   listProviders,
 } from './registry'
+
+export {
+  defineSpeechProvider,
+  getDefinedSpeechProvider,
+  listSpeechProviders,
+} from './registry-speech'
+
+export {
+  defineTranscriptionProvider,
+  getDefinedTranscriptionProvider,
+  listTranscriptionProviders,
+} from './registry-transcription'

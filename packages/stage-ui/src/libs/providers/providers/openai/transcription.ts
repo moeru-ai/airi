@@ -6,20 +6,20 @@ import type {
 import type { ModelInfo } from '../../../../stores/providers'
 import type {
   BaseTranscriptionProviderConfig,
-  BaseTranscriptionProviderDefinition,
 } from '../../base-transcription'
 import type { ProviderValidationResult } from '../../base-types'
 
 import { createTranscriptionProvider } from '@xsai-ext/providers/utils'
 
 import { normalizeBaseUrl } from '../../utils'
+import { defineTranscriptionProvider } from '../registry-transcription'
 
 /**
  * OpenAI Transcription/STT Provider Implementation
  *
  * Implements BaseTranscriptionProviderDefinition for OpenAI's Whisper API.
  */
-export const openaiTranscriptionProvider: BaseTranscriptionProviderDefinition = {
+export const openaiTranscriptionProvider = defineTranscriptionProvider({
   id: 'openai-audio-transcription',
   defaultModel: 'whisper-1',
   transcriptionFeatures: {
@@ -112,4 +112,4 @@ export const openaiTranscriptionProvider: BaseTranscriptionProviderDefinition = 
       baseUrl: 'https://api.openai.com/v1/',
     }
   },
-}
+})
