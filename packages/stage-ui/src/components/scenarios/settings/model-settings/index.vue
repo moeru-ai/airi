@@ -45,7 +45,7 @@ const {
 } = storeToRefs(settingsStore)
 
 watch(selectedModel, async () => {
-  stageModelSelected.value = selectedModel.value?.id
+  stageModelSelected.value = selectedModel.value?.id ?? ''
   await settingsStore.updateStageModel()
 
   if (selectedModel.value) {
