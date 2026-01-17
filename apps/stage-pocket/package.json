@@ -62,6 +62,7 @@
     "animejs": "^4.2.2",
     "colorjs.io": "^0.6.0",
     "culori": "^4.0.2",
+    "d3": "catalog:",
     "date-fns": "^4.1.0",
     "dompurify": "^3.3.1",
     "driver.js": "^1.4.0",

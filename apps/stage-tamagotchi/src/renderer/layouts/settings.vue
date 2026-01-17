@@ -68,6 +68,10 @@ const routeHeaderMetadataMap = computed(() => {
       subtitle: t('settings.title'),
       title: t('settings.pages.modules.hearing.title'),
     },
+    '/settings/modules/vision': {
+      subtitle: t('settings.title'),
+      title: t('settings.pages.modules.vision.title'),
+    },
     '/settings/modules/memory-short-term': {
       subtitle: t('settings.title'),
       title: t('settings.pages.modules.memory-short-term.title'),
@@ -132,6 +136,10 @@ const routeHeaderMetadataMap = computed(() => {
     '/devtools/context-flow': {
       subtitle: t('tamagotchi.settings.devtools.title'),
       title: t('tamagotchi.settings.devtools.pages.context-flow.title'),
+    },
+    '/devtools/vision': {
+      subtitle: t('tamagotchi.settings.devtools.title'),
+      title: 'Vision Capture',
     },
   }
 

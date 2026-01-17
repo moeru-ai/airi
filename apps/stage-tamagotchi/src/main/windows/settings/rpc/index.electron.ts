@@ -6,9 +6,9 @@ import type { WidgetsWindowManager } from '../../widgets'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
-import { ipcMain } from 'electron'
+import { desktopCapturer, ipcMain, session } from 'electron'
 
-import { electronOpenDevtoolsWindow, electronOpenSettingsDevtools } from '../../../../shared/eventa'
+import { electronOpenDevtoolsWindow, electronOpenSettingsDevtools, modulesVisionPrepareScreenSourceSelection } from '../../../../shared/eventa'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { createAutoUpdaterService, createScreenService, createWindowService } from '../../../services/electron'
 
@@ -33,5 +33,16 @@ export async function setupSettingsWindowInvokes(params: {
   defineInvokeHandler(context, electronOpenSettingsDevtools, async () => params.settingsWindow.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenDevtoolsWindow, async (payload) => {
     await params.devtoolsMarkdownStressWindow.openWindow(payload?.route)
+  })
+
+  defineInvokeHandler(context, modulesVisionPrepareScreenSourceSelection, async () => {
+    // TODO(@sumimakito): Refactor electron-audio-loopback first then move this to register for beat-sync handler.
+    // TODO(@nekomeowww): Currently, beat-sync and vision cannot be used together, as they both overriding the display media request handler.
+    session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
+      desktopCapturer.getSources({ types: ['screen'] }).then((sources) => {
+        // Grant access to the first screen found.
+        callback({ video: sources[0], audio: 'loopback' })
+      })
+    }, { useSystemPicker: false })
   })
 }

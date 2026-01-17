@@ -42,6 +42,12 @@ const menu = computed(() => [
     to: '/devtools/context-flow',
   },
   {
+    title: 'Context Observer',
+    description: 'Track how active context entries merge over time',
+    icon: 'i-solar:chat-square-bold-duotone',
+    to: '/devtools/context-observer',
+  },
+  {
     title: 'Relative Mouse',
     description: 'Get mouse position relative to the window',
     icon: 'i-solar:sledgehammer-bold-duotone',
@@ -70,6 +76,12 @@ const menu = computed(() => [
     description: 'Capture screen or window as video and/or audio streams',
     icon: 'i-solar:screen-share-bold-duotone',
     to: '/devtools/screen-capture',
+  },
+  {
+    title: 'Vision Capture',
+    description: 'Capture a screen frame and inspect the output payload',
+    icon: 'i-solar:eye-closed-bold-duotone',
+    to: '/devtools/vision',
   },
 ])
 

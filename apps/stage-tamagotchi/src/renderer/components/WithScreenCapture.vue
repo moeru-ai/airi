@@ -21,6 +21,7 @@ const { t } = useI18n()
 const {
   getSources,
   setSource,
+  resetSource,
   selectWithSource,
   checkMacOSPermission,
   requestMacOSPermission,
@@ -62,6 +63,7 @@ watch(focused, async (isFocused) => {
     v-bind="{
       getSources,
       setSource,
+      resetSource,
       selectWithSource,
       hasPermissions,
       checkPermissions,
