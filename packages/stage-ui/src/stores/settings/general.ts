@@ -1,6 +1,6 @@
 import messages from '@proj-airi/i18n/locales'
 
-import { refManualReset, useLocalStorage } from '@vueuse/core'
+import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { onMounted } from 'vue'
 
@@ -26,10 +26,10 @@ const languageRemap: Record<string, string> = {
 }
 
 export const useSettingsGeneral = defineStore('settings-general', () => {
-  const language = refManualReset<string>(useLocalStorage('settings/language', ''))
+  const language = useLocalStorageManualReset<string>('settings/language', '')
 
-  const disableTransitions = refManualReset<boolean>(useLocalStorage<boolean>('settings/disable-transitions', true))
-  const usePageSpecificTransitions = refManualReset<boolean>(useLocalStorage<boolean>('settings/use-page-specific-transitions', true))
+  const disableTransitions = useLocalStorageManualReset<boolean>('settings/disable-transitions', true)
+  const usePageSpecificTransitions = useLocalStorageManualReset<boolean>('settings/use-page-specific-transitions', true)
 
   function getLanguage() {
     let language = localStorage.getItem('settings/language')

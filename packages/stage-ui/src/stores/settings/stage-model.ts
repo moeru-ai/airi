@@ -1,6 +1,7 @@
 import type { DisplayModel } from '../display-models'
 
-import { refManualReset, useEventListener, useLocalStorage } from '@vueuse/core'
+import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { refManualReset, useEventListener } from '@vueuse/core'
 import { defineStore } from 'pinia'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
@@ -8,7 +9,7 @@ import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const displayModelsStore = useDisplayModelsStore()
 
-  const stageModelSelected = refManualReset<string | undefined>(useLocalStorage('settings/stage/model', 'preset-live2d-1'))
+  const stageModelSelected = useLocalStorageManualReset('settings/stage/model', 'preset-live2d-1')
   const stageModelSelectedDisplayModel = refManualReset<DisplayModel | undefined>(undefined)
   const stageModelSelectedUrl = refManualReset<string | undefined>(undefined)
   const stageModelRenderer = refManualReset<'live2d' | 'vrm' | 'disabled' | undefined>(undefined)
