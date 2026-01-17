@@ -26,62 +26,18 @@ const removeBeforeEach = router.beforeEach(async (_, __, next) => {
   next()
 })
 
-const settings = computed(() => [
-  {
-    title: t('settings.pages.card.title'),
-    description: t('settings.pages.card.description'),
-    icon: 'i-solar:emoji-funny-square-bold-duotone',
-    to: '/settings/airi-card',
-  },
-  {
-    title: t('settings.pages.modules.title'),
-    description: t('settings.pages.modules.description'),
-    icon: 'i-solar:layers-bold-duotone',
-    to: '/settings/modules',
-  },
-  {
-    title: t('settings.pages.scene.title'),
-    description: t('settings.pages.scene.description'),
-    icon: 'i-solar:armchair-2-bold-duotone',
-    to: '/settings/scene',
-  },
-  {
-    title: t('settings.pages.models.title'),
-    description: t('settings.pages.models.description'),
-    icon: 'i-solar:people-nearby-bold-duotone',
-    to: '/settings/models',
-  },
-  {
-    title: t('settings.pages.memory.title'),
-    description: t('settings.pages.memory.description'),
-    icon: 'i-solar:leaf-bold-duotone',
-    to: '/settings/memory',
-  },
-  {
-    title: t('settings.pages.providers.title'),
-    description: t('settings.pages.providers.description'),
-    icon: 'i-solar:box-minimalistic-bold-duotone',
-    to: '/settings/providers',
-  },
-  {
-    title: t('settings.pages.data.title'),
-    description: t('settings.pages.data.description'),
-    icon: 'i-solar:database-bold-duotone',
-    to: '/settings/data',
-  },
-  {
-    title: t('settings.pages.connection.title'),
-    description: t('settings.pages.connection.description'),
-    icon: 'i-solar:wi-fi-router-bold-duotone',
-    to: '/settings/connection',
-  },
-  {
-    title: t('settings.pages.system.title'),
-    description: t('settings.pages.system.description'),
-    icon: 'i-solar:filters-bold-duotone',
-    to: '/settings/system',
-  },
-])
+const settings = computed(() => {
+  return router
+    .getRoutes()
+    .filter(route => route.meta?.settingsEntry)
+    .sort((a, b) => (Number(a.meta?.order ?? 0) - Number(b.meta?.order ?? 0)))
+    .map(route => ({
+      title: route.meta?.titleKey ? t(route.meta.titleKey as string) : (route.meta?.title as string | undefined),
+      description: route.meta?.descriptionKey ? t(route.meta.descriptionKey as string) : (route.meta?.description as string | undefined) || '',
+      icon: route.meta?.icon as string | undefined,
+      to: route.path,
+    }))
+})
 </script>
 
 <template>
@@ -122,6 +78,7 @@ const settings = computed(() => [
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: settings.title
   stageTransition:
     name: slide
 </route>

@@ -21,4 +21,6 @@ const { t } = useI18n()
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: tamagotchi.settings.devtools.pages.lag-visualizer.title
+  subtitleKey: tamagotchi.settings.devtools.title
 </route>

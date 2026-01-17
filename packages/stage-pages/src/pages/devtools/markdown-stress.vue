@@ -157,4 +157,6 @@ function toggleMode() {
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: tamagotchi.settings.devtools.pages.markdown-stress.title
+  subtitleKey: tamagotchi.settings.devtools.title
 </route>

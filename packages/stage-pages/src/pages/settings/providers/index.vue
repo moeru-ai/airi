@@ -137,6 +137,12 @@ useScrollToHash(() => route.hash, {
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: settings.pages.providers.title
+  subtitleKey: settings.title
+  descriptionKey: settings.pages.providers.description
+  icon: i-solar:box-minimalistic-bold-duotone
+  settingsEntry: true
+  order: 6
   stageTransition:
     name: slide
     pageSpecificAvailable: true

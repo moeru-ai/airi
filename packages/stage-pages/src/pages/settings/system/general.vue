@@ -87,6 +87,8 @@ const languages = computed(() => {
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: settings.pages.system.general.title
+  subtitleKey: settings.title
   stageTransition:
     name: slide
 </route>

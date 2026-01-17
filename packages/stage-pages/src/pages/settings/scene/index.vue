@@ -31,6 +31,12 @@ import { Callout } from '@proj-airi/ui'
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: settings.pages.scene.title
+  subtitleKey: settings.title
+  descriptionKey: settings.pages.scene.description
+  icon: i-solar:armchair-2-bold-duotone
+  settingsEntry: true
+  order: 3
   stageTransition:
     name: slide
     pageSpecificAvailable: true

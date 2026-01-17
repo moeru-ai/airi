@@ -188,4 +188,6 @@ function payloadClasses(direction: 'incoming' | 'outgoing') {
 <route lang="yaml">
 meta:
   layout: settings
+  title: WebSocket Inspector
+  subtitleKey: tamagotchi.settings.devtools.title
 </route>

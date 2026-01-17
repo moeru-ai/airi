@@ -593,6 +593,8 @@ function updateCustomModelName(value: string | undefined) {
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: settings.pages.modules.speech.title
+  subtitleKey: settings.title
   stageTransition:
     name: slide
 </route>

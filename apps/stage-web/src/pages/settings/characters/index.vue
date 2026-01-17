@@ -127,4 +127,5 @@ function handleActivate(char: Character) {
 meta:
   layout: settings
   title: Characters
+  subtitleKey: settings.title
 </route>
