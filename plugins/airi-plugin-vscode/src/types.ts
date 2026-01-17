@@ -2,14 +2,29 @@
  * Coding context information
  */
 export interface CodingContext {
-  /** File information */
+  /**
+   * File information
+   *
+   * @example {
+   *  "path": "/home/neko/Git/github.com/moeru-ai/airi/package.json",
+   *  "languageId": "json",
+   *  "fileName": "/home/neko/Git/github.com/moeru-ai/airi/package.json"
+   * }
+   */
   file: {
     path: string
     languageId: string
     fileName: string
     workspaceFolder?: string
   }
-  /** Cursor position */
+  /**
+   * Cursor position
+   *
+   * {
+   *  "line": 5,
+   *  "character": 35
+   * }
+   */
   cursor: {
     line: number
     character: number
@@ -25,7 +40,26 @@ export interface CodingContext {
     lineNumber: number
     text: string
   }
-  /** Context (previous and next N lines) */
+  /**
+   * Context (previous and next N lines)
+   *
+   * @example {
+   *   "before": [
+   *     "{",
+   *     "  \"name\": \"@proj-airi/root\",",
+   *     "  \"type\": \"module\",",
+   *     "  \"version\": \"0.8.1-beta.12\",",
+   *     "  \"private\": true,"
+   *   ],
+   *   "after": [
+   *     "  \"description\": \"LLM powered virtual character\",",
+   *     "  \"author\": {",
+   *     "    \"name\": \"Moeru AI Project AIRI Team\",",
+   *     "    \"email\": \"airi@moeru.ai\",",
+   *     "    \"url\": \"https://github.com/moeru-ai\""
+   *   ]
+   * }
+   */
   context: {
     before: string[]
     after: string[]
@@ -35,7 +69,11 @@ export interface CodingContext {
     branch: string
     isDirty: boolean
   }
-  /** Timestamp */
+  /**
+   * Timestamp
+   *
+   * @example 1768584314898
+   */
   timestamp: number
 }
 

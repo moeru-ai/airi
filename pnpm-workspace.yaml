@@ -22,7 +22,6 @@ overrides:
 
 patchedDependencies:
   srvx@0.9.8: patches/srvx@0.9.8.patch
-
 catalog:
   '@capacitor/cli': ^8.0.0
   '@capacitor/core': ^8.0.0
@@ -44,6 +43,7 @@ catalog:
   '@types/hast': ^3.0.4
   '@types/splitpanes': ^2.2.6
   '@types/unist': ^3.0.3
+  '@vueuse/core': ^14.1.0
   '@xsai-ext/providers': ^0.4.0-beta.13
   '@xsai/embed': ^0.4.0-beta.13
   '@xsai/generate-speech': 0.4.0-beta.13
@@ -64,11 +64,12 @@ catalog:
   es-toolkit: 1.43.0
   hono: 4.11.3
   idb-keyval: ^6.2.2
-  injeca: ^0.1.5
+  injeca: ^0.1.7
   is-network-error: ^1.3.0
   nano-staged: ^0.9.0
   nanoid: 5.1.6
   ofetch: ^1.5.1
+  pinia: ^3.0.4
   posthog-js: 1.306.1
   splitpanes: ^4.0.4
   std-env: ^3.10.0
@@ -79,6 +80,7 @@ catalog:
   unstorage: ^1.17.3
   valibot: 1.2.0
   vite-plugin-mkcert: ^1.17.9
+  vue: ^3.5.25
   vue-sonner: 2.0.9
   xsschema: 0.4.0-beta.13
   zod: ^4.2.1

@@ -104,8 +104,9 @@ const isWebSpeechAPIAvailable = computed(() => {
     && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
 })
 
-onMounted(() => {
+onMounted(async () => {
   ensureProviderSettings()
+  // Audio devices are loaded on demand when user requests them
 })
 
 // Speech-to-Text test state (always uses Web Speech API)
@@ -388,14 +389,8 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div v-else-if="!selectedAudioInput" class="border border-amber-200 rounded-lg bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
-            <div class="flex items-center gap-2 text-amber-700 dark:text-amber-400">
-              <div i-solar:warning-circle-line-duotone class="text-lg" />
-              <span class="text-sm font-medium">Please select an audio input device to test</span>
-            </div>
-          </div>
-
           <div v-else class="flex flex-col gap-4">
+            <!-- Audio Input Device Selector - Always visible when Web Speech API is available -->
             <div class="flex items-center gap-2">
               <FieldSelect
                 v-model="selectedAudioInput"
@@ -411,9 +406,17 @@ onUnmounted(() => {
               />
             </div>
 
+            <!-- Warning if no device selected -->
+            <div v-if="!selectedAudioInput" class="border border-amber-200 rounded-lg bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
+              <div class="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                <div i-solar:warning-circle-line-duotone class="text-lg" />
+                <span class="text-sm font-medium">Please select an audio input device to test</span>
+              </div>
+            </div>
+
             <div class="flex items-center gap-2">
               <Button
-                :disabled="isTranscribing && !isTestingSTT"
+                :disabled="!selectedAudioInput || (isTranscribing && !isTestingSTT)"
                 class="flex-1"
                 @click="isTestingSTT ? stopSTTTest() : startSTTTest()"
               >

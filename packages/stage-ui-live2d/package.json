@@ -59,7 +59,7 @@
     "pixi-filters": "4",
     "pixi-live2d-display": "^0.4.0",
     "three": "^0.182.0",
-    "vue": "^3.5.25"
+    "vue": "catalog:"
   },
   "devDependencies": {
     "@types/culori": "^4.0.1",

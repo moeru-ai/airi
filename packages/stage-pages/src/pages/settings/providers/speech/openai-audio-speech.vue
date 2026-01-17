@@ -7,9 +7,9 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { FieldRange } from '@proj-airi/ui'
+import { FieldRange, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const speechStore = useSpeechStore()
@@ -27,14 +27,55 @@ const defaultModel = 'gpt-4o-mini-tts'
 
 const speed = ref<number>(1.0)
 
+// Model selection
+const model = computed({
+  get: () => providers.value[providerId]?.model as string | undefined || defaultModel,
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].model = value
+  },
+})
+
+// Load models and voices
+const providerModels = computed(() => {
+  return providersStore.getModelsForProvider(providerId)
+})
+
+const isLoadingModels = computed(() => {
+  return providersStore.isLoadingModels[providerId] || false
+})
+
 // Check if API key is configured
 const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
+// Filter voices based on the selected model's compatibility
 const availableVoices = computed(() => {
-  return speechStore.availableVoices[providerId] || []
+  const allVoices = speechStore.availableVoices[providerId] || []
+  const selectedModel = model.value || defaultModel
+
+  // Filter voices to only show those compatible with the selected model
+  return allVoices.filter((voice) => {
+    // If voice has no compatibleModels array, include it (backward compatibility)
+    if (!voice.compatibleModels || voice.compatibleModels.length === 0) {
+      return true
+    }
+    // Check if the selected model is in the voice's compatibleModels array
+    return voice.compatibleModels.includes(selectedModel)
+  })
 })
 
-// Generate speech with ElevenLabs-specific parameters
+// Load models and voices on mount
+onMounted(async () => {
+  await providersStore.loadModelsForConfiguredProviders()
+  await providersStore.fetchModelsForProvider(providerId)
+  // Load voices
+  // NOTE: OpenAI does not provide an API endpoint to retrieve available voices.
+  // Voices are hardcoded in provider metadata - this is a provider limitation, not an application limitation.
+  await speechStore.loadVoicesForProvider(providerId)
+})
+
+// Generate speech with OpenAI-specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
   const provider = await providersStore.getProviderInstance<SpeechProvider<string>>(providerId)
   if (!provider) {
@@ -44,13 +85,12 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   // Get provider configuration
   const providerConfig = providersStore.getProviderConfig(providerId)
 
-  // Get model from configuration or use default
-  const model = providerConfig.model as string | undefined || defaultModel
+  // Use the reactive model computed property (not a local variable)
+  const modelToUse = model.value || defaultModel
 
-  // ElevenLabs doesn't need SSML conversion, but if SSML is provided, use it directly
   return await speechStore.speech(
     provider,
-    model,
+    modelToUse,
     input,
     voiceId,
     {
@@ -64,6 +104,14 @@ watch(speed, async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.speed = speed.value
 })
+
+watch(model, async () => {
+  const providerConfig = providersStore.getProviderConfig(providerId)
+  providerConfig.model = model.value
+  // Reload voices when model changes to ensure compatibility filtering is applied
+  // Note: Voice compatibility varies by model - some voices (ballad, verse, marin, cedar) are only compatible with gpt-4o-mini-tts models
+  await speechStore.loadVoicesForProvider(providerId)
+})
 </script>
 
 <template>
@@ -72,8 +120,17 @@ watch(speed, async () => {
     :default-model="defaultModel"
     :additional-settings="defaultVoiceSettings"
   >
-    <!-- Voice settings specific to ElevenLabs -->
+    <!-- Voice settings specific to OpenAI -->
     <template #voice-settings>
+      <!-- Model selection -->
+      <FieldSelect
+        v-model="model"
+        label="Model"
+        description="Select the TTS model to use for speech generation"
+        :options="providerModels.map(m => ({ value: m.id, label: m.name }))"
+        :disabled="isLoadingModels || providerModels.length === 0"
+        placeholder="Select a model..."
+      />
       <!-- Speed control - common to most providers -->
       <FieldRange
         v-model="speed"

@@ -19,7 +19,13 @@ defineEmits<{
 const { t } = useI18n()
 
 const settings = useSettings()
-const { live2dDisableFocus, live2dIdleAnimationEnabled, live2dAutoBlinkEnabled, live2dForceAutoBlinkEnabled, live2dShadowEnabled } = storeToRefs(settings)
+const {
+  live2dDisableFocus,
+  live2dIdleAnimationEnabled,
+  live2dAutoBlinkEnabled,
+  live2dForceAutoBlinkEnabled,
+  live2dShadowEnabled,
+} = storeToRefs(settings)
 
 const live2d = useLive2d()
 const {

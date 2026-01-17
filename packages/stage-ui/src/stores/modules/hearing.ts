@@ -3,7 +3,8 @@ import type { WithUnknown } from '@xsai/shared'
 import type { StreamTranscriptionResult, StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
 
 import { tryCatch } from '@moeru/std'
-import { refManualReset, useLocalStorage } from '@vueuse/core'
+import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { refManualReset } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
@@ -49,12 +50,12 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const { allAudioTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
   // State
-  const activeTranscriptionProvider = refManualReset<string>(useLocalStorage('settings/hearing/active-provider', ''))
-  const activeTranscriptionModel = refManualReset<string>(useLocalStorage('settings/hearing/active-model', ''))
-  const activeCustomModelName = refManualReset<string>(useLocalStorage('settings/hearing/active-custom-model', ''))
+  const activeTranscriptionProvider = useLocalStorageManualReset('settings/hearing/active-provider', '')
+  const activeTranscriptionModel = useLocalStorageManualReset('settings/hearing/active-model', '')
+  const activeCustomModelName = useLocalStorageManualReset('settings/hearing/active-custom-model', '')
   const transcriptionModelSearchQuery = refManualReset<string>('')
-  const autoSendEnabled = refManualReset<boolean>(useLocalStorage('settings/hearing/auto-send-enabled', false))
-  const autoSendDelay = refManualReset<number>(useLocalStorage('settings/hearing/auto-send-delay', 2000)) // Default 2 seconds
+  const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false)
+  const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000) // Default 2 seconds
 
   // Computed properties
   const availableProvidersMetadata = computed(() => allAudioTranscriptionProvidersMetadata.value)
@@ -100,7 +101,14 @@ export const useHearingStore = defineStore('hearing-store', () => {
       return true // Web Speech API is ready if provider is selected and available
     }
 
-    return !!activeTranscriptionModel.value
+    // For OpenAI Compatible providers, check provider config as fallback
+    let hasProviderModel = false
+    if (activeTranscriptionProvider.value === 'openai-compatible-audio-transcription') {
+      const providerConfig = providersStore.getProviderConfig(activeTranscriptionProvider.value)
+      hasProviderModel = !!providerConfig?.model
+    }
+
+    return !!activeTranscriptionModel.value || hasProviderModel
   })
 
   function resetState() {

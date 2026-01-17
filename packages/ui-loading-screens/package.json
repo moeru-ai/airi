@@ -30,7 +30,7 @@
     "@rive-app/canvas-lite": "^2.33.1",
     "@vueuse/core": "^14.1.0",
     "@vueuse/motion": "^3.0.3",
-    "vue": "^3.5.25"
+    "vue": "catalog:"
   },
   "devDependencies": {
     "@proj-airi/ui": "workspace:^",

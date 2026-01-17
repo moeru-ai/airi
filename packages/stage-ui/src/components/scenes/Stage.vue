@@ -162,49 +162,72 @@ function playSpecialToken(special: string) {
 }
 const lipSyncNode = ref<AudioNode>()
 
-const playbackManager = createPlaybackManager<AudioBuffer>({
-  play: (item, signal) => {
-    return new Promise((resolve) => {
-      if (!audioContext) {
+async function playFunction(item: Parameters<Parameters<typeof createPlaybackManager<AudioBuffer>>[0]['play']>[0], signal: AbortSignal): Promise<void> {
+  return new Promise<void>(async (resolve) => {
+    if (!audioContext) {
+      resolve()
+      return
+    }
+
+    if (!item.audio) {
+      resolve()
+      return
+    }
+
+    // Ensure audio context is resumed (browsers suspend it by default until user interaction)
+    if (audioContext.state === 'suspended') {
+      try {
+        await audioContext.resume()
+      }
+      catch {
         resolve()
         return
       }
+    }
 
-      const source = audioContext.createBufferSource()
-      currentAudioSource.value = source
-      source.buffer = item.audio
+    const source = audioContext.createBufferSource()
+    currentAudioSource.value = source
+    source.buffer = item.audio
 
-      source.connect(audioContext.destination)
-      if (audioAnalyser.value)
-        source.connect(audioAnalyser.value)
-      if (lipSyncNode.value)
-        source.connect(lipSyncNode.value)
+    source.connect(audioContext.destination)
+    if (audioAnalyser.value)
+      source.connect(audioAnalyser.value)
+    if (lipSyncNode.value)
+      source.connect(lipSyncNode.value)
 
-      const stopPlayback = () => {
-        try {
-          source.stop()
-          source.disconnect()
-        }
-        catch {}
-        if (currentAudioSource.value === source)
-          currentAudioSource.value = undefined
-        resolve()
+    const stopPlayback = () => {
+      try {
+        source.stop()
+        source.disconnect()
       }
+      catch {}
+      if (currentAudioSource.value === source)
+        currentAudioSource.value = undefined
+      resolve()
+    }
 
-      if (signal.aborted) {
-        stopPlayback()
-        return
-      }
+    if (signal.aborted) {
+      stopPlayback()
+      return
+    }
 
-      signal.addEventListener('abort', stopPlayback, { once: true })
-      source.onended = () => {
-        signal.removeEventListener('abort', stopPlayback)
-        stopPlayback()
-      }
+    signal.addEventListener('abort', stopPlayback, { once: true })
+    source.onended = () => {
+      signal.removeEventListener('abort', stopPlayback)
+      stopPlayback()
+    }
 
+    try {
       source.start(0)
-    })
-  },
+    }
+    catch {
+      stopPlayback()
+    }
+  })
+}
+
+const playbackManager = createPlaybackManager<AudioBuffer>({
+  play: playFunction,
   maxVoices: 1,
   maxVoicesPerOwner: 1,
   overflowPolicy: 'queue',
@@ -216,15 +239,8 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
     if (signal.aborted)
       return null
 
-    if (!activeSpeechProvider.value) {
-      console.warn('No active speech provider configured')
+    if (!activeSpeechProvider.value)
       return null
-    }
-
-    if (!activeSpeechVoice.value) {
-      console.warn('No active speech voice configured')
-      return null
-    }
 
     const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
     if (!provider) {
@@ -236,20 +252,72 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       return null
 
     const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
-    const input = ssmlEnabled.value
-      ? speechStore.generateSSML(request.text, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value })
-      : request.text
 
-    const res = await generateSpeech({
-      ...provider.speech(activeSpeechModel.value, providerConfig),
-      input,
-      voice: activeSpeechVoice.value.id,
-    })
+    // For OpenAI Compatible providers, always use provider config for model and voice
+    // since these are manually configured in provider settings
+    let model = activeSpeechModel.value
+    let voice = activeSpeechVoice.value
 
-    if (signal.aborted)
+    if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
+      // Always prefer provider config for OpenAI Compatible (user configured it there)
+      if (providerConfig?.model) {
+        model = providerConfig.model as string
+      }
+      else {
+        // Fallback to default if not in provider config
+        model = 'tts-1'
+        console.warn('[Speech Pipeline] OpenAI Compatible: No model in provider config, using default', { providerConfig })
+      }
+
+      if (providerConfig?.voice) {
+        voice = {
+          id: providerConfig.voice as string,
+          name: providerConfig.voice as string,
+          description: providerConfig.voice as string,
+          previewURL: '',
+          languages: [{ code: 'en', title: 'English' }],
+          provider: activeSpeechProvider.value,
+          gender: 'neutral',
+        }
+      }
+      else {
+        // Fallback to default if not in provider config
+        voice = {
+          id: 'alloy',
+          name: 'alloy',
+          description: 'alloy',
+          previewURL: '',
+          languages: [{ code: 'en', title: 'English' }],
+          provider: activeSpeechProvider.value,
+          gender: 'neutral',
+        }
+        console.warn('[Speech Pipeline] OpenAI Compatible: No voice in provider config, using default', { providerConfig })
+      }
+    }
+
+    if (!model || !voice)
       return null
 
-    return audioContext.decodeAudioData(res)
+    const input = ssmlEnabled.value
+      ? speechStore.generateSSML(request.text, voice, { ...providerConfig, pitch: pitch.value })
+      : request.text
+
+    try {
+      const res = await generateSpeech({
+        ...provider.speech(model, providerConfig),
+        input,
+        voice: voice.id,
+      })
+
+      if (signal.aborted || !res || res.byteLength === 0)
+        return null
+
+      const audioBuffer = await audioContext.decodeAudioData(res)
+      return audioBuffer
+    }
+    catch {
+      return null
+    }
   },
   playback: playbackManager,
 })
@@ -271,15 +339,22 @@ playbackManager.onEnd(({ item }) => {
 
 playbackManager.onStart(({ item }) => {
   nowSpeaking.value = true
-  // NOTICE: currently, postCaption, postPresent from useBroadcastChannel may throw error
-  // once we navigate away from the page that created the BroadcastChannel,
-  // as the channel gets closed on unmount, leading to "Failed to execute 'postMessage' on 'BroadcastChannel': The channel is closed."
-  // error that may block hooks or throw exceptions silently.
-  //
-  // TODO: we should consider better way to manage BroadcastChannel lifecycle to avoid such issues.
+  // NOTICE: postCaption and postPresent may throw errors if the BroadcastChannel is closed
+  // (e.g., when navigating away from the page). We wrap these in try-catch to prevent
+  // breaking playback when the channel is unavailable.
   assistantCaption.value += ` ${item.text}`
-  postCaption({ type: 'caption-assistant', text: assistantCaption.value })
-  postPresent({ type: 'assistant-append', text: item.text })
+  try {
+    postCaption({ type: 'caption-assistant', text: assistantCaption.value })
+  }
+  catch {
+    // BroadcastChannel may be closed - don't break playback
+  }
+  try {
+    postPresent({ type: 'assistant-append', text: item.text })
+  }
+  catch {
+    // BroadcastChannel may be closed - don't break playback
+  }
 })
 
 function startLipSyncLoop() {
@@ -332,8 +407,20 @@ chatHookCleanups.push(onBeforeMessageComposed(async () => {
   await setupLipSync()
   // Reset assistant caption for a new message
   assistantCaption.value = ''
-  postCaption({ type: 'caption-assistant', text: '' })
-  postPresent({ type: 'assistant-reset' })
+  try {
+    postCaption({ type: 'caption-assistant', text: '' })
+  }
+  catch (error) {
+    // BroadcastChannel may be closed if user navigated away - don't break flow
+    console.warn('[Stage] Failed to post caption reset (channel may be closed)', { error })
+  }
+  try {
+    postPresent({ type: 'assistant-reset' })
+  }
+  catch (error) {
+    // BroadcastChannel may be closed if user navigated away - don't break flow
+    console.warn('[Stage] Failed to post present reset (channel may be closed)', { error })
+  }
 
   if (currentChatIntent) {
     currentChatIntent.cancel('new-message')
@@ -379,6 +466,25 @@ onUnmounted(() => {
   lipSyncStarted.value = false
 })
 
+// Resume audio context on first user interaction (browser requirement)
+let audioContextResumed = false
+function resumeAudioContextOnInteraction() {
+  if (audioContextResumed || !audioContext)
+    return
+  audioContextResumed = true
+  audioContext.resume().catch(() => {
+    // Ignore errors - audio context will be resumed when needed
+  })
+}
+
+// Add event listeners for user interaction
+if (typeof window !== 'undefined') {
+  const events = ['click', 'touchstart', 'keydown']
+  events.forEach((event) => {
+    window.addEventListener(event, resumeAudioContextOnInteraction, { once: true, passive: true })
+  })
+}
+
 onMounted(async () => {
   db.value = drizzle({ connection: { bundles: getImportUrlBundles() } })
   await db.value.execute(`CREATE TABLE memory_test (vec FLOAT[768]);`)
@@ -421,8 +527,9 @@ defineExpose({
       <Live2DScene
         v-if="stageModelRenderer === 'live2d' && showStage"
         ref="live2dSceneRef"
-        v-model:state="componentState" min-w="50% <lg:full" min-h="100 sm:100" h-full w-full
-        flex-1
+        v-model:state="componentState"
+        min-w="50% <lg:full" min-h="100 sm:100"
+        h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
         :focus-at="focusAt"

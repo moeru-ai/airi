@@ -10,6 +10,7 @@ export const SystemProviderConfigSchema = createSelectSchema(schema.systemProvid
 export const InsertSystemProviderConfigSchema = createInsertSchema(schema.systemProviderConfigs)
 
 export const CreateProviderConfigSchema = object({
+  id: optional(string()),
   definitionId: string(),
   name: string(),
   config: optional(record(string(), string())),

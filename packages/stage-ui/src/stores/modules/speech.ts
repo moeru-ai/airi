@@ -2,7 +2,8 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import type { VoiceInfo } from '../providers'
 
-import { refManualReset, useLocalStorage } from '@vueuse/core'
+import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { refManualReset } from '@vueuse/core'
 import { generateSpeech } from '@xsai/generate-speech'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
@@ -16,18 +17,18 @@ export const useSpeechStore = defineStore('speech', () => {
   const { allAudioSpeechProvidersMetadata } = storeToRefs(providersStore)
 
   // State
-  const activeSpeechProvider = refManualReset<string>(useLocalStorage<string>('settings/speech/active-provider', ''))
-  const activeSpeechModel = refManualReset<string>(useLocalStorage<string>('settings/speech/active-model', 'eleven_multilingual_v2'))
-  const activeSpeechVoiceId = refManualReset<string>(useLocalStorage<string>('settings/speech/voice', ''))
+  const activeSpeechProvider = useLocalStorageManualReset<string>('settings/speech/active-provider', '')
+  const activeSpeechModel = useLocalStorageManualReset<string>('settings/speech/active-model', 'eleven_multilingual_v2')
+  const activeSpeechVoiceId = useLocalStorageManualReset<string>('settings/speech/voice', '')
   const activeSpeechVoice = refManualReset<VoiceInfo | undefined>(undefined)
 
-  const pitch = refManualReset<number>(useLocalStorage<number>('settings/speech/pitch', 0))
-  const rate = refManualReset<number>(useLocalStorage<number>('settings/speech/rate', 1))
-  const ssmlEnabled = refManualReset<boolean>(useLocalStorage<boolean>('settings/speech/ssml-enabled', false))
+  const pitch = useLocalStorageManualReset<number>('settings/speech/pitch', 0)
+  const rate = useLocalStorageManualReset<number>('settings/speech/rate', 1)
+  const ssmlEnabled = useLocalStorageManualReset<boolean>('settings/speech/ssml-enabled', false)
   const isLoadingSpeechProviderVoices = refManualReset<boolean>(false)
   const speechProviderError = refManualReset<string | null>(null)
   const availableVoices = refManualReset<Record<string, VoiceInfo[]>>(() => ({}))
-  const selectedLanguage = refManualReset<string>(useLocalStorage<string>('settings/speech/language', 'en-US'))
+  const selectedLanguage = useLocalStorageManualReset<string>('settings/speech/language', 'en-US')
   const modelSearchQuery = refManualReset<string>('')
 
   // Computed properties
@@ -121,7 +122,27 @@ export const useSpeechStore = defineStore('speech', () => {
 
   watch([activeSpeechVoiceId, availableVoices], ([voiceId, voices]) => {
     if (voiceId) {
-      activeSpeechVoice.value = voices[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
+      // For OpenAI Compatible, create a custom voice object (no voices available from API)
+      if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
+        // Always update to match voiceId (in case it changed)
+        activeSpeechVoice.value = {
+          id: voiceId,
+          name: voiceId,
+          description: voiceId,
+          previewURL: '',
+          languages: [{ code: 'en', title: 'English' }],
+          provider: activeSpeechProvider.value,
+          gender: 'neutral',
+        }
+      }
+      else {
+        // For other providers, find voice in available voices
+        const foundVoice = voices[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
+        // Only update if we found a voice, or if activeSpeechVoice is not set
+        if (foundVoice || !activeSpeechVoice.value) {
+          activeSpeechVoice.value = foundVoice
+        }
+      }
     }
   }, {
     immediate: true,
@@ -201,7 +222,20 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 
   const configured = computed(() => {
-    return !!activeSpeechProvider.value && !!activeSpeechModel.value && !!activeSpeechVoiceId.value
+    if (!activeSpeechProvider.value)
+      return false
+
+    let hasModel = !!activeSpeechModel.value
+    let hasVoice = !!activeSpeechVoiceId.value
+
+    // For OpenAI Compatible providers, check provider config as fallback
+    if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
+      const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+      hasModel ||= !!providerConfig?.model
+      hasVoice ||= !!providerConfig?.voice
+    }
+
+    return hasModel && hasVoice
   })
 
   function resetState() {
