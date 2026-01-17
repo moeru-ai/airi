@@ -2,7 +2,8 @@ import type { DisplayModel } from './display-models'
 
 import messages from '@proj-airi/i18n/locales'
 
-import { refManualReset, useEventListener, useLocalStorage } from '@vueuse/core'
+import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { refManualReset, useEventListener } from '@vueuse/core'
 import { converter } from 'culori'
 import { defineStore } from 'pinia'
 import { onMounted, watch } from 'vue'
@@ -39,9 +40,9 @@ const getHueFrom = (color?: string) => color ? convert(color)?.h : DEFAULT_THEME
 export const useSettings = defineStore('settings', () => {
   const displayModelsStore = useDisplayModelsStore()
 
-  const language = refManualReset<string>(useLocalStorage('settings/language', ''))
+  const language = useLocalStorageManualReset<string>('settings/language', '')
 
-  const stageModelSelected = refManualReset<string | undefined>(useLocalStorage('settings/stage/model', 'preset-live2d-1'))
+  const stageModelSelected = useLocalStorageManualReset('settings/stage/model', 'preset-live2d-1')
   const stageModelSelectedDisplayModel = refManualReset<DisplayModel | undefined>(undefined)
   const stageModelSelectedUrl = refManualReset<string | undefined>(undefined)
   const stageModelRenderer = refManualReset<'live2d' | 'vrm' | 'disabled' | undefined>(undefined)
@@ -100,21 +101,21 @@ export const useSettings = defineStore('settings', () => {
 
   const stageViewControlsEnabled = refManualReset<boolean>(false)
 
-  const live2dDisableFocus = refManualReset<boolean>(useLocalStorage<boolean>('settings/live2d/disable-focus', false))
-  const live2dIdleAnimationEnabled = refManualReset<boolean>(useLocalStorage<boolean>('settings/live2d/idle-animation-enabled', true))
-  const live2dAutoBlinkEnabled = refManualReset<boolean>(useLocalStorage<boolean>('settings/live2d/auto-blink-enabled', true))
-  const live2dForceAutoBlinkEnabled = refManualReset<boolean>(useLocalStorage<boolean>('settings/live2d/force-auto-blink-enabled', false))
-  const live2dShadowEnabled = refManualReset<boolean>(useLocalStorage<boolean>('settings/live2d/shadow-enabled', true))
+  const live2dDisableFocus = useLocalStorageManualReset<boolean>('settings/live2d/disable-focus', false)
+  const live2dIdleAnimationEnabled = useLocalStorageManualReset<boolean>('settings/live2d/idle-animation-enabled', true)
+  const live2dAutoBlinkEnabled = useLocalStorageManualReset<boolean>('settings/live2d/auto-blink-enabled', true)
+  const live2dForceAutoBlinkEnabled = useLocalStorageManualReset<boolean>('settings/live2d/force-auto-blink-enabled', false)
+  const live2dShadowEnabled = useLocalStorageManualReset<boolean>('settings/live2d/shadow-enabled', true)
 
-  const disableTransitions = refManualReset<boolean>(useLocalStorage<boolean>('settings/disable-transitions', true))
-  const usePageSpecificTransitions = refManualReset<boolean>(useLocalStorage<boolean>('settings/use-page-specific-transitions', true))
+  const disableTransitions = useLocalStorageManualReset<boolean>('settings/disable-transitions', true)
+  const usePageSpecificTransitions = useLocalStorageManualReset<boolean>('settings/use-page-specific-transitions', true)
 
-  const themeColorsHue = refManualReset<number>(useLocalStorage<number>('settings/theme/colors/hue', DEFAULT_THEME_COLORS_HUE))
-  const themeColorsHueDynamic = refManualReset<boolean>(useLocalStorage<boolean>('settings/theme/colors/hue-dynamic', false))
+  const themeColorsHue = useLocalStorageManualReset<number>('settings/theme/colors/hue', DEFAULT_THEME_COLORS_HUE)
+  const themeColorsHueDynamic = useLocalStorageManualReset<boolean>('settings/theme/colors/hue-dynamic', false)
 
-  const allowVisibleOnAllWorkspaces = refManualReset<boolean>(useLocalStorage<boolean>('settings/allow-visible-on-all-workspaces', true))
+  const allowVisibleOnAllWorkspaces = useLocalStorageManualReset<boolean>('settings/allow-visible-on-all-workspaces', true)
 
-  const controlsIslandIconSize = refManualReset<'auto' | 'large' | 'small'>(useLocalStorage<'auto' | 'large' | 'small'>('settings/controls-island/icon-size', 'auto'))
+  const controlsIslandIconSize = useLocalStorageManualReset<'auto' | 'large' | 'small'>('settings/controls-island/icon-size', 'auto')
 
   function getLanguage() {
     let language = localStorage.getItem('settings/language')
@@ -228,8 +229,8 @@ export const useSettings = defineStore('settings', () => {
 export const useSettingsAudioDevice = defineStore('settings-audio-devices', () => {
   const { audioInputs, deviceConstraints, selectedAudioInput: selectedAudioInputNonPersist, startStream, stopStream, stream, askPermission } = useAudioDevice()
 
-  const selectedAudioInputPersist = refManualReset<string>(useLocalStorage('settings/audio/input', selectedAudioInputNonPersist.value))
-  const selectedAudioInputEnabledPersist = refManualReset<boolean>(useLocalStorage('settings/audio/input/enabled', false))
+  const selectedAudioInputPersist = useLocalStorageManualReset('settings/audio/input', selectedAudioInputNonPersist.value)
+  const selectedAudioInputEnabledPersist = useLocalStorageManualReset('settings/audio/input/enabled', false)
 
   watch(selectedAudioInputPersist, (newValue) => {
     selectedAudioInputNonPersist.value = newValue

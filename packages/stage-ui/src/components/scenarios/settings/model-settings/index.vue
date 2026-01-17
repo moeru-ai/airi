@@ -85,8 +85,16 @@ watch(selectedModel, async () => {
         Select Model
       </Button>
     </ModelSelectorDialog>
-    <Live2D v-if="stageModelRenderer === 'live2d'" :palette="palette" @extract-colors-from-model="$emit('extractColorsFromModel')" />
-    <VRM v-if="stageModelRenderer === 'vrm'" :palette="palette" @extract-colors-from-model="$emit('extractColorsFromModel')" />
+    <Live2D
+      v-if="stageModelRenderer === 'live2d'"
+      :palette="palette"
+      @extract-colors-from-model="$emit('extractColorsFromModel')"
+    />
+    <VRM
+      v-if="stageModelRenderer === 'vrm'"
+      :palette="palette"
+      @extract-colors-from-model="$emit('extractColorsFromModel')"
+    />
   </div>
   <!-- Live2D component for 2D stage view -->
   <template v-if="stageModelRenderer === 'live2d'">

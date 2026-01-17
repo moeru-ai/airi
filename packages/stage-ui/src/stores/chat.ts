@@ -125,8 +125,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     }
 
     updateUI()
-
     trackFirstMessage()
+
     try {
       await hooks.emitBeforeMessageComposedHooks(sendingMessage, streamingMessageContext)
 

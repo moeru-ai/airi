@@ -1,12 +1,12 @@
 <script setup lang="ts">
+import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { FieldInput } from '@proj-airi/ui'
-import { refManualReset, useLocalStorage } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
 const defaultWebSocketUrl = import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws'
-const websocketUrl = refManualReset<string>(useLocalStorage('settings/connection/websocket-url', defaultWebSocketUrl))
+const websocketUrl = useLocalStorageManualReset('settings/connection/websocket-url', defaultWebSocketUrl)
 </script>
 
 <template>
