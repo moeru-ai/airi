@@ -2,7 +2,10 @@ import type { createContext } from '@moeru/eventa/adapters/electron/main'
 
 import type { McpCallToolResult, McpContentPart, McpTool } from '../../../shared/electron/mcp'
 
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { env as processEnv } from 'node:process'
+import { fileURLToPath } from 'node:url'
 
 import { useLogg } from '@guiiai/logg'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
@@ -14,6 +17,12 @@ import { mcp } from '../../../shared/electron/mcp'
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 
 const log = useLogg('mcp-service').useGlobalConfig()
+
+// Read package.json to get name and version
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+const packageJsonPath = join(__dirname, '../../../package.json')
+const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as { name: string, version: string }
 
 /**
  * Represents a single MCP server session.
@@ -160,8 +169,8 @@ class McpManager {
 
       // Create MCP client
       const client = new Client({
-        name: 'airi-electron',
-        version: '1.0.0',
+        name: packageJson.name,
+        version: packageJson.version,
       }, {
         capabilities: {},
       })
