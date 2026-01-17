@@ -40,7 +40,7 @@ export const providerN1N = defineProvider<N1NConfig>({
         }),
     }),
     createProvider(config) {
-        return createOpenAI(config.apiKey as string, config.baseUrl)
+        return createOpenAI(config.apiKey || '', config.baseUrl)
     },
 
     validationRequiredWhen(config) {
