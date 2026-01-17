@@ -72,7 +72,7 @@ const settings = computed(() => [
   {
     title: t('settings.pages.connection.title'),
     description: t('settings.pages.connection.description'),
-    icon: 'i-solar:router-bold-duotone',
+    icon: 'i-solar:route-bold-duotone',
     to: '/settings/connection',
   },
   {
