@@ -77,4 +77,6 @@ const windowBounds = useElectronWindowBounds()
 <route lang="yaml">
 meta:
   layout: settings
+  title: useElectronRelativeMouse
+  subtitleKey: tamagotchi.settings.devtools.title
 </route>

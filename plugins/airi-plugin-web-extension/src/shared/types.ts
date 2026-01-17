@@ -74,15 +74,5 @@ export interface ExtensionStatus {
   lastVisionFrameAt?: number
 }
 
-export type PopupToBackgroundMessage
-  = | { type: 'popup:get-status' }
-    | { type: 'popup:update-settings', payload: Partial<ExtensionSettings> }
-    | { type: 'popup:toggle-enabled', payload: boolean }
-    | { type: 'popup:request-vision-frame' }
-    | { type: 'popup:clear-error' }
-
-export type BackgroundToPopupMessage
-  = | { type: 'background:status', payload: ExtensionStatus }
-
 export type BackgroundToContentMessage
   = | { type: 'background:request-vision-frame' }

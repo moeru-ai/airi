@@ -71,6 +71,12 @@ const settings = computed(() => [
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: settings.pages.system.title
+  subtitleKey: settings.title
+  descriptionKey: settings.pages.system.description
+  icon: i-solar:filters-bold-duotone
+  settingsEntry: true
+  order: 9
   stageTransition:
     name: slide
     pageSpecificAvailable: true

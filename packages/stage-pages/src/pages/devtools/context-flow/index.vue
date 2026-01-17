@@ -586,4 +586,6 @@ onUnmounted(() => {
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: tamagotchi.settings.devtools.pages.context-flow.title
+  subtitleKey: tamagotchi.settings.devtools.title
 </route>

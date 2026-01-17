@@ -227,6 +227,8 @@ const themePresets = computed(() => {
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: settings.pages.system.color-scheme.title
+  subtitleKey: settings.title
   stageTransition:
     name: slide
 </route>

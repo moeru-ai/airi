@@ -347,4 +347,6 @@ function hitVSequence() {
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: settings.pages.modules.beat_sync.title
+  subtitleKey: tamagotchi.settings.devtools.title
 </route>

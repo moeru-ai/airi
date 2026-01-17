@@ -47,7 +47,7 @@
     left: 0.75rem;
     top: 50%;
     width: 0.25rem;
-    height: calc(100% - 2rem);
+    height: calc(100% - 1.75rem);
     transform: translateY(-50%);
     border-radius: 999px;
   }
@@ -59,13 +59,15 @@
   & > p {
     margin-top: 0;
     margin-bottom: 0;
-    margin-left: 0.5rem;
     display: block;
   }
 
   & > div {
     margin-top: 0;
     margin-bottom: 0;
+  }
+
+  & > * {
     margin-left: 0.5rem;
   }
 

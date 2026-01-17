@@ -2,8 +2,9 @@ import type {
   BackgroundToContentMessage,
   ContentToBackgroundMessage,
   ExtensionSettings,
-  PopupToBackgroundMessage,
 } from '../src/shared/types'
+
+import { defineInvokeHandler } from '@moeru/eventa'
 
 import {
   createClientState,
@@ -15,6 +16,15 @@ import {
 } from '../src/background/client'
 import { loadSettings, saveSettings } from '../src/background/storage'
 import { DEFAULT_SETTINGS, STORAGE_KEY } from '../src/shared/constants'
+import {
+  backgroundStatusChanged,
+  popupClearError,
+  popupGetStatus,
+  popupRequestVisionFrame,
+  popupToggleEnabled,
+  popupUpdateSettings,
+} from '../src/shared/eventa'
+import { createRuntimeEventaContext } from '../src/shared/eventa-runtime'
 import { detectSiteFromUrl } from '../src/shared/sites'
 
 const state = createClientState()
@@ -23,6 +33,7 @@ let settings: ExtensionSettings = { ...DEFAULT_SETTINGS }
 let lastVideoNotifyKey = ''
 let lastStatusSentAt = 0
 let connectionKey = ''
+let eventaContext: ReturnType<typeof createRuntimeEventaContext>['context'] | undefined
 
 async function refreshClient() {
   const nextKey = `${settings.enabled}:${settings.wsUrl}:${settings.token}`
@@ -54,7 +65,7 @@ function emitStatus() {
     return
 
   lastStatusSentAt = now
-  void browser.runtime.sendMessage({ type: 'background:status', payload: toStatus(state, settings) }).catch(() => {})
+  eventaContext?.emit(backgroundStatusChanged, toStatus(state, settings))
 }
 
 async function updateSettings(partial: Partial<ExtensionSettings>) {
@@ -106,45 +117,47 @@ function handleContentMessage(message: ContentToBackgroundMessage) {
   }
 }
 
-async function handlePopupMessage(message: PopupToBackgroundMessage) {
-  switch (message.type) {
-    case 'popup:get-status':
-      return toStatus(state, settings)
-    case 'popup:update-settings':
-      await updateSettings(message.payload)
-      return toStatus(state, settings)
-    case 'popup:toggle-enabled':
-      await updateSettings({ enabled: message.payload })
-      return toStatus(state, settings)
-    case 'popup:request-vision-frame': {
-      const message: BackgroundToContentMessage = { type: 'background:request-vision-frame' }
-      const tabs = await browser.tabs.query({ active: true, currentWindow: true })
-      const tab = tabs[0]
-      if (tab?.id != null) {
-        await browser.tabs.sendMessage(tab.id, message).catch(() => {})
-      }
-      return toStatus(state, settings)
-    }
-    case 'popup:clear-error':
-      state.lastError = undefined
-      emitStatus()
-      return toStatus(state, settings)
-  }
-}
-
 export default defineBackground(() => {
+  const { context } = createRuntimeEventaContext()
+  eventaContext = context
+
+  defineInvokeHandler(context, popupGetStatus, () => toStatus(state, settings))
+  defineInvokeHandler(context, popupUpdateSettings, async (partial) => {
+    await updateSettings(partial)
+    return toStatus(state, settings)
+  })
+
+  defineInvokeHandler(context, popupToggleEnabled, async (enabled) => {
+    await updateSettings({ enabled })
+    return toStatus(state, settings)
+  })
+
+  defineInvokeHandler(context, popupRequestVisionFrame, async () => {
+    const message: BackgroundToContentMessage = { type: 'background:request-vision-frame' }
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true })
+    const tab = tabs[0]
+    if (tab?.id != null) {
+      await browser.tabs.sendMessage(tab.id, message).catch(() => {})
+    }
+
+    return toStatus(state, settings)
+  })
+
+  defineInvokeHandler(context, popupClearError, () => {
+    state.lastError = undefined
+    emitStatus()
+    return toStatus(state, settings)
+  })
+
   void init()
 
-  browser.runtime.onMessage.addListener((message: ContentToBackgroundMessage | PopupToBackgroundMessage) => {
-    if (message && typeof message === 'object' && 'type' in message) {
-      if (message.type.startsWith('content:')) {
-        handleContentMessage(message as ContentToBackgroundMessage)
-        return
-      }
-
-      if (message.type.startsWith('popup:')) {
-        return handlePopupMessage(message as PopupToBackgroundMessage)
-      }
+  browser.runtime.onMessage.addListener((message: unknown) => {
+    if (!message || typeof message !== 'object')
+      return
+    if ('__eventa' in message)
+      return
+    if ('type' in message && typeof message.type === 'string' && message.type.startsWith('content:')) {
+      handleContentMessage(message as ContentToBackgroundMessage)
     }
   })
 

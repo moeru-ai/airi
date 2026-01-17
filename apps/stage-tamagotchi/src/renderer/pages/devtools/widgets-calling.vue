@@ -379,4 +379,6 @@ function applyMapPreset() {
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: tamagotchi.settings.devtools.pages.widgets-calling.title
+  subtitleKey: tamagotchi.settings.devtools.title
 </route>

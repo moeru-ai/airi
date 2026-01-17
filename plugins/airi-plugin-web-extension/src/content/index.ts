@@ -235,6 +235,8 @@ function observeVideo(site: VideoSite) {
     safeSend({ type: 'content:page', payload: buildPageContext(site) })
   }
 
+  const onPlayback = () => sendVideo(true)
+
   const attach = () => {
     const found = document.querySelector('video') as HTMLVideoElement | null
     if (!found || found === video)
@@ -270,8 +272,6 @@ function observeVideo(site: VideoSite) {
     sendPage()
     sendVideo(false)
   }, TITLE_POLL_INTERVAL)
-
-  const onPlayback = () => sendVideo(true)
 
   const cleanup = () => {
     window.clearInterval(interval)
