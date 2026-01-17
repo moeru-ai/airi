@@ -53,7 +53,7 @@
     "posthog-js": "catalog:",
     "reka-ui": "^2.7.0",
     "unspeech": "catalog:xsai",
-    "vue": "^3.5.25",
+    "vue": "catalog:",
     "vue-i18n": "^11.2.2",
     "vue-router": "^4.6.4",
     "vue-sonner": "catalog:"

@@ -71,7 +71,7 @@
     "@proj-airi/ui": "workspace:^",
     "@ricky0123/vad-web": "^0.0.30",
     "@shikijs/rehype": "^3.20.0",
-    "@vueuse/core": "^14.1.0",
+    "@vueuse/core": "catalog:",
     "@vueuse/motion": "^3.0.3",
     "@vueuse/shared": "^14.1.0",
     "@xsai-ext/providers": "catalog:",
@@ -103,7 +103,7 @@
     "nanoid": "^5.1.6",
     "node-vibrant": "^4.0.3",
     "ofetch": "^1.5.1",
-    "pinia": "^3.0.4",
+    "pinia": "catalog:",
     "posthog-js": "catalog:",
     "rehype-katex": "^7.0.1",
     "rehype-parse": "^9.0.1",
@@ -170,7 +170,7 @@
     "unplugin-info": "catalog:",
     "unplugin-yaml": "^3.0.7",
     "vite": "^6.4.1",
-    "vue": "3.5.25",
+    "vue": "catalog:",
     "vue-tsc": "^3.1.8"
   }
 }
