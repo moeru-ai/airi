@@ -44,10 +44,6 @@ export default defineConfig({
           'background-color': '#5870840f',
         },
         'li': {
-          'margin-top': '0.25rem',
-          'margin-bottom': '0.25rem',
-        },
-        'li': {
           'margin-top': '0',
           'margin-bottom': '0',
         },

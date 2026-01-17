@@ -50,7 +50,7 @@ const routeHeaderMetadata = computed(() => {
 
   if (resolvedTitle || resolvedSubtitle) {
     return {
-      title: resolvedTitle,
+      title: resolvedTitle || '',
       subtitle: resolvedSubtitle,
     }
   }
@@ -68,7 +68,7 @@ const routeHeaderMetadata = computed(() => {
 
 <template>
   <div h-full w-full bg="$bg-color" flex="~ col">
-    <WindowTitleBar :title="routeHeaderMetadata?.title" icon="i-solar:settings-bold" />
+    <WindowTitleBar :title="routeHeaderMetadata?.title || ''" icon="i-solar:settings-bold" />
     <div
       :style="{
         paddingTop: `44px`,
@@ -82,8 +82,9 @@ const routeHeaderMetadata = computed(() => {
       <div ref="scrollContainer" relative h-full w-full overflow-y-auto scrollbar-none>
         <div flex="~ col" mx-auto h-full max-w-screen-xl>
           <PageHeader
-            :title="routeHeaderMetadata?.title"
-            :subtitle="routeHeaderMetadata?.subtitle"
+            v-if="routeHeaderMetadata && routeHeaderMetadata.title"
+            :title="routeHeaderMetadata.title"
+            :subtitle="routeHeaderMetadata.subtitle"
             :disable-back-button="isStageTamagotchi() && route.path === '/settings'"
             px-4
           />
