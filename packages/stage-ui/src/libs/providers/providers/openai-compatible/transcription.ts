@@ -4,71 +4,85 @@ import type {
 } from '@xsai-ext/providers/utils'
 
 import type { ModelInfo } from '../../../../stores/providers'
-import type {
-  BaseTranscriptionProviderConfig,
-} from '../../base-transcription'
-import type { ProviderValidationResult } from '../../base-types'
 
 import { createTranscriptionProvider } from '@xsai-ext/providers/utils'
+import { z } from 'zod'
 
 import { normalizeBaseUrl } from '../../utils'
-import { defineTranscriptionProvider } from '../registry-transcription'
+import { createOpenAICompatibleValidators } from '../../validators/openai-compatible'
+import { defineProvider } from '../registry'
+
+const openAICompatibleTranscriptionConfigSchema = z.object({
+  apiKey: z.string('API Key'),
+  baseUrl: z.string('Base URL'),
+})
+
+type OpenAICompatibleTranscriptionConfig = z.input<typeof openAICompatibleTranscriptionConfigSchema>
 
 /**
  * OpenAI Compatible Transcription/STT Provider Implementation
  *
- * Implements BaseTranscriptionProviderDefinition for any API that follows the OpenAI specification.
+ * Uses the unified defineProvider pattern for any API that follows the OpenAI specification.
  * This is a generic implementation that works with OpenAI-compatible endpoints.
  */
-export const openaiCompatibleTranscriptionProvider = defineTranscriptionProvider({
+export const providerOpenAICompatibleTranscription = defineProvider<OpenAICompatibleTranscriptionConfig>({
   id: 'openai-compatible-audio-transcription',
-  defaultModel: 'whisper-1',
-  transcriptionFeatures: {
-    supportsGenerate: true,
-    supportsStreamOutput: false,
-    supportsStreamInput: false,
-  },
+  order: 3,
+  name: 'OpenAI Compatible',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.openai-compatible.title'),
+  description: 'OpenAI-compatible transcription API',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.openai-compatible.description'),
+  tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+  icon: 'i-lobe-icons:openai',
 
-  async validateConfig(config: BaseTranscriptionProviderConfig): Promise<ProviderValidationResult> {
-    const errors: Error[] = []
+  createProviderConfig: ({ t }) => openAICompatibleTranscriptionConfigSchema.extend({
+    apiKey: openAICompatibleTranscriptionConfigSchema.shape.apiKey.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
+      type: 'password',
+    }),
+    baseUrl: openAICompatibleTranscriptionConfigSchema.shape.baseUrl.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
+    }),
+  }),
 
-    if (!config.apiKey) {
-      errors.push(new Error('API Key is required'))
-    }
-
-    if (!config.baseUrl) {
-      errors.push(new Error('Base URL is required'))
-    }
-
-    if (errors.length > 0) {
-      return {
-        errors,
-        reason: errors.map(e => e.message).join(', '),
-        valid: false,
-      }
-    }
-
-    return {
-      errors: [],
-      reason: '',
-      valid: true,
-    }
-  },
-
-  async createProvider(config: BaseTranscriptionProviderConfig) {
+  createProvider(config) {
     const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
     const baseUrl = normalizeBaseUrl(config.baseUrl)
 
     return createTranscriptionProvider({ apiKey, baseURL: baseUrl }) as TranscriptionProvider | TranscriptionProviderWithExtraOptions<string, any>
   },
 
-  async listModels(_config: BaseTranscriptionProviderConfig): Promise<ModelInfo[]> {
-    // OpenAI Compatible providers don't have hardcoded models
-    // Models are typically discovered via the API
-    return []
+  validationRequiredWhen(config) {
+    return !!config.apiKey?.trim()
   },
 
-  getDefaultConfig(): Partial<BaseTranscriptionProviderConfig> {
-    return {}
+  validators: {
+    ...createOpenAICompatibleValidators<OpenAICompatibleTranscriptionConfig>({
+      checks: ['connectivity'],
+    }),
+  },
+
+  capabilities: {
+    transcription: {
+      protocol: 'http',
+      generateOutput: true,
+      streamOutput: false,
+      streamInput: false,
+    },
+  },
+
+  extraMethods: {
+    async listModels(_config): Promise<ModelInfo[]> {
+      // OpenAI Compatible providers don't have hardcoded models
+      // Models are typically discovered via the API
+      return []
+    },
   },
 })
+
+// Keep export for backward compatibility during migration
+export const openaiCompatibleTranscriptionProvider = providerOpenAICompatibleTranscription

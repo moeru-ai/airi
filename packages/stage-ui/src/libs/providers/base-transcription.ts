@@ -28,6 +28,9 @@ export interface BaseTranscriptionProviderConfig {
 /**
  * Base interface that all transcription provider implementations should follow.
  *
+ * @deprecated Use the unified `defineProvider()` pattern instead (see `providers/registry.ts`).
+ * This interface is kept for backward compatibility with existing converters.
+ *
  * This provides a consistent contract for transcription providers beyond
  * what's defined in the external @xsai-ext/providers/utils library.
  *

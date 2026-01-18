@@ -60,12 +60,12 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { openaiCompatibleSpeechProvider } from '../libs/providers/providers/openai-compatible/speech'
-import { openaiCompatibleTranscriptionProvider } from '../libs/providers/providers/openai-compatible/transcription'
-import { openaiSpeechProvider } from '../libs/providers/providers/openai/speech'
-import { openaiTranscriptionProvider } from '../libs/providers/providers/openai/transcription'
+import { providerOpenAICompatibleSpeech } from '../libs/providers/providers/openai-compatible/speech'
+import { providerOpenAICompatibleTranscription } from '../libs/providers/providers/openai-compatible/transcription'
+import { providerOpenAISpeech } from '../libs/providers/providers/openai/speech'
+import { providerOpenAITranscription } from '../libs/providers/providers/openai/transcription'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
-import { convertSpeechProviderToMetadata, convertTranscriptionProviderToMetadata } from './providers/converters'
+import { convertProviderDefinitionToMetadata } from './providers/converters'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 import { createWebSpeechAPIProvider } from './providers/web-speech-api'
@@ -692,45 +692,21 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: ['health'],
     }),
-    'openai-audio-speech': convertSpeechProviderToMetadata(
-      openaiSpeechProvider,
-      {
-        name: 'OpenAI',
-        nameKey: 'settings.pages.providers.provider.openai.title',
-        descriptionKey: 'settings.pages.providers.provider.openai.description',
-        icon: 'i-lobe-icons:openai',
-        description: 'openai.com',
-      },
+    'openai-audio-speech': convertProviderDefinitionToMetadata(
+      providerOpenAISpeech,
+      t,
     ),
-    'openai-compatible-audio-speech': convertSpeechProviderToMetadata(
-      openaiCompatibleSpeechProvider,
-      {
-        name: 'OpenAI Compatible',
-        nameKey: 'settings.pages.providers.provider.openai-compatible.title',
-        descriptionKey: 'settings.pages.providers.provider.openai-compatible.description',
-        icon: 'i-lobe-icons:openai',
-        description: 'Connect to any API that follows the OpenAI specification.',
-      },
+    'openai-compatible-audio-speech': convertProviderDefinitionToMetadata(
+      providerOpenAICompatibleSpeech,
+      t,
     ),
-    'openai-audio-transcription': convertTranscriptionProviderToMetadata(
-      openaiTranscriptionProvider,
-      {
-        name: 'OpenAI',
-        nameKey: 'settings.pages.providers.provider.openai.title',
-        descriptionKey: 'settings.pages.providers.provider.openai.description',
-        icon: 'i-lobe-icons:openai',
-        description: 'openai.com',
-      },
+    'openai-audio-transcription': convertProviderDefinitionToMetadata(
+      providerOpenAITranscription,
+      t,
     ),
-    'openai-compatible-audio-transcription': convertTranscriptionProviderToMetadata(
-      openaiCompatibleTranscriptionProvider,
-      {
-        name: 'OpenAI Compatible',
-        nameKey: 'settings.pages.providers.provider.openai-compatible.title',
-        descriptionKey: 'settings.pages.providers.provider.openai-compatible.description',
-        icon: 'i-lobe-icons:openai',
-        description: 'Connect to any API that follows the OpenAI specification.',
-      },
+    'openai-compatible-audio-transcription': convertProviderDefinitionToMetadata(
+      providerOpenAICompatibleTranscription,
+      t,
     ),
     'aliyun-nls-transcription': {
       id: 'aliyun-nls-transcription',

@@ -30,6 +30,8 @@ export {
   listProviders,
 } from './registry'
 
+// Legacy exports for backward compatibility (deprecated - use unified defineProvider pattern)
+// These will be removed in a future version
 export {
   defineSpeechProvider,
   getDefinedSpeechProvider,

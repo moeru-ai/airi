@@ -37,6 +37,7 @@ const settings = computed(() => {
       icon: route.meta?.icon as string | undefined,
       to: route.path,
     }))
+    .filter(setting => setting.title)
 })
 </script>
 
