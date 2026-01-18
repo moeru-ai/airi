@@ -46,9 +46,9 @@ const routeHeaderMetadata = computed(() => {
   const resolvedTitle = titleKey ? t(titleKey) : title
   const resolvedSubtitle = subtitleKey ? t(subtitleKey) : subtitle
 
-  if (resolvedTitle) {
+  if (resolvedTitle || resolvedSubtitle) {
     return {
-      title: resolvedTitle,
+      title: resolvedTitle || '',
       subtitle: resolvedSubtitle,
     }
   }
