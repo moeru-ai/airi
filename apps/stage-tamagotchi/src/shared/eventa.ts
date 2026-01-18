@@ -74,3 +74,4 @@ export const widgetsUpdateEvent = defineEventa<{ id: string, componentProps?: Re
 
 export { electron } from './electron'
 export * from './electron-updater'
+export * from './electron/mcp'

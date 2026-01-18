@@ -884,6 +884,9 @@ importers:
       '@huggingface/transformers':
         specifier: ^3.8.1
         version: 3.8.1
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.25.1
+        version: 1.25.1(@cfworker/json-schema@4.1.1)(hono@4.11.3)(zod@4.2.1)
       '@moeru/eventa':
         specifier: ^1.0.0-alpha.10
         version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
@@ -1037,6 +1040,9 @@ importers:
       mediabunny:
         specifier: ^1.27.2
         version: 1.27.2
+      nanoid:
+        specifier: ^5.1.6
+        version: 5.1.6
       node-vibrant:
         specifier: ^4.0.3
         version: 4.0.3(encoding@0.1.13)

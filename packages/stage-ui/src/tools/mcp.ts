@@ -39,10 +39,11 @@ const tools = [
       const parametersObject = Object.fromEntries(parameters.map(({ name, value }) => [name, value]))
       const result = await callTool(name, parametersObject)
       return result satisfies {
-        content: {
-          type: string
-          text: string
-        }[]
+        content: Array<
+          | { type: 'text', text: string }
+          | { type: 'image', data: string, mimeType?: string }
+          | { type: string, [key: string]: unknown }
+        >
         isError: boolean
       }
     },
