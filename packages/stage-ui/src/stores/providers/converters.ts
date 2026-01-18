@@ -188,7 +188,7 @@ export function convertProviderDefinitionToMetadata(
           definition,
           config,
           schemaDefaults: {},
-          contextOptions: { t },
+          contextOptions: { t } as { t: ComposerTranslation },
         })
 
         // Run only config validators
@@ -203,7 +203,7 @@ export function convertProviderDefinitionToMetadata(
 
         for (const validatorDef of configValidators) {
           try {
-            const result = await validatorDef.validator(config, { t, validationCache: new Map() } as any)
+            const result = await validatorDef.validator(config, { t: t as ComposerTranslation } as any)
             if (!result.valid) {
               valid = false
               errors.push(...result.errors)
