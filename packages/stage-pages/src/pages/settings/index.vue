@@ -53,7 +53,7 @@ const settings = computed(() => {
       >
         <template #item="{ item }">
           <IconItem
-            :title="item.title"
+            :title="item.title || ''"
             :description="item.description"
             :icon="item.icon"
             :to="item.to"

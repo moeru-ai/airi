@@ -31,24 +31,24 @@ devtools:
   title: 开发者选项
   pages:
     context-flow:
-      title: Context Flow
+      title: 上下文流
     lag-visualizer:
-      title: Lag Visualizer
+      title: 放置可视化工具
     performance-visualizer:
-      title: Performance Visualizer
-      description: Toggle FPS/long task/memory overlay
+      title: 性能可视化工具
+      description: 切换 FPS/长任务/内存叠加
     markdown-stress:
       title: Markdown Stress
-      description: Stress markdown parsing and rendering with heavy chat payloads
+      description: 用大量聊天负载来测试 markdown 的解析和渲染能力
     widgets-calling:
       title: 挂件调用
 screen-capture:
   permissions-prompt:
-    title: Screen Capture
-    description: To capture screens or windows, screen and system audio recording permissions are required.
-    open-preferences: Open System Preferences
-    dismiss: Dismiss
+    title: 屏幕捕获
+    description: 要捕获屏幕或窗口，需要屏幕和系统音频录制权限。
+    open-preferences: 打开系统偏好设置
+    dismiss: 取消
     instructions:
-      step-1: Open "System Preferences", select "Privacy & Security" from the sidebar.
-      step-2: In the "Screen & System Audio Recording" and "System Audio Recording Only" sections, turn on the switches for AIRI.
-      step-2-note: If AIRI is not listed, please add it manually by clicking the "+" button and selecting AIRI from the Applications folder.
+      step-1: 打开“系统首选项”，从侧边栏选择“隐私与安全”。
+      step-2: 在“屏幕和系统音频录制”和“系统音频录制”部分中，开启AIRI的开关。
+      step-2-note: 如果没有列出AIRI，请通过单击“+”按钮和从应用程序文件夹中选择AIRI来手动添加。
