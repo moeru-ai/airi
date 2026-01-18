@@ -4,6 +4,7 @@ import type {
   TranscriptionProvider,
   TranscriptionProviderWithExtraOptions,
 } from '@xsai-ext/providers/utils'
+import type { ComposerTranslation } from 'vue-i18n'
 
 import type {
   BaseSpeechProviderConfig,
@@ -99,7 +100,7 @@ export function convertTranscriptionProviderToMetadata(
  */
 export function convertProviderDefinitionToMetadata(
   definition: ProviderDefinition<any>,
-  t: (key: string, fallback?: string) => string,
+  t: ComposerTranslation,
 ): ProviderMetadata {
   const category = getCategoryFromTasks(definition.tasks)
 
@@ -112,14 +113,20 @@ export function convertProviderDefinitionToMetadata(
       }
     : undefined
 
+  // Create a wrapper function that adapts ComposerTranslation to the simpler signature
+  // expected by nameLocalize and descriptionLocalize
+  const tWrapper = (input: string): string => {
+    return t(input) as string
+  }
+
   return {
     id: definition.id,
     order: definition.order,
     category,
     tasks: definition.tasks,
-    nameKey: definition.nameLocalize({ t }),
+    nameKey: definition.nameLocalize({ t: tWrapper }),
     name: definition.name,
-    descriptionKey: definition.descriptionLocalize({ t }),
+    descriptionKey: definition.descriptionLocalize({ t: tWrapper }),
     description: definition.description,
     icon: definition.icon,
     iconColor: definition.iconColor,
@@ -131,10 +138,13 @@ export function convertProviderDefinitionToMetadata(
       // const schema = definition.createProviderConfig({ t })
       return {}
     },
-    createProvider: async (config: Record<string, unknown>) => {
+    createProvider: (async (config: Record<string, unknown>) => {
       const result = await definition.createProvider(config as any)
-      return result
-    },
+      // Cast to the expected union type for ProviderMetadata
+      // TypeScript can't infer that Promise<Union> is assignable to Union | Promise<Union>
+      // so we cast as any to satisfy the type checker
+      return result as any
+    }) as ProviderMetadata['createProvider'],
     capabilities: {
       listModels: definition.extraMethods?.listModels
         ? async (config: Record<string, unknown>) => {
@@ -193,7 +203,7 @@ export function convertProviderDefinitionToMetadata(
 
         for (const validatorDef of configValidators) {
           try {
-            const result = await validatorDef.validator(config, { t, validationCache: new Map() })
+            const result = await validatorDef.validator(config, { t, validationCache: new Map() } as any)
             if (!result.valid) {
               valid = false
               errors.push(...result.errors)
