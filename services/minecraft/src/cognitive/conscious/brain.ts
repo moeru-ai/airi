@@ -162,27 +162,17 @@ export class Brain {
     this.blackboard.update({ selfUsername: bot.username })
 
     const handleSignal = async (signal: PerceptionSignal) => {
-      if (signal.type !== 'chat_message' && signal.type !== 'social_presence' && signal.type !== 'system_message')
-        return
-
       try {
         await this.handlePerceptionSignal(bot, signal)
       }
       catch (err) {
-        this.log('ERROR', 'Brain: Failed to enqueue chat event', { error: err })
+        this.log('ERROR', 'Brain: Failed to enqueue perception signal', { error: err })
       }
     }
 
-    // Perception Signal Handler - unified on EventBus
-    this.deps.eventBus.subscribe<PerceptionSignal>('signal:chat_message', (event: TracedEvent<PerceptionSignal>) => {
-      void handleSignal(event.payload)
-    })
-
-    this.deps.eventBus.subscribe<PerceptionSignal>('signal:social_presence', (event: TracedEvent<PerceptionSignal>) => {
-      void handleSignal(event.payload)
-    })
-
-    this.deps.eventBus.subscribe<PerceptionSignal>('signal:system_message', (event: TracedEvent<PerceptionSignal>) => {
+    // Perception Signal Handler - subscribe to all signal events
+    // EventBus supports pattern wildcards like 'signal:*'
+    this.deps.eventBus.subscribe<PerceptionSignal>('signal:*', (event: TracedEvent<PerceptionSignal>) => {
       void handleSignal(event.payload)
     })
 
