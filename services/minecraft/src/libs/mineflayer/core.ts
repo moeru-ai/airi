@@ -35,6 +35,9 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
   public isCreative: boolean = false
   public allowCheats: boolean = false
 
+  private respawnRequestedAt: number | null = null
+  private respawnTimer: ReturnType<typeof setTimeout> | null = null
+
   private options: MineflayerOptions
   private logger: Logg
   private commands: Map<string, EventsHandler<'command'>> = new Map()
@@ -130,8 +133,39 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
       mineflayer.logger.log('Bot ready')
     })
 
+    mineflayer.bot.on('spawn', () => {
+      mineflayer.respawnRequestedAt = null
+      if (mineflayer.respawnTimer) {
+        clearTimeout(mineflayer.respawnTimer)
+        mineflayer.respawnTimer = null
+      }
+    })
+
     mineflayer.bot.on('death', () => {
       mineflayer.logger.error('Bot died')
+
+      const now = Date.now()
+      if (mineflayer.respawnRequestedAt && now - mineflayer.respawnRequestedAt < 3000)
+        return
+
+      mineflayer.respawnRequestedAt = now
+      if (mineflayer.respawnTimer)
+        clearTimeout(mineflayer.respawnTimer)
+
+      mineflayer.respawnTimer = setTimeout(() => {
+        mineflayer.respawnTimer = null
+
+        if (!mineflayer.bot || !mineflayer.bot._client)
+          return
+
+        try {
+          mineflayer.bot.respawn()
+          mineflayer.logger.log('Respawn requested')
+        }
+        catch (err) {
+          mineflayer.logger.errorWithError('Failed to respawn', err as Error)
+        }
+      }, 750)
     })
 
     mineflayer.bot.on('kicked', (reason: string) => {
