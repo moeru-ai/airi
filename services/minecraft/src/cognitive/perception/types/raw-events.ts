@@ -78,6 +78,13 @@ export interface PlayerJoinedEvent extends RawPerceptionEventBase {
   displayName?: string
 }
 
-export type SystemEvent = PlayerJoinedEvent
+export interface SystemMessageEvent extends RawPerceptionEventBase {
+  modality: 'system'
+  kind: 'system_message'
+  message: string
+  position: string
+}
+
+export type SystemEvent = PlayerJoinedEvent | SystemMessageEvent
 
 export type RawPerceptionEvent = SightedEvent | HeardEvent | FeltEvent | SystemEvent

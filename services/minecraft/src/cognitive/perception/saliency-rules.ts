@@ -36,6 +36,7 @@ export const EVENT_KEYS = [
   'sound:ambient',
   'felt:damage',
   'felt:pickup',
+  'system:message',
 ] as const
 
 export type EventKey = typeof EVENT_KEYS[number]
@@ -167,6 +168,26 @@ export const SALIENCY_RULES: SaliencyRuleBook = {
           action: 'pickup',
         },
       }),
+    },
+  },
+  system: {
+    system_message: {
+      threshold: 1, // System messages are immediately salient
+      key: 'system:message',
+      buildSignal: (event) => {
+        const e = event as Extract<RawPerceptionEvent, { modality: 'system', kind: 'system_message' }>
+        return {
+          type: 'system_message',
+          description: e.message,
+          sourceId: 'system',
+          confidence: 1.0,
+          timestamp: Date.now(),
+          metadata: {
+            message: e.message,
+            position: e.position,
+          },
+        }
+      },
     },
   },
 }

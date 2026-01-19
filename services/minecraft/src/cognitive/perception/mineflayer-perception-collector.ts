@@ -11,6 +11,7 @@ import type {
   SightedArmSwingEvent,
   SightedEntityMovedEvent,
   SightedSneakToggleEvent,
+  SystemMessageEvent,
 } from './types/raw-events'
 
 export class MineflayerPerceptionCollector {
@@ -77,12 +78,15 @@ export class MineflayerPerceptionCollector {
     this.onBot('entityMoved', entity => this.handleEntityMoved(entity))
     this.onBot('entitySwingArm', entity => this.handleEntitySwingArm(entity))
     this.onBot('entityUpdate', entity => this.handleEntityUpdate(entity))
-    this.onBot('playerJoined', player => this.handlePlayerJoined(player))
-    this.onBot('playerUpdated', () => this.handlePlayersMaybeChanged())
+    // NOTICE: playerJoined hook disconnected - system messages now cover join/leave events
+    // this.onBot('playerJoined', player => this.handlePlayerJoined(player))
+    // this.onBot('playerUpdated', () => this.handlePlayersMaybeChanged())
     this.onBot('soundEffectHeard', (soundId, pos) => this.handleSoundHeard(soundId, pos))
     this.onBot('health', () => this.handleHealthChange())
     this.onBot('playerCollect', (collector, collected) => this.handleItemCollected(collector, collected))
     this.onBot('entityCollect', (collector, collected) => this.handleItemCollected(collector, collected))
+    // Listen for system messages (e.g., "player A was slain by player B", join/leave messages)
+    this.onBot('messagestr', (message: string, messagePosition: string) => this.handleSystemMessage(message, messagePosition))
   }
 
   // ========================================
@@ -236,6 +240,30 @@ export class MineflayerPerceptionCollector {
     this.emitEvent(event, 'felt.item_collected')
   }
 
+  // ========================================
+  // System Event Handlers
+  // ========================================
+
+  private handleSystemMessage(message: string, messagePosition: string): void {
+    // messagePosition: 'chat' = player chat, 'system' = system message, 'game_info' = action bar
+    if (messagePosition !== 'system')
+      return
+
+    const event: SystemMessageEvent = {
+      modality: 'system',
+      kind: 'system_message',
+      message,
+      position: messagePosition,
+      timestamp: Date.now(),
+      source: 'minecraft',
+    }
+
+    this.emitEvent(event, 'system.system_message')
+  }
+
+  // NOTICE: handlePlayerJoined and handlePlayersMaybeChanged are disconnected
+  // System messages now cover join/leave events via messagestr
+  // @ts-expect-error Intentionally unused - kept for potential future reconnection
   private handlePlayerJoined(player: any): void {
     if (!player)
       return
@@ -261,6 +289,7 @@ export class MineflayerPerceptionCollector {
     this.emitEvent(event, 'system.player_joined')
   }
 
+  // @ts-expect-error Intentionally unused - kept for potential future reconnection
   private handlePlayersMaybeChanged(): void {
     const bot = this.bot
     if (!bot)
