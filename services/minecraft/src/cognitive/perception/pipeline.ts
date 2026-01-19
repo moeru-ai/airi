@@ -4,24 +4,20 @@ import type { EventBus } from '../os'
 import type { MineflayerWithAgents } from '../types'
 import type { PerceptionFrame } from './frame'
 import type { RawPerceptionEvent } from './types/raw-events'
-import type { PerceptionSignal } from './types/signals'
 import type { PerceptionStage } from './types/stage'
 
 import { DebugService } from '../../debug'
-import { createPerceptionFrameFromRawEvent } from './frame'
-import { MineflayerPerceptionCollector } from './mineflayer-perception-collector'
+import { EventRegistry } from './events'
+import { allEventDefinitions } from './events/definitions'
 import { PerceptionAPI } from './perception-api'
-import { SaliencyDetector } from './saliency-detector'
 
 export class PerceptionPipeline {
-  private readonly detector: SaliencyDetector
   private readonly perception: PerceptionAPI
-  private collector: MineflayerPerceptionCollector | null = null
+  private readonly eventRegistry: EventRegistry
+  private bot: MineflayerWithAgents | null = null
   private initialized = false
 
   private readonly stages: PerceptionStage[]
-
-  private currentFrame: PerceptionFrame | null = null
 
   private saliencyEmitTimer: ReturnType<typeof setInterval> | null = null
 
@@ -33,17 +29,25 @@ export class PerceptionPipeline {
   ) {
     this.perception = new PerceptionAPI({ logger: this.deps.logger })
 
-    this.detector = new SaliencyDetector({
+    this.eventRegistry = new EventRegistry({
       logger: this.deps.logger,
-      onAttention: (signal) => {
-        // This is only called synchronously while we're handling a specific frame.
-        // Attach derived signals to that frame; router stage will emit them.
-        this.currentFrame?.signals.push({
-          type: 'perception_signal',
+      onSignal: (signal) => {
+        this.deps.eventBus.emit({
+          type: `signal:${signal.type}`,
           payload: signal,
+          source: { component: 'perception', id: 'event-registry' },
+        })
+      },
+      onRawEvent: (event) => {
+        const eventType = `raw:${event.modality}:${event.kind}`
+        this.deps.eventBus.emit({
+          type: eventType,
+          payload: Object.freeze(event),
+          source: { component: 'perception', id: event.source },
         })
       },
     })
+    this.eventRegistry.registerAll(allEventDefinitions)
 
     this.stages = [
       {
@@ -77,38 +81,10 @@ export class PerceptionPipeline {
           if (frame.kind !== 'world_raw')
             return frame
 
-          this.currentFrame = frame
-          try {
-            const raw = frame.raw as RawPerceptionEvent
-            this.detector.ingest(raw)
-
-            // Also emit to EventBus for rule processing
-            this.emitRawToEventBus(raw)
-          }
-          finally {
-            this.currentFrame = null
-          }
-          return frame
-        },
-      },
-      {
-        name: 'router',
-        handle: (frame) => {
-          // Emit all perception signals centrally as BotEvents
-          for (const signalWrapper of frame.signals) {
-            if (signalWrapper.type !== 'perception_signal')
-              continue
-
-            const signal = signalWrapper.payload as PerceptionSignal
-
-            // Emit with signal:<type> format so Brain and Reflex can subscribe
-            this.deps.eventBus.emit<PerceptionSignal>({
-              type: `signal:${signal.type}`,
-              payload: signal,
-              source: { component: 'perception', id: 'perception' },
-            })
-          }
-
+          const raw = frame.raw as RawPerceptionEvent
+          // Legacy pipeline saliency disabled; EventRegistry is the source of truth.
+          // Keep raw emission for now in case some other component still ingests frames.
+          this.emitRawToEventBus(raw)
           return frame
         },
       },
@@ -117,38 +93,33 @@ export class PerceptionPipeline {
 
   public init(bot: MineflayerWithAgents): void {
     this.initialized = true
+    this.bot = bot
 
     this.deps.logger.withFields({ maxDistance: 32 }).log('PerceptionPipeline: init')
 
-    this.detector.start()
+    this.eventRegistry.start()
+    this.eventRegistry.attachToBot(bot.bot, 32)
 
     this.saliencyEmitTimer = setInterval(() => {
       if (!this.initialized)
         return
-      DebugService.getInstance().emit('saliency', this.detector.getDebugSnapshot())
+      DebugService.getInstance().emit('saliency', this.eventRegistry.getDebugSnapshot())
     }, 100)
-
-    this.collector = new MineflayerPerceptionCollector({
-      logger: this.deps.logger,
-      emitRaw: (event) => {
-        this.ingest(createPerceptionFrameFromRawEvent(event))
-      },
-      maxDistance: 32,
-    })
-    this.collector.init(bot)
   }
 
   public destroy(): void {
     this.deps.logger.log('PerceptionPipeline: destroy')
-    this.collector?.destroy()
-    this.collector = null
+
+    if (this.bot) {
+      this.eventRegistry.detachFromBot(this.bot.bot)
+    }
+    this.eventRegistry.stop()
+    this.bot = null
 
     if (this.saliencyEmitTimer) {
       clearInterval(this.saliencyEmitTimer)
       this.saliencyEmitTimer = null
     }
-
-    this.detector.stop()
     this.initialized = false
   }
 
@@ -157,6 +128,14 @@ export class PerceptionPipeline {
    */
   public getPerceptionAPI(): PerceptionAPI {
     return this.perception
+  }
+
+  /**
+   * Get all registered signal types from the EventRegistry
+   * Used by consumers (e.g., Brain) to dynamically subscribe to signals
+   */
+  public getSignalTypes(): string[] {
+    return this.eventRegistry.getSignalTypes()
   }
 
   public ingest(frame: PerceptionFrame): void {

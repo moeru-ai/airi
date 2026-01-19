@@ -75,24 +75,23 @@ export class MineflayerPerceptionCollector {
   // ========================================
 
   private registerEventHandlers(): void {
-    this.onBot('entityMoved', entity => this.handleEntityMoved(entity))
-    this.onBot('entitySwingArm', entity => this.handleEntitySwingArm(entity))
-    this.onBot('entityUpdate', entity => this.handleEntityUpdate(entity))
+    // NOTICE: Sighted events (entityMoved, entitySwingArm, entityUpdate) now handled by EventRegistry
+    // See perception/events/definitions/arm-swing.ts, sneak-toggle.ts, entity-moved.ts
+    // NOTICE: Heard/Felt events (soundEffectHeard, health, playerCollect) now handled by EventRegistry
+    // See perception/events/definitions/sound-heard.ts, damage-taken.ts, item-collected.ts
     // NOTICE: playerJoined hook disconnected - system messages now cover join/leave events
     // this.onBot('playerJoined', player => this.handlePlayerJoined(player))
     // this.onBot('playerUpdated', () => this.handlePlayersMaybeChanged())
-    this.onBot('soundEffectHeard', (soundId, pos) => this.handleSoundHeard(soundId, pos))
-    this.onBot('health', () => this.handleHealthChange())
-    this.onBot('playerCollect', (collector, collected) => this.handleItemCollected(collector, collected))
-    this.onBot('entityCollect', (collector, collected) => this.handleItemCollected(collector, collected))
-    // Listen for system messages (e.g., "player A was slain by player B", join/leave messages)
-    this.onBot('messagestr', (message: string, messagePosition: string) => this.handleSystemMessage(message, messagePosition))
+    // NOTICE: messagestr now handled by EventRegistry in perception/events/definitions/system-message.ts
   }
 
   // ========================================
   // Sighted Event Handlers
+  // NOTICE: These handlers are now handled by EventRegistry
+  // Kept for reference during migration
   // ========================================
 
+  // @ts-expect-error Intentionally unused - migrated to EventRegistry
   private handleEntityMoved(entity: any): void {
     if (!this.isValidEntityInRange(entity))
       return
@@ -113,6 +112,7 @@ export class MineflayerPerceptionCollector {
     this.emitEvent(event, 'sighted.entity_moved')
   }
 
+  // @ts-expect-error Intentionally unused - migrated to EventRegistry
   private handleEntitySwingArm(entity: any): void {
     if (!this.isValidEntityInRange(entity))
       return
@@ -133,6 +133,7 @@ export class MineflayerPerceptionCollector {
     this.emitEvent(event, 'sighted.arm_swing')
   }
 
+  // @ts-expect-error Intentionally unused - migrated to EventRegistry
   private handleEntityUpdate(entity: any): void {
     if (!entity || entity.type !== 'player')
       return
@@ -171,8 +172,10 @@ export class MineflayerPerceptionCollector {
 
   // ========================================
   // Heard Event Handlers
+  // NOTICE: These handlers are now handled by EventRegistry
   // ========================================
 
+  // @ts-expect-error Intentionally unused - migrated to EventRegistry
   private handleSoundHeard(soundId: string, pos: Vec3): void {
     if (!pos)
       return
@@ -196,8 +199,10 @@ export class MineflayerPerceptionCollector {
 
   // ========================================
   // Felt Event Handlers
+  // NOTICE: These handlers are now handled by EventRegistry
   // ========================================
 
+  // @ts-expect-error Intentionally unused - migrated to EventRegistry
   private handleHealthChange(): void {
     if (!this.bot)
       return
@@ -220,6 +225,7 @@ export class MineflayerPerceptionCollector {
     this.emitEvent(event, 'felt.damage_taken')
   }
 
+  // @ts-expect-error Intentionally unused - migrated to EventRegistry
   private handleItemCollected(collector: any, collected: any): void {
     if (!this.bot || !collector)
       return
@@ -244,6 +250,8 @@ export class MineflayerPerceptionCollector {
   // System Event Handlers
   // ========================================
 
+  // NOTICE: handleSystemMessage now handled by EventRegistry
+  // @ts-expect-error Intentionally unused - kept for reference during migration
   private handleSystemMessage(message: string, messagePosition: string): void {
     // messagePosition: 'chat' = player chat, 'system' = system message, 'game_info' = action bar
     if (messagePosition !== 'system')
@@ -398,6 +406,7 @@ export class MineflayerPerceptionCollector {
     this.stats = {}
   }
 
+  // @ts-expect-error Intentionally unused - all events migrated to EventRegistry
   private onBot(event: string, handler: (...args: any[]) => void): void {
     if (!this.bot)
       return
