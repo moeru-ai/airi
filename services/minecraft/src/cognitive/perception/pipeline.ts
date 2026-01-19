@@ -101,8 +101,9 @@ export class PerceptionPipeline {
 
             const signal = signalWrapper.payload as PerceptionSignal
 
+            // Emit with signal:<type> format so Brain and Reflex can subscribe
             this.deps.eventBus.emit<PerceptionSignal>({
-              type: 'perception',
+              type: `signal:${signal.type}`,
               payload: signal,
               source: { component: 'perception', id: 'perception' },
             })

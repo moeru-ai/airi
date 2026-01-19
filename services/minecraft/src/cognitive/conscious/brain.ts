@@ -162,7 +162,7 @@ export class Brain {
     this.blackboard.update({ selfUsername: bot.username })
 
     const handleSignal = async (signal: PerceptionSignal) => {
-      if (signal.type !== 'chat_message' && signal.type !== 'social_presence')
+      if (signal.type !== 'chat_message' && signal.type !== 'social_presence' && signal.type !== 'system_message')
         return
 
       try {
@@ -179,6 +179,10 @@ export class Brain {
     })
 
     this.deps.eventBus.subscribe<PerceptionSignal>('signal:social_presence', (event: TracedEvent<PerceptionSignal>) => {
+      void handleSignal(event.payload)
+    })
+
+    this.deps.eventBus.subscribe<PerceptionSignal>('signal:system_message', (event: TracedEvent<PerceptionSignal>) => {
       void handleSignal(event.payload)
     })
 

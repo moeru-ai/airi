@@ -5,6 +5,7 @@ export type PerceptionSignalType
     | 'saliency_high' // generic high saliency event
     | 'social_gesture' // e.g. teabagging, waving
     | 'social_presence'
+    | 'system_message' // e.g. death messages, join/leave
 
 export interface PerceptionSignal {
   type: PerceptionSignalType
