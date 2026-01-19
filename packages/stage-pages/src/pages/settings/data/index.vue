@@ -286,6 +286,12 @@ async function handleImport(event: Event) {
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: settings.pages.data.title
+  subtitleKey: settings.title
+  descriptionKey: settings.pages.data.description
+  icon: i-solar:database-bold-duotone
+  settingsEntry: true
+  order: 7
   stageTransition:
     name: slide
     pageSpecificAvailable: true

@@ -122,7 +122,7 @@ Minecraft、Linux 也并不是我旅程的终点，[Factorio（异星工厂）](
     <img :src="EMOSYSLogo" alt="logo of EMOSYS" class="w-30!" />
   </div>
   <div>
-    [EMOSYS](https://github.com/emosys) 的 Logo
+    <a href="https://github.com/emosys">EMOSYS</a> 的 Logo
   </div>
 </div>
 

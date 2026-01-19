@@ -45,6 +45,12 @@ const { lastClickedIndex, setLastClickedIndex } = useRippleGridState()
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: settings.pages.modules.title
+  subtitleKey: settings.title
+  descriptionKey: settings.pages.modules.description
+  icon: i-solar:layers-bold-duotone
+  settingsEntry: true
+  order: 2
   stageTransition:
     name: slide
     pageSpecificAvailable: true

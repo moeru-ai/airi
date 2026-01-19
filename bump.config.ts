@@ -9,7 +9,7 @@ import { x } from 'tinyexec'
 export default defineConfig({
   recursive: true,
   commit: 'release: v%s',
-  sign: true,
+  sign: false,
   push: false,
   all: true,
   execute: async () => {

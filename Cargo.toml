@@ -10,7 +10,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.8.1-beta.12"
+version = "0.8.1-beta.13"
 
 [workspace.dependencies.tauri-plugin-ipc-audio-transcription-ort]
 path = "./crates/tauri-plugin-ipc-audio-transcription-ort"

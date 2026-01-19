@@ -62,4 +62,6 @@ async function handleFileChange(event: Event) {
 <route lang="yaml">
 meta:
   layout: settings
+  title: Image
+  subtitleKey: tamagotchi.settings.devtools.title
 </route>

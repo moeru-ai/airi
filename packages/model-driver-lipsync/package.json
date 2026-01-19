@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/model-driver-lipsync",
   "type": "module",
-  "version": "0.8.1-beta.12",
+  "version": "0.8.1-beta.13",
   "private": true,
   "exports": {
     ".": "./src/index.ts",

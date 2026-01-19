@@ -331,6 +331,12 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: settings.pages.card.title
+  subtitleKey: settings.title
+  descriptionKey: settings.pages.card.description
+  icon: i-solar:emoji-funny-square-bold-duotone
+  settingsEntry: true
+  order: 1
   stageTransition:
     name: slide
 </route>

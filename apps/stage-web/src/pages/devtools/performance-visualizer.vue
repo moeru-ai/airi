@@ -113,4 +113,6 @@ function exportCsv() {
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: tamagotchi.settings.devtools.pages.performance-visualizer.title
+  subtitleKey: tamagotchi.settings.devtools.title
 </route>

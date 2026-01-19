@@ -436,6 +436,7 @@ async function loadModel() {
         idleEyeSaccades.update(activeVrm, lookAtTarget, delta)
         vrmEmote.value?.update(delta)
         vrmLipSync.update(activeVrm, delta)
+        activeVrm?.expressionManager?.update()
         activeVrm?.springBoneManager?.update(delta)
       }).off
 

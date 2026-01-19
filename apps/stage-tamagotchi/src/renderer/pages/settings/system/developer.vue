@@ -169,6 +169,8 @@ const openMarkdownStressWindow = useElectronEventaInvoke(electronOpenDevtoolsWin
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: settings.pages.system.developer.title
+  subtitleKey: settings.title
   stageTransition:
     name: slide
 </route>

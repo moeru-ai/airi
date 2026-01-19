@@ -503,4 +503,6 @@ onBeforeUnmount(async () => {
 <route lang="yaml">
 meta:
   layout: settings
+  title: Aliyun NLS Realtime Transcription
+  subtitleKey: tamagotchi.settings.devtools.title
 </route>

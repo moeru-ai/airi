@@ -387,4 +387,6 @@ onBeforeUnmount(() => {
 <route lang="yaml">
 meta:
   layout: settings
+  title: Screen Capture
+  subtitleKey: tamagotchi.settings.devtools.title
 </route>

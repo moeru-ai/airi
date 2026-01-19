@@ -337,4 +337,6 @@ onUnmounted(() => {
 <route lang="yaml">
 meta:
   layout: settings
+  title: Performance Playground
+  subtitleKey: tamagotchi.settings.devtools.title
 </route>

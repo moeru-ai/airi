@@ -249,6 +249,8 @@ function handleDeleteProvider(providerId: string) {
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: settings.pages.modules.consciousness.title
+  subtitleKey: settings.title
   stageTransition:
     name: slide
 </route>
