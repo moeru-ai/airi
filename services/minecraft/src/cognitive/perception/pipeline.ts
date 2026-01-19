@@ -32,11 +32,10 @@ export class PerceptionPipeline {
     this.eventRegistry = new EventRegistry({
       logger: this.deps.logger,
       onSignal: (signal) => {
-        this.deps.eventBus.emit({
-          type: `signal:${signal.type}`,
-          payload: signal,
-          source: { component: 'perception', id: 'event-registry' },
-        })
+        // NOTICE: In the linear architecture, Perception does not emit signal:* directly.
+        // Raw events are emitted and the rules layer derives signals. Reflex then forwards
+        // selected signals to conscious.
+        void signal
       },
       onRawEvent: (event) => {
         const eventType = `raw:${event.modality}:${event.kind}`
@@ -158,7 +157,7 @@ export class PerceptionPipeline {
 
   /**
    * Emit a raw perception event to the EventBus
-   * This bridges the perception system to the rule engine
+   * This bridges the perception system to the rules layer
    */
   private emitRawToEventBus(raw: RawPerceptionEvent): void {
     const eventType = `raw:${raw.modality}:${raw.kind}`

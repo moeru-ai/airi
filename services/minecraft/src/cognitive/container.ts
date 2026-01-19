@@ -1,7 +1,8 @@
 import type { Logg } from '@guiiai/logg'
 import type { Neuri } from 'neuri'
 
-import type { EventBus, RuleEngine } from './os'
+import type { EventBus } from './os'
+import type { RuleEngine } from './perception/rules'
 
 import { useLogg } from '@guiiai/logg'
 import { asClass, asFunction, createContainer, InjectionMode } from 'awilix'
@@ -11,8 +12,9 @@ import { ChatAgentImpl } from '../agents/chat'
 import { PlanningAgentImpl } from '../agents/planning'
 import { TaskExecutor } from './action/task-executor'
 import { Brain } from './conscious/brain'
-import { createEventBus, createRuleEngine } from './os'
+import { createEventBus } from './os'
 import { PerceptionPipeline } from './perception/pipeline'
+import { createRuleEngine } from './perception/rules'
 import { ReflexManager } from './reflex/reflex-manager'
 
 export interface ContainerServices {
@@ -60,7 +62,7 @@ export function createAgentContainer(options: {
         eventBus,
         logger: useLogg('ruleEngine').useGlobalConfig(),
         config: {
-          rulesDir: new URL('./rules', import.meta.url).pathname,
+          rulesDir: new URL('./perception/rules', import.meta.url).pathname,
           slotMs: 20,
         },
       })

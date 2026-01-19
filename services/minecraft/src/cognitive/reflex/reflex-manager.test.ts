@@ -81,6 +81,11 @@ describe('reflexManager', () => {
 
     handler(signalEvent)
 
+    // Should forward to conscious by default for higher-level signals
+    expect(eventBus.emitChild).toHaveBeenCalledWith(signalEvent, expect.objectContaining({
+      type: 'conscious:signal:social_gesture',
+    }))
+
     // TODO: Ideally we assert that tick() was called.
     // Since tick is internal/called via runtime, we might need to inspect side effects or spy on runtime.
     // For now, ensure it doesn't crash.
@@ -119,7 +124,7 @@ describe('reflexManager', () => {
     reflex.init(bot)
 
     const handler = eventBus.subscribe.mock.calls[0][1]
-    handler({
+    const chatEvent = {
       type: 'signal:chat_message',
       payload: {
         type: 'chat_message',
@@ -130,12 +135,19 @@ describe('reflexManager', () => {
       },
       source: { component: 'ruleEngine', id: 'test' },
       timestamp: Date.now(),
-    })
+    }
+
+    handler(chatEvent)
 
     const snap = reflex.getContextSnapshot()
     expect(snap.social.lastSpeaker).toBe('alice')
     expect(snap.social.lastMessage).toBe('hi')
     expect(reflex.getMode()).toBe('social')
+
+    // Should forward chat to conscious
+    expect(eventBus.emitChild).toHaveBeenCalledWith(chatEvent, expect.objectContaining({
+      type: 'conscious:signal:chat_message',
+    }))
 
     reflex.destroy()
   })

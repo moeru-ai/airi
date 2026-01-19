@@ -7,7 +7,7 @@
 
 import type { Logg } from '@guiiai/logg'
 
-import type { EventBus, TracedEvent } from '../index'
+import type { EventBus, TracedEvent } from '../../os'
 import type {
   AccumulatorsState,
   ParsedRule,
@@ -226,7 +226,7 @@ export class RuleEngine {
       this.deps.eventBus.emitChild(event, {
         type: `signal:${result.signal.type}`,
         payload: result.signal,
-        source: { component: 'ruleEngine', id: rule.name },
+        source: { component: 'perception', id: rule.name },
       })
     }
   }
@@ -265,7 +265,7 @@ export class RuleEngine {
     this.deps.eventBus.emitChild(sourceEvent, {
       type: `signal:${signal.type}`,
       payload: signal,
-      source: { component: 'ruleEngine', id: rule.name },
+      source: { component: 'perception', id: rule.name },
     })
   }
 }

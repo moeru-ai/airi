@@ -16,7 +16,7 @@ vi.mock('../../debug', () => {
 })
 
 describe('brain decide retry', () => {
-  it('retries up to 2 times for recoverable errors', async () => {
+  it('retries up to 3 total attempts for recoverable errors then aborts', async () => {
     const logger = {
       log: vi.fn(),
       warn: vi.fn(),
@@ -28,7 +28,7 @@ describe('brain decide retry', () => {
     const neuri = {
       handleStateless: vi.fn(async (_messages: any, fn: any) => {
         call++
-        if (call <= 2) {
+        if (call <= 3) {
           const err: any = new Error('overloaded')
           err.status = 503
           throw err
@@ -55,12 +55,12 @@ describe('brain decide retry', () => {
       ; (brain as any).bot = { bot: { chat: vi.fn() } }
 
     const res = await (brain as any).decide('sys', 'user')
-    expect(res?.thought).toBe('ok')
+    expect(res).toBeNull()
     expect(neuri.handleStateless).toHaveBeenCalledTimes(3)
-    expect((brain as any).bot.bot.chat).not.toHaveBeenCalled()
+    expect((brain as any).bot.bot.chat).toHaveBeenCalledTimes(1)
   })
 
-  it('does not retry auth/badarg errors; sends chat then throws', async () => {
+  it('does not retry auth/badarg errors; sends chat then aborts', async () => {
     const logger = {
       log: vi.fn(),
       warn: vi.fn(),
@@ -87,7 +87,8 @@ describe('brain decide retry', () => {
     const chat = vi.fn()
       ; (brain as any).bot = { bot: { chat } }
 
-    await expect((brain as any).decide('sys', 'user')).rejects.toThrow('unauthorized')
+    const res = await (brain as any).decide('sys', 'user')
+    expect(res).toBeNull()
     expect(neuri.handleStateless).toHaveBeenCalledTimes(1)
     expect(chat).toHaveBeenCalledTimes(1)
   })

@@ -29,6 +29,45 @@ function toErrorMessage(err: unknown): string {
   }
 }
 
+function getJsonErrorPosition(err: unknown): number | null {
+  const msg = toErrorMessage(err)
+  const match = msg.match(/position\s+(\d+)/i)
+  if (!match)
+    return null
+
+  const pos = Number.parseInt(match[1], 10)
+  return Number.isFinite(pos) ? pos : null
+}
+
+function extractJsonCandidate(input: string): string {
+  const trimmed = input.trim()
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)
+  if (fenced?.[1])
+    return fenced[1].trim()
+
+  const start = trimmed.indexOf('{')
+  const end = trimmed.lastIndexOf('}')
+  if (start >= 0 && end > start)
+    return trimmed.slice(start, end + 1)
+
+  return trimmed
+}
+
+function parseLLMResponseJson<T>(response: string): T {
+  const candidate = extractJsonCandidate(response)
+  try {
+    return JSON.parse(candidate) as T
+  }
+  catch (err) {
+    const pos = getJsonErrorPosition(err)
+    const window = 120
+    const snippet = (typeof pos === 'number')
+      ? candidate.slice(Math.max(0, pos - window), Math.min(candidate.length, pos + window))
+      : candidate.slice(0, Math.min(candidate.length, 240))
+    throw new Error(`Failed to parse LLM JSON response: ${toErrorMessage(err)}; snippet=${JSON.stringify(snippet)}`)
+  }
+}
+
 function getErrorStatus(err: unknown): number | undefined {
   const anyErr = err as any
   const status = anyErr?.status ?? anyErr?.response?.status ?? anyErr?.cause?.status
@@ -60,6 +99,9 @@ function isLikelyAuthOrBadArgError(err: unknown): boolean {
 }
 
 function isLikelyRecoverableError(err: unknown): boolean {
+  if (err instanceof SyntaxError)
+    return true
+
   const status = getErrorStatus(err)
   if (status === 429)
     return true
@@ -78,6 +120,7 @@ function isLikelyRecoverableError(err: unknown): boolean {
     || msg.includes('overloaded')
     || msg.includes('temporarily')
     || msg.includes('try again')
+    || (msg.includes('in json') && msg.includes('position'))
   )
 }
 
@@ -170,9 +213,9 @@ export class Brain {
       }
     }
 
-    // Perception Signal Handler - subscribe to all signal events
-    // EventBus supports pattern wildcards like 'signal:*'
-    this.deps.eventBus.subscribe<PerceptionSignal>('signal:*', (event: TracedEvent<PerceptionSignal>) => {
+    // Conscious Signal Handler - signals must pass through Reflex first
+    // EventBus supports pattern wildcards like 'conscious:signal:*'
+    this.deps.eventBus.subscribe<PerceptionSignal>('conscious:signal:*', (event: TracedEvent<PerceptionSignal>) => {
       void handleSignal(event.payload)
     })
 
@@ -530,7 +573,7 @@ export class Brain {
         return null
 
       // TODO: use toolcall instead of outputing json directly
-      return JSON.parse(response) as LLMResponse
+      return parseLLMResponseJson<LLMResponse>(response)
     }
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -559,7 +602,8 @@ export class Brain {
         catch (chatErr) {
           this.log('ERROR', 'Brain: Failed to send error message to chat', { error: chatErr })
         }
-        throw err
+
+        return null
       }
     }
 

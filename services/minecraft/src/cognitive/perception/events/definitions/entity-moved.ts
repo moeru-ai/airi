@@ -51,5 +51,5 @@ export const entityMovedEvent = definePerceptionEvent<[any], EntityMovedExtract>
     }),
   },
 
-  routes: ['conscious', 'debug'],
+  routes: ['reflex', 'debug'],
 })
