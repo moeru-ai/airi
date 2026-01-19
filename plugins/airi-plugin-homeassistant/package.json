@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/airi-plugin-homeassistant",
   "type": "module",
-  "version": "0.8.1-beta.12",
+  "version": "0.8.1-beta.13",
   "private": true,
   "description": "Home Assistant integration plugin for AIRI server",
   "scripts": {

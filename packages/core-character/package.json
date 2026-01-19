@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/core-character",
   "type": "module",
-  "version": "0.8.1-beta.12",
+  "version": "0.8.1-beta.13",
   "private": true,
   "description": "Core character pipeline orchestration for AIRI (segmentation, emotion, delay, optional TTS)",
   "author": {
