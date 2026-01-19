@@ -10,7 +10,7 @@ export interface ReflexSelfState {
 export interface ReflexEnvironmentState {
   time: 'day' | 'night' | 'sunset' | 'sunrise'
   weather: 'clear' | 'rain' | 'thunder'
-  nearbyPlayers: Array<{ name: string, distance?: number }>
+  nearbyPlayers: Array<{ name: string, distance?: number, holding?: string | null }>
   nearbyPlayersGaze: Array<{
     name: string
     distanceToSelf: number

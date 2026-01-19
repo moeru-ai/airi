@@ -148,12 +148,35 @@ export class ReflexRuntime {
       holding: bot.bot.heldItem?.name ?? null,
     })
 
+    const selfPos = entity.position
+    const maxNearbyDistance = 32
+    const players = Object.entries(bot.bot.players ?? {})
+      .filter(([name]) => name !== bot.bot.username)
+      .reduce((acc, [name, player]) => {
+        const pos = player?.entity?.position
+        if (!pos)
+          return acc
+        let distance: number | null = null
+        try {
+          distance = selfPos.distanceTo(pos)
+        }
+        catch {
+          distance = null
+        }
+        if (distance === null || distance > maxNearbyDistance)
+          return acc
+        acc.push({
+          name,
+          distance,
+          holding: player?.entity?.heldItem?.name ?? null,
+        })
+        return acc
+      }, [] as Array<{ name: string, distance: number, holding: string | null }>)
+
     this.context.updateEnvironment({
       time: bot.bot.time?.isDay ? 'day' : 'night',
       weather: bot.bot.isRaining ? 'rain' : 'clear',
-      nearbyPlayers: Object.keys(bot.bot.players ?? {})
-        .filter(p => p !== bot.bot.username)
-        .map(name => ({ name })),
+      nearbyPlayers: players,
     })
 
     // Allow explicit modes like 'work' / 'wander' to remain until changed by caller.
