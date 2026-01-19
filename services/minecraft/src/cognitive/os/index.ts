@@ -8,10 +8,10 @@
  * - EventBus is the only mutable container
  */
 
+// NOTE: RuleEngine and rule utilities moved to cognitive/perception/rules.
+
 // EventBus
 export { createEventBus, EventBus } from './event-bus'
-// Rules module
-export * from './rules'
 
 // Tracer utilities
 export {

@@ -47,7 +47,7 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
         reflexManager.init(botWithAgents)
         brain.init(botWithAgents)
 
-        // Ensure RuleEngine is instantiated (Awilix is lazy). It subscribes to raw:* during construction init.
+        // Ensure perception rules engine is instantiated (Awilix is lazy).
         void container.resolve('ruleEngine')
 
         // Initialize perception pipeline (raw events + detectors)

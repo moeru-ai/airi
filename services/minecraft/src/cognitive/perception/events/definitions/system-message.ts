@@ -25,5 +25,5 @@ export const systemMessageEvent = definePerceptionEvent<[string, string], { mess
     }),
   },
 
-  routes: ['conscious', 'reflex'],
+  routes: ['reflex'],
 })

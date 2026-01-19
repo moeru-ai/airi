@@ -41,7 +41,7 @@ export class ReflexManager {
 
   public init(bot: MineflayerWithAgents): void {
     this.bot = bot
-    // Subscribe to all signals from RuleEngine
+    // Subscribe to all signals produced by the perception rules
     this.unsubscribe = this.deps.eventBus.subscribe('signal:*', (event) => {
       this.onSignal(event as TracedEvent<PerceptionSignal>)
     })
@@ -148,7 +148,22 @@ export class ReflexManager {
     // Trigger behavior selection
     this.runtime.tick(bot, 0, this.deps.perception)
 
+    // Forward signals to conscious layer (Brain) ONLY when Reflex decides.
+    if (this.shouldForwardToConscious(signal)) {
+      this.deps.eventBus.emitChild(event, {
+        type: `conscious:signal:${signal.type}`,
+        payload: signal,
+        source: { component: 'reflex', id: 'reflexManager' },
+      })
+    }
+
     this.emitReflexState()
+  }
+
+  private shouldForwardToConscious(signal: PerceptionSignal): boolean {
+    // Keep conscious layer focused on higher-level / decision-relevant signals.
+    // entity_attention (e.g. movement/punch attention) is handled by Reflex behaviors.
+    return signal.type !== 'entity_attention'
   }
 
   private emitReflexState(): void {
