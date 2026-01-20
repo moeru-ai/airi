@@ -57,8 +57,26 @@ export interface FeltDamageTakenEvent extends RawPerceptionEventBase {
   modality: 'felt'
   kind: 'damage_taken'
   amount?: number
-  attackerEntityType?: 'player' | 'mob'
-  attackerEntityId?: string
+  damageSource?: DamageSourceMetadata
+}
+
+export type DamageSourceCause
+  = | 'player'
+    | 'mob'
+    | 'fall'
+    | 'lava'
+    | 'fire'
+    | 'drown'
+    | 'anvil'
+    | 'gravity'
+    | 'explosion'
+    | 'projectile'
+    | 'unknown'
+
+export interface DamageSourceMetadata {
+  cause: DamageSourceCause
+  name?: string
+  entityId?: string
   distance?: number
 }
 
