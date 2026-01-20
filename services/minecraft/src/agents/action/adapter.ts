@@ -8,6 +8,7 @@ import { agent } from 'neuri'
 import { system, user } from 'neuri/openai'
 
 import { BaseLLMHandler } from '../../cognitive/conscious/handler'
+import { ActionError } from '../../utils/errors'
 import { useLogger } from '../../utils/logger'
 import { generateActionSystemPrompt } from './system-prompt'
 import { actionsList } from './tools'
@@ -25,7 +26,19 @@ export async function createActionNeuriAgent(mineflayer: Mineflayer): Promise<Ag
         logger.withFields({ name: action.name, parameters }).log('Calling action')
         mineflayer.memory.actions.push(action)
         const fn = action.perform(mineflayer)
-        return await fn(...Object.values(parameters))
+        try {
+          return await fn(...Object.values(parameters))
+        }
+        catch (error) {
+          // Return ActionError as a result string instead of throwing
+          // This allows the LLM to learn from tool failures during its reasoning phase
+          if (error instanceof ActionError) {
+            logger.withError(error).warn('Action failed during tool call')
+            return `[FAILED] ${error.code}: ${error.message}${error.context ? ` (${JSON.stringify(error.context)})` : ''}`
+          }
+          // Re-throw non-ActionError errors (unexpected failures)
+          throw error
+        }
       },
       { description: action.description },
     )

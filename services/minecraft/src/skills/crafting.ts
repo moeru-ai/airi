@@ -7,6 +7,7 @@ import type { Mineflayer } from '../libs/mineflayer'
 import { ActionError } from '../utils/errors'
 import { useLogger } from '../utils/logger'
 import { McData } from '../utils/mcdata'
+import { planRecipe } from '../utils/recipe-planner'
 import { ensureCraftingTable } from './actions/ensure'
 import { collectBlock, placeBlock } from './blocks'
 import { goToNearestBlock, goToPosition, moveAway } from './movement'
@@ -40,8 +41,7 @@ export async function craftRecipe(
       try {
         await mineflayer.bot.craft(recipe, num, craftingTable ?? undefined)
         logger.log(
-          `Successfully crafted ${num} ${itemName}${
-            craftingTable ? ' using crafting table' : ''
+          `Successfully crafted ${num} ${itemName}${craftingTable ? ' using crafting table' : ''
           }.`,
         )
         return true
@@ -78,8 +78,7 @@ export async function craftRecipe(
       }
       catch (err) {
         logger.log(
-          `Attempt ${attempts + 1} to move to crafting table failed: ${
-            (err as Error).message
+          `Attempt ${attempts + 1} to move to crafting table failed: ${(err as Error).message
           }`,
         )
         if (err instanceof ActionError)
@@ -137,12 +136,56 @@ export async function craftRecipe(
     }
   }
 
-  // RECURSION GUARD:
+  // RECURSION GUARD + AUTO-CRAFT INTERMEDIATE MATERIALS:
   // If we failed to craft basic items (planks, sticks) without a table,
-  // do NOT try to find a table. These items do not need a table.
-  // Seeking a table often triggers "ensureCraftingTable" -> "ensurePlanks" -> infinite loop.
+  // check if we can craft from raw materials using the recipe planner.
   if (itemName.includes('planks') || itemName === 'stick' || itemName === 'crafting_table') {
-    logger.log(`Recursion Guard: Skipping crafting table search for basic item: ${itemName}`)
+    logger.log(`Recursion Guard: Checking if we can craft ${itemName} from raw materials`)
+
+    // Use the recipe planner to see if we can craft this item
+    const plan = planRecipe(mineflayer.bot, itemName, num)
+
+    if (plan.status === 'unknown_item') {
+      throw new ActionError('UNKNOWN', `Unknown item: ${itemName}`)
+    }
+
+    // If we can craft now (have all materials including intermediates), do it
+    if (plan.canCraftNow && plan.steps.length > 0) {
+      logger.log(`Recipe planner found craftable path with ${plan.steps.length} steps`)
+
+      // Craft all intermediate steps first (in reverse order = base materials first)
+      for (const step of [...plan.steps].reverse()) {
+        if (step.action === 'craft') {
+          logger.log(`Auto-crafting intermediate: ${step.amount}x ${step.item}`)
+          // Use direct bot.craft for intermediates to avoid infinite recursion
+          const stepItemId = mcData.getItemId(step.item)
+          if (!stepItemId) {
+            throw new ActionError('UNKNOWN', `Unknown intermediate item: ${step.item}`)
+          }
+          const stepRecipes = mineflayer.bot.recipesFor(stepItemId, null, 1, null)
+          if (stepRecipes && stepRecipes.length > 0) {
+            const outputPerCraft = stepRecipes[0].result?.count ?? 1
+            const craftCount = Math.ceil(step.amount / outputPerCraft)
+            await mineflayer.bot.craft(stepRecipes[0], craftCount)
+            logger.log(`Successfully crafted ${craftCount}x ${step.item}`)
+          }
+        }
+      }
+
+      return true
+    }
+
+    // Can't craft - provide helpful error message
+    if (Object.keys(plan.missing).length > 0) {
+      const missingList = Object.entries(plan.missing)
+        .map(([item, count]) => `${count}x ${item}`)
+        .join(', ')
+      throw new ActionError('RESOURCE_MISSING', `Cannot craft ${itemName} - missing: ${missingList}`, {
+        item: itemName,
+        missing: plan.missing,
+      })
+    }
+
     throw new ActionError('RESOURCE_MISSING', `Cannot craft ${itemName} - missing ingredients`, { item: itemName })
   }
 
