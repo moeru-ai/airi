@@ -173,8 +173,20 @@ export class ReflexRuntime {
         return acc
       }, [] as Array<{ name: string, distance: number, holding: string | null }>)
 
+    const formatMinecraftTime = (timeOfDay?: number): string => {
+      if (typeof timeOfDay !== 'number')
+        return 'Unknown time'
+
+      const hours24 = (6 + Math.floor(timeOfDay / 1000)) % 24
+      const minutes = Math.floor(((timeOfDay % 1000) * 60) / 1000)
+
+      const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12
+      const suffix = hours24 >= 12 ? 'PM' : 'AM'
+      return `${String(hours12).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${suffix}`
+    }
+
     this.context.updateEnvironment({
-      time: bot.bot.time?.isDay ? 'day' : 'night',
+      time: formatMinecraftTime(bot.bot.time?.timeOfDay),
       weather: bot.bot.isRaining ? 'rain' : 'clear',
       nearbyPlayers: players,
     })

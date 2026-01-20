@@ -17,18 +17,16 @@ export function buildConsciousContextView(ctx: ReflexContextState): ConsciousCon
 
   const gaze = ctx.environment.nearbyPlayersGaze
     .map((g) => {
-      const hit = g.hitBlock
-        ? `${g.hitBlock.name}@(${Math.round(g.hitBlock.pos.x)}, ${Math.round(g.hitBlock.pos.y)}, ${Math.round(g.hitBlock.pos.z)})`
-        : 'air'
-
-      if (g.hitBlock)
-        return `${g.name}->${hit}`
+      if (g.hitBlock) {
+        const block = `${g.hitBlock.name} at (${Math.round(g.hitBlock.pos.x)}, ${Math.round(g.hitBlock.pos.y)}, ${Math.round(g.hitBlock.pos.z)})`
+        return `${g.name} is looking at ${block}`
+      }
 
       const lp = `(${Math.round(g.lookPoint.x)}, ${Math.round(g.lookPoint.y)}, ${Math.round(g.lookPoint.z)})`
-      return `${g.name}->${hit} lookPoint${lp}`
+      return `${g.name} is staring into the air around ${lp}`
     })
-    .join(' | ')
-  const gazeSummary = ctx.environment.nearbyPlayersGaze.length > 0 ? ` Nearby player gaze [${gaze}]` : ''
+    .join('\n')
+  const gazeSummary = ctx.environment.nearbyPlayersGaze.length > 0 ? `\nNearby player gaze:\n${gaze}` : ''
 
   const environmentSummary = `${ctx.environment.time} ${ctx.environment.weather} Nearby players [${players}] Nearby entities [${entities}] Light ${ctx.environment.lightLevel}${gazeSummary}`
 
