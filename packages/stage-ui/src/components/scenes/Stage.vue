@@ -163,56 +163,67 @@ function playSpecialToken(special: string) {
 const lipSyncNode = ref<AudioNode>()
 
 async function playFunction(item: Parameters<Parameters<typeof createPlaybackManager<AudioBuffer>>[0]['play']>[0], signal: AbortSignal): Promise<void> {
-  if (!audioContext || !item.audio)
-    return
-
-  // Ensure audio context is resumed (browsers suspend it by default until user interaction)
-  if (audioContext.state === 'suspended') {
-    try {
-      await audioContext.resume()
-    }
-    catch {
+  return new Promise<void>(async (resolve) => {
+    if (!audioContext) {
+      resolve()
       return
     }
-  }
 
-  const source = audioContext.createBufferSource()
-  currentAudioSource.value = source
-  source.buffer = item.audio
-
-  source.connect(audioContext.destination)
-  if (audioAnalyser.value)
-    source.connect(audioAnalyser.value)
-  if (lipSyncNode.value)
-    source.connect(lipSyncNode.value)
-
-  const stopPlayback = () => {
-    try {
-      source.stop()
-      source.disconnect()
+    if (!item.audio) {
+      resolve()
+      return
     }
-    catch {}
-    if (currentAudioSource.value === source)
-      currentAudioSource.value = undefined
-  }
 
-  if (signal.aborted) {
-    stopPlayback()
-    return
-  }
+    // Ensure audio context is resumed (browsers suspend it by default until user interaction)
+    if (audioContext.state === 'suspended') {
+      try {
+        await audioContext.resume()
+      }
+      catch {
+        resolve()
+        return
+      }
+    }
 
-  signal.addEventListener('abort', stopPlayback, { once: true })
-  source.onended = () => {
-    signal.removeEventListener('abort', stopPlayback)
-    stopPlayback()
-  }
+    const source = audioContext.createBufferSource()
+    currentAudioSource.value = source
+    source.buffer = item.audio
 
-  try {
-    source.start(0)
-  }
-  catch {
-    stopPlayback()
-  }
+    source.connect(audioContext.destination)
+    if (audioAnalyser.value)
+      source.connect(audioAnalyser.value)
+    if (lipSyncNode.value)
+      source.connect(lipSyncNode.value)
+
+    const stopPlayback = () => {
+      try {
+        source.stop()
+        source.disconnect()
+      }
+      catch {}
+      if (currentAudioSource.value === source)
+        currentAudioSource.value = undefined
+      resolve()
+    }
+
+    if (signal.aborted) {
+      stopPlayback()
+      return
+    }
+
+    signal.addEventListener('abort', stopPlayback, { once: true })
+    source.onended = () => {
+      signal.removeEventListener('abort', stopPlayback)
+      stopPlayback()
+    }
+
+    try {
+      source.start(0)
+    }
+    catch {
+      stopPlayback()
+    }
+  })
 }
 
 const playbackManager = createPlaybackManager<AudioBuffer>({
