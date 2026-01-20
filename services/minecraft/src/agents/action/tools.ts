@@ -9,6 +9,7 @@ import { discard, equip, putInChest, takeFromChest } from '../../skills/actions/
 import { activateNearestBlock, breakBlockAt, placeBlock } from '../../skills/actions/world-interactions'
 import { ActionError } from '../../utils/errors'
 import { useLogger } from '../../utils/logger'
+import { describeRecipePlan, planRecipe } from '../../utils/recipe-planner'
 
 import * as skills from '../../skills'
 import * as world from '../../skills/world'
@@ -425,6 +426,53 @@ export const actionsList: Action[] = [
     perform: mineflayer => async (type: string) => {
       await activateNearestBlock(mineflayer, type)
       return `Activated nearest [${type}]`
+    },
+  },
+  {
+    name: 'recipePlan',
+    description: 'Plan how to craft an item. Shows the full recipe tree, what resources you have, what you\'re missing, and whether you can craft it now. Use this BEFORE attempting to craft complex items to understand what you need.',
+    execution: 'parallel',
+    schema: z.object({
+      item_name: z.string().describe('The name of the item you want to craft (e.g., "diamond_pickaxe", "oak_planks").'),
+      amount: z.number().int().min(1).default(1).describe('How many of the item you want to craft.'),
+    }),
+    perform: mineflayer => (item_name: string, amount: number = 1): string => {
+      return pad(describeRecipePlan(mineflayer.bot, item_name, amount))
+    },
+  },
+  {
+    name: 'autoCraft',
+    description: 'Automatically craft an item if you have all the required resources. This will check the recipe, verify you have materials, and craft it. Use recipePlan first to see if crafting is possible.',
+    execution: 'sequential',
+    schema: z.object({
+      item_name: z.string().describe('The name of the item to craft.'),
+      amount: z.number().int().min(1).default(1).describe('How many of the item to craft.'),
+    }),
+    perform: mineflayer => async (item_name: string, amount: number = 1) => {
+      const plan = planRecipe(mineflayer.bot, item_name, amount)
+
+      if (plan.status === 'unknown_item') {
+        throw new ActionError('UNKNOWN', `Unknown item: ${item_name}`)
+      }
+
+      if (!plan.canCraftNow) {
+        const missingList = Object.entries(plan.missing)
+          .map(([item, count]) => `${count}x ${item}`)
+          .join(', ')
+        throw new ActionError('RESOURCE_MISSING', `Cannot craft ${item_name}: missing ${missingList}`, {
+          missing: plan.missing,
+          required: plan.totalRequired,
+        })
+      }
+
+      // Craft all intermediate steps first, then the final item
+      for (const step of [...plan.steps].reverse()) {
+        if (step.action === 'craft') {
+          await skills.craftRecipe(mineflayer, step.item, Math.ceil(step.amount / (step.amount || 1)))
+        }
+      }
+
+      return `Successfully crafted ${amount}x ${item_name}`
     },
   },
 ]
