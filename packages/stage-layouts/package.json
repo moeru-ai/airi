@@ -42,6 +42,7 @@
     "@vueuse/shared": "^14.1.0",
     "@xsai-ext/providers": "catalog:",
     "@xsai/generate-speech": "catalog:",
+    "@xsai/shared-chat": "catalog:",
     "@xsai/stream-transcription": "0.4.0-beta.8",
     "animejs": "^4.2.2",
     "colorjs.io": "^0.6.0",

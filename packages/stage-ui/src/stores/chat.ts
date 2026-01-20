@@ -329,6 +329,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         toolCalls: sessionMessagesForSend.filter(msg => msg.role === 'tool') as ToolMessage[],
       }, streamingMessageContext)
 
+      void chatSession.updateSessionTitle(sessionId)
+
       if (isForegroundSession()) {
         streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
       }

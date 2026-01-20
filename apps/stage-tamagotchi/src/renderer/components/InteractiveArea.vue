@@ -4,7 +4,6 @@ import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { ChatHistory } from '@proj-airi/stage-ui/components'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
-import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
@@ -22,7 +21,6 @@ const attachments = ref<{ type: 'image', data: string, mimeType: string, url: st
 const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
-const { cleanupMessages } = useChatMaintenanceStore()
 const { ingest, onAfterMessageComposed, discoverToolsCompatibility } = chatOrchestrator
 const { messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
@@ -140,12 +138,13 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
         class="max-h-[10lh] min-h-[1lh]"
         bg="neutral-100 dark:neutral-800"
         text="lg neutral-500 dark:neutral-400"
-        hover:text="red-500 dark:red-400"
+        hover:text="primary-500 dark:primary-400"
         flex items-center justify-center rounded-md p-2 outline-none
         transition-colors transition-transform active:scale-95
-        @click="() => cleanupMessages()"
+        title="New Session"
+        @click="chatSession.createNewSession()"
       >
-        <div class="i-solar:trash-bin-2-bold-duotone" />
+        <div class="i-solar:add-square-bold-duotone" />
       </button>
     </div>
     <BasicTextarea

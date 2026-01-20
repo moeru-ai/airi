@@ -6,7 +6,6 @@ import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
-import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
@@ -19,6 +18,7 @@ import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vu
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
+import ChatSessionSwitcher from '../Widgets/ChatSessionSwitcher.vue'
 import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
 import ActionViewControls from './InteractiveArea/Actions/ViewControls.vue'
@@ -31,7 +31,6 @@ const hearingDialogOpen = ref(false)
 const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
-const { cleanupMessages } = useChatMaintenanceStore()
 const { messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { sending } = storeToRefs(chatOrchestrator)
@@ -150,19 +149,25 @@ onMounted(() => {
     <BackgroundDialogPicker v-model="backgroundDialogOpen" />
     <KeepAlive>
       <Transition name="fade">
-        <ChatHistory
+        <div
           v-if="!stageViewControlsEnabled"
-          variant="mobile"
-          :messages="historyMessages"
-          :sending="sending"
-          :streaming-message="streamingMessage"
-          max-w="[calc(100%-3.5rem)]"
-          w-full self-start pb-3 pl-3
-          class="chat-history"
           :class="[
-            'relative z-20',
+            'w-full',
+            'relative',
+            'z-20',
           ]"
-        />
+        >
+          <ChatSessionSwitcher />
+          <ChatHistory
+            variant="mobile"
+            :messages="historyMessages"
+            :sending="sending"
+            :streaming-message="streamingMessage"
+            max-w="[calc(100%-3.5rem)]"
+            w-full self-start pb-3 pl-3
+            :class="['chat-history']"
+          />
+        </div>
       </Transition>
     </KeepAlive>
     <div relative w-full self-end>
@@ -211,15 +216,6 @@ onMounted(() => {
             <div i-solar:face-scan-circle-outline size-5 text="neutral-500 dark:neutral-400" />
           </button> -->
           <ActionViewControls v-model="viewControlsActiveMode" @reset="() => viewControlsInputsRef?.resetOnMode()" />
-          <button
-            border="2 solid neutral-100/60 dark:neutral-800/30"
-            bg="neutral-50/70 dark:neutral-800/70"
-            w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
-            title="Cleanup Messages"
-            @click="cleanupMessages()"
-          >
-            <div class="i-solar:trash-bin-2-bold-duotone" />
-          </button>
         </div>
       </div>
       <div bg="white dark:neutral-800" max-h-100dvh max-w-100dvw w-full flex gap-1 overflow-auto px-3 pt-2 :style="{ paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 12)}px` }">

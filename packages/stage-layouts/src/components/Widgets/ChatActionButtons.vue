@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useTheme } from '@proj-airi/ui'
 import { ref } from 'vue'
 
 import { BackgroundDialogPicker } from '../Backgrounds'
 
-const { cleanupMessages } = useChatMaintenanceStore()
+const chatSession = useChatSessionStore()
 const { isDark, toggleDark } = useTheme()
 
 const backgroundDialogOpen = ref(false)
@@ -18,12 +18,13 @@ const backgroundDialogOpen = ref(false)
       class="max-h-[10lh] min-h-[1lh]"
       bg="neutral-100 dark:neutral-800"
       text="lg neutral-500 dark:neutral-400"
-      hover:text="red-500 dark:red-400"
+      hover:text="primary-500 dark:primary-400"
       flex items-center justify-center rounded-md p-2 outline-none
       transition-colors transition-transform active:scale-95
-      @click="cleanupMessages()"
+      title="New Session"
+      @click="chatSession.createNewSession()"
     >
-      <div class="i-solar:trash-bin-2-bold-duotone" />
+      <div class="i-solar:add-square-bold-duotone" />
     </button>
 
     <button

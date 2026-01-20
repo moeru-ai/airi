@@ -2042,6 +2042,9 @@ importers:
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
+      '@xsai/shared-chat':
+        specifier: 'catalog:'
+        version: 0.4.0-beta.13
       '@xsai/stream-transcription':
         specifier: 0.4.0-beta.8
         version: 0.4.0-beta.8

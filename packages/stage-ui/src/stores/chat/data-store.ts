@@ -18,6 +18,7 @@ export interface ChatDataStore {
   setActiveSession: (sessionId: string, createInitialMessage: () => SystemMessage) => void
   getActiveSessionId: () => string
   resetSession: (sessionId: string, createInitialMessage: () => SystemMessage) => void
+  removeSession: (sessionId: string) => void
   refreshSystemMessages: (createInitialMessage: () => SystemMessage) => void
   replaceSessions: (sessions: Record<string, ChatHistoryItem[]>, createInitialMessage: () => SystemMessage) => void
   resetAllSessions: (createInitialMessage: () => SystemMessage) => void
@@ -83,6 +84,23 @@ export function createChatDataStore(access: ChatDataAccess): ChatDataStore {
     setSessionMessages(sessionId, [createInitialMessage()])
   }
 
+  function removeSession(sessionId: string) {
+    const sessions = access.getSessions()
+    if (!sessions[sessionId])
+      return
+
+    const nextSessions = { ...sessions }
+    delete nextSessions[sessionId]
+    access.setSessions(nextSessions)
+
+    const generations = access.getGenerations()
+    if (generations[sessionId] !== undefined) {
+      const nextGenerations = { ...generations }
+      delete nextGenerations[sessionId]
+      access.setGenerations(nextGenerations)
+    }
+  }
+
   function refreshSystemMessages(createInitialMessage: () => SystemMessage) {
     const sessions = access.getSessions()
     const nextSessions: Record<string, ChatHistoryItem[]> = {}
@@ -133,6 +151,7 @@ export function createChatDataStore(access: ChatDataAccess): ChatDataStore {
     setActiveSession,
     getActiveSessionId,
     resetSession,
+    removeSession,
     refreshSystemMessages,
     replaceSessions,
     resetAllSessions,
