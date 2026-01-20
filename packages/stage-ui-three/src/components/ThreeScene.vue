@@ -290,8 +290,8 @@ watch(directionalLightRotation, (newRotation) => {
 }, { deep: true })
 
 defineExpose({
-  setExpression: (expression: string) => {
-    modelRef.value?.setExpression(expression)
+  setExpression: (expression: string, intensity = 1) => {
+    modelRef.value?.setExpression(expression, intensity)
   },
   setVrmFrameHook: (hook?: (vrm: VRM, delta: number) => void) => {
     vrmFrameHook.value = hook

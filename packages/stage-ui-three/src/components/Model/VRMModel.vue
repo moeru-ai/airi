@@ -573,8 +573,8 @@ if (import.meta.hot) {
 }
 
 defineExpose({
-  setExpression(expression: string) {
-    vrmEmote.value?.setEmotionWithResetAfter(expression, 1000)
+  setExpression(expression: string, intensity = 1) {
+    vrmEmote.value?.setEmotionWithResetAfter(expression, 1000, intensity)
   },
   setVrmFrameHook(hook?: VrmFrameHook) {
     vrmFrameHook.value = hook
