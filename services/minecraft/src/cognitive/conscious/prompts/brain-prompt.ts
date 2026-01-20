@@ -61,7 +61,7 @@ These tools execute IMMEDIATELY and return results within this same turn.
 Use them to gather information BEFORE deciding what actions to take.
 
 **How to use**: Invoke these by making native tool calls.
-**Important**: DO NOT put instant tools in the JSON "actions" array - they are separate!
+**Important**: Use instantTools only with native tool/function calling (the one with special tokens)
 **On failure**: You will receive a [FAILED] message with suggestions. Use this to adjust your approach.
 
 ${instantToolsJson}
@@ -74,7 +74,7 @@ These actions take TIME to complete (movement, crafting, combat, etc.).
 They are queued and executed asynchronously after your response.
 
 **How to use**: Output these in the JSON "actions" array in your response.
-**Feedback**: You will receive feedback when they complete or fail.
+**Feedback**: You will receive feedback when they complete(if require_feedback is true) or fail(always).
 
 ${asyncActionsJson}
 
@@ -87,10 +87,10 @@ Your entire response must be valid JSON. Include only your thoughts, blackboard 
 Rules for the "actions" array:
 1. Actions are processed in the order you output them
 2. Sequential actions are awaited strictly in order
-3. Parallel actions run concurrently with later actions
-4. Set "require_feedback": true if you need to know the result
-5. Failed actions always trigger feedback
-6. Use empty array if no action is needed
+3. Set "require_feedback": true if you need to know the result, it will be given to you in the next turn
+4. Failed actions always trigger feedback
+5. Use empty array if no action is needed
+6. Perfer not to queue actions if possible
 
 Schema:
 {
@@ -120,10 +120,11 @@ Self: ${blackboard.selfSummary}
 Environment: ${blackboard.environmentSummary}
 
 # Execution State
-Pending actions (started and still running):
+Ongoing actions still running:
 ${blackboard.pendingActions.map(a => `- ${a}`).join('\n') || '- none'}
+NOTE: For most actions, you don't want to create a duplicate one if it's already running, in that case just do nothing.
 
-Recent action results
+Recent actions and results:
 ${recentActionLines || '- none'}
 
 # Chat History
