@@ -59,28 +59,28 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
     this.logger.withFields({ reason }).log('Interrupt requested')
 
     try {
-      (this.bot as any).pathfinder?.stop?.()
+      (this.bot).pathfinder?.stop?.()
     }
     catch { }
 
     try {
-      (this.bot as any).pvp?.stop?.()
+      (this.bot).pvp?.stop?.()
     }
     catch { }
 
     try {
-      ; (this.bot as any).stopDigging?.()
+      ; (this.bot).stopDigging?.()
     }
     catch { }
 
     try {
-      ; (this.bot as any).deactivateItem?.()
+      ; (this.bot).deactivateItem?.()
     }
     catch { }
 
     try {
-      if (typeof (this.bot as any).clearControlStates === 'function') {
-        ; (this.bot as any).clearControlStates()
+      if (typeof this.bot.clearControlStates === 'function') {
+        this.bot.clearControlStates()
       }
       else {
         ; (['forward', 'back', 'left', 'right', 'jump', 'sprint', 'sneak'] as const).forEach((control) => {

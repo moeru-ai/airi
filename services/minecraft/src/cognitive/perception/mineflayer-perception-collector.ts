@@ -311,7 +311,7 @@ export class MineflayerPerceptionCollector {
 
       this.knownPlayerIds.add(playerId)
 
-      const player = (bot.bot as any).players?.[playerId]
+      const player = bot.bot.players?.[playerId]
       const username = player?.username
 
       const event: PlayerJoinedEvent = {
@@ -329,7 +329,7 @@ export class MineflayerPerceptionCollector {
 
   private snapshotKnownPlayers(bot: MineflayerWithAgents): Set<string> {
     const out = new Set<string>()
-    const players = (bot.bot as any).players as Record<string, any> | undefined
+    const players = bot.bot.players as Record<string, any> | undefined
     if (!players)
       return out
 
