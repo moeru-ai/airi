@@ -125,20 +125,20 @@ describe('createStreamingCategorizer', () => {
 
   it('should handle tags with special tokens like emotes inside reasoning', () => {
     const categorizer = createStreamingCategorizer()
-    // Special tokens like <|EMOTE_HAPPY|> and <|DELAY:1|> should be included in reasoning
-    const text = 'Hello <reasoning>thinking <|EMOTE_HAPPY|> about this <|DELAY:1|></reasoning> world!'
+    // Special tokens like <|ACT {"emotion":{"name":"happy","intensity":1}}|> and <|DELAY:1|> should be included in reasoning
+    const text = 'Hello <reasoning>thinking <|ACT {"emotion":{"name":"happy","intensity":1}}|> about this <|DELAY:1|></reasoning> world!'
 
     categorizer.consume(text)
     const result = categorizer.end()
 
     expect(result.speech).toBe('Hello world!')
-    expect(result.reasoning).toBe('thinking <|EMOTE_HAPPY|> about this <|DELAY:1|>')
+    expect(result.reasoning).toBe('thinking <|ACT {"emotion":{"name":"happy","intensity":1}}|> about this <|DELAY:1|>')
   })
 
   it('should handle <think> tag with special tokens in between', () => {
     const categorizer = createStreamingCategorizer()
-    // Special tokens like <|EMOTE_CURIOUS|> should be included within reasoning tags
-    const text = 'Hello <think>thinking <|EMOTE_CURIOUS|> about this <|DELAY:2|> and that</think> world!'
+    // Special tokens like <|ACT {"emotion":{"name":"curious","intensity":1}}|> should be included within reasoning tags
+    const text = 'Hello <think>thinking <|ACT {"emotion":{"name":"curious","intensity":1}}|> about this <|DELAY:2|> and that</think> world!'
 
     categorizer.consume(text)
     const result = categorizer.end()
@@ -159,24 +159,24 @@ describe('createStreamingCategorizer', () => {
     expect(result.segments[0].tagName).toBe('think')
 
     // Verify special tokens are preserved in segment content
-    expect(result.segments[0].content).toContain('<|EMOTE_CURIOUS|>')
+    expect(result.segments[0].content).toContain('<|ACT {"emotion":{"name":"curious","intensity":1}}|>')
     expect(result.segments[0].content).toContain('<|DELAY:2|>')
 
     // Verify special tokens are in reasoning output
-    expect(result.reasoning).toContain('<|EMOTE_CURIOUS|>')
+    expect(result.reasoning).toContain('<|ACT {"emotion":{"name":"curious","intensity":1}}|>')
     expect(result.reasoning).toContain('<|DELAY:2|>')
 
     // Verify speech excludes the reasoning content
     expect(result.speech).toBe('Hello world!')
-    expect(result.speech).not.toContain('<|EMOTE_CURIOUS|>')
+    expect(result.speech).not.toContain('<|ACT {"emotion":{"name":"curious","intensity":1}}|>')
     expect(result.speech).not.toContain('<|DELAY:2|>')
-    expect(result.reasoning).toBe('thinking <|EMOTE_CURIOUS|> about this <|DELAY:2|> and that')
+    expect(result.reasoning).toBe('thinking <|ACT {"emotion":{"name":"curious","intensity":1}}|> about this <|DELAY:2|> and that')
   })
 
-  it('should handle <think> with special tokens like <|EMOTE_HAPPY|> in between', () => {
+  it('should handle <think> with special tokens like <|ACT {"emotion":{"name":"happy","intensity":1}}|> in between', () => {
     const categorizer = createStreamingCategorizer()
     // Testing the exact scenario: <think>...<|Special in between|>...</think>
-    const text = 'Hello <think>thinking <|EMOTE_HAPPY|> about this <|DELAY:1|> and that</think> world!'
+    const text = 'Hello <think>thinking <|ACT {"emotion":{"name":"happy","intensity":1}}|> about this <|DELAY:1|> and that</think> world!'
 
     categorizer.consume(text)
     const result = categorizer.end()
@@ -197,18 +197,18 @@ describe('createStreamingCategorizer', () => {
     expect(result.segments[0].tagName).toBe('think')
 
     // Verify special tokens are preserved in segment content
-    expect(result.segments[0].content).toContain('<|EMOTE_HAPPY|>')
+    expect(result.segments[0].content).toContain('<|ACT {"emotion":{"name":"happy","intensity":1}}|>')
     expect(result.segments[0].content).toContain('<|DELAY:1|>')
 
     // Verify special tokens are in reasoning output
-    expect(result.reasoning).toContain('<|EMOTE_HAPPY|>')
+    expect(result.reasoning).toContain('<|ACT {"emotion":{"name":"happy","intensity":1}}|>')
     expect(result.reasoning).toContain('<|DELAY:1|>')
 
     // Verify speech excludes the reasoning content
     expect(result.speech).toBe('Hello world!')
-    expect(result.speech).not.toContain('<|EMOTE_HAPPY|>')
+    expect(result.speech).not.toContain('<|ACT {"emotion":{"name":"happy","intensity":1}}|>')
     expect(result.speech).not.toContain('<|DELAY:1|>')
-    expect(result.reasoning).toBe('thinking <|EMOTE_HAPPY|> about this <|DELAY:1|> and that')
+    expect(result.reasoning).toBe('thinking <|ACT {"emotion":{"name":"happy","intensity":1}}|> about this <|DELAY:1|> and that')
   })
 
   it('should handle any tag name as reasoning', () => {

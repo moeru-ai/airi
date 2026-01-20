@@ -5,7 +5,7 @@ import type { Profile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { UnElevenLabsOptions } from 'unspeech'
 
-import type { Emotion } from '../../constants/emotions'
+import type { EmotionPayload } from '../../constants/emotions'
 
 import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
 import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser'
@@ -125,19 +125,19 @@ const speechRuntimeStore = useSpeechRuntimeStore()
 
 const { currentMotion } = storeToRefs(useLive2d())
 
-const emotionsQueue = createQueue<Emotion>({
+const emotionsQueue = createQueue<EmotionPayload>({
   handlers: [
     async (ctx) => {
       if (stageModelRenderer.value === 'vrm') {
-        // console.debug("VRM emotion anime: ", ctx.data)
-        const value = EMOTION_VRMExpressionName_value[ctx.data]
+        // console.debug('VRM emotion anime: ', ctx.data)
+        const value = EMOTION_VRMExpressionName_value[ctx.data.name]
         if (!value)
           return
 
-        await vrmViewerRef.value!.setExpression(value)
+        await vrmViewerRef.value!.setExpression(value, ctx.data.intensity)
       }
       else if (stageModelRenderer.value === 'live2d') {
-        currentMotion.value = { group: EMOTION_EmotionMotionName_value[ctx.data] }
+        currentMotion.value = { group: EMOTION_EmotionMotionName_value[ctx.data.name] }
       }
     },
   ],
@@ -443,6 +443,7 @@ chatHookCleanups.push(onTokenLiteral(async (literal) => {
 }))
 
 chatHookCleanups.push(onTokenSpecial(async (special) => {
+  // console.debug('Stage received special token:', special)
   currentChatIntent?.writeSpecial(special)
 }))
 
