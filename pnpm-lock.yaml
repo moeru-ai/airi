@@ -902,6 +902,9 @@ importers:
       '@proj-airi/electron-screen-capture':
         specifier: workspace:^
         version: link:../../packages/electron-screen-capture
+      '@proj-airi/electron-window-dock':
+        specifier: workspace:^
+        version: link:../../packages/electron-window-dock
       '@proj-airi/font-cjkfonts-allseto':
         specifier: workspace:^
         version: link:../../packages/font-cjkfonts-allseto
@@ -1874,6 +1877,29 @@ importers:
       vite:
         specifier: catalog:rolldown-vite
         version: rolldown-vite@7.3.0(@types/node@24.10.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+
+  packages/electron-window-dock:
+    dependencies:
+      '@guiiai/logg':
+        specifier: '>=1 <2'
+        version: 1.2.11
+      '@moeru/eventa':
+        specifier: 'catalog:'
+        version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
+      electron:
+        specifier: '>=39 <40'
+        version: 39.2.7
+    devDependencies:
+      '@electron-toolkit/preload':
+        specifier: ^3.0.2
+        version: 3.0.2(electron@39.2.7)
+      vue:
+        specifier: 'catalog:'
+        version: 3.5.26(typescript@5.9.3)
+    optionalDependencies:
+      '@proj-airi/win32-window-bindings':
+        specifier: workspace:*
+        version: link:../win32-window-bindings
 
   packages/font-cjkfonts-allseto: {}
 
@@ -2919,6 +2945,16 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.14
+
+  packages/win32-window-bindings:
+    dependencies:
+      '@node-rs/helper':
+        specifier: ^1.6.0
+        version: 1.6.0
+    devDependencies:
+      '@napi-rs/cli':
+        specifier: ^2.18.0
+        version: 2.18.4
 
   plugins/airi-plugin-bilibili-laplace:
     dependencies:
@@ -6024,6 +6060,11 @@ packages:
     resolution: {integrity: sha512-XyroGQXcHrZdvmrGJvsA9KNeOOgGMg1Vg9OlheUsBOSKznLMDl+YChxbkboRHvtFYJEMRYmlV3uoo/njCw05iw==}
     engines: {node: '>=16'}
 
+  '@napi-rs/cli@2.18.4':
+    resolution: {integrity: sha512-SgJeA4df9DE2iAEpr3M2H0OKl/yjtg1BnRI5/JyowS71tUWhrfSu2LT0V3vlHET+g1hBVlrO60PmEXwUEKp8Mg==}
+    engines: {node: '>= 10'}
+    hasBin: true
+
   '@napi-rs/image-android-arm64@1.12.0':
     resolution: {integrity: sha512-MAm8EHmtO47OZYsHgiMuP+nYZOEbNWbHjkoNfRS9wFJiRQ5p/pIlvdeWL9DqkSrjcgHjIJXLcrt94MMF1jXOuw==}
     engines: {node: '>= 10'}
@@ -6105,6 +6146,9 @@ packages:
     resolution: {integrity: sha512-hfW9EvlUj4R+RYu5Cgcm9/d/2eMTj3Dhypj0BD+snasawBpYwSfkPZx/6C1Hm2cVCbRT6zovGdSHUXwPLb29dw==}
     engines: {node: '>= 10'}
 
+  '@napi-rs/triples@1.2.0':
+    resolution: {integrity: sha512-HAPjR3bnCsdXBsATpDIP5WCrw0JcACwhhrwIAQhiR46n+jm+a2F8kBsfseAuWtSyQ+H3Yebt2k43B5dy+04yMA==}
+
   '@napi-rs/wasm-runtime@1.1.0':
     resolution: {integrity: sha512-Fq6DJW+Bb5jaWE69/qOE0D1TUN9+6uWhCeZpdnSBk14pjLcCWR7Q8n49PTSPHazM37JqrsdpEthXy2xn6jWWiA==}
 
@@ -6131,6 +6175,9 @@ packages:
   '@noble/hashes@2.0.1':
     resolution: {integrity: sha512-XlOlEbQcE9fmuXxrVTXCTlG2nlRXa9Rj3rr5Ue/+tX+nmkgbX720YHh0VR3hBF9xDvwnb8D2shVGOwNx+ulArw==}
     engines: {node: '>= 20.19.0'}
+
+  '@node-rs/helper@1.6.0':
+    resolution: {integrity: sha512-2OTh/tokcLA1qom1zuCJm2gQzaZljCCbtX1YCrwRVd/toz7KxaDRFeLTAPwhs8m9hWgzrBn5rShRm6IaZofCPw==}
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -19550,6 +19597,8 @@ snapshots:
       chevrotain: 10.5.0
       lilconfig: 2.1.0
 
+  '@napi-rs/cli@2.18.4': {}
+
   '@napi-rs/image-android-arm64@1.12.0':
     optional: true
 
@@ -19607,6 +19656,8 @@ snapshots:
       '@napi-rs/image-win32-ia32-msvc': 1.12.0
       '@napi-rs/image-win32-x64-msvc': 1.12.0
 
+  '@napi-rs/triples@1.2.0': {}
+
   '@napi-rs/wasm-runtime@1.1.0':
     dependencies:
       '@emnapi/core': 1.7.1
@@ -19627,6 +19678,10 @@ snapshots:
   '@noble/hashes@1.8.0': {}
 
   '@noble/hashes@2.0.1': {}
+
+  '@node-rs/helper@1.6.0':
+    dependencies:
+      '@napi-rs/triples': 1.2.0
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:

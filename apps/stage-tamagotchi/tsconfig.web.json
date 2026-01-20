@@ -18,6 +18,12 @@
       ],
       "@proj-airi/stage-layouts/*": [
         "../../packages/stage-layouts/src/*"
+      ],
+      "@proj-airi/electron-window-dock": [
+        "../../packages/electron-window-dock/src"
+      ],
+      "@proj-airi/electron-window-dock/*": [
+        "../../packages/electron-window-dock/src/*"
       ]
     },
     "resolveJsonModule": true,

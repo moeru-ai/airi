@@ -81,6 +81,9 @@ components.d.ts
 plugins/airi-plugin-vscode/src/generated/
 plugins/airi-plugin-vscode/LICENSE
 
+# Native build artifacts
+packages/win32-window-bindings/**/*.node
+
 # Make it easy for devenv users to override their local environment.
 # See: https://github.com/moeru-ai/airi/pull/110#discussion_r2024378953
 .direnv
@@ -92,6 +95,7 @@ devenv.*
 # Rust
 target/
 crates/*/target/
+packages/*/target/
 
 # turborepo
 .turbo

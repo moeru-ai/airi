@@ -119,6 +119,7 @@ onlyBuiltDependencies:
   - msw
   - onnxruntime-node
   - protobufjs
+  - '@proj-airi/win32-window-bindings'
   - sharp
   - simple-git-hooks
   - spawn-sync

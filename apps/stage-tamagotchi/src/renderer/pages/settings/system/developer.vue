@@ -71,6 +71,12 @@ const menu = computed(() => [
     icon: 'i-solar:screen-share-bold-duotone',
     to: '/devtools/screen-capture',
   },
+  {
+    title: 'Window Dock (PoC)',
+    description: 'Attach AIRI overlay to a target window and inspect visibility contract',
+    icon: 'i-solar:window-frame-bold-duotone',
+    to: '/devtools/window-dock',
+  },
 ])
 
 const openDevTools = useElectronEventaInvoke(electronOpenMainDevtools)

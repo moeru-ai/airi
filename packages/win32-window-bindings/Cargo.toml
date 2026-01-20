@@ -1,0 +1,23 @@
+[package]
+name = "win32-window-bindings"
+version = "0.0.1"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = [ "cdylib" ]
+
+[dependencies]
+napi = { version = "2", features = [ "napi8" ] }
+napi-derive = "2"
+
+[build-dependencies]
+napi-build = "2"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.59", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Dwm",
+  "Win32_UI_WindowsAndMessaging",
+] }

@@ -5,7 +5,8 @@ members = [
   "crates/tauri-plugin-mcp",
   "crates/tauri-plugin-rdev",
   "crates/tauri-plugin-window-pass-through-on-hover",
-  "crates/tauri-plugin-window-router-link"
+  "crates/tauri-plugin-window-router-link",
+  "packages/win32-window-bindings"
 ]
 resolver = "2"
 

@@ -3,6 +3,7 @@ import { env, platform } from 'node:process'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
+import { initWindowDockForMain } from '@proj-airi/electron-window-dock/main'
 import { app, ipcMain } from 'electron'
 import { noop } from 'es-toolkit'
 import { createLoggLogger, injeca } from 'injeca'
@@ -68,6 +69,7 @@ app.dock?.setIcon(icon)
 electronApp.setAppUserModelId('ai.moeru.airi')
 
 initScreenCaptureForMain()
+initWindowDockForMain()
 
 app.whenReady().then(async () => {
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))

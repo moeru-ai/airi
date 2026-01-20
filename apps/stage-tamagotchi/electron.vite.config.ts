@@ -18,9 +18,15 @@ import { defineConfig } from 'electron-vite'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
+const windowDockRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'electron-window-dock', 'src'))
 
 export default defineConfig({
   main: {
+    resolve: {
+      alias: {
+        '@proj-airi/electron-window-dock': windowDockRoot,
+      },
+    },
     plugins: [Info()],
   },
   preload: {
@@ -42,6 +48,7 @@ export default defineConfig({
       rolldownOptions: {
         input: {
           'main': resolve(join(import.meta.dirname, 'src', 'renderer', 'index.html')),
+          'dock-overlay': resolve(join(import.meta.dirname, 'src', 'renderer', 'dock-overlay.html')),
           'beat-sync': resolve(join(import.meta.dirname, 'src', 'renderer', 'beat-sync.html')),
         },
       },
@@ -53,6 +60,7 @@ export default defineConfig({
         '@proj-airi/drizzle-duckdb-wasm',
         '@proj-airi/drizzle-duckdb-wasm/*',
         '@proj-airi/electron-screen-capture',
+        '@proj-airi/electron-window-dock',
 
         // Static Assets: Models, Images, etc.
         'src/renderer/public/assets/*',
@@ -81,6 +89,7 @@ export default defineConfig({
         '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src')),
         '@proj-airi/stage-pages': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src')),
         '@proj-airi/stage-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-shared', 'src')),
+        '@proj-airi/electron-window-dock': windowDockRoot,
       },
     },
     server: {

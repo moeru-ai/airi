@@ -1,0 +1,53 @@
+{
+  "name": "@proj-airi/electron-window-dock",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Cross-platform window docking overlay controller for AIRI",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/electron-window-dock"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./main": "./dist/main.mjs",
+    "./renderer": "./dist/renderer.js",
+    "./vue": "./dist/vue.js",
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "pnpm run build",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@guiiai/logg": ">=1 <2",
+    "electron": ">=39 <40",
+    "vue": ">=3"
+  },
+  "dependencies": {
+    "@moeru/eventa": "catalog:"
+  },
+  "optionalDependencies": {
+    "@proj-airi/win32-window-bindings": "workspace:*"
+  },
+  "devDependencies": {
+    "@electron-toolkit/preload": "^3.0.2",
+    "vue": "catalog:"
+  }
+}

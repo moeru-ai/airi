@@ -8,6 +8,15 @@
       "ESNext"
     ],
     "useDefineForClassFields": true,
+    "baseUrl": ".",
+    "paths": {
+      "@proj-airi/electron-window-dock": [
+        "../../packages/electron-window-dock/src"
+      ],
+      "@proj-airi/electron-window-dock/*": [
+        "../../packages/electron-window-dock/src/*"
+      ]
+    },
     "resolveJsonModule": true,
     "types": [
       "vitest",

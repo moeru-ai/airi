@@ -8,6 +8,7 @@ export default defineConfig({
       'packages/vite-plugin-warpdrive',
       'packages/audio-pipelines-transcribe',
       'packages/server-runtime',
+      'packages/electron-window-dock',
     ],
   },
 })
