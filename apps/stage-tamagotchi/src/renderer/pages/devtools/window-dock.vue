@@ -2,15 +2,21 @@
 import type { DockConfig, DockDebugState, WindowTargetSummary } from '@proj-airi/electron-window-dock'
 
 import { useElectronWindowDock } from '@proj-airi/electron-window-dock/vue'
-import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 const { fetchTargets, beginDock, endDock, updateConfig, readDebugState } = useElectronWindowDock(window.electron.ipcRenderer)
 
+const allTargets = ref<WindowTargetSummary[]>([])
 const targets = ref<WindowTargetSummary[]>([])
 const selectedTargetId = ref<string>()
 const debugState = ref<DockDebugState>()
 const isLoading = ref(false)
+const isRefreshingTargets = ref(false)
 const status = ref<string>()
+
+const filterOnScreenOnly = ref(true)
+const autoRefreshTargets = ref(true)
+const targetRefreshIntervalMs = ref(1000)
 
 const config = reactive<DockConfig>({
   activeIntervalMs: 80,
@@ -22,22 +28,43 @@ const config = reactive<DockConfig>({
 })
 
 const debugPollHandle = ref<number>()
+const targetPollHandle = ref<number>()
 
-async function refreshTargets() {
-  isLoading.value = true
-  status.value = undefined
+function applyTargetFilter(list: WindowTargetSummary[]) {
+  allTargets.value = list
+  const filtered = filterOnScreenOnly.value ? list.filter(window => window.isOnScreen) : list
+  targets.value = filtered
+
+  if (filtered.length > 0 && (!selectedTargetId.value || !filtered.some(window => window.id === selectedTargetId.value))) {
+    selectedTargetId.value = filtered[0]!.id
+  }
+}
+
+async function refreshTargets(options?: { silent?: boolean }) {
+  if (isRefreshingTargets.value)
+    return
+
+  const silent = options?.silent === true
+
+  if (!silent) {
+    isLoading.value = true
+    status.value = undefined
+  }
+
+  isRefreshingTargets.value = true
   try {
-    targets.value = await fetchTargets()
-    if (!selectedTargetId.value && targets.value.length > 0) {
-      selectedTargetId.value = targets.value[0]!.id
-    }
+    const list = await fetchTargets()
+    applyTargetFilter(list)
   }
   catch (err) {
     console.error(err)
-    status.value = 'Failed to fetch windows'
+    if (!silent)
+      status.value = 'Failed to fetch windows'
   }
   finally {
-    isLoading.value = false
+    if (!silent)
+      isLoading.value = false
+    isRefreshingTargets.value = false
   }
 }
 
@@ -100,14 +127,41 @@ function stopDebugPolling() {
   }
 }
 
+function startTargetPolling() {
+  stopTargetPolling()
+  if (!autoRefreshTargets.value)
+    return
+
+  targetPollHandle.value = window.setInterval(() => {
+    refreshTargets({ silent: true })
+  }, targetRefreshIntervalMs.value)
+}
+
+function stopTargetPolling() {
+  if (targetPollHandle.value) {
+    window.clearInterval(targetPollHandle.value)
+    targetPollHandle.value = undefined
+  }
+}
+
+watch(filterOnScreenOnly, () => {
+  applyTargetFilter(allTargets.value)
+})
+
+watch([autoRefreshTargets, targetRefreshIntervalMs], () => {
+  startTargetPolling()
+})
+
 onMounted(() => {
   refreshTargets()
   refreshDebugState()
   startDebugPolling()
+  startTargetPolling()
 })
 
 onBeforeUnmount(() => {
   stopDebugPolling()
+  stopTargetPolling()
 })
 </script>
 
@@ -154,10 +208,44 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <div :class="['flex', 'flex-wrap', 'items-center', 'gap-4', 'text-sm']">
+      <label :class="['flex', 'items-center', 'gap-2']">
+        <input
+          v-model="filterOnScreenOnly"
+          type="checkbox"
+          :class="['h-4', 'w-4']"
+        >
+        <span>Only show on-screen windows</span>
+      </label>
+      <label :class="['flex', 'items-center', 'gap-2']">
+        <input
+          v-model="autoRefreshTargets"
+          type="checkbox"
+          :class="['h-4', 'w-4']"
+        >
+        <span>Auto refresh window list</span>
+      </label>
+      <label :class="['flex', 'items-center', 'gap-2']">
+        <span :class="['text-2xs', 'text-neutral-500']">Interval (ms)</span>
+        <input
+          v-model.number="targetRefreshIntervalMs"
+          type="number"
+          min="300"
+          step="100"
+          :disabled="!autoRefreshTargets"
+          :class="[
+            'w-24', 'rounded-lg', 'border', 'border-neutral-300/70', 'bg-white/80', 'px-2', 'py-1.5',
+            'disabled:opacity-60',
+            'dark:border-neutral-700', 'dark:bg-neutral-950/60',
+          ]"
+        >
+      </label>
+    </div>
+
     <div :class="['grid', 'grid-cols-1', 'gap-3', 'md:grid-cols-2']">
       <div :class="['flex', 'flex-col', 'gap-3']">
         <div :class="['text-sm', 'font-semibold']">
-          On-screen windows (fallback: Electron windows only)
+          Window list (on-screen only by default; disable filter to include hidden windows)
         </div>
         <div
           v-if="targets.length === 0"

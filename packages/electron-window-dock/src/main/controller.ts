@@ -162,7 +162,13 @@ export class DockController {
     const displayBounds = meta.displayBounds ?? this.inferDisplayBounds(meta.bounds)
     const isFullscreen = this.isFullscreen(meta, displayBounds)
     const realAbove = (await this.tracker.getWindowsAbove(meta.id)).filter(candidate => this.isRealWindow(candidate, displayBounds))
-    const isFrontmost = realAbove.length === 0
+
+    // On Win32 the native z-order probe tends to include one extra entry even when the
+    // target is already frontmost. Subtract one to align the “windows above” count.
+    // This will undercount when running on the Electron-only fallback (macOS/unsupported),
+    // which is acceptable because production assumes native bindings on Win32.
+    const adjustedAboveCount = Math.max(0, realAbove.length - 1)
+    const isFrontmost = adjustedAboveCount === 0
 
     if (!meta.isOnScreen || meta.isMinimized) {
       this.state = 'companion'
@@ -187,7 +193,7 @@ export class DockController {
       this.saveDebugState({
         lastReason: isFullscreen ? 'target-fullscreen' : 'not-frontmost',
         lastMeta: meta,
-        windowsAbove: realAbove.length,
+        windowsAbove: adjustedAboveCount,
         lastUpdatedAt: now,
       })
       return
@@ -210,7 +216,7 @@ export class DockController {
     this.saveDebugState({
       lastReason: 'visible',
       lastMeta: meta,
-      windowsAbove: realAbove.length,
+      windowsAbove: adjustedAboveCount,
       lastUpdatedAt: now,
     })
   }

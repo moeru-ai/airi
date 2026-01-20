@@ -224,32 +224,17 @@ switch (platform) {
         }
         break
       case 'arm':
-        if (isMusl()) {
-          localFileExisted = existsSync(
-            join(__dirname, 'win32_window_bindings.linux-arm-musleabihf.node')
-          )
-          try {
-            if (localFileExisted) {
-              nativeBinding = require('./win32_window_bindings.linux-arm-musleabihf.node')
-            } else {
-              nativeBinding = require('@proj-airi/win32-window-bindings-linux-arm-musleabihf')
-            }
-          } catch (e) {
-            loadError = e
+        localFileExisted = existsSync(
+          join(__dirname, 'win32_window_bindings.linux-arm-gnueabihf.node')
+        )
+        try {
+          if (localFileExisted) {
+            nativeBinding = require('./win32_window_bindings.linux-arm-gnueabihf.node')
+          } else {
+            nativeBinding = require('@proj-airi/win32-window-bindings-linux-arm-gnueabihf')
           }
-        } else {
-          localFileExisted = existsSync(
-            join(__dirname, 'win32_window_bindings.linux-arm-gnueabihf.node')
-          )
-          try {
-            if (localFileExisted) {
-              nativeBinding = require('./win32_window_bindings.linux-arm-gnueabihf.node')
-            } else {
-              nativeBinding = require('@proj-airi/win32-window-bindings-linux-arm-gnueabihf')
-            }
-          } catch (e) {
-            loadError = e
-          }
+        } catch (e) {
+          loadError = e
         }
         break
       case 'riscv64':
