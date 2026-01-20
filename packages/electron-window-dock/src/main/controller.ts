@@ -10,6 +10,7 @@ import { merge } from '@moeru/std'
 import { screen } from 'electron'
 import { clamp } from 'es-toolkit/math'
 
+import { defaultDockConfig } from '..'
 import { getOverlayWindowIds } from './window-ids'
 
 export interface DockControllerOptions {
@@ -17,24 +18,6 @@ export interface DockControllerOptions {
   overlayIds?: string[]
   tracker: WindowTracker
   config?: DockConfig
-}
-
-export const defaultDockConfig: Required<DockConfig> = {
-  activeIntervalMs: 80,
-  idleIntervalMs: 400,
-  hiddenIntervalMs: 1000,
-  burstIntervalMs: 40,
-  burstTicks: 3,
-  clickThrough: true,
-  hideWhenInactive: true,
-  padding: 0,
-  showWhenNotFrontmost: false,
-  viewport: {
-    left: 0,
-    right: 1,
-    top: 0,
-    bottom: 1,
-  },
 }
 
 type NormalizedDockConfig = Required<DockConfig>

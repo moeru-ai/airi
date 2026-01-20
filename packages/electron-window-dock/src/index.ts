@@ -39,6 +39,24 @@ export interface DockConfig {
   viewport?: DockViewport
 }
 
+export const defaultDockConfig: Required<DockConfig> = {
+  activeIntervalMs: 80,
+  idleIntervalMs: 400,
+  hiddenIntervalMs: 1000,
+  burstIntervalMs: 40,
+  burstTicks: 3,
+  clickThrough: true,
+  padding: 0,
+  hideWhenInactive: true,
+  showWhenNotFrontmost: false,
+  viewport: {
+    left: 0,
+    right: 1,
+    top: 0,
+    bottom: 1,
+  },
+}
+
 export interface WindowTargetSummary {
   id: string
   title?: string

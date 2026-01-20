@@ -2,6 +2,7 @@
 import type { DockConfig, DockDebugState, WindowTargetSummary } from '@proj-airi/electron-window-dock'
 
 import { defineInvoke } from '@moeru/eventa'
+import { defaultDockConfig } from '@proj-airi/electron-window-dock'
 import { useElectronWindowDock } from '@proj-airi/electron-window-dock/vue'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
@@ -30,24 +31,17 @@ const filterOnScreenOnly = ref(true)
 const autoRefreshTargets = ref(true)
 const targetRefreshIntervalMs = ref(1000)
 
-const defaultViewport = {
-  left: 0,
-  right: 1,
-  top: 0,
-  bottom: 1,
-} as const
+const defaultViewport = { ...defaultDockConfig.viewport } as const
 const MIN_VIEWPORT_SPAN_PERCENT = 1
 
-const config = reactive<DockConfig>({
-  activeIntervalMs: 80,
-  idleIntervalMs: 400,
-  hiddenIntervalMs: 1000,
-  padding: 0,
-  clickThrough: true,
-  hideWhenInactive: true,
-  showWhenNotFrontmost: false,
-  viewport: { ...defaultViewport },
-})
+function createDefaultConfig(): DockConfig {
+  return {
+    ...defaultDockConfig,
+    viewport: { ...defaultDockConfig.viewport },
+  }
+}
+
+const config = reactive<DockConfig>(createDefaultConfig())
 
 const debugPollHandle = ref<number>()
 const targetPollHandle = ref<number>()
@@ -175,6 +169,8 @@ async function startDock() {
   status.value = undefined
 
   try {
+    // Push current UI settings so the controller starts with the chosen viewport/visibility.
+    await updateConfig({ ...config, viewport: { ...defaultViewport, ...config.viewport } })
     debugState.value = await beginDock({ targetId: selectedTargetId.value })
     await syncDockOverlayTheme({
       hue: themeColorsHue.value,
@@ -199,7 +195,7 @@ async function stopDock() {
 
 async function pushConfig() {
   try {
-    debugState.value = await updateConfig({ ...config })
+    debugState.value = await updateConfig({ ...config, viewport: { ...defaultViewport, ...config.viewport } })
   }
   catch (err) {
     console.error(err)

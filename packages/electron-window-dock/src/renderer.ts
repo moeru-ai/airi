@@ -6,6 +6,8 @@ import { defineInvoke } from '@moeru/eventa'
 
 import { windowDock } from '.'
 
+export { defaultDockConfig } from '.'
+
 export interface WindowDockClient {
   listTargets: () => Promise<WindowTargetSummary[]>
   startDock: (payload: StartDockRequest) => Promise<DockDebugState>
