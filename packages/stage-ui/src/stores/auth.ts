@@ -7,6 +7,7 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User>()
   const session = ref<Session>()
   const isAuthenticated = computed(() => !!user.value && !!session.value)
+  const userId = computed(() => user.value?.id ?? 'local')
 
   const isLoginOpen = ref(false)
 
@@ -14,6 +15,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     user,
+    userId,
     session,
     isAuthenticated,
     isLoginOpen,

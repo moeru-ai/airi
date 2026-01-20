@@ -5,8 +5,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 import { client } from '../composables/api'
-import { useAsyncState } from '../composables/use-async-state'
-import { useOptimisticMutation } from '../composables/use-optimistic'
+import { useLocalFirstMutation, useLocalFirstRequest } from '../composables/use-local-first'
 import { providersRepo } from '../database/repos/providers.repo'
 import { getDefinedProvider, listProviders } from '../libs/providers/providers'
 
@@ -21,27 +20,30 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
       configs.value = cached
     }
 
-    return useAsyncState(async () => {
-      const res = await client.api.providers.$get()
-      if (!res.ok) {
-        throw new Error('Failed to fetch providers')
-      }
-      const data = await res.json()
-
-      const newConfigs: Record<string, ProviderCatalogProvider> = {}
-      for (const item of data) {
-        newConfigs[item.id] = {
-          id: item.id,
-          definitionId: item.definitionId,
-          name: item.name,
-          config: item.config as Record<string, any>,
-          validated: item.validated,
-          validationBypassed: item.validationBypassed,
+    return useLocalFirstRequest({
+      local: async () => undefined,
+      remote: async () => {
+        const res = await client.api.providers.$get()
+        if (!res.ok) {
+          throw new Error('Failed to fetch providers')
         }
-      }
-      configs.value = newConfigs
-      await providersRepo.saveAll(newConfigs)
-    }, { immediate: true })
+        const data = await res.json()
+
+        const newConfigs: Record<string, ProviderCatalogProvider> = {}
+        for (const item of data) {
+          newConfigs[item.id] = {
+            id: item.id,
+            definitionId: item.definitionId,
+            name: item.name,
+            config: item.config as Record<string, any>,
+            validated: item.validated,
+            validationBypassed: item.validationBypassed,
+          }
+        }
+        configs.value = newConfigs
+        await providersRepo.saveAll(newConfigs)
+      },
+    })
   }
 
   async function addProvider(definitionId: string, initialConfig: Record<string, any> = {}) {
@@ -60,7 +62,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
       validationBypassed: false,
     }
 
-    return useOptimisticMutation<any, any>({
+    return useLocalFirstMutation<any, any>({
       apply: async () => {
         configs.value[id] = provider
         await providersRepo.upsert(provider)
@@ -108,7 +110,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
       return
     }
 
-    return useOptimisticMutation<void, void>({
+    return useLocalFirstMutation<void, void>({
       apply: async () => {
         delete configs.value[providerId]
         await providersRepo.remove(providerId)
@@ -138,7 +140,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
     const originalValidated = provider.validated
     const originalValidationBypassed = provider.validationBypassed
 
-    return useOptimisticMutation<any, void>({
+    return useLocalFirstMutation<any, void>({
       apply: async () => {
         provider.config = { ...newConfig }
         provider.validated = options.validated
