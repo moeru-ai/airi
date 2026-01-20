@@ -163,15 +163,18 @@ function playSpecialToken(special: string) {
 const lipSyncNode = ref<AudioNode>()
 
 async function playFunction(item: Parameters<Parameters<typeof createPlaybackManager<AudioBuffer>>[0]['play']>[0], signal: AbortSignal): Promise<void> {
-  if (!audioContext)
-    return
-
-  if (!item.audio)
+  if (!audioContext || !item.audio)
     return
 
   // Ensure audio context is resumed (browsers suspend it by default until user interaction)
-  if (audioContext.state === 'suspended')
-    await audioContext.resume()
+  if (audioContext.state === 'suspended') {
+    try {
+      await audioContext.resume()
+    }
+    catch {
+      return
+    }
+  }
 
   const source = audioContext.createBufferSource()
   currentAudioSource.value = source
@@ -193,8 +196,10 @@ async function playFunction(item: Parameters<Parameters<typeof createPlaybackMan
       currentAudioSource.value = undefined
   }
 
-  if (signal.aborted)
+  if (signal.aborted) {
     stopPlayback()
+    return
+  }
 
   signal.addEventListener('abort', stopPlayback, { once: true })
   source.onended = () => {
