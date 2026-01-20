@@ -26,8 +26,8 @@ describe('tools mcp schema', () => {
     const callTool = tools.find(entry => entry.function.name === 'mcp_call_tool')
 
     expect(callTool).toBeDefined()
-    const items = ((callTool?.function.parameters as JsonSchema).properties?.parameters as any)?.items
+    const items = ((callTool!.function.parameters as JsonSchema).properties?.parameters as JsonSchema)?.items as JsonSchema
     expect(items).toBeDefined()
-    expect(items?.additionalProperties).toBe(false)
+    expect(items.additionalProperties).toBe(false)
   })
 })

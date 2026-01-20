@@ -5,7 +5,7 @@ import type { Profile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { UnElevenLabsOptions } from 'unspeech'
 
-import type { Emotion } from '../../constants/emotions'
+import type { EmotionPayload } from '../../constants/emotions'
 
 import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
 import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser'
@@ -125,19 +125,19 @@ const speechRuntimeStore = useSpeechRuntimeStore()
 
 const { currentMotion } = storeToRefs(useLive2d())
 
-const emotionsQueue = createQueue<Emotion>({
+const emotionsQueue = createQueue<EmotionPayload>({
   handlers: [
     async (ctx) => {
       if (stageModelRenderer.value === 'vrm') {
-        // console.debug("VRM emotion anime: ", ctx.data)
-        const value = EMOTION_VRMExpressionName_value[ctx.data]
+        // console.debug('VRM emotion anime: ', ctx.data)
+        const value = EMOTION_VRMExpressionName_value[ctx.data.name]
         if (!value)
           return
 
-        await vrmViewerRef.value!.setExpression(value)
+        await vrmViewerRef.value!.setExpression(value, ctx.data.intensity)
       }
       else if (stageModelRenderer.value === 'live2d') {
-        currentMotion.value = { group: EMOTION_EmotionMotionName_value[ctx.data] }
+        currentMotion.value = { group: EMOTION_EmotionMotionName_value[ctx.data.name] }
       }
     },
   ],
@@ -163,67 +163,56 @@ function playSpecialToken(special: string) {
 const lipSyncNode = ref<AudioNode>()
 
 async function playFunction(item: Parameters<Parameters<typeof createPlaybackManager<AudioBuffer>>[0]['play']>[0], signal: AbortSignal): Promise<void> {
-  return new Promise<void>(async (resolve) => {
-    if (!audioContext) {
-      resolve()
-      return
-    }
+  if (!audioContext || !item.audio)
+    return
 
-    if (!item.audio) {
-      resolve()
-      return
-    }
-
-    // Ensure audio context is resumed (browsers suspend it by default until user interaction)
-    if (audioContext.state === 'suspended') {
-      try {
-        await audioContext.resume()
-      }
-      catch {
-        resolve()
-        return
-      }
-    }
-
-    const source = audioContext.createBufferSource()
-    currentAudioSource.value = source
-    source.buffer = item.audio
-
-    source.connect(audioContext.destination)
-    if (audioAnalyser.value)
-      source.connect(audioAnalyser.value)
-    if (lipSyncNode.value)
-      source.connect(lipSyncNode.value)
-
-    const stopPlayback = () => {
-      try {
-        source.stop()
-        source.disconnect()
-      }
-      catch {}
-      if (currentAudioSource.value === source)
-        currentAudioSource.value = undefined
-      resolve()
-    }
-
-    if (signal.aborted) {
-      stopPlayback()
-      return
-    }
-
-    signal.addEventListener('abort', stopPlayback, { once: true })
-    source.onended = () => {
-      signal.removeEventListener('abort', stopPlayback)
-      stopPlayback()
-    }
-
+  // Ensure audio context is resumed (browsers suspend it by default until user interaction)
+  if (audioContext.state === 'suspended') {
     try {
-      source.start(0)
+      await audioContext.resume()
     }
     catch {
-      stopPlayback()
+      return
     }
-  })
+  }
+
+  const source = audioContext.createBufferSource()
+  currentAudioSource.value = source
+  source.buffer = item.audio
+
+  source.connect(audioContext.destination)
+  if (audioAnalyser.value)
+    source.connect(audioAnalyser.value)
+  if (lipSyncNode.value)
+    source.connect(lipSyncNode.value)
+
+  const stopPlayback = () => {
+    try {
+      source.stop()
+      source.disconnect()
+    }
+    catch {}
+    if (currentAudioSource.value === source)
+      currentAudioSource.value = undefined
+  }
+
+  if (signal.aborted) {
+    stopPlayback()
+    return
+  }
+
+  signal.addEventListener('abort', stopPlayback, { once: true })
+  source.onended = () => {
+    signal.removeEventListener('abort', stopPlayback)
+    stopPlayback()
+  }
+
+  try {
+    source.start(0)
+  }
+  catch {
+    stopPlayback()
+  }
 }
 
 const playbackManager = createPlaybackManager<AudioBuffer>({
@@ -443,6 +432,7 @@ chatHookCleanups.push(onTokenLiteral(async (literal) => {
 }))
 
 chatHookCleanups.push(onTokenSpecial(async (special) => {
+  // console.debug('Stage received special token:', special)
   currentChatIntent?.writeSpecial(special)
 }))
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { EmotionPayload } from '@proj-airi/stage-ui/constants/emotions'
 import type { ChatProvider, SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import { createPlaybackManager, createSpeechPipeline } from '@proj-airi/pipelines-audio'
@@ -49,7 +50,20 @@ const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
 
 const delaysQueue = useDelayMessageQueue()
-const emotionMessageQueue = useEmotionsMessageQueue(createQueue({ handlers: [] }))
+const currentMotion = ref<{ group: string }>({ group: EmotionThinkMotionName })
+const emotionsQueue = createQueue<EmotionPayload>({
+  handlers: [
+    async (ctx) => {
+      const motion = EMOTION_EmotionMotionName_value[ctx.data.name]
+      const expression = EMOTION_VRMExpressionName_value[ctx.data.name]
+      if (motion)
+        currentMotion.value = { group: motion }
+      if (expression)
+        sceneRef.value?.setExpression(expression, ctx.data.intensity)
+    },
+  ],
+})
+const emotionMessageQueue = useEmotionsMessageQueue(emotionsQueue)
 
 emotionMessageQueue.on('enqueue', (token) => {
   log(`    - special 入队：${token}`)
@@ -61,7 +75,6 @@ emotionMessageQueue.on('dequeue', (token) => {
 
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const nowSpeaking = ref(false)
-const currentMotion = ref<{ group: string }>({ group: EmotionThinkMotionName })
 const logLines = ref<string[]>([])
 const chatInput = ref('')
 const chatOrchestrator = useChatOrchestratorStore()
@@ -177,15 +190,8 @@ playbackManager.onEnd(({ item }) => {
   nowSpeaking.value = false
   mouthOpenSize.value = 0
 
-  if (item.special) {
+  if (item.special)
     log(`播放结束，special: ${item.special}`)
-    const motion = EMOTION_EmotionMotionName_value[item.special as keyof typeof EMOTION_EmotionMotionName_value]
-    const expression = EMOTION_VRMExpressionName_value[item.special as keyof typeof EMOTION_VRMExpressionName_value]
-    if (motion)
-      currentMotion.value = { group: motion }
-    if (expression)
-      sceneRef.value?.setExpression(expression)
-  }
 })
 
 async function sendChat() {

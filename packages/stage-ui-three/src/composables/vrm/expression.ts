@@ -29,6 +29,10 @@ export function useVRMEmote(vrm: VRMCore) {
     return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2
   }
 
+  const clampIntensity = (value: number): number => {
+    return Math.min(1, Math.max(0, value))
+  }
+
   // Emotion states definition
   const emotionStates = new Map<string, EmotionState>([
     ['happy', {
@@ -54,7 +58,7 @@ export function useVRMEmote(vrm: VRMCore) {
     }],
     ['surprised', {
       expression: [
-        { name: 'Surprised', value: 1.0 },
+        { name: 'surprised', value: 1.0 },
         { name: 'oh', value: 0.6 },
       ],
       blendDuration: 0.1,
@@ -62,6 +66,12 @@ export function useVRMEmote(vrm: VRMCore) {
     ['neutral', {
       expression: [
         { name: 'neutral', value: 1.0 },
+      ],
+      blendDuration: 0.5,
+    }],
+    ['think', {
+      expression: [
+        { name: 'think', value: 1.0 },
       ],
       blendDuration: 0.5,
     }],
@@ -74,7 +84,7 @@ export function useVRMEmote(vrm: VRMCore) {
     }
   }
 
-  const setEmotion = (emotionName: string) => {
+  const setEmotion = (emotionName: string, intensity = 1) => {
     clearResetTimeout()
 
     if (!emotionStates.has(emotionName)) {
@@ -100,17 +110,19 @@ export function useVRMEmote(vrm: VRMCore) {
     currentExpressionValues.value.clear()
     targetExpressionValues.value.clear()
 
+    const normalizedIntensity = clampIntensity(intensity)
+
     // Store all current expression values
     for (const expr of emotionState.expression || []) {
       const currentValue = vrm.expressionManager?.getValue(expr.name) || 0
       currentExpressionValues.value.set(expr.name, currentValue)
-      targetExpressionValues.value.set(expr.name, expr.value)
+      targetExpressionValues.value.set(expr.name, expr.value * normalizedIntensity)
     }
   }
 
-  const setEmotionWithResetAfter = (emotionName: string, ms: number) => {
+  const setEmotionWithResetAfter = (emotionName: string, ms: number, intensity = 1) => {
     clearResetTimeout()
-    setEmotion(emotionName)
+    setEmotion(emotionName, intensity)
 
     // Set timeout to reset to neutral
     resetTimeout.value = setTimeout(() => {
