@@ -45,7 +45,9 @@ export function useEmotionsMessageQueue(emotionsQueue: UseQueueReturn<EmotionPay
         }
       }
     }
-    catch {}
+    catch (e) {
+      console.warn(`[parseActEmotion] Failed to parse ACT payload JSON: "${payloadText}"`, e)
+    }
 
     return { ok: false, emotion: null as EmotionPayload | null }
   }
