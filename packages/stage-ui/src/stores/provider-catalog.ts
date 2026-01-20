@@ -6,12 +6,89 @@ import { computed, ref } from 'vue'
 
 import { client } from '../composables/api'
 import { useLocalFirstMutation, useLocalFirstRequest } from '../composables/use-local-first'
+import { registerOutboxHandler, useOutboxQueue } from '../composables/use-outbox-queue'
 import { providersRepo } from '../database/repos/providers.repo'
 import { getDefinedProvider, listProviders } from '../libs/providers/providers'
 
 export const useProviderCatalogStore = defineStore('provider-catalog', () => {
   const defs = computed(() => listProviders())
   const configs = ref<Record<string, ProviderCatalogProvider>>({})
+  useOutboxQueue()
+
+  function toProviderConfig(item: any): ProviderCatalogProvider {
+    return {
+      id: item.id,
+      definitionId: item.definitionId,
+      name: item.name,
+      config: item.config as Record<string, any>,
+      validated: item.validated,
+      validationBypassed: item.validationBypassed,
+    }
+  }
+
+  async function syncProviderFromServer(item: any) {
+    const finalProvider = toProviderConfig(item)
+    configs.value[item.id] = finalProvider
+    await providersRepo.upsert(finalProvider)
+    return finalProvider
+  }
+
+  async function addProviderRemote(provider: ProviderCatalogProvider) {
+    const res = await client.api.providers.$post({
+      json: {
+        id: provider.id,
+        definitionId: provider.definitionId,
+        name: provider.name,
+        config: provider.config,
+        validated: provider.validated,
+        validationBypassed: provider.validationBypassed,
+      },
+    })
+    if (!res.ok) {
+      throw new Error('Failed to add provider')
+    }
+    return await res.json()
+  }
+
+  async function removeProviderRemote(providerId: string) {
+    const res = await client.api.providers[':id'].$delete({
+      param: { id: providerId },
+    })
+    if (!res.ok) {
+      throw new Error('Failed to remove provider')
+    }
+  }
+
+  async function updateProviderRemote(providerId: string, newConfig: Record<string, any>, options: { validated: boolean, validationBypassed: boolean }) {
+    const res = await client.api.providers[':id'].$patch({
+      param: { id: providerId },
+      // @ts-expect-error hono client typing misses json option for this route
+      json: {
+        config: newConfig,
+        validated: options.validated,
+        validationBypassed: options.validationBypassed,
+      },
+    })
+    if (!res.ok) {
+      throw new Error('Failed to update provider config')
+    }
+    return await res.json()
+  }
+
+  registerOutboxHandler<ProviderCatalogProvider>('providers.add', async (provider) => {
+    const item = await addProviderRemote(provider)
+    await syncProviderFromServer(item)
+  })
+  registerOutboxHandler<{ id: string }>('providers.remove', async (payload) => {
+    await removeProviderRemote(payload.id)
+  })
+  registerOutboxHandler<{ id: string, config: Record<string, any>, validated: boolean, validationBypassed: boolean }>('providers.update', async (payload) => {
+    const item = await updateProviderRemote(payload.id, payload.config, {
+      validated: payload.validated,
+      validationBypassed: payload.validationBypassed,
+    })
+    await syncProviderFromServer(item)
+  })
 
   async function fetchList() {
     // Load from storage immediately
@@ -31,14 +108,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
 
         const newConfigs: Record<string, ProviderCatalogProvider> = {}
         for (const item of data) {
-          newConfigs[item.id] = {
-            id: item.id,
-            definitionId: item.definitionId,
-            name: item.name,
-            config: item.config as Record<string, any>,
-            validated: item.validated,
-            validationBypassed: item.validationBypassed,
-          }
+          newConfigs[item.id] = toProviderConfig(item)
         }
         configs.value = newConfigs
         await providersRepo.saveAll(newConfigs)
@@ -72,34 +142,15 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
         }
       },
       action: async () => {
-        const res = await client.api.providers.$post({
-          json: {
-            id,
-            definitionId,
-            name: provider.name,
-            config: provider.config,
-            validated: provider.validated,
-            validationBypassed: provider.validationBypassed,
-          },
-        })
-        if (!res.ok) {
-          throw new Error('Failed to add provider')
-        }
-        return await res.json()
+        return await addProviderRemote(provider)
       },
       onSuccess: async (item: any) => {
-        const finalProvider: ProviderCatalogProvider = {
-          id: item.id,
-          definitionId: item.definitionId,
-          name: item.name,
-          config: item.config as Record<string, any>,
-          validated: item.validated,
-          validationBypassed: item.validationBypassed,
-        }
-
-        configs.value[item.id] = finalProvider
-        await providersRepo.upsert(finalProvider)
+        await syncProviderFromServer(item)
         return item
+      },
+      outbox: {
+        type: 'providers.add',
+        payload: provider,
       },
     })
   }
@@ -120,12 +171,11 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
         }
       },
       action: async () => {
-        const res = await client.api.providers[':id'].$delete({
-          param: { id: providerId },
-        })
-        if (!res.ok) {
-          throw new Error('Failed to remove provider')
-        }
+        await removeProviderRemote(providerId)
+      },
+      outbox: {
+        type: 'providers.remove',
+        payload: { id: providerId },
       },
     })
   }
@@ -154,26 +204,20 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
         }
       },
       action: async () => {
-        const res = await client.api.providers[':id'].$patch({
-          param: { id: providerId },
-          // @ts-expect-error hono client typing misses json option for this route
-          json: {
-            config: newConfig,
-            validated: options.validated,
-            validationBypassed: options.validationBypassed,
-          },
-        })
-        if (!res.ok) {
-          throw new Error('Failed to update provider config')
-        }
-        return await res.json()
+        return await updateProviderRemote(providerId, newConfig, options)
       },
       onSuccess: async (item: any) => {
         // Sync with server response just in case
-        provider.config = { ...item.config as Record<string, any> }
-        provider.validated = item.validated
-        provider.validationBypassed = item.validationBypassed
-        await providersRepo.upsert(provider)
+        await syncProviderFromServer(item)
+      },
+      outbox: {
+        type: 'providers.update',
+        payload: {
+          id: providerId,
+          config: { ...newConfig },
+          validated: options.validated,
+          validationBypassed: options.validationBypassed,
+        },
       },
     })
   }

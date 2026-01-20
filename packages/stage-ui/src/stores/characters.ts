@@ -7,6 +7,7 @@ import { ref } from 'vue'
 
 import { client } from '../composables/api'
 import { useLocalFirstRequest } from '../composables/use-local-first'
+import { registerOutboxHandler, useOutboxQueue } from '../composables/use-outbox-queue'
 import { charactersRepo } from '../database/repos/characters.repo'
 import { CharacterWithRelationsSchema } from '../types/character'
 import { useAuthStore } from './auth'
@@ -75,6 +76,94 @@ function buildLocalCharacter(userId: string, payload: CreateCharacterPayload) {
 export const useCharacterStore = defineStore('characters', () => {
   const characters = ref<Map<string, Character>>(new Map())
   const auth = useAuthStore()
+  useOutboxQueue()
+
+  async function syncCharacterFromServer(data: any) {
+    const character = parse(CharacterWithRelationsSchema, data)
+    characters.value.set(character.id, character)
+    await charactersRepo.upsert(character)
+    return character
+  }
+
+  async function fetchCharacterRemote(id: string) {
+    const res = await client.api.characters[':id'].$get({
+      param: { id },
+    })
+    if (!res.ok) {
+      throw new Error('Failed to fetch character')
+    }
+    const data = await res.json()
+    return await syncCharacterFromServer(data)
+  }
+
+  async function createCharacterRemote(payload: CreateCharacterPayload) {
+    const res = await client.api.characters.$post({
+      json: payload,
+    })
+    if (!res.ok) {
+      throw new Error('Failed to create character')
+    }
+    const data = await res.json()
+    return await syncCharacterFromServer(data)
+  }
+
+  async function updateCharacterRemote(id: string, payload: UpdateCharacterPayload) {
+    const res = await (client.api.characters[':id'].$patch)({
+      param: { id },
+      // @ts-expect-error FIXME: hono client typing misses json option for this route
+      json: payload,
+    })
+    if (!res.ok) {
+      throw new Error('Failed to update character')
+    }
+    const data = await res.json()
+    return await syncCharacterFromServer(data)
+  }
+
+  async function removeCharacterRemote(id: string) {
+    const res = await client.api.characters[':id'].$delete({
+      param: { id },
+    })
+    if (!res.ok) {
+      throw new Error('Failed to remove character')
+    }
+  }
+
+  async function likeCharacterRemote(id: string) {
+    const res = await client.api.characters[':id'].like.$post({
+      param: { id },
+    })
+    if (!res.ok) {
+      throw new Error('Failed to like character')
+    }
+    await fetchCharacterRemote(id)
+  }
+
+  async function bookmarkCharacterRemote(id: string) {
+    const res = await client.api.characters[':id'].bookmark.$post({
+      param: { id },
+    })
+    if (!res.ok) {
+      throw new Error('Failed to bookmark character')
+    }
+    await fetchCharacterRemote(id)
+  }
+
+  registerOutboxHandler<CreateCharacterPayload>('characters.create', async (payload) => {
+    await createCharacterRemote(payload)
+  })
+  registerOutboxHandler<{ id: string, payload: UpdateCharacterPayload }>('characters.update', async (payload) => {
+    await updateCharacterRemote(payload.id, payload.payload)
+  })
+  registerOutboxHandler<{ id: string }>('characters.remove', async (payload) => {
+    await removeCharacterRemote(payload.id)
+  })
+  registerOutboxHandler<{ id: string }>('characters.like', async (payload) => {
+    await likeCharacterRemote(payload.id)
+  })
+  registerOutboxHandler<{ id: string }>('characters.bookmark', async (payload) => {
+    await bookmarkCharacterRemote(payload.id)
+  })
 
   async function fetchList(all: boolean = false) {
     // Load from storage immediately
@@ -118,44 +207,30 @@ export const useCharacterStore = defineStore('characters', () => {
         }
         return cached
       },
-      remote: async () => {
-        const res = await client.api.characters[':id'].$get({
-          param: { id },
-        })
-        if (!res.ok) {
-          throw new Error('Failed to fetch character')
-        }
-        const data = await res.json()
-        const character = parse(CharacterWithRelationsSchema, data)
-
-        characters.value.set(character.id, character)
-        await charactersRepo.upsert(character)
-        return character
-      },
+      remote: async () => await fetchCharacterRemote(id),
     })
   }
 
   async function create(payload: CreateCharacterPayload) {
+    const localCharacter = buildLocalCharacter(auth.userId, payload)
+    const remotePayload: CreateCharacterPayload = {
+      ...payload,
+      character: {
+        ...payload.character,
+        id: localCharacter.id,
+      },
+    }
+
     return useLocalFirstRequest({
       local: async () => {
-        const character = buildLocalCharacter(auth.userId, payload)
-        characters.value.set(character.id, character)
-        await charactersRepo.upsert(character)
-        return character
+        characters.value.set(localCharacter.id, localCharacter)
+        await charactersRepo.upsert(localCharacter)
+        return localCharacter
       },
-      remote: async () => {
-        const res = await client.api.characters.$post({
-          json: payload,
-        })
-        if (!res.ok) {
-          throw new Error('Failed to create character')
-        }
-        const data = await res.json()
-        const character = parse(CharacterWithRelationsSchema, data)
-
-        characters.value.set(character.id, character)
-        await charactersRepo.upsert(character)
-        return character
+      remote: async () => await createCharacterRemote(remotePayload),
+      outbox: {
+        type: 'characters.create',
+        payload: remotePayload,
       },
     })
   }
@@ -178,21 +253,13 @@ export const useCharacterStore = defineStore('characters', () => {
         await charactersRepo.upsert(character)
         return character
       },
-      remote: async () => {
-        const res = await (client.api.characters[':id'].$patch)({
-          param: { id },
-          // @ts-expect-error FIXME: hono client typing misses json option for this route
-          json: payload,
-        })
-        if (!res.ok) {
-          throw new Error('Failed to update character')
-        }
-        const data = await res.json()
-        const character = parse(CharacterWithRelationsSchema, data)
-
-        characters.value.set(character.id, character)
-        await charactersRepo.upsert(character)
-        return character
+      remote: async () => await updateCharacterRemote(id, payload),
+      outbox: {
+        type: 'characters.update',
+        payload: {
+          id,
+          payload: { ...payload },
+        },
       },
     })
   }
@@ -204,15 +271,13 @@ export const useCharacterStore = defineStore('characters', () => {
         await charactersRepo.remove(id)
       },
       remote: async () => {
-        const res = await client.api.characters[':id'].$delete({
-          param: { id },
-        })
-        if (!res.ok) {
-          throw new Error('Failed to remove character')
-        }
-
+        await removeCharacterRemote(id)
         characters.value.delete(id)
         await charactersRepo.remove(id)
+      },
+      outbox: {
+        type: 'characters.remove',
+        payload: { id },
       },
     })
   }
@@ -234,15 +299,10 @@ export const useCharacterStore = defineStore('characters', () => {
           await charactersRepo.upsert(character)
         }
       },
-      remote: async () => {
-        const res = await client.api.characters[':id'].like.$post({
-          param: { id },
-        })
-        if (!res.ok) {
-          throw new Error('Failed to like character')
-        }
-
-        await fetchById(id)
+      remote: async () => await likeCharacterRemote(id),
+      outbox: {
+        type: 'characters.like',
+        payload: { id },
       },
     })
   }
@@ -264,15 +324,10 @@ export const useCharacterStore = defineStore('characters', () => {
           await charactersRepo.upsert(character)
         }
       },
-      remote: async () => {
-        const res = await client.api.characters[':id'].bookmark.$post({
-          param: { id },
-        })
-        if (!res.ok) {
-          throw new Error('Failed to bookmark character')
-        }
-
-        await fetchById(id)
+      remote: async () => await bookmarkCharacterRemote(id),
+      outbox: {
+        type: 'characters.bookmark',
+        payload: { id },
       },
     })
   }
