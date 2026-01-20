@@ -692,18 +692,32 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: ['health'],
     }),
-    'openai-audio-speech': convertProviderDefinitionToMetadata(
-      providerOpenAISpeech,
-      t,
-    ),
+    'openai-audio-speech': {
+      ...convertProviderDefinitionToMetadata(
+        providerOpenAISpeech,
+        t,
+      ),
+      // Ensure settings pages are prefilled with a sensible default base URL.
+      // The unified provider definitions currently don't expose schema defaults via metadata.
+      defaultOptions: () => ({
+        baseUrl: 'https://api.openai.com/v1/',
+      }),
+    },
     'openai-compatible-audio-speech': convertProviderDefinitionToMetadata(
       providerOpenAICompatibleSpeech,
       t,
     ),
-    'openai-audio-transcription': convertProviderDefinitionToMetadata(
-      providerOpenAITranscription,
-      t,
-    ),
+    'openai-audio-transcription': {
+      ...convertProviderDefinitionToMetadata(
+        providerOpenAITranscription,
+        t,
+      ),
+      // Ensure settings pages are prefilled with a sensible default base URL.
+      // The unified provider definitions currently don't expose schema defaults via metadata.
+      defaultOptions: () => ({
+        baseUrl: 'https://api.openai.com/v1/',
+      }),
+    },
     'openai-compatible-audio-transcription': convertProviderDefinitionToMetadata(
       providerOpenAICompatibleTranscription,
       t,
