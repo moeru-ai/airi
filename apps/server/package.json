@@ -12,21 +12,21 @@
     "db:push": "pnpm run apply:env -- drizzle-kit push"
   },
   "dependencies": {
-    "@dotenvx/dotenvx": "^1.51.1",
+    "@dotenvx/dotenvx": "^1.51.4",
     "@electric-sql/pglite": "catalog:",
     "@guiiai/logg": "catalog:",
-    "@hono/node-server": "^1.19.6",
-    "better-auth": "^1.4.5",
-    "drizzle-orm": "^0.44.7",
+    "@hono/node-server": "^1.19.9",
+    "better-auth": "^1.4.16",
+    "drizzle-orm": "^0.45.1",
     "drizzle-valibot": "catalog:",
     "hono": "catalog:",
     "injeca": "catalog:",
-    "postgres": "^3.4.7",
+    "postgres": "^3.4.8",
     "tsx": "^4.21.0",
     "valibot": "catalog:"
   },
   "devDependencies": {
-    "@better-auth/cli": "^1.4.5",
-    "drizzle-kit": "^0.31.7"
+    "@better-auth/cli": "^1.4.16",
+    "drizzle-kit": "^0.31.8"
   }
 }

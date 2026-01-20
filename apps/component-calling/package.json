@@ -27,7 +27,7 @@
     "@xsai/generate-text": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
-    "es-toolkit": "^1.43.0",
+    "es-toolkit": "^1.44.0",
     "valibot": "^1.2.0",
     "vue": "catalog:",
     "xsschema": "catalog:"
@@ -36,10 +36,10 @@
     "@iconify-json/solar": "^1.2.5",
     "@iconify-json/svg-spinners": "^1.2.4",
     "@types/xast": "^2.0.4",
-    "@unocss/reset": "^66.5.11",
+    "@unocss/reset": "^66.6.0",
     "@vitejs/plugin-vue": "^6.0.3",
     "superjson": "^2.2.6",
-    "unplugin-vue-router": "^0.19.0",
+    "unplugin-vue-router": "^0.19.2",
     "vite": "catalog:rolldown-vite",
     "vue-router": "^4.6.4",
     "vue-tsc": "^3.1.8"

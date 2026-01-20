@@ -38,7 +38,7 @@
   },
   "dependencies": {
     "@proj-airi/server-shared": "workspace:^",
-    "crossws": "^0.4.1",
+    "crossws": "^0.4.3",
     "defu": "^6.1.4",
     "superjson": "catalog:"
   },

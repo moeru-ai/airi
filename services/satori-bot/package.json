@@ -27,15 +27,15 @@
     "@xsai/shared-chat": "catalog:",
     "@xsai/utils-chat": "catalog:",
     "best-effort-json-parser": "^1.2.1",
-    "es-toolkit": "^1.43.0",
+    "es-toolkit": "^1.44.0",
     "lowdb": "^7.0.1",
     "nanoid": "^5.1.6",
-    "ws": "^8.18.0"
+    "ws": "^8.19.0"
   },
   "devDependencies": {
-    "@types/node": "^22.10.2",
-    "@types/ws": "^8.5.13",
+    "@types/node": "^22.19.7",
+    "@types/ws": "^8.18.1",
     "tsx": "^4.21.0",
-    "typescript": "^5.7.2"
+    "typescript": "^5.9.3"
   }
 }
