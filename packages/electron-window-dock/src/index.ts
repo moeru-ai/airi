@@ -8,6 +8,17 @@ export type DockModeState
     | 'docking-attached-visible'
     | 'docking-attached-hidden'
 
+/**
+ * Percent-based viewport inside the target window.
+ * Values are normalized between 0 (start/top/left) and 1 (end/bottom/right).
+ */
+export interface DockViewport {
+  left: number
+  right: number
+  top: number
+  bottom: number
+}
+
 export interface DockConfig {
   activeIntervalMs?: number
   idleIntervalMs?: number
@@ -17,6 +28,15 @@ export interface DockConfig {
   clickThrough?: boolean
   padding?: number
   hideWhenInactive?: boolean
+  /**
+   * If true, keep the overlay visible even when the target window is not frontmost.
+   * Fullscreen/hidden/minimized checks still apply.
+   */
+  showWhenNotFrontmost?: boolean
+  /**
+   * Restrict the overlay to a sub-rectangle of the target window (percentages 0–1).
+   */
+  viewport?: DockViewport
 }
 
 export interface WindowTargetSummary {

@@ -10,6 +10,14 @@ export const electronOpenDevtoolsWindow = defineInvokeEventa<void, { route?: str
 export const captionIsFollowingWindowChanged = defineEventa<boolean>('eventa:event:electron:windows:caption-overlay:is-following-window-changed')
 export const captionGetIsFollowingWindow = defineInvokeEventa<boolean>('eventa:invoke:electron:windows:caption-overlay:get-is-following-window')
 
+export interface DockOverlayThemePayload {
+  hue: number
+  dynamic: boolean
+}
+
+export const dockOverlaySyncTheme = defineInvokeEventa<void, DockOverlayThemePayload>('eventa:invoke:electron:windows:dock-overlay:sync-theme')
+export const dockOverlayThemeUpdated = defineEventa<DockOverlayThemePayload>('eventa:event:electron:windows:dock-overlay:theme-updated')
+
 export type RequestWindowActionDefault = 'confirm' | 'cancel' | 'close'
 export interface RequestWindowPayload {
   id?: string

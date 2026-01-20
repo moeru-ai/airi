@@ -1,12 +1,14 @@
 import type { BrowserWindow, Rectangle } from 'electron'
 
-import type { DockConfig, DockDebugState, DockModeState, WindowTargetSummary } from '..'
+import type { DockConfig, DockDebugState, DockModeState, DockViewport, WindowTargetSummary } from '..'
 import type { WindowTracker } from './window-tracker'
 
 import process from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
+import { merge } from '@moeru/std'
 import { screen } from 'electron'
+import { clamp } from 'es-toolkit/math'
 
 import { getOverlayWindowIds } from './window-ids'
 
@@ -26,7 +28,16 @@ export const defaultDockConfig: Required<DockConfig> = {
   clickThrough: true,
   hideWhenInactive: true,
   padding: 0,
+  showWhenNotFrontmost: false,
+  viewport: {
+    left: 0,
+    right: 1,
+    top: 0,
+    bottom: 1,
+  },
 }
+
+type NormalizedDockConfig = Required<DockConfig>
 
 export class DockController {
   private readonly overlayWindow: BrowserWindow
@@ -36,7 +47,7 @@ export class DockController {
   private destroyed = false
   private state: DockModeState = 'detached'
   private targetId?: string
-  private config: DockConfig = { ...defaultDockConfig }
+  private config: NormalizedDockConfig = { ...defaultDockConfig }
   private mouseEventsIgnored = false
   private burstTicksRemaining = 0
   private overlayBaseline?: { visible: boolean, alwaysOnTop: boolean }
@@ -54,7 +65,7 @@ export class DockController {
     })
     this.overlayIdSet = new Set(overlayIds)
     this.tracker = options.tracker
-    this.config = { ...defaultDockConfig, ...options.config }
+    this.config = this.normalizeConfig(options.config ?? defaultDockConfig)
   }
 
   getTargetId(): string | undefined {
@@ -88,7 +99,7 @@ export class DockController {
   }
 
   updateConfig(config: DockConfig): DockDebugState {
-    this.config = { ...this.config, ...config }
+    this.config = this.normalizeConfig(merge(this.config, config))
     return this.getDebugState()
   }
 
@@ -104,6 +115,40 @@ export class DockController {
     }
     this.restoreMouseEvents()
     this.lowerOverlay()
+  }
+
+  private normalizeConfig(config: DockConfig): NormalizedDockConfig {
+    const merged = merge(defaultDockConfig, config) as NormalizedDockConfig
+    return {
+      ...merged,
+      viewport: this.normalizeViewport(merged.viewport),
+    }
+  }
+
+  private normalizeViewport(viewport: DockViewport | undefined): DockViewport {
+    const fallback = defaultDockConfig.viewport
+    const clamp01 = (value: number | undefined) => clamp(Number.isFinite(value ?? 0) ? value ?? 0 : 0, 0, 1)
+
+    let left = clamp01(viewport?.left ?? fallback.left)
+    let right = clamp01(viewport?.right ?? fallback.right)
+    let top = clamp01(viewport?.top ?? fallback.top)
+    let bottom = clamp01(viewport?.bottom ?? fallback.bottom)
+
+    const minSpan = 0.01
+    if (right - left < minSpan) {
+      right = clamp(left + minSpan, 0, 1)
+      if (right - left < minSpan) {
+        left = clamp(right - minSpan, 0, 1)
+      }
+    }
+    if (bottom - top < minSpan) {
+      bottom = clamp(top + minSpan, 0, 1)
+      if (bottom - top < minSpan) {
+        top = clamp(bottom - minSpan, 0, 1)
+      }
+    }
+
+    return { left, right, top, bottom }
   }
 
   private ensureLoop() {
@@ -169,6 +214,8 @@ export class DockController {
     // which is acceptable because production assumes native bindings on Win32.
     const adjustedAboveCount = Math.max(0, realAbove.length - 1)
     const isFrontmost = adjustedAboveCount === 0
+    const allowNonFrontmostVisibility = (this.config.showWhenNotFrontmost ?? defaultDockConfig.showWhenNotFrontmost)
+      || !(this.config.hideWhenInactive ?? defaultDockConfig.hideWhenInactive)
 
     if (!meta.isOnScreen || meta.isMinimized) {
       this.state = 'companion'
@@ -185,13 +232,27 @@ export class DockController {
       return
     }
 
-    if (!isFrontmost || isFullscreen) {
+    if (isFullscreen) {
+      this.state = 'docking-attached-hidden'
+      this.hideOverlay(true)
+      this.lowerOverlay()
+      this.setNextInterval(this.config.hiddenIntervalMs ?? defaultDockConfig.hiddenIntervalMs)
+      this.saveDebugState({
+        lastReason: 'target-fullscreen',
+        lastMeta: meta,
+        windowsAbove: adjustedAboveCount,
+        lastUpdatedAt: now,
+      })
+      return
+    }
+
+    if (!isFrontmost && !allowNonFrontmostVisibility) {
       this.state = 'docking-attached-hidden'
       this.hideOverlay()
       this.lowerOverlay()
       this.setNextInterval(this.config.hiddenIntervalMs ?? defaultDockConfig.hiddenIntervalMs)
       this.saveDebugState({
-        lastReason: isFullscreen ? 'target-fullscreen' : 'not-frontmost',
+        lastReason: 'not-frontmost',
         lastMeta: meta,
         windowsAbove: adjustedAboveCount,
         lastUpdatedAt: now,
@@ -214,7 +275,7 @@ export class DockController {
       this.burstTicksRemaining -= 1
     }
     this.saveDebugState({
-      lastReason: 'visible',
+      lastReason: isFrontmost ? 'visible' : 'visible-not-frontmost',
       lastMeta: meta,
       windowsAbove: adjustedAboveCount,
       lastUpdatedAt: now,
@@ -273,20 +334,43 @@ export class DockController {
     return a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height
   }
 
+  private applyViewport(bounds: Rectangle): Rectangle {
+    const viewport = this.config.viewport ?? defaultDockConfig.viewport
+    const width = Math.max(0, bounds.width)
+    const height = Math.max(0, bounds.height)
+    const left = bounds.x + width * viewport.left
+    const right = bounds.x + width * viewport.right
+    const top = bounds.y + height * viewport.top
+    const bottom = bounds.y + height * viewport.bottom
+
+    return {
+      x: Math.round(left),
+      y: Math.round(top),
+      width: Math.max(1, Math.round(right - left)),
+      height: Math.max(1, Math.round(bottom - top)),
+    }
+  }
+
+  private applyPadding(bounds: Rectangle): Rectangle {
+    const padding = this.config.padding ?? 0
+    if (!padding) {
+      return bounds
+    }
+    return {
+      x: Math.round(bounds.x - padding),
+      y: Math.round(bounds.y - padding),
+      width: Math.max(1, Math.round(bounds.width + padding * 2)),
+      height: Math.max(1, Math.round(bounds.height + padding * 2)),
+    }
+  }
+
   private syncOverlay(bounds: Rectangle) {
     if (this.overlayWindow.isDestroyed()) {
       return
     }
 
-    const padding = this.config.padding ?? 0
-    const paddedBounds = padding > 0
-      ? {
-          x: bounds.x - padding,
-          y: bounds.y - padding,
-          width: bounds.width + padding * 2,
-          height: bounds.height + padding * 2,
-        }
-      : bounds
+    const viewportBounds = this.applyViewport(bounds)
+    const paddedBounds = this.applyPadding(viewportBounds)
 
     this.overlayWindow.setBounds(paddedBounds, false)
     this.overlayWindow.setAlwaysOnTop(true, 'screen-saver', 1)

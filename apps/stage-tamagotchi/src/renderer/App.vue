@@ -2,6 +2,7 @@
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
+import { useStageThemeSync } from '@proj-airi/stage-ui/composables'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
@@ -23,12 +24,14 @@ import ResizeHandler from './components/ResizeHandler.vue'
 import { electronOpenSettings, electronStartTrackMousePosition } from '../shared/eventa'
 import { useElectronEventaContext } from './composables/electron-vueuse'
 
+import './styles/hue.css'
+
 const { isDark: dark } = useTheme()
 const i18n = useI18n()
 const contextBridgeStore = useContextBridgeStore()
 const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
-const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settingsStore)
+const { language } = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
 const router = useRouter()
 const route = useRoute()
@@ -37,6 +40,9 @@ const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
 const analyticsStore = useSharedAnalyticsStore()
 usePerfTracerBridgeStore()
+
+// Sync chromatic hue + dynamic hue class to documentElement for this window.
+useStageThemeSync()
 
 watch(language, () => {
   i18n.locale.value = language.value
@@ -68,14 +74,6 @@ onMounted(async () => {
   defineInvokeHandler(context.value, electronOpenSettings, () => router.push('/settings'))
 })
 
-watch(themeColorsHue, () => {
-  document.documentElement.style.setProperty('--chromatic-hue', themeColorsHue.value.toString())
-}, { immediate: true })
-
-watch(themeColorsHueDynamic, () => {
-  document.documentElement.classList.toggle('dynamic-hue', themeColorsHueDynamic.value)
-}, { immediate: true })
-
 onUnmounted(() => contextBridgeStore.dispose())
 </script>
 
@@ -88,23 +86,4 @@ onUnmounted(() => contextBridgeStore.dispose())
 </template>
 
 <style>
-/* We need this to properly animate the CSS variable */
-@property --chromatic-hue {
-  syntax: '<number>';
-  initial-value: 0;
-  inherits: true;
-}
-
-@keyframes hue-anim {
-  from {
-    --chromatic-hue: 0;
-  }
-  to {
-    --chromatic-hue: 360;
-  }
-}
-
-.dynamic-hue {
-  animation: hue-anim 10s linear infinite;
-}
 </style>

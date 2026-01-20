@@ -1,10 +1,22 @@
 <script setup lang="ts">
 import type { DockConfig, DockDebugState, WindowTargetSummary } from '@proj-airi/electron-window-dock'
 
+import { defineInvoke } from '@moeru/eventa'
 import { useElectronWindowDock } from '@proj-airi/electron-window-dock/vue'
-import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
+import { clamp } from 'es-toolkit/math'
+import { storeToRefs } from 'pinia'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+
+import { dockOverlaySyncTheme } from '../../../shared/eventa'
+import { useElectronEventaContext } from '../../composables/electron-vueuse'
 
 const { fetchTargets, beginDock, endDock, updateConfig, readDebugState } = useElectronWindowDock(window.electron.ipcRenderer)
+const settings = useSettings()
+const { themeColorsHue, themeColorsHueDynamic } = storeToRefs(settings)
+const eventaContext = useElectronEventaContext()
+const syncDockOverlayTheme = defineInvoke(eventaContext.value, dockOverlaySyncTheme)
 
 const allTargets = ref<WindowTargetSummary[]>([])
 const targets = ref<WindowTargetSummary[]>([])
@@ -18,6 +30,14 @@ const filterOnScreenOnly = ref(true)
 const autoRefreshTargets = ref(true)
 const targetRefreshIntervalMs = ref(1000)
 
+const defaultViewport = {
+  left: 0,
+  right: 1,
+  top: 0,
+  bottom: 1,
+} as const
+const MIN_VIEWPORT_SPAN_PERCENT = 1
+
 const config = reactive<DockConfig>({
   activeIntervalMs: 80,
   idleIntervalMs: 400,
@@ -25,10 +45,78 @@ const config = reactive<DockConfig>({
   padding: 0,
   clickThrough: true,
   hideWhenInactive: true,
+  showWhenNotFrontmost: false,
+  viewport: { ...defaultViewport },
 })
 
 const debugPollHandle = ref<number>()
 const targetPollHandle = ref<number>()
+
+const clampPercent = (value?: number) => clamp(Math.round(value ?? 0), 0, 100)
+
+function updateViewportPercent(partial: Partial<{ left: number, right: number, top: number, bottom: number }>) {
+  const current = config.viewport ?? { ...defaultViewport }
+  const next = {
+    left: clampPercent(partial.left ?? current.left * 100),
+    right: clampPercent(partial.right ?? current.right * 100),
+    top: clampPercent(partial.top ?? current.top * 100),
+    bottom: clampPercent(partial.bottom ?? current.bottom * 100),
+  }
+
+  if (partial.left !== undefined && next.left >= next.right - MIN_VIEWPORT_SPAN_PERCENT)
+    next.right = clamp(next.left + MIN_VIEWPORT_SPAN_PERCENT, 0, 100)
+  if (partial.right !== undefined && next.right <= next.left + MIN_VIEWPORT_SPAN_PERCENT)
+    next.left = clamp(next.right - MIN_VIEWPORT_SPAN_PERCENT, 0, 100)
+  if (partial.top !== undefined && next.top >= next.bottom - MIN_VIEWPORT_SPAN_PERCENT)
+    next.bottom = clamp(next.top + MIN_VIEWPORT_SPAN_PERCENT, 0, 100)
+  if (partial.bottom !== undefined && next.bottom <= next.top + MIN_VIEWPORT_SPAN_PERCENT)
+    next.top = clamp(next.bottom - MIN_VIEWPORT_SPAN_PERCENT, 0, 100)
+
+  config.viewport = {
+    left: next.left / 100,
+    right: next.right / 100,
+    top: next.top / 100,
+    bottom: next.bottom / 100,
+  }
+}
+
+const horizontalStart = computed({
+  get: () => Math.round((config.viewport?.left ?? defaultViewport.left) * 100),
+  set: value => updateViewportPercent({ left: value }),
+})
+
+const horizontalEnd = computed({
+  get: () => Math.round((config.viewport?.right ?? defaultViewport.right) * 100),
+  set: value => updateViewportPercent({ right: value }),
+})
+
+const verticalStart = computed({
+  get: () => Math.round((config.viewport?.top ?? defaultViewport.top) * 100),
+  set: value => updateViewportPercent({ top: value }),
+})
+
+const verticalEnd = computed({
+  get: () => Math.round((config.viewport?.bottom ?? defaultViewport.bottom) * 100),
+  set: value => updateViewportPercent({ bottom: value }),
+})
+
+const viewportPreviewStyle = computed(() => ({
+  left: `${horizontalStart.value}%`,
+  right: `${100 - horizontalEnd.value}%`,
+  top: `${verticalStart.value}%`,
+  bottom: `${100 - verticalEnd.value}%`,
+}))
+
+const showWhenNotFrontmost = computed({
+  get: () => config.showWhenNotFrontmost ?? false,
+  set: (value) => {
+    config.showWhenNotFrontmost = value
+  },
+})
+
+function formatPercent(value: number) {
+  return `${Math.round(value)}%`
+}
 
 function applyTargetFilter(list: WindowTargetSummary[]) {
   allTargets.value = list
@@ -40,11 +128,13 @@ function applyTargetFilter(list: WindowTargetSummary[]) {
   }
 }
 
-async function refreshTargets(options?: { silent?: boolean }) {
+async function refreshTargets(options?: { silent?: boolean } | Event) {
   if (isRefreshingTargets.value)
     return
 
-  const silent = options?.silent === true
+  const silent = typeof options === 'object' && options !== null && 'silent' in options
+    ? (options as { silent?: boolean }).silent === true
+    : false
 
   if (!silent) {
     isLoading.value = true
@@ -86,6 +176,10 @@ async function startDock() {
 
   try {
     debugState.value = await beginDock({ targetId: selectedTargetId.value })
+    await syncDockOverlayTheme({
+      hue: themeColorsHue.value,
+      dynamic: themeColorsHueDynamic.value,
+    })
   }
   catch (err) {
     console.error(err)
@@ -433,6 +527,92 @@ onBeforeUnmount(() => {
           >
             Apply
           </button>
+        </div>
+
+        <div :class="['rounded-xl', 'border', 'border-neutral-200/70', 'bg-neutral-50/60', 'p-4', 'dark:border-neutral-800', 'dark:bg-neutral-900/60']">
+          <div :class="['mb-2', 'text-sm', 'font-semibold']">
+            Viewport & visibility
+          </div>
+          <div :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
+            Limit AIRI to a sub-area of the target window and choose whether it stays visible when the window loses focus.
+          </div>
+
+          <div :class="['relative', 'mt-3', 'h-36', 'rounded-xl', 'border', 'border-dashed', 'border-neutral-300/70', 'bg-white/40', 'dark:border-neutral-800', 'dark:bg-neutral-950/20']">
+            <div :class="['absolute', 'inset-2', 'rounded-lg', 'bg-neutral-200/50', 'dark:bg-neutral-800/40']" />
+            <div
+              :class="[
+                'absolute', 'rounded-md',
+                'border', 'border-primary-400/70',
+                'bg-primary-500/15',
+                'shadow-[0_0_0_1px_rgba(59,130,246,0.12)]',
+                'transition-all',
+              ]"
+              :style="viewportPreviewStyle"
+            />
+            <div :class="['pointer-events-none', 'absolute', 'inset-0', 'flex', 'items-center', 'justify-center', 'text-2xs', 'uppercase', 'tracking-wide', 'text-neutral-400', 'dark:text-neutral-500']">
+              Target window
+            </div>
+          </div>
+
+          <div :class="['mt-4', 'flex', 'flex-col', 'gap-3']">
+            <div :class="['text-xs', 'font-medium', 'text-neutral-600', 'dark:text-neutral-200']">
+              Horizontal (%)
+            </div>
+            <div :class="['grid', 'grid-cols-2', 'gap-3']">
+              <FieldRange
+                v-model="horizontalStart"
+                as="div"
+                :min="0"
+                :max="100"
+                :step="1"
+                label="Start"
+                :format-value="formatPercent"
+              />
+              <FieldRange
+                v-model="horizontalEnd"
+                as="div"
+                :min="0"
+                :max="100"
+                :step="1"
+                label="End"
+                :format-value="formatPercent"
+              />
+            </div>
+          </div>
+
+          <div :class="['mt-2', 'flex', 'flex-col', 'gap-3']">
+            <div :class="['text-xs', 'font-medium', 'text-neutral-600', 'dark:text-neutral-200']">
+              Vertical (%)
+            </div>
+            <div :class="['grid', 'grid-cols-2', 'gap-3']">
+              <FieldRange
+                v-model="verticalStart"
+                as="div"
+                :min="0"
+                :max="100"
+                :step="1"
+                label="Top"
+                :format-value="formatPercent"
+              />
+              <FieldRange
+                v-model="verticalEnd"
+                as="div"
+                :min="0"
+                :max="100"
+                :step="1"
+                label="Bottom"
+                :format-value="formatPercent"
+              />
+            </div>
+          </div>
+
+          <div :class="['mt-3', 'rounded-lg', 'border', 'border-neutral-200/70', 'bg-white/50', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-950/30']">
+            <FieldCheckbox
+              v-model="showWhenNotFrontmost"
+              label="Show when target is not frontmost"
+              description="Keeps AIRI visible even if other windows are on top. Still hides if the target is minimized, off-screen, or fullscreen."
+            />
+          </div>
         </div>
       </div>
     </div>

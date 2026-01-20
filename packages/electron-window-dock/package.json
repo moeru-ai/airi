@@ -41,7 +41,9 @@
     "vue": ">=3"
   },
   "dependencies": {
-    "@moeru/eventa": "catalog:"
+    "@moeru/eventa": "catalog:",
+    "@moeru/std": "catalog:",
+    "es-toolkit": "catalog:"
   },
   "optionalDependencies": {
     "@proj-airi/win32-window-bindings": "workspace:*"

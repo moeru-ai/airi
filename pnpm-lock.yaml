@@ -1886,9 +1886,15 @@ importers:
       '@moeru/eventa':
         specifier: 'catalog:'
         version: 1.0.0-alpha.10(electron@39.2.7)(h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))))
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.14
       electron:
         specifier: '>=39 <40'
         version: 39.2.7
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.43.0
     devDependencies:
       '@electron-toolkit/preload':
         specifier: ^3.0.2

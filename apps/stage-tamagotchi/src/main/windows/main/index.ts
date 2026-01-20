@@ -25,7 +25,7 @@ import { electronStartDraggingWindow } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load } from '../../libs/electron/location'
 import { transparentWindowConfig } from '../shared'
 import { createConfig } from '../shared/persistence'
-import { setupMainWindowElectronInvokes } from './rpc/index.electron'
+import { setupBaseWindowElectronInvokes, setupMainWindowElectronInvokes } from './rpc/index.electron'
 
 interface AppConfig {
   windows?: Array<Pick<BrowserWindowConstructorOptions, 'title' | 'x' | 'y' | 'width' | 'height'> & { tag: string }>
@@ -91,6 +91,32 @@ export async function setupMainWindow(params: {
   const dockOverlayBase = baseUrl(rendererRoot, 'dock-overlay.html')
   const preloadPath = join(dirname(fileURLToPath(import.meta.url)), '../preload/index.mjs')
   const dockOverlayWindow = createDockOverlayWindow(dockOverlayBase, preloadPath)
+  const { context: dockOverlayContext } = createContext(ipcMain, dockOverlayWindow)
+
+  // Register IPC services for the overlay so renderer hooks receive mouse/bounds streams.
+  {
+    const { screenService, windowService } = setupBaseWindowElectronInvokes({ context: dockOverlayContext, window: dockOverlayWindow })
+
+    const stopOverlayStreams = () => {
+      screenService.stop()
+      windowService.stop()
+    }
+    const stopOverlayStreamsIfHidden = () => {
+      if (!dockOverlayWindow.isVisible()) {
+        stopOverlayStreams()
+      }
+    }
+
+    // Keep loops paused while the overlay stays hidden; start when dock mode shows it.
+    dockOverlayWindow.webContents.on('did-finish-load', stopOverlayStreamsIfHidden)
+    dockOverlayWindow.on('show', () => {
+      screenService.start()
+      windowService.start()
+    })
+    dockOverlayWindow.on('hide', stopOverlayStreams)
+
+    stopOverlayStreams()
+  }
 
   const window = new BrowserWindow({
     title: 'AIRI',
@@ -187,6 +213,7 @@ export async function setupMainWindow(params: {
     widgetsManager: params.widgetsManager,
     noticeWindow: params.noticeWindow,
     autoUpdater: params.autoUpdater,
+    dockOverlayContext,
   })
 
   /**

@@ -29,4 +29,6 @@ export function createScreenService(params: { context: ReturnType<typeof createC
   defineInvokeHandler(params.context, electron.screen.screenToDipPoint, point => screen.screenToDipPoint(point))
   defineInvokeHandler(params.context, electron.screen.screenToDipRect, rect => screen.screenToDipRect(params.window, rect))
   defineInvokeHandler(params.context, electron.screen.getCursorScreenPoint, () => screen.getCursorScreenPoint())
+
+  return { start, stop }
 }

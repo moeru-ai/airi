@@ -70,4 +70,6 @@ export function createWindowService(params: { context: ReturnType<typeof createC
       direction: payload.direction,
     })
   })
+
+  return { start, stop }
 }
