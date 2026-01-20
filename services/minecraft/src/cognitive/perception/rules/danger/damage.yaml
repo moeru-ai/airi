@@ -11,7 +11,11 @@ accumulator:
 
 signal:
   type: saliency_high
-  description: 'Taken damage!'
+  description: 'Taken damage (amount={{ amount }}, cause={{ damageSource.cause }}).'
   confidence: 1.0
   metadata:
     action: damage
+    amount: '{{ amount }}'
+    cause: '{{ damageSource.cause }}'
+    source_name: '{{ damageSource.name }}'
+    source_distance: '{{ damageSource.distance }}'

@@ -144,16 +144,34 @@ export const SALIENCY_RULES: SaliencyRuleBook = {
     damage_taken: {
       threshold: 1, // Damage is immediately salient
       key: 'felt:damage',
-      buildSignal: () => ({
-        type: 'saliency_high',
-        description: 'Taken damage!',
-        confidence: 1.0,
-        timestamp: Date.now(),
-        metadata: {
-          kind: 'felt',
-          action: 'damage',
-        },
-      }),
+      buildSignal: (event) => {
+        const e = event as Extract<RawPerceptionEvent, { modality: 'felt', kind: 'damage_taken' }>
+        const ds = (e as any).damageSource as any
+        const cause = typeof ds?.cause === 'string' ? ds.cause : 'unknown'
+        const name = typeof ds?.name === 'string' && ds.name.length > 0 ? ds.name : undefined
+        const distance = typeof ds?.distance === 'number' ? ds.distance : undefined
+        const amount = typeof (e as any).amount === 'number' ? (e as any).amount : undefined
+
+        const details = [
+          amount !== undefined ? `amount=${amount}` : null,
+          `cause=${cause}`,
+          name ? `name=${name}` : null,
+          distance !== undefined ? `distance=${distance.toFixed(1)}` : null,
+        ].filter(Boolean).join(', ')
+
+        return {
+          type: 'saliency_high',
+          description: `Taken damage (${details}).`,
+          confidence: 1.0,
+          timestamp: Date.now(),
+          metadata: {
+            kind: 'felt',
+            action: 'damage',
+            amount: e.amount,
+            damageSource: e.damageSource,
+          },
+        }
+      },
     },
     item_collected: {
       threshold: 3,
