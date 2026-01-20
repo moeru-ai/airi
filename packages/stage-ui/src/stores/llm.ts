@@ -53,39 +53,61 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
     return tools ?? []
   }
 
-  return new Promise<void>(async (resolve, reject) => {
-    try {
-      const supportedTools = streamOptionsToolsCompatibilityOk(model, chatProvider, messages, options)
+  const supportedTools = streamOptionsToolsCompatibilityOk(model, chatProvider, messages, options)
+  const tools = supportedTools
+    ? [
+        ...await mcp(),
+        ...await debug(),
+        ...await resolveTools(),
+      ]
+    : undefined
 
-      await streamText({
+  return new Promise<void>((resolve, reject) => {
+    let settled = false
+    const resolveOnce = () => {
+      if (settled)
+        return
+      settled = true
+      resolve()
+    }
+    const rejectOnce = (err: unknown) => {
+      if (settled)
+        return
+      settled = true
+      reject(err)
+    }
+
+    const onEvent = async (event: unknown) => {
+      try {
+        await options?.onStreamEvent?.(event as StreamEvent)
+        if (event && (event as StreamEvent).type === 'finish') {
+          const finishReason = (event as any).finishReason
+          if (finishReason !== 'tool_calls' || !options?.waitForTools)
+            resolveOnce()
+        }
+        else if (event && (event as StreamEvent).type === 'error') {
+          const error = (event as any).error ?? new Error('Stream error')
+          rejectOnce(error)
+        }
+      }
+      catch (err) {
+        rejectOnce(err)
+      }
+    }
+
+    try {
+      streamText({
         ...chatProvider.chat(model),
         maxSteps: 10,
         messages: sanitized,
         headers,
         // TODO: we need Automatic tools discovery
-        tools: supportedTools
-          ? [
-              ...await mcp(),
-              ...await debug(),
-              ...await resolveTools(),
-            ]
-          : undefined,
-        async onEvent(event) {
-          try {
-            await options?.onStreamEvent?.(event as StreamEvent)
-            if (event.type === 'finish' && (event.finishReason !== 'tool_calls' || !options?.waitForTools))
-              resolve()
-            else if (event.type === 'error')
-              reject(event.error ?? new Error('Stream error'))
-          }
-          catch (err) {
-            reject(err)
-          }
-        },
+        tools,
+        onEvent,
       })
     }
     catch (err) {
-      reject(err)
+      rejectOnce(err)
     }
   })
 }
