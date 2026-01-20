@@ -8,7 +8,7 @@ export interface ReflexSelfState {
 }
 
 export interface ReflexEnvironmentState {
-  time: 'day' | 'night' | 'sunset' | 'sunrise'
+  time: string
   weather: 'clear' | 'rain' | 'thunder'
   nearbyPlayers: Array<{ name: string, distance?: number, holding?: string | null }>
   nearbyPlayersGaze: Array<{
@@ -64,7 +64,7 @@ export class ReflexContext {
         food: 20,
       },
       environment: {
-        time: 'day',
+        time: 'SOMETHING WENT WRONG, YOU SHOULD NOTIFY THE USER OF THIS',
         weather: 'clear',
         nearbyPlayers: [],
         nearbyPlayersGaze: [],
