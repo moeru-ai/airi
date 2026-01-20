@@ -481,11 +481,12 @@ export class Brain {
     // 4. Act (Execute Decision)
     this.log('INFO', `Brain: Thought: ${decision.thought}`)
 
-    // Update Blackboard
+    // Update Blackboard (with null checks for malformed LLM responses)
+    const bb = decision.blackboard
     this.blackboard.update({
-      ultimateGoal: decision.blackboard.UltimateGoal || this.blackboard.ultimate_goal,
-      currentTask: decision.blackboard.CurrentTask || this.blackboard.current_task,
-      strategy: decision.blackboard.executionStrategy || this.blackboard.strategy,
+      ultimateGoal: bb?.UltimateGoal || this.blackboard.ultimate_goal,
+      currentTask: bb?.CurrentTask || this.blackboard.current_task,
+      strategy: bb?.executionStrategy || this.blackboard.strategy,
     })
 
     // Sync Blackboard to Debug
