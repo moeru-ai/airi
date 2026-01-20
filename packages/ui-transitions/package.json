@@ -23,6 +23,7 @@
     "play:dev": "vite",
     "play:build": "vite build",
     "play:preview": "vite preview",
+    "build": "echo \"No build step required\"",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {

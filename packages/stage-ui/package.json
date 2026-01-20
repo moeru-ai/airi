@@ -46,6 +46,7 @@
     "story:build": "histoire build",
     "story:build-base": "histoire build --base /ui",
     "story:preview": "histoire preview",
+    "build": "echo \"No build step required\"",
     "test": "vitest",
     "test:run": "vitest run"
   },
