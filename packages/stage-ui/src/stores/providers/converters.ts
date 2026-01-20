@@ -148,25 +148,28 @@ export function convertProviderDefinitionToMetadata(
     capabilities: {
       listModels: definition.extraMethods?.listModels
         ? async (config: Record<string, unknown>) => {
-          // We need a provider instance to call listModels, but we can try without it
-          // For most cases, listModels doesn't need the provider instance
+          // extraMethods.listModels requires a valid provider instance.
+          // Create one (like loadModel does) to avoid fragile `{}` placeholders.
+          const provider = await Promise.resolve(definition.createProvider(config as any))
           try {
-            return await definition.extraMethods!.listModels!(config as any, {} as any)
+            return await definition.extraMethods!.listModels!(config as any, provider)
           }
-          catch {
-            // If it fails without provider, we'd need to create one
-            // For now, return empty array
-            return []
+          finally {
+            // Avoid leaking resources in case provider allocates connections/workers.
+            await (provider as any)?.dispose?.()
           }
         }
         : undefined,
       listVoices: definition.extraMethods?.listVoices
         ? async (config: Record<string, unknown>) => {
+          // extraMethods.listVoices requires a valid provider instance.
+          // Create one (like loadModel does) to avoid fragile `{}` placeholders.
+          const provider = await Promise.resolve(definition.createProvider(config as any))
           try {
-            return await definition.extraMethods!.listVoices!(config as any, {} as any)
+            return await definition.extraMethods!.listVoices!(config as any, provider)
           }
-          catch {
-            return []
+          finally {
+            await (provider as any)?.dispose?.()
           }
         }
         : undefined,
