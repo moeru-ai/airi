@@ -7,7 +7,7 @@ import pathfinderModel from 'mineflayer-pathfinder'
 
 import { Vec3 } from 'vec3'
 
-import { getBlockId, makeItem } from '../utils/mcdata'
+import { McData } from '../utils/mcdata'
 import { log } from './base'
 import { goToPosition } from './movement'
 import { getNearestBlock, getNearestBlocks, getPosition, shouldPlaceTorch } from './world'
@@ -117,7 +117,8 @@ export async function placeBlock(
   placeOn: BlockFace = 'bottom',
   dontCheat = false,
 ): Promise<boolean> {
-  if (!getBlockId(blockType)) {
+  const mcData = McData.fromBot(mineflayer.bot)
+  if (!mcData.getBlockId(blockType)) {
     log(mineflayer, `Invalid block type: ${blockType}.`)
     return false
   }
@@ -218,7 +219,12 @@ async function placeWithoutCheats(
 
   let block = mineflayer.bot.inventory.items().find(item => item.name === itemName)
   if (!block && mineflayer.isCreative) {
-    await mineflayer.bot.creative.setInventorySlot(36, makeItem(itemName, 1))
+    const mcData = McData.fromBot(mineflayer.bot)
+    const itemId = mcData.getItemId(itemName)
+    if (itemId) {
+      const Item = require('prismarine-item')(mineflayer.bot.version)
+      await mineflayer.bot.creative.setInventorySlot(36, new Item(itemId, 1))
+    }
     block = mineflayer.bot.inventory.items().find(item => item.name === itemName)
   }
 

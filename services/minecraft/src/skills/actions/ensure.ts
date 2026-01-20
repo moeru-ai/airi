@@ -2,7 +2,7 @@ import type { Mineflayer } from '../../libs/mineflayer'
 
 import { ActionError } from '../../utils/errors'
 import { useLogger } from '../../utils/logger'
-import { getItemId } from '../../utils/mcdata'
+import { McData } from '../../utils/mcdata'
 import { craftRecipe } from '../crafting'
 import { moveAway } from '../movement'
 import { collectBlock } from './collect-block'
@@ -158,7 +158,8 @@ export async function ensureSticks(mineflayer: Mineflayer, neededAmount: number)
 
     if (planksCount >= planksNeeded) {
       try {
-        const sticksId = getItemId('stick')
+        const mcData = McData.fromBot(mineflayer.bot)
+        const sticksId = mcData.getItemId('stick')
         const recipe = mineflayer.bot.recipesFor(sticksId, null, 1, null)[0]
         if (!recipe) {
           throw new ActionError('CRAFTING_FAILED', 'No recipe for sticks found')
