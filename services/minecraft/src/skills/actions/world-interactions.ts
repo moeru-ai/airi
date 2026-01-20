@@ -10,7 +10,7 @@ import { Vec3 } from 'vec3'
 
 import { ActionError } from '../../utils/errors'
 import { useLogger } from '../../utils/logger'
-import { getNearestBlock, makeItem } from '../../utils/mcdata'
+import { McData } from '../../utils/mcdata'
 import { goToPosition } from '../movement'
 
 const logger = useLogger()
@@ -44,8 +44,12 @@ export async function placeBlock(
     .items()
     .find(item => item.name.includes(blockType))
   if (!block && mineflayer.bot.game.gameMode === 'creative') {
-    // TODO: Rework
-    await mineflayer.bot.creative.setInventorySlot(36, makeItem(blockType, 1)) // 36 is first hotbar slot
+    const mcData = McData.fromBot(mineflayer.bot)
+    const itemId = mcData.getItemId(blockType)
+    if (itemId) {
+      const Item = require('prismarine-item')(mineflayer.bot.version)
+      await mineflayer.bot.creative.setInventorySlot(36, new Item(itemId, 1)) // 36 is first hotbar slot
+    }
     block = mineflayer.bot.inventory.items().find(item => item.name.includes(blockType))
   }
   if (!block) {
@@ -267,7 +271,10 @@ export async function breakBlockAt(
  * @throws {ActionError} When the block is not found or cannot be activated.
  */
 export async function activateNearestBlock(mineflayer: Mineflayer, type: string): Promise<void> {
-  const block = getNearestBlock(mineflayer.bot, type, 16)
+  const block = mineflayer.bot.findBlock({
+    matching: b => b.name === type,
+    maxDistance: 16,
+  })
   if (!block) {
     logger.log(`Could not find any ${type} to activate.`)
     throw new ActionError('TARGET_NOT_FOUND', `Could not find any ${type} to activate`, { blockType: type })

@@ -7,7 +7,7 @@ import type { Mineflayer } from '../libs/mineflayer'
 
 import pf from 'mineflayer-pathfinder'
 
-import * as mc from '../utils/mcdata'
+import { McData } from '../utils/mcdata'
 
 export function getNearestFreeSpace(
   mineflayer: Mineflayer,
@@ -58,15 +58,16 @@ export function getNearestFreeSpace(
 }
 
 export function getNearestBlocks(mineflayer: Mineflayer, blockTypes: string[] | string | null = null, distance: number = 16, count: number = 10000): Block[] {
+  const mcData = McData.fromBot(mineflayer.bot)
   const blockNames = blockTypes === null
-    ? mc.getAllBlocks(['air']).map(block => block.name)
+    ? mcData.getAllBlocks(['air']).map(block => block.name)
     : (Array.isArray(blockTypes) ? blockTypes : [blockTypes])
         .map((name) => {
-          const id = mc.getBlockId(name)
+          const id = mcData.getBlockId(name)
           if (id)
             return name
 
-          const closest = mc.getClosestBlockName(name)
+          const closest = mcData.getClosestBlockName(name)
           const suggestion = closest ? `; did you mean ${closest}?` : ''
           throw new Error(`Unknown block type: ${name}${suggestion}`)
         })
@@ -133,10 +134,13 @@ export function getInventoryCounts(mineflayer: Mineflayer): Record<string, numbe
 }
 
 export function getCraftableItems(mineflayer: Mineflayer): string[] {
+  // Only use a placed crafting table Block, not an Item from inventory
+  // recipesFor expects a Block instance or null (for 2x2 inventory crafting)
   const table = getNearestBlock(mineflayer, 'crafting_table')
-    || getInventoryStacks(mineflayer).find(item => item.name === 'crafting_table')
-  return mc.getAllItems()
-    .filter(item => mineflayer.bot.recipesFor(item.id, null, 1, table as Block | null).length > 0)
+  // Use bot's registry to get items - this ensures IDs match the server version
+  const registry = mineflayer.bot.registry
+  return Object.values(registry.items)
+    .filter(item => mineflayer.bot.recipesFor(item.id, null, 1, table).length > 0)
     .map(item => item.name)
 }
 
@@ -207,5 +211,5 @@ export function shouldPlaceTorch(mineflayer: Mineflayer): boolean {
 
 export function getBiomeName(mineflayer: Mineflayer): string {
   const biomeId = mineflayer.bot.world.getBiome(mineflayer.bot.entity.position)
-  return mc.getAllBiomes()[biomeId].name
+  return mineflayer.bot.registry.biomes[biomeId]?.name ?? 'unknown'
 }

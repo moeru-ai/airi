@@ -6,7 +6,7 @@ import type { Mineflayer } from '../libs/mineflayer'
 
 import { ActionError } from '../utils/errors'
 import { useLogger } from '../utils/logger'
-import { getItemId, getItemName } from '../utils/mcdata'
+import { McData } from '../utils/mcdata'
 import { ensureCraftingTable } from './actions/ensure'
 import { collectBlock, placeBlock } from './blocks'
 import { goToNearestBlock, goToPosition, moveAway } from './movement'
@@ -24,8 +24,9 @@ export async function craftRecipe(
   if (itemName.endsWith('plank'))
     itemName += 's' // Correct common mistakes
 
-  const itemId = getItemId(itemName)
-  if (itemId === null) {
+  const mcData = McData.fromBot(mineflayer.bot)
+  const itemId = mcData.getItemId(itemName)
+  if (!itemId) {
     throw new ActionError('UNKNOWN', `Invalid item name: ${itemName}`)
   }
 
@@ -205,14 +206,15 @@ export async function smeltItem(mineflayer: Mineflayer, itemName: string, num = 
   const furnace = await mineflayer.bot.openFurnace(furnaceBlock)
   // Check if the furnace is already smelting something
   const inputItem = furnace.inputItem()
+  const mcData = McData.fromBot(mineflayer.bot)
   if (
     inputItem
-    && inputItem.type !== getItemId(itemName)
+    && inputItem.type !== mcData.getItemId(itemName)
     && inputItem.count > 0
   ) {
     if (placedFurnace)
       await collectBlock(mineflayer, 'furnace', 1)
-    throw new ActionError('CRAFTING_FAILED', `The furnace is currently smelting ${getItemName(inputItem.type)}`)
+    throw new ActionError('CRAFTING_FAILED', `The furnace is currently smelting ${mcData.getItemName(inputItem.type)}`)
   }
 
   // Check if the bot has enough items to smelt
@@ -238,8 +240,8 @@ export async function smeltItem(mineflayer: Mineflayer, itemName: string, num = 
   }
 
   // Put the items in the furnace
-  const itemId = getItemId(itemName)
-  if (itemId === null) {
+  const itemId = mcData.getItemId(itemName)
+  if (!itemId) {
     if (placedFurnace)
       await collectBlock(mineflayer, 'furnace', 1)
     throw new ActionError('UNKNOWN', `Invalid item name: ${itemName}`)
@@ -293,7 +295,7 @@ export async function smeltItem(mineflayer: Mineflayer, itemName: string, num = 
   }
 
   logger.log(
-    `Successfully smelted ${itemName}, got ${total} ${getItemName(
+    `Successfully smelted ${itemName}, got ${total} ${mcData.getItemName(
       smeltedItem?.type || 0,
     )}.`,
   )
