@@ -26,8 +26,19 @@ function formatWearingItem(slot: string, item: string | undefined): string {
 }
 
 export const actionsList: Action[] = [
-  // {
-  //   name: 'setReflexMode',
+  {
+    name: 'chat',
+    description: 'Send a chat message to players in the game. Use this to communicate, respond to questions, or announce what you are doing.',
+    execution: 'parallel',
+    schema: z.object({
+      message: z.string().describe('The message to send in chat.'),
+    }),
+    perform: mineflayer => (message: string): string => {
+      mineflayer.bot.chat(message)
+      return `Sent message: "${message}"`
+    },
+  },
+  // {\n  //   name: 'setReflexMode',
   //   description: 'Set (or clear) your reflex mode override. Use work/wander to disable idle-only reflex behaviors. Set override to null to return to automatic mode selection.',
   //   execution: 'sequential',
   //   schema: z.object({
