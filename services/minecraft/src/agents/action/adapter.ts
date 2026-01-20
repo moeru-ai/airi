@@ -13,6 +13,25 @@ import { useLogger } from '../../utils/logger'
 import { generateActionSystemPrompt } from './system-prompt'
 import { actionsList } from './tools'
 
+/**
+ * Generate actionable suggestions for common error codes.
+ * These help the LLM understand what it can do to recover from failures.
+ */
+function getSuggestionForError(code: string): string {
+  switch (code) {
+    case 'RESOURCE_MISSING':
+      return 'Suggestion: Check your inventory first, then gather the missing resources or ask the player for help if you cannot find them.'
+    case 'TARGET_NOT_FOUND':
+      return 'Suggestion: The target could not be found. Ask the player for clarification or use exploration tools to locate it.'
+    case 'NO_PATH':
+      return 'Suggestion: Unable to reach the destination. Try finding an alternative route or ask the player for guidance.'
+    case 'TIMEOUT':
+      return 'Suggestion: The action timed out. Consider breaking it into smaller steps or trying again later.'
+    default:
+      return 'Suggestion: Review the error details and try a different approach, or ask the player for help.'
+  }
+}
+
 export async function createActionNeuriAgent(mineflayer: Mineflayer): Promise<Agent> {
   const logger = useLogger()
   logger.log('Initializing action agent')
@@ -34,7 +53,9 @@ export async function createActionNeuriAgent(mineflayer: Mineflayer): Promise<Ag
           // This allows the LLM to learn from tool failures during its reasoning phase
           if (error instanceof ActionError) {
             logger.withError(error).warn('Action failed during tool call')
-            return `[FAILED] ${error.code}: ${error.message}${error.context ? ` (${JSON.stringify(error.context)})` : ''}`
+            const contextStr = error.context ? `\nContext: ${JSON.stringify(error.context)}` : ''
+            const suggestion = getSuggestionForError(error.code)
+            return `[FAILED] ${error.code}: ${error.message}${contextStr}\n${suggestion}`
           }
           // Re-throw non-ActionError errors (unexpected failures)
           throw error
