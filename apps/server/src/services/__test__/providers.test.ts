@@ -39,8 +39,9 @@ describe('providerService', () => {
     expect(result.name).toBe('My OpenAI')
 
     const found = await service.findUserConfigById('prov-1')
-    expect(found?.definitionId).toBe('openai')
-    expect((found?.config as any).apiKey).toBe('sk-123')
+    expect(found).toBeDefined()
+    expect(found!.definitionId).toBe('openai')
+    expect((found!.config as Record<string, string>).apiKey).toBe('sk-123')
   })
 
   it('findUserConfigsByOwnerId should return providers for the user', async () => {
