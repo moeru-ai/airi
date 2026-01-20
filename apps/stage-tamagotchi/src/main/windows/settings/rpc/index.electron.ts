@@ -10,7 +10,7 @@ import { ipcMain } from 'electron'
 
 import { electronOpenDevtoolsWindow, electronOpenSettingsDevtools } from '../../../../shared/eventa'
 import { createWidgetsService } from '../../../services/airi/widgets'
-import { createAutoUpdaterService, createScreenService, createWindowService } from '../../../services/electron'
+import { createAutoUpdaterService, createMcpService, createScreenService, createWindowService } from '../../../services/electron'
 
 export async function setupSettingsWindowInvokes(params: {
   settingsWindow: BrowserWindow
@@ -29,6 +29,7 @@ export async function setupSettingsWindowInvokes(params: {
   createWindowService({ context, window: params.settingsWindow })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.settingsWindow })
   createAutoUpdaterService({ context, window: params.settingsWindow, service: params.autoUpdater })
+  createMcpService({ context })
 
   defineInvokeHandler(context, electronOpenSettingsDevtools, async () => params.settingsWindow.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenDevtoolsWindow, async (payload) => {

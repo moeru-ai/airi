@@ -1,4 +1,5 @@
 export * from './app'
 export * from './auto-updater'
+export * from './mcp'
 export * from './screen'
 export * from './window'
