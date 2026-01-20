@@ -55,19 +55,21 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
 
   const supportedTools = streamOptionsToolsCompatibilityOk(model, chatProvider, messages, options)
 
-  return streamText({
+  // TODO: we need Automatic tools discovery
+  const tools = supportedTools
+    ? [
+        ...await mcp(),
+        ...await debug(),
+        ...await resolveTools(),
+      ]
+    : undefined
+
+  streamText({
     ...chatProvider.chat(model),
     maxSteps: 10,
     messages: sanitized,
     headers,
-    // TODO: we need Automatic tools discovery
-    tools: supportedTools
-      ? [
-          ...await mcp(),
-          ...await debug(),
-          ...await resolveTools(),
-        ]
-      : undefined,
+    tools,
     onEvent: async (event) => {
       await options?.onStreamEvent?.(event as StreamEvent)
 
