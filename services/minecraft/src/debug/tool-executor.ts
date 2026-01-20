@@ -147,7 +147,8 @@ export class ToolExecutor {
         curr = curr._def.schema
       }
       else if (typeId === 'ZodDefault') {
-        defaultValue = curr._def.defaultValue()
+        // In Zod 4, defaultValue is the value itself, not a function
+        defaultValue = curr._def.defaultValue
         curr = curr._def.innerType
       }
       else {
