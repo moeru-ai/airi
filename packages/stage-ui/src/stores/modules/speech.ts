@@ -16,9 +16,28 @@ export const useSpeechStore = defineStore('speech', () => {
   const providersStore = useProvidersStore()
   const { allAudioSpeechProvidersMetadata } = storeToRefs(providersStore)
 
+  function getDefaultModelForProvider(providerId: string) {
+    // Keep defaults deterministic and provider-specific so switching providers
+    // doesn't keep an incompatible model from a previous provider.
+    //
+    // TODO: Refactor to provider-owned defaults (e.g. provider metadata/defaultOptions),
+    // so these hard-coded defaults don't drift from provider implementations.
+    switch (providerId) {
+      case 'openai-audio-speech':
+      case 'openai-compatible-audio-speech':
+        // TODO: Use provider-provided default model (likely from provider metadata / schema defaults).
+        return 'tts-1'
+      case 'elevenlabs':
+        // TODO: Use provider-provided default model (likely from provider metadata / schema defaults).
+        return 'eleven_multilingual_v2'
+      default:
+        return ''
+    }
+  }
+
   // State
   const activeSpeechProvider = useLocalStorageManualReset<string>('settings/speech/active-provider', '')
-  const activeSpeechModel = useLocalStorageManualReset<string>('settings/speech/active-model', 'eleven_multilingual_v2')
+  const activeSpeechModel = useLocalStorageManualReset<string>('settings/speech/active-model', '')
   const activeSpeechVoiceId = useLocalStorageManualReset<string>('settings/speech/voice', '')
   const activeSpeechVoice = refManualReset<VoiceInfo | undefined>(undefined)
 
@@ -108,6 +127,22 @@ export const useSpeechStore = defineStore('speech', () => {
   // Watch for provider changes and load voices
   watch(activeSpeechProvider, async (newProvider) => {
     if (newProvider) {
+      // If the currently selected model doesn't belong to this provider, reset it.
+      // This avoids showing e.g. ElevenLabs models when switching to OpenAI.
+      const models = providersStore.getModelsForProvider(newProvider)
+      const providerConfig = providersStore.getProviderConfig(newProvider)
+
+      const desiredDefault = (newProvider === 'openai-compatible-audio-speech' && providerConfig?.model)
+        ? String(providerConfig.model)
+        : getDefaultModelForProvider(newProvider)
+
+      const isModelValidForProvider = !!activeSpeechModel.value
+        && (models.length === 0 || models.some(m => m.id === activeSpeechModel.value))
+
+      if (!isModelValidForProvider) {
+        activeSpeechModel.value = desiredDefault || models[0]?.id || ''
+      }
+
       await loadVoicesForProvider(newProvider)
       // Don't reset voice settings when changing providers to allow for persistence
     }
