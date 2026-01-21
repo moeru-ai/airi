@@ -18,6 +18,14 @@ export interface UseOptimisticMutationOptions<T, R, E = unknown> {
    * Optional callback on error. Rollback is handled automatically.
    */
   onError?: (error?: E | null) => void | Promise<void>
+  /**
+   * Skip the action when this returns true.
+   */
+  skipActionIf?: () => boolean | Promise<boolean>
+  /**
+   * Decide whether to rollback after an error.
+   */
+  shouldRollback?: (error: E) => boolean | Promise<boolean>
 
   /**
    * Whether to execute the action lazily.
@@ -31,10 +39,21 @@ export interface UseOptimisticMutationOptions<T, R, E = unknown> {
  * TODO: use https://pinia-colada.esm.dev/guide/mutations.html instead.
  */
 export function useOptimisticMutation<T, R = T, E = unknown>(options: UseOptimisticMutationOptions<T, R, E>) {
-  const { apply, action, onSuccess, onError, lazy = false } = options
+  const {
+    apply,
+    action,
+    onSuccess,
+    onError,
+    skipActionIf,
+    shouldRollback,
+    lazy = false,
+  } = options
 
   return useAsyncState(async () => {
     const rollback = await apply()
+    if (skipActionIf && await skipActionIf()) {
+      return undefined as R
+    }
 
     try {
       const result = await action()
@@ -44,7 +63,8 @@ export function useOptimisticMutation<T, R = T, E = unknown>(options: UseOptimis
       return result as unknown as R
     }
     catch (err) {
-      if (typeof rollback === 'function') {
+      const allowRollback = shouldRollback ? await shouldRollback(err as E) : true
+      if (allowRollback && typeof rollback === 'function') {
         await rollback()
       }
       if (onError) {
