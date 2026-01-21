@@ -1,10 +1,14 @@
+import { config as loadEnv } from 'dotenv'
 import type { BotOptions } from 'mineflayer'
-
 import { env } from 'node:process'
 
 import { useLogger } from '../utils/logger'
 
 const logger = useLogger()
+
+// Load env files; .env.local overrides host and .env values (e.g., OPENAI_API_KEY)
+loadEnv({ path: '.env' })
+loadEnv({ path: '.env.local', override: true })
 
 // Configuration interfaces
 interface OpenAIConfig {
