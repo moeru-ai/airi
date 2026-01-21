@@ -39,7 +39,8 @@
     "name": "win32_window_bindings"
   },
   "dependencies": {
-    "@node-rs/helper": "^1.6.0"
+    "@node-rs/helper": "^1.6.0",
+    "std-env": "catalog:"
   },
   "devDependencies": {
     "@napi-rs/cli": "^2.18.0"

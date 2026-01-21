@@ -2,14 +2,14 @@ import process from 'node:process'
 
 import { spawnSync } from 'node:child_process'
 
-const isWindows = process.platform === 'win32'
+import { isWindows } from 'std-env'
 
 if (!isWindows) {
   console.info('[win32-window-bindings] Skipping native build (platform is not win32)')
   process.exit(0)
 }
 
-const pnpmArgs = ['dlx', '@napi-rs/cli@2.18.0', 'build', '--platform', '--release']
+const pnpmArgs = ['exec', 'napi', 'build', '--platform', '--release']
 
 // Prefer the pnpm instance that invoked this script (npm_execpath points to pnpm.cjs)
 const pnpmExecPath = process.env.npm_execpath

@@ -2957,6 +2957,9 @@ importers:
       '@node-rs/helper':
         specifier: ^1.6.0
         version: 1.6.0
+      std-env:
+        specifier: 'catalog:'
+        version: 3.10.0
     devDependencies:
       '@napi-rs/cli':
         specifier: ^2.18.0
