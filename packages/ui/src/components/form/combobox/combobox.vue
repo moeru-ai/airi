@@ -28,9 +28,6 @@ function toDisplayValue(value: T): string {
   const option = props.options.flatMap(group => group.children).find(option => option?.value === value)
   return option ? option.label : props.placeholder || ''
 }
-
-// Keep popover above modal overlays (dialogs use z-9999)
-const COMBOBOX_PORTAL_Z = 'z-[12000]'
 </script>
 
 <template>
