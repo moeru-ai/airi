@@ -54,6 +54,11 @@ const isEdited = computed(() => {
   const savedConfig = providerConfig.value?.config || {}
   return JSON.stringify(currentConfig) !== JSON.stringify(savedConfig)
 })
+
+const canSkipValidation = computed(() => {
+  return !isEdited.value && (providerConfig.value?.validated || providerConfig.value?.validationBypassed)
+})
+
 const isValidating = ref(false)
 const showValidationDetails = ref(false)
 const activeValidationStepId = ref<string | undefined>(undefined)
@@ -183,8 +188,10 @@ async function runValidation() {
   const validationPlan = getValidationPlan()
   if (!validationPlan)
     return
-  if (providerConfig.value?.validated || providerConfig.value?.validationBypassed)
+
+  if (canSkipValidation.value)
     return
+
   if (!validationPlan.shouldValidate)
     return
 
@@ -220,7 +227,7 @@ watch([providerConfigEdit, providerDefinition], () => {
 
   getValidationPlan()
 
-  if (providerConfig.value?.validated || providerConfig.value?.validationBypassed)
+  if (canSkipValidation.value)
     return
 
   if (!didInitValidation) {
