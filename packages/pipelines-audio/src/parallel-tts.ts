@@ -17,24 +17,32 @@ export function createParallelTts<T>(options: {
   onComplete: (index: number, audio: T, request: TtsRequest) => void
 }) {
   const semaphore = new Semaphore(options.concurrency)
-  const queue: QueuedItem<T>[] = []
+  const buffer = new Map<number, QueuedItem<T>>()
   let nextIndex = 0
+
+  async function tryFlush() {
+    while (buffer.has(nextIndex)) {
+      const item = buffer.get(nextIndex)!
+      buffer.delete(nextIndex)
+      options.onComplete(item.index, item.audio, item.request)
+      nextIndex++
+    }
+  }
 
   return {
     async submit(index: number, request: TtsRequest, ttsFn: () => Promise<T | null>) {
-      await semaphore.runExclusive(async () => {
+      const [, release] = await semaphore.acquire()
+      try {
         const audio = await ttsFn()
         if (!audio)
           return
 
-        queue.push({ index, audio, request })
-
-        while (queue.length > 0 && queue[0]!.index === nextIndex) {
-          const item = queue.shift()!
-          options.onComplete(item.index, item.audio, item.request)
-          nextIndex++
-        }
-      })
+        buffer.set(index, { index, audio, request })
+        await tryFlush()
+      }
+      finally {
+        release()
+      }
     },
   }
 }
