@@ -136,12 +136,13 @@ export const useCharacterStore = defineStore('characters', () => {
   }
 
   async function create(payload: CreateCharacterPayload) {
+    let localCharacter: Character
     return useLocalFirstRequest({
       local: async () => {
-        const character = buildLocalCharacter(auth.userId, payload)
-        characters.value.set(character.id, character)
-        await charactersRepo.upsert(character)
-        return character
+        localCharacter = buildLocalCharacter(auth.userId, payload)
+        characters.value.set(localCharacter.id, localCharacter)
+        await charactersRepo.upsert(localCharacter)
+        return localCharacter
       },
       remote: async () => {
         const res = await client.api.characters.$post({
@@ -153,7 +154,10 @@ export const useCharacterStore = defineStore('characters', () => {
         const data = await res.json()
         const character = parse(CharacterWithRelationsSchema, data)
 
+        // Replace local temp character with remote data
+        characters.value.delete(localCharacter.id)
         characters.value.set(character.id, character)
+        await charactersRepo.remove(localCharacter.id)
         await charactersRepo.upsert(character)
         return character
       },
@@ -210,9 +214,6 @@ export const useCharacterStore = defineStore('characters', () => {
         if (!res.ok) {
           throw new Error('Failed to remove character')
         }
-
-        characters.value.delete(id)
-        await charactersRepo.remove(id)
       },
     })
   }
@@ -242,7 +243,11 @@ export const useCharacterStore = defineStore('characters', () => {
           throw new Error('Failed to like character')
         }
 
-        await fetchById(id)
+        const data = await res.json()
+        const character = parse(CharacterWithRelationsSchema, data)
+        characters.value.set(character.id, character)
+        await charactersRepo.upsert(character)
+        return character
       },
     })
   }
@@ -272,7 +277,11 @@ export const useCharacterStore = defineStore('characters', () => {
           throw new Error('Failed to bookmark character')
         }
 
-        await fetchById(id)
+        const data = await res.json()
+        const character = parse(CharacterWithRelationsSchema, data)
+        characters.value.set(character.id, character)
+        await charactersRepo.upsert(character)
+        return character
       },
     })
   }

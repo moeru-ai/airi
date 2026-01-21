@@ -1,10 +1,7 @@
-import type { UseOptimisticMutationOptions } from './use-optimistic'
-
 import { getActivePinia } from 'pinia'
+import { ref } from 'vue'
 
 import { useAuthStore } from '../stores/auth'
-import { useAsyncState } from './use-async-state'
-import { useOptimisticMutation } from './use-optimistic'
 
 async function canUseRemote(allowRemote?: () => boolean | Promise<boolean>) {
   if (allowRemote)
@@ -24,31 +21,39 @@ export interface UseLocalFirstRequestOptions<T> {
 export function useLocalFirstRequest<T>(options: UseLocalFirstRequestOptions<T>) {
   const { local, remote, allowRemote, lazy = false } = options
 
-  return useAsyncState(async () => {
-    if (!await canUseRemote(allowRemote))
-      return await local()
-    return await remote()
-  }, { immediate: !lazy })
-}
+  const state = ref<T>()
+  const isLoading = ref(false)
+  const error = ref<unknown>(null)
 
-export interface UseLocalFirstMutationOptions<T, R, E = unknown> extends UseOptimisticMutationOptions<T, R, E> {
-  allowRemote?: () => boolean | Promise<boolean>
-}
+  const execute = async () => {
+    isLoading.value = true
+    error.value = null
+    try {
+      state.value = await local()
+      if (await canUseRemote(allowRemote)) {
+        try {
+          state.value = await remote()
+        }
+        catch (err) {
+          error.value = err
+        }
+      }
+    }
+    catch (err) {
+      error.value = err
+    }
+    finally {
+      isLoading.value = false
+    }
+  }
 
-export function useLocalFirstMutation<T, R = T, E = unknown>(options: UseLocalFirstMutationOptions<T, R, E>) {
-  const { allowRemote, skipActionIf, shouldRollback, ...rest } = options
+  if (!lazy)
+    execute()
 
-  return useOptimisticMutation<T, R, E>({
-    ...rest,
-    skipActionIf: async () => {
-      const localOnly = !await canUseRemote(allowRemote)
-      const userSkip = skipActionIf ? await skipActionIf() : false
-      return localOnly || userSkip
-    },
-    shouldRollback: async (error) => {
-      if (!await canUseRemote(allowRemote))
-        return false
-      return shouldRollback ? await shouldRollback(error) : true
-    },
-  })
+  return {
+    state,
+    isLoading,
+    error,
+    execute,
+  }
 }
