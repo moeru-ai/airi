@@ -99,6 +99,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
 
     const parallel = createParallelTts<TAudio>({
       concurrency: ttsConcurrency,
+      logger,
       onComplete: (_index, audio, request) => {
         const ttsResult: TtsResult<TAudio> = {
           streamId: request.streamId,

@@ -35,7 +35,7 @@
   "dependencies": {
     "@moeru/eventa": "^1.0.0-alpha.11",
     "@moeru/std": "catalog:",
+    "async-mutex": "catalog:",
     "clustr": "^1.0.2"
-  },
-  "devDependencies": {}
+  }
 }

@@ -234,7 +234,16 @@ const playbackManager = createPlaybackManager<AudioBuffer>({
   ownerOverflowPolicy: 'steal-oldest',
 })
 
+// 创建调试日志工具
+const speechPipelineLogger = {
+  debug: (...args: unknown[]) => console.info('[SpeechPipeline]', ...args),
+  info: (...args: unknown[]) => console.info('[SpeechPipeline]', ...args),
+  warn: (...args: unknown[]) => console.warn('[SpeechPipeline]', ...args),
+  error: (...args: unknown[]) => console.error('[SpeechPipeline]', ...args),
+}
+
 const speechPipeline = createSpeechPipeline<AudioBuffer>({
+  logger: speechPipelineLogger,
   tts: async (request, signal) => {
     if (signal.aborted)
       return null
