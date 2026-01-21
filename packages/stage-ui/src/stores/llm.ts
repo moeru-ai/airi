@@ -54,8 +54,6 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
   }
 
   const supportedTools = streamOptionsToolsCompatibilityOk(model, chatProvider, messages, options)
-
-  // TODO: we need Automatic tools discovery
   const tools = supportedTools
     ? [
         ...await mcp(),
@@ -64,18 +62,53 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
       ]
     : undefined
 
-  streamText({
-    ...chatProvider.chat(model),
-    maxSteps: 10,
-    messages: sanitized,
-    headers,
-    tools,
-    onEvent: async (event) => {
-      await options?.onStreamEvent?.(event as StreamEvent)
+  return new Promise<void>((resolve, reject) => {
+    let settled = false
+    const resolveOnce = () => {
+      if (settled)
+        return
+      settled = true
+      resolve()
+    }
+    const rejectOnce = (err: unknown) => {
+      if (settled)
+        return
+      settled = true
+      reject(err)
+    }
 
-      if (event.type === 'error')
-        throw event.error ?? new Error('Stream error')
-    },
+    const onEvent = async (event: unknown) => {
+      try {
+        await options?.onStreamEvent?.(event as StreamEvent)
+        if (event && (event as StreamEvent).type === 'finish') {
+          const finishReason = (event as any).finishReason
+          if (finishReason !== 'tool_calls' || !options?.waitForTools)
+            resolveOnce()
+        }
+        else if (event && (event as StreamEvent).type === 'error') {
+          const error = (event as any).error ?? new Error('Stream error')
+          rejectOnce(error)
+        }
+      }
+      catch (err) {
+        rejectOnce(err)
+      }
+    }
+
+    try {
+      streamText({
+        ...chatProvider.chat(model),
+        maxSteps: 10,
+        messages: sanitized,
+        headers,
+        // TODO: we need Automatic tools discovery
+        tools,
+        onEvent,
+      })
+    }
+    catch (err) {
+      rejectOnce(err)
+    }
   })
 }
 

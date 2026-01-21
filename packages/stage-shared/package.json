@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.2",
-    "@moeru/eventa": "^1.0.0-alpha.10",
+    "@moeru/eventa": "^1.0.0-alpha.11",
     "@nekopaw/tempora": "catalog:",
     "@proj-airi/electron-screen-capture": "workspace:^",
     "@types/audioworklet": "catalog:"

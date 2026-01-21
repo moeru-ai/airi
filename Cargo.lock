@@ -4641,7 +4641,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-ipc-audio-transcription-ort"
-version = "0.8.1-beta.13"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -4663,7 +4663,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-ipc-audio-vad-ort"
-version = "0.8.1-beta.13"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -4687,7 +4687,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-mcp"
-version = "0.8.1-beta.13"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "log",
@@ -4701,7 +4701,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-rdev"
-version = "0.8.1-beta.13"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "log",
@@ -4715,7 +4715,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-window-pass-through-on-hover"
-version = "0.8.1-beta.13"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "log",
@@ -4734,7 +4734,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-window-router-link"
-version = "0.8.1-beta.13"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "log",
@@ -6512,6 +6512,6 @@ dependencies = [
 
 [[package]]
 name = "zmij"
-version = "1.0.15"
+version = "1.0.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94f63c051f4fe3c1509da62131a678643c5b6fbdc9273b2b79d4378ebda003d2"
+checksum = "dfcd145825aace48cff44a8844de64bf75feec3080e0aa5cdbde72961ae51a65"

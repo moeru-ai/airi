@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/airi-plugin-web-extension",
   "type": "module",
-  "version": "0.8.1-beta.13",
+  "version": "0.8.1",
   "private": true,
   "description": "manifest.json description",
   "scripts": {
@@ -17,10 +17,10 @@
   "devDependencies": {
     "@iconify-json/solar": "^1.2.5",
     "@iconify-json/svg-spinners": "^1.2.4",
-    "@moeru/eventa": "^1.0.0-alpha.10",
+    "@moeru/eventa": "^1.0.0-alpha.11",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/ui": "workspace:^",
-    "@unocss/reset": "^66.5.11",
+    "@unocss/reset": "^66.6.0",
     "@vueuse/core": "catalog:",
     "@wxt-dev/module-vue": "^1.0.3",
     "nanoid": "^5.1.6",

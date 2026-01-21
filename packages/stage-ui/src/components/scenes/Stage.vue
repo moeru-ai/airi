@@ -186,33 +186,44 @@ async function playFunction(item: Parameters<Parameters<typeof createPlaybackMan
   if (lipSyncNode.value)
     source.connect(lipSyncNode.value)
 
-  const stopPlayback = () => {
-    try {
-      source.stop()
-      source.disconnect()
+  return new Promise<void>((resolve) => {
+    let settled = false
+    const resolveOnce = () => {
+      if (settled)
+        return
+      settled = true
+      resolve()
     }
-    catch {}
-    if (currentAudioSource.value === source)
-      currentAudioSource.value = undefined
-  }
 
-  if (signal.aborted) {
-    stopPlayback()
-    return
-  }
+    const stopPlayback = () => {
+      try {
+        source.stop()
+        source.disconnect()
+      }
+      catch {}
+      if (currentAudioSource.value === source)
+        currentAudioSource.value = undefined
+      resolveOnce()
+    }
 
-  signal.addEventListener('abort', stopPlayback, { once: true })
-  source.onended = () => {
-    signal.removeEventListener('abort', stopPlayback)
-    stopPlayback()
-  }
+    if (signal.aborted) {
+      stopPlayback()
+      return
+    }
 
-  try {
-    source.start(0)
-  }
-  catch {
-    stopPlayback()
-  }
+    signal.addEventListener('abort', stopPlayback, { once: true })
+    source.onended = () => {
+      signal.removeEventListener('abort', stopPlayback)
+      stopPlayback()
+    }
+
+    try {
+      source.start(0)
+    }
+    catch {
+      stopPlayback()
+    }
+  })
 }
 
 const playbackManager = createPlaybackManager<AudioBuffer>({
