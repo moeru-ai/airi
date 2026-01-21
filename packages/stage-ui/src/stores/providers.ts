@@ -9,16 +9,6 @@ import type {
   TranscriptionProviderWithExtraOptions,
 } from '@xsai-ext/providers/utils'
 import type { ProgressInfo } from '@xsai-transformers/shared/types'
-import type {
-  UnAlibabaCloudOptions,
-  UnDeepgramOptions,
-  UnElevenLabsOptions,
-  UnMicrosoftOptions,
-  UnVolcengineOptions,
-  VoiceProviderWithExtraOptions,
-} from 'unspeech'
-
-import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
 import { computedAsync, useLocalStorage } from '@vueuse/core'
@@ -49,14 +39,6 @@ import {
 import { listModels } from '@xsai/model'
 import { isWebGPUSupported } from 'gpuu/webgpu'
 import { defineStore } from 'pinia'
-import {
-  createUnAlibabaCloud,
-  createUnDeepgram,
-  createUnElevenLabs,
-  createUnMicrosoft,
-  createUnVolcengine,
-  listVoices,
-} from 'unspeech'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -75,7 +57,6 @@ import { providerPlayer2Speech } from '../libs/providers/providers/player2-speec
 import { providerVolcengineSpeech } from '../libs/providers/providers/volcengine/speech'
 import { convertProviderDefinitionToMetadata } from './providers/converters'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
-import { createWebSpeechAPIProvider } from './providers/web-speech-api'
 
 export interface ProviderMetadata {
   id: string

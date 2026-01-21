@@ -10,7 +10,6 @@ import { isUrl } from '@proj-airi/stage-shared'
 import { createPlayer2 } from '@xsai-ext/providers/special/create'
 import { z } from 'zod'
 
-import { normalizeBaseUrl } from '../../utils'
 import { defineProvider } from '../registry'
 
 const player2ConfigSchema = z.object({
