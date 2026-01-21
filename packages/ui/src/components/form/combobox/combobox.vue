@@ -74,7 +74,9 @@ const COMBOBOX_PORTAL_Z = 'z-[12000]'
         :side-offset="4"
         :avoid-collisions="true"
         :class="[
-          COMBOBOX_PORTAL_Z,
+          // NOTICE: DrawerContent is z-[1000], here we choose `1010`
+          // Read more at: https://github.com/moeru-ai/airi/blob/0fddd043f2b213f441f3998c52dca1d24acb8405/packages/stage-ui/src/components/scenarios/dialogs/audio-input/hearing-config-dialog.vue#L62C8-L62C21
+          'z-[1010]',
           'w-full min-w-[160px] overflow-hidden rounded-xl shadow-sm border will-change-[opacity,transform]',
           'data-[side=top]:animate-slideDownAndFade data-[side=right]:animate-slideLeftAndFade data-[side=bottom]:animate-slideUpAndFade data-[side=left]:animate-slideRightAndFade',
           'bg-white dark:bg-neutral-900',
