@@ -6,7 +6,7 @@ import type { UnMicrosoftOptions, VoiceProviderWithExtraOptions } from 'unspeech
 import type { ComposerTranslation } from 'vue-i18n'
 
 import type { ModelInfo, VoiceInfo } from '../../../../stores/providers'
-import type { ProviderValidationResult } from '../../../base-types'
+import type { ProviderValidationResult } from '../../types'
 
 import { isUrl } from '@proj-airi/stage-shared'
 import { createUnMicrosoft, listVoices } from 'unspeech'
@@ -74,28 +74,31 @@ export const providerMicrosoftSpeech = defineProvider<MicrosoftSpeechConfig>({
       ({ t }: { t: ComposerTranslation }) => ({
         id: 'microsoft-speech:check-config',
         name: t('settings.pages.providers.catalog.edit.validators.microsoft-speech.check-config.title'),
-        validator: async (config: MicrosoftSpeechConfig): Promise<ProviderValidationResult> => {
-          const errors: Error[] = []
+        validator: async (config: MicrosoftSpeechConfig, _contextOptions: { t: ComposerTranslation }): Promise<ProviderValidationResult> => {
+          const errors: Array<{ error: unknown, errorKey?: string }> = []
           const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
           const baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
 
           if (!apiKey)
-            errors.push(new Error('API key is required.'))
+            errors.push({ error: new Error('API key is required.') })
           if (!baseUrl)
-            errors.push(new Error('Base URL is required.'))
+            errors.push({ error: new Error('Base URL is required.') })
 
           if (baseUrl) {
             if (!isUrl(baseUrl) || new URL(baseUrl).host.length === 0) {
-              errors.push(new Error('Base URL is not absolute. Try to include a scheme (http:// or https://).'))
+              errors.push({ error: new Error('Base URL is not absolute. Try to include a scheme (http:// or https://).') })
             }
             else if (!baseUrl.endsWith('/')) {
-              errors.push(new Error('Base URL must end with a trailing slash (/).'))
+              errors.push({ error: new Error('Base URL must end with a trailing slash (/).') })
             }
           }
 
+          const reason = errors.length > 0 ? errors.map(e => e.error instanceof Error ? e.error.message : String(e.error)).join(', ') : ''
+
           return {
             errors,
-            reason: errors.length > 0 ? errors.map(e => e.message).join(', ') : '',
+            reason,
+            reasonKey: errors.length > 0 ? 'microsoft-speech:check-config:invalid' : '',
             valid: errors.length === 0,
           }
         },
@@ -118,11 +121,11 @@ export const providerMicrosoftSpeech = defineProvider<MicrosoftSpeechConfig>({
     },
 
     async listVoices(config, provider): Promise<VoiceInfo[]> {
-      const voiceProvider = provider as VoiceProviderWithExtraOptions<UnMicrosoftOptions>
+      const voiceProvider = provider as unknown as VoiceProviderWithExtraOptions<UnMicrosoftOptions>
       const region = typeof config.region === 'string' ? config.region : undefined
 
       const voices = await listVoices({
-        ...voiceProvider.voice({ region }),
+        ...voiceProvider.voice({ region: region || 'eastus' }),
       })
 
       return voices.map((voice) => {

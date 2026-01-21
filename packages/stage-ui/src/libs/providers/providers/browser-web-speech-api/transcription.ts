@@ -5,7 +5,7 @@ import type {
 import type { ComposerTranslation } from 'vue-i18n'
 
 import type { ModelInfo } from '../../../../stores/providers'
-import type { ProviderValidationResult } from '../../../base-types'
+import type { ProviderValidationResult } from '../../types'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { z } from 'zod'
@@ -89,7 +89,7 @@ export const providerBrowserWebSpeechAPITranscription = defineProvider<BrowserWe
       ({ t }: { t: ComposerTranslation }) => ({
         id: 'browser-web-speech-api:check-availability',
         name: t('settings.pages.providers.provider.browser-web-speech-api.validators.check-availability.title'),
-        validator: async (): Promise<ProviderValidationResult> => {
+        validator: async (_config: BrowserWebSpeechAPITranscriptionConfig, _contextOptions: { t: ComposerTranslation }): Promise<ProviderValidationResult> => {
           // Web Speech API requires no configuration, just browser support
           // Always return valid if browser supports it, so it auto-configures
           const isAvailable = typeof window !== 'undefined'
@@ -97,8 +97,9 @@ export const providerBrowserWebSpeechAPITranscription = defineProvider<BrowserWe
 
           if (!isAvailable) {
             return {
-              errors: [new Error('Web Speech API is not available. It requires a browser context with SpeechRecognition support (Chrome, Edge, Safari).')],
+              errors: [{ error: new Error('Web Speech API is not available. It requires a browser context with SpeechRecognition support (Chrome, Edge, Safari).') }],
               reason: 'Web Speech API is not available in this environment.',
+              reasonKey: 'browser-web-speech-api:check-availability:unavailable',
               valid: false,
             }
           }
@@ -107,6 +108,7 @@ export const providerBrowserWebSpeechAPITranscription = defineProvider<BrowserWe
           return {
             errors: [],
             reason: '',
+            reasonKey: '',
             valid: true,
           }
         },

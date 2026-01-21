@@ -6,7 +6,7 @@ import type { ComposerTranslation } from 'vue-i18n'
 
 import type { ModelInfo } from '../../../../stores/providers'
 import type { AliyunRealtimeSpeechExtraOptions } from '../../../../stores/providers/aliyun/stream-transcription'
-import type { ProviderValidationResult } from '../../../base-types'
+import type { ProviderValidationResult } from '../../types'
 
 import { z } from 'zod'
 
@@ -28,9 +28,7 @@ const aliyunNlsConfigSchema = z.object({
   accessKeyId: z.string('Access Key ID'),
   accessKeySecret: z.string('Access Key Secret'),
   appKey: z.string('App Key'),
-  region: z.enum(ALIYUN_NLS_REGIONS as [string, ...string[]], {
-    errorMap: () => ({ message: 'Region is invalid.' }),
-  }).optional().default('cn-shanghai'),
+  region: z.enum(['cn-shanghai', 'cn-shanghai-internal', 'cn-beijing', 'cn-beijing-internal', 'cn-shenzhen', 'cn-shenzhen-internal']).optional().default('cn-shanghai'),
 })
 
 type AliyunNlsConfig = z.input<typeof aliyunNlsConfigSchema>
@@ -117,8 +115,8 @@ export const providerAliyunNlsTranscription = defineProvider<AliyunNlsConfig>({
       ({ t }: { t: ComposerTranslation }) => ({
         id: 'aliyun-nls-transcription:check-config',
         name: t('settings.pages.providers.catalog.edit.validators.aliyun-nls-transcription.check-config.title'),
-        validator: async (config: AliyunNlsConfig): Promise<ProviderValidationResult> => {
-          const errors: Error[] = []
+        validator: async (config: AliyunNlsConfig, _contextOptions: { t: ComposerTranslation }): Promise<ProviderValidationResult> => {
+          const errors: Array<{ error: unknown, errorKey?: string }> = []
           const toString = (value: unknown) => typeof value === 'string' ? value.trim() : ''
 
           const accessKeyId = toString(config.accessKeyId)
@@ -127,17 +125,20 @@ export const providerAliyunNlsTranscription = defineProvider<AliyunNlsConfig>({
           const region = toString(config.region)
 
           if (!accessKeyId)
-            errors.push(new Error('Access Key ID is required.'))
+            errors.push({ error: new Error('Access Key ID is required.') })
           if (!accessKeySecret)
-            errors.push(new Error('Access Key Secret is required.'))
+            errors.push({ error: new Error('Access Key Secret is required.') })
           if (!appKey)
-            errors.push(new Error('App Key is required.'))
+            errors.push({ error: new Error('App Key is required.') })
           if (region && !ALIYUN_NLS_REGIONS.includes(region as AliyunNlsRegion))
-            errors.push(new Error('Region is invalid.'))
+            errors.push({ error: new Error('Region is invalid.') })
+
+          const reason = errors.length > 0 ? errors.map(e => e.error instanceof Error ? e.error.message : String(e.error)).join(', ') : ''
 
           return {
             errors,
-            reason: errors.length > 0 ? errors.map(error => error.message).join(', ') : '',
+            reason,
+            reasonKey: errors.length > 0 ? 'aliyun-nls-transcription:check-config:invalid' : '',
             valid: errors.length === 0,
           }
         },

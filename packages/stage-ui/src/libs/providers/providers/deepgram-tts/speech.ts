@@ -6,7 +6,7 @@ import type { UnDeepgramOptions, VoiceProviderWithExtraOptions } from 'unspeech'
 import type { ComposerTranslation } from 'vue-i18n'
 
 import type { VoiceInfo } from '../../../../stores/providers'
-import type { ProviderValidationResult } from '../../../base-types'
+import type { ProviderValidationResult } from '../../types'
 
 import { isUrl } from '@proj-airi/stage-shared'
 import { createUnDeepgram, listVoices } from 'unspeech'
@@ -67,26 +67,29 @@ export const providerDeepgramTTSSpeech = defineProvider<DeepgramConfig>({
       ({ t }: { t: ComposerTranslation }) => ({
         id: 'deepgram-tts:check-config',
         name: t('settings.pages.providers.catalog.edit.validators.deepgram-tts.check-config.title'),
-        validator: async (config: DeepgramConfig): Promise<ProviderValidationResult> => {
-          const errors: Error[] = []
+        validator: async (config: DeepgramConfig, _contextOptions: { t: ComposerTranslation }): Promise<ProviderValidationResult> => {
+          const errors: Array<{ error: unknown, errorKey?: string }> = []
           const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
           const baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
 
           if (!apiKey)
-            errors.push(new Error('API key is required.'))
+            errors.push({ error: new Error('API key is required.') })
 
           if (baseUrl) {
             if (!isUrl(baseUrl) || new URL(baseUrl).host.length === 0) {
-              errors.push(new Error('Base URL is not absolute. Try to include a scheme (http:// or https://).'))
+              errors.push({ error: new Error('Base URL is not absolute. Try to include a scheme (http:// or https://).') })
             }
             else if (!baseUrl.endsWith('/')) {
-              errors.push(new Error('Base URL must end with a trailing slash (/).'))
+              errors.push({ error: new Error('Base URL must end with a trailing slash (/).') })
             }
           }
 
+          const reason = errors.length > 0 ? errors.map(e => e.error instanceof Error ? e.error.message : String(e.error)).join(', ') : ''
+
           return {
             errors,
-            reason: errors.length > 0 ? errors.map(e => e.message).join(', ') : '',
+            reason,
+            reasonKey: errors.length > 0 ? 'deepgram-tts:check-config:invalid' : '',
             valid: errors.length === 0,
           }
         },
@@ -95,8 +98,8 @@ export const providerDeepgramTTSSpeech = defineProvider<DeepgramConfig>({
   },
 
   extraMethods: {
-    async listVoices(config, provider): Promise<VoiceInfo[]> {
-      const voiceProvider = provider as VoiceProviderWithExtraOptions<UnDeepgramOptions>
+    async listVoices(_config, provider): Promise<VoiceInfo[]> {
+      const voiceProvider = provider as unknown as VoiceProviderWithExtraOptions<UnDeepgramOptions>
 
       const voices = await listVoices({
         ...voiceProvider.voice(),

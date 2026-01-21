@@ -6,7 +6,7 @@ import type { UnAlibabaCloudOptions, VoiceProviderWithExtraOptions } from 'unspe
 import type { ComposerTranslation } from 'vue-i18n'
 
 import type { ModelInfo, VoiceInfo } from '../../../../stores/providers'
-import type { ProviderValidationResult } from '../../../base-types'
+import type { ProviderValidationResult } from '../../types'
 
 import { isUrl } from '@proj-airi/stage-shared'
 import { createUnAlibabaCloud, listVoices } from 'unspeech'
@@ -67,28 +67,31 @@ export const providerAlibabaCloudModelStudioSpeech = defineProvider<AlibabaCloud
       ({ t }: { t: ComposerTranslation }) => ({
         id: 'alibaba-cloud-model-studio:check-config',
         name: t('settings.pages.providers.catalog.edit.validators.alibaba-cloud-model-studio.check-config.title'),
-        validator: async (config: AlibabaCloudModelStudioConfig): Promise<ProviderValidationResult> => {
-          const errors: Error[] = []
+        validator: async (config: AlibabaCloudModelStudioConfig, _contextOptions: { t: ComposerTranslation }): Promise<ProviderValidationResult> => {
+          const errors: Array<{ error: unknown, errorKey?: string }> = []
           const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
           const baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
 
           if (!apiKey)
-            errors.push(new Error('API key is required.'))
+            errors.push({ error: new Error('API key is required.') })
           if (!baseUrl)
-            errors.push(new Error('Base URL is required.'))
+            errors.push({ error: new Error('Base URL is required.') })
 
           if (baseUrl) {
             if (!isUrl(baseUrl) || new URL(baseUrl).host.length === 0) {
-              errors.push(new Error('Base URL is not absolute. Try to include a scheme (http:// or https://).'))
+              errors.push({ error: new Error('Base URL is not absolute. Try to include a scheme (http:// or https://).') })
             }
             else if (!baseUrl.endsWith('/')) {
-              errors.push(new Error('Base URL must end with a trailing slash (/).'))
+              errors.push({ error: new Error('Base URL must end with a trailing slash (/).') })
             }
           }
 
+          const reason = errors.length > 0 ? errors.map(e => e.error instanceof Error ? e.error.message : String(e.error)).join(', ') : ''
+
           return {
             errors,
-            reason: errors.length > 0 ? errors.map(e => e.message).join(', ') : '',
+            reason,
+            reasonKey: errors.length > 0 ? 'alibaba-cloud-model-studio:check-config:invalid' : '',
             valid: errors.length === 0,
           }
         },
@@ -118,8 +121,8 @@ export const providerAlibabaCloudModelStudioSpeech = defineProvider<AlibabaCloud
       ]
     },
 
-    async listVoices(config, provider): Promise<VoiceInfo[]> {
-      const voiceProvider = provider as VoiceProviderWithExtraOptions<UnAlibabaCloudOptions>
+    async listVoices(_config, provider): Promise<VoiceInfo[]> {
+      const voiceProvider = provider as unknown as VoiceProviderWithExtraOptions<UnAlibabaCloudOptions>
 
       const voices = await listVoices({
         ...voiceProvider.voice(),

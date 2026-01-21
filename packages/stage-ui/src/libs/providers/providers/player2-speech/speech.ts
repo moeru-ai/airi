@@ -4,7 +4,7 @@ import type {
 import type { ComposerTranslation } from 'vue-i18n'
 
 import type { VoiceInfo } from '../../../../stores/providers'
-import type { ProviderValidationResult } from '../../../base-types'
+import type { ProviderValidationResult } from '../../types'
 
 import { isUrl } from '@proj-airi/stage-shared'
 import { createPlayer2 } from '@xsai-ext/providers/special/create'
@@ -68,26 +68,29 @@ export const providerPlayer2Speech = defineProvider<Player2Config>({
       ({ t }: { t: ComposerTranslation }) => ({
         id: 'player2-speech:check-config',
         name: t('settings.pages.providers.catalog.edit.validators.player2-speech.check-config.title'),
-        validator: async (config: Player2Config): Promise<ProviderValidationResult> => {
-          const errors: Error[] = []
+        validator: async (config: Player2Config, _contextOptions: { t: ComposerTranslation }): Promise<ProviderValidationResult> => {
+          const errors: Array<{ error: unknown, errorKey?: string }> = []
           const baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
 
           if (!baseUrl) {
-            errors.push(new Error('Base URL is required. Default to http://localhost:4315/v1/'))
+            errors.push({ error: new Error('Base URL is required. Default to http://localhost:4315/v1/') })
           }
 
           if (baseUrl) {
             if (!isUrl(baseUrl) || new URL(baseUrl).host.length === 0) {
-              errors.push(new Error('Base URL is not absolute. Try to include a scheme (http:// or https://).'))
+              errors.push({ error: new Error('Base URL is not absolute. Try to include a scheme (http:// or https://).') })
             }
             else if (!baseUrl.endsWith('/')) {
-              errors.push(new Error('Base URL must end with a trailing slash (/).'))
+              errors.push({ error: new Error('Base URL must end with a trailing slash (/).') })
             }
           }
 
+          const reason = errors.length > 0 ? errors.map(e => e.error instanceof Error ? e.error.message : String(e.error)).join(', ') : ''
+
           return {
             errors,
-            reason: errors.length > 0 ? errors.map(e => e.message).join(', ') : '',
+            reason,
+            reasonKey: errors.length > 0 ? 'player2-speech:check-config:invalid' : '',
             valid: errors.length === 0,
           }
         },
