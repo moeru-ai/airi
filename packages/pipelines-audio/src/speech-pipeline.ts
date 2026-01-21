@@ -162,7 +162,10 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
         const currentIndex = segmentIndex++
 
         parallel.submit(currentIndex, request, () =>
-          options.tts(request, intent.controller.signal))
+          options.tts(request, intent.controller.signal).catch((err) => {
+            logger.warn('TTS generation failed:', err)
+            return null
+          }))
       }
 
       reader.releaseLock()

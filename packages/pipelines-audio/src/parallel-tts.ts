@@ -20,14 +20,12 @@ export function createParallelTts<T>(options: {
   const buffer = new Map<number, QueuedItem<T>>()
   let nextIndex = 0
 
-  async function tryFlush() {
-    let flushed = 0
+  function tryFlush() {
     while (buffer.has(nextIndex)) {
       const item = buffer.get(nextIndex)!
       buffer.delete(nextIndex)
       options.onComplete(item.index, item.audio, item.request)
       nextIndex++
-      flushed++
     }
   }
 
@@ -41,7 +39,7 @@ export function createParallelTts<T>(options: {
         }
 
         buffer.set(index, { index, audio, request })
-        await tryFlush()
+        tryFlush()
       }
       finally {
         release()
