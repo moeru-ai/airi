@@ -2969,6 +2969,15 @@ importers:
       '@proj-airi/server-sdk':
         specifier: ^0.8.0-beta.9
         version: 0.8.0(srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d))
+      '@xsai/generate-text':
+        specifier: 'catalog:'
+        version: 0.4.0-beta.13
+      '@xsai/shared-chat':
+        specifier: 'catalog:'
+        version: 0.4.0-beta.13
+      '@xsai/stream-text':
+        specifier: 'catalog:'
+        version: 0.4.0-beta.13
       awilix:
         specifier: ^12.0.5
         version: 12.0.5

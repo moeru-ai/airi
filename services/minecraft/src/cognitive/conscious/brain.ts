@@ -1,5 +1,4 @@
 import type { Logg } from '@guiiai/logg'
-import type { Neuri } from 'neuri'
 
 import type { TaskExecutor } from '../action/task-executor'
 import type { ActionInstruction } from '../action/types'
@@ -8,125 +7,23 @@ import type { PerceptionSignal } from '../perception/types/signals'
 import type { ReflexManager } from '../reflex/reflex-manager'
 import type { BotEvent, MineflayerWithAgents } from '../types'
 
-import { system, user } from 'neuri/openai'
-
 import { config } from '../../composables/config'
 import { DebugService } from '../../debug'
 import { Blackboard } from './blackboard'
 import { buildConsciousContextView } from './context-view'
+import { LLMAgent } from './llm-agent'
+import {
+  buildMessages,
+  getErrorCode,
+  getErrorStatus,
+  parseLLMResponseJson,
+  shouldRetryError,
+  toErrorMessage,
+} from './llmlogic'
 import { generateBrainSystemPrompt } from './prompts/brain-prompt'
-
-function toErrorMessage(err: unknown): string {
-  if (err instanceof Error)
-    return err.message
-  if (typeof err === 'string')
-    return err
-  try {
-    return JSON.stringify(err)
-  }
-  catch {
-    return String(err)
-  }
-}
-
-function getJsonErrorPosition(err: unknown): number | null {
-  const msg = toErrorMessage(err)
-  const match = msg.match(/position\s+(\d+)/i)
-  if (!match)
-    return null
-
-  const pos = Number.parseInt(match[1], 10)
-  return Number.isFinite(pos) ? pos : null
-}
-
-function extractJsonCandidate(input: string): string {
-  const trimmed = input.trim()
-  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)
-  if (fenced?.[1])
-    return fenced[1].trim()
-
-  const start = trimmed.indexOf('{')
-  const end = trimmed.lastIndexOf('}')
-  if (start >= 0 && end > start)
-    return trimmed.slice(start, end + 1)
-
-  return trimmed
-}
-
-function parseLLMResponseJson<T>(response: string): T {
-  const candidate = extractJsonCandidate(response)
-  try {
-    return JSON.parse(candidate) as T
-  }
-  catch (err) {
-    const pos = getJsonErrorPosition(err)
-    const window = 120
-    const snippet = (typeof pos === 'number')
-      ? candidate.slice(Math.max(0, pos - window), Math.min(candidate.length, pos + window))
-      : candidate.slice(0, Math.min(candidate.length, 240))
-    throw new Error(`Failed to parse LLM JSON response: ${toErrorMessage(err)}; snippet=${JSON.stringify(snippet)}`)
-  }
-}
-
-function getErrorStatus(err: unknown): number | undefined {
-  const anyErr = err as any
-  const status = anyErr?.status ?? anyErr?.response?.status ?? anyErr?.cause?.status
-  return typeof status === 'number' ? status : undefined
-}
-
-function getErrorCode(err: unknown): string | undefined {
-  const anyErr = err as any
-  const code = anyErr?.code ?? anyErr?.cause?.code
-  return typeof code === 'string' ? code : undefined
-}
-
-function isLikelyAuthOrBadArgError(err: unknown): boolean {
-  const msg = toErrorMessage(err).toLowerCase()
-  const status = getErrorStatus(err)
-  if (status === 401 || status === 403)
-    return true
-
-  return (
-    msg.includes('unauthorized')
-    || msg.includes('invalid api key')
-    || msg.includes('authentication')
-    || msg.includes('forbidden')
-    || msg.includes('badarg')
-    || msg.includes('bad arg')
-    || msg.includes('invalid argument')
-    || msg.includes('invalid_request_error')
-  )
-}
-
-function isLikelyRecoverableError(err: unknown): boolean {
-  if (err instanceof SyntaxError)
-    return true
-
-  const status = getErrorStatus(err)
-  if (status === 429)
-    return true
-  if (typeof status === 'number' && status >= 500)
-    return true
-
-  const code = getErrorCode(err)
-  if (code && ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'].includes(code))
-    return true
-
-  const msg = toErrorMessage(err).toLowerCase()
-  return (
-    msg.includes('timeout')
-    || msg.includes('timed out')
-    || msg.includes('rate limit')
-    || msg.includes('overloaded')
-    || msg.includes('temporarily')
-    || msg.includes('try again')
-    || (msg.includes('in json') && msg.includes('position'))
-  )
-}
 
 interface BrainDeps {
   eventBus: EventBus
-  neuri: Neuri
   logger: Logg
   taskExecutor: TaskExecutor
   reflexManager: ReflexManager
@@ -465,13 +362,9 @@ export class Brain {
     // 1. Observe (Update Blackboard with Environment Sense)
     this.updatePerception(bot)
 
-    // 2. Orient (Contextualize Event)
-    // Environmental context are included in the system prompt blackboard
-    const additionalCtx = this.contextFromEvent(event)
-
-    // 3. Decide (LLM Call)
-    const systemPrompt = generateBrainSystemPrompt(this.blackboard, this.deps.taskExecutor.getAvailableActions())
-    const decision = await this.decide(systemPrompt, additionalCtx)
+    // 2. Orient (Contextualize Event) + 3. Decide (LLM Call)
+    const { systemPrompt, userMsg } = this.buildDecisionPrompts(event)
+    const decision = await this.decide(systemPrompt, userMsg)
 
     if (!decision) {
       this.log('WARN', 'Brain: No decision made.')
@@ -479,52 +372,75 @@ export class Brain {
     }
 
     // 4. Act (Execute Decision)
+    this.applyDecision(bot, decision)
+  }
+
+  private buildDecisionPrompts(event: BotEvent): { systemPrompt: string, userMsg: string } {
+    // Environmental context are included in the system prompt blackboard
+    const userMsg = this.contextFromEvent(event)
+    const systemPrompt = generateBrainSystemPrompt(
+      this.blackboard,
+      this.deps.taskExecutor.getAvailableActions(),
+    )
+
+    return { systemPrompt, userMsg }
+  }
+
+  private applyDecision(bot: MineflayerWithAgents, decision: LLMResponse): void {
     this.log('INFO', `Brain: Thought: ${decision.thought}`)
 
-    // Update Blackboard (with null checks for malformed LLM responses)
+    this.updateBlackboardFromDecision(decision)
+    this.debugService.updateBlackboard(this.blackboard)
+
+    if (decision.actions && decision.actions.length > 0)
+      this.issueActions(bot, decision.actions)
+  }
+
+  private updateBlackboardFromDecision(decision: LLMResponse): void {
     const bb = decision.blackboard
     this.blackboard.update({
       ultimateGoal: bb?.UltimateGoal || this.blackboard.ultimate_goal,
       currentTask: bb?.CurrentTask || this.blackboard.current_task,
       strategy: bb?.executionStrategy || this.blackboard.strategy,
     })
+  }
 
-    // Sync Blackboard to Debug
-    this.debugService.updateBlackboard(this.blackboard)
+  private issueActions(bot: MineflayerWithAgents, actions: ActionInstruction[]): void {
+    const actionsWithIds = this.ensureActionIds(actions)
 
-    // Issue Actions
-    if (decision.actions && decision.actions.length > 0) {
-      const actionsWithIds = this.ensureActionIds(decision.actions)
+    const required = actionsWithIds.filter(a => a.require_feedback && a.id).map(a => a.id as string)
+    if (required.length > 0)
+      this.startFeedbackBarrier(bot, required)
 
-      // Start feedback barrier for this turn if any actions require feedback.
-      const required = actionsWithIds.filter(a => a.require_feedback && a.id).map(a => a.id as string)
-      if (required.length > 0) {
-        required.forEach(id => this.waitingForFeedbackIds.add(id))
+    this.recordChatActions(actionsWithIds)
+    this.deps.taskExecutor.executeActions(actionsWithIds)
+  }
 
-        if (this.feedbackBarrierTimer)
-          clearTimeout(this.feedbackBarrierTimer)
-        this.feedbackBarrierTimer = setTimeout(() => {
-          this.feedbackBarrierTimer = undefined
-          this.waitingForFeedbackIds.clear()
-          this.updatePendingActionsOnBlackboard()
-          void this.processQueue(bot)
-        }, this.feedbackBarrierTimeoutMs)
+  private startFeedbackBarrier(bot: MineflayerWithAgents, requiredIds: string[]): void {
+    requiredIds.forEach(id => this.waitingForFeedbackIds.add(id))
 
-        this.updatePendingActionsOnBlackboard()
-      }
+    if (this.feedbackBarrierTimer)
+      clearTimeout(this.feedbackBarrierTimer)
+    this.feedbackBarrierTimer = setTimeout(() => {
+      this.feedbackBarrierTimer = undefined
+      this.waitingForFeedbackIds.clear()
+      this.updatePendingActionsOnBlackboard()
+      void this.processQueue(bot)
+    }, this.feedbackBarrierTimeoutMs)
 
-      // Record own chat actions to memory
-      for (const action of actionsWithIds) {
-        if (action.type === 'chat') {
-          this.blackboard.addChatMessage({
-            sender: config.bot.username || '[Me]',
-            content: action.message,
-            timestamp: Date.now(), // FIXME: should be the time the action was issued
-          })
-        }
-      }
+    this.updatePendingActionsOnBlackboard()
+  }
 
-      this.deps.taskExecutor.executeActions(actionsWithIds)
+  private recordChatActions(actions: ActionInstruction[]): void {
+    for (const action of actions) {
+      if (action.type !== 'chat')
+        continue
+
+      this.blackboard.addChatMessage({
+        sender: config.bot.username || '[Me]',
+        content: action.message,
+        timestamp: Date.now(), // FIXME: should be the time the action was issued
+      })
     }
   }
 
@@ -540,40 +456,25 @@ export class Brain {
   private async decide(sysPrompt: string, userMsg: string): Promise<LLMResponse | null> {
     const maxAttempts = 3
 
+    const llmAgent = new LLMAgent({
+      baseURL: config.openai.baseUrl,
+      apiKey: config.openai.apiKey,
+      model: config.openai.model,
+    })
+
     const decideOnce = async (): Promise<LLMResponse | null> => {
-      const request_start = Date.now()
-      const response = await this.deps.neuri.handleStateless(
-        [
-          system(sysPrompt),
-          user(userMsg),
-        ],
-        async (ctx) => {
-          const completion = await ctx.reroute('action', ctx.messages, {
-            model: config.openai.model,
-            response_format: { type: 'json_object' },
-          } as any) as any
+      const messages = buildMessages(sysPrompt, userMsg)
 
-          // Trace LLM
-          this.debugService.traceLLM({
-            route: 'action',
-            messages: ctx.messages,
-            content: completion?.choices?.[0]?.message?.content,
-            usage: completion?.usage,
-            model: config.openai.model,
-            duration: Date.now() - request_start,
-          })
+      const result = await llmAgent.callLLM({
+        messages,
+        responseFormat: { type: 'json_object' },
+      })
 
-          if (!completion || !completion.choices?.[0]?.message?.content) {
-            throw new Error('LLM failed to return content')
-          }
-          return completion.choices[0].message.content
-        },
-      )
+      if (!result.text) {
+        throw new Error('LLM failed to return content')
+      }
 
-      if (!response)
-        return null
-
-      return parseLLMResponseJson<LLMResponse>(response)
+      return parseLLMResponseJson<LLMResponse>(result.text)
     }
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -582,7 +483,8 @@ export class Brain {
       }
       catch (err) {
         const remaining = maxAttempts - attempt
-        const shouldRetry = remaining > 0 && !isLikelyAuthOrBadArgError(err) && isLikelyRecoverableError(err)
+        const { shouldRetry } = shouldRetryError(err, remaining)
+
         this.log('ERROR', 'Brain: Decision attempt failed', {
           error: err,
           attempt,
@@ -596,6 +498,7 @@ export class Brain {
           continue
 
         const errMsg = toErrorMessage(err)
+
         try {
           this.bot?.bot?.chat?.(`[Brain] decide failed: ${errMsg}`)
         }
