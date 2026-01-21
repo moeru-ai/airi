@@ -113,10 +113,12 @@ export function convertProviderDefinitionToMetadata(
       }
     : undefined
 
-  // Create a wrapper function that adapts ComposerTranslation to the simpler signature
-  // expected by nameLocalize and descriptionLocalize
-  const tWrapper = (input: string): string => {
-    return t(input) as string
+  // Create an identity function that returns the i18n key string without translating it.
+  // Provider definitions call t(key) which would normally translate, but we need the key itself.
+  // The identity function ensures that t('settings.pages.providers.provider.openai.title')
+  // returns 'settings.pages.providers.provider.openai.title' instead of the translated string.
+  const keyExtractor = (input: string): string => {
+    return input
   }
 
   return {
@@ -124,9 +126,9 @@ export function convertProviderDefinitionToMetadata(
     order: definition.order,
     category,
     tasks: definition.tasks,
-    nameKey: definition.nameLocalize({ t: tWrapper }),
+    nameKey: definition.nameLocalize({ t: keyExtractor }),
     name: definition.name,
-    descriptionKey: definition.descriptionLocalize({ t: tWrapper }),
+    descriptionKey: definition.descriptionLocalize({ t: keyExtractor }),
     description: definition.description,
     icon: definition.icon,
     iconColor: definition.iconColor,

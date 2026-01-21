@@ -24,6 +24,15 @@ import './openai/speech'
 import './openai/transcription'
 import './openai-compatible/speech'
 import './openai-compatible/transcription'
+import './elevenlabs/speech'
+import './deepgram-tts/speech'
+import './microsoft-speech/speech'
+import './index-tts-vllm/speech'
+import './alibaba-cloud-model-studio/speech'
+import './volcengine/speech'
+import './player2-speech/speech'
+import './browser-web-speech-api/transcription'
+import './aliyun-nls-transcription/transcription'
 
 export {
   getDefinedProvider,
