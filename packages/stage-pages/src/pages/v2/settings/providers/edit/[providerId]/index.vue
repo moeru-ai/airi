@@ -18,7 +18,7 @@ import {
 import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
 import { useProviderCatalogStore } from '@proj-airi/stage-ui/stores/provider-catalog'
 import { Button, Callout, FieldInput, FieldKeyValues } from '@proj-airi/ui'
-import { refManualReset, useDebounceFn } from '@vueuse/core'
+import { useCloned, useDebounceFn } from '@vueuse/core'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -36,11 +36,16 @@ const providerDefinition = computed(() => getDefinedProvider(providerConfig.valu
 const providerSchema = computed(() => providerDefinition.value?.createProviderConfig({ t }) as $ZodType | undefined)
 const providerSchemaDefault = computed(() => getSchemaDefault(providerSchema.value))
 
-const providerConfigEdit = refManualReset(providerConfig)
+// NOTICE: useCloned handles deep cloning and state isolation for the draft.
+// It provides a 'cloned' ref that we use for editing without affecting the original store state.
+const { cloned: providerConfigEdit, sync: syncProviderConfigEdit } = useCloned(providerConfig, { manual: true })
 
-watch(providerConfig, (newVal) => {
+watch(providerConfig, (newVal, oldVal) => {
   if (newVal && Object.keys(newVal).length > 0) {
-    providerConfigEdit.reset()
+    // Only sync the draft if the underlying data in the store has actually changed from an external source.
+    if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
+      syncProviderConfigEdit()
+    }
   }
 }, { immediate: true })
 
@@ -114,17 +119,11 @@ const basicFields = computed(() => schemaFields.value.filter(field => field.sect
 const advancedFields = computed(() => schemaFields.value.filter(field => field.section === 'advanced'))
 
 function setFieldValue(key: string, value: unknown) {
-  const currentProvider = providerCatalogStore.configs[providerId.value]
-  if (!currentProvider)
+  if (!providerConfigEdit.value)
     return
 
-  providerCatalogStore.configs[providerId.value] = {
-    ...currentProvider,
-    config: {
-      ...currentProvider.config,
-      [key]: value,
-    },
-  }
+  // NOTICE: Update local draft only. useCloned makes it safe to mutate 'cloned.value'.
+  providerConfigEdit.value.config[key] = value
 }
 
 const headerRows = ref<Array<{ key: string, value: string }>>([{ key: '', value: '' }])
