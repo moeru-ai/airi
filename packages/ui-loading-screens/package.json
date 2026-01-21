@@ -23,20 +23,21 @@
     "play:dev": "vite",
     "play:build": "vite build",
     "play:preview": "vite preview",
+    "build": "echo \"No build step required\"",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
     "@proj-airi/font-departure-mono": "workspace:^",
-    "@rive-app/canvas-lite": "^2.33.1",
+    "@rive-app/canvas-lite": "^2.34.1",
     "@vueuse/core": "^14.1.0",
     "@vueuse/motion": "^3.0.3",
     "vue": "catalog:"
   },
   "devDependencies": {
     "@proj-airi/ui": "workspace:^",
-    "@unocss/reset": "^66.5.11",
+    "@unocss/reset": "^66.6.0",
     "@vitejs/plugin-vue": "^6.0.3",
-    "unplugin-vue-router": "^0.19.0",
+    "unplugin-vue-router": "^0.19.2",
     "vite": "catalog:rolldown-vite",
     "vite-plugin-vue-devtools": "^8.0.5",
     "vue-router": "^4.6.4",

@@ -29,7 +29,7 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@moeru/eventa": "^1.0.0-alpha.10",
+    "@moeru/eventa": "^1.0.0-alpha.11",
     "@moeru/std": "catalog:",
     "@proj-airi/ccc": "workspace:*",
     "@proj-airi/i18n": "workspace:*",
@@ -43,8 +43,8 @@
     "@xsai-ext/providers": "catalog:",
     "@xsai/generate-speech": "catalog:",
     "@xsai/stream-transcription": "0.4.0-beta.8",
-    "animejs": "^4.2.2",
-    "colorjs.io": "^0.6.0",
+    "animejs": "^4.3.0",
+    "colorjs.io": "^0.6.1",
     "dompurify": "^3.3.1",
     "localforage": "^1.10.0",
     "nanoid": "^5.1.6",
@@ -54,7 +54,7 @@
     "reka-ui": "^2.7.0",
     "unspeech": "catalog:xsai",
     "vue": "catalog:",
-    "vue-i18n": "^11.2.2",
+    "vue-i18n": "^11.2.8",
     "vue-router": "^4.6.4",
     "vue-sonner": "catalog:"
   },
