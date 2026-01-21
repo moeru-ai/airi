@@ -5,8 +5,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 import { client } from '../composables/api'
-import { useAsyncState } from '../composables/use-async-state'
-import { useOptimisticMutation } from '../composables/use-optimistic'
+import { useLocalFirstRequest } from '../composables/use-local-first'
 import { providersRepo } from '../database/repos/providers.repo'
 import { getDefinedProvider, listProviders } from '../libs/providers/providers'
 
@@ -15,33 +14,35 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
   const configs = ref<Record<string, ProviderCatalogProvider>>({})
 
   async function fetchList() {
-    // Load from storage immediately
-    const cached = await providersRepo.getAll()
-    if (Object.keys(cached).length > 0) {
-      configs.value = cached
-    }
-
-    return useAsyncState(async () => {
-      const res = await client.api.providers.$get()
-      if (!res.ok) {
-        throw new Error('Failed to fetch providers')
-      }
-      const data = await res.json()
-
-      const newConfigs: Record<string, ProviderCatalogProvider> = {}
-      for (const item of data) {
-        newConfigs[item.id] = {
-          id: item.id,
-          definitionId: item.definitionId,
-          name: item.name,
-          config: item.config as Record<string, any>,
-          validated: item.validated,
-          validationBypassed: item.validationBypassed,
+    return useLocalFirstRequest({
+      local: async () => {
+        const cached = await providersRepo.getAll()
+        if (Object.keys(cached).length > 0) {
+          configs.value = cached
         }
-      }
-      configs.value = newConfigs
-      await providersRepo.saveAll(newConfigs)
-    }, { immediate: true })
+      },
+      remote: async () => {
+        const res = await client.api.providers.$get()
+        if (!res.ok) {
+          throw new Error('Failed to fetch providers')
+        }
+        const data = await res.json()
+
+        const newConfigs: Record<string, ProviderCatalogProvider> = {}
+        for (const item of data) {
+          newConfigs[item.id] = {
+            id: item.id,
+            definitionId: item.definitionId,
+            name: item.name,
+            config: item.config as Record<string, any>,
+            validated: item.validated,
+            validationBypassed: item.validationBypassed,
+          }
+        }
+        configs.value = newConfigs
+        await providersRepo.saveAll(newConfigs)
+      },
+    })
   }
 
   async function addProvider(definitionId: string, initialConfig: Record<string, any> = {}) {
@@ -60,16 +61,13 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
       validationBypassed: false,
     }
 
-    return useOptimisticMutation<any, any>({
-      apply: async () => {
+    return useLocalFirstRequest<ProviderCatalogProvider>({
+      local: async () => {
         configs.value[id] = provider
         await providersRepo.upsert(provider)
-        return async () => {
-          delete configs.value[id]
-          await providersRepo.remove(id)
-        }
+        return provider
       },
-      action: async () => {
+      remote: async () => {
         const res = await client.api.providers.$post({
           json: {
             id,
@@ -83,9 +81,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
         if (!res.ok) {
           throw new Error('Failed to add provider')
         }
-        return await res.json()
-      },
-      onSuccess: async (item: any) => {
+        const item = await res.json() as ProviderCatalogProvider
         const finalProvider: ProviderCatalogProvider = {
           id: item.id,
           definitionId: item.definitionId,
@@ -103,21 +99,16 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
   }
 
   async function removeProvider(providerId: string) {
-    const original = configs.value[providerId]
-    if (!original) {
+    if (!configs.value[providerId]) {
       return
     }
 
-    return useOptimisticMutation<void, void>({
-      apply: async () => {
+    return useLocalFirstRequest({
+      local: async () => {
         delete configs.value[providerId]
         await providersRepo.remove(providerId)
-        return async () => {
-          configs.value[providerId] = original
-          await providersRepo.upsert(original)
-        }
       },
-      action: async () => {
+      remote: async () => {
         const res = await client.api.providers[':id'].$delete({
           param: { id: providerId },
         })
@@ -134,24 +125,15 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
       return
     }
 
-    const originalConfig = { ...provider.config }
-    const originalValidated = provider.validated
-    const originalValidationBypassed = provider.validationBypassed
-
-    return useOptimisticMutation<any, void>({
-      apply: async () => {
+    return useLocalFirstRequest<ProviderCatalogProvider>({
+      local: async () => {
         provider.config = { ...newConfig }
         provider.validated = options.validated
         provider.validationBypassed = options.validationBypassed
         await providersRepo.upsert(provider)
-        return async () => {
-          provider.config = originalConfig
-          provider.validated = originalValidated
-          provider.validationBypassed = originalValidationBypassed
-          await providersRepo.upsert(provider)
-        }
+        return provider
       },
-      action: async () => {
+      remote: async () => {
         const res = await client.api.providers[':id'].$patch({
           param: { id: providerId },
           // @ts-expect-error hono client typing misses json option for this route
@@ -164,14 +146,13 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
         if (!res.ok) {
           throw new Error('Failed to update provider config')
         }
-        return await res.json()
-      },
-      onSuccess: async (item: any) => {
+        const item = await res.json() as ProviderCatalogProvider
         // Sync with server response just in case
-        provider.config = { ...item.config as Record<string, any> }
+        provider.config = { ...item.config }
         provider.validated = item.validated
         provider.validationBypassed = item.validationBypassed
         await providersRepo.upsert(provider)
+        return provider
       },
     })
   }
