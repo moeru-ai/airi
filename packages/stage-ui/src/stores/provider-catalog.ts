@@ -14,14 +14,13 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
   const configs = ref<Record<string, ProviderCatalogProvider>>({})
 
   async function fetchList() {
-    // Load from storage immediately
-    const cached = await providersRepo.getAll()
-    if (Object.keys(cached).length > 0) {
-      configs.value = cached
-    }
-
     return useLocalFirstRequest({
-      local: async () => undefined,
+      local: async () => {
+        const cached = await providersRepo.getAll()
+        if (Object.keys(cached).length > 0) {
+          configs.value = cached
+        }
+      },
       remote: async () => {
         const res = await client.api.providers.$get()
         if (!res.ok) {
@@ -62,7 +61,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
       validationBypassed: false,
     }
 
-    return useLocalFirstRequest<any>({
+    return useLocalFirstRequest<ProviderCatalogProvider>({
       local: async () => {
         configs.value[id] = provider
         await providersRepo.upsert(provider)
@@ -82,7 +81,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
         if (!res.ok) {
           throw new Error('Failed to add provider')
         }
-        const item = await res.json()
+        const item = await res.json() as ProviderCatalogProvider
         const finalProvider: ProviderCatalogProvider = {
           id: item.id,
           definitionId: item.definitionId,
@@ -104,7 +103,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
       return
     }
 
-    return useLocalFirstRequest<void>({
+    return useLocalFirstRequest({
       local: async () => {
         delete configs.value[providerId]
         await providersRepo.remove(providerId)
@@ -126,7 +125,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
       return
     }
 
-    return useLocalFirstRequest<any>({
+    return useLocalFirstRequest<ProviderCatalogProvider>({
       local: async () => {
         provider.config = { ...newConfig }
         provider.validated = options.validated
@@ -147,13 +146,13 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
         if (!res.ok) {
           throw new Error('Failed to update provider config')
         }
-        const item = await res.json()
+        const item = await res.json() as ProviderCatalogProvider
         // Sync with server response just in case
-        provider.config = { ...item.config as Record<string, any> }
+        provider.config = { ...item.config }
         provider.validated = item.validated
         provider.validationBypassed = item.validationBypassed
         await providersRepo.upsert(provider)
-        return item
+        return provider
       },
     })
   }

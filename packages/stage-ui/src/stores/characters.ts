@@ -77,17 +77,16 @@ export const useCharacterStore = defineStore('characters', () => {
   const auth = useAuthStore()
 
   async function fetchList(all: boolean = false) {
-    // Load from storage immediately
-    const cached = await charactersRepo.getAll()
-    if (cached.length > 0) {
-      characters.value.clear()
-      for (const char of cached) {
-        characters.value.set(char.id, char)
-      }
-    }
-
     return useLocalFirstRequest({
-      local: async () => undefined,
+      local: async () => {
+        const cached = await charactersRepo.getAll()
+        if (cached.length > 0) {
+          characters.value.clear()
+          for (const char of cached) {
+            characters.value.set(char.id, char)
+          }
+        }
+      },
       remote: async () => {
         const res = await client.api.characters.$get({
           query: { all: String(all) },
@@ -247,7 +246,6 @@ export const useCharacterStore = defineStore('characters', () => {
         const character = parse(CharacterWithRelationsSchema, data)
         characters.value.set(character.id, character)
         await charactersRepo.upsert(character)
-        return character
       },
     })
   }
@@ -281,7 +279,6 @@ export const useCharacterStore = defineStore('characters', () => {
         const character = parse(CharacterWithRelationsSchema, data)
         characters.value.set(character.id, character)
         await charactersRepo.upsert(character)
-        return character
       },
     })
   }
