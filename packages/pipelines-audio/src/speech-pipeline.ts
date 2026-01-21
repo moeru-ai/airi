@@ -37,9 +37,9 @@ export interface SpeechPipelineOptions<TAudio> {
   priority?: ReturnType<typeof createPriorityResolver>
   segmenter?: (tokens: ReadableStream<TextToken>, meta: { streamId: string, intentId: string }) => ReadableStream<TextSegment>
   /**
-   * 并行 TTS 请求数量
-   * - 1: 串行模式（当前行为）
-   * - 2-4: 推荐值，可以提前生成下几段语音
+   * Number of parallel TTS requests
+   * - 1: Serial mode (current behavior)
+   * - 2-4: Recommended values, can generate next segments in advance
    * @default 3
    */
   ttsConcurrency?: number

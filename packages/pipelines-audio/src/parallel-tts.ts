@@ -9,8 +9,8 @@ interface QueuedItem<T> {
 }
 
 /**
- * 并行 TTS 处理器
- * 确保事件发射和回调按顺序执行，即使 TTS 完成顺序是乱的
+ * Parallel TTS processor
+ * Ensures events and callbacks are executed in order, even when TTS completes out of order
  */
 export function createParallelTts<T>(options: {
   concurrency: number
