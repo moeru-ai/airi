@@ -97,9 +97,13 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
     const segmentStream = segmenter(tokenStream, { streamId: intent.streamId, intentId: intent.intentId })
     let segmentIndex = 0
 
+    // Create parallel TTS processor to handle multiple TTS requests concurrently
+    // The processor ensures callbacks are invoked in submission order (0, 1, 2, ...)
+    // even when TTS completes out of order
     const parallel = createParallelTts<TAudio>({
       concurrency: ttsConcurrency,
       onComplete: (_index, audio, request) => {
+        // This callback is guaranteed to be invoked in order by the parallel processor
         const ttsResult: TtsResult<TAudio> = {
           streamId: request.streamId,
           intentId: request.intentId,
@@ -159,6 +163,8 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
 
         context.emit(speechPipelineEventMap.onTtsRequest, request)
 
+        // Incrementing index ensures submission order is preserved
+        // The parallel processor uses this index to invoke onComplete callbacks in order
         const currentIndex = segmentIndex++
 
         parallel.submit(currentIndex, request, () =>
