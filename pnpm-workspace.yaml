@@ -23,6 +23,8 @@ overrides:
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 
 patchedDependencies:
+  mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
+  mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
   srvx@0.9.8: patches/srvx@0.9.8.patch
 catalog:
   '@capacitor/cli': ^8.0.1

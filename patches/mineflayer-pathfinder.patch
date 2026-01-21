@@ -1,0 +1,286 @@
+# MIT License
+
+# Copyright (c) 2024 Kolby Nottingham
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+diff --git a/index.js b/index.js
+index b38bd30..2ca8205 100644
+--- a/index.js
++++ b/index.js
+@@ -14,6 +14,7 @@ const interactableBlocks = require('./lib/interactable.json')
+ 
+ function inject (bot) {
+   const waterType = bot.registry.blocksByName.water.id
++  const lavaType = bot.registry.blocksByName.lava.id
+   const ladderId = bot.registry.blocksByName.ladder.id
+   const vineId = bot.registry.blocksByName.vine.id
+   let stateMovements = new Movements(bot)
+@@ -61,6 +62,10 @@ function inject (bot) {
+   }
+ 
+   bot.pathfinder.getPathTo = (movements, goal, timeout) => {
++    // Update lava avoidance based on current bot state
++    if (movements.updateLavaAvoidance) {
++      movements.updateLavaAvoidance()
++    }
+     const generator = bot.pathfinder.getPathFromTo(movements, bot.entity.position, goal, { timeout })
+     const { value: { result, astarContext: context } } = generator.next()
+     astarContext = context
+@@ -170,6 +175,16 @@ function inject (bot) {
+       const curPoint = path[i]
+       if (curPoint.toBreak.length > 0 || curPoint.toPlace.length > 0) break
+       const b = bot.blockAt(new Vec3(curPoint.x, curPoint.y, curPoint.z))
++
++      // openned doors have small Collision box
++      // that may stop the bot from moving forward
++      if(i === 0 && b?.name.includes('door')) {
++        curPoint.x = Math.floor(curPoint.x) + 0.5
++        curPoint.y = Math.floor(curPoint.y)
++        curPoint.z = Math.floor(curPoint.z) + 0.5
++        continue
++      }
++
+       if (b && (b.type === waterType || ((b.type === ladderId || b.type === vineId) && i + 1 < path.length && path[i + 1].y < curPoint.y))) {
+         curPoint.x = Math.floor(curPoint.x) + 0.5
+         curPoint.y = Math.floor(curPoint.y)
+@@ -524,6 +539,9 @@ function inject (bot) {
+         bot.activateBlock(bot.blockAt(new Vec3(placingBlock.x, placingBlock.y, placingBlock.z))).then(() => {
+           lockUseBlock.release()
+           placingBlock = nextPoint.toPlace.shift()
++          if (!placingBlock) {
++            placing = false
++          }
+         }, err => {
+           console.error(err)
+           lockUseBlock.release()
+@@ -550,6 +568,7 @@ function inject (bot) {
+             lockEquipItem.release()
+             const refBlock = bot.blockAt(new Vec3(placingBlock.x, placingBlock.y, placingBlock.z), false)
+             if (!lockPlaceBlock.tryAcquire()) return
++            bot.world.setBlockStateId(refBlock.position.offset(placingBlock.dx, placingBlock.dy, placingBlock.dz), 1)
+             if (interactableBlocks.includes(refBlock.name)) {
+               bot.setControlState('sneak', true)
+             }
+@@ -557,6 +576,7 @@ function inject (bot) {
+               .then(function () {
+                 // Dont release Sneak if the block placement was not successful
+                 bot.setControlState('sneak', false)
++                bot.setControlState('jump', false)
+                 if (bot.pathfinder.LOSWhenPlacingBlocks && placingBlock.returnPos) returningPos = placingBlock.returnPos.clone()
+               })
+               .catch(_ignoreError => {
+@@ -576,7 +596,7 @@ function inject (bot) {
+     let dx = nextPoint.x - p.x
+     const dy = nextPoint.y - p.y
+     let dz = nextPoint.z - p.z
+-    if (Math.abs(dx) <= 0.35 && Math.abs(dz) <= 0.35 && Math.abs(dy) < 1) {
++    if (Math.abs(dx) <= 0.175 && Math.abs(dz) <= 0.175 && Math.abs(dy) < 1) {
+       // arrived at next point
+       lastNodeTime = performance.now()
+       if (stopPathing) {
+@@ -611,6 +631,9 @@ function inject (bot) {
+     if (bot.entity.isInWater) {
+       bot.setControlState('jump', true)
+       bot.setControlState('sprint', false)
++    } else if (bot.entity.isInLava) {
++      bot.setControlState('jump', true)
++      bot.setControlState('sprint', false)
+     } else if (stateMovements.allowSprinting && physics.canStraightLine(path, true)) {
+       bot.setControlState('jump', false)
+       bot.setControlState('sprint', true)
+diff --git a/lib/movements.js b/lib/movements.js
+index a7e3505..84a0841 100644
+--- a/lib/movements.js
++++ b/lib/movements.js
+@@ -50,7 +50,12 @@ class Movements {
+     this.blocksToAvoid.add(registry.blocksByName.fire.id)
+     if (registry.blocksByName.cobweb) this.blocksToAvoid.add(registry.blocksByName.cobweb.id)
+     if (registry.blocksByName.web) this.blocksToAvoid.add(registry.blocksByName.web.id)
+-    this.blocksToAvoid.add(registry.blocksByName.lava.id)
++    
++    // Only avoid lava if bot is not currently in lava
++    // Check if bot.entity exists and is initialized
++    if (!bot.entity || !bot.entity.isInLava) {
++      this.blocksToAvoid.add(registry.blocksByName.lava.id)
++    }
+ 
+     this.liquids = new Set()
+     this.liquids.add(registry.blocksByName.water.id)
+@@ -62,7 +67,13 @@ class Movements {
+ 
+     this.climbables = new Set()
+     this.climbables.add(registry.blocksByName.ladder.id)
+-    // this.climbables.add(registry.blocksByName.vine.id)
++    if (registry.blocksByName.vine) this.climbables.add(registry.blocksByName.vine.id)
++    if (registry.blocksByName.weeping_vines) this.climbables.add(registry.blocksByName.weeping_vines.id)
++    if (registry.blocksByName.weeping_vines_plant) this.climbables.add(registry.blocksByName.weeping_vines_plant.id)
++    if (registry.blocksByName.twisting_vines) this.climbables.add(registry.blocksByName.twisting_vines.id)
++    if (registry.blocksByName.twisting_vines_plant) this.climbables.add(registry.blocksByName.twisting_vines_plant.id)
++    if (registry.blocksByName.cave_vines) this.climbables.add(registry.blocksByName.cave_vines.id)
++    if (registry.blocksByName.cave_vines_plant) this.climbables.add(registry.blocksByName.cave_vines_plant.id)
+     this.emptyBlocks = new Set()
+ 
+     this.replaceables = new Set()
+@@ -92,13 +103,15 @@ class Movements {
+       }
+     })
+     registry.blocksArray.forEach(block => {
+-      if (this.interactableBlocks.has(block.name) && block.name.toLowerCase().includes('gate') && !block.name.toLowerCase().includes('iron')) {
++      if (this.interactableBlocks.has(block.name) 
++        && (block.name.toLowerCase().includes('gate') || block.name.toLowerCase().includes('door') || block.name.toLowerCase().includes('trapdoor'))
++        && !block.name.toLowerCase().includes('iron')) {
+         // console.info(block)
+         this.openable.add(block.id)
+       }
+     })
+ 
+-    this.canOpenDoors = false // Causes issues. Probably due to none paper servers.
++    this.canOpenDoors = true
+ 
+     this.exclusionAreasStep = []
+     this.exclusionAreasBreak = []
+@@ -230,8 +243,13 @@ class Movements {
+       }
+     }
+     b.climbable = this.climbables.has(b.type)
+-    b.safe = (b.boundingBox === 'empty' || b.climbable || this.carpets.has(b.type)) && !this.blocksToAvoid.has(b.type)
+-    b.physical = b.boundingBox === 'block' && !this.fences.has(b.type)
++    
++    // Enhanced trapdoor logic - open trapdoors are safe to pass through
++    const isOpenTrapdoor = this.openable.has(b.type) && b.name.includes('trapdoor') && b._properties?.open === true
++    const isClosedTrapdoor = this.openable.has(b.type) && b.name.includes('trapdoor') && b._properties?.open !== true
++    
++    b.safe = (b.boundingBox === 'empty' || b.climbable || this.carpets.has(b.type) || isOpenTrapdoor) && !this.blocksToAvoid.has(b.type)
++    b.physical = (b.boundingBox === 'block' && !this.fences.has(b.type)) || isClosedTrapdoor
+     b.replaceable = this.replaceables.has(b.type) && !b.physical
+     b.liquid = this.liquids.has(b.type)
+     b.height = pos.y + dy
+@@ -284,6 +302,18 @@ class Movements {
+     cost += this.exclusionStep(block) // Is excluded so can't move or break
+     cost += this.getNumEntitiesAt(block.position, 0, 0, 0) * this.entityCost
+     if (block.safe) return cost
++
++    // process door cost
++    if ((this.canOpenDoors && block.openable)
++      || (block.openable && block._properties?.open === true)) {
++      return cost
++    }
++
++    // Handle trapdoors specifically - they can be opened instead of broken
++    if (this.canOpenDoors && block.openable && block.name.includes('trapdoor') && !block.name.includes('iron')) {
++      return cost + 1 // Small cost for opening trapdoor
++    }
++
+     if (!this.safeToBreak(block)) return 100 // Can't break, so can't move
+     toBreak.push(block.position)
+ 
+@@ -387,8 +417,8 @@ class Movements {
+     cost += this.safeOrBreak(blockB, toBreak)
+     if (cost > 100) return
+ 
+-    // Open fence gates
+-    if (this.canOpenDoors && blockC.openable && blockC.shapes && blockC.shapes.length !== 0) {
++    // Open fence gates and doors
++    if (this.canOpenDoors && blockC.openable && !blockC._properties.open) {
+       toPlace.push({ x: node.x + dir.x, y: node.y, z: node.z + dir.z, dx: 0, dy: 0, dz: 0, useOne: true }) // Indicate that a block should be used on this block not placed
+     } else {
+       cost += this.safeOrBreak(blockC, toBreak)
+@@ -554,6 +584,54 @@ class Movements {
+     neighbors.push(new Move(node.x, node.y + 1, node.z, node.remainingBlocks - toPlace.length, cost, toBreak, toPlace))
+   }
+ 
++  getMoveClimbUpThroughTrapdoor (node, neighbors) {
++    const blockCurrent = this.getBlock(node, 0, 0, 0) // Current position (should be climbable)
++    const blockAbove = this.getBlock(node, 0, 1, 0) // Block directly above
++    const blockCeiling = this.getBlock(node, 0, 2, 0) // Trapdoor or ceiling block
++    
++    // Only attempt this move if we're on a climbable block (ladder/vine)
++    if (!blockCurrent.climbable) return
++    
++    // Check if there's a closed trapdoor above us
++    if (!blockCeiling.openable || blockCeiling._properties?.open === true) return
++    
++    let cost = 2 // Base cost for climbing up and opening trapdoor
++    const toBreak = []
++    const toPlace = []
++    
++    // Make sure we can break/pass through the block above if needed
++    cost += this.safeOrBreak(blockAbove, toBreak)
++    if (cost > 100) return
++    
++    // Add cost for opening the trapdoor
++    toPlace.push({ x: node.x, y: node.y + 2, z: node.z, dx: 0, dy: 0, dz: 0, useOne: true })
++    
++    neighbors.push(new Move(node.x, node.y + 2, node.z, node.remainingBlocks - toPlace.length, cost, toBreak, toPlace))
++  }
++
++  // Enhanced ladder/vine climbing that can handle stepping on top and jumping
++  getMoveClimbTop (node, neighbors) {
++    const blockCurrent = this.getBlock(node, 0, 0, 0) // Current position (should be climbable)
++    const blockAbove = this.getBlock(node, 0, 1, 0) // Block directly above
++    
++    // Only attempt this move if we're on a climbable block (ladder/vine)
++    if (!blockCurrent.climbable) return
++    
++    // Check if we can step on top of the ladder/vine and then jump up
++    if (!blockAbove.safe) return
++    
++    let cost = 2 // Cost for climbing to top of ladder and jumping
++    const toBreak = []
++    const toPlace = []
++    
++    // Check if there's space to jump up from the top of the ladder
++    const blockJumpTarget = this.getBlock(node, 0, 2, 0)
++    cost += this.safeOrBreak(blockJumpTarget, toBreak)
++    if (cost > 100) return
++    
++    neighbors.push(new Move(node.x, node.y + 2, node.z, node.remainingBlocks - toPlace.length, cost, toBreak, toPlace))
++  }
++
+   // Jump up, down or forward over a 1 block gap
+   getMoveParkourForward (node, dir, neighbors) {
+     const block0 = this.getBlock(node, 0, -1, 0)
+@@ -656,8 +734,27 @@ class Movements {
+     this.getMoveDown(node, neighbors)
+     this.getMoveUp(node, neighbors)
+ 
++    // Enhanced climbing moves for ladders, vines, and trapdoors
++    this.getMoveClimbUpThroughTrapdoor(node, neighbors)
++    this.getMoveClimbTop(node, neighbors)
++
+     return neighbors
+   }
++
++  // Update lava avoidance based on bot's current state
++  updateLavaAvoidance () {
++    const registry = this.bot.registry
++    const lavaId = registry.blocksByName.lava.id
++    
++    // Check if bot.entity exists and is initialized
++    if (this.bot.entity && this.bot.entity.isInLava) {
++      // If bot is in lava, allow pathfinding through lava to escape
++      this.blocksToAvoid.delete(lavaId)
++    } else {
++      // If bot is not in lava, avoid lava blocks
++      this.blocksToAvoid.add(lavaId)
++    }
++  }
+ }
+ 
+ module.exports = Movements
