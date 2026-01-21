@@ -1,0 +1,27 @@
+{
+  "name": "@proj-airi/minecraft-hub",
+  "type": "module",
+  "private": true,
+  "description": "Minecraft protocol relay hub for AIRI",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "services/minecraft-hub"
+  },
+  "scripts": {
+    "start": "tsx --env-file=.env --env-file-if-exists=.env.local src/index.ts",
+    "dev": "tsx --env-file=.env --env-file-if-exists=.env.local src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "minecraft-protocol": "^1.62.0",
+    "tsx": "^4.21.0"
+  }
+}

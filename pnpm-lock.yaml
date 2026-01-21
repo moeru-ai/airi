@@ -2980,25 +2980,25 @@ importers:
         version: 3.101.0
       mineflayer:
         specifier: ^4.33.0
-        version: 4.33.0(encoding@0.1.13)
+        version: 4.33.0
       mineflayer-armor-manager:
         specifier: ^2.0.1
-        version: 2.0.1(mineflayer@4.33.0(encoding@0.1.13))
+        version: 2.0.1(mineflayer@4.33.0)
       mineflayer-auto-eat:
         specifier: ^5.0.3
-        version: 5.0.3(encoding@0.1.13)
+        version: 5.0.3
       mineflayer-collectblock:
         specifier: ^1.6.0
-        version: 1.6.0(encoding@0.1.13)
+        version: 1.6.0
       mineflayer-pathfinder:
         specifier: ^2.4.5
         version: 2.4.5
       mineflayer-pvp:
         specifier: ^1.3.2
-        version: 1.3.2(encoding@0.1.13)(prismarine-registry@1.11.0)
+        version: 1.3.2(prismarine-registry@1.11.0)
       mineflayer-tool:
         specifier: ^1.2.0
-        version: 1.2.0(encoding@0.1.13)
+        version: 1.2.0
       nanoid:
         specifier: 'catalog:'
         version: 5.1.6
@@ -3045,6 +3045,18 @@ importers:
       '@types/ws':
         specifier: 'catalog:'
         version: 8.18.1
+
+  services/minecraft-hub:
+    dependencies:
+      '@guiiai/logg':
+        specifier: 'catalog:'
+        version: 1.2.11
+      minecraft-protocol:
+        specifier: ^1.62.0
+        version: 1.62.0(encoding@0.1.13)
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
 
   services/satori-bot:
     dependencies:
@@ -27467,24 +27479,24 @@ snapshots:
       - encoding
       - supports-color
 
-  mineflayer-armor-manager@2.0.1(mineflayer@4.33.0(encoding@0.1.13)):
+  mineflayer-armor-manager@2.0.1(mineflayer@4.33.0):
     dependencies:
       minecraft-data: 3.101.0
-      mineflayer: 4.33.0(encoding@0.1.13)
+      mineflayer: 4.33.0
 
-  mineflayer-auto-eat@5.0.3(encoding@0.1.13):
+  mineflayer-auto-eat@5.0.3:
     dependencies:
       '@nxg-org/mineflayer-util-plugin': 1.8.4
-      mineflayer: 4.33.0(encoding@0.1.13)
+      mineflayer: 4.33.0
     transitivePeerDependencies:
       - encoding
       - supports-color
 
-  mineflayer-collectblock@1.6.0(encoding@0.1.13):
+  mineflayer-collectblock@1.6.0:
     dependencies:
-      mineflayer: 4.33.0(encoding@0.1.13)
+      mineflayer: 4.33.0
       mineflayer-pathfinder: 2.4.5
-      mineflayer-tool: 1.2.0(encoding@0.1.13)
+      mineflayer-tool: 1.2.0
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -27499,29 +27511,29 @@ snapshots:
       prismarine-physics: 1.10.0
       vec3: 0.1.10
 
-  mineflayer-pvp@1.3.2(encoding@0.1.13)(prismarine-registry@1.11.0):
+  mineflayer-pvp@1.3.2(prismarine-registry@1.11.0):
     dependencies:
-      mineflayer: 4.33.0(encoding@0.1.13)
+      mineflayer: 4.33.0
       mineflayer-pathfinder: 2.4.5
-      mineflayer-utils: 0.1.4(encoding@0.1.13)(prismarine-registry@1.11.0)
+      mineflayer-utils: 0.1.4(prismarine-registry@1.11.0)
     transitivePeerDependencies:
       - encoding
       - prismarine-registry
       - supports-color
 
-  mineflayer-tool@1.2.0(encoding@0.1.13):
+  mineflayer-tool@1.2.0:
     dependencies:
-      mineflayer: 4.33.0(encoding@0.1.13)
+      mineflayer: 4.33.0
       mineflayer-pathfinder: 2.4.5
       prismarine-nbt: 2.8.0
     transitivePeerDependencies:
       - encoding
       - supports-color
 
-  mineflayer-utils@0.1.4(encoding@0.1.13)(prismarine-registry@1.11.0):
+  mineflayer-utils@0.1.4(prismarine-registry@1.11.0):
     dependencies:
       '@types/node': 14.18.63
-      mineflayer: 2.41.0(encoding@0.1.13)(prismarine-registry@1.11.0)
+      mineflayer: 2.41.0(prismarine-registry@1.11.0)
       prismarine-entity: 1.2.0
       require-self: 0.2.3
       typescript: 3.9.10
@@ -27530,7 +27542,7 @@ snapshots:
       - prismarine-registry
       - supports-color
 
-  mineflayer@2.41.0(encoding@0.1.13)(prismarine-registry@1.11.0):
+  mineflayer@2.41.0(prismarine-registry@1.11.0):
     dependencies:
       minecraft-data: 2.221.0
       minecraft-protocol: 1.62.0(encoding@0.1.13)
@@ -27552,7 +27564,7 @@ snapshots:
       - prismarine-registry
       - supports-color
 
-  mineflayer@4.33.0(encoding@0.1.13):
+  mineflayer@4.33.0:
     dependencies:
       minecraft-data: 3.101.0
       minecraft-protocol: 1.62.0(encoding@0.1.13)
