@@ -28,6 +28,9 @@ function toDisplayValue(value: T): string {
   const option = props.options.flatMap(group => group.children).find(option => option?.value === value)
   return option ? option.label : props.placeholder || ''
 }
+
+// Keep popover above modal overlays (dialogs use z-9999)
+const COMBOBOX_PORTAL_Z = 'z-[12000]'
 </script>
 
 <template>
@@ -71,7 +74,8 @@ function toDisplayValue(value: T): string {
         :side-offset="4"
         :avoid-collisions="true"
         :class="[
-          'z-150 w-full min-w-[160px] overflow-hidden rounded-xl shadow-sm border will-change-[opacity,transform]',
+          COMBOBOX_PORTAL_Z,
+          'w-full min-w-[160px] overflow-hidden rounded-xl shadow-sm border will-change-[opacity,transform]',
           'data-[side=top]:animate-slideDownAndFade data-[side=right]:animate-slideLeftAndFade data-[side=bottom]:animate-slideUpAndFade data-[side=left]:animate-slideRightAndFade',
           'bg-white dark:bg-neutral-900',
           'border-neutral-200 dark:border-neutral-800 border-solid border-2 focus:border-neutral-300 dark:focus:border-neutral-600',
