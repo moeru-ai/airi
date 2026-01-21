@@ -16,6 +16,7 @@ import type {
 import { createContext } from '@moeru/eventa'
 
 import { speechPipelineEventMap } from './eventa'
+import { createParallelTts } from './parallel-tts'
 import { createPriorityResolver } from './priority'
 import { createTtsSegmentStream } from './processors/tts-chunker'
 import { createPushStream } from './stream'
@@ -35,6 +36,13 @@ export interface SpeechPipelineOptions<TAudio> {
   logger?: LoggerLike
   priority?: ReturnType<typeof createPriorityResolver>
   segmenter?: (tokens: ReadableStream<TextToken>, meta: { streamId: string, intentId: string }) => ReadableStream<TextSegment>
+  /**
+   * 并行 TTS 请求数量
+   * - 1: 串行模式（当前行为）
+   * - 2-4: 推荐值，可以提前生成下几段语音
+   * @default 3
+   */
+  ttsConcurrency?: number
 }
 
 interface IntentState {
@@ -58,6 +66,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
   const logger = options.logger ?? console
   const priorityResolver = options.priority ?? createPriorityResolver()
   const segmenter = options.segmenter ?? createTtsSegmentStream
+  const ttsConcurrency = options.ttsConcurrency ?? 3
   const context = createContext()
 
   const intents = new Map<string, IntentState>()
@@ -86,6 +95,37 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
 
     const tokenStream = intent.stream
     const segmentStream = segmenter(tokenStream, { streamId: intent.streamId, intentId: intent.intentId })
+    let segmentIndex = 0
+
+    const parallel = createParallelTts<TAudio>({
+      concurrency: ttsConcurrency,
+      onComplete: (_index, audio, request) => {
+        const ttsResult: TtsResult<TAudio> = {
+          streamId: request.streamId,
+          intentId: request.intentId,
+          segmentId: request.segmentId,
+          text: request.text,
+          special: request.special,
+          audio,
+          createdAt: Date.now(),
+        }
+
+        context.emit(speechPipelineEventMap.onTtsResult, ttsResult)
+
+        options.playback.schedule({
+          id: createId('playback'),
+          streamId: ttsResult.streamId,
+          intentId: ttsResult.intentId,
+          segmentId: ttsResult.segmentId,
+          ownerId: intent.ownerId,
+          priority: intent.priority,
+          text: ttsResult.text,
+          special: ttsResult.special,
+          audio: ttsResult.audio,
+          createdAt: Date.now(),
+        })
+      },
+    })
 
     try {
       const reader = segmentStream.getReader()
@@ -120,47 +160,10 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
 
         context.emit(speechPipelineEventMap.onTtsRequest, request)
 
-        let audio: TAudio | null = null
-        try {
-          audio = await options.tts(request, intent.controller.signal)
-        }
-        catch (err) {
-          logger.warn('TTS generation failed:', err)
-          if (intent.controller.signal.aborted)
-            break
-          continue
-        }
+        const currentIndex = segmentIndex++
 
-        if (intent.controller.signal.aborted)
-          break
-
-        if (!audio)
-          continue
-
-        const ttsResult: TtsResult<TAudio> = {
-          streamId: request.streamId,
-          intentId: request.intentId,
-          segmentId: request.segmentId,
-          text: request.text,
-          special: request.special,
-          audio,
-          createdAt: Date.now(),
-        }
-
-        context.emit(speechPipelineEventMap.onTtsResult, ttsResult)
-
-        options.playback.schedule({
-          id: createId('playback'),
-          streamId: ttsResult.streamId,
-          intentId: ttsResult.intentId,
-          segmentId: ttsResult.segmentId,
-          ownerId: intent.ownerId,
-          priority: intent.priority,
-          text: ttsResult.text,
-          special: ttsResult.special,
-          audio: ttsResult.audio,
-          createdAt: Date.now(),
-        })
+        parallel.submit(currentIndex, request, () =>
+          options.tts(request, intent.controller.signal))
       }
 
       reader.releaseLock()
