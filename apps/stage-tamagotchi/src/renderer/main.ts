@@ -4,6 +4,7 @@ import type { RouteRecordRaw } from 'vue-router'
 import Tres from '@tresjs/core'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
+import { PiniaColada } from '@pinia/colada'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -52,6 +53,7 @@ createApp(App)
   .use(autoAnimatePlugin as unknown as Plugin)
   .use(router)
   .use(pinia)
+  .use(PiniaColada)
   .use(i18n)
   .use(Tres)
   .mount('#app')

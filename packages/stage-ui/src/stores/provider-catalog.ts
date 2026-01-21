@@ -14,14 +14,14 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
   const configs = ref<Record<string, ProviderCatalogProvider>>({})
 
   async function fetchList() {
-    // Load from storage immediately
-    const cached = await providersRepo.getAll()
-    if (Object.keys(cached).length > 0) {
-      configs.value = cached
-    }
-
     return useLocalFirstRequest({
-      local: async () => undefined,
+      local: async () => {
+        const cached = await providersRepo.getAll()
+        if (Object.keys(cached).length > 0) {
+          configs.value = cached
+        }
+        return cached
+      },
       remote: async () => {
         const res = await client.api.providers.$get()
         if (!res.ok) {
@@ -43,6 +43,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
         configs.value = newConfigs
         await providersRepo.saveAll(newConfigs)
       },
+      localFirstThenRemote: true,
     })
   }
 

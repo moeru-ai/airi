@@ -5,7 +5,9 @@ import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 import type { ChatAssistantMessage, ChatSlices, ChatStreamEventContext, StreamingAssistantMessage } from '../types/chat'
 import type { StreamEvent, StreamOptions } from './llm'
 
+import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { createQueue } from '@proj-airi/stream-kit'
+import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw } from 'vue'
 
@@ -98,6 +100,21 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       return
 
     chatSession.ensureSession(sessionId)
+
+    const timeContextCreatedAt = Date.now()
+    chatContext.ingestContextMessage({
+      id: `system-time-${nanoid()}`,
+      contextId: 'system-time',
+      strategy: ContextUpdateStrategy.ReplaceSelf,
+      text: `Current time: ${new Date(timeContextCreatedAt).toISOString()}`,
+      createdAt: timeContextCreatedAt,
+      metadata: {
+        source: {
+          plugin: 'stage-ui',
+          instanceId: 'local-time',
+        },
+      },
+    })
 
     const sendingCreatedAt = Date.now()
     const streamingMessageContext: ChatStreamEventContext = {

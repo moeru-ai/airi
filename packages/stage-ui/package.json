@@ -54,6 +54,7 @@
     "@formkit/auto-animate": "^0.9.0",
     "@huggingface/transformers": "^3.8.1",
     "@moeru/eventa": "^1.0.0-alpha.10",
+    "@pinia/colada": "catalog:",
     "@proj-airi/audio": "workspace:^",
     "@proj-airi/ccc": "workspace:^",
     "@proj-airi/chromatic": "^1.0.2",

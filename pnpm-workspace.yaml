@@ -37,6 +37,7 @@ catalog:
   '@moeru/eventa': 1.0.0-alpha.10
   '@moeru/std': 0.1.0-beta.14
   '@nekopaw/tempora': 0.4.0-alpha.1
+  '@pinia/colada': ^0.21.2
   '@pinia/testing': ^1.0.3
   '@proj-airi/drizzle-duckdb-wasm': ^0.4.29
   '@proj-airi/iconify-meteocons': ^0.1.4
