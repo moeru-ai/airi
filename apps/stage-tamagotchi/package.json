@@ -97,6 +97,7 @@
     "jszip": "^3.10.1",
     "localforage": "^1.10.0",
     "mediabunny": "^1.29.0",
+    "mkcert": "catalog:",
     "node-vibrant": "^4.0.3",
     "nprogress": "^0.2.0",
     "onnxruntime-web": "^1.23.2",
