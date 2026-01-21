@@ -10,8 +10,6 @@ import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { dockOverlayThemeUpdated } from '../shared/eventa'
 import { useElectronEventaContext, useElectronRelativeMouse } from './composables/electron-vueuse'
 
-import './styles/hue.css'
-
 const settingsStore = useSettings()
 useStageThemeSync()
 const eventaContext = useElectronEventaContext()

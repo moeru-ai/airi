@@ -24,8 +24,6 @@ import ResizeHandler from './components/ResizeHandler.vue'
 import { electronOpenSettings, electronStartTrackMousePosition } from '../shared/eventa'
 import { useElectronEventaContext } from './composables/electron-vueuse'
 
-import './styles/hue.css'
-
 const { isDark: dark } = useTheme()
 const i18n = useI18n()
 const contextBridgeStore = useContextBridgeStore()
