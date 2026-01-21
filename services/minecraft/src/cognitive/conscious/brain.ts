@@ -573,7 +573,6 @@ export class Brain {
       if (!response)
         return null
 
-      // TODO: use toolcall instead of outputing json directly
       return parseLLMResponseJson<LLMResponse>(response)
     }
 
