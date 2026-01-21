@@ -12,6 +12,13 @@ docs:
   'fade-on-hover':
     enable: 自動的に隠す
     disable: 常に表示
+  'open-settings': 設定を開く
+  'open-chat': チャットを開く
+  'refresh': 再読み込み
+  'open-hearing-controls': 聴覚コントロールを開く
+  'drag-to-move-window': ウィンドウをドラッグして移動
+  'switch-to-light-mode': ライトモードに切り替え
+  'switch-to-dark-mode': ダークモードに切り替え
 notice:
   'fade-on-hover':
     title: ホバー時にフェード

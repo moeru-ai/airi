@@ -1,0 +1,46 @@
+name: proj-airi-server
+
+services:
+  db:
+    image: ghcr.io/tensorchord/vchord-postgres:pg18-v1.0.0
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=example-PAssw0rd-xHjDYR.b7N
+    ports:
+      - '5432:5432'
+    volumes:
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - db_data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  server:
+    build:
+      context: ../..
+      dockerfile: apps/server/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Database
+      - DATABASE_URL=postgresql://postgres:example-PAssw0rd-xHjDYR.b7N@db:5432/postgres
+      # Auth
+      - AUTH_GOOGLE_CLIENT_ID
+      - AUTH_GOOGLE_CLIENT_SECRET
+      - AUTH_GITHUB_CLIENT_ID
+      - AUTH_GITHUB_CLIENT_SECRET
+    ports:
+      - '6112:3000'
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -f http://localhost:3000/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db_data:
+    driver: local

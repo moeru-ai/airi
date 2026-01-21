@@ -113,3 +113,12 @@ outputs/
 
 # MediaPipe task assets
 packages/model-driver-mediapipe/tasks/assets/*
+
+# Plugins
+plugins/local
+plugins/development
+plugins-local
+plugins-development
+
+#ia
+GEMINI.md

@@ -1,16 +1,16 @@
 import { defineStore } from 'pinia'
 
-import { createResettableLocalStorage } from '../utils/resettable'
+import { useLocalStorageManualReset } from '../../../stage-shared/src/composables/use-local-storage-manual-reset'
 
 export const useMcpStore = defineStore('mcp', () => {
-  const [serverCmd, resetServerCmd] = createResettableLocalStorage('settings/mcp/server-cmd', '')
-  const [serverArgs, resetServerArgs] = createResettableLocalStorage('settings/mcp/server-args', '')
-  const [connected, resetConnected] = createResettableLocalStorage('mcp/connected', false) // use local storage to sync between windows
+  const serverCmd = useLocalStorageManualReset<string>('settings/mcp/server-cmd', '')
+  const serverArgs = useLocalStorageManualReset<string>('settings/mcp/server-args', '')
+  const connected = useLocalStorageManualReset<boolean>('mcp/connected', false) // use local storage to sync between windows
 
   function resetState() {
-    resetServerCmd()
-    resetServerArgs()
-    resetConnected()
+    serverCmd.reset()
+    serverArgs.reset()
+    connected.reset()
   }
 
   return {

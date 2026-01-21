@@ -82,6 +82,7 @@ interface FilenameOutputEntry {
   releaseArtifactFilename: string
   productName: string
   version: string
+  optional?: boolean
 }
 
 export function mapArchFor(
@@ -118,6 +119,28 @@ export function mapArchFor(
   }
 }
 
+function getLatestUpdateFilename(target: string): string | null {
+  switch (target) {
+    case 'x86_64-pc-windows-msvc':
+      return 'latest.yml'
+    case 'x86_64-unknown-linux-gnu':
+      return 'latest-linux.yml'
+    case 'aarch64-unknown-linux-gnu':
+      return 'latest-linux-arm64.yml'
+    case 'aarch64-apple-darwin':
+    case 'x86_64-apple-darwin':
+      return 'latest-mac.yml'
+    default:
+      return null
+  }
+}
+
+function getMacZipFilename(productName: string, version: string, target: string): string {
+  const arch = mapArchFor(target, 'zip')
+  const archPrefix = arch === 'x64' ? '' : `${arch}-`
+  return `${productName}-${version}-${archPrefix}mac.zip`
+}
+
 export async function getFilenames(target: string, options: { release: boolean, autoTag: boolean, tag: string[] }): Promise<FilenameOutputEntry[]> {
   const electronBuilder = await getElectronBuilderConfig()
   const version = await getVersion(options)
@@ -152,6 +175,15 @@ export async function getFilenames(target: string, options: { release: boolean, 
           ),
           productName,
           version,
+        },
+        {
+          target: 'x86_64-pc-windows-msvc',
+          extension: 'latest.yml',
+          outputFilename: 'latest.yml',
+          releaseArtifactFilename: 'latest.yml',
+          productName,
+          version,
+          optional: true,
         },
       ]
     case 'x86_64-unknown-linux-gnu':
@@ -237,6 +269,19 @@ export async function getFilenames(target: string, options: { release: boolean, 
             version,
           },
         )
+      }
+
+      const latestUpdateFilename = getLatestUpdateFilename(target)
+      if (latestUpdateFilename) {
+        artifacts.push({
+          target: 'x86_64-unknown-linux-gnu',
+          extension: latestUpdateFilename,
+          outputFilename: latestUpdateFilename,
+          releaseArtifactFilename: latestUpdateFilename,
+          productName,
+          version,
+          optional: true,
+        })
       }
 
       return artifacts
@@ -326,10 +371,24 @@ export async function getFilenames(target: string, options: { release: boolean, 
         )
       }
 
+      const latestUpdateFilename = getLatestUpdateFilename(target)
+      if (latestUpdateFilename) {
+        artifacts.push({
+          target: 'aarch64-unknown-linux-gnu',
+          extension: latestUpdateFilename,
+          outputFilename: latestUpdateFilename,
+          releaseArtifactFilename: latestUpdateFilename,
+          productName,
+          version,
+          optional: true,
+        })
+      }
+
       return artifacts
     }
     case 'aarch64-apple-darwin':
-      return [
+    {
+      const artifacts: FilenameOutputEntry[] = [
         {
           target: 'aarch64-apple-darwin',
           extension: 'dmg',
@@ -351,8 +410,32 @@ export async function getFilenames(target: string, options: { release: boolean, 
           version,
         },
       ]
+
+      artifacts.push(
+        {
+          target: 'aarch64-apple-darwin',
+          extension: 'zip',
+          outputFilename: getMacZipFilename(productName, beforeVersion, target),
+          releaseArtifactFilename: getMacZipFilename(productName, version, target),
+          productName,
+          version,
+        },
+        {
+          target: 'aarch64-apple-darwin',
+          extension: 'latest-mac.yml',
+          outputFilename: 'latest-mac.yml',
+          releaseArtifactFilename: 'latest-mac.yml',
+          productName,
+          version,
+          optional: true,
+        },
+      )
+
+      return artifacts
+    }
     case 'x86_64-apple-darwin':
-      return [
+    {
+      const artifacts: FilenameOutputEntry[] = [
         {
           target: 'x86_64-apple-darwin',
           extension: 'dmg',
@@ -374,6 +457,29 @@ export async function getFilenames(target: string, options: { release: boolean, 
           version,
         },
       ]
+
+      artifacts.push(
+        {
+          target: 'x86_64-apple-darwin',
+          extension: 'zip',
+          outputFilename: getMacZipFilename(productName, beforeVersion, target),
+          releaseArtifactFilename: getMacZipFilename(productName, version, target),
+          productName,
+          version,
+        },
+        {
+          target: 'x86_64-apple-darwin',
+          extension: 'latest-mac.yml',
+          outputFilename: 'latest-mac.yml',
+          releaseArtifactFilename: 'latest-mac.yml',
+          productName,
+          version,
+          optional: true,
+        },
+      )
+
+      return artifacts
+    }
     default:
       console.error('Target is not supported')
       process.exit(1)

@@ -1,5 +1,6 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
 
+import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, watch } from 'vue'
@@ -7,7 +8,6 @@ import { useI18n } from 'vue-i18n'
 
 import SystemPromptV2 from '../../constants/prompts/system-v2'
 
-import { createResettableLocalStorage } from '../../utils/resettable'
 import { useConsciousnessStore } from './consciousness'
 import { useSpeechStore } from './speech'
 
@@ -43,6 +43,7 @@ export interface AiriExtension {
   agents: {
     [key: string]: { // example: minecraft
       prompt: string
+      enabled?: boolean
     }
   }
 }
@@ -56,8 +57,8 @@ export interface AiriCard extends Card {
 export const useAiriCardStore = defineStore('airi-card', () => {
   const { t } = useI18n()
 
-  const [cards, resetCards] = createResettableLocalStorage<Map<string, AiriCard>>('airi-cards', new Map())
-  const [activeCardId, resetActiveCardId] = createResettableLocalStorage('airi-card-active-id', 'default')
+  const cards = useLocalStorageManualReset<Map<string, AiriCard>>('airi-cards', new Map())
+  const activeCardId = useLocalStorageManualReset<string>('airi-card-active-id', 'default')
 
   const activeCard = computed(() => cards.value.get(activeCardId.value))
 
@@ -81,6 +82,20 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
   const removeCard = (id: string) => {
     cards.value.delete(id)
+  }
+
+  const updateCard = (id: string, updates: AiriCard | Card | ccv3.CharacterCardV3) => {
+    const existingCard = cards.value.get(id)
+    if (!existingCard)
+      return false
+
+    const updatedCard = {
+      ...existingCard,
+      ...updates,
+    }
+
+    cards.value.set(id, newAiriCard(updatedCard))
+    return true
   }
 
   const getCard = (id: string) => {
@@ -212,8 +227,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   })
 
   function resetState() {
-    resetActiveCardId()
-    resetCards()
+    activeCardId.reset()
+    cards.reset()
   }
 
   return {
@@ -222,6 +237,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     activeCardId,
     addCard,
     removeCard,
+    updateCard,
     getCard,
     resetState,
     initialize,

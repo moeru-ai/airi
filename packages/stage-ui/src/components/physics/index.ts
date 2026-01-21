@@ -1,2 +1,2 @@
-export { default as CursorFloating } from './CursorFloating.vue'
-export { default as CursorMomentum } from './CursorMomentum.vue'
+export { default as CursorFloating } from './cursor-floating.vue'
+export { default as CursorMomentum } from './cursor-momentum.vue'

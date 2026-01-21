@@ -2,7 +2,7 @@
   "publisher": "proj-airi",
   "name": "@proj-airi/airi-plugin-vscode",
   "displayName": "AIRI",
-  "version": "0.8.1-beta.2",
+  "version": "0.8.1",
   "private": true,
   "description": "VSCode extension that shares your coding context with AIRI",
   "repository": {
@@ -17,7 +17,7 @@
   "main": "./dist/extension.cjs",
   "icon": "res/logo.jpg",
   "engines": {
-    "vscode": "^1.107.0"
+    "vscode": "^1.108.1"
   },
   "activationEvents": [
     "onStartupFinished"
@@ -66,16 +66,14 @@
     "publish": "tsx ./scripts/publish.ts",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "es-toolkit": "catalog:",
-    "injeca": "catalog:",
-    "nanoid": "catalog:"
-  },
   "devDependencies": {
     "@guiiai/logg": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/server-sdk": "workspace:*",
-    "@types/vscode": "^1.107.0",
+    "@types/vscode": "^1.108.1",
+    "es-toolkit": "catalog:",
+    "injeca": "catalog:",
+    "nanoid": "catalog:",
     "tinyexec": "^1.0.2",
     "vscode-ext-gen": "^1.5.1"
   }

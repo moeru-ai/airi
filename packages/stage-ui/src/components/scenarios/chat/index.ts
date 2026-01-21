@@ -1,4 +1,4 @@
-export { default as ChatAssistantItem } from './ChatAssistantItem.vue'
-export { default as ChatErrorItem } from './ChatErrorItem.vue'
-export { default as ChatHistory } from './ChatHistory.vue'
-export { default as ChatUserItem } from './ChatUserItem.vue'
+export { default as ChatAssistantItem } from './assistant-item.vue'
+export { default as ChatErrorItem } from './error-item.vue'
+export { default as ChatHistory } from './history.vue'
+export { default as ChatUserItem } from './user-item.vue'

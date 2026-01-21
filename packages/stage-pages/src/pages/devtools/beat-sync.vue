@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import type { BeatSyncStyleName } from '../../../../stage-ui/src/composables/live2d/beat-sync'
+import type { BeatSyncStyleName } from '@proj-airi/stage-ui-live2d'
 
-import { Callout, Section } from '@proj-airi/stage-ui/components'
-import { Button, FieldCheckbox, FieldRange, FieldSelect } from '@proj-airi/ui'
+import { createBeatSyncController } from '@proj-airi/stage-ui-live2d'
+import { Section } from '@proj-airi/stage-ui/components'
+import { Button, Callout, FieldCheckbox, FieldRange, FieldSelect } from '@proj-airi/ui'
 import { useRafFn } from '@vueuse/core'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-
-import { createBeatSyncController } from '../../../../stage-ui/src/composables/live2d/beat-sync'
 
 interface TrailPoint { x: number, y: number, t: number }
 interface ScalarSample { t: number, x: number, y: number, z: number }
@@ -348,4 +347,6 @@ function hitVSequence() {
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: settings.pages.modules.beat_sync.title
+  subtitleKey: tamagotchi.settings.devtools.title
 </route>

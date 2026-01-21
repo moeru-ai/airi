@@ -12,12 +12,19 @@ docs:
   'fade-on-hover':
     enable: 懸停時隱藏
     disable: 總是顯示
+  'open-settings': Open settings
+  'open-chat': Open Chat
+  'refresh': Refresh
+  'open-hearing-controls': Open hearing Controls
+  'drag-to-move-window': Drag to move window
+  'switch-to-light-mode': Switch to light mode
+  'switch-to-dark-mode': Switch to dark mode
 notice:
   'fade-on-hover':
     title: 懸停淡出
     intro: 當游標靠近時自動讓角色變淡，減少干擾同時保持可見。
-    opacity: 開啟後，不透明度會降到 {value} ，作用於 {targets} ，當游標靠近時。
-    toggle: 要關閉時，將游標移到 {controls} 區域，再點擊一次 {icon}。
+    opacity: 開啟後，當游標靠近時， {targets} 的不透明度會降到 {value}。
+    toggle: 要關閉時，將游標移到 {controls} 區域，再次點擊 {icon}。
     controls-label: 控制島
     icon-label: 隱藏圖示
     value: '0'

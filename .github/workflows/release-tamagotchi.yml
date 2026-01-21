@@ -31,12 +31,26 @@ on:
         description: Specific tag/commit for the release (leave empty to auto-detect latest tag)
         required: false
         type: string
+      platform:
+        description: Platform
+        type: choice
+        options:
+          - all
+          - windows
+          - macos
+          - linux
+      ssh_into_runner:
+        description: SSH into runner for debugging
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: '0 0 * * *'
 
 jobs:
   build:
     name: Build
+    continue-on-error: ${{ matrix.skip }} # WORKAROUND: Skipping subsequent steps without failing the whole workflow
     strategy:
       matrix:
         include:
@@ -46,33 +60,45 @@ jobs:
             target: x86_64-apple-darwin
             arch: x64
             builder-args: --macos --x64
+            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'macos' }}
 
           - os: macos-latest
             artifact: darwin-arm64
             target: aarch64-apple-darwin
             builder-args: --macos --arm64
             arch: arm64
+            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'macos' }}
 
           - os: ubuntu-latest
             artifact: linux-x64
             target: x86_64-unknown-linux-gnu
             builder-args: --linux --x64
             arch: x64
+            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'linux' }}
 
           - os: ubuntu-24.04-arm
             artifact: linux-arm64
             target: aarch64-unknown-linux-gnu
             builder-args: --linux --arm64
             arch: arm64
+            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'linux' }}
 
           - os: windows-latest
             artifact: windows-x64-setup
             target: x86_64-pc-windows-msvc
             builder-args: --windows --x64
             arch: x64
+            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'windows' }}
 
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Skip the build (fail fast)
+        run: |
+          echo "Skipping build for ${{ matrix.os }}..."
+          echo "This will fail the job, but don't panic—this is expected when not building for all."
+          echo "This will be improved in the future."
+          exit ${{ matrix.skip && '1' || '0' }}
+
       # Why?
       #
       # failed to build archive at `/home/runner/work/airi/airi/target/x86_64-unknown-linux-gnu/release/deps/libapp_lib.rlib`:
@@ -108,6 +134,18 @@ jobs:
       #     security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
       #     security list-keychain -d user -s $KEYCHAIN_PATH
 
+      - name: macOS Show Xcode 26.1
+        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest'
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.1.app
+          xcodebuild -version
+
+      - name: macOS Show Toolchain
+        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest'
+        run: |
+          xcodebuild -version
+          actool --version
+
       - uses: pnpm/action-setup@v4
         with:
           run_install: false
@@ -122,6 +160,12 @@ jobs:
       # ---------
 
       - run: pnpm run build:packages
+
+      - if: ${{ inputs.ssh_into_runner }}
+        name: Debug - Setup upterm session
+        uses: owenthereal/action-upterm@v1
+        with:
+          limit-access-to-users: sumimakito
 
       - name: Build (Windows Only) # Windows
         if: matrix.os == 'windows-latest'
@@ -305,10 +349,22 @@ jobs:
         run: |
           pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release --auto-tag
 
+      - name: Upload macOS update info (Automatic + macOS Only)
+        if: ${{ github.event_name == 'release' && (matrix.os == 'macos-latest' || matrix.os == 'macos-15-intel') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: latest-mac-yml-${{ matrix.arch }}
+          path: apps/stage-tamagotchi/bundle/latest-mac.yml
+          if-no-files-found: error
+
       - name: Upload To GitHub Releases (Automatic)
         if: ${{ github.event_name == 'release' }}
         uses: softprops/action-gh-release@v2
         with:
+          # Possible auto updater files:
+          # Windows: latest.yml
+          # macOS: latest-mac.yml (arm64), latest-mac.yml (x64)
+          # Linux: latest-linux-arm64.yml (arm64), latest-linux.yml (x64)
           files: |
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.exe
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.zip
@@ -316,9 +372,52 @@ jobs:
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.deb
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.rpm
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.flatpak
+            apps/stage-tamagotchi/bundle/latest.yml
+            apps/stage-tamagotchi/bundle/latest-*.yml
           append_body: true
 
       # - name: Clean up keychain and provisioning profile (macOS Only)
       #   if: ${{ always() && (matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest') }}
       #   run: |
       #     security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
+
+  merge-mac-latest:
+    name: Merge macOS latest-mac.yml
+    if: ${{ github.event_name == 'release' }} # Skipping will only exist when triggered by workflow_dispatch. No need to handle here
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Download latest-mac.yml (x64)
+        uses: actions/download-artifact@v4
+        with:
+          name: latest-mac-yml-x64
+          path: artifacts/x64
+
+      - name: Download latest-mac.yml (arm64)
+        uses: actions/download-artifact@v4
+        with:
+          name: latest-mac-yml-arm64
+          path: artifacts/arm64
+
+      - name: Merge latest-mac.yml
+        run: |
+          pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/merge-latest-mac.ts \
+            --dir artifacts \
+            --output apps/stage-tamagotchi/bundle/latest-mac.yml
+
+      - name: Upload merged latest-mac.yml
+        uses: softprops/action-gh-release@v2
+        with:
+          files: apps/stage-tamagotchi/bundle/latest-mac.yml
+          tag_name: ${{ github.event.release.tag_name }}

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { DEFAULT_THEME_COLORS_HUE, useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { TooltipArrow, TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
+
+import { DEFAULT_THEME_COLORS_HUE, useSettings } from '../../stores/settings'
 
 interface Color {
   hex?: string

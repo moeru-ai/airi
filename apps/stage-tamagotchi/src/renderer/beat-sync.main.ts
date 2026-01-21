@@ -11,27 +11,13 @@ import {
   createContext,
 } from '@proj-airi/stage-shared/beat-sync'
 
-const { ipcRenderer } = window.electron
-
 const context = createContext()
 
 const changeState = defineInvoke(context, beatSyncStateChangedInvokeEventa)
 const signalBeat = defineInvoke(context, beatSyncBeatSignaledInvokeEventa)
 
-function enableLoopbackAudio() {
-  // electron-audio-loopback currently registers this handler internally
-  return ipcRenderer.invoke('enable-loopback-audio')
-}
-
-function disableLoopbackAudio() {
-  // electron-audio-loopback currently registers this handler internally
-  return ipcRenderer.invoke('disable-loopback-audio')
-}
-
 const detector = createBeatSyncDetector({
   env: StageEnvironment.Tamagotchi,
-  enableLoopbackAudio,
-  disableLoopbackAudio,
 })
 
 detector.on('stateChange', state => changeState(state))

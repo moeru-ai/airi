@@ -2,7 +2,9 @@
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { ChatHistory } from '@proj-airi/stage-ui/components'
-import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
+import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useDeferredMount } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
@@ -12,7 +14,9 @@ import ChatArea from '../Widgets/ChatArea.vue'
 import ChatContainer from '../Widgets/ChatContainer.vue'
 
 const { isReady } = useDeferredMount()
-const { messages, sending, streamingMessage } = storeToRefs(useChatStore())
+const { sending } = storeToRefs(useChatOrchestratorStore())
+const { messages } = storeToRefs(useChatSessionStore())
+const { streamingMessage } = storeToRefs(useChatStreamStore())
 
 const isLoading = ref(true)
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])

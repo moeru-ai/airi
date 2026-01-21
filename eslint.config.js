@@ -62,7 +62,7 @@ export default defineConfig({
           'side-effect',
           'style',
         ],
-        newlinesBetween: 'always',
+        newlinesBetween: 1,
       },
     ],
     // 'sonarjs/cognitive-complexity': 'off',

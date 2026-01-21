@@ -11,6 +11,7 @@ import type {
 import type { ProgressInfo } from '@xsai-transformers/shared/types'
 import type {
   UnAlibabaCloudOptions,
+  UnDeepgramOptions,
   UnElevenLabsOptions,
   UnMicrosoftOptions,
   UnVolcengineOptions,
@@ -50,6 +51,7 @@ import { isWebGPUSupported } from 'gpuu/webgpu'
 import { defineStore } from 'pinia'
 import {
   createUnAlibabaCloud,
+  createUnDeepgram,
   createUnElevenLabs,
   createUnMicrosoft,
   createUnVolcengine,
@@ -61,6 +63,7 @@ import { useI18n } from 'vue-i18n'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
+import { createWebSpeechAPIProvider } from './providers/web-speech-api'
 
 const ALIYUN_NLS_REGIONS = [
   'cn-shanghai',
@@ -452,11 +455,11 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         baseUrl: 'http://localhost:11434/v1/',
       }),
-      createProvider: async config => createOllama((config.baseUrl as string).trim()),
+      createProvider: async config => createOllama('', (config.baseUrl as string).trim()),
       capabilities: {
         listModels: async (config) => {
           return (await listModels({
-            ...createOllama((config.baseUrl as string).trim()).model(),
+            ...createOllama('', (config.baseUrl as string).trim()).model(),
           })).map((model) => {
             return {
               id: model.id,
@@ -697,94 +700,118 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: ['health'],
       capabilities: {
-        listVoices: async () => {
+        // NOTE: OpenAI does not provide an API endpoint to retrieve available voices.
+        // Voices are hardcoded here - this is a provider limitation, not an application limitation.
+        // Voice compatibility per https://platform.openai.com/docs/api-reference/audio/createSpeech:
+        // - tts-1 and tts-1-hd support: alloy, ash, coral, echo, fable, onyx, nova, sage, shimmer (9 voices)
+        // - gpt-4o-mini-tts supports all 13 voices: alloy, ash, ballad, coral, echo, fable, nova, onyx, sage, shimmer, verse, marin, cedar
+        listVoices: async (_config: Record<string, unknown>) => {
           return [
             {
               id: 'alloy',
               name: 'Alloy',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'ash',
               name: 'Ash',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'ballad',
               name: 'Ballad',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'coral',
               name: 'Coral',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'echo',
               name: 'Echo',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'fable',
               name: 'Fable',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'onyx',
               name: 'Onyx',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'nova',
               name: 'Nova',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'sage',
               name: 'Sage',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'shimmer',
               name: 'Shimmer',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
             {
               id: 'verse',
               name: 'Verse',
               provider: 'openai-audio-speech',
               languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd'],
+              compatibleModels: ['gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
+            },
+            {
+              id: 'marin',
+              name: 'Marin',
+              provider: 'openai-audio-speech',
+              languages: [],
+              compatibleModels: ['gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
+            },
+            {
+              id: 'cedar',
+              name: 'Cedar',
+              provider: 'openai-audio-speech',
+              languages: [],
+              compatibleModels: ['gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
             },
           ] satisfies VoiceInfo[]
         },
         listModels: async () => {
+          // TESTING NOTES: All 4 models tested and confirmed working with fable voice:
+          // - tts-1: {model: "tts-1", input: "test", voice: "fable"} ✓
+          // - tts-1-hd: {model: "tts-1-hd", input: "test", voice: "fable"} ✓
+          // - gpt-4o-mini-tts: {model: "gpt-4o-mini-tts", input: "test", voice: "fable"} ✓
+          // - gpt-4o-mini-tts-2025-12-15: {model: "gpt-4o-mini-tts-2025-12-15", input: "test", voice: "fable"} ✓
           return [
             {
               id: 'tts-1',
               name: 'TTS-1',
               provider: 'openai-audio-speech',
-              description: '',
+              description: 'Optimized for real-time text-to-speech tasks',
               contextLength: 0,
               deprecated: false,
             },
@@ -792,7 +819,23 @@ export const useProvidersStore = defineStore('providers', () => {
               id: 'tts-1-hd',
               name: 'TTS-1-HD',
               provider: 'openai-audio-speech',
-              description: '',
+              description: 'Higher fidelity audio output',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: 'gpt-4o-mini-tts',
+              name: 'GPT-4o Mini TTS',
+              provider: 'openai-audio-speech',
+              description: 'GPT-4o Mini optimized for text-to-speech',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: 'gpt-4o-mini-tts-2025-12-15',
+              name: 'GPT-4o Mini TTS (2025-12-15)',
+              provider: 'openai-audio-speech',
+              description: 'GPT-4o Mini TTS snapshot from 2025-12-15',
               contextLength: 0,
               deprecated: false,
             },
@@ -832,6 +875,46 @@ export const useProvidersStore = defineStore('providers', () => {
         listVoices: async () => {
           return []
         },
+        listModels: async (config: Record<string, unknown>) => {
+          // Filter models to only include TTS models
+          const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+          let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+
+          if (!baseUrl.endsWith('/'))
+            baseUrl += '/'
+
+          if (!apiKey || !baseUrl) {
+            return []
+          }
+
+          const provider = await createOpenAI(apiKey, baseUrl)
+          if (!provider || typeof provider.model !== 'function') {
+            return []
+          }
+
+          const models = await listModels({
+            apiKey,
+            baseURL: baseUrl,
+          })
+
+          // Filter for TTS models - look for models with "tts" in the ID
+          return models
+            .filter((model: any) => {
+              const modelId = model.id.toLowerCase()
+              // Include models that contain "tts" in their ID
+              return modelId.includes('tts')
+            })
+            .map((model: any) => {
+              return {
+                id: model.id,
+                name: model.name || model.display_name || model.id,
+                provider: 'openai-compatible-audio-speech',
+                description: model.description || '',
+                contextLength: model.context_length || 0,
+                deprecated: false,
+              } satisfies ModelInfo
+            })
+        },
       },
       creator: createOpenAI,
     }),
@@ -847,6 +930,53 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultBaseUrl: 'https://api.openai.com/v1/',
       creator: createOpenAI,
       validation: ['health'],
+      capabilities: {
+        listModels: async () => {
+          // OpenAI transcription models are hardcoded (no API endpoint to list them)
+          return [
+            {
+              id: 'gpt-4o-transcribe',
+              name: 'GPT-4o Transcribe',
+              provider: 'openai-audio-transcription',
+              description: 'High-quality transcription model',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: 'gpt-4o-mini-transcribe',
+              name: 'GPT-4o Mini Transcribe',
+              provider: 'openai-audio-transcription',
+              description: 'Faster, cost-effective transcription model',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: 'gpt-4o-mini-transcribe-2025-12-15',
+              name: 'GPT-4o Mini Transcribe (2025-12-15)',
+              provider: 'openai-audio-transcription',
+              description: 'GPT-4o Mini Transcribe snapshot from 2025-12-15',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: 'whisper-1',
+              name: 'Whisper-1',
+              provider: 'openai-audio-transcription',
+              description: 'Powered by our open source Whisper V2 model',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: 'gpt-4o-transcribe-diarize',
+              name: 'GPT-4o Transcribe Diarize',
+              provider: 'openai-audio-transcription',
+              description: 'Transcription with speaker diarization',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ] satisfies ModelInfo[]
+        },
+      },
       validators: {
         validateProviderConfig: (config) => {
           const errors = [
@@ -877,6 +1007,14 @@ export const useProvidersStore = defineStore('providers', () => {
       category: 'transcription',
       tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
       creator: createOpenAI,
+      capabilities: {
+        // Override listModels to return empty array - transcription models cannot be fetched from /v1/models
+        // Users must manually enter transcription model names (e.g., whisper-1, gpt-4o-transcribe)
+        // The /v1/models endpoint only returns chat models, not transcription models
+        listModels: async () => {
+          return []
+        },
+      },
     }),
     'aliyun-nls-transcription': {
       id: 'aliyun-nls-transcription',
@@ -963,6 +1101,82 @@ export const useProvidersStore = defineStore('providers', () => {
             errors,
             reason: errors.length > 0 ? errors.map(error => error.message).join(', ') : '',
             valid: errors.length === 0,
+          }
+        },
+      },
+    },
+    'browser-web-speech-api': {
+      id: 'browser-web-speech-api',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
+      nameKey: 'settings.pages.providers.provider.browser-web-speech-api.title',
+      name: 'Web Speech API (Browser)',
+      descriptionKey: 'settings.pages.providers.provider.browser-web-speech-api.description',
+      description: 'Browser-native speech recognition. No API keys.',
+      icon: 'i-solar:microphone-bold-duotone',
+      defaultOptions: () => ({
+        language: 'en-US',
+        continuous: true,
+        interimResults: true,
+        maxAlternatives: 1,
+      }),
+      transcriptionFeatures: {
+        supportsGenerate: false,
+        supportsStreamOutput: true,
+        supportsStreamInput: true,
+      },
+      isAvailableBy: async () => {
+        // Web Speech API is only available in browser contexts, NOT in Electron
+        // Even though Electron uses Chromium, Web Speech API requires Google's embedded API keys
+        // which are not available in Electron, causing it to fail at runtime
+        if (typeof window === 'undefined')
+          return false
+
+        // Explicitly exclude Electron - Web Speech API doesn't work there
+        if (isStageTamagotchi())
+          return false
+
+        // Check if API is available in browser
+        return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window
+      },
+      createProvider: async (_config) => {
+        // Web Speech API doesn't need config, but we accept it for consistency
+        return createWebSpeechAPIProvider()
+      },
+      capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'web-speech-api',
+              name: 'Web Speech API',
+              provider: 'browser-web-speech-api',
+              description: 'Browser-native speech recognition (no API keys required)',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
+      },
+      validators: {
+        validateProviderConfig: () => {
+          // Web Speech API requires no configuration, just browser support
+          // Always return valid if browser supports it, so it auto-configures
+          const isAvailable = typeof window !== 'undefined'
+            && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
+
+          if (!isAvailable) {
+            return {
+              errors: [new Error('Web Speech API is not available. It requires a browser context with SpeechRecognition support (Chrome, Edge, Safari).')],
+              reason: 'Web Speech API is not available in this environment.',
+              valid: false,
+            }
+          }
+
+          // Auto-configure if available (no credentials needed)
+          return {
+            errors: [],
+            reason: '',
+            valid: true,
           }
         },
       },
@@ -1125,6 +1339,62 @@ export const useProvidersStore = defineStore('providers', () => {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
             valid: !!config.apiKey && !!config.baseUrl,
+          }
+        },
+      },
+    },
+    'deepgram-tts': {
+      id: 'deepgram-tts',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      nameKey: 'settings.pages.providers.provider.deepgram-tts.title',
+      name: 'Deepgram',
+      descriptionKey: 'settings.pages.providers.provider.deepgram-tts.description',
+      description: 'deepgram.com',
+      icon: 'i-simple-icons:deepgram',
+      defaultOptions: () => ({
+        baseUrl: 'https://unspeech.hyp3r.link/v1/',
+      }),
+      createProvider: async (config) => {
+        const provider = createUnDeepgram((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as SpeechProviderWithExtraOptions<string, UnDeepgramOptions>
+        return provider
+      },
+      capabilities: {
+        listVoices: async (config) => {
+          const provider = createUnDeepgram((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnDeepgramOptions>
+
+          const voices = await listVoices({
+            ...provider.voice(),
+          })
+
+          return voices.map((voice) => {
+            return {
+              id: voice.id,
+              name: voice.name,
+              provider: 'deepgram-tts',
+              description: voice.description,
+              languages: voice.languages,
+              gender: voice.labels?.gender,
+            }
+          })
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          const errors: Error[] = []
+          if (!config.apiKey) {
+            errors.push(new Error('API key is required.'))
+          }
+
+          const baseUrlValidationResult = baseUrlValidator.value(config.baseUrl)
+          if (baseUrlValidationResult) {
+            errors.push(...(baseUrlValidationResult.errors as Error[]))
+          }
+
+          return {
+            errors,
+            reason: errors.map(e => e.message).join(', '),
+            valid: errors.length === 0,
           }
         },
       },
@@ -1914,8 +2184,19 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Configuration validation functions
   async function validateProvider(providerId: string): Promise<boolean> {
+    const metadata = providerMetadata[providerId]
+    if (!metadata)
+      return false
+
+    // Web Speech API doesn't require credentials - use empty config if not present
+    if (providerId === 'browser-web-speech-api') {
+      if (!providerCredentials.value[providerId]) {
+        providerCredentials.value[providerId] = getDefaultProviderConfig(providerId)
+      }
+    }
+
     const config = providerCredentials.value[providerId]
-    if (!config)
+    if (!config && providerId !== 'browser-web-speech-api')
       return false
 
     const configString = JSON.stringify(config || {})
@@ -1924,19 +2205,19 @@ export const useProvidersStore = defineStore('providers', () => {
     if (runtimeState?.validatedCredentialHash === configString && typeof runtimeState.isConfigured === 'boolean')
       return runtimeState.isConfigured
 
-    const metadata = providerMetadata[providerId]
-    if (!metadata)
-      return false
-
     // Always cache the current config string to prevent re-validating the same config
     if (providerRuntimeState.value[providerId]) {
       providerRuntimeState.value[providerId].validatedCredentialHash = configString
     }
 
-    const validationResult = await metadata.validators.validateProviderConfig(config)
+    const validationResult = await metadata.validators.validateProviderConfig(config || {})
 
     if (providerRuntimeState.value[providerId]) {
       providerRuntimeState.value[providerId].isConfigured = validationResult.valid
+      // Auto-mark Web Speech API as added if valid and available
+      if (providerId === 'browser-web-speech-api' && validationResult.valid) {
+        markProviderAdded(providerId)
+      }
     }
 
     return validationResult.valid
@@ -1979,7 +2260,8 @@ export const useProvidersStore = defineStore('providers', () => {
       .map(async ([providerId]) => {
         try {
           if (providerRuntimeState.value[providerId]) {
-            providerRuntimeState.value[providerId].isConfigured = await validateProvider(providerId)
+            const isValid = await validateProvider(providerId)
+            providerRuntimeState.value[providerId].isConfigured = isValid
           }
         }
         catch {
@@ -2117,12 +2399,22 @@ export const useProvidersStore = defineStore('providers', () => {
       }
     }
   }
+  const previousCredentialHashes = ref<Record<string, string>>({})
+
   // Watch for credential changes and refetch models accordingly
-  watch(providerCredentials, (newCreds, oldCreds) => {
-    // Determine which providers have changed credentials
-    const changedProviders = Object.keys(newCreds).filter(providerId =>
-      JSON.stringify(newCreds[providerId]) !== JSON.stringify(oldCreds?.[providerId]),
-    )
+  watch(providerCredentials, (newCreds) => {
+    const changedProviders: string[] = []
+
+    for (const providerId in newCreds) {
+      const currentConfig = newCreds[providerId]
+      const currentHash = JSON.stringify(currentConfig)
+      const previousHash = previousCredentialHashes.value[providerId]
+
+      if (currentHash !== previousHash) {
+        changedProviders.push(providerId)
+        previousCredentialHashes.value[providerId] = currentHash
+      }
+    }
 
     for (const providerId of changedProviders) {
       // Since credentials changed, dispose the cached instance so new creds take effect.
@@ -2133,7 +2425,7 @@ export const useProvidersStore = defineStore('providers', () => {
         fetchModelsForProvider(providerId)
       }
     }
-  }, { deep: true })
+  }, { deep: true, immediate: true })
 
   // Function to get localized provider metadata
   function getProviderMetadata(providerId: string) {
@@ -2185,16 +2477,22 @@ export const useProvidersStore = defineStore('providers', () => {
     if (cached)
       return cached
 
-    const config = providerCredentials.value[providerId]
-    if (!config)
-      throw new Error(`Provider credentials for ${providerId} not found`)
-
     const metadata = providerMetadata[providerId]
     if (!metadata)
       throw new Error(`Provider metadata for ${providerId} not found`)
 
+    // Web Speech API doesn't require credentials - use empty config
+    let config = providerCredentials.value[providerId]
+    if (!config && providerId === 'browser-web-speech-api') {
+      config = getDefaultProviderConfig(providerId)
+      providerCredentials.value[providerId] = config
+    }
+
+    if (!config && providerId !== 'browser-web-speech-api')
+      throw new Error(`Provider credentials for ${providerId} not found`)
+
     try {
-      const instance = await metadata.createProvider(config) as R
+      const instance = await metadata.createProvider(config || {}) as R
       providerInstanceCache.value[providerId] = instance
       return instance
     }

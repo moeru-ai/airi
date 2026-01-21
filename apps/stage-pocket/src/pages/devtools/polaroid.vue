@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Screen } from '@proj-airi/stage-ui/components'
 import { Live2DCanvas, Live2DModel } from '@proj-airi/stage-ui/components/scenes'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { Screen } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 

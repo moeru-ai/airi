@@ -4,7 +4,7 @@ import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { electronOpenMainDevtools } from '../../../../shared/eventa'
+import { electronOpenDevtoolsWindow, electronOpenMainDevtools } from '../../../../shared/eventa'
 import { useElectronEventaInvoke } from '../../../composables/electron-vueuse'
 
 const { t } = useI18n()
@@ -59,9 +59,22 @@ const menu = computed(() => [
     icon: 'i-solar:chart-bold-duotone',
     to: '/devtools/beat-sync',
   },
+  {
+    title: 'WebSocket Inspector',
+    description: 'Inspect raw WebSocket traffic',
+    icon: 'i-solar:transfer-horizontal-bold-duotone',
+    to: '/devtools/websocket-inspector',
+  },
+  {
+    title: 'Screen Capture',
+    description: 'Capture screen or window as video and/or audio streams',
+    icon: 'i-solar:screen-share-bold-duotone',
+    to: '/devtools/screen-capture',
+  },
 ])
 
 const openDevTools = useElectronEventaInvoke(electronOpenMainDevtools)
+const openMarkdownStressWindow = useElectronEventaInvoke(electronOpenDevtoolsWindow)
 </script>
 
 <template>
@@ -80,6 +93,20 @@ const openDevTools = useElectronEventaInvoke(electronOpenMainDevtools)
   >
     {{ t('settings.pages.page.developers.open-devtools.button') }}
   </ButtonBar>
+  <ButtonBar
+    v-motion
+    mb-2
+    icon="i-solar:code-bold-duotone"
+    :text="t('tamagotchi.settings.devtools.pages.markdown-stress.title')"
+    :initial="{ opacity: 0, y: 10 }"
+    :enter="{ opacity: 1, y: 0 }"
+    :duration="250 + (19 * 10)"
+    :delay="2 * 50"
+    transition="all ease-in-out duration-250"
+    @click="() => openMarkdownStressWindow({ route: '/devtools/markdown-stress' })"
+  >
+    {{ t('tamagotchi.settings.devtools.pages.markdown-stress.title') }}
+  </ButtonBar>
   <CheckBar
     v-model="settings.disableTransitions"
     v-motion
@@ -90,7 +117,7 @@ const openDevTools = useElectronEventaInvoke(electronOpenMainDevtools)
     :initial="{ opacity: 0, y: 10 }"
     :enter="{ opacity: 1, y: 0 }"
     :duration="250 + (19 * 10)"
-    :delay="2 * 50"
+    :delay="3 * 50"
     transition="all ease-in-out duration-250"
   />
   <CheckBar
@@ -104,7 +131,7 @@ const openDevTools = useElectronEventaInvoke(electronOpenMainDevtools)
     :initial="{ opacity: 0, y: 10 }"
     :enter="{ opacity: 1, y: 0 }"
     :duration="250 + (20 * 10)"
-    :delay="3 * 50"
+    :delay="4 * 50"
     transition="all ease-in-out duration-250"
   />
 
@@ -142,6 +169,8 @@ const openDevTools = useElectronEventaInvoke(electronOpenMainDevtools)
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: settings.pages.system.developer.title
+  subtitleKey: settings.title
   stageTransition:
     name: slide
 </route>

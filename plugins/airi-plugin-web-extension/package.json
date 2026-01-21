@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/airi-plugin-web-extension",
   "type": "module",
-  "version": "0.8.1-beta.2",
+  "version": "0.8.1",
   "private": true,
   "description": "manifest.json description",
   "scripts": {
@@ -14,12 +14,17 @@
     "compile": "vue-tsc --noEmit",
     "postinstall": "wxt prepare"
   },
-  "dependencies": {
-    "vue": "^3.5.25"
-  },
   "devDependencies": {
-    "@unocss/reset": "^66.5.11",
+    "@iconify-json/solar": "^1.2.5",
+    "@iconify-json/svg-spinners": "^1.2.4",
+    "@moeru/eventa": "^1.0.0-alpha.11",
+    "@proj-airi/server-sdk": "workspace:^",
+    "@proj-airi/ui": "workspace:^",
+    "@unocss/reset": "^66.6.0",
+    "@vueuse/core": "catalog:",
     "@wxt-dev/module-vue": "^1.0.3",
+    "nanoid": "^5.1.6",
+    "vue": "catalog:",
     "vue-tsc": "^3.1.8",
     "wxt": "^0.20.13"
   }

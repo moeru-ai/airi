@@ -2,8 +2,9 @@ name: HuggingFace Spaces
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
   deploy:

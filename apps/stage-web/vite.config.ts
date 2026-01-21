@@ -97,6 +97,7 @@ export default defineConfig({
         resolve(import.meta.dirname, 'src', 'pages'),
         resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
       ],
+      exclude: ['**/components/**'],
     }),
 
     // https://github.com/JohnCampionJr/vite-plugin-vue-layouts
@@ -187,6 +188,7 @@ export default defineConfig({
       '*.webp',
       '*.bmp',
       '*.ttf',
+      '*.avif',
       // Tensorflow / MediaPipe task
       '*.task',
     ] }),

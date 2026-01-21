@@ -24,7 +24,7 @@ dialogs:
     skipForNow: 暂时跳过
     saveAndContinue: 保存并继续
     next: 下一步
-    retry: Retry
+    retry: 重试
     start: 开始吧！
     select-model: 选择模型
     no-models: 找不到可用模型
@@ -34,6 +34,13 @@ language:
   title: 语言
   description: >
     切换显示界面的语言
+controls-island:
+  icon-size:
+    title: 控制岛图标大小
+    description: 调整控制岛屿图标的大小
+    auto: 自动(响应式)
+    large: 大(默认)
+    small: 小
 live2d:
   change-model:
     from-file: 从文件加载
@@ -71,7 +78,8 @@ pages:
     activate: 激活
     active: 已激活
     active_badge: 当前使用中
-    cancel: Cancel action
+    cancel: 取消操作
+    save: 保存更改
     card_not_found: 未找到角色卡
     character: 角色设定
     close: 关闭
@@ -86,6 +94,7 @@ pages:
     description_label: 描述
     drop_here: 放开以上传文件
     create_card: 创建新角色卡
+    edit_card: 卡片编辑
     creation:
       identity: 身份
       name: 名字
@@ -150,50 +159,50 @@ pages:
     title: 记忆体
   data:
     title: Data
-    description: Manage stored AIRI data, exports, and resets
+    description: 管理存储 AIRI 数据、导出和重置
     sections:
       chats:
-        title: Chat sessions
-        description: Export or import saved chat sessions.
-        export: Export chats
-        import: Import chats
-        delete: Delete all chat sessions
+        title: 聊天会话
+        description: 导出或导入保存的聊天会话。
+        export: 导出聊天记录
+        import: 导入聊天记录
+        delete: 删除所有聊天会话
       models:
-        title: Models
-        description: Remove imported Live2D/VRM models.
-        delete: Delete all models
+        title: 模型
+        description: 删除导入的Live2D/VRM模型。
+        delete: 删除所有模型
       modules:
-        title: Modules
-        description: Reset module preferences and credentials.
-        reset: Reset module settings
+        title: 模块
+        description: 重置模块偏好设置和凭据。
+        reset: 重置模块设置
       providers:
-        title: Providers
-        description: Reset all provider settings and credentials.
-        reset: Reset provider settings
+        title: 服务来源
+        description: 重置所有提供商设置和凭据。
+        reset: 重置提供商设置
       danger:
-        title: Danger zone
-        description: Irreversible actions. Export what you need before continuing.
+        title: 危险区域
+        description: 不可逆操作。继续之前，请导出您需要的内容。
       all:
-        title: Delete all data
-        description: Wipe every local setting, provider config, and model.
-        delete: Delete all data
+        title: 删除所有数据
+        description: 清除每个本地设置、提供商配置和模型。
+        delete: 删除所有数据
       desktop:
-        title: Reset desktop settings & states
-        description: Clear AIRI desktop settings and runtime state.
-        reset: Reset desktop data
+        title: 重置桌面设置和状态
+        description: 清除 AIRI 桌面设置和运行状态。
+        reset: 重置桌面数据
     confirmations:
-      tooltip: Are you sure?
-      yes: Yes
+      tooltip: 您确定吗？
+      'yes': '是'
     status:
-      exported: Chat sessions exported.
-      imported: Chat sessions imported.
-      import_error: Failed to import chat sessions. Please check the file format.
-      chats_deleted: Chat sessions deleted.
-      models_deleted: Models deleted.
-      modules_reset: Module settings reset.
-      providers_reset: Provider settings reset.
-      all_deleted: All local data deleted.
-      desktop_reset: Desktop data reset.
+      exported: 聊天会话已导出。
+      imported: 聊天会话已导入。
+      import_error: 无法导入聊天会话。请检查文件格式。
+      chats_deleted: 聊天会话已删除。
+      models_deleted: 模型已删除。
+      modules_reset: 重置模块设置。
+      providers_reset: 服务端设置重置。
+      all_deleted: 已删除所有本地数据。
+      desktop_reset: 桌面数据重置。
   models:
     description: 切换角色的 Live2D，VRM 模型
     title: 角色模型
@@ -263,9 +272,9 @@ pages:
             custom_model_placeholder: 输入自订模型名称
             description: 为意识选择合适的 LLM 服务来源
             error: 获取出错啦
-            health_check_failed: Health check failed
-            no_providers_configured_title: No Providers Configured
-            no_providers_configured_description: Click here to set up your LLM providers
+            health_check_failed: 健康检查失败
+            no_providers_configured_title: 没有配置提供商
+            no_providers_configured_description: 点击这里设置您的LLM提供商
             expand: 展开
             loading: 获取模型中...
             manual_model_name: 模型名字
@@ -353,7 +362,7 @@ pages:
             no_voices: 没有任何可用的声线
             no_voices_description: 该服务来源的声线列表没有返回任何的数据
             no_voices_hint: 可以在下方输入自定义声线名字
-            pause: Pause
+            pause: 暂停
             play_sample: Play
             search_models_placeholder: 搜索模型...
             search_models_results: 找到 {count} / {total} 个模型
@@ -407,6 +416,65 @@ pages:
       title: 第一次使用？
       description: >
         AIRI 需要配置至少一个 {chat} 服务来源，才能正常思考和运作。你可以把它看作是 AIRI 系统中角色的大脑。
+    catalog:
+      edit:
+        config-id-not-found: 未找到提供商配置。
+        definition-id-not-found: 找不到供应商定义。
+        actions:
+          more-options: 更多选项
+          delete: 删除
+        validation:
+          failed:
+            title: 请检查您的提供商设置，验证失败。
+            description: 如果你想要继续，你仍然可以保存当前的配置。
+            action: 仍要保存
+        config:
+          common:
+            fields:
+              field:
+                api-key:
+                  label: API密钥
+                  description: API 密钥用于授权此提供商的请求
+                  placeholder: sk-……
+                base-url:
+                  label: 基础 URL
+                  description: >-
+                    用于连接远程服务的基础URL。通常看起来像是 http://localhost:11434/v1 或 https://example.com/v1。
+                  placeholder: 基础 Url……
+                headers:
+                  label: 添加自定义 HTTP 标头
+                  description: 添加自定义 HTTP 标头
+                  key:
+                    placeholder: 密钥
+                  value:
+                    placeholder: 值
+        validators:
+          actions:
+            validate: 验证
+          empty: 没有可用的验证步骤。
+          openai-compatible:
+            check-config:
+              title: 配置 `Configuration`
+            check-connectivity:
+              title: 连通性
+            check-supports-model-listing:
+              title: 列出模型
+            check-supports-chat-completion:
+              title: 聊天完成
+          status:
+            validating: 验证中……
+            valid: 通过
+            invalid: 错误
+          title: 检查
+        providers:
+          provider:
+            ollama:
+              troubleshooting:
+                validators:
+                  openai-compatible-check-connectivity:
+                    label: Ollama需要额外的配置
+                    content: >-
+                      很抱歉，Ollama连接检查失败。不要担心，如果是Ollama，需要额外配置才能通过Ollama。 您需要在启动 Olama 应用程序或 Ollama CLI 服务器时明确设置 <code>OLLAMA_HOST</code> 详情，请检查 <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama 集成指南</a>。
     common:
       continueAnyway: 仍然继续
       fields:
@@ -488,6 +556,9 @@ pages:
             volume:
               description: 调节语音的响度
               label: 响度
+      deepgram-tts:
+        description: deepgram.com
+        title: Deepgram
       deepseek:
         description: DeepSeek.com
         title: 深度求索 DeepSeek
@@ -618,10 +689,20 @@ pages:
       aliyun-nls:
         description: Aliyun NLS
         title: Aliyun NLS
+      browser-web-speech-api:
+        description: 浏览器原生STT (需要 Chrome/Edge/Safari)
+        title: Web 语音API
       transcriptions:
         playground:
           title: 实验平台
     title: 服务来源
+  connection:
+    description: 配置 WebSocket 服务器连接
+    title: 连接
+    websocket-url:
+      description: WebSocket 服务器的完整地址(例如，ws://localhost:6121/ws)
+      label: WebSocket 服务器地址
+      placeholder: ws://localhost:6121/ws
   scene:
     description: 配置角色所在环境
     title: 场景
@@ -650,6 +731,12 @@ pages:
           title: 开发者
           sections:
             section:
+              performance-visualizer:
+                title: 性能可视化工具
+                description: 切换 FPS/长任务/内存叠加
+              markdown-stress:
+                title: Markdown压力
+                description: 用大量聊天负载来测试 markdown 的解析和渲染能力
               use-magic-keys:
                 title: useMagicKeys
                 description: 测试快捷键
@@ -658,69 +745,69 @@ pages:
             default:
               colors:
                 color-1: AIRI Green
-              description: The default greenish theme color, brought by AIRI to you!
-              title: Default Color
+              description: 默认的绿色主题，由 AIRI 为您带来！
+              title: 默认颜色
             morandi:
               colors:
-                color-1: Taupe
-                color-2: Beige
-                color-3: Ash Grey
-                color-4: Light Taupe
-                color-5: Ivory
-                color-6: Olive Grey
-                color-7: Sand
-                color-8: Warm Grey
-              description: Soft, muted tones inspired by Giorgio Morandi's paintings
-              title: Morandi Colors
+                color-1: 灰褐色
+                color-2: 米色
+                color-3: 灰白色
+                color-4: 浅灰褐色
+                color-5: 象牙色
+                color-6: 橄榄灰
+                color-7: 沙色
+                color-8: 暖灰色
+              description: 受乔治·莫兰迪绘画启发的柔和、低调的色调
+              title: Morandi 颜色
             monet:
               colors:
-                color-1: Sky Blue
-                color-2: Mist
-                color-3: Sand
-                color-4: Moss Green
-                color-5: Water Lily
-                color-6: Wheat
-                color-7: Slate Blue
-                color-8: Sage
-              description: Impressionist palette inspired by Claude Monet's works
-              title: Monet Colors
+                color-1: 天蓝色
+                color-2: 薄雾色
+                color-3: 沙色
+                color-4: 苔藓绿
+                color-5: 睡莲色
+                color-6: 小麦色
+                color-7: 板岩蓝
+                color-8: 浅灰绿色
+              description: 受克劳德·莫奈作品启发的印象派调色板
+              title: 莫奈颜色
             japanese:
               colors:
-                color-1: Tan
-                color-2: Warm Taupe
-                color-3: Umber
-                color-4: Coffee
-                color-5: Bronze
-                color-6: Gold
-                color-7: Mustard
-                color-8: Amber
-              description: Traditional Japanese color palette
-              title: Japanese Colors
+                color-1: 棕褐色
+                color-2: 暖灰褐色
+                color-3: 赭色
+                color-4: 咖啡色
+                color-5: 青铜色
+                color-6: 金色
+                color-7: 芥末色
+                color-8: 琥珀色
+              description: 传统日本色彩调色板
+              title: 日本颜色
             nordic:
               colors:
-                color-1: Nordic Blue
-                color-2: Ice
-                color-3: Fjord
-                color-4: Steel
-                color-5: Glacier
-                color-6: Slate
-                color-7: Cloud
-                color-8: Stone
-              description: Scandinavian minimalist color scheme
-              title: Nordic Colors
+                color-1: 北欧蓝
+                color-2: 冰色
+                color-3: 峡湾色
+                color-4: 钢铁色
+                color-5: 冰川色
+                color-6: 板岩色
+                color-7: 云色
+                color-8: 石头色
+              description: 北欧极简主义配色方案
+              title: 北欧颜色
             chinese:
               colors:
-                color-1: Rosy Dawn
-                color-2: Chinese Red
-                color-3: Smoky Brown
-                color-4: Bamboo Green
-                color-5: Dark Purple
-                color-6: Golden Yellow
-                color-7: Azure Blue
-                color-8: Ochre
+                color-1: 霞光红
+                color-2: 枣红
+                color-3: 烟棕色
+                color-4: 竹青
+                color-5: 乌梅紫
+                color-6: 金黄色
+                color-7: 天蓝色
+                color-8: 赭黄色
               description: >-
-                Traditional Chinese colors, derived from ancient textiles, porcelain and paintings
-              title: Chinese Traditional Colors
+                中国传统色彩，源自古代纺织品、瓷器和绘画
+              title: 中国传统颜色
           title: 预设
     title: 外观
   page:
@@ -780,4 +867,5 @@ vrm:
     skybox-specular-mix: 漫反射/镜面反射混合系数
 wip:
   title: 正在开发中
-  description: 此功能正在开发中，尚未公开发布。请在未来的更新中再次查看此功能。
+  description: >-
+    此功能正在开发中，尚未公开发布。请在未来的更新中再次查看此功能。

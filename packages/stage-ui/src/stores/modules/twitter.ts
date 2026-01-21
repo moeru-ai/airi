@@ -1,17 +1,17 @@
+import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 
-import { createResettableLocalStorage } from '../../utils/resettable'
 import { useConfiguratorByModsChannelServer } from '../configurator'
 
 export const useTwitterStore = defineStore('twitter', () => {
   const configurator = useConfiguratorByModsChannelServer()
 
-  const [enabled, resetEnabled] = createResettableLocalStorage('settings/twitter/enabled', false)
-  const [apiKey, resetApiKey] = createResettableLocalStorage('settings/twitter/api-key', '')
-  const [apiSecret, resetApiSecret] = createResettableLocalStorage('settings/twitter/api-secret', '')
-  const [accessToken, resetAccessToken] = createResettableLocalStorage('settings/twitter/access-token', '')
-  const [accessTokenSecret, resetAccessTokenSecret] = createResettableLocalStorage('settings/twitter/access-token-secret', '')
+  const enabled = useLocalStorageManualReset<boolean>('settings/twitter/enabled', false)
+  const apiKey = useLocalStorageManualReset<string>('settings/twitter/api-key', '')
+  const apiSecret = useLocalStorageManualReset<string>('settings/twitter/api-secret', '')
+  const accessToken = useLocalStorageManualReset<string>('settings/twitter/access-token', '')
+  const accessTokenSecret = useLocalStorageManualReset<string>('settings/twitter/access-token-secret', '')
 
   function saveSettings() {
     // Data is automatically saved to localStorage via useLocalStorage
@@ -30,11 +30,11 @@ export const useTwitterStore = defineStore('twitter', () => {
   })
 
   function resetState() {
-    resetEnabled()
-    resetApiKey()
-    resetApiSecret()
-    resetAccessToken()
-    resetAccessTokenSecret()
+    enabled.reset()
+    apiKey.reset()
+    apiSecret.reset()
+    accessToken.reset()
+    accessTokenSecret.reset()
     saveSettings()
   }
 

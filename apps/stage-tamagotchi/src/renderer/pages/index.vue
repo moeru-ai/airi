@@ -3,22 +3,23 @@ import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
+import { useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
-import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { refDebounced, useBroadcastChannel, watchPausable } from '@vueuse/core'
+import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { refDebounced, useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onUnmounted, ref, toRef, watch } from 'vue'
 
-import ControlsIsland from '../components/StageIslands/ControlsIsland/index.vue'
-import ResourceStatusIsland from '../components/StageIslands/ResourceStatusIsland/index.vue'
+import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
+import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
 import { electron } from '../../shared/electron'
 import {
@@ -32,7 +33,7 @@ import { useControlsIslandStore } from '../stores/controls-island'
 import { useWindowStore } from '../stores/window'
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
-const widgetStageRef = ref<{ canvasElement: () => HTMLCanvasElement }>()
+const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
 const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
 
@@ -47,9 +48,31 @@ const isOutsideFor250Ms = refDebounced(isOutside, 250)
 const { x: relativeMouseX, y: relativeMouseY } = useElectronRelativeMouse()
 // NOTICE: In real-world use cases of Fade on Hover feature, the cursor may move around the edge of the
 // model rapidly, causing flickering effects when checking pixel transparency strictly.
-// Here we use `regionRadius` to help to detect with look-ahead strategy to relax the pixel accurate
-// check / detection on hovered underlying canvas pixel, therefore inaccurate mouse movements won't cause flickering.
-const isTransparent = useCanvasPixelIsTransparentAtPoint(stageCanvas, relativeMouseX, relativeMouseY, { regionRadius: 25 })
+// Here we use render-target pixel sampling to keep detection aligned with the actual render output.
+const isTransparentByPixels = useCanvasPixelIsTransparentAtPoint(
+  stageCanvas,
+  relativeMouseX,
+  relativeMouseY,
+  { regionRadius: 25 },
+)
+const isTransparentByThree = useThreeSceneIsTransparentAtPoint(
+  widgetStageRef,
+  relativeMouseX,
+  relativeMouseY,
+  { regionRadius: 25 },
+)
+
+const { stageModelRenderer } = storeToRefs(useSettings())
+const isTransparent = computed(() => {
+  if (stageModelRenderer.value === 'vrm')
+    return isTransparentByThree.value
+
+  if (stageModelRenderer.value === 'live2d')
+    return isTransparentByPixels.value
+
+  return true
+})
+
 const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBorder({ threshold: 30 })
 const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
@@ -61,7 +84,7 @@ const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
 
 watch(componentStateStage, () => isLoading.value = componentStateStage.value !== 'mounted', { immediate: true })
 
-const { pause, resume } = watchPausable(isTransparent, (transparent) => {
+const { pause, resume } = watch(isTransparent, (transparent) => {
   shouldFadeOnCursorWithin.value = fadeOnHoverEnabled.value && !transparent
 }, { immediate: true })
 
@@ -102,6 +125,7 @@ watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTrans
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
+const { askPermission } = settingsAudioDeviceStore
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
 const {
@@ -113,7 +137,7 @@ const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
-const chatStore = useChatStore()
+const chatStore = useChatOrchestratorStore()
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
 const {
@@ -140,33 +164,8 @@ type CaptionChannelEvent
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
 
 async function handleSpeechStart() {
-  if (shouldUseStreamInput.value && stream.value) {
-    await transcribeForMediaStream(stream.value, {
-      onSentenceEnd: (delta) => {
-        const finalText = delta
-        if (!finalText || !finalText.trim()) {
-          return
-        }
-
-        postCaption({ type: 'caption-speaker', text: finalText })
-
-        void (async () => {
-          try {
-            const provider = await providersStore.getProviderInstance(activeChatProvider.value)
-            if (!provider || !activeChatModel.value)
-              return
-
-            await chatStore.send(finalText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
-          }
-          catch (err) {
-            console.error('Failed to send chat from voice:', err)
-          }
-        })()
-      },
-      onSpeechEnd: (text) => {
-        postCaption({ type: 'caption-speaker', text })
-      },
-    })
+  if (shouldUseStreamInput.value) {
+    console.info('Speech detected - transcription session should already be active')
     return
   }
 
@@ -184,9 +183,67 @@ async function handleSpeechEnd() {
 
 async function startAudioInteraction() {
   try {
-    await initVAD()
-    if (stream.value)
-      await startVAD(stream.value)
+    console.info('[Main Page] Starting audio interaction...')
+
+    initVAD().then(() => {
+      if (stream.value)
+        return startVAD(stream.value)
+    }).catch((err) => {
+      console.warn('[Main Page] VAD initialization failed (non-critical for Web Speech API):', err)
+    })
+
+    if (shouldUseStreamInput.value) {
+      console.info('[Main Page] Starting streaming transcription...', {
+        supportsStreamInput: supportsStreamInput.value,
+        hasStream: !!stream.value,
+      })
+
+      if (!stream.value) {
+        console.warn('[Main Page] Stream not available despite shouldUseStreamInput being true')
+        return
+      }
+
+      await transcribeForMediaStream(stream.value, {
+        onSentenceEnd: (delta) => {
+          console.info('[Main Page] Received transcription delta:', delta)
+          const finalText = delta
+          if (!finalText || !finalText.trim()) {
+            return
+          }
+
+          postCaption({ type: 'caption-speaker', text: finalText })
+
+          void (async () => {
+            try {
+              const provider = await providersStore.getProviderInstance(activeChatProvider.value)
+              if (!provider || !activeChatModel.value) {
+                console.warn('[Main Page] No provider or model available, skipping chat send')
+                return
+              }
+
+              console.info('[Main Page] Sending transcription to chat:', finalText)
+              await chatStore.ingest(finalText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+            }
+            catch (err) {
+              console.error('[Main Page] Failed to send chat from voice:', err)
+            }
+          })()
+        },
+        onSpeechEnd: (text) => {
+          console.info('[Main Page] Speech ended, final text:', text)
+          postCaption({ type: 'caption-speaker', text })
+        },
+      })
+
+      console.info('[Main Page] Streaming transcription started successfully')
+    }
+    else {
+      console.warn('[Main Page] Not starting streaming transcription:', {
+        shouldUseStreamInput: shouldUseStreamInput.value,
+        hasStream: !!stream.value,
+        supportsStreamInput: supportsStreamInput.value,
+      })
+    }
 
     // Hook once
     stopOnStopRecord = onStopRecord(async (recording) => {
@@ -205,7 +262,7 @@ async function startAudioInteraction() {
         if (!provider || !activeChatModel.value)
           return
 
-        await chatStore.send(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+        await chatStore.ingest(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
       }
       catch (err) {
         console.error('Failed to send chat from voice:', err)
@@ -228,7 +285,9 @@ function stopAudioInteraction() {
 }
 
 watch(enabled, async (val) => {
+  console.info('[Main Page] Audio enabled changed:', val, 'stream available:', !!stream.value)
   if (val) {
+    await askPermission()
     await startAudioInteraction()
   }
   else {

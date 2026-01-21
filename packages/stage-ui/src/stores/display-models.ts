@@ -1,17 +1,14 @@
-import cropImg from '@lemonneko/crop-empty-pixels'
 import localforage from 'localforage'
 
-import { Application } from '@pixi/app'
-import { extensions } from '@pixi/extensions'
-import { Ticker, TickerPlugin } from '@pixi/ticker'
+import { loadLive2DModelPreview as generateLive2DPreview } from '@proj-airi/stage-ui-live2d/utils/live2d-preview'
+import { loadVrmModelPreview as generateVrmPreview } from '@proj-airi/stage-ui-three/utils/vrm-preview'
 import { until } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
-import { Live2DFactory, Live2DModel } from 'pixi-live2d-display/cubism4'
 import { ref } from 'vue'
 
-import '../utils/live2d-zip-loader'
-import '../utils/live2d-opfs-registration'
+import '@proj-airi/stage-ui-live2d/utils/live2d-zip-loader'
+import '@proj-airi/stage-ui-live2d/utils/live2d-opfs-registration'
 
 export enum DisplayModelFormat {
   Live2dZip = 'live2d-zip',
@@ -98,77 +95,10 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     return displayModelsPresets.find(model => model.id === id)
   }
 
-  async function loadLive2DModelPreview(file: File) {
-    Live2DModel.registerTicker(Ticker)
-    extensions.add(TickerPlugin)
+  const loadLive2DModelPreview = (file: File) => generateLive2DPreview(file)
 
-    const offscreenCanvas = document.createElement('canvas')
-    offscreenCanvas.width = 720
-    offscreenCanvas.height = 1280
-    offscreenCanvas.style.position = 'absolute'
-    offscreenCanvas.style.top = '0'
-    offscreenCanvas.style.left = '0'
-    offscreenCanvas.style.objectFit = 'cover'
-    offscreenCanvas.style.display = 'block'
-    offscreenCanvas.style.zIndex = '10000000000'
-    offscreenCanvas.style.opacity = '0'
-    document.body.appendChild(offscreenCanvas)
-
-    const app = new Application({
-      view: offscreenCanvas,
-      // Ensure the drawing buffer persists so toDataURL() can read pixels
-      preserveDrawingBuffer: true,
-      backgroundAlpha: 0,
-      resizeTo: window,
-    })
-
-    const modelInstance = new Live2DModel()
-    const objUrl = URL.createObjectURL(file)
-    const res = await fetch(objUrl)
-    const blob = await res.blob()
-
-    try {
-      await Live2DFactory.setupLive2DModel(modelInstance, [new File([blob], file.name)], { autoInteract: false })
-    }
-    catch (error) {
-      app.destroy()
-      document.body.removeChild(offscreenCanvas)
-      URL.revokeObjectURL(objUrl)
-      console.error(error)
-      return
-    }
-
-    app.stage.addChild(modelInstance)
-
-    // transforms
-    modelInstance.x = 275
-    modelInstance.y = 450
-    modelInstance.width = offscreenCanvas.width
-    modelInstance.height = offscreenCanvas.height
-    modelInstance.scale.set(0.1, 0.1)
-    modelInstance.anchor.set(0.5, 0.5)
-
-    await new Promise(resolve => setTimeout(resolve, 500))
-    // Force a render to ensure the latest frame is in the drawing buffer
-    app.renderer.render(app.stage)
-
-    const croppedCanvas = cropImg(offscreenCanvas)
-
-    // padding to 12:16
-    const paddingCanvas = document.createElement('canvas')
-    paddingCanvas.width = croppedCanvas.width > croppedCanvas.height / 16 * 12 ? croppedCanvas.width : croppedCanvas.height / 16 * 12
-    paddingCanvas.height = paddingCanvas.width / 12 * 16
-    const paddingCanvasCtx = paddingCanvas.getContext('2d')!
-
-    paddingCanvasCtx.drawImage(croppedCanvas, (paddingCanvas.width - croppedCanvas.width) / 2, (paddingCanvas.height - croppedCanvas.height) / 2, croppedCanvas.width, croppedCanvas.height)
-    const paddingDataUrl = paddingCanvas.toDataURL()
-
-    app.destroy()
-    document.body.removeChild(offscreenCanvas)
-    URL.revokeObjectURL(objUrl)
-
-    // return dataUrl
-    return paddingDataUrl
+  async function loadVrmModelPreview(file: File) {
+    return generateVrmPreview(file)
   }
 
   async function addDisplayModel(format: DisplayModelFormat, file: File) {
@@ -177,9 +107,10 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
     if (format === DisplayModelFormat.Live2dZip) {
       const previewImage = await loadLive2DModelPreview(file)
-      if (!previewImage)
-        return
-
+      newDisplayModel.previewImage = previewImage
+    }
+    else if (format === DisplayModelFormat.VRM) {
+      const previewImage = await loadVrmModelPreview(file)
       newDisplayModel.previewImage = previewImage
     }
 

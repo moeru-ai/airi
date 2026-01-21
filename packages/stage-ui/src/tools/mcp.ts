@@ -9,7 +9,7 @@ const tools = [
     execute: async (_, __) => {
       return await listTools()
     },
-    parameters: z.object({}),
+    parameters: z.object({}).strict(),
   }),
   tool({
     name: 'mcp_connect_server',
@@ -21,7 +21,7 @@ const tools = [
     parameters: z.object({
       command: z.string().describe('The command to connect to the MCP server'),
       args: z.array(z.string()).describe('The arguments to pass to the MCP server'),
-    }),
+    }).strict(),
   }),
   tool({
     name: 'mcp_disconnect_server',
@@ -30,7 +30,7 @@ const tools = [
       await disconnectServer()
       return 'success'
     },
-    parameters: z.object({}),
+    parameters: z.object({}).strict(),
   }),
   tool({
     name: 'mcp_call_tool',
@@ -50,8 +50,8 @@ const tools = [
       name: z.string().describe('The name of the tool to call'),
       parameters: z.array(z.object({
         name: z.string().describe('The name of the parameter'),
-        value: z.union([z.string(), z.number(), z.boolean(), z.object({})]).describe('The value of the parameter, it can be a string, a number, a boolean, or an object'),
-      })).describe('The parameters to pass to the tool'),
+        value: z.union([z.string(), z.number(), z.boolean(), z.object({}).strict()]).describe('The value of the parameter, it can be a string, a number, a boolean, or an object'),
+      }).strict()).describe('The parameters to pass to the tool'),
     }),
   }),
 ]

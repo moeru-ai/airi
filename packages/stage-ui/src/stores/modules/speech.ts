@@ -2,13 +2,14 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import type { VoiceInfo } from '../providers'
 
+import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { refManualReset } from '@vueuse/core'
 import { generateSpeech } from '@xsai/generate-speech'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
 
-import { createResettableLocalStorage, createResettableRef } from '../../utils/resettable'
 import { useProvidersStore } from '../providers'
 
 export const useSpeechStore = defineStore('speech', () => {
@@ -16,19 +17,19 @@ export const useSpeechStore = defineStore('speech', () => {
   const { allAudioSpeechProvidersMetadata } = storeToRefs(providersStore)
 
   // State
-  const [activeSpeechProvider, resetActiveSpeechProvider] = createResettableLocalStorage('settings/speech/active-provider', '')
-  const [activeSpeechModel, resetActiveSpeechModel] = createResettableLocalStorage('settings/speech/active-model', 'eleven_multilingual_v2')
-  const [activeSpeechVoiceId, resetActiveSpeechVoiceId] = createResettableLocalStorage<string>('settings/speech/voice', '')
-  const [activeSpeechVoice, resetActiveSpeechVoice] = createResettableRef<VoiceInfo | undefined>(undefined)
+  const activeSpeechProvider = useLocalStorageManualReset<string>('settings/speech/active-provider', '')
+  const activeSpeechModel = useLocalStorageManualReset<string>('settings/speech/active-model', 'eleven_multilingual_v2')
+  const activeSpeechVoiceId = useLocalStorageManualReset<string>('settings/speech/voice', '')
+  const activeSpeechVoice = refManualReset<VoiceInfo | undefined>(undefined)
 
-  const [pitch, resetPitch] = createResettableLocalStorage('settings/speech/pitch', 0)
-  const [rate, resetRate] = createResettableLocalStorage('settings/speech/rate', 1)
-  const [ssmlEnabled, resetSsmlEnabled] = createResettableLocalStorage('settings/speech/ssml-enabled', false)
-  const [isLoadingSpeechProviderVoices, resetIsLoadingSpeechProviderVoices] = createResettableRef(false)
-  const [speechProviderError, resetSpeechProviderError] = createResettableRef<string | null>(null)
-  const [availableVoices, resetAvailableVoices] = createResettableRef<Record<string, VoiceInfo[]>>({})
-  const [selectedLanguage, resetSelectedLanguage] = createResettableLocalStorage('settings/speech/language', 'en-US')
-  const [modelSearchQuery, resetModelSearchQuery] = createResettableRef('')
+  const pitch = useLocalStorageManualReset<number>('settings/speech/pitch', 0)
+  const rate = useLocalStorageManualReset<number>('settings/speech/rate', 1)
+  const ssmlEnabled = useLocalStorageManualReset<boolean>('settings/speech/ssml-enabled', false)
+  const isLoadingSpeechProviderVoices = refManualReset<boolean>(false)
+  const speechProviderError = refManualReset<string | null>(null)
+  const availableVoices = refManualReset<Record<string, VoiceInfo[]>>(() => ({}))
+  const selectedLanguage = useLocalStorageManualReset<string>('settings/speech/language', 'en-US')
+  const modelSearchQuery = refManualReset<string>('')
 
   // Computed properties
   const availableSpeechProvidersMetadata = computed(() => allAudioSpeechProvidersMetadata.value)
@@ -82,7 +83,11 @@ export const useSpeechStore = defineStore('speech', () => {
 
     try {
       const voices = await providersStore.getProviderMetadata(provider).capabilities.listVoices?.(providersStore.getProviderConfig(provider)) || []
-      availableVoices.value[provider] = voices
+      // Reassign to trigger reactivity when adding/updating provider entries
+      availableVoices.value = {
+        ...availableVoices.value,
+        [provider]: voices,
+      }
       return voices
     }
     catch (error) {
@@ -121,7 +126,27 @@ export const useSpeechStore = defineStore('speech', () => {
 
   watch([activeSpeechVoiceId, availableVoices], ([voiceId, voices]) => {
     if (voiceId) {
-      activeSpeechVoice.value = voices[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
+      // For OpenAI Compatible, create a custom voice object (no voices available from API)
+      if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
+        // Always update to match voiceId (in case it changed)
+        activeSpeechVoice.value = {
+          id: voiceId,
+          name: voiceId,
+          description: voiceId,
+          previewURL: '',
+          languages: [{ code: 'en', title: 'English' }],
+          provider: activeSpeechProvider.value,
+          gender: 'neutral',
+        }
+      }
+      else {
+        // For other providers, find voice in available voices
+        const foundVoice = voices[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
+        // Only update if we found a voice, or if activeSpeechVoice is not set
+        if (foundVoice || !activeSpeechVoice.value) {
+          activeSpeechVoice.value = foundVoice
+        }
+      }
     }
   }, {
     immediate: true,
@@ -201,22 +226,35 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 
   const configured = computed(() => {
-    return !!activeSpeechProvider.value && !!activeSpeechModel.value && !!activeSpeechVoiceId.value
+    if (!activeSpeechProvider.value)
+      return false
+
+    let hasModel = !!activeSpeechModel.value
+    let hasVoice = !!activeSpeechVoiceId.value
+
+    // For OpenAI Compatible providers, check provider config as fallback
+    if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
+      const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+      hasModel ||= !!providerConfig?.model
+      hasVoice ||= !!providerConfig?.voice
+    }
+
+    return hasModel && hasVoice
   })
 
   function resetState() {
-    resetActiveSpeechProvider()
-    resetActiveSpeechModel()
-    resetActiveSpeechVoiceId()
-    resetActiveSpeechVoice()
-    resetPitch()
-    resetRate()
-    resetSsmlEnabled()
-    resetSelectedLanguage()
-    resetModelSearchQuery()
-    resetAvailableVoices()
-    resetSpeechProviderError()
-    resetIsLoadingSpeechProviderVoices()
+    activeSpeechProvider.reset()
+    activeSpeechModel.reset()
+    activeSpeechVoiceId.reset()
+    activeSpeechVoice.reset()
+    pitch.reset()
+    rate.reset()
+    ssmlEnabled.reset()
+    selectedLanguage.reset()
+    modelSearchQuery.reset()
+    availableVoices.reset()
+    speechProviderError.reset()
+    isLoadingSpeechProviderVoices.reset()
   }
 
   return {

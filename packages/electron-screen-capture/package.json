@@ -1,0 +1,54 @@
+{
+  "name": "@proj-airi/electron-screen-capture",
+  "type": "module",
+  "version": "0.8.1",
+  "private": true,
+  "description": "Screen capture",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/electron-screen-capture"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./main": "./dist/main.mjs",
+    "./renderer": "./dist/renderer.js",
+    "./vue": "./dist/vue.js",
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "dev": "pnpm run build",
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@guiiai/logg": ">=1 <2",
+    "electron": ">=39 <40",
+    "vue": ">=3"
+  },
+  "dependencies": {
+    "std-env": "catalog:"
+  },
+  "devDependencies": {
+    "@electron-toolkit/preload": "catalog:",
+    "@moeru/eventa": "catalog:",
+    "@moeru/std": "catalog:",
+    "async-mutex": "catalog:",
+    "nanoid": "catalog:",
+    "vite": "catalog:rolldown-vite"
+  }
+}

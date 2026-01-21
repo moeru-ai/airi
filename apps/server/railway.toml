@@ -1,0 +1,11 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "/apps/server/production/railway/Dockerfile"
+watchPatterns = [
+  "apps/server/**",
+  "packages/**",
+  "pnpm-lock.yaml"
+]
+
+[deploy]
+startCommand = "pnpm -F @proj-airi/server start"

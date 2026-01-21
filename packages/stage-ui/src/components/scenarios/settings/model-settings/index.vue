@@ -1,19 +1,17 @@
 <script setup lang="ts">
 import type { DisplayModel } from '../../../../stores/display-models'
 
+import { Live2DScene, useLive2d } from '@proj-airi/stage-ui-live2d'
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
-import { Button } from '@proj-airi/ui'
+import { Button, Callout } from '@proj-airi/ui'
 import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 
-import Callout from '../../../layouts/Callout.vue'
-import Live2DScene from '../../../scenes/Live2D.vue'
-import Live2D from './Live2D.vue'
-import VRM from './VRM.vue'
+import Live2D from './live2d.vue'
+import VRM from './vrm.vue'
 
 import { DisplayModelFormat } from '../../../../stores/display-models'
-import { useLive2d } from '../../../../stores/live2d'
 import { useSettings } from '../../../../stores/settings'
 import { ModelSelectorDialog } from '../../dialogs/model-selector'
 
@@ -33,10 +31,21 @@ const selectedModel = ref<DisplayModel | undefined>()
 
 const positionCursor = useMouse()
 const settingsStore = useSettings()
-const { live2dDisableFocus, stageModelSelectedUrl, stageModelSelected, stageModelRenderer } = storeToRefs(settingsStore)
+const {
+  live2dDisableFocus,
+  stageModelSelectedUrl,
+  stageModelSelected,
+  stageModelRenderer,
+  themeColorsHue,
+  themeColorsHueDynamic,
+  live2dIdleAnimationEnabled,
+  live2dAutoBlinkEnabled,
+  live2dForceAutoBlinkEnabled,
+  live2dShadowEnabled,
+} = storeToRefs(settingsStore)
 
 watch(selectedModel, async () => {
-  stageModelSelected.value = selectedModel.value?.id
+  stageModelSelected.value = selectedModel.value?.id ?? ''
   await settingsStore.updateStageModel()
 
   if (selectedModel.value) {
@@ -76,8 +85,16 @@ watch(selectedModel, async () => {
         Select Model
       </Button>
     </ModelSelectorDialog>
-    <Live2D v-if="stageModelRenderer === 'live2d'" :palette="palette" @extract-colors-from-model="$emit('extractColorsFromModel')" />
-    <VRM v-if="stageModelRenderer === 'vrm'" :palette="palette" @extract-colors-from-model="$emit('extractColorsFromModel')" />
+    <Live2D
+      v-if="stageModelRenderer === 'live2d'"
+      :palette="palette"
+      @extract-colors-from-model="$emit('extractColorsFromModel')"
+    />
+    <VRM
+      v-if="stageModelRenderer === 'vrm'"
+      :palette="palette"
+      @extract-colors-from-model="$emit('extractColorsFromModel')"
+    />
   </div>
   <!-- Live2D component for 2D stage view -->
   <template v-if="stageModelRenderer === 'live2d'">
@@ -87,6 +104,12 @@ watch(selectedModel, async () => {
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
         :disable-focus-at="live2dDisableFocus"
+        :theme-colors-hue="themeColorsHue"
+        :theme-colors-hue-dynamic="themeColorsHueDynamic"
+        :live2d-idle-animation-enabled="live2dIdleAnimationEnabled"
+        :live2d-auto-blink-enabled="live2dAutoBlinkEnabled"
+        :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
+        :live2d-shadow-enabled="live2dShadowEnabled"
       />
     </div>
   </template>

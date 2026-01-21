@@ -34,6 +34,13 @@ language:
   title: 言語
   description: >
     AIRIインターフェースの言語を変更します。これはキャラクターの応答言語には影響しません。
+controls-island:
+  icon-size:
+    title: アイランドアイコンのサイズを制御
+    description: アイランドアイコンのサイズを調整します
+    auto: 自動 (レスポンシブ)
+    large: 大 (デフォルト)
+    small: 小
 live2d:
   change-model:
     from-file: ファイルから読み込む
@@ -72,6 +79,7 @@ pages:
     active: 有効
     active_badge: 現在有効
     cancel: 操作の取消
+    save: 変更を保存
     card_not_found: カードが見つかりません
     character: キャラクター
     close: 閉じる
@@ -86,6 +94,7 @@ pages:
     description_label: 説明
     drop_here: アップロードするにはここにドラッグ
     create_card: 新しいカードを作成
+    edit_card: カードを編集
     creation:
       identity: 識別子
       name: 名前
@@ -183,7 +192,7 @@ pages:
         reset: デスクトップのデータをリセット
     confirmations:
       tooltip: 本当によろしいですか？
-      yes: Yes
+      'yes': 'はい'
     status:
       exported: チャットセッションをエクスポートしました。
       imported: チャットセッションをインポートしました。
@@ -407,6 +416,65 @@ pages:
       title: ここを初めて利用しますか？
       description: >
         AIRIが正常に思考し動作するためには、少なくとも1つの{chat}プロバイダーの設定が必要です。 これはAIRIシステム内に存在するキャラクターの脳と考えることができます。
+    catalog:
+      edit:
+        config-id-not-found: プロバイダ設定が見つかりません。
+        definition-id-not-found: プロバイダーの定義が見つかりません。
+        actions:
+          more-options: その他のオプション
+          delete: 削除
+        validation:
+          failed:
+            title: プロバイダ設定を確認してください。認証に失敗しました。
+            description: 続行する場合は、現在の設定を保存することができます。
+            action: このまま保存
+        config:
+          common:
+            fields:
+              field:
+                api-key:
+                  label: APIキー
+                  description: このプロバイダへのリクエストを承認するために使用されるAPIキー
+                  placeholder: sk-...
+                base-url:
+                  label: ベースURL
+                  description: >-
+                    リモートサービスへの接続に使用されるベースURL。多くの場合、http://localhost:11434/v1 または https://example.com/v1 のようになります。
+                  placeholder: ベースURL…
+                headers:
+                  label: カスタムHTTPヘッダー
+                  description: カスタムHTTPヘッダーを追加
+                  key:
+                    placeholder: キー
+                  value:
+                    placeholder: 値
+        validators:
+          actions:
+            validate: 検証
+          empty: 検証ステップは利用できません。
+          openai-compatible:
+            check-config:
+              title: 構成
+            check-connectivity:
+              title: 接続性
+            check-supports-model-listing:
+              title: モデル一覧
+            check-supports-chat-completion:
+              title: チャット補完
+          status:
+            validating: 検証中…
+            valid: 検証成功
+            invalid: エラー
+          title: チェック
+        providers:
+          provider:
+            ollama:
+              troubleshooting:
+                validators:
+                  openai-compatible-check-connectivity:
+                    label: Ollamaに追加設定が必要です
+                    content: >-
+                      残念ながら、Ollamaの接続チェックが失敗したようです。Ollamaインスタンスの場合、正常に動作させるためには追加の設定が必要です。OllamaアプリケーションまたはOllama CLIサーバーを起動する際には、<code>OLLAMA_HOST</code>環境変数を明示的に設定する必要があります。詳細な手順については、<a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama統合ガイド</a>をご参照ください。
     common:
       continueAnyway: 続行する
       fields:
@@ -488,6 +556,9 @@ pages:
             volume:
               description: 音声の音量を調整
               label: 音量
+      deepgram-tts:
+        description: deepgram.com
+        title: Deepgram
       deepseek:
         description: deepseek.com
         title: DeepSeek
@@ -618,10 +689,20 @@ pages:
       aliyun-nls:
         description: Aliyun NLS
         title: Aliyun NLS
+      browser-web-speech-api:
+        description: ブラウザネイティブSTT (Chrome/Edge/Safariが必要)
+        title: Web Speech API
       transcriptions:
         playground:
           title: 文字起こし実験場
     title: プロバイダー
+  connection:
+    description: Configure WebSocket server connection
+    title: Connection
+    websocket-url:
+      description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
+      label: WebSocket Server Address
+      placeholder: ws://localhost:6121/ws
   scene:
     description: キャラクターが過ごす環境を設定する
     title: シーン
@@ -650,6 +731,12 @@ pages:
           title: 開発者
           sections:
             section:
+              performance-visualizer:
+                title: パフォーマンスビジュアライザー
+                description: FPS/ロングタスク/メモリーオーバーレイの切り替え
+              markdown-stress:
+                title: Markdown ストレス
+                description: 大量のチャットデータを含むMarkdownの解析とレンダリング負荷のテスト
               use-magic-keys:
                 title: マジックキーを使用
                 description: ショートカットをテスト
@@ -780,4 +867,5 @@ vrm:
     skybox-specular-mix: 鏡面反射の混合
 wip:
   title: 開発中
-  description: この機能は現在開発中で、まだ一般には公開されていません。今後のアップデートで利用可能になる予定ですので、しばらくお待ちください。
+  description: >-
+    この機能は現在開発中で、まだ一般には公開されていません。今後のアップデートで利用可能になる予定ですので、しばらくお待ちください。

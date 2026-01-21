@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { useDiscordStore } from '@proj-airi/stage-ui/stores/modules/discord'
 import { Button, FieldCheckbox, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
+
+import { useDiscordStore } from '../../stores/modules/discord'
 
 const { t } = useI18n()
 const discordStore = useDiscordStore()

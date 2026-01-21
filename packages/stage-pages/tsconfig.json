@@ -9,6 +9,11 @@
     ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "paths": {
+      "@proj-airi/stage-ui/*": [
+        "../../packages/stage-ui/src/*"
+      ]
+    },
     "resolveJsonModule": true,
     "types": [
       "vitest",

@@ -15,6 +15,18 @@ const menu = computed(() => [
     to: '/devtools/audio-record',
   },
   {
+    title: t('settings.pages.system.sections.section.developer.sections.section.performance-visualizer.title'),
+    description: t('settings.pages.system.sections.section.developer.sections.section.performance-visualizer.description'),
+    icon: 'i-solar:sledgehammer-bold-duotone',
+    to: '/devtools/performance-visualizer',
+  },
+  {
+    title: t('settings.pages.system.sections.section.developer.sections.section.markdown-stress.title'),
+    description: t('settings.pages.system.sections.section.developer.sections.section.markdown-stress.description'),
+    icon: 'i-solar:sledgehammer-bold-duotone',
+    to: '/devtools/markdown-stress',
+  },
+  {
     title: 'Background Theme color blending',
     description: 'Test blending & theme',
     icon: 'i-solar:sledgehammer-bold-duotone',
@@ -55,6 +67,12 @@ const menu = computed(() => [
     description: 'Inspect incoming context updates and outgoing chat stream events',
     icon: 'i-solar:chat-square-call-bold-duotone',
     to: '/devtools/context-flow',
+  },
+  {
+    title: 'WebSocket Inspector',
+    description: 'Inspect raw WebSocket traffic',
+    icon: 'i-solar:transfer-horizontal-bold-duotone',
+    to: '/devtools/websocket-inspector',
   },
   {
     title: t('settings.pages.system.sections.section.developer.sections.section.use-magic-keys.title'),
@@ -152,6 +170,8 @@ const menu = computed(() => [
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: settings.pages.system.developer.title
+  subtitleKey: settings.title
   stageTransition:
     name: slide
 </route>

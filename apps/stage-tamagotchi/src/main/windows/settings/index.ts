@@ -1,8 +1,10 @@
 import type { AutoUpdater } from '../../services/electron/auto-updater'
+import type { DevtoolsWindowManager } from '../devtools'
 import type { WidgetsWindowManager } from '../widgets'
 
 import { join, resolve } from 'node:path'
 
+import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { BrowserWindow, shell } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -14,6 +16,7 @@ import { setupSettingsWindowInvokes } from './rpc/index.electron'
 export function setupSettingsWindowReusableFunc(params: {
   widgetsManager: WidgetsWindowManager
   autoUpdater: AutoUpdater
+  devtoolsMarkdownStressWindow: DevtoolsWindowManager
   onWindowCreated?: (window: BrowserWindow) => void
 }) {
   return createReusableWindow(async () => {
@@ -40,7 +43,14 @@ export function setupSettingsWindowReusableFunc(params: {
     })
 
     await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/settings'))
-    await setupSettingsWindowInvokes({ settingsWindow: window, widgetsManager: params.widgetsManager, autoUpdater: params.autoUpdater })
+    await setupSettingsWindowInvokes({
+      settingsWindow: window,
+      widgetsManager: params.widgetsManager,
+      autoUpdater: params.autoUpdater,
+      devtoolsMarkdownStressWindow: params.devtoolsMarkdownStressWindow,
+    })
+
+    initScreenCaptureForWindow(window)
 
     return window
   }).getWindow

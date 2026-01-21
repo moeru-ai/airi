@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia'
 import { inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import Alert from '../../../misc/Alert.vue'
+import Alert from '../../../misc/alert.vue'
 
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
 import { RadioCardManySelect } from '../../../menu'
@@ -42,6 +42,7 @@ const {
         v-model:search-query="modelSearchQuery"
         :items="providerModels.toSorted((a, b) => a.id === activeModel ? -1 : b.id === activeModel ? 1 : 0)"
         :searchable="true"
+        :allow-custom="true"
         :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
         :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"
         :search-no-results-description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description', { query: modelSearchQuery })"

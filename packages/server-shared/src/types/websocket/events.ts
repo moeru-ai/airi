@@ -1,4 +1,4 @@
-import type { AssistantMessage, Message, ToolMessage, UserMessage } from '@xsai/shared-chat'
+import type { AssistantMessage, CommonContentPart, Message, ToolMessage, UserMessage } from '@xsai/shared-chat'
 
 export interface DiscordGuildMember {
   nickname: string
@@ -9,7 +9,57 @@ export interface DiscordGuildMember {
 export interface Discord {
   guildMember?: DiscordGuildMember
   guildId?: string
+  guildName?: string
   channelId?: string
+}
+
+export interface MetadataEventSource {
+  /**
+   * Stable module/plugin identifier (shared across instances).
+   * Example: "telegram-bot", "stage-tamagotchi".
+   */
+  plugin: string
+  /**
+   * Unique instance id for this module run (per process/deployment).
+   * Example: "telegram-01", "stage-ui-2f7c9".
+   */
+  instanceId: string
+  /**
+   * Optional semantic version for the module/plugin.
+   * Example: "0.8.1-beta.7".
+   */
+  version?: string
+  /**
+   * K8s-style labels for routing and policy selectors.
+   * Example: { env: "prod", app: "telegram", devtools: "true" }.
+   */
+  labels?: Record<string, string>
+}
+
+export type RouteTargetExpression
+  = | { type: 'and', all: RouteTargetExpression[] }
+    | { type: 'or', any: RouteTargetExpression[] }
+    | { type: 'glob', glob: string, inverted?: boolean }
+    | { type: 'ids', ids: string[], inverted?: boolean }
+    | { type: 'plugin', plugins: string[], inverted?: boolean }
+    | { type: 'instance', instances: string[], inverted?: boolean }
+    | { type: 'label', selectors: string[], inverted?: boolean }
+    | { type: 'module', modules: string[], inverted?: boolean }
+    | { type: 'source', sources: string[], inverted?: boolean }
+
+export interface RouteConfig {
+  destinations?: Array<string | RouteTargetExpression>
+  bypass?: boolean
+}
+
+export enum MessageHeartbeatKind {
+  Ping = 'ping',
+  Pong = 'pong',
+}
+
+export enum MessageHeartbeat {
+  Ping = '🩵',
+  Pong = '💛',
 }
 
 export enum WebSocketEventSource {
@@ -26,9 +76,10 @@ interface InputSource {
 
 interface OutputSource {
   'gen-ai:chat': {
-    input: UserMessage
-    contexts: Record<string, ContextUpdate[]>
+    message: UserMessage
+    contexts: Record<string, ContextUpdate<Record<string, any>, string | CommonContentPart[]>[]>
     composedMessage: Array<Message>
+    input?: WebSocketEventInputs
   }
 }
 
@@ -71,10 +122,68 @@ export interface ContextUpdate<
   metadata?: Metadata
 }
 
+export interface InputMessageOverrides {
+  sessionId?: string
+  messagePrefix?: string
+}
+
+export type InputContextUpdate
+  = Omit<ContextUpdate<Record<string, unknown>, string | CommonContentPart[]>, 'id' | 'contextId'>
+    & Partial<Pick<ContextUpdate<Record<string, unknown>, string | CommonContentPart[]>, 'id' | 'contextId'>>
+
+export interface WebSocketEventInputTextBase {
+  text: string
+  textRaw?: string
+  overrides?: InputMessageOverrides
+  contextUpdates?: InputContextUpdate[]
+}
+
+export type WebSocketEventInputText = WebSocketEventInputTextBase & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
+
+export interface WebSocketEventInputTextVoiceBase {
+  transcription: string
+  textRaw?: string
+  overrides?: InputMessageOverrides
+  contextUpdates?: InputContextUpdate[]
+}
+
+export type WebSocketEventInputTextVoice = WebSocketEventInputTextVoiceBase & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
+
+export interface WebSocketEventInputVoiceBase {
+  audio: ArrayBuffer
+  overrides?: InputMessageOverrides
+  contextUpdates?: InputContextUpdate[]
+}
+
+export type WebSocketEventInputVoice = WebSocketEventInputVoiceBase & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
+
+export type WebSocketEventDataInputs = WebSocketEventInputText | WebSocketEventInputTextVoice | WebSocketEventInputVoice
+
+export type WebSocketEventInputs = WebSocketEventOf<'input:text'> | WebSocketEventOf<'input:text:voice'> | WebSocketEventOf<'input:voice'>
+
+export interface WebSocketEventBaseMetadata {
+  source?: MetadataEventSource
+  event?: {
+    id?: string
+    parentId?: string
+  }
+}
+
 export interface WebSocketBaseEvent<T, D, S extends string = string> {
   type: T
   data: D
-  source: WebSocketEventSource | S
+  /**
+   * @deprecated Prefer metadata.source.
+   */
+  source?: WebSocketEventSource | S
+  metadata: {
+    source: MetadataEventSource
+    event: {
+      id: string
+      parentId?: string
+    }
+  }
+  route?: RouteConfig
 }
 
 export type WithInputSource<Source extends keyof InputSource> = {
@@ -102,6 +211,7 @@ export interface WebSocketEvents<C = undefined> {
   }
   'module:announce': {
     name: string
+    identity?: MetadataEventSource
     possibleEvents: Array<(keyof WebSocketEvents<C>)>
   }
   'module:configure': {
@@ -114,15 +224,9 @@ export interface WebSocketEvents<C = undefined> {
     config: C | Record<string, unknown>
   }
 
-  'input:text': {
-    text: string
-  } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
-  'input:text:voice': {
-    transcription: string
-  } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
-  'input:voice': {
-    audio: ArrayBuffer
-  } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
+  'input:text': WebSocketEventInputText
+  'input:text:voice': WebSocketEventInputTextVoice
+  'input:voice': WebSocketEventInputVoice
 
   'output:gen-ai:chat:tool-call': {
     toolCalls: ToolMessage[]
@@ -245,6 +349,12 @@ export interface WebSocketEvents<C = undefined> {
     destinations: Array<string>
   }
 
+  'transport:connection:heartbeat': {
+    kind: MessageHeartbeatKind
+    message: MessageHeartbeat | string
+    at?: number
+  }
+
   'context:update': ContextUpdate
 }
 
@@ -253,5 +363,9 @@ export type WebSocketEvent<C = undefined> = {
 }[keyof WebSocketEvents<C>]
 
 export type WebSocketEventOptionalSource<C = undefined> = {
-  [K in keyof WebSocketEvents<C>]: Omit<WebSocketBaseEvent<K, WebSocketEvents<C>[K]>, 'source'> & Partial<Pick<WebSocketBaseEvent<K, WebSocketEvents<C>[K]>, 'source'>>;
+  [K in keyof WebSocketEvents<C>]: Omit<WebSocketBaseEvent<K, WebSocketEvents<C>[K]>, 'metadata'> & { metadata?: WebSocketEventBaseMetadata };
 }[keyof WebSocketEvents<C>]
+
+export type WebSocketEventOf<E, C = undefined> = E extends keyof WebSocketEvents<C>
+  ? Omit<WebSocketBaseEvent<E, WebSocketEvents<C>[E]>, 'metadata'> & { metadata?: WebSocketEventBaseMetadata }
+  : never

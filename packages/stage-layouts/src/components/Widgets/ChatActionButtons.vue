@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
 import { useTheme } from '@proj-airi/ui'
 import { ref } from 'vue'
 
 import { BackgroundDialogPicker } from '../Backgrounds'
 
-const { cleanupMessages } = useChatStore()
+const { cleanupMessages } = useChatMaintenanceStore()
 const { isDark, toggleDark } = useTheme()
 
 const backgroundDialogOpen = ref(false)

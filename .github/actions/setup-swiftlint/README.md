@@ -50,12 +50,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      
+
       - name: Install SwiftLint
         uses: ./.github/actions/setup-swiftlint
         with:
           version: '0.58.2'
-      
+
       - name: Run SwiftLint
         run: swiftlint
 ```

@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import { defineInvoke } from '@moeru/eventa'
-import { useBroadcastChannel } from '@vueuse/core'
-import { onMounted, ref, watch } from 'vue'
+import { refDebounced, useBroadcastChannel } from '@vueuse/core'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import { captionGetIsFollowingWindow, captionIsFollowingWindowChanged } from '../../shared/eventa'
-import { useElectronEventaContext } from '../composables/electron-vueuse'
+import { useElectronEventaContext, useElectronMouseAroundWindowBorder, useElectronMouseInWindow } from '../composables/electron-vueuse'
 
 const attached = ref(true)
 const speakerText = ref('')
 const assistantText = ref('')
+const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
+const isOutsideWindowFor250Ms = refDebounced(isOutsideWindow, 250)
+const shouldFadeOnCursorWithin = computed(() => !isOutsideWindowFor250Ms.value)
+const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBorder({ threshold: 30 })
+const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
 // Broadcast channel for captions
 type CaptionChannelEvent
@@ -51,8 +56,14 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="pointer-events-none h-full w-full flex items-end justify-center">
-    <div class="pointer-events-auto relative select-none rounded-xl px-3 py-2">
+  <div class="pointer-events-none relative h-full w-full flex items-end justify-center">
+    <div
+      :class="[
+        shouldFadeOnCursorWithin ? 'op-0' : 'op-100',
+        'pointer-events-auto relative select-none rounded-xl px-3 py-2',
+        'transition-opacity duration-250 ease-in-out',
+      ]"
+    >
       <div
         v-show="!attached"
         class="[-webkit-app-region:drag] absolute left-1/2 h-[14px] w-[36px] border border-[rgba(125,125,125,0.35)] rounded-[10px] bg-[rgba(125,125,125,0.28)] backdrop-blur-[6px] -top-2 -translate-x-1/2"
@@ -77,6 +88,24 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <Transition
+      enter-active-class="transition-opacity duration-250 ease-in-out"
+      enter-from-class="opacity-50"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-opacity duration-250 ease-in-out"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-50"
+    >
+      <div v-if="isAroundWindowBorderFor250Ms" class="pointer-events-none absolute left-0 top-0 z-999 h-full w-full">
+        <div
+          :class="[
+            'b-primary/50',
+            'h-full w-full animate-flash animate-duration-3s animate-count-infinite b-4 rounded-2xl',
+          ]"
+        />
+      </div>
+    </Transition>
   </div>
 </template>
 

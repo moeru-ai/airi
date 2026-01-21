@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { IconStatusItem, RippleGrid } from '@proj-airi/stage-ui/components'
-import { useAnalytics } from '@proj-airi/stage-ui/composables'
+import { useAnalytics, useScrollToHash } from '@proj-airi/stage-ui/composables'
 import { useRippleGridState } from '@proj-airi/stage-ui/composables/use-ripple-grid-state'
-import { useScrollToHash } from '@proj-airi/stage-ui/composables/useScrollToHash'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
@@ -138,6 +137,12 @@ useScrollToHash(() => route.hash, {
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: settings.pages.providers.title
+  subtitleKey: settings.title
+  descriptionKey: settings.pages.providers.description
+  icon: i-solar:box-minimalistic-bold-duotone
+  settingsEntry: true
+  order: 6
   stageTransition:
     name: slide
     pageSpecificAvailable: true

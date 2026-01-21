@@ -14,7 +14,7 @@ import { widgetsClearEvent, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdat
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { createConfig } from '../shared/persistence'
-import { transparentWindowConfig } from '../shared/window'
+import { spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
 import { setupWidgetsWindowInvokes } from './rpc/index.electron'
 
 export interface WidgetsWindowManager {
@@ -55,6 +55,7 @@ function createWidgetsWindow() {
     // Top-level overlay style like other overlay windows
     type: 'panel',
     ...transparentWindowConfig(),
+    ...spotlightLikeWindowConfig(),
   })
 
   // Keep on top like caption/main overlays

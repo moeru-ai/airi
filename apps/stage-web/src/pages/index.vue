@@ -12,8 +12,9 @@ import { useBackgroundThemeColor } from '@proj-airi/stage-layouts/composables/th
 import { useBackgroundStore } from '@proj-airi/stage-layouts/stores/background'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
+import { fetchSession } from '@proj-airi/stage-ui/libs/auth'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
-import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
@@ -46,12 +47,12 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
-const { transcribeForRecording, transcribeForMediaStream } = hearingPipeline
+const { transcribeForRecording } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
-const chatStore = useChatStore()
+const chatStore = useChatOrchestratorStore()
 
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
@@ -85,7 +86,7 @@ async function startAudioInteraction() {
         if (!provider || !activeChatModel.value)
           return
 
-        await chatStore.send(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+        await chatStore.ingest(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
       }
       catch (err) {
         console.error('Failed to send chat from voice:', err)
@@ -98,28 +99,9 @@ async function startAudioInteraction() {
 }
 
 async function handleSpeechStart() {
-  if (shouldUseStreamInput.value && stream.value) {
-    await transcribeForMediaStream(stream.value, {
-      onSentenceEnd: (delta) => {
-        const finalText = delta
-        if (!finalText || !finalText.trim()) {
-          return
-        }
-
-        void (async () => {
-          try {
-            const provider = await providersStore.getProviderInstance(activeChatProvider.value)
-            if (!provider || !activeChatModel.value)
-              return
-
-            await chatStore.send(finalText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
-          }
-          catch (err) {
-            console.error('Failed to send chat from voice:', err)
-          }
-        })()
-      },
-    })
+  // For streaming providers, ChatArea component handles transcription manually
+  // The main page should not start automatic transcription to avoid duplicate sessions
+  if (shouldUseStreamInput.value) {
     return
   }
 
@@ -166,6 +148,12 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
       console.error('Failed to start VAD with stream:', e)
     }
   }
+})
+
+onMounted(() => {
+  // TODO: move this to pinia store with `initialize(...)` action.
+  // Fetch session, ignore errors
+  fetchSession().catch(() => {})
 })
 </script>
 

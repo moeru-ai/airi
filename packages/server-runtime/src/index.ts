@@ -1,18 +1,67 @@
-import type { WebSocketEvent } from '@proj-airi/server-shared/types'
+import type { MetadataEventSource, WebSocketEvent } from '@proj-airi/server-shared/types'
 
+import type {
+  RouteContext,
+  RouteDecision,
+  RouteMiddleware,
+  RoutingPolicy,
+} from './middlewares'
 import type { AuthenticatedPeer, Peer } from './types'
 
 import { availableLogLevelStrings, Format, LogLevelString, logLevelStringToLogLevelMap, useLogg } from '@guiiai/logg'
-import { WebSocketEventSource } from '@proj-airi/server-shared/types'
+import { MessageHeartbeat, MessageHeartbeatKind, WebSocketEventSource } from '@proj-airi/server-shared/types'
 import { defineWebSocketHandler, H3 } from 'h3'
+import { nanoid } from 'nanoid'
+
+import packageJSON from '../package.json'
 
 import { optionOrEnv } from './config'
+import {
+  collectDestinations,
+  createPolicyMiddleware,
+  isDevtoolsPeer,
+  matchesDestinations,
+} from './middlewares'
+
+function createServerEventMetadata(serverInstanceId: string, parentId?: string) {
+  return {
+    event: {
+      id: nanoid(),
+      parentId,
+    },
+    source: {
+      plugin: WebSocketEventSource.Server,
+      instanceId: serverInstanceId,
+      version: packageJSON.version,
+    },
+  }
+}
 
 // pre-stringified responses
 const RESPONSES = {
-  authenticated: JSON.stringify({ type: 'module:authenticated', data: { authenticated: true }, source: WebSocketEventSource.Server } satisfies WebSocketEvent),
-  notAuthenticated: JSON.stringify({ type: 'error', data: { message: 'not authenticated' }, source: WebSocketEventSource.Server } satisfies WebSocketEvent),
+  authenticated: (serverInstanceId: string, parentId?: string) => JSON.stringify({
+    type: 'module:authenticated',
+    data: { authenticated: true },
+    metadata: createServerEventMetadata(serverInstanceId, parentId),
+  } satisfies WebSocketEvent),
+  notAuthenticated: (serverInstanceId: string, parentId?: string) => JSON.stringify({
+    type: 'error',
+    data: { message: 'not authenticated' },
+    metadata: createServerEventMetadata(serverInstanceId, parentId),
+  } satisfies WebSocketEvent),
+  error: (message: string, serverInstanceId: string, parentId?: string) => JSON.stringify({
+    type: 'error',
+    data: { message },
+    metadata: createServerEventMetadata(serverInstanceId, parentId),
+  }),
+  heartbeat: (kind: MessageHeartbeatKind, message: MessageHeartbeat | string, serverInstanceId: string, parentId?: string) => JSON.stringify({
+    type: 'transport:connection:heartbeat',
+    data: { kind, message, at: Date.now() },
+    metadata: createServerEventMetadata(serverInstanceId, parentId),
+  } satisfies WebSocketEvent),
 }
+
+const DEFAULT_HEARTBEAT_TTL_MS = 60_000
 
 // helper send function
 function send(peer: Peer, event: WebSocketEvent<Record<string, unknown>> | string) {
@@ -20,6 +69,7 @@ function send(peer: Peer, event: WebSocketEvent<Record<string, unknown>> | strin
 }
 
 export function setupApp(options?: {
+  instanceId?: string
   auth?: {
     token: string
   }
@@ -27,7 +77,17 @@ export function setupApp(options?: {
     app?: { level?: LogLevelString, format?: Format }
     websocket?: { level?: LogLevelString, format?: Format }
   }
+  routing?: {
+    middleware?: RouteMiddleware[]
+    allowBypass?: boolean
+    policy?: RoutingPolicy
+  }
+  heartbeat?: {
+    readTimeout?: number
+    message?: MessageHeartbeat | string
+  }
 }): H3 {
+  const instanceId = options?.instanceId || optionOrEnv(undefined, 'SERVER_INSTANCE_ID', nanoid())
   const authToken = optionOrEnv(options?.auth?.token, 'AUTHENTICATION_TOKEN', '')
 
   const appLogLevel = optionOrEnv(options?.logger?.app?.level, 'LOG_LEVEL', LogLevelString.Log, { validator: (value): value is LogLevelString => availableLogLevelStrings.includes(value as LogLevelString) })
@@ -44,6 +104,33 @@ export function setupApp(options?: {
 
   const peers = new Map<string, AuthenticatedPeer>()
   const peersByModule = new Map<string, Map<number | undefined, AuthenticatedPeer>>()
+  const heartbeatTtlMs = options?.heartbeat?.readTimeout ?? DEFAULT_HEARTBEAT_TTL_MS
+  const heartbeatMessage = options?.heartbeat?.message ?? MessageHeartbeat.Pong
+  const routingMiddleware = [
+    ...(options?.routing?.policy ? [createPolicyMiddleware(options.routing.policy)] : []),
+    ...(options?.routing?.middleware ?? []),
+  ]
+
+  setInterval(() => {
+    const now = Date.now()
+    for (const [id, peerInfo] of peers.entries()) {
+      if (!peerInfo.lastHeartbeatAt) {
+        continue
+      }
+
+      if (now - peerInfo.lastHeartbeatAt > heartbeatTtlMs) {
+        logger.withFields({ peer: id, peerName: peerInfo.name }).debug('heartbeat expired, dropping peer')
+        try {
+          (peerInfo.peer as Peer & { close?: () => void }).close?.()
+        }
+        catch (error) {
+          logger.withFields({ peer: id, peerName: peerInfo.name }).withError(error as Error).debug('failed to close expired peer')
+        }
+        peers.delete(id)
+        unregisterModulePeer(peerInfo)
+      }
+    }
+  }, Math.max(5_000, Math.floor(heartbeatTtlMs / 2)))
 
   function registerModulePeer(p: AuthenticatedPeer, name: string, index?: number) {
     if (!peersByModule.has(name)) {
@@ -76,11 +163,11 @@ export function setupApp(options?: {
   app.get('/ws', defineWebSocketHandler({
     open: (peer) => {
       if (authToken) {
-        peers.set(peer.id, { peer, authenticated: false, name: '' })
+        peers.set(peer.id, { peer, authenticated: false, name: '', lastHeartbeatAt: Date.now() })
       }
       else {
         peer.send(RESPONSES.authenticated)
-        peers.set(peer.id, { peer, authenticated: true, name: '' })
+        peers.set(peer.id, { peer, authenticated: true, name: '', lastHeartbeatAt: Date.now() })
       }
 
       logger.withFields({ peer: peer.id, activePeers: peers.size }).log('connected')
@@ -94,7 +181,7 @@ export function setupApp(options?: {
       }
       catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err)
-        send(peer, { type: 'error', data: { message: `invalid JSON, error: ${errorMessage}` }, source: WebSocketEventSource.Server })
+        send(peer, RESPONSES.error(`invalid JSON, error: ${errorMessage}`, instanceId))
 
         return
       }
@@ -106,15 +193,31 @@ export function setupApp(options?: {
         peerModuleIndex: authenticatedPeer?.index,
       }).debug('received event')
 
+      if (authenticatedPeer) {
+        authenticatedPeer.lastHeartbeatAt = Date.now()
+        if (event.metadata?.source) {
+          authenticatedPeer.identity = event.metadata.source
+        }
+      }
+
       switch (event.type) {
+        case 'transport:connection:heartbeat': {
+          const p = peers.get(peer.id)
+          if (p) {
+            p.lastHeartbeatAt = Date.now()
+          }
+
+          if (event.data.kind === MessageHeartbeatKind.Ping) {
+            send(peer, RESPONSES.heartbeat(MessageHeartbeatKind.Pong, heartbeatMessage, instanceId, event.metadata?.event.id))
+          }
+
+          return
+        }
+
         case 'module:authenticate': {
           if (authToken && event.data.token !== authToken) {
             logger.withFields({ peer: peer.id, peerRemote: peer.remoteAddress, peerRequest: peer.request.url }).log('authentication failed')
-            send(peer, {
-              type: 'error',
-              data: { message: 'invalid token' },
-              source: WebSocketEventSource.Server,
-            })
+            send(peer, RESPONSES.error('invalid token', instanceId, event.metadata?.event.id))
 
             return
           }
@@ -137,39 +240,30 @@ export function setupApp(options?: {
           unregisterModulePeer(p)
 
           // verify
-          const { name, index } = event.data as { name: string, index?: number }
+          const { name, index, identity } = event.data as { name: string, index?: number, identity?: MetadataEventSource }
           if (!name || typeof name !== 'string') {
-            send(peer, {
-              type: 'error',
-              data: { message: 'the field \'name\' must be a non-empty string for event \'module:announce\'' },
-              source: WebSocketEventSource.Server,
-            })
+            send(peer, RESPONSES.error('the field \'name\' must be a non-empty string for event \'module:announce\'', instanceId))
 
             return
           }
           if (typeof index !== 'undefined') {
             if (!Number.isInteger(index) || index < 0) {
-              send(peer, {
-                type: 'error',
-                data: { message: 'the field \'index\' must be a non-negative integer for event \'module:announce\'' },
-                source: WebSocketEventSource.Server,
-              })
+              send(peer, RESPONSES.error('the field \'index\' must be a non-negative integer for event \'module:announce\'', instanceId))
 
               return
             }
           }
           if (authToken && !p.authenticated) {
-            send(peer, {
-              type: 'error',
-              data: { message: 'must authenticate before announcing' },
-              source: WebSocketEventSource.Server,
-            })
+            send(peer, RESPONSES.error('must authenticate before announcing', instanceId))
 
             return
           }
 
           p.name = name
           p.index = index
+          if (identity) {
+            p.identity = identity
+          }
 
           registerModulePeer(p, name, index)
 
@@ -180,21 +274,13 @@ export function setupApp(options?: {
           const { moduleName, moduleIndex, config } = event.data
 
           if (moduleName === '') {
-            send(peer, {
-              type: 'error',
-              data: { message: 'the field \'moduleName\' can\'t be empty for event \'ui:configure\'' },
-              source: WebSocketEventSource.Server,
-            })
+            send(peer, RESPONSES.error('the field \'moduleName\' can\'t be empty for event \'ui:configure\'', instanceId))
 
             return
           }
           if (typeof moduleIndex !== 'undefined') {
             if (!Number.isInteger(moduleIndex) || moduleIndex < 0) {
-              send(peer, {
-                type: 'error',
-                data: { message: 'the field \'moduleIndex\' must be a non-negative integer for event \'ui:configure\'' },
-                source: WebSocketEventSource.Server,
-              })
+              send(peer, RESPONSES.error('the field \'moduleIndex\' must be a non-negative integer for event \'ui:configure\'', instanceId))
 
               return
             }
@@ -205,16 +291,12 @@ export function setupApp(options?: {
             send(target.peer, {
               type: 'module:configure',
               data: { config },
-              // NOTICE: here we will forward the source as-is
-              source: event.source,
+              // NOTICE: this will forward the original event metadata as-is
+              metadata: event.metadata,
             })
           }
           else {
-            send(peer, {
-              type: 'error',
-              data: { message: 'module not found, it hasn\'t announced itself or the name is incorrect' },
-              source: WebSocketEventSource.Server,
-            })
+            send(peer, RESPONSES.error('module not found, it hasn\'t announced itself or the name is incorrect', instanceId))
           }
 
           return
@@ -231,11 +313,46 @@ export function setupApp(options?: {
       }
 
       const payload = JSON.stringify(event)
+      const allowBypass = options?.routing?.allowBypass !== false
+      const shouldBypass = Boolean(event.route?.bypass && allowBypass && isDevtoolsPeer(p))
+      const destinations = shouldBypass ? undefined : collectDestinations(event)
+      const routingContext: RouteContext = {
+        event,
+        fromPeer: p,
+        peers,
+        destinations,
+      }
+
+      let decision: RouteDecision | undefined
+      for (const middleware of routingMiddleware) {
+        const result = middleware(routingContext)
+        if (result) {
+          decision = result
+          break
+        }
+      }
+
+      if (decision?.type === 'drop') {
+        logger.withFields({ peer: peer.id, peerName: p.name, event }).debug('routing dropped event')
+        return
+      }
+
+      const targetIds = decision?.type === 'targets' ? decision.targetIds : undefined
+      const shouldBroadcast = decision?.type === 'broadcast' || !targetIds
+
       logger.withFields({ peer: peer.id, peerName: p.name, event }).debug('broadcasting event to peers')
 
       for (const [id, other] of peers.entries()) {
         if (id === peer.id) {
           logger.withFields({ peer: peer.id, peerName: p.name, event }).debug('not sending event to self')
+          continue
+        }
+
+        if (!shouldBroadcast && targetIds && !targetIds.has(id)) {
+          continue
+        }
+
+        if (shouldBroadcast && destinations && destinations.length > 0 && !matchesDestinations(destinations, other)) {
           continue
         }
 

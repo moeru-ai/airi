@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/tauri-plugin-mcp",
   "type": "module",
-  "version": "0.8.1-beta.2",
+  "version": "0.8.1",
   "description": "A Tauri plugin for interacting with MCP servers.",
   "author": {
     "name": "Moeru AI Project AIRI Team",
@@ -29,7 +29,7 @@
     "@tauri-apps/api": "^2.9.1"
   },
   "devDependencies": {
-    "pkgroll": "^2.21.4"
+    "pkgroll": "^2.21.5"
   },
   "publishConfig": {
     "exports": {

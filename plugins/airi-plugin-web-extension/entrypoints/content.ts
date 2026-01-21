@@ -1,7 +1,11 @@
+import { startContentObserver } from '../src/content'
+
 export default defineContentScript({
-  matches: ['*://*.google.com/*'],
+  matches: [
+    '*://*/*',
+  ],
+  runAt: 'document_idle',
   main() {
-    // eslint-disable-next-line no-console
-    console.log('Hello content.')
+    startContentObserver()
   },
 })

@@ -1,17 +1,17 @@
+import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 
-import { createResettableLocalStorage } from '../../utils/resettable'
 import { useConfiguratorByModsChannelServer } from '../configurator'
 
 export function createGamingModuleStore(moduleName: string, defaultPort: number) {
   return defineStore(moduleName, () => {
     const configurator = useConfiguratorByModsChannelServer()
 
-    const [enabled, resetEnabled] = createResettableLocalStorage(`settings/${moduleName}/enabled`, false)
-    const [serverAddress, resetServerAddress] = createResettableLocalStorage(`settings/${moduleName}/server-address`, '')
-    const [serverPort, resetServerPort] = createResettableLocalStorage<number | null>(`settings/${moduleName}/server-port`, defaultPort)
-    const [username, resetUsername] = createResettableLocalStorage(`settings/${moduleName}/username`, '')
+    const enabled = useLocalStorageManualReset<boolean>(`settings/${moduleName}/enabled`, false)
+    const serverAddress = useLocalStorageManualReset<string>(`settings/${moduleName}/server-address`, '')
+    const serverPort = useLocalStorageManualReset<number | null>(`settings/${moduleName}/server-port`, defaultPort)
+    const username = useLocalStorageManualReset<string>(`settings/${moduleName}/username`, '')
 
     function saveSettings() {
       configurator.updateFor(moduleName, {
@@ -23,10 +23,10 @@ export function createGamingModuleStore(moduleName: string, defaultPort: number)
     }
 
     function resetState() {
-      resetEnabled()
-      resetServerAddress()
-      resetServerPort()
-      resetUsername()
+      enabled.reset()
+      serverAddress.reset()
+      serverPort.reset()
+      username.reset()
       saveSettings()
     }
 

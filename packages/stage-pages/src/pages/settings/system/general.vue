@@ -5,6 +5,14 @@ import { FieldCheckbox, FieldSelect, useTheme } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+const props = withDefaults(defineProps<{
+  needsControlsIslandIconSizeSetting?: boolean
+}>(), {
+  needsControlsIslandIconSizeSetting: import.meta.env.RUNTIME_ENVIRONMENT === 'electron',
+})
+
+const showControlsIsland = computed(() => props.needsControlsIslandIconSizeSetting)
+
 const settings = useSettings()
 
 const { t } = useI18n()
@@ -40,7 +48,26 @@ const languages = computed(() => {
       transition="all ease-in-out duration-250"
       :label="t('settings.language.title')"
       :description="t('settings.language.description')"
-      :options="languages"
+      :options="languages as Array<{ value: string; label: string }>"
+    />
+
+    <!-- Controls Island Icon Size -->
+    <FieldSelect
+      v-if="showControlsIsland"
+      v-model="settings.controlsIslandIconSize"
+      v-motion
+      :initial="{ opacity: 0, y: 10 }"
+      :enter="{ opacity: 1, y: 0 }"
+      :duration="250 + (4 * 10)"
+      :delay="4 * 50"
+      transition="all ease-in-out duration-250"
+      :label="t('settings.controls-island.icon-size.title')"
+      :description="t('settings.controls-island.icon-size.description')"
+      :options="[
+        { value: 'auto', label: t('settings.controls-island.icon-size.auto') },
+        { value: 'large', label: t('settings.controls-island.icon-size.large') },
+        { value: 'small', label: t('settings.controls-island.icon-size.small') },
+      ]"
     />
 
     <div
@@ -60,6 +87,8 @@ const languages = computed(() => {
 <route lang="yaml">
 meta:
   layout: settings
+  titleKey: settings.pages.system.general.title
+  subtitleKey: settings.title
   stageTransition:
     name: slide
 </route>

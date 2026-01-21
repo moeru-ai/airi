@@ -1,47 +1,40 @@
 <script setup lang="ts">
-import type { TTSChunkItem } from '@proj-airi/stage-ui/utils/tts'
+import type { EmotionPayload } from '@proj-airi/stage-ui/constants/emotions'
 import type { ChatProvider, SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
+import { createPlaybackManager, createSpeechPipeline } from '@proj-airi/pipelines-audio'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
-import { useDelayMessageQueue, useEmotionsMessageQueue, usePipelineCharacterSpeechPlaybackQueueStore, usePipelineWorkflowTextSegmentationStore } from '@proj-airi/stage-ui/composables/queues'
+import { useDelayMessageQueue, useEmotionsMessageQueue } from '@proj-airi/stage-ui/composables/queues'
 import { llmInferenceEndToken } from '@proj-airi/stage-ui/constants'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '@proj-airi/stage-ui/constants/emotions'
 import { useAudioContext, useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
-import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { createQueue } from '@proj-airi/stage-ui/utils/queue'
+import { createQueue } from '@proj-airi/stream-kit'
 import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
-// VRM scene refs
 const sceneRef = ref<InstanceType<typeof ThreeScene>>()
+const currentAudioSource = ref<AudioBufferSourceNode>()
 
-// Playback + lip sync (VRM uses currentAudioSource)
-const characterSpeechPlaybackQueue = usePipelineCharacterSpeechPlaybackQueueStore()
-const { connectAudioContext, connectAudioAnalyser, clearAll, onPlaybackStarted, onPlaybackFinished } = characterSpeechPlaybackQueue
-const { currentAudioSource, playbackQueue } = storeToRefs(characterSpeechPlaybackQueue)
-
-// Audio context / analyser
 const { audioContext } = useAudioContext()
-connectAudioContext(audioContext)
 const audioAnalyser = ref<AnalyserNode>()
 function setupAnalyser() {
-  if (!audioAnalyser.value) {
+  if (!audioAnalyser.value)
     audioAnalyser.value = audioContext.createAnalyser()
-    connectAudioAnalyser(audioAnalyser.value)
-  }
 }
 
-// Settings + force VRM model
 const settingsStore = useSettings()
 const { stageModelRenderer, stageModelSelected, stageModelSelectedUrl, stageViewControlsEnabled } = storeToRefs(settingsStore)
+
 onMounted(async () => {
-  // Preserve existing VRM selection if available; otherwise fall back to preset VRM
   const needsFallback = !stageModelSelectedUrl.value || stageModelRenderer.value !== 'vrm'
   if (needsFallback)
     stageModelSelected.value = 'preset-vrm-1'
@@ -50,38 +43,45 @@ onMounted(async () => {
   setupAnalyser()
 })
 
-// Speech
 const providersStore = useProvidersStore()
 const speechStore = useSpeechStore()
 const { activeSpeechProvider, activeSpeechVoice, activeSpeechModel, ssmlEnabled, pitch } = storeToRefs(speechStore)
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
 
-// Text segmentation
-const textSegmentationStore = usePipelineWorkflowTextSegmentationStore()
-const { onTextSegmented, clearHooks: clearTextSegmentationHooks } = textSegmentationStore
-const { textSegmentationQueue } = storeToRefs(textSegmentationStore)
-clearTextSegmentationHooks()
-
-// Emotion/delay queues (special tokens)
 const delaysQueue = useDelayMessageQueue()
-const emotionMessageQueue = useEmotionsMessageQueue(createQueue({ handlers: [] }))
+const currentMotion = ref<{ group: string }>({ group: EmotionThinkMotionName })
+const emotionsQueue = createQueue<EmotionPayload>({
+  handlers: [
+    async (ctx) => {
+      const motion = EMOTION_EmotionMotionName_value[ctx.data.name]
+      const expression = EMOTION_VRMExpressionName_value[ctx.data.name]
+      if (motion)
+        currentMotion.value = { group: motion }
+      if (expression)
+        sceneRef.value?.setExpression(expression, ctx.data.intensity)
+    },
+  ],
+})
+const emotionMessageQueue = useEmotionsMessageQueue(emotionsQueue)
+
 emotionMessageQueue.on('enqueue', (token) => {
   log(`    - special 入队：${token}`)
 })
+
 emotionMessageQueue.on('dequeue', (token) => {
   log(`special 出队处理：${token}`)
 })
 
-// State
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const nowSpeaking = ref(false)
-const currentMotion = ref<{ group: string }>({ group: EmotionThinkMotionName })
 const logLines = ref<string[]>([])
 const chatInput = ref('')
-const chatStore = useChatStore()
+const chatOrchestrator = useChatOrchestratorStore()
+const chatSession = useChatSessionStore()
+const chatMaintenance = useChatMaintenanceStore()
 const chatMessages = computed(() => {
-  return chatStore.messages
+  return chatSession.messages
     .filter(msg => msg.role !== 'system')
     .map((msg) => {
       const text = typeof msg.content === 'string'
@@ -97,29 +97,69 @@ function log(line: string) {
   logLines.value = [line, ...logLines.value].slice(0, 50)
 }
 
-// TTS generation handler
-async function handleSpeechGeneration(ctx: { data: TTSChunkItem }) {
-  try {
+const playbackManager = createPlaybackManager<AudioBuffer>({
+  play: (item, signal) => {
+    return new Promise((resolve) => {
+      const source = audioContext.createBufferSource()
+      source.buffer = item.audio
+      source.connect(audioContext.destination)
+      if (audioAnalyser.value)
+        source.connect(audioAnalyser.value)
+      currentAudioSource.value = source
+
+      const stopPlayback = () => {
+        try {
+          source.stop()
+          source.disconnect()
+        }
+        catch {}
+        if (currentAudioSource.value === source)
+          currentAudioSource.value = undefined
+        resolve()
+      }
+
+      if (signal.aborted) {
+        stopPlayback()
+        return
+      }
+
+      signal.addEventListener('abort', stopPlayback, { once: true })
+      source.onended = () => {
+        signal.removeEventListener('abort', stopPlayback)
+        stopPlayback()
+      }
+      source.start(0)
+    })
+  },
+  maxVoices: 1,
+  maxVoicesPerOwner: 1,
+  overflowPolicy: 'queue',
+  ownerOverflowPolicy: 'steal-oldest',
+})
+
+const speechPipeline = createSpeechPipeline<AudioBuffer>({
+  tts: async (request, signal) => {
+    if (signal.aborted)
+      return null
+
     if (!activeSpeechProvider.value || !activeSpeechVoice.value) {
       console.warn('No active speech provider configured')
-      return
+      return null
     }
+
     const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, any>
     if (!provider) {
       console.error('Failed to initialize speech provider')
-      return
+      return null
     }
-    if (ctx.data.chunk === '' && !ctx.data.special)
-      return
-    if (ctx.data.chunk === '' && ctx.data.special) {
-      // log(`特殊标记：${ctx.data.special}`)
-      emotionMessageQueue.enqueue(ctx.data.special)
-      return
-    }
+
+    if (!request.text && !request.special)
+      return null
+
     const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
     const input = ssmlEnabled.value
-      ? speechStore.generateSSML(ctx.data.chunk, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value })
-      : ctx.data.chunk
+      ? speechStore.generateSSML(request.text, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value })
+      : request.text
 
     const res = await generateSpeech({
       ...provider.speech(activeSpeechModel.value, providerConfig),
@@ -127,24 +167,31 @@ async function handleSpeechGeneration(ctx: { data: TTSChunkItem }) {
       voice: activeSpeechVoice.value.id,
     })
 
-    const audioBuffer = await audioContext.decodeAudioData(res)
-    log(`    - 排队：${ctx.data.chunk}${ctx.data.special ? ` [special: ${ctx.data.special}]` : ''}`)
-    playbackQueue.value.enqueue({ audioBuffer, text: ctx.data.chunk, special: ctx.data.special })
-  }
-  catch (error) {
-    console.error('Speech generation failed:', error)
-  }
-}
+    if (signal.aborted)
+      return null
 
-const ttsQueue = createQueue<TTSChunkItem>({
-  handlers: [
-    handleSpeechGeneration,
-  ],
+    log(`    - 排队：${request.text}${request.special ? ` [special: ${request.special}]` : ''}`)
+    return audioContext.decodeAudioData(res)
+  },
+  playback: playbackManager,
 })
 
-// text segmentation hooks
-onTextSegmented((chunkItem) => {
-  ttsQueue.enqueue(chunkItem)
+speechPipeline.on('onSpecial', (segment) => {
+  if (segment.special)
+    emotionMessageQueue.enqueue(segment.special)
+})
+
+playbackManager.onStart(({ item }) => {
+  nowSpeaking.value = true
+  log(`播放开始：${item.text}`)
+})
+
+playbackManager.onEnd(({ item }) => {
+  nowSpeaking.value = false
+  mouthOpenSize.value = 0
+
+  if (item.special)
+    log(`播放结束，special: ${item.special}`)
 })
 
 async function sendChat() {
@@ -159,7 +206,7 @@ async function sendChat() {
   }
 
   try {
-    await chatStore.send(content, {
+    await chatOrchestrator.ingest(content, {
       model: activeChatModel.value,
       chatProvider: provider as ChatProvider,
     })
@@ -172,20 +219,22 @@ async function sendChat() {
 }
 
 function resetChat() {
-  chatStore.cleanupMessages()
+  chatMaintenance.cleanupMessages()
   chatInput.value = ''
   logLines.value = []
-  clearAll()
+  playbackManager.stopAll('reset')
 }
 
-// Chat hooks (reuse Stage pipeline but Live2D removed)
-const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd } = chatStore
+const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = chatOrchestrator
 const chatHookCleanups: Array<() => void> = []
+let currentIntent: ReturnType<typeof speechPipeline.openIntent> | null = null
 
 chatHookCleanups.push(onBeforeMessageComposed(async () => {
-  clearAll()
+  playbackManager.stopAll('new-message')
   setupAnalyser()
   logLines.value = []
+  currentIntent?.cancel('new-message')
+  currentIntent = speechPipeline.openIntent({ priority: 'normal', behavior: 'queue' })
 }))
 
 chatHookCleanups.push(onBeforeSend(async () => {
@@ -193,40 +242,26 @@ chatHookCleanups.push(onBeforeSend(async () => {
 }))
 
 chatHookCleanups.push(onTokenLiteral(async (literal) => {
-  textSegmentationQueue.value.enqueue({ type: 'literal', value: literal })
+  currentIntent?.writeLiteral(literal)
 }))
 
 chatHookCleanups.push(onTokenSpecial(async (special) => {
-  textSegmentationQueue.value.enqueue({ type: 'special', value: special })
+  currentIntent?.writeSpecial(special)
 }))
 
 chatHookCleanups.push(onStreamEnd(async () => {
   delaysQueue.enqueue(llmInferenceEndToken)
+  currentIntent?.writeFlush()
 }))
 
-// Wire playback to VRM + logs
-onPlaybackFinished(({ special }) => {
-  nowSpeaking.value = false
-  mouthOpenSize.value = 0
-  if (special) {
-    log(`播放结束，special: ${special}`)
-    const motion = EMOTION_EmotionMotionName_value[special as keyof typeof EMOTION_EmotionMotionName_value]
-    const expression = EMOTION_VRMExpressionName_value[special as keyof typeof EMOTION_VRMExpressionName_value]
-    if (motion)
-      currentMotion.value = { group: motion }
-    if (expression)
-      sceneRef.value?.setExpression(expression)
-  }
-})
-
-onPlaybackStarted(({ text }) => {
-  nowSpeaking.value = true
-  log(`播放开始：${text}`)
-})
+chatHookCleanups.push(onAssistantResponseEnd(async () => {
+  currentIntent?.end()
+  currentIntent = null
+}))
 
 onUnmounted(() => {
   chatHookCleanups.forEach(dispose => dispose?.())
-  clearAll()
+  playbackManager.stopAll('unmount')
 })
 </script>
 
@@ -308,4 +343,6 @@ onUnmounted(() => {
 <route lang="yaml">
 meta:
   layout: settings
+  title: Performance Playground
+  subtitleKey: tamagotchi.settings.devtools.title
 </route>
