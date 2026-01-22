@@ -7,6 +7,7 @@ import {
   TranscriptionPlayground,
   TranscriptionProviderSettings,
 } from '@proj-airi/stage-ui/components'
+import { useProviderConfig } from '@proj-airi/stage-ui/composables/use-provider-config'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
@@ -40,11 +41,9 @@ const isLoadingModels = computed(() => {
 })
 
 // Check if API key is configured (required for transcription to work)
-const apiKeyConfigured = computed(() => {
-  const config = providers.value[providerId]
-  const apiKey = config?.apiKey as string | undefined
-  const baseUrl = config?.baseUrl as string | undefined
-  return !!(apiKey && apiKey.trim()) && !!(baseUrl && baseUrl.trim())
+const { apiKeyConfigured } = useProviderConfig(providerId, {
+  requireApiKey: true,
+  requireBaseUrl: true,
 })
 
 // Generate transcription
@@ -76,7 +75,6 @@ async function handleGenerateTranscription(file: File) {
 // Use the composable to get validation logic and state
 const {
   t,
-  providerMetadata,
   isValidating,
   isValid,
   validationMessage,

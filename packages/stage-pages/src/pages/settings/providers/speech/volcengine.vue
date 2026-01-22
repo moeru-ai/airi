@@ -6,6 +6,7 @@ import {
   SpeechPlayground,
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
+import { useProviderConfig } from '@proj-airi/stage-ui/composables/use-provider-config'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldInput, FieldRange } from '@proj-airi/ui'
@@ -38,11 +39,7 @@ const appId = computed({
 
 // Check if API key is configured (required for voice dropdown to work)
 // The voice loading logic already validates the full config (API key + base URL)
-const apiKeyConfigured = computed(() => {
-  const config = providers.value[providerId]
-  const apiKey = config?.apiKey as string | undefined
-  return !!apiKey && !!apiKey.trim()
-})
+const { apiKeyConfigured } = useProviderConfig(providerId)
 
 // Get available voices for ElevenLabs
 const availableVoices = computed(() => {

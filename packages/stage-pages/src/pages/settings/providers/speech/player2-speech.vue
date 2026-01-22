@@ -7,6 +7,7 @@ import {
   SpeechPlayground,
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
+import { useProviderConfig } from '@proj-airi/stage-ui/composables/use-provider-config'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldRange } from '@proj-airi/ui'
@@ -48,10 +49,9 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 }
 // Check if base URL is configured (Player2 doesn't require API key, only baseUrl)
 // The voice loading logic already validates the full config
-const apiKeyConfigured = computed(() => {
-  const config = providers.value[providerId]
-  const baseUrl = config?.baseUrl as string | undefined
-  return !!(baseUrl && baseUrl.trim())
+const { apiKeyConfigured } = useProviderConfig(providerId, {
+  requireApiKey: false,
+  requireBaseUrl: true,
 })
 
 const hasPlayer2 = ref(true)

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Screen } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
@@ -11,7 +11,7 @@ import { useLive2d } from '../../stores/live2d'
 import '../../utils/live2d-zip-loader'
 import '../../utils/live2d-opfs-registration'
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   modelSrc?: string
   modelId?: string
 
@@ -46,7 +46,17 @@ const componentStateModel = defineModel<'pending' | 'loading' | 'mounted'>('mode
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 
 const live2d = useLive2d()
-const { position } = storeToRefs(live2d)
+const { position, scale: storeScale } = storeToRefs(live2d)
+
+// Use store's scale reactively by default, but allow prop to override
+// The prop scale acts as a multiplier in Model.vue, so we use store scale as the base reactive value
+// If a prop is explicitly provided (different from default 1), it will override
+const scale = computed(() => {
+  // Prefer store scale for reactivity, but if prop is explicitly set to a non-default value, use it
+  // Since we can't detect if prop was provided vs default, we check if it differs from store
+  // If prop equals store value, use store (reactive); if different, prop takes precedence
+  return props.scale !== storeScale.value ? props.scale : storeScale.value
+})
 
 watch([componentStateModel, componentStateCanvas], () => {
   componentState.value = (componentStateModel.value === 'mounted' && componentStateCanvas.value === 'mounted')

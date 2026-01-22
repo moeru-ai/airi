@@ -33,7 +33,7 @@ const settings = computed(() => {
       return {
         title: title || '',
         description: route.meta?.descriptionKey ? t(route.meta.descriptionKey as string) : (route.meta?.description as string | undefined) || '',
-        icon: route.meta?.icon as string | undefined,
+        icon: (route.meta?.icon as string | undefined) ?? '',
         to: route.path,
       }
     })

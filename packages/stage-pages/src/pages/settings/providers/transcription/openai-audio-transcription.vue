@@ -5,6 +5,7 @@ import {
   TranscriptionPlayground,
   TranscriptionProviderSettings,
 } from '@proj-airi/stage-ui/components'
+import { useProviderConfig } from '@proj-airi/stage-ui/composables/use-provider-config'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldSelect } from '@proj-airi/ui'
@@ -39,11 +40,7 @@ const isLoadingModels = computed(() => {
 })
 
 // Check if API key is configured (required for transcription to work)
-const apiKeyConfigured = computed(() => {
-  const config = providers.value[providerId]
-  const apiKey = config?.apiKey as string | undefined
-  return !!apiKey && !!apiKey.trim()
-})
+const { apiKeyConfigured } = useProviderConfig(providerId)
 
 // Load models on mount
 onMounted(async () => {

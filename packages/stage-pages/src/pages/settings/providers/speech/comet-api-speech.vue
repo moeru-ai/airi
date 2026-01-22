@@ -5,11 +5,12 @@ import {
   SpeechPlayground,
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
+import { useProviderConfig } from '@proj-airi/stage-ui/composables/use-provider-config'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { FieldRange } from '@proj-airi/ui'
+import { FieldRange, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const speechStore = useSpeechStore()
@@ -27,19 +28,40 @@ const defaultModel = 'gpt-4o-mini-tts'
 
 const speed = ref<number>(1.0)
 
+// Model selection
+const model = computed({
+  get: () => providers.value[providerId]?.model as string | undefined || defaultModel,
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].model = value
+  },
+})
+
+// Load models
+const providerModels = computed(() => {
+  return providersStore.getModelsForProvider(providerId)
+})
+
+const isLoadingModels = computed(() => {
+  return providersStore.isLoadingModels[providerId] || false
+})
+
 // Check if API key is configured (required for voice dropdown to work)
 // The voice loading logic already validates the full config (API key + base URL)
-const apiKeyConfigured = computed(() => {
-  const config = providers.value[providerId]
-  const apiKey = config?.apiKey as string | undefined
-  return !!apiKey && !!apiKey.trim()
-})
+const { apiKeyConfigured } = useProviderConfig(providerId)
 
 const availableVoices = computed(() => {
   return speechStore.availableVoices[providerId] || []
 })
 
-// Generate speech with ElevenLabs-specific parameters
+// Load models on mount
+onMounted(async () => {
+  await providersStore.loadModelsForConfiguredProviders()
+  await providersStore.fetchModelsForProvider(providerId)
+})
+
+// Generate speech with CometAPI-specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
   const provider = await providersStore.getProviderInstance<SpeechProvider<string>>(providerId)
   if (!provider) {
@@ -50,12 +72,11 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   const providerConfig = providersStore.getProviderConfig(providerId)
 
   // Get model from configuration or use default
-  const model = providerConfig.model as string | undefined || defaultModel
+  const modelToUse = providerConfig.model as string | undefined || defaultModel
 
-  // ElevenLabs doesn't need SSML conversion, but if SSML is provided, use it directly
   return await speechStore.speech(
     provider,
-    model,
+    modelToUse,
     input,
     voiceId,
     {
@@ -69,6 +90,11 @@ watch(speed, async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.speed = speed.value
 })
+
+watch(model, () => {
+  const providerConfig = providersStore.getProviderConfig(providerId)
+  providerConfig.model = model.value
+})
 </script>
 
 <template>
@@ -77,7 +103,19 @@ watch(speed, async () => {
     :default-model="defaultModel"
     :additional-settings="defaultVoiceSettings"
   >
-    <!-- Voice settings specific to ElevenLabs -->
+    <template #basic-settings>
+      <!-- Model selection -->
+      <FieldSelect
+        v-model="model"
+        label="Model"
+        description="Select the text-to-speech model to use"
+        :options="providerModels.map(m => ({ value: m.id, label: m.name }))"
+        :disabled="isLoadingModels || providerModels.length === 0"
+        placeholder="Select a model..."
+      />
+    </template>
+
+    <!-- Voice settings specific to CometAPI -->
     <template #voice-settings>
       <!-- Speed control - common to most providers -->
       <FieldRange
