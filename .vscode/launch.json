@@ -16,6 +16,16 @@
       }
     },
     {
+      "name": "Debug Minecraft Service",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/services/minecraft",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/tsx",
+      "args": ["--env-file=.env", "--env-file-if-exists=.env.local", "src/main.ts"],
+      "envFile": "${workspaceFolder}/services/minecraft/.env",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
       "name": "Debug Renderer Process",
       "port": 9222,
       "request": "attach",
