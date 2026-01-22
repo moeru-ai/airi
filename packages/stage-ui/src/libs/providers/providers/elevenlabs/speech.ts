@@ -18,7 +18,7 @@ import { defineProvider } from '../registry'
 
 const elevenLabsConfigSchema = z.object({
   apiKey: z.string('API Key'),
-  baseUrl: z.string('Base URL').optional().default('https://unspeech.hyp3r.link/v1/'),
+  baseUrl: z.string('Base URL').optional().default('https://api.elevenlabs.io/v1/'),
   voiceSettings: z.object({
     similarityBoost: z.number('Similarity Boost').optional().default(0.75),
     stability: z.number('Stability').optional().default(0.5),
@@ -31,6 +31,14 @@ type ElevenLabsConfig = z.input<typeof elevenLabsConfigSchema>
  * ElevenLabs Speech/TTS Provider Implementation
  *
  * Uses the unified defineProvider pattern for ElevenLabs text-to-speech API.
+ *
+ * IMPORTANT: ElevenLabs API does not support CORS from browsers. If you're using this
+ * from a web application, you must either:
+ * 1. Use a backend proxy server to forward requests to ElevenLabs API
+ * 2. Configure the baseUrl to point to your proxy server (e.g., https://your-proxy.com/v1/)
+ *
+ * The correct base URL for ElevenLabs API is: https://api.elevenlabs.io/v1/
+ * The text-to-speech endpoint is: POST /v1/text-to-speech/:voice_id
  */
 export const providerElevenLabsSpeech = defineProvider<ElevenLabsConfig>({
   id: 'elevenlabs',

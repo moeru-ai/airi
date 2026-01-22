@@ -167,6 +167,7 @@ defineExpose({
         :options="voiceOptions"
         :label="t('settings.pages.providers.provider.elevenlabs.playground.fields.field.voice.label')"
         :description="t('settings.pages.providers.provider.elevenlabs.playground.fields.field.voice.description')"
+        :disabled="!apiKeyConfigured"
         layout="horizontal"
       />
 

@@ -812,7 +812,7 @@ export const useProvidersStore = defineStore('providers', () => {
       // Ensure settings pages are prefilled with a sensible default base URL.
       // The unified provider definitions currently don't expose schema defaults via metadata.
       defaultOptions: () => ({
-        baseUrl: 'https://unspeech.hyp3r.link/v1/',
+        baseUrl: 'https://api.elevenlabs.io/v1/',
         voiceSettings: {
           similarityBoost: 0.75,
           stability: 0.5,

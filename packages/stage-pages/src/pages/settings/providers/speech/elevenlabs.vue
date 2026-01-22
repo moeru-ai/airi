@@ -3,6 +3,7 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { UnElevenLabsOptions } from 'unspeech'
 
 import {
+  Alert,
   SpeechPlayground,
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
@@ -38,8 +39,13 @@ const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore)
 const { t } = useI18n()
 
-// Check if API key is configured
-const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+// Check if API key is configured (required for voice dropdown to work)
+// The voice loading logic already validates the full config (API key + base URL)
+const apiKeyConfigured = computed(() => {
+  const config = providers.value[providerId]
+  const apiKey = config?.apiKey as string | undefined
+  return !!apiKey && !!apiKey.trim()
+})
 
 // Get available voices for ElevenLabs
 const availableVoices = computed(() => {
@@ -202,6 +208,22 @@ watch(providers, async () => {
           :description="t('settings.pages.providers.provider.elevenlabs.fields.field.speaker-boost.description')"
         />
       </div>
+    </template>
+
+    <!-- Advanced settings note about proxy -->
+    <template #advanced-settings>
+      <Alert type="info" class="mt-4">
+        <template #title>
+          For Proxy Servers
+        </template>
+        <template #content>
+          <p>
+            For web browsers, you may need to use a proxy server (such as <a href="https://github.com/moeru-ai/unspeech" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">unspeech</a>)
+            due to CORS restrictions. If using a proxy, please populate the Base URL field with your proxy server's endpoint.
+            The default URL (<code class="rounded bg-neutral-200 px-1 py-0.5 dark:bg-neutral-800">https://api.elevenlabs.io/v1/</code>) works in Electron apps.
+          </p>
+        </template>
+      </Alert>
     </template>
 
     <template #playground>
