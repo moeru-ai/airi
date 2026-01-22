@@ -38,8 +38,12 @@ const isLoadingModels = computed(() => {
   return providersStore.isLoadingModels[providerId] || false
 })
 
-// Check if API key is configured
-const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+// Check if API key is configured (required for transcription to work)
+const apiKeyConfigured = computed(() => {
+  const config = providers.value[providerId]
+  const apiKey = config?.apiKey as string | undefined
+  return !!apiKey && !!apiKey.trim()
+})
 
 // Load models on mount
 onMounted(async () => {

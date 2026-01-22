@@ -19,7 +19,13 @@ const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore)
 
-const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+// Check if API key is configured (required for voice dropdown to work)
+// The voice loading logic already validates the full config (API key + base URL)
+const apiKeyConfigured = computed(() => {
+  const config = providers.value[providerId]
+  const apiKey = config?.apiKey as string | undefined
+  return !!apiKey && !!apiKey.trim()
+})
 
 const availableVoices = computed(() => {
   return speechStore.availableVoices[providerId] || []

@@ -97,6 +97,50 @@ export const useSpeechStore = defineStore('speech', () => {
       return []
     }
 
+    // Check if provider is configured before making network calls
+    // This prevents errors when API key/base URL haven't been set up yet
+    const providerConfig = providersStore.getProviderConfig(provider)
+    const providerMetadata = providersStore.getProviderMetadata(provider)
+
+    // Skip providers that don't require configuration (e.g., browser-web-speech-api)
+    if (provider === 'browser-web-speech-api' || provider === 'index-tts-vllm') {
+      // These providers don't require API keys
+    }
+    else if (provider === 'player2-speech') {
+      // Player2 only requires baseUrl, not API key
+      const baseUrl = typeof providerConfig?.baseUrl === 'string' ? providerConfig.baseUrl.trim() : ''
+      if (!baseUrl) {
+        return []
+      }
+      // Validate provider config if validator is available
+      if (providerMetadata?.validators?.validateProviderConfig) {
+        const validationResult = await providerMetadata.validators.validateProviderConfig(providerConfig || {})
+        if (!validationResult.valid) {
+          // Provider config is invalid, don't make network call
+          return []
+        }
+      }
+    }
+    else {
+      // For other providers, check if API key and base URL are configured
+      const apiKey = typeof providerConfig?.apiKey === 'string' ? providerConfig.apiKey.trim() : ''
+      const baseUrl = typeof providerConfig?.baseUrl === 'string' ? providerConfig.baseUrl.trim() : ''
+
+      // If neither API key nor base URL is configured, skip the network call
+      if (!apiKey && !baseUrl) {
+        return []
+      }
+
+      // Validate provider config if validator is available
+      if (providerMetadata?.validators?.validateProviderConfig) {
+        const validationResult = await providerMetadata.validators.validateProviderConfig(providerConfig || {})
+        if (!validationResult.valid) {
+          // Provider config is invalid, don't make network call
+          return []
+        }
+      }
+    }
+
     isLoadingSpeechProviderVoices.value = true
     speechProviderError.value = null
 

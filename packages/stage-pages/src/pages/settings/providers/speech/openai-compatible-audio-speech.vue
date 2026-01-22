@@ -83,8 +83,14 @@ watch(
   { deep: true, immediate: true },
 )
 
-// Check if API key is configured
-const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+// Check if API key is configured (required for voice dropdown to work)
+// The voice loading logic already validates the full config (API key + base URL)
+const apiKeyConfigured = computed(() => {
+  const config = providers.value[providerId]
+  const apiKey = config?.apiKey as string | undefined
+  const baseUrl = config?.baseUrl as string | undefined
+  return !!(apiKey && apiKey.trim()) && !!(baseUrl && baseUrl.trim())
+})
 
 // Ensure provider config is initialized on mount
 onMounted(() => {

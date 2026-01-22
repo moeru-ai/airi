@@ -1468,6 +1468,29 @@ export const useProvidersStore = defineStore('providers', () => {
     if (!metadata)
       return []
 
+    // Check if provider is configured before making network calls
+    // This prevents errors when API key/base URL haven't been set up yet
+    // Skip providers that don't require configuration (e.g., browser-web-speech-api)
+    if (providerId !== 'browser-web-speech-api') {
+      // For other providers, check if API key and base URL are configured
+      const apiKey = typeof config?.apiKey === 'string' ? config.apiKey.trim() : ''
+      const baseUrl = typeof config?.baseUrl === 'string' ? config.baseUrl.trim() : ''
+
+      // If neither API key nor base URL is configured, skip the network call
+      if (!apiKey && !baseUrl) {
+        return []
+      }
+
+      // Validate provider config if validator is available
+      if (metadata?.validators?.validateProviderConfig) {
+        const validationResult = await metadata.validators.validateProviderConfig(config || {})
+        if (!validationResult.valid) {
+          // Provider config is invalid, don't make network call
+          return []
+        }
+      }
+    }
+
     const runtimeState = providerRuntimeState.value[providerId]
     if (runtimeState) {
       runtimeState.isLoadingModels = true

@@ -46,8 +46,13 @@ const isLoadingModels = computed(() => {
   return providersStore.isLoadingModels[providerId] || false
 })
 
-// Check if API key is configured
-const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+// Check if API key is configured (required for voice dropdown to work)
+// The voice loading logic already validates the full config (API key + base URL)
+const apiKeyConfigured = computed(() => {
+  const config = providers.value[providerId]
+  const apiKey = config?.apiKey as string | undefined
+  return !!apiKey && !!apiKey.trim()
+})
 
 // Filter voices based on the selected model's compatibility
 const availableVoices = computed(() => {

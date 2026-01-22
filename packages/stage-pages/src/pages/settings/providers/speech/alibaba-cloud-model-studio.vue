@@ -30,8 +30,13 @@ const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore)
 const { t } = useI18n()
 
-// Check if API key is configured
-const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+// Check if API key is configured (required for voice dropdown to work)
+// The voice loading logic already validates the full config (API key + base URL)
+const apiKeyConfigured = computed(() => {
+  const config = providers.value[providerId]
+  const apiKey = config?.apiKey as string | undefined
+  return !!apiKey && !!apiKey.trim()
+})
 
 // Get available voices for ElevenLabs
 const availableVoices = computed(() => {
