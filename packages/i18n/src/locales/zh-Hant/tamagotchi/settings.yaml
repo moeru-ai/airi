@@ -28,7 +28,7 @@ pages:
             title: useWindowMouse
             description: Test the Electron window cursor position
 devtools:
-  title: Developer
+  title: 開發者
   pages:
     context-flow:
       title: Context Flow
