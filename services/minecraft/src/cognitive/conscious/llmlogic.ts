@@ -77,6 +77,7 @@ export function isLikelyRecoverableError(err: unknown): boolean {
     || msg.includes('temporarily')
     || msg.includes('try again')
     || (msg.includes('in json') && msg.includes('position'))
+    || msg.includes('failed to return content')
   )
 }
 
