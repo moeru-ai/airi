@@ -1,4 +1,8 @@
-import type { Message } from '@xsai/shared-chat'
+import type { Message, Tool } from '@xsai/shared-chat'
+
+import type { Action, Mineflayer } from '../../libs/mineflayer'
+
+import { zodToJsonSchema } from 'zod-to-json-schema'
 
 export interface LLMConfig {
   baseURL: string
@@ -18,6 +22,36 @@ export interface LLMTraceData {
 export interface RetryDecision {
   shouldRetry: boolean
   remainingAttempts: number
+}
+
+type JsonSchemaObject = Record<string, unknown>
+
+/**
+ * Pure function to convert sync actions into streamText tool definitions
+ */
+export function actionsToTools(actions: Action[], mineflayer: Mineflayer): Tool[] {
+  return actions
+    .filter(action => action.execution === 'sync')
+    .map((action) => {
+      const schema = action.schema as unknown
+      const parameters = zodToJsonSchema(schema as any, { name: `${action.name}Params` }) as JsonSchemaObject
+      const argOrder = Object.keys((schema as any).shape ?? {})
+
+      return {
+        type: 'function',
+        function: {
+          name: action.name,
+          description: action.description,
+          parameters,
+          strict: true,
+        },
+        execute: async (input: unknown) => {
+          const parsed = action.schema.parse(input) as Record<string, unknown>
+          const args = argOrder.map(key => parsed[key])
+          return action.perform(mineflayer)(...args)
+        },
+      }
+    })
 }
 
 /**

@@ -13,6 +13,7 @@ import { Blackboard } from './blackboard'
 import { buildConsciousContextView } from './context-view'
 import { LLMAgent } from './llm-agent'
 import {
+  actionsToTools,
   buildMessages,
   getErrorCode,
   getErrorStatus,
@@ -412,10 +413,12 @@ export class Brain {
 
     const decideOnce = async (): Promise<LLMResponse | null> => {
       const messages = buildMessages(sysPrompt, userMsg)
+      const tools = this.bot ? actionsToTools(this.deps.taskExecutor.getAvailableActions(), this.bot) : undefined
 
       const result = await llmAgent.callLLM({
         messages,
         responseFormat: { type: 'json_object' },
+        tools,
       })
 
       if (!result.text) {

@@ -1,4 +1,4 @@
-import type { Message } from '@xsai/shared-chat'
+import type { Message, Tool } from '@xsai/shared-chat'
 
 import { streamText } from '@xsai/stream-text'
 
@@ -13,6 +13,7 @@ export interface LLMCallOptions {
   responseFormat?: { type: 'json_object' }
   onTextDelta?: (text: string) => void | Promise<void>
   onFinish?: (event: { usage: any }) => void | Promise<void>
+  tools?: Tool[]
 }
 
 export interface LLMResult {
@@ -48,6 +49,8 @@ export class LLMAgent {
         model: this.config.model,
         messages: options.messages,
         responseFormat: options.responseFormat,
+        tools: options.tools,
+        maxSteps: options.tools?.length, // maybe use a fixed magic number?
       })
 
       for await (const chunk of response.textStream) {
