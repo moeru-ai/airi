@@ -57,10 +57,6 @@ export class Brain {
   private feedbackDebounceMs = Number.parseInt(process.env.BRAIN_FEEDBACK_DEBOUNCE_MS ?? '200')
   private feedbackDebounceTimer: NodeJS.Timeout | undefined
 
-  private feedbackBarrierTimeoutMs = Number.parseInt(process.env.BRAIN_FEEDBACK_BARRIER_TIMEOUT_MS ?? '1000')
-  private waitingForFeedbackIds = new Set<string>()
-  private feedbackBarrierTimer: NodeJS.Timeout | undefined
-
   // Event Queue
   private queue: QueuedEvent[] = []
   private isProcessing = false
@@ -118,7 +114,7 @@ export class Brain {
 
     // Listen to Task Execution Events (Action Feedback)
     this.deps.taskExecutor.on('action:started', ({ action }) => {
-      const id = action.id
+      const { id } = action
       if (id)
         this.inFlightActions.set(id, action)
       this.updatePendingActionsOnBlackboard()
@@ -127,19 +123,11 @@ export class Brain {
     this.deps.taskExecutor.on('action:completed', async ({ action, result }) => {
       this.log('INFO', `Brain: Action completed: ${action.type}`)
 
-      const id = action.id
+      const { id } = action
       if (id)
         this.inFlightActions.delete(id)
-      if (id)
-        this.waitingForFeedbackIds.delete(id)
       this.updatePendingActionsOnBlackboard()
       this.blackboard.addActionHistoryLine(this.formatActionHistoryLine(action, 'success', result))
-
-      if (this.waitingForFeedbackIds.size === 0 && this.feedbackBarrierTimer) {
-        clearTimeout(this.feedbackBarrierTimer)
-        this.feedbackBarrierTimer = undefined
-        void this.processQueue(bot)
-      }
 
       if (!action.require_feedback)
         return
@@ -159,19 +147,11 @@ export class Brain {
     this.deps.taskExecutor.on('action:failed', async ({ action, error }) => {
       this.log('WARN', `Brain: Action failed: ${action.type}`, { error })
 
-      const id = action.id
+      const { id } = action
       if (id)
         this.inFlightActions.delete(id)
-      if (id)
-        this.waitingForFeedbackIds.delete(id)
       this.updatePendingActionsOnBlackboard()
       this.blackboard.addActionHistoryLine(this.formatActionHistoryLine(action, 'failure', undefined, error))
-
-      if (this.waitingForFeedbackIds.size === 0 && this.feedbackBarrierTimer) {
-        clearTimeout(this.feedbackBarrierTimer)
-        this.feedbackBarrierTimer = undefined
-        void this.processQueue(bot)
-      }
 
       await this.enqueueEvent(bot, {
         type: 'feedback',
@@ -230,15 +210,6 @@ export class Brain {
     const item = this.queue.shift()!
     this.log('DEBUG', `Brain: Processing event type=${item.event.type}`)
     this.updateDebugState(item.event)
-
-    if (item.event.type === 'feedback' && this.waitingForFeedbackIds.size > 0) {
-      // Defer feedback-triggered replans until the current "turn" feedback barrier is released.
-      // We keep collecting feedback events into the queue, but we avoid calling the LLM on partial results.
-      this.queue.unshift(item)
-      this.isProcessing = false
-      this.updateDebugState()
-      return
-    }
 
     // Coalesce consecutive feedback events into a single LLM turn.
     // This prevents the LLM from being spammed with partial results while still supporting streaming replans.
@@ -332,15 +303,18 @@ export class Brain {
 
   private updatePendingActionsOnBlackboard(): void {
     const pending = [...this.inFlightActions.values()].map(a => this.formatPendingActionLine(a))
-    if (this.waitingForFeedbackIds.size > 0)
-      pending.unshift(`[barrier] waiting for ${this.waitingForFeedbackIds.size} required feedback(s)`)
     this.blackboard.setPendingActions(pending)
   }
 
   private formatPendingActionLine(action: ActionInstruction): string {
     if (action.type === 'chat')
       return `${action.id ?? '?'} chat: ${action.message}`
-    return `${action.id ?? '?'} ${action.type}: ${action.step.tool} ${JSON.stringify(action.step.params ?? {})}`
+
+    if ((action.type === 'sequential' || action.type === 'parallel') && action.step)
+      return `${action.id ?? '?'} ${action.type}: ${action.step.tool} ${JSON.stringify(action.step.params ?? {})}`
+
+    // Fallback for malformed actions
+    return `${action.id ?? '?'} ${action.type}: [Malformed Action] ${JSON.stringify(action)}`
   }
 
   private formatActionHistoryLine(
@@ -372,7 +346,7 @@ export class Brain {
     }
 
     // 4. Act (Execute Decision)
-    this.applyDecision(bot, decision)
+    this.applyDecision(decision)
   }
 
   private buildDecisionPrompts(event: BotEvent): { systemPrompt: string, userMsg: string } {
@@ -386,14 +360,14 @@ export class Brain {
     return { systemPrompt, userMsg }
   }
 
-  private applyDecision(bot: MineflayerWithAgents, decision: LLMResponse): void {
+  private applyDecision(decision: LLMResponse): void {
     this.log('INFO', `Brain: Thought: ${decision.thought}`)
 
     this.updateBlackboardFromDecision(decision)
     this.debugService.updateBlackboard(this.blackboard)
 
     if (decision.actions && decision.actions.length > 0)
-      this.issueActions(bot, decision.actions)
+      this.issueActions(decision.actions)
   }
 
   private updateBlackboardFromDecision(decision: LLMResponse): void {
@@ -405,30 +379,11 @@ export class Brain {
     })
   }
 
-  private issueActions(bot: MineflayerWithAgents, actions: ActionInstruction[]): void {
+  private issueActions(actions: ActionInstruction[]): void {
     const actionsWithIds = this.ensureActionIds(actions)
-
-    const required = actionsWithIds.filter(a => a.require_feedback && a.id).map(a => a.id as string)
-    if (required.length > 0)
-      this.startFeedbackBarrier(bot, required)
 
     this.recordChatActions(actionsWithIds)
     this.deps.taskExecutor.executeActions(actionsWithIds)
-  }
-
-  private startFeedbackBarrier(bot: MineflayerWithAgents, requiredIds: string[]): void {
-    requiredIds.forEach(id => this.waitingForFeedbackIds.add(id))
-
-    if (this.feedbackBarrierTimer)
-      clearTimeout(this.feedbackBarrierTimer)
-    this.feedbackBarrierTimer = setTimeout(() => {
-      this.feedbackBarrierTimer = undefined
-      this.waitingForFeedbackIds.clear()
-      this.updatePendingActionsOnBlackboard()
-      void this.processQueue(bot)
-    }, this.feedbackBarrierTimeoutMs)
-
-    this.updatePendingActionsOnBlackboard()
   }
 
   private recordChatActions(actions: ActionInstruction[]): void {
