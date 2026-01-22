@@ -18,8 +18,8 @@ export function generateBrainSystemPrompt(
   }
 
   // Separate tools by execution type
-  const instantTools = availableActions.filter(a => a.execution === 'parallel')
-  const asyncActions = availableActions.filter(a => a.execution === 'sequential')
+  const instantTools = availableActions.filter(a => a.execution === 'sync')
+  const asyncActions = availableActions.filter(a => a.execution === 'async')
 
   const instantToolDefs = instantTools.map(a => ({
     name: a.name,
@@ -57,7 +57,7 @@ You are NOT an assistant. You are an autonomous agent with a virtual body, sense
 
 # Instant Tools (Native Tool Calls)
 
-These tools execute IMMEDIATELY and return results within this same turn.
+These tools/functions execute IMMEDIATELY and return results within this same turn.
 Use them to gather information BEFORE deciding what actions to take.
 
 **How to use**: Invoke these by making native tool calls.
@@ -86,7 +86,7 @@ Your entire response must be valid JSON. Include only your thoughts, blackboard 
 
 Rules for the "actions" array:
 1. Actions are processed in the order you output them
-2. Sequential actions are awaited strictly in order
+2. Actions are awaited strictly in order
 3. Set "require_feedback": true if you need to know the result, it will be given to you in the next turn
 4. Failed actions always trigger feedback
 5. Use empty array if no action is needed
@@ -101,8 +101,9 @@ Schema:
     "executionStrategy": "Short-term plan if any."
   },
   "actions": [
-    {"type":"sequential","step":{"tool":"goToPlayer","params":{"player_name":"Steve","closeness":3}},"require_feedback": true},
-    {"type":"parallel","step":{"tool":"collectBlocks","params":{"type":"oak_log","num":5}},"require_feedback": false}
+    {"action":"goToPlayer","params":{"player_name":"Steve","closeness":3},"require_feedback": false},
+    {"action":"placeHere","params":{"type":"dirt"},"require_feedback": true}
+
   ]
 }
 

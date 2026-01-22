@@ -4,7 +4,7 @@ import type { Mineflayer } from './core'
 
 type ActionResult = string | Promise<string>
 
-export type ActionExecutionMode = 'sequential' | 'parallel'
+export type ActionExecutionMode = 'async' | 'sync'
 
 export interface Action {
   readonly name: string

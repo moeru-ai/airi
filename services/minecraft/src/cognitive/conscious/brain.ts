@@ -121,7 +121,7 @@ export class Brain {
     })
 
     this.deps.taskExecutor.on('action:completed', async ({ action, result }) => {
-      this.log('INFO', `Brain: Action completed: ${action.type}`)
+      this.log('INFO', `Brain: Action completed: ${action.action}`)
 
       const { id } = action
       if (id)
@@ -145,7 +145,7 @@ export class Brain {
     })
 
     this.deps.taskExecutor.on('action:failed', async ({ action, error }) => {
-      this.log('WARN', `Brain: Action failed: ${action.type}`, { error })
+      this.log('WARN', `Brain: Action failed: ${action.action}`, { error })
 
       const { id } = action
       if (id)
@@ -254,10 +254,8 @@ export class Brain {
         const actionCtx = action
           ? {
               id: action.id,
-              type: action.type,
-              ...(action.type === 'sequential' || action.type === 'parallel'
-                ? { tool: action.step.tool, params: action.step.params }
-                : { message: action.message }),
+              action: action.action,
+              params: action.params,
             }
           : undefined
         return `Internal Feedback: ${status}. Last Action: ${JSON.stringify(actionCtx)}. Result: ${JSON.stringify(result || error)}`
@@ -307,14 +305,7 @@ export class Brain {
   }
 
   private formatPendingActionLine(action: ActionInstruction): string {
-    if (action.type === 'chat')
-      return `${action.id ?? '?'} chat: ${action.message}`
-
-    if ((action.type === 'sequential' || action.type === 'parallel') && action.step)
-      return `${action.id ?? '?'} ${action.type}: ${action.step.tool} ${JSON.stringify(action.step.params ?? {})}`
-
-    // Fallback for malformed actions
-    return `${action.id ?? '?'} ${action.type}: [Malformed Action] ${JSON.stringify(action)}`
+    return `${action.id ?? '?'} ${action.action} ${JSON.stringify(action.params ?? {})}`
   }
 
   private formatActionHistoryLine(
@@ -366,8 +357,13 @@ export class Brain {
     this.updateBlackboardFromDecision(decision)
     this.debugService.updateBlackboard(this.blackboard)
 
-    if (decision.actions && decision.actions.length > 0)
-      this.issueActions(decision.actions)
+    if (decision.actions && decision.actions.length > 0) {
+      const actionsWithIds = this.ensureActionIds(decision.actions)
+      if (actionsWithIds.length > 0) {
+        this.recordChatActions(actionsWithIds)
+        this.deps.taskExecutor.executeActions(actionsWithIds)
+      }
+    }
   }
 
   private updateBlackboardFromDecision(decision: LLMResponse): void {
@@ -379,21 +375,18 @@ export class Brain {
     })
   }
 
-  private issueActions(actions: ActionInstruction[]): void {
-    const actionsWithIds = this.ensureActionIds(actions)
-
-    this.recordChatActions(actionsWithIds)
-    this.deps.taskExecutor.executeActions(actionsWithIds)
-  }
-
   private recordChatActions(actions: ActionInstruction[]): void {
     for (const action of actions) {
-      if (action.type !== 'chat')
+      if (action.action !== 'chat')
+        continue
+
+      const message = (action.params as any)?.message
+      if (typeof message !== 'string' || message.trim().length === 0)
         continue
 
       this.blackboard.addChatMessage({
         sender: config.bot.username || '[Me]',
-        content: action.message,
+        content: message,
         timestamp: Date.now(), // FIXME: should be the time the action was issued
       })
     }

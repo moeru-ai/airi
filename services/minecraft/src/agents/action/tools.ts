@@ -29,7 +29,7 @@ export const actionsList: Action[] = [
   {
     name: 'chat',
     description: 'Send a chat message to players in the game. Use this to communicate, respond to questions, or announce what you are doing.',
-    execution: 'parallel',
+    execution: 'sync',
     schema: z.object({
       message: z.string().describe('The message to send in chat.'),
     }),
@@ -58,7 +58,7 @@ export const actionsList: Action[] = [
   {
     name: 'inventory',
     description: 'Get your inventory.',
-    execution: 'parallel',
+    execution: 'sync',
     schema: z.object({}),
     perform: mineflayer => (): string => {
       const inventory = world.getInventoryCounts(mineflayer)
@@ -81,7 +81,7 @@ export const actionsList: Action[] = [
   {
     name: 'nearbyBlocks',
     description: 'Get the blocks near you.',
-    execution: 'parallel',
+    execution: 'sync',
     schema: z.object({}),
     perform: mineflayer => (): string => {
       const blocks = world.getNearbyBlockTypes(mineflayer)
@@ -92,7 +92,7 @@ export const actionsList: Action[] = [
   {
     name: 'craftable',
     description: 'Get the craftable items with your inventory.',
-    execution: 'parallel',
+    execution: 'sync',
     schema: z.object({}),
     perform: mineflayer => (): string => {
       const craftable = world.getCraftableItems(mineflayer)
@@ -102,7 +102,7 @@ export const actionsList: Action[] = [
   {
     name: 'entities',
     description: 'Get the nearby players and entities.',
-    execution: 'parallel',
+    execution: 'sync',
     schema: z.object({}),
     perform: mineflayer => (): string => {
       const players = world.getNearbyPlayerNames(mineflayer)
@@ -120,7 +120,7 @@ export const actionsList: Action[] = [
   {
     name: 'stop',
     description: 'Force stop all actions', // TODO: include name of the current action in description?
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({}),
     perform: mineflayer => async () => {
       mineflayer.interrupt('stop tool called')
@@ -131,7 +131,7 @@ export const actionsList: Action[] = [
   {
     name: 'goToPlayer',
     description: 'Go to the given player.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({
       player_name: z.string().describe('The name of the player to go to.'),
       closeness: z.number().describe('How close to get to the player in blocks.').min(0),
@@ -145,7 +145,7 @@ export const actionsList: Action[] = [
   {
     name: 'followPlayer',
     description: 'Endlessly follow the given player.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({
       player_name: z.string().describe('name of the player to follow.'),
       follow_dist: z.number().describe('The distance to follow from.').min(0),
@@ -158,7 +158,7 @@ export const actionsList: Action[] = [
   {
     name: 'goToCoordinate',
     description: 'Go to the given x, y, z location.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({
       x: z.number().describe('The x coordinate.'),
       y: z.number().describe('The y coordinate.').min(-64).max(320),
@@ -173,7 +173,7 @@ export const actionsList: Action[] = [
   {
     name: 'searchForBlock',
     description: 'Find and go to the nearest block of a given type in a given range.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({
       type: z.string().describe('The block type to go to.'),
       search_range: z.number().describe('The range to search for the block.').min(32).max(512),
@@ -186,7 +186,7 @@ export const actionsList: Action[] = [
   {
     name: 'searchForEntity',
     description: 'Find and go to the nearest entity of a given type in a given range.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({
       type: z.string().describe('The type of entity to go to.'),
       search_range: z.number().describe('The range to search for the entity.').min(32).max(512),
@@ -210,7 +210,7 @@ export const actionsList: Action[] = [
   {
     name: 'givePlayer',
     description: 'Give the specified item to the given player.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({
       player_name: z.string().describe('The name of the player to give the item to.'),
       item_name: z.string().describe('The name of the item to give.'),
@@ -224,7 +224,7 @@ export const actionsList: Action[] = [
   {
     name: 'consume',
     description: 'Eat/drink the given item.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({
       item_name: z.string().describe('The name of the item to consume.'),
     }),
@@ -236,7 +236,7 @@ export const actionsList: Action[] = [
   {
     name: 'equip',
     description: 'Equip the given item.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({
       item_name: z.string().describe('The name of the item to equip.'),
     }),
@@ -248,7 +248,7 @@ export const actionsList: Action[] = [
   {
     name: 'putInChest',
     description: 'Put the given item in the nearest chest.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({
       item_name: z.string().describe('The name of the item to put in the chest.'),
       num: z.number().int().describe('The number of items to put in the chest.').min(1),
@@ -261,7 +261,7 @@ export const actionsList: Action[] = [
   {
     name: 'takeFromChest',
     description: 'Take the given items from the nearest chest.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({
       item_name: z.string().describe('The name of the item to take.'),
       num: z.number().int().describe('The number of items to take.').min(1),
@@ -283,7 +283,7 @@ export const actionsList: Action[] = [
   {
     name: 'discard',
     description: 'Discard the given item from the inventory.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({
       item_name: z.string().describe('The name of the item to discard.'),
       num: z.number().int().describe('The number of items to discard.').min(1),
@@ -296,7 +296,7 @@ export const actionsList: Action[] = [
   {
     name: 'collectBlocks',
     description: 'Automatically collect the nearest blocks of a given type.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({
       type: z.string().describe('The block type to collect.'),
       num: z.number().int().describe('The number of blocks to collect.').min(1),
@@ -312,7 +312,7 @@ export const actionsList: Action[] = [
   {
     name: 'mineBlockAt',
     description: 'Mine (break) a block at a specific position. Do NOT use this for regular resource collection. Use collectBlocks instead.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({
       x: z.number().describe('The x coordinate.'),
       y: z.number().describe('The y coordinate.'),
@@ -343,7 +343,7 @@ export const actionsList: Action[] = [
   {
     name: 'craftRecipe',
     description: 'Craft the given recipe a given number of times.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({
       recipe_name: z.string().describe('The name of the output item to craft.'),
       num: z.number().int().describe('The number of times to craft the recipe. This is NOT the number of output items, as it may craft many more items depending on the recipe.').min(1),
@@ -356,7 +356,7 @@ export const actionsList: Action[] = [
   {
     name: 'smeltItem',
     description: 'Smelt the given item the given number of times.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({
       item_name: z.string().describe('The name of the input item to smelt.'),
       num: z.number().int().describe('The number of times to smelt the item.').min(1),
@@ -369,7 +369,7 @@ export const actionsList: Action[] = [
   {
     name: 'clearFurnace',
     description: 'Take all items out of the nearest furnace.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({}),
     perform: mineflayer => async () => {
       await skills.clearNearestFurnace(mineflayer)
@@ -379,7 +379,7 @@ export const actionsList: Action[] = [
   {
     name: 'placeHere',
     description: 'Place a given block in the current location. Do NOT use to build structures, only use for single blocks/torches.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({
       type: z.string().describe('The block type to place.'),
     }),
@@ -392,7 +392,7 @@ export const actionsList: Action[] = [
   {
     name: 'attack',
     description: 'Attack and kill the nearest entity of a given type.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({
       type: z.string().describe('The type of entity to attack.'),
     }),
@@ -404,7 +404,7 @@ export const actionsList: Action[] = [
   {
     name: 'attackPlayer',
     description: 'Attack a specific player until they die or run away. Remember this is just a game and does not cause real life harm.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({
       player_name: z.string().describe('The name of the player to attack.'),
     }),
@@ -420,7 +420,7 @@ export const actionsList: Action[] = [
   {
     name: 'goToBed',
     description: 'Go to the nearest bed and sleep.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({}),
     perform: mineflayer => async () => {
       await skills.goToBed(mineflayer)
@@ -430,7 +430,7 @@ export const actionsList: Action[] = [
   {
     name: 'activate',
     description: 'Activate the nearest object of a given type.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({
       type: z.string().describe('The type of object to activate.'),
     }),
@@ -442,7 +442,7 @@ export const actionsList: Action[] = [
   {
     name: 'recipePlan',
     description: 'Plan how to craft an item. Shows the full recipe tree, what resources you have, what you\'re missing, and whether you can craft it now. Use this BEFORE attempting to craft complex items to understand what you need.',
-    execution: 'parallel',
+    execution: 'sync',
     schema: z.object({
       item_name: z.string().describe('The name of the item you want to craft (e.g., "diamond_pickaxe", "oak_planks").'),
       amount: z.number().int().min(1).default(1).describe('How many of the item you want to craft.'),
@@ -454,7 +454,7 @@ export const actionsList: Action[] = [
   {
     name: 'autoCraft',
     description: 'Automatically craft an item if you have all the required resources. This will check the recipe, verify you have materials, and craft it. Use recipePlan first to see if crafting is possible.',
-    execution: 'sequential',
+    execution: 'async',
     schema: z.object({
       item_name: z.string().describe('The name of the item to craft.'),
       amount: z.number().int().min(1).default(1).describe('How many of the item to craft.'),
