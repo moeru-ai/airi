@@ -21,6 +21,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   const activeRoot = ref<ChatUserCharacterRoot | null>(null)
   const activeVersion = ref<ChatPromptVersion | null>(null)
+  const activePromptVersionId = ref('v1')
   const ready = ref(false)
   const isReady = computed(() => ready.value)
   const initializing = ref(false)
@@ -38,15 +39,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   // I know this nu uh, better than loading all language on rehypeShiki
   const codeBlockSystemPrompt = '- For any programming code block, always specify the programming language that supported on @shikijs/rehype on the rendered markdown, eg. ```python ... ```\n'
   const mathSyntaxSystemPrompt = '- For any math equation, use LaTeX format, eg: $ x^3 $, always escape dollar sign outside math equation\n'
-
-  function hashString(value: string) {
-    let hash = 2166136261
-    for (let i = 0; i < value.length; i += 1) {
-      hash ^= value.charCodeAt(i)
-      hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24)
-    }
-    return (hash >>> 0).toString(16)
-  }
 
   function getRootId(user: string, character: string) {
     return `${user}:${character}`
@@ -100,8 +92,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   function generateInitialMessage() {
-    const prompt = activeVersion.value?.systemPrompt ?? systemPrompt.value
-    return generateInitialMessageFromPrompt(prompt)
+    return generateInitialMessageFromPrompt(systemPrompt.value)
   }
 
   function ensureGeneration(sessionId: string) {
@@ -186,8 +177,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     loadingSessions.delete(sessionId)
   }
 
-  async function createVersion(root: ChatUserCharacterRoot, prompt: string, promptHash: string) {
-    const versionId = `v${root.versions.length + 1}`
+  async function createVersion(root: ChatUserCharacterRoot, versionId: string, prompt: string) {
     const sessionId = nanoid()
     const rootId = getRootId(root.userId, root.characterId)
     const node: ChatSessionGraphNode = {
@@ -202,7 +192,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       id: versionId,
       rootId,
       systemPrompt: prompt,
-      systemPromptHash: promptHash,
       createdAt: Date.now(),
       graph,
     }
@@ -223,8 +212,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   async function ensureRootAndVersion() {
     const currentUserId = userId.value || 'local'
     const currentCharacterId = activeCardId.value || 'default'
+    const targetVersionId = activePromptVersionId.value || 'v1'
     const prompt = systemPrompt.value
-    const promptHash = hashString(prompt)
 
     let root = await chatSessionsRepo.getRoot(currentUserId, currentCharacterId)
     if (!root) {
@@ -237,16 +226,12 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
 
     let matchedVersion: ChatPromptVersion | null = null
-    for (const versionId of root.versions) {
-      const version = await chatSessionsRepo.getVersion(currentUserId, currentCharacterId, versionId)
-      if (version && version.systemPromptHash === promptHash) {
-        matchedVersion = version
-        break
-      }
+    if (root.versions.includes(targetVersionId)) {
+      matchedVersion = await chatSessionsRepo.getVersion(currentUserId, currentCharacterId, targetVersionId)
     }
 
     if (!matchedVersion) {
-      await createVersion(root, prompt, promptHash)
+      await createVersion(root, targetVersionId, prompt)
       return
     }
 
@@ -397,6 +382,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const version = await chatSessionsRepo.getVersion(activeRoot.value.userId, activeRoot.value.characterId, versionId)
     if (!version)
       return
+    activePromptVersionId.value = versionId
     activeRoot.value.activeVersionId = versionId
     activeVersion.value = version
     activeSessionId.value = version.graph.activeSessionId
@@ -498,7 +484,15 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
   }
 
-  watch([systemPrompt, activeCardId, userId], () => {
+  function setPromptVersionId(versionId: string) {
+    if (!versionId || activePromptVersionId.value === versionId)
+      return
+    activePromptVersionId.value = versionId
+    if (ready.value)
+      void ensureRootAndVersion()
+  }
+
+  watch([systemPrompt, activeCardId, userId, activePromptVersionId], () => {
     if (!ready.value)
       return
     void ensureRootAndVersion()
@@ -525,6 +519,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     getSessionGenerationValue,
 
     setActiveVersion,
+    setPromptVersionId,
     forkSession,
     getActiveSessionGraph,
     exportSessionGraph,

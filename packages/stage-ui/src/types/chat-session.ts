@@ -15,10 +15,9 @@ export interface ChatSessionGraph {
 }
 
 export interface ChatPromptVersion {
-  id: string // e.g. 'v1', 'v2' or hash
+  id: string // e.g. 'v1', 'v2'
   rootId: string
   systemPrompt: string
-  systemPromptHash: string
   createdAt: number
   graph: ChatSessionGraph
 }
