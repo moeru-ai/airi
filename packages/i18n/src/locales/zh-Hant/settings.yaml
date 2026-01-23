@@ -18,13 +18,13 @@ dialogs:
     baseUrl: 基礎 URL
     baseUrlHelp: API 端點 URL（如果不確定請使用預設值）
     accountId: 帳號 ID
-    validationSuccess: Configuration validation success
+    validationSuccess: 設定驗證成功
     validationFailed: 設定驗證失敗
     validationError: '驗證錯誤：{error}'
     skipForNow: 先略過
     saveAndContinue: 儲存並繼續
     next: 下一步
-    retry: Retry
+    retry: 重試
     start: 開始吧！
     select-model: 選擇模型
     no-models: 找不到可用的模型
@@ -36,9 +36,9 @@ language:
     切換顯示介面的語言
 controls-island:
   icon-size:
-    title: Controls Island Icon Size
-    description: Adjust the size of the controls island icons
-    auto: Auto (responsive)
+    title: 控制島嶼圖示大小
+    description: 調整控制島圖示的大小
+    auto: 自動（回應式）
     large: Large (default)
     small: Small
 live2d:
@@ -639,6 +639,9 @@ pages:
       openai-compatible:
         description: OpenAI 相容
         title: OpenAI Compatible
+      n1n:
+        description: n1n.ai - High-performance AI API provider.
+        title: n1n
       openrouter:
         description: OpenRouter.ai
         title: OpenRouter

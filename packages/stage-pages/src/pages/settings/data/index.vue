@@ -39,9 +39,9 @@ async function runAction(action: () => Promise<void> | void, successKey: string)
   }
 }
 
-function triggerExport() {
+async function triggerExport() {
   try {
-    const blob = exportChatSessions()
+    const blob = await exportChatSessions()
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url
@@ -70,7 +70,7 @@ async function handleImport(event: Event) {
   try {
     const raw = await file.text()
     const parsed = JSON.parse(raw) as Record<string, unknown>
-    importChatSessions(parsed)
+    await importChatSessions(parsed)
     setStatus(t('settings.pages.data.status.imported'))
     importError.value = ''
   }
