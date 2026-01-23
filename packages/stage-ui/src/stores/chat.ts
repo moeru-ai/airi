@@ -29,6 +29,13 @@ interface SendOptions {
   input?: WebSocketEventInputs
 }
 
+interface ForkOptions {
+  fromSessionId?: string
+  atIndex?: number
+  reason?: string
+  hidden?: boolean
+}
+
 interface QueuedSend {
   sendingMessage: string
   options: SendOptions
@@ -164,6 +171,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
       const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
       sessionMessagesForSend.push({ role: 'user', content: finalContent })
+      chatSession.persistSessionMessages(sessionId)
 
       const categorizer = createStreamingCategorizer(activeProvider.value)
       let streamPosition = 0
@@ -320,6 +328,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
       if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
         sessionMessagesForSend.push(toRaw(buildingMessage))
+        chatSession.persistSessionMessages(sessionId)
       }
 
       await hooks.emitStreamEndHooks(streamingMessageContext)
@@ -365,6 +374,24 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     })
   }
 
+  async function ingestOnFork(
+    sendingMessage: string,
+    options: SendOptions,
+    forkOptions?: ForkOptions,
+  ) {
+    const baseSessionId = forkOptions?.fromSessionId ?? activeSessionId.value
+    if (!forkOptions)
+      return ingest(sendingMessage, options, baseSessionId)
+
+    const forkSessionId = await chatSession.forkSession({
+      fromSessionId: baseSessionId,
+      atIndex: forkOptions.atIndex,
+      reason: forkOptions.reason,
+      hidden: forkOptions.hidden,
+    })
+    return ingest(sendingMessage, options, forkSessionId || baseSessionId)
+  }
+
   function cancelPendingSends(sessionId?: string) {
     for (const queued of pendingQueuedSends.value) {
       if (sessionId && queued.sessionId !== sessionId)
@@ -385,6 +412,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     discoverToolsCompatibility: llmStore.discoverToolsCompatibility,
 
     ingest,
+    ingestOnFork,
     cancelPendingSends,
 
     clearHooks: hooks.clearHooks,
