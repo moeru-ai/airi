@@ -1,4 +1,4 @@
-import type { ChatHistoryItem } from '../types/chat'
+import type { ChatSessionsExport } from '../types/chat-session'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useLive2d } from '@proj-airi/stage-ui-live2d'
@@ -63,21 +63,21 @@ export function useDataMaintenance() {
     chatStore.resetAllSessions()
   }
 
-  function exportChatSessions() {
-    const data = chatStore.getAllSessions()
+  async function exportChatSessions() {
+    const data = await chatStore.exportSessionGraph()
+    if (!data)
+      throw new Error('No chat session graph to export')
     return new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   }
 
-  function importChatSessions(payload: Record<string, unknown>) {
-    const normalizedPayload = payload as Record<string, unknown>
-    const sessions: Record<string, ChatHistoryItem[]> = {}
+  function isChatSessionsExport(payload: Record<string, unknown>): payload is ChatSessionsExport {
+    return payload.format === 'chat-session-graph:v2'
+  }
 
-    for (const [sessionId, messages] of Object.entries(normalizedPayload)) {
-      if (Array.isArray(messages))
-        sessions[sessionId] = messages as ChatHistoryItem[]
-    }
-
-    chatStore.replaceSessions(sessions)
+  async function importChatSessions(payload: Record<string, unknown>) {
+    if (!isChatSessionsExport(payload))
+      throw new Error('Invalid chat session export format')
+    await chatStore.importSessionGraph(payload)
   }
 
   async function resetSettingsState() {
