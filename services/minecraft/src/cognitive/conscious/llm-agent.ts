@@ -67,7 +67,7 @@ export class LLMAgent {
       }
     }
     catch (error) {
-      throw error
+      throw new Error('LLM call failed', { cause: error })
     }
 
     return {

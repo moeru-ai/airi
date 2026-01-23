@@ -40,6 +40,17 @@ interface LLMResponse {
   actions: ActionInstruction[]
 }
 
+interface DecisionResult {
+  success: boolean
+  decision?: LLMResponse
+  error?: {
+    message: string
+    attempts: number
+    status?: number
+    code?: string
+  }
+}
+
 interface QueuedEvent {
   event: BotEvent
   resolve: () => void
@@ -330,15 +341,19 @@ export class Brain {
 
     // 2. Orient (Contextualize Event) + 3. Decide (LLM Call)
     const { systemPrompt, userMsg } = this.buildDecisionPrompts(event)
-    const decision = await this.decide(systemPrompt, userMsg)
+    const result = await this.decide(systemPrompt, userMsg)
 
-    if (!decision) {
-      this.log('WARN', 'Brain: No decision made.')
+    if (!result.success || !result.decision) {
+      const { error } = result
+      const cause = error
+        ? `cause: ${error.message}${error.status ? ` (status: ${error.status})` : ''}${error.code ? ` (code: ${error.code})` : ''}`
+        : 'unknown cause'
+      this.log('WARN', `Brain: decide() failed after ${error?.attempts ?? '?'} attempts: ${cause}`)
       return
     }
 
     // 4. Act (Execute Decision)
-    this.applyDecision(decision)
+    this.applyDecision(result.decision)
   }
 
   private buildDecisionPrompts(event: BotEvent): { systemPrompt: string, userMsg: string } {
@@ -402,7 +417,7 @@ export class Brain {
     this.debugService.updateBlackboard(this.blackboard)
   }
 
-  private async decide(sysPrompt: string, userMsg: string): Promise<LLMResponse | null> {
+  private async decide(sysPrompt: string, userMsg: string): Promise<DecisionResult> {
     const maxAttempts = 3
 
     const llmAgent = new LLMAgent({
@@ -428,11 +443,17 @@ export class Brain {
       return parseLLMResponseJson<LLMResponse>(result.text)
     }
 
+    let lastError: unknown
+
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        return await decideOnce()
+        const decision = await decideOnce()
+        if (decision) {
+          return { success: true, decision }
+        }
       }
       catch (err) {
+        lastError = err
         const remaining = maxAttempts - attempt
         const { shouldRetry } = shouldRetryError(err, remaining)
 
@@ -445,23 +466,43 @@ export class Brain {
           code: getErrorCode(err),
         })
 
-        if (shouldRetry)
+        if (shouldRetry) {
+          await new Promise(resolve => setTimeout(resolve, 100)) // backoff, is this needed?
           continue
+        }
 
         const errMsg = toErrorMessage(err)
 
         try {
-          this.bot?.bot?.chat?.(`[Brain] decide failed: ${errMsg}`)
+          this.bot?.bot?.chat?.(`[Brain] decide() failed after ${attempt} attempts: ${errMsg}`)
         }
         catch (chatErr) {
           this.log('ERROR', 'Brain: Failed to send error message to chat', { error: chatErr })
         }
 
-        return null
+        return {
+          success: false,
+          error: {
+            message: errMsg,
+            attempts: attempt,
+            status: getErrorStatus(err),
+            code: getErrorCode(err),
+          },
+        }
       }
     }
 
-    return null
+    // All attempts exhausted without explicit non-retryable error
+    const errMsg = lastError ? toErrorMessage(lastError) : 'All retry attempts exhausted'
+    return {
+      success: false,
+      error: {
+        message: errMsg,
+        attempts: maxAttempts,
+        status: lastError ? getErrorStatus(lastError) : undefined,
+        code: lastError ? getErrorCode(lastError) : undefined,
+      },
+    }
   }
 
   // --- Debug Helpers ---

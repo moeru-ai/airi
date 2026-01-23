@@ -86,40 +86,10 @@ export function isLikelyAuthOrBadArgError(err: unknown): boolean {
 }
 
 /**
- * Pure function to check if error is likely recoverable
- */
-export function isLikelyRecoverableError(err: unknown): boolean {
-  if (err instanceof SyntaxError)
-    return true
-
-  const status = getErrorStatus(err)
-  if (status === 429)
-    return true
-  if (typeof status === 'number' && status >= 500)
-    return true
-
-  const code = getErrorCode(err)
-  if (code && ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'].includes(code))
-    return true
-
-  const msg = toErrorMessage(err).toLowerCase()
-  return (
-    msg.includes('timeout')
-    || msg.includes('timed out')
-    || msg.includes('rate limit')
-    || msg.includes('overloaded')
-    || msg.includes('temporarily')
-    || msg.includes('try again')
-    || (msg.includes('in json') && msg.includes('position'))
-    || msg.includes('failed to return content')
-  )
-}
-
-/**
  * Pure function to decide whether to retry
  */
 export function shouldRetryError(err: unknown, remainingAttempts: number): RetryDecision {
-  const shouldRetry = remainingAttempts > 0 && !isLikelyAuthOrBadArgError(err) && isLikelyRecoverableError(err)
+  const shouldRetry = remainingAttempts > 0 && !isLikelyAuthOrBadArgError(err)
   return {
     shouldRetry,
     remainingAttempts,
