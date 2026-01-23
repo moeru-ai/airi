@@ -12,7 +12,6 @@ import { plugin as MineflayerTool } from 'mineflayer-tool'
 import { CognitiveEngine } from './cognitive'
 import { initBot } from './composables/bot'
 import { config, initEnv } from './composables/config'
-import { createNeuriAgent } from './composables/neuri'
 import { DebugService } from './debug'
 import { setupMineflayerViewer } from './debug/mineflayer-viewer'
 import { wrapPlugin } from './libs/mineflayer'
@@ -48,8 +47,7 @@ async function main() {
   })
 
   // Dynamically load CognitiveEngine after the bot is initialized
-  const agent = await createNeuriAgent(bot)
-  await bot.loadPlugin(CognitiveEngine({ agent, airiClient }))
+  await bot.loadPlugin(CognitiveEngine({ airiClient }))
 
   // Setup Tool Executor for Debug Dashboard
   const { setupToolExecutor } = await import('./debug/tool-executor')

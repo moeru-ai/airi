@@ -1,4 +1,3 @@
-// TODO: move this file to action layer, and rename to `llm-actions.ts`
 import type { Action } from '../../libs/mineflayer'
 
 import { Vec3 } from 'vec3'

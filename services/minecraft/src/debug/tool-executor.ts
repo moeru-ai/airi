@@ -3,8 +3,10 @@ import type { ZodObject, ZodType } from 'zod'
 import type { Mineflayer } from '../libs/mineflayer'
 import type { ToolDefinition, ToolParameter } from './types'
 
-import { actionsList } from '../agents/action/tools'
 import { DebugService } from './debug-service'
+
+// Legacy tools removed - providing empty list for now
+const actionsList: Array<{ name: string, description: string, schema: any, perform: any }> = []
 
 export class ToolExecutor {
   private mineflayer: Mineflayer
@@ -51,7 +53,7 @@ export class ToolExecutor {
       // Check if action is blocked
       // TODO: Add check for running agent if needed
 
-      const action = actionsList.find(a => a.name === toolName)
+      const action = actionsList.find((a: any) => a.name === toolName)
       if (!action) {
         throw new Error(`Tool '${toolName}' not found`)
       }
@@ -92,7 +94,7 @@ export class ToolExecutor {
   }
 
   private extractToolDefinitions(): ToolDefinition[] {
-    return actionsList.map(action => ({
+    return actionsList.map((action: any) => ({
       name: action.name,
       description: action.description,
       params: this.extractParamsFromSchema(action.schema),

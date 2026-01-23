@@ -1,6 +1,5 @@
 import type { Logg } from '@guiiai/logg'
 
-import type { PlanStep } from '../../agents/planning/adapter'
 import type { Action } from './action'
 
 import EventEmitter3 from 'eventemitter3'
@@ -23,7 +22,7 @@ export interface BaseAgent {
 
 export interface ActionAgent extends BaseAgent {
   type: 'action'
-  performAction: (step: PlanStep) => Promise<string>
+  performAction: (step: any) => Promise<string>
   getAvailableActions: () => Action[]
 }
 
@@ -37,7 +36,7 @@ export interface MemoryAgent extends BaseAgent {
 
 export interface Plan {
   goal: string
-  steps: PlanStep[]
+  steps: any[]
   status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'cancelled'
   requiresAction: boolean
 }
@@ -45,7 +44,7 @@ export interface Plan {
 export interface PlanningAgent extends BaseAgent {
   type: 'planning'
   createPlan: (goal: string, availableActions?: Action[]) => Promise<Plan>
-  adjustPlan: (plan: Plan, feedback: string, sender: string, availableActions?: Action[]) => Promise<Plan>
+  adjustPlan: (plan: any, feedback: string, sender: string, availableActions?: Action[]) => Promise<Plan>
 }
 
 export interface ChatAgent extends BaseAgent {
