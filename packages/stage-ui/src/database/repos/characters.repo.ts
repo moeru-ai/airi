@@ -4,11 +4,11 @@ import { storage } from '../storage'
 
 export const charactersRepo = {
   async getAll() {
-    return await storage.getItem<Character[]>('local:characters') || []
+    return await storage.getItemRaw<Character[]>('local:characters') || []
   },
 
   async saveAll(characters: Character[]) {
-    await storage.setItem('local:characters', characters)
+    await storage.setItemRaw('local:characters', characters)
   },
 
   async upsert(character: Character) {
