@@ -383,7 +383,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     if (!forkOptions)
       return ingest(sendingMessage, options, baseSessionId)
 
-    const forkSessionId = chatSession.forkSession({
+    const forkSessionId = await chatSession.forkSession({
       fromSessionId: baseSessionId,
       atIndex: forkOptions.atIndex,
       reason: forkOptions.reason,
