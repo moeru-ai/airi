@@ -7,9 +7,36 @@ import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
+import { client } from '../../composables/api'
+import { useLocalFirstRequest } from '../../composables/use-local-first'
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
+
+interface SyncMessageInput {
+  id: string
+  sessionId: string
+  role: string
+  content: ChatHistoryItem['content'] | undefined
+  createdAt?: Date
+  raw: ChatHistoryItem
+}
+
+interface SyncSessionInput {
+  meta: {
+    id: string
+    userId: string
+    characterId: string
+    title?: string
+    createdAt: Date
+    updatedAt: Date
+  }
+  messages: SyncMessageInput[]
+}
+
+interface SyncPayload {
+  sessions: SyncSessionInput[]
+}
 
 export const useChatSessionStore = defineStore('chat-session', () => {
   const { userId } = storeToRefs(useAuthStore())
@@ -90,6 +117,48 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     await enqueuePersist(() => chatSessionsRepo.saveIndex(snapshot))
   }
 
+  function ensureMessageId(message: ChatHistoryItem) {
+    if ('id' in message && typeof message.id === 'string')
+      return message.id
+    return nanoid()
+  }
+
+  async function syncToCloud(sessionId: string) {
+    const meta = sessionMetas.value[sessionId]
+    const messages = sessionMessages.value[sessionId]
+    if (!meta || !messages)
+      return
+
+    const payload: SyncPayload = {
+      sessions: [{
+        meta: {
+          id: meta.sessionId,
+          userId: meta.userId,
+          characterId: meta.characterId,
+          title: meta.title,
+          createdAt: new Date(meta.createdAt),
+          updatedAt: new Date(meta.updatedAt),
+        },
+        messages: messages.map(message => ({
+          id: ensureMessageId(message),
+          sessionId,
+          role: message.role,
+          content: message.content,
+          createdAt: message.createdAt ? new Date(message.createdAt) : undefined,
+          raw: message,
+        })),
+      }],
+    }
+
+    useLocalFirstRequest({
+      local: () => payload,
+      remote: async () => {
+        await client.api['chat-sessions'].sync.$post({ json: payload })
+        return payload
+      },
+    })
+  }
+
   async function persistSession(sessionId: string) {
     const meta = sessionMetas.value[sessionId]
     if (!meta)
@@ -113,6 +182,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
     await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, record))
     await persistIndex()
+
+    void syncToCloud(sessionId)
   }
 
   function persistSessionMessages(sessionId: string) {

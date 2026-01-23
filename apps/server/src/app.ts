@@ -11,9 +11,11 @@ import { createLoggLogger, injeca } from 'injeca'
 
 import { sessionMiddleware } from './middlewares/auth'
 import { createCharacterRoutes } from './routes/characters'
+import { createChatSessionRoutes } from './routes/chat-sessions'
 import { createProviderRoutes } from './routes/providers'
 import { createAuth } from './services/auth'
 import { createCharacterService } from './services/characters'
+import { createChatSessionService } from './services/chat-sessions'
 import { createDrizzle } from './services/db'
 import { parsedEnv } from './services/env'
 import { createProviderService } from './services/providers'
@@ -24,15 +26,17 @@ import * as schema from './schemas'
 
 type AuthService = ReturnType<typeof createAuth>
 type CharacterService = ReturnType<typeof createCharacterService>
+type ChatSessionService = ReturnType<typeof createChatSessionService>
 type ProviderService = ReturnType<typeof createProviderService>
 
 interface AppDeps {
   auth: AuthService
   characterService: CharacterService
+  chatSessionService: ChatSessionService
   providerService: ProviderService
 }
 
-function buildApp({ auth, characterService, providerService }: AppDeps) {
+function buildApp({ auth, characterService, providerService, chatSessionService }: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
   return new Hono<HonoEnv>()
@@ -77,6 +81,11 @@ function buildApp({ auth, characterService, providerService }: AppDeps) {
      * Provider routes are handled by the provider service.
      */
     .route('/api/providers', createProviderRoutes(providerService))
+
+    /**
+     * Chat session routes are handled by the chat session service.
+     */
+    .route('/api/chat-sessions', createChatSessionRoutes(chatSessionService))
 }
 
 export type AppType = ReturnType<typeof buildApp>
@@ -114,12 +123,18 @@ async function createApp() {
     build: ({ dependsOn }) => createProviderService(dependsOn.db),
   })
 
+  const chatSessionService = injeca.provide('services:chat-sessions', {
+    dependsOn: { db },
+    build: ({ dependsOn }) => createChatSessionService(dependsOn.db),
+  })
+
   await injeca.start()
-  const resolved = await injeca.resolve({ auth, characterService, providerService })
+  const resolved = await injeca.resolve({ auth, characterService, providerService, chatSessionService })
   const app = buildApp({
     auth: resolved.auth,
     characterService: resolved.characterService,
     providerService: resolved.providerService,
+    chatSessionService: resolved.chatSessionService,
   })
 
   useLogger('app').useGlobalConfig().withFields({ port: 3000 }).log('Server started')
