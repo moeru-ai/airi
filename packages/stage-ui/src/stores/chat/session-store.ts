@@ -115,6 +115,15 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     await persistIndex()
   }
 
+  function persistSessionMessages(sessionId: string) {
+    void persistSession(sessionId)
+  }
+
+  function setSessionMessages(sessionId: string, next: ChatHistoryItem[]) {
+    sessionMessages.value[sessionId] = next
+    void persistSession(sessionId)
+  }
+
   async function loadSession(sessionId: string) {
     if (loadedSessions.has(sessionId))
       return
@@ -264,8 +273,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function cleanupMessages(sessionId = activeSessionId.value) {
     ensureGeneration(sessionId)
     sessionGenerations.value[sessionId] += 1
-    sessionMessages.value[sessionId] = [generateInitialMessage()]
-    void persistSession(sessionId)
+    setSessionMessages(sessionId, [generateInitialMessage()])
   }
 
   function getAllSessions() {
@@ -409,6 +417,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     resetAllSessions,
 
     ensureSession,
+    setSessionMessages,
+    persistSessionMessages,
     getSessionMessages,
     getSessionGeneration,
     bumpSessionGeneration,

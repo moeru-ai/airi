@@ -171,6 +171,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
       const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
       sessionMessagesForSend.push({ role: 'user', content: finalContent })
+      chatSession.persistSessionMessages(sessionId)
 
       const categorizer = createStreamingCategorizer(activeProvider.value)
       let streamPosition = 0
@@ -327,6 +328,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
       if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
         sessionMessagesForSend.push(toRaw(buildingMessage))
+        chatSession.persistSessionMessages(sessionId)
       }
 
       await hooks.emitStreamEndHooks(streamingMessageContext)
