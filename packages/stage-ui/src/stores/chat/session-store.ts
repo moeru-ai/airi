@@ -1,7 +1,7 @@
 import type { SystemMessage } from '@xsai/shared-chat'
 
 import type { ChatHistoryItem } from '../../types/chat'
-import type { ChatPromptVersion, ChatSessionGraph, ChatSessionGraphNode, ChatSessionMeta, ChatSessionsExport, ChatUserCharacterRoot } from '../../types/chat-session'
+import type { ChatPromptVersion, ChatSessionGraph, ChatSessionGraphNode, ChatSessionMeta, ChatUserCharacterRoot } from '../../types/chat-session'
 
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -421,69 +421,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return activeVersion.value?.graph
   }
 
-  async function exportSessionGraph(): Promise<ChatSessionsExport | null> {
-    if (!ready.value)
-      await initialize()
-    if (!activeRoot.value)
-      return null
-
-    const versions: Record<string, ChatPromptVersion> = {}
-    for (const versionId of activeRoot.value.versions) {
-      const version = await chatSessionsRepo.getVersion(activeRoot.value.userId, activeRoot.value.characterId, versionId)
-      if (version)
-        versions[versionId] = version
-    }
-
-    const sessionIds = new Set<string>()
-    for (const version of Object.values(versions)) {
-      for (const sessionId of Object.keys(version.graph.nodes)) {
-        sessionIds.add(sessionId)
-      }
-    }
-
-    const sessions: Record<string, ChatHistoryItem[]> = {}
-    const metas: Record<string, ChatSessionMeta> = {}
-    for (const sessionId of sessionIds) {
-      sessions[sessionId] = await chatSessionsRepo.getSessionMessages(sessionId)
-      const meta = await chatSessionsRepo.getSessionMeta(sessionId)
-      if (meta)
-        metas[sessionId] = meta
-    }
-
-    return {
-      format: 'chat-session-graph:v2',
-      root: activeRoot.value,
-      versions,
-      sessions,
-      metas,
-    }
-  }
-
-  async function importSessionGraph(payload: ChatSessionsExport) {
-    if (payload.format !== 'chat-session-graph:v2')
-      return
-
-    const root = payload.root
-    await enqueuePersist(() => chatSessionsRepo.saveRoot(root))
-    for (const version of Object.values(payload.versions)) {
-      await enqueuePersist(() => chatSessionsRepo.saveVersion(root.userId, root.characterId, version))
-    }
-    for (const [sessionId, messages] of Object.entries(payload.sessions)) {
-      sessionMessages.value[sessionId] = messages
-      await enqueuePersist(() => chatSessionsRepo.saveSessionMessages(sessionId, messages))
-    }
-    for (const meta of Object.values(payload.metas ?? {})) {
-      await enqueuePersist(() => chatSessionsRepo.saveSessionMeta(meta))
-    }
-
-    activeRoot.value = root
-    activeVersion.value = payload.versions[root.activeVersionId] ?? null
-    if (activeVersion.value) {
-      activeSessionId.value = activeVersion.value.graph.activeSessionId
-      ensureSession(activeSessionId.value)
-    }
-  }
-
   function setPromptVersionId(versionId: string) {
     if (!versionId || activePromptVersionId.value === versionId)
       return
@@ -522,7 +459,5 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     setPromptVersionId,
     forkSession,
     getActiveSessionGraph,
-    exportSessionGraph,
-    importSessionGraph,
   }
 })

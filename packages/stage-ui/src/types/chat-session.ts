@@ -1,5 +1,3 @@
-import type { ChatHistoryItem } from './chat'
-
 export interface ChatSessionGraphNode {
   id: string
   parentId?: string
@@ -35,12 +33,4 @@ export interface ChatSessionMeta {
   rootId: string
   title?: string
   updatedAt: number
-}
-
-export interface ChatSessionsExport {
-  format: 'chat-session-graph:v2'
-  root: ChatUserCharacterRoot
-  versions: Record<string, ChatPromptVersion>
-  sessions: Record<string, ChatHistoryItem[]>
-  metas: Record<string, ChatSessionMeta>
 }
