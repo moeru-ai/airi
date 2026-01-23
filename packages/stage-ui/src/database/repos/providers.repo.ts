@@ -11,11 +11,11 @@ export interface ProviderCatalogProvider {
 
 export const providersRepo = {
   async getAll() {
-    return await storage.getItem<Record<string, ProviderCatalogProvider>>('local:providers') || {}
+    return await storage.getItemRaw<Record<string, ProviderCatalogProvider>>('local:providers') || {}
   },
 
   async saveAll(providers: Record<string, ProviderCatalogProvider>) {
-    await storage.setItem('local:providers', providers)
+    await storage.setItemRaw('local:providers', providers)
   },
 
   async upsert(provider: ProviderCatalogProvider) {
