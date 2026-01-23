@@ -70,8 +70,10 @@ export function useDataMaintenance() {
     return new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   }
 
-  function isChatSessionsExport(payload: Record<string, unknown>): payload is ChatSessionsExport {
-    return payload.format === 'chat-session-graph:v2'
+  function isChatSessionsExport(payload: unknown): payload is ChatSessionsExport {
+    if (!payload || typeof payload !== 'object')
+      return false
+    return (payload as { format?: string }).format === 'chat-session-graph:v2'
   }
 
   async function importChatSessions(payload: Record<string, unknown>) {
