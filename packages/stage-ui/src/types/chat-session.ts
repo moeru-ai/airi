@@ -1,36 +1,31 @@
-export interface ChatSessionGraphNode {
-  id: string
-  parentId?: string
-  forkAtIndex?: number
-  reason?: string
-  hidden?: boolean
-  createdAt: number
-}
-
-export interface ChatSessionGraph {
-  nodes: Record<string, ChatSessionGraphNode>
-  activeSessionId: string
-}
-
-export interface ChatPromptVersion {
-  id: string // e.g. 'v1', 'v2'
-  rootId: string
-  systemPrompt: string
-  createdAt: number
-  graph: ChatSessionGraph
-}
-
-export interface ChatUserCharacterRoot {
-  userId: string
-  characterId: string
-  activeVersionId: string
-  versions: string[] // versionIds
-}
+import type { ChatHistoryItem } from './chat'
 
 export interface ChatSessionMeta {
   sessionId: string
-  versionId: string
-  rootId: string
+  userId: string
+  characterId: string
   title?: string
+  createdAt: number
   updatedAt: number
+}
+
+export interface ChatSessionRecord {
+  meta: ChatSessionMeta
+  messages: ChatHistoryItem[]
+}
+
+export interface ChatCharacterSessionsIndex {
+  activeSessionId: string
+  sessions: Record<string, ChatSessionMeta>
+}
+
+export interface ChatSessionsIndex {
+  userId: string
+  characters: Record<string, ChatCharacterSessionsIndex>
+}
+
+export interface ChatSessionsExport {
+  format: 'chat-sessions-index:v1'
+  index: ChatSessionsIndex
+  sessions: Record<string, ChatSessionRecord>
 }

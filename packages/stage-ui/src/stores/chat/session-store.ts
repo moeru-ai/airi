@@ -1,7 +1,7 @@
 import type { SystemMessage } from '@xsai/shared-chat'
 
 import type { ChatHistoryItem } from '../../types/chat'
-import type { ChatPromptVersion, ChatSessionGraph, ChatSessionGraphNode, ChatSessionMeta, ChatUserCharacterRoot } from '../../types/chat-session'
+import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessionsIndex } from '../../types/chat-session'
 
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -17,22 +17,16 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   const activeSessionId = ref<string>('')
   const sessionMessages = ref<Record<string, ChatHistoryItem[]>>({})
+  const sessionMetas = ref<Record<string, ChatSessionMeta>>({})
   const sessionGenerations = ref<Record<string, number>>({})
+  const index = ref<ChatSessionsIndex | null>(null)
 
-  const activeRoot = ref<ChatUserCharacterRoot | null>(null)
-  const activeVersion = ref<ChatPromptVersion | null>(null)
-  const activePromptVersionId = ref('v1')
   const ready = ref(false)
   const isReady = computed(() => ready.value)
   const initializing = ref(false)
   let initializePromise: Promise<void> | null = null
 
   let persistQueue = Promise.resolve()
-  const pendingSessionMessages = new Map<string, ChatHistoryItem[]>()
-  const pendingSessionMetas = new Map<string, ChatSessionMeta>()
-  const pendingVersions = new Map<string, { userId: string, characterId: string, version: ChatPromptVersion }>()
-  const pendingRoots = new Map<string, ChatUserCharacterRoot>()
-
   const loadedSessions = new Set<string>()
   const loadingSessions = new Map<string, Promise<void>>()
 
@@ -40,8 +34,12 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   const codeBlockSystemPrompt = '- For any programming code block, always specify the programming language that supported on @shikijs/rehype on the rendered markdown, eg. ```python ... ```\n'
   const mathSyntaxSystemPrompt = '- For any math equation, use LaTeX format, eg: $ x^3 $, always escape dollar sign outside math equation\n'
 
-  function getRootId(user: string, character: string) {
-    return `${user}:${character}`
+  function getCurrentUserId() {
+    return userId.value || 'local'
+  }
+
+  function getCurrentCharacterId() {
+    return activeCardId.value || 'default'
   }
 
   function enqueuePersist(task: () => Promise<void>) {
@@ -51,35 +49,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   function snapshotMessages(messages: ChatHistoryItem[]) {
     return JSON.parse(JSON.stringify(messages)) as ChatHistoryItem[]
-  }
-
-  async function flushPendingWrites() {
-    if (!pendingRoots.size && !pendingVersions.size && !pendingSessionMessages.size && !pendingSessionMetas.size)
-      return
-
-    const roots = [...pendingRoots.values()]
-    const versions = [...pendingVersions.values()]
-    const sessionMessages = [...pendingSessionMessages.entries()]
-    const metas = [...pendingSessionMetas.values()]
-
-    pendingRoots.clear()
-    pendingVersions.clear()
-    pendingSessionMessages.clear()
-    pendingSessionMetas.clear()
-
-    await enqueuePersist(async () => {
-      for (const root of roots)
-        await chatSessionsRepo.saveRoot(root)
-
-      for (const { userId, characterId, version } of versions)
-        await chatSessionsRepo.saveVersion(userId, characterId, version)
-
-      for (const [sessionId, messages] of sessionMessages)
-        await chatSessionsRepo.saveSessionMessages(sessionId, messages)
-
-      for (const meta of metas)
-        await chatSessionsRepo.saveSessionMeta(meta)
-    })
   }
 
   function generateInitialMessageFromPrompt(prompt: string) {
@@ -100,64 +69,53 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       sessionGenerations.value[sessionId] = 0
   }
 
-  async function persistSessionMessages(sessionId: string) {
-    const messagesSnapshot = snapshotMessages(sessionMessages.value[sessionId] ?? [])
-    if (ready.value) {
-      void enqueuePersist(() => chatSessionsRepo.saveSessionMessages(sessionId, messagesSnapshot))
-    }
-    else {
-      pendingSessionMessages.set(sessionId, messagesSnapshot)
-    }
-
-    const versionId = activeVersion.value?.id ?? 'v1'
-    const rootId = activeVersion.value?.rootId ?? getRootId(userId.value, activeCardId.value)
-    const meta = {
-      sessionId,
-      versionId,
-      rootId,
-      updatedAt: Date.now(),
-    }
-
-    if (ready.value) {
-      void enqueuePersist(() => chatSessionsRepo.saveSessionMeta(meta))
-    }
-    else {
-      pendingSessionMetas.set(sessionId, meta)
+  async function loadIndexForUser(currentUserId: string) {
+    const stored = await chatSessionsRepo.getIndex(currentUserId)
+    index.value = stored ?? {
+      userId: currentUserId,
+      characters: {},
     }
   }
 
-  function ensureSessionNode(sessionId: string) {
-    if (!activeVersion.value)
+  function getCharacterIndex(characterId: string) {
+    if (!index.value)
+      return null
+    return index.value.characters[characterId] ?? null
+  }
+
+  async function persistIndex() {
+    if (!index.value)
       return
-    if (!activeVersion.value.graph.nodes[sessionId]) {
-      activeVersion.value.graph.nodes[sessionId] = {
-        id: sessionId,
-        createdAt: Date.now(),
-      }
-    }
+    const snapshot = JSON.parse(JSON.stringify(index.value)) as ChatSessionsIndex
+    await enqueuePersist(() => chatSessionsRepo.saveIndex(snapshot))
   }
 
-  async function persistActiveVersion() {
-    const root = activeRoot.value
-    const version = activeVersion.value
-    if (!version || !root)
+  async function persistSession(sessionId: string) {
+    const meta = sessionMetas.value[sessionId]
+    if (!meta)
       return
-    const versionKey = `${root.userId}:${root.characterId}:${version.id}`
-    if (ready.value) {
-      void enqueuePersist(() => chatSessionsRepo.saveVersion(root.userId, root.characterId, version))
-      void enqueuePersist(() => chatSessionsRepo.saveRoot(root))
+    const messages = snapshotMessages(sessionMessages.value[sessionId] ?? [])
+    const now = Date.now()
+    const updatedMeta = {
+      ...meta,
+      updatedAt: now,
     }
-    else {
-      pendingVersions.set(versionKey, {
-        userId: root.userId,
-        characterId: root.characterId,
-        version,
-      })
-      pendingRoots.set(getRootId(root.userId, root.characterId), root)
+
+    sessionMetas.value[sessionId] = updatedMeta
+    const characterIndex = index.value?.characters[meta.characterId]
+    if (characterIndex)
+      characterIndex.sessions[sessionId] = updatedMeta
+
+    const record: ChatSessionRecord = {
+      meta: updatedMeta,
+      messages,
     }
+
+    await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, record))
+    await persistIndex()
   }
 
-  async function loadSessionMessages(sessionId: string) {
+  async function loadSession(sessionId: string) {
     if (loadedSessions.has(sessionId))
       return
     if (loadingSessions.has(sessionId)) {
@@ -166,9 +124,12 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
 
     const loadPromise = (async () => {
-      const stored = await chatSessionsRepo.getSessionMessages(sessionId)
-      if (stored.length > 0)
-        sessionMessages.value[sessionId] = stored
+      const stored = await chatSessionsRepo.getSession(sessionId)
+      if (stored) {
+        sessionMetas.value[sessionId] = stored.meta
+        sessionMessages.value[sessionId] = stored.messages
+        ensureGeneration(sessionId)
+      }
       loadedSessions.add(sessionId)
     })()
 
@@ -177,76 +138,67 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     loadingSessions.delete(sessionId)
   }
 
-  async function createVersion(root: ChatUserCharacterRoot, versionId: string, prompt: string) {
+  async function createSession(characterId: string, options?: { setActive?: boolean, messages?: ChatHistoryItem[], title?: string }) {
+    const currentUserId = getCurrentUserId()
     const sessionId = nanoid()
-    const rootId = getRootId(root.userId, root.characterId)
-    const node: ChatSessionGraphNode = {
-      id: sessionId,
-      createdAt: Date.now(),
-    }
-    const graph: ChatSessionGraph = {
-      nodes: { [sessionId]: node },
-      activeSessionId: sessionId,
-    }
-    const version: ChatPromptVersion = {
-      id: versionId,
-      rootId,
-      systemPrompt: prompt,
-      createdAt: Date.now(),
-      graph,
+    const now = Date.now()
+    const meta: ChatSessionMeta = {
+      sessionId,
+      userId: currentUserId,
+      characterId,
+      title: options?.title,
+      createdAt: now,
+      updatedAt: now,
     }
 
-    root.versions = [...root.versions, versionId]
-    root.activeVersionId = versionId
+    const initialMessages = options?.messages?.length ? options.messages : [generateInitialMessage()]
 
-    activeRoot.value = root
-    activeVersion.value = version
-    activeSessionId.value = sessionId
-
-    sessionMessages.value[sessionId] = [generateInitialMessageFromPrompt(prompt)]
+    sessionMetas.value[sessionId] = meta
+    sessionMessages.value[sessionId] = initialMessages
     ensureGeneration(sessionId)
-    await persistSessionMessages(sessionId)
-    await persistActiveVersion()
+
+    if (!index.value)
+      index.value = { userId: currentUserId, characters: {} }
+
+    const characterIndex = index.value.characters[characterId] ?? {
+      activeSessionId: sessionId,
+      sessions: {},
+    }
+    characterIndex.sessions[sessionId] = meta
+    if (options?.setActive !== false)
+      characterIndex.activeSessionId = sessionId
+    index.value.characters[characterId] = characterIndex
+
+    await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, { meta, messages: initialMessages }))
+    await persistIndex()
+
+    if (options?.setActive !== false)
+      activeSessionId.value = sessionId
+
+    return sessionId
   }
 
-  async function ensureRootAndVersion() {
-    const currentUserId = userId.value || 'local'
-    const currentCharacterId = activeCardId.value || 'default'
-    const targetVersionId = activePromptVersionId.value || 'v1'
-    const prompt = systemPrompt.value
+  async function ensureActiveSessionForCharacter() {
+    const currentUserId = getCurrentUserId()
+    const characterId = getCurrentCharacterId()
 
-    let root = await chatSessionsRepo.getRoot(currentUserId, currentCharacterId)
-    if (!root) {
-      root = {
-        userId: currentUserId,
-        characterId: currentCharacterId,
-        activeVersionId: 'v1',
-        versions: [],
-      }
-    }
+    if (!index.value || index.value.userId !== currentUserId)
+      await loadIndexForUser(currentUserId)
 
-    let matchedVersion: ChatPromptVersion | null = null
-    if (root.versions.includes(targetVersionId)) {
-      matchedVersion = await chatSessionsRepo.getVersion(currentUserId, currentCharacterId, targetVersionId)
-    }
-
-    if (!matchedVersion) {
-      await createVersion(root, targetVersionId, prompt)
+    const characterIndex = getCharacterIndex(characterId)
+    if (!characterIndex) {
+      await createSession(characterId)
       return
     }
 
-    if (root.activeVersionId !== matchedVersion.id) {
-      root.activeVersionId = matchedVersion.id
-      await chatSessionsRepo.saveRoot(root)
+    if (!characterIndex.activeSessionId) {
+      await createSession(characterId)
+      return
     }
 
-    activeRoot.value = root
-    activeVersion.value = matchedVersion
-    activeSessionId.value = matchedVersion.graph.activeSessionId
-
-    ensureSession(activeSessionId.value)
-    if (ready.value)
-      void loadSessionMessages(activeSessionId.value)
+    activeSessionId.value = characterIndex.activeSessionId
+    await loadSession(characterIndex.activeSessionId)
+    ensureSession(characterIndex.activeSessionId)
   }
 
   async function initialize() {
@@ -256,10 +208,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       return initializePromise
     initializing.value = true
     initializePromise = (async () => {
-      await ensureRootAndVersion()
-      if (activeSessionId.value)
-        await loadSessionMessages(activeSessionId.value)
-      await flushPendingWrites()
+      await ensureActiveSessionForCharacter()
       ready.value = true
     })()
 
@@ -274,11 +223,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   function ensureSession(sessionId: string) {
     ensureGeneration(sessionId)
-    ensureSessionNode(sessionId)
-
     if (!sessionMessages.value[sessionId] || sessionMessages.value[sessionId].length === 0) {
       sessionMessages.value[sessionId] = [generateInitialMessage()]
-      void persistSessionMessages(sessionId)
+      void persistSession(sessionId)
     }
   }
 
@@ -288,75 +235,76 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         return []
       ensureSession(activeSessionId.value)
       if (ready.value)
-        void loadSessionMessages(activeSessionId.value)
+        void loadSession(activeSessionId.value)
       return sessionMessages.value[activeSessionId.value] ?? []
     },
     set: (value) => {
       if (!activeSessionId.value)
         return
       sessionMessages.value[activeSessionId.value] = value
-      void persistSessionMessages(activeSessionId.value)
+      void persistSession(activeSessionId.value)
     },
   })
 
   function setActiveSession(sessionId: string) {
     activeSessionId.value = sessionId
     ensureSession(sessionId)
-    if (activeVersion.value) {
-      activeVersion.value.graph.activeSessionId = sessionId
-      void persistActiveVersion()
+
+    const characterId = getCurrentCharacterId()
+    const characterIndex = index.value?.characters[characterId]
+    if (characterIndex) {
+      characterIndex.activeSessionId = sessionId
+      void persistIndex()
     }
+
     if (ready.value)
-      void loadSessionMessages(sessionId)
+      void loadSession(sessionId)
   }
 
   function cleanupMessages(sessionId = activeSessionId.value) {
     ensureGeneration(sessionId)
     sessionGenerations.value[sessionId] += 1
     sessionMessages.value[sessionId] = [generateInitialMessage()]
-    void persistSessionMessages(sessionId)
+    void persistSession(sessionId)
   }
 
   function getAllSessions() {
     return JSON.parse(JSON.stringify(sessionMessages.value)) as Record<string, ChatHistoryItem[]>
   }
 
-  function replaceSessions(sessions: Record<string, ChatHistoryItem[]>) {
-    sessionMessages.value = sessions
-    sessionGenerations.value = Object.fromEntries(Object.keys(sessions).map(sessionId => [sessionId, 0]))
-    for (const sessionId of Object.keys(sessions)) {
-      ensureSessionNode(sessionId)
-      void persistSessionMessages(sessionId)
-    }
-    const [firstSessionId] = Object.keys(sessions)
-    if (firstSessionId)
-      setActiveSession(firstSessionId)
-  }
+  async function resetAllSessions() {
+    const currentUserId = getCurrentUserId()
+    const characterId = getCurrentCharacterId()
+    const sessionIds = new Set<string>()
 
-  function resetAllSessions() {
-    sessionMessages.value = {}
-    sessionGenerations.value = {}
-    const newSessionId = nanoid()
-    if (activeVersion.value) {
-      activeVersion.value.graph = {
-        nodes: {
-          [newSessionId]: {
-            id: newSessionId,
-            createdAt: Date.now(),
-          },
-        },
-        activeSessionId: newSessionId,
+    if (index.value?.userId === currentUserId) {
+      for (const character of Object.values(index.value.characters)) {
+        for (const sessionId of Object.keys(character.sessions))
+          sessionIds.add(sessionId)
       }
-      void persistActiveVersion()
     }
-    activeSessionId.value = newSessionId
-    ensureSession(newSessionId)
+
+    for (const sessionId of sessionIds)
+      await enqueuePersist(() => chatSessionsRepo.deleteSession(sessionId))
+
+    sessionMessages.value = {}
+    sessionMetas.value = {}
+    sessionGenerations.value = {}
+    loadedSessions.clear()
+    loadingSessions.clear()
+
+    index.value = {
+      userId: currentUserId,
+      characters: {},
+    }
+
+    await createSession(characterId)
   }
 
   function getSessionMessages(sessionId: string) {
     ensureSession(sessionId)
     if (ready.value)
-      void loadSessionMessages(sessionId)
+      void loadSession(sessionId)
     return sessionMessages.value[sessionId] ?? []
   }
 
@@ -376,63 +324,75 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return getSessionGeneration(target)
   }
 
-  async function setActiveVersion(versionId: string) {
-    if (!activeRoot.value)
-      return
-    const version = await chatSessionsRepo.getVersion(activeRoot.value.userId, activeRoot.value.characterId, versionId)
-    if (!version)
-      return
-    activePromptVersionId.value = versionId
-    activeRoot.value.activeVersionId = versionId
-    activeVersion.value = version
-    activeSessionId.value = version.graph.activeSessionId
-    await persistActiveVersion()
-    ensureSession(activeSessionId.value)
-    if (ready.value)
-      await loadSessionMessages(activeSessionId.value)
-  }
-
-  function forkSession(options: { fromSessionId: string, atIndex?: number, reason?: string, hidden?: boolean, versionId?: string }) {
-    const version = activeVersion.value
-    if (!version)
-      return ''
-    if (options.versionId && options.versionId !== version.id)
-      return ''
+  async function forkSession(options: { fromSessionId: string, atIndex?: number, reason?: string, hidden?: boolean }) {
+    const characterId = getCurrentCharacterId()
     const parentMessages = getSessionMessages(options.fromSessionId)
     const forkIndex = options.atIndex ?? parentMessages.length
-    const newSessionId = nanoid()
     const nextMessages = parentMessages.slice(0, forkIndex)
-    version.graph.nodes[newSessionId] = {
-      id: newSessionId,
-      parentId: options.fromSessionId,
-      forkAtIndex: forkIndex,
-      reason: options.reason,
-      hidden: options.hidden ?? true,
-      createdAt: Date.now(),
+    return await createSession(characterId, { setActive: false, messages: nextMessages })
+  }
+
+  async function exportSessions(): Promise<ChatSessionsExport> {
+    if (!ready.value)
+      await initialize()
+
+    if (!index.value) {
+      return {
+        format: 'chat-sessions-index:v1',
+        index: { userId: getCurrentUserId(), characters: {} },
+        sessions: {},
+      }
     }
-    sessionMessages.value[newSessionId] = nextMessages.length > 0 ? nextMessages : [generateInitialMessage()]
-    ensureGeneration(newSessionId)
-    void persistSessionMessages(newSessionId)
-    void persistActiveVersion()
-    return newSessionId
+
+    const sessions: Record<string, ChatSessionRecord> = {}
+    for (const character of Object.values(index.value.characters)) {
+      for (const sessionId of Object.keys(character.sessions)) {
+        const stored = await chatSessionsRepo.getSession(sessionId)
+        if (stored) {
+          sessions[sessionId] = stored
+          continue
+        }
+        const meta = sessionMetas.value[sessionId]
+        const messages = sessionMessages.value[sessionId]
+        if (meta && messages)
+          sessions[sessionId] = { meta, messages }
+      }
+    }
+
+    return {
+      format: 'chat-sessions-index:v1',
+      index: index.value,
+      sessions,
+    }
   }
 
-  function getActiveSessionGraph() {
-    return activeVersion.value?.graph
-  }
-
-  function setPromptVersionId(versionId: string) {
-    if (!versionId || activePromptVersionId.value === versionId)
+  async function importSessions(payload: ChatSessionsExport) {
+    if (payload.format !== 'chat-sessions-index:v1')
       return
-    activePromptVersionId.value = versionId
-    if (ready.value)
-      void ensureRootAndVersion()
+
+    index.value = payload.index
+    sessionMessages.value = {}
+    sessionMetas.value = {}
+    sessionGenerations.value = {}
+    loadedSessions.clear()
+    loadingSessions.clear()
+
+    await enqueuePersist(() => chatSessionsRepo.saveIndex(payload.index))
+
+    for (const [sessionId, record] of Object.entries(payload.sessions)) {
+      sessionMetas.value[sessionId] = record.meta
+      sessionMessages.value[sessionId] = record.messages
+      ensureGeneration(sessionId)
+      await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, record))
+    }
+
+    await ensureActiveSessionForCharacter()
   }
 
-  watch([systemPrompt, activeCardId, userId, activePromptVersionId], () => {
+  watch([userId, activeCardId], () => {
     if (!ready.value)
       return
-    void ensureRootAndVersion()
+    void ensureActiveSessionForCharacter()
   })
 
   return {
@@ -446,7 +406,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     setActiveSession,
     cleanupMessages,
     getAllSessions,
-    replaceSessions,
     resetAllSessions,
 
     ensureSession,
@@ -455,9 +414,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     bumpSessionGeneration,
     getSessionGenerationValue,
 
-    setActiveVersion,
-    setPromptVersionId,
     forkSession,
-    getActiveSessionGraph,
+    exportSessions,
+    importSessions,
   }
 })
