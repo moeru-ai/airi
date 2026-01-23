@@ -5,7 +5,6 @@ import type { MineflayerWithAgents } from '../types'
 import type { ReflexModeId } from './modes'
 import type { ReflexBehavior } from './types/behavior'
 
-import { followPlayer } from '../../skills/movement'
 import { ReflexContext } from './context'
 import { selectMode } from './modes'
 
@@ -15,7 +14,6 @@ export class ReflexRuntime {
   private readonly runHistory = new Map<string, { lastRunAt: number }>()
 
   private mode: ReflexModeId = 'idle'
-  private lockedFollowTargetName: string | null = null
   private activeBehaviorId: string | null = null
   private activeBehaviorUntil: number | null = null
 
@@ -52,75 +50,14 @@ export class ReflexRuntime {
     this.onEnterMode(mode, bot)
   }
 
-  private onEnterMode(mode: ReflexModeId, bot: MineflayerWithAgents | null): void {
+  private onEnterMode(mode: ReflexModeId, _bot: MineflayerWithAgents | null): void {
     if (mode !== 'social')
       return
-
-    if (!bot)
-      return
-
-    if (this.lockedFollowTargetName)
-      return
-
-    const snap = this.context.getSnapshot()
-
-    const pickFromPlayers = (preferredName: string | null): string | null => {
-      const selfPos = bot.bot.entity?.position
-      if (!selfPos)
-        return null
-
-      const inRange = (name: string): number | null => {
-        const ent = bot.bot.players?.[name]?.entity
-        const pos = ent?.position
-        if (!pos)
-          return null
-
-        try {
-          const d = selfPos.distanceTo(pos)
-          return d <= 16 ? d : null
-        }
-        catch {
-          return null
-        }
-      }
-
-      if (preferredName) {
-        const d = inRange(preferredName)
-        if (typeof d === 'number')
-          return preferredName
-      }
-
-      let best: { name: string, dist: number } | null = null
-      for (const name of Object.keys(bot.bot.players ?? {})) {
-        if (!name || name === bot.bot.username)
-          continue
-
-        const d = inRange(name)
-        if (typeof d !== 'number')
-          continue
-
-        if (!best || d < best.dist)
-          best = { name, dist: d }
-      }
-
-      return best?.name ?? null
-    }
-
-    const preferred = snap.social.lastSpeaker
-    const chosen = pickFromPlayers(preferred)
-    if (!chosen)
-      return
-
-    this.lockedFollowTargetName = chosen
-    void followPlayer(bot, chosen)
   }
 
-  private onExitMode(mode: ReflexModeId, bot: MineflayerWithAgents | null): void {
+  private onExitMode(mode: ReflexModeId, _bot: MineflayerWithAgents | null): void {
     if (mode !== 'social')
       return
-
-    this.lockedFollowTargetName = null
-    bot?.interrupt?.('reflex:social_exit')
   }
 
   public getActiveBehaviorId(): string | null {
