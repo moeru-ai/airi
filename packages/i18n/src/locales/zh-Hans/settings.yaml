@@ -640,7 +640,7 @@ pages:
         description: OpenAI Compatible
         title: OpenAI Compatible
       n1n:
-        description: n1n.ai - 高性能 AI API 服务来源
+        description: n1n.ai - High-performance AI API provider.
         title: n1n
       openrouter:
         description: OpenRouter.ai
