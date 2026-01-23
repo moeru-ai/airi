@@ -170,7 +170,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         return
 
       const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
-      sessionMessagesForSend.push({ role: 'user', content: finalContent })
+      sessionMessagesForSend.push({ role: 'user', content: finalContent, createdAt: sendingCreatedAt })
       chatSession.persistSessionMessages(sessionId)
 
       const categorizer = createStreamingCategorizer(activeProvider.value)

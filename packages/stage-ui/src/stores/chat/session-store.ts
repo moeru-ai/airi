@@ -1,5 +1,3 @@
-import type { SystemMessage } from '@xsai/shared-chat'
-
 import type { ChatHistoryItem } from '../../types/chat'
 import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessionsIndex } from '../../types/chat-session'
 
@@ -7,12 +5,14 @@ import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
+import { client } from '../../composables/api'
+import { useLocalFirstRequest } from '../../composables/use-local-first'
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
 
 export const useChatSessionStore = defineStore('chat-session', () => {
-  const { userId } = storeToRefs(useAuthStore())
+  const { userId, isAuthenticated } = storeToRefs(useAuthStore())
   const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
 
   const activeSessionId = ref<string>('')
@@ -27,6 +27,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   let initializePromise: Promise<void> | null = null
 
   let persistQueue = Promise.resolve()
+  let syncQueue = Promise.resolve()
   const loadedSessions = new Set<string>()
   const loadingSessions = new Map<string, Promise<void>>()
 
@@ -47,8 +48,105 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return persistQueue
   }
 
+  function enqueueSync(task: () => Promise<void>) {
+    syncQueue = syncQueue.then(task, task)
+    return syncQueue
+  }
+
   function snapshotMessages(messages: ChatHistoryItem[]) {
     return JSON.parse(JSON.stringify(messages)) as ChatHistoryItem[]
+  }
+
+  function extractMessageContent(message: ChatHistoryItem) {
+    if (typeof message.content === 'string')
+      return message.content
+    if (Array.isArray(message.content)) {
+      return message.content.map((part) => {
+        if (typeof part === 'string')
+          return part
+        if (part && typeof part === 'object' && 'text' in part)
+          return String(part.text ?? '')
+        return ''
+      }).join('')
+    }
+    return ''
+  }
+
+  function buildMessageId(sessionId: string, message: ChatHistoryItem, index: number) {
+    const createdAt = message.createdAt ?? 0
+    return `${sessionId}:${createdAt}:${index}`
+  }
+
+  function buildSyncMessages(sessionId: string, messages: ChatHistoryItem[]) {
+    return messages.map((message, index) => ({
+      id: buildMessageId(sessionId, message, index),
+      role: message.role,
+      content: extractMessageContent(message),
+      createdAt: message.createdAt,
+    }))
+  }
+
+  async function syncSessionToRemote(sessionId: string) {
+    let cachedRecord: ChatSessionRecord | null | undefined
+    const request = useLocalFirstRequest({
+      local: async () => {
+        cachedRecord = await chatSessionsRepo.getSession(sessionId)
+        return cachedRecord
+      },
+      remote: async () => {
+        if (!cachedRecord)
+          cachedRecord = await chatSessionsRepo.getSession(sessionId)
+        if (!cachedRecord)
+          return cachedRecord
+
+        const members: Array<
+          | { type: 'user', userId: string }
+          | { type: 'character', characterId: string }
+        > = [
+          { type: 'user', userId: userId.value },
+        ]
+
+        if (cachedRecord.meta.characterId) {
+          members.push({
+            type: 'character',
+            characterId: cachedRecord.meta.characterId,
+          })
+        }
+
+        const res = await client.api.chats.sync.$post({
+          json: {
+            chat: {
+              id: cachedRecord.meta.sessionId,
+              type: 'group',
+              title: cachedRecord.meta.title,
+              createdAt: cachedRecord.meta.createdAt,
+              updatedAt: cachedRecord.meta.updatedAt,
+            },
+            members,
+            messages: buildSyncMessages(cachedRecord.meta.sessionId, cachedRecord.messages),
+          },
+        })
+
+        if (!res.ok)
+          throw new Error('Failed to sync chat session')
+        return cachedRecord
+      },
+      allowRemote: () => isAuthenticated.value,
+      lazy: true,
+    })
+
+    await request.execute()
+  }
+
+  function scheduleSync(sessionId: string) {
+    void enqueueSync(async () => {
+      try {
+        await syncSessionToRemote(sessionId)
+      }
+      catch (error) {
+        console.warn('Failed to sync chat session', error)
+      }
+    })
   }
 
   function generateInitialMessageFromPrompt(prompt: string) {
@@ -57,7 +155,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return {
       role: 'system',
       content,
-    } satisfies SystemMessage
+      createdAt: Date.now(),
+    } satisfies ChatHistoryItem
   }
 
   function generateInitialMessage() {
@@ -113,6 +212,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
     await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, record))
     await persistIndex()
+    scheduleSync(sessionId)
   }
 
   function persistSessionMessages(sessionId: string) {
@@ -178,8 +278,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       characterIndex.activeSessionId = sessionId
     index.value.characters[characterId] = characterIndex
 
-    await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, { meta, messages: initialMessages }))
+    const record: ChatSessionRecord = { meta, messages: initialMessages }
+    await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, record))
     await persistIndex()
+    scheduleSync(sessionId)
 
     if (options?.setActive !== false)
       activeSessionId.value = sessionId
