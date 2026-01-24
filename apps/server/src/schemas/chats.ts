@@ -1,7 +1,10 @@
+import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
+
 import { integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 import { user } from './accounts'
+import { character } from './characters'
 
 export const media = pgTable(
   'media',
@@ -37,6 +40,7 @@ export const stickerPacks = pgTable(
 )
 
 type ChatType = 'private' | 'bot' | 'group' | 'channel'
+type ChatMemberType = 'user' | 'character' | 'bot'
 
 export const chats = pgTable(
   'chats',
@@ -44,6 +48,7 @@ export const chats = pgTable(
     id: text('id').primaryKey().$defaultFn(() => nanoid()),
 
     type: text('type').notNull().$type<ChatType>(),
+    title: text('title'),
 
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -51,12 +56,17 @@ export const chats = pgTable(
   },
 )
 
+export type Chat = InferSelectModel<typeof chats>
+export type NewChat = InferInsertModel<typeof chats>
+
 export const chatMembers = pgTable(
   'chat_members',
   {
     id: text('id').primaryKey().$defaultFn(() => nanoid()),
     chatId: text('chat_id').notNull().references(() => chats.id, { onDelete: 'cascade' }),
-    userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+    memberType: text('member_type').notNull().$type<ChatMemberType>(),
+    userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
+    characterId: text('character_id').references(() => character.id, { onDelete: 'cascade' }),
   },
 )
 
@@ -67,6 +77,7 @@ export const messages = pgTable(
 
     chatId: text('chat_id').notNull().references(() => chats.id, { onDelete: 'cascade' }),
     senderId: text('sender_id').notNull(),
+    role: text('role').notNull(),
 
     content: text('content').notNull(),
     mediaIds: text('media_ids').array().notNull(),
@@ -80,3 +91,6 @@ export const messages = pgTable(
     deletedAt: timestamp('deleted_at'),
   },
 )
+
+export type Message = InferSelectModel<typeof messages>
+export type NewMessage = InferInsertModel<typeof messages>

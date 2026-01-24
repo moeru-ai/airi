@@ -11,9 +11,11 @@ import { createLoggLogger, injeca } from 'injeca'
 
 import { sessionMiddleware } from './middlewares/auth'
 import { createCharacterRoutes } from './routes/characters'
+import { createChatRoutes } from './routes/chats'
 import { createProviderRoutes } from './routes/providers'
 import { createAuth } from './services/auth'
 import { createCharacterService } from './services/characters'
+import { createChatService } from './services/chats'
 import { createDrizzle } from './services/db'
 import { parsedEnv } from './services/env'
 import { createProviderService } from './services/providers'
@@ -24,15 +26,17 @@ import * as schema from './schemas'
 
 type AuthService = ReturnType<typeof createAuth>
 type CharacterService = ReturnType<typeof createCharacterService>
+type ChatService = ReturnType<typeof createChatService>
 type ProviderService = ReturnType<typeof createProviderService>
 
 interface AppDeps {
   auth: AuthService
   characterService: CharacterService
+  chatService: ChatService
   providerService: ProviderService
 }
 
-function buildApp({ auth, characterService, providerService }: AppDeps) {
+function buildApp({ auth, characterService, chatService, providerService }: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
   return new Hono<HonoEnv>()
@@ -77,6 +81,11 @@ function buildApp({ auth, characterService, providerService }: AppDeps) {
      * Provider routes are handled by the provider service.
      */
     .route('/api/providers', createProviderRoutes(providerService))
+
+    /**
+     * Chat routes are handled by the chat service.
+     */
+    .route('/api/chats', createChatRoutes(chatService))
 }
 
 export type AppType = ReturnType<typeof buildApp>
@@ -114,11 +123,17 @@ async function createApp() {
     build: ({ dependsOn }) => createProviderService(dependsOn.db),
   })
 
+  const chatService = injeca.provide('services:chats', {
+    dependsOn: { db },
+    build: ({ dependsOn }) => createChatService(dependsOn.db),
+  })
+
   await injeca.start()
-  const resolved = await injeca.resolve({ auth, characterService, providerService })
+  const resolved = await injeca.resolve({ auth, characterService, chatService, providerService })
   const app = buildApp({
     auth: resolved.auth,
     characterService: resolved.characterService,
+    chatService: resolved.chatService,
     providerService: resolved.providerService,
   })
 
