@@ -38,7 +38,8 @@
     "typecheck": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" -F=\"./docs\" --parallel typecheck",
     "up": "taze -w -r -I && pnpm prune && pnpm dedupe",
     "nolyfill": "pnpm dlx nolyfill",
-    "open:ios": "pnpm -rF @proj-airi/stage-pocket run open:ios"
+    "open:ios": "pnpm -rF @proj-airi/stage-pocket run open:ios",
+    "knip": "knip"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^7.1.0",
@@ -56,6 +57,7 @@
     "bumpp": "^10.4.0",
     "eslint": "^9.39.2",
     "eslint-plugin-oxlint": "^1.41.0",
+    "knip": "catalog:",
     "nano-staged": "catalog:",
     "oxlint": "^1.41.0",
     "posthog-js": "catalog:",
