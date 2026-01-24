@@ -72,14 +72,28 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return ''
   }
 
-  function buildMessageId(sessionId: string, message: ChatHistoryItem, index: number) {
-    const createdAt = message.createdAt ?? 0
-    return `${sessionId}:${createdAt}:${index}`
+  function ensureSessionMessageIds(sessionId: string) {
+    const current = sessionMessages.value[sessionId] ?? []
+    let changed = false
+    const next = current.map((message) => {
+      if (message.id)
+        return message
+      changed = true
+      return {
+        ...message,
+        id: nanoid(),
+      }
+    })
+
+    if (changed)
+      sessionMessages.value[sessionId] = next
+
+    return next
   }
 
-  function buildSyncMessages(sessionId: string, messages: ChatHistoryItem[]) {
-    return messages.map((message, index) => ({
-      id: buildMessageId(sessionId, message, index),
+  function buildSyncMessages(messages: ChatHistoryItem[]) {
+    return messages.map(message => ({
+      id: message.id ?? nanoid(),
       role: message.role,
       content: extractMessageContent(message),
       createdAt: message.createdAt,
@@ -106,11 +120,20 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           { type: 'user', userId: userId.value },
         ]
 
-        if (cachedRecord.meta.characterId) {
+        if (cachedRecord.meta.characterId && cachedRecord.meta.characterId !== 'default') {
           members.push({
             type: 'character',
             characterId: cachedRecord.meta.characterId,
           })
+        }
+
+        const normalizedMessages = cachedRecord.messages.map(message => message.id ? message : { ...message, id: nanoid() })
+        if (normalizedMessages.some((message, index) => cachedRecord?.messages[index]?.id !== message.id)) {
+          cachedRecord = {
+            ...cachedRecord,
+            messages: normalizedMessages,
+          }
+          await chatSessionsRepo.saveSession(sessionId, cachedRecord)
         }
 
         const res = await client.api.chats.sync.$post({
@@ -123,7 +146,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
               updatedAt: cachedRecord.meta.updatedAt,
             },
             members,
-            messages: buildSyncMessages(cachedRecord.meta.sessionId, cachedRecord.messages),
+            messages: buildSyncMessages(cachedRecord.messages),
           },
         })
 
@@ -155,6 +178,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return {
       role: 'system',
       content,
+      id: nanoid(),
       createdAt: Date.now(),
     } satisfies ChatHistoryItem
   }
@@ -193,7 +217,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const meta = sessionMetas.value[sessionId]
     if (!meta)
       return
-    const messages = snapshotMessages(sessionMessages.value[sessionId] ?? [])
+    const messages = snapshotMessages(ensureSessionMessageIds(sessionId))
     const now = Date.now()
     const updatedMeta = {
       ...meta,

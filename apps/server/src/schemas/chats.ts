@@ -3,8 +3,6 @@ import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
-import { user } from './accounts'
-import { character } from './characters'
 
 export const media = pgTable(
   'media',
@@ -65,8 +63,8 @@ export const chatMembers = pgTable(
     id: text('id').primaryKey().$defaultFn(() => nanoid()),
     chatId: text('chat_id').notNull().references(() => chats.id, { onDelete: 'cascade' }),
     memberType: text('member_type').notNull().$type<ChatMemberType>(),
-    userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
-    characterId: text('character_id').references(() => character.id, { onDelete: 'cascade' }),
+    userId: text('user_id'),
+    characterId: text('character_id'),
   },
 )
 
