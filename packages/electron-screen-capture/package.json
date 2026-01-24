@@ -49,6 +49,6 @@
     "@moeru/std": "catalog:",
     "async-mutex": "catalog:",
     "nanoid": "catalog:",
-    "vite": "catalog:rolldown-vite"
+    "vite": "catalog:"
   }
 }
