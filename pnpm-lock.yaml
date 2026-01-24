@@ -538,12 +538,6 @@ importers:
       '@proj-airi/ui-transitions':
         specifier: workspace:^
         version: link:../../packages/ui-transitions
-      '@standard-schema/spec':
-        specifier: ^1.1.0
-        version: 1.1.0
-      '@stdlib/string-base-kebabcase':
-        specifier: ^0.2.2
-        version: 0.2.2
       '@tresjs/cientos':
         specifier: ^5.2.3
         version: 5.2.3(@tresjs/core@5.3.1(three@0.182.0)(vue@3.5.26(typescript@5.9.3)))(@types/three@0.182.0)(react@19.2.3)(three@0.182.0)(vue@3.5.26(typescript@5.9.3))
@@ -607,9 +601,6 @@ importers:
       driver.js:
         specifier: ^1.4.0
         version: 1.4.0
-      drizzle-kit:
-        specifier: ^0.31.8
-        version: 0.31.8
       drizzle-orm:
         specifier: ^0.45.1
         version: 0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.17.2)(postgres@3.4.8)
@@ -637,9 +628,6 @@ importers:
       nprogress:
         specifier: ^0.2.0
         version: 0.2.0
-      ofetch:
-        specifier: ^1.5.1
-        version: 1.5.1
       onnxruntime-web:
         specifier: ^1.23.2
         version: 1.23.2
@@ -941,9 +929,6 @@ importers:
       '@proj-airi/ui':
         specifier: workspace:^
         version: link:../../packages/ui
-      '@stdlib/string-base-kebabcase':
-        specifier: ^0.2.2
-        version: 0.2.2
       '@tresjs/cientos':
         specifier: ^5.2.3
         version: 5.2.3(@tresjs/core@5.3.1(three@0.182.0)(vue@3.5.26(typescript@5.9.3)))(@types/three@0.182.0)(react@19.2.3)(three@0.182.0)(vue@3.5.26(typescript@5.9.3))
@@ -1013,9 +998,6 @@ importers:
       dompurify:
         specifier: ^3.3.1
         version: 3.3.1
-      drizzle-kit:
-        specifier: ^0.31.8
-        version: 0.31.8
       drizzle-orm:
         specifier: ^0.45.1
         version: 0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.17.2)(postgres@3.4.8)
@@ -1049,9 +1031,6 @@ importers:
       nprogress:
         specifier: ^0.2.0
         version: 0.2.0
-      ofetch:
-        specifier: ^1.5.1
-        version: 1.5.1
       onnxruntime-web:
         specifier: ^1.23.2
         version: 1.23.2
@@ -1344,12 +1323,6 @@ importers:
       '@proj-airi/ui-transitions':
         specifier: workspace:^
         version: link:../../packages/ui-transitions
-      '@standard-schema/spec':
-        specifier: ^1.1.0
-        version: 1.1.0
-      '@stdlib/string-base-kebabcase':
-        specifier: ^0.2.2
-        version: 0.2.2
       '@tresjs/cientos':
         specifier: ^5.2.3
         version: 5.2.3(@tresjs/core@5.3.1(three@0.182.0)(vue@3.5.26(typescript@5.9.3)))(@types/three@0.182.0)(react@19.2.3)(three@0.182.0)(vue@3.5.26(typescript@5.9.3))
@@ -1416,9 +1389,6 @@ importers:
       driver.js:
         specifier: ^1.4.0
         version: 1.4.0
-      drizzle-kit:
-        specifier: ^0.31.8
-        version: 0.31.8
       drizzle-orm:
         specifier: ^0.45.1
         version: 0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.17.2)(postgres@3.4.8)
@@ -1449,9 +1419,6 @@ importers:
       nprogress:
         specifier: ^0.2.0
         version: 0.2.0
-      ofetch:
-        specifier: ^1.5.1
-        version: 1.5.1
       onnxruntime-web:
         specifier: ^1.23.2
         version: 1.23.2
@@ -2033,9 +2000,6 @@ importers:
       '@proj-airi/ui':
         specifier: workspace:*
         version: link:../ui
-      '@stdlib/string-base-kebabcase':
-        specifier: ^0.2.2
-        version: 0.2.2
       '@vueuse/core':
         specifier: ^14.1.0
         version: 14.1.0(vue@3.5.26(typescript@5.9.3))
