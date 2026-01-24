@@ -61,7 +61,7 @@ export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, 
 
   function update(vrm?: VRMCore, delta = 0.016) {
     const node = lipSyncNode.value
-    if (!vrm?.expressionManager || !node)
+    if (!vrm?.expressionManager || !node || !audioNode.value)
       return
 
     const vol = node.volume ?? 0
