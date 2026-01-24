@@ -23,7 +23,6 @@ import { Matrix4, Quaternion, Vector3 } from 'three'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import motionRaw from '../../assets/motion-gen-demo/11test2_happy_0_lmks70?raw'
-import motionAudioUrl from '../../assets/motion-gen-demo/11test2.mp3?url'
 
 interface VrmBoneNode { quaternion: Quaternion }
 interface VrmLike {
@@ -46,6 +45,8 @@ function setupAnalyser() {
 const settingsStore = useSettings()
 const { stageModelRenderer, stageModelSelected, stageModelSelectedUrl, stageViewControlsEnabled } = storeToRefs(settingsStore)
 
+const isDev = import.meta.env.DEV
+
 onMounted(async () => {
   const needsFallback = !stageModelSelectedUrl.value || stageModelRenderer.value !== 'vrm'
   if (needsFallback)
@@ -53,6 +54,8 @@ onMounted(async () => {
 
   await settingsStore.updateStageModel()
   setupAnalyser()
+  if (isDev)
+    applyMotionAudioUrl()
 })
 
 const providersStore = useProvidersStore()
@@ -163,6 +166,8 @@ const motionLoop = ref(true)
 const motionFrameIndex = ref(0)
 const motionClock = ref(0)
 const motionSpeed = ref(1)
+const motionAudioUrl = ref('/motion-gen-demo/11test2.mp3')
+const motionAudioLabel = ref('')
 const motionAudioBuffer = ref<AudioBuffer | null>(null)
 const motionAudioSource = ref<AudioBufferSourceNode | null>(null)
 const motionAudioStartTime = ref(0)
@@ -298,6 +303,7 @@ function resetMotionPlayback() {
   lastMotionState.value = null
   expressionMapCache.value = null
   motionAudioOffset.value = 0
+  motionAudioLabel.value = ''
 }
 
 async function loadMotionPayload() {
@@ -318,14 +324,38 @@ async function loadMotionPayload() {
   }
 }
 
-async function ensureMotionAudio() {
-  if (motionAudioBuffer.value)
-    return
-  const res = await fetch(motionAudioUrl)
+async function loadMotionAudioFromFile(file: File) {
+  const data = await file.arrayBuffer()
+  motionAudioBuffer.value = await audioContext.decodeAudioData(data)
+  motionAudioLabel.value = file.name
+  motionAudioOffset.value = 0
+}
+
+async function loadMotionAudioFromUrl() {
+  const url = motionAudioUrl.value.trim()
+  if (!url)
+    return false
+  const res = await fetch(url)
   if (!res.ok)
     throw new Error(`Failed to load motion audio: ${res.status}`)
   const data = await res.arrayBuffer()
   motionAudioBuffer.value = await audioContext.decodeAudioData(data)
+  motionAudioLabel.value = url
+  motionAudioOffset.value = 0
+  return true
+}
+
+async function ensureMotionAudio() {
+  if (motionAudioBuffer.value)
+    return true
+  try {
+    return await loadMotionAudioFromUrl()
+  }
+  catch (err) {
+    console.error(err)
+    motionError.value = err instanceof Error ? err.message : String(err)
+    return false
+  }
 }
 
 function stopMotionAudio() {
@@ -344,11 +374,13 @@ function stopMotionAudio() {
 }
 
 async function startMotionAudio(offset = 0) {
-  await ensureMotionAudio()
+  const ready = await ensureMotionAudio()
+  if (!ready)
+    return false
   stopMotionAudio()
   const buffer = motionAudioBuffer.value
   if (!buffer)
-    return
+    return false
   const source = audioContext.createBufferSource()
   source.buffer = buffer
   source.connect(audioContext.destination)
@@ -372,6 +404,7 @@ async function startMotionAudio(offset = 0) {
     }
   }
   source.start(0, offset)
+  return true
 }
 
 async function playMotion() {
@@ -396,6 +429,30 @@ function stopMotion() {
   motionPlaying.value = false
   stopMotionAudio()
   resetMotionPlayback()
+}
+
+async function onMotionAudioFileChange(event: Event) {
+  const input = event.target as HTMLInputElement | null
+  const file = input?.files?.[0]
+  if (!file)
+    return
+  try {
+    await loadMotionAudioFromFile(file)
+  }
+  catch (err) {
+    console.error(err)
+    motionError.value = err instanceof Error ? err.message : String(err)
+  }
+}
+
+async function applyMotionAudioUrl() {
+  try {
+    await loadMotionAudioFromUrl()
+  }
+  catch (err) {
+    console.error(err)
+    motionError.value = err instanceof Error ? err.message : String(err)
+  }
 }
 
 function applyLandmarkMotion(vrm: VrmLike, delta: number) {
@@ -809,6 +866,26 @@ onUnmounted(() => {
                 :class="['w-20', 'border', 'border-neutral-300/60', 'rounded', 'px-2', 'py-1']"
               >
             </label>
+          </div>
+          <div :class="['flex', 'items-center', 'flex-wrap', 'gap-2']">
+            <label :class="['flex', 'items-center', 'gap-2']">
+              <span>音频文件</span>
+              <input type="file" accept="audio/*" @change="onMotionAudioFileChange">
+            </label>
+            <input
+              v-model="motionAudioUrl"
+              placeholder="音频 URL（例如 /motion-gen-demo/11test2.mp3）"
+              :class="['flex-1', 'min-w-48', 'border', 'border-neutral-300/60', 'rounded', 'px-2', 'py-1', 'text-[11px]']"
+            >
+            <button
+              :class="['rounded-lg', 'border', 'border-neutral-300/60', 'px-3', 'py-1.5']"
+              @click="applyMotionAudioUrl"
+            >
+              加载音频
+            </button>
+            <span :class="['text-[11px]', 'text-neutral-500']">
+              {{ motionAudioLabel || '未加载' }}
+            </span>
           </div>
           <div :class="['text-[11px]', 'text-neutral-500']">
             {{ motionLoading ? '加载中...' : motionError || `frame ${motionFrameIndex + 1}/${motionPayload?.landmarks.length ?? 0}` }}
