@@ -40,7 +40,7 @@
     "@vitejs/plugin-vue": "^6.0.3",
     "superjson": "^2.2.6",
     "unplugin-vue-router": "^0.19.2",
-    "vite": "catalog:rolldown-vite",
+    "vite": "catalog:",
     "vue-router": "^4.6.4",
     "vue-tsc": "^3.1.8"
   }

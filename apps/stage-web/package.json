@@ -131,7 +131,7 @@
     "unplugin-info": "^1.2.4",
     "unplugin-vue-router": "^0.19.2",
     "unplugin-yaml": "^3.0.7",
-    "vite": "catalog:rolldown-vite",
+    "vite": "catalog:",
     "vite-bundle-visualizer": "^1.2.1",
     "vite-plugin-pwa": "^1.2.0",
     "vite-plugin-vue-devtools": "^8.0.5",
