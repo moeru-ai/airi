@@ -50,7 +50,14 @@ let autoSendTimeout: ReturnType<typeof setTimeout> | undefined
 const pendingAutoSendText = ref('')
 
 async function debouncedAutoSend(text: string) {
+  // Double-check auto-send is enabled before proceeding
   if (!autoSendEnabled.value) {
+    // Clear any pending text if auto-send was disabled
+    pendingAutoSendText.value = ''
+    if (autoSendTimeout) {
+      clearTimeout(autoSendTimeout)
+      autoSendTimeout = undefined
+    }
     return
   }
 
@@ -64,6 +71,13 @@ async function debouncedAutoSend(text: string) {
 
   // Set new timeout
   autoSendTimeout = setTimeout(async () => {
+    // Final check before sending - auto-send might have been disabled while waiting
+    if (!autoSendEnabled.value) {
+      pendingAutoSendText.value = ''
+      autoSendTimeout = undefined
+      return
+    }
+
     const textToSend = pendingAutoSendText.value.trim()
     if (textToSend && autoSendEnabled.value) {
       try {
@@ -259,6 +273,8 @@ async function startListening() {
     if (!shouldUseStreamInput.value) {
       const errorMsg = 'Streaming input not supported by the selected transcription provider. Please select a provider that supports streaming (e.g., Web Speech API).'
       console.warn('[ChatArea]', errorMsg)
+      // Clean up any existing sessions from other pages (e.g., test page) that might interfere
+      await stopStreamingTranscription(true)
       isListening.value = false
       return
     }
@@ -276,9 +292,18 @@ async function startListening() {
             messageInput.value = currentText ? `${currentText} ${delta}` : delta
             console.info('[ChatArea] Received transcription delta:', delta)
 
-            // Auto-send if enabled
+            // Auto-send if enabled - check the current value (not captured in closure)
+            // This ensures we always respect the current setting, even if callbacks are reused
             if (autoSendEnabled.value) {
               debouncedAutoSend(delta)
+            }
+            else {
+              // If auto-send is disabled, clear any pending auto-send text to prevent accidental sends
+              if (autoSendTimeout) {
+                clearTimeout(autoSendTimeout)
+                autoSendTimeout = undefined
+              }
+              pendingAutoSendText.value = ''
             }
           }
         },
@@ -365,6 +390,19 @@ watch(stream, async (val) => {
   else if (!val && isListening.value) {
     // Stream was lost, stop transcription
     await stopListening()
+  }
+})
+
+// Watch for auto-send setting changes and clear pending sends if disabled
+watch(autoSendEnabled, (enabled) => {
+  if (!enabled) {
+    // Auto-send was disabled - clear any pending auto-send
+    if (autoSendTimeout) {
+      clearTimeout(autoSendTimeout)
+      autoSendTimeout = undefined
+    }
+    pendingAutoSendText.value = ''
+    console.info('[ChatArea] Auto-send disabled, cleared pending text')
   }
 })
 </script>

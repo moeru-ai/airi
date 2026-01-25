@@ -584,16 +584,32 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
       const idleTimeout = options?.idleTimeoutMs ?? DEFAULT_STREAM_IDLE_TIMEOUT
 
-      // If a session already exists, just bump the idle timer and reuse the websocket/audio graph.
+      // If a session already exists, check if callbacks have changed.
+      // If they have, we need to restart the session to use the new callbacks.
+      // Otherwise, just bump the idle timer and reuse the websocket/audio graph.
       const existingSession = streamingSession.value
       if (existingSession) {
-        if (existingSession.idleTimer) {
-          clearTimeout(existingSession.idleTimer)
-          existingSession.idleTimer = setTimeout(async () => {
-            await stopStreamingTranscription(false, existingSession.providerId)
-          }, idleTimeout)
+        // Check if callbacks have changed by comparing function references
+        const callbacksChanged = existingSession.callbacks?.onSentenceEnd !== options?.onSentenceEnd
+          || existingSession.callbacks?.onSpeechEnd !== options?.onSpeechEnd
+
+        if (callbacksChanged) {
+          // Callbacks changed - restart the session to ensure the new reader uses the correct callbacks
+          // This prevents issues where the old reader continues using stale callbacks
+          console.info('[Hearing Pipeline] Callbacks changed, restarting session to use new callbacks')
+          await stopStreamingTranscription(false, existingSession.providerId)
+          // Continue to create a new session below
         }
-        return
+        else {
+          // Callbacks haven't changed - just bump idle timer and reuse session
+          if (existingSession.idleTimer) {
+            clearTimeout(existingSession.idleTimer)
+            existingSession.idleTimer = setTimeout(async () => {
+              await stopStreamingTranscription(false, existingSession.providerId)
+            }, idleTimeout)
+          }
+          return
+        }
       }
 
       const abortController = new AbortController()
@@ -641,6 +657,10 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
         result,
         idleTimer,
         providerId,
+        callbacks: {
+          onSentenceEnd: options?.onSentenceEnd,
+          onSpeechEnd: options?.onSpeechEnd,
+        },
       }
 
       // Stream out text deltas to caller without tearing down the session.
@@ -656,7 +676,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
                 break
               if (value) {
                 fullText += value
-                options?.onSentenceEnd?.(value)
+                // Use callbacks from session to ensure we use the latest ones
+                streamingSession.value?.callbacks?.onSentenceEnd?.(value)
               }
             }
           }
@@ -664,7 +685,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
             console.error('Error reading text stream:', err)
           }
           finally {
-            options?.onSpeechEnd?.(fullText)
+            // Use callbacks from session to ensure we use the latest ones
+            streamingSession.value?.callbacks?.onSpeechEnd?.(fullText)
           }
         })()
       }
