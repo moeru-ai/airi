@@ -584,32 +584,31 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
       const idleTimeout = options?.idleTimeoutMs ?? DEFAULT_STREAM_IDLE_TIMEOUT
 
-      // If a session already exists, check if callbacks have changed.
-      // If they have, we need to restart the session to use the new callbacks.
-      // Otherwise, just bump the idle timer and reuse the websocket/audio graph.
+      // If a session already exists, update its callbacks and bump the idle timer.
+      // We don't need to restart the session just because callbacks changed - the text stream
+      // reader uses callbacks from the session, so updating them will take effect immediately.
+      // This avoids unnecessary restarts when the same context calls transcribeForMediaStream
+      // with new anonymous functions (e.g., handleSpeechStart() in hearing.vue).
       const existingSession = streamingSession.value
       if (existingSession) {
-        // Check if callbacks have changed by comparing function references
-        const callbacksChanged = existingSession.callbacks?.onSentenceEnd !== options?.onSentenceEnd
-          || existingSession.callbacks?.onSpeechEnd !== options?.onSpeechEnd
-
-        if (callbacksChanged) {
-          // Callbacks changed - restart the session to ensure the new reader uses the correct callbacks
-          // This prevents issues where the old reader continues using stale callbacks
-          console.info('[Hearing Pipeline] Callbacks changed, restarting session to use new callbacks')
-          await stopStreamingTranscription(false, existingSession.providerId)
-          // Continue to create a new session below
-        }
-        else {
-          // Callbacks haven't changed - just bump idle timer and reuse session
-          if (existingSession.idleTimer) {
-            clearTimeout(existingSession.idleTimer)
-            existingSession.idleTimer = setTimeout(async () => {
-              await stopStreamingTranscription(false, existingSession.providerId)
-            }, idleTimeout)
+        // Update callbacks in the existing session - the reader will use the new ones
+        // since it reads from streamingSession.value?.callbacks
+        if (options?.onSentenceEnd !== undefined || options?.onSpeechEnd !== undefined) {
+          existingSession.callbacks = {
+            onSentenceEnd: options?.onSentenceEnd ?? existingSession.callbacks?.onSentenceEnd,
+            onSpeechEnd: options?.onSpeechEnd ?? existingSession.callbacks?.onSpeechEnd,
           }
-          return
+          console.info('[Hearing Pipeline] Updated callbacks in existing session')
         }
+
+        // Bump idle timer and reuse session
+        if (existingSession.idleTimer) {
+          clearTimeout(existingSession.idleTimer)
+          existingSession.idleTimer = setTimeout(async () => {
+            await stopStreamingTranscription(false, existingSession.providerId)
+          }, idleTimeout)
+        }
+        return
       }
 
       const abortController = new AbortController()
@@ -666,6 +665,14 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       // Stream out text deltas to caller without tearing down the session.
       if (result.mode === 'stream' && result.textStream) {
         void (async () => {
+          // Capture callbacks from the session at the time the reader is created
+          // This prevents cross-session leakage if the session is restarted before
+          // this reader finishes (e.g., when navigating between pages or callbacks change)
+          const sessionCallbacks = {
+            onSentenceEnd: streamingSession.value?.callbacks?.onSentenceEnd,
+            onSpeechEnd: streamingSession.value?.callbacks?.onSpeechEnd,
+          }
+
           let fullText = ''
           try {
             const reader = result.textStream.getReader()
@@ -676,8 +683,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
                 break
               if (value) {
                 fullText += value
-                // Use callbacks from session to ensure we use the latest ones
-                streamingSession.value?.callbacks?.onSentenceEnd?.(value)
+                // Use captured callbacks to avoid cross-session leakage
+                sessionCallbacks.onSentenceEnd?.(value)
               }
             }
           }
@@ -685,8 +692,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
             console.error('Error reading text stream:', err)
           }
           finally {
-            // Use callbacks from session to ensure we use the latest ones
-            streamingSession.value?.callbacks?.onSpeechEnd?.(fullText)
+            // Use captured callbacks to avoid cross-session leakage
+            sessionCallbacks.onSpeechEnd?.(fullText)
           }
         })()
       }
