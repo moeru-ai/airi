@@ -305,8 +305,7 @@ async function startListening() {
             }
           }
         },
-        // Don't use onSpeechEnd - it re-adds text that users may have deleted
-        // onSentenceEnd handles all text updates as transcription happens
+        // Omit onSpeechEnd to avoid re-adding user-deleted text; use sentence deltas only.
       })
 
       // Only set listening to true if transcription started successfully

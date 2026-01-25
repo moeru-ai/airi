@@ -584,31 +584,30 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
       const idleTimeout = options?.idleTimeoutMs ?? DEFAULT_STREAM_IDLE_TIMEOUT
 
-      // If a session already exists, update its callbacks and bump the idle timer.
-      // We don't need to restart the session just because callbacks changed - the text stream
-      // reader uses callbacks from the session, so updating them will take effect immediately.
-      // This avoids unnecessary restarts when the same context calls transcribeForMediaStream
-      // with new anonymous functions (e.g., handleSpeechStart() in hearing.vue).
+      // If a session exists, reuse it unless new callbacks are provided.
+      // The stream reader captures callbacks at creation time, so updated callbacks
+      // require restarting the session to create a new reader.
       const existingSession = streamingSession.value
       if (existingSession) {
-        // Update callbacks in the existing session - the reader will use the new ones
-        // since it reads from streamingSession.value?.callbacks
-        if (options?.onSentenceEnd !== undefined || options?.onSpeechEnd !== undefined) {
-          existingSession.callbacks = {
-            onSentenceEnd: options?.onSentenceEnd ?? existingSession.callbacks?.onSentenceEnd,
-            onSpeechEnd: options?.onSpeechEnd ?? existingSession.callbacks?.onSpeechEnd,
-          }
-          console.info('[Hearing Pipeline] Updated callbacks in existing session')
-        }
+        const hasNewCallbacks
+          = options?.onSentenceEnd !== undefined
+            || options?.onSpeechEnd !== undefined
 
-        // Bump idle timer and reuse session
-        if (existingSession.idleTimer) {
-          clearTimeout(existingSession.idleTimer)
-          existingSession.idleTimer = setTimeout(async () => {
-            await stopStreamingTranscription(false, existingSession.providerId)
-          }, idleTimeout)
+        if (hasNewCallbacks) {
+          console.info('[Hearing Pipeline] New callbacks provided, restarting session')
+          await stopStreamingTranscription(false, existingSession.providerId)
+          // Fall through to create a new session with updated callbacks
         }
-        return
+        else {
+          // No callback changes: refresh idle timer and reuse session
+          if (existingSession.idleTimer) {
+            clearTimeout(existingSession.idleTimer)
+            existingSession.idleTimer = setTimeout(async () => {
+              await stopStreamingTranscription(false, existingSession.providerId)
+            }, idleTimeout)
+          }
+          return
+        }
       }
 
       const abortController = new AbortController()

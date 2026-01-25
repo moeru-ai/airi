@@ -78,6 +78,8 @@ const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!strea
 
 async function handleSpeechStart() {
   if (shouldUseStreamInput.value && stream.value) {
+    // Use both callbacks to support incremental updates and final transcript replacement.
+    // ChatArea uses only onSentenceEnd to avoid re-adding deleted text.
     await transcribeForMediaStream(stream.value, {
       onSentenceEnd: (delta) => {
         transcriptions.value.push(delta)
