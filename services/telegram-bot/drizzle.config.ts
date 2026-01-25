@@ -2,8 +2,8 @@ import { env, loadEnvFile } from 'node:process'
 
 import { defineConfig } from 'drizzle-kit'
 
-loadEnvFile()
 try {
+  loadEnvFile()
   loadEnvFile('./env.local')
 }
 catch {}

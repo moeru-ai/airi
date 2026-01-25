@@ -35,7 +35,7 @@
     "@unocss/reset": "^66.6.0",
     "@vitejs/plugin-vue": "^6.0.3",
     "unplugin-vue-router": "^0.19.2",
-    "vite": "catalog:rolldown-vite",
+    "vite": "catalog:",
     "vite-plugin-vue-devtools": "^8.0.5",
     "vue-router": "^4.6.4",
     "vue-tsc": "^3.1.8"

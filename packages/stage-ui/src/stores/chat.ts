@@ -6,6 +6,7 @@ import type { ChatAssistantMessage, ChatSlices, ChatStreamEventContext, Streamin
 import type { StreamEvent, StreamOptions } from './llm'
 
 import { createQueue } from '@proj-airi/stream-kit'
+import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw } from 'vue'
 
@@ -112,7 +113,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
     const sendingCreatedAt = Date.now()
     const streamingMessageContext: ChatStreamEventContext = {
-      message: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt },
+      message: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt, id: nanoid() },
       contexts: chatContext.getContextsSnapshot(),
       composedMessage: [],
       input: options.input,
@@ -127,7 +128,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
     const isForegroundSession = () => sessionId === activeSessionId.value
 
-    const buildingMessage: StreamingAssistantMessage = { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() }
+    const buildingMessage: StreamingAssistantMessage = { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now(), id: nanoid() }
 
     const updateUI = () => {
       if (isForegroundSession()) {
@@ -170,7 +171,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         return
 
       const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
-      sessionMessagesForSend.push({ role: 'user', content: finalContent })
+      sessionMessagesForSend.push({ role: 'user', content: finalContent, createdAt: sendingCreatedAt, id: nanoid() })
       chatSession.persistSessionMessages(sessionId)
 
       const categorizer = createStreamingCategorizer(activeProvider.value)

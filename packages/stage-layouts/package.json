@@ -37,7 +37,6 @@
     "@proj-airi/stage-ui": "workspace:*",
     "@proj-airi/stage-ui-three": "workspace:*",
     "@proj-airi/ui": "workspace:*",
-    "@stdlib/string-base-kebabcase": "^0.2.2",
     "@vueuse/core": "^14.1.0",
     "@vueuse/shared": "^14.1.0",
     "@xsai-ext/providers": "catalog:",
