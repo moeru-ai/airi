@@ -33,18 +33,18 @@ prompt:
     you can include over one those emotion keywords with the following format as
     an example:
 
-    > <{'|'}ACT:{"emotion":"surprised"}{'|'}><{'|'}DELAY:1{'|'}> Wow... You prepared a gift
-    for me? <{'|'}ACT:{"emotion":"curious"}{'|'}><{'|'}DELAY:1{'|'}> Can I open it?
+    > <{'|'}ACT:'{"emotion":"surprised"}'{'|'}><{'|'}DELAY:1{'|'}> Wow... You prepared a gift
+    for me? <{'|'}ACT:'{"emotion":"curious"}'{'|'}><{'|'}DELAY:1{'|'}> Can I open it?
 
     ACT JSON format (all fields optional):
-    ACT:{
-      "emotion": <{ "name": emotion, "intensity": 0-1 }, intensity default = 1>,
-      "cognitive": <what the character is thinking>,
-      "intent": <what the character is doing to you>,
-      "motion": <a short action cue>
-    }
+    'ACT:{'
+    '  "emotion": <{ "name": emotion, "intensity": 0-1 }, intensity default = 1>,'
+    '  "cognitive": <what the character is thinking>,'
+    '  "intent": <what the character is doing to you>,'
+    '  "motion": <a short action cue>'
+    '}'
     ACT example:
-    <{'|'}ACT:{"emotion":{"name":"surprised","intensity":1},"cognitive":"thinking","intent":"ask","motion":"shrug"}{'|'}>
+    <{'|'}ACT:'{"emotion":{"name":"surprised","intensity":1},"cognitive":"thinking","intent":"ask","motion":"shrug"}'{'|'}>
 
     The available emotions:
   suffix: |
