@@ -203,6 +203,7 @@ async function startAudioInteraction() {
         return
       }
 
+      // Use sentence deltas for live captions and speech end for final text.
       await transcribeForMediaStream(stream.value, {
         onSentenceEnd: (delta) => {
           console.info('[Main Page] Received transcription delta:', delta)

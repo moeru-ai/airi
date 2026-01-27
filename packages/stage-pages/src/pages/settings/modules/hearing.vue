@@ -78,6 +78,8 @@ const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!strea
 
 async function handleSpeechStart() {
   if (shouldUseStreamInput.value && stream.value) {
+    // Use both callbacks to support incremental updates and final transcript replacement.
+    // ChatArea uses only onSentenceEnd to avoid re-adding deleted text.
     await transcribeForMediaStream(stream.value, {
       onSentenceEnd: (delta) => {
         transcriptions.value.push(delta)
@@ -251,12 +253,40 @@ onStopRecord(async (recording) => {
   if (shouldUseStreamInput.value)
     return
 
-  // Skip onStopRecord handler during STT test - the watch handler handles transcription for tests
-  if (isTestingSTT.value)
+  if (!recording || recording.size === 0)
     return
 
-  if (recording && recording.size > 0)
-    audios.value.push(recording)
+  // Handle STT test transcription directly here
+  if (isTestingSTT.value) {
+    testStatusMessage.value = 'Transcribing recording...'
+    isTranscribing.value = true
+
+    try {
+      const result = await transcribeForRecording(recording)
+      if (result) {
+        testTranscriptionText.value = result
+        testStatusMessage.value = 'Transcription complete!'
+        console.info('STT test transcription result:', result)
+      }
+      else {
+        testTranscriptionError.value = 'No transcription result received'
+        testStatusMessage.value = 'Transcription failed'
+      }
+    }
+    catch (err) {
+      testTranscriptionError.value = err instanceof Error ? err.message : String(err)
+      testStatusMessage.value = `Error: ${testTranscriptionError.value}`
+      console.error('STT test transcription error:', err)
+    }
+    finally {
+      isTranscribing.value = false
+      isTestingSTT.value = false
+    }
+    return
+  }
+
+  // Normal monitoring mode - add to audios and transcribe
+  audios.value.push(recording)
 
   const res = await transcribeForRecording(recording)
 
@@ -399,39 +429,8 @@ async function stopSTTTest() {
   }
 }
 
-// Watch for recording completion during STT test
-watch(() => audios.value.length, async (newLength, oldLength) => {
-  if (isTestingSTT.value && !shouldUseStreamInput.value && newLength > oldLength) {
-    // Recording was completed, now transcribe it
-    const latestRecording = audios.value[audios.value.length - 1]
-    if (latestRecording) {
-      testStatusMessage.value = 'Transcribing recording...'
-      isTranscribing.value = true
-
-      try {
-        const result = await transcribeForRecording(latestRecording)
-        if (result) {
-          testTranscriptionText.value = result
-          testStatusMessage.value = 'Transcription complete!'
-          console.info('STT test transcription result:', result)
-        }
-        else {
-          testTranscriptionError.value = 'No transcription result received'
-          testStatusMessage.value = 'Transcription failed'
-        }
-      }
-      catch (err) {
-        testTranscriptionError.value = err instanceof Error ? err.message : String(err)
-        testStatusMessage.value = `Error: ${testTranscriptionError.value}`
-        console.error('STT test transcription error:', err)
-      }
-      finally {
-        isTranscribing.value = false
-        isTestingSTT.value = false
-      }
-    }
-  }
-})
+// Note: STT test transcription is now handled directly in onStopRecord handler above
+// This watch is kept for potential future use but is no longer needed for STT tests
 
 watch(selectedAudioInput, async () => isMonitoring.value && await setupAudioMonitoring())
 
@@ -469,6 +468,14 @@ onUnmounted(() => {
   stopSTTTest()
   stopAudioMonitoring()
   disposeVAD()
+
+  // Clean up any active transcription sessions when leaving the page
+  // This prevents stale sessions from interfering with other pages
+  if (shouldUseStreamInput.value) {
+    stopStreamingTranscription(true, activeTranscriptionProvider.value).catch((err) => {
+      console.warn('[Hearing Module] Error cleaning up transcription session on unmount:', err)
+    })
+  }
 
   audioCleanups.value.forEach(cleanup => cleanup())
 })

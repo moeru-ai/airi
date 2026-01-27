@@ -435,7 +435,7 @@ pages:
                 api-key:
                   label: APIキー
                   description: このプロバイダへのリクエストを承認するために使用されるAPIキー
-                  placeholder: sk-...
+                  placeholder: sk-…
                 base-url:
                   label: ベースURL
                   description: >-
@@ -640,7 +640,7 @@ pages:
         description: OpenAI互換
         title: OpenAI互換
       n1n:
-        description: n1n.ai - High-performance AI API provider.
+        description: n1n.ai - 高性能なAI APIプロバイダー。
         title: n1n
       openrouter:
         description: openrouter.ai
@@ -700,11 +700,11 @@ pages:
           title: 文字起こし実験場
     title: プロバイダー
   connection:
-    description: Configure WebSocket server connection
-    title: Connection
+    description: WebSocketサーバー接続の設定
+    title: 接続
     websocket-url:
-      description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
-      label: WebSocket Server Address
+      description: 'WebSocket サーバーの完全なアドレス (例: ws://localhost:6121/ws)'
+      label: WebSocket サーバーアドレス
       placeholder: ws://localhost:6121/ws
   scene:
     description: キャラクターが過ごす環境を設定する

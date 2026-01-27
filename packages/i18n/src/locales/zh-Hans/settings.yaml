@@ -719,7 +719,7 @@ pages:
     general:
       description: 深色主题、语言等选项
       title: 通用
-    description: 自定义你的舞台外观！
+    description: 自定义你的舞台！
     sections:
       section:
         custom-color:
@@ -743,6 +743,41 @@ pages:
               use-magic-keys:
                 title: useMagicKeys
                 description: 测试快捷键
+              audio-record:
+                title: 音频录制
+                description: 测试音频相关逻辑
+              background-gradient-blending:
+                title: 背景主题颜色混合
+                description: 测试混合与主题
+              background-removal:
+                title: 背景移除 (需要 WebGPU)
+                description: 背景移除工具
+              chat:
+                title: 聊天
+                description: 聊天测试
+              gesture-circle:
+                title: 手势圈 (仅限桌面端)
+                description: 测试手势识别
+              image:
+                title: 图像
+                description: 图像测试
+              polaroid:
+                title: 拍立得
+                description: 拍摄模型照片的工具
+              context-flow:
+                description: 检查传入的上下文更新和传出的聊天流事件
+              websocket-inspector:
+                title: WebSocket 检查器
+                description: 检查原始 WebSocket 流量
+              vibrant:
+                title: 颜色提取
+                description: 测试颜色提取
+              providers-transcription-realtime-aliyun-nls:
+                title: 阿里云实时转写
+                description: 将麦克风音频流式传输到阿里云 NLS 并检查实时转写
+              performance-playground:
+                title: 性能游乐场
+                description: '测试性能运行时：VRM 表情 + TTS 口型同步'
         theme-presets:
           presets:
             default:
@@ -812,7 +847,7 @@ pages:
                 中国传统色彩，源自古代纺织品、瓷器和绘画
               title: 中国传统颜色
           title: 预设
-    title: 外观
+    title: 系统
   page:
     developers:
       open-devtools:

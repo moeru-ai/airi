@@ -68,6 +68,7 @@ catalog:
   idb-keyval: ^6.2.2
   injeca: ^0.1.7
   is-network-error: ^1.3.0
+  knip: ^5.82.1
   nano-staged: ^0.9.0
   nanoid: 5.1.6
   ofetch: ^1.5.1
@@ -81,6 +82,7 @@ catalog:
   unplugin-info: ^1.2.4
   unstorage: ^1.17.4
   valibot: 1.2.0
+  vite: ^8.0.0-beta.9
   vite-plugin-mkcert: ^1.17.9
   vue: ^3.5.25
   vue-sonner: 2.0.9
@@ -88,8 +90,6 @@ catalog:
   zod: ^4.3.5
 
 catalogs:
-  rolldown-vite:
-    vite: npm:rolldown-vite@^7.3.1
   vitest:
     '@vitest/browser-playwright': ^4.0.17
     '@vitest/coverage-v8': ^4.0.17

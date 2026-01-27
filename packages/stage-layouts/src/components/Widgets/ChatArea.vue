@@ -49,8 +49,18 @@ const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!strea
 let autoSendTimeout: ReturnType<typeof setTimeout> | undefined
 const pendingAutoSendText = ref('')
 
+function clearPendingAutoSend() {
+  if (autoSendTimeout) {
+    clearTimeout(autoSendTimeout)
+    autoSendTimeout = undefined
+  }
+  pendingAutoSendText.value = ''
+}
+
 async function debouncedAutoSend(text: string) {
+  // Double-check auto-send is enabled before proceeding
   if (!autoSendEnabled.value) {
+    clearPendingAutoSend()
     return
   }
 
@@ -64,6 +74,12 @@ async function debouncedAutoSend(text: string) {
 
   // Set new timeout
   autoSendTimeout = setTimeout(async () => {
+    // Final check before sending - auto-send might have been disabled while waiting
+    if (!autoSendEnabled.value) {
+      clearPendingAutoSend()
+      return
+    }
+
     const textToSend = pendingAutoSendText.value.trim()
     if (textToSend && autoSendEnabled.value) {
       try {
@@ -259,6 +275,8 @@ async function startListening() {
     if (!shouldUseStreamInput.value) {
       const errorMsg = 'Streaming input not supported by the selected transcription provider. Please select a provider that supports streaming (e.g., Web Speech API).'
       console.warn('[ChatArea]', errorMsg)
+      // Clean up any existing sessions from other pages (e.g., test page) that might interfere
+      await stopStreamingTranscription(true)
       isListening.value = false
       return
     }
@@ -276,14 +294,18 @@ async function startListening() {
             messageInput.value = currentText ? `${currentText} ${delta}` : delta
             console.info('[ChatArea] Received transcription delta:', delta)
 
-            // Auto-send if enabled
+            // Auto-send if enabled - check the current value (not captured in closure)
+            // This ensures we always respect the current setting, even if callbacks are reused
             if (autoSendEnabled.value) {
               debouncedAutoSend(delta)
             }
+            else {
+              // If auto-send is disabled, clear any pending auto-send text to prevent accidental sends
+              clearPendingAutoSend()
+            }
           }
         },
-        // Don't use onSpeechEnd - it re-adds text that users may have deleted
-        // onSentenceEnd handles all text updates as transcription happens
+        // Omit onSpeechEnd to avoid re-adding user-deleted text; use sentence deltas only.
       })
 
       // Only set listening to true if transcription started successfully
@@ -311,10 +333,7 @@ async function stopListening() {
     console.info('[ChatArea] Stopping transcription...')
 
     // Clear auto-send timeout
-    if (autoSendTimeout) {
-      clearTimeout(autoSendTimeout)
-      autoSendTimeout = undefined
-    }
+    clearPendingAutoSend()
 
     // Send any pending text immediately if auto-send is enabled
     if (autoSendEnabled.value && pendingAutoSendText.value.trim()) {
@@ -365,6 +384,15 @@ watch(stream, async (val) => {
   else if (!val && isListening.value) {
     // Stream was lost, stop transcription
     await stopListening()
+  }
+})
+
+// Watch for auto-send setting changes and clear pending sends if disabled
+watch(autoSendEnabled, (enabled) => {
+  if (!enabled) {
+    // Auto-send was disabled - clear any pending auto-send
+    clearPendingAutoSend()
+    console.info('[ChatArea] Auto-send disabled, cleared pending text')
   }
 })
 </script>
