@@ -243,6 +243,18 @@ export const useProvidersStore = defineStore('providers', () => {
     }
     return null
   })
+  const parseJsonResponse = async (response: Response) => {
+    const text = await response.text()
+    if (!text) {
+      return { data: null, text, error: undefined }
+    }
+    try {
+      return { data: JSON.parse(text), text, error: undefined }
+    }
+    catch (error) {
+      return { data: null, text, error: error instanceof Error ? error : new Error(String(error)) }
+    }
+  }
 
   async function isBrowserAndMemoryEnough() {
     if (isStageTamagotchi())
@@ -305,12 +317,21 @@ export const useProvidersStore = defineStore('providers', () => {
           }
 
           const response = await fetch(`${config.baseUrl as string}chat/completions`, { headers: { Authorization: `Bearer ${config.apiKey}` }, method: 'POST', body: `{"model": "test","messages": [{"role": "user","content": "Hello, world"}],"stream": false}` })
-          const responseJson = await response.json()
-
-          if (!responseJson.user_id) {
+          const { data, error } = await parseJsonResponse(response)
+          if (error) {
             return {
-              errors: [new Error(`OpenRouterError: ${responseJson.error.message}`)],
-              reason: `OpenRouterError: ${responseJson.error.message}`,
+              errors: [error],
+              reason: `Failed to parse OpenRouter response: ${error.message}`,
+              valid: false,
+            }
+          }
+
+          const responseJson = data as { user_id?: string, error?: { message?: string } } | null
+          if (!response.ok || !responseJson?.user_id) {
+            const message = responseJson?.error?.message || response.statusText || 'Unknown error'
+            return {
+              errors: [new Error(`OpenRouterError: ${message}`)],
+              reason: `OpenRouterError: ${message}`,
               valid: false,
             }
           }
@@ -601,8 +622,14 @@ export const useProvidersStore = defineStore('providers', () => {
               throw new Error(`LM Studio server returned non-ok status code: ${response.statusText}`)
             }
 
-            const data = await response.json()
-            return data.data.map((model: any) => ({
+            const { data, error } = await parseJsonResponse(response)
+            if (error) {
+              throw error
+            }
+            if (!data || typeof data !== 'object' || !Array.isArray((data as { data?: unknown[] }).data)) {
+              throw new Error('LM Studio server returned invalid JSON response.')
+            }
+            return (data as { data: any[] }).data.map((model: any) => ({
               id: model.id,
               name: model.id,
               provider: 'lm-studio',
@@ -1495,8 +1522,14 @@ export const useProvidersStore = defineStore('providers', () => {
           if (!response.ok) {
             throw new Error(`Failed to fetch voices: ${response.statusText}`)
           }
-          const voices = await response.json()
-          return Object.keys(voices).map((voice: any) => {
+          const { data, error } = await parseJsonResponse(response)
+          if (error) {
+            throw error
+          }
+          if (!data || typeof data !== 'object') {
+            throw new Error('Index-TTS server returned invalid JSON response.')
+          }
+          return Object.keys(data as Record<string, unknown>).map((voice: any) => {
             return {
               id: voice,
               name: voice,
@@ -2085,56 +2118,71 @@ export const useProvidersStore = defineStore('providers', () => {
       capabilities: {
         listVoices: async (config) => {
           const baseUrl = (config.baseUrl as string).endsWith('/') ? (config.baseUrl as string).slice(0, -1) : config.baseUrl as string
-          return await fetch(`${baseUrl}/tts/voices`).then(res => res.json()).then(({ voices }) => (voices as { id: string, language: 'american_english' | 'british_english' | 'japanese' | 'mandarin_chinese' | 'spanish' | 'french' | 'hindi' | 'italian' | 'brazilian_portuguese', name: string, gender: string }[]).map(({ id, language, name, gender }) => (
-            {
-
-              id,
-              name,
-              provider: 'player2-speech',
-              gender,
-              languages: [{
-                american_english: {
-                  code: 'en',
-                  title: 'English',
-                },
-                british_english: {
-                  code: 'en',
-                  title: 'English',
-                },
-                japanese: {
-                  code: 'ja',
-                  title: 'Japanese',
-                },
-                mandarin_chinese: {
-                  code: 'zh',
-                  title: 'Chinese',
-                },
-                spanish: {
-                  code: 'es',
-                  title: 'Spanish',
-                },
-                french: {
-                  code: 'fr',
-                  title: 'French',
-                },
-                hindi: {
-                  code: 'hi',
-                  title: 'Hindi',
-                },
-
-                italian: {
-                  code: 'it',
-                  title: 'Italian',
-                },
-                brazilian_portuguese:
-                {
-                  code: 'pt',
-                  title: 'Portuguese',
-                },
-
-              }[language]],
+          try {
+            const response = await fetch(`${baseUrl}/tts/voices`)
+            if (!response.ok) {
+              throw new Error(`Player 2 returned non-ok status code: ${response.statusText}`)
             }
-          )))
+            const { data, error } = await parseJsonResponse(response)
+            if (error) {
+              throw error
+            }
+            const voices = (data as { voices?: unknown }).voices
+            if (!Array.isArray(voices)) {
+              throw new TypeError('Player 2 returned invalid voice list.')
+            }
+            return (voices as { id: string, language: 'american_english' | 'british_english' | 'japanese' | 'mandarin_chinese' | 'spanish' | 'french' | 'hindi' | 'italian' | 'brazilian_portuguese', name: string, gender: string }[]).map(({ id, language, name, gender }) => (
+              {
+                id,
+                name,
+                provider: 'player2-speech',
+                gender,
+                languages: [{
+                  american_english: {
+                    code: 'en',
+                    title: 'English',
+                  },
+                  british_english: {
+                    code: 'en',
+                    title: 'English',
+                  },
+                  japanese: {
+                    code: 'ja',
+                    title: 'Japanese',
+                  },
+                  mandarin_chinese: {
+                    code: 'zh',
+                    title: 'Chinese',
+                  },
+                  spanish: {
+                    code: 'es',
+                    title: 'Spanish',
+                  },
+                  french: {
+                    code: 'fr',
+                    title: 'French',
+                  },
+                  hindi: {
+                    code: 'hi',
+                    title: 'Hindi',
+                  },
+                  italian: {
+                    code: 'it',
+                    title: 'Italian',
+                  },
+                  brazilian_portuguese:
+                  {
+                    code: 'pt',
+                    title: 'Portuguese',
+                  },
+                }[language]],
+              }
+            ))
+          }
+          catch (error) {
+            console.error('Error fetching Player2 voices:', error)
+            return []
+          }
         },
       },
       validators: {
