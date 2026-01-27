@@ -11,7 +11,7 @@
 
 stdenvNoCC.mkDerivation (final: {
   pname = "airi";
-  version = "0.8.0-alpha.6";
+  version = (builtins.fromJSON (builtins.readFile ../package.json)).version;
 
   src = ../.;
 
