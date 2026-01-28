@@ -34,10 +34,7 @@ async function handleSignIn(provider: OAuthProvider) {
 onMounted(() => {
   fetchSession()
     .then((authenticated) => {
-      if (authenticated) {
-        router.replace('/')
-      }
-      else if (!isDesktop.value) {
+      if (authenticated || !isDesktop.value) {
         router.replace('/')
       }
     })
