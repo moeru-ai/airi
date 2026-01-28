@@ -18,6 +18,7 @@ import type {
   VoiceProviderWithExtraOptions,
 } from 'unspeech'
 
+import type { KokoroQuantization } from '../workers/kokoro/constants'
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
@@ -60,6 +61,9 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import kokoroVoices from '../data/kokoro-voices.json'
+
+import { KOKORO_DEFAULT_VOICE, KOKORO_MODELS } from '../workers/kokoro/constants'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
@@ -2150,6 +2154,112 @@ export const useProvidersStore = defineStore('providers', () => {
           const res = baseUrlValidator.value(config.baseUrl)
           if (res) {
             return res
+          }
+
+          return {
+            errors: [],
+            reason: '',
+            valid: true,
+          }
+        },
+      },
+    },
+    'kokoro-local': {
+      id: 'kokoro-local',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      nameKey: 'settings.pages.providers.provider.kokoro-local.title',
+      name: 'Kokoro TTS',
+      descriptionKey: 'settings.pages.providers.provider.kokoro-local.description',
+      description: 'Local text-to-speech using Kokoro-82M.',
+      icon: 'i-lobe-icons:speaker',
+
+      defaultOptions: () => {
+        // Feature detection for WebGPU availability
+        const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu
+        const defaultQuantization = hasWebGPU ? 'fp32-webgpu' : 'q4f16'
+
+        return {
+          quantization: defaultQuantization,
+          voiceId: KOKORO_DEFAULT_VOICE,
+        }
+      },
+
+      createProvider: async (config) => {
+        // Import the worker manager
+        const { getKokoroWorker } = await import('../workers/kokoro')
+        const workerManager = getKokoroWorker()
+
+        // Get quantization from config, default to q4f16
+        const quantization = ((config.quantization as string) || 'q4f16') as KokoroQuantization
+
+        // Detect actual WebGPU availability (in case it changed since initialization)
+        const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu
+
+        // Determine device based on quantization
+        let device: 'wasm' | 'cpu' | 'webgpu' = 'wasm'
+        if (quantization === 'fp32-webgpu') {
+          device = hasWebGPU ? 'webgpu' : 'wasm'
+        }
+
+        // Pre-load the model in the worker (non-blocking)
+        workerManager.loadModel(quantization, device).catch((error) => {
+          console.error('Failed to preload Kokoro model:', error)
+        })
+
+        const provider: SpeechProvider = {
+          speech: () => {
+            return {
+              baseURL: 'http://kokoro-local/v1/',
+              model: 'kokoro-82m',
+              fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
+                try {
+                  // Parse OpenAI-compatible request body
+                  if (!init?.body || typeof init.body !== 'string') {
+                    throw new Error('Invalid request body')
+                  }
+                  const body = JSON.parse(init.body)
+                  const text = body.input
+                  const voice = body.voice || KOKORO_DEFAULT_VOICE
+
+                  // Generate audio in the worker thread
+                  const buffer = await workerManager.generate(text, voice, quantization, device)
+
+                  return new Response(buffer, {
+                    status: 200,
+                    headers: {
+                      'Content-Type': 'audio/wav',
+                    },
+                  })
+                }
+                catch (error) {
+                  console.error('Kokoro TTS generation failed:', error)
+                  throw error
+                }
+              },
+            }
+          },
+        }
+
+        return provider
+      },
+
+      capabilities: {
+        listVoices: async () => {
+          return kokoroVoices.voices
+        },
+      },
+
+      validators: {
+        validateProviderConfig: async (config: any) => {
+          const quantization = config.quantization as string
+
+          if (quantization && !KOKORO_MODELS.some(m => m.id === quantization)) {
+            return {
+              errors: [new Error(`Invalid quantization: ${quantization}`)],
+              reason: `Invalid quantization. Must be one of: ${KOKORO_MODELS.map(m => m.id).join(', ')}`,
+              valid: false,
+            }
           }
 
           return {

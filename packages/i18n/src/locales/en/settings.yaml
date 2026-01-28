@@ -627,6 +627,25 @@ pages:
           validation:
             error-missing-api-key: Please enter an API key to test the voice.
         title: ElevenLabs
+      kokoro-local:
+        description: Local text-to-speech using Kokoro-82M.
+        fields:
+          field:
+            quantization:
+              label: Model Quantization
+              description: Smaller models load faster but may have slightly lower quality.
+              download: Model downloads on first use (try it twice to see actual performance)
+              options:
+                fp32-webgpu: fp32 (WebGPU - Recommended)
+                q4f16: q4f16
+                q4: q4
+                q8: q8
+                fp16: fp16
+                fp32: fp32
+        playground:
+          default-text: Hello! This is a test of the Kokoro text-to-speech system.
+          title: Voice Playground
+        title: Kokoro TTS (Local)
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai
