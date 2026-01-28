@@ -407,9 +407,7 @@ watch(autoSendEnabled, (enabled) => {
       ]"
     >
       <BasicTextarea
-        id="chat-message-input"
         v-model="messageInput"
-        name="chatMessage"
         :placeholder="t('stage.message')"
         text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
         bg="transparent"
