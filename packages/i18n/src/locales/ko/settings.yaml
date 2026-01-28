@@ -903,6 +903,10 @@ vrm:
   skybox:
     skybox-intensity: SkyBox Intensity
     skybox-specular-mix: Specular Mix
+websocket-secure-enabled:
+  title: 보안 WebSocket (WSS) 활성화
+  description: >-
+    개발 모드에서 모바일(pocket)의 HTTPS 연결을 허용하기 위해 WSS(WebSocket Secure)를 활성화합니다. 자체 서명 인증서가 자동으로 생성됩니다.
 wip:
   title: Work in Progress
   description: >-

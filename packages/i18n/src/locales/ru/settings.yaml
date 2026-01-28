@@ -903,6 +903,10 @@ vrm:
   skybox:
     skybox-intensity: SkyBox Intensity
     skybox-specular-mix: Specular Mix
+websocket-secure-enabled:
+  title: Включить безопасный WebSocket (WSS)
+  description: >-
+    Включите WSS (WebSocket Secure), чтобы разрешить HTTPS-подключения для мобильных устройств (pocket) в режиме разработки. Это автоматически сгенерирует самоподписанный сертификат.
 wip:
   title: Work in Progress
   description: >-

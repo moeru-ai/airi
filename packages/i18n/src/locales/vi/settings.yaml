@@ -903,6 +903,10 @@ vrm:
   skybox:
     skybox-intensity: Cường Độ SkyBox
     skybox-specular-mix: Độ Trộn Phản Chiếu
+websocket-secure-enabled:
+  title: Bật WebSocket Bảo Mật (WSS)
+  description: >-
+    Bật WSS (WebSocket Secure) để cho phép kết nối HTTPS cho di động (pocket) trong chế độ phát triển. Điều này sẽ tự động tạo chứng chỉ tự ký.
 wip:
   title: Work in Progress
   description: >-

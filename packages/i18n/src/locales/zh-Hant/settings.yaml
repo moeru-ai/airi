@@ -903,6 +903,10 @@ vrm:
   skybox:
     skybox-intensity: 天空盒光照強度
     skybox-specular-mix: 漫反射／鏡面反射混合係數
+websocket-secure-enabled:
+  title: 啟用安全 WebSocket (WSS)
+  description: >-
+    啟用 WSS（WebSocket Secure）以允許開發模式下行動裝置（pocket）的 HTTPS 連線。這將自動產生自簽名憑證。
 wip:
   title: Work in Progress
   description: >-

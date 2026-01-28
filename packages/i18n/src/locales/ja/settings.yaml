@@ -903,6 +903,10 @@ vrm:
   skybox:
     skybox-intensity: スカイボックスの強度
     skybox-specular-mix: 鏡面反射の混合
+websocket-secure-enabled:
+  title: セキュア WebSocket (WSS) を有効にする
+  description: >-
+    開発モードでモバイル（pocket）のHTTPS接続を許可するために、WSS（WebSocket Secure）を有効にします。これにより自己署名証明書が自動的に生成されます。
 wip:
   title: 開発中
   description: >-
