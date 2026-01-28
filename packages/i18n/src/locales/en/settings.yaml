@@ -930,6 +930,10 @@ vrm:
   skybox:
     skybox-intensity: SkyBox Intensity
     skybox-specular-mix: Specular Mix
+websocket-secure-enabled:
+  title: Enable Secure WebSocket (WSS)
+  description: >-
+    Enable WSS (WebSocket Secure) to allow HTTPS connections for mobile (pocket) in development mode. This will automatically generate a self-signed certificate.
 wip:
   title: Work in Progress
   description: >-

@@ -31,6 +31,8 @@ export const useSettingsGeneral = defineStore('settings-general', () => {
   const disableTransitions = useLocalStorageManualReset<boolean>('settings/disable-transitions', true)
   const usePageSpecificTransitions = useLocalStorageManualReset<boolean>('settings/use-page-specific-transitions', true)
 
+  const websocketSecureEnabled = useLocalStorageManualReset<boolean>('settings/websocket/secure-enabled', false)
+
   function getLanguage() {
     let language = localStorage.getItem('settings/language')
 
@@ -53,6 +55,7 @@ export const useSettingsGeneral = defineStore('settings-general', () => {
     language.reset()
     disableTransitions.reset()
     usePageSpecificTransitions.reset()
+    websocketSecureEnabled.reset()
   }
 
   onMounted(() => language.value = getLanguage())
@@ -61,6 +64,7 @@ export const useSettingsGeneral = defineStore('settings-general', () => {
     language,
     disableTransitions,
     usePageSpecificTransitions,
+    websocketSecureEnabled,
     getLanguage,
     resetState,
   }

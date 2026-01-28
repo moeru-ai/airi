@@ -8,7 +8,8 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
-import { electronOpenDevtoolsWindow, electronOpenSettingsDevtools } from '../../../../shared/eventa'
+import { electronOpenDevtoolsWindow, electronOpenSettingsDevtools, electronRestartWebSocketServer } from '../../../../shared/eventa'
+import { restartServerChannel } from '../../../services/airi/channel-server'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { createAutoUpdaterService, createScreenService, createWindowService } from '../../../services/electron'
 
@@ -33,5 +34,8 @@ export async function setupSettingsWindowInvokes(params: {
   defineInvokeHandler(context, electronOpenSettingsDevtools, async () => params.settingsWindow.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenDevtoolsWindow, async (payload) => {
     await params.devtoolsMarkdownStressWindow.openWindow(payload?.route)
+  })
+  defineInvokeHandler(context, electronRestartWebSocketServer, async (req) => {
+    await restartServerChannel({ websocketSecureEnabled: req?.websocketSecureEnabled })
   })
 }
