@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MarkdownRenderer } from '@proj-airi/stage-ui/components'
+import { AboutContent, MarkdownRenderer } from '@proj-airi/stage-ui/components'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics/index'
 import { Button, DoubleCheckButton, Progress } from '@proj-airi/ui'
 import { useMediaQuery } from '@vueuse/core'
@@ -68,16 +68,7 @@ const releaseNotesContent = computed(() => {
     ]"
   >
     <div :class="['mx-auto max-w-[min(960px,calc(100%-2rem))]', 'px-6 py-20']">
-      <!-- Header -->
-      <div :class="['mb-14', 'text-center', 'font-sans-rounded']">
-        <div :class="['text-5xl']">
-          <span :class="['text-neutral-400 dark:text-neutral-100/65']">Project</span>
-          <span :class="['text-pink-400 dark:text-pink-300/90']"> AIRI</span>
-        </div>
-        <div :class="['mt-2 text-base text-neutral-500 dark:text-neutral-400']">
-          Desktop ver.
-        </div>
-      </div>
+      <AboutContent title="Project" highlight="AIRI" subtitle="Desktop ver." />
 
       <!-- Main Content Card -->
       <div :class="['mb-12', 'rounded-2xl', 'bg-white/50 dark:bg-black/20', 'p-6', 'backdrop-blur-sm']">

@@ -31,10 +31,12 @@ const hasBuildInfo = computed(() => {
 
 <template>
   <div :class="['max-w-[min(960px,calc(100%-2rem))]', 'mx-auto', 'h-full', 'flex', 'flex-col', 'pt-14']">
-    <div :class="['mb-14', 'text-center', 'text-5xl', 'font-sans-rounded']">
-      <span :class="['text-neutral-400 dark:text-neutral-100/65']">{{ title }}</span>
-      <span :class="['text-pink-400 dark:text-pink-300/90']"> {{ highlight }}</span>
-      <div v-if="subtitle" :class="['mt-2 text-base']">
+    <div class="mb-14 text-center font-sans-rounded">
+      <div class="text-5xl">
+        <span class="text-neutral-400 dark:text-neutral-100/65">{{ title }}</span>
+        <span class="text-pink-400 dark:text-pink-300/90">&nbsp;{{ highlight }}</span>
+      </div>
+      <div v-if="subtitle" class="mt-2 text-base text-neutral-500 dark:text-neutral-400">
         {{ subtitle }}
       </div>
     </div>

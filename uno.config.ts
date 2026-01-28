@@ -108,7 +108,6 @@ export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<str
     'comfortaa': {
       name: provider === 'fontsource' ? 'Comfortaa' : 'Comfortaa Variable',
       provider,
-      subsets: ['cyrillic'],
     },
     'm-plus-rounded': {
       name: 'M PLUS Rounded 1c',
