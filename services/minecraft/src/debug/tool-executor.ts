@@ -3,10 +3,8 @@ import type { ZodObject, ZodType } from 'zod'
 import type { Mineflayer } from '../libs/mineflayer'
 import type { ToolDefinition, ToolParameter } from './types'
 
+import { actionsList } from '../cognitive/action/llm-actions'
 import { DebugService } from './debug-service'
-
-// Legacy tools removed - providing empty list for now
-const actionsList: Array<{ name: string, description: string, schema: any, perform: any }> = []
 
 export class ToolExecutor {
   private mineflayer: Mineflayer
