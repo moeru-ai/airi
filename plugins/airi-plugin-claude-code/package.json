@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/airi-plugin-claude-code",
   "type": "module",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "private": true,
   "description": "manifest.json description",
   "bin": {
