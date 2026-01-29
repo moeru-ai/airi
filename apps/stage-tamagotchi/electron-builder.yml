@@ -12,6 +12,7 @@ files:
   - '!**/.vscode/*'
   - '!src/**/*'
   - '!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}'
+  - '!**/node_modules/**/{.turbo,test,__tests__,tests,example,examples}'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!vite.config.{js,ts,mjs,cjs}'
   - '!uno.config.{js,ts,mjs,cjs}'
