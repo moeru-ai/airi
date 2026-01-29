@@ -6,6 +6,7 @@ import {
   SpeechPlaygroundOpenAICompatible,
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
+import { useProviderConfig } from '@proj-airi/stage-ui/composables/use-provider-config'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
@@ -83,8 +84,12 @@ watch(
   { deep: true, immediate: true },
 )
 
-// Check if API key is configured
-const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+// Check if API key is configured (required for voice dropdown to work)
+// The voice loading logic already validates the full config (API key + base URL)
+const { apiKeyConfigured } = useProviderConfig(providerId, {
+  requireApiKey: true,
+  requireBaseUrl: true,
+})
 
 // Ensure provider config is initialized on mount
 onMounted(() => {

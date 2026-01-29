@@ -7,7 +7,7 @@ import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 
 import vadWorkletUrl from '../../workers/vad/process.worklet?worker&url'
 
@@ -49,6 +49,27 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const providersStore = useProvidersStore()
   const { allAudioTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
+  function getDefaultModelForProvider(providerId: string, providerConfig?: Record<string, unknown>) {
+    // Keep defaults deterministic and provider-specific so switching providers
+    // doesn't keep an incompatible model from a previous provider.
+    //
+    // TODO: Refactor to provider-owned defaults (e.g. provider metadata/defaultOptions),
+    // so these hard-coded defaults don't drift from provider implementations.
+    switch (providerId) {
+      case 'openai-audio-transcription':
+      case 'openai-compatible-audio-transcription':
+        // TODO: Use provider-provided default model (likely from provider metadata / schema defaults).
+        return typeof providerConfig?.model === 'string' && providerConfig.model.trim()
+          ? providerConfig.model.trim()
+          : 'whisper-1'
+      case 'browser-web-speech-api':
+        // TODO: Use provider-provided default model (likely from provider metadata / schema defaults).
+        return 'web-speech-api'
+      default:
+        return ''
+    }
+  }
+
   // State
   const activeTranscriptionProvider = useLocalStorageManualReset('settings/hearing/active-provider', '')
   const activeTranscriptionModel = useLocalStorageManualReset('settings/hearing/active-model', '')
@@ -76,6 +97,32 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const activeProviderModelError = computed(() => {
     return providersStore.modelLoadError[activeTranscriptionProvider.value] || null
   })
+
+  // Ensure we don't keep an incompatible model when switching providers
+  watch(activeTranscriptionProvider, (newProvider: string) => {
+    if (!newProvider)
+      return
+
+    const models = providersStore.getModelsForProvider(newProvider)
+    const providerConfig = providersStore.getProviderConfig(newProvider)
+    const desiredDefault = getDefaultModelForProvider(newProvider, providerConfig)
+
+    const isModelValidForProvider = !!activeTranscriptionModel.value
+      && (models.length === 0 || models.some(m => m.id === activeTranscriptionModel.value))
+
+    if (!isModelValidForProvider) {
+      activeTranscriptionModel.value = desiredDefault || models[0]?.id || ''
+    }
+
+    // Clear custom model name when switching away from providers that use manual input.
+    if (newProvider !== 'openai-compatible-audio-transcription') {
+      activeCustomModelName.value = ''
+    }
+    else {
+      // Keep custom model name in sync for OpenAI-compatible (manual input)
+      activeCustomModelName.value = activeTranscriptionModel.value
+    }
+  }, { immediate: true })
 
   async function loadModelsForProvider(provider: string) {
     if (provider && providersStore.getProviderMetadata(provider)?.capabilities.listModels !== undefined) {

@@ -48,7 +48,7 @@ const routeHeaderMetadata = computed(() => {
 
   if (resolvedTitle || resolvedSubtitle) {
     return {
-      title: resolvedTitle,
+      title: resolvedTitle || '',
       subtitle: resolvedSubtitle,
     }
   }
@@ -90,8 +90,9 @@ onMounted(() => updateThemeColor())
     <!-- Content -->
     <div class="max-h-[calc(100%-40px)] px-3 py-0 sm:max-h-[calc(100%-56px)] 2xl:max-w-screen-2xl md:py-0 xl:px-4" flex="~ col" mx-auto h-full>
       <PageHeader
-        :title="routeHeaderMetadata?.title || ''"
-        :subtitle="routeHeaderMetadata?.subtitle"
+        v-if="routeHeaderMetadata && routeHeaderMetadata.title"
+        :title="routeHeaderMetadata.title"
+        :subtitle="routeHeaderMetadata.subtitle"
         :disable-back-button="route.path === '/settings'"
       />
       <RouterView />

@@ -5,6 +5,7 @@ import {
   SpeechPlayground,
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
+import { useProviderConfig } from '@proj-airi/stage-ui/composables/use-provider-config'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
@@ -19,7 +20,9 @@ const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore)
 
-const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+// Check if API key is configured (required for voice dropdown to work)
+// The voice loading logic already validates the full config (API key + base URL)
+const { apiKeyConfigured } = useProviderConfig(providerId)
 
 const availableVoices = computed(() => {
   return speechStore.availableVoices[providerId] || []

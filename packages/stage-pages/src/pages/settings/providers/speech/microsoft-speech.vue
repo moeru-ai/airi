@@ -6,6 +6,7 @@ import {
   SpeechPlayground,
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
+import { useProviderConfig } from '@proj-airi/stage-ui/composables/use-provider-config'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldInput, FieldRange } from '@proj-airi/ui'
@@ -44,8 +45,9 @@ const region = computed({
   },
 })
 
-// Check if API key is configured
-const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+// Check if API key is configured (required for voice dropdown to work)
+// The voice loading logic already validates the full config (API key + base URL)
+const { apiKeyConfigured } = useProviderConfig(providerId)
 
 // Get available voices for Microsoft Speech
 const availableVoices = computed(() => {
@@ -63,11 +65,25 @@ onMounted(async () => {
       providers.value[providerId].region = region.value
   }
 
-  await speechStore.loadVoicesForProvider(providerId)
+  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerMetadata = providersStore.getProviderMetadata(providerId)
+  if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
+    await speechStore.loadVoicesForProvider(providerId)
+  }
+  else {
+    console.error('Failed to validate provider config', providerConfig)
+  }
 })
 
 watch([apiKeyConfigured, region], async () => {
-  await speechStore.loadVoicesForProvider(providerId)
+  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerMetadata = providersStore.getProviderMetadata(providerId)
+  if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
+    await speechStore.loadVoicesForProvider(providerId)
+  }
+  else {
+    console.error('Failed to validate provider config', providerConfig)
+  }
 })
 
 // Generate speech with Microsoft-specific parameters

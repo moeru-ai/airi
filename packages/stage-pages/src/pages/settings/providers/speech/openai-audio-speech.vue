@@ -5,6 +5,7 @@ import {
   SpeechPlayground,
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
+import { useProviderConfig } from '@proj-airi/stage-ui/composables/use-provider-config'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldRange, FieldSelect } from '@proj-airi/ui'
@@ -46,8 +47,9 @@ const isLoadingModels = computed(() => {
   return providersStore.isLoadingModels[providerId] || false
 })
 
-// Check if API key is configured
-const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+// Check if API key is configured (required for voice dropdown to work)
+// The voice loading logic already validates the full config (API key + base URL)
+const { apiKeyConfigured } = useProviderConfig(providerId)
 
 // Filter voices based on the selected model's compatibility
 const availableVoices = computed(() => {
