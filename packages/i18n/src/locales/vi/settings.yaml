@@ -172,7 +172,7 @@ pages:
         description: Remove imported Live2D/VRM models.
         delete: Delete all models
       modules:
-        title: Modules
+        title: Các Mô-Đun
         description: Reset module preferences and credentials.
         reset: Reset module settings
       providers:
@@ -188,7 +188,7 @@ pages:
         delete: Delete all data
       desktop:
         title: Reset desktop settings & states
-        description: Clear AIRI desktop settings and runtime state.
+        description: Xóa các cài đặt và trạng thái thực thi của AIRI trên máy tính.
         reset: Reset desktop data
     confirmations:
       tooltip: Are you sure?
