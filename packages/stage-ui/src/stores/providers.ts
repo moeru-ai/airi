@@ -2215,7 +2215,7 @@ export const useProvidersStore = defineStore('providers', () => {
     if (providerRuntimeState.value[providerId]) {
       providerRuntimeState.value[providerId].isConfigured = validationResult.valid
       // Auto-mark Web Speech API as added if valid and available
-      if (providerId === 'browser-web-speech-api' && validationResult.valid) {
+      if (validationResult.valid && (providerId === 'browser-web-speech-api' || providerId === 'player2')) {
         markProviderAdded(providerId)
       }
     }
