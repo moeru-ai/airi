@@ -246,7 +246,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       })
 
       let newMessages = sessionMessagesForSend.map((msg) => {
-        const { context: _context, ...withoutContext } = msg
+        const { context: _context, id: _id, ...withoutContext } = msg
         const rawMessage = toRaw(withoutContext)
 
         if (rawMessage.role === 'assistant') {
