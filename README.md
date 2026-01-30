@@ -173,12 +173,12 @@ A Nix package for Tamagotchi is included. To run airi with Nix, first make sure 
 nix run github:moeru-ai/airi
 ```
 
-### Stage Capacitor (Mobile Version)
+### Stage Pocket (Mobile Version)
 
 Start the development server for the capacitor web version:
 
 ```shell
-pnpm dev:capacitor
+pnpm dev:pocket
 ```
 
 Check your IP address in the output of the command above:
