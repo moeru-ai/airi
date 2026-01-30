@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
-import { ToasterRoot } from '@proj-airi/stage-ui/components'
+import { OnboardingDialog, ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -31,6 +31,7 @@ const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
+const { shouldShowSetup } = storeToRefs(onboardingStore)
 const router = useRouter()
 const route = useRoute()
 const cardStore = useAiriCardStore()
@@ -80,6 +81,14 @@ watch(themeColorsHueDynamic, () => {
 }, { immediate: true })
 
 onUnmounted(() => contextBridgeStore.dispose())
+
+function handleSetupConfigured() {
+  onboardingStore.markSetupCompleted()
+}
+
+function handleSetupSkipped() {
+  onboardingStore.markSetupSkipped()
+}
 </script>
 
 <template>
@@ -88,6 +97,11 @@ onUnmounted(() => contextBridgeStore.dispose())
   </ToasterRoot>
   <ResizeHandler />
   <RouterView />
+  <OnboardingDialog
+    v-model="shouldShowSetup"
+    @configured="handleSetupConfigured"
+    @skipped="handleSetupSkipped"
+  />
 </template>
 
 <style>
