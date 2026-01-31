@@ -66,12 +66,26 @@ export class KokoroWorkerManager {
     })
 
     this.worker.addEventListener('error', (event) => {
+      const error = new Error(event.message || 'An unknown worker error occurred')
+
+      // If a model load was pending, reject it
       if (this.loadReject) {
-        this.loadReject(new Error(event.message))
+        this.loadReject(error)
         this.loadReject = null
         this.loadResolve = null
         this.loadPromise = null
       }
+
+      // Reject any pending generation requests as well
+      this.pendingRequests.forEach((pending) => {
+        pending.reject(error)
+      })
+
+      this.pendingRequests.clear()
+
+      // Terminate the worker as it's in an unrecoverable state.
+      // A new worker will be initialized on the next 'loadModel' or 'generate' call.
+      this.terminate()
     })
   }
 
@@ -140,7 +154,7 @@ export class KokoroWorkerManager {
 // Global worker instance
 let globalWorkerManager: KokoroWorkerManager | null = null
 
-export function getKokoroWorker(): KokoroWorkerManager {
+export async function getKokoroWorker(): Promise<KokoroWorkerManager> {
   if (!globalWorkerManager) {
     globalWorkerManager = new KokoroWorkerManager()
   }

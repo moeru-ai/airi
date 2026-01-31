@@ -3,18 +3,20 @@
  * This file is imported as a Web Worker
  */
 
+import type { GenerateOptions } from 'kokoro-js'
+
 import type { KokoroQuantization } from './constants'
 
 import { KokoroTTS } from 'kokoro-js'
 
-let ttsModel: any = null
+let ttsModel: KokoroTTS | null = null
 let isLoading = false
 let currentQuantization: string | null = null
 let currentDevice: string | null = null
 
 interface GenerateRequest {
   text: string
-  voice: string
+  voice: GenerateOptions['voice']
   quantization: KokoroQuantization
   device: 'wasm' | 'cpu' | 'webgpu'
   requestId: number
@@ -51,8 +53,8 @@ async function loadModel(quantization: string, device: string) {
     ttsModel = await KokoroTTS.from_pretrained(
       'onnx-community/Kokoro-82M-v1.0-ONNX',
       {
-        dtype: modelQuantization as any,
-        device: device as any,
+        dtype: modelQuantization as 'fp32' | 'fp16' | 'q8' | 'q4' | 'q4f16',
+        device: device as 'wasm' | 'webgpu' | 'cpu',
       },
     )
 
@@ -68,7 +70,7 @@ async function loadModel(quantization: string, device: string) {
   catch (error) {
     globalThis.postMessage({
       status: 'error',
-      message: `Failed to load Kokoro TTS model: ${error}`,
+      message: `Failed to load Kokoro TTS model: ${error instanceof Error ? error.message : String(error)}`,
     })
   }
   finally {
@@ -83,6 +85,10 @@ async function generate(request: GenerateRequest) {
     // Ensure model is loaded with the correct settings
     if (!ttsModel || currentQuantization !== quantization || currentDevice !== device) {
       await loadModel(quantization, device)
+    }
+
+    if (!ttsModel) {
+      throw new Error('Failed to load TTS model')
     }
 
     globalThis.postMessage({
@@ -113,7 +119,7 @@ async function generate(request: GenerateRequest) {
   catch (error) {
     globalThis.postMessage({
       status: 'error',
-      message: `Kokoro TTS generation failed: ${error}`,
+      message: `Kokoro TTS generation failed: ${error instanceof Error ? error.message : String(error)}`,
       requestId,
     })
   }

@@ -2188,7 +2188,7 @@ export const useProvidersStore = defineStore('providers', () => {
       createProvider: async (config) => {
         // Import the worker manager
         const { getKokoroWorker } = await import('../workers/kokoro')
-        const workerManager = getKokoroWorker()
+        const workerManagerPromise = getKokoroWorker()
 
         // Get quantization from config, default to q4f16
         const quantization = ((config.quantization as string) || 'q4f16') as KokoroQuantization
@@ -2203,7 +2203,9 @@ export const useProvidersStore = defineStore('providers', () => {
         }
 
         // Pre-load the model in the worker (non-blocking)
-        workerManager.loadModel(quantization, device).catch((error) => {
+        workerManagerPromise.then(workerManager =>
+          workerManager.loadModel(quantization, device),
+        ).catch((error) => {
           console.error('Failed to preload Kokoro model:', error)
         })
 
@@ -2223,6 +2225,7 @@ export const useProvidersStore = defineStore('providers', () => {
                   const voice = body.voice || KOKORO_DEFAULT_VOICE
 
                   // Generate audio in the worker thread
+                  const workerManager = await workerManagerPromise
                   const buffer = await workerManager.generate(text, voice, quantization, device)
 
                   return new Response(buffer, {
