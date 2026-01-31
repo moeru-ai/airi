@@ -13,7 +13,7 @@ import icon from '../../resources/icon.png?asset'
 import { openDebugger, setupDebugger } from './app/debugger'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
-import { setupServerChannel } from './services/airi/channel-server'
+import { setupServerChannelHandlers } from './services/airi/channel-server'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
@@ -72,7 +72,7 @@ initScreenCaptureForMain()
 app.whenReady().then(async () => {
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
 
-  const serverChannel = injeca.provide('modules:channel-server', () => setupServerChannel())
+  const serverChannel = injeca.provide('modules:channel-server', () => setupServerChannelHandlers())
   const autoUpdater = injeca.provide('services:auto-updater', () => setupAutoUpdater())
   const widgetsManager = injeca.provide('windows:widgets', () => setupWidgetsWindowManager())
   const noticeWindow = injeca.provide('windows:notice', () => setupNoticeWindowManager())

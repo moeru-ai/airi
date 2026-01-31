@@ -1951,6 +1951,9 @@ importers:
       nanoid:
         specifier: 'catalog:'
         version: 5.1.6
+      srvx:
+        specifier: ^0.10.1
+        version: 0.10.1
 
   packages/server-sdk:
     dependencies:
