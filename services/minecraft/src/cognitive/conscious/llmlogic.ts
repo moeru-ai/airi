@@ -3,6 +3,7 @@ import type { Message, Tool } from '@xsai/shared-chat'
 import type { Action, Mineflayer } from '../../libs/mineflayer'
 
 import { zodToJsonSchema } from 'zod-to-json-schema'
+import { ZodError } from 'zod'
 
 export interface LLMConfig {
   baseURL: string
@@ -29,7 +30,7 @@ type JsonSchemaObject = Record<string, unknown>
 /**
  * Pure function to convert sync actions into streamText tool definitions
  */
-export function actionsToTools(actions: Action[], mineflayer: Mineflayer): Tool[] {
+export function actionsToFunctionCalls(actions: Action[], mineflayer: Mineflayer): Tool[] {
   return actions
     .filter(action => action.execution === 'sync')
     .map((action) => {
@@ -46,9 +47,19 @@ export function actionsToTools(actions: Action[], mineflayer: Mineflayer): Tool[
           strict: true,
         },
         execute: async (input: unknown) => {
-          const parsed = action.schema.parse(input) as Record<string, unknown>
+          let parsed: Record<string, unknown>
+          try {
+            parsed = action.schema.parse(input) as Record<string, unknown>
+          }
+          catch (err) {
+            if (err instanceof ZodError) {
+              return `Invalid parameters for action ${action.name}: ${err.issues.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`
+            }
+            return `Parameter validation failed for action ${action.name}: ${toErrorMessage(err)}`
+          }
           const args = argOrder.map(key => parsed[key])
-          return action.perform(mineflayer)(...args)
+
+          return await action.perform(mineflayer)(...args) // we don't expect actions to throw
         },
       }
     })
