@@ -183,6 +183,11 @@ export class DebugServer {
       return
     }
 
+    if (req.method === 'GET' && req.url?.startsWith('/api/logs')) {
+      this.handleLogsApi(req, res)
+      return
+    }
+
     if (req.method === 'GET' && (req.url === '/viewer' || req.url?.startsWith('/viewer?'))) {
       const html = createViewerHtml('http://localhost:3007')
       res.writeHead(200, {
@@ -338,13 +343,19 @@ export class DebugServer {
   }
 
   private persistEvent(event: ServerEvent): void {
-    if (this.logStream) {
-      try {
-        this.logStream.write(`${JSON.stringify(event)}\n`)
-      }
-      catch (err) {
-        console.error('Failed to write to log file', err)
-      }
+    const persistableTypes: ServerEvent['type'][] = ['log', 'llm', 'blackboard', 'queue', 'trace', 'trace_batch', 'reflex']
+
+    if (!persistableTypes.includes(event.type))
+      return
+
+    if (!this.logStream)
+      return
+
+    try {
+      this.logStream.write(`${JSON.stringify(event)}\n`)
+    }
+    catch (err) {
+      console.error('Failed to write to log file', err)
     }
   }
 
@@ -358,5 +369,56 @@ export class DebugServer {
 
   private generateClientId(): string {
     return `client-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+  }
+
+  private handleLogsApi(req: IncomingMessage, res: http.ServerResponse): void {
+    const url = new URL(req.url || '/api/logs', 'http://localhost')
+    const logsDir = path.join(process.cwd(), 'logs')
+
+    // GET /api/logs -> list files
+    if (!url.searchParams.has('file')) {
+      const files = fs.existsSync(logsDir)
+        ? fs.readdirSync(logsDir)
+          .filter(f => f.endsWith('.jsonl'))
+          .sort((a, b) => b.localeCompare(a))
+        : []
+
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ files }))
+      return
+    }
+
+    // GET /api/logs?file=...&limit=500
+    const fileParam = url.searchParams.get('file') || ''
+    const safeName = path.basename(fileParam)
+    const limit = Number.parseInt(url.searchParams.get('limit') || '500', 10)
+    const lineLimit = Number.isFinite(limit) ? Math.max(1, Math.min(limit, 5000)) : 500
+    const targetPath = path.join(logsDir, safeName)
+
+    if (!fs.existsSync(targetPath)) {
+      res.writeHead(404, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'file not found' }))
+      return
+    }
+
+    try {
+      const lines = fs.readFileSync(targetPath, 'utf-8')
+        .trim()
+        .split('\n')
+        .slice(-lineLimit)
+      const events = lines
+        .map((line) => {
+          try { return JSON.parse(line) }
+          catch { return null }
+        })
+        .filter(Boolean)
+
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ file: safeName, events, total: lines.length }))
+    }
+    catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'failed to read log file', message: (err as Error).message }))
+    }
   }
 }

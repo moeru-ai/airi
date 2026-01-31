@@ -6,6 +6,7 @@ import type { EventBus, TracedEvent } from '../os'
 import type { PerceptionSignal } from '../perception/types/signals'
 import type { ReflexManager } from '../reflex/reflex-manager'
 import type { BotEvent, MineflayerWithAgents } from '../types'
+import type { BlackboardState } from './blackboard'
 
 import { config } from '../../composables/config'
 import { DebugService } from '../../debug'
@@ -79,7 +80,11 @@ export class Brain {
   }
 
   private async handlePerceptionSignal(bot: MineflayerWithAgents, signal: PerceptionSignal): Promise<void> {
-    this.log('INFO', `Brain: Received perception: ${signal.description}`)
+    this.consciousLog('perception:received', {
+      type: signal.type,
+      description: signal.description,
+      sourceId: signal.sourceId,
+    })
 
     if (signal.type === 'chat_message') {
       const parts = signal.description.split(': ')
@@ -105,7 +110,7 @@ export class Brain {
   }
 
   public init(bot: MineflayerWithAgents): void {
-    this.log('INFO', 'Brain: Initializing...')
+    this.consciousLog('brain:init', { username: bot.username })
     this.bot = bot
     this.blackboard.update({ selfUsername: bot.username })
 
@@ -130,11 +135,11 @@ export class Brain {
       if (id)
         this.inFlightActions.set(id, action)
       this.updatePendingActionsOnBlackboard()
+      this.consciousLog('action:started', { action })
     })
 
     this.deps.taskExecutor.on('action:completed', async ({ action, result }) => {
-      this.log('INFO', `Brain: Action completed: ${action.action}`)
-
+      this.consciousLog('action:completed', { action, result })
       const { id } = action
       if (id)
         this.inFlightActions.delete(id)
@@ -157,7 +162,7 @@ export class Brain {
     })
 
     this.deps.taskExecutor.on('action:failed', async ({ action, error }) => {
-      this.log('WARN', `Brain: Action failed: ${action.action}`, { error })
+      this.consciousLog('action:failed', { action, error: toErrorMessage(error) })
 
       const { id } = action
       if (id)
@@ -177,7 +182,7 @@ export class Brain {
       })
     })
 
-    this.log('INFO', 'Brain: Online.')
+    this.consciousLog('brain:online', { blackboard: this.snapshotBlackboard() })
     this.updateDebugState()
   }
 
@@ -187,10 +192,9 @@ export class Brain {
   // --- Event Queue Logic ---
 
   private async enqueueEvent(bot: MineflayerWithAgents, event: BotEvent): Promise<void> {
-    this.log('DEBUG', `Brain: Enqueueing event type=${event.type}`)
+    this.consciousLog('queue:enqueue', { type: event.type, source: event.source })
     return new Promise((resolve, reject) => {
       this.queue.push({ event, resolve, reject })
-      this.log('DEBUG', `Brain: Queue length now: ${this.queue.length}`)
       this.updateDebugState()
 
       if (event.type === 'feedback' && this.feedbackDebounceMs > 0) {
@@ -208,19 +212,15 @@ export class Brain {
   }
 
   private async processQueue(bot: MineflayerWithAgents): Promise<void> {
-    if (this.isProcessing) {
-      this.log('DEBUG', 'Brain: Already processing, skipping')
+    if (this.isProcessing)
       return
-    }
-    if (this.queue.length === 0) {
-      this.log('DEBUG', 'Brain: Queue empty')
+    if (this.queue.length === 0)
       return
-    }
 
-    this.log('DEBUG', `Brain: Processing queue item, queue length: ${this.queue.length}`)
+    this.consciousLog('queue:process:start', { length: this.queue.length })
     this.isProcessing = true
     const item = this.queue.shift()!
-    this.log('DEBUG', `Brain: Processing event type=${item.event.type}`)
+    this.consciousLog('queue:event', { type: item.event.type })
     this.updateDebugState(item.event)
 
     // Coalesce consecutive feedback events into a single LLM turn.
@@ -234,7 +234,7 @@ export class Brain {
       item.resolve()
     }
     catch (err) {
-      this.log('ERROR', 'Brain: Error processing event', { error: err })
+      this.consciousLog('queue:process:error', { error: toErrorMessage(err) })
       item.reject(err as Error)
     }
     finally {
@@ -348,7 +348,7 @@ export class Brain {
       const cause = error
         ? `cause: ${error.message}${error.status ? ` (status: ${error.status})` : ''}${error.code ? ` (code: ${error.code})` : ''}`
         : 'unknown cause'
-      this.log('WARN', `Brain: decide() failed after ${error?.attempts ?? '?'} attempts: ${cause}`)
+      this.consciousLog('decision:error', { attempts: error?.attempts, cause })
       return
     }
 
@@ -368,7 +368,11 @@ export class Brain {
   }
 
   private applyDecision(decision: LLMResponse): void {
-    this.log('INFO', `Brain: Thought: ${decision.thought}`)
+    this.consciousLog('decision:applied', {
+      thought: decision.thought,
+      actions: decision.actions?.map(a => ({ id: a.id, action: a.action, params: a.params })),
+      blackboard: decision.blackboard,
+    })
 
     this.updateBlackboardFromDecision(decision)
     this.debugService.updateBlackboard(this.blackboard)
@@ -430,10 +434,28 @@ export class Brain {
       const messages = buildMessages(sysPrompt, userMsg)
       const tools = this.bot ? actionsToFunctionCalls(this.deps.taskExecutor.getAvailableActions(), this.bot) : undefined
 
+      this.consciousLog('llm:request', {
+        route: 'brain:decide',
+        messageCount: messages.length,
+        tools: tools?.length ?? 0,
+        systemPromptSize: sysPrompt.length,
+        userMsg,
+        blackboard: this.snapshotBlackboard(),
+      })
+
       const result = await llmAgent.callLLM({
         messages,
         responseFormat: { type: 'json_object' },
         tools,
+      })
+
+      this.debugService.traceLLM({
+        route: 'brain:decide',
+        messages,
+        content: result.text,
+        usage: result.usage,
+        model: config.openai.model,
+        duration: undefined,
       })
 
       if (!result.text) {
@@ -449,6 +471,12 @@ export class Brain {
       try {
         const decision = await decideOnce()
         if (decision) {
+          this.consciousLog('decision:received', {
+            attempt,
+            thought: decision.thought,
+            actions: decision.actions?.map(a => ({ id: a.id, action: a.action })),
+            blackboard: decision.blackboard,
+          })
           return { success: true, decision }
         }
       }
@@ -457,13 +485,13 @@ export class Brain {
         const remaining = maxAttempts - attempt
         const { shouldRetry } = shouldRetryError(err, remaining)
 
-        this.log('ERROR', 'Brain: Decision attempt failed', {
-          error: err,
+        this.consciousLog('decision:attempt_failed', {
           attempt,
           remaining,
           shouldRetry,
           status: getErrorStatus(err),
           code: getErrorCode(err),
+          error: toErrorMessage(err),
         })
 
         if (shouldRetry) {
@@ -472,13 +500,6 @@ export class Brain {
         }
 
         const errMsg = toErrorMessage(err)
-
-        try {
-          this.bot?.bot?.chat?.(`[Brain] decide() failed after ${attempt} attempts: ${errMsg}`)
-        }
-        catch (chatErr) {
-          this.log('ERROR', 'Brain: Failed to send error message to chat', { error: chatErr })
-        }
 
         return {
           success: false,
@@ -516,6 +537,14 @@ export class Brain {
     else this.deps.logger.log(message, fields)
 
     this.debugService.log(level, message, fields)
+  }
+
+  private consciousLog(message: string, fields?: Record<string, unknown>) {
+    this.debugService.log('INFO', `[Conscious] ${message}`, fields)
+  }
+
+  private snapshotBlackboard(): BlackboardState {
+    return this.blackboard.getSnapshot()
   }
 
   private updateDebugState(processingEvent?: BotEvent) {

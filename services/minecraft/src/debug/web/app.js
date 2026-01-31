@@ -412,11 +412,14 @@ class LogsPanel {
     this.autoScroll = true
     this.paused = false
     this.filter = { level: 'all', search: '' }
+    this.currentFile = ''
     this.elements = {
       container: document.getElementById('logs-container'),
       search: document.getElementById('log-search'),
       levelFilter: document.getElementById('log-level-filter'),
       autoScroll: document.getElementById('auto-scroll'),
+      fileSelect: document.getElementById('log-file-select'),
+      loadFile: document.getElementById('load-log-file'),
       statEvents: document.getElementById('stat-events'),
     }
   }
@@ -439,6 +442,18 @@ class LogsPanel {
       this.autoScroll = e.target.checked
     })
 
+    this.elements.loadFile.addEventListener('click', () => {
+      const file = this.elements.fileSelect.value
+      if (!file) {
+        this.currentFile = ''
+        this.reset()
+        return
+      }
+      this.loadPersistedLog(file)
+    })
+
+    this.refreshFileList()
+
     this.renderThrottled = throttle(() => this.render(), CONFIG.UPDATE_THROTTLE)
     this.render()
   }
@@ -460,6 +475,47 @@ class LogsPanel {
     this.logs = []
     this.elements.statEvents.textContent = '0'
     this.render()
+  }
+
+  async refreshFileList() {
+    try {
+      const res = await fetch('/api/logs')
+      const json = await res.json()
+      const files = json.files || []
+      const select = this.elements.fileSelect
+      if (!select)
+        return
+      const current = select.value
+      select.innerHTML = '<option value="">Live (current session)</option>' + files.map(f => `<option value="${f}">${f}</option>`).join('')
+      if (files.includes(current))
+        select.value = current
+    }
+    catch (err) {
+      console.error('Failed to load log files', err)
+    }
+  }
+
+  async loadPersistedLog(file) {
+    try {
+      const res = await fetch(`/api/logs?file=${encodeURIComponent(file)}&limit=1000`)
+      if (!res.ok) {
+        console.error('Failed to fetch log file', await res.text())
+        return
+      }
+      const json = await res.json()
+      const events = Array.isArray(json.events) ? json.events : []
+      const logEntries = events
+        .filter(e => e.type === 'log')
+        .map(e => e.payload)
+        .filter(Boolean)
+      this.logs = logEntries
+      this.currentFile = file
+      this.elements.statEvents.textContent = this.logs.length
+      this.render()
+    }
+    catch (err) {
+      console.error('Failed to load persisted log', err)
+    }
   }
 
   clear() {
