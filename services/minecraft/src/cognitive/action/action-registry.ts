@@ -1,6 +1,7 @@
 import type { Action } from '../../libs/mineflayer'
 import type { Mineflayer } from '../../libs/mineflayer/core'
 
+import { useLogger } from '../../utils/logger'
 import { actionsList } from './llm-actions'
 
 /**
@@ -10,6 +11,7 @@ import { actionsList } from './llm-actions'
 export class ActionRegistry {
   private actions: Action[]
   private mineflayer: Mineflayer | null = null
+  private logger = useLogger()
 
   constructor() {
     this.actions = actionsList
@@ -43,9 +45,21 @@ export class ActionRegistry {
     }
 
     try {
+      this.logger.withFields({ tool: step.tool, params: step.params }).log('Performing action')
       const actionFn = action.perform(this.mineflayer)
       const { schema } = action
-      const parsedParams = schema.parse(step.params || {})
+      const shapeKeys = Object.keys((schema as any).shape || {})
+
+      let params: any = step.params ?? {}
+      if (typeof params === 'string' && shapeKeys.length === 1) {
+        // LLM sometimes returns a bare string instead of an object; coerce when schema has a single field
+        params = { [shapeKeys[0]]: params }
+      }
+      else if (params === null || typeof params !== 'object' || Array.isArray(params)) {
+        throw new Error(`Invalid params for action ${step.tool}: expected object, received ${typeof params}`)
+      }
+
+      const parsedParams = schema.parse(params)
 
       // Extract parameter values in the order defined by the schema
       const paramValues = Object.keys((schema as any).shape || {}).map(key => parsedParams[key])
@@ -54,6 +68,7 @@ export class ActionRegistry {
       return result || `Action ${step.tool} completed`
     }
     catch (error) {
+      this.logger.withFields({ tool: step.tool, params: step.params }).withError(error).error('Action perform failed')
       throw error
     }
   }
