@@ -88,7 +88,24 @@ onMounted(() => {
 
   // Initialize refs with current values
   apiKey.value = providers.value[props.providerId]?.apiKey as string | undefined || ''
-  baseUrl.value = providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined || ''
+  let currentBaseUrl = providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined || ''
+
+  // Migration: Fix old incorrect base URL for ElevenLabs
+  if (props.providerId === 'elevenlabs') {
+    const defaultBaseUrl = 'https://api.elevenlabs.io/v1/'
+    // Fix old unspeech.hyp3r.link URL or incorrect v2 URL
+    // Note: This is the default URL, but users may need to use a proxy (e.g., http://localhost:5933/v1/)
+    // for web browsers due to CORS restrictions
+    if (currentBaseUrl.includes('unspeech.hyp3r.link') || currentBaseUrl.includes('api.elevenlabs.io/v2/')) {
+      currentBaseUrl = defaultBaseUrl
+      // Update the stored value immediately
+      if (!providers.value[props.providerId])
+        providers.value[props.providerId] = {}
+      providers.value[props.providerId].baseUrl = defaultBaseUrl
+    }
+  }
+
+  baseUrl.value = currentBaseUrl
 
   // Initialize voice settings
   initializeVoiceSettings()

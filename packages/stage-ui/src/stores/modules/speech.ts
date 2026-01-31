@@ -16,9 +16,28 @@ export const useSpeechStore = defineStore('speech', () => {
   const providersStore = useProvidersStore()
   const { allAudioSpeechProvidersMetadata } = storeToRefs(providersStore)
 
+  function getDefaultModelForProvider(providerId: string) {
+    // Keep defaults deterministic and provider-specific so switching providers
+    // doesn't keep an incompatible model from a previous provider.
+    //
+    // TODO: Refactor to provider-owned defaults (e.g. provider metadata/defaultOptions),
+    // so these hard-coded defaults don't drift from provider implementations.
+    switch (providerId) {
+      case 'openai-audio-speech':
+      case 'openai-compatible-audio-speech':
+        // TODO: Use provider-provided default model (likely from provider metadata / schema defaults).
+        return 'tts-1'
+      case 'elevenlabs':
+        // TODO: Use provider-provided default model (likely from provider metadata / schema defaults).
+        return 'eleven_multilingual_v2'
+      default:
+        return ''
+    }
+  }
+
   // State
   const activeSpeechProvider = useLocalStorageManualReset<string>('settings/speech/active-provider', '')
-  const activeSpeechModel = useLocalStorageManualReset<string>('settings/speech/active-model', 'eleven_multilingual_v2')
+  const activeSpeechModel = useLocalStorageManualReset<string>('settings/speech/active-model', '')
   const activeSpeechVoiceId = useLocalStorageManualReset<string>('settings/speech/voice', '')
   const activeSpeechVoice = refManualReset<VoiceInfo | undefined>(undefined)
 
@@ -78,6 +97,50 @@ export const useSpeechStore = defineStore('speech', () => {
       return []
     }
 
+    // Check if provider is configured before making network calls
+    // This prevents errors when API key/base URL haven't been set up yet
+    const providerConfig = providersStore.getProviderConfig(provider)
+    const providerMetadata = providersStore.getProviderMetadata(provider)
+
+    // Skip providers that don't require configuration (e.g., browser-web-speech-api)
+    if (provider === 'browser-web-speech-api' || provider === 'index-tts-vllm') {
+      // These providers don't require API keys
+    }
+    else if (provider === 'player2-speech') {
+      // Player2 only requires baseUrl, not API key
+      const baseUrl = typeof providerConfig?.baseUrl === 'string' ? providerConfig.baseUrl.trim() : ''
+      if (!baseUrl) {
+        return []
+      }
+      // Validate provider config if validator is available
+      if (providerMetadata?.validators?.validateProviderConfig) {
+        const validationResult = await providerMetadata.validators.validateProviderConfig(providerConfig || {})
+        if (!validationResult.valid) {
+          // Provider config is invalid, don't make network call
+          return []
+        }
+      }
+    }
+    else {
+      // For other providers, check if API key and base URL are configured
+      const apiKey = typeof providerConfig?.apiKey === 'string' ? providerConfig.apiKey.trim() : ''
+      const baseUrl = typeof providerConfig?.baseUrl === 'string' ? providerConfig.baseUrl.trim() : ''
+
+      // If neither API key nor base URL is configured, skip the network call
+      if (!apiKey && !baseUrl) {
+        return []
+      }
+
+      // Validate provider config if validator is available
+      if (providerMetadata?.validators?.validateProviderConfig) {
+        const validationResult = await providerMetadata.validators.validateProviderConfig(providerConfig || {})
+        if (!validationResult.valid) {
+          // Provider config is invalid, don't make network call
+          return []
+        }
+      }
+    }
+
     isLoadingSpeechProviderVoices.value = true
     speechProviderError.value = null
 
@@ -108,6 +171,22 @@ export const useSpeechStore = defineStore('speech', () => {
   // Watch for provider changes and load voices
   watch(activeSpeechProvider, async (newProvider) => {
     if (newProvider) {
+      // If the currently selected model doesn't belong to this provider, reset it.
+      // This avoids showing e.g. ElevenLabs models when switching to OpenAI.
+      const models = providersStore.getModelsForProvider(newProvider)
+      const providerConfig = providersStore.getProviderConfig(newProvider)
+
+      const desiredDefault = (newProvider === 'openai-compatible-audio-speech' && providerConfig?.model)
+        ? String(providerConfig.model)
+        : getDefaultModelForProvider(newProvider)
+
+      const isModelValidForProvider = !!activeSpeechModel.value
+        && (models.length === 0 || models.some(m => m.id === activeSpeechModel.value))
+
+      if (!isModelValidForProvider) {
+        activeSpeechModel.value = desiredDefault || models[0]?.id || ''
+      }
+
       await loadVoicesForProvider(newProvider)
       // Don't reset voice settings when changing providers to allow for persistence
     }

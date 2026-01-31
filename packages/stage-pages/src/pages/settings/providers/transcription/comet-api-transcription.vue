@@ -1,50 +1,28 @@
 <script setup lang="ts">
-import type { RemovableRef } from '@vueuse/core'
 import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import {
   Alert,
-  ProviderAdvancedSettings,
-  ProviderApiKeyInput,
-  ProviderBaseUrlInput,
-  ProviderBasicSettings,
-  ProviderSettingsContainer,
-  ProviderSettingsLayout,
   TranscriptionPlayground,
+  TranscriptionProviderSettings,
 } from '@proj-airi/stage-ui/components'
+import { useProviderConfig } from '@proj-airi/stage-ui/composables/use-provider-config'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { FieldInput } from '@proj-airi/ui'
+import { FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 
 const providerId = 'comet-api-transcription'
+const defaultModel = 'whisper-1'
 const hearingStore = useHearingStore()
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const { providers } = storeToRefs(providersStore)
 
-// Define computed properties for credentials
-const apiKey = computed({
-  get: () => providers.value[providerId]?.apiKey || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].apiKey = value
-  },
-})
-
-const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].baseUrl = value
-  },
-})
-
+// Model selection
 const model = computed({
-  get: () => providers.value[providerId]?.model || '',
+  get: () => providers.value[providerId]?.model as string | undefined || defaultModel,
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -52,8 +30,23 @@ const model = computed({
   },
 })
 
-// Check if API key is configured
-const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+// Load models
+const providerModels = computed(() => {
+  return providersStore.getModelsForProvider(providerId)
+})
+
+const isLoadingModels = computed(() => {
+  return providersStore.isLoadingModels[providerId] || false
+})
+
+// Check if API key is configured (required for transcription to work)
+const { apiKeyConfigured } = useProviderConfig(providerId)
+
+// Load models on mount
+onMounted(async () => {
+  await providersStore.loadModelsForConfiguredProviders()
+  await providersStore.fetchModelsForProvider(providerId)
+})
 
 // Generate transcription
 async function handleGenerateTranscription(file: File) {
@@ -61,10 +54,16 @@ async function handleGenerateTranscription(file: File) {
   if (!provider)
     throw new Error('Failed to initialize transcription provider')
 
+  // Get provider configuration
+  const providerConfig = providersStore.getProviderConfig(providerId)
+
+  // Get model from configuration or use default
+  const modelToUse = providerConfig.model as string | undefined || defaultModel
+
   return await hearingStore.transcription(
     providerId,
     provider,
-    model.value,
+    modelToUse,
     file,
     'json',
   )
@@ -73,49 +72,38 @@ async function handleGenerateTranscription(file: File) {
 // Use the composable to get validation logic and state
 const {
   t,
-  router,
-  providerMetadata,
   isValidating,
   isValid,
   validationMessage,
-  handleResetSettings,
   forceValid,
 } = useProviderValidation(providerId)
+
+watch(model, () => {
+  const providerConfig = providersStore.getProviderConfig(providerId)
+  providerConfig.model = model.value
+})
 </script>
 
 <template>
-  <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName"
-    :provider-icon-color="providerMetadata?.iconColor"
-    :on-back="() => router.back()"
+  <TranscriptionProviderSettings
+    :provider-id="providerId"
+    :default-model="defaultModel"
   >
-    <ProviderSettingsContainer>
-      <ProviderBasicSettings
-        :title="t('settings.pages.providers.common.section.basic.title')"
-        :description="t('settings.pages.providers.common.section.basic.description')"
-        :on-reset="handleResetSettings"
-      >
-        <ProviderApiKeyInput
-          v-model="apiKey"
-          :provider-name="providerMetadata?.localizedName"
-          placeholder="sk-..."
-        />
-        <FieldInput
-          v-model="model"
-          :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_name')"
-          :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
-        />
-      </ProviderBasicSettings>
+    <template #basic-settings>
+      <!-- Model selection -->
+      <FieldSelect
+        v-model="model"
+        label="Model"
+        description="Select the transcription model to use"
+        :options="providerModels.map(m => ({ value: m.id, label: m.name }))"
+        :disabled="isLoadingModels || providerModels.length === 0"
+        placeholder="Select a model..."
+      />
+    </template>
 
-      <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
-        <ProviderBaseUrlInput
-          v-model="baseUrl"
-          :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || 'https://api.cometapi.com/v1/'"
-        />
-      </ProviderAdvancedSettings>
-
+    <template #advanced-settings>
       <!-- Validation Status -->
-      <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
+      <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error" class="mt-4">
         <template #title>
           <div class="w-full flex items-center justify-between">
             <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
@@ -134,18 +122,20 @@ const {
           </div>
         </template>
       </Alert>
-      <Alert v-if="isValid && isValidating === 0" type="success">
+      <Alert v-if="isValid && isValidating === 0" type="success" class="mt-4">
         <template #title>
           {{ t('settings.dialogs.onboarding.validationSuccess') }}
         </template>
       </Alert>
-    </ProviderSettingsContainer>
+    </template>
 
-    <TranscriptionPlayground
-      :generate-transcription="handleGenerateTranscription"
-      :api-key-configured="apiKeyConfigured"
-    />
-  </ProviderSettingsLayout>
+    <template #playground>
+      <TranscriptionPlayground
+        :generate-transcription="handleGenerateTranscription"
+        :api-key-configured="apiKeyConfigured"
+      />
+    </template>
+  </TranscriptionProviderSettings>
 </template>
 
 <route lang="yaml">

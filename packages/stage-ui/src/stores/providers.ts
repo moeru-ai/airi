@@ -9,16 +9,6 @@ import type {
   TranscriptionProviderWithExtraOptions,
 } from '@xsai-ext/providers/utils'
 import type { ProgressInfo } from '@xsai-transformers/shared/types'
-import type {
-  UnAlibabaCloudOptions,
-  UnDeepgramOptions,
-  UnElevenLabsOptions,
-  UnMicrosoftOptions,
-  UnVolcengineOptions,
-  VoiceProviderWithExtraOptions,
-} from 'unspeech'
-
-import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
 import { computedAsync, useLocalStorage } from '@vueuse/core'
@@ -49,32 +39,24 @@ import {
 import { listModels } from '@xsai/model'
 import { isWebGPUSupported } from 'gpuu/webgpu'
 import { defineStore } from 'pinia'
-import {
-  createUnAlibabaCloud,
-  createUnDeepgram,
-  createUnElevenLabs,
-  createUnMicrosoft,
-  createUnVolcengine,
-  listVoices,
-} from 'unspeech'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
-import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
+import { providerAlibabaCloudModelStudioSpeech } from '../libs/providers/providers/alibaba-cloud-model-studio/speech'
+import { providerAliyunNlsTranscription } from '../libs/providers/providers/aliyun-nls-transcription/transcription'
+import { providerBrowserWebSpeechAPITranscription } from '../libs/providers/providers/browser-web-speech-api/transcription'
+import { providerDeepgramTTSSpeech } from '../libs/providers/providers/deepgram-tts/speech'
+import { providerElevenLabsSpeech } from '../libs/providers/providers/elevenlabs/speech'
+import { providerIndexTTSSpeech } from '../libs/providers/providers/index-tts-vllm/speech'
+import { providerMicrosoftSpeech } from '../libs/providers/providers/microsoft-speech/speech'
+import { providerOpenAICompatibleSpeech } from '../libs/providers/providers/openai-compatible/speech'
+import { providerOpenAICompatibleTranscription } from '../libs/providers/providers/openai-compatible/transcription'
+import { providerOpenAISpeech } from '../libs/providers/providers/openai/speech'
+import { providerOpenAITranscription } from '../libs/providers/providers/openai/transcription'
+import { providerPlayer2Speech } from '../libs/providers/providers/player2-speech/speech'
+import { providerVolcengineSpeech } from '../libs/providers/providers/volcengine/speech'
+import { convertProviderDefinitionToMetadata } from './providers/converters'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
-import { createWebSpeechAPIProvider } from './providers/web-speech-api'
-
-const ALIYUN_NLS_REGIONS = [
-  'cn-shanghai',
-  'cn-shanghai-internal',
-  'cn-beijing',
-  'cn-beijing-internal',
-  'cn-shenzhen',
-  'cn-shenzhen-internal',
-] as const
-
-type AliyunNlsRegion = typeof ALIYUN_NLS_REGIONS[number]
 
 export interface ProviderMetadata {
   id: string
@@ -687,499 +669,63 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: ['health'],
     }),
-    'openai-audio-speech': buildOpenAICompatibleProvider({
-      id: 'openai-audio-speech',
-      name: 'OpenAI',
-      nameKey: 'settings.pages.providers.provider.openai.title',
-      descriptionKey: 'settings.pages.providers.provider.openai.description',
-      icon: 'i-lobe-icons:openai',
-      description: 'openai.com',
-      category: 'speech',
-      tasks: ['text-to-speech'],
-      defaultBaseUrl: 'https://api.openai.com/v1/',
-      creator: createOpenAI,
-      validation: ['health'],
-      capabilities: {
-        // NOTE: OpenAI does not provide an API endpoint to retrieve available voices.
-        // Voices are hardcoded here - this is a provider limitation, not an application limitation.
-        // Voice compatibility per https://platform.openai.com/docs/api-reference/audio/createSpeech:
-        // - tts-1 and tts-1-hd support: alloy, ash, coral, echo, fable, onyx, nova, sage, shimmer (9 voices)
-        // - gpt-4o-mini-tts supports all 13 voices: alloy, ash, ballad, coral, echo, fable, nova, onyx, sage, shimmer, verse, marin, cedar
-        listVoices: async (_config: Record<string, unknown>) => {
-          return [
-            {
-              id: 'alloy',
-              name: 'Alloy',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
-            },
-            {
-              id: 'ash',
-              name: 'Ash',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
-            },
-            {
-              id: 'ballad',
-              name: 'Ballad',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
-            },
-            {
-              id: 'coral',
-              name: 'Coral',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
-            },
-            {
-              id: 'echo',
-              name: 'Echo',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
-            },
-            {
-              id: 'fable',
-              name: 'Fable',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
-            },
-            {
-              id: 'onyx',
-              name: 'Onyx',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
-            },
-            {
-              id: 'nova',
-              name: 'Nova',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
-            },
-            {
-              id: 'sage',
-              name: 'Sage',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
-            },
-            {
-              id: 'shimmer',
-              name: 'Shimmer',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
-            },
-            {
-              id: 'verse',
-              name: 'Verse',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
-            },
-            {
-              id: 'marin',
-              name: 'Marin',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
-            },
-            {
-              id: 'cedar',
-              name: 'Cedar',
-              provider: 'openai-audio-speech',
-              languages: [],
-              compatibleModels: ['gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'],
-            },
-          ] satisfies VoiceInfo[]
-        },
-        listModels: async () => {
-          // TESTING NOTES: All 4 models tested and confirmed working with fable voice:
-          // - tts-1: {model: "tts-1", input: "test", voice: "fable"} ✓
-          // - tts-1-hd: {model: "tts-1-hd", input: "test", voice: "fable"} ✓
-          // - gpt-4o-mini-tts: {model: "gpt-4o-mini-tts", input: "test", voice: "fable"} ✓
-          // - gpt-4o-mini-tts-2025-12-15: {model: "gpt-4o-mini-tts-2025-12-15", input: "test", voice: "fable"} ✓
-          return [
-            {
-              id: 'tts-1',
-              name: 'TTS-1',
-              provider: 'openai-audio-speech',
-              description: 'Optimized for real-time text-to-speech tasks',
-              contextLength: 0,
-              deprecated: false,
-            },
-            {
-              id: 'tts-1-hd',
-              name: 'TTS-1-HD',
-              provider: 'openai-audio-speech',
-              description: 'Higher fidelity audio output',
-              contextLength: 0,
-              deprecated: false,
-            },
-            {
-              id: 'gpt-4o-mini-tts',
-              name: 'GPT-4o Mini TTS',
-              provider: 'openai-audio-speech',
-              description: 'GPT-4o Mini optimized for text-to-speech',
-              contextLength: 0,
-              deprecated: false,
-            },
-            {
-              id: 'gpt-4o-mini-tts-2025-12-15',
-              name: 'GPT-4o Mini TTS (2025-12-15)',
-              provider: 'openai-audio-speech',
-              description: 'GPT-4o Mini TTS snapshot from 2025-12-15',
-              contextLength: 0,
-              deprecated: false,
-            },
-          ]
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API Key is required'),
-            !config.baseUrl && new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'),
-          ].filter(Boolean)
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
-      },
-    }),
-    'openai-compatible-audio-speech': buildOpenAICompatibleProvider({
-      id: 'openai-compatible-audio-speech',
-      name: 'OpenAI Compatible',
-      nameKey: 'settings.pages.providers.provider.openai-compatible.title',
-      descriptionKey: 'settings.pages.providers.provider.openai-compatible.description',
-      icon: 'i-lobe-icons:openai',
-      description: 'Connect to any API that follows the OpenAI specification.',
-      category: 'speech',
-      tasks: ['text-to-speech'],
-      capabilities: {
-        listVoices: async () => {
-          return []
-        },
-        listModels: async (config: Record<string, unknown>) => {
-          // Filter models to only include TTS models
-          const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
-          let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
-
-          if (!baseUrl.endsWith('/'))
-            baseUrl += '/'
-
-          if (!apiKey || !baseUrl) {
-            return []
-          }
-
-          const provider = await createOpenAI(apiKey, baseUrl)
-          if (!provider || typeof provider.model !== 'function') {
-            return []
-          }
-
-          const models = await listModels({
-            apiKey,
-            baseURL: baseUrl,
-          })
-
-          // Filter for TTS models - look for models with "tts" in the ID
-          return models
-            .filter((model: any) => {
-              const modelId = model.id.toLowerCase()
-              // Include models that contain "tts" in their ID
-              return modelId.includes('tts')
-            })
-            .map((model: any) => {
-              return {
-                id: model.id,
-                name: model.name || model.display_name || model.id,
-                provider: 'openai-compatible-audio-speech',
-                description: model.description || '',
-                contextLength: model.context_length || 0,
-                deprecated: false,
-              } satisfies ModelInfo
-            })
-        },
-      },
-      creator: createOpenAI,
-    }),
-    'openai-audio-transcription': buildOpenAICompatibleProvider({
-      id: 'openai-audio-transcription',
-      name: 'OpenAI',
-      nameKey: 'settings.pages.providers.provider.openai.title',
-      descriptionKey: 'settings.pages.providers.provider.openai.description',
-      icon: 'i-lobe-icons:openai',
-      description: 'openai.com',
-      category: 'transcription',
-      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
-      defaultBaseUrl: 'https://api.openai.com/v1/',
-      creator: createOpenAI,
-      validation: ['health'],
-      capabilities: {
-        listModels: async () => {
-          // OpenAI transcription models are hardcoded (no API endpoint to list them)
-          return [
-            {
-              id: 'gpt-4o-transcribe',
-              name: 'GPT-4o Transcribe',
-              provider: 'openai-audio-transcription',
-              description: 'High-quality transcription model',
-              contextLength: 0,
-              deprecated: false,
-            },
-            {
-              id: 'gpt-4o-mini-transcribe',
-              name: 'GPT-4o Mini Transcribe',
-              provider: 'openai-audio-transcription',
-              description: 'Faster, cost-effective transcription model',
-              contextLength: 0,
-              deprecated: false,
-            },
-            {
-              id: 'gpt-4o-mini-transcribe-2025-12-15',
-              name: 'GPT-4o Mini Transcribe (2025-12-15)',
-              provider: 'openai-audio-transcription',
-              description: 'GPT-4o Mini Transcribe snapshot from 2025-12-15',
-              contextLength: 0,
-              deprecated: false,
-            },
-            {
-              id: 'whisper-1',
-              name: 'Whisper-1',
-              provider: 'openai-audio-transcription',
-              description: 'Powered by our open source Whisper V2 model',
-              contextLength: 0,
-              deprecated: false,
-            },
-            {
-              id: 'gpt-4o-transcribe-diarize',
-              name: 'GPT-4o Transcribe Diarize',
-              provider: 'openai-audio-transcription',
-              description: 'Transcription with speaker diarization',
-              contextLength: 0,
-              deprecated: false,
-            },
-          ] satisfies ModelInfo[]
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API Key is required'),
-            !config.baseUrl && new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'),
-          ].filter(Boolean)
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
-      },
-    }),
-    'openai-compatible-audio-transcription': buildOpenAICompatibleProvider({
-      id: 'openai-compatible-audio-transcription',
-      name: 'OpenAI Compatible',
-      nameKey: 'settings.pages.providers.provider.openai-compatible.title',
-      descriptionKey: 'settings.pages.providers.provider.openai-compatible.description',
-      icon: 'i-lobe-icons:openai',
-      description: 'Connect to any API that follows the OpenAI specification.',
-      category: 'transcription',
-      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
-      creator: createOpenAI,
-      capabilities: {
-        // Override listModels to return empty array - transcription models cannot be fetched from /v1/models
-        // Users must manually enter transcription model names (e.g., whisper-1, gpt-4o-transcribe)
-        // The /v1/models endpoint only returns chat models, not transcription models
-        listModels: async () => {
-          return []
-        },
-      },
-    }),
+    'openai-audio-speech': {
+      ...convertProviderDefinitionToMetadata(
+        providerOpenAISpeech,
+        t,
+      ),
+      // Ensure settings pages are prefilled with a sensible default base URL.
+      // The unified provider definitions currently don't expose schema defaults via metadata.
+      defaultOptions: () => ({
+        baseUrl: 'https://api.openai.com/v1/',
+      }),
+    },
+    'openai-compatible-audio-speech': convertProviderDefinitionToMetadata(
+      providerOpenAICompatibleSpeech,
+      t,
+    ),
+    'openai-audio-transcription': {
+      ...convertProviderDefinitionToMetadata(
+        providerOpenAITranscription,
+        t,
+      ),
+      // Ensure settings pages are prefilled with a sensible default base URL.
+      // The unified provider definitions currently don't expose schema defaults via metadata.
+      defaultOptions: () => ({
+        baseUrl: 'https://api.openai.com/v1/',
+      }),
+    },
+    'openai-compatible-audio-transcription': convertProviderDefinitionToMetadata(
+      providerOpenAICompatibleTranscription,
+      t,
+    ),
     'aliyun-nls-transcription': {
-      id: 'aliyun-nls-transcription',
-      category: 'transcription',
-      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
-      nameKey: 'settings.pages.providers.provider.aliyun-nls.title',
-      name: 'Aliyun NLS',
-      descriptionKey: 'settings.pages.providers.provider.aliyun-nls.description',
-      description: 'nls-console.aliyun.com',
-      icon: 'i-lobe-icons:alibabacloud',
+      ...convertProviderDefinitionToMetadata(
+        providerAliyunNlsTranscription,
+        t,
+      ),
+      // Ensure settings pages are prefilled with a sensible default configuration.
+      // The unified provider definitions currently don't expose schema defaults via metadata.
       defaultOptions: () => ({
         accessKeyId: '',
         accessKeySecret: '',
         appKey: '',
         region: 'cn-shanghai',
       }),
-      transcriptionFeatures: {
-        supportsGenerate: false,
-        supportsStreamOutput: true,
-        supportsStreamInput: true,
-      },
-      createProvider: async (config) => {
-        const toString = (value: unknown) => typeof value === 'string' ? value.trim() : ''
-
-        const accessKeyId = toString(config.accessKeyId)
-        const accessKeySecret = toString(config.accessKeySecret)
-        const appKey = toString(config.appKey)
-        const region = toString(config.region)
-        const resolvedRegion = ALIYUN_NLS_REGIONS.includes(region as AliyunNlsRegion) ? region as AliyunNlsRegion : 'cn-shanghai'
-
-        if (!accessKeyId || !accessKeySecret || !appKey)
-          throw new Error('Aliyun NLS credentials are incomplete.')
-
-        const provider = createAliyunNlsStreamProvider(accessKeyId, accessKeySecret, appKey, { region: resolvedRegion })
-
-        return {
-          transcription: (model: string, extraOptions?: AliyunRealtimeSpeechExtraOptions) => provider.speech(model, {
-            ...extraOptions,
-            sessionOptions: {
-              format: 'pcm',
-              sample_rate: 16000,
-              enable_punctuation_prediction: true,
-              enable_intermediate_result: true,
-              enable_words: true,
-              ...extraOptions?.sessionOptions,
-            },
-          }),
-        } as TranscriptionProviderWithExtraOptions<string, AliyunRealtimeSpeechExtraOptions>
-      },
-      capabilities: {
-        listModels: async () => {
-          return [
-            {
-              id: 'aliyun-nls-v1',
-              name: 'Aliyun NLS Realtime',
-              provider: 'aliyun-nls-transcription',
-              description: 'Realtime streaming transcription using Aliyun NLS.',
-              contextLength: 0,
-              deprecated: false,
-            },
-          ]
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors: Error[] = []
-          const toString = (value: unknown) => typeof value === 'string' ? value.trim() : ''
-
-          const accessKeyId = toString(config.accessKeyId)
-          const accessKeySecret = toString(config.accessKeySecret)
-          const appKey = toString(config.appKey)
-          const region = toString(config.region)
-
-          if (!accessKeyId)
-            errors.push(new Error('Access Key ID is required.'))
-          if (!accessKeySecret)
-            errors.push(new Error('Access Key Secret is required.'))
-          if (!appKey)
-            errors.push(new Error('App Key is required.'))
-          if (region && !ALIYUN_NLS_REGIONS.includes(region as AliyunNlsRegion))
-            errors.push(new Error('Region is invalid.'))
-
-          return {
-            errors,
-            reason: errors.length > 0 ? errors.map(error => error.message).join(', ') : '',
-            valid: errors.length === 0,
-          }
-        },
-      },
     },
     'browser-web-speech-api': {
-      id: 'browser-web-speech-api',
-      category: 'transcription',
-      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
-      nameKey: 'settings.pages.providers.provider.browser-web-speech-api.title',
-      name: 'Web Speech API (Browser)',
-      descriptionKey: 'settings.pages.providers.provider.browser-web-speech-api.description',
-      description: 'Browser-native speech recognition. No API keys.',
-      icon: 'i-solar:microphone-bold-duotone',
+      ...convertProviderDefinitionToMetadata(
+        providerBrowserWebSpeechAPITranscription,
+        t,
+      ),
+      // Ensure settings pages are prefilled with a sensible default configuration.
+      // The unified provider definitions currently don't expose schema defaults via metadata.
       defaultOptions: () => ({
         language: 'en-US',
         continuous: true,
         interimResults: true,
         maxAlternatives: 1,
       }),
-      transcriptionFeatures: {
-        supportsGenerate: false,
-        supportsStreamOutput: true,
-        supportsStreamInput: true,
-      },
-      isAvailableBy: async () => {
-        // Web Speech API is only available in browser contexts, NOT in Electron
-        // Even though Electron uses Chromium, Web Speech API requires Google's embedded API keys
-        // which are not available in Electron, causing it to fail at runtime
-        if (typeof window === 'undefined')
-          return false
-
-        // Explicitly exclude Electron - Web Speech API doesn't work there
-        if (isStageTamagotchi())
-          return false
-
-        // Check if API is available in browser
-        return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window
-      },
-      createProvider: async (_config) => {
-        // Web Speech API doesn't need config, but we accept it for consistency
-        return createWebSpeechAPIProvider()
-      },
-      capabilities: {
-        listModels: async () => {
-          return [
-            {
-              id: 'web-speech-api',
-              name: 'Web Speech API',
-              provider: 'browser-web-speech-api',
-              description: 'Browser-native speech recognition (no API keys required)',
-              contextLength: 0,
-              deprecated: false,
-            },
-          ]
-        },
-      },
-      validators: {
-        validateProviderConfig: () => {
-          // Web Speech API requires no configuration, just browser support
-          // Always return valid if browser supports it, so it auto-configures
-          const isAvailable = typeof window !== 'undefined'
-            && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
-
-          if (!isAvailable) {
-            return {
-              errors: [new Error('Web Speech API is not available. It requires a browser context with SpeechRecognition support (Chrome, Edge, Safari).')],
-              reason: 'Web Speech API is not available in this environment.',
-              valid: false,
-            }
-          }
-
-          // Auto-configure if available (no credentials needed)
-          return {
-            errors: [],
-            reason: '',
-            valid: true,
-          }
-        },
-      },
     },
     'anthropic': buildOpenAICompatibleProvider({
       id: 'anthropic',
@@ -1259,412 +805,74 @@ export const useProvidersStore = defineStore('providers', () => {
       validation: ['model_list'],
     }),
     'elevenlabs': {
-      id: 'elevenlabs',
-      category: 'speech',
-      tasks: ['text-to-speech'],
-      nameKey: 'settings.pages.providers.provider.elevenlabs.title',
-      name: 'ElevenLabs',
-      descriptionKey: 'settings.pages.providers.provider.elevenlabs.description',
-      description: 'elevenlabs.io',
-      icon: 'i-simple-icons:elevenlabs',
+      ...convertProviderDefinitionToMetadata(
+        providerElevenLabsSpeech,
+        t,
+      ),
+      // Ensure settings pages are prefilled with a sensible default base URL.
+      // The unified provider definitions currently don't expose schema defaults via metadata.
       defaultOptions: () => ({
-        baseUrl: 'https://unspeech.hyp3r.link/v1/',
+        baseUrl: 'https://api.elevenlabs.io/v1/',
         voiceSettings: {
           similarityBoost: 0.75,
           stability: 0.5,
         },
       }),
-      createProvider: async config => createUnElevenLabs((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>,
-      capabilities: {
-        listModels: async () => {
-          return elevenLabsModels.map((model) => {
-            return {
-              id: model.model_id,
-              name: model.name,
-              provider: 'elevenlabs',
-              description: model.description,
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-        listVoices: async (config) => {
-          const provider = createUnElevenLabs((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnElevenLabsOptions>
-
-          const voices = await listVoices({
-            ...provider.voice(),
-          })
-
-          // Find indices of Aria and Bill
-          const ariaIndex = voices.findIndex(voice => voice.name.includes('Aria'))
-          const billIndex = voices.findIndex(voice => voice.name.includes('Bill'))
-
-          // Determine the range to move (ensure valid indices and proper order)
-          const startIndex = ariaIndex !== -1 ? ariaIndex : 0
-          const endIndex = billIndex !== -1 ? billIndex : voices.length - 1
-          const lowerIndex = Math.min(startIndex, endIndex)
-          const higherIndex = Math.max(startIndex, endIndex)
-
-          // Rearrange voices: voices outside the range first, then voices within the range
-          const rearrangedVoices = [
-            ...voices.slice(0, lowerIndex),
-            ...voices.slice(higherIndex + 1),
-            ...voices.slice(lowerIndex, higherIndex + 1),
-          ]
-
-          return rearrangedVoices.map((voice) => {
-            return {
-              id: voice.id,
-              name: voice.name,
-              provider: 'elevenlabs',
-              previewURL: voice.preview_audio_url,
-              languages: voice.languages,
-            }
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required.'),
-            !config.baseUrl && new Error('Base URL is required.'),
-          ].filter(Boolean)
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
-      },
     },
     'deepgram-tts': {
-      id: 'deepgram-tts',
-      category: 'speech',
-      tasks: ['text-to-speech'],
-      nameKey: 'settings.pages.providers.provider.deepgram-tts.title',
-      name: 'Deepgram',
-      descriptionKey: 'settings.pages.providers.provider.deepgram-tts.description',
-      description: 'deepgram.com',
-      icon: 'i-simple-icons:deepgram',
+      ...convertProviderDefinitionToMetadata(
+        providerDeepgramTTSSpeech,
+        t,
+      ),
+      // Ensure settings pages are prefilled with a sensible default base URL.
+      // The unified provider definitions currently don't expose schema defaults via metadata.
       defaultOptions: () => ({
         baseUrl: 'https://unspeech.hyp3r.link/v1/',
       }),
-      createProvider: async (config) => {
-        const provider = createUnDeepgram((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as SpeechProviderWithExtraOptions<string, UnDeepgramOptions>
-        return provider
-      },
-      capabilities: {
-        listVoices: async (config) => {
-          const provider = createUnDeepgram((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnDeepgramOptions>
-
-          const voices = await listVoices({
-            ...provider.voice(),
-          })
-
-          return voices.map((voice) => {
-            return {
-              id: voice.id,
-              name: voice.name,
-              provider: 'deepgram-tts',
-              description: voice.description,
-              languages: voice.languages,
-              gender: voice.labels?.gender,
-            }
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors: Error[] = []
-          if (!config.apiKey) {
-            errors.push(new Error('API key is required.'))
-          }
-
-          const baseUrlValidationResult = baseUrlValidator.value(config.baseUrl)
-          if (baseUrlValidationResult) {
-            errors.push(...(baseUrlValidationResult.errors as Error[]))
-          }
-
-          return {
-            errors,
-            reason: errors.map(e => e.message).join(', '),
-            valid: errors.length === 0,
-          }
-        },
-      },
     },
     'microsoft-speech': {
-      id: 'microsoft-speech',
-      category: 'speech',
-      tasks: ['text-to-speech'],
-      nameKey: 'settings.pages.providers.provider.microsoft-speech.title',
-      name: 'Microsoft / Azure Speech',
-      descriptionKey: 'settings.pages.providers.provider.microsoft-speech.description',
-      description: 'speech.microsoft.com',
-      iconColor: 'i-lobe-icons:microsoft',
+      ...convertProviderDefinitionToMetadata(
+        providerMicrosoftSpeech,
+        t,
+      ),
+      // Ensure settings pages are prefilled with a sensible default base URL.
+      // The unified provider definitions currently don't expose schema defaults via metadata.
       defaultOptions: () => ({
         baseUrl: 'https://unspeech.hyp3r.link/v1/',
       }),
-      createProvider: async config => createUnMicrosoft((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as SpeechProviderWithExtraOptions<string, UnMicrosoftOptions>,
-      capabilities: {
-        listModels: async () => {
-          return [
-            {
-              id: 'v1',
-              name: 'v1',
-              provider: 'microsoft-speech',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            },
-          ]
-        },
-        listVoices: async (config) => {
-          const provider = createUnMicrosoft((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnMicrosoftOptions>
-
-          const voices = await listVoices({
-            ...provider.voice({ region: config.region as string }),
-          })
-
-          return voices.map((voice) => {
-            return {
-              id: voice.id,
-              name: voice.name,
-              provider: 'microsoft-speech',
-              previewURL: voice.preview_audio_url,
-              languages: voice.languages,
-              gender: voice.labels?.gender,
-            }
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required.'),
-            !config.baseUrl && new Error('Base URL is required.'),
-          ].filter(Boolean)
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
-      },
     },
     'index-tts-vllm': {
-      id: 'index-tts-vllm',
-      category: 'speech',
-      tasks: ['text-to-speech'],
-      nameKey: 'settings.pages.providers.provider.index-tts-vllm.title',
-      name: 'Index-TTS by Bilibili',
-      descriptionKey: 'settings.pages.providers.provider.index-tts-vllm.description',
-      description: 'index-tts.github.io',
-      iconColor: 'i-lobe-icons:bilibiliindex',
+      ...convertProviderDefinitionToMetadata(
+        providerIndexTTSSpeech,
+        t,
+      ),
+      // Ensure settings pages are prefilled with a sensible default base URL.
+      // The unified provider definitions currently don't expose schema defaults via metadata.
       defaultOptions: () => ({
         baseUrl: 'http://localhost:11996/tts/',
       }),
-      createProvider: async (config) => {
-        const provider: SpeechProvider = {
-          speech: () => {
-            const req = {
-              baseURL: config.baseUrl as string,
-              model: 'IndexTTS-1.5',
-            }
-            return req
-          },
-        }
-        return provider
-      },
-      capabilities: {
-        listVoices: async (config) => {
-          const voicesUrl = config.baseUrl as string
-          const response = await fetch(`${voicesUrl}audio/voices`)
-          if (!response.ok) {
-            throw new Error(`Failed to fetch voices: ${response.statusText}`)
-          }
-          const voices = await response.json()
-          return Object.keys(voices).map((voice: any) => {
-            return {
-              id: voice,
-              name: voice,
-              provider: 'index-tts-vllm',
-              // previewURL: voice.preview_audio_url,
-              languages: [{ code: 'cn', title: 'Chinese' }, { code: 'en', title: 'English' }],
-            }
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.baseUrl && new Error('Base URL is required. Default to http://localhost:11996/tts/ for Index-TTS.'),
-          ].filter(Boolean)
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.baseUrl,
-          }
-        },
-      },
     },
     'alibaba-cloud-model-studio': {
-      id: 'alibaba-cloud-model-studio',
-      category: 'speech',
-      tasks: ['text-to-speech'],
-      nameKey: 'settings.pages.providers.provider.alibaba-cloud-model-studio.title',
-      name: 'Alibaba Cloud Model Studio',
-      descriptionKey: 'settings.pages.providers.provider.alibaba-cloud-model-studio.description',
-      description: 'bailian.console.aliyun.com',
-      iconColor: 'i-lobe-icons:alibabacloud',
+      ...convertProviderDefinitionToMetadata(
+        providerAlibabaCloudModelStudioSpeech,
+        t,
+      ),
+      // Ensure settings pages are prefilled with a sensible default base URL.
+      // The unified provider definitions currently don't expose schema defaults via metadata.
       defaultOptions: () => ({
         baseUrl: 'https://unspeech.hyp3r.link/v1/',
       }),
-      createProvider: async config => createUnAlibabaCloud((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listVoices: async (config) => {
-          const provider = createUnAlibabaCloud((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnAlibabaCloudOptions>
-
-          const voices = await listVoices({
-            ...provider.voice(),
-          })
-
-          return voices.map((voice) => {
-            return {
-              id: voice.id,
-              name: voice.name,
-              provider: 'alibaba-cloud-model-studio',
-              compatibleModels: voice.compatible_models,
-              previewURL: voice.preview_audio_url,
-              languages: voice.languages,
-              gender: voice.labels?.gender,
-            }
-          })
-        },
-        listModels: async () => {
-          return [
-            {
-              id: 'cosyvoice-v1',
-              name: 'CosyVoice',
-              provider: 'alibaba-cloud-model-studio',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            },
-            {
-              id: 'cosyvoice-v2',
-              name: 'CosyVoice (New)',
-              provider: 'alibaba-cloud-model-studio',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            },
-          ]
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required.'),
-            !config.baseUrl && new Error('Base URL is required.'),
-          ].filter(Boolean)
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl,
-          }
-        },
-      },
     },
     'volcengine': {
-      id: 'volcengine',
-      category: 'speech',
-      tasks: ['text-to-speech'],
-      nameKey: 'settings.pages.providers.provider.volcengine.title',
-      name: 'settings.pages.providers.provider.volcengine.title',
-      descriptionKey: 'settings.pages.providers.provider.volcengine.description',
-      description: 'volcengine.com',
-      iconColor: 'i-lobe-icons:volcengine',
+      ...convertProviderDefinitionToMetadata(
+        providerVolcengineSpeech,
+        t,
+      ),
+      // Ensure settings pages are prefilled with a sensible default base URL.
+      // The unified provider definitions currently don't expose schema defaults via metadata.
       defaultOptions: () => ({
         baseUrl: 'https://unspeech.hyp3r.link/v1/',
       }),
-      createProvider: async config => createUnVolcengine((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listVoices: async (config) => {
-          const provider = createUnVolcengine((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnVolcengineOptions>
-
-          const voices = await listVoices({
-            ...provider.voice(),
-          })
-
-          return voices.map((voice) => {
-            return {
-              id: voice.id,
-              name: voice.name,
-              provider: 'volcano-engine',
-              previewURL: voice.preview_audio_url,
-              languages: voice.languages,
-              gender: voice.labels?.gender,
-            }
-          })
-        },
-        listModels: async () => {
-          return [
-            {
-              id: 'v1',
-              name: 'v1',
-              provider: 'volcano-engine',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            },
-          ]
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required.'),
-            !config.baseUrl && new Error('Base URL is required.'),
-            !((config.app as any)?.appId) && new Error('App ID is required.'),
-          ].filter(Boolean)
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl && !!config.app && !!(config.app as any).appId,
-          }
-        },
-      },
     },
     'comet-api-speech': buildOpenAICompatibleProvider({
       id: 'comet-api-speech',
@@ -1681,6 +889,84 @@ export const useProvidersStore = defineStore('providers', () => {
         createSpeechProvider({ apiKey, baseURL }),
       ),
       validation: ['model_list'],
+      capabilities: {
+        // CometAPI doesn't provide a programmatic endpoint for listing models
+        // These models are manually identified from https://www.cometapi.com/models/?features=text-to-speech
+        listModels: async () => [
+          {
+            id: 'tts',
+            name: 'TTS',
+            description: 'OpenAI Text-to-Speech',
+            provider: 'comet-api-speech',
+            contextLength: 0,
+            deprecated: false,
+          },
+          {
+            id: 'kling-tts',
+            name: 'Kling TTS',
+            description: '[Speech Synthesis] Newly launched: text-to-broadcast audio online, with preview function. Can simultaneously generate audio_id, usable with any Keling API',
+            provider: 'comet-api-speech',
+            contextLength: 0,
+            deprecated: false,
+          },
+          {
+            id: 'gpt-4o-mini-audio',
+            name: 'GPT-4o mini Audio',
+            description: 'GPT-4o mini Audio is a multimodal model for speech and text interactions. It performs speech recognition, translation, and text-to-speech, follows instructions, and can call tools for structured actions with streaming responses. Typical uses include real-time voice assistants, live captioning and translation, call summarization, and voice-controlled applications. Technical highlights include audio input and output, streaming responses, function calling, and structured JSON output',
+            provider: 'comet-api-speech',
+            contextLength: 0,
+            deprecated: false,
+          },
+          {
+            id: 'gpt-4o-audio-preview',
+            name: 'GPT-4o Audio Preview',
+            description: 'This model supports a maximum context length of 128,000 tokens',
+            provider: 'comet-api-speech',
+            contextLength: 128000,
+            deprecated: false,
+          },
+          {
+            id: 'kling-text-to-audio',
+            name: 'Kling text-to-audio',
+            description: 'Kling text-to-audio',
+            provider: 'comet-api-speech',
+            contextLength: 0,
+            deprecated: false,
+          },
+          {
+            id: 'gpt-4o-mini-tts',
+            name: 'GPT-4o mini TTS',
+            description: 'GPT-4o mini TTS is a neural text-to-speech model designed for natural, low-latency voice generation in user-facing applications. It converts text to natural-sounding speech with selectable voices, multi-format output, and streaming synthesis for responsive experiences. Typical uses include voice assistants, IVR and contact flows, product read-aloud, and media narration. Technical highlights include API-based streaming and export to common audio formats such as MP3 and WAV',
+            provider: 'comet-api-speech',
+            contextLength: 0,
+            deprecated: false,
+          },
+          {
+            id: 'gpt-4o-realtime',
+            name: 'GPT-4o Realtime',
+            description: 'The Realtime API allows developers to build low-latency, Multimodal experiences, including speech-to-speech functionality. Text and Audio processed by the Realtime API are priced separately. This model supports a maximum context length of 128,000 tokens',
+            provider: 'comet-api-speech',
+            contextLength: 128000,
+            deprecated: false,
+          },
+          {
+            id: 'gpt-4o-mini-realtime-preview',
+            name: 'GPT-4o mini Realtime Preview',
+            description: 'GPT-4o mini Realtime Preview is a real-time multimodal model for interactive voice and visual experiences. It handles speech, text, and images with streaming input and output, plus tool/function calling for grounded actions. Typical uses include voice assistants, live call handling, real-time captioning, and visual question answering over camera or screen content. Technical highlights include bidirectional audio, vision understanding, streaming responses, and structured outputs via functions',
+            provider: 'comet-api-speech',
+            contextLength: 0,
+            deprecated: false,
+          },
+          {
+            id: 'gpt-4o-mini-audio-preview',
+            name: 'GPT-4o mini Audio Preview',
+            description: 'GPT-4o mini Audio Preview is a compact multimodal model for building conversational audio applications',
+            provider: 'comet-api-speech',
+            contextLength: 0,
+            deprecated: false,
+          },
+        ],
+      },
     }),
     'comet-api-transcription': buildOpenAICompatibleProvider({
       id: 'comet-api-transcription',
@@ -1697,6 +983,108 @@ export const useProvidersStore = defineStore('providers', () => {
         createTranscriptionProvider({ apiKey, baseURL }),
       ),
       validation: ['model_list'],
+      capabilities: {
+        // CometAPI doesn't provide a programmatic endpoint for listing models
+        // These models are manually identified from https://www.cometapi.com/models/?features=speech-to-text
+        listModels: async () => [
+          {
+            id: 'gemini-3-flash',
+            name: 'Gemini 3 Flash',
+            description: 'Gemini 3 Flash is a lightweight, efficient multimodal large-scale model from Google tailored for real-world scenarios that require fast responses and low latency',
+            provider: 'comet-api-transcription',
+            contextLength: 1048576,
+            deprecated: false,
+          },
+          {
+            id: 'gemini-3-pro',
+            name: 'Gemini 3 Pro',
+            description: 'Gemini 3 Pro is a general-purpose model in the Gemini family, available in preview for evaluation and prototyping. It supports instruction following, multi-turn reasoning, and code and data tasks, with structured outputs and tool/function calling for workflow automation',
+            provider: 'comet-api-transcription',
+            contextLength: 200000,
+            deprecated: false,
+          },
+          {
+            id: 'gemini-2.5-flash',
+            name: 'Gemini 2.5 Flash',
+            description: 'Gemini 2.5 Flash is an AI model developed by Google, designed to provide fast and cost-effective solutions for developers, especially for applications requiring enhanced Inference capabilities',
+            provider: 'comet-api-transcription',
+            contextLength: 65536,
+            deprecated: false,
+          },
+          {
+            id: 'gemini-2.5-flash-lite',
+            name: 'Gemini 2.5 Flash Lite',
+            description: 'An optimized Gemini 2.5 Flash model for high cost-effectiveness and high throughput. The smallest, most cost-effective model, built for large-scale use',
+            provider: 'comet-api-transcription',
+            contextLength: 1000000,
+            deprecated: false,
+          },
+          {
+            id: 'gemini-2.5-flash-deepsearch',
+            name: 'Gemini 2.5 Flash DeepSearch',
+            description: 'Deep search model, with enhanced deep search and information retrieval capabilities, an ideal choice for complex knowledge integration and analysis',
+            provider: 'comet-api-transcription',
+            contextLength: 0,
+            deprecated: false,
+          },
+          {
+            id: 'whisper-1',
+            name: 'Whisper-1',
+            description: 'Speech to text, creating translations',
+            provider: 'comet-api-transcription',
+            contextLength: 0,
+            deprecated: false,
+          },
+          {
+            id: 'gpt-4o-mini-audio',
+            name: 'GPT-4o mini Audio',
+            description: 'GPT-4o mini Audio is a multimodal model for speech and text interactions. It performs speech recognition, translation, and text-to-speech, follows instructions, and can call tools for structured actions with streaming responses',
+            provider: 'comet-api-transcription',
+            contextLength: 0,
+            deprecated: false,
+          },
+          {
+            id: 'gpt-4o-audio-preview',
+            name: 'GPT-4o Audio Preview',
+            description: 'This model supports a maximum context length of 128,000 tokens',
+            provider: 'comet-api-transcription',
+            contextLength: 128000,
+            deprecated: false,
+          },
+          {
+            id: 'gpt-4o-transcribe',
+            name: 'GPT-4o Transcribe',
+            description: 'GPT-4o Transcribe is an audio-to-text model for multilingual, low-latency speech recognition. It supports real-time streaming and batch transcription from common audio formats with punctuation and sentence segmentation',
+            provider: 'comet-api-transcription',
+            contextLength: 0,
+            deprecated: false,
+          },
+          {
+            id: 'gpt-4o-realtime',
+            name: 'GPT-4o Realtime',
+            description: 'The Realtime API allows developers to build low-latency, Multimodal experiences, including speech-to-speech functionality. Text and Audio processed by the Realtime API are priced separately. This model supports a maximum context length of 128,000 tokens',
+            provider: 'comet-api-transcription',
+            contextLength: 128000,
+            deprecated: false,
+          },
+          {
+            id: 'gpt-4o-mini-realtime-preview',
+            name: 'GPT-4o mini Realtime Preview',
+            description: 'GPT-4o mini Realtime Preview is a real-time multimodal model for interactive voice and visual experiences. It handles speech, text, and images with streaming input and output, plus tool/function calling for grounded actions',
+            provider: 'comet-api-transcription',
+            contextLength: 0,
+            deprecated: false,
+          },
+          {
+            id: 'gpt-4o-mini-audio-preview',
+            name: 'GPT-4o mini Audio Preview',
+            description: 'GPT-4o mini Audio Preview is a compact multimodal model for building conversational audio applications',
+            provider: 'comet-api-transcription',
+            contextLength: 0,
+            deprecated: false,
+          },
+        ],
+      },
     }),
     'cerebras-ai': buildOpenAICompatibleProvider({
       id: 'cerebras-ai',
@@ -2070,95 +1458,15 @@ export const useProvidersStore = defineStore('providers', () => {
       },
     },
     'player2-speech': {
-      id: 'player2-speech',
-      category: 'speech',
-      tasks: ['text-to-speech'],
-      nameKey: 'settings.pages.providers.provider.player2.title',
-      name: 'Player2 Speech',
-      descriptionKey: 'settings.pages.providers.provider.player2.description',
-      description: 'player2.game',
-      icon: 'i-lobe-icons:player2',
+      ...convertProviderDefinitionToMetadata(
+        providerPlayer2Speech,
+        t,
+      ),
+      // Ensure settings pages are prefilled with a sensible default base URL.
+      // The unified provider definitions currently don't expose schema defaults via metadata.
       defaultOptions: () => ({
         baseUrl: 'http://localhost:4315/v1/',
       }),
-      createProvider: async config => createPlayer2((config.baseUrl as string).trim(), 'airi'),
-      capabilities: {
-        listVoices: async (config) => {
-          const baseUrl = (config.baseUrl as string).endsWith('/') ? (config.baseUrl as string).slice(0, -1) : config.baseUrl as string
-          return await fetch(`${baseUrl}/tts/voices`).then(res => res.json()).then(({ voices }) => (voices as { id: string, language: 'american_english' | 'british_english' | 'japanese' | 'mandarin_chinese' | 'spanish' | 'french' | 'hindi' | 'italian' | 'brazilian_portuguese', name: string, gender: string }[]).map(({ id, language, name, gender }) => (
-            {
-
-              id,
-              name,
-              provider: 'player2-speech',
-              gender,
-              languages: [{
-                american_english: {
-                  code: 'en',
-                  title: 'English',
-                },
-                british_english: {
-                  code: 'en',
-                  title: 'English',
-                },
-                japanese: {
-                  code: 'ja',
-                  title: 'Japanese',
-                },
-                mandarin_chinese: {
-                  code: 'zh',
-                  title: 'Chinese',
-                },
-                spanish: {
-                  code: 'es',
-                  title: 'Spanish',
-                },
-                french: {
-                  code: 'fr',
-                  title: 'French',
-                },
-                hindi: {
-                  code: 'hi',
-                  title: 'Hindi',
-                },
-
-                italian: {
-                  code: 'it',
-                  title: 'Italian',
-                },
-                brazilian_portuguese:
-                {
-                  code: 'pt',
-                  title: 'Portuguese',
-                },
-
-              }[language]],
-            }
-          )))
-        },
-      },
-      validators: {
-        validateProviderConfig: (config: any) => {
-          if (!config.baseUrl) {
-            return {
-              errors: [new Error('Base URL is required.')],
-              reason: 'Base URL is required. Default to http://localhost:4315/v1/',
-              valid: false,
-            }
-          }
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          return {
-            errors: [],
-            reason: '',
-            valid: true,
-          }
-        },
-      },
     },
   }
 
@@ -2339,6 +1647,29 @@ export const useProvidersStore = defineStore('providers', () => {
     const metadata = providerMetadata[providerId]
     if (!metadata)
       return []
+
+    // Check if provider is configured before making network calls
+    // This prevents errors when API key/base URL haven't been set up yet
+    // Skip providers that don't require configuration (e.g., browser-web-speech-api)
+    if (providerId !== 'browser-web-speech-api') {
+      // For other providers, check if API key and base URL are configured
+      const apiKey = typeof config?.apiKey === 'string' ? config.apiKey.trim() : ''
+      const baseUrl = typeof config?.baseUrl === 'string' ? config.baseUrl.trim() : ''
+
+      // If neither API key nor base URL is configured, skip the network call
+      if (!apiKey && !baseUrl) {
+        return []
+      }
+
+      // Validate provider config if validator is available
+      if (metadata?.validators?.validateProviderConfig) {
+        const validationResult = await metadata.validators.validateProviderConfig(config || {})
+        if (!validationResult.valid) {
+          // Provider config is invalid, don't make network call
+          return []
+        }
+      }
+    }
 
     const runtimeState = providerRuntimeState.value[providerId]
     if (runtimeState) {
