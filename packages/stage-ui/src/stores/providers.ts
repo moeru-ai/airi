@@ -18,7 +18,6 @@ import type {
   VoiceProviderWithExtraOptions,
 } from 'unspeech'
 
-import type { KokoroQuantization } from '../workers/kokoro/constants'
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
@@ -61,9 +60,8 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import kokoroVoices from '../data/kokoro-voices.json'
-
-import { KOKORO_DEFAULT_VOICE, KOKORO_MODELS } from '../workers/kokoro/constants'
+import { getKokoroWorker } from '../workers/kokoro'
+import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
@@ -2175,39 +2173,17 @@ export const useProvidersStore = defineStore('providers', () => {
       icon: 'i-lobe-icons:speaker',
 
       defaultOptions: () => {
-        // Feature detection for WebGPU availability
         const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu
-        const defaultQuantization = hasWebGPU ? 'fp32-webgpu' : 'q4f16'
-
+        const model = getDefaultKokoroModel(hasWebGPU)
         return {
-          quantization: defaultQuantization,
-          voiceId: KOKORO_DEFAULT_VOICE,
+          model,
+          voiceId: '',
         }
       },
 
-      createProvider: async (config) => {
+      createProvider: async (_config) => {
         // Import the worker manager
-        const { getKokoroWorker } = await import('../workers/kokoro')
         const workerManagerPromise = getKokoroWorker()
-
-        // Get quantization from config, default to q4f16
-        const quantization = ((config.quantization as string) || 'q4f16') as KokoroQuantization
-
-        // Detect actual WebGPU availability (in case it changed since initialization)
-        const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu
-
-        // Determine device based on quantization
-        let device: 'wasm' | 'cpu' | 'webgpu' = 'wasm'
-        if (quantization === 'fp32-webgpu') {
-          device = hasWebGPU ? 'webgpu' : 'wasm'
-        }
-
-        // Pre-load the model in the worker (non-blocking)
-        workerManagerPromise.then(workerManager =>
-          workerManager.loadModel(quantization, device),
-        ).catch((error) => {
-          console.error('Failed to preload Kokoro model:', error)
-        })
 
         const provider: SpeechProvider = {
           speech: () => {
@@ -2222,11 +2198,14 @@ export const useProvidersStore = defineStore('providers', () => {
                   }
                   const body = JSON.parse(init.body)
                   const text = body.input
-                  const voice = body.voice || KOKORO_DEFAULT_VOICE
+                  const voice = body.voice
+
+                  if (!voice) {
+                    throw new Error('Voice parameter is required')
+                  }
 
                   // Generate audio in the worker thread
-                  const workerManager = await workerManagerPromise
-                  const buffer = await workerManager.generate(text, voice, quantization, device)
+                  const buffer = await (await workerManagerPromise).generate(text, voice)
 
                   return new Response(buffer, {
                     status: 200,
@@ -2248,19 +2227,98 @@ export const useProvidersStore = defineStore('providers', () => {
       },
 
       capabilities: {
-        listVoices: async () => {
-          return kokoroVoices.voices
+        listModels: async (_config: Record<string, unknown>) => {
+          const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu
+          return kokoroModelsToModelInfo(hasWebGPU)
+        },
+
+        loadModel: async (config: Record<string, unknown>, _hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => {
+          const modelId = config.model as string
+
+          if (!modelId) {
+            throw new Error('No model specified')
+          }
+
+          const modelDef = KOKORO_MODELS.find(m => m.id === modelId)
+          if (!modelDef) {
+            throw new Error(`Invalid model: ${modelId}. Must be one of: ${KOKORO_MODELS.map(m => m.id).join(', ')}`)
+          }
+
+          // Validate platform requirements
+          if (modelDef.platform === 'webgpu') {
+            const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu
+            if (!hasWebGPU) {
+              throw new Error('WebGPU is required for this model but is not available in your browser')
+            }
+          }
+
+          try {
+            const workerManager = await getKokoroWorker()
+            await workerManager.loadModel(modelDef.quantization, modelDef.platform)
+          }
+          catch (error) {
+            console.error('Failed to load Kokoro model:', error)
+            throw error
+          }
+        },
+
+        listVoices: async (_config: Record<string, unknown>) => {
+          try {
+            // Get worker manager and fetch voices from the model
+            const workerManager = await getKokoroWorker()
+            const modelVoices = workerManager.getVoices()
+
+            // Language code mapping
+            const languageMap: Record<string, { code: string, title: string }> = {
+              'en-us': { code: 'en-US', title: 'English (US)' },
+              'en-gb': { code: 'en-GB', title: 'English (UK)' },
+              'ja': { code: 'ja', title: 'Japanese' },
+              'zh-cn': { code: 'zh-CN', title: 'Chinese (Mandarin)' },
+              'es': { code: 'es', title: 'Spanish' },
+              'fr': { code: 'fr', title: 'French' },
+              'hi': { code: 'hi', title: 'Hindi' },
+              'it': { code: 'it', title: 'Italian' },
+              'pt-br': { code: 'pt-BR', title: 'Portuguese (Brazil)' },
+            }
+
+            // Transform the voices object to the expected array format
+            return Object.entries(modelVoices).map(([id, voice]: [string, any]) => {
+              const languageCode = voice.language.toLowerCase()
+              const languageInfo = languageMap[languageCode] || { code: languageCode, title: voice.language }
+
+              return {
+                id,
+                name: `${voice.name} (${voice.gender}, ${languageInfo.title.split('(')[0].trim()})`,
+                provider: 'kokoro-local',
+                languages: [languageInfo],
+                gender: voice.gender.toLowerCase(),
+              }
+            })
+          }
+          catch (error) {
+            console.error('Failed to fetch Kokoro voices:', error)
+            // Return empty array if model not loaded yet
+            return []
+          }
         },
       },
 
       validators: {
         validateProviderConfig: async (config: any) => {
-          const quantization = config.quantization as string
+          const model = config.model as string
 
-          if (quantization && !KOKORO_MODELS.some(m => m.id === quantization)) {
+          if (!model) {
             return {
-              errors: [new Error(`Invalid quantization: ${quantization}`)],
-              reason: `Invalid quantization. Must be one of: ${KOKORO_MODELS.map(m => m.id).join(', ')}`,
+              errors: [new Error('No model selected')],
+              reason: 'Please select a model from the dropdown menu',
+              valid: false,
+            }
+          }
+
+          if (!KOKORO_MODELS.some(m => m.id === model)) {
+            return {
+              errors: [new Error(`Invalid model: ${model}`)],
+              reason: `Invalid model. Must be one of: ${KOKORO_MODELS.map(m => m.id).join(', ')}`,
               valid: false,
             }
           }

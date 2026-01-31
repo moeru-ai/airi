@@ -19,6 +19,7 @@ const props = defineProps<{
 
   // Current state
   apiKeyConfigured?: boolean
+  voicesLoading?: boolean
 }>()
 
 const { t } = useI18n()
@@ -174,8 +175,8 @@ defineExpose({
       <button
         border="neutral-800 dark:neutral-200 solid 2" transition="border duration-250 ease-in-out"
         rounded-lg px-3 text="neutral-100 dark:neutral-900" py-1.5 text-sm
-        :disabled="isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !selectedVoice || !apiKeyConfigured"
-        :class="{ 'opacity-50 cursor-not-allowed': isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !selectedVoice || !apiKeyConfigured }"
+        :disabled="isGenerating || voicesLoading || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !selectedVoice || !apiKeyConfigured"
+        :class="{ 'opacity-50 cursor-not-allowed': isGenerating || voicesLoading || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !selectedVoice || !apiKeyConfigured }"
         bg="neutral-700 dark:neutral-300" @click="handleGenerateTestSpeech"
       >
         <div flex="~ row" items-center gap-2>
@@ -187,8 +188,8 @@ defineExpose({
       <div v-if="!apiKeyConfigured" class="mt-2 text-sm text-red-500">
         {{ t('settings.pages.providers.provider.elevenlabs.playground.validation.error-missing-api-key') }}
       </div>
-      <div v-if="!selectedVoice" class="mt-2 text-sm text-red-500">
-        {{ t('settings.pages.modules.speech.sections.section.playground.select-voice.required') }}
+      <div v-if="voicesLoading || !selectedVoice" class="mt-2 text-sm text-red-500">
+        {{ voicesLoading ? t('settings.pages.modules.speech.sections.section.playground.select-voice.loading') : t('settings.pages.modules.speech.sections.section.playground.select-voice.required') }}
       </div>
       <div v-if="errorMessage" class="mt-2 text-sm text-red-500">
         {{ errorMessage }}

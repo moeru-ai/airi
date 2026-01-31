@@ -363,6 +363,7 @@ pages:
               stop:
                 label: Stop
             select-voice:
+              loading: Loading model...
               required: Please select a voice
           provider-voice-selection:
             custom_model_placeholder: Enter custom model name...
@@ -631,17 +632,9 @@ pages:
         description: Local text-to-speech using Kokoro-82M.
         fields:
           field:
-            quantization:
-              label: Model Quantization
+            model:
+              label: Model Selection
               description: Smaller models load faster but may have slightly lower quality.
-              download: Model downloads on first use (try it twice to see actual performance)
-              options:
-                fp32-webgpu: fp32 (WebGPU - Recommended)
-                q4f16: q4f16
-                q4: q4
-                q8: q8
-                fp16: fp16
-                fp32: fp32
         playground:
           default-text: Hello! This is a test of the Kokoro text-to-speech system.
           title: Voice Playground
