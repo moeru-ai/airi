@@ -16,7 +16,7 @@ const languages = computed(() => {
 </script>
 
 <template>
-  <div :class="['rounded-lg', 'bg-neutral-50', 'p-4', 'dark:bg-neutral-800', 'flex', '~', 'col', 'gap-4']">
+  <div class="flex flex-col gap-4 rounded-lg bg-neutral-50 p-4 dark:bg-neutral-800">
     <FieldCheckbox
       v-model="dark"
       v-motion

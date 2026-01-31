@@ -130,8 +130,14 @@ export default defineConfig({
       VueRouter({
         dts: resolve(import.meta.dirname, 'src/renderer/typed-router.d.ts'),
         routesFolder: [
+          {
+            src: resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
+            exclude: base => [
+              ...base,
+              '**/settings/system/general.vue',
+            ],
+          },
           resolve(import.meta.dirname, 'src', 'renderer', 'pages'),
-          resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
         ],
         exclude: ['**/components/**'],
       }),
