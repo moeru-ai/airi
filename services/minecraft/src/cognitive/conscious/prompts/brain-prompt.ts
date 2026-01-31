@@ -1,6 +1,8 @@
 import type { Action } from '../../../libs/mineflayer/action'
 import type { Blackboard } from '../blackboard'
 
+import { z } from 'zod/v4'
+
 export function generateBrainSystemPrompt(
   blackboard: Blackboard,
   availableActions: Action[],
@@ -21,6 +23,16 @@ export function generateBrainSystemPrompt(
   const instantTools = availableActions.filter(a => a.execution === 'sync')
   const asyncActions = availableActions.filter(a => a.execution === 'async')
 
+  const toCompactParams = (action: Action): Record<string, unknown> => {
+    const schema = z.toJSONSchema(action.schema) as Record<string, any>
+    const { type, properties, required } = schema
+    return {
+      type,
+      properties,
+      required,
+    }
+  }
+
   const instantToolDefs = instantTools.map(a => ({
     name: a.name,
     description: a.description,
@@ -29,6 +41,7 @@ export function generateBrainSystemPrompt(
   const asyncActionDefs = asyncActions.map(a => ({
     name: a.name,
     description: a.description,
+    params: toCompactParams(a),
   }))
 
   const instantToolsJson = JSON.stringify(instantToolDefs, null, 2)
@@ -74,6 +87,7 @@ These actions take TIME to complete (movement, crafting, combat, etc.).
 They are queued and executed asynchronously after your response.
 
 **How to use**: Output these in the JSON "actions" array in your response.
+**Important**: Use the exact parameter names/types shown in each action's "params" schema below. Missing required params will fail.
 **Feedback**: You will receive feedback when they complete(if require_feedback is true) or fail(always).
 
 ${asyncActionsJson}
