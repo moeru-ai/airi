@@ -144,6 +144,9 @@ catalogs:
     knip:
       specifier: ^5.82.1
       version: 5.82.1
+    mkcert:
+      specifier: ^3.2.0
+      version: 3.2.0
     nano-staged:
       specifier: ^0.9.0
       version: 0.9.0
@@ -1025,6 +1028,9 @@ importers:
       mediabunny:
         specifier: ^1.29.0
         version: 1.29.0
+      mkcert:
+        specifier: 'catalog:'
+        version: 3.2.0
       node-vibrant:
         specifier: ^4.0.3
         version: 4.0.3(encoding@0.1.13)
@@ -1945,6 +1951,9 @@ importers:
       nanoid:
         specifier: 'catalog:'
         version: 5.1.6
+      srvx:
+        specifier: ^0.10.1
+        version: 0.10.1
 
   packages/server-sdk:
     dependencies:
@@ -13234,6 +13243,11 @@ packages:
 
   mitt@3.0.1:
     resolution: {integrity: sha512-vKivATfr97l2/QBCYAkXYDbrIWPM2IIKEl7YPhjCvKlG3kE2gm+uBo6nEXK3M5/Ffh/FLpKExzOQ3JJoJGFKBw==}
+
+  mkcert@3.2.0:
+    resolution: {integrity: sha512-026Eivq9RoOjOuLJGzbhGwXUAjBxRX11Z7Jbm4/7lqT/Av+XNy9SPrJte6+UpEt7i+W3e/HZYxQqlQcqXZWSzg==}
+    engines: {node: '>=16'}
+    hasBin: true
 
   mkdirp-classic@0.5.3:
     resolution: {integrity: sha512-gKLcREMhtuZRwRAfqP3RFW+TK4JqApVBtOIftVgjuABpAtpxhPGaDcfvbhNvD0B8iD1oUr/txX35NjcaY6Ns/A==}
@@ -27980,6 +27994,11 @@ snapshots:
       minipass: 7.1.2
 
   mitt@3.0.1: {}
+
+  mkcert@3.2.0:
+    dependencies:
+      commander: 11.1.0
+      node-forge: 1.3.3
 
   mkdirp-classic@0.5.3: {}
 
