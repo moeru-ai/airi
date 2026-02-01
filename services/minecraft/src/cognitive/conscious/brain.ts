@@ -53,10 +53,19 @@ function extractJsonCandidate(input: string): string {
   return trimmed
 }
 
+function validateLLMResponse(parsed: unknown): parsed is { thought: string, actions: unknown[] } {
+  if (typeof parsed !== 'object' || parsed === null)
+    return false
+  const obj = parsed as Record<string, unknown>
+  // Must have 'thought' (string) and 'actions' (array) at minimum
+  return typeof obj.thought === 'string' && Array.isArray(obj.actions)
+}
+
 function parseLLMResponseJson<T>(response: string): T {
   const candidate = extractJsonCandidate(response)
+  let parsed: unknown
   try {
-    return JSON.parse(candidate) as T
+    parsed = JSON.parse(candidate)
   }
   catch (err) {
     const pos = getJsonErrorPosition(err)
@@ -66,6 +75,14 @@ function parseLLMResponseJson<T>(response: string): T {
       : candidate.slice(0, Math.min(candidate.length, 240))
     throw new Error(`Failed to parse LLM JSON response: ${toErrorMessage(err)}; snippet=${JSON.stringify(snippet)}`)
   }
+
+  // Validate structure - LLM sometimes hallucinates wrong format (e.g., tool call format)
+  if (!validateLLMResponse(parsed)) {
+    const snippet = JSON.stringify(parsed).slice(0, 200)
+    throw new Error(`LLM returned malformed response (missing thought/actions): ${snippet}`)
+  }
+
+  return parsed as T
 }
 
 function getErrorStatus(err: unknown): number | undefined {
