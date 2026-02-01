@@ -98,31 +98,6 @@ function isLikelyAuthOrBadArgError(err: unknown): boolean {
   )
 }
 
-function isLikelyRecoverableError(err: unknown): boolean {
-  if (err instanceof SyntaxError)
-    return true
-
-  const status = getErrorStatus(err)
-  if (status === 429)
-    return true
-  if (typeof status === 'number' && status >= 500)
-    return true
-
-  const code = getErrorCode(err)
-  if (code && ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'].includes(code))
-    return true
-
-  const msg = toErrorMessage(err).toLowerCase()
-  return (
-    msg.includes('timeout')
-    || msg.includes('timed out')
-    || msg.includes('rate limit')
-    || msg.includes('overloaded')
-    || msg.includes('temporarily')
-    || msg.includes('try again')
-    || (msg.includes('in json') && msg.includes('position'))
-  )
-}
 
 interface BrainDeps {
   eventBus: EventBus
@@ -385,12 +360,12 @@ export class Brain {
         const { status, action, result, error } = payload
         const actionCtx = action
           ? {
-              id: action.id,
-              type: action.type,
-              ...(action.type === 'sequential' || action.type === 'parallel'
-                ? { tool: action.step.tool, params: action.step.params }
-                : { message: action.message }),
-            }
+            id: action.id,
+            type: action.type,
+            ...(action.type === 'sequential' || action.type === 'parallel'
+              ? { tool: action.step.tool, params: action.step.params }
+              : { message: action.message }),
+          }
           : undefined
         return `Internal Feedback: ${status}. Last Action: ${JSON.stringify(actionCtx)}. Result: ${JSON.stringify(result || error)}`
       }
@@ -582,7 +557,8 @@ export class Brain {
       }
       catch (err) {
         const remaining = maxAttempts - attempt
-        const shouldRetry = remaining > 0 && !isLikelyAuthOrBadArgError(err) && isLikelyRecoverableError(err)
+        // Retry all errors except auth/bad arg errors (which won't recover)
+        const shouldRetry = remaining > 0 && !isLikelyAuthOrBadArgError(err)
         this.log('ERROR', 'Brain: Decision attempt failed', {
           error: err,
           attempt,
