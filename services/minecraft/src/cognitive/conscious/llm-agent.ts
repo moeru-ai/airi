@@ -50,16 +50,6 @@ export class LLMAgent {
         messages: options.messages,
         responseFormat: options.responseFormat,
         tools: options.tools,
-        toolChoice: options.tools
-          ? {
-              type: 'allowed_tools',
-              mode: 'auto',
-              tools: options.tools.map(tool => ({
-                type: 'function',
-                function: { name: tool.function.name },
-              })),
-            }
-          : undefined,
         maxSteps: options.tools?.length, // maybe use a fixed magic number?
       })
 
