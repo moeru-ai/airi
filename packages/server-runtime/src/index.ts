@@ -86,7 +86,7 @@ export function setupApp(options?: {
     readTimeout?: number
     message?: MessageHeartbeat | string
   }
-}): H3 {
+}): { app: H3, closeAllPeers: () => void } {
   const instanceId = options?.instanceId || optionOrEnv(undefined, 'SERVER_INSTANCE_ID', nanoid())
   const authToken = optionOrEnv(options?.auth?.token, 'AUTHENTICATION_TOKEN', '')
 
@@ -121,7 +121,7 @@ export function setupApp(options?: {
       if (now - peerInfo.lastHeartbeatAt > heartbeatTtlMs) {
         logger.withFields({ peer: id, peerName: peerInfo.name }).debug('heartbeat expired, dropping peer')
         try {
-          (peerInfo.peer as Peer & { close?: () => void }).close?.()
+          peerInfo.peer.close?.()
         }
         catch (error) {
           logger.withFields({ peer: id, peerName: peerInfo.name }).withError(error as Error).debug('failed to close expired peer')
@@ -382,7 +382,18 @@ export function setupApp(options?: {
     },
   }))
 
-  return app
+  function closeAllPeers() {
+    console.log('closing all peers', peers.size)
+    for (const peer of peers.values()) {
+      console.log('closing peer', peer.peer.id)
+      peer.peer.close?.()
+    }
+  }
+
+  return {
+    app,
+    closeAllPeers,
+  }
 }
 
-export const app = setupApp() as H3
+export const { app, closeAllPeers: _ } = setupApp()
