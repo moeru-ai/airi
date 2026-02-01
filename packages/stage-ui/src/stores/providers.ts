@@ -2282,7 +2282,7 @@ export const useProvidersStore = defineStore('providers', () => {
             }
 
             // Transform the voices object to the expected array format
-            return Object.entries(modelVoices).map(([id, voice]: [string, any]) => {
+            return Object.entries(modelVoices).map(([id, voice]: [string, { language: string; name: string; gender: string }]) => {
               const languageCode = voice.language.toLowerCase()
               const languageInfo = languageMap[languageCode] || { code: languageCode, title: voice.language }
 

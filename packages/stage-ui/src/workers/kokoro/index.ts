@@ -91,7 +91,7 @@ export class KokoroWorkerManager {
   private worker: Worker | null = null
   private asyncMutex: AsyncMutex
   private workerLifecycleAsyncMutex: AsyncMutex
-  private voices = null
+  private voices: Record<string, { language: string; name: string; gender: string; }> | null = null
 
   private restartAttempts = 0
   private readonly maxRestartAttempts = 3
