@@ -71,6 +71,14 @@ export default defineConfig({
   build: {
     sourcemap: true,
   },
+  worker: {
+    format: 'es',
+    rollupOptions: {
+      output: {
+        inlineDynamicImports: false,
+      },
+    },
+  },
 
   plugins: [
     mkcert(),
