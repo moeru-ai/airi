@@ -2,7 +2,6 @@ import type { MineflayerPlugin } from '../libs/mineflayer'
 import type { CognitiveEngineOptions, MineflayerWithAgents } from './types'
 
 import { config } from '../composables/config'
-import { DebugService } from '../debug'
 import { ChatMessageHandler } from '../libs/mineflayer'
 import { createAgentContainer } from './container'
 import { computeNearbyPlayerGaze } from './reflex/gaze'
@@ -70,21 +69,13 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
           })
         })
 
-        // Resolve EventBus and subscribe to forward events to debug timeline
+        // Resolve EventBus for message handling
         const eventBus = container.resolve('eventBus')
 
-        eventBus.subscribe('*', (event) => {
-          // Forward to debug service for timeline visualization
-          DebugService.getInstance().emitTrace({
-            id: event.id,
-            traceId: event.traceId,
-            parentId: event.parentId,
-            type: event.type,
-            payload: event.payload,
-            timestamp: event.timestamp,
-            source: event.source,
-          })
-        })
+        // NOTICE: EventBus trace forwarding disabled - trace logs removed to reduce noise
+        // All events from EventBus were being forwarded to DebugService as trace events,
+        // causing thousands of 'raw:sighted:entity_moved' entries in the logs.
+        // Conscious layer (LLM) events are still logged separately.
 
         // Set message handling via EventBus
         const chatHandler = new ChatMessageHandler(bot.username)
