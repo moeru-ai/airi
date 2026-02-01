@@ -45,7 +45,16 @@ runs:
       run: |
         if [[ "${{ inputs.version }}" == "latest" ]]; then
           # Fetch the latest release tag using a more robust method
-          API_RESPONSE=$(curl -s https://api.github.com/repos/realm/SwiftLint/releases/latest)
+          CURL_ARGS=(-s)
+          if [[ -n "${{ github.token }}" ]]; then
+            CURL_ARGS+=(-H "Authorization: Bearer ${{ github.token }}")
+          fi
+          CURL_ARGS+=(-H "Accept: application/vnd.github+json")
+          CURL_ARGS+=(-H "X-GitHub-Api-Version: 2022-11-28")
+          CURL_ARGS+=("https://api.github.com/repos/realm/SwiftLint/releases/latest")
+
+          API_RESPONSE=$(curl "${CURL_ARGS[@]}")
+
           # Try using jq if available (most GitHub Actions runners have it)
           if command -v jq >/dev/null 2>&1; then
             VERSION=$(echo "$API_RESPONSE" | jq -r '.tag_name // empty')

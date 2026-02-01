@@ -60,6 +60,8 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { getKokoroWorker } from '../workers/kokoro'
+import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
@@ -2189,6 +2191,194 @@ export const useProvidersStore = defineStore('providers', () => {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
             valid: errors.length === 0,
+          }
+        },
+      },
+    },
+    'kokoro-local': {
+      id: 'kokoro-local',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      nameKey: 'settings.pages.providers.provider.kokoro-local.title',
+      name: 'Kokoro TTS',
+      descriptionKey: 'settings.pages.providers.provider.kokoro-local.description',
+      description: 'Local text-to-speech using Kokoro-82M.',
+      icon: 'i-lobe-icons:speaker',
+
+      defaultOptions: () => {
+        const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu
+        const model = getDefaultKokoroModel(hasWebGPU)
+        return {
+          model,
+          voiceId: '',
+        }
+      },
+
+      createProvider: async (_config) => {
+        // Import the worker manager
+        const workerManagerPromise = getKokoroWorker()
+
+        const provider: SpeechProvider = {
+          speech: () => {
+            return {
+              baseURL: 'http://kokoro-local/v1/',
+              model: 'kokoro-82m',
+              fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
+                try {
+                  // Parse OpenAI-compatible request body
+                  if (!init?.body || typeof init.body !== 'string') {
+                    throw new Error('Invalid request body')
+                  }
+                  const body = JSON.parse(init.body)
+                  const text = body.input
+                  const voice = body.voice
+
+                  if (!voice) {
+                    throw new Error('Voice parameter is required')
+                  }
+
+                  // Generate audio in the worker thread
+                  const buffer = await (await workerManagerPromise).generate(text, voice)
+
+                  return new Response(buffer, {
+                    status: 200,
+                    headers: {
+                      'Content-Type': 'audio/wav',
+                    },
+                  })
+                }
+                catch (error) {
+                  console.error('Kokoro TTS generation failed:', error)
+                  throw error
+                }
+              },
+            }
+          },
+        }
+
+        return provider
+      },
+
+      capabilities: {
+        listModels: async (_config: Record<string, unknown>) => {
+          const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu
+          return kokoroModelsToModelInfo(hasWebGPU, t)
+        },
+
+        loadModel: async (config: Record<string, unknown>, _hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => {
+          const modelId = config.model as string
+
+          if (!modelId) {
+            throw new Error('No model specified')
+          }
+
+          const modelDef = KOKORO_MODELS.find(m => m.id === modelId)
+          if (!modelDef) {
+            throw new Error(`Invalid model: ${modelId}. Must be one of: ${KOKORO_MODELS.map(m => m.id).join(', ')}`)
+          }
+
+          // Validate platform requirements
+          if (modelDef.platform === 'webgpu') {
+            const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu
+            if (!hasWebGPU) {
+              throw new Error('WebGPU is required for this model but is not available in your browser')
+            }
+          }
+
+          try {
+            const workerManager = await getKokoroWorker()
+            await workerManager.loadModel(modelDef.quantization, modelDef.platform, { onProgress: _hooks?.onProgress })
+          }
+          catch (error) {
+            console.error('Failed to load Kokoro model:', error)
+            throw error
+          }
+        },
+
+        listVoices: async (config: Record<string, unknown>) => {
+          try {
+            // Reload the model before fetching voices
+            const modelId = config.model as string
+            if (modelId) {
+              const modelDef = KOKORO_MODELS.find(m => m.id === modelId)
+              if (modelDef) {
+                // Validate platform requirements
+                if (modelDef.platform === 'webgpu') {
+                  const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu
+                  if (!hasWebGPU) {
+                    throw new Error('WebGPU is required for this model but is not available in your browser')
+                  }
+                }
+
+                // Load the model
+                const workerManager = await getKokoroWorker()
+                await workerManager.loadModel(modelDef.quantization, modelDef.platform)
+              }
+            }
+
+            // Get worker manager and fetch voices from the model
+            const workerManager = await getKokoroWorker()
+            const modelVoices = workerManager.getVoices()
+
+            // Language code mapping
+            const languageMap: Record<string, { code: string, title: string }> = {
+              'en-us': { code: 'en-US', title: 'English (US)' },
+              'en-gb': { code: 'en-GB', title: 'English (UK)' },
+              'ja': { code: 'ja', title: 'Japanese' },
+              'zh-cn': { code: 'zh-CN', title: 'Chinese (Mandarin)' },
+              'es': { code: 'es', title: 'Spanish' },
+              'fr': { code: 'fr', title: 'French' },
+              'hi': { code: 'hi', title: 'Hindi' },
+              'it': { code: 'it', title: 'Italian' },
+              'pt-br': { code: 'pt-BR', title: 'Portuguese (Brazil)' },
+            }
+
+            // Transform the voices object to the expected array format
+            return Object.entries(modelVoices).map(([id, voice]: [string, { language: string, name: string, gender: string }]) => {
+              const languageCode = voice.language.toLowerCase()
+              const languageInfo = languageMap[languageCode] || { code: languageCode, title: voice.language }
+
+              return {
+                id,
+                name: `${voice.name} (${voice.gender}, ${languageInfo.title.split('(')[0].trim()})`,
+                provider: 'kokoro-local',
+                languages: [languageInfo],
+                gender: voice.gender.toLowerCase(),
+              }
+            })
+          }
+          catch (error) {
+            console.error('Failed to fetch Kokoro voices:', error)
+            // Return empty array if model not loaded yet
+            return []
+          }
+        },
+      },
+
+      validators: {
+        validateProviderConfig: async (config: any) => {
+          const model = config.model as string
+
+          if (!model) {
+            return {
+              errors: [new Error('No model selected')],
+              reason: 'Please select a model from the dropdown menu',
+              valid: false,
+            }
+          }
+
+          if (!KOKORO_MODELS.some(m => m.id === model)) {
+            return {
+              errors: [new Error(`Invalid model: ${model}`)],
+              reason: `Invalid model. Must be one of: ${KOKORO_MODELS.map(m => m.id).join(', ')}`,
+              valid: false,
+            }
+          }
+
+          return {
+            errors: [],
+            reason: '',
+            valid: true,
           }
         },
       },

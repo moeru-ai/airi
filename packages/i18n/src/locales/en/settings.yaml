@@ -368,6 +368,7 @@ pages:
               stop:
                 label: Stop
             select-voice:
+              loading: Loading model...
               required: Please select a voice
           provider-voice-selection:
             custom_model_placeholder: Enter custom model name...
@@ -632,6 +633,30 @@ pages:
           validation:
             error-missing-api-key: Please enter an API key to test the voice.
         title: ElevenLabs
+      kokoro-local:
+        description: Local text-to-speech using Kokoro-82M.
+        fields:
+          field:
+            model:
+              label: Model Selection
+              description: Smaller models load faster but may have slightly lower quality.
+        models:
+          fp32-webgpu:
+            description: Full precision model using WebGPU - Recommended for supported devices
+          fp32:
+            description: Full precision model
+          fp16:
+            description: Half precision
+          q8:
+            description: 8-bit quantized
+          q4:
+            description: 4-bit quantized
+          q4f16:
+            description: 4-bit with FP16
+        playground:
+          default-text: Hello! This is a test of the Kokoro text-to-speech system.
+          title: Voice Playground
+        title: Kokoro TTS (Local)
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai
