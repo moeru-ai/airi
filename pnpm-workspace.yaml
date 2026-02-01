@@ -4,6 +4,7 @@ shellEmulator: true
 packages:
   - packages/**
   - plugins/**
+  - integrations/**
   - services/**
   - examples/**
   - docs/**
