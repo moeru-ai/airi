@@ -3,7 +3,7 @@
  * This file is imported as a Web Worker
  */
 
-import type { GenerateOptions } from 'kokoro-js'
+import type { ErrorMessage, LoadedMessage, ProgressMessage, SuccessMessage, VoiceKey, WorkerRequest } from './types'
 
 import { KokoroTTS } from 'kokoro-js'
 
@@ -13,16 +13,17 @@ let currentDevice: string | null = null
 
 interface GenerateRequest {
   text: string
-  voice: GenerateOptions['voice']
+  voice: VoiceKey
 }
 
 async function loadModel(quantization: string, device: string) {
   // Check if we already have the correct model loaded
   if (ttsModel && currentQuantization === quantization && currentDevice === device) {
-    globalThis.postMessage({
+    const message: LoadedMessage = {
       type: 'loaded',
       voices: ttsModel.voices,
-    })
+    }
+    globalThis.postMessage(message)
     return
   }
 
@@ -35,10 +36,11 @@ async function loadModel(quantization: string, device: string) {
       dtype: modelQuantization as 'fp32' | 'fp16' | 'q8' | 'q4' | 'q4f16',
       device: device as 'wasm' | 'webgpu' | 'cpu',
       progress_callback: (progress) => {
-        globalThis.postMessage({
+        const message: ProgressMessage = {
           type: 'progress',
           progress,
-        })
+        }
+        globalThis.postMessage(message)
       },
     },
   )
@@ -47,20 +49,23 @@ async function loadModel(quantization: string, device: string) {
   currentQuantization = quantization
   currentDevice = device
 
-  globalThis.postMessage({
+  const message: LoadedMessage = {
     type: 'loaded',
     voices: ttsModel.voices,
-  })
+  }
+  globalThis.postMessage(message)
 }
 
 async function generate(request: GenerateRequest) {
   const { text, voice } = request
 
   if (!ttsModel) {
-    globalThis.postMessage({
+    const errorMessage: ErrorMessage = {
+      type: 'result',
       status: 'error',
       message: 'Kokoro TTS generation failed: No model loaded.',
-    })
+    }
+    globalThis.postMessage(errorMessage)
     return
   }
 
@@ -74,30 +79,29 @@ async function generate(request: GenerateRequest) {
 
   // Send the audio buffer back to the main thread
   // Use transferable to avoid copying the buffer
+  const successMessage: SuccessMessage = {
+    type: 'result',
+    status: 'success',
+    buffer,
+  }
   const transferList: ArrayBuffer[] = [buffer]
-  ;(globalThis as any).postMessage(
-    {
-      status: 'success',
-      buffer,
-    },
-    transferList,
-  )
+  ;(globalThis as any).postMessage(successMessage, transferList)
 }
 
 // Listen for messages from the main thread
-globalThis.addEventListener('message', async (event) => {
-  const { type, data } = event.data
+globalThis.addEventListener('message', async (event: MessageEvent<WorkerRequest>) => {
+  const message = event.data
 
-  switch (type) {
+  switch (message.type) {
     case 'load':
-      await loadModel(data.quantization, data.device)
+      await loadModel(message.data.quantization, message.data.device)
       break
 
     case 'generate':
-      await generate(data as GenerateRequest)
+      await generate(message.data)
       break
 
     default:
-      console.warn('[Kokoro Worker] Unknown message type:', type)
+      console.warn('[Kokoro Worker] Unknown message type:', (message as any).type)
   }
 })

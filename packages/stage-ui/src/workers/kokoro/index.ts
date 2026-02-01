@@ -3,6 +3,8 @@
  * Manages communication with the Kokoro TTS worker thread
  */
 
+import type { LoadedMessage, VoiceKey, Voices, WorkerRequest, WorkerResponse } from './types'
+
 /**
  * An async mutex that ensures only one callback runs at a time.
  * Waiters queue up and are processed in FIFO order.
@@ -91,7 +93,7 @@ export class KokoroWorkerManager {
   private worker: Worker | null = null
   private asyncMutex: AsyncMutex
   private workerLifecycleAsyncMutex: AsyncMutex
-  private voices: Record<string, { language: string, name: string, gender: string }> | null = null
+  private voices: Voices | null = null
 
   private restartAttempts = 0
   private readonly maxRestartAttempts = 3
@@ -161,11 +163,11 @@ export class KokoroWorkerManager {
     this.restartAttempts = 0
   }
 
-  async loadModel(quantization: string, device: string, options?: { onProgress?: (progress: any) => void }): Promise<any> {
+  async loadModel(quantization: string, device: string, options?: { onProgress?: (progress: any) => void }): Promise<Voices> {
     // Lazy-start the worker if not already initialized
     await this.start()
     return await this.asyncMutex.run(async () => {
-      const voicePromise = waitForEvent<MessageEvent>(
+      const voicePromise = waitForEvent<MessageEvent<WorkerResponse>>(
         this.worker!,
         'message',
         event => event.data.type === 'loaded',
@@ -175,43 +177,53 @@ export class KokoroWorkerManager {
           }
         },
       )
-      this.worker!.postMessage({
+      const message: WorkerRequest = {
         type: 'load',
         data: { quantization, device },
-      })
+      }
+      this.worker!.postMessage(message)
       const event = await voicePromise
-      this.voices = event.data.voices
+      const loadedData = event.data as LoadedMessage
+      this.voices = loadedData.voices
       this.onSuccessfulOperation()
       return this.voices
     })
   }
 
-  async generate(text: string, voice: string): Promise<ArrayBuffer> {
+  async generate(text: string, voice: VoiceKey): Promise<ArrayBuffer> {
     return await this.asyncMutex.run(async () => {
       if (!this.worker) {
         throw new Error('Worker not initialized. Call start() first.')
       }
 
-      const resultPromise = waitForEvent<MessageEvent>(this.worker, 'message')
-      this.worker.postMessage({
+      const resultPromise = waitForEvent<MessageEvent<WorkerResponse>>(
+        this.worker,
+        'message',
+        event => event.data.type === 'result',
+      )
+      const message: WorkerRequest = {
         type: 'generate',
         data: { text, voice },
-      })
-      const event = await resultPromise
-
-      switch (event.data.status) {
-        case 'success':
-          this.onSuccessfulOperation()
-          return event.data.buffer
-        case 'error':
-          throw new Error(event.data.message)
-        default:
-          throw new Error(`Unexpected response status: ${event.data.status}`)
       }
+      this.worker.postMessage(message)
+      const event = await resultPromise
+      const response = event.data
+
+      if ('status' in response) {
+        switch (response.status) {
+          case 'success':
+            this.onSuccessfulOperation()
+            return response.buffer
+          case 'error':
+            throw new Error(response.message)
+        }
+      }
+
+      throw new Error('Unexpected response from worker')
     })
   }
 
-  getVoices(): any {
+  getVoices(): Voices {
     if (!this.voices) {
       throw new Error('Model not loaded. Call loadModel() first.')
     }
