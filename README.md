@@ -201,6 +201,14 @@ CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
 
 Then Xcode will open and you can click the "Run" button to run the app on your iPhone.
 
+If you need to connect server channel on pocket in wireless mode, you need to start tamagotchi as root:
+
+```shell
+sudo pnpm dev:tamagotchi
+```
+
+Then enable secure websocket in tamagotchi `settings/system/general`.
+
 ### Documentation Site
 
 ```shell

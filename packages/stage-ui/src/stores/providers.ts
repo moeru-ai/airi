@@ -1510,7 +1510,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
-        validateProviderConfig: (config) => {
+        validateProviderConfig: async (config) => {
           const errors = [
             !config.baseUrl && new Error('Base URL is required. Default to http://localhost:11996/tts/ for Index-TTS.'),
           ].filter(Boolean)
@@ -1520,10 +1520,26 @@ export const useProvidersStore = defineStore('providers', () => {
             return res
           }
 
+          try {
+            const controller = new AbortController()
+            const timeout = setTimeout(() => controller.abort(), 5000)
+            const response = await fetch(`${config.baseUrl as string}audio/voices`, { signal: controller.signal })
+            clearTimeout(timeout)
+
+            if (!response.ok) {
+              const reason = `IndexTTS unreachable: HTTP ${response.status} ${response.statusText}`
+              return { errors: [new Error(reason)], reason, valid: false }
+            }
+          }
+          catch (err) {
+            const reason = `IndexTTS connection failed: ${String(err)}`
+            return { errors: [err as Error], reason, valid: false }
+          }
+
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.baseUrl,
+            valid: errors.length === 0,
           }
         },
       },
@@ -2140,24 +2156,41 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
-        validateProviderConfig: (config: any) => {
-          if (!config.baseUrl) {
-            return {
-              errors: [new Error('Base URL is required.')],
-              reason: 'Base URL is required. Default to http://localhost:4315/v1/',
-              valid: false,
-            }
-          }
+        validateProviderConfig: async (config) => {
+          const errors = [
+            !config.baseUrl && new Error('Base URL is required. Default to http://localhost:4315/v1/'),
+          ].filter(Boolean)
 
           const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
+          if (res)
             return res
+
+          try {
+            const controller = new AbortController()
+            const timeout = setTimeout(() => controller.abort(), 5000)
+            const response = await fetch(`${config.baseUrl as string}health`, {
+              method: 'GET',
+              headers: {
+                'player2-game-key': 'airi',
+              },
+              signal: controller.signal,
+            })
+            clearTimeout(timeout)
+
+            if (!response.ok) {
+              const reason = `Player2 speech unreachable: HTTP ${response.status} ${response.statusText}`
+              return { errors: [new Error(reason)], reason, valid: false }
+            }
+          }
+          catch (err) {
+            const reason = `Player2 speech connection failed: ${String(err)}`
+            return { errors: [err as Error], reason, valid: false }
           }
 
           return {
-            errors: [],
-            reason: '',
-            valid: true,
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: errors.length === 0,
           }
         },
       },
@@ -2405,7 +2438,7 @@ export const useProvidersStore = defineStore('providers', () => {
     if (providerRuntimeState.value[providerId]) {
       providerRuntimeState.value[providerId].isConfigured = validationResult.valid
       // Auto-mark Web Speech API as added if valid and available
-      if (providerId === 'browser-web-speech-api' && validationResult.valid) {
+      if (validationResult.valid && ['browser-web-speech-api', 'player2'].includes(providerId)) {
         markProviderAdded(providerId)
       }
     }

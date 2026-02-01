@@ -21,8 +21,8 @@ import { toast, Toaster } from 'vue-sonner'
 
 import ResizeHandler from './components/ResizeHandler.vue'
 
-import { electronOpenSettings, electronStartTrackMousePosition } from '../shared/eventa'
-import { useElectronEventaContext } from './composables/electron-vueuse'
+import { electronOpenSettings, electronStartTrackMousePosition, electronStartWebSocketServer } from '../shared/eventa'
+import { useElectronEventaContext, useElectronEventaInvoke } from './composables/electron-vueuse'
 
 const { isDark: dark } = useTheme()
 const i18n = useI18n()
@@ -49,7 +49,8 @@ watch(dark, () => updateThemeColor(), { immediate: true })
 watch(route, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
 
-// FIXME: store settings to file
+const startWebSocketServer = useElectronEventaInvoke(electronStartWebSocketServer)
+
 onMounted(async () => {
   analyticsStore.initialize()
   cardStore.initialize()
@@ -58,6 +59,7 @@ onMounted(async () => {
   await chatSessionStore.initialize()
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
+  await startWebSocketServer({ websocketSecureEnabled: settingsStore.websocketSecureEnabled })
 
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   await contextBridgeStore.initialize()
