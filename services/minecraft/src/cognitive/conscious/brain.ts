@@ -16,6 +16,8 @@ import { LLMAgent } from './llm-agent'
 import {
   actionsToFunctionCalls,
   buildMessages,
+  clearAsyncActionQueue,
+  drainAsyncActionQueue,
   getErrorCode,
   getErrorStatus,
   parseLLMResponseJson,
@@ -38,12 +40,12 @@ interface LLMResponse {
     CurrentTask?: string
     executionStrategy?: string
   }
-  actions: ActionInstruction[]
 }
 
 interface DecisionResult {
   success: boolean
   decision?: LLMResponse
+  queuedActions?: ActionInstruction[]
   error?: {
     message: string
     attempts: number
@@ -353,7 +355,7 @@ export class Brain {
     }
 
     // 4. Act (Execute Decision)
-    this.applyDecision(result.decision)
+    this.applyDecision(result.decision, result.queuedActions ?? [])
   }
 
   private buildDecisionPrompts(event: BotEvent): { systemPrompt: string, userMsg: string } {
@@ -367,22 +369,21 @@ export class Brain {
     return { systemPrompt, userMsg }
   }
 
-  private applyDecision(decision: LLMResponse): void {
+  private applyDecision(decision: LLMResponse, queuedActions: ActionInstruction[]): void {
     this.consciousLog('decision:applied', {
       thought: decision.thought,
-      actions: decision.actions?.map(a => ({ id: a.id, action: a.action, params: a.params })),
+      actions: queuedActions.map(a => ({ id: a.id, action: a.action, params: a.params })),
       blackboard: decision.blackboard,
     })
 
     this.updateBlackboardFromDecision(decision)
     this.debugService.updateBlackboard(this.blackboard)
 
-    if (decision.actions && decision.actions.length > 0) {
-      const actionsWithIds = this.ensureActionIds(decision.actions)
-      if (actionsWithIds.length > 0) {
-        this.recordChatActions(actionsWithIds)
-        this.deps.taskExecutor.executeActions(actionsWithIds)
-      }
+    // Execute queued async actions from function calls
+    if (queuedActions.length > 0) {
+      const actionsWithIds = this.ensureActionIds(queuedActions)
+      this.recordChatActions(actionsWithIds)
+      this.deps.taskExecutor.executeActions(actionsWithIds)
     }
   }
 
@@ -430,7 +431,7 @@ export class Brain {
       model: config.openai.model,
     })
 
-    const decideOnce = async (): Promise<LLMResponse | null> => {
+    const decideOnce = async (): Promise<{ response: LLMResponse, queuedActions: ActionInstruction[] } | null> => {
       const messages = buildMessages(sysPrompt, userMsg)
       const tools = this.bot ? actionsToFunctionCalls(this.deps.taskExecutor.getAvailableActions(), this.bot) : undefined
 
@@ -443,41 +444,55 @@ export class Brain {
         blackboard: this.snapshotBlackboard(),
       })
 
-      const result = await llmAgent.callLLM({
-        messages,
-        responseFormat: { type: 'json_object' },
-        tools,
-      })
+      // Clear async action queue before LLM generation
+      clearAsyncActionQueue()
 
-      this.debugService.traceLLM({
-        route: 'brain:decide',
-        messages,
-        content: result.text,
-        usage: result.usage,
-        model: config.openai.model,
-        duration: undefined,
-      })
+      try {
+        const result = await llmAgent.callLLM({
+          messages,
+          responseFormat: { type: 'json_object' },
+          tools,
+        })
 
-      if (!result.text) {
-        throw new Error('LLM failed to return content')
+        // Drain queued async actions (populated during tool execution)
+        const queuedActions = drainAsyncActionQueue()
+
+        this.debugService.traceLLM({
+          route: 'brain:decide',
+          messages,
+          content: result.text,
+          usage: result.usage,
+          model: config.openai.model,
+          duration: undefined,
+        })
+
+        if (!result.text) {
+          throw new Error('LLM failed to return content')
+        }
+
+        const parsed = parseLLMResponseJson<LLMResponse>(result.text)
+
+        return { response: parsed, queuedActions }
       }
-
-      return parseLLMResponseJson<LLMResponse>(result.text)
+      finally {
+        // Ensure no stale queued actions leak across retry attempts.
+        clearAsyncActionQueue()
+      }
     }
 
     let lastError: unknown
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        const decision = await decideOnce()
-        if (decision) {
+        const result = await decideOnce()
+        if (result) {
           this.consciousLog('decision:received', {
             attempt,
-            thought: decision.thought,
-            actions: decision.actions?.map(a => ({ id: a.id, action: a.action })),
-            blackboard: decision.blackboard,
+            thought: result.response.thought,
+            actions: result.queuedActions.map(a => ({ id: a.id, action: a.action })),
+            blackboard: result.response.blackboard,
           })
-          return { success: true, decision }
+          return { success: true, decision: result.response, queuedActions: result.queuedActions }
         }
       }
       catch (err) {

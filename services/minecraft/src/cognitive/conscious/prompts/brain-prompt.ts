@@ -1,11 +1,8 @@
-import type { Action } from '../../../libs/mineflayer/action'
 import type { Blackboard } from '../blackboard'
-
-import { z } from 'zod/v4'
 
 export function generateBrainSystemPrompt(
   blackboard: Blackboard,
-  availableActions: Action[],
+  _availableActions: unknown[], // Actions are now exposed via function calling, not prompt
 ): string {
   const now = Date.now()
 
@@ -19,34 +16,6 @@ export function generateBrainSystemPrompt(
     return now - timestamp <= windowMs
   }
 
-  // Separate tools by execution type
-  const instantTools = availableActions.filter(a => a.execution === 'sync')
-  const asyncActions = availableActions.filter(a => a.execution === 'async')
-
-  const toCompactParams = (action: Action): Record<string, unknown> => {
-    const schema = z.toJSONSchema(action.schema) as Record<string, any>
-    const { type, properties, required } = schema
-    return {
-      type,
-      properties,
-      required,
-    }
-  }
-
-  const instantToolDefs = instantTools.map(a => ({
-    name: a.name,
-    description: a.description,
-  }))
-
-  const asyncActionDefs = asyncActions.map(a => ({
-    name: a.name,
-    description: a.description,
-    params: toCompactParams(a),
-  }))
-
-  const instantToolsJson = JSON.stringify(instantToolDefs, null, 2)
-  const asyncActionsJson = JSON.stringify(asyncActionDefs, null, 2)
-
   const recentWindowMs = 30_000
 
   const recentActionLines = blackboard.recentActionHistory
@@ -59,8 +28,6 @@ export function generateBrainSystemPrompt(
     .map(m => `- [${formatAgo(m.timestamp)}] ${m.sender}: ${m.content}`)
     .join('\n')
 
-  // TODO extract prompt components later
-  // e.g. personality should be included from somewhere else
   return `
 # Role Definition
 You are playing the game Minecraft. Your user name is [${blackboard.selfUsername}].
@@ -68,65 +35,41 @@ You are NOT an assistant. You are an autonomous agent with a virtual body, sense
 
 ---
 
-# Instant Tools (Native Tool Calls)
+# Actions (Function Calls)
 
-These tools/functions execute IMMEDIATELY and return results within this same turn.
-Use them to gather information BEFORE deciding what actions to take.
+All actions are available as function/tool calls. Each action is prefixed with its execution type:
 
-**How to use**: Invoke these by making native tool calls.
-**Important**: Use instantTools only with native tool/function calling (the one with special tokens)
-**On failure**: You will receive a [FAILED] message with suggestions. Use this to adjust your approach.
+- **[INSTANT]**: Executes immediately and returns results within this turn. Use these to gather information before deciding what to do.
+- **[QUEUED]**: Queued for execution after your response completes. Use these for movement, crafting, combat, etc.
 
-${instantToolsJson}
-
----
-
-# Async Actions (JSON Output)
-
-These actions take TIME to complete (movement, crafting, combat, etc.).
-They are queued and executed asynchronously after your response.
-
-**How to use**: Output these in the JSON "actions" array in your response.
-**Important**: Use the exact parameter names/types shown in each action's "params" schema below. Missing required params will fail.
-**Feedback**: You will receive feedback when they complete(if require_feedback is true) or fail(always).
-
-${asyncActionsJson}
+**How to use**: Invoke actions using native tool/function calling.
+**On failure**: You will receive a [FAILED] message. Use this to adjust your approach.
+**Feedback**: For **[QUEUED]** actions you may set 'require_feedback' (boolean) in the tool parameters. If true, you will get a follow-up feedback event when it completes; failures always produce feedback.
 
 ---
 
 # Response Format
 
-Your entire response must be valid JSON. Include only your thoughts, blackboard updates, and async actions.
-
-Rules for the "actions" array:
-1. Actions are processed in the order you output them
-2. Actions are awaited strictly in order
-3. Set "require_feedback": true if you need to know the result, it will be given to you in the next turn
-4. Failed actions always trigger feedback
-5. Use empty array if no action is needed
-6. Perfer not to queue actions if possible
+Your response must be valid JSON containing your thoughts and state updates.
 
 Schema:
 {
-  "thought": "Your current thought, internal monologue and memory. Put everything that might be useful for the next turn here",
+  "thought": "Your current thought, internal monologue and memory. Put everything useful for next turn here",
   "blackboard": {
-    "UltimateGoal": "These 3 fields are functionally identical to the thought above",
-    "CurrentTask": "What ever you're up to right now",
-    "executionStrategy": "Short-term plan if any."
-  },
-  "actions": [
-    {"action":"goToPlayer","params":{"player_name":"Steve","closeness":3},"require_feedback": false},
-    {"action":"placeHere","params":{"type":"dirt"},"require_feedback": true}
-
-  ]
+    "UltimateGoal": "Your long-term objective",
+    "CurrentTask": "What you're doing right now",
+    "executionStrategy": "Short-term plan if any"
+  }
 }
+
+---
 
 # Understanding the Context
 
-Hint: When a player is talking about "there" or "that", it's possible that they're referencing the block they're currently looking at.
-But you should always try to infer it from the context.
+Hint: When a player mentions "there" or "that", they may be referencing the block they're looking at.
+Always try to infer from context.
 
-The following blackboard provides you with information about your current state:
+The following blackboard provides your current state:
 
 Goal: "${blackboard.ultimate_goal}"
 Thought: "${blackboard.current_task}"
@@ -137,7 +80,7 @@ Environment: ${blackboard.environmentSummary}
 # Execution State
 Ongoing actions still running:
 ${blackboard.pendingActions.map(a => `- ${a}`).join('\n') || '- none'}
-NOTE: For most actions, you don't want to create a duplicate one if it's already running, in that case just do nothing.
+NOTE: Don't duplicate an action if it's already running.
 
 Recent actions and results:
 ${recentActionLines || '- none'}

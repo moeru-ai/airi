@@ -1,6 +1,7 @@
 import type { Message, Tool } from '@xsai/shared-chat'
 
 import type { Action, Mineflayer } from '../../libs/mineflayer'
+import type { ActionInstruction } from '../action/types'
 
 import { zodToJsonSchema } from 'zod-to-json-schema'
 import { ZodError } from 'zod'
@@ -28,41 +29,131 @@ export interface RetryDecision {
 type JsonSchemaObject = Record<string, unknown>
 
 /**
- * Pure function to convert sync actions into streamText tool definitions
+ * Queue for collecting async actions during LLM generation.
+ * Async action tool calls add to this queue and return acknowledgment.
+ * Brain processes this queue after LLM generation completes.
+ */
+let asyncActionQueue: ActionInstruction[] = []
+
+/**
+ * Clear the async action queue. Call before each LLM generation.
+ */
+export function clearAsyncActionQueue(): void {
+  asyncActionQueue = []
+}
+
+/**
+ * Get and clear the queued async actions. Call after LLM generation completes.
+ * Filters out any malformed actions that lack required fields.
+ */
+export function drainAsyncActionQueue(): ActionInstruction[] {
+  const actions = asyncActionQueue.filter((a) => {
+    if (!a.action || typeof a.action !== 'string') {
+      console.warn('[llmlogic] Dropping malformed action instruction (missing action name):', JSON.stringify(a))
+      return false
+    }
+    return true
+  })
+  asyncActionQueue = []
+  return actions
+}
+
+/**
+ * Convert ALL actions into streamText tool definitions.
+ * - Sync actions: execute immediately and return results
+ * - Async actions: queue for later execution, return acknowledgment
  */
 export function actionsToFunctionCalls(actions: Action[], mineflayer: Mineflayer): Tool[] {
-  return actions
-    .filter(action => action.execution === 'sync')
-    .map((action) => {
-      const schema = action.schema as unknown
-      const parameters = zodToJsonSchema(schema as any, { name: `${action.name}Params` }) as JsonSchemaObject
-      const argOrder = Object.keys((schema as any).shape ?? {})
+  return actions.map((action) => {
+    const schema = action.schema as unknown
+    const parameters = zodToJsonSchema(schema as any, { name: `${action.name}Params` }) as JsonSchemaObject
+    const argOrder = Object.keys((schema as any).shape ?? {})
+    const isSync = action.execution === 'sync'
 
-      return {
-        type: 'function',
-        function: {
-          name: action.name,
-          description: action.description,
-          parameters,
-          strict: true,
-        },
-        execute: async (input: unknown) => {
-          let parsed: Record<string, unknown>
-          try {
-            parsed = action.schema.parse(input) as Record<string, unknown>
-          }
-          catch (err) {
-            if (err instanceof ZodError) {
-              return `Invalid parameters for action ${action.name}: ${err.issues.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`
-            }
-            return `Parameter validation failed for action ${action.name}: ${toErrorMessage(err)}`
-          }
-          const args = argOrder.map(key => parsed[key])
+    const toolParameters = (() => {
+      if (isSync)
+        return parameters
 
-          return await action.perform(mineflayer)(...args) // we don't expect actions to throw
+      const p = parameters as any
+      const next = {
+        ...p,
+        properties: {
+          ...p?.properties,
+          require_feedback: {
+            type: 'boolean',
+            description: 'If true, request an explicit feedback turn when this queued action completes. Defaults to false.',
+          },
         },
       }
-    })
+
+      // Ensure require_feedback is not required even if schema uses required[]
+      if (Array.isArray(next.required))
+        next.required = next.required.filter((k: unknown) => k !== 'require_feedback')
+
+      return next as JsonSchemaObject
+    })()
+
+    return {
+      type: 'function',
+      function: {
+        name: action.name,
+        description: isSync
+          ? `[INSTANT] ${action.description}`
+          : `[QUEUED] ${action.description}`,
+        parameters: toolParameters,
+        strict: true,
+      },
+      execute: async (input: unknown) => {
+        // NOTICE: Debug logging to trace xsai callback behavior
+        console.log(`[llmlogic] execute called for ${action.name}:`, JSON.stringify(input))
+
+        const maybeObj = (typeof input === 'object' && input !== null) ? (input as Record<string, unknown>) : undefined
+        const requireFeedback = typeof maybeObj?.require_feedback === 'boolean' ? maybeObj.require_feedback : undefined
+        const paramInput = maybeObj
+          ? Object.fromEntries(Object.entries(maybeObj).filter(([k]) => k !== 'require_feedback'))
+          : input
+
+        let parsed: Record<string, unknown>
+        try {
+          parsed = action.schema.parse(paramInput) as Record<string, unknown>
+        }
+        catch (err) {
+          if (err instanceof ZodError) {
+            return `[FAILED] Invalid parameters for ${action.name}: ${err.issues.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`
+          }
+          return `[FAILED] Parameter validation failed for ${action.name}: ${toErrorMessage(err)}`
+        }
+
+        if (isSync) {
+          // Sync actions execute immediately and return results
+          const args = argOrder.map(key => parsed[key])
+          try {
+            return await action.perform(mineflayer)(...args);
+          }
+          catch (err) {
+            return `[FAILED] ${action.name}: ${toErrorMessage(err)}`
+          }
+        }
+        else {
+          // Async actions queue for later execution
+          // NOTICE: action.name is captured in closure at tool creation time
+          const actionName = action.name
+          if (!actionName) {
+            console.error('[llmlogic] BUG: action.name is falsy in execute callback:', { action, input })
+            return `[FAILED] Internal error: action name is undefined`
+          }
+          const instruction: ActionInstruction = {
+            action: actionName,
+            params: parsed,
+            require_feedback: requireFeedback,
+          }
+          console.log(`[llmlogic] Pushing to queue:`, JSON.stringify(instruction))
+          asyncActionQueue.push(instruction)
+          return `[QUEUED] ${actionName} with params ${JSON.stringify(parsed)} - will execute after your response completes`
+        }
+      },
+    }
+  })
 }
 
 /**
