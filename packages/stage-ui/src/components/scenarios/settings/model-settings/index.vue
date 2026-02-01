@@ -42,6 +42,7 @@ const {
   live2dAutoBlinkEnabled,
   live2dForceAutoBlinkEnabled,
   live2dShadowEnabled,
+  live2dMaxFps,
 } = storeToRefs(settingsStore)
 
 watch(selectedModel, async () => {
@@ -110,6 +111,7 @@ watch(selectedModel, async () => {
         :live2d-auto-blink-enabled="live2dAutoBlinkEnabled"
         :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
         :live2d-shadow-enabled="live2dShadowEnabled"
+        :live2d-max-fps="live2dMaxFps"
       />
     </div>
   </template>

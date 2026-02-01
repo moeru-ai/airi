@@ -74,6 +74,11 @@ live2d:
     title: Disable model mouse tracking
     button-disable:
       title: Disable
+  fps:
+    title: FPS
+    description: Limit rendering frame rate
+    options:
+      unlimited: No Limit
 microphone: Microphone
 models: Model
 pages:

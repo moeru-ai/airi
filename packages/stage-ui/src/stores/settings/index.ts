@@ -65,6 +65,7 @@ export const useSettings = defineStore('settings', () => {
     live2dAutoBlinkEnabled: live2dRefs.live2dAutoBlinkEnabled,
     live2dForceAutoBlinkEnabled: live2dRefs.live2dForceAutoBlinkEnabled,
     live2dShadowEnabled: live2dRefs.live2dShadowEnabled,
+    live2dMaxFps: live2dRefs.live2dMaxFps,
 
     // Theme settings
     themeColorsHue: themeRefs.themeColorsHue,
