@@ -383,9 +383,9 @@ export function setupApp(options?: {
   }))
 
   function closeAllPeers() {
-    console.log('closing all peers', peers.size)
+    logger.withFields({ totalPeers: peers.size }).log('closing all peers')
     for (const peer of peers.values()) {
-      console.log('closing peer', peer.peer.id)
+      logger.withFields({ peer: peer.peer.id, peerName: peer.name }).debug('closing peer')
       peer.peer.close?.()
     }
   }

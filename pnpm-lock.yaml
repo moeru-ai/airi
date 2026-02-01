@@ -1767,6 +1767,42 @@ importers:
         specifier: ^3.1.8
         version: 3.2.1(typescript@5.9.3)
 
+  integrations/vscode/airi-plugin-vscode:
+    devDependencies:
+      '@proj-airi/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../../packages/plugin-sdk
+
+  integrations/vscode/vscode-airi:
+    devDependencies:
+      '@guiiai/logg':
+        specifier: 'catalog:'
+        version: 1.2.11
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.14
+      '@proj-airi/server-sdk':
+        specifier: workspace:*
+        version: link:../../../packages/server-sdk
+      '@types/vscode':
+        specifier: ^1.108.1
+        version: 1.108.1
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.43.0
+      injeca:
+        specifier: 'catalog:'
+        version: 0.1.7(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6)
+      nanoid:
+        specifier: 'catalog:'
+        version: 5.1.6
+      tinyexec:
+        specifier: ^1.0.2
+        version: 1.0.2
+      vscode-ext-gen:
+        specifier: ^1.5.1
+        version: 1.5.1
+
   packages/audio:
     dependencies:
       '@alexanderolsen/libsamplerate-js':
@@ -1930,6 +1966,8 @@ importers:
       clustr:
         specifier: ^1.0.2
         version: 1.0.2
+
+  packages/plugin-sdk: {}
 
   packages/server-runtime:
     dependencies:
@@ -2954,36 +2992,6 @@ importers:
         specifier: workspace:*
         version: link:../../packages/server-sdk
 
-  plugins/airi-plugin-vscode:
-    devDependencies:
-      '@guiiai/logg':
-        specifier: 'catalog:'
-        version: 1.2.11
-      '@moeru/std':
-        specifier: 'catalog:'
-        version: 0.1.0-beta.14
-      '@proj-airi/server-sdk':
-        specifier: workspace:*
-        version: link:../../packages/server-sdk
-      '@types/vscode':
-        specifier: ^1.108.1
-        version: 1.108.1
-      es-toolkit:
-        specifier: 'catalog:'
-        version: 1.43.0
-      injeca:
-        specifier: 'catalog:'
-        version: 0.1.7(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6)
-      nanoid:
-        specifier: 'catalog:'
-        version: 5.1.6
-      tinyexec:
-        specifier: ^1.0.2
-        version: 1.0.2
-      vscode-ext-gen:
-        specifier: ^1.5.1
-        version: 1.5.1
-
   plugins/airi-plugin-web-extension:
     devDependencies:
       '@iconify-json/solar':
@@ -3009,7 +3017,7 @@ importers:
         version: 14.1.0(vue@3.5.26(typescript@5.9.3))
       '@wxt-dev/module-vue':
         specifier: ^1.0.3
-        version: 1.0.3(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+        version: 1.0.3(vite@8.0.0-beta.9(@types/node@24.10.9)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       nanoid:
         specifier: ^5.1.6
         version: 5.1.6
@@ -23264,9 +23272,9 @@ snapshots:
       '@types/filesystem': 0.0.36
       '@types/har-format': 1.2.16
 
-  '@wxt-dev/module-vue@1.0.3(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
+  '@wxt-dev/module-vue@1.0.3(vite@8.0.0-beta.9(@types/node@24.10.9)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
-      '@vitejs/plugin-vue': 6.0.3(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+      '@vitejs/plugin-vue': 6.0.3(vite@8.0.0-beta.9(@types/node@24.10.9)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       wxt: 0.20.13(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - vite
