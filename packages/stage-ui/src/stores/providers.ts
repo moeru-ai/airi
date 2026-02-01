@@ -2262,8 +2262,27 @@ export const useProvidersStore = defineStore('providers', () => {
           }
         },
 
-        listVoices: async (_config: Record<string, unknown>) => {
+        listVoices: async (config: Record<string, unknown>) => {
           try {
+            // Reload the model before fetching voices
+            const modelId = config.model as string
+            if (modelId) {
+              const modelDef = KOKORO_MODELS.find(m => m.id === modelId)
+              if (modelDef) {
+                // Validate platform requirements
+                if (modelDef.platform === 'webgpu') {
+                  const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu
+                  if (!hasWebGPU) {
+                    throw new Error('WebGPU is required for this model but is not available in your browser')
+                  }
+                }
+
+                // Load the model
+                const workerManager = await getKokoroWorker()
+                await workerManager.loadModel(modelDef.quantization, modelDef.platform)
+              }
+            }
+
             // Get worker manager and fetch voices from the model
             const workerManager = await getKokoroWorker()
             const modelVoices = workerManager.getVoices()

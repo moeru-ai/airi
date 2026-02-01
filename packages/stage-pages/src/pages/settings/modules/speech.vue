@@ -96,6 +96,12 @@ watch(activeSpeechProvider, async (newProvider) => {
   syncOpenAICompatibleSettings()
 })
 
+watch(activeSpeechModel, async () => {
+  if (activeSpeechProvider.value) {
+    await speechStore.loadVoicesForProvider(activeSpeechProvider.value)
+  }
+})
+
 // Function to generate speech
 async function generateTestSpeech() {
   if (!testText.value.trim() && !useSSML.value)
