@@ -2229,7 +2229,7 @@ export const useProvidersStore = defineStore('providers', () => {
       capabilities: {
         listModels: async (_config: Record<string, unknown>) => {
           const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu
-          return kokoroModelsToModelInfo(hasWebGPU)
+          return kokoroModelsToModelInfo(hasWebGPU, t)
         },
 
         loadModel: async (config: Record<string, unknown>, _hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => {
@@ -2254,7 +2254,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
           try {
             const workerManager = await getKokoroWorker()
-            await workerManager.loadModel(modelDef.quantization, modelDef.platform)
+            await workerManager.loadModel(modelDef.quantization, modelDef.platform, { onProgress: _hooks?.onProgress })
           }
           catch (error) {
             console.error('Failed to load Kokoro model:', error)

@@ -635,6 +635,19 @@ pages:
             model:
               label: Model Selection
               description: Smaller models load faster but may have slightly lower quality.
+        models:
+          fp32-webgpu:
+            description: Full precision model using WebGPU - Recommended for supported devices
+          fp32:
+            description: Full precision model - Highest quality but largest size
+          fp16:
+            description: Half precision - Good balance of quality and size
+          q8:
+            description: 8-bit quantized - Good quality with reduced size
+          q4:
+            description: 4-bit quantized - Smallest size, lower quality
+          q4f16:
+            description: 4-bit with FP16 - Recommended for most devices
         playground:
           default-text: Hello! This is a test of the Kokoro text-to-speech system.
           title: Voice Playground

@@ -17,11 +17,8 @@ interface GenerateRequest {
 }
 
 async function loadModel(quantization: string, device: string) {
-  console.log('[Kokoro Worker] loadModel called with:', { quantization, device, currentQuantization, currentDevice })
-
   // Check if we already have the correct model loaded
   if (ttsModel && currentQuantization === quantization && currentDevice === device) {
-    console.log('[Kokoro Worker] Model already loaded, skipping')
     globalThis.postMessage({
       type: 'loaded',
       voices: ttsModel.voices,
@@ -49,8 +46,6 @@ async function loadModel(quantization: string, device: string) {
   // Store the current settings
   currentQuantization = quantization
   currentDevice = device
-
-  console.log('[Kokoro Worker] Model loaded successfully, voices:', Object.keys(ttsModel.voices))
 
   globalThis.postMessage({
     type: 'loaded',

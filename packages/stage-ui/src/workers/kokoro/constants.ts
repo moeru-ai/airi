@@ -20,8 +20,8 @@ export interface KokoroModel {
   platform: KokoroPlatform
   /** Quantization value to pass to loadModel */
   quantization: string
-  /** Model description */
-  description: string
+  /** i18n key for model description */
+  descriptionKey: string
 }
 
 /**
@@ -33,42 +33,42 @@ export const KOKORO_MODELS = [
     name: 'FP32 (WebGPU)',
     platform: 'webgpu',
     quantization: 'fp32',
-    description: 'Full precision model using WebGPU - Recommended for supported devices',
+    descriptionKey: 'settings.pages.providers.provider.kokoro-local.models.fp32-webgpu.description',
   },
   {
     id: 'fp32',
     name: 'FP32 (WASM)',
     platform: 'wasm',
     quantization: 'fp32',
-    description: 'Full precision model - Highest quality but largest size',
+    descriptionKey: 'settings.pages.providers.provider.kokoro-local.models.fp32.description',
   },
   {
     id: 'fp16',
-    name: 'FP16',
+    name: 'FP16 (WASM)',
     platform: 'wasm',
     quantization: 'fp16',
-    description: 'Half precision - Good balance of quality and size',
+    descriptionKey: 'settings.pages.providers.provider.kokoro-local.models.fp16.description',
   },
   {
     id: 'q8',
-    name: 'Q8',
+    name: 'Q8 (WASM)',
     platform: 'wasm',
     quantization: 'q8',
-    description: '8-bit quantized - Good quality with reduced size',
+    descriptionKey: 'settings.pages.providers.provider.kokoro-local.models.q8.description',
   },
   {
     id: 'q4',
-    name: 'Q4',
+    name: 'Q4 (WASM)',
     platform: 'wasm',
     quantization: 'q4',
-    description: '4-bit quantized - Smallest size, lower quality',
+    descriptionKey: 'settings.pages.providers.provider.kokoro-local.models.q4.description',
   },
   {
     id: 'q4f16',
-    name: 'Q4F16',
+    name: 'Q4F16 (WASM)',
     platform: 'wasm',
     quantization: 'q4f16',
-    description: '4-bit with FP16 - Recommended for most devices',
+    descriptionKey: 'settings.pages.providers.provider.kokoro-local.models.q4f16.description',
   },
 ] as const
 
@@ -80,16 +80,17 @@ export type KokoroQuantization = typeof KOKORO_MODELS[number]['id']
 /**
  * Convert Kokoro models to ModelInfo array
  * @param hasWebGPU - Whether WebGPU is available (filters out WebGPU models if false)
+ * @param t - Optional translation function for i18n support
  * @returns Array of ModelInfo objects
  */
-export function kokoroModelsToModelInfo(hasWebGPU: boolean) {
+export function kokoroModelsToModelInfo(hasWebGPU: boolean, t?: (key: string) => string) {
   return KOKORO_MODELS
     .filter(model => hasWebGPU || model.platform !== 'webgpu')
     .map(model => ({
       id: model.id,
       name: model.name,
       provider: 'kokoro-local',
-      description: model.description,
+      description: t ? t(model.descriptionKey) : model.descriptionKey,
     }))
 }
 

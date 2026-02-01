@@ -70,8 +70,6 @@ const modelOptions = computed(() => {
 // Generate speech with Kokoro-specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
   try {
-    console.log('[Kokoro Playground] Generating speech:', { input, voiceId, model: model.value })
-
     const provider = await providersStore.getProviderInstance(providerId) as SpeechProvider
     if (!provider) {
       console.error('[Kokoro Playground] Failed to get provider instance')
@@ -80,8 +78,6 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 
     const config = providersStore.getProviderConfig(providerId)
     const selectedModel = config.model as string | undefined || defaultModel
-
-    console.log('[Kokoro Playground] Using config:', { model: selectedModel, config })
 
     const result = await speechStore.speech(
       provider,
@@ -92,8 +88,6 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
         ...config,
       },
     )
-
-    console.log('[Kokoro Playground] Speech generated successfully, buffer size:', result.byteLength)
 
     return result
   }
@@ -120,9 +114,7 @@ onMounted(async () => {
       // Load the initial model
       if (metadata.capabilities.loadModel) {
         await metadata.capabilities.loadModel(config, {
-          onProgress: async (progress) => {
-            console.log('[Kokoro Settings] Initial load progress:', progress)
-          },
+          onProgress: async (_progress) => {},
         })
       }
 
@@ -141,30 +133,20 @@ onMounted(async () => {
 watch(model, async (newValue) => {
   if (newValue) {
     try {
-      console.log('[Kokoro Settings] Model selected:', { model: newValue })
-
       voicesLoading.value = true
 
       const config = providersStore.getProviderConfig(providerId)
       const metadata = providersStore.getProviderMetadata(providerId)
       const validationResult = await metadata.validators.validateProviderConfig(config)
 
-      console.log('[Kokoro Settings] Validation result:', validationResult)
-
       if (validationResult.valid && metadata.capabilities.loadModel) {
         // Load the model using the capability with progress tracking
         await metadata.capabilities.loadModel(config, {
-          onProgress: async (progress) => {
-            console.log('[Kokoro Settings] Loading progress:', progress)
-          },
+          onProgress: async (_progress) => {},
         })
-
-        console.log('[Kokoro Settings] Model loaded, reloading voices')
 
         // Then reload voices
         await speechStore.loadVoicesForProvider(providerId)
-
-        console.log('[Kokoro Settings] Voices reloaded successfully')
       }
     }
     catch (error) {
