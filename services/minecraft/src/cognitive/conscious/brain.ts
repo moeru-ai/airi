@@ -58,6 +58,17 @@ function isLikelyAuthOrBadArgError(err: unknown): boolean {
   )
 }
 
+function isRateLimitError(err: unknown): boolean {
+  const status = getErrorStatus(err)
+  if (status === 429) return true
+  const msg = toErrorMessage(err).toLowerCase()
+  return msg.includes('rate limit') || msg.includes('too many requests')
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
 
 interface BrainResponse {
   action: ActionInstruction & { id?: string }
@@ -257,13 +268,18 @@ export class Brain {
         break // Success, exit retry loop
       } catch (err) {
         const remaining = maxAttempts - attempt
+        const isRateLimit = isRateLimitError(err)
         const shouldRetry = remaining > 0 && !isLikelyAuthOrBadArgError(err)
-        this.deps.logger.withError(err).error(`Brain: Decision attempt failed (attempt ${attempt}/${maxAttempts}, retry: ${shouldRetry})`)
+        this.deps.logger.withError(err).error(`Brain: Decision attempt failed (attempt ${attempt}/${maxAttempts}, retry: ${shouldRetry}, rateLimit: ${isRateLimit})`)
 
         if (!shouldRetry) {
           throw err // Re-throw if we can't retry
         }
-        // Otherwise continue to next attempt
+
+        // Backoff on rate limit (429)
+        if (isRateLimit) {
+          await sleep(500)
+        }
       }
     }
 
