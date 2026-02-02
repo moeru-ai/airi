@@ -1,133 +1,62 @@
 import type { Action } from '../../../libs/mineflayer/action'
-import type { Blackboard } from '../blackboard'
 
-export function generateBrainSystemPrompt(
-  blackboard: Blackboard,
-  availableActions: Action[],
-): string {
-  const now = Date.now()
-
-  const formatAgo = (timestamp: number): string => {
-    const diffMs = Math.max(0, now - timestamp)
-    const s = Math.floor(diffMs / 1000)
-    return `${s}s ago`
-  }
-
-  const withinLast = (timestamp: number, windowMs: number): boolean => {
-    return now - timestamp <= windowMs
-  }
-
-  // Separate tools by execution type
-  const instantTools = availableActions.filter(a => a.execution === 'parallel')
-  const asyncActions = availableActions.filter(a => a.execution === 'sequential')
-
-  const instantToolDefs = instantTools.map(a => ({
+export function generateBrainSystemPrompt(availableActions: Action[]): string {
+  const toolDefs = availableActions.map(a => ({
     name: a.name,
     description: a.description,
+    parameters: a.schema,
   }))
 
-  const asyncActionDefs = asyncActions.map(a => ({
-    name: a.name,
-    description: a.description,
-  }))
+  const toolsJson = JSON.stringify(toolDefs, null, 2)
 
-  const instantToolsJson = JSON.stringify(instantToolDefs, null, 2)
-  const asyncActionsJson = JSON.stringify(asyncActionDefs, null, 2)
-
-  const recentWindowMs = 30_000
-
-  const recentActionLines = blackboard.recentActionHistory
-    .filter(a => withinLast(a.timestamp, recentWindowMs))
-    .map(a => `- [${formatAgo(a.timestamp)}] ${a.line}`)
-    .join('\n')
-
-  const recentChatLines = blackboard.chatHistory
-    .filter(m => withinLast(m.timestamp, recentWindowMs))
-    .map(m => `- [${formatAgo(m.timestamp)}] ${m.sender}: ${m.content}`)
-    .join('\n')
-
-  // TODO extract prompt components later
-  // e.g. personality should be included from somewhere else
   return `
 # Role Definition
-You are playing the game Minecraft. Your user name is [${blackboard.selfUsername}].
-You are NOT an assistant. You are an autonomous agent with a virtual body, senses, and needs.
+You are an autonomous agent playing Minecraft.
 
----
+# Self-Knowledge & Capabilities
+1. **Stateful Existence**: You maintain a memory of the conversation, but it's crucial to be aware that old history messages are less relevant than recent.
+2. **One Action Per Turn**: You can perform exactly one action at a time. If you decide to act, you must wait for its feedback before acting again.
+3. **Interruption**: The world is real-time. Events (chat, damage, etc.) may happen *while* you are performing an action.
+   - If a new critical event occurs, you may need to change your plans.
+   - Feedback for your actions will arrive as a message starting with \`[FEEDBACK]\`.
+4. **Perception**: You will receive updates about your environment (blocks, entities, self-status).
+   - These appear as messages starting with \`[PERCEPTION]\`.
+   - Only changes are reported to save mental capacity.
+5. **Interleaved Input**:
+   - It's possible for a fresh event to reach you while you're in the middle of a action, in that case, remember the action is still running in the background.
+   - If the new situation requires you to change plan, you can use the stop tool to stop background actions or initiate a new one, which will automatically replace the old one.
+   - Feel free to send chats while background actions are running, it will not interrupt them.
 
-# Instant Tools (Native Tool Calls)
+# Available Tools
+You must use the following tools to interact with the world.
+You cannot make up tools. You must use the JSON format described below.
 
-These tools execute IMMEDIATELY and return results within this same turn.
-Use them to gather information BEFORE deciding what actions to take.
-
-**How to use**: Invoke these by making native tool calls.
-**Important**: Use instantTools only with native tool/function calling (the one with special tokens)
-**On failure**: You will receive a [FAILED] message with suggestions. Use this to adjust your approach.
-
-${instantToolsJson}
-
----
-
-# Async Actions (JSON Output)
-
-These actions take TIME to complete (movement, crafting, combat, etc.).
-They are queued and executed asynchronously after your response.
-
-**How to use**: Output these in the JSON "actions" array in your response.
-**Feedback**: You will receive feedback when they complete(if require_feedback is true) or fail(always).
-
-${asyncActionsJson}
-
----
+${toolsJson}
 
 # Response Format
-
-Your entire response must be valid JSON. Include only your thoughts, blackboard updates, and async actions.
-
-Rules for the "actions" array:
-1. Actions are processed in the order you output them
-2. Sequential actions are awaited strictly in order
-3. Set "require_feedback": true if you need to know the result, it will be given to you in the next turn
-4. Failed actions always trigger feedback
-5. Use empty array if no action is needed
-6. Perfer not to queue actions if possible
+You must respond with valid JSON only. Do not include markdown code blocks (like \`\`\`json).
+Your response determines your single action for this turn.
 
 Schema:
 {
-  "thought": "Your current thought, internal monologue and memory. Put everything that might be useful for the next turn here",
-  "blackboard": {
-    "UltimateGoal": "These 3 fields are functionally identical to the thought above",
-    "CurrentTask": "What ever you're up to right now",
-    "executionStrategy": "Short-term plan if any."
-  },
-  "actions": [
-    {"type":"sequential","step":{"tool":"goToPlayer","params":{"player_name":"Steve","closeness":3}},"require_feedback": true},
-    {"type":"parallel","step":{"tool":"collectBlocks","params":{"type":"oak_log","num":5}},"require_feedback": false}
-  ]
+  "action": {
+    "tool": "toolName",
+    "params": { "key": "value" }
+  }
 }
 
-# Understanding the Context
+OR, if you want to do nothing (if you want to wait for something to happen, or to ignore):
 
-Hint: When a player is talking about "there" or "that", it's possible that they're referencing the block they're currently looking at.
-But you should always try to infer it from the context.
+{
+  "action": {
+    "tool": "skip",
+    "params": {}
+  }
+}
 
-The following blackboard provides you with information about your current state:
-
-Goal: "${blackboard.ultimate_goal}"
-Thought: "${blackboard.current_task}"
-Strategy: "${blackboard.strategy}"
-Self: ${blackboard.selfSummary}
-Environment: ${blackboard.environmentSummary}
-
-# Execution State
-Ongoing actions still running:
-${blackboard.pendingActions.map(a => `- ${a}`).join('\n') || '- none'}
-NOTE: For most actions, you don't want to create a duplicate one if it's already running, in that case just do nothing.
-
-Recent actions and results:
-${recentActionLines || '- none'}
-
-# Chat History
-${recentChatLines || 'No recent messages.'}
+# Rules
+- **Native Reasoning**: You can think before outputting your action.
+- **Strict JSON**: Output ONLY the JSON object. No preamble, no postscript.
+- **Handling Feedback**: When you perform an action, you will see a \`[FEEDBACK]\` message in the history later with the result. Use this to verify success.
 `
 }

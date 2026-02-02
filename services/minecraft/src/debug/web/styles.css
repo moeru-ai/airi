@@ -630,6 +630,14 @@ button:hover,
   word-wrap: break-word;
 }
 
+.llm-content.reasoning {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-style: italic;
+  border-left: 2px solid var(--accent-primary);
+}
+
 .llm-messages {
   display: flex;
   flex-direction: column;
