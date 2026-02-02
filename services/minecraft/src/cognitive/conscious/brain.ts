@@ -85,6 +85,7 @@ export class Brain {
   private isProcessing = false
   private currentCancellationToken: CancellationToken | undefined
   private lastContextView: string | undefined
+  private lastReasoning: string | undefined // HACK: Store previous reasoning token for continuity
 
   constructor(private readonly deps: BrainDeps) {
     this.debugService = DebugService.getInstance()
@@ -198,6 +199,7 @@ export class Brain {
     // 3. Call Neuri (Stateful) with retry logic
     const maxAttempts = 3
     let result: string | null = null
+    let capturedReasoning: string | undefined // HACK: Capture reasoning but don't save until success
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
@@ -227,6 +229,9 @@ export class Brain {
             const message = completion?.choices?.[0]?.message
             const content = message?.content
             const reasoning = message?.reasoning_content || message?.reasoning
+
+            // HACK: Capture reasoning but don't save yet (wait for successful parsing)
+            capturedReasoning = reasoning
 
             if (!content) throw new Error('No content from LLM')
 
@@ -272,6 +277,11 @@ export class Brain {
       const parsed = this.parseResponse(result)
       const action = parsed.action
 
+      // HACK: Only store reasoning after successful LLM call and valid JSON parsing
+      if (capturedReasoning) {
+        this.lastReasoning = capturedReasoning
+      }
+
       if (action.tool === 'skip') {
         this.deps.logger.log('INFO', 'Brain: Skipping turn (observing)')
         return
@@ -314,6 +324,11 @@ export class Brain {
 
   private buildUserMessage(event: BotEvent, contextView: string): string {
     const parts: string[] = []
+
+    // HACK: Inject previous reasoning token into user message for continuity
+    if (this.lastReasoning) {
+      parts.push(`[PREVIOUS REASONING] ${this.lastReasoning}`)
+    }
 
     // 1. Event Content
     if (event.type === 'perception') {
