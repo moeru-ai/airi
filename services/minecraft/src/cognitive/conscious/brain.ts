@@ -1,100 +1,43 @@
 import type { Logg } from '@guiiai/logg'
 import type { Neuri } from 'neuri'
+// import type { Message } from 'neuri/openai' // Use if needed
 
 import type { TaskExecutor } from '../action/task-executor'
-import type { ActionInstruction } from '../action/types'
 import type { EventBus, TracedEvent } from '../os'
 import type { PerceptionSignal } from '../perception/types/signals'
 import type { ReflexManager } from '../reflex/reflex-manager'
 import type { BotEvent, MineflayerWithAgents } from '../types'
+import { createCancellationToken, type CancellationToken } from './task-state'
 
 import { system, user } from 'neuri/openai'
 
 import { config } from '../../composables/config'
 import { DebugService } from '../../debug'
-import { Blackboard } from './blackboard'
 import { buildConsciousContextView } from './context-view'
 import { generateBrainSystemPrompt } from './prompts/brain-prompt'
+import type { ActionInstruction } from '../action/types'
 
+// Utils
 function toErrorMessage(err: unknown): string {
-  if (err instanceof Error)
-    return err.message
-  if (typeof err === 'string')
-    return err
-  try {
-    return JSON.stringify(err)
-  }
-  catch {
-    return String(err)
-  }
-}
-
-function getJsonErrorPosition(err: unknown): number | null {
-  const msg = toErrorMessage(err)
-  const match = msg.match(/position\s+(\d+)/i)
-  if (!match)
-    return null
-
-  const pos = Number.parseInt(match[1], 10)
-  return Number.isFinite(pos) ? pos : null
+  if (err instanceof Error) return err.message
+  if (typeof err === 'string') return err
+  try { return JSON.stringify(err) } catch { return String(err) }
 }
 
 function extractJsonCandidate(input: string): string {
   const trimmed = input.trim()
   const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)
-  if (fenced?.[1])
-    return fenced[1].trim()
-
+  if (fenced?.[1]) return fenced[1].trim()
   const start = trimmed.indexOf('{')
   const end = trimmed.lastIndexOf('}')
-  if (start >= 0 && end > start)
-    return trimmed.slice(start, end + 1)
-
+  if (start >= 0 && end > start) return trimmed.slice(start, end + 1)
   return trimmed
-}
-
-function validateLLMResponse(parsed: unknown): parsed is { thought: string, actions: unknown[] } {
-  if (typeof parsed !== 'object' || parsed === null)
-    return false
-  const obj = parsed as Record<string, unknown>
-  // Must have 'thought' (string) and 'actions' (array) at minimum
-  return typeof obj.thought === 'string' && Array.isArray(obj.actions)
-}
-
-function parseLLMResponseJson<T>(response: string): T {
-  const candidate = extractJsonCandidate(response)
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(candidate)
-  }
-  catch (err) {
-    const pos = getJsonErrorPosition(err)
-    const window = 120
-    const snippet = (typeof pos === 'number')
-      ? candidate.slice(Math.max(0, pos - window), Math.min(candidate.length, pos + window))
-      : candidate.slice(0, Math.min(candidate.length, 240))
-    throw new Error(`Failed to parse LLM JSON response: ${toErrorMessage(err)}; snippet=${JSON.stringify(snippet)}`)
-  }
-
-  // Validate structure - LLM sometimes hallucinates wrong format (e.g., tool call format)
-  if (!validateLLMResponse(parsed)) {
-    const snippet = JSON.stringify(parsed).slice(0, 200)
-    throw new Error(`LLM returned malformed response (missing thought/actions): ${snippet}`)
-  }
-
-  return parsed as T
 }
 
 function getErrorStatus(err: unknown): number | undefined {
   const anyErr = err as any
   const status = anyErr?.status ?? anyErr?.response?.status ?? anyErr?.cause?.status
   return typeof status === 'number' ? status : undefined
-}
-
-function getErrorCode(err: unknown): string | undefined {
-  const anyErr = err as any
-  const code = anyErr?.code ?? anyErr?.cause?.code
-  return typeof code === 'string' ? code : undefined
 }
 
 function isLikelyAuthOrBadArgError(err: unknown): boolean {
@@ -116,22 +59,16 @@ function isLikelyAuthOrBadArgError(err: unknown): boolean {
 }
 
 
+interface BrainResponse {
+  action: ActionInstruction & { id?: string }
+}
+
 interface BrainDeps {
   eventBus: EventBus
   neuri: Neuri
   logger: Logg
   taskExecutor: TaskExecutor
   reflexManager: ReflexManager
-}
-
-interface LLMResponse {
-  thought: string
-  blackboard: {
-    UltimateGoal?: string
-    CurrentTask?: string
-    executionStrategy?: string
-  }
-  actions: ActionInstruction[]
 }
 
 interface QueuedEvent {
@@ -141,218 +78,100 @@ interface QueuedEvent {
 }
 
 export class Brain {
-  private blackboard: Blackboard
   private debugService: DebugService
 
-  private bot: MineflayerWithAgents | undefined
-
-  private nextActionId = 1
-  private inFlightActions = new Map<string, ActionInstruction>()
-
-  private feedbackDebounceMs = Number.parseInt(process.env.BRAIN_FEEDBACK_DEBOUNCE_MS ?? '200')
-  private feedbackDebounceTimer: NodeJS.Timeout | undefined
-
-  private feedbackBarrierTimeoutMs = Number.parseInt(process.env.BRAIN_FEEDBACK_BARRIER_TIMEOUT_MS ?? '1000')
-  private waitingForFeedbackIds = new Set<string>()
-  private feedbackBarrierTimer: NodeJS.Timeout | undefined
-
-  // Event Queue
+  // State
   private queue: QueuedEvent[] = []
   private isProcessing = false
+  private currentCancellationToken: CancellationToken | undefined
+  private lastContextView: string | undefined
 
   constructor(private readonly deps: BrainDeps) {
-    this.blackboard = new Blackboard()
     this.debugService = DebugService.getInstance()
   }
 
-  private async handlePerceptionSignal(bot: MineflayerWithAgents, signal: PerceptionSignal): Promise<void> {
-    this.log('INFO', `Brain: Received perception: ${signal.description}`)
-
-    if (signal.type === 'chat_message') {
-      const parts = signal.description.split(': ')
-      const sender = parts.length > 1 ? parts[0] : 'Unknown'
-      const content = parts.length > 1 ? parts.slice(1).join(': ') : signal.description
-
-      this.blackboard.addChatMessage({
-        sender,
-        content,
-        timestamp: Date.now(),
-      })
-    }
-
-    await this.enqueueEvent(bot, {
-      type: 'perception',
-      payload: signal,
-      source: {
-        type: 'minecraft',
-        id: signal.sourceId ?? 'perception',
-      },
-      timestamp: Date.now(),
-    })
-  }
-
   public init(bot: MineflayerWithAgents): void {
-    this.log('INFO', 'Brain: Initializing...')
-    this.bot = bot
-    this.blackboard.update({ selfUsername: bot.username })
+    this.deps.logger.log('INFO', 'Brain: Initializing stateful core...')
 
-    const handleSignal = async (signal: PerceptionSignal) => {
-      try {
-        await this.handlePerceptionSignal(bot, signal)
-      }
-      catch (err) {
-        this.log('ERROR', 'Brain: Failed to enqueue perception signal', { error: err })
-      }
-    }
-
-    // Conscious Signal Handler - signals must pass through Reflex first
-    // EventBus supports pattern wildcards like 'conscious:signal:*'
+    // Perception Handler
     this.deps.eventBus.subscribe<PerceptionSignal>('conscious:signal:*', (event: TracedEvent<PerceptionSignal>) => {
-      void handleSignal(event.payload)
+      this.enqueueEvent(bot, {
+        type: 'perception',
+        payload: event.payload,
+        source: { type: 'minecraft', id: event.payload.sourceId ?? 'perception' },
+        timestamp: Date.now(),
+      }).catch(err => this.deps.logger.withError(err).error('Brain: Failed to process perception event'))
     })
 
-    // Listen to Task Execution Events (Action Feedback)
-    this.deps.taskExecutor.on('action:started', ({ action }) => {
-      const id = action.id
-      if (id)
-        this.inFlightActions.set(id, action)
-      this.updatePendingActionsOnBlackboard()
-    })
-
+    // Action Feedback Handler
     this.deps.taskExecutor.on('action:completed', async ({ action, result }) => {
-      this.log('INFO', `Brain: Action completed: ${action.type}`)
+      this.deps.logger.log('INFO', `Brain: Action completed: ${action.tool}`)
 
-      const id = action.id
-      if (id)
-        this.inFlightActions.delete(id)
-      if (id)
-        this.waitingForFeedbackIds.delete(id)
-      this.updatePendingActionsOnBlackboard()
-      this.blackboard.addActionHistoryLine(this.formatActionHistoryLine(action, 'success', result))
+      // Suppress feedback for chat actions on success
+      if (action.tool === 'chat') return
 
-      if (this.waitingForFeedbackIds.size === 0 && this.feedbackBarrierTimer) {
-        clearTimeout(this.feedbackBarrierTimer)
-        this.feedbackBarrierTimer = undefined
-        void this.processQueue(bot)
-      }
-
-      if (!action.require_feedback)
-        return
-
-      await this.enqueueEvent(bot, {
+      this.enqueueEvent(bot, {
         type: 'feedback',
-        payload: {
-          status: 'success',
-          action,
-          result,
-        },
+        payload: { status: 'success', action, result },
         source: { type: 'system', id: 'executor' },
         timestamp: Date.now(),
-      })
+      }).catch(err => this.deps.logger.withError(err).error('Brain: Failed to process success feedback'))
     })
 
     this.deps.taskExecutor.on('action:failed', async ({ action, error }) => {
-      this.log('WARN', `Brain: Action failed: ${action.type}`, { error })
-
-      const id = action.id
-      if (id)
-        this.inFlightActions.delete(id)
-      if (id)
-        this.waitingForFeedbackIds.delete(id)
-      this.updatePendingActionsOnBlackboard()
-      this.blackboard.addActionHistoryLine(this.formatActionHistoryLine(action, 'failure', undefined, error))
-
-      if (this.waitingForFeedbackIds.size === 0 && this.feedbackBarrierTimer) {
-        clearTimeout(this.feedbackBarrierTimer)
-        this.feedbackBarrierTimer = undefined
-        void this.processQueue(bot)
-      }
-
-      await this.enqueueEvent(bot, {
+      this.deps.logger.withError(error).warn(`Brain: Action failed: ${action.tool}`)
+      this.enqueueEvent(bot, {
         type: 'feedback',
-        payload: {
-          status: 'failure',
-          action,
-          error: error.message || error,
-        },
+        payload: { status: 'failure', action, error: error.message || error },
         source: { type: 'system', id: 'executor' },
         timestamp: Date.now(),
-      })
+      }).catch(err => this.deps.logger.withError(err).error('Brain: Failed to process failure feedback'))
     })
 
-    this.log('INFO', 'Brain: Online.')
-    this.updateDebugState()
+    this.deps.logger.log('INFO', 'Brain: Online.')
   }
 
   public destroy(): void {
+    this.currentCancellationToken?.cancel()
   }
 
   // --- Event Queue Logic ---
 
   private async enqueueEvent(bot: MineflayerWithAgents, event: BotEvent): Promise<void> {
-    this.log('DEBUG', `Brain: Enqueueing event type=${event.type}`)
     return new Promise((resolve, reject) => {
       this.queue.push({ event, resolve, reject })
-      this.log('DEBUG', `Brain: Queue length now: ${this.queue.length}`)
-      this.updateDebugState()
-
-      if (event.type === 'feedback' && this.feedbackDebounceMs > 0) {
-        if (this.feedbackDebounceTimer)
-          clearTimeout(this.feedbackDebounceTimer)
-        this.feedbackDebounceTimer = setTimeout(() => {
-          this.feedbackDebounceTimer = undefined
-          void this.processQueue(bot)
-        }, this.feedbackDebounceMs)
-        return
-      }
-
       void this.processQueue(bot)
     })
   }
 
   private async processQueue(bot: MineflayerWithAgents): Promise<void> {
-    if (this.isProcessing) {
-      this.log('DEBUG', 'Brain: Already processing, skipping')
-      return
-    }
-    if (this.queue.length === 0) {
-      this.log('DEBUG', 'Brain: Queue empty')
-      return
-    }
-
-    this.log('DEBUG', `Brain: Processing queue item, queue length: ${this.queue.length}`)
-    this.isProcessing = true
-    const item = this.queue.shift()!
-    this.log('DEBUG', `Brain: Processing event type=${item.event.type}`)
-    this.updateDebugState(item.event)
-
-    if (item.event.type === 'feedback' && this.waitingForFeedbackIds.size > 0) {
-      // Defer feedback-triggered replans until the current "turn" feedback barrier is released.
-      // We keep collecting feedback events into the queue, but we avoid calling the LLM on partial results.
-      this.queue.unshift(item)
-      this.isProcessing = false
-      this.updateDebugState()
-      return
-    }
-
-    // Coalesce consecutive feedback events into a single LLM turn.
-    // This prevents the LLM from being spammed with partial results while still supporting streaming replans.
-    const coalescedEvent = item.event.type === 'feedback'
-      ? this.coalesceFeedbackEvents(item.event)
-      : item.event
+    if (this.isProcessing || this.queue.length === 0) return
 
     try {
-      await this.processEvent(bot, coalescedEvent)
-      item.resolve()
-    }
-    catch (err) {
-      this.log('ERROR', 'Brain: Error processing event', { error: err })
-      item.reject(err as Error)
-    }
-    finally {
+      this.isProcessing = true
+      this.debugService.emitBrainState({
+        status: 'processing',
+        queueLength: this.queue.length,
+        lastContextView: this.lastContextView,
+      })
+
+      const item = this.queue.shift()!
+
+      try {
+        await this.processEvent(bot, item.event)
+        item.resolve()
+      } catch (err) {
+        this.deps.logger.withError(err).error('Brain: Error processing event')
+        item.reject(err as Error)
+      }
+    } finally {
       this.isProcessing = false
-      this.updateDebugState()
-      // Context switch: Check queue again
+      this.debugService.emitBrainState({
+        status: 'idle',
+        queueLength: this.queue.length,
+        lastContextView: this.lastContextView,
+      })
+
       if (this.queue.length > 0) {
         setImmediate(() => this.processQueue(bot))
       }
@@ -361,265 +180,177 @@ export class Brain {
 
   // --- Cognitive Cycle ---
 
-  private contextFromEvent(event: BotEvent): string {
-    switch (event.type) {
-      case 'perception': {
-        const signal = event.payload as PerceptionSignal
-        const sourceInfo = signal.sourceId ? ` (source: ${signal.sourceId})` : ''
-        return `Perception [${signal.type}]${sourceInfo}: ${signal.description}`
-      }
-      case 'feedback': {
-        const payload = event.payload as any
-        if (payload?.status === 'batch' && Array.isArray(payload.feedbacks)) {
-          return `Internal Feedback (batched): ${JSON.stringify(payload.feedbacks)}`
-        }
-
-        const { status, action, result, error } = payload
-        const actionCtx = action
-          ? {
-            id: action.id,
-            type: action.type,
-            ...(action.type === 'sequential' || action.type === 'parallel'
-              ? { tool: action.step.tool, params: action.step.params }
-              : { message: action.message }),
-          }
-          : undefined
-        return `Internal Feedback: ${status}. Last Action: ${JSON.stringify(actionCtx)}. Result: ${JSON.stringify(result || error)}`
-      }
-      default:
-        return ''
-    }
-  }
-
-  private coalesceFeedbackEvents(first: BotEvent): BotEvent {
-    const feedbacks: any[] = [first.payload]
-
-    while (this.queue.length > 0 && this.queue[0]?.event.type === 'feedback') {
-      const next = this.queue.shift()!
-      feedbacks.push(next.event.payload)
-      next.resolve()
-    }
-
-    if (feedbacks.length === 1)
-      return first
-
-    return {
-      type: 'feedback',
-      payload: {
-        status: 'batch',
-        feedbacks,
-      },
-      source: first.source,
-      timestamp: first.timestamp,
-    }
-  }
-
-  private ensureActionIds(actions: ActionInstruction[]): ActionInstruction[] {
-    return actions.map((action) => {
-      if (action.id)
-        return action
-      return {
-        ...action,
-        id: `a${this.nextActionId++}`,
-      }
-    })
-  }
-
-  private updatePendingActionsOnBlackboard(): void {
-    const pending = [...this.inFlightActions.values()].map(a => this.formatPendingActionLine(a))
-    if (this.waitingForFeedbackIds.size > 0)
-      pending.unshift(`[barrier] waiting for ${this.waitingForFeedbackIds.size} required feedback(s)`)
-    this.blackboard.setPendingActions(pending)
-  }
-
-  private formatPendingActionLine(action: ActionInstruction): string {
-    if (action.type === 'chat')
-      return `${action.id ?? '?'} chat: ${action.message}`
-    return `${action.id ?? '?'} ${action.type}: ${action.step.tool} ${JSON.stringify(action.step.params ?? {})}`
-  }
-
-  private formatActionHistoryLine(
-    action: ActionInstruction,
-    status: 'success' | 'failure',
-    result?: unknown,
-    error?: unknown,
-  ): string {
-    const base = this.formatPendingActionLine(action)
-    const suffix = status === 'success'
-      ? `=> ok ${result ? JSON.stringify(result) : ''}`
-      : `=> failed ${error instanceof Error ? error.message : JSON.stringify(error)}`
-    return `${base} ${suffix}`
-  }
-
   private async processEvent(bot: MineflayerWithAgents, event: BotEvent): Promise<void> {
-    // OODA Loop: Observe -> Orient -> Decide -> Act
+    // 0. Build Context View
+    const snapshot = this.deps.reflexManager.getContextSnapshot()
+    const view = buildConsciousContextView(snapshot)
+    const contextView = `[PERCEPTION] Self: ${view.selfSummary}\nEnvironment: ${view.environmentSummary}`
 
-    // 1. Observe (Update Blackboard with Environment Sense)
-    this.updatePerception(bot)
+    // 1. Construct User Message (Diffing happens here)
+    const userMessage = this.buildUserMessage(event, contextView)
 
-    // 2. Orient (Contextualize Event)
-    // Environmental context are included in the system prompt blackboard
-    const additionalCtx = this.contextFromEvent(event)
+    // Update state after consuming difference
+    this.lastContextView = contextView
 
-    // 3. Decide (LLM Call)
-    const systemPrompt = generateBrainSystemPrompt(this.blackboard, this.deps.taskExecutor.getAvailableActions())
-    const decision = await this.decide(systemPrompt, additionalCtx)
+    // 2. Prepare System Prompt (static)
+    const systemPrompt = generateBrainSystemPrompt(this.deps.taskExecutor.getAvailableActions())
 
-    if (!decision) {
-      this.log('WARN', 'Brain: No decision made.')
-      return
-    }
-
-    // 4. Act (Execute Decision)
-    this.log('INFO', `Brain: Thought: ${decision.thought}`)
-
-    // Update Blackboard (with null checks for malformed LLM responses)
-    const bb = decision.blackboard
-    this.blackboard.update({
-      ultimateGoal: bb?.UltimateGoal || this.blackboard.ultimate_goal,
-      currentTask: bb?.CurrentTask || this.blackboard.current_task,
-      strategy: bb?.executionStrategy || this.blackboard.strategy,
-    })
-
-    // Sync Blackboard to Debug
-    this.debugService.updateBlackboard(this.blackboard)
-
-    // Issue Actions
-    if (decision.actions && decision.actions.length > 0) {
-      const actionsWithIds = this.ensureActionIds(decision.actions)
-
-      // Start feedback barrier for this turn if any actions require feedback.
-      const required = actionsWithIds.filter(a => a.require_feedback && a.id).map(a => a.id as string)
-      if (required.length > 0) {
-        required.forEach(id => this.waitingForFeedbackIds.add(id))
-
-        if (this.feedbackBarrierTimer)
-          clearTimeout(this.feedbackBarrierTimer)
-        this.feedbackBarrierTimer = setTimeout(() => {
-          this.feedbackBarrierTimer = undefined
-          this.waitingForFeedbackIds.clear()
-          this.updatePendingActionsOnBlackboard()
-          void this.processQueue(bot)
-        }, this.feedbackBarrierTimeoutMs)
-
-        this.updatePendingActionsOnBlackboard()
-      }
-
-      // Record own chat actions to memory
-      for (const action of actionsWithIds) {
-        if (action.type === 'chat') {
-          this.blackboard.addChatMessage({
-            sender: config.bot.username || '[Me]',
-            content: action.message,
-            timestamp: Date.now(), // FIXME: should be the time the action was issued
-          })
-        }
-      }
-
-      this.deps.taskExecutor.executeActions(actionsWithIds)
-    }
-  }
-
-  private updatePerception(_bot: MineflayerWithAgents): void {
-    const ctx = this.deps.reflexManager.getContextSnapshot()
-    const view = buildConsciousContextView(ctx)
-    this.blackboard.updateContextView(view)
-
-    // Sync Blackboard to Debug
-    this.debugService.updateBlackboard(this.blackboard)
-  }
-
-  private async decide(sysPrompt: string, userMsg: string): Promise<LLMResponse | null> {
+    // 3. Call Neuri (Stateful) with retry logic
     const maxAttempts = 3
-
-    const decideOnce = async (): Promise<LLMResponse | null> => {
-      const request_start = Date.now()
-      const response = await this.deps.neuri.handleStateless(
-        [
-          system(sysPrompt),
-          user(userMsg),
-        ],
-        async (ctx) => {
-          const completion = await ctx.reroute('action', ctx.messages, {
-            model: config.openai.model,
-            response_format: { type: 'json_object' },
-          } as any) as any
-
-          // Trace LLM
-          this.debugService.traceLLM({
-            route: 'action',
-            messages: ctx.messages,
-            content: completion?.choices?.[0]?.message?.content,
-            usage: completion?.usage,
-            model: config.openai.model,
-            duration: Date.now() - request_start,
-          })
-
-          if (!completion || !completion.choices?.[0]?.message?.content) {
-            throw new Error('LLM failed to return content')
-          }
-          return completion.choices[0].message.content
-        },
-      )
-
-      if (!response)
-        return null
-
-      return parseLLMResponseJson<LLMResponse>(response)
-    }
+    let result: string | null = null
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        return await decideOnce()
-      }
-      catch (err) {
+        result = await this.deps.neuri.handle(
+          [
+            // System prompt is inserted/updated in the callback to prevent duplication
+            user(userMessage),
+          ],
+          async (ctx) => {
+            let messages = ctx.messages
+
+            // Ensure system prompt is at the start (or replace existing one)
+            const sysMsgIndex = messages.findIndex(m => m.role === 'system')
+            if (sysMsgIndex >= 0) {
+              messages[sysMsgIndex] = system(systemPrompt)
+            } else {
+              messages = [system(systemPrompt), ...messages]
+            }
+
+            const traceStart = Date.now()
+
+            const completion = await ctx.reroute('brain', messages, {
+              model: config.openai.model,
+              response_format: { type: 'json_object' }
+            } as any) as any
+
+            const message = completion?.choices?.[0]?.message
+            const content = message?.content
+            const reasoning = message?.reasoning_content || message?.reasoning
+
+            if (!content) throw new Error('No content from LLM')
+
+            this.debugService.traceLLM({
+              route: 'brain',
+              messages,
+              content,
+              reasoning,
+              usage: completion.usage,
+              model: config.openai.model,
+              duration: Date.now() - traceStart
+            })
+
+            this.debugService.emitBrainState({
+              status: 'processing',
+              queueLength: this.queue.length,
+              lastContextView: this.lastContextView,
+            })
+
+            return content
+          }
+        )
+        break // Success, exit retry loop
+      } catch (err) {
         const remaining = maxAttempts - attempt
-        // Retry all errors except auth/bad arg errors (which won't recover)
         const shouldRetry = remaining > 0 && !isLikelyAuthOrBadArgError(err)
-        this.log('ERROR', 'Brain: Decision attempt failed', {
-          error: err,
-          attempt,
-          remaining,
-          shouldRetry,
-          status: getErrorStatus(err),
-          code: getErrorCode(err),
-        })
+        this.deps.logger.withError(err).error(`Brain: Decision attempt failed (attempt ${attempt}/${maxAttempts}, retry: ${shouldRetry})`)
 
-        if (shouldRetry)
-          continue
-
-        const errMsg = toErrorMessage(err)
-        try {
-          this.bot?.bot?.chat?.(`[Brain] decide failed: ${errMsg}`)
+        if (!shouldRetry) {
+          throw err // Re-throw if we can't retry
         }
-        catch (chatErr) {
-          this.log('ERROR', 'Brain: Failed to send error message to chat', { error: chatErr })
-        }
-
-        return null
+        // Otherwise continue to next attempt
       }
     }
 
-    return null
+    // 4. Parse & Execute
+    if (!result) {
+      this.deps.logger.warn('Brain: No response after all retries')
+      return
+    }
+
+    try {
+      const parsed = this.parseResponse(result)
+      const action = parsed.action
+
+      if (action.tool === 'skip') {
+        this.deps.logger.log('INFO', 'Brain: Skipping turn (observing)')
+        return
+      }
+
+      this.deps.logger.log('INFO', `Brain: Decided action: ${action.tool}`, { params: action.params })
+
+      // Check if action is read-only
+      const availableActions = this.deps.taskExecutor.getAvailableActions()
+      const actionDef = availableActions.find(a => a.name === action.tool)
+
+      let token: CancellationToken | undefined
+
+      if (actionDef?.readonly) {
+        // Read-only Actions: Do not cancel background/physical actions
+        // Can be executed in parallel with physical actions
+        token = undefined
+      } else {
+        // Physical Actions: Cancel previous background action
+        if (this.currentCancellationToken) {
+          this.currentCancellationToken.cancel()
+        }
+        this.currentCancellationToken = createCancellationToken()
+        token = this.currentCancellationToken
+      }
+
+      // Execute
+      void this.deps.taskExecutor.executeAction(action, token)
+
+    } catch (err) {
+      this.deps.logger.withError(err).error('Brain: Failed to execute decision')
+      void this.enqueueEvent(bot, {
+        type: 'feedback',
+        payload: { status: 'failure', error: toErrorMessage(err) },
+        source: { type: 'system', id: 'brain' },
+        timestamp: Date.now()
+      })
+    }
   }
 
-  // --- Debug Helpers ---
+  private buildUserMessage(event: BotEvent, contextView: string): string {
+    const parts: string[] = []
 
-  private log(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string, fields?: any) {
-    // Dual logging: Console/File via Logger AND DebugServer
-    if (level === 'ERROR')
-      this.deps.logger.withError(fields?.error).error(message)
-    else if (level === 'WARN')
-      this.deps.logger.warn(message, fields)
-    else this.deps.logger.log(message, fields)
+    // 1. Event Content
+    if (event.type === 'perception') {
+      const signal = event.payload as PerceptionSignal
+      if (signal.type === 'chat_message') {
+        parts.push(`[EVENT] ${signal.description}`)
+      } else {
+        parts.push(`[EVENT] Perception Signal: ${signal.description}`)
+      }
+    } else if (event.type === 'feedback') {
+      const p = event.payload as any
+      const tool = p.action?.tool || 'unknown'
+      if (p.status === 'success') {
+        parts.push(`[FEEDBACK] ${tool}: Success. ${typeof p.result === 'string' ? p.result : JSON.stringify(p.result)}`)
+      } else {
+        parts.push(`[FEEDBACK] ${tool}: Failed. ${p.error}`)
+      }
+    } else {
+      parts.push(`[EVENT] ${event.type}: ${JSON.stringify(event.payload)}`)
+    }
 
-    this.debugService.log(level, message, fields)
+    // 2. Perception Snapshot Diff
+    // Compare with last
+    if (contextView !== this.lastContextView) {
+      parts.push(contextView)
+      // Note: We don't update this.lastContextView here; caller does it after building message
+    }
+
+    return parts.join('\n\n')
   }
 
-  private updateDebugState(processingEvent?: BotEvent) {
-    this.debugService.updateQueue(
-      this.queue.map(q => q.event),
-      processingEvent,
-    )
+  private parseResponse(content: string): BrainResponse {
+    const jsonStr = extractJsonCandidate(content)
+    try {
+      return JSON.parse(jsonStr)
+    } catch (e) {
+      throw new Error(`Invalid JSON response: ${content.substring(0, 100)}...`)
+    }
   }
 }

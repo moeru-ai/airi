@@ -17,6 +17,7 @@ export interface LLMTraceEvent {
   route: string
   messages: unknown[]
   content: string
+  reasoning?: string
   usage?: {
     prompt_tokens?: number
     completion_tokens?: number
@@ -24,6 +25,14 @@ export interface LLMTraceEvent {
   }
   model?: string
   duration?: number // ms
+  timestamp: number
+}
+
+export interface BrainStateEvent {
+  status: 'idle' | 'processing' | 'waiting'
+  queueLength: number
+  lastContextView?: string
+  currentAction?: string
   timestamp: number
 }
 
@@ -138,17 +147,18 @@ export interface ToolExecutionResultEvent {
 
 export type ServerEvent
   = | { type: 'log', payload: LogEvent }
-    | { type: 'llm', payload: LLMTraceEvent }
-    | { type: 'blackboard', payload: BlackboardEvent }
-    | { type: 'queue', payload: QueueEvent }
-    | { type: 'saliency', payload: SaliencyEvent }
-    | { type: 'reflex', payload: ReflexStateEvent }
-    | { type: 'trace', payload: TraceEvent }
-    | { type: 'trace_batch', payload: TraceBatchEvent }
-    | { type: 'history', payload: ServerEvent[] }
-    | { type: 'pong', payload: { timestamp: number } }
-    | { type: 'debug:tools_list', payload: { tools: ToolDefinition[] } }
-    | { type: 'debug:tool_result', payload: ToolExecutionResultEvent }
+  | { type: 'llm', payload: LLMTraceEvent }
+  | { type: 'blackboard', payload: BlackboardEvent }
+  | { type: 'queue', payload: QueueEvent }
+  | { type: 'saliency', payload: SaliencyEvent }
+  | { type: 'reflex', payload: ReflexStateEvent }
+  | { type: 'trace', payload: TraceEvent }
+  | { type: 'trace_batch', payload: TraceBatchEvent }
+  | { type: 'history', payload: ServerEvent[] }
+  | { type: 'pong', payload: { timestamp: number } }
+  | { type: 'debug:tools_list', payload: { tools: ToolDefinition[] } }
+  | { type: 'debug:tool_result', payload: ToolExecutionResultEvent }
+  | { type: 'brain_state', payload: BrainStateEvent }
 
 // ============================================================
 // Client -> Server commands
@@ -201,12 +211,12 @@ export interface RequestToolsCommand {
 
 export type ClientCommand
   = | ClearLogsCommand
-    | SetFilterCommand
-    | InjectEventCommand
-    | PingCommand
-    | RequestHistoryCommand
-    | ExecuteToolCommand
-    | RequestToolsCommand
+  | SetFilterCommand
+  | InjectEventCommand
+  | PingCommand
+  | RequestHistoryCommand
+  | ExecuteToolCommand
+  | RequestToolsCommand
 
 // ============================================================
 // Wire format

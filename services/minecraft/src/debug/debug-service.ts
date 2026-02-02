@@ -1,4 +1,4 @@
-import type { BlackboardEvent, ClientCommand, LLMTraceEvent, LogEvent, QueueEvent, ReflexStateEvent, SaliencyEvent, ServerEvent, TraceEvent } from './types'
+import type { BlackboardEvent, BrainStateEvent, ClientCommand, LLMTraceEvent, LogEvent, QueueEvent, ReflexStateEvent, SaliencyEvent, ServerEvent, TraceEvent } from './types'
 
 import { DebugServer } from './server'
 
@@ -73,14 +73,16 @@ export class DebugService {
     this.server.broadcast(event)
   }
 
+
+
   /**
-   * Emit a blackboard state update
+   * Emit a brain state update
    */
-  public updateBlackboard(state: BlackboardEvent['state'] | { goal?: string, thought?: string, strategy?: string }): void {
+  public emitBrainState(state: Omit<BrainStateEvent, 'timestamp'>): void {
     const event: ServerEvent = {
-      type: 'blackboard',
+      type: 'brain_state',
       payload: {
-        state,
+        ...state,
         timestamp: Date.now(),
       },
     }

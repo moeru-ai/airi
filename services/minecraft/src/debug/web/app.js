@@ -357,47 +357,49 @@ class ReflexPanel {
 }
 
 // =============================================================================
-// Blackboard Panel
+// Brain Panel
 // =============================================================================
 
-class BlackboardPanel {
+class BrainPanel {
   constructor(client) {
     this.client = client
-    this.state = {}
+    this.state = null
     this.elements = {
-      json: document.getElementById('blackboard-json'),
-      copyBtn: document.getElementById('blackboard-copy-btn'),
+      status: document.getElementById('brain-status'),
+      queue: document.getElementById('brain-queue'),
+      context: document.getElementById('brain-context'),
     }
   }
 
   init() {
-    this.client.on('blackboard', data => this.update(data))
+    this.client.on('brain_state', data => this.update(data))
     this.client.on('connected', () => this.reset())
-    this.elements.copyBtn.addEventListener('click', () => this.copy())
-    this.render()
   }
 
   update(data) {
-    this.state = data.state || {}
+    this.state = data
     this.render()
   }
 
   reset() {
-    this.state = {}
+    this.state = null
     this.render()
   }
 
   render() {
-    this.elements.json.textContent = JSON.stringify(this.state, null, 2)
-  }
+    if (!this.state) {
+      this.elements.status.textContent = 'Unknown'
+      this.elements.queue.textContent = '-'
+      this.elements.context.textContent = ''
+      return
+    }
 
-  copy() {
-    navigator.clipboard.writeText(JSON.stringify(this.state, null, 2))
-      .then(() => {
-        this.elements.copyBtn.textContent = '✓'
-        setTimeout(() => { this.elements.copyBtn.textContent = '📋' }, 1000)
-      })
-      .catch(err => console.error('Copy failed:', err))
+    this.elements.status.textContent = this.state.status.toUpperCase()
+    this.elements.status.className = `status-badge status-${this.state.status}`
+    this.elements.queue.textContent = this.state.queueLength
+
+    // Render context view (it's markdown/text)
+    this.elements.context.textContent = this.state.lastContextView || '(No context yet)'
   }
 }
 
@@ -630,6 +632,10 @@ class LLMPanel {
         </div>
       </div>
       <div class="llm-body">
+        ${trace.reasoning ? `
+          <div class="llm-section-title">Reasoning</div>
+          <div class="llm-content reasoning">${escapeHtml(trace.reasoning)}</div>
+        ` : ''}
         <div class="llm-section-title">Result</div>
         <div class="llm-content">${escapeHtml(trace.content || '')}</div>
 
@@ -1308,7 +1314,7 @@ class DebugApp {
     this.layoutManager = new LayoutManager()
     this.queuePanel = new QueuePanel(this.client)
     this.reflexPanel = new ReflexPanel(this.client)
-    this.blackboardPanel = new BlackboardPanel(this.client)
+    this.brainPanel = new BrainPanel(this.client)
     this.logsPanel = new LogsPanel(this.client)
     this.llmPanel = new LLMPanel(this.client)
     this.saliencyPanel = new SaliencyPanel(this.client)
@@ -1318,7 +1324,7 @@ class DebugApp {
     this.panels = {
       queue: this.queuePanel,
       reflex: this.reflexPanel,
-      blackboard: this.blackboardPanel,
+      brain: this.brainPanel,
       logs: this.logsPanel,
       llm: this.llmPanel,
       saliency: this.saliencyPanel,

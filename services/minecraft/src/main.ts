@@ -48,7 +48,7 @@ async function main() {
   })
 
   // Dynamically load CognitiveEngine after the bot is initialized
-  const agent = await createNeuriAgent(bot)
+  const agent = await createNeuriAgent()
   await bot.loadPlugin(CognitiveEngine({ agent, airiClient }))
 
   // Setup Tool Executor for Debug Dashboard

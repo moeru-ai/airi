@@ -1,27 +1,21 @@
 import type { PlanStep } from '../../../agents/planning/adapter'
 
-export type ActionType = 'sequential' | 'parallel' | 'chat'
-
-export interface BaseActionInstruction {
-  type: ActionType
-  id?: string
-  description?: string
-  require_feedback?: boolean
+/**
+ * Unified action instruction format.
+ * All actions are tool invocations with a tool name and parameters.
+ */
+export interface ActionInstruction {
+  tool: string
+  params: Record<string, unknown>
 }
 
-export interface SequentialActionInstruction extends BaseActionInstruction {
-  type: 'sequential'
-  step: PlanStep
+/**
+ * LLM response format for the stateful agent.
+ * Single action per turn, model uses native reasoning (no thought field).
+ */
+export interface LLMResponse {
+  action: ActionInstruction
 }
 
-export interface ParallelActionInstruction extends BaseActionInstruction {
-  type: 'parallel'
-  step: PlanStep
-}
-
-export interface ChatActionInstruction extends BaseActionInstruction {
-  type: 'chat'
-  message: string
-}
-
-export type ActionInstruction = SequentialActionInstruction | ParallelActionInstruction | ChatActionInstruction
+// Re-export for backwards compatibility during migration
+export type { PlanStep }

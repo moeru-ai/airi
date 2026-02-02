@@ -105,17 +105,19 @@
           </div>
         </section>
 
-        <!-- Blackboard -->
-        <section id="blackboard-section" class="panel">
+        <!-- Brain -->
+        <section id="brain-section" class="panel">
           <div class="panel-header">
-            <h2>Blackboard</h2>
+            <h2>Brain</h2>
             <div class="panel-controls">
-              <button id="blackboard-copy-btn" class="icon-btn" title="Copy JSON">📋</button>
+              <span id="brain-status" class="status-badge">Unknown</span>
+              <span class="panel-badge" title="Queue Length"><span id="brain-queue">0</span></span>
               <button class="icon-btn maximize-btn" title="Toggle maximize">⤢</button>
             </div>
           </div>
           <div class="panel-content">
-            <pre id="blackboard-json" class="json-display">{}</pre>
+            <div id="brain-context" class="json-display"
+              style="white-space: pre-wrap; font-family: var(--font-mono); font-size: 12px;"></div>
           </div>
         </section>
       </div>

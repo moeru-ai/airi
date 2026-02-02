@@ -16,7 +16,7 @@ describe.skip('actions agent', { timeout: 0 }, () => {
 
   it('should choose right query command', async () => {
     const { bot } = useBot()
-    const agent = await createNeuriAgent(bot)
+    const agent = await createNeuriAgent()
 
     await new Promise<void>((resolve) => {
       bot.bot.once('spawn', async () => {
@@ -37,7 +37,7 @@ describe.skip('actions agent', { timeout: 0 }, () => {
 
   it('should choose right action command', async () => {
     const { bot } = useBot()
-    const agent = await createNeuriAgent(bot)
+    const agent = await createNeuriAgent()
 
     await new Promise<void>((resolve) => {
       bot.bot.on('spawn', async () => {

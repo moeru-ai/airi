@@ -1,25 +1,23 @@
 import type { Agent, Neuri } from 'neuri'
 
-import type { Mineflayer } from '../libs/mineflayer'
 
-import { neuri } from 'neuri'
 
-import { createActionNeuriAgent } from '../agents/action/adapter'
-import { createChatNeuriAgent } from '../agents/chat/llm'
-import { createPlanningNeuriAgent } from '../agents/planning/adapter'
+import { agent, neuri } from 'neuri'
+
+
 import { useLogger } from '../utils/logger'
 import { config } from './config'
 
 let neuriAgent: Neuri | undefined
 const agents = new Set<Agent | Promise<Agent>>()
 
-export async function createNeuriAgent(mineflayer: Mineflayer): Promise<Neuri> {
+export async function createNeuriAgent(): Promise<Neuri> {
   useLogger().log('Initializing neuri agent')
   let n = neuri()
 
-  agents.add(createPlanningNeuriAgent())
-  agents.add(createActionNeuriAgent(mineflayer))
-  agents.add(createChatNeuriAgent())
+  agents.add(agent('brain').build())
+  // agents.add(createPlanningNeuriAgent()) // Deprecated by Brain
+  // agents.add(createChatNeuriAgent())     // Deprecated by Brain
 
   agents.forEach(agent => n = n.agent(agent))
 
