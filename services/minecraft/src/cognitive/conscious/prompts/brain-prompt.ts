@@ -1,13 +1,53 @@
 import type { Action } from '../../../libs/mineflayer/action'
 
-export function generateBrainSystemPrompt(availableActions: Action[]): string {
-  const toolDefs = availableActions.map(a => ({
-    name: a.name,
-    description: a.description,
-    parameters: a.schema,
-  }))
+// Helper to extract readable type from Zod schema
+function getZodTypeName(def: any): string {
+  if (!def) return 'any'
+  const type = def.type || def.typeName
 
-  const toolsJson = JSON.stringify(toolDefs, null, 2)
+  if (type === 'string' || type === 'ZodString') return 'string'
+  if (type === 'number' || type === 'ZodNumber') return 'number'
+  if (type === 'boolean' || type === 'ZodBoolean') return 'boolean'
+
+  if (type === 'array' || type === 'ZodArray') {
+    const innerDef = def.element?._def || def.type?._def
+    return `array<${getZodTypeName(innerDef)}>`
+  }
+
+  if (type === 'enum' || type === 'ZodEnum') {
+    const values = def.values || (def.entries ? Object.keys(def.entries) : [])
+    return `enum(${values.join('|')})`
+  }
+
+  if (type === 'optional' || type === 'ZodOptional') {
+    return `${getZodTypeName(def.innerType?._def)} (optional)`
+  }
+
+  if (type === 'default' || type === 'ZodDefault') {
+    return getZodTypeName(def.innerType?._def)
+  }
+
+  if (type === 'effects' || type === 'ZodEffects') {
+    return getZodTypeName(def.schema?._def)
+  }
+
+  return type || 'any'
+}
+
+export function generateBrainSystemPrompt(availableActions: Action[]): string {
+  const toolsFormatted = availableActions.map((a) => {
+    let params = ''
+    if (a.schema && 'shape' in a.schema) {
+      params = Object.entries(a.schema.shape).map(([key, val]: [string, any]) => {
+        const def = val._def
+        const type = getZodTypeName(def)
+        const desc = val.description ? ` -> ${val.description}` : ''
+        return `- ${key}: ${type}${desc}`
+      }).join('\n')
+    }
+
+    return `[${a.name}]\nDescription: ${a.description}\n${params}`
+  }).join('\n\n')
 
   return `
 # Role Definition
@@ -31,7 +71,7 @@ You are an autonomous agent playing Minecraft.
 You must use the following tools to interact with the world.
 You cannot make up tools. You must use the JSON format described below.
 
-${toolsJson}
+${toolsFormatted}
 
 # Response Format
 You must respond with valid JSON only. Do not include markdown code blocks (like \`\`\`json).
