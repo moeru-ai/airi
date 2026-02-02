@@ -1,6 +1,6 @@
 import type { Logg } from '@guiiai/logg'
 
-import type { PlanStep } from '../../agents/planning/adapter'
+import type { PlanStep } from '../../cognitive/action/types'
 import type { Action } from './action'
 
 import EventEmitter3 from 'eventemitter3'

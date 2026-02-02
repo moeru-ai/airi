@@ -1,5 +1,3 @@
-import type { PlanStep } from '../../../agents/planning/adapter'
-
 /**
  * Unified action instruction format.
  * All actions are tool invocations with a tool name and parameters.
@@ -17,5 +15,11 @@ export interface LLMResponse {
   action: ActionInstruction
 }
 
-// Re-export for backwards compatibility during migration
-export type { PlanStep }
+/**
+ * PlanStep for action planning - compatible with ActionInstruction
+ */
+export interface PlanStep {
+  description: string
+  tool: string
+  params: Record<string, unknown>
+}

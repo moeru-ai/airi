@@ -3142,6 +3142,12 @@ importers:
       '@proj-airi/server-sdk':
         specifier: ^0.8.1
         version: 0.8.1(srvx@0.10.1)
+      '@xsai/generate-text':
+        specifier: 'catalog:'
+        version: 0.4.2
+      '@xsai/shared-chat':
+        specifier: 'catalog:'
+        version: 0.4.0-beta.13
       awilix:
         specifier: ^12.0.5
         version: 12.0.5
@@ -3181,9 +3187,6 @@ importers:
       nanoid:
         specifier: 'catalog:'
         version: 5.1.6
-      neuri:
-        specifier: ^0.2.1
-        version: 0.2.1(zod-to-json-schema@3.25.1(zod@4.3.5))(zod@4.3.5)
       prismarine-block:
         specifier: ^1.22.0
         version: 1.22.0
@@ -9325,9 +9328,6 @@ packages:
   '@xsai/generate-speech@0.4.0-beta.13':
     resolution: {integrity: sha512-2Nd84TTohnZgm1/l9TYNGHn+vajEavV6wJAvdIVT+5N0m3THPlKbrys2R84NZ1OjD9y3vpqUGdHsdwJyxCXVbg==}
 
-  '@xsai/generate-text@0.3.5':
-    resolution: {integrity: sha512-alYx0h0wAh7NpBMOLwfpfxAVPwqWjFhsKxn6fIpNWMhywkajh3LEwmpeihu4Uw7dZV85dz6qg6huTxk+C+RLnA==}
-
   '@xsai/generate-text@0.4.2':
     resolution: {integrity: sha512-8VyRhyQOvG8YkEo1b93mPoaXDA6Schqs9sB37ll0I92WKVSMvxcKxfehGAXLApIuC3jMe6cORwI44jgzloBoaQ==}
 
@@ -9337,26 +9337,17 @@ packages:
   '@xsai/model@0.4.2':
     resolution: {integrity: sha512-f4Egr+a/v2GQ/eALUEWizMhPvpuHGBiRWOrU4jcqeRhZYPyb4cpyS2KHy/HHAXgVv9SoRmk5J3iyzwT/fh/0Jg==}
 
-  '@xsai/shared-chat@0.3.5':
-    resolution: {integrity: sha512-6mjrAQ3OB7taZuyUygaazjSQ12jt42/mdVfRs3fL+d42bkJO9cKcXtP30/85XIZPq35+xK0+kmCD8z36nzlWzg==}
-
   '@xsai/shared-chat@0.4.0-beta.13':
     resolution: {integrity: sha512-nvE/lrS50JsZPw09cOaa6vebMfXXuJ7j3/41CN+UqwgJwCWteT4eZRVG55sH1vOAwO8ZOBaPR8pqo88Ph3uy6A==}
 
   '@xsai/shared-chat@0.4.2':
     resolution: {integrity: sha512-omRPgbdOO5wLuQuvjs4H18o5OmsZL22F3Ed6D5mXN1rN7uIH8dVVaRV7A0BT3xjJKFQS5edDbRmeka4D60HzuA==}
 
-  '@xsai/shared@0.3.5':
-    resolution: {integrity: sha512-gxWH+9UjhXgqqKeU/o9UteC/ih1FzxEEsmPojImd/jvq4j/wtIg4aP3dCFnu+EhCT/MRQ38dkBSra99iY9cC3w==}
-
   '@xsai/shared@0.4.0-beta.13':
     resolution: {integrity: sha512-s+CUJcxDNd/IVDDIECIRcCTJimkKNu29skLv3tm21YpSWoFFPuGM682gTNuFoIfSeEy3D3/RTGXzfefgirkNxA==}
 
   '@xsai/shared@0.4.2':
     resolution: {integrity: sha512-K1rKoJ/Ge+IIvcazkph5oF6kRgfLNvLYHQ+Fcug0KbmViwTu3F/xekYN/XtX/KuvcmLoCdGMnVAkFeOMTjWBDw==}
-
-  '@xsai/stream-text@0.3.5':
-    resolution: {integrity: sha512-XUyM3/jo9FulWoqmQU6vvHFOoRZzr3rcsTGm0MY8hUXg9HJl91N0voQGb6R5AMlo5XgoSbO3GMFzJ26AVxmRMg==}
 
   '@xsai/stream-text@0.4.2':
     resolution: {integrity: sha512-zOcZp3B6tPwthlR+BiNjO9Ax6r4CMkKrJa9FEIHrddMeeJGqXAWZH6sNLCBAS/Q7Vob5r4OM+4MELohzyXndGg==}
@@ -9366,9 +9357,6 @@ packages:
 
   '@xsai/tool@0.4.2':
     resolution: {integrity: sha512-yE+3b6pBX4Cd7eKi+m59DswQJdlUV896vmat1hUN4CYgKbXE0ijzUyRDpa+HiFr0c2UPc/at2E2RWzUVfzkh+Q==}
-
-  '@xsai/utils-chat@0.3.5':
-    resolution: {integrity: sha512-nEFrBtB1Ybz31Pt4jGc+yudvxQWUVklvenuyooobWqtanT+NcqP8wWQId3zBiPTdREKr77mepZOYLPrSS+cTYw==}
 
   '@xsai/utils-chat@0.4.0-beta.13':
     resolution: {integrity: sha512-QlDIFjHT7zHq0Vm+DmgDZpq1vOf2Z5oiSxoIH3EfkN6FGbd9gXsR5JAtzaET7PttORMjv18+IXzvCxAVSOGaiA==}
@@ -13456,9 +13444,6 @@ packages:
     resolution: {integrity: sha512-dBpDMdxv9Irdq66304OLfEmQ9tbNRFnFTuZiLo+bD+r332bBmMJ8GBLXklIXXgxd3+v9+KUnZaUR5PJMa75Gsg==}
     engines: {node: '>= 0.4.0'}
 
-  neuri@0.2.1:
-    resolution: {integrity: sha512-Aqkua0i56k3LVd8CrIEnOdKsgztyPARUZzhLuKMjFkj99v5cSN5kaOxKDBkw9ZpeeHLptRgOsDrRWowWOIZQuQ==}
-
   neverthrow@8.2.0:
     resolution: {integrity: sha512-kOCT/1MCPAxY5iUV3wytNFUMUolzuwd/VF/1KCx7kf6CutrOsTie+84zTGTpgQycjvfLdBBdvBvFLqFD2c0wkQ==}
     engines: {node: '>=18'}
@@ -15188,7 +15173,7 @@ packages:
   tar@7.5.2:
     resolution: {integrity: sha512-7NyxrTE4Anh8km8iEy7o0QYPs+0JKBTj5ZaqHg6B39erLg0qYXN3BijtShwbsNSvQ+LN75+KV+C4QR/f6Gwnpg==}
     engines: {node: '>=18'}
-    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exhorbitant rates) by contacting i@izs.me
 
   taze@19.9.2:
     resolution: {integrity: sha512-If8bq7lSckIMPfXV+C9jjEfdsQnRryh/foKfpX/ah6zI0TrQfUGWSGCaaD32Bqy5/KGRmLZie3EwMSr3Au21XQ==}
@@ -16598,29 +16583,6 @@ packages:
   xmlhttprequest-ssl@2.1.2:
     resolution: {integrity: sha512-TEU+nJVUUnA4CYJFLvK5X9AOeH4KvDvhIfm0vV1GaQRtchnG0hgK5p8hw/xjv8cunWYCsiPCSDzObPyhEwq3KQ==}
     engines: {node: '>=0.4.0'}
-
-  xsschema@0.3.5:
-    resolution: {integrity: sha512-f+dcy11dTv7aBEEfTbXWnrm/1b/Ds2k4taN0TpN6KCtPAD58kyE/R1znUdrHdBnhIFexj9k+pS1fm6FgtSISrQ==}
-    peerDependencies:
-      '@valibot/to-json-schema': ^1.0.0
-      arktype: ^2.1.20
-      effect: ^3.16.0
-      sury: ^10.0.0
-      zod: ^3.25.0 || ^4.0.0
-      zod-to-json-schema: ^3.24.5
-    peerDependenciesMeta:
-      '@valibot/to-json-schema':
-        optional: true
-      arktype:
-        optional: true
-      effect:
-        optional: true
-      sury:
-        optional: true
-      zod:
-        optional: true
-      zod-to-json-schema:
-        optional: true
 
   xsschema@0.4.0-beta.13:
     resolution: {integrity: sha512-gw44icHZnuaY/LqI7aKcHz4rWHI/HmpQJicnZ0+hTYWeJlhwVWzaOaguQTV6QecmAeqwOU5pmClYaFy/9dmMzw==}
@@ -23428,11 +23390,6 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.4.2
 
-  '@xsai/generate-text@0.3.5':
-    dependencies:
-      '@xsai/shared': 0.3.5
-      '@xsai/shared-chat': 0.3.5
-
   '@xsai/generate-text@0.4.2':
     dependencies:
       '@xsai/shared': 0.4.2
@@ -23446,10 +23403,6 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.4.2
 
-  '@xsai/shared-chat@0.3.5':
-    dependencies:
-      '@xsai/shared': 0.3.5
-
   '@xsai/shared-chat@0.4.0-beta.13':
     dependencies:
       '@xsai/shared': 0.4.2
@@ -23458,15 +23411,9 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.4.2
 
-  '@xsai/shared@0.3.5': {}
-
   '@xsai/shared@0.4.0-beta.13': {}
 
   '@xsai/shared@0.4.2': {}
-
-  '@xsai/stream-text@0.3.5':
-    dependencies:
-      '@xsai/shared-chat': 0.3.5
 
   '@xsai/stream-text@0.4.2':
     dependencies:
@@ -23489,10 +23436,6 @@ snapshots:
       - sury
       - zod
       - zod-to-json-schema
-
-  '@xsai/utils-chat@0.3.5':
-    dependencies:
-      '@xsai/shared-chat': 0.3.5
 
   '@xsai/utils-chat@0.4.0-beta.13':
     dependencies:
@@ -28221,22 +28164,6 @@ snapshots:
   netmask@2.0.2:
     optional: true
 
-  neuri@0.2.1(zod-to-json-schema@3.25.1(zod@4.3.5))(zod@4.3.5):
-    dependencies:
-      '@xsai/generate-text': 0.3.5
-      '@xsai/shared': 0.3.5
-      '@xsai/shared-chat': 0.3.5
-      '@xsai/stream-text': 0.3.5
-      '@xsai/utils-chat': 0.3.5
-      xsschema: 0.3.5(zod-to-json-schema@3.25.1(zod@4.3.5))(zod@4.3.5)
-    transitivePeerDependencies:
-      - '@valibot/to-json-schema'
-      - arktype
-      - effect
-      - sury
-      - zod
-      - zod-to-json-schema
-
   neverthrow@8.2.0:
     optionalDependencies:
       '@rollup/rollup-linux-x64-gnu': 4.55.2
@@ -32245,11 +32172,6 @@ snapshots:
   xmlchars@2.2.0: {}
 
   xmlhttprequest-ssl@2.1.2: {}
-
-  xsschema@0.3.5(zod-to-json-schema@3.25.1(zod@4.3.5))(zod@4.3.5):
-    optionalDependencies:
-      zod: 4.3.5
-      zod-to-json-schema: 3.25.1(zod@4.3.5)
 
   xsschema@0.4.0-beta.13(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.5))(zod@4.3.5):
     optionalDependencies:

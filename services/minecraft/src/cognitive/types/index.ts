@@ -1,17 +1,7 @@
 import type { Client } from '@proj-airi/server-sdk'
-import type { Neuri } from 'neuri'
 
 import type { Mineflayer } from '../../libs/mineflayer'
-import type { ActionAgent, ChatAgent, PlanningAgent } from '../../libs/mineflayer/base-agent'
 import type { ReflexManager } from '../reflex/reflex-manager'
-
-export interface LLMConfig {
-  agent: Neuri
-  model?: string
-  retryLimit?: number
-  delayInterval?: number
-  maxContextLength?: number
-}
 
 export interface LLMResponse {
   content: string
@@ -19,14 +9,10 @@ export interface LLMResponse {
 }
 
 export interface MineflayerWithAgents extends Mineflayer {
-  planning: PlanningAgent
-  action: ActionAgent
-  chat: ChatAgent
   reflexManager: ReflexManager
 }
 
 export interface CognitiveEngineOptions {
-  agent: Neuri
   airiClient: Client
 }
 

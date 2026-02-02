@@ -1,4 +1,4 @@
-import type { ActionAgent, ChatAgent, Plan } from '../../libs/mineflayer/base-agent'
+import type { Mineflayer } from '../../libs/mineflayer/core'
 import type { Logger } from '../../utils/logger'
 import type { CancellationToken } from '../conscious/task-state'
 import type { ActionInstruction } from './types'
@@ -6,24 +6,22 @@ import type { ActionInstruction } from './types'
 import { EventEmitter } from 'node:events'
 
 import { ActionError } from '../../utils/errors'
+import { ActionRegistry } from './action-registry'
 
 interface TaskExecutorConfig {
   logger: Logger
-  actionAgent: ActionAgent
-  chatAgent: ChatAgent
 }
 
 export class TaskExecutor extends EventEmitter {
-  private actionAgent: ActionAgent
-  private chatAgent: ChatAgent
   private logger: Logger
   private initialized = false
+  private actionRegistry: ActionRegistry
+  private mineflayer: Mineflayer | null = null
 
   constructor(config: TaskExecutorConfig) {
     super()
     this.logger = config.logger
-    this.actionAgent = config.actionAgent
-    this.chatAgent = config.chatAgent
+    this.actionRegistry = new ActionRegistry()
   }
 
   public async initialize(): Promise<void> {
@@ -34,47 +32,16 @@ export class TaskExecutor extends EventEmitter {
     this.initialized = true
   }
 
-  public async destroy(): Promise<void> {
-    this.initialized = false
+  /**
+   * Set the mineflayer instance for action execution
+   */
+  public setMineflayer(mineflayer: Mineflayer): void {
+    this.mineflayer = mineflayer
+    this.actionRegistry.setMineflayer(mineflayer)
   }
 
-  public async executePlan(plan: Plan, cancellationToken?: CancellationToken): Promise<void> {
-    if (!this.initialized) {
-      throw new Error('TaskExecutor not initialized')
-    }
-
-    if (!plan.requiresAction) {
-      this.logger.log('Plan does not require actions, skipping execution')
-      return
-    }
-
-    this.logger.withField('plan', plan).log('Executing plan')
-
-    try {
-      plan.status = 'in_progress'
-
-      // Execute each step
-      for (const step of plan.steps) {
-        if (cancellationToken?.isCancelled) {
-          this.logger.log('Plan execution cancelled')
-          plan.status = 'cancelled'
-          return
-        }
-
-        const action: ActionInstruction = {
-          tool: step.tool,
-          params: step.params,
-        }
-
-        await this.runSingleAction(action)
-      }
-
-      plan.status = 'completed'
-    }
-    catch (error) {
-      plan.status = 'failed'
-      throw error
-    }
+  public async destroy(): Promise<void> {
+    this.initialized = false
   }
 
   public async executeAction(action: ActionInstruction, cancellationToken?: CancellationToken): Promise<void> {
@@ -91,9 +58,7 @@ export class TaskExecutor extends EventEmitter {
       await this.runSingleAction(action)
     }
     catch (error) {
-      // Errors handled in runSingleAction event emission, but we rethrow to caller (Brain)
-      // actually runSingleAction rethrows?
-      // Let's rely on runSingleAction behavior
+      // Errors handled in runSingleAction event emission
     }
   }
 
@@ -104,21 +69,30 @@ export class TaskExecutor extends EventEmitter {
       let result: string | void
 
       if (action.tool === 'chat') {
+        // Handle chat action via mineflayer directly
         const message = action.params.message
         if (typeof message !== 'string' || message.trim().length === 0)
           throw new Error('Invalid chat tool params: expected params.message to be a string')
 
-        await this.chatAgent.sendMessage(message)
+        if (!this.mineflayer) {
+          throw new Error('Mineflayer instance not set in TaskExecutor')
+        }
+
+        this.mineflayer.bot.chat(message)
         result = 'Message sent'
       }
       else if (action.tool === 'skip') {
         result = 'Skipped turn'
       }
       else {
-        // Dispatch to Action Agent (mineflayer)
-        // ActionAgent.performAction takes PlanStep (tool, params, description)
-        // ActionInstruction matches structure (tool, params)
-        result = await this.actionAgent.performAction(action as any)
+        // Dispatch to ActionRegistry
+        const step = {
+          description: action.tool,
+          tool: action.tool,
+          params: action.params,
+        }
+
+        result = await this.actionRegistry.performAction(step)
       }
 
       this.emit('action:completed', { action, result })
@@ -126,7 +100,7 @@ export class TaskExecutor extends EventEmitter {
     catch (error) {
       this.logger.withError(error).error('Action execution failed')
 
-      // Interrupts are special - no feedback needed? keeping logic
+      // Interrupts are special - no feedback needed
       if (error instanceof ActionError && error.code === 'INTERRUPTED') {
         return
       }
@@ -137,6 +111,6 @@ export class TaskExecutor extends EventEmitter {
   }
 
   public getAvailableActions() {
-    return this.actionAgent.getAvailableActions()
+    return this.actionRegistry.getAvailableActions()
   }
 }

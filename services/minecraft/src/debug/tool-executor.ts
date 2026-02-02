@@ -3,7 +3,7 @@ import type { ZodObject, ZodType } from 'zod'
 import type { Mineflayer } from '../libs/mineflayer'
 import type { ToolDefinition, ToolParameter } from './types'
 
-import { actionsList } from '../agents/action/tools'
+import { actionsList } from '../cognitive/action/llm-actions'
 import { DebugService } from './debug-service'
 
 export class ToolExecutor {

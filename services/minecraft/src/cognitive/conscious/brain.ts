@@ -1,74 +1,26 @@
 import type { Logg } from '@guiiai/logg'
-import type { Neuri } from 'neuri'
-import type { Message } from 'neuri/openai'
+import type { Message } from '@xsai/shared-chat'
 
 import type { TaskExecutor } from '../action/task-executor'
 import type { EventBus, TracedEvent } from '../os'
 import type { PerceptionSignal } from '../perception/types/signals'
 import type { ReflexManager } from '../reflex/reflex-manager'
 import type { BotEvent, MineflayerWithAgents } from '../types'
-import { createCancellationToken, type CancellationToken } from './task-state'
-
-import { assistant, system, user } from 'neuri/openai'
+import type { ActionInstruction } from '../action/types'
 
 import { config } from '../../composables/config'
 import { DebugService } from '../../debug'
 import { buildConsciousContextView } from './context-view'
+import { LLMAgent } from './llm-agent'
+import {
+  extractJsonCandidate,
+  isLikelyAuthOrBadArgError,
+  isRateLimitError,
+  sleep,
+  toErrorMessage,
+} from './llmlogic'
 import { generateBrainSystemPrompt } from './prompts/brain-prompt'
-import type { ActionInstruction } from '../action/types'
-
-// Utils
-function toErrorMessage(err: unknown): string {
-  if (err instanceof Error) return err.message
-  if (typeof err === 'string') return err
-  try { return JSON.stringify(err) } catch { return String(err) }
-}
-
-function extractJsonCandidate(input: string): string {
-  const trimmed = input.trim()
-  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)
-  if (fenced?.[1]) return fenced[1].trim()
-  const start = trimmed.indexOf('{')
-  const end = trimmed.lastIndexOf('}')
-  if (start >= 0 && end > start) return trimmed.slice(start, end + 1)
-  return trimmed
-}
-
-function getErrorStatus(err: unknown): number | undefined {
-  const anyErr = err as any
-  const status = anyErr?.status ?? anyErr?.response?.status ?? anyErr?.cause?.status
-  return typeof status === 'number' ? status : undefined
-}
-
-function isLikelyAuthOrBadArgError(err: unknown): boolean {
-  const msg = toErrorMessage(err).toLowerCase()
-  const status = getErrorStatus(err)
-  if (status === 401 || status === 403)
-    return true
-
-  return (
-    msg.includes('unauthorized')
-    || msg.includes('invalid api key')
-    || msg.includes('authentication')
-    || msg.includes('forbidden')
-    || msg.includes('badarg')
-    || msg.includes('bad arg')
-    || msg.includes('invalid argument')
-    || msg.includes('invalid_request_error')
-  )
-}
-
-function isRateLimitError(err: unknown): boolean {
-  const status = getErrorStatus(err)
-  if (status === 429) return true
-  const msg = toErrorMessage(err).toLowerCase()
-  return msg.includes('rate limit') || msg.includes('too many requests')
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
-
+import { createCancellationToken, type CancellationToken } from './task-state'
 
 interface BrainResponse {
   action: ActionInstruction & { id?: string }
@@ -76,7 +28,7 @@ interface BrainResponse {
 
 interface BrainDeps {
   eventBus: EventBus
-  neuri: Neuri
+  llmAgent: LLMAgent
   logger: Logg
   taskExecutor: TaskExecutor
   reflexManager: ReflexManager
@@ -207,59 +159,52 @@ export class Brain {
     // 2. Prepare System Prompt (static)
     const systemPrompt = generateBrainSystemPrompt(this.deps.taskExecutor.getAvailableActions())
 
-    // 3. Call Neuri (Stateless) with retry logic
+    // 3. Call LLM with retry logic
     const maxAttempts = 3
     let result: string | null = null
     let capturedReasoning: string | undefined
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        result = await this.deps.neuri.handleStateless(
-          [user(userMessage)],
-          async (ctx) => {
-            // Build complete message history: system + conversation history + new user message
-            const messages = [
-              system(systemPrompt),
-              ...this.conversationHistory,
-              ...ctx.messages
-            ]
+        // Build complete message history: system + conversation history + new user message
+        const messages: Message[] = [
+          { role: 'system', content: systemPrompt },
+          ...this.conversationHistory,
+          { role: 'user', content: userMessage },
+        ]
 
-            const traceStart = Date.now()
+        const traceStart = Date.now()
 
-            const completion = await ctx.reroute('brain', messages, {
-              model: config.openai.model,
-              response_format: { type: 'json_object' }
-            } as any) as any
+        const llmResult = await this.deps.llmAgent.callLLM({
+          messages,
+          responseFormat: { type: 'json_object' },
+        })
 
-            const message = completion?.choices?.[0]?.message
-            const content = message?.content
-            const reasoning = message?.reasoning_content || message?.reasoning
+        const content = llmResult.text
+        const reasoning = llmResult.reasoning
 
-            if (!content) throw new Error('No content from LLM')
+        if (!content) throw new Error('No content from LLM')
 
-            // Capture reasoning for later use
-            // We'll only append to history after successful parsing outside the callback
-            capturedReasoning = reasoning
+        // Capture reasoning for later use
+        capturedReasoning = reasoning
+        result = content
 
-            this.debugService.traceLLM({
-              route: 'brain',
-              messages,
-              content,
-              reasoning,
-              usage: completion.usage,
-              model: config.openai.model,
-              duration: Date.now() - traceStart
-            })
+        this.debugService.traceLLM({
+          route: 'brain',
+          messages,
+          content,
+          reasoning,
+          usage: llmResult.usage,
+          model: config.openai.model,
+          duration: Date.now() - traceStart,
+        })
 
-            this.debugService.emitBrainState({
-              status: 'processing',
-              queueLength: this.queue.length,
-              lastContextView: this.lastContextView,
-            })
+        this.debugService.emitBrainState({
+          status: 'processing',
+          queueLength: this.queue.length,
+          lastContextView: this.lastContextView,
+        })
 
-            return content
-          }
-        )
         break // Success, exit retry loop
       } catch (err) {
         const remaining = maxAttempts - attempt
@@ -289,11 +234,11 @@ export class Brain {
       const action = parsed.action
 
       // Only append to conversation history after successful parsing (avoid dirty data on retry)
-      this.conversationHistory.push(user(userMessage))
+      this.conversationHistory.push({ role: 'user', content: userMessage })
       const assistantContent = capturedReasoning
         ? `[REASONING] ${capturedReasoning}\n\n${result}`
         : result
-      this.conversationHistory.push(assistant(assistantContent))
+      this.conversationHistory.push({ role: 'assistant', content: assistantContent })
 
       if (action.tool === 'skip') {
         this.deps.logger.log('INFO', 'Brain: Skipping turn (observing)')
@@ -330,7 +275,7 @@ export class Brain {
         type: 'feedback',
         payload: { status: 'failure', error: toErrorMessage(err) },
         source: { type: 'system', id: 'brain' },
-        timestamp: Date.now()
+        timestamp: Date.now(),
       })
     }
   }

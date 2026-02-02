@@ -1,7 +1,6 @@
 import type { MineflayerPlugin } from '../libs/mineflayer'
 import type { CognitiveEngineOptions, MineflayerWithAgents } from './types'
 
-import { config } from '../composables/config'
 import { ChatMessageHandler } from '../libs/mineflayer'
 import { createAgentContainer } from './container'
 import { computeNearbyPlayerGaze } from './reflex/gaze'
@@ -11,30 +10,25 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
   let spawnHandler: (() => void) | null = null
   let started = false
 
+  // Keep airiClient reference for future use
+  void options.airiClient
+
   return {
     async created(bot) {
       // Create container and get required services
-      container = createAgentContainer({
-        neuri: options.agent,
-        model: config.openai.model,
-      })
+      container = createAgentContainer()
 
-      const actionAgent = container.resolve('actionAgent')
-      const chatAgent = container.resolve('chatAgent')
       const perceptionPipeline = container.resolve('perceptionPipeline')
       const brain = container.resolve('brain')
       const reflexManager = container.resolve('reflexManager')
       const taskExecutor = container.resolve('taskExecutor')
 
-      // Initialize agents
-      await actionAgent.init()
-      await chatAgent.init()
+      // Initialize task executor with mineflayer instance
+      taskExecutor.setMineflayer(bot)
       await taskExecutor.initialize()
 
       // Type conversion
       const botWithAgents = bot as unknown as MineflayerWithAgents
-      botWithAgents.action = actionAgent
-      botWithAgents.chat = chatAgent
       botWithAgents.reflexManager = reflexManager
 
       const startCognitive = () => {
@@ -117,10 +111,6 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
     },
 
     async beforeCleanup(bot) {
-      const botWithAgents = bot as unknown as MineflayerWithAgents
-      await botWithAgents.action?.destroy()
-      await botWithAgents.chat?.destroy()
-
       if (container) {
         const taskExecutor = container.resolve('taskExecutor')
         await taskExecutor.destroy()
