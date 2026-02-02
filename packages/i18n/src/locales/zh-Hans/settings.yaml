@@ -615,6 +615,8 @@ pages:
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili / IndexTTS
+        callout_indextts2_unavailable_title: 支持受限
+        callout_indextts2_unavailable: IndexTTS2 的支持目前不可用。请使用 IndexTTS。
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry
