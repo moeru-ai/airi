@@ -5,6 +5,9 @@
 
 import type { LoadedMessage, VoiceKey, Voices, WorkerRequest, WorkerResponse } from './types'
 
+const LOAD_MODEL_TIMEOUT = 120000
+const GENERATE_TIMEOUT = 120000
+
 /**
  * An async mutex that ensures only one callback runs at a time.
  * Waiters queue up and are processed in FIFO order.
@@ -66,17 +69,34 @@ class AsyncMutex {
   }
 }
 
+interface WaitForEventOptions<T extends Event> {
+  predicate?: (event: T) => boolean
+  callback?: (event: T) => void
+  timeout?: number
+  timeoutError?: Error
+}
+
 function waitForEvent<T extends Event>(
   element: EventTarget,
   eventName: string,
-  predicate: (event: T) => boolean = () => true,
-  callback: (event: T) => void = () => {},
+  options: WaitForEventOptions<T> = {},
 ): Promise<T> {
-  return new Promise((resolve) => {
+  const {
+    predicate = () => true,
+    callback = () => {},
+    timeout,
+    timeoutError = new Error(`Timeout waiting for event: ${eventName}`),
+  } = options
+
+  return new Promise((resolve, reject) => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+
     const listener = (event: Event) => {
       const typedEvent = event as T
-
       if (predicate(typedEvent)) {
+        if (timeoutId !== undefined) {
+          clearTimeout(timeoutId)
+        }
         element.removeEventListener(eventName, listener)
         resolve(typedEvent)
       }
@@ -86,6 +106,13 @@ function waitForEvent<T extends Event>(
     }
 
     element.addEventListener(eventName, listener)
+
+    if (timeout !== undefined) {
+      timeoutId = setTimeout(() => {
+        element.removeEventListener(eventName, listener)
+        reject(timeoutError)
+      }, timeout)
+    }
   })
 }
 
@@ -118,13 +145,11 @@ export class KokoroWorkerManager {
       type: 'module',
     })
 
-    this.worker.addEventListener('error', (event) => {
-      this.handleWorkerError(event)
-    })
+    this.worker.addEventListener('error', this.handleWorkerError.bind(this))
   }
 
-  private handleWorkerError(event: ErrorEvent): void {
-    const error = new Error(event.message || 'An unknown worker error occurred')
+  private handleWorkerError(event: ErrorEvent | Error): void {
+    const error = event instanceof Error ? event : new Error(event.message ?? 'An unknown worker error occurred')
 
     // Reject all pending operations
     this.asyncMutex.reset(error)
@@ -170,11 +195,14 @@ export class KokoroWorkerManager {
       const voicePromise = waitForEvent<MessageEvent<WorkerResponse>>(
         this.worker!,
         'message',
-        event => event.data.type === 'loaded',
-        (event) => {
-          if (event.data.type === 'progress' && options?.onProgress) {
-            options.onProgress(event.data.progress)
-          }
+        {
+          predicate: event => event.data.type === 'loaded',
+          timeout: LOAD_MODEL_TIMEOUT,
+          callback: (event) => {
+            if (event.data.type === 'progress' && options?.onProgress) {
+              options.onProgress(event.data.progress)
+            }
+          },
         },
       )
       const message: WorkerRequest = {
@@ -187,6 +215,9 @@ export class KokoroWorkerManager {
       this.voices = loadedData.voices
       this.onSuccessfulOperation()
       return this.voices
+    }).catch((error) => {
+      this.handleWorkerError(error)
+      return Promise.reject(error)
     })
   }
 
@@ -199,7 +230,10 @@ export class KokoroWorkerManager {
       const resultPromise = waitForEvent<MessageEvent<WorkerResponse>>(
         this.worker,
         'message',
-        event => event.data.type === 'result',
+        {
+          predicate: event => event.data.type === 'result',
+          timeout: GENERATE_TIMEOUT,
+        },
       )
       const message: WorkerRequest = {
         type: 'generate',
@@ -220,6 +254,9 @@ export class KokoroWorkerManager {
       }
 
       throw new Error('Unexpected response from worker')
+    }).catch((error) => {
+      this.handleWorkerError(error)
+      return Promise.reject(error)
     })
   }
 
