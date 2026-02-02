@@ -1,6 +1,6 @@
 import type { Logg } from '@guiiai/logg'
 import type { Neuri } from 'neuri'
-// import type { Message } from 'neuri/openai' // Use if needed
+import type { Message } from 'neuri/openai'
 
 import type { TaskExecutor } from '../action/task-executor'
 import type { EventBus, TracedEvent } from '../os'
@@ -9,7 +9,7 @@ import type { ReflexManager } from '../reflex/reflex-manager'
 import type { BotEvent, MineflayerWithAgents } from '../types'
 import { createCancellationToken, type CancellationToken } from './task-state'
 
-import { system, user } from 'neuri/openai'
+import { assistant, system, user } from 'neuri/openai'
 
 import { config } from '../../composables/config'
 import { DebugService } from '../../debug'
@@ -96,7 +96,7 @@ export class Brain {
   private isProcessing = false
   private currentCancellationToken: CancellationToken | undefined
   private lastContextView: string | undefined
-  private lastReasoning: string | undefined // HACK: Store previous reasoning token for continuity
+  private conversationHistory: Message[] = []
 
   constructor(private readonly deps: BrainDeps) {
     this.debugService = DebugService.getInstance()
@@ -207,28 +207,22 @@ export class Brain {
     // 2. Prepare System Prompt (static)
     const systemPrompt = generateBrainSystemPrompt(this.deps.taskExecutor.getAvailableActions())
 
-    // 3. Call Neuri (Stateful) with retry logic
+    // 3. Call Neuri (Stateless) with retry logic
     const maxAttempts = 3
     let result: string | null = null
-    let capturedReasoning: string | undefined // HACK: Capture reasoning but don't save until success
+    let capturedReasoning: string | undefined
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        result = await this.deps.neuri.handle(
-          [
-            // System prompt is inserted/updated in the callback to prevent duplication
-            user(userMessage),
-          ],
+        result = await this.deps.neuri.handleStateless(
+          [user(userMessage)],
           async (ctx) => {
-            let messages = ctx.messages
-
-            // Ensure system prompt is at the start (or replace existing one)
-            const sysMsgIndex = messages.findIndex(m => m.role === 'system')
-            if (sysMsgIndex >= 0) {
-              messages[sysMsgIndex] = system(systemPrompt)
-            } else {
-              messages = [system(systemPrompt), ...messages]
-            }
+            // Build complete message history: system + conversation history + new user message
+            const messages = [
+              system(systemPrompt),
+              ...this.conversationHistory,
+              ...ctx.messages
+            ]
 
             const traceStart = Date.now()
 
@@ -241,10 +235,11 @@ export class Brain {
             const content = message?.content
             const reasoning = message?.reasoning_content || message?.reasoning
 
-            // HACK: Capture reasoning but don't save yet (wait for successful parsing)
-            capturedReasoning = reasoning
-
             if (!content) throw new Error('No content from LLM')
+
+            // Capture reasoning for later use
+            // We'll only append to history after successful parsing outside the callback
+            capturedReasoning = reasoning
 
             this.debugService.traceLLM({
               route: 'brain',
@@ -293,10 +288,12 @@ export class Brain {
       const parsed = this.parseResponse(result)
       const action = parsed.action
 
-      // HACK: Only store reasoning after successful LLM call and valid JSON parsing
-      if (capturedReasoning) {
-        this.lastReasoning = capturedReasoning
-      }
+      // Only append to conversation history after successful parsing (avoid dirty data on retry)
+      this.conversationHistory.push(user(userMessage))
+      const assistantContent = capturedReasoning
+        ? `[REASONING] ${capturedReasoning}\n\n${result}`
+        : result
+      this.conversationHistory.push(assistant(assistantContent))
 
       if (action.tool === 'skip') {
         this.deps.logger.log('INFO', 'Brain: Skipping turn (observing)')
@@ -340,11 +337,6 @@ export class Brain {
 
   private buildUserMessage(event: BotEvent, contextView: string): string {
     const parts: string[] = []
-
-    // HACK: Inject previous reasoning token into user message for continuity
-    if (this.lastReasoning) {
-      parts.push(`[PREVIOUS REASONING] ${this.lastReasoning}`)
-    }
 
     // 1. Event Content
     if (event.type === 'perception') {
