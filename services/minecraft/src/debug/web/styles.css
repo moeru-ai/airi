@@ -310,6 +310,14 @@ button:hover,
   font-size: 11px;
 }
 
+.repl-result-card.source-manual {
+  border-color: #2f81f7;
+}
+
+.repl-result-card.source-llm {
+  border-color: #d29922;
+}
+
 .repl-result-card.error {
   border-color: var(--accent-error);
 }

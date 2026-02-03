@@ -1048,6 +1048,7 @@ class ReplPanel {
     const code = this.elements.codeInput?.value ?? ''
     if (!code.trim()) {
       this.results.unshift({
+        source: 'manual',
         code: '',
         logs: [],
         actions: [],
@@ -1136,6 +1137,8 @@ class ReplPanel {
 
     this.elements.resultList.innerHTML = this.results.map((result) => {
       const isError = !!result.error
+      const source = result.source === 'llm' ? 'llm' : 'manual'
+      const sourceLabel = source === 'llm' ? 'LLM' : 'MANUAL'
       const actionSummary = Array.isArray(result.actions) && result.actions.length > 0
         ? result.actions.map((action) => {
             const status = action.ok ? 'ok' : 'error'
@@ -1149,9 +1152,9 @@ class ReplPanel {
       const time = new Date(result.timestamp || Date.now()).toLocaleTimeString()
 
       return `
-        <div class="repl-result-card ${isError ? 'error' : ''}">
+        <div class="repl-result-card source-${source} ${isError ? 'error' : ''}">
           <div class="repl-result-meta">
-            <span>${time}</span>
+            <span>${time} · ${sourceLabel}</span>
             <span>${Number.isFinite(result.durationMs) ? `${result.durationMs}ms` : '-'}</span>
           </div>
           <div class="repl-result-section">

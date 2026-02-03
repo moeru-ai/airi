@@ -36,6 +36,7 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
         const code = command.payload?.code
         if (typeof code !== 'string') {
           debugService.emit('debug:repl_result', {
+            source: 'manual',
             code: '',
             logs: [],
             actions: [],

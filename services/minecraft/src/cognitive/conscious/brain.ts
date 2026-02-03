@@ -48,6 +48,7 @@ interface PlannerOutcomeSummary {
 }
 
 interface DebugReplResult {
+  source: 'manual' | 'llm'
   code: string
   logs: string[]
   actions: Array<{
@@ -61,6 +62,15 @@ interface DebugReplResult {
   error?: string
   durationMs: number
   timestamp: number
+}
+
+interface LlmInputSnapshot {
+  systemPrompt: string
+  userMessage: string
+  messages: Message[]
+  conversationHistory: Message[]
+  updatedAt: number
+  attempt: number
 }
 
 function truncateForPrompt(value: string, maxLength = 220): string {
@@ -83,6 +93,7 @@ export class Brain {
   private lastContextView: string | undefined
   private lastPlannerOutcome: PlannerOutcomeSummary | undefined
   private conversationHistory: Message[] = []
+  private lastLlmInputSnapshot: LlmInputSnapshot | null = null
 
   constructor(private readonly deps: BrainDeps) {
     this.debugService = DebugService.getInstance()
@@ -154,6 +165,7 @@ export class Brain {
           timestamp: Date.now(),
         },
         snapshot: snapshot as unknown as Record<string, unknown>,
+        llmInput: this.lastLlmInputSnapshot,
       },
     )
 
@@ -167,6 +179,7 @@ export class Brain {
     const startedAt = Date.now()
     if (this.isProcessing || this.isReplEvaluating) {
       return {
+        source: 'manual',
         code,
         logs: [],
         actions: [],
@@ -196,6 +209,7 @@ export class Brain {
             timestamp: Date.now(),
           },
           snapshot: snapshot as unknown as Record<string, unknown>,
+          llmInput: this.lastLlmInputSnapshot,
         },
         async (action: ActionInstruction) => {
           const actionDef = actionDefs.get(action.tool)
@@ -206,15 +220,10 @@ export class Brain {
       )
 
       return {
+        source: 'manual',
         code,
         logs: runResult.logs,
-        actions: runResult.actions.map(item => ({
-          tool: item.action.tool,
-          params: item.action.params,
-          ok: item.ok,
-          result: item.result === undefined ? undefined : (typeof item.result === 'string' ? item.result : JSON.stringify(item.result)),
-          error: item.error,
-        })),
+        actions: this.toDebugReplActions(runResult.actions),
         returnValue: runResult.returnValue,
         durationMs: Date.now() - startedAt,
         timestamp: Date.now(),
@@ -222,6 +231,7 @@ export class Brain {
     }
     catch (err) {
       return {
+        source: 'manual',
         code,
         logs: [],
         actions: [],
@@ -242,6 +252,25 @@ export class Brain {
       /^\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^\n]+?)\s*(?:;\s*)?$/gm,
       (_full: string, name: string, valueExpr: string) => `globalThis.${name} = ${valueExpr}`,
     )
+  }
+
+  private toDebugReplActions(actions: Array<{
+    action: ActionInstruction
+    ok: boolean
+    result?: unknown
+    error?: string
+  }>): DebugReplResult['actions'] {
+    return actions.map(item => ({
+      tool: item.action.tool,
+      params: item.action.params,
+      ok: item.ok,
+      result: item.result === undefined ? undefined : (typeof item.result === 'string' ? item.result : JSON.stringify(item.result)),
+      error: item.error,
+    }))
+  }
+
+  private cloneMessages(messages: Message[]): Message[] {
+    return JSON.parse(JSON.stringify(messages)) as Message[]
   }
 
   // --- Event Queue Logic ---
@@ -325,6 +354,14 @@ export class Brain {
           ...this.conversationHistory,
           { role: 'user', content: userMessage },
         ]
+        this.lastLlmInputSnapshot = {
+          systemPrompt,
+          userMessage,
+          messages: this.cloneMessages(messages),
+          conversationHistory: this.cloneMessages(this.conversationHistory),
+          updatedAt: Date.now(),
+          attempt,
+        }
 
         const traceStart = Date.now()
 
@@ -400,7 +437,11 @@ export class Brain {
       const runResult = await this.planner.evaluate(
         result,
         this.deps.taskExecutor.getAvailableActions(),
-        { event, snapshot: snapshot as unknown as Record<string, unknown> },
+        {
+          event,
+          snapshot: snapshot as unknown as Record<string, unknown>,
+          llmInput: this.lastLlmInputSnapshot,
+        },
         async (action: ActionInstruction) => {
           if (action.tool === 'chat' && !this.shouldAllowChatForEvent(event, snapshot.self.health)) {
             return 'Chat suppressed: no direct user prompt for chat this turn'
@@ -435,9 +476,28 @@ export class Brain {
       }
 
       if (runResult.actions.length === 0 || runResult.actions.every(item => item.action.tool === 'skip')) {
+        this.debugService.emit('debug:repl_result', {
+          source: 'llm',
+          code: result,
+          logs: runResult.logs,
+          actions: this.toDebugReplActions(runResult.actions),
+          returnValue: runResult.returnValue,
+          durationMs: 0,
+          timestamp: Date.now(),
+        })
         this.deps.logger.log('INFO', 'Brain: Skipping turn (observing)')
         return
       }
+
+      this.debugService.emit('debug:repl_result', {
+        source: 'llm',
+        code: result,
+        logs: runResult.logs,
+        actions: this.toDebugReplActions(runResult.actions),
+        returnValue: runResult.returnValue,
+        durationMs: 0,
+        timestamp: Date.now(),
+      })
 
       this.deps.logger.log('INFO', `Brain: Executed ${runResult.actions.length} action(s)`, {
         actions: runResult.actions.map(item => ({
@@ -452,6 +512,15 @@ export class Brain {
     }
     catch (err) {
       this.deps.logger.withError(err).error('Brain: Failed to execute decision')
+      this.debugService.emit('debug:repl_result', {
+        source: 'llm',
+        code: result,
+        logs: [],
+        actions: [],
+        error: toErrorMessage(err),
+        durationMs: 0,
+        timestamp: Date.now(),
+      })
       void this.enqueueEvent(bot, {
         type: 'feedback',
         payload: { status: 'failure', error: toErrorMessage(err) },

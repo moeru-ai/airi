@@ -38,6 +38,14 @@ describe('javaScriptPlanner', () => {
       threat: {},
       attention: {},
     },
+    llmInput: {
+      systemPrompt: 'system prompt',
+      userMessage: 'latest user message',
+      messages: [{ role: 'user', content: 'hello' }],
+      conversationHistory: [{ role: 'assistant', content: 'previous reply' }],
+      updatedAt: Date.now(),
+      attempt: 1,
+    },
   } as any
 
   it('maps positional/object args and executes tools in order', async () => {
@@ -155,9 +163,18 @@ describe('javaScriptPlanner', () => {
     expect(names).toContain('mem')
     expect(names).toContain('chat')
     expect(names).toContain('goToPlayer')
+    expect(names).toContain('llmInput')
+    expect(names).toContain('llmUserMessage')
 
     const mem = descriptors.find(d => d.name === 'mem')
     expect(mem?.readonly).toBe(false)
+  })
+
+  it('exposes llm input globals to scripts', async () => {
+    const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+    const planned = await planner.evaluate('await chat("llm=" + llmUserMessage)', actions, globals, executeAction)
+    expect(planned.actions[0]?.action).toEqual({ tool: 'chat', params: { message: 'llm=latest user message' } })
   })
 
   it('detects expression-friendly REPL inputs', () => {

@@ -152,6 +152,7 @@ export interface ReplStateEvent {
 }
 
 export interface ReplExecutionResultEvent {
+  source: 'manual' | 'llm'
   code: string
   logs: string[]
   actions: Array<{

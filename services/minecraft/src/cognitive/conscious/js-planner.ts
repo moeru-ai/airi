@@ -62,6 +62,14 @@ function toStructuredClone<T>(value: T): T {
 export interface RuntimeGlobals {
   event: BotEvent
   snapshot: Record<string, unknown>
+  llmInput?: {
+    systemPrompt: string
+    userMessage: string
+    messages: unknown[]
+    conversationHistory: unknown[]
+    updatedAt: number
+    attempt: number
+  } | null
 }
 
 export interface JavaScriptRunResult {
@@ -177,6 +185,11 @@ export class JavaScriptPlanner {
       { name: 'threat', kind: 'object', readonly: true },
       { name: 'attention', kind: 'object', readonly: true },
       { name: 'autonomy', kind: 'object', readonly: true },
+      { name: 'llmInput', kind: 'object', readonly: true },
+      { name: 'llmMessages', kind: 'object', readonly: true },
+      { name: 'llmSystemPrompt', kind: 'string', readonly: true },
+      { name: 'llmUserMessage', kind: 'string', readonly: true },
+      { name: 'llmConversationHistory', kind: 'object', readonly: true },
       { name: 'mem', kind: 'object', readonly: false },
       { name: 'lastRun', kind: 'object', readonly: true },
       { name: 'prevRun', kind: 'object', readonly: true },
@@ -193,6 +206,11 @@ export class JavaScriptPlanner {
       threat: (globals.snapshot as Record<string, unknown>)?.threat,
       attention: (globals.snapshot as Record<string, unknown>)?.attention,
       autonomy: (globals.snapshot as Record<string, unknown>)?.autonomy,
+      llmInput: globals.llmInput ?? null,
+      llmMessages: globals.llmInput?.messages ?? [],
+      llmSystemPrompt: globals.llmInput?.systemPrompt ?? '',
+      llmUserMessage: globals.llmInput?.userMessage ?? '',
+      llmConversationHistory: globals.llmInput?.conversationHistory ?? [],
       mem: this.sandbox.mem,
       lastRun: this.sandbox.lastRun,
       prevRun: this.sandbox.prevRun,
@@ -342,6 +360,7 @@ export class JavaScriptPlanner {
   private bindRuntimeGlobals(globals: RuntimeGlobals, run: ActivePlannerRun): void {
     const snapshot = deepFreeze(toStructuredClone(globals.snapshot))
     const event = deepFreeze(toStructuredClone(globals.event))
+    const llmInput = deepFreeze(toStructuredClone(globals.llmInput ?? null))
 
     this.sandbox.prevRun = this.sandbox.lastRun ?? null
     this.sandbox.snapshot = snapshot
@@ -353,6 +372,11 @@ export class JavaScriptPlanner {
     this.sandbox.threat = snapshot.threat
     this.sandbox.attention = snapshot.attention
     this.sandbox.autonomy = snapshot.autonomy
+    this.sandbox.llmInput = llmInput
+    this.sandbox.llmMessages = llmInput?.messages ?? []
+    this.sandbox.llmSystemPrompt = llmInput?.systemPrompt ?? ''
+    this.sandbox.llmUserMessage = llmInput?.userMessage ?? ''
+    this.sandbox.llmConversationHistory = llmInput?.conversationHistory ?? []
     this.sandbox.lastRun = {
       actions: run.executed,
       logs: run.logs,
@@ -463,7 +487,7 @@ export class JavaScriptPlanner {
     const parsed = action.schema.safeParse(params)
     if (!parsed.success) {
       const details = parsed.error.issues
-        .map((issue: { path: Array<string | number>, message: string }) => `${issue.path.join('.') || 'root'}: ${issue.message}`)
+        .map(issue => `${issue.path.map(item => String(item)).join('.') || 'root'}: ${issue.message}`)
         .join('; ')
       return {
         error: `Invalid tool parameters for ${tool}: ${details}`,
