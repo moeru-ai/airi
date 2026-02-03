@@ -9,7 +9,7 @@ export interface ActionInstruction {
 
 /**
  * LLM response format for the stateful agent.
- * Single action per turn, model uses native reasoning (no thought field).
+ * Legacy JSON response format retained for backward compatibility.
  */
 export interface LLMResponse {
   action: ActionInstruction

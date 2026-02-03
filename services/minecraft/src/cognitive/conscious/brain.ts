@@ -11,6 +11,7 @@ import type { ActionInstruction } from '../action/types'
 import { config } from '../../composables/config'
 import { DebugService } from '../../debug'
 import { buildConsciousContextView } from './context-view'
+import { JavaScriptPlanner } from './js-planner'
 import { LLMAgent } from './llm-agent'
 import {
   extractJsonCandidate,
@@ -42,6 +43,7 @@ interface QueuedEvent {
 
 export class Brain {
   private debugService: DebugService
+  private readonly planner = new JavaScriptPlanner()
 
   // State
   private queue: QueuedEvent[] = []
@@ -177,7 +179,6 @@ export class Brain {
 
         const llmResult = await this.deps.llmAgent.callLLM({
           messages,
-          responseFormat: { type: 'json_object' },
         })
 
         const content = llmResult.text
@@ -230,8 +231,7 @@ export class Brain {
     }
 
     try {
-      const parsed = this.parseResponse(result)
-      const action = parsed.action
+      const actions = this.parseResponse(result)
 
       // Only append to conversation history after successful parsing (avoid dirty data on retry)
       this.conversationHistory.push({ role: 'user', content: userMessage })
@@ -243,34 +243,16 @@ export class Brain {
         ...(capturedReasoning && { reasoning: capturedReasoning }),
       } as Message)
 
-      if (action.tool === 'skip') {
+      if (actions.length === 1 && actions[0]?.tool === 'skip') {
         this.deps.logger.log('INFO', 'Brain: Skipping turn (observing)')
         return
       }
 
-      this.deps.logger.log('INFO', `Brain: Decided action: ${action.tool}`, { params: action.params })
+      this.deps.logger.log('INFO', `Brain: Planned ${actions.length} action(s)`, {
+        actions: actions.map(action => ({ tool: action.tool, params: action.params })),
+      })
 
-      // Check if action is read-only
-      const availableActions = this.deps.taskExecutor.getAvailableActions()
-      const actionDef = availableActions.find(a => a.name === action.tool)
-
-      let token: CancellationToken | undefined
-
-      if (actionDef?.readonly) {
-        // Read-only Actions: Do not cancel background/physical actions
-        // Can be executed in parallel with physical actions
-        token = undefined
-      } else {
-        // Physical Actions: Cancel previous background action
-        if (this.currentCancellationToken) {
-          this.currentCancellationToken.cancel()
-        }
-        this.currentCancellationToken = createCancellationToken()
-        token = this.currentCancellationToken
-      }
-
-      // Execute
-      void this.deps.taskExecutor.executeAction(action, token)
+      this.executePlannedActions(actions)
 
     } catch (err) {
       this.deps.logger.withError(err).error('Brain: Failed to execute decision')
@@ -316,12 +298,56 @@ export class Brain {
     return parts.join('\n\n')
   }
 
-  private parseResponse(content: string): BrainResponse {
-    const jsonStr = extractJsonCandidate(content)
-    try {
-      return JSON.parse(jsonStr)
-    } catch (e) {
-      throw new Error(`Invalid JSON response: ${content.substring(0, 100)}...`)
+  private parseResponse(content: string): ActionInstruction[] {
+    const availableActions = this.deps.taskExecutor.getAvailableActions()
+    const trimmed = content.trim()
+    if (trimmed.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(extractJsonCandidate(content)) as BrainResponse
+        if (parsed?.action?.tool === 'skip') {
+          return [{ tool: 'skip', params: {} }]
+        }
+
+        if (parsed?.action?.tool) {
+          const actionDef = availableActions.find(action => action.name === parsed.action.tool)
+          if (!actionDef) {
+            throw new Error(`Unknown tool in legacy JSON response: ${parsed.action.tool}`)
+          }
+
+          return [{
+            tool: actionDef.name,
+            params: actionDef.schema.parse(parsed.action.params ?? {}),
+          }]
+        }
+      } catch {
+        // Fallback to JS planner parsing.
+      }
     }
+
+    return this.planner.evaluate(content, availableActions)
+  }
+
+  private executePlannedActions(actions: ActionInstruction[]): void {
+    const availableActions = this.deps.taskExecutor.getAvailableActions()
+    const actionDefs = new Map(availableActions.map(action => [action.name, action]))
+    const hasNonReadonlyAction = actions.some(action => !actionDefs.get(action.tool)?.readonly && action.tool !== 'skip')
+
+    let token: CancellationToken | undefined
+    if (hasNonReadonlyAction) {
+      if (this.currentCancellationToken) {
+        this.currentCancellationToken.cancel()
+      }
+      this.currentCancellationToken = createCancellationToken()
+      token = this.currentCancellationToken
+    }
+
+    void (async () => {
+      for (const action of actions) {
+        if (token?.isCancelled)
+          return
+
+        await this.deps.taskExecutor.executeAction(action, token)
+      }
+    })()
   }
 }

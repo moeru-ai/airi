@@ -36,17 +36,28 @@ function getZodTypeName(def: any): string {
 
 export function generateBrainSystemPrompt(availableActions: Action[]): string {
   const toolsFormatted = availableActions.map((a) => {
+    const paramKeys = Object.keys(a.schema.shape)
+    const positionalSignature = paramKeys.length > 0 ? `${a.name}(${paramKeys.join(', ')})` : `${a.name}()`
+    const objectSignature = paramKeys.length > 0 ? `${a.name}({ ${paramKeys.join(', ')} })` : `${a.name}()`
+
     let params = ''
     if (a.schema && 'shape' in a.schema) {
       params = Object.entries(a.schema.shape).map(([key, val]: [string, any]) => {
         const def = val._def
         const type = getZodTypeName(def)
-        const desc = val.description ? ` -> ${val.description}` : ''
-        return `- ${key}: ${type}${desc}`
+        const desc = val.description ? ` - ${val.description}` : ''
+        return ` * @param {${type}} ${key}${desc}`
       }).join('\n')
     }
 
-    return `[${a.name}]\nDescription: ${a.description}\n${params}`
+    const body = params ? `\n${params}\n ` : '\n '
+    return `/**
+ * ${a.description}
+ * @function ${a.name}
+ * @signature ${positionalSignature}
+ * @signature ${objectSignature}${body}*/
+${positionalSignature}
+`
   }).join('\n\n')
 
   return `
@@ -55,7 +66,7 @@ You are an autonomous agent playing Minecraft.
 
 # Self-Knowledge & Capabilities
 1. **Stateful Existence**: You maintain a memory of the conversation, but it's crucial to be aware that old history messages are less relevant than recent.
-2. **One Action Per Turn**: You can perform exactly one action at a time. If you decide to act, you must wait for its feedback before acting again.
+2. **Action Script Per Turn**: You can output one JavaScript script each turn, and it can queue multiple tool calls.
 3. **Interruption**: The world is real-time. Events (chat, damage, etc.) may happen *while* you are performing an action.
    - If a new critical event occurs, you may need to change your plans.
    - Feedback for your actions will arrive as a message starting with \`[FEEDBACK]\`.
@@ -66,37 +77,39 @@ You are an autonomous agent playing Minecraft.
    - It's possible for a fresh event to reach you while you're in the middle of a action, in that case, remember the action is still running in the background.
    - If the new situation requires you to change plan, you can use the stop tool to stop background actions or initiate a new one, which will automatically replace the old one.
    - Feel free to send chats while background actions are running, it will not interrupt them.
+6. **JavaScript Scratchpad**: The \`eval\` tool is available, you may use it as a persistent scratchpad for calculations and short-term memory.
+   - Values defined in \`eval\` persist across turns.
+   - \`eval\` has a timeout, so avoid long-running code.
+   - Prefer direct world tools for world interaction; use \`eval\` for reasoning support.
+7. **Planner Runtime**: Your script runs in a persistent JavaScript context with a timeout.
+   - Tool functions (listed below) queue actions; they do not execute instantly.
+   - The runtime validates queued actions before execution.
+   - Maximum actions per turn: 5.
 
 # Available Tools
 You must use the following tools to interact with the world.
-You cannot make up tools. You must use the JSON format described below.
+You cannot make up tools.
 
 ${toolsFormatted}
 
 # Response Format
-You must respond with valid JSON only. Do not include markdown code blocks (like \`\`\`json).
-Your response determines your single action for this turn.
+You must respond with JavaScript only (no markdown code fences).
+Call tool functions directly to queue actions.
+If you want to do nothing, call \`skip()\`.
+You can also use \`use(toolName, paramsObject)\` for dynamic tool calls.
 
-Schema:
-{
-  "action": {
-    "tool": "toolName",
-    "params": { "key": "value" }
-  }
-}
-
-OR, if you want to do nothing (if you want to wait for something to happen, or to ignore):
-
-{
-  "action": {
-    "tool": "skip",
-    "params": {}
-  }
-}
+Examples:
+- \`chat("hello")\`
+- \`goToPlayer("Alex", 2)\`
+- \`goToPlayer({ player_name: "Alex", closeness: 2 })\`
+- \`const steps = 3; for (let i = 0; i < steps; i++) chat("step " + i)\`
+- \`skip()\`
 
 # Rules
 - **Native Reasoning**: You can think before outputting your action.
-- **Strict JSON**: Output ONLY the JSON object. No preamble, no postscript.
+- **Strict JavaScript Output**: Output ONLY executable JavaScript. Comments are possible but discouraged and will be ignored.
 - **Handling Feedback**: When you perform an action, you will see a \`[FEEDBACK]\` message in the history later with the result. Use this to verify success.
+- **Tool Choice**: If a dedicated tool exists for a task, use it. Use \`eval\` for computation, scratch memory, or inspecting previously stored variables.
+- **Skip Rule**: If you call \`skip()\`, do not call any other tool in the same turn.
 `
 }
