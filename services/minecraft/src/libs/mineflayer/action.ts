@@ -9,6 +9,7 @@ export interface Action {
   readonly description: string
   readonly schema: z.ZodObject<any>
   readonly readonly?: boolean
+  readonly followControl?: 'pause' | 'detach'
   readonly execution?: 'sync' | 'async'
   readonly perform: (mineflayer: Mineflayer) => (...args: any[]) => ActionResult
 }

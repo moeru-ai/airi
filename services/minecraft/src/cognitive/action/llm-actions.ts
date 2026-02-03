@@ -154,21 +154,42 @@ export const actionsList: Action[] = [
   },
   {
     name: 'followPlayer',
-    description: 'Endlessly follow the given player.',
-    execution: 'async',
+    description: 'Set idle auto-follow target handled by reflex runtime. While idle, the bot will keep following this player until cleared.',
+    execution: 'sync',
+    readonly: true,
     schema: z.object({
       player_name: z.string().describe('name of the player to follow.'),
       follow_dist: z.number().describe('The distance to follow from.').min(0),
     }),
-    perform: mineflayer => async (player_name: string, follow_dist: number) => {
-      await skills.followPlayer(mineflayer, player_name, follow_dist)
-      return `Following player [${player_name}]`
+    perform: mineflayer => (player_name: string, follow_dist: number) => {
+      const reflexManager = (mineflayer as any).reflexManager
+      if (!reflexManager || typeof reflexManager.setFollowTarget !== 'function')
+        throw new Error('Reflex follow manager is unavailable')
+
+      reflexManager.setFollowTarget(player_name, follow_dist)
+      return `Auto-follow enabled for player [${player_name}] at distance ${follow_dist}`
+    },
+  },
+  {
+    name: 'clearFollowTarget',
+    description: 'Disable idle auto-follow. Use this before independent exploration or when you no longer want to shadow a player.',
+    execution: 'sync',
+    readonly: true,
+    schema: z.object({}),
+    perform: mineflayer => () => {
+      const reflexManager = (mineflayer as any).reflexManager
+      if (!reflexManager || typeof reflexManager.clearFollowTarget !== 'function')
+        throw new Error('Reflex follow manager is unavailable')
+
+      reflexManager.clearFollowTarget()
+      return 'Auto-follow disabled'
     },
   },
   {
     name: 'goToCoordinate',
     description: 'Go to the given x, y, z location.',
     execution: 'async',
+    followControl: 'detach',
     schema: z.object({
       x: z.number().describe('The x coordinate.'),
       y: z.number().describe('The y coordinate.').min(-64).max(320),

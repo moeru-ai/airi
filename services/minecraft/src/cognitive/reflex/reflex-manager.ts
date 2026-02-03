@@ -101,6 +101,16 @@ export class ReflexManager {
     this.runtime.getContext().updateEnvironment(patch)
   }
 
+  public setFollowTarget(playerName: string, followDistance = 2): void {
+    this.runtime.setAutoFollowTarget(playerName, followDistance)
+    this.emitReflexState()
+  }
+
+  public clearFollowTarget(): void {
+    this.runtime.clearAutoFollowTarget(this.bot)
+    this.emitReflexState()
+  }
+
   private onSignal(event: TracedEvent<PerceptionSignal>): void {
     const bot = this.bot
     if (!bot)

@@ -168,6 +168,7 @@ export class JavaScriptPlanner {
     this.sandbox.social = snapshot.social
     this.sandbox.threat = snapshot.threat
     this.sandbox.attention = snapshot.attention
+    this.sandbox.autonomy = snapshot.autonomy
     this.sandbox.lastRun = {
       actions: run.executed,
       logs: run.logs,

@@ -267,6 +267,9 @@ export class Brain {
           }
 
           const actionDef = actionDefs.get(action.tool)
+          if (actionDef?.followControl === 'detach')
+            this.deps.reflexManager.clearFollowTarget()
+
           const isPhysicalAction = action.tool !== 'skip' && !actionDef?.readonly
 
           if (isPhysicalAction) {
@@ -344,7 +347,7 @@ export class Brain {
       parts.push(`[STATE] giveUp active (${remainingSec}s left). reason=${this.giveUpReason ?? 'unknown'}`)
     }
 
-    parts.push('[RUNTIME] Globals are refreshed every turn: snapshot, self, environment, social, threat, attention, event, now, mem, lastRun, lastAction.')
+    parts.push('[RUNTIME] Globals are refreshed every turn: snapshot, self, environment, social, threat, attention, autonomy, event, now, mem, lastRun, lastAction. Player gaze is available in environment.nearbyPlayersGaze when needed.')
 
     return parts.join('\n\n')
   }

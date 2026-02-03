@@ -42,6 +42,13 @@ export interface ReflexAttentionState {
   lastSignalAt: number | null
 }
 
+export interface ReflexAutonomyState {
+  followPlayer: string | null
+  followDistance: number
+  followActive: boolean
+  followLastError: string | null
+}
+
 export interface ReflexContextState {
   now: number
   self: ReflexSelfState
@@ -49,6 +56,7 @@ export interface ReflexContextState {
   social: ReflexSocialState
   threat: ReflexThreatState
   attention: ReflexAttentionState
+  autonomy: ReflexAutonomyState
 }
 
 export class ReflexContext {
@@ -89,6 +97,12 @@ export class ReflexContext {
         lastSignalSourceId: null,
         lastSignalAt: null,
       },
+      autonomy: {
+        followPlayer: null,
+        followDistance: 2,
+        followActive: false,
+        followLastError: null,
+      },
     }
   }
 
@@ -117,6 +131,7 @@ export class ReflexContext {
       },
       threat: { ...this.state.threat },
       attention: { ...this.state.attention },
+      autonomy: { ...this.state.autonomy },
     }
   }
 
@@ -142,5 +157,9 @@ export class ReflexContext {
 
   public updateAttention(patch: Partial<ReflexAttentionState>): void {
     this.state.attention = { ...this.state.attention, ...patch }
+  }
+
+  public updateAutonomy(patch: Partial<ReflexAutonomyState>): void {
+    this.state.autonomy = { ...this.state.autonomy, ...patch }
   }
 }

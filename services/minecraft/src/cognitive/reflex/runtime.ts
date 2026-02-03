@@ -5,10 +5,13 @@ import type { MineflayerWithAgents } from '../types'
 import type { ReflexModeId } from './modes'
 import type { ReflexBehavior } from './types/behavior'
 
+import pathfinderModel from 'mineflayer-pathfinder'
+
 import { ReflexContext } from './context'
 import { selectMode } from './modes'
 
 export class ReflexRuntime {
+  private readonly followMovementsByBot = new WeakMap<object, InstanceType<typeof pathfinderModel.Movements>>()
   private readonly context = new ReflexContext()
   private readonly behaviors: ReflexBehavior[] = []
   private readonly runHistory = new Map<string, { lastRunAt: number }>()
@@ -16,6 +19,7 @@ export class ReflexRuntime {
   private mode: ReflexModeId = 'idle'
   private activeBehaviorId: string | null = null
   private activeBehaviorUntil: number | null = null
+  private activeAutoFollowPlayer: string | null = null
 
   public constructor(
     private readonly deps: {
@@ -31,6 +35,24 @@ export class ReflexRuntime {
 
   public getMode(): ReflexModeId {
     return this.mode
+  }
+
+  public setAutoFollowTarget(playerName: string, followDistance = 2): void {
+    this.context.updateAutonomy({
+      followPlayer: playerName,
+      followDistance: Math.max(0, followDistance),
+      followLastError: null,
+    })
+  }
+
+  public clearAutoFollowTarget(bot: MineflayerWithAgents | null): void {
+    this.stopAutoFollow(bot)
+    this.context.updateAutonomy({
+      followPlayer: null,
+      followDistance: 2,
+      followActive: false,
+      followLastError: null,
+    })
   }
 
   /**
@@ -51,8 +73,8 @@ export class ReflexRuntime {
   }
 
   private onEnterMode(mode: ReflexModeId, _bot: MineflayerWithAgents | null): void {
-    if (mode !== 'social')
-      return
+    if (mode === 'work' || mode === 'wander' || mode === 'alert')
+      this.stopAutoFollow(_bot)
   }
 
   private onExitMode(mode: ReflexModeId, _bot: MineflayerWithAgents | null): void {
@@ -136,6 +158,8 @@ export class ReflexRuntime {
       this.transitionMode(nextMode, bot)
     }
 
+    this.reconcileAutoFollow(bot)
+
     if (this.activeBehaviorUntil && now < this.activeBehaviorUntil)
       return null
 
@@ -197,6 +221,80 @@ export class ReflexRuntime {
       this.activeBehaviorUntil = null
       this.deps.onBehaviorEnd?.()
       return null
+    }
+  }
+
+  private reconcileAutoFollow(bot: MineflayerWithAgents): void {
+    const { goals, Movements } = pathfinderModel
+    const snapshot = this.context.getSnapshot()
+    const followPlayer = snapshot.autonomy.followPlayer
+    const followDistance = snapshot.autonomy.followDistance
+
+    if (!followPlayer) {
+      this.stopAutoFollow(bot)
+      if (snapshot.autonomy.followActive || snapshot.autonomy.followLastError) {
+        this.context.updateAutonomy({
+          followActive: false,
+          followLastError: null,
+        })
+      }
+      return
+    }
+
+    // Work-like modes always take priority over idle follow.
+    if (this.mode === 'work' || this.mode === 'wander' || this.mode === 'alert') {
+      if (snapshot.autonomy.followActive)
+        this.context.updateAutonomy({ followActive: false })
+      this.stopAutoFollow(bot)
+      return
+    }
+
+    const target = bot.bot.players[followPlayer]?.entity
+    if (!target) {
+      this.stopAutoFollow(bot)
+      this.context.updateAutonomy({
+        followActive: false,
+        followLastError: `Player [${followPlayer}] is not currently visible`,
+      })
+      return
+    }
+
+    if (this.activeAutoFollowPlayer === followPlayer && snapshot.autonomy.followActive)
+      return
+
+    try {
+      const movements = this.followMovementsByBot.get(bot.bot)
+        ?? new Movements(bot.bot)
+      if (!this.followMovementsByBot.has(bot.bot))
+        this.followMovementsByBot.set(bot.bot, movements)
+
+      bot.bot.pathfinder.setMovements(movements)
+      bot.bot.pathfinder.setGoal(new goals.GoalFollow(target, followDistance), true)
+      this.activeAutoFollowPlayer = followPlayer
+      this.context.updateAutonomy({
+        followActive: true,
+        followLastError: null,
+      })
+    }
+    catch (error) {
+      this.stopAutoFollow(bot)
+      this.context.updateAutonomy({
+        followActive: false,
+        followLastError: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+
+  private stopAutoFollow(bot: MineflayerWithAgents | null): void {
+    if (!this.activeAutoFollowPlayer)
+      return
+
+    this.activeAutoFollowPlayer = null
+    try {
+      bot?.bot.pathfinder.stop()
+    }
+    catch {
+      // Ignore cleanup errors from transient pathfinder state.
     }
   }
 }
