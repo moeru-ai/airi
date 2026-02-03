@@ -139,6 +139,34 @@ export interface ToolExecutionResultEvent {
   timestamp: number
 }
 
+export interface ReplVariableDescriptor {
+  name: string
+  kind: 'tool' | 'function' | 'object' | 'number' | 'string' | 'boolean' | 'undefined' | 'null' | 'unknown'
+  readonly: boolean
+  preview: string
+}
+
+export interface ReplStateEvent {
+  variables: ReplVariableDescriptor[]
+  updatedAt: number
+}
+
+export interface ReplExecutionResultEvent {
+  code: string
+  logs: string[]
+  actions: Array<{
+    tool: string
+    params: Record<string, unknown>
+    ok: boolean
+    result?: string
+    error?: string
+  }>
+  returnValue?: string
+  error?: string
+  durationMs: number
+  timestamp: number
+}
+
 // ============================================================
 // Server Events Extension
 // ============================================================
@@ -147,18 +175,20 @@ export interface ToolExecutionResultEvent {
 
 export type ServerEvent
   = | { type: 'log', payload: LogEvent }
-  | { type: 'llm', payload: LLMTraceEvent }
-  | { type: 'blackboard', payload: BlackboardEvent }
-  | { type: 'queue', payload: QueueEvent }
-  | { type: 'saliency', payload: SaliencyEvent }
-  | { type: 'reflex', payload: ReflexStateEvent }
-  | { type: 'trace', payload: TraceEvent }
-  | { type: 'trace_batch', payload: TraceBatchEvent }
-  | { type: 'history', payload: ServerEvent[] }
-  | { type: 'pong', payload: { timestamp: number } }
-  | { type: 'debug:tools_list', payload: { tools: ToolDefinition[] } }
-  | { type: 'debug:tool_result', payload: ToolExecutionResultEvent }
-  | { type: 'brain_state', payload: BrainStateEvent }
+    | { type: 'llm', payload: LLMTraceEvent }
+    | { type: 'blackboard', payload: BlackboardEvent }
+    | { type: 'queue', payload: QueueEvent }
+    | { type: 'saliency', payload: SaliencyEvent }
+    | { type: 'reflex', payload: ReflexStateEvent }
+    | { type: 'trace', payload: TraceEvent }
+    | { type: 'trace_batch', payload: TraceBatchEvent }
+    | { type: 'history', payload: ServerEvent[] }
+    | { type: 'pong', payload: { timestamp: number } }
+    | { type: 'debug:tools_list', payload: { tools: ToolDefinition[] } }
+    | { type: 'debug:tool_result', payload: ToolExecutionResultEvent }
+    | { type: 'debug:repl_state', payload: ReplStateEvent }
+    | { type: 'debug:repl_result', payload: ReplExecutionResultEvent }
+    | { type: 'brain_state', payload: BrainStateEvent }
 
 // ============================================================
 // Client -> Server commands
@@ -209,14 +239,27 @@ export interface RequestToolsCommand {
   type: 'request_tools'
 }
 
+export interface RequestReplStateCommand {
+  type: 'request_repl_state'
+}
+
+export interface ExecuteReplCommand {
+  type: 'execute_repl'
+  payload: {
+    code: string
+  }
+}
+
 export type ClientCommand
   = | ClearLogsCommand
-  | SetFilterCommand
-  | InjectEventCommand
-  | PingCommand
-  | RequestHistoryCommand
-  | ExecuteToolCommand
-  | RequestToolsCommand
+    | SetFilterCommand
+    | InjectEventCommand
+    | PingCommand
+    | RequestHistoryCommand
+    | ExecuteToolCommand
+    | RequestToolsCommand
+    | RequestReplStateCommand
+    | ExecuteReplCommand
 
 // ============================================================
 // Wire format

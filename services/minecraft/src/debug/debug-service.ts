@@ -1,4 +1,17 @@
-import type { BlackboardEvent, BrainStateEvent, ClientCommand, LLMTraceEvent, LogEvent, QueueEvent, ReflexStateEvent, SaliencyEvent, ServerEvent, TraceEvent } from './types'
+import type {
+  BlackboardEvent,
+  BrainStateEvent,
+  ClientCommand,
+  LLMTraceEvent,
+  LogEvent,
+  QueueEvent,
+  ReflexStateEvent,
+  ReplExecutionResultEvent,
+  ReplStateEvent,
+  SaliencyEvent,
+  ServerEvent,
+  TraceEvent,
+} from './types'
 
 import { DebugServer } from './server'
 
@@ -72,8 +85,6 @@ export class DebugService {
     }
     this.server.broadcast(event)
   }
-
-
 
   /**
    * Emit a brain state update
@@ -212,6 +223,18 @@ export class DebugService {
         this.server.broadcast({
           type: 'debug:tool_result',
           payload: payload as any,
+        })
+        break
+      case 'debug:repl_state':
+        this.server.broadcast({
+          type: 'debug:repl_state',
+          payload: payload as ReplStateEvent,
+        })
+        break
+      case 'debug:repl_result':
+        this.server.broadcast({
+          type: 'debug:repl_result',
+          payload: payload as ReplExecutionResultEvent,
         })
         break
       default:

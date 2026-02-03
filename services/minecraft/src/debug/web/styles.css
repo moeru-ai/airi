@@ -225,6 +225,117 @@ button:hover,
   height: 100%;
 }
 
+.repl-view-shell {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(300px, 36%) 1fr;
+  gap: 8px;
+}
+
+.repl-vars-list {
+  height: 100%;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+#repl-vars-search {
+  min-width: 180px;
+}
+
+.repl-var-row {
+  border-bottom: 1px solid var(--border-color);
+  padding: 8px 10px;
+}
+
+.repl-var-row:last-child {
+  border-bottom: none;
+}
+
+.repl-var-name {
+  color: var(--accent-info);
+  font-weight: 600;
+}
+
+.repl-var-meta {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.repl-var-preview {
+  color: var(--text-secondary);
+  margin-top: 3px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.repl-console-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.repl-code-input {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.repl-code-input:focus {
+  outline: none;
+  border-color: var(--accent-info);
+}
+
+.repl-result-list {
+  flex: 1 1 auto;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.repl-result-card {
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  padding: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.repl-result-card.error {
+  border-color: var(--accent-error);
+}
+
+.repl-result-meta {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.repl-result-section {
+  margin-top: 6px;
+}
+
+.repl-result-label {
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.repl-result-content {
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .panel.full-height {
   height: 100%;
 }
@@ -236,6 +347,13 @@ button:hover,
   padding: 8px;
   gap: 8px;
   box-sizing: border-box;
+}
+
+@media (max-width: 960px) {
+  .repl-view-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(220px, 35%) 1fr;
+  }
 }
 
 #main-grid {

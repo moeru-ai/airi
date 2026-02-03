@@ -23,7 +23,7 @@ const actions: Action[] = [
   })),
 ]
 
-describe('JavaScriptPlanner', () => {
+describe('javaScriptPlanner', () => {
   const globals = {
     event: {
       type: 'perception',
@@ -145,5 +145,24 @@ describe('JavaScriptPlanner', () => {
       await goToPlayer({ player_name: "Alex", closeness: 2 })
       expectMoved(1, "did not move enough")
     `, actions, globals, executeAction)).rejects.toThrow(/Expectation failed: did not move enough/i)
+  })
+
+  it('describes registered globals for debug REPL', () => {
+    const planner = new JavaScriptPlanner()
+    const descriptors = planner.describeGlobals(actions, globals)
+    const names = descriptors.map(d => d.name)
+
+    expect(names).toContain('mem')
+    expect(names).toContain('chat')
+    expect(names).toContain('goToPlayer')
+
+    const mem = descriptors.find(d => d.name === 'mem')
+    expect(mem?.readonly).toBe(false)
+  })
+
+  it('detects expression-friendly REPL inputs', () => {
+    const planner = new JavaScriptPlanner()
+    expect(planner.canEvaluateAsExpression('2 + 3')).toBe(true)
+    expect(planner.canEvaluateAsExpression('const a = 1; a + 1')).toBe(false)
   })
 })

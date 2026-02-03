@@ -10,6 +10,7 @@
 const CONFIG = {
   MAX_LOGS: 500,
   MAX_LLM_TRACES: 50,
+  MAX_REPL_RESULTS: 20,
   RECONNECT_MAX_ATTEMPTS: 10,
   RECONNECT_DELAY: 1000,
   PING_INTERVAL: 25000,
@@ -488,7 +489,7 @@ class LogsPanel {
       if (!select)
         return
       const current = select.value
-      select.innerHTML = '<option value="">Live (current session)</option>' + files.map(f => `<option value="${f}">${f}</option>`).join('')
+      select.innerHTML = `<option value="">Live (current session)</option>${files.map(f => `<option value="${f}">${f}</option>`).join('')}`
       if (files.includes(current))
         select.value = current
     }
@@ -614,8 +615,8 @@ class LLMPanel {
         <div class="llm-message role-${msg.role || 'unknown'}">
           <div class="llm-message-role">${msg.role || 'unknown'}</div>
           <div class="llm-message-content">${escapeHtml(msg.role === 'system'
-        ? formatSystemMessageContent(msg.content || '')
-        : (msg.content || ''))}</div>
+            ? formatSystemMessageContent(msg.content || '')
+            : (msg.content || ''))}</div>
         </div>
       `).join('')
     }
@@ -632,10 +633,12 @@ class LLMPanel {
         </div>
       </div>
       <div class="llm-body">
-        ${trace.reasoning ? `
+        ${trace.reasoning
+          ? `
           <div class="llm-section-title">Reasoning</div>
           <div class="llm-content reasoning">${escapeHtml(trace.reasoning)}</div>
-        ` : ''}
+        `
+          : ''}
         <div class="llm-section-title">Result</div>
         <div class="llm-content">${escapeHtml(trace.content || '')}</div>
 
@@ -995,6 +998,192 @@ class ToolsPanel {
   }
 }
 
+class ReplPanel {
+  constructor(client) {
+    this.client = client
+    this.variables = []
+    this.variableFilter = ''
+    this.results = []
+    this.isRunning = false
+    this.elements = {
+      varsList: document.getElementById('repl-vars-list'),
+      varsSearch: document.getElementById('repl-vars-search'),
+      refreshBtn: document.getElementById('repl-refresh-state'),
+      runBtn: document.getElementById('repl-run-btn'),
+      codeInput: document.getElementById('repl-code-input'),
+      resultList: document.getElementById('repl-result-list'),
+    }
+  }
+
+  init() {
+    this.client.on('debug:repl_state', data => this.updateState(data))
+    this.client.on('debug:repl_result', data => this.handleResult(data))
+    this.client.on('connected', () => this.requestState())
+
+    this.elements.refreshBtn?.addEventListener('click', () => this.requestState())
+    this.elements.varsSearch?.addEventListener('input', (event) => {
+      this.variableFilter = (event.target?.value || '').toLowerCase()
+      this.renderVariables()
+    })
+    this.elements.runBtn?.addEventListener('click', () => this.execute())
+    this.elements.codeInput?.addEventListener('keydown', (event) => {
+      const isEnter = event.key === 'Enter'
+      const hasModifier = event.metaKey || event.ctrlKey
+      if (!isEnter || !hasModifier)
+        return
+
+      event.preventDefault()
+      this.execute()
+    })
+
+    this.renderVariables()
+    this.renderResults()
+  }
+
+  requestState() {
+    this.client.send({ type: 'request_repl_state' })
+  }
+
+  execute() {
+    const code = this.elements.codeInput?.value ?? ''
+    if (!code.trim()) {
+      this.results.unshift({
+        code: '',
+        logs: [],
+        actions: [],
+        error: 'Code is empty',
+        durationMs: 0,
+        timestamp: Date.now(),
+      })
+      this.results = this.results.slice(0, CONFIG.MAX_REPL_RESULTS)
+      this.renderResults()
+      return
+    }
+
+    this.isRunning = true
+    this.renderRunState()
+
+    this.client.send({
+      type: 'execute_repl',
+      payload: { code },
+    })
+  }
+
+  updateState(data) {
+    if (!data || !Array.isArray(data.variables))
+      return
+    this.variables = data.variables
+    this.renderVariables()
+  }
+
+  handleResult(data) {
+    this.isRunning = false
+    this.renderRunState()
+
+    this.results.unshift(data)
+    if (this.results.length > CONFIG.MAX_REPL_RESULTS) {
+      this.results = this.results.slice(0, CONFIG.MAX_REPL_RESULTS)
+    }
+    this.renderResults()
+  }
+
+  renderRunState() {
+    if (!this.elements.runBtn)
+      return
+
+    this.elements.runBtn.disabled = this.isRunning
+    this.elements.runBtn.textContent = this.isRunning ? 'Running...' : 'Run (Ctrl/Cmd+Enter)'
+  }
+
+  renderVariables() {
+    if (!this.elements.varsList)
+      return
+
+    if (this.variables.length === 0) {
+      this.elements.varsList.innerHTML = '<div class="empty-state">No variables loaded</div>'
+      return
+    }
+
+    const filtered = this.variables.filter((variable) => {
+      if (!this.variableFilter)
+        return true
+      const searchSpace = `${variable.name} ${variable.kind} ${variable.preview} ${variable.readonly ? 'readonly' : 'writable'}`.toLowerCase()
+      return searchSpace.includes(this.variableFilter)
+    })
+
+    if (filtered.length === 0) {
+      this.elements.varsList.innerHTML = '<div class="empty-state">No variables match filter</div>'
+      return
+    }
+
+    this.elements.varsList.innerHTML = filtered.map(v => `
+      <div class="repl-var-row">
+        <div class="repl-var-name">${escapeHtml(v.name)}</div>
+        <div class="repl-var-meta">${escapeHtml(v.kind)} · ${v.readonly ? 'readonly' : 'writable'}</div>
+        <div class="repl-var-preview">${escapeHtml(v.preview || '')}</div>
+      </div>
+    `).join('')
+  }
+
+  renderResults() {
+    if (!this.elements.resultList)
+      return
+
+    if (this.results.length === 0) {
+      this.elements.resultList.innerHTML = '<div class="empty-state">No REPL executions yet</div>'
+      return
+    }
+
+    this.elements.resultList.innerHTML = this.results.map((result) => {
+      const isError = !!result.error
+      const actionSummary = Array.isArray(result.actions) && result.actions.length > 0
+        ? result.actions.map((action) => {
+            const status = action.ok ? 'ok' : 'error'
+            return `${status} ${action.tool}(${JSON.stringify(action.params || {})})${action.error ? ` -> ${action.error}` : ''}${action.result ? ` -> ${action.result}` : ''}`
+          }).join('\n')
+        : '(none)'
+      const logsSummary = Array.isArray(result.logs) && result.logs.length > 0
+        ? result.logs.join('\n')
+        : '(none)'
+      const returnValue = typeof result.returnValue === 'string' ? result.returnValue : '(undefined)'
+      const time = new Date(result.timestamp || Date.now()).toLocaleTimeString()
+
+      return `
+        <div class="repl-result-card ${isError ? 'error' : ''}">
+          <div class="repl-result-meta">
+            <span>${time}</span>
+            <span>${Number.isFinite(result.durationMs) ? `${result.durationMs}ms` : '-'}</span>
+          </div>
+          <div class="repl-result-section">
+            <div class="repl-result-label">Code</div>
+            <div class="repl-result-content">${escapeHtml(result.code || '')}</div>
+          </div>
+          <div class="repl-result-section">
+            <div class="repl-result-label">Return</div>
+            <div class="repl-result-content">${escapeHtml(returnValue)}</div>
+          </div>
+          <div class="repl-result-section">
+            <div class="repl-result-label">Actions</div>
+            <div class="repl-result-content">${escapeHtml(actionSummary)}</div>
+          </div>
+          <div class="repl-result-section">
+            <div class="repl-result-label">Logs</div>
+            <div class="repl-result-content">${escapeHtml(logsSummary)}</div>
+          </div>
+          ${isError
+            ? `
+            <div class="repl-result-section">
+              <div class="repl-result-label">Error</div>
+              <div class="repl-result-content">${escapeHtml(result.error)}</div>
+            </div>
+          `
+            : ''}
+        </div>
+      `
+    }).join('')
+  }
+}
+
 class TimelinePanel {
   constructor(client) {
     this.client = client
@@ -1320,6 +1509,7 @@ class DebugApp {
     this.saliencyPanel = new SaliencyPanel(this.client)
     this.timelinePanel = new TimelinePanel(this.client)
     this.toolsPanel = new ToolsPanel(this.client)
+    this.replPanel = new ReplPanel(this.client)
 
     this.panels = {
       queue: this.queuePanel,
@@ -1330,6 +1520,7 @@ class DebugApp {
       saliency: this.saliencyPanel,
       timeline: this.timelinePanel,
       tools: this.toolsPanel,
+      repl: this.replPanel,
     }
     this.paused = false
   }

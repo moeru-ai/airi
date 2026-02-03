@@ -48,6 +48,7 @@
   <div class="tab-bar">
     <button class="tab-button active" data-target="main-view">Dashboard</button>
     <button class="tab-button" data-target="tools-view">Tools</button>
+    <button class="tab-button" data-target="repl-view">REPL</button>
   </div>
 
   <!-- Main Layout -->
@@ -241,6 +242,37 @@
         </div>
         <div class="panel-content">
           <div id="tools-grid" class="tools-grid"></div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <!-- REPL View -->
+  <section id="repl-view" class="view">
+    <div class="repl-view-shell">
+      <section class="panel repl-vars-panel">
+        <div class="panel-header">
+          <h2>Registered Variables</h2>
+          <div class="panel-controls">
+            <input type="search" id="repl-vars-search" placeholder="Filter variables..." />
+            <button id="repl-refresh-state" class="icon-btn" title="Refresh variable list">⟳</button>
+          </div>
+        </div>
+        <div class="panel-content">
+          <div id="repl-vars-list" class="repl-vars-list"></div>
+        </div>
+      </section>
+      <section class="panel repl-console-panel">
+        <div class="panel-header">
+          <h2>REPL Console</h2>
+          <div class="panel-controls">
+            <button id="repl-run-btn">Run (Ctrl/Cmd+Enter)</button>
+          </div>
+        </div>
+        <div class="panel-content repl-console-content">
+          <textarea id="repl-code-input" class="repl-code-input" spellcheck="false"
+            placeholder="Example: await chat(&quot;hello from repl&quot;)"></textarea>
+          <div id="repl-result-list" class="repl-result-list"></div>
         </div>
       </section>
     </div>

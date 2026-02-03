@@ -1,6 +1,7 @@
 import type { MineflayerPlugin } from '../libs/mineflayer'
 import type { CognitiveEngineOptions, MineflayerWithAgents } from './types'
 
+import { DebugService } from '../debug'
 import { ChatMessageHandler } from '../libs/mineflayer'
 import { createAgentContainer } from './container'
 import { computeNearbyPlayerGaze } from './reflex/gaze'
@@ -22,6 +23,32 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
       const brain = container.resolve('brain')
       const reflexManager = container.resolve('reflexManager')
       const taskExecutor = container.resolve('taskExecutor')
+      const debugService = DebugService.getInstance()
+
+      debugService.onCommand('request_repl_state', () => {
+        debugService.emit('debug:repl_state', brain.getReplState())
+      })
+
+      debugService.onCommand('execute_repl', async (command) => {
+        if (command.type !== 'execute_repl')
+          return
+
+        const code = command.payload?.code
+        if (typeof code !== 'string') {
+          debugService.emit('debug:repl_result', {
+            code: '',
+            logs: [],
+            actions: [],
+            error: 'Invalid REPL request: code must be a string',
+            durationMs: 0,
+            timestamp: Date.now(),
+          })
+          return
+        }
+
+        const result = await brain.executeDebugRepl(code)
+        debugService.emit('debug:repl_result', result)
+      })
 
       // Initialize task executor with mineflayer instance
       taskExecutor.setMineflayer(bot)

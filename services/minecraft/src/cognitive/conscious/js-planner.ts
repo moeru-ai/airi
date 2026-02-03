@@ -2,8 +2,9 @@ import type { Action } from '../../libs/mineflayer/action'
 import type { ActionInstruction } from '../action/types'
 import type { BotEvent } from '../types'
 
-import { inspect } from 'node:util'
 import vm from 'node:vm'
+
+import { inspect } from 'node:util'
 
 interface JavaScriptPlannerOptions {
   timeoutMs?: number
@@ -67,6 +68,13 @@ export interface JavaScriptRunResult {
   actions: ActionRuntimeResult[]
   logs: string[]
   returnValue?: string
+}
+
+export interface PlannerGlobalDescriptor {
+  name: string
+  kind: 'tool' | 'function' | 'object' | 'number' | 'string' | 'boolean' | 'undefined' | 'null' | 'unknown'
+  readonly: boolean
+  preview: string
 }
 
 export function extractJavaScriptCandidate(input: string): string {
@@ -134,6 +142,87 @@ export class JavaScriptPlanner {
     finally {
       this.activeRun = null
     }
+  }
+
+  public canEvaluateAsExpression(content: string): boolean {
+    const script = extractJavaScriptCandidate(content)
+    if (!script.trim())
+      return false
+
+    try {
+      void new vm.Script(`(async () => (\n${script}\n))()`)
+      return true
+    }
+    catch {
+      return false
+    }
+  }
+
+  public describeGlobals(availableActions: Action[], globals: RuntimeGlobals): PlannerGlobalDescriptor[] {
+    const descriptors: PlannerGlobalDescriptor[] = []
+
+    const staticGlobals: Array<Omit<PlannerGlobalDescriptor, 'preview'>> = [
+      { name: 'skip', kind: 'tool', readonly: true },
+      { name: 'use', kind: 'function', readonly: true },
+      { name: 'log', kind: 'function', readonly: true },
+      { name: 'expect', kind: 'function', readonly: true },
+      { name: 'expectMoved', kind: 'function', readonly: true },
+      { name: 'expectNear', kind: 'function', readonly: true },
+      { name: 'snapshot', kind: 'object', readonly: true },
+      { name: 'event', kind: 'object', readonly: true },
+      { name: 'now', kind: 'number', readonly: true },
+      { name: 'self', kind: 'object', readonly: true },
+      { name: 'environment', kind: 'object', readonly: true },
+      { name: 'social', kind: 'object', readonly: true },
+      { name: 'threat', kind: 'object', readonly: true },
+      { name: 'attention', kind: 'object', readonly: true },
+      { name: 'autonomy', kind: 'object', readonly: true },
+      { name: 'mem', kind: 'object', readonly: false },
+      { name: 'lastRun', kind: 'object', readonly: true },
+      { name: 'prevRun', kind: 'object', readonly: true },
+      { name: 'lastAction', kind: 'object', readonly: true },
+    ]
+
+    const valueByName: Record<string, unknown> = {
+      snapshot: globals.snapshot,
+      event: globals.event,
+      now: Date.now(),
+      self: (globals.snapshot as Record<string, unknown>)?.self,
+      environment: (globals.snapshot as Record<string, unknown>)?.environment,
+      social: (globals.snapshot as Record<string, unknown>)?.social,
+      threat: (globals.snapshot as Record<string, unknown>)?.threat,
+      attention: (globals.snapshot as Record<string, unknown>)?.attention,
+      autonomy: (globals.snapshot as Record<string, unknown>)?.autonomy,
+      mem: this.sandbox.mem,
+      lastRun: this.sandbox.lastRun,
+      prevRun: this.sandbox.prevRun,
+      lastAction: this.sandbox.lastAction,
+      skip: this.sandbox.skip,
+      use: this.sandbox.use,
+      log: this.sandbox.log,
+      expect: this.sandbox.expect,
+      expectMoved: this.sandbox.expectMoved,
+      expectNear: this.sandbox.expectNear,
+    }
+
+    for (const item of staticGlobals) {
+      descriptors.push({
+        ...item,
+        preview: this.previewValue(valueByName[item.name]),
+      })
+    }
+
+    for (const action of availableActions) {
+      descriptors.push({
+        name: action.name,
+        kind: 'tool',
+        readonly: true,
+        preview: action.description || '(tool)',
+      })
+    }
+
+    descriptors.sort((a, b) => a.name.localeCompare(b.name))
+    return descriptors
   }
 
   private installBuiltins(): void {
@@ -373,7 +462,9 @@ export class JavaScriptPlanner {
 
     const parsed = action.schema.safeParse(params)
     if (!parsed.success) {
-      const details = parsed.error.issues.map(issue => `${issue.path.join('.') || 'root'}: ${issue.message}`).join('; ')
+      const details = parsed.error.issues
+        .map((issue: { path: Array<string | number>, message: string }) => `${issue.path.join('.') || 'root'}: ${issue.message}`)
+        .join('; ')
       return {
         error: `Invalid tool parameters for ${tool}: ${details}`,
       }
@@ -396,5 +487,17 @@ export class JavaScriptPlanner {
       enumerable: true,
       writable: false,
     })
+  }
+
+  private previewValue(value: unknown): string {
+    if (value === null)
+      return 'null'
+    if (typeof value === 'undefined')
+      return 'undefined'
+    if (typeof value === 'string')
+      return value.length > 120 ? `${value.slice(0, 117)}...` : value
+
+    const rendered = inspect(value, { depth: 1, breakLength: 120 })
+    return rendered.length > 120 ? `${rendered.slice(0, 117)}...` : rendered
   }
 }

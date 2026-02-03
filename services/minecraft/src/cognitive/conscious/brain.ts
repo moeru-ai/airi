@@ -2,17 +2,19 @@ import type { Logg } from '@guiiai/logg'
 import type { Message } from '@xsai/shared-chat'
 
 import type { TaskExecutor } from '../action/task-executor'
+import type { ActionInstruction } from '../action/types'
 import type { EventBus, TracedEvent } from '../os'
 import type { PerceptionSignal } from '../perception/types/signals'
 import type { ReflexManager } from '../reflex/reflex-manager'
 import type { BotEvent, MineflayerWithAgents } from '../types'
-import type { ActionInstruction } from '../action/types'
+import type { PlannerGlobalDescriptor } from './js-planner'
+import type { LLMAgent } from './llm-agent'
+import type { CancellationToken } from './task-state'
 
 import { config } from '../../composables/config'
 import { DebugService } from '../../debug'
 import { buildConsciousContextView } from './context-view'
 import { JavaScriptPlanner } from './js-planner'
-import { LLMAgent } from './llm-agent'
 import {
   isLikelyAuthOrBadArgError,
   isRateLimitError,
@@ -20,7 +22,7 @@ import {
   toErrorMessage,
 } from './llmlogic'
 import { generateBrainSystemPrompt } from './prompts/brain-prompt'
-import { createCancellationToken, type CancellationToken } from './task-state'
+import { createCancellationToken } from './task-state'
 
 interface BrainDeps {
   eventBus: EventBus
@@ -45,6 +47,22 @@ interface PlannerOutcomeSummary {
   updatedAt: number
 }
 
+interface DebugReplResult {
+  code: string
+  logs: string[]
+  actions: Array<{
+    tool: string
+    params: Record<string, unknown>
+    ok: boolean
+    result?: string
+    error?: string
+  }>
+  returnValue?: string
+  error?: string
+  durationMs: number
+  timestamp: number
+}
+
 function truncateForPrompt(value: string, maxLength = 220): string {
   return value.length <= maxLength ? value : `${value.slice(0, maxLength - 1)}...`
 }
@@ -56,6 +74,7 @@ export class Brain {
   // State
   private queue: QueuedEvent[] = []
   private isProcessing = false
+  private isReplEvaluating = false
   private currentCancellationToken: CancellationToken | undefined
   private giveUpUntil = 0
   private giveUpReason: string | undefined
@@ -123,6 +142,108 @@ export class Brain {
     this.currentCancellationToken?.cancel()
   }
 
+  public getReplState(): { variables: PlannerGlobalDescriptor[], updatedAt: number } {
+    const snapshot = this.deps.reflexManager.getContextSnapshot()
+    const variables = this.planner.describeGlobals(
+      this.deps.taskExecutor.getAvailableActions(),
+      {
+        event: {
+          type: 'system_alert',
+          payload: { source: 'debug-repl-state' },
+          source: { type: 'system', id: 'debug-repl' },
+          timestamp: Date.now(),
+        },
+        snapshot: snapshot as unknown as Record<string, unknown>,
+      },
+    )
+
+    return {
+      variables,
+      updatedAt: Date.now(),
+    }
+  }
+
+  public async executeDebugRepl(code: string): Promise<DebugReplResult> {
+    const startedAt = Date.now()
+    if (this.isProcessing || this.isReplEvaluating) {
+      return {
+        code,
+        logs: [],
+        actions: [],
+        error: 'Brain is currently processing an event. Try again in a moment.',
+        durationMs: Date.now() - startedAt,
+        timestamp: Date.now(),
+      }
+    }
+
+    const snapshot = this.deps.reflexManager.getContextSnapshot()
+    const actionDefs = new Map(this.deps.taskExecutor.getAvailableActions().map(action => [action.name, action]))
+    const normalizedReplCode = this.normalizeReplCode(code)
+    const codeToEvaluate = this.planner.canEvaluateAsExpression(normalizedReplCode)
+      ? `return (\n${normalizedReplCode}\n)`
+      : normalizedReplCode
+
+    this.isReplEvaluating = true
+    try {
+      const runResult = await this.planner.evaluate(
+        codeToEvaluate,
+        this.deps.taskExecutor.getAvailableActions(),
+        {
+          event: {
+            type: 'system_alert',
+            payload: { source: 'debug-repl' },
+            source: { type: 'system', id: 'debug-repl' },
+            timestamp: Date.now(),
+          },
+          snapshot: snapshot as unknown as Record<string, unknown>,
+        },
+        async (action: ActionInstruction) => {
+          const actionDef = actionDefs.get(action.tool)
+          if (actionDef?.followControl === 'detach')
+            this.deps.reflexManager.clearFollowTarget()
+          return this.deps.taskExecutor.executeActionWithResult(action)
+        },
+      )
+
+      return {
+        code,
+        logs: runResult.logs,
+        actions: runResult.actions.map(item => ({
+          tool: item.action.tool,
+          params: item.action.params,
+          ok: item.ok,
+          result: item.result === undefined ? undefined : (typeof item.result === 'string' ? item.result : JSON.stringify(item.result)),
+          error: item.error,
+        })),
+        returnValue: runResult.returnValue,
+        durationMs: Date.now() - startedAt,
+        timestamp: Date.now(),
+      }
+    }
+    catch (err) {
+      return {
+        code,
+        logs: [],
+        actions: [],
+        error: toErrorMessage(err),
+        durationMs: Date.now() - startedAt,
+        timestamp: Date.now(),
+      }
+    }
+    finally {
+      this.isReplEvaluating = false
+    }
+  }
+
+  private normalizeReplCode(code: string): string {
+    // Simple top-level var persistence for REPL UX:
+    // const/let/var foo = ...  -> globalThis.foo = ...
+    return code.replace(
+      /^\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^\n]+?)\s*(?:;\s*)?$/gm,
+      (_full: string, name: string, valueExpr: string) => `globalThis.${name} = ${valueExpr}`,
+    )
+  }
+
   // --- Event Queue Logic ---
 
   private async enqueueEvent(bot: MineflayerWithAgents, event: BotEvent): Promise<void> {
@@ -133,7 +254,8 @@ export class Brain {
   }
 
   private async processQueue(bot: MineflayerWithAgents): Promise<void> {
-    if (this.isProcessing || this.queue.length === 0) return
+    if (this.isProcessing || this.queue.length === 0)
+      return
 
     try {
       this.isProcessing = true
@@ -148,11 +270,13 @@ export class Brain {
       try {
         await this.processEvent(bot, item.event)
         item.resolve()
-      } catch (err) {
+      }
+      catch (err) {
         this.deps.logger.withError(err).error('Brain: Error processing event')
         item.reject(err as Error)
       }
-    } finally {
+    }
+    finally {
       this.isProcessing = false
       this.debugService.emitBrainState({
         status: 'idle',
@@ -211,7 +335,8 @@ export class Brain {
         const content = llmResult.text
         const reasoning = llmResult.reasoning
 
-        if (!content) throw new Error('No content from LLM')
+        if (!content)
+          throw new Error('No content from LLM')
 
         // Capture reasoning for later use
         capturedReasoning = reasoning
@@ -234,7 +359,8 @@ export class Brain {
         })
 
         break // Success, exit retry loop
-      } catch (err) {
+      }
+      catch (err) {
         const remaining = maxAttempts - attempt
         const isRateLimit = isRateLimitError(err)
         const shouldRetry = remaining > 0 && !isLikelyAuthOrBadArgError(err)
@@ -323,8 +449,8 @@ export class Brain {
         logs: runResult.logs,
         returnValue: runResult.returnValue,
       })
-
-    } catch (err) {
+    }
+    catch (err) {
       this.deps.logger.withError(err).error('Brain: Failed to execute decision')
       void this.enqueueEvent(bot, {
         type: 'feedback',
@@ -343,18 +469,22 @@ export class Brain {
       const signal = event.payload as PerceptionSignal
       if (signal.type === 'chat_message') {
         parts.push(`[EVENT] ${signal.description}`)
-      } else {
+      }
+      else {
         parts.push(`[EVENT] Perception Signal: ${signal.description}`)
       }
-    } else if (event.type === 'feedback') {
+    }
+    else if (event.type === 'feedback') {
       const p = event.payload as any
       const tool = p.action?.tool || 'unknown'
       if (p.status === 'success') {
         parts.push(`[FEEDBACK] ${tool}: Success. ${typeof p.result === 'string' ? p.result : JSON.stringify(p.result)}`)
-      } else {
+      }
+      else {
         parts.push(`[FEEDBACK] ${tool}: Failed. ${p.error}`)
       }
-    } else {
+    }
+    else {
       parts.push(`[EVENT] ${event.type}: ${JSON.stringify(event.payload)}`)
     }
 
