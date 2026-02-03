@@ -14,7 +14,6 @@ import { buildConsciousContextView } from './context-view'
 import { JavaScriptPlanner } from './js-planner'
 import { LLMAgent } from './llm-agent'
 import {
-  extractJsonCandidate,
   isLikelyAuthOrBadArgError,
   isRateLimitError,
   sleep,
@@ -22,10 +21,6 @@ import {
 } from './llmlogic'
 import { generateBrainSystemPrompt } from './prompts/brain-prompt'
 import { createCancellationToken, type CancellationToken } from './task-state'
-
-interface BrainResponse {
-  action: ActionInstruction & { id?: string }
-}
 
 interface BrainDeps {
   eventBus: EventBus
@@ -72,9 +67,6 @@ export class Brain {
     // Action Feedback Handler
     this.deps.taskExecutor.on('action:completed', async ({ action, result }) => {
       this.deps.logger.log('INFO', `Brain: Action completed: ${action.tool}`)
-
-      // Suppress feedback for chat actions on success
-      if (action.tool === 'chat') return
 
       this.enqueueEvent(bot, {
         type: 'feedback',
@@ -231,8 +223,6 @@ export class Brain {
     }
 
     try {
-      const actions = this.parseResponse(result)
-
       // Only append to conversation history after successful parsing (avoid dirty data on retry)
       this.conversationHistory.push({ role: 'user', content: userMessage })
       // Store reasoning in the assistant message's reasoning field (if available)
@@ -243,16 +233,45 @@ export class Brain {
         ...(capturedReasoning && { reasoning: capturedReasoning }),
       } as Message)
 
-      if (actions.length === 1 && actions[0]?.tool === 'skip') {
+      const actionDefs = new Map(this.deps.taskExecutor.getAvailableActions().map(action => [action.name, action]))
+      let turnCancellationToken: CancellationToken | undefined
+
+      const runResult = await this.planner.evaluate(
+        result,
+        this.deps.taskExecutor.getAvailableActions(),
+        { event, snapshot: snapshot as unknown as Record<string, unknown> },
+        async (action: ActionInstruction) => {
+          const actionDef = actionDefs.get(action.tool)
+          const isPhysicalAction = action.tool !== 'skip' && !actionDef?.readonly
+
+          if (isPhysicalAction) {
+            if (!turnCancellationToken) {
+              this.currentCancellationToken?.cancel()
+              this.currentCancellationToken = createCancellationToken()
+              turnCancellationToken = this.currentCancellationToken
+            }
+            return this.deps.taskExecutor.executeActionWithResult(action, turnCancellationToken)
+          }
+
+          return this.deps.taskExecutor.executeActionWithResult(action)
+        },
+      )
+
+      if (runResult.actions.length === 0 || runResult.actions.every(item => item.action.tool === 'skip')) {
         this.deps.logger.log('INFO', 'Brain: Skipping turn (observing)')
         return
       }
 
-      this.deps.logger.log('INFO', `Brain: Planned ${actions.length} action(s)`, {
-        actions: actions.map(action => ({ tool: action.tool, params: action.params })),
+      this.deps.logger.log('INFO', `Brain: Executed ${runResult.actions.length} action(s)`, {
+        actions: runResult.actions.map(item => ({
+          tool: item.action.tool,
+          ok: item.ok,
+          result: item.result,
+          error: item.error,
+        })),
+        logs: runResult.logs,
+        returnValue: runResult.returnValue,
       })
-
-      this.executePlannedActions(actions)
 
     } catch (err) {
       this.deps.logger.withError(err).error('Brain: Failed to execute decision')
@@ -295,59 +314,8 @@ export class Brain {
       // Note: We don't update this.lastContextView here; caller does it after building message
     }
 
+    parts.push('[RUNTIME] Globals are refreshed every turn: snapshot, self, environment, social, threat, attention, event, now, mem, lastRun, lastAction.')
+
     return parts.join('\n\n')
-  }
-
-  private parseResponse(content: string): ActionInstruction[] {
-    const availableActions = this.deps.taskExecutor.getAvailableActions()
-    const trimmed = content.trim()
-    if (trimmed.startsWith('{')) {
-      try {
-        const parsed = JSON.parse(extractJsonCandidate(content)) as BrainResponse
-        if (parsed?.action?.tool === 'skip') {
-          return [{ tool: 'skip', params: {} }]
-        }
-
-        if (parsed?.action?.tool) {
-          const actionDef = availableActions.find(action => action.name === parsed.action.tool)
-          if (!actionDef) {
-            throw new Error(`Unknown tool in legacy JSON response: ${parsed.action.tool}`)
-          }
-
-          return [{
-            tool: actionDef.name,
-            params: actionDef.schema.parse(parsed.action.params ?? {}),
-          }]
-        }
-      } catch {
-        // Fallback to JS planner parsing.
-      }
-    }
-
-    return this.planner.evaluate(content, availableActions)
-  }
-
-  private executePlannedActions(actions: ActionInstruction[]): void {
-    const availableActions = this.deps.taskExecutor.getAvailableActions()
-    const actionDefs = new Map(availableActions.map(action => [action.name, action]))
-    const hasNonReadonlyAction = actions.some(action => !actionDefs.get(action.tool)?.readonly && action.tool !== 'skip')
-
-    let token: CancellationToken | undefined
-    if (hasNonReadonlyAction) {
-      if (this.currentCancellationToken) {
-        this.currentCancellationToken.cancel()
-      }
-      this.currentCancellationToken = createCancellationToken()
-      token = this.currentCancellationToken
-    }
-
-    void (async () => {
-      for (const action of actions) {
-        if (token?.isCancelled)
-          return
-
-        await this.deps.taskExecutor.executeAction(action, token)
-      }
-    })()
   }
 }

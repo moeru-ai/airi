@@ -1,6 +1,6 @@
 import type { Action } from '../../libs/mineflayer/action'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
 import { JavaScriptPlanner } from './js-planner'
@@ -24,51 +24,76 @@ const actions: Action[] = [
 ]
 
 describe('JavaScriptPlanner', () => {
-  it('maps positional and object tool args into validated action instructions', () => {
-    const planner = new JavaScriptPlanner()
-    const planned = planner.evaluate(`
-      chat("hello")
-      goToPlayer({ player_name: "Alex", closeness: 2 })
-    `, actions)
+  const globals = {
+    event: {
+      type: 'perception',
+      payload: { type: 'chat_message' },
+      source: { type: 'minecraft', id: 'test' },
+      timestamp: Date.now(),
+    },
+    snapshot: {
+      self: { health: 20, food: 20, location: { x: 0, y: 64, z: 0 } },
+      environment: { nearbyPlayers: [] },
+      social: {},
+      threat: {},
+      attention: {},
+    },
+  } as any
 
-    expect(planned).toEqual([
+  it('maps positional/object args and executes tools in order', async () => {
+    const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+    const planned = await planner.evaluate(`
+      await chat("hello")
+      await goToPlayer({ player_name: "Alex", closeness: 2 })
+    `, actions, globals, executeAction)
+
+    expect(executeAction).toHaveBeenCalledTimes(2)
+    expect(executeAction).toHaveBeenNthCalledWith(1, { tool: 'chat', params: { message: 'hello' } })
+    expect(executeAction).toHaveBeenNthCalledWith(2, { tool: 'goToPlayer', params: { player_name: 'Alex', closeness: 2 } })
+    expect(planned.actions.map(a => a.action)).toEqual([
       { tool: 'chat', params: { message: 'hello' } },
       { tool: 'goToPlayer', params: { player_name: 'Alex', closeness: 2 } },
     ])
   })
 
-  it('supports dynamic dispatch with use(toolName, params)', () => {
+  it('supports dynamic dispatch with use(toolName, params)', async () => {
     const planner = new JavaScriptPlanner()
-    const planned = planner.evaluate(`use("chat", { message: "via-use" })`, actions)
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+    const planned = await planner.evaluate(`await use("chat", { message: "via-use" })`, actions, globals, executeAction)
 
-    expect(planned).toEqual([{ tool: 'chat', params: { message: 'via-use' } }])
+    expect(planned.actions.map(a => a.action)).toEqual([{ tool: 'chat', params: { message: 'via-use' } }])
   })
 
-  it('persists script variables across turns', () => {
+  it('persists script variables across turns with mem', async () => {
     const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
 
-    planner.evaluate('const count = 2', actions)
-    const planned = planner.evaluate('chat("count=" + count)', actions)
+    await planner.evaluate('mem.count = 2', actions, globals, executeAction)
+    const planned = await planner.evaluate('await chat("count=" + mem.count)', actions, globals, executeAction)
 
-    expect(planned).toEqual([{ tool: 'chat', params: { message: 'count=2' } }])
+    expect(planned.actions.map(a => a.action)).toEqual([{ tool: 'chat', params: { message: 'count=2' } }])
   })
 
-  it('returns skip when no tool is called', () => {
+  it('provides snapshot globals in script scope', async () => {
     const planner = new JavaScriptPlanner()
-    const planned = planner.evaluate('const x = 1 + 1', actions)
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+    const planned = await planner.evaluate('await chat("hp=" + self.health)', actions, globals, executeAction)
 
-    expect(planned).toEqual([{ tool: 'skip', params: {} }])
+    expect(planned.actions.map(a => a.action)).toEqual([{ tool: 'chat', params: { message: 'hp=20' } }])
   })
 
-  it('rejects mixed skip + tool calls', () => {
+  it('rejects mixed skip + tool calls', async () => {
     const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
 
-    expect(() => planner.evaluate('skip(); chat("oops")', actions)).toThrow(/skip\(\) cannot be mixed/i)
+    await expect(planner.evaluate('await skip(); await chat("oops")', actions, globals, executeAction)).rejects.toThrow(/skip\(\) cannot be mixed/i)
   })
 
-  it('enforces timeout on long-running scripts', () => {
+  it('enforces timeout on long-running scripts', async () => {
     const planner = new JavaScriptPlanner({ timeoutMs: 20 })
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
 
-    expect(() => planner.evaluate('while (true) {}', actions)).toThrow(/Script execution timed out/i)
+    await expect(planner.evaluate('while (true) {}', actions, globals, executeAction)).rejects.toThrow(/Script execution timed out/i)
   })
 })

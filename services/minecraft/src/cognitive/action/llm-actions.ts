@@ -7,7 +7,6 @@ import { collectBlock } from '../../skills/actions/collect-block'
 import { discard, equip, putInChest, takeFromChest } from '../../skills/actions/inventory'
 import { activateNearestBlock, breakBlockAt, placeBlock } from '../../skills/actions/world-interactions'
 import { ActionError } from '../../utils/errors'
-import { javascriptRepl } from '../../utils/javascript-repl'
 import { useLogger } from '../../utils/logger'
 import { describeRecipePlan, planRecipe } from '../../utils/recipe-planner'
 
@@ -37,15 +36,6 @@ export const actionsList: Action[] = [
       mineflayer.bot.chat(message)
       return `Sent message: "${message}"`
     },
-  },
-  {
-    name: 'eval',
-    description: 'Evaluate JavaScript code in a persistent REPL context. Use this for quick calculations or temporary memory.',
-    execution: 'sync',
-    schema: z.object({
-      code: z.string().min(1).describe('JavaScript source code to evaluate.'),
-    }),
-    perform: () => (code: string): string => javascriptRepl.evaluate(code),
   },
   // {\n  //   name: 'setReflexMode',
   //   description: 'Set (or clear) your reflex mode override. Use work/wander to disable idle-only reflex behaviors. Set override to null to return to automatic mode selection.',

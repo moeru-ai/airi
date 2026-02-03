@@ -1,5 +1,6 @@
 import type { Action } from '../../libs/mineflayer/action'
 import type { ActionInstruction } from '../action/types'
+import type { BotEvent } from '../types'
 
 import { inspect } from 'node:util'
 import vm from 'node:vm'
@@ -9,19 +10,51 @@ interface JavaScriptPlannerOptions {
   maxActionsPerTurn?: number
 }
 
-interface ActionIntent {
-  index: number
-  params: Record<string, unknown>
-  tool: string
+interface ActionRuntimeResult {
+  action: ActionInstruction
+  ok: boolean
+  result?: string
+  error?: string
 }
 
 interface ActivePlannerRun {
-  actions: ActionInstruction[]
+  actionCount: number
   actionsByName: Map<string, Action>
+  executeAction: (action: ActionInstruction) => Promise<string | void>
+  executed: ActionRuntimeResult[]
+  logs: string[]
+  sawSkip: boolean
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function deepFreeze<T>(value: T): T {
+  if (!value || typeof value !== 'object')
+    return value
+
+  for (const key of Object.keys(value as Record<string, unknown>)) {
+    const child = (value as Record<string, unknown>)[key]
+    deepFreeze(child)
+  }
+
+  return Object.freeze(value)
+}
+
+function toStructuredClone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T
+}
+
+export interface RuntimeGlobals {
+  event: BotEvent
+  snapshot: Record<string, unknown>
+}
+
+export interface JavaScriptRunResult {
+  actions: ActionRuntimeResult[]
+  logs: string[]
+  returnValue?: string
 }
 
 export function extractJavaScriptCandidate(input: string): string {
@@ -48,56 +81,91 @@ export class JavaScriptPlanner {
     this.installBuiltins()
   }
 
-  public evaluate(content: string, availableActions: Action[]): ActionInstruction[] {
+  public async evaluate(
+    content: string,
+    availableActions: Action[],
+    globals: RuntimeGlobals,
+    executeAction: (action: ActionInstruction) => Promise<string | void>,
+  ): Promise<JavaScriptRunResult> {
     const script = extractJavaScriptCandidate(content)
     const run: ActivePlannerRun = {
-      actions: [],
+      actionCount: 0,
       actionsByName: new Map(availableActions.map(action => [action.name, action])),
+      executeAction,
+      executed: [],
+      logs: [],
+      sawSkip: false,
     }
 
     this.activeRun = run
     this.installActionTools(availableActions)
+    this.bindRuntimeGlobals(globals, run)
 
     try {
-      const result = new vm.Script(script).runInContext(this.context, { timeout: this.timeoutMs })
-      if (typeof result !== 'undefined' && run.actions.length === 0) {
-        // Keep this visible in traces for debugging, without affecting behavior.
-        this.sandbox.__lastEvalResult = inspect(result, { depth: 2, breakLength: 100 })
+      const wrapped = `(async () => {\n${script}\n})()`
+      const result = await new vm.Script(wrapped).runInContext(this.context, { timeout: this.timeoutMs })
+
+      const returnValue = typeof result === 'undefined'
+        ? undefined
+        : inspect(result, { depth: 2, breakLength: 100 })
+
+      return {
+        actions: run.executed,
+        logs: run.logs,
+        returnValue,
       }
     }
     finally {
       this.activeRun = null
     }
-
-    if (run.actions.length === 0)
-      return [{ tool: 'skip', params: {} }]
-
-    const containsSkip = run.actions.some(action => action.tool === 'skip')
-    if (containsSkip && run.actions.length > 1) {
-      throw new Error('skip() cannot be mixed with other tool calls in the same script')
-    }
-
-    return run.actions
   }
 
   private installBuiltins(): void {
-    this.defineGlobalTool('skip', () => this.enqueueAction('skip', {}))
+    this.defineGlobalTool('skip', async () => this.runAction('skip', {}))
     this.defineGlobalTool('use', (toolName: unknown, params?: unknown) => {
       if (typeof toolName !== 'string' || toolName.length === 0) {
         throw new Error('use(toolName, params) requires a non-empty string toolName')
       }
 
       const mappedParams = isRecord(params) ? params : {}
-      return this.enqueueAction(toolName, mappedParams)
+      return this.runAction(toolName, mappedParams)
     })
+    this.defineGlobalTool('log', (...args: unknown[]) => {
+      if (!this.activeRun)
+        throw new Error('log() is only allowed during planner evaluation')
+
+      const rendered = args.map(arg => inspect(arg, { depth: 4, breakLength: 120 })).join(' ')
+      this.activeRun.logs.push(rendered)
+      return rendered
+    })
+    this.defineGlobalValue('mem', {})
   }
 
   private installActionTools(availableActions: Action[]): void {
     for (const action of availableActions) {
-      this.defineGlobalTool(action.name, (...args: unknown[]) => {
+      this.defineGlobalTool(action.name, async (...args: unknown[]) => {
         const params = this.mapArgsToParams(action, args)
-        return this.enqueueAction(action.name, params)
+        return this.runAction(action.name, params)
       })
+    }
+  }
+
+  private bindRuntimeGlobals(globals: RuntimeGlobals, run: ActivePlannerRun): void {
+    const snapshot = deepFreeze(toStructuredClone(globals.snapshot))
+    const event = deepFreeze(toStructuredClone(globals.event))
+
+    this.sandbox.prevRun = this.sandbox.lastRun ?? null
+    this.sandbox.snapshot = snapshot
+    this.sandbox.event = event
+    this.sandbox.now = Date.now()
+    this.sandbox.self = snapshot.self
+    this.sandbox.environment = snapshot.environment
+    this.sandbox.social = snapshot.social
+    this.sandbox.threat = snapshot.threat
+    this.sandbox.attention = snapshot.attention
+    this.sandbox.lastRun = {
+      actions: run.executed,
+      logs: run.logs,
     }
   }
 
@@ -127,44 +195,87 @@ export class JavaScriptPlanner {
     return params
   }
 
-  private enqueueAction(tool: string, params: Record<string, unknown>): ActionIntent {
+  private async runAction(tool: string, params: Record<string, unknown>): Promise<ActionRuntimeResult> {
     if (!this.activeRun) {
       throw new Error('Tool calls are only allowed during planner evaluation')
     }
 
-    if (this.activeRun.actions.length >= this.maxActionsPerTurn) {
+    if (this.activeRun.sawSkip && tool !== 'skip') {
+      throw new Error('skip() cannot be mixed with other tool calls in the same script')
+    }
+
+    if (this.activeRun.actionCount >= this.maxActionsPerTurn) {
       throw new Error(`Action limit exceeded: max ${this.maxActionsPerTurn} actions per turn`)
     }
 
-    if (tool !== 'skip') {
-      const action = this.activeRun.actionsByName.get(tool)
-      if (!action)
-        throw new Error(`Unknown tool: ${tool}`)
-
-      const parsed = action.schema.parse(params)
-      this.activeRun.actions.push({
-        tool,
-        params: parsed,
-      })
-    }
-    else {
-      this.activeRun.actions.push({ tool: 'skip', params: {} })
+    if (tool === 'skip') {
+      this.activeRun.sawSkip = true
     }
 
-    const intent: ActionIntent = {
-      index: this.activeRun.actions.length - 1,
+    const action = tool === 'skip'
+      ? { tool: 'skip', params: {} as Record<string, unknown> }
+      : this.validateAction(tool, params)
+
+    this.activeRun.actionCount++
+
+    if (tool === 'skip') {
+      const runtimeResult: ActionRuntimeResult = {
+        action,
+        ok: true,
+        result: 'Skipped turn',
+      }
+      this.activeRun.executed.push(runtimeResult)
+      this.sandbox.lastAction = runtimeResult
+      return runtimeResult
+    }
+
+    try {
+      const result = await this.activeRun.executeAction(action)
+      const runtimeResult: ActionRuntimeResult = {
+        action,
+        ok: true,
+        result: typeof result === 'string' ? result : undefined,
+      }
+      this.activeRun.executed.push(runtimeResult)
+      this.sandbox.lastAction = runtimeResult
+      return runtimeResult
+    }
+    catch (error) {
+      const runtimeResult: ActionRuntimeResult = {
+        action,
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      }
+      this.activeRun.executed.push(runtimeResult)
+      this.sandbox.lastAction = runtimeResult
+      throw error
+    }
+  }
+
+  private validateAction(tool: string, params: Record<string, unknown>): ActionInstruction {
+    if (!this.activeRun)
+      throw new Error('Tool calls are only allowed during planner evaluation')
+
+    const action = this.activeRun.actionsByName.get(tool)
+    if (!action)
+      throw new Error(`Unknown tool: ${tool}`)
+
+    return {
       tool,
-      params,
+      params: action.schema.parse(params),
     }
-    return Object.freeze(intent)
   }
 
   private defineGlobalTool(name: string, fn: (...args: unknown[]) => unknown): void {
+    this.defineGlobalValue(name, fn)
+  }
+
+  private defineGlobalValue(name: string, value: unknown): void {
     if (Object.prototype.hasOwnProperty.call(this.sandbox, name))
       return
 
     Object.defineProperty(this.sandbox, name, {
-      value: fn,
+      value,
       configurable: false,
       enumerable: true,
       writable: false,

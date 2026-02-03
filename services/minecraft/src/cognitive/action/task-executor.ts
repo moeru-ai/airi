@@ -45,24 +45,28 @@ export class TaskExecutor extends EventEmitter {
   }
 
   public async executeAction(action: ActionInstruction, cancellationToken?: CancellationToken): Promise<void> {
-    if (!this.initialized) {
-      throw new Error('TaskExecutor not initialized')
-    }
-
-    if (cancellationToken?.isCancelled) {
-      this.logger.log('Action execution cancelled before start')
-      return
-    }
-
     try {
-      await this.runSingleAction(action)
+      await this.executeActionWithResult(action, cancellationToken)
     }
     catch (error) {
       // Errors handled in runSingleAction event emission
     }
   }
 
-  private async runSingleAction(action: ActionInstruction): Promise<void> {
+  public async executeActionWithResult(action: ActionInstruction, cancellationToken?: CancellationToken): Promise<string | void> {
+    if (!this.initialized) {
+      throw new Error('TaskExecutor not initialized')
+    }
+
+    if (cancellationToken?.isCancelled) {
+      this.logger.log('Action execution cancelled before start')
+      return 'Action cancelled'
+    }
+
+    return this.runSingleAction(action)
+  }
+
+  private async runSingleAction(action: ActionInstruction): Promise<string | void> {
     this.emit('action:started', { action })
 
     try {
@@ -79,7 +83,7 @@ export class TaskExecutor extends EventEmitter {
         }
 
         this.mineflayer.bot.chat(message)
-        result = 'Message sent'
+        result = `Sent message: "${message}"`
       }
       else if (action.tool === 'skip') {
         result = 'Skipped turn'
@@ -96,6 +100,7 @@ export class TaskExecutor extends EventEmitter {
       }
 
       this.emit('action:completed', { action, result })
+      return result
     }
     catch (error) {
       this.logger.withError(error).error('Action execution failed')
