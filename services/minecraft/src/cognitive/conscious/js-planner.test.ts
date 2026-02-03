@@ -90,6 +90,22 @@ describe('JavaScriptPlanner', () => {
     await expect(planner.evaluate('await skip(); await chat("oops")', actions, globals, executeAction)).rejects.toThrow(/skip\(\) cannot be mixed/i)
   })
 
+  it('returns structured validation failures without aborting the script', async () => {
+    const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+    const planned = await planner.evaluate(`
+      const first = await goToPlayer({ player_name: "Alex", closeness: -1 })
+      if (!first.ok) {
+        await chat("fallback")
+      }
+    `, actions, globals, executeAction)
+
+    expect(planned.actions[0]?.ok).toBe(false)
+    expect(planned.actions[0]?.error).toMatch(/Invalid tool parameters/i)
+    expect(executeAction).toHaveBeenCalledTimes(1)
+    expect(planned.actions[1]?.action.tool).toBe('chat')
+  })
+
   it('enforces timeout on long-running scripts', async () => {
     const planner = new JavaScriptPlanner({ timeoutMs: 20 })
     const executeAction = vi.fn(async action => `ok:${action.tool}`)

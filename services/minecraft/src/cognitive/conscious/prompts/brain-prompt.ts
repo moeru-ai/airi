@@ -34,6 +34,31 @@ function getZodTypeName(def: any): string {
   return type || 'any'
 }
 
+function getZodConstraintHint(def: any): string {
+  if (!def)
+    return ''
+
+  const checks = Array.isArray(def.checks) ? def.checks : []
+  const hints: string[] = []
+
+  for (const check of checks) {
+    if (check?.kind === 'min' && typeof check.value === 'number') {
+      hints.push(`min=${check.value}`)
+    }
+    if (check?.kind === 'max' && typeof check.value === 'number') {
+      hints.push(`max=${check.value}`)
+    }
+    if (check?.def?.check === 'greater_than' && typeof check.def.value === 'number') {
+      hints.push(`min=${check.def.inclusive ? check.def.value : check.def.value + 1}`)
+    }
+    if (check?.def?.check === 'less_than' && typeof check.def.value === 'number') {
+      hints.push(`max=${check.def.inclusive ? check.def.value : check.def.value - 1}`)
+    }
+  }
+
+  return hints.length > 0 ? ` (${hints.join(', ')})` : ''
+}
+
 export function generateBrainSystemPrompt(availableActions: Action[]): string {
   const toolsFormatted = availableActions.map((a) => {
     const paramKeys = Object.keys(a.schema.shape)
@@ -45,8 +70,9 @@ export function generateBrainSystemPrompt(availableActions: Action[]): string {
       params = Object.entries(a.schema.shape).map(([key, val]: [string, any]) => {
         const def = val._def
         const type = getZodTypeName(def)
+        const constraints = getZodConstraintHint(def)
         const desc = val.description ? ` - ${val.description}` : ''
-        return ` * @param {${type}} ${key}${desc}`
+        return ` * @param {${type}${constraints}} ${key}${desc}`
       }).join('\n')
     }
 

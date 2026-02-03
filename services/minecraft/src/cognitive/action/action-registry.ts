@@ -32,7 +32,7 @@ export class ActionRegistry {
   /**
    * Perform an action by name
    */
-  public async performAction(step: { description?: string, tool: string, params: any }): Promise<string> {
+  public async performAction(step: { description?: string, tool: string, params: any }): Promise<unknown> {
     if (!this.mineflayer) {
       throw new Error('Mineflayer instance not set in ActionRegistry')
     }
@@ -51,7 +51,7 @@ export class ActionRegistry {
       const paramValues = Object.keys((schema as any).shape || {}).map(key => parsedParams[key])
 
       const result = await actionFn(...paramValues)
-      return result || `Action ${step.tool} completed`
+      return result ?? `Action ${step.tool} completed`
     }
     catch (error) {
       throw error

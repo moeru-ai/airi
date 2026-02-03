@@ -13,17 +13,22 @@ interface JavaScriptPlannerOptions {
 interface ActionRuntimeResult {
   action: ActionInstruction
   ok: boolean
-  result?: string
+  result?: unknown
   error?: string
 }
 
 interface ActivePlannerRun {
   actionCount: number
   actionsByName: Map<string, Action>
-  executeAction: (action: ActionInstruction) => Promise<string | void>
+  executeAction: (action: ActionInstruction) => Promise<unknown>
   executed: ActionRuntimeResult[]
   logs: string[]
   sawSkip: boolean
+}
+
+interface ValidationResult {
+  action?: ActionInstruction
+  error?: string
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -85,7 +90,7 @@ export class JavaScriptPlanner {
     content: string,
     availableActions: Action[],
     globals: RuntimeGlobals,
-    executeAction: (action: ActionInstruction) => Promise<string | void>,
+    executeAction: (action: ActionInstruction) => Promise<unknown>,
   ): Promise<JavaScriptRunResult> {
     const script = extractJavaScriptCandidate(content)
     const run: ActivePlannerRun = {
@@ -212,13 +217,10 @@ export class JavaScriptPlanner {
       this.activeRun.sawSkip = true
     }
 
-    const action = tool === 'skip'
-      ? { tool: 'skip', params: {} as Record<string, unknown> }
-      : this.validateAction(tool, params)
-
     this.activeRun.actionCount++
 
     if (tool === 'skip') {
+      const action: ActionInstruction = { tool: 'skip', params: {} }
       const runtimeResult: ActionRuntimeResult = {
         action,
         ok: true,
@@ -229,12 +231,25 @@ export class JavaScriptPlanner {
       return runtimeResult
     }
 
+    const validation = this.validateAction(tool, params)
+    if (!validation.action) {
+      const runtimeResult: ActionRuntimeResult = {
+        action: { tool, params },
+        ok: false,
+        error: validation.error ?? `Invalid tool parameters for ${tool}`,
+      }
+      this.activeRun.executed.push(runtimeResult)
+      this.sandbox.lastAction = runtimeResult
+      return runtimeResult
+    }
+    const action = validation.action
+
     try {
       const result = await this.activeRun.executeAction(action)
       const runtimeResult: ActionRuntimeResult = {
         action,
         ok: true,
-        result: typeof result === 'string' ? result : undefined,
+        result,
       }
       this.activeRun.executed.push(runtimeResult)
       this.sandbox.lastAction = runtimeResult
@@ -248,11 +263,11 @@ export class JavaScriptPlanner {
       }
       this.activeRun.executed.push(runtimeResult)
       this.sandbox.lastAction = runtimeResult
-      throw error
+      return runtimeResult
     }
   }
 
-  private validateAction(tool: string, params: Record<string, unknown>): ActionInstruction {
+  private validateAction(tool: string, params: Record<string, unknown>): ValidationResult {
     if (!this.activeRun)
       throw new Error('Tool calls are only allowed during planner evaluation')
 
@@ -260,10 +275,15 @@ export class JavaScriptPlanner {
     if (!action)
       throw new Error(`Unknown tool: ${tool}`)
 
-    return {
-      tool,
-      params: action.schema.parse(params),
+    const parsed = action.schema.safeParse(params)
+    if (!parsed.success) {
+      const details = parsed.error.issues.map(issue => `${issue.path.join('.') || 'root'}: ${issue.message}`).join('; ')
+      return {
+        error: `Invalid tool parameters for ${tool}: ${details}`,
+      }
     }
+
+    return { action: { tool, params: parsed.data } }
   }
 
   private defineGlobalTool(name: string, fn: (...args: unknown[]) => unknown): void {

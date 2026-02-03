@@ -181,28 +181,72 @@ export const actionsList: Action[] = [
   },
   {
     name: 'searchForBlock',
-    description: 'Find and go to the nearest block of a given type in a given range.',
+    description: 'Find the nearest block of a given type in a given range and return its coordinates.',
     execution: 'async',
     schema: z.object({
-      type: z.string().describe('The block type to go to.'),
-      search_range: z.number().describe('The range to search for the block.').min(32).max(512),
+      type: z.string().describe('The block type to search for.'),
+      search_range: z.number().describe('The range to search for the block.').min(1).max(512),
     }),
     perform: mineflayer => async (block_type: string, range: number) => {
-      const block = await skills.goToNearestBlock(mineflayer, block_type, 4, range)
-      return `Arrived at nearest [${block.name}] at (${block.position.x}, ${block.position.y}, ${block.position.z})` // TODO more spacial context?
+      const block = world.getNearestBlock(mineflayer, block_type, range)
+      if (!block) {
+        return {
+          found: false,
+          query: { type: block_type, range },
+        }
+      }
+
+      const distance = mineflayer.bot.entity.position.distanceTo(block.position)
+      return {
+        found: true,
+        block: {
+          name: block.name,
+          position: {
+            x: block.position.x,
+            y: block.position.y,
+            z: block.position.z,
+          },
+        },
+        distance,
+      }
     },
   },
   {
     name: 'searchForEntity',
-    description: 'Find and go to the nearest entity of a given type in a given range.',
+    description: 'Find the nearest entity of a given type in a given range and return its coordinates.',
     execution: 'async',
     schema: z.object({
-      type: z.string().describe('The type of entity to go to.'),
-      search_range: z.number().describe('The range to search for the entity.').min(32).max(512),
+      type: z.string().describe('The type of entity to search for.'),
+      search_range: z.number().describe('The range to search for the entity.').min(1).max(512),
     }),
     perform: mineflayer => async (entity_type: string, range: number) => {
-      await skills.goToNearestEntity(mineflayer, entity_type, 4, range)
-      return `Arrived at nearest [${entity_type}]`
+      const entity = world.getNearestEntityWhere(
+        mineflayer,
+        current => current.name === entity_type,
+        range,
+      )
+
+      if (!entity) {
+        return {
+          found: false,
+          query: { type: entity_type, range },
+        }
+      }
+
+      const distance = mineflayer.bot.entity.position.distanceTo(entity.position)
+      return {
+        found: true,
+        entity: {
+          name: entity.name,
+          type: entity.type,
+          position: {
+            x: entity.position.x,
+            y: entity.position.y,
+            z: entity.position.z,
+          },
+        },
+        distance,
+      }
     },
   },
   // {

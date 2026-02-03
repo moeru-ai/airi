@@ -53,7 +53,7 @@ export class TaskExecutor extends EventEmitter {
     }
   }
 
-  public async executeActionWithResult(action: ActionInstruction, cancellationToken?: CancellationToken): Promise<string | void> {
+  public async executeActionWithResult(action: ActionInstruction, cancellationToken?: CancellationToken): Promise<unknown> {
     if (!this.initialized) {
       throw new Error('TaskExecutor not initialized')
     }
@@ -66,11 +66,11 @@ export class TaskExecutor extends EventEmitter {
     return this.runSingleAction(action)
   }
 
-  private async runSingleAction(action: ActionInstruction): Promise<string | void> {
+  private async runSingleAction(action: ActionInstruction): Promise<unknown> {
     this.emit('action:started', { action })
 
     try {
-      let result: string | void
+      let result: unknown
 
       if (action.tool === 'chat') {
         // Handle chat action via mineflayer directly

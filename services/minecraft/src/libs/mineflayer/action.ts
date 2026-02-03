@@ -2,7 +2,7 @@ import type { z } from 'zod'
 
 import type { Mineflayer } from './core'
 
-type ActionResult = string | Promise<string>
+type ActionResult = unknown | Promise<unknown>
 
 export interface Action {
   readonly name: string
