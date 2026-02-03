@@ -235,10 +235,13 @@ export class Brain {
 
       // Only append to conversation history after successful parsing (avoid dirty data on retry)
       this.conversationHistory.push({ role: 'user', content: userMessage })
-      const assistantContent = capturedReasoning
-        ? `[REASONING] ${capturedReasoning}\n\n${result}`
-        : result
-      this.conversationHistory.push({ role: 'assistant', content: assistantContent })
+      // Store reasoning in the assistant message's reasoning field (if available)
+      // Reasoning is transient thinking and doesn't need the [REASONING] prefix hack anymore
+      this.conversationHistory.push({
+        role: 'assistant',
+        content: result,
+        ...(capturedReasoning && { reasoning: capturedReasoning }),
+      } as Message)
 
       if (action.tool === 'skip') {
         this.deps.logger.log('INFO', 'Brain: Skipping turn (observing)')
