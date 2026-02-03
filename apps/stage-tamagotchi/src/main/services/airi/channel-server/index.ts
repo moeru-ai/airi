@@ -1,5 +1,8 @@
 import { execSync } from 'node:child_process'
+import { X509Certificate } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { isIP } from 'node:net'
+import { networkInterfaces } from 'node:os'
 import { join } from 'node:path'
 import { env, platform } from 'node:process'
 
@@ -13,6 +16,77 @@ import { electronRestartWebSocketServer, electronStartWebSocketServer } from '..
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 
 let serverInstance: { close: (closeActiveConnections?: boolean) => Promise<void> } | null = null
+
+function getLocalIPs(): string[] {
+  const interfaces = networkInterfaces()
+  const addresses: string[] = []
+
+  const isVirtualInterface = (name: string) => (
+    name.startsWith('vboxnet')
+    || name.startsWith('vmnet')
+    || name.startsWith('docker')
+    || name.startsWith('br-')
+    || name.startsWith('veth')
+    || name.startsWith('utun')
+    || name.startsWith('wg')
+    || name.startsWith('tap')
+    || name.startsWith('tun')
+  )
+
+  for (const [name, entries] of Object.entries(interfaces)) {
+    if (!entries)
+      continue
+    if (isVirtualInterface(name))
+      continue
+
+    for (const entry of entries) {
+      const rawAddress = entry.address
+      if (!rawAddress)
+        continue
+
+      const address = rawAddress.includes('%') ? rawAddress.split('%')[0] : rawAddress
+      if (isIP(address))
+        addresses.push(address)
+    }
+  }
+
+  return addresses
+}
+
+function getCertificateDomains(): string[] {
+  const localIPs = getLocalIPs()
+  const hostname = env.SERVER_RUNTIME_HOSTNAME
+  return Array.from(new Set([
+    'localhost',
+    '127.0.0.1',
+    '::1',
+    ...(hostname ? [hostname] : []),
+    ...localIPs,
+  ]))
+}
+
+function certHasAllDomains(certPem: string, domains: string[]): boolean {
+  try {
+    const cert = new X509Certificate(certPem)
+    const san = cert.subjectAltName || ''
+    const entries = san.split(',').map(part => part.trim())
+    const values = entries
+      .map((entry) => {
+        if (entry.startsWith('DNS:'))
+          return entry.slice(4).trim()
+        if (entry.startsWith('IP Address:'))
+          return entry.slice(11).trim()
+        return ''
+      })
+      .filter(Boolean)
+
+    const sanSet = new Set(values)
+    return domains.every(domain => sanSet.has(domain))
+  }
+  catch {
+    return false
+  }
+}
 
 async function installCACertificate(caCert: string) {
   const userDataPath = app.getPath('userData')
@@ -79,9 +153,11 @@ async function generateCertificate() {
     await installCACertificate(ca.cert)
   }
 
+  const domains = getCertificateDomains()
+
   const cert = await createCert({
     ca: { key: ca.key, cert: ca.cert },
-    domains: ['localhost', '127.0.0.1', env.SERVER_RUNTIME_HOSTNAME || 'localhost'],
+    domains,
     validity: 365,
   })
 
@@ -95,11 +171,13 @@ async function getOrCreateCertificate() {
   const userDataPath = app.getPath('userData')
   const certPath = join(userDataPath, 'websocket-cert.pem')
   const keyPath = join(userDataPath, 'websocket-key.pem')
+  const expectedDomains = getCertificateDomains()
 
   if (existsSync(certPath) && existsSync(keyPath)) {
-    return {
-      cert: readFileSync(certPath, 'utf-8'),
-      key: readFileSync(keyPath, 'utf-8'),
+    const cert = readFileSync(certPath, 'utf-8')
+    const key = readFileSync(keyPath, 'utf-8')
+    if (certHasAllDomains(cert, expectedDomains)) {
+      return { cert, key }
     }
   }
 
@@ -123,7 +201,7 @@ export async function setupServerChannel(options?: { websocketSecureEnabled?: bo
     const h3App = serverRuntime.setupApp()
 
     const port = env.PORT ? Number(env.PORT) : 6121
-    const hostname = env.SERVER_RUNTIME_HOSTNAME || 'localhost'
+    const hostname = env.SERVER_RUNTIME_HOSTNAME || '0.0.0.0'
 
     // FIXME: should prompt user to grant permission to save certificate files on macOS
     const tls = secureEnabled ? await getOrCreateCertificate() : undefined
@@ -167,7 +245,14 @@ export async function setupServerChannel(options?: { websocketSecureEnabled?: bo
     }
 
     const protocol = secureEnabled ? 'wss' : 'ws'
-    log.log(`@proj-airi/server-runtime started on ${protocol}://${hostname}:${port}`)
+    if (hostname === '0.0.0.0') {
+      const ips = getLocalIPs().filter(ip => ip !== '127.0.0.1' && ip !== '::1')
+      const targets = ips.length > 0 ? ips.join(', ') : 'localhost'
+      log.log(`@proj-airi/server-runtime started on ${protocol}://0.0.0.0:${port} (reachable via: ${targets})`)
+    }
+    else {
+      log.log(`@proj-airi/server-runtime started on ${protocol}://${hostname}:${port}`)
+    }
 
     onAppBeforeQuit(async () => {
       if (serverInstance && typeof serverInstance.close === 'function') {
