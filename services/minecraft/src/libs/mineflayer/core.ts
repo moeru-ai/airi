@@ -21,6 +21,10 @@ import { Ticker } from './ticker'
 export interface MineflayerOptions {
   botConfig: BotOptions
   plugins?: Array<MineflayerPlugin>
+  reconnect?: {
+    enabled?: boolean
+    maxRetries?: number
+  }
 }
 
 export class Mineflayer extends EventEmitter<EventHandlers> {
@@ -37,6 +41,9 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
 
   private respawnRequestedAt: number | null = null
   private respawnTimer: ReturnType<typeof setTimeout> | null = null
+  private reconnectAttempts: number = 0
+  private isReconnecting: boolean = false
+  private isStopping: boolean = false
 
   private options: MineflayerOptions
   private logger: Logg
@@ -170,10 +177,12 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
 
     mineflayer.bot.on('kicked', (reason: string) => {
       mineflayer.logger.withFields({ reason }).error('Bot was kicked')
+      mineflayer.tryReconnect('kicked')
     })
 
     mineflayer.bot.on('end', (reason) => {
       mineflayer.logger.withFields({ reason }).log('Bot ended')
+      mineflayer.tryReconnect(reason ?? 'end')
     })
 
     mineflayer.bot.on('error', (err: Error) => {
@@ -239,7 +248,9 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
   }
 
   public async stop() {
-    for (const plugin of this.options?.plugins || []) {
+    this.isStopping = true
+
+    for (const plugin of this.options?.plugins || []){
       if (plugin.beforeCleanup) {
         await plugin.beforeCleanup(this)
       }
@@ -248,6 +259,155 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
     this.bot.removeListener('chat', this.handleCommand())
     this.bot.quit()
     this.removeAllListeners()
+  }
+
+  private tryReconnect(reason: string) {
+    const reconnectConfig = this.options.reconnect
+    if (!reconnectConfig?.enabled || this.isStopping || this.isReconnecting) {
+      return
+    }
+
+    const maxRetries = reconnectConfig.maxRetries ?? 5
+
+    if (this.reconnectAttempts >= maxRetries) {
+      this.logger.error(`Max reconnect attempts (${maxRetries}) reached. Giving up.`)
+      return
+    }
+
+    this.reconnectAttempts++
+    this.isReconnecting = true
+
+    this.logger.withFields({
+      reason,
+      attempt: this.reconnectAttempts,
+      maxRetries,
+    }).log('Reconnecting...')
+
+    try {
+      // Clean up old bot
+      this.ready = false
+      this.bot.removeAllListeners()
+
+      // Create new bot with same config
+      this.bot = mineflayer.createBot(this.options.botConfig)
+
+      // Re-register all event handlers
+      this.setupBotEventHandlers()
+
+      // Reload plugins (sync where possible)
+      for (const plugin of this.options?.plugins || []) {
+        if (plugin.created) {
+          void plugin.created(this)
+        }
+      }
+
+      for (const plugin of this.options?.plugins || []) {
+        if (plugin.loadPlugin) {
+          void Promise.resolve(plugin.loadPlugin(this, this.bot, this.options.botConfig)).then((p) => {
+            this.bot.loadPlugin(p)
+          })
+        }
+      }
+
+      this.logger.log('Reconnect initiated, waiting for spawn...')
+    }
+    catch (err) {
+      this.logger.errorWithError('Reconnect failed', err as Error)
+      this.isReconnecting = false
+    }
+  }
+
+  private setupBotEventHandlers() {
+    this.bot.once('resourcePack', () => {
+      this.bot.acceptResourcePack()
+    })
+
+    this.bot.on('time', () => {
+      if (this.bot.time.timeOfDay === 0)
+        this.emit('time:sunrise', { time: this.bot.time.timeOfDay })
+      else if (this.bot.time.timeOfDay === 6000)
+        this.emit('time:noon', { time: this.bot.time.timeOfDay })
+      else if (this.bot.time.timeOfDay === 12000)
+        this.emit('time:sunset', { time: this.bot.time.timeOfDay })
+      else if (this.bot.time.timeOfDay === 18000)
+        this.emit('time:midnight', { time: this.bot.time.timeOfDay })
+    })
+
+    this.bot.on('health', () => {
+      if (this.bot.health < this.health.value) {
+        this.health.lastDamageTime = Date.now()
+        this.health.lastDamageTaken = this.health.value - this.bot.health
+      }
+      this.health.value = this.bot.health
+    })
+
+    this.bot.once('spawn', () => {
+      this.ready = true
+      this.reconnectAttempts = 0
+      this.isReconnecting = false
+      this.logger.log('Bot ready (reconnected)')
+    })
+
+    this.bot.on('spawn', () => {
+      this.respawnRequestedAt = null
+      if (this.respawnTimer) {
+        clearTimeout(this.respawnTimer)
+        this.respawnTimer = null
+      }
+    })
+
+    this.bot.on('death', () => {
+      this.logger.error('Bot died')
+
+      const now = Date.now()
+      if (this.respawnRequestedAt && now - this.respawnRequestedAt < 3000)
+        return
+
+      this.respawnRequestedAt = now
+      if (this.respawnTimer)
+        clearTimeout(this.respawnTimer)
+
+      this.respawnTimer = setTimeout(() => {
+        this.respawnTimer = null
+
+        if (!this.bot || !this.bot._client)
+          return
+
+        try {
+          this.bot.respawn()
+          this.logger.log('Respawn requested')
+        }
+        catch (err) {
+          this.logger.errorWithError('Failed to respawn', err as Error)
+        }
+      }, 750)
+    })
+
+    this.bot.on('kicked', (reason: string) => {
+      this.logger.withFields({ reason }).error('Bot was kicked')
+      this.tryReconnect('kicked')
+    })
+
+    this.bot.on('end', (reason) => {
+      this.logger.withFields({ reason }).log('Bot ended')
+      this.tryReconnect(reason ?? 'end')
+    })
+
+    this.bot.on('error', (err: Error) => {
+      this.logger.errorWithError('Bot error:', err)
+    })
+
+    this.bot.on('spawn', () => {
+      this.bot.on('chat', this.handleCommand())
+    })
+
+    this.bot.on('spawn', async () => {
+      for (const plugin of this.options?.plugins || []) {
+        if (plugin.spawned) {
+          await plugin.spawned(this)
+        }
+      }
+    })
   }
 
   private handleCommand() {

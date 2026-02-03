@@ -4,6 +4,9 @@
     "lib": [
       "ESNext"
     ],
+    "types": [
+      "node"
+    ],
     "moduleDetection": "auto",
     "module": "ESNext",
     "moduleResolution": "bundler",

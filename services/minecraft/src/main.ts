@@ -36,6 +36,10 @@ async function main() {
       wrapPlugin(MineflayerPVP),
       wrapPlugin(MineflayerTool),
     ],
+    reconnect: {
+      enabled: true,
+      maxRetries: 5,
+    },
   })
 
   setupMineflayerViewer(bot, { port: 3007, firstPerson: true })
