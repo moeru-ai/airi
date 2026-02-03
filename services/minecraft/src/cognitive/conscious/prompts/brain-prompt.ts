@@ -109,6 +109,7 @@ Examples:
 - Treat action results as potentially unreliable; check outcomes against \`snapshot\`/feedback before committing to the next step.
 - Prefer deterministic scripts: no random branching unless needed.
 - Keep per-turn scripts short and focused on one tactical objective.
+- If you hit repeated failures with no progress, call \`await giveUp({ reason, cooldown_seconds })\` once instead of retry-spamming.
 
 # Rules
 - **Native Reasoning**: You can think before outputting your action.

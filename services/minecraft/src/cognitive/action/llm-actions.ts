@@ -37,6 +37,16 @@ export const actionsList: Action[] = [
       return `Sent message: "${message}"`
     },
   },
+  {
+    name: 'giveUp',
+    description: 'Admit you are currently stuck and pause autonomous retries for a cooldown window.',
+    execution: 'sync',
+    schema: z.object({
+      reason: z.string().min(1).describe('Short explanation of why you are stuck.'),
+      cooldown_seconds: z.number().int().min(10).max(600).default(45).describe('How long to pause retries before re-evaluating.'),
+    }),
+    perform: () => (reason: string, cooldown_seconds: number): string => `Gave up for ${cooldown_seconds}s: ${reason}`,
+  },
   // {\n  //   name: 'setReflexMode',
   //   description: 'Set (or clear) your reflex mode override. Use work/wander to disable idle-only reflex behaviors. Set override to null to return to automatic mode selection.',
   //   execution: 'sequential',

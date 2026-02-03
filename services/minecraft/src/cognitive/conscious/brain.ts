@@ -44,6 +44,8 @@ export class Brain {
   private queue: QueuedEvent[] = []
   private isProcessing = false
   private currentCancellationToken: CancellationToken | undefined
+  private giveUpUntil = 0
+  private giveUpReason: string | undefined
   private lastContextView: string | undefined
   private conversationHistory: Message[] = []
 
@@ -67,6 +69,13 @@ export class Brain {
     // Action Feedback Handler
     this.deps.taskExecutor.on('action:completed', async ({ action, result }) => {
       this.deps.logger.log('INFO', `Brain: Action completed: ${action.tool}`)
+
+      if (action.tool === 'giveUp') {
+        const secondsRaw = Number(action.params?.cooldown_seconds ?? 45)
+        const cooldownSeconds = Number.isFinite(secondsRaw) ? Math.min(600, Math.max(10, Math.floor(secondsRaw))) : 45
+        this.giveUpUntil = Date.now() + cooldownSeconds * 1000
+        this.giveUpReason = typeof action.params?.reason === 'string' ? action.params.reason : undefined
+      }
 
       this.enqueueEvent(bot, {
         type: 'feedback',
@@ -139,6 +148,10 @@ export class Brain {
   // --- Cognitive Cycle ---
 
   private async processEvent(bot: MineflayerWithAgents, event: BotEvent): Promise<void> {
+    this.resumeFromGiveUpIfNeeded(event)
+    if (this.shouldSuppressDuringGiveUp(event))
+      return
+
     // 0. Build Context View
     const snapshot = this.deps.reflexManager.getContextSnapshot()
     const view = buildConsciousContextView(snapshot)
@@ -314,8 +327,39 @@ export class Brain {
       // Note: We don't update this.lastContextView here; caller does it after building message
     }
 
+    if (this.giveUpUntil > Date.now()) {
+      const remainingSec = Math.max(0, Math.ceil((this.giveUpUntil - Date.now()) / 1000))
+      parts.push(`[STATE] giveUp active (${remainingSec}s left). reason=${this.giveUpReason ?? 'unknown'}`)
+    }
+
     parts.push('[RUNTIME] Globals are refreshed every turn: snapshot, self, environment, social, threat, attention, event, now, mem, lastRun, lastAction.')
 
     return parts.join('\n\n')
+  }
+
+  private shouldSuppressDuringGiveUp(event: BotEvent): boolean {
+    if (Date.now() >= this.giveUpUntil)
+      return false
+
+    if (event.type !== 'perception')
+      return true
+
+    const signal = event.payload as PerceptionSignal
+    return signal.type !== 'chat_message'
+  }
+
+  private resumeFromGiveUpIfNeeded(event: BotEvent): void {
+    if (Date.now() >= this.giveUpUntil)
+      return
+
+    if (event.type !== 'perception')
+      return
+
+    const signal = event.payload as PerceptionSignal
+    if (signal.type !== 'chat_message')
+      return
+
+    this.giveUpUntil = 0
+    this.giveUpReason = undefined
   }
 }
