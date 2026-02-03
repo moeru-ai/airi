@@ -21,17 +21,19 @@ function getLocalIPs(): string[] {
   const interfaces = networkInterfaces()
   const addresses: string[] = []
 
-  const isVirtualInterface = (name: string) => (
-    name.startsWith('vboxnet')
-    || name.startsWith('vmnet')
-    || name.startsWith('docker')
-    || name.startsWith('br-')
-    || name.startsWith('veth')
-    || name.startsWith('utun')
-    || name.startsWith('wg')
-    || name.startsWith('tap')
-    || name.startsWith('tun')
-  )
+  const VIRTUAL_INTERFACE_PREFIXES = [
+    'vboxnet',
+    'vmnet',
+    'docker',
+    'br-',
+    'veth',
+    'utun',
+    'wg',
+    'tap',
+    'tun',
+  ]
+  const isVirtualInterface = (name: string) =>
+    VIRTUAL_INTERFACE_PREFIXES.some(prefix => name.startsWith(prefix))
 
   for (const [name, entries] of Object.entries(interfaces)) {
     if (!entries)
