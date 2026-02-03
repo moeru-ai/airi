@@ -24,6 +24,14 @@ function formatWearingItem(slot: string, item: string | undefined): string {
   return item ? `\n${slot}: ${item}` : ''
 }
 
+function toCoord(pos: { x: number, y: number, z: number }) {
+  return { x: pos.x, y: pos.y, z: pos.z }
+}
+
+function cloneVec3(pos: { x: number, y: number, z: number }): Vec3 {
+  return new Vec3(pos.x, pos.y, pos.z)
+}
+
 export const actionsList: Action[] = [
   {
     name: 'chat',
@@ -147,9 +155,31 @@ export const actionsList: Action[] = [
       closeness: z.number().describe('How close to get to the player in blocks.').min(0),
     }),
     perform: mineflayer => async (player_name: string, closeness: number) => {
+      const getPlayerPos = () => {
+        const entity = mineflayer.bot.players[player_name]?.entity
+        return entity ? cloneVec3(entity.position) : null
+      }
+
+      const selfStart = cloneVec3(mineflayer.bot.entity.position)
+      const targetStart = getPlayerPos()
+      const distanceToTargetBefore = targetStart ? selfStart.distanceTo(targetStart) : null
+
       // TODO estimate time cost based on distance, trigger failure if time runs out
-      await skills.goToPlayer(mineflayer, player_name, closeness)
-      return `Arrived at player [${player_name}]`
+      const ok = await skills.goToPlayer(mineflayer, player_name, closeness)
+
+      const selfEnd = cloneVec3(mineflayer.bot.entity.position)
+      const targetEnd = getPlayerPos()
+      const distanceToTargetAfter = targetEnd ? selfEnd.distanceTo(targetEnd) : null
+
+      return {
+        ok,
+        target: { player_name, closeness },
+        startPos: toCoord(selfStart),
+        endPos: toCoord(selfEnd),
+        movedDistance: selfStart.distanceTo(selfEnd),
+        distanceToTargetBefore,
+        distanceToTargetAfter,
+      }
     },
   },
   {
@@ -197,8 +227,25 @@ export const actionsList: Action[] = [
       closeness: z.number().describe('0 If want to be exactly at the position, otherwise a positive number in blocks for leniency.').min(0),
     }),
     perform: mineflayer => async (x: number, y: number, z: number, closeness: number) => {
-      await skills.goToPosition(mineflayer, x, y, z, closeness)
-      return `Arrived at coordinate [${x}, ${y}, ${z}]`
+      const selfStart = cloneVec3(mineflayer.bot.entity.position)
+      const targetVec = new Vec3(x, y, z)
+      const distanceToTargetBefore = selfStart.distanceTo(targetVec)
+
+      const ok = await skills.goToPosition(mineflayer, x, y, z, closeness)
+
+      const selfEnd = cloneVec3(mineflayer.bot.entity.position)
+      const distanceToTargetAfter = selfEnd.distanceTo(targetVec)
+
+      return {
+        ok,
+        target: { x, y, z, closeness },
+        startPos: toCoord(selfStart),
+        endPos: toCoord(selfEnd),
+        movedDistance: selfStart.distanceTo(selfEnd),
+        distanceToTargetBefore,
+        distanceToTargetAfter,
+        withinCloseness: distanceToTargetAfter <= closeness,
+      }
     },
   },
   {

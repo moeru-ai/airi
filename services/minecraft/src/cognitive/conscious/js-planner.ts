@@ -35,6 +35,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+function isCoord(value: unknown): value is { x: number, y: number, z: number } {
+  return isRecord(value)
+    && typeof value.x === 'number'
+    && typeof value.y === 'number'
+    && typeof value.z === 'number'
+}
+
 function deepFreeze<T>(value: T): T {
   if (!value || typeof value !== 'object')
     return value
@@ -114,6 +121,10 @@ export class JavaScriptPlanner {
         ? undefined
         : inspect(result, { depth: 2, breakLength: 100 })
 
+      if (isRecord(this.sandbox.lastRun)) {
+        this.sandbox.lastRun.returnValue = returnValue
+      }
+
       return {
         actions: run.executed,
         logs: run.logs,
@@ -143,7 +154,91 @@ export class JavaScriptPlanner {
       this.activeRun.logs.push(rendered)
       return rendered
     })
+    this.defineGlobalTool('expect', (condition: unknown, message?: unknown) => {
+      if (condition)
+        return true
+
+      const detail = typeof message === 'string' && message.trim().length > 0
+        ? message
+        : 'Condition evaluated to false'
+      throw new Error(`Expectation failed: ${detail}`)
+    })
+    this.defineGlobalTool('expectMoved', (minBlocks?: unknown, message?: unknown) => {
+      const threshold = typeof minBlocks === 'number' ? minBlocks : 0.5
+      const telemetry = this.getLastActionResultRecord()
+      const movedDistance = typeof telemetry?.movedDistance === 'number'
+        ? telemetry.movedDistance
+        : null
+
+      if (movedDistance === null) {
+        throw new Error('Expectation failed: expectMoved() requires last action result with movedDistance telemetry')
+      }
+
+      if (movedDistance >= threshold)
+        return true
+
+      const detail = typeof message === 'string' && message.trim().length > 0
+        ? message
+        : `Expected movedDistance >= ${threshold}, got ${movedDistance}`
+      throw new Error(`Expectation failed: ${detail}`)
+    })
+    this.defineGlobalTool('expectNear', (targetOrMaxDist?: unknown, maxDistOrMessage?: unknown, maybeMessage?: unknown) => {
+      const telemetry = this.getLastActionResultRecord()
+
+      let target: { x: number, y: number, z: number } | null = null
+      let maxDist = 2
+      let message: string | undefined
+
+      if (isCoord(targetOrMaxDist)) {
+        target = { x: targetOrMaxDist.x, y: targetOrMaxDist.y, z: targetOrMaxDist.z }
+        if (typeof maxDistOrMessage === 'number')
+          maxDist = maxDistOrMessage
+        if (typeof maybeMessage === 'string')
+          message = maybeMessage
+      }
+      else {
+        if (typeof targetOrMaxDist === 'number')
+          maxDist = targetOrMaxDist
+        if (typeof maxDistOrMessage === 'string')
+          message = maxDistOrMessage
+      }
+
+      let distance: number | null = null
+      if (target) {
+        const endPos = isCoord(telemetry?.endPos) ? telemetry.endPos : null
+        if (!endPos) {
+          throw new Error('Expectation failed: expectNear(target) requires last action result with endPos telemetry')
+        }
+
+        const dx = endPos.x - target.x
+        const dy = endPos.y - target.y
+        const dz = endPos.z - target.z
+        distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+      }
+      else if (typeof telemetry?.distanceToTargetAfter === 'number') {
+        distance = telemetry.distanceToTargetAfter
+      }
+
+      if (distance === null) {
+        throw new Error('Expectation failed: expectNear() requires target argument or last action distanceToTargetAfter telemetry')
+      }
+
+      if (distance <= maxDist)
+        return true
+
+      const detail = message ?? `Expected distance <= ${maxDist}, got ${distance}`
+      throw new Error(`Expectation failed: ${detail}`)
+    })
     this.defineGlobalValue('mem', {})
+  }
+
+  private getLastActionResultRecord(): Record<string, unknown> | null {
+    const lastAction = this.sandbox.lastAction
+    if (!isRecord(lastAction))
+      return null
+
+    const result = lastAction.result
+    return isRecord(result) ? result : null
   }
 
   private installActionTools(availableActions: Action[]): void {

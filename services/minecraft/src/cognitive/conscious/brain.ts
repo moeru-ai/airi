@@ -36,6 +36,19 @@ interface QueuedEvent {
   reject: (err: Error) => void
 }
 
+interface PlannerOutcomeSummary {
+  actionCount: number
+  okCount: number
+  errorCount: number
+  returnValue?: string
+  logs: string[]
+  updatedAt: number
+}
+
+function truncateForPrompt(value: string, maxLength = 220): string {
+  return value.length <= maxLength ? value : `${value.slice(0, maxLength - 1)}...`
+}
+
 export class Brain {
   private debugService: DebugService
   private readonly planner = new JavaScriptPlanner()
@@ -49,6 +62,7 @@ export class Brain {
   private lastHumanChatAt = 0
   private botUsername = ''
   private lastContextView: string | undefined
+  private lastPlannerOutcome: PlannerOutcomeSummary | undefined
   private conversationHistory: Message[] = []
 
   constructor(private readonly deps: BrainDeps) {
@@ -285,6 +299,15 @@ export class Brain {
         },
       )
 
+      this.lastPlannerOutcome = {
+        actionCount: runResult.actions.length,
+        okCount: runResult.actions.filter(item => item.ok).length,
+        errorCount: runResult.actions.filter(item => !item.ok).length,
+        returnValue: runResult.returnValue,
+        logs: runResult.logs.slice(-3),
+        updatedAt: Date.now(),
+      }
+
       if (runResult.actions.length === 0 || runResult.actions.every(item => item.action.tool === 'skip')) {
         this.deps.logger.log('INFO', 'Brain: Skipping turn (observing)')
         return
@@ -347,7 +370,16 @@ export class Brain {
       parts.push(`[STATE] giveUp active (${remainingSec}s left). reason=${this.giveUpReason ?? 'unknown'}`)
     }
 
-    parts.push('[RUNTIME] Globals are refreshed every turn: snapshot, self, environment, social, threat, attention, autonomy, event, now, mem, lastRun, lastAction. Player gaze is available in environment.nearbyPlayersGaze when needed.')
+    if (this.lastPlannerOutcome) {
+      const ageMs = Date.now() - this.lastPlannerOutcome.updatedAt
+      const returnValue = truncateForPrompt(this.lastPlannerOutcome.returnValue ?? 'undefined')
+      const logs = this.lastPlannerOutcome.logs.length > 0
+        ? this.lastPlannerOutcome.logs.map((line, index) => `#${index + 1} ${truncateForPrompt(line, 120)}`).join(' | ')
+        : '(none)'
+      parts.push(`[SCRIPT] Last eval ${ageMs}ms ago: return=${returnValue}; actions=${this.lastPlannerOutcome.actionCount} (ok=${this.lastPlannerOutcome.okCount}, err=${this.lastPlannerOutcome.errorCount}); logs=${logs}`)
+    }
+
+    parts.push('[RUNTIME] Globals are refreshed every turn: snapshot, self, environment, social, threat, attention, autonomy, event, now, mem, lastRun, prevRun, lastAction. Player gaze is available in environment.nearbyPlayersGaze when needed.')
 
     return parts.join('\n\n')
   }

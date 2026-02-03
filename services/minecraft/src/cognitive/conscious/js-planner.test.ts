@@ -112,4 +112,38 @@ describe('JavaScriptPlanner', () => {
 
     await expect(planner.evaluate('while (true) {}', actions, globals, executeAction)).rejects.toThrow(/Script execution timed out/i)
   })
+
+  it('supports expectation guardrails on structured action telemetry', async () => {
+    const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async () => ({
+      ok: true,
+      movedDistance: 1.25,
+      distanceToTargetAfter: 1.5,
+      endPos: { x: 8, y: 64, z: 4 },
+    }))
+
+    const planned = await planner.evaluate(`
+      const nav = await goToPlayer({ player_name: "Alex", closeness: 2 })
+      expect(nav.ok, "go failed")
+      expectMoved(1)
+      expectNear(2)
+      expectNear({ x: 7, y: 64, z: 4 }, 2)
+    `, actions, globals, executeAction)
+
+    expect(planned.actions).toHaveLength(1)
+    expect(planned.actions[0]?.ok).toBe(true)
+  })
+
+  it('throws when expectation guardrail fails', async () => {
+    const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async () => ({
+      ok: true,
+      movedDistance: 0.1,
+    }))
+
+    await expect(planner.evaluate(`
+      await goToPlayer({ player_name: "Alex", closeness: 2 })
+      expectMoved(1, "did not move enough")
+    `, actions, globals, executeAction)).rejects.toThrow(/Expectation failed: did not move enough/i)
+  })
 })
