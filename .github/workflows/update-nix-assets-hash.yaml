@@ -41,3 +41,4 @@ jobs:
         with:
           commit_message: 'chore(nix): update assets hash'
           commit_author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
+          pull: '--rebase --autostash'
