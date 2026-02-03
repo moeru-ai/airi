@@ -46,6 +46,8 @@ export class Brain {
   private currentCancellationToken: CancellationToken | undefined
   private giveUpUntil = 0
   private giveUpReason: string | undefined
+  private lastHumanChatAt = 0
+  private botUsername = ''
   private lastContextView: string | undefined
   private conversationHistory: Message[] = []
 
@@ -55,6 +57,7 @@ export class Brain {
 
   public init(bot: MineflayerWithAgents): void {
     this.deps.logger.log('INFO', 'Brain: Initializing stateful core...')
+    this.botUsername = bot.bot.username
 
     // Perception Handler
     this.deps.eventBus.subscribe<PerceptionSignal>('conscious:signal:*', (event: TracedEvent<PerceptionSignal>) => {
@@ -69,6 +72,10 @@ export class Brain {
     // Action Feedback Handler
     this.deps.taskExecutor.on('action:completed', async ({ action, result }) => {
       this.deps.logger.log('INFO', `Brain: Action completed: ${action.tool}`)
+
+      if (action.tool === 'chat' && action.params?.feedback !== true) {
+        return
+      }
 
       if (action.tool === 'giveUp') {
         const secondsRaw = Number(action.params?.cooldown_seconds ?? 45)
@@ -148,6 +155,7 @@ export class Brain {
   // --- Cognitive Cycle ---
 
   private async processEvent(bot: MineflayerWithAgents, event: BotEvent): Promise<void> {
+    this.updateHumanChatTimestamp(event)
     this.resumeFromGiveUpIfNeeded(event)
     if (this.shouldSuppressDuringGiveUp(event))
       return
@@ -254,6 +262,10 @@ export class Brain {
         this.deps.taskExecutor.getAvailableActions(),
         { event, snapshot: snapshot as unknown as Record<string, unknown> },
         async (action: ActionInstruction) => {
+          if (action.tool === 'chat' && !this.shouldAllowChatForEvent(event, snapshot.self.health)) {
+            return 'Chat suppressed: no direct user prompt for chat this turn'
+          }
+
           const actionDef = actionDefs.get(action.tool)
           const isPhysicalAction = action.tool !== 'skip' && !actionDef?.readonly
 
@@ -361,5 +373,36 @@ export class Brain {
 
     this.giveUpUntil = 0
     this.giveUpReason = undefined
+  }
+
+  private shouldAllowChatForEvent(event: BotEvent, health: number): boolean {
+    if (health <= 8)
+      return true
+
+    if (event.type !== 'perception')
+      return Date.now() - this.lastHumanChatAt <= 45000 && event.type === 'feedback'
+
+    const signal = event.payload as PerceptionSignal
+    if (signal.type === 'chat_message') {
+      const speaker = typeof (signal.metadata as any)?.username === 'string'
+        ? String((signal.metadata as any).username)
+        : signal.sourceId
+      if (speaker === this.botUsername)
+        return false
+      return true
+    }
+
+    return false
+  }
+
+  private updateHumanChatTimestamp(event: BotEvent): void {
+    if (event.type !== 'perception')
+      return
+
+    const signal = event.payload as PerceptionSignal
+    if (signal.type !== 'chat_message')
+      return
+
+    this.lastHumanChatAt = Date.now()
   }
 }

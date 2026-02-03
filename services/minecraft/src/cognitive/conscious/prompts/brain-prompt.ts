@@ -143,5 +143,9 @@ Examples:
 - **Handling Feedback**: When you perform an action, you will see a \`[FEEDBACK]\` message in the history later with the result. Use this to verify success.
 - **Tool Choice**: If a dedicated tool exists for a task, use it.
 - **Skip Rule**: If you call \`skip()\`, do not call any other tool in the same turn.
+- **Chat Discipline**: Do not send proactive small-talk. Use \`chat\` only when replying to a player chat, reporting meaningful task progress/failure, or urgent safety status.
+- **No Harness Replies**: Never treat \`[PERCEPTION]\`, \`[FEEDBACK]\`, or other system wrappers as players. Only reply with \`chat\` to actual player \`chat_message\` events.
+- **No Self Replies**: Never reply to your own previous bot messages.
+- **Chat Feedback**: \`chat\` feedback is optional; keep \`feedback: false\` for normal conversation. Use \`feedback: true\` only when your next step explicitly needs the chat acknowledgement in history.
 `
 }

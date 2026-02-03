@@ -31,6 +31,7 @@ export const actionsList: Action[] = [
     execution: 'sync',
     schema: z.object({
       message: z.string().describe('The message to send in chat.'),
+      feedback: z.boolean().default(false).describe('Whether to emit FEEDBACK for this chat action. Keep false for normal conversation to avoid feedback loops.'),
     }),
     perform: mineflayer => (message: string): string => {
       mineflayer.bot.chat(message)
