@@ -119,6 +119,7 @@ pages:
         scenario: You recently woke up and forgot everything about your previous life.
         systemprompt: You will receive messages, answer to them like a real human.
         posthistoryinstructions: Remember to imitate an human.
+      modules_info: Configure modules for this character card. If not set, default module configuration will be used.
       fields_info:
         subtitle: >-
           You can put here some details about the character you are creating,
@@ -139,6 +140,8 @@ pages:
         version: >-
           Card version, you should increase this if you are making changes from
           a previous card.
+        consciousness_model: Select the consciousness model (AI model) for this character.
+        speech_model: Select the speech synthesis model and voice for this character.
       errors:
         name: Name should be valid or non-empty.
         version: 'Error: Invalid version number !'
@@ -148,6 +151,7 @@ pages:
         systemprompt: 'Error: Please, provide a system prompt.'
         posthistoryinstructions: 'Error: Post history prompt is required.'
     modules: Modules
+
     name_asc: Name (A-Z)
     name_desc: Name (Z-A)
     no_cards: No cards yet. Click the button above to upload one!

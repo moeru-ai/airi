@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import type { Card } from '@proj-airi/ccc'
+import type { AiriExtension } from '@proj-airi/stage-ui/stores/modules/airi-card'
 
 import kebabcase from '@stdlib/string-base-kebabcase'
 
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
+import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { Button, FieldInput, FieldValues } from '@proj-airi/ui'
+import { Select } from '@proj-airi/ui/components/form'
+import { storeToRefs } from 'pinia'
 import {
   DialogContent,
   DialogOverlay,
@@ -29,9 +35,67 @@ const modelValue = defineModel<boolean>()
 
 const { t } = useI18n()
 const cardStore = useAiriCardStore()
+const consciousnessStore = useConsciousnessStore()
+const speechStore = useSpeechStore()
+const providersStore = useProvidersStore()
+
+const { activeProvider: consciousnessProvider, activeModel: defaultConsciousnessModel } = storeToRefs(consciousnessStore)
+const { activeSpeechProvider: speechProvider, activeSpeechModel: defaultSpeechModel, activeSpeechVoiceId: defaultSpeechVoiceId } = storeToRefs(speechStore)
 
 // Determine if we're in edit mode
 const isEditMode = computed(() => !!props.cardId)
+
+// Modules configuration
+const selectedConsciousnessModel = ref<string>('')
+const selectedSpeechModel = ref<string>('')
+const selectedSpeechVoiceId = ref<string>('')
+
+// Computed: available consciousness models options
+const consciousnessModelOptions = computed(() => {
+  if (!consciousnessProvider.value)
+    return []
+  const models = providersStore.getModelsForProvider(consciousnessProvider.value)
+  return models.map(model => ({
+    value: model.id,
+    label: model.name || model.id,
+  }))
+})
+
+// Computed: available speech models options
+const speechModelOptions = computed(() => {
+  if (!speechProvider.value)
+    return []
+  const models = providersStore.getModelsForProvider(speechProvider.value)
+  return models.map(model => ({
+    value: model.id,
+    label: model.name || model.id,
+  }))
+})
+
+// Computed: available speech voices options
+const speechVoiceOptions = computed(() => {
+  if (!speechProvider.value)
+    return []
+  const voices = speechStore.getVoicesForProvider(speechProvider.value)
+  return voices.map(voice => ({
+    value: voice.id,
+    label: voice.name || voice.id,
+  }))
+})
+
+// Load models for current providers on init
+watch(() => [consciousnessProvider.value, speechProvider.value], async ([consProvider, spProvider]) => {
+  if (consProvider) {
+    await consciousnessStore.loadModelsForProvider(consProvider)
+  }
+  if (spProvider) {
+    await speechStore.loadVoicesForProvider(spProvider)
+    const metadata = providersStore.getProviderMetadata(spProvider)
+    if (metadata?.capabilities.listModels) {
+      await providersStore.fetchModelsForProvider(spProvider)
+    }
+  }
+}, { immediate: true })
 
 // Tab type definition
 interface Tab {
@@ -47,6 +111,7 @@ const activeTabId = ref('')
 const tabs: Tab[] = [
   { id: 'identity', label: t('settings.pages.card.creation.identity'), icon: 'i-solar:emoji-funny-square-bold-duotone' },
   { id: 'behavior', label: t('settings.pages.card.creation.behavior'), icon: 'i-solar:chat-round-line-bold-duotone' },
+  { id: 'modules', label: t('settings.pages.card.modules'), icon: 'i-solar:widget-4-bold-duotone' },
   { id: 'settings', label: t('settings.pages.card.creation.settings'), icon: 'i-solar:settings-bold-duotone' },
 ]
 
@@ -116,13 +181,33 @@ function saveCard(card: Card): boolean {
   }
   showError.value = false
 
+  // Build card with modules extension
+  const cardWithModules = {
+    ...rawCard,
+    extensions: {
+      ...rawCard.extensions,
+      airi: {
+        modules: {
+          consciousness: {
+            model: selectedConsciousnessModel.value || defaultConsciousnessModel.value,
+          },
+          speech: {
+            model: selectedSpeechModel.value || defaultSpeechModel.value,
+            voice_id: selectedSpeechVoiceId.value || defaultSpeechVoiceId.value,
+          },
+        },
+        agents: {},
+      } as AiriExtension,
+    },
+  }
+
   if (isEditMode.value && props.cardId) {
     // Edit mode: update existing card
-    cardStore.updateCard(props.cardId, rawCard)
+    cardStore.updateCard(props.cardId, cardWithModules)
   }
   else {
     // Create mode: add new card
-    cardStore.addCard(rawCard)
+    cardStore.addCard(cardWithModules)
   }
 
   modelValue.value = false // Close this
@@ -136,11 +221,22 @@ function initializeCard(): Card {
   if (isEditMode.value && props.cardId) {
     const existingCard = cardStore.getCard(props.cardId)
     if (existingCard) {
+      // Initialize modules from existing card
+      const airiExt = existingCard.extensions?.airi as AiriExtension | undefined
+      if (airiExt?.modules) {
+        selectedConsciousnessModel.value = airiExt.modules.consciousness?.model || defaultConsciousnessModel.value
+        selectedSpeechModel.value = airiExt.modules.speech?.model || defaultSpeechModel.value
+        selectedSpeechVoiceId.value = airiExt.modules.speech?.voice_id || defaultSpeechVoiceId.value
+      }
       return { ...toRaw(existingCard) }
     }
   }
 
   // Default values for create mode
+  selectedConsciousnessModel.value = defaultConsciousnessModel.value
+  selectedSpeechModel.value = defaultSpeechModel.value
+  selectedSpeechVoiceId.value = defaultSpeechVoiceId.value
+
   return {
     name: t('settings.pages.card.creation.defaults.name'),
     nickname: undefined,
@@ -265,6 +361,59 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
               <FieldInput v-model="cardPersonality" :label="t('settings.pages.card.personality')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.personality')" />
               <FieldInput v-model="cardScenario" :label="t('settings.pages.card.scenario')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.scenario')" />
               <FieldValues v-model="cardGreetings" :label="t('settings.pages.card.creation.greetings')" :description="t('settings.pages.card.creation.fields_info.greetings')" />
+            </div>
+          </div>
+          <!-- Modules -->
+          <div v-else-if="activeTab === 'modules'" class="tab-content ml-auto mr-auto w-95%">
+            <p class="mb-3">
+              {{ t('settings.pages.card.creation.modules_info') }}
+            </p>
+
+            <div :class="['grid', 'grid-cols-1', 'sm:grid-cols-3', 'gap-4', 'ml-auto', 'mr-auto', 'w-90%']">
+              <!-- Consciousness Model -->
+              <div :class="['flex', 'flex-col', 'gap-2']">
+                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
+                  <div i-lucide:ghost />
+                  {{ t('settings.pages.card.consciousness.model') }}
+                </label>
+                <Select
+                  v-model="selectedConsciousnessModel"
+                  :options="consciousnessModelOptions"
+                  :placeholder="defaultConsciousnessModel"
+                  :disabled="!consciousnessProvider || consciousnessModelOptions.length === 0"
+                  class="w-full"
+                />
+              </div>
+
+              <!-- Speech Model -->
+              <div :class="['flex', 'flex-col', 'gap-2']">
+                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
+                  <div i-lucide:mic />
+                  {{ t('settings.pages.card.speech.model') }}
+                </label>
+                <Select
+                  v-model="selectedSpeechModel"
+                  :options="speechModelOptions"
+                  :placeholder="defaultSpeechModel"
+                  :disabled="!speechProvider || speechModelOptions.length === 0"
+                  class="w-full"
+                />
+              </div>
+
+              <!-- Speech Voice -->
+              <div :class="['flex', 'flex-col', 'gap-2']">
+                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
+                  <div i-lucide:music />
+                  {{ t('settings.pages.card.speech.voice') }}
+                </label>
+                <Select
+                  v-model="selectedSpeechVoiceId"
+                  :options="speechVoiceOptions"
+                  :placeholder="defaultSpeechVoiceId"
+                  :disabled="!speechProvider || speechVoiceOptions.length === 0"
+                  class="w-full"
+                />
+              </div>
             </div>
           </div>
           <!-- Settings -->
