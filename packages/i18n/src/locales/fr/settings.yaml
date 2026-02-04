@@ -294,7 +294,7 @@ pages:
             search_results: '{count} modèles trouvés sur {total}'
             show_less: Afficher moins
             show_more: Afficher plus
-            subtitle: Sélectionnez un modèle du fournisseur
+            subtitle: Sélectionner un modèle par défaut du fournisseur
             title: Modèle
       title: Conscience
     description: Synthèse, vision, parole, jeux, etc.

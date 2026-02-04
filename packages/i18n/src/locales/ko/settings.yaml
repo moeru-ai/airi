@@ -294,7 +294,7 @@ pages:
             search_results: Found {count} of {total} models
             show_less: Show less
             show_more: Show more
-            subtitle: Select a model from the provider
+            subtitle: 제공업체에서 기본 모델 선택
             title: Model
       title: Consciousness
     description: Thinking, vision, speech synthesis, gaming, etc.

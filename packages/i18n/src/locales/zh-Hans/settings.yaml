@@ -297,7 +297,7 @@ pages:
             search_results: 找到 {count} / {total} 个模型
             show_less: 显示更多
             show_more: 收起
-            subtitle: 选择一个模型
+            subtitle: 选择一个默认模型
             title: 模型
       title: 意识
     description: 思维，视觉，言语综合，游戏等

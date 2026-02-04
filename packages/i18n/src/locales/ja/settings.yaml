@@ -294,7 +294,7 @@ pages:
             search_results: 結果{total}個中{count}個のモデルが見つかりました
             show_less: 表示を減らす
             show_more: もっと表示
-            subtitle: プロバイダーからモデルを選択
+            subtitle: プロバイダーからデフォルトモデルを選択
             title: モデル
       title: 意識
     description: 思考、視覚、音声合成、ゲームなど。

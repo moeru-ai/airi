@@ -294,7 +294,7 @@ pages:
             search_results: Tìm thấy {count}/{total} mô hình
             show_less: Ẩn bớt
             show_more: Hiện thêm
-            subtitle: Chọn mô hình từ nhà cung cấp
+            subtitle: Chọn mô hình mặc định từ nhà cung cấp
             title: Mô hình
       title: Ý thức
     description: Tư duy, thị giác, tổng hợp giọng nói, chơi game, v.v.

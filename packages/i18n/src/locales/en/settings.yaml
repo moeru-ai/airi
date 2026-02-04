@@ -309,7 +309,7 @@ pages:
             search_results: Found {count} of {total} models
             show_less: Show less
             show_more: Show more
-            subtitle: Select a model from the provider
+            subtitle: Select a default model from the provider
             title: Model
       title: Consciousness
     description: Thinking, vision, speech synthesis, gaming, etc.
