@@ -7,22 +7,12 @@ import { collectBlock } from '../../skills/actions/collect-block'
 import { discard, equip, putInChest, takeFromChest } from '../../skills/actions/inventory'
 import { activateNearestBlock, breakBlockAt, placeBlock } from '../../skills/actions/world-interactions'
 import { ActionError } from '../../utils/errors'
-import { useLogger } from '../../utils/logger'
 import { describeRecipePlan, planRecipe } from '../../utils/recipe-planner'
 
 import * as skills from '../../skills'
-import * as world from '../../skills/world'
 
 // Utils
 const pad = (str: string): string => `\n${str}\n`
-
-function formatInventoryItem(item: string, count: number): string {
-  return count > 0 ? `\n- ${item}: ${count}` : ''
-}
-
-function formatWearingItem(slot: string, item: string | undefined): string {
-  return item ? `\n${slot}: ${item}` : ''
-}
 
 function toCoord(pos: { x: number, y: number, z: number }) {
   return { x: pos.x, y: pos.y, z: pos.z }
@@ -73,68 +63,6 @@ export const actionsList: Action[] = [
   //       : 'Reflex mode override cleared (automatic mode selection resumed).'
   //   },
   // },
-  {
-    name: 'inventory',
-    description: 'Get your inventory.',
-    execution: 'sync',
-    schema: z.object({}),
-    perform: mineflayer => (): string => {
-      const inventory = world.getInventoryCounts(mineflayer)
-      const items = Object.entries(inventory)
-        .map(([item, count]) => formatInventoryItem(item, count))
-        .join('')
-
-      const wearing = [
-        formatWearingItem('Head', mineflayer.bot.inventory.slots[5]?.name),
-        formatWearingItem('Torso', mineflayer.bot.inventory.slots[6]?.name),
-        formatWearingItem('Legs', mineflayer.bot.inventory.slots[7]?.name),
-        formatWearingItem('Feet', mineflayer.bot.inventory.slots[8]?.name),
-      ].filter(Boolean).join('')
-
-      return pad(`INVENTORY${items || ': Nothing'}
-  ${mineflayer.bot.game.gameMode === 'creative' ? '\n(You have infinite items in creative mode. You do not need to gather resources!!)' : ''}
-  WEARING: ${wearing || 'Nothing'}`)
-    },
-  },
-  {
-    name: 'nearbyBlocks',
-    description: 'Get the blocks near you.',
-    execution: 'sync',
-    schema: z.object({}),
-    perform: mineflayer => (): string => {
-      const blocks = world.getNearbyBlockTypes(mineflayer)
-      useLogger().withFields({ blocks }).log('nearbyBlocks')
-      return pad(`NEARBY_BLOCKS${blocks.map((b: string) => `\n- ${b}`).join('') || ': none'}`)
-    },
-  },
-  {
-    name: 'craftable',
-    description: 'Get the craftable items with your inventory.',
-    execution: 'sync',
-    schema: z.object({}),
-    perform: mineflayer => (): string => {
-      const craftable = world.getCraftableItems(mineflayer)
-      return pad(`CRAFTABLE_ITEMS${craftable.map((i: string) => `\n- ${i}`).join('') || ': none'}`)
-    },
-  },
-  {
-    name: 'entities',
-    description: 'Get the nearby players and entities.',
-    execution: 'sync',
-    schema: z.object({}),
-    perform: mineflayer => (): string => {
-      const players = world.getNearbyPlayerNames(mineflayer)
-      const entities = world.getNearbyEntityTypes(mineflayer)
-        .filter((e: string) => e !== 'player' && e !== 'item')
-
-      const result = [
-        ...players.map((p: string) => `- Human player: ${p}`),
-        ...entities.map((e: string) => `- entities: ${e}`),
-      ]
-
-      return pad(`NEARBY_ENTITIES${result.length ? `\n${result.join('\n')}` : ': none'}`)
-    },
-  },
   {
     name: 'stop',
     description: 'Force stop all actions', // TODO: include name of the current action in description?
@@ -245,76 +173,6 @@ export const actionsList: Action[] = [
         distanceToTargetBefore,
         distanceToTargetAfter,
         withinCloseness: distanceToTargetAfter <= closeness,
-      }
-    },
-  },
-  {
-    name: 'searchForBlock',
-    description: 'Find the nearest block of a given type in a given range and return its coordinates.',
-    execution: 'async',
-    schema: z.object({
-      type: z.string().describe('The block type to search for.'),
-      search_range: z.number().describe('The range to search for the block.').min(1).max(512),
-    }),
-    perform: mineflayer => async (block_type: string, range: number) => {
-      const block = world.getNearestBlock(mineflayer, block_type, range)
-      if (!block) {
-        return {
-          found: false,
-          query: { type: block_type, range },
-        }
-      }
-
-      const distance = mineflayer.bot.entity.position.distanceTo(block.position)
-      return {
-        found: true,
-        block: {
-          name: block.name,
-          position: {
-            x: block.position.x,
-            y: block.position.y,
-            z: block.position.z,
-          },
-        },
-        distance,
-      }
-    },
-  },
-  {
-    name: 'searchForEntity',
-    description: 'Find the nearest entity of a given type in a given range and return its coordinates.',
-    execution: 'async',
-    schema: z.object({
-      type: z.string().describe('The type of entity to search for.'),
-      search_range: z.number().describe('The range to search for the entity.').min(1).max(512),
-    }),
-    perform: mineflayer => async (entity_type: string, range: number) => {
-      const entity = world.getNearestEntityWhere(
-        mineflayer,
-        current => current.name === entity_type,
-        range,
-      )
-
-      if (!entity) {
-        return {
-          found: false,
-          query: { type: entity_type, range },
-        }
-      }
-
-      const distance = mineflayer.bot.entity.position.distanceTo(entity.position)
-      return {
-        found: true,
-        entity: {
-          name: entity.name,
-          type: entity.type,
-          position: {
-            x: entity.position.x,
-            y: entity.position.y,
-            z: entity.position.z,
-          },
-        },
-        distance,
       }
     },
   },

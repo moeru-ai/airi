@@ -96,6 +96,7 @@ export class Brain {
   private lastPlannerOutcome: PlannerOutcomeSummary | undefined
   private conversationHistory: Message[] = []
   private lastLlmInputSnapshot: LlmInputSnapshot | null = null
+  private runtimeMineflayer: MineflayerWithAgents | null = null
 
   constructor(private readonly deps: BrainDeps) {
     this.debugService = DebugService.getInstance()
@@ -104,6 +105,7 @@ export class Brain {
   public init(bot: MineflayerWithAgents): void {
     this.deps.logger.log('INFO', 'Brain: Initializing stateful core...')
     this.botUsername = bot.bot.username
+    this.runtimeMineflayer = bot
 
     // Perception Handler
     this.deps.eventBus.subscribe<PerceptionSignal>('conscious:signal:*', (event: TracedEvent<PerceptionSignal>) => {
@@ -153,6 +155,7 @@ export class Brain {
 
   public destroy(): void {
     this.currentCancellationToken?.cancel()
+    this.runtimeMineflayer = null
   }
 
   public getReplState(): { variables: PlannerGlobalDescriptor[], updatedAt: number } {
@@ -167,6 +170,8 @@ export class Brain {
           timestamp: Date.now(),
         },
         snapshot: snapshot as unknown as Record<string, unknown>,
+        mineflayer: this.runtimeMineflayer,
+        bot: this.runtimeMineflayer?.bot,
         llmInput: this.lastLlmInputSnapshot,
       },
     )
@@ -211,6 +216,8 @@ export class Brain {
             timestamp: Date.now(),
           },
           snapshot: snapshot as unknown as Record<string, unknown>,
+          mineflayer: this.runtimeMineflayer,
+          bot: this.runtimeMineflayer?.bot,
           llmInput: this.lastLlmInputSnapshot,
         },
         async (action: ActionInstruction) => {
@@ -471,6 +478,8 @@ export class Brain {
         {
           event,
           snapshot: snapshot as unknown as Record<string, unknown>,
+          mineflayer: bot,
+          bot: bot.bot,
           llmInput: this.lastLlmInputSnapshot,
         },
         async (action: ActionInstruction) => {
@@ -612,7 +621,7 @@ export class Brain {
       parts.push(`[SCRIPT] Last eval ${ageMs}ms ago: return=${returnValue}; actions=${this.lastPlannerOutcome.actionCount} (ok=${this.lastPlannerOutcome.okCount}, err=${this.lastPlannerOutcome.errorCount}); logs=${logs}`)
     }
 
-    parts.push('[RUNTIME] Globals are refreshed every turn: snapshot, self, environment, social, threat, attention, autonomy, event, now, mem, lastRun, prevRun, lastAction. Player gaze is available in environment.nearbyPlayersGaze when needed.')
+    parts.push('[RUNTIME] Globals are refreshed every turn: snapshot, self, environment, social, threat, attention, autonomy, event, now, query, bot, mineflayer, mem, lastRun, prevRun, lastAction. Player gaze is available in environment.nearbyPlayersGaze when needed.')
 
     return parts.join('\n\n')
   }

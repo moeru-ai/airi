@@ -165,6 +165,9 @@ describe('javaScriptPlanner', () => {
     expect(names).toContain('goToPlayer')
     expect(names).toContain('llmInput')
     expect(names).toContain('llmUserMessage')
+    expect(names).toContain('query')
+    expect(names).toContain('bot')
+    expect(names).toContain('mineflayer')
 
     const mem = descriptors.find(d => d.name === 'mem')
     expect(mem?.readonly).toBe(false)

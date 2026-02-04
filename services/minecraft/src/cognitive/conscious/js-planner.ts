@@ -1,10 +1,13 @@
 import type { Action } from '../../libs/mineflayer/action'
+import type { Mineflayer } from '../../libs/mineflayer/core'
 import type { ActionInstruction } from '../action/types'
 import type { BotEvent } from '../types'
 
 import vm from 'node:vm'
 
 import { inspect } from 'node:util'
+
+import { createQueryRuntime } from './query-dsl'
 
 interface JavaScriptPlannerOptions {
   timeoutMs?: number
@@ -62,6 +65,8 @@ function toStructuredClone<T>(value: T): T {
 export interface RuntimeGlobals {
   event: BotEvent
   snapshot: Record<string, unknown>
+  mineflayer?: Mineflayer | null
+  bot?: unknown
   llmInput?: {
     systemPrompt: string
     userMessage: string
@@ -190,6 +195,9 @@ export class JavaScriptPlanner {
       { name: 'llmSystemPrompt', kind: 'string', readonly: true },
       { name: 'llmUserMessage', kind: 'string', readonly: true },
       { name: 'llmConversationHistory', kind: 'object', readonly: true },
+      { name: 'query', kind: 'object', readonly: true },
+      { name: 'bot', kind: 'object', readonly: true },
+      { name: 'mineflayer', kind: 'object', readonly: true },
       { name: 'mem', kind: 'object', readonly: false },
       { name: 'lastRun', kind: 'object', readonly: true },
       { name: 'prevRun', kind: 'object', readonly: true },
@@ -211,6 +219,9 @@ export class JavaScriptPlanner {
       llmSystemPrompt: globals.llmInput?.systemPrompt ?? '',
       llmUserMessage: globals.llmInput?.userMessage ?? '',
       llmConversationHistory: globals.llmInput?.conversationHistory ?? [],
+      query: globals.mineflayer ? createQueryRuntime(globals.mineflayer) : undefined,
+      bot: globals.bot ?? globals.mineflayer?.bot,
+      mineflayer: globals.mineflayer ?? null,
       mem: this.sandbox.mem,
       lastRun: this.sandbox.lastRun,
       prevRun: this.sandbox.prevRun,
@@ -361,6 +372,7 @@ export class JavaScriptPlanner {
     const snapshot = deepFreeze(toStructuredClone(globals.snapshot))
     const event = deepFreeze(toStructuredClone(globals.event))
     const llmInput = deepFreeze(toStructuredClone(globals.llmInput ?? null))
+    const query = globals.mineflayer ? createQueryRuntime(globals.mineflayer) : undefined
 
     this.sandbox.prevRun = this.sandbox.lastRun ?? null
     this.sandbox.snapshot = snapshot
@@ -377,6 +389,9 @@ export class JavaScriptPlanner {
     this.sandbox.llmSystemPrompt = llmInput?.systemPrompt ?? ''
     this.sandbox.llmUserMessage = llmInput?.userMessage ?? ''
     this.sandbox.llmConversationHistory = llmInput?.conversationHistory ?? []
+    this.sandbox.query = query
+    this.sandbox.bot = globals.bot ?? globals.mineflayer?.bot ?? null
+    this.sandbox.mineflayer = globals.mineflayer ?? null
     this.sandbox.lastRun = {
       actions: run.executed,
       logs: run.logs,

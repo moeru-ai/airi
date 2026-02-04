@@ -17,5 +17,7 @@ describe('generateBrainSystemPrompt', () => {
 
     expect(prompt).toContain('Feedback Loop Guard')
     expect(prompt).toContain('chat->feedback->chat')
+    expect(prompt).toContain('Query DSL')
+    expect(prompt).toContain('Heuristic composition examples')
   })
 })
