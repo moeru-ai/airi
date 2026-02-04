@@ -19,5 +19,7 @@ describe('generateBrainSystemPrompt', () => {
     expect(prompt).toContain('chat->feedback->chat')
     expect(prompt).toContain('Query DSL')
     expect(prompt).toContain('Heuristic composition examples')
+    expect(prompt).toContain('llmLog')
+    expect(prompt).toContain('Silent-eval pattern')
   })
 })

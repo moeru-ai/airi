@@ -9,12 +9,14 @@ import type { ReflexManager } from '../reflex/reflex-manager'
 import type { BotEvent, MineflayerWithAgents } from '../types'
 import type { PlannerGlobalDescriptor } from './js-planner'
 import type { LLMAgent } from './llm-agent'
+import type { LlmLogEntry, LlmLogEntryKind } from './llm-log'
 import type { CancellationToken } from './task-state'
 
 import { config } from '../../composables/config'
 import { DebugService } from '../../debug'
 import { buildConsciousContextView } from './context-view'
 import { JavaScriptPlanner } from './js-planner'
+import { createLlmLogRuntime } from './llm-log'
 import {
   isLikelyAuthOrBadArgError,
   isRateLimitError,
@@ -73,8 +75,46 @@ interface LlmInputSnapshot {
   attempt: number
 }
 
+interface RuntimeInputEnvelope {
+  id: number
+  turnId: number
+  timestamp: number
+  event: {
+    type: string
+    sourceType: string
+    sourceId: string
+    payload: unknown
+  }
+  contextView: string
+  userMessage: string
+  systemPrompt: {
+    preview: string
+    length: number
+  }
+  llm?: {
+    attempt: number
+    model: string
+    usage?: {
+      prompt_tokens?: number
+      completion_tokens?: number
+      total_tokens?: number
+    }
+  }
+}
+
 function truncateForPrompt(value: string, maxLength = 220): string {
   return value.length <= maxLength ? value : `${value.slice(0, maxLength - 1)}...`
+}
+
+function stringifyForLog(value: unknown): string {
+  if (typeof value === 'string')
+    return value
+  try {
+    return JSON.stringify(value)
+  }
+  catch {
+    return String(value)
+  }
 }
 
 const NO_ACTION_FOLLOWUP_SOURCE_ID = 'brain:no_action_followup'
@@ -97,6 +137,11 @@ export class Brain {
   private conversationHistory: Message[] = []
   private lastLlmInputSnapshot: LlmInputSnapshot | null = null
   private runtimeMineflayer: MineflayerWithAgents | null = null
+  private readonly llmLogEntries: LlmLogEntry[] = []
+  private llmLogIdCounter = 0
+  private turnCounter = 0
+  private currentInputEnvelope: RuntimeInputEnvelope | null = null
+  private readonly llmLogRuntime = createLlmLogRuntime(() => this.llmLogEntries)
 
   constructor(private readonly deps: BrainDeps) {
     this.debugService = DebugService.getInstance()
@@ -120,6 +165,19 @@ export class Brain {
     // Action Feedback Handler
     this.deps.taskExecutor.on('action:completed', async ({ action, result }) => {
       this.deps.logger.log('INFO', `Brain: Action completed: ${action.tool}`)
+      this.appendLlmLog({
+        turnId: this.turnCounter,
+        kind: 'feedback',
+        eventType: 'feedback',
+        sourceType: 'system',
+        sourceId: 'executor',
+        tags: ['feedback', 'success', action.tool],
+        text: `Action completed: ${action.tool}`,
+        metadata: {
+          params: action.params,
+          result: stringifyForLog(result),
+        },
+      })
 
       if (action.tool === 'chat' && action.params?.feedback !== true) {
         return
@@ -142,6 +200,18 @@ export class Brain {
 
     this.deps.taskExecutor.on('action:failed', async ({ action, error }) => {
       this.deps.logger.withError(error).warn(`Brain: Action failed: ${action.tool}`)
+      this.appendLlmLog({
+        turnId: this.turnCounter,
+        kind: 'feedback',
+        eventType: 'feedback',
+        sourceType: 'system',
+        sourceId: 'executor',
+        tags: ['feedback', 'error', action.tool],
+        text: `Action failed: ${action.tool}: ${error?.message || String(error)}`,
+        metadata: {
+          params: action.params,
+        },
+      })
       this.enqueueEvent(bot, {
         type: 'feedback',
         payload: { status: 'failure', action, error: error.message || error },
@@ -160,20 +230,15 @@ export class Brain {
 
   public getReplState(): { variables: PlannerGlobalDescriptor[], updatedAt: number } {
     const snapshot = this.deps.reflexManager.getContextSnapshot()
+    const replEvent: BotEvent = {
+      type: 'system_alert',
+      payload: { source: 'debug-repl-state' },
+      source: { type: 'system', id: 'debug-repl' },
+      timestamp: Date.now(),
+    }
     const variables = this.planner.describeGlobals(
       this.deps.taskExecutor.getAvailableActions(),
-      {
-        event: {
-          type: 'system_alert',
-          payload: { source: 'debug-repl-state' },
-          source: { type: 'system', id: 'debug-repl' },
-          timestamp: Date.now(),
-        },
-        snapshot: snapshot as unknown as Record<string, unknown>,
-        mineflayer: this.runtimeMineflayer,
-        bot: this.runtimeMineflayer?.bot,
-        llmInput: this.lastLlmInputSnapshot,
-      },
+      this.createRuntimeGlobals(replEvent, snapshot as unknown as Record<string, unknown>),
     )
 
     return {
@@ -208,18 +273,12 @@ export class Brain {
       const runResult = await this.planner.evaluate(
         codeToEvaluate,
         this.deps.taskExecutor.getAvailableActions(),
-        {
-          event: {
-            type: 'system_alert',
-            payload: { source: 'debug-repl' },
-            source: { type: 'system', id: 'debug-repl' },
-            timestamp: Date.now(),
-          },
-          snapshot: snapshot as unknown as Record<string, unknown>,
-          mineflayer: this.runtimeMineflayer,
-          bot: this.runtimeMineflayer?.bot,
-          llmInput: this.lastLlmInputSnapshot,
-        },
+        this.createRuntimeGlobals({
+          type: 'system_alert',
+          payload: { source: 'debug-repl' },
+          source: { type: 'system', id: 'debug-repl' },
+          timestamp: Date.now(),
+        }, snapshot as unknown as Record<string, unknown>),
         async (action: ActionInstruction) => {
           const actionDef = actionDefs.get(action.tool)
           if (actionDef?.followControl === 'detach')
@@ -282,15 +341,70 @@ export class Brain {
     return JSON.parse(JSON.stringify(messages)) as Message[]
   }
 
+  private createRuntimeGlobals(
+    event: BotEvent,
+    snapshot: Record<string, unknown>,
+    mineflayerOverride?: MineflayerWithAgents | null,
+  ) {
+    const mineflayer = mineflayerOverride ?? this.runtimeMineflayer
+    return {
+      event,
+      snapshot,
+      mineflayer,
+      bot: mineflayer?.bot,
+      llmInput: this.lastLlmInputSnapshot,
+      currentInput: this.currentInputEnvelope,
+      llmLog: this.llmLogRuntime,
+    }
+  }
+
+  private appendLlmLog(entry: {
+    turnId: number
+    kind: LlmLogEntryKind
+    eventType: string
+    sourceType: string
+    sourceId: string
+    tags?: string[]
+    text: string
+    metadata?: Record<string, unknown>
+  }): void {
+    const normalized: LlmLogEntry = {
+      id: ++this.llmLogIdCounter,
+      turnId: entry.turnId,
+      kind: entry.kind,
+      timestamp: Date.now(),
+      eventType: entry.eventType,
+      sourceType: entry.sourceType,
+      sourceId: entry.sourceId,
+      tags: entry.tags ?? [],
+      text: entry.text,
+      metadata: entry.metadata,
+    }
+
+    this.llmLogEntries.push(normalized)
+    if (this.llmLogEntries.length > 1000) {
+      this.llmLogEntries.shift()
+    }
+  }
+
   private queueNoActionFollowup(
     bot: MineflayerWithAgents,
     triggeringEvent: BotEvent,
+    turnId: number,
     returnValue: string | undefined,
     logs: string[],
   ): void {
     if (triggeringEvent.source.type === 'system' && triggeringEvent.source.id === NO_ACTION_FOLLOWUP_SOURCE_ID) {
       this.deps.logger.log('INFO', 'Brain: Suppressed no-action follow-up (already in follow-up chain)')
-      this.debugService.log('DEBUG', 'No-action follow-up suppressed (already follow-up source)')
+      this.appendLlmLog({
+        turnId,
+        kind: 'scheduler',
+        eventType: triggeringEvent.type,
+        sourceType: triggeringEvent.source.type,
+        sourceId: triggeringEvent.source.id,
+        tags: ['scheduler', 'no_action', 'suppressed'],
+        text: 'No-action follow-up suppressed: already follow-up source',
+      })
       return
     }
 
@@ -305,6 +419,18 @@ export class Brain {
       timestamp: Date.now(),
     }
 
+    this.appendLlmLog({
+      turnId,
+      kind: 'scheduler',
+      eventType: triggeringEvent.type,
+      sourceType: triggeringEvent.source.type,
+      sourceId: triggeringEvent.source.id,
+      tags: ['scheduler', 'no_action'],
+      text: 'Scheduled one-hop no-action follow-up',
+      metadata: {
+        returnValue: returnValue ?? 'undefined',
+      },
+    })
     this.debugService.log('DEBUG', 'Scheduling one-hop no-action follow-up turn')
     void this.enqueueEvent(bot, followupEvent).catch(err =>
       this.deps.logger.withError(err).error('Brain: Failed to enqueue no-action follow-up'),
@@ -378,6 +504,36 @@ export class Brain {
 
     // 2. Prepare System Prompt (static)
     const systemPrompt = generateBrainSystemPrompt(this.deps.taskExecutor.getAvailableActions())
+    const turnId = ++this.turnCounter
+    this.currentInputEnvelope = {
+      id: turnId,
+      turnId,
+      timestamp: Date.now(),
+      event: {
+        type: event.type,
+        sourceType: event.source.type,
+        sourceId: event.source.id,
+        payload: event.payload,
+      },
+      contextView,
+      userMessage,
+      systemPrompt: {
+        preview: truncateForPrompt(systemPrompt, 240),
+        length: systemPrompt.length,
+      },
+    }
+    this.appendLlmLog({
+      turnId,
+      kind: 'turn_input',
+      eventType: event.type,
+      sourceType: event.source.type,
+      sourceId: event.source.id,
+      tags: ['input', event.type],
+      text: truncateForPrompt(userMessage, 600),
+      metadata: {
+        queueLength: this.queue.length,
+      },
+    })
 
     // 3. Call LLM with retry logic
     const maxAttempts = 3
@@ -400,6 +556,24 @@ export class Brain {
           updatedAt: Date.now(),
           attempt,
         }
+        this.currentInputEnvelope.llm = {
+          attempt,
+          model: config.openai.model,
+        }
+        this.appendLlmLog({
+          turnId,
+          kind: 'llm_attempt',
+          eventType: event.type,
+          sourceType: event.source.type,
+          sourceId: event.source.id,
+          tags: ['llm', 'attempt'],
+          text: `LLM attempt ${attempt}/${maxAttempts}`,
+          metadata: {
+            attempt,
+            maxAttempts,
+            messageCount: messages.length,
+          },
+        })
 
         const traceStart = Date.now()
 
@@ -425,6 +599,25 @@ export class Brain {
           usage: llmResult.usage,
           model: config.openai.model,
           duration: Date.now() - traceStart,
+        })
+        this.currentInputEnvelope.llm = {
+          attempt,
+          model: config.openai.model,
+          usage: llmResult.usage,
+        }
+        this.appendLlmLog({
+          turnId,
+          kind: 'llm_attempt',
+          eventType: event.type,
+          sourceType: event.source.type,
+          sourceId: event.source.id,
+          tags: ['llm', 'response'],
+          text: truncateForPrompt(content, 400),
+          metadata: {
+            attempt,
+            usage: llmResult.usage,
+            reasoningSize: reasoning?.length ?? 0,
+          },
         })
 
         this.debugService.emitBrainState({
@@ -455,6 +648,15 @@ export class Brain {
     // 4. Parse & Execute
     if (!result) {
       this.deps.logger.warn('Brain: No response after all retries')
+      this.appendLlmLog({
+        turnId,
+        kind: 'planner_error',
+        eventType: event.type,
+        sourceType: event.source.type,
+        sourceId: event.source.id,
+        tags: ['planner', 'error', 'empty_response'],
+        text: 'No LLM response after retries',
+      })
       return
     }
 
@@ -479,13 +681,7 @@ export class Brain {
       const runResult = await this.planner.evaluate(
         codeToEvaluate,
         this.deps.taskExecutor.getAvailableActions(),
-        {
-          event,
-          snapshot: snapshot as unknown as Record<string, unknown>,
-          mineflayer: bot,
-          bot: bot.bot,
-          llmInput: this.lastLlmInputSnapshot,
-        },
+        this.createRuntimeGlobals(event, snapshot as unknown as Record<string, unknown>, bot),
         async (action: ActionInstruction) => {
           if (action.tool === 'chat' && !this.shouldAllowChatForEvent(event, snapshot.self.health)) {
             return 'Chat suppressed: no direct user prompt for chat this turn'
@@ -518,6 +714,31 @@ export class Brain {
         logs: runResult.logs.slice(-3),
         updatedAt: Date.now(),
       }
+      this.appendLlmLog({
+        turnId,
+        kind: 'planner_result',
+        eventType: event.type,
+        sourceType: event.source.type,
+        sourceId: event.source.id,
+        tags: [
+          'planner',
+          runResult.actions.length === 0 ? 'no_actions' : 'actions',
+          runResult.actions.some(item => !item.ok) ? 'error' : 'ok',
+        ],
+        text: `actions=${runResult.actions.length} return=${runResult.returnValue ?? 'undefined'}`,
+        metadata: {
+          returnValue: runResult.returnValue,
+          actionCount: runResult.actions.length,
+          okCount: runResult.actions.filter(item => item.ok).length,
+          errorCount: runResult.actions.filter(item => !item.ok).length,
+          actions: runResult.actions.map(item => ({
+            tool: item.action.tool,
+            ok: item.ok,
+            error: item.error,
+          })),
+          logs: runResult.logs.slice(-5),
+        },
+      })
 
       if (runResult.actions.length === 0 || runResult.actions.every(item => item.action.tool === 'skip')) {
         this.debugService.emit('debug:repl_result', {
@@ -530,7 +751,7 @@ export class Brain {
           timestamp: Date.now(),
         })
         if (runResult.actions.length === 0) {
-          this.queueNoActionFollowup(bot, event, runResult.returnValue, runResult.logs)
+          this.queueNoActionFollowup(bot, event, turnId, runResult.returnValue, runResult.logs)
         }
         this.deps.logger.log('INFO', 'Brain: Skipping turn (observing)')
         return
@@ -559,6 +780,18 @@ export class Brain {
     }
     catch (err) {
       this.deps.logger.withError(err).error('Brain: Failed to execute decision')
+      this.appendLlmLog({
+        turnId,
+        kind: 'planner_error',
+        eventType: event.type,
+        sourceType: event.source.type,
+        sourceId: event.source.id,
+        tags: ['planner', 'error'],
+        text: truncateForPrompt(toErrorMessage(err), 360),
+        metadata: {
+          code: result,
+        },
+      })
       this.debugService.emit('debug:repl_result', {
         source: 'llm',
         code: result,
@@ -625,7 +858,7 @@ export class Brain {
       parts.push(`[SCRIPT] Last eval ${ageMs}ms ago: return=${returnValue}; actions=${this.lastPlannerOutcome.actionCount} (ok=${this.lastPlannerOutcome.okCount}, err=${this.lastPlannerOutcome.errorCount}); logs=${logs}`)
     }
 
-    parts.push('[RUNTIME] Globals are refreshed every turn: snapshot, self, environment, social, threat, attention, autonomy, event, now, query, bot, mineflayer, mem, lastRun, prevRun, lastAction. Player gaze is available in environment.nearbyPlayersGaze when needed.')
+    parts.push('[RUNTIME] Globals are refreshed every turn: snapshot, self, environment, social, threat, attention, autonomy, event, now, query, bot, mineflayer, currentInput, llmLog, mem, lastRun, prevRun, lastAction. Player gaze is available in environment.nearbyPlayersGaze when needed.')
 
     return parts.join('\n\n')
   }

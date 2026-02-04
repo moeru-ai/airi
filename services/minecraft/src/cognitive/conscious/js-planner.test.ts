@@ -168,6 +168,8 @@ describe('javaScriptPlanner', () => {
     expect(names).toContain('query')
     expect(names).toContain('bot')
     expect(names).toContain('mineflayer')
+    expect(names).toContain('currentInput')
+    expect(names).toContain('llmLog')
 
     const mem = descriptors.find(d => d.name === 'mem')
     expect(mem?.readonly).toBe(false)

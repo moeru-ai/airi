@@ -67,6 +67,8 @@ export interface RuntimeGlobals {
   snapshot: Record<string, unknown>
   mineflayer?: Mineflayer | null
   bot?: unknown
+  currentInput?: unknown
+  llmLog?: unknown
   llmInput?: {
     systemPrompt: string
     userMessage: string
@@ -191,6 +193,8 @@ export class JavaScriptPlanner {
       { name: 'attention', kind: 'object', readonly: true },
       { name: 'autonomy', kind: 'object', readonly: true },
       { name: 'llmInput', kind: 'object', readonly: true },
+      { name: 'currentInput', kind: 'object', readonly: true },
+      { name: 'llmLog', kind: 'object', readonly: true },
       { name: 'llmMessages', kind: 'object', readonly: true },
       { name: 'llmSystemPrompt', kind: 'string', readonly: true },
       { name: 'llmUserMessage', kind: 'string', readonly: true },
@@ -215,6 +219,8 @@ export class JavaScriptPlanner {
       attention: (globals.snapshot as Record<string, unknown>)?.attention,
       autonomy: (globals.snapshot as Record<string, unknown>)?.autonomy,
       llmInput: globals.llmInput ?? null,
+      currentInput: globals.currentInput ?? null,
+      llmLog: globals.llmLog ?? null,
       llmMessages: globals.llmInput?.messages ?? [],
       llmSystemPrompt: globals.llmInput?.systemPrompt ?? '',
       llmUserMessage: globals.llmInput?.userMessage ?? '',
@@ -372,6 +378,7 @@ export class JavaScriptPlanner {
     const snapshot = deepFreeze(toStructuredClone(globals.snapshot))
     const event = deepFreeze(toStructuredClone(globals.event))
     const llmInput = deepFreeze(toStructuredClone(globals.llmInput ?? null))
+    const currentInput = deepFreeze(toStructuredClone(globals.currentInput ?? null))
     const query = globals.mineflayer ? createQueryRuntime(globals.mineflayer) : undefined
 
     this.sandbox.prevRun = this.sandbox.lastRun ?? null
@@ -385,6 +392,8 @@ export class JavaScriptPlanner {
     this.sandbox.attention = snapshot.attention
     this.sandbox.autonomy = snapshot.autonomy
     this.sandbox.llmInput = llmInput
+    this.sandbox.currentInput = currentInput
+    this.sandbox.llmLog = globals.llmLog ?? null
     this.sandbox.llmMessages = llmInput?.messages ?? []
     this.sandbox.llmSystemPrompt = llmInput?.systemPrompt ?? ''
     this.sandbox.llmUserMessage = llmInput?.userMessage ?? ''
