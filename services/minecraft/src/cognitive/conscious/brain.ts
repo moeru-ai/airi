@@ -130,8 +130,6 @@ export class Brain {
   private currentCancellationToken: CancellationToken | undefined
   private giveUpUntil = 0
   private giveUpReason: string | undefined
-  private lastHumanChatAt = 0
-  private botUsername = ''
   private lastContextView: string | undefined
   private lastPlannerOutcome: PlannerOutcomeSummary | undefined
   private conversationHistory: Message[] = []
@@ -149,7 +147,6 @@ export class Brain {
 
   public init(bot: MineflayerWithAgents): void {
     this.deps.logger.log('INFO', 'Brain: Initializing stateful core...')
-    this.botUsername = bot.bot.username
     this.runtimeMineflayer = bot
 
     // Perception Handler
@@ -486,7 +483,6 @@ export class Brain {
   // --- Cognitive Cycle ---
 
   private async processEvent(bot: MineflayerWithAgents, event: BotEvent): Promise<void> {
-    this.updateHumanChatTimestamp(event)
     this.resumeFromGiveUpIfNeeded(event)
     if (this.shouldSuppressDuringGiveUp(event))
       return
@@ -683,10 +679,6 @@ export class Brain {
         this.deps.taskExecutor.getAvailableActions(),
         this.createRuntimeGlobals(event, snapshot as unknown as Record<string, unknown>, bot),
         async (action: ActionInstruction) => {
-          if (action.tool === 'chat' && !this.shouldAllowChatForEvent(event, snapshot.self.health)) {
-            return 'Chat suppressed: no direct user prompt for chat this turn'
-          }
-
           const actionDef = actionDefs.get(action.tool)
           if (actionDef?.followControl === 'detach')
             this.deps.reflexManager.clearFollowTarget()
@@ -887,36 +879,5 @@ export class Brain {
 
     this.giveUpUntil = 0
     this.giveUpReason = undefined
-  }
-
-  private shouldAllowChatForEvent(event: BotEvent, health: number): boolean {
-    if (health <= 8)
-      return true
-
-    if (event.type !== 'perception')
-      return Date.now() - this.lastHumanChatAt <= 45000 && event.type === 'feedback'
-
-    const signal = event.payload as PerceptionSignal
-    if (signal.type === 'chat_message') {
-      const speaker = typeof (signal.metadata as any)?.username === 'string'
-        ? String((signal.metadata as any).username)
-        : signal.sourceId
-      if (speaker === this.botUsername)
-        return false
-      return true
-    }
-
-    return false
-  }
-
-  private updateHumanChatTimestamp(event: BotEvent): void {
-    if (event.type !== 'perception')
-      return
-
-    const signal = event.payload as PerceptionSignal
-    if (signal.type !== 'chat_message')
-      return
-
-    this.lastHumanChatAt = Date.now()
   }
 }
