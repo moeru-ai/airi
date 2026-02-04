@@ -295,7 +295,7 @@ const activeTab = computed({
                     {{ t('settings.pages.card.consciousness.model') }}
                   </span>
                   <div truncate font-medium>
-                    {{ moduleSettings.consciousness || (defaultConsciousnessModel ? `default (${defaultConsciousnessModel})` : 'default') }}
+                    {{ moduleSettings.consciousness || (defaultConsciousnessModel ? `${t('settings.pages.card.creation.use_default')} (${defaultConsciousnessModel})` : t('settings.pages.card.creation.use_default')) }}
                   </div>
                 </div>
 
@@ -312,7 +312,7 @@ const activeTab = computed({
                     {{ t('settings.pages.card.speech.model') }}
                   </span>
                   <div truncate font-medium>
-                    {{ moduleSettings.speech || (defaultSpeechModel ? `default (${defaultSpeechModel})` : 'default') }}
+                    {{ moduleSettings.speech || (defaultSpeechModel ? `${t('settings.pages.card.creation.use_default')} (${defaultSpeechModel})` : t('settings.pages.card.creation.use_default')) }}
                   </div>
                 </div>
 
@@ -329,7 +329,7 @@ const activeTab = computed({
                     {{ t('settings.pages.card.speech.voice') }}
                   </span>
                   <div truncate font-medium>
-                    {{ moduleSettings.voice || (defaultVoiceId ? `default (${defaultVoiceId})` : 'default') }}
+                    {{ moduleSettings.voice || (defaultVoiceId ? `${t('settings.pages.card.creation.use_default')} (${defaultVoiceId})` : t('settings.pages.card.creation.use_default')) }}
                   </div>
                 </div>
               </div>
