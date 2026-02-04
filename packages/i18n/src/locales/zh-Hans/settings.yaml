@@ -117,6 +117,7 @@ pages:
         systemprompt: 你将收到消息，请像真实人类一样回复。
         posthistoryinstructions: 记得模仿人类的行为。
       modules_info: 配置此角色卡使用的模块。如果不设置，将使用默认模块配置。
+      use_default: 使用默认
       fields_info:
         subtitle: >-
           您可以在这里填写有关您正在创建的角色的一些详细信息，解释他的背景和情境，以及应该如何回应您的互动。

@@ -391,8 +391,8 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
                 <Select
                   v-model="selectedConsciousnessModel"
                   :options="consciousnessModelOptions"
-                  :placeholder="defaultConsciousnessModel"
-                  :disabled="!consciousnessProvider || consciousnessModelOptions.length === 0"
+                  :placeholder="defaultConsciousnessModel ? `${t('settings.pages.card.creation.use_default')} (${defaultConsciousnessModel})` : t('settings.pages.card.creation.use_default')"
+                  :disabled="!consciousnessProvider"
                   class="w-full"
                 />
               </div>
@@ -406,8 +406,8 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
                 <Select
                   v-model="selectedSpeechModel"
                   :options="speechModelOptions"
-                  :placeholder="defaultSpeechModel"
-                  :disabled="!speechProvider || speechModelOptions.length === 0"
+                  :placeholder="defaultSpeechModel ? `${t('settings.pages.card.creation.use_default')} (${defaultSpeechModel})` : t('settings.pages.card.creation.use_default')"
+                  :disabled="!speechProvider"
                   class="w-full"
                 />
               </div>
@@ -421,8 +421,8 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
                 <Select
                   v-model="selectedSpeechVoiceId"
                   :options="speechVoiceOptions"
-                  :placeholder="defaultSpeechVoiceId"
-                  :disabled="!speechProvider || speechVoiceOptions.length === 0"
+                  :placeholder="defaultSpeechVoiceId ? `${t('settings.pages.card.creation.use_default')} (${defaultSpeechVoiceId})` : t('settings.pages.card.creation.use_default')"
+                  :disabled="!speechProvider"
                   class="w-full"
                 />
               </div>
