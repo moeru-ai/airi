@@ -24,23 +24,23 @@ dialogs:
     skipForNow: Omitir por ahora
     saveAndContinue: Guardar y Continuar
     next: Siguiente
-    retry: Retry
+    retry: Volver a intentar
     start: '¡Hagámoslo!'
     select-model: Elegir modelo
-    no-models: No available models
+    no-models: Ningún modelo disponible
     no-models-help: >-
-      Please return to the previous step and check your API key, or check the network connection.
+      Por favor vuelva al paso anterior y compruebe su clave de API o su conexión de red.
 language:
   title: Idioma
   description: >
     Cambia el idioma de la interfaz de AIRI. Esto no afectará el idioma de las respuestas del personaje.
 controls-island:
   icon-size:
-    title: Controls Island Icon Size
-    description: Adjust the size of the controls island icons
-    auto: Auto (responsive)
-    large: Large (default)
-    small: Small
+    title: Tamaño de icono de la isla de controles
+    description: Ajusta el tamaño de los iconos de la isla de controles
+    auto: Automático (adaptativo)
+    large: Grande (predeterminado)
+    small: Pequeño
 live2d:
   change-model:
     from-file: Cargar desde Archivo
@@ -71,6 +71,11 @@ live2d:
     title: Desactivar seguimiento del ratón del modelo
     button-disable:
       title: Desactivar
+  fps:
+    title: FPS
+    description: Limit rendering frame rate
+    options:
+      unlimited: No Limit
 microphone: Micrófono
 models: Modelo
 pages:
@@ -78,8 +83,8 @@ pages:
     activate: Activar
     active: Activo
     active_badge: Actualmente Activo
-    cancel: Cancel action
-    save: Save changes
+    cancel: Cancelar operación
+    save: Guardar cambios
     card_not_found: Tarjeta no encontrada
     character: Personaje
     close: Cerrar
@@ -94,7 +99,7 @@ pages:
     description_label: Descripción
     drop_here: Suelta para subir
     create_card: Crear una nueva Tarjeta
-    edit_card: Edit Card
+    edit_card: Modificar tarjeta
     creation:
       identity: Identidad
       name: Nombre
@@ -158,19 +163,19 @@ pages:
     description: Donde se almacenan y organizan las memorias
     title: Memoria
   data:
-    title: Data
-    description: Manage stored AIRI data, exports, and resets
+    title: Datos
+    description: Administrar, exportar y restablecer los datos de AIRI
     sections:
       chats:
-        title: Chat sessions
-        description: Export or import saved chat sessions.
-        export: Export chats
-        import: Import chats
-        delete: Delete all chat sessions
+        title: Conversaciones
+        description: Importar o exportar conversaciones.
+        export: Exportar conversaciones
+        import: Importar conversaciones
+        delete: Borrar todas las conversaciones
       models:
-        title: Models
-        description: Remove imported Live2D/VRM models.
-        delete: Delete all models
+        title: Modelos
+        description: Borrar modelos Live2D/VRM importados.
+        delete: Borrar todos los modelos
       modules:
         title: Modules
         description: Reset module preferences and credentials.
@@ -352,6 +357,7 @@ pages:
               stop:
                 label: Detener
             select-voice:
+              loading: Loading model...
               required: Por favor selecciona una voz
           provider-voice-selection:
             custom_model_placeholder: Ingresa el nombre del modelo personalizado...
@@ -601,6 +607,30 @@ pages:
           validation:
             error-missing-api-key: Por favor ingresa una clave API para probar la voz.
         title: ElevenLabs
+      kokoro-local:
+        description: Local text-to-speech using Kokoro-82M.
+        fields:
+          field:
+            model:
+              label: Model Selection
+              description: Smaller models load faster but may have slightly lower quality.
+        models:
+          fp32-webgpu:
+            description: Full precision model using WebGPU - Recommended for supported devices
+          fp32:
+            description: Full precision model
+          fp16:
+            description: Half precision
+          q8:
+            description: 8-bit quantized
+          q4:
+            description: 4-bit quantized
+          q4f16:
+            description: 4-bit with FP16
+        playground:
+          default-text: Hello! This is a test of the Kokoro text-to-speech system.
+          title: Voice Playground
+        title: Kokoro TTS (Local)
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai
@@ -615,6 +645,8 @@ pages:
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili / IndexTTS
+        callout_indextts2_unavailable_title: Limited Support
+        callout_indextts2_unavailable: Support for IndexTTS2 is currently unavailable. Please use IndexTTS.
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry
