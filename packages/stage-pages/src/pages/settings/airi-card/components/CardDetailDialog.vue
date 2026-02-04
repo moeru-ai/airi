@@ -4,8 +4,6 @@ import type { AiriCard } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import DOMPurify from 'dompurify'
 
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import {
@@ -32,12 +30,8 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const cardStore = useAiriCardStore()
-const consciousnessStore = useConsciousnessStore()
-const speechStore = useSpeechStore()
 const { removeCard } = cardStore
 const { activeCardId } = storeToRefs(cardStore)
-const { activeModel: defaultConsciousnessModel } = storeToRefs(consciousnessStore)
-const { activeModel: defaultSpeechModel, activeVoiceId: defaultVoiceId } = storeToRefs(speechStore)
 
 // Get selected card data
 const selectedCard = computed<AiriCard | undefined>(() => {
@@ -295,7 +289,7 @@ const activeTab = computed({
                     {{ t('settings.pages.card.consciousness.model') }}
                   </span>
                   <div truncate font-medium>
-                    {{ moduleSettings.consciousness || defaultConsciousnessModel || 'default' }}
+                    {{ moduleSettings.consciousness ?? 'default' }}
                   </div>
                 </div>
 
@@ -312,7 +306,7 @@ const activeTab = computed({
                     {{ t('settings.pages.card.speech.model') }}
                   </span>
                   <div truncate font-medium>
-                    {{ moduleSettings.speech || defaultSpeechModel || 'default' }}
+                    {{ moduleSettings.speech ?? 'default' }}
                   </div>
                 </div>
 
@@ -329,7 +323,7 @@ const activeTab = computed({
                     {{ t('settings.pages.card.speech.voice') }}
                   </span>
                   <div truncate font-medium>
-                    {{ moduleSettings.voice || defaultVoiceId || 'default' }}
+                    {{ moduleSettings.voice ?? 'default' }}
                   </div>
                 </div>
               </div>

@@ -97,6 +97,18 @@ watch(() => [consciousnessProvider.value, speechProvider.value], async ([consPro
   }
 }, { immediate: true })
 
+// Reset voice when speech model changes (different models may have different voices)
+watch(selectedSpeechModel, async (newModel, oldModel) => {
+  // Only reset if model actually changed and we're not initializing
+  if (oldModel !== undefined && newModel !== oldModel && speechProvider.value) {
+    // Reload voices for the current provider
+    await speechStore.loadVoicesForProvider(speechProvider.value)
+
+    // Reset voice selection to default
+    selectedSpeechVoiceId.value = defaultSpeechVoiceId.value || ''
+  }
+})
+
 // Tab type definition
 interface Tab {
   id: string
