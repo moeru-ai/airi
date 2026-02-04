@@ -1,4 +1,3 @@
-import { execSync } from 'node:child_process'
 import { X509Certificate } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { isIP } from 'node:net'
@@ -11,6 +10,7 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { app, ipcMain } from 'electron'
 import { createCA, createCert } from 'mkcert'
+import { x } from 'tinyexec'
 
 import { electronRestartWebSocketServer, electronStartWebSocketServer } from '../../../../shared/eventa'
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
@@ -97,23 +97,23 @@ async function installCACertificate(caCert: string) {
 
   try {
     if (platform === 'darwin') {
-      execSync(`security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "${caCertPath}"`, { stdio: 'ignore' })
+      await x(`security`, ['add-trusted-cert', '-d', '-r', 'trustRoot', '-k', '/Library/Keychains/System.keychain', `"${caCertPath}"`], { nodeOptions: { stdio: 'ignore' } })
     }
     else if (platform === 'win32') {
-      execSync(`certutil -addstore -f "Root" "${caCertPath}"`, { stdio: 'ignore' })
+      await x(`certutil`, ['-addstore', '-f', 'Root', `"${caCertPath}"`], { nodeOptions: { stdio: 'ignore' } })
     }
     else if (platform === 'linux') {
       const caDir = '/usr/local/share/ca-certificates'
       const caFileName = 'airi-websocket-ca.crt'
       try {
         writeFileSync(join(caDir, caFileName), caCert)
-        execSync('update-ca-certificates', { stdio: 'ignore' })
+        await x('update-ca-certificates', [], { nodeOptions: { stdio: 'ignore' } })
       }
       catch {
         const userCaDir = join(env.HOME || '', '.local/share/ca-certificates')
         try {
           if (!existsSync(userCaDir)) {
-            execSync(`mkdir -p "${userCaDir}"`, { stdio: 'ignore' })
+            await x(`mkdir`, ['-p', `"${userCaDir}"`], { nodeOptions: { stdio: 'ignore' } })
           }
           writeFileSync(join(userCaDir, caFileName), caCert)
         }
@@ -292,6 +292,7 @@ export async function restartServerChannel(options?: { websocketSecureEnabled?: 
       // Ignore errors when closing
     }
   }
+
   serverInstance = null
   await setupServerChannel(options)
 }
