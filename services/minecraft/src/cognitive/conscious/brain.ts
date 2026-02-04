@@ -472,8 +472,12 @@ export class Brain {
       const actionDefs = new Map(this.deps.taskExecutor.getAvailableActions().map(action => [action.name, action]))
       let turnCancellationToken: CancellationToken | undefined
 
+      const codeToEvaluate = this.planner.canEvaluateAsExpression(result)
+        ? `return (\n${result}\n)`
+        : result
+
       const runResult = await this.planner.evaluate(
-        result,
+        codeToEvaluate,
         this.deps.taskExecutor.getAvailableActions(),
         {
           event,

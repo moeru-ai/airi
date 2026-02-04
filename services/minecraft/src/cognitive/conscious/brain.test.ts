@@ -84,7 +84,7 @@ describe('brain no-action follow-up', () => {
     expect(queuedEvent).toMatchObject({
       type: 'system_alert',
       source: { type: 'system', id: 'brain:no_action_followup' },
-      payload: { reason: 'no_actions' },
+      payload: { reason: 'no_actions', returnValue: '2' },
     })
   })
 
