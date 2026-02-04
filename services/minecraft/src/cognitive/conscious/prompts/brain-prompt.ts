@@ -2,12 +2,16 @@ import type { Action } from '../../../libs/mineflayer/action'
 
 // Helper to extract readable type from Zod schema
 function getZodTypeName(def: any): string {
-  if (!def) return 'any'
+  if (!def)
+    return 'any'
   const type = def.type || def.typeName
 
-  if (type === 'string' || type === 'ZodString') return 'string'
-  if (type === 'number' || type === 'ZodNumber') return 'number'
-  if (type === 'boolean' || type === 'ZodBoolean') return 'boolean'
+  if (type === 'string' || type === 'ZodString')
+    return 'string'
+  if (type === 'number' || type === 'ZodNumber')
+    return 'number'
+  if (type === 'boolean' || type === 'ZodBoolean')
+    return 'boolean'
 
   if (type === 'array' || type === 'ZodArray') {
     const innerDef = def.element?._def || def.type?._def
@@ -194,7 +198,8 @@ Common patterns:
 - **Chat Discipline**: Do not send proactive small-talk. Use \`chat\` only when replying to a player chat, reporting meaningful task progress/failure, or urgent safety status.
 - **No Harness Replies**: Never treat \`[PERCEPTION]\`, \`[FEEDBACK]\`, or other system wrappers as players. Only reply with \`chat\` to actual player \`chat_message\` events.
 - **No Self Replies**: Never reply to your own previous bot messages.
-- **Chat Feedback**: \`chat\` feedback is optional; keep \`feedback: false\` for normal conversation. Use \`feedback: true\` only when your next step explicitly needs the chat acknowledgement in history.
+- **Chat Feedback**: \`chat\` feedback is optional; keep \`feedback: false\` for normal conversation. Use \`feedback: true\` only for diagnostic verification of a sent chat.
+- **Feedback Loop Guard**: Avoid chat->feedback->chat positive loops. After a diagnostic \`feedback: true\` check, usually continue with \`skip()\` unless the returned feedback is unexpected and needs action.
 - **Follow Mode**: If \`autonomy.followPlayer\` is set, reflex will follow that player while idle. Only clear it when the current mission needs independent movement.
 `
 }

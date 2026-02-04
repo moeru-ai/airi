@@ -77,6 +77,8 @@ function truncateForPrompt(value: string, maxLength = 220): string {
   return value.length <= maxLength ? value : `${value.slice(0, maxLength - 1)}...`
 }
 
+const NO_ACTION_FOLLOWUP_SOURCE_ID = 'brain:no_action_followup'
+
 export class Brain {
   private debugService: DebugService
   private readonly planner = new JavaScriptPlanner()
@@ -271,6 +273,35 @@ export class Brain {
 
   private cloneMessages(messages: Message[]): Message[] {
     return JSON.parse(JSON.stringify(messages)) as Message[]
+  }
+
+  private queueNoActionFollowup(
+    bot: MineflayerWithAgents,
+    triggeringEvent: BotEvent,
+    returnValue: string | undefined,
+    logs: string[],
+  ): void {
+    if (triggeringEvent.source.type === 'system' && triggeringEvent.source.id === NO_ACTION_FOLLOWUP_SOURCE_ID) {
+      this.deps.logger.log('INFO', 'Brain: Suppressed no-action follow-up (already in follow-up chain)')
+      this.debugService.log('DEBUG', 'No-action follow-up suppressed (already follow-up source)')
+      return
+    }
+
+    const followupEvent: BotEvent = {
+      type: 'system_alert',
+      payload: {
+        reason: 'no_actions',
+        returnValue: returnValue ?? 'undefined',
+        logs: logs.slice(-3),
+      },
+      source: { type: 'system', id: NO_ACTION_FOLLOWUP_SOURCE_ID },
+      timestamp: Date.now(),
+    }
+
+    this.debugService.log('DEBUG', 'Scheduling one-hop no-action follow-up turn')
+    void this.enqueueEvent(bot, followupEvent).catch(err =>
+      this.deps.logger.withError(err).error('Brain: Failed to enqueue no-action follow-up'),
+    )
   }
 
   // --- Event Queue Logic ---
@@ -485,6 +516,9 @@ export class Brain {
           durationMs: 0,
           timestamp: Date.now(),
         })
+        if (runResult.actions.length === 0) {
+          this.queueNoActionFollowup(bot, event, runResult.returnValue, runResult.logs)
+        }
         this.deps.logger.log('INFO', 'Brain: Skipping turn (observing)')
         return
       }
