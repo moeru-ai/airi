@@ -24,8 +24,8 @@ export interface PlayerGazeResult {
 
 function directionFromYawPitch(yaw: number, pitch: number): Vec3Like {
   const x = -Math.sin(yaw) * Math.cos(pitch)
-  // In Minecraft, positive pitch means looking down (negative Y direction).
-  const y = -Math.sin(pitch)
+  // Mineflayer pitch convention: positive pitch looks up, negative pitch looks down.
+  const y = Math.sin(pitch)
   const z = -Math.cos(yaw) * Math.cos(pitch)
   return { x, y, z }
 }

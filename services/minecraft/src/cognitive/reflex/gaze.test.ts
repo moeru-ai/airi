@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
 import { Vec3 } from 'vec3'
+import { describe, expect, it } from 'vitest'
 
 import { rayTraceBlockFromEntity } from './gaze'
 
@@ -22,7 +22,7 @@ describe('rayTraceBlockFromEntity', () => {
       username: 'tester',
       position: new Vec3(0, 64, 0),
       yaw: 0,
-      pitch: Math.PI / 4,
+      pitch: -Math.PI / 4,
     }
 
     const result = rayTraceBlockFromEntity(bot, entity, { maxDistance: 8, step: 0.1 })
@@ -42,7 +42,7 @@ describe('rayTraceBlockFromEntity', () => {
       username: 'tester',
       position: new Vec3(0, 64, 0),
       yaw: 0,
-      pitch: -Math.PI / 4,
+      pitch: Math.PI / 4,
     }
 
     const result = rayTraceBlockFromEntity(bot, entity, { maxDistance: 8, step: 0.1 })
