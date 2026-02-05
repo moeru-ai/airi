@@ -72,10 +72,10 @@ live2d:
     button-disable:
       title: 禁用
   fps:
-    title: FPS
-    description: Limit rendering frame rate
+    title: 帧率
+    description: 限制渲染帧率
     options:
-      unlimited: No Limit
+      unlimited: 无限制
 microphone: 麦克风
 models: 模型
 pages:
@@ -357,7 +357,7 @@ pages:
               stop:
                 label: 停止
             select-voice:
-              loading: Loading model...
+              loading: 正在加载模型...
               required: 请选择声线
           provider-voice-selection:
             custom_model_placeholder: 输入指定模型名称...
@@ -608,29 +608,29 @@ pages:
             error-missing-api-key: 需要填写 API Key 才能用哦！
         title: ElevenLabs (11labs)
       kokoro-local:
-        description: Local text-to-speech using Kokoro-82M.
+        description: 基于 Kokoro-82M 的本地语音合成
         fields:
           field:
             model:
-              label: Model Selection
-              description: Smaller models load faster but may have slightly lower quality.
+              label: 模型选择
+              description: 较小的模型加载更快，但质量可能略有下降。
         models:
           fp32-webgpu:
-            description: Full precision model using WebGPU - Recommended for supported devices
+            description: 基于 WebGPU 的全精度模型 - 建议在支持的设备上使用
           fp32:
-            description: Full precision model
+            description: 全精度模型
           fp16:
-            description: Half precision
+            description: 半精度
           q8:
-            description: 8-bit quantized
+            description: 8-bit 量化
           q4:
-            description: 4-bit quantized
+            description: 4-bit 量化
           q4f16:
-            description: 4-bit with FP16
+            description: 4-bit 量化 (FP16)
         playground:
           default-text: Hello! This is a test of the Kokoro text-to-speech system.
-          title: Voice Playground
-        title: Kokoro TTS (Local)
+          title: 实验平台
+        title: Kokoro TTS (本地)
       fireworks:
         description: Fireworks.ai
         title: Fireworks.ai
@@ -645,8 +645,8 @@ pages:
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili / IndexTTS
-        callout_indextts2_unavailable_title: Limited Support
-        callout_indextts2_unavailable: Support for IndexTTS2 is currently unavailable. Please use IndexTTS.
+        callout_indextts2_unavailable_title: 暂不支持
+        callout_indextts2_unavailable: 目前尚未支持 IndexTTS 2，请使用 IndexTTS。
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry
