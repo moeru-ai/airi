@@ -74,7 +74,6 @@ const props = defineProps<{
           grayscale-100
         >
       </template>
-      </RouterLink>
       <div p-2>
         <div v-if="props.configured" size-4 bg="green-500" rounded-full shadow="lg" />
         <div v-else size-4 border="2 neutral-200 dark:neutral-700" rounded-full bg="white dark:neutral-900" />
