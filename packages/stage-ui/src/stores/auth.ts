@@ -1,15 +1,17 @@
 import type { Session, User } from 'better-auth'
 
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
-import { fetchSession } from '../libs/auth'
+import { fetchSession, SERVER_URL } from '../libs/auth'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User>()
   const session = ref<Session>()
   const isAuthenticated = computed(() => !!user.value && !!session.value)
   const userId = computed(() => user.value?.id ?? 'local')
+
+  const credits = ref<number>(0)
 
   const isLoginOpen = ref(false)
 
@@ -23,6 +25,28 @@ export const useAuthStore = defineStore('auth', () => {
     initialized.value = true
   }
 
+  // Better fetch with credentials
+  const updateCredits = async () => {
+    if (!isAuthenticated.value)
+      return
+    const response = await fetch(`${SERVER_URL}/api/credits`, {
+      credentials: 'include',
+    })
+    if (response.ok) {
+      const data = await response.json()
+      credits.value = data.credits
+    }
+  }
+
+  watch(isAuthenticated, (val) => {
+    if (val) {
+      updateCredits()
+    }
+    else {
+      credits.value = 0
+    }
+  }, { immediate: true })
+
   initialize()
 
   return {
@@ -30,6 +54,8 @@ export const useAuthStore = defineStore('auth', () => {
     userId,
     session,
     isAuthenticated,
+    credits,
+    updateCredits,
     isLoginOpen,
   }
 })

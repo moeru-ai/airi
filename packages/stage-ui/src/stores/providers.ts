@@ -60,6 +60,8 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { SERVER_URL } from '../libs/auth'
+import { useAuthStore } from '../stores/auth'
 import { getKokoroWorker } from '../workers/kokoro'
 import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
@@ -268,6 +270,45 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Centralized provider metadata with provider factory functions
   const providerMetadata: Record<string, ProviderMetadata> = {
+    'official-provider': {
+      id: 'official-provider',
+      order: -1,
+      category: 'chat',
+      tasks: ['text-generation'],
+      nameKey: 'settings.pages.providers.provider.official.title',
+      name: 'Official Provider',
+      descriptionKey: 'settings.pages.providers.provider.official.description',
+      description: 'Official AI provider by AIRI.',
+      icon: 'i-solar:star-bold-duotone',
+      createProvider: async (_config) => {
+        const authStore = useAuthStore()
+        if (!authStore.isAuthenticated) {
+          throw new Error('User is not authenticated')
+        }
+        return createOpenAI('', `${SERVER_URL}/v1/`)
+      },
+      capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'gpt-4o',
+              name: 'GPT-4o',
+              provider: 'official-provider',
+            },
+          ]
+        },
+      },
+      validators: {
+        validateProviderConfig: () => {
+          const authStore = useAuthStore()
+          return {
+            errors: [],
+            reason: '',
+            valid: authStore.isAuthenticated,
+          }
+        },
+      },
+    },
     'openrouter-ai': buildOpenAICompatibleProvider({
       id: 'openrouter-ai',
       name: 'OpenRouter',
@@ -2438,7 +2479,7 @@ export const useProvidersStore = defineStore('providers', () => {
     if (providerRuntimeState.value[providerId]) {
       providerRuntimeState.value[providerId].isConfigured = validationResult.valid
       // Auto-mark Web Speech API as added if valid and available
-      if (validationResult.valid && ['browser-web-speech-api', 'player2'].includes(providerId)) {
+      if (validationResult.valid && ['browser-web-speech-api', 'player2', 'official-provider'].includes(providerId)) {
         markProviderAdded(providerId)
       }
     }
@@ -2497,6 +2538,9 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Call initially and watch for changes
   watch(providerCredentials, updateConfigurationStatus, { deep: true, immediate: true })
+
+  const authStore = useAuthStore()
+  watch(() => authStore.isAuthenticated, updateConfigurationStatus)
 
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.keys(providerMetadata).filter(providerId => providerRuntimeState.value[providerId]?.isConfigured))

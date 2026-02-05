@@ -22,6 +22,7 @@
     "hono": "catalog:",
     "injeca": "catalog:",
     "postgres": "^3.4.8",
+    "stripe": "catalog:",
     "tsx": "^4.21.0",
     "valibot": "catalog:"
   },

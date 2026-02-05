@@ -42,6 +42,16 @@ const context = inject(OnboardingContextKey)!
       >
         {{ t('settings.dialogs.onboarding.description') }}
       </p>
+      <p
+        v-motion
+        :initial="{ opacity: 0, y: 10 }"
+        :visible="{ opacity: 1, y: 0 }"
+        :duration="500"
+        :delay="150"
+        class="mt-4 text-xs text-primary-600 font-medium dark:text-primary-400"
+      >
+        {{ t('settings.dialogs.onboarding.loginPrompt') }}
+      </p>
     </div>
     <Button
       v-motion

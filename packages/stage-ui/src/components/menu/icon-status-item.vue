@@ -5,7 +5,7 @@ const props = defineProps<{
   icon?: string
   iconColor?: string
   iconImage?: string
-  to: string
+  to?: string
   configured?: boolean
 }>()
 </script>
@@ -20,13 +20,14 @@ const props = defineProps<{
     transition="all ease-in-out duration-400"
     w-full cursor-pointer of-hidden rounded-xl
   >
-    <RouterLink
+    <component
+      :is="props.to ? 'RouterLink' : 'div'"
       flex="~ row"
       class="menu-icon-status-item-link"
       bg="white dark:neutral-900"
       transition="all ease-in-out duration-400"
       relative h-full w-full items-center overflow-hidden rounded-lg p-5 text-left
-      :to=" props.to"
+      :to="props.to"
     >
       <div z-1 flex-1>
         <div

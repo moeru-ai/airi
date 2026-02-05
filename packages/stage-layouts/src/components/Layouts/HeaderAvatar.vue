@@ -8,7 +8,7 @@ import { RouterLink } from 'vue-router'
 import { toast } from 'vue-sonner'
 
 const authStore = useAuthStore()
-const { isAuthenticated, user } = storeToRefs(authStore)
+const { isAuthenticated, user, credits } = storeToRefs(authStore)
 
 const isMobile = useMediaQuery('(max-width: 768px)')
 
@@ -128,6 +128,10 @@ async function handleListSessions() {
             <p class="truncate text-sm text-neutral-900 font-medium dark:text-white">
               {{ userName }}
             </p>
+            <div class="mt-1 flex items-center gap-1.5 text-xs text-primary-600 font-medium dark:text-primary-400">
+              <div class="i-solar:battery-charge-bold-duotone text-sm" />
+              <span>{{ credits }} Credits</span>
+            </div>
           </div>
 
           <div class="py-1">
@@ -138,6 +142,15 @@ async function handleListSessions() {
               <div class="i-solar:devices-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
               Active Sessions
             </button>
+
+            <RouterLink
+              to="/settings/credits"
+              class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-700 transition hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
+              @click="showDropdown = false"
+            >
+              <div class="i-solar:battery-charge-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
+              Credits
+            </RouterLink>
 
             <RouterLink
               to="/settings"
