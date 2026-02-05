@@ -1,3 +1,4 @@
+import type { Env } from './services/env'
 import type { HonoEnv } from './types/hono'
 
 import process, { exit } from 'node:process'
@@ -40,7 +41,7 @@ interface AppDeps {
   chatService: ChatService
   providerService: ProviderService
   creditsService: CreditsService
-  env: any
+  env: Env
 }
 
 function buildApp({ auth, characterService, chatService, providerService, creditsService, env }: AppDeps) {
