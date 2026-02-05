@@ -118,7 +118,7 @@ useScrollToHash(() => route.hash, {
           :icon-color="provider.iconColor"
           :icon-image="provider.iconImage"
           :configured="false"
-          class="grayscale opacity-60"
+          class="opacity-60 grayscale"
           @click="authStore.isLoginOpen = true"
         />
         <IconStatusItem
