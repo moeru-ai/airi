@@ -29,12 +29,12 @@ export const useAuthStore = defineStore('auth', () => {
   const updateCredits = async () => {
     if (!isAuthenticated.value)
       return
-    const response = await fetch(`${SERVER_URL}/api/credits`, {
+    const response = await fetch(`${SERVER_URL}/api/flux`, {
       credentials: 'include',
     })
     if (response.ok) {
       const data = await response.json()
-      credits.value = data.credits
+      credits.value = data.flux
     }
   }
 

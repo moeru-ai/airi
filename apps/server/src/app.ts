@@ -13,16 +13,16 @@ import { createLoggLogger, injeca } from 'injeca'
 import { sessionMiddleware } from './middlewares/auth'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatRoutes } from './routes/chats'
-import { createCreditsRoutes } from './routes/credits'
+import { createFluxRoutes } from './routes/flux'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
 import { createV1Routes } from './routes/v1'
 import { createAuth } from './services/auth'
 import { createCharacterService } from './services/characters'
 import { createChatService } from './services/chats'
-import { createCreditsService } from './services/credits'
 import { createDrizzle } from './services/db'
 import { parsedEnv } from './services/env'
+import { createFluxService } from './services/flux'
 import { createProviderService } from './services/providers'
 import { ApiError, createInternalError } from './utils/error'
 import { getTrustedOrigin } from './utils/origin'
@@ -33,18 +33,18 @@ type AuthService = ReturnType<typeof createAuth>
 type CharacterService = ReturnType<typeof createCharacterService>
 type ChatService = ReturnType<typeof createChatService>
 type ProviderService = ReturnType<typeof createProviderService>
-type CreditsService = ReturnType<typeof createCreditsService>
+type FluxService = ReturnType<typeof createFluxService>
 
 interface AppDeps {
   auth: AuthService
   characterService: CharacterService
   chatService: ChatService
   providerService: ProviderService
-  creditsService: CreditsService
+  fluxService: FluxService
   env: Env
 }
 
-function buildApp({ auth, characterService, chatService, providerService, creditsService, env }: AppDeps) {
+function buildApp({ auth, characterService, chatService, providerService, fluxService, env }: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
   return new Hono<HonoEnv>()
@@ -98,17 +98,17 @@ function buildApp({ auth, characterService, chatService, providerService, credit
     /**
      * V1 routes for official provider.
      */
-    .route('/v1', createV1Routes(creditsService, env))
+    .route('/v1', createV1Routes(fluxService, env))
 
     /**
-     * Credits routes.
+     * Flux routes.
      */
-    .route('/api/credits', createCreditsRoutes(creditsService))
+    .route('/api/flux', createFluxRoutes(fluxService))
 
     /**
      * Stripe routes.
      */
-    .route('/api/stripe', createStripeRoutes(creditsService, env))
+    .route('/api/stripe', createStripeRoutes(fluxService, env))
 }
 
 export type AppType = ReturnType<typeof buildApp>
@@ -151,19 +151,19 @@ async function createApp() {
     build: ({ dependsOn }) => createChatService(dependsOn.db),
   })
 
-  const creditsService = injeca.provide('services:credits', {
+  const fluxService = injeca.provide('services:flux', {
     dependsOn: { db },
-    build: ({ dependsOn }) => createCreditsService(dependsOn.db),
+    build: ({ dependsOn }) => createFluxService(dependsOn.db),
   })
 
   await injeca.start()
-  const resolved = await injeca.resolve({ auth, characterService, chatService, providerService, creditsService, env: parsedEnv })
+  const resolved = await injeca.resolve({ auth, characterService, chatService, providerService, fluxService, env: parsedEnv })
   const app = buildApp({
     auth: resolved.auth,
     characterService: resolved.characterService,
     chatService: resolved.chatService,
     providerService: resolved.providerService,
-    creditsService: resolved.creditsService,
+    fluxService: resolved.fluxService,
     env: resolved.env,
   })
 

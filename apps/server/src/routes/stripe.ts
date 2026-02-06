@@ -1,4 +1,4 @@
-import type { CreditsService } from '../services/credits'
+import type { FluxService } from '../services/flux'
 import type { HonoEnv } from '../types/hono'
 
 import Stripe from 'stripe'
@@ -7,7 +7,7 @@ import { Hono } from 'hono'
 
 import { authGuard } from '../middlewares/auth'
 
-export function createStripeRoutes(creditsService: CreditsService, env: any) {
+export function createStripeRoutes(fluxService: FluxService, env: any) {
   const stripe = new Stripe(env.STRIPE_SECRET_KEY)
   const routes = new Hono<HonoEnv>()
 
@@ -22,7 +22,7 @@ export function createStripeRoutes(creditsService: CreditsService, env: any) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: 'Credits Top-up',
+              name: 'Flux Top-up',
             },
             unit_amount: amount,
           },
@@ -61,8 +61,8 @@ export function createStripeRoutes(creditsService: CreditsService, env: any) {
       const amount = session.amount_total
 
       if (userId && amount) {
-        // Example: 1 credit per cent?
-        await creditsService.addCredits(userId, amount)
+        // Example: 1 flux per cent?
+        await fluxService.addFlux(userId, amount)
       }
     }
 
