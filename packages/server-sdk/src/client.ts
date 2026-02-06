@@ -1,5 +1,7 @@
 import type {
   MetadataEventSource,
+  ModuleConfigSchema,
+  ModuleDependency,
   WebSocketBaseEvent,
   WebSocketEvent,
   WebSocketEventOptionalSource,
@@ -21,6 +23,8 @@ export interface ClientOptions<C = undefined> {
   possibleEvents?: Array<keyof WebSocketEvents<C>>
   token?: string
   identity?: MetadataEventSource
+  dependencies?: ModuleDependency[]
+  configSchema?: ModuleConfigSchema
   heartbeat?: {
     readTimeout?: number
     message?: MessageHeartbeat | string
@@ -60,8 +64,9 @@ export class Client<C = undefined> {
 
   constructor(options: ClientOptions<C>) {
     const identity = options.identity ?? {
-      plugin: options.name,
-      instanceId: createInstanceId(),
+      kind: 'plugin',
+      plugin: { id: options.name },
+      id: createInstanceId(),
     }
 
     this.opts = {
@@ -233,6 +238,8 @@ export class Client<C = undefined> {
         name: this.opts.name,
         identity: this.identity,
         possibleEvents: this.opts.possibleEvents,
+        dependencies: this.opts.dependencies,
+        configSchema: this.opts.configSchema,
       },
     })
   }
