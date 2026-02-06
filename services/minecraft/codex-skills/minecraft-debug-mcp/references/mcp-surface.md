@@ -44,6 +44,7 @@ The bot starts this server during normal runtime from:
 - `execute_repl(code: string)`
   - Executes debug REPL code in running brain context.
   - Use for focused inspection/action only.
+  - Runtime global includes `forget_conversation()` for conversation-memory reset.
 
 - `inject_chat(username: string, message: string)`
   - Injects a synthetic chat perception event.
@@ -82,6 +83,8 @@ Use this exact sequence for fast live validation:
 1. Baseline
    - `get_state()`
    - `execute_repl("query.inventory().list().map(i => ({ name: i.name, count: i.count }))")`
+   - Optional clean slate:
+     - `execute_repl("forget_conversation()")`
 2. Task trigger
    - `inject_chat({ username: \"codex-live-test\", message: \"please gather 3 dirt blocks\" })`
 3. Execution proof
@@ -92,6 +95,13 @@ Use this exact sequence for fast live validation:
    - Assert trace payload does not include `role: "system"` entries.
 4. Outcome proof
    - Run the same inventory `execute_repl` call again and compare item counts.
+
+## Prompt-Behavior Check (Value-First)
+
+To validate read->action behavior:
+1. Inject a query-style chat (for example inventory question).
+2. Confirm first planner result is no-action with concrete return value (via `get_logs`/`get_llm_trace`).
+3. Confirm follow-up turn uses that returned value to perform chat/action.
 
 ## Runtime Caveat Seen Live
 

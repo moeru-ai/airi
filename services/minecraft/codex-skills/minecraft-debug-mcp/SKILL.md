@@ -37,6 +37,7 @@ Use this skill to run the local bot and interact with its MCP debug interface sa
 - Use `execute_repl` for deep object inspection or one-off targeted calls on the running brain.
 - Use `inject_chat` to simulate player chat and verify behavior loop.
 - Use `get_llm_trace` to assert planner behavior in automation (for example, detect repeated `await skip()` on specific events).
+- Use `execute_repl("forget_conversation()")` to clear conversation memory before prompt-engineering tests.
 
 Read `references/mcp-surface.md` for exact tool/resource names and argument schemas.
 
@@ -49,6 +50,8 @@ Read `references/mcp-surface.md` for exact tool/resource names and argument sche
 - `get_llm_trace(limit, turnId?)` gives structured attempt-level trace data (messages, content, reasoning, usage, duration).
 - `get_last_prompt` and `get_llm_trace` are compacted for MCP: system prompt/system-role messages are omitted to reduce token cost.
 - If environment summary shows `"SOMETHING WENT WRONG, YOU SHOULD NOTIFY THE USER OF THIS"`, treat it as degraded runtime context and avoid high-confidence world actions.
+- `forget_conversation()` is available as a runtime function in REPL/global context and clears only conversation memory.
+- Current prompt behavior supports two-turn value-first flows: read/query turn returns concrete data first, follow-up turn performs chat/action using that returned value.
 
 ## Live Testing Workflow
 
