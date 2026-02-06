@@ -15,7 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-swiftlint
       - uses: pnpm/action-setup@v3
       - uses: actions/setup-node@v5
         with:
@@ -24,7 +23,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm run lint
-      - run: pnpm run lint:swift
+      - run: docker run -it -v `pwd`:`pwd` -w `pwd` ghcr.io/realm/swiftlint:latest
+        working-directory: ./apps/stage-pocket
 
   build-test:
     name: Build Test (${{ matrix.app_name }})
