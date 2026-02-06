@@ -28,6 +28,9 @@ dialogs:
     retry: Retry
     start: Let's do it!
     loginPrompt: Login to use the official AIRI provider for the best experience.
+    loginAction: Login
+    flux: Flux
+    buyFlux: Charge Flux
     select-model: Choose model
     no-models: No available models
     no-models-help: >-
@@ -431,6 +434,19 @@ pages:
     title: Flux
     buy: Charge
     description: Current Flux
+    packages:
+      title: Flux Packages
+      buy: Charge
+      description: Flux packages to choose from.
+      amount_500:
+        label: 500 Flux
+        price: '$5'
+      amount_1000:
+        label: 1000 Flux
+        price: '$10'
+      amount_5000:
+        label: 5000 Flux
+        price: '$45'
   providers:
     explained:
       chat: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.

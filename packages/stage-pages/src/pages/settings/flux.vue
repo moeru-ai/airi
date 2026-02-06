@@ -3,7 +3,7 @@ import { SERVER_URL } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -11,6 +11,13 @@ const authStore = useAuthStore()
 const { credits } = storeToRefs(authStore)
 
 const loading = ref(false)
+
+// Packages with i18n labels
+const packages = computed(() => [
+  { amount: 500, label: t('settings.pages.flux.packages.amount_500.label'), price: t('settings.pages.flux.packages.amount_500.price') },
+  { amount: 1000, label: t('settings.pages.flux.packages.amount_1000.label'), price: t('settings.pages.flux.packages.amount_1000.price') },
+  { amount: 5000, label: t('settings.pages.flux.packages.amount_5000.label'), price: t('settings.pages.flux.packages.amount_5000.price') },
+])
 
 async function handleBuy(amount: number) {
   loading.value = true
@@ -51,7 +58,7 @@ async function handleBuy(amount: number) {
 
     <div grid="~ cols-1 sm:cols-3 gap-4">
       <div
-        v-for="pkg in [{ amount: 500, label: '500 Flux', price: '$5' }, { amount: 1000, label: '1000 Flux', price: '$10' }, { amount: 5000, label: '5000 Flux', price: '$45' }]" :key="pkg.amount"
+        v-for="pkg in packages" :key="pkg.amount"
         border="1 neutral-200 dark:neutral-800" flex="~ col gap-2" items-center rounded-xl p-4
       >
         <div font-bold>
