@@ -53,7 +53,7 @@ mac:
   notarize: false
   hardenedRuntime: false
   executableName: airi
-  icon: icon.icns
+  icon: icon.icon
 dmg:
   artifactName: ${productName}-${version}-darwin-${arch}.${ext}
 
