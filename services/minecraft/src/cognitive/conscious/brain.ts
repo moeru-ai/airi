@@ -244,6 +244,46 @@ export class Brain {
     }
   }
 
+  public getDebugSnapshot(): {
+    isProcessing: boolean
+    queueLength: number
+    turnCounter: number
+    giveUpUntil: number
+    contextView: string | undefined
+    conversationHistory: Message[]
+    llmLogEntries: LlmLogEntry[]
+  } {
+    return {
+      isProcessing: this.isProcessing,
+      queueLength: this.queue.length,
+      turnCounter: this.turnCounter,
+      giveUpUntil: this.giveUpUntil,
+      contextView: this.lastContextView,
+      conversationHistory: this.cloneMessages(this.conversationHistory),
+      llmLogEntries: [...this.llmLogEntries],
+    }
+  }
+
+  public getLastLlmInput(): LlmInputSnapshot | null {
+    if (!this.lastLlmInputSnapshot)
+      return null
+    return JSON.parse(JSON.stringify(this.lastLlmInputSnapshot)) as LlmInputSnapshot
+  }
+
+  public getLlmLogs(limit?: number): LlmLogEntry[] {
+    const entries = [...this.llmLogEntries]
+    if (typeof limit !== 'number' || !Number.isFinite(limit) || limit <= 0)
+      return entries
+    return entries.slice(-Math.floor(limit))
+  }
+
+  public async injectDebugEvent(event: BotEvent): Promise<void> {
+    if (!this.runtimeMineflayer) {
+      throw new Error('Brain runtime is not initialized yet')
+    }
+    await this.enqueueEvent(this.runtimeMineflayer, event)
+  }
+
   public async executeDebugRepl(code: string): Promise<DebugReplResult> {
     const startedAt = Date.now()
     if (this.isProcessing || this.isReplEvaluating) {
