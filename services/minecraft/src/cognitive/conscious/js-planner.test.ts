@@ -193,6 +193,23 @@ describe('javaScriptPlanner', () => {
     expect(planned.actions).toHaveLength(0)
   })
 
+  it('renders nested return objects without [Object] truncation', async () => {
+    const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+    const planned = await planner.evaluate(`
+      return {
+        nearbyCopperOre: [{
+          name: 'copper_ore',
+          pos: { x: 10, y: 64, z: -2 },
+          distance: 1.8,
+        }],
+      }
+    `, actions, globals, executeAction)
+
+    expect(planned.returnValue).toContain('pos: { x: 10, y: 64, z: -2 }')
+    expect(planned.returnValue).not.toContain('[Object]')
+  })
+
   it('detects expression-friendly REPL inputs', () => {
     const planner = new JavaScriptPlanner()
     expect(planner.canEvaluateAsExpression('2 + 3')).toBe(true)

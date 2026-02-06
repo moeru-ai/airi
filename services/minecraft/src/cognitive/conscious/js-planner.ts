@@ -143,7 +143,12 @@ export class JavaScriptPlanner {
 
       const returnValue = typeof result === 'undefined'
         ? undefined
-        : inspect(result, { depth: 2, breakLength: 100 })
+        : inspect(result, {
+            depth: null,
+            breakLength: 100,
+            maxArrayLength: 100,
+            maxStringLength: 10_000,
+          })
 
       if (isRecord(this.sandbox.lastRun)) {
         this.sandbox.lastRun.returnValue = returnValue
