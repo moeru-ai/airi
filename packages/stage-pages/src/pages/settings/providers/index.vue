@@ -2,15 +2,12 @@
 import { IconStatusItem, RippleGrid } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useScrollToHash } from '@proj-airi/stage-ui/composables'
 import { useRippleGridState } from '@proj-airi/stage-ui/composables/use-ripple-grid-state'
-import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
-const authStore = useAuthStore()
-const { isAuthenticated } = storeToRefs(authStore)
 const providersStore = useProvidersStore()
 const { lastClickedIndex, setLastClickedIndex } = useRippleGridState()
 const { trackProviderClick } = useAnalytics()
@@ -111,18 +108,6 @@ useScrollToHash(() => route.hash, {
 
       <template #item="{ item: provider }">
         <IconStatusItem
-          v-if="provider.id === 'official-provider' && !isAuthenticated"
-          :title="provider.localizedName || 'Unknown'"
-          :description="provider.localizedDescription"
-          :icon="provider.icon"
-          :icon-color="provider.iconColor"
-          :icon-image="provider.iconImage"
-          :configured="false"
-          class="opacity-60 grayscale"
-          @click="authStore.isLoginOpen = true"
-        />
-        <IconStatusItem
-          v-else
           :title="provider.localizedName || 'Unknown'"
           :description="provider.localizedDescription"
           :icon="provider.icon"

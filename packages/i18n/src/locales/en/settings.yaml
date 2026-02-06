@@ -427,9 +427,10 @@ pages:
     mcp-server:
       description: Connect and manage MCP server and tools
       title: MCP Server
-  credits:
-    title: Credits
-    buy: Buy
+  flux:
+    title: Flux
+    buy: Charge
+    description: Current Flux
   providers:
     explained:
       chat: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
@@ -453,7 +454,9 @@ pages:
         validation:
           failed:
             title: Please check your provider settings, validation failed.
-            description: You can still save the current configuration if you want to proceed.
+            description: >-
+              You can still save the current configuration if you want to
+              proceed.
             action: Save anyway
         config:
           common:
@@ -507,7 +510,9 @@ pages:
                       needed for making it pass for Ollama. You need to set
                       <code>OLLAMA_HOST</code> explicitly when start the Ollama
                       application or Ollama CLI server, for detailed
-                      information, check <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama integration guide</a>.
+                      information, check <a
+                      href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama
+                      integration guide</a>.
     common:
       continueAnyway: Continue Anyway
       fields:
@@ -646,7 +651,9 @@ pages:
               description: Smaller models load faster but may have slightly lower quality.
         models:
           fp32-webgpu:
-            description: Full precision model using WebGPU - Recommended for supported devices
+            description: >-
+              Full precision model using WebGPU - Recommended for supported
+              devices
           fp32:
             description: Full precision model
           fp16:
@@ -830,7 +837,9 @@ pages:
                 title: Polaroid
                 description: Utility for taking shots of models
               context-flow:
-                description: Inspect incoming context updates and outgoing chat stream events
+                description: >-
+                  Inspect incoming context updates and outgoing chat stream
+                  events
               websocket-inspector:
                 title: WebSocket Inspector
                 description: Inspect raw WebSocket traffic
@@ -839,7 +848,9 @@ pages:
                 description: Test color extraction
               providers-transcription-realtime-aliyun-nls:
                 title: Aliyun Real-time Transcriber
-                description: Stream microphone audio to Aliyun NLS and inspect live transcripts
+                description: >-
+                  Stream microphone audio to Aliyun NLS and inspect live
+                  transcripts
               performance-playground:
                 title: Performance Playground
                 description: 'Test performance runtime: VRM expressions + TTS lip sync'
@@ -919,6 +930,8 @@ pages:
       open-devtools:
         title: Open Developer Tools
         button: Open
+  credits:
+    buy: Buy
 sections:
   section:
     general:
@@ -972,7 +985,9 @@ vrm:
 websocket-secure-enabled:
   title: Enable Secure WebSocket (WSS)
   description: >-
-    Enable WSS (WebSocket Secure) to allow HTTPS connections for mobile (pocket) in development mode. This will automatically generate a self-signed certificate.
+    Enable WSS (WebSocket Secure) to allow HTTPS connections for mobile (pocket)
+    in development mode. This will automatically generate a self-signed
+    certificate.
 wip:
   title: Work in Progress
   description: >-

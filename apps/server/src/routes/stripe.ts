@@ -30,8 +30,8 @@ export function createStripeRoutes(creditsService: CreditsService, env: any) {
         },
       ],
       mode: 'payment',
-      success_url: `${env.CLIENT_URL}/settings/credits?success=true`,
-      cancel_url: `${env.CLIENT_URL}/settings/credits?canceled=true`,
+      success_url: `${env.CLIENT_URL}/settings/flux?success=true`,
+      cancel_url: `${env.CLIENT_URL}/settings/flux?canceled=true`,
       customer_email: user.email,
       metadata: {
         userId: user.id,

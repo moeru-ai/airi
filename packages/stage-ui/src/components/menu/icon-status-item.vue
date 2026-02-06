@@ -5,7 +5,7 @@ const props = defineProps<{
   icon?: string
   iconColor?: string
   iconImage?: string
-  to?: string
+  to: string
   configured?: boolean
 }>()
 </script>
@@ -20,14 +20,13 @@ const props = defineProps<{
     transition="all ease-in-out duration-400"
     w-full cursor-pointer of-hidden rounded-xl
   >
-    <component
-      :is="props.to ? 'RouterLink' : 'div'"
+    <RouterLink
       flex="~ row"
       class="menu-icon-status-item-link"
       bg="white dark:neutral-900"
       transition="all ease-in-out duration-400"
       relative h-full w-full items-center overflow-hidden rounded-lg p-5 text-left
-      :to="props.to"
+      :to=" props.to"
     >
       <div z-1 flex-1>
         <div
@@ -74,11 +73,11 @@ const props = defineProps<{
           grayscale-100
         >
       </template>
-      <div p-2>
-        <div v-if="props.configured" size-4 bg="green-500" rounded-full shadow="lg" />
-        <div v-else size-4 border="2 neutral-200 dark:neutral-700" rounded-full bg="white dark:neutral-900" />
-      </div>
-    </component>
+    </RouterLink>
+    <div p-2>
+      <div v-if="props.configured" size-4 bg="green-500" rounded-full shadow="lg" />
+      <div v-else size-4 border="2 neutral-200 dark:neutral-700" rounded-full bg="white dark:neutral-900" />
+    </div>
   </div>
 </template>
 

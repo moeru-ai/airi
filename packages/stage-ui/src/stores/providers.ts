@@ -2500,6 +2500,12 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Initialize provider configurations
   function initializeProvider(providerId: string) {
+    if (providerId === 'official-provider') {
+      const authStore = useAuthStore()
+      if (authStore.isAuthenticated) {
+        forceProviderConfigured(providerId)
+      }
+    }
     if (!providerCredentials.value[providerId]) {
       providerCredentials.value[providerId] = getDefaultProviderConfig(providerId)
     }

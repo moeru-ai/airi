@@ -130,7 +130,7 @@ async function handleListSessions() {
             </p>
             <div class="mt-1 flex items-center gap-1.5 text-xs text-primary-600 font-medium dark:text-primary-400">
               <div class="i-solar:battery-charge-bold-duotone text-sm" />
-              <span>{{ credits }} Credits</span>
+              <span>{{ credits }} Flux</span>
             </div>
           </div>
 
@@ -144,12 +144,12 @@ async function handleListSessions() {
             </button>
 
             <RouterLink
-              to="/settings/credits"
+              to="/settings/flux"
               class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-700 transition hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
               @click="showDropdown = false"
             >
               <div class="i-solar:battery-charge-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
-              Credits
+              Flux
             </RouterLink>
 
             <RouterLink
