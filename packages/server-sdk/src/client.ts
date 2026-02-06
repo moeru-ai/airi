@@ -74,6 +74,8 @@ export class Client<C = undefined> {
       onAnyMessage: () => {},
       onAnySend: () => {},
       possibleEvents: [],
+      dependencies: [],
+      configSchema: undefined,
       onError: () => {},
       onClose: () => {},
       autoConnect: true,

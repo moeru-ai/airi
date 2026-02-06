@@ -708,6 +708,10 @@ interface ModuleStatusChangeEvent {
   details?: Record<string, unknown>
 }
 
+interface ModuleConfigureEvent<C = undefined> {
+  config: C | Record<string, unknown>
+}
+
 interface UiConfigureEvent<C = undefined> {
   moduleName: string
   moduleIndex?: number
@@ -845,6 +849,8 @@ export const moduleContributeCapabilityActivated = defineEventa<ModuleContribute
 
 export const moduleStatusChange = defineEventa<ModuleStatusChangeEvent>('module:status:change')
 
+export const moduleConfigure = defineEventa<ModuleConfigureEvent>('module:configure')
+
 export const uiConfigure = defineEventa<UiConfigureEvent>('ui:configure')
 
 export const inputText = defineEventa<WebSocketEventInputText>('input:text')
@@ -953,6 +959,10 @@ export interface WebSocketEvents<C = undefined> {
    * Request a phase transition (module → host).
    */
   'module:status:change': ModuleStatusChangeEvent
+  /**
+   * Push configuration down to module (host → module).
+   */
+  'module:configure': ModuleConfigureEvent<C>
 
   'ui:configure': UiConfigureEvent<C>
 
