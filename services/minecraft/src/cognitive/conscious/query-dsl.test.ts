@@ -73,4 +73,29 @@ describe('query DSL', () => {
     const pickaxes = query.craftable().whereIncludes('pickaxe').uniq().list()
     expect(pickaxes).toEqual(['wooden_pickaxe', 'stone_pickaxe'])
   })
+
+  it('supports inventory helper methods for count/has/summary', () => {
+    const query = createQueryRuntime(createMineflayerStub())
+    expect(query.inventory().count('bread')).toBe(5)
+    expect(query.inventory().has('bread', 5)).toBe(true)
+    expect(query.inventory().has('bread', 6)).toBe(false)
+    expect(query.inventory().summary()).toEqual([
+      { name: 'cobblestone', count: 16 },
+      { name: 'bread', count: 5 },
+    ])
+  })
+
+  it('returns self and snapshot views for one-shot state reads', () => {
+    const query = createQueryRuntime(createMineflayerStub())
+    const self = query.self()
+    expect(self.pos).toEqual({ x: 0, y: 64, z: 0 })
+    expect(self.heldItem).toBeNull()
+
+    const snap = query.snapshot(12)
+    expect(snap.inventory.counts).toEqual({
+      bread: 5,
+      cobblestone: 16,
+    })
+    expect(snap.nearby.ores.map(b => b.name)).toEqual(['coal_ore', 'coal_ore', 'ancient_debris'])
+  })
 })

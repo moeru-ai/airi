@@ -207,6 +207,8 @@ export class JavaScriptPlanner {
       { name: 'llmUserMessage', kind: 'string', readonly: true },
       { name: 'llmConversationHistory', kind: 'object', readonly: true },
       { name: 'query', kind: 'object', readonly: true },
+      { name: 'query.self', kind: 'function', readonly: true },
+      { name: 'query.snapshot', kind: 'function', readonly: true },
       { name: 'bot', kind: 'object', readonly: true },
       { name: 'mineflayer', kind: 'object', readonly: true },
       { name: 'mem', kind: 'object', readonly: false },

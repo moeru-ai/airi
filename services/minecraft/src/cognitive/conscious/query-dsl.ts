@@ -31,6 +31,21 @@ interface InventoryRecord {
   displayName?: string
 }
 
+interface InventorySummaryRecord {
+  name: string
+  count: number
+}
+
+interface SelfQueryRecord {
+  pos: { x: number, y: number, z: number }
+  health: number
+  food: number
+  heldItem: string | null
+  gameMode: string
+  isRaining: boolean
+  timeOfDay: number | null
+}
+
 type NamePredicate = (value: string) => boolean
 
 class NameQueryChain {
@@ -199,6 +214,28 @@ class InventoryQueryChain {
     }, {} as Record<string, number>)
   }
 
+  public count(name: string): number {
+    const needle = name.toLowerCase()
+    return this.list()
+      .filter(item => item.name.toLowerCase() === needle)
+      .reduce((sum, item) => sum + item.count, 0)
+  }
+
+  public has(name: string, atLeast = 1): boolean {
+    return this.count(name) >= Math.max(1, Math.floor(atLeast))
+  }
+
+  public summary(): InventorySummaryRecord[] {
+    const counts = this.countByName()
+    return Object.entries(counts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => {
+        if (b.count !== a.count)
+          return b.count - a.count
+        return a.name.localeCompare(b.name)
+      })
+  }
+
   public list(): InventoryRecord[] {
     return this.mineflayer.bot.inventory
       .items()
@@ -296,8 +333,41 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
 
+function toSelfRecord(mineflayer: Mineflayer): SelfQueryRecord {
+  return {
+    pos: toPos(mineflayer.bot.entity.position),
+    health: mineflayer.bot.health,
+    food: mineflayer.bot.food,
+    heldItem: mineflayer.bot.heldItem?.name ?? null,
+    gameMode: mineflayer.bot.game?.gameMode ?? 'unknown',
+    isRaining: Boolean(mineflayer.bot.isRaining),
+    timeOfDay: typeof mineflayer.bot.time?.timeOfDay === 'number' ? mineflayer.bot.time.timeOfDay : null,
+  }
+}
+
 export function createQueryRuntime(mineflayer: Mineflayer) {
   return {
+    self: () => toSelfRecord(mineflayer),
+    snapshot: (range = 16) => {
+      const normalizedRange = clamp(Math.floor(range), 1, 64)
+      const inventory = new InventoryQueryChain(mineflayer)
+      return {
+        self: toSelfRecord(mineflayer),
+        inventory: {
+          counts: inventory.countByName(),
+          summary: inventory.summary(),
+          emptySlots: typeof mineflayer.bot.inventory.emptySlotCount === 'function'
+            ? mineflayer.bot.inventory.emptySlotCount()
+            : Math.max(0, 36 - mineflayer.bot.inventory.items().length),
+          totalStacks: mineflayer.bot.inventory.items().length,
+        },
+        nearby: {
+          blocks: new BlockQueryChain(mineflayer).within(normalizedRange).limit(20).list(),
+          entities: new EntityQueryChain(mineflayer).within(normalizedRange).limit(20).list(),
+          ores: new BlockQueryChain(mineflayer).within(normalizedRange).isOre().limit(20).list(),
+        },
+      }
+    },
     blocks: () => new BlockQueryChain(mineflayer),
     blockAt: ({ x, y, z }: { x: number, y: number, z: number }) => {
       const block = mineflayer.bot.blockAt(new Vec3(Math.floor(x), Math.floor(y), Math.floor(z)))
