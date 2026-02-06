@@ -104,32 +104,45 @@ function getZodConstraintHint(def: any): string {
   return hints.length > 0 ? ` (${hints.join(', ')})` : ''
 }
 
+function abbreviateToolDescription(input: string): string {
+  return input
+    .replace(/\bAutomatically\b/gi, 'Auto')
+    .replace(/\bapproximately\b/gi, 'approx')
+    .replace(/\bcoordinate(s)?\b/gi, 'coord$1')
+    .replace(/\bcoordinates\b/gi, 'coords')
+    .replace(/\binventory\b/gi, 'inv')
+    .replace(/\bnearest\b/gi, 'near')
+    .replace(/\bspecific\b/gi, 'spec')
+    .replace(/\bgiven\b/gi, '')
+    .replace(/\bnumber of\b/gi, '#')
+    .replace(/\bplayer\b/gi, 'plyr')
+    .replace(/\bplayers\b/gi, 'plyrs')
+    .replace(/\bresource(s)?\b/gi, 'res$1')
+    .replace(/\bposition\b/gi, 'pos')
+    .replace(/\bwhether\b/gi, 'if')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 export function generateBrainSystemPrompt(availableActions: Action[]): string {
   const toolsFormatted = availableActions.map((a) => {
     const paramKeys = Object.keys(a.schema.shape)
     const positionalSignature = paramKeys.length > 0 ? `${a.name}(${paramKeys.join(', ')})` : `${a.name}()`
     const objectSignature = paramKeys.length > 0 ? `${a.name}({ ${paramKeys.join(', ')} })` : `${a.name}()`
 
-    let params = ''
-    if (a.schema && 'shape' in a.schema) {
-      params = Object.entries(a.schema.shape).map(([key, val]: [string, any]) => {
-        const def = val._def
-        const type = getZodTypeName(def)
-        const constraints = getZodConstraintHint(def)
-        const desc = val.description ? ` - ${val.description}` : ''
-        return ` * @param {${type}${constraints}} ${key}${desc}`
-      }).join('\n')
-    }
+    const params = a.schema && 'shape' in a.schema
+      ? Object.entries(a.schema.shape).map(([key, val]: [string, any]) => {
+          const def = val._def
+          const type = getZodTypeName(def)
+          const constraints = getZodConstraintHint(def).replace(/^\s+/, '')
+          const desc = val.description ? ` ${String(val.description).trim()}` : ''
+          return `${key}:${type}${constraints}${desc}`
+        }).join('; ')
+      : ''
 
-    const body = params ? `\n${params}\n ` : '\n '
-    return `/**
- * ${a.description}
- * @function ${a.name}
- * @signature ${positionalSignature}
- * @signature ${objectSignature}${body}*/
-${positionalSignature}
-`
-  }).join('\n\n')
+    const compactDescription = abbreviateToolDescription(a.description)
+    return `${a.name}|${compactDescription}|sig:${positionalSignature}|obj:${objectSignature}${params ? `|args:${params}` : ''}`
+  }).join('\n')
 
   ensureWatcher()
   const template = ensureTemplateLoaded()
