@@ -326,6 +326,19 @@ export class Brain {
     if (!this.runtimeMineflayer) {
       throw new Error('Brain runtime is not initialized yet')
     }
+
+    // Debug-injected perception events bypass the normal Reflex signal path.
+    // Refresh context from live bot state first so conscious prompts don't use
+    // stale/default environment placeholders.
+    if (event.type === 'perception') {
+      try {
+        this.deps.reflexManager.refreshFromBotState()
+      }
+      catch (err) {
+        this.deps.logger.withError(err as Error).warn('Brain: Failed to refresh reflex context for debug event')
+      }
+    }
+
     await this.enqueueEvent(this.runtimeMineflayer, event)
   }
 

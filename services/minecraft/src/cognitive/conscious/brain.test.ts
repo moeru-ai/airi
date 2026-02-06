@@ -161,4 +161,17 @@ inv;
 
     expect(enqueueSpy).not.toHaveBeenCalled()
   })
+
+  it('refreshes reflex context before debug perception injection', async () => {
+    const deps: any = createDeps('await skip()')
+    deps.reflexManager.refreshFromBotState = vi.fn()
+    const brain: any = new Brain(deps)
+    brain.runtimeMineflayer = {} as any
+    brain.enqueueEvent = vi.fn(async () => undefined)
+
+    await brain.injectDebugEvent(createPerceptionEvent())
+
+    expect(deps.reflexManager.refreshFromBotState).toHaveBeenCalledTimes(1)
+    expect(brain.enqueueEvent).toHaveBeenCalledTimes(1)
+  })
 })

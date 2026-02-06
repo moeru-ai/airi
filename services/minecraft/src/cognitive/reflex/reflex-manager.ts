@@ -111,6 +111,14 @@ export class ReflexManager {
     this.emitReflexState()
   }
 
+  public refreshFromBotState(): void {
+    if (!this.bot)
+      return
+
+    this.runtime.tick(this.bot, 0, this.deps.perception)
+    this.emitReflexState()
+  }
+
   private onSignal(event: TracedEvent<PerceptionSignal>): void {
     const bot = this.bot
     if (!bot)
