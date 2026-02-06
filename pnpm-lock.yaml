@@ -40,8 +40,8 @@ catalogs:
       specifier: 0.1.0-beta.15
       version: 0.1.0-beta.15
     '@moeru/eventa':
-      specifier: 'catalog:'
-      version: 1.0.0-alpha.10
+      specifier: 1.0.0-alpha.14
+      version: 1.0.0-alpha.14
     '@moeru/std':
       specifier: 0.1.0-beta.14
       version: 0.1.0-beta.14
@@ -1879,7 +1879,7 @@ importers:
         version: 3.0.2(electron@39.2.7)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-alpha.10(electron@39.2.7)
+        version: 1.0.0-alpha.14(electron@39.2.7)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.14
@@ -1974,7 +1974,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-alpha.10(electron@40.0.0)
+        version: 1.0.0-alpha.14(electron@40.0.0)
 
   packages/server-runtime:
     dependencies:
@@ -2020,7 +2020,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-alpha.10(electron@40.0.0)
+        version: 1.0.0-alpha.14(electron@40.0.0)
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -5999,8 +5999,8 @@ packages:
       web-worker:
         optional: true
 
-  '@moeru/eventa@1.0.0-alpha.10':
-    resolution: {integrity: sha512-JXwSd+/N3ahbD+JNbMYbEZwaEWnfesp81AXOoS39fnvBeL54PtuffDbGNZiuK+uQZ9i4nA7D1k04NP2uP99KYA==}
+  '@moeru/eventa@1.0.0-alpha.11':
+    resolution: {integrity: sha512-5i2LYA19E9siAdqhobVm386dqkV4EZw0+uGDEwLiGqfopE/3yX1zdgOkdvEoT+YJf0SIUqDwuMZoYXkvfWV/kA==}
     peerDependencies:
       electron: '>=30'
       h3: 2.0.0-beta.1
@@ -6013,8 +6013,8 @@ packages:
       web-worker:
         optional: true
 
-  '@moeru/eventa@1.0.0-alpha.11':
-    resolution: {integrity: sha512-5i2LYA19E9siAdqhobVm386dqkV4EZw0+uGDEwLiGqfopE/3yX1zdgOkdvEoT+YJf0SIUqDwuMZoYXkvfWV/kA==}
+  '@moeru/eventa@1.0.0-alpha.14':
+    resolution: {integrity: sha512-VMz75aYTJO85yXj0jj/M8ImakOYr6OUZnV/I5gmseVrMFcqBc8UC6Pk2LTwoMQw/EWaU59557a1lpnUqeyTMQw==}
     peerDependencies:
       electron: '>=30'
       h3: 2.0.0-beta.1
@@ -19695,20 +19695,6 @@ snapshots:
       electron: 40.0.0
       h3: 2.0.1-rc.5(crossws@0.4.3(srvx@0.10.1))
 
-  '@moeru/eventa@1.0.0-alpha.10(electron@39.2.7)':
-    dependencies:
-      nanoid: 5.1.6
-      picomatch: 4.0.3
-    optionalDependencies:
-      electron: 39.2.7
-
-  '@moeru/eventa@1.0.0-alpha.10(electron@40.0.0)':
-    dependencies:
-      nanoid: 5.1.6
-      picomatch: 4.0.3
-    optionalDependencies:
-      electron: 40.0.0
-
   '@moeru/eventa@1.0.0-alpha.11(electron@40.0.0)(h3@2.0.1-rc.5(crossws@0.4.3(srvx@0.10.1)))':
     dependencies:
       nanoid: 5.1.6
@@ -19716,6 +19702,20 @@ snapshots:
     optionalDependencies:
       electron: 40.0.0
       h3: 2.0.1-rc.5(crossws@0.4.3(srvx@0.10.1))
+
+  '@moeru/eventa@1.0.0-alpha.14(electron@39.2.7)':
+    dependencies:
+      nanoid: 5.1.6
+      picomatch: 4.0.3
+    optionalDependencies:
+      electron: 39.2.7
+
+  '@moeru/eventa@1.0.0-alpha.14(electron@40.0.0)':
+    dependencies:
+      nanoid: 5.1.6
+      picomatch: 4.0.3
+    optionalDependencies:
+      electron: 40.0.0
 
   '@moeru/std@0.1.0-beta.1': {}
 
