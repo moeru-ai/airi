@@ -71,6 +71,12 @@ The bot starts this server during normal runtime from:
 - `get_last_prompt` may be very large (full system prompt + history); avoid repeated calls unless needed.
 - `get_last_prompt` is now MCP-compacted (no raw system prompt text), which makes it cheaper for automation checks.
 - `execute_repl` response includes metadata (`source`, `durationMs`, `actions`, `logs`) and a stringified `returnValue`.
+- Query runtime now has LLM-friendly shortcuts for deterministic reads:
+  - `query.self()`
+  - `query.inventory().count(name)`
+  - `query.inventory().has(name, atLeast?)`
+  - `query.inventory().summary()`
+  - `query.snapshot(range?)`
 - Log verification pattern that worked reliably:
   1. `inject_chat(...)`
   2. `get_logs(limit: 10)`
@@ -103,6 +109,7 @@ To validate read->action behavior:
 2. Confirm first planner result is no-action with concrete return value (via `get_logs`/`get_llm_trace`).
 3. Confirm follow-up turn uses that returned value to perform chat/action.
 
-## Runtime Caveat Seen Live
+## Runtime Caveat
 
-- If a turn includes `Environment: SOMETHING WENT WRONG, YOU SHOULD NOTIFY THE USER OF THIS`, treat the world snapshot as degraded and avoid issuing risky autonomous actions until context stabilizes.
+- The degraded environment sentinel can appear only when context has not been refreshed yet.
+- With the current fix, `inject_chat` refreshes reflex context first, so this should not appear in normal MCP chat-injection tests.

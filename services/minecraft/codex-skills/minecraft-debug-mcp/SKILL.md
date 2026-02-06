@@ -49,7 +49,11 @@ Read `references/mcp-surface.md` for exact tool/resource names and argument sche
 - `get_logs(limit=10)` is enough to verify whether an injected event reached planner/executor.
 - `get_llm_trace(limit, turnId?)` gives structured attempt-level trace data (messages, content, reasoning, usage, duration).
 - `get_last_prompt` and `get_llm_trace` are compacted for MCP: system prompt/system-role messages are omitted to reduce token cost.
-- If environment summary shows `"SOMETHING WENT WRONG, YOU SHOULD NOTIFY THE USER OF THIS"`, treat it as degraded runtime context and avoid high-confidence world actions.
+- Prefer compact value reads in REPL:
+  - `query.self()` for bot status.
+  - `query.inventory().has(name, n)` / `query.inventory().count(name)` for checks.
+  - `query.inventory().summary()` for stable aggregated item output.
+  - `query.snapshot(range?)` for one-shot world+inventory capture.
 - `forget_conversation()` is available as a runtime function in REPL/global context and clears only conversation memory.
 - Current prompt behavior supports two-turn value-first flows: read/query turn returns concrete data first, follow-up turn performs chat/action using that returned value.
 

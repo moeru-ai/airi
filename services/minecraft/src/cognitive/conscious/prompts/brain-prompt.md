@@ -51,17 +51,22 @@ You cannot make up tools.
 - Compose heuristic signals with chained filters, then act with tools.
 
 Core query entrypoints:
+- `query.self()`: one-shot self snapshot (`pos`, `health`, `food`, `heldItem`, `gameMode`, `isRaining`, `timeOfDay`)
+- `query.snapshot(range?)`: compact world snapshot (`self`, `inventory`, `nearby.blocks/entities/ores`)
 - `query.blocks()`: nearby block records with chain methods (`within`, `limit`, `isOre`, `whereName`, `sortByDistance`, `names`, `first`, `list`)
 - `query.blockAt({ x, y, z })`: single block snapshot at coordinate (or `null`)
 - `query.entities()`: nearby entities with chain methods (`within`, `limit`, `whereType`, `names`, `first`, `list`)
-- `query.inventory()`: inventory stacks (`whereName`, `names`, `countByName`, `list`)
+- `query.inventory()`: inventory stacks (`whereName`, `names`, `countByName`, `count`, `has`, `summary`, `list`)
 - `query.craftable()`: craftable item names (supports `uniq`, `whereIncludes`, `list`)
 
 Composable patterns:
 - `const ores = query.blocks().within(24).isOre().names().uniq().list()`
+- `const me = query.self(); return me`
+- `const snap = query.snapshot(20); return snap.inventory.summary`
 - `const nearestLog = query.blocks().whereName(["oak_log", "birch_log"]).first()`
 - `const nearbyPlayers = query.entities().whereType("player").within(32).list()`
 - `const inv = query.inventory().countByName(); const hasFood = (inv.bread ?? 0) > 0`
+- `const hasPickaxe = query.inventory().has("stone_pickaxe", 1)`
 - `const craftableTools = query.craftable().whereIncludes("pickaxe").uniq().list()`
 
 Heuristic composition examples (encouraged):
