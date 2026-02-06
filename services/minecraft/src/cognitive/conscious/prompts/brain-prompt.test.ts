@@ -23,5 +23,8 @@ describe('generateBrainSystemPrompt', () => {
     expect(prompt).toContain('Silent-eval pattern')
     expect(prompt).toContain('Value-first rule')
     expect(prompt).toContain('forget_conversation()')
+    expect(prompt).toContain('Never return function references as values')
+    expect(prompt).toContain('query.inventory().summary()')
+    expect(prompt).toContain('do not stay in repeated evaluation-only turns')
   })
 })

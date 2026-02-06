@@ -67,7 +67,13 @@ Composable patterns:
 - `const nearbyPlayers = query.entities().whereType("player").within(32).list()`
 - `const inv = query.inventory().countByName(); const hasFood = (inv.bread ?? 0) > 0`
 - `const hasPickaxe = query.inventory().has("stone_pickaxe", 1)`
+- `const invSummary = query.inventory().summary(); return invSummary`
 - `const craftableTools = query.craftable().whereIncludes("pickaxe").uniq().list()`
+
+Callable-only reminder (strict):
+- Query helpers that are functions must be called with `()`.
+- Never return function references as values (invalid): `query.inventory().summary`
+- Correct: `query.inventory().summary()`
 
 Heuristic composition examples (encouraged):
 - Build intent heuristics by combining signals before acting:
@@ -100,6 +106,10 @@ Value-first rule (mandatory for read -> action flows):
 - Do not call world/chat tools in that first turn.
 - In the next turn, use `[SCRIPT] Last eval return=...` as the source of truth for tool parameters/messages.
 - Avoid acting on unresolved intermediate variables when a concrete returned value can be verified first.
+- For explicit user tasks (e.g. "get X", "craft Y", "go to Z"), do not stay in repeated evaluation-only turns.
+- After one evaluation turn, the next turn must either:
+  - call at least one action/chat tool toward completion, or
+  - call `giveUp({ reason, cooldown_seconds })` with a concrete blocker.
 
 # Response Format
 You must respond with JavaScript only (no markdown code fences).
