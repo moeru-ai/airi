@@ -23,7 +23,7 @@ jobs:
       - run: pnpm install
       - run: pnpm prune && pnpm dedupe
       - run: pnpm run lint:fix
-      - run: docker run -it -v `pwd`:`pwd` -w `pwd` ghcr.io/realm/swiftlint:latest --fix
+      - run: docker run -v `pwd`:`pwd` -w `pwd` ghcr.io/realm/swiftlint:latest --fix
         working-directory: ./apps/stage-pocket
 
       # - name: AutoCorrect
