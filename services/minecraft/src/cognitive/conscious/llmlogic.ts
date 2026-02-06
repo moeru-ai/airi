@@ -89,8 +89,19 @@ export function isRateLimitError(err: unknown): boolean {
   const status = getErrorStatus(err)
   if (status === 429)
     return true
+  const code = getErrorCode(err)
+  if (code === 'token_quota_exceeded')
+    return true
   const msg = toErrorMessage(err).toLowerCase()
-  return msg.includes('rate limit') || msg.includes('too many requests')
+  return (
+    msg.includes('rate limit')
+    || msg.includes('too many requests')
+    || msg.includes('token quota')
+    || msg.includes('token_quota_exceeded')
+    || msg.includes('tokens per minute')
+    || msg.includes('too many tokens')
+    || msg.includes('429 response')
+  )
 }
 
 /**
@@ -115,6 +126,10 @@ export function isLikelyRecoverableError(err: unknown): boolean {
     msg.includes('timeout')
     || msg.includes('timed out')
     || msg.includes('rate limit')
+    || msg.includes('token quota')
+    || msg.includes('token_quota_exceeded')
+    || msg.includes('tokens per minute')
+    || msg.includes('too many tokens')
     || msg.includes('overloaded')
     || msg.includes('temporarily')
     || msg.includes('try again')

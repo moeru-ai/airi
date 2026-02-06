@@ -20,6 +20,7 @@ import { createLlmLogRuntime } from './llm-log'
 import {
   isLikelyAuthOrBadArgError,
   isRateLimitError,
+  shouldRetryError,
   sleep,
   toErrorMessage,
 } from './llmlogic'
@@ -699,6 +700,7 @@ export class Brain {
     const maxAttempts = 3
     let result: string | null = null
     let capturedReasoning: string | undefined
+    let lastError: unknown
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
@@ -807,25 +809,31 @@ export class Brain {
         break // Success, exit retry loop
       }
       catch (err) {
+        lastError = err
         const remaining = maxAttempts - attempt
         const isRateLimit = isRateLimitError(err)
-        const shouldRetry = remaining > 0 && !isLikelyAuthOrBadArgError(err)
+        const isAuthOrBadArg = isLikelyAuthOrBadArgError(err)
+        const { shouldRetry } = shouldRetryError(err, remaining)
         this.deps.logger.withError(err).error(`Brain: Decision attempt failed (attempt ${attempt}/${maxAttempts}, retry: ${shouldRetry}, rateLimit: ${isRateLimit})`)
 
         if (!shouldRetry) {
-          throw err // Re-throw if we can't retry
+          if (isAuthOrBadArg)
+            throw err
+
+          this.deps.logger.withError(err).warn('Brain: Decision attempts exhausted, skipping turn')
+          break
         }
 
-        // Backoff on rate limit (429)
-        if (isRateLimit) {
-          await sleep(500)
-        }
+        const backoffMs = isRateLimit
+          ? Math.min(5000, 1000 * attempt) + Math.floor(Math.random() * 200)
+          : 150
+        await sleep(backoffMs)
       }
     }
 
     // 4. Parse & Execute
     if (!result) {
-      this.deps.logger.warn('Brain: No response after all retries')
+      this.deps.logger.withError(lastError).warn('Brain: No response after all retries')
       this.appendLlmLog({
         turnId,
         kind: 'planner_error',
