@@ -142,6 +142,7 @@ const NO_ACTION_FOLLOWUP_SOURCE_ID = 'brain:no_action_followup'
 export class Brain {
   private debugService: DebugService
   private readonly planner = new JavaScriptPlanner()
+  private paused = false
 
   // State
   private queue: QueuedEvent[] = []
@@ -247,7 +248,7 @@ export class Brain {
     this.runtimeMineflayer = null
   }
 
-  public getReplState(): { variables: PlannerGlobalDescriptor[], updatedAt: number } {
+  public getReplState(): { variables: PlannerGlobalDescriptor[], updatedAt: number, paused: boolean } {
     const snapshot = this.deps.reflexManager.getContextSnapshot()
     const replEvent: BotEvent = {
       type: 'system_alert',
@@ -263,6 +264,7 @@ export class Brain {
     return {
       variables,
       updatedAt: Date.now(),
+      paused: this.paused,
     }
   }
 
@@ -271,6 +273,7 @@ export class Brain {
     queueLength: number
     turnCounter: number
     giveUpUntil: number
+    paused: boolean
     contextView: string | undefined
     conversationHistory: Message[]
     llmLogEntries: LlmLogEntry[]
@@ -280,10 +283,24 @@ export class Brain {
       queueLength: this.queue.length,
       turnCounter: this.turnCounter,
       giveUpUntil: this.giveUpUntil,
+      paused: this.paused,
       contextView: this.lastContextView,
       conversationHistory: this.cloneMessages(this.conversationHistory),
       llmLogEntries: [...this.llmLogEntries],
     }
+  }
+
+  public setPaused(paused: boolean): boolean {
+    this.paused = paused
+    return this.paused
+  }
+
+  public togglePaused(): boolean {
+    return this.setPaused(!this.paused)
+  }
+
+  public isPaused(): boolean {
+    return this.paused
   }
 
   public getLastLlmInput(): LlmInputSnapshot | null {
@@ -616,6 +633,20 @@ export class Brain {
   // --- Cognitive Cycle ---
 
   private async processEvent(bot: MineflayerWithAgents, event: BotEvent): Promise<void> {
+    if (this.paused) {
+      this.appendLlmLog({
+        turnId: this.turnCounter,
+        kind: 'scheduler',
+        eventType: event.type,
+        sourceType: event.source.type,
+        sourceId: event.source.id,
+        tags: ['scheduler', 'paused', 'suppressed'],
+        text: `Suppressed event while paused: ${event.type} from ${event.source.type}:${event.source.id}`,
+      })
+      this.deps.logger.log('INFO', `Brain: Ignoring event while paused (${event.type} from ${event.source.type}:${event.source.id})`)
+      return
+    }
+
     this.resumeFromGiveUpIfNeeded(event)
     if (this.shouldSuppressDuringGiveUp(event))
       return

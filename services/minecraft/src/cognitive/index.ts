@@ -108,6 +108,12 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
           if (chatHandler.isBotMessage(username))
             return
 
+          if (message.trim().toLowerCase() === '!pause') {
+            const paused = brain.togglePaused()
+            bot.bot.chat(`[debug] Cognitive engine ${paused ? 'paused' : 'resumed'} (by ${username}).`)
+            return
+          }
+
           // Bridge chat directly into EventBus as a signal so Reflex can react to it.
           eventBus.emit({
             type: 'signal:chat_message',

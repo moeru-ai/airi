@@ -162,6 +162,19 @@ inv;
     expect(enqueueSpy).not.toHaveBeenCalled()
   })
 
+  it('suppresses llm turns while paused', async () => {
+    const deps: any = createDeps('await chat("hi")')
+    const brain: any = new Brain(deps)
+    const enqueueSpy = vi.fn(async () => undefined)
+    brain.enqueueEvent = enqueueSpy
+    brain.setPaused(true)
+
+    await brain.processEvent({} as any, createPerceptionEvent())
+
+    expect(deps.llmAgent.callLLM).not.toHaveBeenCalled()
+    expect(enqueueSpy).not.toHaveBeenCalled()
+  })
+
   it('refreshes reflex context before debug perception injection', async () => {
     const deps: any = createDeps('await skip()')
     deps.reflexManager.refreshFromBotState = vi.fn()

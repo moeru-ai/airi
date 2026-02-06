@@ -55,6 +55,7 @@ export class McpReplServer {
               queueLength: snapshot.queueLength,
               turn: snapshot.turnCounter,
               giveUpUntil: snapshot.giveUpUntil,
+              paused: snapshot.paused,
             }, null, 2),
             mimeType: 'application/json',
           }],
