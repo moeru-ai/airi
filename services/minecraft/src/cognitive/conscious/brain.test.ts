@@ -72,6 +72,18 @@ function createPerceptionEvent() {
 }
 
 describe('brain no-action follow-up', () => {
+  it('returns trailing expression values in debug repl scripts', async () => {
+    const brain: any = new Brain(createDeps('await skip()'))
+
+    const result = await brain.executeDebugRepl(`
+const inv = [{ name: 'oak_sapling', count: 1 }]
+inv;
+`)
+
+    expect(result.error).toBeUndefined()
+    expect(result.returnValue).toContain('oak_sapling')
+  })
+
   it('queues exactly one synthetic follow-up on no-action result', async () => {
     const brain: any = new Brain(createDeps('1 + 1'))
     const enqueueSpy = vi.fn(async () => undefined)
@@ -86,6 +98,21 @@ describe('brain no-action follow-up', () => {
       source: { type: 'system', id: 'brain:no_action_followup' },
       payload: { reason: 'no_actions', returnValue: '2' },
     })
+  })
+
+  it('captures trailing expression return for llm multi-line scripts', async () => {
+    const brain: any = new Brain(createDeps(`
+const inv = [{ name: 'oak_sapling', count: 1 }]
+inv;
+`))
+    const enqueueSpy = vi.fn(async () => undefined)
+    brain.enqueueEvent = enqueueSpy
+
+    await brain.processEvent({} as any, createPerceptionEvent())
+
+    expect(enqueueSpy).toHaveBeenCalledTimes(1)
+    const queuedEvent = (enqueueSpy.mock.calls[0] as any[])?.[1]
+    expect(queuedEvent?.payload?.returnValue).toContain('oak_sapling')
   })
 
   it('does not chain follow-up from follow-up event source', async () => {
