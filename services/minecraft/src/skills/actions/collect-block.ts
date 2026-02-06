@@ -70,13 +70,22 @@ export async function collectBlock(
       // Equip appropriate tool
       if (mineflayer.bot.game.gameMode !== 'creative') {
         await mineflayer.bot.tool.equipForBlock(block)
-        const itemId = mineflayer.bot.heldItem ? mineflayer.bot.heldItem.type : null
+        let itemId = mineflayer.bot.heldItem ? mineflayer.bot.heldItem.type : null
         if (!block.canHarvest(itemId)) {
           logger.log(`Don't have right tools to harvest ${block.name}.`)
           if (block.name.includes('ore') || block.name.includes('stone')) {
             await ensurePickaxe(mineflayer)
+            // Re-equip after crafting/ensuring tool and re-check harvestability.
+            await mineflayer.bot.tool.equipForBlock(block)
+            itemId = mineflayer.bot.heldItem ? mineflayer.bot.heldItem.type : null
           }
-          throw new Error('Don\'t have right tools to harvest block.')
+          if (!block.canHarvest(itemId)) {
+            throw new ActionError(
+              'RESOURCE_MISSING',
+              `Don't have right tools to harvest ${block.name}`,
+              { blockType: block.name },
+            )
+          }
         }
       }
 
