@@ -31,5 +31,8 @@
     "dev": "pnpm run build",
     "build": "tsdown",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@moeru/eventa": "catalog:"
   }
 }
