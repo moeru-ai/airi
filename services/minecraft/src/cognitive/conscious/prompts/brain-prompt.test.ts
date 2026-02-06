@@ -21,5 +21,7 @@ describe('generateBrainSystemPrompt', () => {
     expect(prompt).toContain('Heuristic composition examples')
     expect(prompt).toContain('llmLog')
     expect(prompt).toContain('Silent-eval pattern')
+    expect(prompt).toContain('Value-first rule')
+    expect(prompt).toContain('forget_conversation()')
   })
 })

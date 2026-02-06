@@ -69,6 +69,7 @@ export interface RuntimeGlobals {
   bot?: unknown
   currentInput?: unknown
   llmLog?: unknown
+  forgetConversation?: () => { ok: true, cleared: string[] }
   llmInput?: {
     systemPrompt: string
     userMessage: string
@@ -195,6 +196,7 @@ export class JavaScriptPlanner {
       { name: 'llmInput', kind: 'object', readonly: true },
       { name: 'currentInput', kind: 'object', readonly: true },
       { name: 'llmLog', kind: 'object', readonly: true },
+      { name: 'forget_conversation', kind: 'function', readonly: true },
       { name: 'llmMessages', kind: 'object', readonly: true },
       { name: 'llmSystemPrompt', kind: 'string', readonly: true },
       { name: 'llmUserMessage', kind: 'string', readonly: true },
@@ -238,6 +240,7 @@ export class JavaScriptPlanner {
       expect: this.sandbox.expect,
       expectMoved: this.sandbox.expectMoved,
       expectNear: this.sandbox.expectNear,
+      forget_conversation: this.sandbox.forget_conversation,
     }
 
     for (const item of staticGlobals) {
@@ -394,6 +397,7 @@ export class JavaScriptPlanner {
     this.sandbox.llmInput = llmInput
     this.sandbox.currentInput = currentInput
     this.sandbox.llmLog = globals.llmLog ?? null
+    this.sandbox.forget_conversation = globals.forgetConversation ?? null
     this.sandbox.llmMessages = llmInput?.messages ?? []
     this.sandbox.llmSystemPrompt = llmInput?.systemPrompt ?? ''
     this.sandbox.llmUserMessage = llmInput?.userMessage ?? ''

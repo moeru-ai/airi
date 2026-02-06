@@ -313,6 +313,15 @@ export class Brain {
     return JSON.parse(JSON.stringify(entries)) as LlmTraceEntry[]
   }
 
+  public forgetConversation(): { ok: true, cleared: string[] } {
+    this.conversationHistory = []
+    this.lastLlmInputSnapshot = null
+    return {
+      ok: true,
+      cleared: ['conversationHistory', 'lastLlmInputSnapshot'],
+    }
+  }
+
   public async injectDebugEvent(event: BotEvent): Promise<void> {
     if (!this.runtimeMineflayer) {
       throw new Error('Brain runtime is not initialized yet')
@@ -462,6 +471,7 @@ export class Brain {
       llmInput: this.lastLlmInputSnapshot,
       currentInput: this.currentInputEnvelope,
       llmLog: this.llmLogRuntime,
+      forgetConversation: () => this.forgetConversation(),
     }
   }
 

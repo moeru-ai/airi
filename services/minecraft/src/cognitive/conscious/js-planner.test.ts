@@ -46,6 +46,7 @@ describe('javaScriptPlanner', () => {
       updatedAt: Date.now(),
       attempt: 1,
     },
+    forgetConversation: () => ({ ok: true, cleared: ['conversationHistory', 'lastLlmInputSnapshot'] }),
   } as any
 
   it('maps positional/object args and executes tools in order', async () => {
@@ -170,6 +171,7 @@ describe('javaScriptPlanner', () => {
     expect(names).toContain('mineflayer')
     expect(names).toContain('currentInput')
     expect(names).toContain('llmLog')
+    expect(names).toContain('forget_conversation')
 
     const mem = descriptors.find(d => d.name === 'mem')
     expect(mem?.readonly).toBe(false)
@@ -180,6 +182,15 @@ describe('javaScriptPlanner', () => {
     const executeAction = vi.fn(async action => `ok:${action.tool}`)
     const planned = await planner.evaluate('await chat("llm=" + llmUserMessage)', actions, globals, executeAction)
     expect(planned.actions[0]?.action).toEqual({ tool: 'chat', params: { message: 'llm=latest user message' } })
+  })
+
+  it('exposes forget_conversation runtime function', async () => {
+    const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+    const planned = await planner.evaluate('return forget_conversation()', actions, globals, executeAction)
+
+    expect(planned.returnValue).toContain('conversationHistory')
+    expect(planned.actions).toHaveLength(0)
   })
 
   it('detects expression-friendly REPL inputs', () => {

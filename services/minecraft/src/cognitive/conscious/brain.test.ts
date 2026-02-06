@@ -72,6 +72,28 @@ function createPerceptionEvent() {
 }
 
 describe('brain no-action follow-up', () => {
+  it('forgets conversation only', () => {
+    const brain: any = new Brain(createDeps('await skip()'))
+    brain.conversationHistory = [{ role: 'user', content: 'old' }]
+    brain.lastLlmInputSnapshot = {
+      systemPrompt: 'sys',
+      userMessage: 'msg',
+      messages: [],
+      conversationHistory: [],
+      updatedAt: Date.now(),
+      attempt: 1,
+    }
+    brain.llmLogEntries = [{ id: 1, turnId: 1, kind: 'turn_input', timestamp: Date.now(), eventType: 'x', sourceType: 'x', sourceId: 'x', tags: [], text: 'x' }]
+
+    const result = brain.forgetConversation()
+
+    expect(result.ok).toBe(true)
+    expect(result.cleared).toEqual(['conversationHistory', 'lastLlmInputSnapshot'])
+    expect(brain.conversationHistory).toEqual([])
+    expect(brain.lastLlmInputSnapshot).toBeNull()
+    expect(brain.llmLogEntries).toHaveLength(1)
+  })
+
   it('returns trailing expression values in debug repl scripts', async () => {
     const brain: any = new Brain(createDeps('await skip()'))
 
