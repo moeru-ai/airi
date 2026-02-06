@@ -28,6 +28,7 @@ dialogs:
     start: 开始吧！
     loginPrompt: 登录以使用官方 AIRI 服务来源以获得最佳体验。
     loginAction: 登录
+    localSetup: 配置本地服务来源
     flux: Flux
     buyFlux: 充能 Flux
     select-model: 选择模型

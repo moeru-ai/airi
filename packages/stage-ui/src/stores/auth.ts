@@ -1,9 +1,11 @@
 import type { Session, User } from 'better-auth'
 
 import { defineStore } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 import { fetchSession, SERVER_URL } from '../libs/auth'
+import { useConsciousnessStore } from './modules/consciousness'
+import { useProvidersStore } from './providers'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User>()
@@ -38,9 +40,25 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  watch(isAuthenticated, (val) => {
+  // Get store references once
+  const providersStore = useProvidersStore()
+  const consciousnessStore = useConsciousnessStore()
+
+  watch(isAuthenticated, async (val) => {
     if (val) {
       updateCredits()
+
+      // Automatically enable official provider when authenticated
+      const officialProviderId = 'official-provider'
+      providersStore.forceProviderConfigured(officialProviderId)
+      consciousnessStore.activeProvider = officialProviderId
+      await nextTick()
+      try {
+        await consciousnessStore.loadModelsForProvider(officialProviderId)
+      }
+      catch (err) {
+        console.error('error loading models for official provider', err)
+      }
     }
     else {
       credits.value = 0

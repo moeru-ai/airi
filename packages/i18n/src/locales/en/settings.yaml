@@ -29,6 +29,7 @@ dialogs:
     start: Let's do it!
     loginPrompt: Login to use the official AIRI provider for the best experience.
     loginAction: Login
+    localSetup: Configure Local Provider
     flux: Flux
     buyFlux: Charge Flux
     select-model: Choose model
