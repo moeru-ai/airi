@@ -75,6 +75,26 @@ interface LlmInputSnapshot {
   attempt: number
 }
 
+interface LlmTraceEntry {
+  id: number
+  turnId: number
+  timestamp: number
+  eventType: string
+  sourceType: string
+  sourceId: string
+  attempt: number
+  model: string
+  messages: Message[]
+  content: string
+  reasoning?: string
+  usage?: {
+    prompt_tokens?: number
+    completion_tokens?: number
+    total_tokens?: number
+  }
+  durationMs: number
+}
+
 interface RuntimeInputEnvelope {
   id: number
   turnId: number
@@ -137,6 +157,8 @@ export class Brain {
   private runtimeMineflayer: MineflayerWithAgents | null = null
   private readonly llmLogEntries: LlmLogEntry[] = []
   private llmLogIdCounter = 0
+  private readonly llmTraceEntries: LlmTraceEntry[] = []
+  private llmTraceIdCounter = 0
   private turnCounter = 0
   private currentInputEnvelope: RuntimeInputEnvelope | null = null
   private readonly llmLogRuntime = createLlmLogRuntime(() => this.llmLogEntries)
@@ -275,6 +297,20 @@ export class Brain {
     if (typeof limit !== 'number' || !Number.isFinite(limit) || limit <= 0)
       return entries
     return entries.slice(-Math.floor(limit))
+  }
+
+  public getLlmTrace(limit?: number, turnId?: number): LlmTraceEntry[] {
+    let entries = [...this.llmTraceEntries]
+    if (typeof turnId === 'number' && Number.isFinite(turnId)) {
+      const normalizedTurnId = Math.floor(turnId)
+      entries = entries.filter(entry => entry.turnId === normalizedTurnId)
+    }
+
+    if (typeof limit === 'number' && Number.isFinite(limit) && limit > 0) {
+      entries = entries.slice(-Math.floor(limit))
+    }
+
+    return JSON.parse(JSON.stringify(entries)) as LlmTraceEntry[]
   }
 
   public async injectDebugEvent(event: BotEvent): Promise<void> {
@@ -636,6 +672,24 @@ export class Brain {
           model: config.openai.model,
           duration: Date.now() - traceStart,
         })
+        this.llmTraceEntries.push({
+          id: ++this.llmTraceIdCounter,
+          turnId,
+          timestamp: Date.now(),
+          eventType: event.type,
+          sourceType: event.source.type,
+          sourceId: event.source.id,
+          attempt,
+          model: config.openai.model,
+          messages: this.cloneMessages(messages),
+          content,
+          reasoning,
+          usage: llmResult.usage,
+          durationMs: Date.now() - traceStart,
+        })
+        if (this.llmTraceEntries.length > 500) {
+          this.llmTraceEntries.shift()
+        }
         this.currentInputEnvelope.llm = {
           attempt,
           model: config.openai.model,

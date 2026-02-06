@@ -198,8 +198,17 @@ export class McpReplServer {
             isError: true,
           }
         }
+        const {
+          systemPrompt: _systemPrompt,
+          messages,
+          ...rest
+        } = result
+        const compactMessages = messages.filter(message => message.role !== 'system')
         return {
-          content: [{ type: 'text', text: JSON.stringify(result) }],
+          content: [{ type: 'text', text: JSON.stringify({
+            ...rest,
+            messages: compactMessages,
+          }) }],
         }
       },
     )
@@ -211,6 +220,25 @@ export class McpReplServer {
       },
       async ({ limit }) => {
         const result = this.brain.getLlmLogs(limit)
+        return {
+          content: [{ type: 'text', text: JSON.stringify(result) }],
+        }
+      },
+    )
+
+    this.mcpServer.tool(
+      'get_llm_trace',
+      {
+        limit: z.number().optional(),
+        turnId: z.number().optional(),
+      },
+      async ({ limit, turnId }) => {
+        const result = this.brain
+          .getLlmTrace(limit, turnId)
+          .map(entry => ({
+            ...entry,
+            messages: entry.messages.filter(message => message.role !== 'system'),
+          }))
         return {
           content: [{ type: 'text', text: JSON.stringify(result) }],
         }

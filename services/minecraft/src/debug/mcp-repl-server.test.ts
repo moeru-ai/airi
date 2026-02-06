@@ -53,8 +53,27 @@ describe('mcpReplServer', () => {
       executeDebugRepl: vi.fn().mockResolvedValue({ result: 'success' }),
       injectDebugEvent: vi.fn().mockResolvedValue(undefined),
       getReplState: vi.fn().mockReturnValue({ variables: [], updatedAt: 0 }),
-      getLastLlmInput: vi.fn().mockReturnValue({ systemPrompt: 'sys', userMessage: 'user' }),
+      getLastLlmInput: vi.fn().mockReturnValue({
+        systemPrompt: 'sys',
+        userMessage: 'user',
+        messages: [
+          { role: 'system', content: 'sys' },
+          { role: 'user', content: 'user' },
+        ],
+        conversationHistory: [],
+        updatedAt: 0,
+        attempt: 1,
+      }),
       getLlmLogs: vi.fn().mockReturnValue([{ id: 1, text: 'log' }]),
+      getLlmTrace: vi.fn().mockReturnValue([{
+        id: 1,
+        turnId: 1,
+        content: 'await skip()',
+        messages: [
+          { role: 'system', content: 'sys' },
+          { role: 'user', content: 'u' },
+        ],
+      }]),
     } as unknown as Brain
 
     server = new McpReplServer(brain)
@@ -75,6 +94,7 @@ describe('mcpReplServer', () => {
     expect(mocks.tool).toHaveBeenCalledWith('get_state', expect.anything(), expect.any(Function))
     expect(mocks.tool).toHaveBeenCalledWith('get_last_prompt', expect.anything(), expect.any(Function))
     expect(mocks.tool).toHaveBeenCalledWith('get_logs', expect.anything(), expect.any(Function))
+    expect(mocks.tool).toHaveBeenCalledWith('get_llm_trace', expect.anything(), expect.any(Function))
   })
 
   it('executes repl via tool handler', async () => {
@@ -117,9 +137,12 @@ describe('mcpReplServer', () => {
     const handler = toolCall[2]
 
     const result = await handler({})
+    const text = result.content[0].text as string
 
     expect(brain.getLastLlmInput).toHaveBeenCalled()
-    expect(result.content[0].text).toContain('sys')
+    expect(text).toContain('user')
+    expect(text).not.toContain('systemPrompt')
+    expect(text).not.toContain('"role":"system"')
   })
 
   it('gets logs via tool handler', async () => {
@@ -130,5 +153,18 @@ describe('mcpReplServer', () => {
 
     expect(brain.getLlmLogs).toHaveBeenCalledWith(10)
     expect(result.content[0].text).toContain('log')
+  })
+
+  it('gets llm trace via tool handler', async () => {
+    const toolCall = mocks.tool.mock.calls.find(call => call[0] === 'get_llm_trace')
+    const handler = toolCall[2]
+
+    const result = await handler({ limit: 5, turnId: 3 })
+    const text = result.content[0].text as string
+
+    expect(brain.getLlmTrace).toHaveBeenCalledWith(5, 3)
+    expect(text).toContain('await skip()')
+    expect(text).toContain('"role":"user"')
+    expect(text).not.toContain('"role":"system"')
   })
 })

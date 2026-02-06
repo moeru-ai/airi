@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Minecraft Debug MCP'
+  short_description: 'Operate the live Minecraft debug MCP bot safely'
+  default_prompt: 'Start the bot with pnpm dev, connect to the minecraft-debug MCP, inspect brain state/logs, and execute focused debug actions.'
