@@ -303,6 +303,14 @@ export class Brain {
         const cooldownSeconds = Number.isFinite(secondsRaw) ? Math.min(600, Math.max(10, Math.floor(secondsRaw))) : 45
         this.giveUpUntil = Date.now() + cooldownSeconds * 1000
         this.giveUpReason = typeof action.params?.reason === 'string' ? action.params.reason : undefined
+
+        try {
+          const reason = this.giveUpReason ? `: ${this.giveUpReason}` : ''
+          bot.bot.chat(`[debug] Giving up for ${cooldownSeconds}s${reason}`)
+        }
+        catch (err) {
+          this.deps.logger.withError(err as Error).warn('Brain: Failed to announce giveUp to chat')
+        }
       }
 
       if (action.tool === 'chat' && action.params?.feedback === true) {
