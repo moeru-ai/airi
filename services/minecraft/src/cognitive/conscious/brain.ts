@@ -1343,6 +1343,21 @@ export class Brain {
     let lastError: unknown
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      // Check pause at start of each retry attempt
+      if (this.paused) {
+        this.appendLlmLog({
+          turnId,
+          kind: 'scheduler',
+          eventType: event.type,
+          sourceType: event.source.type,
+          sourceId: event.source.id,
+          tags: ['scheduler', 'paused', 'interrupted'],
+          text: `Interrupted during LLM retry loop (attempt ${attempt}/${maxAttempts}) while paused`,
+        })
+        this.deps.logger.log('INFO', `Brain: Interrupted LLM retry loop while paused (attempt ${attempt}/${maxAttempts})`)
+        return
+      }
+
       try {
         // Build complete message history: system + conversation history + new user message
         const messages: Message[] = [
@@ -1468,6 +1483,21 @@ export class Brain {
           ? Math.min(5000, 1000 * attempt) + Math.floor(Math.random() * 200)
           : 150
         await sleep(backoffMs)
+
+        // Check pause after backoff sleep (before next retry)
+        if (this.paused) {
+          this.appendLlmLog({
+            turnId,
+            kind: 'scheduler',
+            eventType: event.type,
+            sourceType: event.source.type,
+            sourceId: event.source.id,
+            tags: ['scheduler', 'paused', 'interrupted'],
+            text: `Interrupted after retry backoff (attempt ${attempt}/${maxAttempts}) while paused`,
+          })
+          this.deps.logger.log('INFO', `Brain: Interrupted after retry backoff while paused (attempt ${attempt}/${maxAttempts})`)
+          return
+        }
       }
     }
 
@@ -1483,6 +1513,21 @@ export class Brain {
         tags: ['repl', 'error', 'empty_response'],
         text: 'No LLM response after retries',
       })
+      return
+    }
+
+    // Check pause again after LLM call (allows !pause to interrupt before REPL execution)
+    if (this.paused) {
+      this.appendLlmLog({
+        turnId,
+        kind: 'scheduler',
+        eventType: event.type,
+        sourceType: event.source.type,
+        sourceId: event.source.id,
+        tags: ['scheduler', 'paused', 'interrupted'],
+        text: `Interrupted before REPL execution while paused: ${event.type} from ${event.source.type}:${event.source.id}`,
+      })
+      this.deps.logger.log('INFO', `Brain: Interrupted processing before REPL while paused (${event.type} from ${event.source.type}:${event.source.id})`)
       return
     }
 
