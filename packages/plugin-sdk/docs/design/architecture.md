@@ -10,7 +10,7 @@ description: Architecture for plugins, bridges, and multi-device orchestration
 - [Goals](#goals)
 - [Non-goals](#non-goals)
 - [Proposal](#proposal)
-- [Design Detials](#design-detials)
+- [Design Details](#design-Details)
 - [Control And Data Planes](#control-and-data-planes)
 - [Plugin Host And Viewers](#plugin-host-and-viewers)
 - [Plugin Lifecycle Overview](#plugin-lifecycle-overview)
@@ -59,7 +59,7 @@ AIRI needs to run across desktop, web, and mobile while keeping one clean API su
 - Run plugins inside a Plugin Host that loads plugin entrypoints and exposes the SDK.
 - Treat bridges as device-specific integrations that only provide data and actions.
 
-## Design Detials
+## Design Details
 
 The platform design focuses on consistent APIs, transport-agnostic integration, and multi-device orchestration.
 
