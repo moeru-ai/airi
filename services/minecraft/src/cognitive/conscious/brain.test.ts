@@ -97,6 +97,32 @@ function createReadonlyAction(name: string = 'querySnapshot') {
   } as any
 }
 
+function createGiveUpAction() {
+  return {
+    name: 'giveUp',
+    description: 'Give up action',
+    execution: 'sync',
+    schema: z.object({
+      reason: z.string(),
+      cooldown_seconds: z.number(),
+    }),
+    perform: () => () => 'gave up',
+  } as any
+}
+
+function createChatAction() {
+  return {
+    name: 'chat',
+    description: 'Chat action',
+    execution: 'sync',
+    schema: z.object({
+      message: z.string(),
+      feedback: z.boolean().optional(),
+    }),
+    perform: () => () => 'chat sent',
+  } as any
+}
+
 describe('brain no-action follow-up', () => {
   it('forgets conversation only', () => {
     const brain: any = new Brain(createDeps('await skip()'))
@@ -264,6 +290,79 @@ inv;
 
     expect(deps.reflexManager.refreshFromBotState).toHaveBeenCalledTimes(1)
     expect(brain.enqueueEvent).toHaveBeenCalledTimes(1)
+  })
+
+  it('activates error-burst guard and enqueues guard alert after repeated errors', async () => {
+    const brain: any = new Brain(createDeps('const broken = ;'))
+    const enqueueSpy = vi.fn(async () => undefined)
+    brain.enqueueEvent = enqueueSpy
+
+    await brain.processEvent({} as any, createPerceptionEvent())
+    await brain.processEvent({} as any, createPerceptionEvent())
+    await brain.processEvent({} as any, createPerceptionEvent())
+
+    const guardEvent = enqueueSpy.mock.calls
+      .map((call: any[]) => call[1])
+      .find((event: any) => event?.source?.id === 'brain:error_burst_guard')
+
+    expect(guardEvent).toMatchObject({
+      type: 'system_alert',
+      source: { type: 'system', id: 'brain:error_burst_guard' },
+      payload: {
+        reason: 'error_burst_guard',
+        threshold: 3,
+        windowTurns: 5,
+      },
+    })
+    expect(brain.errorBurstGuardState?.errorTurnCount).toBeGreaterThanOrEqual(3)
+  })
+
+  it('includes mandatory give-up and chat instructions when error-burst guard is active', () => {
+    const brain: any = new Brain(createDeps('await skip()'))
+    brain.errorBurstGuardState = {
+      threshold: 3,
+      windowTurns: 5,
+      errorTurnCount: 3,
+      recentTurnIds: [7, 6, 5, 4, 3],
+      recentErrorSummary: ['turn=7 repl_error: parse failed'],
+      suggestedCooldownSeconds: 45,
+      triggeredAtTurnId: 8,
+    }
+
+    const message = brain.buildUserMessage(
+      createPerceptionEvent(),
+      '[PERCEPTION] Self: healthy\nEnvironment: clear',
+    )
+
+    expect(message).toContain('[ERROR_BURST_GUARD] active')
+    expect(message).toContain('await giveUp({ reason: "..."')
+    expect(message).toContain('await chat({ message: "..."')
+  })
+
+  it('clears error-burst guard when giveUp and chat both succeed in one turn', async () => {
+    const deps: any = createDeps('await giveUp({ reason: "stuck", cooldown_seconds: 45 }); await chat("I got stuck after repeated errors.")')
+    deps.taskExecutor.getAvailableActions = vi.fn(() => [createGiveUpAction(), createChatAction()])
+    deps.taskExecutor.executeActionWithResult = vi.fn(async (action: any) => action.tool === 'giveUp' ? 'gave up' : 'chat sent')
+
+    const brain: any = new Brain(deps)
+    brain.errorBurstGuardState = {
+      threshold: 3,
+      windowTurns: 5,
+      errorTurnCount: 3,
+      recentTurnIds: [7, 6, 5, 4, 3],
+      recentErrorSummary: ['turn=7 repl_error: parse failed'],
+      suggestedCooldownSeconds: 45,
+      triggeredAtTurnId: 8,
+    }
+
+    await brain.processEvent({} as any, createPerceptionEvent())
+
+    expect(brain.errorBurstGuardState).toBeNull()
+    const clearedEntry = brain.getLlmLogs().find((entry: any) =>
+      entry.sourceId === 'brain:error_burst_guard'
+      && entry.tags.includes('guard_cleared'),
+    )
+    expect(clearedEntry).toBeTruthy()
   })
 })
 

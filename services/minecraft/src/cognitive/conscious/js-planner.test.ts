@@ -59,6 +59,7 @@ describe('javaScriptPlanner', () => {
       default: 3,
       max: 8,
     },
+    errorBurstGuard: null,
     setNoActionBudget: (value: number) => ({
       ok: true,
       remaining: Math.max(0, Math.min(8, Math.floor(value))),
@@ -214,6 +215,7 @@ describe('javaScriptPlanner', () => {
     expect(names).toContain('llmLog')
     expect(names).toContain('actionQueue')
     expect(names).toContain('noActionBudget')
+    expect(names).toContain('errorBurstGuard')
     expect(names).toContain('setNoActionBudget')
     expect(names).toContain('getNoActionBudget')
     expect(names).toContain('forget_conversation')
@@ -236,6 +238,22 @@ describe('javaScriptPlanner', () => {
     const planned = await planner.evaluate('return { state: getNoActionBudget(), set: setNoActionBudget(6), now: noActionBudget }', actions, globals, executeAction)
     expect(planned.returnValue).toContain('remaining: 3')
     expect(planned.returnValue).toContain('remaining: 6')
+    expect(planned.actions).toHaveLength(0)
+  })
+
+  it('exposes error-burst guard runtime global to scripts', async () => {
+    const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+    const guardedGlobals = {
+      ...globals,
+      errorBurstGuard: {
+        threshold: 3,
+        windowTurns: 5,
+        errorTurnCount: 3,
+      },
+    } as any
+    const planned = await planner.evaluate('return errorBurstGuard.errorTurnCount', actions, guardedGlobals, executeAction)
+    expect(planned.returnValue).toBe('3')
     expect(planned.actions).toHaveLength(0)
   })
 

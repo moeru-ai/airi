@@ -69,6 +69,7 @@ export interface RuntimeGlobals {
   bot?: unknown
   actionQueue?: unknown
   noActionBudget?: unknown
+  errorBurstGuard?: unknown
   currentInput?: unknown
   llmLog?: unknown
   setNoActionBudget?: (value: number) => { ok: true, remaining: number, default: number, max: number }
@@ -218,6 +219,7 @@ export class JavaScriptPlanner {
       { name: 'llmLog', kind: 'object', readonly: true },
       { name: 'actionQueue', kind: 'object', readonly: true },
       { name: 'noActionBudget', kind: 'object', readonly: true },
+      { name: 'errorBurstGuard', kind: 'object', readonly: true },
       { name: 'setNoActionBudget', kind: 'function', readonly: true },
       { name: 'getNoActionBudget', kind: 'function', readonly: true },
       { name: 'forget_conversation', kind: 'function', readonly: true },
@@ -251,6 +253,7 @@ export class JavaScriptPlanner {
       llmLog: globals.llmLog ?? null,
       actionQueue: globals.actionQueue ?? null,
       noActionBudget: globals.noActionBudget ?? null,
+      errorBurstGuard: globals.errorBurstGuard ?? null,
       llmMessages: globals.llmInput?.messages ?? [],
       llmSystemPrompt: globals.llmInput?.systemPrompt ?? '',
       llmUserMessage: globals.llmInput?.userMessage ?? '',
@@ -416,6 +419,7 @@ export class JavaScriptPlanner {
     const currentInput = deepFreeze(toStructuredClone(globals.currentInput ?? null))
     const actionQueue = deepFreeze(toStructuredClone(globals.actionQueue ?? null))
     const noActionBudget = deepFreeze(toStructuredClone(globals.noActionBudget ?? null))
+    const errorBurstGuard = deepFreeze(toStructuredClone(globals.errorBurstGuard ?? null))
     const query = globals.mineflayer ? createQueryRuntime(globals.mineflayer) : undefined
 
     this.sandbox.prevRun = this.sandbox.lastRun ?? null
@@ -433,6 +437,7 @@ export class JavaScriptPlanner {
     this.sandbox.llmLog = globals.llmLog ?? null
     this.sandbox.actionQueue = actionQueue
     this.sandbox.noActionBudget = noActionBudget
+    this.sandbox.errorBurstGuard = errorBurstGuard
     this.sandbox.setNoActionBudget = globals.setNoActionBudget ?? null
     this.sandbox.getNoActionBudget = globals.getNoActionBudget ?? null
     this.sandbox.forget_conversation = globals.forgetConversation ?? null

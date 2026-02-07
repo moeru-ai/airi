@@ -176,6 +176,16 @@ interface NoActionBudgetState {
   max: number
 }
 
+interface ErrorBurstGuardState {
+  threshold: number
+  windowTurns: number
+  errorTurnCount: number
+  recentTurnIds: number[]
+  recentErrorSummary: string[]
+  suggestedCooldownSeconds: number
+  triggeredAtTurnId: number
+}
+
 function truncateForPrompt(value: string, maxLength = 220): string {
   return value.length <= maxLength ? value : `${value.slice(0, maxLength - 1)}...`
 }
@@ -208,6 +218,10 @@ const ACTION_QUEUE_RECENT_HISTORY_LIMIT = 20
 const NO_ACTION_FOLLOWUP_BUDGET_DEFAULT = 3
 const NO_ACTION_FOLLOWUP_BUDGET_MAX = 8
 const NO_ACTION_STAGNATION_REPEAT_LIMIT = 2
+const ERROR_BURST_GUARD_SOURCE_ID = 'brain:error_burst_guard'
+const ERROR_BURST_THRESHOLD = 3
+const ERROR_BURST_WINDOW_TURNS = 5
+const ERROR_BURST_COOLDOWN_SECONDS = 45
 
 function getEventPriority(event: BotEvent): number {
   if (event.type === 'perception') {
@@ -258,6 +272,8 @@ export class Brain {
   private noActionFollowupBudgetRemaining = NO_ACTION_FOLLOWUP_BUDGET_DEFAULT
   private noActionFollowupLastSignature: string | null = null
   private noActionFollowupStagnationCount = 0
+  private errorBurstGuardState: ErrorBurstGuardState | null = null
+  private errorBurstGuardSuppressUntilTurnId = 0
 
   constructor(private readonly deps: BrainDeps) {
     this.debugService = DebugService.getInstance()
@@ -569,6 +585,7 @@ export class Brain {
       llmLog: this.llmLogRuntime,
       actionQueue: this.getActionQueueSnapshot(),
       noActionBudget: this.getNoActionBudgetState(),
+      errorBurstGuard: this.errorBurstGuardState ? { ...this.errorBurstGuardState } : null,
       setNoActionBudget: (value: number) => this.setNoActionFollowupBudget(value),
       getNoActionBudget: () => this.getNoActionBudgetState(),
       forgetConversation: () => this.forgetConversation(),
@@ -658,6 +675,189 @@ export class Brain {
     }
     catch (err) {
       this.deps.logger.withError(err as Error).warn('Brain: Failed to send no-action budget debug chat')
+    }
+  }
+
+  private isErrorLlmLogEntry(entry: LlmLogEntry): boolean {
+    if (entry.kind === 'repl_error')
+      return true
+
+    if (entry.kind === 'repl_result') {
+      const errorCount = Number((entry.metadata as Record<string, unknown> | undefined)?.errorCount ?? 0)
+      return Number.isFinite(errorCount) && errorCount > 0
+    }
+
+    if (entry.kind === 'feedback') {
+      const tags = new Set(entry.tags.map(tag => tag.toLowerCase()))
+      return tags.has('error') || tags.has('failure')
+    }
+
+    return false
+  }
+
+  private describeErrorLlmLogEntry(entry: LlmLogEntry): string {
+    return `${entry.kind}: ${truncateForPrompt(entry.text, 140)}`
+  }
+
+  private collectRecentErrorTurns(windowTurns = ERROR_BURST_WINDOW_TURNS): {
+    recentTurnIds: number[]
+    errorTurnIds: number[]
+    summaries: string[]
+  } {
+    const turnIds: number[] = []
+    const seen = new Set<number>()
+
+    for (let index = this.llmLogEntries.length - 1; index >= 0; index--) {
+      const entry = this.llmLogEntries[index]
+      if (!entry || entry.kind !== 'turn_input')
+        continue
+      if (seen.has(entry.turnId))
+        continue
+      seen.add(entry.turnId)
+      turnIds.push(entry.turnId)
+      if (turnIds.length >= windowTurns)
+        break
+    }
+
+    const entriesByTurnId = new Map<number, LlmLogEntry[]>()
+    for (const turnId of turnIds)
+      entriesByTurnId.set(turnId, [])
+
+    for (const entry of this.llmLogEntries) {
+      const bucket = entriesByTurnId.get(entry.turnId)
+      if (!bucket)
+        continue
+      bucket.push(entry)
+    }
+
+    const errorTurnIds: number[] = []
+    const summaries: string[] = []
+    for (const turnId of turnIds) {
+      const turnEntries = entriesByTurnId.get(turnId) ?? []
+      const errors = turnEntries.filter(entry => this.isErrorLlmLogEntry(entry))
+      if (errors.length === 0)
+        continue
+      errorTurnIds.push(turnId)
+      const evidence = errors.slice(0, 2).map(entry => this.describeErrorLlmLogEntry(entry)).join(' | ')
+      summaries.push(`turn=${turnId} ${evidence}`)
+    }
+
+    return {
+      recentTurnIds: turnIds,
+      errorTurnIds,
+      summaries,
+    }
+  }
+
+  private maybeActivateErrorBurstGuard(
+    bot: MineflayerWithAgents,
+    event: BotEvent,
+    turnId: number,
+  ): void {
+    if (this.errorBurstGuardState)
+      return
+
+    if (turnId <= this.errorBurstGuardSuppressUntilTurnId)
+      return
+
+    const { recentTurnIds, errorTurnIds, summaries } = this.collectRecentErrorTurns(ERROR_BURST_WINDOW_TURNS)
+    if (errorTurnIds.length < ERROR_BURST_THRESHOLD)
+      return
+
+    const recentErrorSummary = summaries.slice(0, ERROR_BURST_WINDOW_TURNS)
+    this.errorBurstGuardState = {
+      threshold: ERROR_BURST_THRESHOLD,
+      windowTurns: ERROR_BURST_WINDOW_TURNS,
+      errorTurnCount: errorTurnIds.length,
+      recentTurnIds,
+      recentErrorSummary,
+      suggestedCooldownSeconds: ERROR_BURST_COOLDOWN_SECONDS,
+      triggeredAtTurnId: turnId,
+    }
+
+    this.appendLlmLog({
+      turnId,
+      kind: 'scheduler',
+      eventType: 'system_alert',
+      sourceType: 'system',
+      sourceId: ERROR_BURST_GUARD_SOURCE_ID,
+      tags: ['scheduler', 'error_burst', 'guard_triggered', 'error'],
+      text: `Error burst guard activated (${errorTurnIds.length}/${Math.max(recentTurnIds.length, ERROR_BURST_WINDOW_TURNS)} recent turns contain errors)`,
+      metadata: {
+        threshold: ERROR_BURST_THRESHOLD,
+        windowTurns: ERROR_BURST_WINDOW_TURNS,
+        errorTurnIds,
+        recentErrorSummary,
+      },
+    })
+
+    if (event.source.type === 'system' && event.source.id === ERROR_BURST_GUARD_SOURCE_ID)
+      return
+
+    void this.enqueueEvent(bot, {
+      type: 'system_alert',
+      payload: {
+        reason: 'error_burst_guard',
+        threshold: ERROR_BURST_THRESHOLD,
+        windowTurns: ERROR_BURST_WINDOW_TURNS,
+        errorTurnCount: errorTurnIds.length,
+        recentErrorSummary,
+        guidance: 'Too many recent errors. Call giveUp(...) and send one chat explanation.',
+      },
+      source: { type: 'system', id: ERROR_BURST_GUARD_SOURCE_ID },
+      timestamp: Date.now(),
+    }).catch(err => this.deps.logger.withError(err).error('Brain: Failed to enqueue error-burst guard alert'))
+  }
+
+  private clearErrorBurstGuardState(turnId: number, reason: 'resolved' | 'manual'): void {
+    if (!this.errorBurstGuardState)
+      return
+
+    this.appendLlmLog({
+      turnId,
+      kind: 'scheduler',
+      eventType: 'system_alert',
+      sourceType: 'system',
+      sourceId: ERROR_BURST_GUARD_SOURCE_ID,
+      tags: ['scheduler', 'error_burst', 'guard_cleared', reason],
+      text: `Error burst guard cleared (${reason})`,
+      metadata: {
+        guard: { ...this.errorBurstGuardState },
+      },
+    })
+
+    this.errorBurstGuardSuppressUntilTurnId = turnId + ERROR_BURST_WINDOW_TURNS
+    this.errorBurstGuardState = null
+  }
+
+  private updateErrorBurstGuardCompletion(
+    turnId: number,
+    actions: Array<{
+      action: ActionInstruction
+      ok: boolean
+    }>,
+  ): void {
+    if (!this.errorBurstGuardState)
+      return
+
+    const hasGiveUp = actions.some(item => item.action.tool === 'giveUp' && item.ok)
+    const hasChat = actions.some(item => item.action.tool === 'chat' && item.ok)
+
+    if (hasGiveUp && hasChat) {
+      this.clearErrorBurstGuardState(turnId, 'resolved')
+      return
+    }
+
+    if (hasGiveUp || hasChat) {
+      this.appendLlmLog({
+        turnId,
+        kind: 'scheduler',
+        eventType: 'system_alert',
+        sourceType: 'system',
+        sourceId: ERROR_BURST_GUARD_SOURCE_ID,
+        tags: ['scheduler', 'error_burst', 'guard_pending'],
+        text: 'Error burst guard still pending: this turn must include both giveUp and chat actions',
+      })
     }
   }
 
@@ -1300,6 +1500,9 @@ export class Brain {
     if (this.isPlayerChatEvent(event))
       this.resetNoActionFollowupBudget('player_chat')
 
+    const turnId = ++this.turnCounter
+    this.maybeActivateErrorBurstGuard(bot, event, turnId)
+
     // 0. Build Context View
     const snapshot = this.deps.reflexManager.getContextSnapshot()
     const view = buildConsciousContextView(snapshot)
@@ -1313,7 +1516,6 @@ export class Brain {
 
     // 2. Prepare System Prompt (static)
     const systemPrompt = generateBrainSystemPrompt(this.deps.taskExecutor.getAvailableActions())
-    const turnId = ++this.turnCounter
     this.currentInputEnvelope = {
       id: turnId,
       turnId,
@@ -1521,6 +1723,7 @@ export class Brain {
         tags: ['repl', 'error', 'empty_response'],
         text: 'No LLM response after retries',
       })
+      this.maybeActivateErrorBurstGuard(bot, event, turnId)
       return
     }
 
@@ -1611,6 +1814,14 @@ export class Brain {
           logs: runResult.logs.slice(-5),
         },
       })
+      this.updateErrorBurstGuardCompletion(
+        turnId,
+        runResult.actions.map(item => ({
+          action: item.action,
+          ok: item.ok,
+        })),
+      )
+      this.maybeActivateErrorBurstGuard(bot, event, turnId)
 
       if (runResult.actions.length === 0 || runResult.actions.every(item => item.action.tool === 'skip')) {
         this.debugService.emit('debug:repl_result', {
@@ -1664,6 +1875,7 @@ export class Brain {
           code: result,
         },
       })
+      this.maybeActivateErrorBurstGuard(bot, event, turnId)
       this.debugService.emit('debug:repl_result', {
         source: 'llm',
         code: result,
@@ -1721,6 +1933,19 @@ export class Brain {
       parts.push(`[STATE] giveUp active (${remainingSec}s left). reason=${this.giveUpReason ?? 'unknown'}`)
     }
 
+    if (this.errorBurstGuardState) {
+      const guard = this.errorBurstGuardState
+      parts.push(`[ERROR_BURST_GUARD] active. errors=${guard.errorTurnCount}/${guard.windowTurns}; threshold=${guard.threshold}; cooldown=${guard.suggestedCooldownSeconds}s`)
+      if (guard.recentErrorSummary.length > 0) {
+        const condensed = guard.recentErrorSummary
+          .slice(0, 3)
+          .map(summary => truncateForPrompt(summary, 180))
+          .join(' || ')
+        parts.push(`[ERROR_BURST_GUARD] recent=${condensed}`)
+      }
+      parts.push(`[MANDATORY] Too many recent errors. This turn must include BOTH: await giveUp({ reason: "...", cooldown_seconds: ${guard.suggestedCooldownSeconds} }) and await chat({ message: "...", feedback: false }). Explain what failed and what you will do next.`)
+    }
+
     if (this.lastReplOutcome) {
       const ageMs = Date.now() - this.lastReplOutcome.updatedAt
       const returnValue = truncateForPrompt(this.lastReplOutcome.returnValue ?? 'undefined')
@@ -1737,14 +1962,18 @@ export class Brain {
     parts.push(`[ACTION_QUEUE] executing=${runningLabel}; pending=${queueSnapshot.counts.pending}; total=${queueSnapshot.counts.total}/${queueSnapshot.capacity.total}`)
     const noActionBudget = this.getNoActionBudgetState()
     parts.push(`[NO_ACTION_BUDGET] remaining=${noActionBudget.remaining}; default=${noActionBudget.default}; max=${noActionBudget.max}; stagnation=${this.noActionFollowupStagnationCount}/${NO_ACTION_STAGNATION_REPEAT_LIMIT}`)
+    parts.push(`[ERROR_BURST] active=${this.errorBurstGuardState ? 'yes' : 'no'}`)
 
-    parts.push('[RUNTIME] Globals are refreshed every turn: snapshot, self, environment, social, threat, attention, autonomy, event, now, query, bot, mineflayer, currentInput, llmLog, actionQueue, noActionBudget, mem, lastRun, prevRun, lastAction. Helpers: setNoActionBudget(n), getNoActionBudget(). Player gaze is available in environment.nearbyPlayersGaze when needed.')
+    parts.push('[RUNTIME] Globals are refreshed every turn: snapshot, self, environment, social, threat, attention, autonomy, event, now, query, bot, mineflayer, currentInput, llmLog, actionQueue, noActionBudget, errorBurstGuard, mem, lastRun, prevRun, lastAction. Helpers: setNoActionBudget(n), getNoActionBudget(). Player gaze is available in environment.nearbyPlayersGaze when needed.')
 
     return parts.join('\n\n')
   }
 
   private shouldSuppressDuringGiveUp(event: BotEvent): boolean {
     if (Date.now() >= this.giveUpUntil)
+      return false
+
+    if (event.source.type === 'system' && event.source.id === ERROR_BURST_GUARD_SOURCE_ID)
       return false
 
     if (event.type !== 'perception')
