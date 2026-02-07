@@ -15,6 +15,7 @@ import type { CancellationToken } from './task-state'
 
 import { config } from '../../composables/config'
 import { DebugService } from '../../debug'
+import { ActionError } from '../../utils/errors'
 import { buildConsciousContextView } from './context-view'
 import { JavaScriptPlanner } from './js-planner'
 import { createLlmLogRuntime } from './llm-log'
@@ -240,6 +241,7 @@ export class Brain {
   private pendingControlActions: ControlActionQueueEntry[] = []
   private activeControlAction: ControlActionQueueEntry | null = null
   private recentControlActions: ControlActionQueueEntry[] = []
+  private readonly stopCancelledControlActionIds = new Set<number>()
   private actionQueueUpdatedAt = Date.now()
   private isActionWorkerRunning = false
   private completedControlActionsSinceLastFeedback = 0
@@ -756,6 +758,33 @@ export class Brain {
 
         try {
           const result = await this.deps.taskExecutor.executeActionWithResult(entry.action, cancellationToken)
+          const cancelledByStop = cancellationToken.isCancelled || this.stopCancelledControlActionIds.has(entry.id)
+          if (cancelledByStop) {
+            entry.state = 'cancelled'
+            entry.error = 'Cancelled by stop action'
+            entry.finishedAt = Date.now()
+            this.pushRecentControlAction(entry)
+
+            this.appendLlmLog({
+              turnId: entry.sourceTurnId,
+              kind: 'scheduler',
+              eventType: 'feedback',
+              sourceType: 'system',
+              sourceId: 'brain:action_queue',
+              tags: ['scheduler', 'action_queue', 'cancelled', entry.action.tool],
+              text: `Control action #${entry.id} cancelled: ${entry.action.tool}`,
+              metadata: {
+                actionId: entry.id,
+                reason: 'stop',
+              },
+            })
+
+            this.stopCancelledControlActionIds.delete(entry.id)
+            this.activeControlAction = null
+            this.touchActionQueue()
+            continue
+          }
+
           entry.state = 'succeeded'
           entry.result = result
           entry.finishedAt = Date.now()
@@ -795,6 +824,37 @@ export class Brain {
           }
         }
         catch (err) {
+          const interrupted = err instanceof ActionError && err.code === 'INTERRUPTED'
+          const cancelledByStop = cancellationToken.isCancelled
+            || interrupted
+            || this.stopCancelledControlActionIds.has(entry.id)
+
+          if (cancelledByStop) {
+            entry.state = 'cancelled'
+            entry.error = 'Cancelled by stop action'
+            entry.finishedAt = Date.now()
+            this.pushRecentControlAction(entry)
+
+            this.appendLlmLog({
+              turnId: entry.sourceTurnId,
+              kind: 'scheduler',
+              eventType: 'feedback',
+              sourceType: 'system',
+              sourceId: 'brain:action_queue',
+              tags: ['scheduler', 'action_queue', 'cancelled', entry.action.tool],
+              text: `Control action #${entry.id} cancelled: ${entry.action.tool}`,
+              metadata: {
+                actionId: entry.id,
+                reason: interrupted ? 'interrupted' : 'stop',
+              },
+            })
+
+            this.stopCancelledControlActionIds.delete(entry.id)
+            this.activeControlAction = null
+            this.touchActionQueue()
+            continue
+          }
+
           const errorMessage = toErrorMessage(err)
           entry.state = 'failed'
           entry.error = errorMessage
@@ -854,7 +914,21 @@ export class Brain {
 
   private async executeStopAction(bot: MineflayerWithAgents, sourceTurnId: number): Promise<unknown> {
     const clearedCount = this.clearPendingControlActions('cancelled')
+    const cancelledActiveActionId = this.activeControlAction?.id
+    if (cancelledActiveActionId)
+      this.stopCancelledControlActionIds.add(cancelledActiveActionId)
+
     this.currentCancellationToken?.cancel()
+    this.deps.reflexManager.clearFollowTarget()
+
+    try {
+      bot.interrupt('stop requested by brain')
+    }
+    catch (err) {
+      this.deps.logger.withError(err as Error).warn('Brain: Failed to interrupt mineflayer during stop')
+    }
+
+    this.completedControlActionsSinceLastFeedback = 0
 
     this.appendLlmLog({
       turnId: sourceTurnId,
@@ -864,6 +938,9 @@ export class Brain {
       sourceId: 'brain:action_queue',
       tags: ['scheduler', 'action_queue', 'stop'],
       text: `Stop requested. Cleared pending control actions: ${clearedCount}`,
+      metadata: {
+        cancelledActiveActionId,
+      },
     })
 
     const result = await this.deps.taskExecutor.executeActionWithResult({ tool: 'stop', params: {} })
@@ -875,6 +952,7 @@ export class Brain {
         result,
         summary: {
           clearedPendingCount: clearedCount,
+          cancelledActiveActionId,
         },
       },
       source: { type: 'system', id: 'executor' },
@@ -885,6 +963,7 @@ export class Brain {
       ok: true,
       stopped: true,
       clearedPendingCount: clearedCount,
+      cancelledActiveActionId,
     }
   }
 

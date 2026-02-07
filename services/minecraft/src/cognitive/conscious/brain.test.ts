@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
+import { ActionError } from '../../utils/errors'
 import { Brain } from './brain'
 
 function createReflexSnapshot() {
@@ -366,5 +367,54 @@ describe('brain control action queue', () => {
       tool: 'querySnapshot',
       params: {},
     })
+  })
+
+  it('cancels active control action on stop without emitting failure feedback', async () => {
+    const deps: any = createDeps('await skip()')
+    deps.taskExecutor.getAvailableActions = vi.fn(() => [createAsyncControlAction('goToPlayer')])
+    deps.taskExecutor.executeActionWithResult = vi.fn((action: any, cancellationToken?: any) => {
+      if (action.tool === 'goToPlayer') {
+        return new Promise((_resolve, reject) => {
+          cancellationToken?.onCancelled(() => {
+            reject(new ActionError('INTERRUPTED', 'cancelled by stop'))
+          })
+        })
+      }
+      if (action.tool === 'stop')
+        return Promise.resolve('all actions stopped')
+      return Promise.resolve('ok')
+    })
+
+    const brain: any = new Brain(deps)
+    const enqueueSpy = vi.fn(async () => undefined)
+    brain.enqueueEvent = enqueueSpy
+
+    const bot = {
+      interrupt: vi.fn(),
+    }
+
+    await brain.enqueueControlAction(bot, {
+      tool: 'goToPlayer',
+      params: { player_name: 'Alex', closeness: 2 },
+    }, 1)
+
+    await new Promise(resolve => setTimeout(resolve, 20))
+
+    await brain.executeStopAction(bot, 2)
+    await new Promise(resolve => setTimeout(resolve, 20))
+
+    const snapshot = brain.getDebugSnapshot()
+    const cancelledEntry = snapshot.actionQueue.recent.find((entry: any) => entry.tool === 'goToPlayer')
+    expect(cancelledEntry?.state).toBe('cancelled')
+    expect(snapshot.actionQueue.counts.total).toBe(0)
+    expect(bot.interrupt).toHaveBeenCalled()
+
+    const goToPlayerFailure = enqueueSpy.mock.calls.find((call: any[]) => {
+      const event = call[1]
+      return event?.type === 'feedback'
+        && event?.payload?.status === 'failure'
+        && event?.payload?.action?.tool === 'goToPlayer'
+    })
+    expect(goToPlayerFailure).toBeUndefined()
   })
 })
