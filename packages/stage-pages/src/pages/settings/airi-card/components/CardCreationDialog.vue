@@ -277,36 +277,21 @@ function saveCard(card: Card): boolean {
 
 // Initialize card data - load from existing card if in edit mode
 function initializeCard(): Card {
-  if (isEditMode.value && props.cardId) {
-    const existingCard = cardStore.getCard(props.cardId)
-    if (existingCard) {
-      // Initialize modules from existing card
-      const airiExt = existingCard.extensions?.airi as AiriExtension | undefined
-      if (airiExt?.modules) {
-        selectedConsciousnessProvider.value = airiExt.modules.consciousness?.provider || consciousnessProvider.value
-        selectedConsciousnessModel.value = airiExt.modules.consciousness?.model || defaultConsciousnessModel.value
-        selectedSpeechProvider.value = airiExt.modules.speech?.provider || speechProvider.value
-        selectedSpeechModel.value = airiExt.modules.speech?.model || defaultSpeechModel.value
-        selectedSpeechVoiceId.value = airiExt.modules.speech?.voice_id || defaultSpeechVoiceId.value
-      }
-      else {
-        // NOTICE: Initialize with defaults if modules property doesn't exist
-        selectedConsciousnessProvider.value = consciousnessProvider.value
-        selectedConsciousnessModel.value = defaultConsciousnessModel.value
-        selectedSpeechProvider.value = speechProvider.value
-        selectedSpeechModel.value = defaultSpeechModel.value
-        selectedSpeechVoiceId.value = defaultSpeechVoiceId.value
-      }
-      return { ...toRaw(existingCard) }
-    }
-  }
+  // Extract existing card data if in edit mode
+  const existingCard = (isEditMode.value && props.cardId) ? cardStore.getCard(props.cardId) : undefined
+  const airiExt = existingCard?.extensions?.airi as AiriExtension | undefined
 
-  // Default values for create mode
-  selectedConsciousnessProvider.value = consciousnessProvider.value
-  selectedConsciousnessModel.value = defaultConsciousnessModel.value
-  selectedSpeechProvider.value = speechProvider.value
-  selectedSpeechModel.value = defaultSpeechModel.value
-  selectedSpeechVoiceId.value = defaultSpeechVoiceId.value
+  // Initialize module selections with fallback logic (handles all cases: create, edit with/without extension)
+  selectedConsciousnessProvider.value = airiExt?.modules?.consciousness?.provider || consciousnessProvider.value
+  selectedConsciousnessModel.value = airiExt?.modules?.consciousness?.model || defaultConsciousnessModel.value
+  selectedSpeechProvider.value = airiExt?.modules?.speech?.provider || speechProvider.value
+  selectedSpeechModel.value = airiExt?.modules?.speech?.model || defaultSpeechModel.value
+  selectedSpeechVoiceId.value = airiExt?.modules?.speech?.voice_id || defaultSpeechVoiceId.value
+
+  // Return existing card data or defaults
+  if (existingCard) {
+    return { ...toRaw(existingCard) }
+  }
 
   return {
     name: t('settings.pages.card.creation.defaults.name'),
