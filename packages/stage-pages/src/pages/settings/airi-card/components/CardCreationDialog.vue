@@ -46,26 +46,48 @@ const { activeSpeechProvider: speechProvider, activeSpeechModel: defaultSpeechMo
 const isEditMode = computed(() => !!props.cardId)
 
 // Modules configuration
+const selectedConsciousnessProvider = ref<string>('')
 const selectedConsciousnessModel = ref<string>('')
+const selectedSpeechProvider = ref<string>('')
 const selectedSpeechModel = ref<string>('')
 const selectedSpeechVoiceId = ref<string>('')
 
+// Computed: available consciousness provider options
+const consciousnessProviderOptions = computed(() => {
+  return providersStore.configuredChatProvidersMetadata.map(provider => ({
+    value: provider.id,
+    label: provider.localizedName || provider.name,
+  }))
+})
+
+console.info('Consciousness Provider Options:', consciousnessProviderOptions.value)
+
 // Computed: available consciousness models options
 const consciousnessModelOptions = computed(() => {
-  if (!consciousnessProvider.value)
+  const provider = selectedConsciousnessProvider.value || consciousnessProvider.value
+  if (!provider)
     return []
-  const models = providersStore.getModelsForProvider(consciousnessProvider.value)
+  const models = providersStore.getModelsForProvider(provider)
   return models.map(model => ({
     value: model.id,
     label: model.name || model.id,
   }))
 })
 
+// Computed: available speech provider options
+const speechProviderOptions = computed(() => {
+  return providersStore.configuredSpeechProvidersMetadata.map(provider => ({
+    value: provider.id,
+    label: provider.localizedName || provider.name,
+  }))
+})
+
 // Computed: available speech models options
 const speechModelOptions = computed(() => {
-  if (!speechProvider.value)
+  const provider = selectedSpeechProvider.value || speechProvider.value
+  if (!provider)
     return []
-  const models = providersStore.getModelsForProvider(speechProvider.value)
+  const models = providersStore.getModelsForProvider(provider)
   return models.map(model => ({
     value: model.id,
     label: model.name || model.id,
@@ -74,9 +96,10 @@ const speechModelOptions = computed(() => {
 
 // Computed: available speech voices options
 const speechVoiceOptions = computed(() => {
-  if (!speechProvider.value)
+  const provider = selectedSpeechProvider.value || speechProvider.value
+  if (!provider)
     return []
-  const voices = speechStore.getVoicesForProvider(speechProvider.value)
+  const voices = speechStore.getVoicesForProvider(provider)
   return voices.map(voice => ({
     value: voice.id,
     label: voice.name || voice.id,
@@ -96,6 +119,29 @@ watch(() => [consciousnessProvider.value, speechProvider.value], async ([consPro
     }
   }
 }, { immediate: true })
+
+// Watch consciousness provider changes and reload models
+watch(selectedConsciousnessProvider, async (newProvider, oldProvider) => {
+  if (oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
+    await consciousnessStore.loadModelsForProvider(newProvider)
+    // Reset model selection to default or empty
+    selectedConsciousnessModel.value = ''
+  }
+})
+
+// Watch speech provider changes and reload models/voices
+watch(selectedSpeechProvider, async (newProvider, oldProvider) => {
+  if (oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
+    await speechStore.loadVoicesForProvider(newProvider)
+    const metadata = providersStore.getProviderMetadata(newProvider)
+    if (metadata?.capabilities.listModels) {
+      await providersStore.fetchModelsForProvider(newProvider)
+    }
+    // Reset model and voice selection
+    selectedSpeechModel.value = ''
+    selectedSpeechVoiceId.value = ''
+  }
+})
 
 // Reset voice when speech model changes (different models may have different voices)
 watch(selectedSpeechModel, async (newModel, oldModel) => {
@@ -201,9 +247,11 @@ function saveCard(card: Card): boolean {
       airi: {
         modules: {
           consciousness: {
+            provider: selectedConsciousnessProvider.value || consciousnessProvider.value,
             model: selectedConsciousnessModel.value || defaultConsciousnessModel.value,
           },
           speech: {
+            provider: selectedSpeechProvider.value || speechProvider.value,
             model: selectedSpeechModel.value || defaultSpeechModel.value,
             voice_id: selectedSpeechVoiceId.value || defaultSpeechVoiceId.value,
           },
@@ -236,13 +284,17 @@ function initializeCard(): Card {
       // Initialize modules from existing card
       const airiExt = existingCard.extensions?.airi as AiriExtension | undefined
       if (airiExt?.modules) {
+        selectedConsciousnessProvider.value = airiExt.modules.consciousness?.provider || consciousnessProvider.value
         selectedConsciousnessModel.value = airiExt.modules.consciousness?.model || defaultConsciousnessModel.value
+        selectedSpeechProvider.value = airiExt.modules.speech?.provider || speechProvider.value
         selectedSpeechModel.value = airiExt.modules.speech?.model || defaultSpeechModel.value
         selectedSpeechVoiceId.value = airiExt.modules.speech?.voice_id || defaultSpeechVoiceId.value
       }
       else {
         // NOTICE: Initialize with defaults if modules property doesn't exist
+        selectedConsciousnessProvider.value = consciousnessProvider.value
         selectedConsciousnessModel.value = defaultConsciousnessModel.value
+        selectedSpeechProvider.value = speechProvider.value
         selectedSpeechModel.value = defaultSpeechModel.value
         selectedSpeechVoiceId.value = defaultSpeechVoiceId.value
       }
@@ -251,7 +303,9 @@ function initializeCard(): Card {
   }
 
   // Default values for create mode
+  selectedConsciousnessProvider.value = consciousnessProvider.value
   selectedConsciousnessModel.value = defaultConsciousnessModel.value
+  selectedSpeechProvider.value = speechProvider.value
   selectedSpeechModel.value = defaultSpeechModel.value
   selectedSpeechVoiceId.value = defaultSpeechVoiceId.value
 
@@ -321,7 +375,7 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
 function getDefaultPlaceholder(defaultValue: string | undefined): string {
   return defaultValue
     ? `${t('settings.pages.card.creation.use_default')} (${defaultValue})`
-    : t('settings.pages.card.creation.use_default')
+    : t('settings.pages.card.creation.use_default_not_configured')
 }
 </script>
 
@@ -394,7 +448,21 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
               {{ t('settings.pages.card.creation.modules_info') }}
             </p>
 
-            <div :class="['grid', 'grid-cols-1', 'sm:grid-cols-3', 'gap-4', 'ml-auto', 'mr-auto', 'w-90%']">
+            <div :class="['grid', 'grid-cols-1', 'sm:grid-cols-2', 'gap-4', 'ml-auto', 'mr-auto', 'w-90%']">
+              <!-- Consciousness Provider -->
+              <div :class="['flex', 'flex-col', 'gap-2']">
+                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
+                  <div i-lucide:brain />
+                  {{ t('settings.pages.card.chat.provider') }}
+                </label>
+                <Select
+                  v-model="selectedConsciousnessProvider"
+                  :options="consciousnessProviderOptions"
+                  :placeholder="getDefaultPlaceholder(consciousnessProvider)"
+                  class="w-full"
+                />
+              </div>
+
               <!-- Consciousness Model -->
               <div :class="['flex', 'flex-col', 'gap-2']">
                 <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
@@ -405,7 +473,21 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   v-model="selectedConsciousnessModel"
                   :options="consciousnessModelOptions"
                   :placeholder="getDefaultPlaceholder(defaultConsciousnessModel)"
-                  :disabled="!consciousnessProvider"
+                  :disabled="!selectedConsciousnessProvider && !consciousnessProvider"
+                  class="w-full"
+                />
+              </div>
+
+              <!-- Speech Provider -->
+              <div :class="['flex', 'flex-col', 'gap-2']">
+                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
+                  <div i-lucide:radio />
+                  {{ t('settings.pages.card.speech.provider') }}
+                </label>
+                <Select
+                  v-model="selectedSpeechProvider"
+                  :options="speechProviderOptions"
+                  :placeholder="getDefaultPlaceholder(speechProvider)"
                   class="w-full"
                 />
               </div>
@@ -420,7 +502,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   v-model="selectedSpeechModel"
                   :options="speechModelOptions"
                   :placeholder="getDefaultPlaceholder(defaultSpeechModel)"
-                  :disabled="!speechProvider"
+                  :disabled="!selectedSpeechProvider && !speechProvider"
                   class="w-full"
                 />
               </div>
@@ -435,7 +517,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   v-model="selectedSpeechVoiceId"
                   :options="speechVoiceOptions"
                   :placeholder="getDefaultPlaceholder(defaultSpeechVoiceId)"
-                  :disabled="!speechProvider"
+                  :disabled="!selectedSpeechProvider && !speechProvider"
                   class="w-full"
                 />
               </div>

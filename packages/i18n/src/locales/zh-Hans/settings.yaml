@@ -88,6 +88,8 @@ pages:
     card_not_found: 未找到角色卡
     character: 角色设定
     close: 关闭
+    chat:
+      provider: 聊天 / 提供商
     consciousness:
       model: 意识 / 模型
     created_by: 创建者
@@ -118,6 +120,7 @@ pages:
         posthistoryinstructions: 记得模仿人类的行为。
       modules_info: 配置此角色卡使用的模块。如果不设置，将使用默认模块配置。
       use_default: 使用默认
+      use_default_not_configured: 使用默认 (当前未配置)
       fields_info:
         subtitle: >-
           您可以在这里填写有关您正在创建的角色的一些详细信息，解释他的背景和情境，以及应该如何回应您的互动。
@@ -156,6 +159,7 @@ pages:
     search: 搜索角色卡...
     sort_by: 排序方式
     speech:
+      provider: 声音 / 提供商
       model: 声音 / 模型
       voice: 声音 / 声线
     systemprompt: 系统提示词

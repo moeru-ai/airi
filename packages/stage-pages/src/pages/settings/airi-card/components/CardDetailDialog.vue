@@ -36,8 +36,8 @@ const consciousnessStore = useConsciousnessStore()
 const speechStore = useSpeechStore()
 const { removeCard } = cardStore
 const { activeCardId } = storeToRefs(cardStore)
-const { activeModel: defaultConsciousnessModel } = storeToRefs(consciousnessStore)
-const { activeSpeechModel: defaultSpeechModel, activeSpeechVoiceId: defaultVoiceId } = storeToRefs(speechStore)
+const { activeProvider: consciousnessProvider, activeModel: defaultConsciousnessModel } = storeToRefs(consciousnessStore)
+const { activeSpeechProvider: speechProvider, activeSpeechModel: defaultSpeechModel, activeSpeechVoiceId: defaultVoiceId } = storeToRefs(speechStore)
 
 // Get selected card data
 const selectedCard = computed<AiriCard | undefined>(() => {
@@ -50,7 +50,9 @@ const selectedCard = computed<AiriCard | undefined>(() => {
 const moduleSettings = computed(() => {
   if (!selectedCard.value || !selectedCard.value.extensions?.airi?.modules) {
     return {
+      consciousnessProvider: '',
       consciousness: '',
+      speechProvider: '',
       speech: '',
       voice: '',
     }
@@ -58,7 +60,9 @@ const moduleSettings = computed(() => {
 
   const airiExt = selectedCard.value.extensions.airi.modules
   return {
+    consciousnessProvider: airiExt.consciousness?.provider || '',
     consciousness: airiExt.consciousness?.model || '',
+    speechProvider: airiExt.speech?.provider || '',
     speech: airiExt.speech?.model || '',
     voice: airiExt.speech?.voice_id || '',
   }
@@ -174,7 +178,7 @@ const activeTab = computed({
 function getDefaultPlaceholder(defaultValue: string | undefined): string {
   return defaultValue
     ? `${t('settings.pages.card.creation.use_default')} (${defaultValue})`
-    : t('settings.pages.card.creation.use_default')
+    : t('settings.pages.card.creation.use_default_not_configured')
 }
 
 // Helper function to get display value for module settings
@@ -293,7 +297,24 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
 
             <!-- Modules -->
             <div v-if="activeTab === 'modules'">
-              <div grid="~ cols-1 sm:cols-3" gap-4>
+              <div grid="~ cols-1 sm:cols-2" gap-4>
+                <div
+                  flex="~ col"
+                  bg="white/60 dark:black/30"
+                  gap-1 rounded-lg p-3
+                  border="~ neutral-200/50 dark:neutral-700/30"
+                  transition="all duration-200"
+                  hover="bg-white/80 dark:bg-black/40"
+                >
+                  <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
+                    <div i-lucide:brain />
+                    {{ t('settings.pages.card.chat.provider') }}
+                  </span>
+                  <div truncate font-medium>
+                    {{ getModuleDisplayValue(moduleSettings.consciousnessProvider, consciousnessProvider) }}
+                  </div>
+                </div>
+
                 <div
                   flex="~ col"
                   bg="white/60 dark:black/30"
@@ -308,6 +329,23 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                   </span>
                   <div truncate font-medium>
                     {{ getModuleDisplayValue(moduleSettings.consciousness, defaultConsciousnessModel) }}
+                  </div>
+                </div>
+
+                <div
+                  flex="~ col"
+                  bg="white/60 dark:black/30"
+                  gap-1 rounded-lg p-3
+                  border="~ neutral-200/50 dark:neutral-700/30"
+                  transition="all duration-200"
+                  hover="bg-white/80 dark:bg-black/40"
+                >
+                  <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
+                    <div i-lucide:radio />
+                    {{ t('settings.pages.card.speech.provider') }}
+                  </span>
+                  <div truncate font-medium>
+                    {{ getModuleDisplayValue(moduleSettings.speechProvider, speechProvider) }}
                   </div>
                 </div>
 
