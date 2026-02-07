@@ -168,6 +168,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: List files
+        if: always() && (matrix.os == 'macos-15-intel' || matrix.os == 'macos-26')
+        run: ls -la apps/stage-tamagotchi/dist
+
       - name: Build (Linux Only) # Linux
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
         run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=onTagOrDraft
