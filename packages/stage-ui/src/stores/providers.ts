@@ -23,10 +23,24 @@ import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
 import { computedAsync, useLocalStorage } from '@vueuse/core'
 import {
+  createCerebras,
+  createFireworks,
+  createMistral,
+  createMoonshotai,
+  createNovitaAi,
+  createOllama,
   createOpenAI,
+  createPerplexity,
+  createTogetherAI,
+  createXai,
 } from '@xsai-ext/providers/create'
-import { createPlayer2 } from '@xsai-ext/providers/special/create'
 import {
+  createAzure,
+  createPlayer2,
+  createWorkersAI,
+} from '@xsai-ext/providers/special/create'
+import {
+  createChatProvider,
   createModelProvider,
   createSpeechProvider,
   createTranscriptionProvider,
@@ -1676,6 +1690,525 @@ export const useProvidersStore = defineStore('providers', () => {
       ),
       validation: ['model_list'],
     }),
+    'cerebras-ai': buildOpenAICompatibleProvider({
+      id: 'cerebras-ai',
+      name: 'Cerebras',
+      nameKey: 'settings.pages.providers.provider.cerebras.title',
+      descriptionKey: 'settings.pages.providers.provider.cerebras.description',
+      icon: 'i-lobe-icons:cerebras',
+      description: 'cerebras.ai',
+      defaultBaseUrl: 'https://api.cerebras.ai/v1/',
+      creator: createCerebras,
+      validation: ['health', 'model_list'],
+      iconColor: 'i-lobe-icons:cerebras-color',
+    }),
+    'together-ai': buildOpenAICompatibleProvider({
+      id: 'together-ai',
+      name: 'Together.ai',
+      nameKey: 'settings.pages.providers.provider.together.title',
+      descriptionKey: 'settings.pages.providers.provider.together.description',
+      icon: 'i-lobe-icons:together',
+      description: 'together.ai',
+      defaultBaseUrl: 'https://api.together.xyz/v1/',
+      creator: createTogetherAI,
+      validation: ['health', 'model_list'],
+      iconColor: 'i-lobe-icons:together',
+    }),
+    'azure-ai-foundry': {
+      id: 'azure-ai-foundry',
+      category: 'chat',
+      tasks: ['text-generation'],
+      nameKey: 'settings.pages.providers.provider.azure-ai-foundry.title',
+      name: 'Azure AI Foundry',
+      descriptionKey: 'settings.pages.providers.provider.azure-ai-foundry.description',
+      description: 'azure.com',
+      icon: 'i-lobe-icons:microsoft',
+      defaultOptions: () => ({}),
+      createProvider: async (config) => {
+        return await createAzure({
+          apiKey: async () => (config.apiKey as string).trim(),
+          resourceName: config.resourceName as string,
+          apiVersion: config.apiVersion as string,
+        })
+      },
+      capabilities: {
+        listModels: async (config) => {
+          return [{ id: config.modelId }].map((model) => {
+            return {
+              id: model.id as string,
+              name: model.id as string,
+              provider: 'azure-ai-foundry',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          // return !!config.apiKey && !!config.resourceName && !!config.modelId
+
+          const errors = [
+            !config.apiKey && new Error('API key is required'),
+            !config.resourceName && new Error('Resource name is required'),
+            !config.modelId && new Error('Model ID is required'),
+          ]
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.resourceName && !!config.modelId,
+          }
+        },
+      },
+    },
+    'xai': buildOpenAICompatibleProvider({
+      id: 'xai',
+      name: 'xAI',
+      nameKey: 'settings.pages.providers.provider.xai.title',
+      descriptionKey: 'settings.pages.providers.provider.xai.description',
+      icon: 'i-lobe-icons:xai',
+      description: 'x.ai',
+      defaultBaseUrl: 'https://api.x.ai/v1/',
+      creator: createXai,
+      validation: ['health', 'model_list'],
+    }),
+    'xai-audio-speech': buildOpenAICompatibleProvider({
+      id: 'xai-audio-speech',
+      name: 'xAI',
+      nameKey: 'settings.pages.providers.provider.xai-audio-speech.title',
+      descriptionKey: 'settings.pages.providers.provider.xai-audio-speech.description',
+      icon: 'i-lobe-icons:xai',
+      description: 'x.ai',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      defaultBaseUrl: 'https://api.x.ai/v1/',
+      creator: (apiKey, baseURL = 'https://api.x.ai/v1/') => merge(
+        createModelProvider({ apiKey, baseURL }),
+        createSpeechProvider({ apiKey, baseURL }),
+      ),
+      validation: ['health'],
+      capabilities: {
+        // xAI provides 6 voices for TTS
+        // Per https://docs.x.ai/docs/guides/voice documentation
+        listVoices: async (_config: Record<string, unknown>) => {
+          return [
+            {
+              id: 'Ara',
+              name: 'Ara',
+              provider: 'xai-audio-speech',
+              description: 'Female voice (default)',
+              gender: 'female',
+              languages: [],
+            },
+            {
+              id: 'Rex',
+              name: 'Rex',
+              provider: 'xai-audio-speech',
+              description: 'Male voice',
+              gender: 'male',
+              languages: [],
+            },
+            {
+              id: 'Sal',
+              name: 'Sal',
+              provider: 'xai-audio-speech',
+              description: 'Voice',
+              languages: [],
+            },
+            {
+              id: 'Eve',
+              name: 'Eve',
+              provider: 'xai-audio-speech',
+              description: 'Female voice',
+              gender: 'female',
+              languages: [],
+            },
+            {
+              id: 'Una',
+              name: 'Una',
+              provider: 'xai-audio-speech',
+              description: 'Female voice',
+              gender: 'female',
+              languages: [],
+            },
+            {
+              id: 'Leo',
+              name: 'Leo',
+              provider: 'xai-audio-speech',
+              description: 'Male voice',
+              gender: 'male',
+              languages: [],
+            },
+          ] satisfies VoiceInfo[]
+        },
+        listModels: async () => {
+          // xAI uses a single TTS endpoint without specific model selection
+          return [
+            {
+              id: 'grok-2-tts',
+              name: 'Grok 2 TTS',
+              provider: 'xai-audio-speech',
+              description: 'xAI Grok text-to-speech model',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          const errors = [
+            !config.apiKey && new Error('API Key is required'),
+            !config.baseUrl && new Error('Base URL is required. Default to https://api.x.ai/v1/ for xAI API.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
+        },
+      },
+    }),
+    'xai-audio-transcription': buildOpenAICompatibleProvider({
+      id: 'xai-audio-transcription',
+      name: 'xAI',
+      nameKey: 'settings.pages.providers.provider.xai-audio-transcription.title',
+      descriptionKey: 'settings.pages.providers.provider.xai-audio-transcription.description',
+      icon: 'i-lobe-icons:xai',
+      description: 'x.ai',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+      defaultBaseUrl: 'https://api.x.ai/v1/',
+      creator: (apiKey, baseURL = 'https://api.x.ai/v1/') => merge(
+        createModelProvider({ apiKey, baseURL }),
+        createTranscriptionProvider({ apiKey, baseURL }),
+      ),
+      validation: ['health'],
+      transcriptionFeatures: {
+        supportsGenerate: true,
+        supportsStreamOutput: false,
+        supportsStreamInput: false,
+      },
+      capabilities: {
+        listModels: async () => {
+          // xAI uses a single transcription endpoint
+          return [
+            {
+              id: 'grok-2-transcribe',
+              name: 'Grok 2 Transcribe',
+              provider: 'xai-audio-transcription',
+              description: 'xAI Grok speech-to-text model',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          const errors = [
+            !config.apiKey && new Error('API Key is required'),
+            !config.baseUrl && new Error('Base URL is required. Default to https://api.x.ai/v1/ for xAI API.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
+        },
+      },
+    }),
+    'vllm': {
+      id: 'vllm',
+      category: 'chat',
+      tasks: ['text-generation'],
+      nameKey: 'settings.pages.providers.provider.vllm.title',
+      name: 'vLLM',
+      descriptionKey: 'settings.pages.providers.provider.vllm.description',
+      description: 'vllm.ai',
+      iconColor: 'i-lobe-icons:vllm',
+      createProvider: async config => createOllama((config.baseUrl as string).trim()),
+      capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'llama-2-7b',
+              name: 'Llama 2 (7B)',
+              provider: 'vllm',
+              description: 'Meta\'s Llama 2 7B parameter model',
+              contextLength: 4096,
+            },
+            {
+              id: 'llama-2-13b',
+              name: 'Llama 2 (13B)',
+              provider: 'vllm',
+              description: 'Meta\'s Llama 2 13B parameter model',
+              contextLength: 4096,
+            },
+            {
+              id: 'llama-2-70b',
+              name: 'Llama 2 (70B)',
+              provider: 'vllm',
+              description: 'Meta\'s Llama 2 70B parameter model',
+              contextLength: 4096,
+            },
+            {
+              id: 'mistral-7b',
+              name: 'Mistral (7B)',
+              provider: 'vllm',
+              description: 'Mistral AI\'s 7B parameter model',
+              contextLength: 8192,
+            },
+            {
+              id: 'mixtral-8x7b',
+              name: 'Mixtral (8x7B)',
+              provider: 'vllm',
+              description: 'Mistral AI\'s Mixtral 8x7B MoE model',
+              contextLength: 32768,
+            },
+            {
+              id: 'custom',
+              name: 'Custom Model',
+              provider: 'vllm',
+              description: 'Specify a custom model name',
+              contextLength: 0,
+            },
+          ]
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          if (!config.baseUrl) {
+            return {
+              errors: [new Error('Base URL is required.')],
+              reason: 'Base URL is required. Default to http://localhost:8000/v1/ for vLLM.',
+              valid: false,
+            }
+          }
+
+          const res = baseUrlValidator.value(config.baseUrl)
+          if (res) {
+            return res
+          }
+
+          // Check if the vLLM is reachable
+          return fetch(`${(config.baseUrl as string).trim()}models`, { headers: (config.headers as HeadersInit) || undefined })
+            .then((response) => {
+              const errors = [
+                !response.ok && new Error(`vLLM returned non-ok status code: ${response.statusText}`),
+              ].filter(Boolean)
+
+              return {
+                errors,
+                reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+                valid: response.ok,
+              }
+            })
+            .catch((err) => {
+              return {
+                errors: [err],
+                reason: `Failed to reach vLLM, error: ${String(err)} occurred.`,
+                valid: false,
+              }
+            })
+        },
+      },
+    },
+    'novita-ai': buildOpenAICompatibleProvider({
+      id: 'novita-ai',
+      name: 'Novita',
+      nameKey: 'settings.pages.providers.provider.novita.title',
+      descriptionKey: 'settings.pages.providers.provider.novita.description',
+      icon: 'i-lobe-icons:novita',
+      description: 'novita.ai',
+      defaultBaseUrl: 'https://api.novita.ai/openai/',
+      creator: createNovitaAi,
+      validation: ['health', 'model_list'],
+      iconColor: 'i-lobe-icons:novita',
+    }),
+    'fireworks-ai': buildOpenAICompatibleProvider({
+      id: 'fireworks-ai',
+      name: 'Fireworks.ai',
+      nameKey: 'settings.pages.providers.provider.fireworks.title',
+      descriptionKey: 'settings.pages.providers.provider.fireworks.description',
+      icon: 'i-lobe-icons:fireworks',
+      description: 'fireworks.ai',
+      defaultBaseUrl: 'https://api.fireworks.ai/inference/v1/',
+      creator: createFireworks,
+      validation: ['health', 'model_list'],
+    }),
+    'featherless-ai': buildOpenAICompatibleProvider({
+      id: 'featherless-ai',
+      name: 'Featherless.ai',
+      nameKey: 'settings.pages.providers.provider.featherless.title',
+      descriptionKey: 'settings.pages.providers.provider.featherless.description',
+      icon: 'i-lobe-icons:featherless-ai',
+      description: 'featherless.ai',
+      defaultBaseUrl: 'https://api.featherless.ai/v1/',
+      creator: createOpenAI,
+      validation: ['health', 'model_list'],
+    }),
+    'cloudflare-workers-ai': {
+      id: 'cloudflare-workers-ai',
+      category: 'chat',
+      tasks: ['text-generation'],
+      nameKey: 'settings.pages.providers.provider.cloudflare-workers-ai.title',
+      name: 'Cloudflare Workers AI',
+      descriptionKey: 'settings.pages.providers.provider.cloudflare-workers-ai.description',
+      description: 'cloudflare.com',
+      iconColor: 'i-lobe-icons:cloudflare',
+      createProvider: async config => createWorkersAI((config.apiKey as string).trim(), config.accountId as string),
+      capabilities: {
+        listModels: async () => {
+          return []
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.accountId && new Error('Account ID is required.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.accountId,
+          }
+        },
+      },
+    },
+    'comet-api': buildOpenAICompatibleProvider({
+      id: 'comet-api',
+      name: 'CometAPI',
+      nameKey: 'settings.pages.providers.provider.comet-api.title',
+      descriptionKey: 'settings.pages.providers.provider.comet-api.description',
+      icon: 'i-lobe-icons:cometapi',
+      description: 'cometapi.com',
+      defaultBaseUrl: 'https://api.cometapi.com/v1/',
+      creator: (apiKey, baseURL = 'https://api.cometapi.com/v1/') => merge(
+        createChatProvider({ apiKey, baseURL }),
+        createModelProvider({ apiKey, baseURL }),
+      ),
+      validation: ['model_list'],
+    }),
+    'perplexity-ai': buildOpenAICompatibleProvider({
+      id: 'perplexity-ai',
+      name: 'Perplexity',
+      nameKey: 'settings.pages.providers.provider.perplexity.title',
+      descriptionKey: 'settings.pages.providers.provider.perplexity.description',
+      icon: 'i-lobe-icons:perplexity',
+      description: 'perplexity.ai',
+      defaultBaseUrl: 'https://api.perplexity.ai/',
+      creator: createPerplexity,
+      validation: ['health', 'model_list'],
+    }),
+    'mistral-ai': buildOpenAICompatibleProvider({
+      id: 'mistral-ai',
+      name: 'Mistral',
+      nameKey: 'settings.pages.providers.provider.mistral.title',
+      descriptionKey: 'settings.pages.providers.provider.mistral.description',
+      icon: 'i-lobe-icons:mistral',
+      description: 'mistral.ai',
+      defaultBaseUrl: 'https://api.mistral.ai/v1/',
+      creator: createMistral,
+      validation: ['health', 'model_list'],
+      iconColor: 'i-lobe-icons:mistral',
+    }),
+    'moonshot-ai': buildOpenAICompatibleProvider({
+      id: 'moonshot-ai',
+      name: 'Moonshot AI',
+      nameKey: 'settings.pages.providers.provider.moonshot.title',
+      descriptionKey: 'settings.pages.providers.provider.moonshot.description',
+      icon: 'i-lobe-icons:moonshot',
+      description: 'moonshot.ai',
+      defaultBaseUrl: 'https://api.moonshot.ai/v1/',
+      creator: createMoonshotai,
+      validation: ['health', 'model_list'],
+    }),
+    'modelscope': buildOpenAICompatibleProvider({
+      id: 'modelscope',
+      name: 'ModelScope',
+      nameKey: 'settings.pages.providers.provider.modelscope.title',
+      descriptionKey: 'settings.pages.providers.provider.modelscope.description',
+      icon: 'i-lobe-icons:modelscope',
+      description: 'modelscope',
+      defaultBaseUrl: 'https://api-inference.modelscope.cn/v1/',
+      creator: createOpenAI,
+      validation: ['health', 'model_list'],
+      iconColor: 'i-lobe-icons:modelscope',
+    }),
+    'player2': {
+      id: 'player2',
+      category: 'chat',
+      tasks: ['text-generation'],
+      nameKey: 'settings.pages.providers.provider.player2.title',
+      name: 'Player2',
+      descriptionKey: 'settings.pages.providers.provider.player2.description',
+      description: 'player2.game',
+      icon: 'i-lobe-icons:player2',
+      defaultOptions: () => ({
+        baseUrl: 'http://localhost:4315/v1/',
+      }),
+      createProvider: (config) => {
+        return createPlayer2((config.baseUrl as string).trim())
+      },
+      capabilities: {
+        listModels: async () => [
+          {
+            id: 'player2-model',
+            name: 'Player2 Model',
+            provider: 'player2',
+          },
+        ],
+      },
+      validators: {
+        validateProviderConfig: async (config) => {
+          if (!config.baseUrl) {
+            return {
+              errors: [new Error('Base URL is required.')],
+              reason: 'Base URL is required. Default to http://localhost:4315/v1/',
+              valid: false,
+            }
+          }
+
+          const res = baseUrlValidator.value(config.baseUrl)
+          if (res) {
+            return res
+          }
+
+          // Check if the local running Player 2 is reachable
+          return await fetch(`${config.baseUrl}health`, {
+            method: 'GET',
+            headers: {
+              'player2-game-key': 'airi',
+            },
+          })
+            .then((response) => {
+              const errors = [
+                !response.ok && new Error(`Player 2 returned non-ok status code: ${response.statusText}`),
+              ].filter(Boolean)
+
+              return {
+                errors,
+                reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+                valid: response.ok,
+              }
+            })
+            .catch((err) => {
+              return {
+                errors: [err],
+                reason: `Failed to reach Player 2, error: ${String(err)} occurred. If you do not have Player 2 running, please start it and try again.`,
+                valid: false,
+              }
+            })
+        },
+      },
+    },
     'player2-speech': {
       id: 'player2-speech',
       category: 'speech',

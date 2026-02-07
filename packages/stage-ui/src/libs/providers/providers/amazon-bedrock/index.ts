@@ -372,9 +372,10 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
   validators: {
     validateConfig: [],
     validateProvider: [
-      () => ({
+      ({ t }) => ({
         id: 'amazon-bedrock:check-credentials',
-        validate: async (config: Record<string, any>) => {
+        name: t('settings.pages.providers.provider.amazon-bedrock.validators.check-credentials'),
+        validator: async (config: Record<string, any>) => {
           const region = config.region || 'us-east-1'
           const aws = new AwsClient({
             accessKeyId: config.accessKeyId,
@@ -391,12 +392,27 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
               ),
             )
             if (res.status === 403 || res.status === 401) {
-              return { valid: false, reason: 'Invalid AWS credentials or insufficient permissions for Amazon Bedrock.' }
+              return {
+                valid: false,
+                reason: 'Invalid AWS credentials or insufficient permissions for Amazon Bedrock.',
+                reasonKey: 'settings.pages.providers.provider.amazon-bedrock.validators.check-credentials.invalid-credentials',
+                errors: [{ error: new Error('Forbidden') }],
+              }
             }
-            return { valid: true }
+            return {
+              valid: true,
+              reason: '',
+              reasonKey: '',
+              errors: [],
+            }
           }
-          catch {
-            return { valid: false, reason: 'Failed to connect to Amazon Bedrock. Check your region and network.' }
+          catch (error) {
+            return {
+              valid: false,
+              reason: 'Failed to connect to Amazon Bedrock. Check your region and network.',
+              reasonKey: 'settings.pages.providers.provider.amazon-bedrock.validators.check-credentials.network-error',
+              errors: [{ error }],
+            }
           }
         },
       }),

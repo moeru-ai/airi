@@ -20,6 +20,7 @@ describe('providerAmazonBedrock', () => {
     expect(providerAmazonBedrock.validationRequiredWhen?.({
       accessKeyId: '',
       secretAccessKey: '',
+      region: 'us-east-1',
     })).toBe(false)
   })
 
@@ -27,6 +28,7 @@ describe('providerAmazonBedrock', () => {
     expect(providerAmazonBedrock.validationRequiredWhen?.({
       accessKeyId: 'AKIAIOSFODNN7EXAMPLE',
       secretAccessKey: '',
+      region: 'us-east-1',
     })).toBe(false)
   })
 
@@ -43,6 +45,7 @@ describe('providerAmazonBedrock', () => {
     const provider = providerAmazonBedrock.createProvider({
       accessKeyId: 'AKIAIOSFODNN7EXAMPLE',
       secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+      region: 'us-east-1',
     })
     expect(provider).toBeDefined()
   })
@@ -55,6 +58,7 @@ describe('providerAmazonBedrock', () => {
     }, providerAmazonBedrock.createProvider({
       accessKeyId: 'invalid',
       secretAccessKey: 'invalid',
+      region: 'us-east-1',
     }))
     expect(models).toBeDefined()
     expect(models!.length).toBeGreaterThan(0)
