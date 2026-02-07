@@ -39,11 +39,6 @@ on:
           - windows
           - macos
           - linux
-      ssh_into_runner:
-        description: SSH into runner for debugging
-        required: false
-        default: false
-        type: boolean
   schedule:
     - cron: '0 0 * * *'
 
@@ -62,7 +57,7 @@ jobs:
             builder-args: --macos --x64
             skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'macos' }}
 
-          - os: macos-latest
+          - os: macos-26
             artifact: darwin-arm64
             target: aarch64-apple-darwin
             builder-args: --macos --arm64
@@ -111,7 +106,7 @@ jobs:
 
       # https://docs.github.com/en/actions/how-tos/deploy/deploy-to-third-party-platforms/sign-xcode-applications
       # - name: Install the Apple certificate (macOS Only)
-      #   if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest'
+      #   if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-26'
       #   env:
       #     BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
       #     P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
@@ -135,13 +130,13 @@ jobs:
       #     security list-keychain -d user -s $KEYCHAIN_PATH
 
       - name: macOS Show Xcode 26.1
-        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-26'
         run: |
           sudo xcode-select -s /Applications/Xcode_26.1.app
           xcodebuild -version
 
       - name: macOS Show Toolchain
-        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-26'
         run: |
           xcodebuild -version
           actool --version
@@ -161,12 +156,6 @@ jobs:
 
       - run: pnpm run build:packages
 
-      - if: ${{ inputs.ssh_into_runner }}
-        name: Debug - Setup upterm session
-        uses: owenthereal/action-upterm@v1
-        with:
-          limit-access-to-users: sumimakito
-
       - name: Build (Windows Only) # Windows
         if: matrix.os == 'windows-latest'
         run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=onTagOrDraft
@@ -174,7 +163,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build (macOS Only) # macOS
-        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-26'
         run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=onTagOrDraft
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -222,7 +211,7 @@ jobs:
           echo "VERSION=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-version)" >> $GITHUB_ENV
 
       - name: Get Artifacts Envs (Nightly + macOS Only)
-        if: ${{ github.event_name == 'schedule' && (matrix.os == 'macos-latest' || matrix.os == 'macos-15-intel') }}
+        if: ${{ github.event_name == 'schedule' && (matrix.os == 'macos-26' || matrix.os == 'macos-15-intel') }}
         working-directory: ./apps/stage-tamagotchi
         run: |
           echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name)" >> $GITHUB_ENV
@@ -286,7 +275,7 @@ jobs:
           echo "VERSION=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-version --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" > $GITHUB_ENV
 
       - name: Get Artifacts Envs (Manual + macOS Only)
-        if: ${{ github.event_name == 'workflow_dispatch' && (matrix.os == 'macos-latest' || matrix.os == 'macos-15-intel') }}
+        if: ${{ github.event_name == 'workflow_dispatch' && (matrix.os == 'macos-26' || matrix.os == 'macos-15-intel') }}
         working-directory: ./apps/stage-tamagotchi
         run: |
           echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" > $GITHUB_ENV
@@ -350,7 +339,7 @@ jobs:
           pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release --auto-tag
 
       - name: Upload macOS update info (Automatic + macOS Only)
-        if: ${{ github.event_name == 'release' && (matrix.os == 'macos-latest' || matrix.os == 'macos-15-intel') }}
+        if: ${{ github.event_name == 'release' && (matrix.os == 'macos-26' || matrix.os == 'macos-15-intel') }}
         uses: actions/upload-artifact@v4
         with:
           name: latest-mac-yml-${{ matrix.arch }}
@@ -377,7 +366,7 @@ jobs:
           append_body: true
 
       # - name: Clean up keychain and provisioning profile (macOS Only)
-      #   if: ${{ always() && (matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest') }}
+      #   if: ${{ always() && (matrix.os == 'macos-15-intel' || matrix.os == 'macos-26') }}
       #   run: |
       #     security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
 

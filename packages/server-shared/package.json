@@ -33,7 +33,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@xsai/shared": "catalog:",
+    "@moeru/eventa": "catalog:",
     "@xsai/shared-chat": "catalog:"
   }
 }

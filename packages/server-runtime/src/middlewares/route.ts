@@ -25,22 +25,31 @@ export interface RouteContext {
 
 export type RouteMiddleware = (context: RouteContext) => RouteDecision | void
 
+function getPeerLabels(peer: AuthenticatedPeer) {
+  return {
+    ...peer.identity?.plugin?.labels,
+    ...peer.identity?.labels,
+  }
+}
+
 export function isDevtoolsPeer(peer: AuthenticatedPeer) {
-  const devtoolsLabel = peer.identity?.labels?.devtools
+  const devtoolsLabel = getPeerLabels(peer).devtools
   const isDevtoolsLabel = devtoolsLabel === 'true' || devtoolsLabel === '1'
   return Boolean(isDevtoolsLabel || peer.name.includes('devtools'))
 }
 
 export function peerMatchesPolicy(peer: AuthenticatedPeer, policy: RoutingPolicy) {
-  if (policy.allowPlugins?.length && !policy.allowPlugins.includes(peer.identity?.plugin ?? '')) {
+  const pluginId = peer.identity?.plugin?.id ?? ''
+
+  if (policy.allowPlugins?.length && !policy.allowPlugins.includes(pluginId)) {
     return false
   }
 
-  if (policy.denyPlugins?.length && policy.denyPlugins.includes(peer.identity?.plugin ?? '')) {
+  if (policy.denyPlugins?.length && policy.denyPlugins.includes(pluginId)) {
     return false
   }
 
-  const labels = peer.identity?.labels ?? {}
+  const labels = getPeerLabels(peer)
   if (policy.allowLabels?.length && !matchesLabelSelectors(policy.allowLabels, labels)) {
     return false
   }

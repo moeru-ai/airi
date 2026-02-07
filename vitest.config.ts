@@ -5,6 +5,7 @@ export default defineConfig({
     projects: [
       'apps/server',
       'packages/stage-ui',
+      'packages/plugin-sdk',
       'packages/vite-plugin-warpdrive',
       'packages/audio-pipelines-transcribe',
       'packages/server-runtime',
