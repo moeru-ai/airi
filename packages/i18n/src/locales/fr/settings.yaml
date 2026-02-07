@@ -712,6 +712,12 @@ pages:
       xai:
         description: x.ai
         title: xAI
+      xai-audio-speech:
+        description: x.ai - Grok Text-to-Speech
+        title: xAI Grok TTS
+      xai-audio-transcription:
+        description: x.ai - Grok Speech-to-Text
+        title: xAI Grok STT
       302-ai:
         description: 302.AI
         title: 302.AI
