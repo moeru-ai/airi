@@ -60,8 +60,6 @@ const consciousnessProviderOptions = computed(() => {
   }))
 })
 
-console.info('Consciousness Provider Options:', consciousnessProviderOptions.value)
-
 // Computed: available consciousness models options
 const consciousnessModelOptions = computed(() => {
   const provider = selectedConsciousnessProvider.value || consciousnessProvider.value
@@ -146,9 +144,10 @@ watch(selectedSpeechProvider, async (newProvider, oldProvider) => {
 // Reset voice when speech model changes (different models may have different voices)
 watch(selectedSpeechModel, async (newModel, oldModel) => {
   // Only reset if model actually changed and we're not initializing
-  if (oldModel !== undefined && newModel !== oldModel && speechProvider.value) {
+  const provider = selectedSpeechProvider.value || speechProvider.value
+  if (oldModel !== undefined && newModel !== oldModel && provider) {
     // Reload voices for the current provider
-    await speechStore.loadVoicesForProvider(speechProvider.value)
+    await speechStore.loadVoicesForProvider(provider)
 
     // Reset voice selection to default
     selectedSpeechVoiceId.value = defaultSpeechVoiceId.value || ''
