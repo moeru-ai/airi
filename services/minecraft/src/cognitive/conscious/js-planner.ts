@@ -152,6 +152,7 @@ export class JavaScriptPlanner {
 
       if (isRecord(this.sandbox.lastRun)) {
         this.sandbox.lastRun.returnValue = returnValue
+        this.sandbox.lastRun.returnRaw = result
       }
 
       return {
@@ -282,7 +283,7 @@ export class JavaScriptPlanner {
     })
     this.defineGlobalTool('log', (...args: unknown[]) => {
       if (!this.activeRun)
-        throw new Error('log() is only allowed during planner evaluation')
+        throw new Error('log() is only allowed during REPL evaluation')
 
       const rendered = args.map(arg => inspect(arg, { depth: 4, breakLength: 120 })).join(' ')
       this.activeRun.logs.push(rendered)
@@ -415,6 +416,7 @@ export class JavaScriptPlanner {
     this.sandbox.lastRun = {
       actions: run.executed,
       logs: run.logs,
+      returnRaw: undefined,
     }
   }
 
@@ -446,7 +448,7 @@ export class JavaScriptPlanner {
 
   private async runAction(tool: string, params: Record<string, unknown>): Promise<ActionRuntimeResult> {
     if (!this.activeRun) {
-      throw new Error('Tool calls are only allowed during planner evaluation')
+      throw new Error('Tool calls are only allowed during REPL evaluation')
     }
 
     if (this.activeRun.sawSkip && tool !== 'skip') {
@@ -513,7 +515,7 @@ export class JavaScriptPlanner {
 
   private validateAction(tool: string, params: Record<string, unknown>): ValidationResult {
     if (!this.activeRun)
-      throw new Error('Tool calls are only allowed during planner evaluation')
+      throw new Error('Tool calls are only allowed during REPL evaluation')
 
     const action = this.activeRun.actionsByName.get(tool)
     if (!action)

@@ -84,6 +84,23 @@ describe('javaScriptPlanner', () => {
     expect(planned.actions.map(a => a.action)).toEqual([{ tool: 'chat', params: { message: 'count=2' } }])
   })
 
+  it('persists typed previous return via prevRun.returnRaw', async () => {
+    const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+
+    await planner.evaluate(`
+      const inv = [{ name: "oak_log", count: 2 }]
+      return inv
+    `, actions, globals, executeAction)
+
+    const planned = await planner.evaluate(`
+      const inv = prevRun.returnRaw
+      await chat(inv.map(item => item.count + " " + item.name).join(", "))
+    `, actions, globals, executeAction)
+
+    expect(planned.actions.map(a => a.action)).toEqual([{ tool: 'chat', params: { message: '2 oak_log' } }])
+  })
+
   it('provides snapshot globals in script scope', async () => {
     const planner = new JavaScriptPlanner()
     const executeAction = vi.fn(async action => `ok:${action.tool}`)
