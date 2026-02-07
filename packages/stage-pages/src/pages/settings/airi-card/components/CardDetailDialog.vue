@@ -169,6 +169,18 @@ const activeTab = computed({
     activeTabId.value = value
   },
 })
+
+// Helper function to generate placeholder text for default values
+function getDefaultPlaceholder(defaultValue: string | undefined): string {
+  return defaultValue
+    ? `${t('settings.pages.card.creation.use_default')} (${defaultValue})`
+    : t('settings.pages.card.creation.use_default')
+}
+
+// Helper function to get display value for module settings
+function getModuleDisplayValue(value: string | undefined, defaultValue: string | undefined): string {
+  return value || getDefaultPlaceholder(defaultValue)
+}
 </script>
 
 <template>
@@ -295,7 +307,7 @@ const activeTab = computed({
                     {{ t('settings.pages.card.consciousness.model') }}
                   </span>
                   <div truncate font-medium>
-                    {{ moduleSettings.consciousness || (defaultConsciousnessModel ? `${t('settings.pages.card.creation.use_default')} (${defaultConsciousnessModel})` : t('settings.pages.card.creation.use_default')) }}
+                    {{ getModuleDisplayValue(moduleSettings.consciousness, defaultConsciousnessModel) }}
                   </div>
                 </div>
 
@@ -312,7 +324,7 @@ const activeTab = computed({
                     {{ t('settings.pages.card.speech.model') }}
                   </span>
                   <div truncate font-medium>
-                    {{ moduleSettings.speech || (defaultSpeechModel ? `${t('settings.pages.card.creation.use_default')} (${defaultSpeechModel})` : t('settings.pages.card.creation.use_default')) }}
+                    {{ getModuleDisplayValue(moduleSettings.speech, defaultSpeechModel) }}
                   </div>
                 </div>
 
@@ -329,7 +341,7 @@ const activeTab = computed({
                     {{ t('settings.pages.card.speech.voice') }}
                   </span>
                   <div truncate font-medium>
-                    {{ moduleSettings.voice || (defaultVoiceId ? `${t('settings.pages.card.creation.use_default')} (${defaultVoiceId})` : t('settings.pages.card.creation.use_default')) }}
+                    {{ getModuleDisplayValue(moduleSettings.voice, defaultVoiceId) }}
                   </div>
                 </div>
               </div>

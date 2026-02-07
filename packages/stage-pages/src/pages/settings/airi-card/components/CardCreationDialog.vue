@@ -240,6 +240,12 @@ function initializeCard(): Card {
         selectedSpeechModel.value = airiExt.modules.speech?.model || defaultSpeechModel.value
         selectedSpeechVoiceId.value = airiExt.modules.speech?.voice_id || defaultSpeechVoiceId.value
       }
+      else {
+        // NOTICE: Initialize with defaults if modules property doesn't exist
+        selectedConsciousnessModel.value = defaultConsciousnessModel.value
+        selectedSpeechModel.value = defaultSpeechModel.value
+        selectedSpeechVoiceId.value = defaultSpeechVoiceId.value
+      }
       return { ...toRaw(existingCard) }
     }
   }
@@ -310,6 +316,13 @@ const cardGreetings = computed({
 const cardVersion = makeComputed('version')
 const cardSystemPrompt = makeComputed('systemPrompt')
 const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
+
+// Helper function to generate placeholder text for default values
+function getDefaultPlaceholder(defaultValue: string | undefined): string {
+  return defaultValue
+    ? `${t('settings.pages.card.creation.use_default')} (${defaultValue})`
+    : t('settings.pages.card.creation.use_default')
+}
 </script>
 
 <template>
@@ -391,7 +404,7 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
                 <Select
                   v-model="selectedConsciousnessModel"
                   :options="consciousnessModelOptions"
-                  :placeholder="defaultConsciousnessModel ? `${t('settings.pages.card.creation.use_default')} (${defaultConsciousnessModel})` : t('settings.pages.card.creation.use_default')"
+                  :placeholder="getDefaultPlaceholder(defaultConsciousnessModel)"
                   :disabled="!consciousnessProvider"
                   class="w-full"
                 />
@@ -406,7 +419,7 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
                 <Select
                   v-model="selectedSpeechModel"
                   :options="speechModelOptions"
-                  :placeholder="defaultSpeechModel ? `${t('settings.pages.card.creation.use_default')} (${defaultSpeechModel})` : t('settings.pages.card.creation.use_default')"
+                  :placeholder="getDefaultPlaceholder(defaultSpeechModel)"
                   :disabled="!speechProvider"
                   class="w-full"
                 />
@@ -421,7 +434,7 @@ const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
                 <Select
                   v-model="selectedSpeechVoiceId"
                   :options="speechVoiceOptions"
-                  :placeholder="defaultSpeechVoiceId ? `${t('settings.pages.card.creation.use_default')} (${defaultSpeechVoiceId})` : t('settings.pages.card.creation.use_default')"
+                  :placeholder="getDefaultPlaceholder(defaultSpeechVoiceId)"
                   :disabled="!speechProvider"
                   class="w-full"
                 />
