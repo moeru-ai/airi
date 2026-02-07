@@ -1,8 +1,8 @@
 {
-  "name": "@proj-airi/server-shared",
+  "name": "@proj-airi/plugin-protocol",
   "type": "module",
   "version": "0.8.4",
-  "description": "Server shared types, utilities for AIRI server components and runtimes",
+  "description": "Plugin protocol event definitions and shared websocket types for Project AIRI",
   "author": {
     "name": "Moeru AI Project AIRI Team",
     "email": "airi@moeru.ai",
@@ -12,7 +12,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/moeru-ai/airi.git",
-    "directory": "packages/server-shared"
+    "directory": "packages/plugin-protocol"
   },
   "exports": {
     "./types": {
@@ -33,6 +33,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@proj-airi/plugin-protocol": "workspace:*"
+    "@moeru/eventa": "catalog:",
+    "@xsai/shared-chat": "catalog:"
   }
 }

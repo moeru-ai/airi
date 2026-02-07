@@ -1970,6 +1970,15 @@ importers:
         specifier: ^1.0.2
         version: 1.0.2
 
+  packages/plugin-protocol:
+    dependencies:
+      '@moeru/eventa':
+        specifier: 'catalog:'
+        version: 1.0.0-alpha.14(electron@40.0.0)
+      '@xsai/shared-chat':
+        specifier: 'catalog:'
+        version: 0.4.0-beta.13
+
   packages/plugin-sdk:
     dependencies:
       '@moeru/eventa':
@@ -2021,12 +2030,9 @@ importers:
 
   packages/server-shared:
     dependencies:
-      '@moeru/eventa':
-        specifier: 'catalog:'
-        version: 1.0.0-alpha.14(electron@40.0.0)
-      '@xsai/shared-chat':
-        specifier: 'catalog:'
-        version: 0.4.0-beta.13
+      '@proj-airi/plugin-protocol':
+        specifier: workspace:*
+        version: link:../plugin-protocol
 
   packages/stage-layouts:
     dependencies:
