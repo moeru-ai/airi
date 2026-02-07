@@ -20,6 +20,8 @@ describe('generateBrainSystemPrompt', () => {
     expect(prompt).toContain('Query DSL')
     expect(prompt).toContain('Heuristic composition examples')
     expect(prompt).toContain('llmLog')
+    expect(prompt).toContain('actionQueue')
+    expect(prompt).toContain('1 executing + 4 pending')
     expect(prompt).toContain('Silent-eval pattern')
     expect(prompt).toContain('Value-first rule')
     expect(prompt).toContain('forget_conversation()')

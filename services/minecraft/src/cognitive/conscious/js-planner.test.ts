@@ -46,6 +46,14 @@ describe('javaScriptPlanner', () => {
       updatedAt: Date.now(),
       attempt: 1,
     },
+    actionQueue: {
+      executing: null,
+      pending: [],
+      recent: [],
+      capacity: { total: 5, executing: 1, pending: 4 },
+      counts: { total: 0, executing: 0, pending: 0 },
+      updatedAt: Date.now(),
+    },
     forgetConversation: () => ({ ok: true, cleared: ['conversationHistory', 'lastLlmInputSnapshot'] }),
   } as any
 
@@ -188,10 +196,19 @@ describe('javaScriptPlanner', () => {
     expect(names).toContain('mineflayer')
     expect(names).toContain('currentInput')
     expect(names).toContain('llmLog')
+    expect(names).toContain('actionQueue')
     expect(names).toContain('forget_conversation')
 
     const mem = descriptors.find(d => d.name === 'mem')
     expect(mem?.readonly).toBe(false)
+  })
+
+  it('exposes actionQueue runtime global to scripts', async () => {
+    const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+    const planned = await planner.evaluate('return actionQueue.capacity.total', actions, globals, executeAction)
+    expect(planned.returnValue).toBe('5')
+    expect(planned.actions).toHaveLength(0)
   })
 
   it('exposes llm input globals to scripts', async () => {

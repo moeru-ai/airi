@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { z } from 'zod'
 
 import { Brain } from './brain'
 
@@ -68,6 +69,30 @@ function createPerceptionEvent() {
     },
     source: { type: 'minecraft', id: 'Alex' },
     timestamp: Date.now(),
+  } as any
+}
+
+function createAsyncControlAction(name: string = 'goToPlayer') {
+  return {
+    name,
+    description: `${name} action`,
+    execution: 'async',
+    schema: z.object({
+      player_name: z.string(),
+      closeness: z.number(),
+    }),
+    perform: () => async () => 'ok',
+  } as any
+}
+
+function createReadonlyAction(name: string = 'querySnapshot') {
+  return {
+    name,
+    description: `${name} action`,
+    execution: 'sync',
+    readonly: true,
+    schema: z.object({}),
+    perform: () => () => 'ok',
   } as any
 }
 
@@ -292,5 +317,45 @@ describe('brain queue coalescing', () => {
     expect(brain.queue[0].event.payload.description).toContain('first')
     expect(brain.queue[1].event.payload.description).toContain('second')
     expect(brain.queue[2].event.type).toBe('feedback')
+  })
+})
+
+describe('brain control action queue', () => {
+  it('does not block turn completion while control action executes in worker', async () => {
+    const deps: any = createDeps('await goToPlayer({ player_name: "Alex", closeness: 2 })')
+    const deferred = new Promise<unknown>(() => {})
+    deps.taskExecutor.getAvailableActions = vi.fn(() => [createAsyncControlAction('goToPlayer')])
+    deps.taskExecutor.executeActionWithResult = vi.fn(async (action: any) => {
+      if (action.tool === 'goToPlayer')
+        return deferred
+      return 'ok'
+    })
+
+    const brain: any = new Brain(deps)
+    const outcome = await Promise.race([
+      brain.processEvent({} as any, createPerceptionEvent()).then(() => 'done'),
+      new Promise(resolve => setTimeout(() => resolve('timeout'), 80)),
+    ])
+
+    expect(outcome).toBe('done')
+    const snapshot = brain.getDebugSnapshot()
+    expect(snapshot.actionQueue.counts.total).toBe(1)
+    expect(snapshot.actionQueue.executing?.tool ?? snapshot.actionQueue.pending[0]?.tool).toBe('goToPlayer')
+  })
+
+  it('executes readonly tools immediately without consuming control queue', async () => {
+    const deps: any = createDeps('await querySnapshot()')
+    deps.taskExecutor.getAvailableActions = vi.fn(() => [createReadonlyAction('querySnapshot')])
+    deps.taskExecutor.executeActionWithResult = vi.fn(async () => 'snapshot-ok')
+
+    const brain: any = new Brain(deps)
+    await brain.processEvent({} as any, createPerceptionEvent())
+
+    const snapshot = brain.getDebugSnapshot()
+    expect(snapshot.actionQueue.counts.total).toBe(0)
+    expect(deps.taskExecutor.executeActionWithResult).toHaveBeenCalledWith({
+      tool: 'querySnapshot',
+      params: {},
+    })
   })
 })

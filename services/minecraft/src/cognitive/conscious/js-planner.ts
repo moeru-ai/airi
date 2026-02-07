@@ -67,6 +67,7 @@ export interface RuntimeGlobals {
   snapshot: Record<string, unknown>
   mineflayer?: Mineflayer | null
   bot?: unknown
+  actionQueue?: unknown
   currentInput?: unknown
   llmLog?: unknown
   forgetConversation?: () => { ok: true, cleared: string[] }
@@ -212,6 +213,7 @@ export class JavaScriptPlanner {
       { name: 'llmInput', kind: 'object', readonly: true },
       { name: 'currentInput', kind: 'object', readonly: true },
       { name: 'llmLog', kind: 'object', readonly: true },
+      { name: 'actionQueue', kind: 'object', readonly: true },
       { name: 'forget_conversation', kind: 'function', readonly: true },
       { name: 'llmMessages', kind: 'object', readonly: true },
       { name: 'llmSystemPrompt', kind: 'string', readonly: true },
@@ -241,6 +243,7 @@ export class JavaScriptPlanner {
       llmInput: globals.llmInput ?? null,
       currentInput: globals.currentInput ?? null,
       llmLog: globals.llmLog ?? null,
+      actionQueue: globals.actionQueue ?? null,
       llmMessages: globals.llmInput?.messages ?? [],
       llmSystemPrompt: globals.llmInput?.systemPrompt ?? '',
       llmUserMessage: globals.llmInput?.userMessage ?? '',
@@ -402,6 +405,7 @@ export class JavaScriptPlanner {
     const event = deepFreeze(toStructuredClone(globals.event))
     const llmInput = deepFreeze(toStructuredClone(globals.llmInput ?? null))
     const currentInput = deepFreeze(toStructuredClone(globals.currentInput ?? null))
+    const actionQueue = deepFreeze(toStructuredClone(globals.actionQueue ?? null))
     const query = globals.mineflayer ? createQueryRuntime(globals.mineflayer) : undefined
 
     this.sandbox.prevRun = this.sandbox.lastRun ?? null
@@ -417,6 +421,7 @@ export class JavaScriptPlanner {
     this.sandbox.llmInput = llmInput
     this.sandbox.currentInput = currentInput
     this.sandbox.llmLog = globals.llmLog ?? null
+    this.sandbox.actionQueue = actionQueue
     this.sandbox.forget_conversation = globals.forgetConversation ?? null
     this.sandbox.llmMessages = llmInput?.messages ?? []
     this.sandbox.llmSystemPrompt = llmInput?.systemPrompt ?? ''

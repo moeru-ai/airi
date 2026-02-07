@@ -1,6 +1,7 @@
 import type { Logg } from '@guiiai/logg'
 import type { Message } from '@xsai/shared-chat'
 
+import type { Action } from '../../libs/mineflayer/action'
 import type { TaskExecutor } from '../action/task-executor'
 import type { ActionInstruction } from '../action/types'
 import type { EventBus, TracedEvent } from '../os'
@@ -123,6 +124,50 @@ interface RuntimeInputEnvelope {
   }
 }
 
+type ActionQueueEntryState = 'pending' | 'executing' | 'succeeded' | 'failed' | 'cancelled'
+
+interface ActionQueueEntryView {
+  id: number
+  tool: string
+  params: Record<string, unknown>
+  state: ActionQueueEntryState
+  enqueuedAt: number
+  sourceTurnId: number
+  startedAt?: number
+  finishedAt?: number
+  result?: unknown
+  error?: string
+}
+
+interface ActionQueueSnapshot {
+  executing: ActionQueueEntryView | null
+  pending: ActionQueueEntryView[]
+  recent: ActionQueueEntryView[]
+  capacity: {
+    total: number
+    executing: number
+    pending: number
+  }
+  counts: {
+    total: number
+    executing: number
+    pending: number
+  }
+  updatedAt: number
+}
+
+interface ControlActionQueueEntry {
+  id: number
+  action: ActionInstruction
+  sourceTurnId: number
+  state: ActionQueueEntryState
+  enqueuedAt: number
+  startedAt?: number
+  finishedAt?: number
+  result?: unknown
+  error?: string
+}
+
 function truncateForPrompt(value: string, maxLength = 220): string {
   return value.length <= maxLength ? value : `${value.slice(0, maxLength - 1)}...`
 }
@@ -148,6 +193,9 @@ const EVENT_PRIORITY_PLAYER_CHAT = 0
 const EVENT_PRIORITY_PERCEPTION = 1
 const EVENT_PRIORITY_FEEDBACK = 2
 const EVENT_PRIORITY_NO_ACTION_FOLLOWUP = 3
+const MAX_QUEUED_CONTROL_ACTIONS = 5
+const MAX_PENDING_CONTROL_ACTIONS = 4
+const ACTION_QUEUE_RECENT_HISTORY_LIMIT = 20
 
 function getEventPriority(event: BotEvent): number {
   if (event.type === 'perception') {
@@ -187,6 +235,13 @@ export class Brain {
   private turnCounter = 0
   private currentInputEnvelope: RuntimeInputEnvelope | null = null
   private readonly llmLogRuntime = createLlmLogRuntime(() => this.llmLogEntries)
+  private nextControlActionId = 0
+  private pendingControlActions: ControlActionQueueEntry[] = []
+  private activeControlAction: ControlActionQueueEntry | null = null
+  private recentControlActions: ControlActionQueueEntry[] = []
+  private actionQueueUpdatedAt = Date.now()
+  private isActionWorkerRunning = false
+  private completedControlActionsSinceLastFeedback = 0
 
   constructor(private readonly deps: BrainDeps) {
     this.debugService = DebugService.getInstance()
@@ -206,7 +261,7 @@ export class Brain {
       }).catch(err => this.deps.logger.withError(err).error('Brain: Failed to process perception event'))
     })
 
-    // Action Feedback Handler
+    // Action telemetry logger
     this.deps.taskExecutor.on('action:completed', async ({ action, result }) => {
       this.deps.logger.log('INFO', `Brain: Action completed: ${action.tool}`)
       this.appendLlmLog({
@@ -234,12 +289,14 @@ export class Brain {
         this.giveUpReason = typeof action.params?.reason === 'string' ? action.params.reason : undefined
       }
 
-      this.enqueueEvent(bot, {
-        type: 'feedback',
-        payload: { status: 'success', action, result },
-        source: { type: 'system', id: 'executor' },
-        timestamp: Date.now(),
-      }).catch(err => this.deps.logger.withError(err).error('Brain: Failed to process success feedback'))
+      if (action.tool === 'chat' && action.params?.feedback === true) {
+        this.enqueueEvent(bot, {
+          type: 'feedback',
+          payload: { status: 'success', action, result },
+          source: { type: 'system', id: 'executor' },
+          timestamp: Date.now(),
+        }).catch(err => this.deps.logger.withError(err).error('Brain: Failed to process chat feedback'))
+      }
     })
 
     this.deps.taskExecutor.on('action:failed', async ({ action, error }) => {
@@ -256,12 +313,6 @@ export class Brain {
           params: action.params,
         },
       })
-      this.enqueueEvent(bot, {
-        type: 'feedback',
-        payload: { status: 'failure', action, error: error.message || error },
-        source: { type: 'system', id: 'executor' },
-        timestamp: Date.now(),
-      }).catch(err => this.deps.logger.withError(err).error('Brain: Failed to process failure feedback'))
     })
 
     this.deps.logger.log('INFO', 'Brain: Online.')
@@ -269,6 +320,9 @@ export class Brain {
 
   public destroy(): void {
     this.currentCancellationToken?.cancel()
+    this.clearPendingControlActions('cancelled')
+    this.activeControlAction = null
+    this.touchActionQueue()
     this.runtimeMineflayer = null
   }
 
@@ -296,6 +350,7 @@ export class Brain {
   public getDebugSnapshot(): {
     isProcessing: boolean
     queueLength: number
+    actionQueue: ActionQueueSnapshot
     turnCounter: number
     giveUpUntil: number
     paused: boolean
@@ -306,6 +361,7 @@ export class Brain {
     return {
       isProcessing: this.isProcessing,
       queueLength: this.queue.length,
+      actionQueue: this.getActionQueueSnapshot(),
       turnCounter: this.turnCounter,
       giveUpUntil: this.giveUpUntil,
       paused: this.paused,
@@ -526,6 +582,7 @@ export class Brain {
       llmInput: this.lastLlmInputSnapshot,
       currentInput: this.currentInputEnvelope,
       llmLog: this.llmLogRuntime,
+      actionQueue: this.getActionQueueSnapshot(),
       forgetConversation: () => this.forgetConversation(),
     }
   }
@@ -556,6 +613,316 @@ export class Brain {
     this.llmLogEntries.push(normalized)
     if (this.llmLogEntries.length > 1000) {
       this.llmLogEntries.shift()
+    }
+  }
+
+  private touchActionQueue(): void {
+    this.actionQueueUpdatedAt = Date.now()
+  }
+
+  private cloneActionParams(params: Record<string, unknown>): Record<string, unknown> {
+    return JSON.parse(JSON.stringify(params)) as Record<string, unknown>
+  }
+
+  private toActionQueueEntryView(entry: ControlActionQueueEntry): ActionQueueEntryView {
+    return {
+      id: entry.id,
+      tool: entry.action.tool,
+      params: this.cloneActionParams(entry.action.params),
+      state: entry.state,
+      enqueuedAt: entry.enqueuedAt,
+      sourceTurnId: entry.sourceTurnId,
+      startedAt: entry.startedAt,
+      finishedAt: entry.finishedAt,
+      result: entry.result,
+      error: entry.error,
+    }
+  }
+
+  private pushRecentControlAction(entry: ControlActionQueueEntry): void {
+    this.recentControlActions.push({
+      ...entry,
+      action: {
+        tool: entry.action.tool,
+        params: this.cloneActionParams(entry.action.params),
+      },
+    })
+    if (this.recentControlActions.length > ACTION_QUEUE_RECENT_HISTORY_LIMIT) {
+      this.recentControlActions.shift()
+    }
+  }
+
+  private getActionQueueSnapshot(): ActionQueueSnapshot {
+    const executing = this.activeControlAction ? this.toActionQueueEntryView(this.activeControlAction) : null
+    const pending = this.pendingControlActions.map(entry => this.toActionQueueEntryView(entry))
+    const recent = this.recentControlActions.map(entry => this.toActionQueueEntryView(entry))
+    const executingCount = executing ? 1 : 0
+    const pendingCount = pending.length
+
+    return {
+      executing,
+      pending,
+      recent,
+      capacity: {
+        total: MAX_QUEUED_CONTROL_ACTIONS,
+        executing: 1,
+        pending: MAX_PENDING_CONTROL_ACTIONS,
+      },
+      counts: {
+        total: executingCount + pendingCount,
+        executing: executingCount,
+        pending: pendingCount,
+      },
+      updatedAt: this.actionQueueUpdatedAt,
+    }
+  }
+
+  private isQueueConsumingControlAction(action: ActionInstruction, actionDef: Action | undefined): boolean {
+    if (action.tool === 'chat' || action.tool === 'skip' || action.tool === 'stop')
+      return false
+
+    if (!actionDef)
+      return false
+
+    if (actionDef?.readonly)
+      return false
+
+    return actionDef.execution === 'async'
+  }
+
+  private clearPendingControlActions(state: Extract<ActionQueueEntryState, 'cancelled' | 'failed'>): number {
+    if (this.pendingControlActions.length === 0)
+      return 0
+
+    const clearedAt = Date.now()
+    const cleared = this.pendingControlActions.splice(0, this.pendingControlActions.length)
+    for (const entry of cleared) {
+      entry.state = state
+      entry.finishedAt = clearedAt
+      entry.error = state === 'failed' ? entry.error : entry.error ?? 'Cleared from action queue'
+      this.pushRecentControlAction(entry)
+    }
+    this.touchActionQueue()
+    return cleared.length
+  }
+
+  private async enqueueControlAction(
+    bot: MineflayerWithAgents,
+    action: ActionInstruction,
+    sourceTurnId: number,
+  ): Promise<unknown> {
+    const queueSize = this.pendingControlActions.length + (this.activeControlAction ? 1 : 0)
+    if (queueSize >= MAX_QUEUED_CONTROL_ACTIONS) {
+      throw new Error(`Action queue full (${queueSize}/${MAX_QUEUED_CONTROL_ACTIONS}). Use stop() or wait for completion.`)
+    }
+
+    const entry: ControlActionQueueEntry = {
+      id: ++this.nextControlActionId,
+      action: {
+        tool: action.tool,
+        params: this.cloneActionParams(action.params),
+      },
+      sourceTurnId,
+      state: 'pending',
+      enqueuedAt: Date.now(),
+    }
+    this.pendingControlActions.push(entry)
+    this.touchActionQueue()
+
+    this.appendLlmLog({
+      turnId: sourceTurnId,
+      kind: 'scheduler',
+      eventType: 'system_alert',
+      sourceType: 'system',
+      sourceId: 'brain:action_queue',
+      tags: ['scheduler', 'action_queue', 'enqueued'],
+      text: `Queued control action #${entry.id}: ${entry.action.tool}`,
+      metadata: {
+        actionId: entry.id,
+        pendingCount: this.pendingControlActions.length,
+      },
+    })
+
+    this.startControlActionWorker(bot)
+    return {
+      queued: true,
+      actionId: entry.id,
+      state: entry.state,
+      pendingAhead: Math.max(0, this.pendingControlActions.length - 1),
+      queue: this.getActionQueueSnapshot().counts,
+    }
+  }
+
+  private startControlActionWorker(bot: MineflayerWithAgents): void {
+    if (this.isActionWorkerRunning)
+      return
+
+    this.isActionWorkerRunning = true
+    setImmediate(() => {
+      void this.runControlActionWorker(bot)
+    })
+  }
+
+  private async runControlActionWorker(bot: MineflayerWithAgents): Promise<void> {
+    try {
+      while (this.pendingControlActions.length > 0) {
+        const entry = this.pendingControlActions.shift()!
+        entry.state = 'executing'
+        entry.startedAt = Date.now()
+        this.activeControlAction = entry
+        this.touchActionQueue()
+
+        this.appendLlmLog({
+          turnId: entry.sourceTurnId,
+          kind: 'scheduler',
+          eventType: 'system_alert',
+          sourceType: 'system',
+          sourceId: 'brain:action_queue',
+          tags: ['scheduler', 'action_queue', 'executing'],
+          text: `Executing control action #${entry.id}: ${entry.action.tool}`,
+          metadata: {
+            actionId: entry.id,
+          },
+        })
+
+        const actionDef = this.deps.taskExecutor.getAvailableActions().find(item => item.name === entry.action.tool)
+        if (actionDef?.followControl === 'detach')
+          this.deps.reflexManager.clearFollowTarget()
+
+        const cancellationToken = createCancellationToken()
+        this.currentCancellationToken = cancellationToken
+
+        try {
+          const result = await this.deps.taskExecutor.executeActionWithResult(entry.action, cancellationToken)
+          entry.state = 'succeeded'
+          entry.result = result
+          entry.finishedAt = Date.now()
+          this.pushRecentControlAction(entry)
+          this.completedControlActionsSinceLastFeedback++
+
+          this.appendLlmLog({
+            turnId: entry.sourceTurnId,
+            kind: 'scheduler',
+            eventType: 'feedback',
+            sourceType: 'system',
+            sourceId: 'brain:action_queue',
+            tags: ['scheduler', 'action_queue', 'success', entry.action.tool],
+            text: `Control action #${entry.id} succeeded: ${entry.action.tool}`,
+          })
+
+          this.activeControlAction = null
+          this.touchActionQueue()
+
+          if (this.pendingControlActions.length === 0) {
+            const completedCount = this.completedControlActionsSinceLastFeedback
+            this.completedControlActionsSinceLastFeedback = 0
+            await this.enqueueEvent(bot, {
+              type: 'feedback',
+              payload: {
+                status: 'success',
+                action: entry.action,
+                result: entry.result,
+                summary: {
+                  queueDrained: true,
+                  completedCount,
+                },
+              },
+              source: { type: 'system', id: 'executor' },
+              timestamp: Date.now(),
+            })
+          }
+        }
+        catch (err) {
+          const errorMessage = toErrorMessage(err)
+          entry.state = 'failed'
+          entry.error = errorMessage
+          entry.finishedAt = Date.now()
+          this.pushRecentControlAction(entry)
+
+          const clearedCount = this.clearPendingControlActions('cancelled')
+          this.completedControlActionsSinceLastFeedback = 0
+          this.activeControlAction = null
+          this.touchActionQueue()
+
+          this.appendLlmLog({
+            turnId: entry.sourceTurnId,
+            kind: 'scheduler',
+            eventType: 'feedback',
+            sourceType: 'system',
+            sourceId: 'brain:action_queue',
+            tags: ['scheduler', 'action_queue', 'failure', entry.action.tool],
+            text: `Control action #${entry.id} failed: ${entry.action.tool}`,
+            metadata: {
+              actionId: entry.id,
+              clearedPendingCount: clearedCount,
+              error: errorMessage,
+            },
+          })
+
+          await this.enqueueEvent(bot, {
+            type: 'feedback',
+            payload: {
+              status: 'failure',
+              action: entry.action,
+              error: errorMessage,
+              summary: {
+                failedActionId: entry.id,
+                clearedPendingCount: clearedCount,
+              },
+            },
+            source: { type: 'system', id: 'executor' },
+            timestamp: Date.now(),
+          })
+          break
+        }
+        finally {
+          if (this.currentCancellationToken === cancellationToken) {
+            this.currentCancellationToken = undefined
+          }
+        }
+      }
+    }
+    finally {
+      this.isActionWorkerRunning = false
+      if (this.pendingControlActions.length > 0 && this.runtimeMineflayer) {
+        this.startControlActionWorker(this.runtimeMineflayer)
+      }
+    }
+  }
+
+  private async executeStopAction(bot: MineflayerWithAgents, sourceTurnId: number): Promise<unknown> {
+    const clearedCount = this.clearPendingControlActions('cancelled')
+    this.currentCancellationToken?.cancel()
+
+    this.appendLlmLog({
+      turnId: sourceTurnId,
+      kind: 'scheduler',
+      eventType: 'system_alert',
+      sourceType: 'system',
+      sourceId: 'brain:action_queue',
+      tags: ['scheduler', 'action_queue', 'stop'],
+      text: `Stop requested. Cleared pending control actions: ${clearedCount}`,
+    })
+
+    const result = await this.deps.taskExecutor.executeActionWithResult({ tool: 'stop', params: {} })
+    void this.enqueueEvent(bot, {
+      type: 'feedback',
+      payload: {
+        status: 'success',
+        action: { tool: 'stop', params: {} },
+        result,
+        summary: {
+          clearedPendingCount: clearedCount,
+        },
+      },
+      source: { type: 'system', id: 'executor' },
+      timestamp: Date.now(),
+    }).catch(err => this.deps.logger.withError(err).error('Brain: Failed to enqueue stop feedback'))
+
+    return {
+      ok: true,
+      stopped: true,
+      clearedPendingCount: clearedCount,
     }
   }
 
@@ -933,7 +1300,6 @@ export class Brain {
       } as Message)
 
       const actionDefs = new Map(this.deps.taskExecutor.getAvailableActions().map(action => [action.name, action]))
-      let turnCancellationToken: CancellationToken | undefined
 
       const normalizedLlmCode = this.normalizeReplCode(result)
       const codeToEvaluate = this.repl.canEvaluateAsExpression(normalizedLlmCode)
@@ -946,19 +1312,16 @@ export class Brain {
         this.createRuntimeGlobals(event, snapshot as unknown as Record<string, unknown>, bot),
         async (action: ActionInstruction) => {
           const actionDef = actionDefs.get(action.tool)
+          if (action.tool === 'stop') {
+            return this.executeStopAction(bot, turnId)
+          }
+
+          const isControlAction = this.isQueueConsumingControlAction(action, actionDef)
+          if (isControlAction)
+            return this.enqueueControlAction(bot, action, turnId)
+
           if (actionDef?.followControl === 'detach')
             this.deps.reflexManager.clearFollowTarget()
-
-          const isPhysicalAction = action.tool !== 'skip' && !actionDef?.readonly
-
-          if (isPhysicalAction) {
-            if (!turnCancellationToken) {
-              this.currentCancellationToken?.cancel()
-              this.currentCancellationToken = createCancellationToken()
-              turnCancellationToken = this.currentCancellationToken
-            }
-            return this.deps.taskExecutor.executeActionWithResult(action, turnCancellationToken)
-          }
 
           return this.deps.taskExecutor.executeActionWithResult(action)
         },
@@ -1116,7 +1479,13 @@ export class Brain {
       parts.push(`[SCRIPT] Last eval ${ageMs}ms ago: return=${returnValue}; actions=${this.lastReplOutcome.actionCount} (ok=${this.lastReplOutcome.okCount}, err=${this.lastReplOutcome.errorCount}); logs=${logs}`)
     }
 
-    parts.push('[RUNTIME] Globals are refreshed every turn: snapshot, self, environment, social, threat, attention, autonomy, event, now, query, bot, mineflayer, currentInput, llmLog, mem, lastRun, prevRun, lastAction. Player gaze is available in environment.nearbyPlayersGaze when needed.')
+    const queueSnapshot = this.getActionQueueSnapshot()
+    const runningLabel = queueSnapshot.executing
+      ? `${queueSnapshot.executing.tool}#${queueSnapshot.executing.id}`
+      : 'none'
+    parts.push(`[ACTION_QUEUE] executing=${runningLabel}; pending=${queueSnapshot.counts.pending}; total=${queueSnapshot.counts.total}/${queueSnapshot.capacity.total}`)
+
+    parts.push('[RUNTIME] Globals are refreshed every turn: snapshot, self, environment, social, threat, attention, autonomy, event, now, query, bot, mineflayer, currentInput, llmLog, actionQueue, mem, lastRun, prevRun, lastAction. Player gaze is available in environment.nearbyPlayersGaze when needed.')
 
     return parts.join('\n\n')
   }
