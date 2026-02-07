@@ -126,6 +126,19 @@ describe('javaScriptPlanner', () => {
     expect(planned.actions.map(a => a.action)).toEqual([{ tool: 'chat', params: { message: '2 oak_log' } }])
   })
 
+  it('does not expose stringified return mirror on prevRun', async () => {
+    const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+
+    await planner.evaluate(`
+      const inv = [{ name: "oak_log", count: 2 }]
+      return inv
+    `, actions, globals, executeAction)
+
+    const planned = await planner.evaluate('return Object.prototype.hasOwnProperty.call(prevRun, "returnValue")', actions, globals, executeAction)
+    expect(planned.returnValue).toBe('false')
+  })
+
   it('provides snapshot globals in script scope', async () => {
     const planner = new JavaScriptPlanner()
     const executeAction = vi.fn(async action => `ok:${action.tool}`)

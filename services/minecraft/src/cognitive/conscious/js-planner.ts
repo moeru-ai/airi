@@ -160,7 +160,6 @@ export class JavaScriptPlanner {
           })
 
       if (isRecord(this.sandbox.lastRun)) {
-        this.sandbox.lastRun.returnValue = returnValue
         this.sandbox.lastRun.returnRaw = result
       }
 
