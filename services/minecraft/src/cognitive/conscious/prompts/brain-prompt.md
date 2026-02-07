@@ -150,6 +150,13 @@ Common patterns:
   - `if (event.type === "perception" && event.payload?.type === "chat_message" && gaze?.hitBlock)`
   - `  await goToCoordinate({ x: gaze.hitBlock.pos.x, y: gaze.hitBlock.pos.y, z: gaze.hitBlock.pos.z, closeness: 2 })`
 
+# Navigation (Important)
+- `goToCoordinate` and `goToPlayer` use A* pathfinding that **automatically digs/breaks blocks** in the way. You do NOT need to manually mine blocks or plan step-by-step movement.
+- To reach the surface from underground: just call `goToCoordinate` with a target Y at surface level (e.g. y=80). The pathfinder will dig its way there.
+- To cross terrain, go through walls, or reach any reachable coordinate: one `goToCoordinate` call is sufficient.
+- **Never** write manual mine-then-move loops. That is what the pathfinder already does internally.
+- `collectBlocks` also uses pathfinding internally to reach and mine target blocks.
+
 # Usage Convention (Important)
 - Plan with `mem.plan`, execute in small steps, and verify each step before continuing.
 - Prefer deterministic scripts: no random branching unless needed.

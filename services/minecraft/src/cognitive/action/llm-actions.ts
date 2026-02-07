@@ -145,7 +145,7 @@ export const actionsList: Action[] = [
   },
   {
     name: 'goToCoordinate',
-    description: 'Go to the given x, y, z location.',
+    description: 'Go to the given x, y, z location. Uses full A* pathfinding that automatically breaks/digs blocks in the way. Do NOT manually mine-then-move block by block; just call this with the destination.',
     execution: 'async',
     followControl: 'detach',
     schema: z.object({

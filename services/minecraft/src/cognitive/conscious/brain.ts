@@ -140,6 +140,29 @@ function stringifyForLog(value: unknown): string {
 
 const NO_ACTION_FOLLOWUP_SOURCE_ID = 'brain:no_action_followup'
 
+/**
+ * Priority tiers for event scheduling (lower = higher priority).
+ * Player chat always takes precedence over stale system feedback.
+ */
+const EVENT_PRIORITY_PLAYER_CHAT = 0
+const EVENT_PRIORITY_PERCEPTION = 1
+const EVENT_PRIORITY_FEEDBACK = 2
+const EVENT_PRIORITY_NO_ACTION_FOLLOWUP = 3
+
+function getEventPriority(event: BotEvent): number {
+  if (event.type === 'perception') {
+    const signal = event.payload as PerceptionSignal
+    if (signal.type === 'chat_message')
+      return EVENT_PRIORITY_PLAYER_CHAT
+    return EVENT_PRIORITY_PERCEPTION
+  }
+  if (event.source.type === 'system' && event.source.id === NO_ACTION_FOLLOWUP_SOURCE_ID)
+    return EVENT_PRIORITY_NO_ACTION_FOLLOWUP
+  if (event.type === 'feedback')
+    return EVENT_PRIORITY_FEEDBACK
+  return EVENT_PRIORITY_PERCEPTION
+}
+
 export class Brain {
   private debugService: DebugService
   private readonly planner = new JavaScriptPlanner()
@@ -594,6 +617,56 @@ export class Brain {
     })
   }
 
+  /**
+   * Coalesce the event queue: promote high-priority events (player chat)
+   * ahead of stale low-priority events (feedback, no-action follow-ups),
+   * and drop redundant stale follow-ups when a higher-priority event exists.
+   */
+  private coalesceQueue(): void {
+    if (this.queue.length <= 1)
+      return
+
+    const hasHighPriority = this.queue.some(
+      item => getEventPriority(item.event) <= EVENT_PRIORITY_PERCEPTION,
+    )
+    if (!hasHighPriority)
+      return
+
+    // Drop redundant no-action follow-ups when a player chat is waiting
+    const hasPlayerChat = this.queue.some(
+      item => getEventPriority(item.event) === EVENT_PRIORITY_PLAYER_CHAT,
+    )
+    if (hasPlayerChat) {
+      const before = this.queue.length
+      const dropped: QueuedEvent[] = []
+      this.queue = this.queue.filter((item) => {
+        if (getEventPriority(item.event) === EVENT_PRIORITY_NO_ACTION_FOLLOWUP) {
+          dropped.push(item)
+          return false
+        }
+        return true
+      })
+      // Resolve dropped promises so they don't hang
+      for (const item of dropped)
+        item.resolve()
+
+      if (before !== this.queue.length) {
+        this.appendLlmLog({
+          turnId: this.turnCounter,
+          kind: 'scheduler',
+          eventType: 'system_alert',
+          sourceType: 'system',
+          sourceId: 'brain:coalesce',
+          tags: ['scheduler', 'coalesce', 'drop_followups'],
+          text: `Coalesced queue: dropped ${before - this.queue.length} stale no-action follow-ups (player chat waiting)`,
+        })
+      }
+    }
+
+    // Stable-sort by priority so player chat events are processed first
+    this.queue.sort((a, b) => getEventPriority(a.event) - getEventPriority(b.event))
+  }
+
   private async processQueue(bot: MineflayerWithAgents): Promise<void> {
     if (this.isProcessing || this.queue.length === 0)
       return
@@ -606,6 +679,7 @@ export class Brain {
         lastContextView: this.lastContextView,
       })
 
+      this.coalesceQueue()
       const item = this.queue.shift()!
 
       try {

@@ -188,3 +188,109 @@ inv;
     expect(brain.enqueueEvent).toHaveBeenCalledTimes(1)
   })
 })
+
+function createFeedbackEvent() {
+  return {
+    type: 'feedback',
+    payload: { status: 'success', action: { tool: 'goToCoordinate', params: {} }, result: 'ok' },
+    source: { type: 'system', id: 'executor' },
+    timestamp: Date.now(),
+  } as any
+}
+
+function createNoActionFollowupEvent() {
+  return {
+    type: 'system_alert',
+    payload: { reason: 'no_actions', returnValue: '0', logs: [] },
+    source: { type: 'system', id: 'brain:no_action_followup' },
+    timestamp: Date.now(),
+  } as any
+}
+
+describe('brain queue coalescing', () => {
+  it('promotes player chat ahead of stale feedback events', () => {
+    const brain: any = new Brain(createDeps('await skip()'))
+
+    // Simulate a queue with feedback events followed by a player chat
+    const resolved: string[] = []
+    brain.queue = [
+      { event: createFeedbackEvent(), resolve: () => resolved.push('fb1'), reject: vi.fn() },
+      { event: createFeedbackEvent(), resolve: () => resolved.push('fb2'), reject: vi.fn() },
+      { event: createPerceptionEvent(), resolve: () => resolved.push('chat'), reject: vi.fn() },
+    ]
+
+    brain.coalesceQueue()
+
+    // Player chat (priority 0) should be first in queue
+    expect(brain.queue[0].event.type).toBe('perception')
+    expect((brain.queue[0].event.payload as any).type).toBe('chat_message')
+  })
+
+  it('drops no-action follow-ups when player chat is waiting', () => {
+    const brain: any = new Brain(createDeps('await skip()'))
+
+    const resolved: string[] = []
+    brain.queue = [
+      { event: createNoActionFollowupEvent(), resolve: () => resolved.push('followup1'), reject: vi.fn() },
+      { event: createNoActionFollowupEvent(), resolve: () => resolved.push('followup2'), reject: vi.fn() },
+      { event: createFeedbackEvent(), resolve: () => resolved.push('fb'), reject: vi.fn() },
+      { event: createPerceptionEvent(), resolve: () => resolved.push('chat'), reject: vi.fn() },
+    ]
+
+    brain.coalesceQueue()
+
+    // Both no-action follow-ups should be dropped and resolved
+    expect(resolved).toEqual(['followup1', 'followup2'])
+    // Remaining queue: chat (promoted) + feedback
+    expect(brain.queue).toHaveLength(2)
+    expect(brain.queue[0].event.type).toBe('perception')
+    expect(brain.queue[1].event.type).toBe('feedback')
+  })
+
+  it('does not coalesce when queue has only one item', () => {
+    const brain: any = new Brain(createDeps('await skip()'))
+
+    brain.queue = [
+      { event: createNoActionFollowupEvent(), resolve: vi.fn(), reject: vi.fn() },
+    ]
+
+    brain.coalesceQueue()
+
+    expect(brain.queue).toHaveLength(1)
+  })
+
+  it('does not coalesce when no high-priority events exist', () => {
+    const brain: any = new Brain(createDeps('await skip()'))
+
+    brain.queue = [
+      { event: createFeedbackEvent(), resolve: vi.fn(), reject: vi.fn() },
+      { event: createNoActionFollowupEvent(), resolve: vi.fn(), reject: vi.fn() },
+    ]
+
+    brain.coalesceQueue()
+
+    // No changes — no perception/chat events to promote
+    expect(brain.queue).toHaveLength(2)
+    expect(brain.queue[0].event.type).toBe('feedback')
+  })
+
+  it('preserves relative order among same-priority events', () => {
+    const brain: any = new Brain(createDeps('await skip()'))
+
+    const chat1 = { ...createPerceptionEvent(), payload: { ...createPerceptionEvent().payload, description: 'Chat from Alex: "first"' } }
+    const chat2 = { ...createPerceptionEvent(), payload: { ...createPerceptionEvent().payload, description: 'Chat from Alex: "second"' } }
+
+    brain.queue = [
+      { event: createFeedbackEvent(), resolve: vi.fn(), reject: vi.fn() },
+      { event: chat1, resolve: vi.fn(), reject: vi.fn() },
+      { event: chat2, resolve: vi.fn(), reject: vi.fn() },
+    ]
+
+    brain.coalesceQueue()
+
+    // Both chats should come before feedback, and maintain their relative order
+    expect(brain.queue[0].event.payload.description).toContain('first')
+    expect(brain.queue[1].event.payload.description).toContain('second')
+    expect(brain.queue[2].event.type).toBe('feedback')
+  })
+})
