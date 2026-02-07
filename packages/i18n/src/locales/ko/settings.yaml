@@ -712,6 +712,12 @@ pages:
       xai:
         description: x.ai
         title: xAI
+      xai-audio-speech:
+        description: x.ai - Grok 텍스트 음성 변환
+        title: xAI Grok TTS
+      xai-audio-transcription:
+        description: x.ai - Grok 음성 인식
+        title: xAI Grok STT
       302-ai:
         description: 302.AI
         title: 302.AI

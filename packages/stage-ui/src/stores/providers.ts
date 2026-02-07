@@ -1297,22 +1297,17 @@ export const useProvidersStore = defineStore('providers', () => {
             ...provider.voice(),
           })
 
-          // Find indices of Aria and Bill
-          const ariaIndex = voices.findIndex(voice => voice.name.includes('Aria'))
-          const billIndex = voices.findIndex(voice => voice.name.includes('Bill'))
+          // Find indices of Aria and Bill (with safety check)
+          const ariaIndex = Array.isArray(voices) ? voices.findIndex(voice => voice.name.includes('Aria')) : -1
+          const billIndex = Array.isArray(voices) ? voices.findIndex(voice => voice.name.includes('Bill')) : -1
 
-          // Determine the range to move (ensure valid indices and proper order)
-          const startIndex = ariaIndex !== -1 ? ariaIndex : 0
-          const endIndex = billIndex !== -1 ? billIndex : voices.length - 1
-          const lowerIndex = Math.min(startIndex, endIndex)
-          const higherIndex = Math.max(startIndex, endIndex)
-
-          // Rearrange voices: voices outside the range first, then voices within the range
-          const rearrangedVoices = [
-            ...voices.slice(0, lowerIndex),
-            ...voices.slice(higherIndex + 1),
-            ...voices.slice(lowerIndex, higherIndex + 1),
-          ]
+          const rearrangedVoices = Array.isArray(voices)
+            ? [
+                ...voices.slice(0, Math.min(ariaIndex !== -1 ? ariaIndex : 0, billIndex !== -1 ? billIndex : voices.length - 1)),
+                ...voices.slice(Math.max(ariaIndex !== -1 ? ariaIndex : 0, billIndex !== -1 ? billIndex : voices.length - 1) + 1),
+                ...voices.slice(Math.min(ariaIndex !== -1 ? ariaIndex : 0, billIndex !== -1 ? billIndex : voices.length - 1), Math.max(ariaIndex !== -1 ? ariaIndex : 0, billIndex !== -1 ? billIndex : voices.length - 1) + 1),
+              ]
+            : []
 
           return rearrangedVoices.map((voice) => {
             return {
@@ -1799,6 +1794,154 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultBaseUrl: 'https://api.x.ai/v1/',
       creator: createXai,
       validation: ['health', 'model_list'],
+    }),
+    'xai-audio-speech': buildOpenAICompatibleProvider({
+      id: 'xai-audio-speech',
+      name: 'xAI',
+      nameKey: 'settings.pages.providers.provider.xai-audio-speech.title',
+      descriptionKey: 'settings.pages.providers.provider.xai-audio-speech.description',
+      icon: 'i-lobe-icons:xai',
+      description: 'x.ai',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      defaultBaseUrl: 'https://api.x.ai/v1/',
+      creator: (apiKey, baseURL = 'https://api.x.ai/v1/') => merge(
+        createModelProvider({ apiKey, baseURL }),
+        createSpeechProvider({ apiKey, baseURL }),
+      ),
+      validation: ['health'],
+      capabilities: {
+        // xAI provides 6 voices for TTS
+        // Per https://docs.x.ai/docs/guides/voice documentation
+        listVoices: async (_config: Record<string, unknown>) => {
+          return [
+            {
+              id: 'Ara',
+              name: 'Ara',
+              provider: 'xai-audio-speech',
+              description: 'Female voice (default)',
+              gender: 'female',
+              languages: [],
+            },
+            {
+              id: 'Rex',
+              name: 'Rex',
+              provider: 'xai-audio-speech',
+              description: 'Male voice',
+              gender: 'male',
+              languages: [],
+            },
+            {
+              id: 'Sal',
+              name: 'Sal',
+              provider: 'xai-audio-speech',
+              description: 'Voice',
+              languages: [],
+            },
+            {
+              id: 'Eve',
+              name: 'Eve',
+              provider: 'xai-audio-speech',
+              description: 'Female voice',
+              gender: 'female',
+              languages: [],
+            },
+            {
+              id: 'Una',
+              name: 'Una',
+              provider: 'xai-audio-speech',
+              description: 'Female voice',
+              gender: 'female',
+              languages: [],
+            },
+            {
+              id: 'Leo',
+              name: 'Leo',
+              provider: 'xai-audio-speech',
+              description: 'Male voice',
+              gender: 'male',
+              languages: [],
+            },
+          ] satisfies VoiceInfo[]
+        },
+        listModels: async () => {
+          // xAI uses a single TTS endpoint without specific model selection
+          return [
+            {
+              id: 'grok-2-tts',
+              name: 'Grok 2 TTS',
+              provider: 'xai-audio-speech',
+              description: 'xAI Grok text-to-speech model',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          const errors = [
+            !config.apiKey && new Error('API Key is required'),
+            !config.baseUrl && new Error('Base URL is required. Default to https://api.x.ai/v1/ for xAI API.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
+        },
+      },
+    }),
+    'xai-audio-transcription': buildOpenAICompatibleProvider({
+      id: 'xai-audio-transcription',
+      name: 'xAI',
+      nameKey: 'settings.pages.providers.provider.xai-audio-transcription.title',
+      descriptionKey: 'settings.pages.providers.provider.xai-audio-transcription.description',
+      icon: 'i-lobe-icons:xai',
+      description: 'x.ai',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+      defaultBaseUrl: 'https://api.x.ai/v1/',
+      creator: (apiKey, baseURL = 'https://api.x.ai/v1/') => merge(
+        createModelProvider({ apiKey, baseURL }),
+        createTranscriptionProvider({ apiKey, baseURL }),
+      ),
+      validation: ['health'],
+      transcriptionFeatures: {
+        supportsGenerate: true,
+        supportsStreamOutput: false,
+        supportsStreamInput: false,
+      },
+      capabilities: {
+        listModels: async () => {
+          // xAI uses a single transcription endpoint
+          return [
+            {
+              id: 'grok-2-transcribe',
+              name: 'Grok 2 Transcribe',
+              provider: 'xai-audio-transcription',
+              description: 'xAI Grok speech-to-text model',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          const errors = [
+            !config.apiKey && new Error('API Key is required'),
+            !config.baseUrl && new Error('Base URL is required. Default to https://api.x.ai/v1/ for xAI API.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
+        },
+      },
     }),
     'vllm': {
       id: 'vllm',
