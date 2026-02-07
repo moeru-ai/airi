@@ -41,7 +41,7 @@ interface QueuedEvent {
   reject: (err: Error) => void
 }
 
-interface PlannerOutcomeSummary {
+interface ReplOutcomeSummary {
   actionCount: number
   okCount: number
   errorCount: number
@@ -165,7 +165,7 @@ function getEventPriority(event: BotEvent): number {
 
 export class Brain {
   private debugService: DebugService
-  private readonly planner = new JavaScriptPlanner()
+  private readonly repl = new JavaScriptPlanner()
   private paused = false
 
   // State
@@ -176,7 +176,7 @@ export class Brain {
   private giveUpUntil = 0
   private giveUpReason: string | undefined
   private lastContextView: string | undefined
-  private lastPlannerOutcome: PlannerOutcomeSummary | undefined
+  private lastReplOutcome: ReplOutcomeSummary | undefined
   private conversationHistory: Message[] = []
   private lastLlmInputSnapshot: LlmInputSnapshot | null = null
   private runtimeMineflayer: MineflayerWithAgents | null = null
@@ -280,7 +280,7 @@ export class Brain {
       source: { type: 'system', id: 'debug-repl' },
       timestamp: Date.now(),
     }
-    const variables = this.planner.describeGlobals(
+    const variables = this.repl.describeGlobals(
       this.deps.taskExecutor.getAvailableActions(),
       this.createRuntimeGlobals(replEvent, snapshot as unknown as Record<string, unknown>),
     )
@@ -400,13 +400,13 @@ export class Brain {
     const snapshot = this.deps.reflexManager.getContextSnapshot()
     const actionDefs = new Map(this.deps.taskExecutor.getAvailableActions().map(action => [action.name, action]))
     const normalizedReplCode = this.normalizeReplCode(code)
-    const codeToEvaluate = this.planner.canEvaluateAsExpression(normalizedReplCode)
+    const codeToEvaluate = this.repl.canEvaluateAsExpression(normalizedReplCode)
       ? `return (\n${normalizedReplCode}\n)`
       : normalizedReplCode
 
     this.isReplEvaluating = true
     try {
-      const runResult = await this.planner.evaluate(
+      const runResult = await this.repl.evaluate(
         codeToEvaluate,
         this.deps.taskExecutor.getAvailableActions(),
         this.createRuntimeGlobals({
@@ -910,11 +910,11 @@ export class Brain {
       this.deps.logger.withError(lastError).warn('Brain: No response after all retries')
       this.appendLlmLog({
         turnId,
-        kind: 'planner_error',
+        kind: 'repl_error',
         eventType: event.type,
         sourceType: event.source.type,
         sourceId: event.source.id,
-        tags: ['planner', 'error', 'empty_response'],
+        tags: ['repl', 'error', 'empty_response'],
         text: 'No LLM response after retries',
       })
       return
@@ -934,11 +934,12 @@ export class Brain {
       const actionDefs = new Map(this.deps.taskExecutor.getAvailableActions().map(action => [action.name, action]))
       let turnCancellationToken: CancellationToken | undefined
 
-      const codeToEvaluate = this.planner.canEvaluateAsExpression(result)
-        ? `return (\n${result}\n)`
-        : this.rewriteTrailingExpressionToReturn(result)
+      const normalizedLlmCode = this.normalizeReplCode(result)
+      const codeToEvaluate = this.repl.canEvaluateAsExpression(normalizedLlmCode)
+        ? `return (\n${normalizedLlmCode}\n)`
+        : normalizedLlmCode
 
-      const runResult = await this.planner.evaluate(
+      const runResult = await this.repl.evaluate(
         codeToEvaluate,
         this.deps.taskExecutor.getAvailableActions(),
         this.createRuntimeGlobals(event, snapshot as unknown as Record<string, unknown>, bot),
@@ -962,7 +963,7 @@ export class Brain {
         },
       )
 
-      this.lastPlannerOutcome = {
+      this.lastReplOutcome = {
         actionCount: runResult.actions.length,
         okCount: runResult.actions.filter(item => item.ok).length,
         errorCount: runResult.actions.filter(item => !item.ok).length,
@@ -972,12 +973,12 @@ export class Brain {
       }
       this.appendLlmLog({
         turnId,
-        kind: 'planner_result',
+        kind: 'repl_result',
         eventType: event.type,
         sourceType: event.source.type,
         sourceId: event.source.id,
         tags: [
-          'planner',
+          'repl',
           runResult.actions.length === 0 ? 'no_actions' : 'actions',
           runResult.actions.some(item => !item.ok) ? 'error' : 'ok',
         ],
@@ -1038,11 +1039,11 @@ export class Brain {
       this.deps.logger.withError(err).error('Brain: Failed to execute decision')
       this.appendLlmLog({
         turnId,
-        kind: 'planner_error',
+        kind: 'repl_error',
         eventType: event.type,
         sourceType: event.source.type,
         sourceId: event.source.id,
-        tags: ['planner', 'error'],
+        tags: ['repl', 'error'],
         text: truncateForPrompt(toErrorMessage(err), 360),
         metadata: {
           code: result,
@@ -1105,13 +1106,13 @@ export class Brain {
       parts.push(`[STATE] giveUp active (${remainingSec}s left). reason=${this.giveUpReason ?? 'unknown'}`)
     }
 
-    if (this.lastPlannerOutcome) {
-      const ageMs = Date.now() - this.lastPlannerOutcome.updatedAt
-      const returnValue = truncateForPrompt(this.lastPlannerOutcome.returnValue ?? 'undefined')
-      const logs = this.lastPlannerOutcome.logs.length > 0
-        ? this.lastPlannerOutcome.logs.map((line, index) => `#${index + 1} ${truncateForPrompt(line, 120)}`).join(' | ')
+    if (this.lastReplOutcome) {
+      const ageMs = Date.now() - this.lastReplOutcome.updatedAt
+      const returnValue = truncateForPrompt(this.lastReplOutcome.returnValue ?? 'undefined')
+      const logs = this.lastReplOutcome.logs.length > 0
+        ? this.lastReplOutcome.logs.map((line, index) => `#${index + 1} ${truncateForPrompt(line, 120)}`).join(' | ')
         : '(none)'
-      parts.push(`[SCRIPT] Last eval ${ageMs}ms ago: return=${returnValue}; actions=${this.lastPlannerOutcome.actionCount} (ok=${this.lastPlannerOutcome.okCount}, err=${this.lastPlannerOutcome.errorCount}); logs=${logs}`)
+      parts.push(`[SCRIPT] Last eval ${ageMs}ms ago: return=${returnValue}; actions=${this.lastReplOutcome.actionCount} (ok=${this.lastReplOutcome.okCount}, err=${this.lastReplOutcome.errorCount}); logs=${logs}`)
     }
 
     parts.push('[RUNTIME] Globals are refreshed every turn: snapshot, self, environment, social, threat, attention, autonomy, event, now, query, bot, mineflayer, currentInput, llmLog, mem, lastRun, prevRun, lastAction. Player gaze is available in environment.nearbyPlayersGaze when needed.')

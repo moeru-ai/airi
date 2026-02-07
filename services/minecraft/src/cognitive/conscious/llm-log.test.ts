@@ -8,12 +8,12 @@ function seedEntries(count: number): LlmLogEntry[] {
   return Array.from({ length: count }, (_, index) => ({
     id: index + 1,
     turnId: Math.floor(index / 2) + 1,
-    kind: index % 3 === 0 ? 'planner_error' : 'turn_input',
+    kind: index % 3 === 0 ? 'repl_error' : 'turn_input',
     timestamp: 1000 + index,
     eventType: 'perception',
     sourceType: 'minecraft',
     sourceId: index % 2 === 0 ? 'Alex' : 'Steve',
-    tags: index % 3 === 0 ? ['error', 'planner'] : ['input'],
+    tags: index % 3 === 0 ? ['error', 'repl'] : ['input'],
     text: index % 3 === 0 ? 'Invalid tool parameters' : 'Chat event',
     metadata: { i: index },
   }))

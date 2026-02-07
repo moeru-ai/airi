@@ -80,7 +80,7 @@ The bot starts this server during normal runtime from:
 - Log verification pattern that worked reliably:
   1. `inject_chat(...)`
   2. `get_logs(limit: 10)`
-  3. Confirm sequence: `turn_input` -> `llm_attempt` -> `feedback` -> `planner_result`
+  3. Confirm sequence: `turn_input` -> `llm_attempt` -> `feedback` -> `repl_result`
 
 ## Repeatable Smoke Test Recipe
 
@@ -95,7 +95,7 @@ Use this exact sequence for fast live validation:
    - `inject_chat({ username: \"codex-live-test\", message: \"please gather 3 dirt blocks\" })`
 3. Execution proof
    - `get_logs({ limit: 10 })`
-   - Expect acknowledgement chat + `collectBlocks` success feedback + planner summary.
+   - Expect acknowledgement chat + `collectBlocks` success feedback + REPL summary.
    - `get_llm_trace({ limit: 5 })`
    - Assert expected LLM behavior (for example response code, or repeated `await skip()`).
    - Assert trace payload does not include `role: "system"` entries.
@@ -106,7 +106,7 @@ Use this exact sequence for fast live validation:
 
 To validate read->action behavior:
 1. Inject a query-style chat (for example inventory question).
-2. Confirm first planner result is no-action with concrete return value (via `get_logs`/`get_llm_trace`).
+2. Confirm first REPL result is no-action with concrete return value (via `get_logs`/`get_llm_trace`).
 3. Confirm follow-up turn uses that returned value to perform chat/action.
 
 ## Runtime Caveat

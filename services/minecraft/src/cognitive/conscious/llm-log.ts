@@ -1,8 +1,8 @@
 export type LlmLogEntryKind
   = 'turn_input'
     | 'llm_attempt'
-    | 'planner_result'
-    | 'planner_error'
+    | 'repl_result'
+    | 'repl_error'
     | 'scheduler'
     | 'feedback'
 

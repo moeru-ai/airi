@@ -36,7 +36,7 @@ Use this skill to run the local bot and interact with its MCP debug interface sa
 - Use `get_last_prompt` to inspect latest LLM input.
 - Use `execute_repl` for deep object inspection or one-off targeted calls on the running brain.
 - Use `inject_chat` to simulate player chat and verify behavior loop.
-- Use `get_llm_trace` to assert planner behavior in automation (for example, detect repeated `await skip()` on specific events).
+- Use `get_llm_trace` to assert REPL behavior in automation (for example, detect repeated `await skip()` on specific events).
 - Use `execute_repl("forget_conversation()")` to clear conversation memory before prompt-engineering tests.
 
 Read `references/mcp-surface.md` for exact tool/resource names and argument schemas.
@@ -46,7 +46,7 @@ Read `references/mcp-surface.md` for exact tool/resource names and argument sche
 - `get_state` returns a large variable snapshot; prefer it over REPL for first-pass health checks.
 - `get_last_prompt` can return very large payloads; call only when prompt-level debugging is needed.
 - `execute_repl` returns a structured result where `returnValue` is stringified; parse mentally as display output, not typed JSON.
-- `get_logs(limit=10)` is enough to verify whether an injected event reached planner/executor.
+- `get_logs(limit=10)` is enough to verify whether an injected event reached REPL/executor.
 - `get_llm_trace(limit, turnId?)` gives structured attempt-level trace data (messages, content, reasoning, usage, duration).
 - `get_last_prompt` and `get_llm_trace` are compacted for MCP: system prompt/system-role messages are omitted to reduce token cost.
 - Prefer compact value reads in REPL:
@@ -69,7 +69,7 @@ Read `references/mcp-surface.md` for exact tool/resource names and argument sche
    - Call `get_logs(limit=10)` and check for:
      - bot acknowledgement chat
      - action tool feedback (for example `collectBlocks`)
-     - planner result summary
+     - REPL result summary
    - Call `get_llm_trace(limit=5)` when you need exact model output/reasoning for assertions.
 5. Re-check inventory using the same REPL snippet and compare against baseline.
 
