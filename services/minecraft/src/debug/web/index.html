@@ -192,17 +192,18 @@
         <!-- Splitter H2 (Timeline vs LLM) -->
         <div class="splitter-h" id="splitter-h2"></div>
 
-        <!-- Bottom Row: LLM Traces -->
-        <section id="llm-section" class="panel">
+        <!-- Bottom Row: Conversation -->
+        <section id="conversation-section" class="panel">
           <div class="panel-header">
-            <h2>LLM Traces</h2>
+            <h2>Conversation</h2>
             <div class="panel-controls">
-              <span class="panel-badge" id="llm-count">0</span>
+              <span id="conversation-processing" class="panel-badge badge-processing hidden">Processing…</span>
+              <span class="panel-badge" id="conversation-count">0</span>
               <button class="icon-btn maximize-btn" title="Toggle maximize">⤢</button>
             </div>
           </div>
           <div class="panel-content">
-            <div id="llm-list" class="llm-list"></div>
+            <div id="conversation-container" class="conversation-container"></div>
           </div>
         </section>
 

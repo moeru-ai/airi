@@ -2,6 +2,7 @@ import type {
   BlackboardEvent,
   BrainStateEvent,
   ClientCommand,
+  ConversationUpdateEvent,
   LLMTraceEvent,
   LogEvent,
   QueueEvent,
@@ -162,6 +163,20 @@ export class DebugService {
   }
 
   /**
+   * Emit a conversation state update
+   */
+  public emitConversationUpdate(state: Omit<ConversationUpdateEvent, 'timestamp'>): void {
+    const event: ServerEvent = {
+      type: 'conversation_update',
+      payload: {
+        ...state,
+        timestamp: Date.now(),
+      },
+    }
+    this.server.broadcast(event)
+  }
+
+  /**
    * Emit a reflex state update
    */
   public emitReflexState(state: Omit<ReflexStateEvent, 'timestamp'>): void {
@@ -236,6 +251,9 @@ export class DebugService {
           type: 'debug:repl_result',
           payload: payload as ReplExecutionResultEvent,
         })
+        break
+      case 'conversation_update':
+        this.emitConversationUpdate(payload as Omit<ConversationUpdateEvent, 'timestamp'>)
         break
       default:
         // For unknown types, emit as log

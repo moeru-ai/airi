@@ -109,6 +109,16 @@ export interface TraceBatchEvent {
   timestamp: number
 }
 
+/**
+ * Live conversation state update from the brain
+ */
+export interface ConversationUpdateEvent {
+  messages: Array<{ role: string, content: string, reasoning?: string }>
+  isProcessing: boolean
+  sessionBoundary?: boolean
+  timestamp: number
+}
+
 // Union type for all server events
 
 // ============================================================
@@ -190,6 +200,7 @@ export type ServerEvent
     | { type: 'debug:repl_state', payload: ReplStateEvent }
     | { type: 'debug:repl_result', payload: ReplExecutionResultEvent }
     | { type: 'brain_state', payload: BrainStateEvent }
+    | { type: 'conversation_update', payload: ConversationUpdateEvent }
 
 // ============================================================
 // Client -> Server commands
@@ -244,6 +255,10 @@ export interface RequestReplStateCommand {
   type: 'request_repl_state'
 }
 
+export interface RequestConversationCommand {
+  type: 'request_conversation'
+}
+
 export interface ExecuteReplCommand {
   type: 'execute_repl'
   payload: {
@@ -261,6 +276,7 @@ export type ClientCommand
     | RequestToolsCommand
     | RequestReplStateCommand
     | ExecuteReplCommand
+    | RequestConversationCommand
 
 // ============================================================
 // Wire format

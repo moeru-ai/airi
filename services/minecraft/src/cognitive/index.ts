@@ -32,6 +32,14 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
         debugService.emit('debug:repl_state', brain.getReplState())
       })
 
+      debugService.onCommand('request_conversation', () => {
+        const snapshot = brain.getDebugSnapshot()
+        debugService.emitConversationUpdate({
+          messages: snapshot.conversationHistory,
+          isProcessing: snapshot.isProcessing,
+        })
+      })
+
       debugService.onCommand('execute_repl', async (command) => {
         if (command.type !== 'execute_repl')
           return

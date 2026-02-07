@@ -563,102 +563,171 @@ class LogsPanel {
 }
 
 // =============================================================================
-// LLM Panel
+// Conversation Panel (Live Chat View)
 // =============================================================================
 
-class LLMPanel {
+class ConversationPanel {
   constructor(client) {
     this.client = client
-    this.traces = []
+    // Each session: { messages: Message[], greyed: boolean }
+    this.sessions = [{ messages: [], greyed: false }]
+    this.isProcessing = false
+    this.autoScroll = true
     this.elements = {
-      list: document.getElementById('llm-list'),
-      count: document.getElementById('llm-count'),
+      container: document.getElementById('conversation-container'),
+      count: document.getElementById('conversation-count'),
       statLlm: document.getElementById('stat-llm'),
+      processingBadge: document.getElementById('conversation-processing'),
+      scroll: document.getElementById('conversation-container')?.closest('.panel-content') || document.getElementById('conversation-container'),
     }
   }
 
   init() {
-    this.client.on('llm', data => this.addTrace(data))
-    this.client.on('connected', () => this.reset())
+    this.client.on('conversation_update', data => this.handleUpdate(data))
+    this.client.on('connected', () => {
+      this.reset()
+      this.client.send({ type: 'request_conversation' })
+    })
+    this.render()
   }
 
-  addTrace(trace) {
-    this.traces.unshift(trace)
-    if (this.traces.length > CONFIG.MAX_LLM_TRACES) {
-      this.traces.pop()
+  handleUpdate(data) {
+    if (data.sessionBoundary) {
+      // Grey out current session and start a new one
+      const currentSession = this.sessions[this.sessions.length - 1]
+      if (currentSession) {
+        currentSession.greyed = true
+      }
+      this.sessions.push({ messages: [], greyed: false })
+    }
+    else {
+      // Update current session messages
+      const currentSession = this.sessions[this.sessions.length - 1]
+      if (currentSession) {
+        currentSession.messages = data.messages || []
+      }
     }
 
-    this.elements.count.textContent = this.traces.length
-    this.elements.statLlm.textContent = this.traces.length
-    this.renderTrace(trace)
+    this.isProcessing = !!data.isProcessing
+    this.updateStats()
+    this.render()
   }
 
   reset() {
-    this.traces = []
-    this.elements.list.innerHTML = ''
-    this.elements.count.textContent = '0'
-    this.elements.statLlm.textContent = '0'
+    this.sessions = [{ messages: [], greyed: false }]
+    this.isProcessing = false
+    this.updateStats()
+    this.render()
   }
 
-  renderTrace(trace) {
-    const time = new Date(trace.timestamp).toLocaleTimeString()
-    const tokens = trace.usage?.total_tokens || '?'
-    const duration = Number.isFinite(trace.duration) ? `${trace.duration}ms` : 'n/a'
+  updateStats() {
+    const totalMessages = this.sessions.reduce((sum, s) => sum + s.messages.length, 0)
+    if (this.elements.count)
+      this.elements.count.textContent = totalMessages
+    if (this.elements.statLlm)
+      this.elements.statLlm.textContent = totalMessages
+    if (this.elements.processingBadge)
+      this.elements.processingBadge.classList.toggle('hidden', !this.isProcessing)
+  }
 
-    const card = document.createElement('div')
-    card.className = 'llm-card'
+  render() {
+    if (!this.elements.container)
+      return
 
-    // Messages HTML
-    let messagesHtml = ''
-    if (trace.messages && Array.isArray(trace.messages)) {
-      messagesHtml = trace.messages.map(msg => `
-        <div class="llm-message role-${msg.role || 'unknown'}">
-          <div class="llm-message-role">${msg.role || 'unknown'}</div>
-          <div class="llm-message-content">${escapeHtml(msg.role === 'system'
-            ? formatSystemMessageContent(msg.content || '')
-            : (msg.content || ''))}</div>
-        </div>
-      `).join('')
-    }
+    const html = this.sessions.map((session, sessionIdx) => {
+      const sessionClass = session.greyed ? 'chat-session chat-session-greyed' : 'chat-session'
+      const messagesHtml = this.renderSessionMessages(session.messages)
+      const dividerHtml = session.greyed
+        ? '<div class="chat-session-divider"><span>Session cleared</span></div>'
+        : ''
 
-    card.innerHTML = `
-      <div class="llm-header">
-        <div class="llm-title">
-          <span class="llm-route">${escapeHtml(trace.route || 'unknown')}</span>
-          <span style="color: var(--text-muted);">${time}</span>
-        </div>
-        <div class="llm-meta">
-          <span>${tokens} tokens</span>
-          <span>${duration}</span>
-        </div>
-      </div>
-      <div class="llm-body">
-        ${trace.reasoning
-          ? `
-          <div class="llm-section-title">Reasoning</div>
-          <div class="llm-content reasoning">${escapeHtml(trace.reasoning)}</div>
-        `
-          : ''}
-        <div class="llm-section-title">Result</div>
-        <div class="llm-content">${escapeHtml(trace.content || '')}</div>
+      return `<div class="${sessionClass}">${messagesHtml}</div>${dividerHtml}`
+    }).join('')
 
-        <div class="llm-section-title">Messages</div>
-        <div class="llm-messages">
-          ${messagesHtml || '<div class="empty-state">No messages</div>'}
-        </div>
+    const typingHtml = this.isProcessing
+      ? `<div class="chat-typing-indicator">
+           <span class="chat-typing-dot"></span>
+           <span class="chat-typing-dot"></span>
+           <span class="chat-typing-dot"></span>
+         </div>`
+      : ''
 
-        <div class="llm-section-title">Usage</div>
-        <div class="llm-content">${JSON.stringify(trace.usage || {}, null, 2)}</div>
-      </div>
-    `
+    this.elements.container.innerHTML = html + typingHtml
 
-    const header = card.querySelector('.llm-header')
-    const body = card.querySelector('.llm-body')
-    header.addEventListener('click', () => {
-      body.classList.toggle('open')
+    // Attach toggle handlers for system messages
+    this.elements.container.querySelectorAll('.chat-system-toggle').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const body = btn.closest('.chat-message-system')?.querySelector('.chat-system-body')
+        if (body) {
+          body.classList.toggle('open')
+          btn.textContent = body.classList.contains('open') ? '▼ System Prompt' : '▶ System Prompt'
+        }
+      })
     })
 
-    this.elements.list.insertBefore(card, this.elements.list.firstChild)
+    if (this.autoScroll) {
+      const scrollEl = this.elements.scroll
+      if (scrollEl) {
+        requestAnimationFrame(() => {
+          scrollEl.scrollTop = scrollEl.scrollHeight
+        })
+      }
+    }
+  }
+
+  renderSessionMessages(messages) {
+    if (!messages || messages.length === 0) {
+      return '<div class="empty-state">No messages yet</div>'
+    }
+
+    return messages.map((msg) => {
+      const role = msg.role || 'unknown'
+
+      if (role === 'system') {
+        return this.renderSystemMessage(msg)
+      }
+
+      if (role === 'user') {
+        return this.renderUserMessage(msg)
+      }
+
+      if (role === 'assistant') {
+        return this.renderAssistantMessage(msg)
+      }
+
+      return `<div class="chat-message chat-message-unknown">
+        <div class="chat-role">${escapeHtml(role)}</div>
+        <div class="chat-bubble chat-bubble-unknown">${escapeHtml(msg.content || '')}</div>
+      </div>`
+    }).join('')
+  }
+
+  renderSystemMessage(msg) {
+    const preview = formatSystemMessageContent(msg.content || '')
+    return `<div class="chat-message chat-message-system">
+      <button class="chat-system-toggle">▶ System Prompt</button>
+      <div class="chat-system-body">
+        <div class="chat-bubble chat-bubble-system">${escapeHtml(preview)}</div>
+      </div>
+    </div>`
+  }
+
+  renderUserMessage(msg) {
+    return `<div class="chat-message chat-message-user">
+      <div class="chat-role">user</div>
+      <div class="chat-bubble chat-bubble-user">${escapeHtml(msg.content || '')}</div>
+    </div>`
+  }
+
+  renderAssistantMessage(msg) {
+    const reasoningHtml = msg.reasoning
+      ? `<div class="chat-reasoning">${escapeHtml(msg.reasoning)}</div>`
+      : ''
+    return `<div class="chat-message chat-message-assistant">
+      <div class="chat-role">assistant</div>
+      ${reasoningHtml}
+      <div class="chat-bubble chat-bubble-assistant">${escapeHtml(msg.content || '')}</div>
+    </div>`
   }
 }
 
@@ -1446,7 +1515,7 @@ class LayoutManager {
           if (config.var === '--row-2')
             return document.getElementById('timeline-section')?.getBoundingClientRect().height
           if (config.var === '--row-3')
-            return document.getElementById('llm-section')?.getBoundingClientRect().height
+            return document.getElementById('conversation-section')?.getBoundingClientRect().height
           return undefined
         }
 
@@ -1508,7 +1577,7 @@ class DebugApp {
     this.reflexPanel = new ReflexPanel(this.client)
     this.brainPanel = new BrainPanel(this.client)
     this.logsPanel = new LogsPanel(this.client)
-    this.llmPanel = new LLMPanel(this.client)
+    this.conversationPanel = new ConversationPanel(this.client)
     this.saliencyPanel = new SaliencyPanel(this.client)
     this.timelinePanel = new TimelinePanel(this.client)
     this.toolsPanel = new ToolsPanel(this.client)
@@ -1519,7 +1588,7 @@ class DebugApp {
       reflex: this.reflexPanel,
       brain: this.brainPanel,
       logs: this.logsPanel,
-      llm: this.llmPanel,
+      conversation: this.conversationPanel,
       saliency: this.saliencyPanel,
       timeline: this.timelinePanel,
       tools: this.toolsPanel,

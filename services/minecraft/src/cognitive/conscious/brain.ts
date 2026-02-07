@@ -454,6 +454,7 @@ export class Brain {
   public forgetConversation(): { ok: true, cleared: string[] } {
     this.conversationHistory = []
     this.lastLlmInputSnapshot = null
+    this.emitConversationUpdate(false, true)
     return {
       ok: true,
       cleared: ['conversationHistory', 'lastLlmInputSnapshot'],
@@ -567,6 +568,14 @@ export class Brain {
 
   private cloneMessages(messages: Message[]): Message[] {
     return JSON.parse(JSON.stringify(messages)) as Message[]
+  }
+
+  private emitConversationUpdate(isProcessing: boolean, sessionBoundary?: boolean): void {
+    this.debugService.emitConversationUpdate({
+      messages: this.cloneMessages(this.conversationHistory),
+      isProcessing,
+      ...(sessionBoundary && { sessionBoundary }),
+    })
   }
 
   private createRuntimeGlobals(
@@ -1546,6 +1555,14 @@ export class Brain {
       },
     })
 
+    this.debugService.emitConversationUpdate({
+      messages: this.cloneMessages([
+        ...this.conversationHistory,
+        { role: 'user', content: userMessage },
+      ]),
+      isProcessing: true,
+    })
+
     // 3. Call LLM with retry logic
     const maxAttempts = 3
     let result: string | null = null
@@ -1742,6 +1759,21 @@ export class Brain {
       return
     }
 
+    // Check pause again after LLM call (allows !pause to interrupt before REPL execution)
+    if (this.paused) {
+      this.appendLlmLog({
+        turnId,
+        kind: 'scheduler',
+        eventType: event.type,
+        sourceType: event.source.type,
+        sourceId: event.source.id,
+        tags: ['scheduler', 'paused', 'interrupted'],
+        text: `Interrupted before REPL execution while paused: ${event.type} from ${event.source.type}:${event.source.id}`,
+      })
+      this.deps.logger.log('INFO', `Brain: Interrupted processing before REPL while paused (${event.type} from ${event.source.type}:${event.source.id})`)
+      return
+    }
+
     try {
       // Only append to conversation history after successful parsing (avoid dirty data on retry)
       this.conversationHistory.push({ role: 'user', content: userMessage })
@@ -1837,6 +1869,7 @@ export class Brain {
           this.queueNoActionFollowup(bot, event, turnId, runResult.returnValue, runResult.logs)
         }
         this.deps.logger.log('INFO', 'Brain: Skipping turn (observing)')
+        this.emitConversationUpdate(false)
         return
       }
 
@@ -1860,6 +1893,7 @@ export class Brain {
         logs: runResult.logs,
         returnValue: runResult.returnValue,
       })
+      this.emitConversationUpdate(false)
     }
     catch (err) {
       this.deps.logger.withError(err).error('Brain: Failed to execute decision')
@@ -1891,6 +1925,7 @@ export class Brain {
         source: { type: 'system', id: 'brain' },
         timestamp: Date.now(),
       })
+      this.emitConversationUpdate(false)
     }
   }
 
