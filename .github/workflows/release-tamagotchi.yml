@@ -39,11 +39,6 @@ on:
           - windows
           - macos
           - linux
-      ssh_into_runner:
-        description: SSH into runner for debugging
-        required: false
-        default: false
-        type: boolean
   schedule:
     - cron: '0 0 * * *'
 
@@ -160,12 +155,6 @@ jobs:
       # ---------
 
       - run: pnpm run build:packages
-
-      - if: ${{ inputs.ssh_into_runner }}
-        name: Debug - Setup upterm session
-        uses: owenthereal/action-upterm@v1
-        with:
-          limit-access-to-users: sumimakito
 
       - name: Build (Windows Only) # Windows
         if: matrix.os == 'windows-latest'
