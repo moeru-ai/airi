@@ -170,6 +170,12 @@ interface ControlActionQueueEntry {
   error?: string
 }
 
+interface NoActionBudgetState {
+  remaining: number
+  default: number
+  max: number
+}
+
 function truncateForPrompt(value: string, maxLength = 220): string {
   return value.length <= maxLength ? value : `${value.slice(0, maxLength - 1)}...`
 }
@@ -186,6 +192,7 @@ function stringifyForLog(value: unknown): string {
 }
 
 const NO_ACTION_FOLLOWUP_SOURCE_ID = 'brain:no_action_followup'
+const NO_ACTION_BUDGET_ALERT_SOURCE_ID = 'brain:no_action_budget'
 
 /**
  * Priority tiers for event scheduling (lower = higher priority).
@@ -198,6 +205,9 @@ const EVENT_PRIORITY_NO_ACTION_FOLLOWUP = 3
 const MAX_QUEUED_CONTROL_ACTIONS = 5
 const MAX_PENDING_CONTROL_ACTIONS = 4
 const ACTION_QUEUE_RECENT_HISTORY_LIMIT = 20
+const NO_ACTION_FOLLOWUP_BUDGET_DEFAULT = 3
+const NO_ACTION_FOLLOWUP_BUDGET_MAX = 8
+const NO_ACTION_STAGNATION_REPEAT_LIMIT = 2
 
 function getEventPriority(event: BotEvent): number {
   if (event.type === 'perception') {
@@ -245,6 +255,9 @@ export class Brain {
   private actionQueueUpdatedAt = Date.now()
   private isActionWorkerRunning = false
   private completedControlActionsSinceLastFeedback = 0
+  private noActionFollowupBudgetRemaining = NO_ACTION_FOLLOWUP_BUDGET_DEFAULT
+  private noActionFollowupLastSignature: string | null = null
+  private noActionFollowupStagnationCount = 0
 
   constructor(private readonly deps: BrainDeps) {
     this.debugService = DebugService.getInstance()
@@ -547,7 +560,96 @@ export class Brain {
       currentInput: this.currentInputEnvelope,
       llmLog: this.llmLogRuntime,
       actionQueue: this.getActionQueueSnapshot(),
+      noActionBudget: this.getNoActionBudgetState(),
+      setNoActionBudget: (value: number) => this.setNoActionFollowupBudget(value),
+      getNoActionBudget: () => this.getNoActionBudgetState(),
       forgetConversation: () => this.forgetConversation(),
+    }
+  }
+
+  private isPlayerChatEvent(event: BotEvent): boolean {
+    if (event.type !== 'perception')
+      return false
+    const signal = event.payload as PerceptionSignal
+    return signal.type === 'chat_message'
+  }
+
+  private getNoActionBudgetState(): NoActionBudgetState {
+    return {
+      remaining: this.noActionFollowupBudgetRemaining,
+      default: NO_ACTION_FOLLOWUP_BUDGET_DEFAULT,
+      max: NO_ACTION_FOLLOWUP_BUDGET_MAX,
+    }
+  }
+
+  private resetNoActionFollowupBudget(reason: 'player_chat' | 'manual'): NoActionBudgetState {
+    this.noActionFollowupBudgetRemaining = NO_ACTION_FOLLOWUP_BUDGET_DEFAULT
+    this.noActionFollowupLastSignature = null
+    this.noActionFollowupStagnationCount = 0
+    this.appendLlmLog({
+      turnId: this.turnCounter,
+      kind: 'scheduler',
+      eventType: 'system_alert',
+      sourceType: 'system',
+      sourceId: 'brain:no_action_budget',
+      tags: ['scheduler', 'no_action', 'budget_reset', reason],
+      text: `No-action follow-up budget reset (${reason})`,
+      metadata: {
+        budget: this.getNoActionBudgetState(),
+      },
+    })
+    return this.getNoActionBudgetState()
+  }
+
+  private setNoActionFollowupBudget(value: number): { ok: true } & NoActionBudgetState {
+    const normalizedRaw = Number(value)
+    const normalized = Number.isFinite(normalizedRaw)
+      ? Math.floor(normalizedRaw)
+      : this.noActionFollowupBudgetRemaining
+    const clamped = Math.max(0, Math.min(NO_ACTION_FOLLOWUP_BUDGET_MAX, normalized))
+    this.noActionFollowupBudgetRemaining = clamped
+    this.noActionFollowupLastSignature = null
+    this.noActionFollowupStagnationCount = 0
+
+    this.appendLlmLog({
+      turnId: this.turnCounter,
+      kind: 'scheduler',
+      eventType: 'system_alert',
+      sourceType: 'system',
+      sourceId: 'brain:no_action_budget',
+      tags: ['scheduler', 'no_action', 'budget_set'],
+      text: `No-action follow-up budget set to ${clamped}`,
+      metadata: {
+        requested: value,
+        budget: this.getNoActionBudgetState(),
+      },
+    })
+
+    return {
+      ok: true,
+      ...this.getNoActionBudgetState(),
+    }
+  }
+
+  private buildNoActionSignature(returnValue: string | undefined, logs: string[]): string {
+    const returnPart = truncateForPrompt(returnValue ?? 'undefined', 320)
+    const logsPart = logs.slice(-3).map(line => truncateForPrompt(line, 140)).join('|')
+    return `${returnPart}||${logsPart}`
+  }
+
+  private emitNoActionBudgetDebugChat(
+    bot: MineflayerWithAgents,
+    reason: 'no_action_budget_exhausted' | 'no_action_stagnated',
+  ): void {
+    const message = reason === 'no_action_budget_exhausted'
+      ? `[debug] no-action follow-up budget exhausted (remaining=0).`
+      : `[debug] no-action follow-up blocked due to stagnant eval loop.`
+
+    try {
+      bot.bot.chat(message)
+    }
+    catch (err) {
+      this.deps.logger.withError(err as Error).warn('Brain: Failed to send no-action budget debug chat')
     }
   }
 
@@ -974,19 +1076,67 @@ export class Brain {
     returnValue: string | undefined,
     logs: string[],
   ): void {
-    if (triggeringEvent.source.type === 'system' && triggeringEvent.source.id === NO_ACTION_FOLLOWUP_SOURCE_ID) {
-      this.deps.logger.log('INFO', 'Brain: Suppressed no-action follow-up (already in follow-up chain)')
+    const signature = this.buildNoActionSignature(returnValue, logs)
+    const budgetBefore = this.noActionFollowupBudgetRemaining
+    if (signature === this.noActionFollowupLastSignature)
+      this.noActionFollowupStagnationCount++
+    else
+      this.noActionFollowupStagnationCount = 0
+    this.noActionFollowupLastSignature = signature
+
+    const stagnated = this.noActionFollowupStagnationCount >= NO_ACTION_STAGNATION_REPEAT_LIMIT
+    const exhausted = this.noActionFollowupBudgetRemaining <= 0
+    if (stagnated || exhausted) {
+      const reason: 'no_action_budget_exhausted' | 'no_action_stagnated' = exhausted
+        ? 'no_action_budget_exhausted'
+        : 'no_action_stagnated'
+
       this.appendLlmLog({
         turnId,
         kind: 'scheduler',
         eventType: triggeringEvent.type,
         sourceType: triggeringEvent.source.type,
         sourceId: triggeringEvent.source.id,
-        tags: ['scheduler', 'no_action', 'suppressed'],
-        text: 'No-action follow-up suppressed: already follow-up source',
+        tags: ['scheduler', 'no_action', 'blocked', reason],
+        text: `Blocked no-action follow-up: ${reason}`,
+        metadata: {
+          budgetBefore,
+          budgetAfter: this.noActionFollowupBudgetRemaining,
+          stagnationCount: this.noActionFollowupStagnationCount,
+          signature,
+          returnValue: returnValue ?? 'undefined',
+        },
       })
+
+      if (triggeringEvent.source.type === 'system' && triggeringEvent.source.id === NO_ACTION_BUDGET_ALERT_SOURCE_ID) {
+        this.deps.logger.log('INFO', `Brain: Suppressed repeated no-action budget alert (${reason})`)
+        return
+      }
+
+      this.debugService.log('DEBUG', `No-action follow-up blocked: ${reason}`)
+      this.emitNoActionBudgetDebugChat(bot, reason)
+
+      const followupEvent: BotEvent = {
+        type: 'system_alert',
+        payload: {
+          reason,
+          returnValue: returnValue ?? 'undefined',
+          logs: logs.slice(-3),
+          noActionBudget: this.getNoActionBudgetState(),
+          guidance: 'No-action follow-up budget exhausted. Abandon this approach or call setNoActionBudget(n) for this scenario.',
+        },
+        source: { type: 'system', id: NO_ACTION_BUDGET_ALERT_SOURCE_ID },
+        timestamp: Date.now(),
+      }
+
+      void this.enqueueEvent(bot, followupEvent).catch(err =>
+        this.deps.logger.withError(err).error('Brain: Failed to enqueue no-action budget alert'),
+      )
       return
     }
+
+    this.noActionFollowupBudgetRemaining = Math.max(0, this.noActionFollowupBudgetRemaining - 1)
+    const budgetAfter = this.noActionFollowupBudgetRemaining
 
     const followupEvent: BotEvent = {
       type: 'system_alert',
@@ -994,6 +1144,7 @@ export class Brain {
         reason: 'no_actions',
         returnValue: returnValue ?? 'undefined',
         logs: logs.slice(-3),
+        noActionBudget: this.getNoActionBudgetState(),
       },
       source: { type: 'system', id: NO_ACTION_FOLLOWUP_SOURCE_ID },
       timestamp: Date.now(),
@@ -1006,12 +1157,16 @@ export class Brain {
       sourceType: triggeringEvent.source.type,
       sourceId: triggeringEvent.source.id,
       tags: ['scheduler', 'no_action'],
-      text: 'Scheduled one-hop no-action follow-up',
+      text: 'Scheduled budgeted no-action follow-up turn',
       metadata: {
         returnValue: returnValue ?? 'undefined',
+        budgetBefore,
+        budgetAfter,
+        stagnationCount: this.noActionFollowupStagnationCount,
+        signature,
       },
     })
-    this.debugService.log('DEBUG', 'Scheduling one-hop no-action follow-up turn')
+    this.debugService.log('DEBUG', 'Scheduling budgeted no-action follow-up turn')
     void this.enqueueEvent(bot, followupEvent).catch(err =>
       this.deps.logger.withError(err).error('Brain: Failed to enqueue no-action follow-up'),
     )
@@ -1134,6 +1289,8 @@ export class Brain {
     this.resumeFromGiveUpIfNeeded(event)
     if (this.shouldSuppressDuringGiveUp(event))
       return
+    if (this.isPlayerChatEvent(event))
+      this.resetNoActionFollowupBudget('player_chat')
 
     // 0. Build Context View
     const snapshot = this.deps.reflexManager.getContextSnapshot()
@@ -1525,8 +1682,10 @@ export class Brain {
       ? `${queueSnapshot.executing.tool}#${queueSnapshot.executing.id}`
       : 'none'
     parts.push(`[ACTION_QUEUE] executing=${runningLabel}; pending=${queueSnapshot.counts.pending}; total=${queueSnapshot.counts.total}/${queueSnapshot.capacity.total}`)
+    const noActionBudget = this.getNoActionBudgetState()
+    parts.push(`[NO_ACTION_BUDGET] remaining=${noActionBudget.remaining}; default=${noActionBudget.default}; max=${noActionBudget.max}; stagnation=${this.noActionFollowupStagnationCount}/${NO_ACTION_STAGNATION_REPEAT_LIMIT}`)
 
-    parts.push('[RUNTIME] Globals are refreshed every turn: snapshot, self, environment, social, threat, attention, autonomy, event, now, query, bot, mineflayer, currentInput, llmLog, actionQueue, mem, lastRun, prevRun, lastAction. Player gaze is available in environment.nearbyPlayersGaze when needed.')
+    parts.push('[RUNTIME] Globals are refreshed every turn: snapshot, self, environment, social, threat, attention, autonomy, event, now, query, bot, mineflayer, currentInput, llmLog, actionQueue, noActionBudget, mem, lastRun, prevRun, lastAction. Helpers: setNoActionBudget(n), getNoActionBudget(). Player gaze is available in environment.nearbyPlayersGaze when needed.')
 
     return parts.join('\n\n')
   }

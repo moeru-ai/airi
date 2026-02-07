@@ -68,8 +68,11 @@ export interface RuntimeGlobals {
   mineflayer?: Mineflayer | null
   bot?: unknown
   actionQueue?: unknown
+  noActionBudget?: unknown
   currentInput?: unknown
   llmLog?: unknown
+  setNoActionBudget?: (value: number) => { ok: true, remaining: number, default: number, max: number }
+  getNoActionBudget?: () => { remaining: number, default: number, max: number }
   forgetConversation?: () => { ok: true, cleared: string[] }
   llmInput?: {
     systemPrompt: string
@@ -214,6 +217,9 @@ export class JavaScriptPlanner {
       { name: 'currentInput', kind: 'object', readonly: true },
       { name: 'llmLog', kind: 'object', readonly: true },
       { name: 'actionQueue', kind: 'object', readonly: true },
+      { name: 'noActionBudget', kind: 'object', readonly: true },
+      { name: 'setNoActionBudget', kind: 'function', readonly: true },
+      { name: 'getNoActionBudget', kind: 'function', readonly: true },
       { name: 'forget_conversation', kind: 'function', readonly: true },
       { name: 'llmMessages', kind: 'object', readonly: true },
       { name: 'llmSystemPrompt', kind: 'string', readonly: true },
@@ -244,6 +250,7 @@ export class JavaScriptPlanner {
       currentInput: globals.currentInput ?? null,
       llmLog: globals.llmLog ?? null,
       actionQueue: globals.actionQueue ?? null,
+      noActionBudget: globals.noActionBudget ?? null,
       llmMessages: globals.llmInput?.messages ?? [],
       llmSystemPrompt: globals.llmInput?.systemPrompt ?? '',
       llmUserMessage: globals.llmInput?.userMessage ?? '',
@@ -261,6 +268,8 @@ export class JavaScriptPlanner {
       expect: this.sandbox.expect,
       expectMoved: this.sandbox.expectMoved,
       expectNear: this.sandbox.expectNear,
+      setNoActionBudget: this.sandbox.setNoActionBudget,
+      getNoActionBudget: this.sandbox.getNoActionBudget,
       forget_conversation: this.sandbox.forget_conversation,
     }
 
@@ -406,6 +415,7 @@ export class JavaScriptPlanner {
     const llmInput = deepFreeze(toStructuredClone(globals.llmInput ?? null))
     const currentInput = deepFreeze(toStructuredClone(globals.currentInput ?? null))
     const actionQueue = deepFreeze(toStructuredClone(globals.actionQueue ?? null))
+    const noActionBudget = deepFreeze(toStructuredClone(globals.noActionBudget ?? null))
     const query = globals.mineflayer ? createQueryRuntime(globals.mineflayer) : undefined
 
     this.sandbox.prevRun = this.sandbox.lastRun ?? null
@@ -422,6 +432,9 @@ export class JavaScriptPlanner {
     this.sandbox.currentInput = currentInput
     this.sandbox.llmLog = globals.llmLog ?? null
     this.sandbox.actionQueue = actionQueue
+    this.sandbox.noActionBudget = noActionBudget
+    this.sandbox.setNoActionBudget = globals.setNoActionBudget ?? null
+    this.sandbox.getNoActionBudget = globals.getNoActionBudget ?? null
     this.sandbox.forget_conversation = globals.forgetConversation ?? null
     this.sandbox.llmMessages = llmInput?.messages ?? []
     this.sandbox.llmSystemPrompt = llmInput?.systemPrompt ?? ''

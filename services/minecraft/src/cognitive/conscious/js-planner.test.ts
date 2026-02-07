@@ -54,6 +54,22 @@ describe('javaScriptPlanner', () => {
       counts: { total: 0, executing: 0, pending: 0 },
       updatedAt: Date.now(),
     },
+    noActionBudget: {
+      remaining: 3,
+      default: 3,
+      max: 8,
+    },
+    setNoActionBudget: (value: number) => ({
+      ok: true,
+      remaining: Math.max(0, Math.min(8, Math.floor(value))),
+      default: 3,
+      max: 8,
+    }),
+    getNoActionBudget: () => ({
+      remaining: 3,
+      default: 3,
+      max: 8,
+    }),
     forgetConversation: () => ({ ok: true, cleared: ['conversationHistory', 'lastLlmInputSnapshot'] }),
   } as any
 
@@ -197,6 +213,9 @@ describe('javaScriptPlanner', () => {
     expect(names).toContain('currentInput')
     expect(names).toContain('llmLog')
     expect(names).toContain('actionQueue')
+    expect(names).toContain('noActionBudget')
+    expect(names).toContain('setNoActionBudget')
+    expect(names).toContain('getNoActionBudget')
     expect(names).toContain('forget_conversation')
 
     const mem = descriptors.find(d => d.name === 'mem')
@@ -208,6 +227,15 @@ describe('javaScriptPlanner', () => {
     const executeAction = vi.fn(async action => `ok:${action.tool}`)
     const planned = await planner.evaluate('return actionQueue.capacity.total', actions, globals, executeAction)
     expect(planned.returnValue).toBe('5')
+    expect(planned.actions).toHaveLength(0)
+  })
+
+  it('exposes no-action budget runtime globals to scripts', async () => {
+    const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+    const planned = await planner.evaluate('return { state: getNoActionBudget(), set: setNoActionBudget(6), now: noActionBudget }', actions, globals, executeAction)
+    expect(planned.returnValue).toContain('remaining: 3')
+    expect(planned.returnValue).toContain('remaining: 6')
     expect(planned.actions).toHaveLength(0)
   })
 

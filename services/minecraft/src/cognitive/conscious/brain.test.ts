@@ -141,7 +141,7 @@ inv;
     expect(result.returnValue).toContain('oak_log')
   })
 
-  it('queues exactly one synthetic follow-up on no-action result', async () => {
+  it('queues budgeted synthetic follow-up on no-action result', async () => {
     const brain: any = new Brain(createDeps('1 + 1'))
     const enqueueSpy = vi.fn(async () => undefined)
     brain.enqueueEvent = enqueueSpy
@@ -153,7 +153,11 @@ inv;
     expect(queuedEvent).toMatchObject({
       type: 'system_alert',
       source: { type: 'system', id: 'brain:no_action_followup' },
-      payload: { reason: 'no_actions', returnValue: '2' },
+      payload: {
+        reason: 'no_actions',
+        returnValue: '2',
+        noActionBudget: { remaining: 2, default: 3, max: 8 },
+      },
     })
   })
 
@@ -172,7 +176,7 @@ inv;
     expect(queuedEvent?.payload?.returnValue).toContain('oak_sapling')
   })
 
-  it('does not chain follow-up from follow-up event source', async () => {
+  it('allows chained follow-up from follow-up event source while budget remains', async () => {
     const brain: any = new Brain(createDeps('1 + 1'))
     const enqueueSpy = vi.fn(async () => undefined)
     brain.enqueueEvent = enqueueSpy
@@ -184,7 +188,46 @@ inv;
       timestamp: Date.now(),
     })
 
-    expect(enqueueSpy).not.toHaveBeenCalled()
+    expect(enqueueSpy).toHaveBeenCalledTimes(1)
+    const queuedEvent = (enqueueSpy.mock.calls[0] as any[])?.[1]
+    expect(queuedEvent?.source?.id).toBe('brain:no_action_followup')
+  })
+
+  it('blocks no-action follow-up when budget is exhausted and emits budget alert', async () => {
+    const brain: any = new Brain(createDeps('1 + 1'))
+    brain.setNoActionFollowupBudget(0)
+    const enqueueSpy = vi.fn(async () => undefined)
+    brain.enqueueEvent = enqueueSpy
+    const bot = { bot: { chat: vi.fn() } }
+
+    await brain.processEvent(bot as any, {
+      type: 'system_alert',
+      payload: { source: 'budget-test' },
+      source: { type: 'system', id: 'budget-test' },
+      timestamp: Date.now(),
+    })
+
+    expect(enqueueSpy).toHaveBeenCalledTimes(1)
+    const queuedEvent = (enqueueSpy.mock.calls[0] as any[])?.[1]
+    expect(queuedEvent).toMatchObject({
+      type: 'system_alert',
+      source: { type: 'system', id: 'brain:no_action_budget' },
+      payload: { reason: 'no_action_budget_exhausted' },
+    })
+    expect(bot.bot.chat).toHaveBeenCalledTimes(1)
+  })
+
+  it('resets no-action budget when player chat arrives', async () => {
+    const brain: any = new Brain(createDeps('await skip()'))
+    brain.setNoActionFollowupBudget(0)
+
+    await brain.processEvent({} as any, createPerceptionEvent())
+
+    expect(brain.getNoActionBudgetState()).toEqual({
+      remaining: 3,
+      default: 3,
+      max: 8,
+    })
   })
 
   it('does not queue follow-up when script uses skip()', async () => {
