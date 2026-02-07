@@ -40,8 +40,8 @@ catalogs:
       specifier: 0.1.0-beta.15
       version: 0.1.0-beta.15
     '@moeru/eventa':
-      specifier: 1.0.0-alpha.10
-      version: 1.0.0-alpha.10
+      specifier: 1.0.0-alpha.14
+      version: 1.0.0-alpha.14
     '@moeru/std':
       specifier: 0.1.0-beta.14
       version: 0.1.0-beta.14
@@ -171,6 +171,9 @@ catalogs:
     superjson:
       specifier: ^2.2.6
       version: 2.2.6
+    tsdown:
+      specifier: ^0.17.4
+      version: 0.17.4
     tsx:
       specifier: ^4.21.0
       version: 4.21.0
@@ -315,7 +318,7 @@ importers:
         specifier: ^1.0.2
         version: 1.0.2
       tsdown:
-        specifier: ^0.17.4
+        specifier: 'catalog:'
         version: 0.17.4(@arethetypeswrong/core@0.18.2)(oxc-resolver@11.16.2)(publint@0.3.16)(synckit@0.11.12)(typescript@5.9.3)(unplugin-lightningcss@0.4.4)(unplugin-unused@0.5.6)
       tsx:
         specifier: ^4.21.0
@@ -1876,7 +1879,7 @@ importers:
         version: 3.0.2(electron@39.2.7)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-alpha.10(electron@39.2.7)
+        version: 1.0.0-alpha.14(electron@39.2.7)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.14
@@ -1967,7 +1970,14 @@ importers:
         specifier: ^1.0.2
         version: 1.0.2
 
-  packages/plugin-sdk: {}
+  packages/plugin-sdk:
+    dependencies:
+      '@moeru/eventa':
+        specifier: 'catalog:'
+        version: 1.0.0-alpha.14(electron@40.0.0)
+      '@proj-airi/server-shared':
+        specifier: workspace:*
+        version: link:../server-shared
 
   packages/server-runtime:
     dependencies:
@@ -2001,9 +2011,6 @@ importers:
       crossws:
         specifier: ^0.4.3
         version: 0.4.3(srvx@0.10.1)
-      defu:
-        specifier: ^6.1.4
-        version: 6.1.4
       superjson:
         specifier: 'catalog:'
         version: 2.2.6
@@ -2014,9 +2021,9 @@ importers:
 
   packages/server-shared:
     dependencies:
-      '@xsai/shared':
+      '@moeru/eventa':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 1.0.0-alpha.14(electron@40.0.0)
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -3020,7 +3027,7 @@ importers:
         version: 14.1.0(vue@3.5.26(typescript@5.9.3))
       '@wxt-dev/module-vue':
         specifier: ^1.0.3
-        version: 1.0.3(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+        version: 1.0.3(vite@8.0.0-beta.9(@types/node@24.10.9)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       nanoid:
         specifier: ^5.1.6
         version: 5.1.6
@@ -5995,8 +6002,8 @@ packages:
       web-worker:
         optional: true
 
-  '@moeru/eventa@1.0.0-alpha.10':
-    resolution: {integrity: sha512-JXwSd+/N3ahbD+JNbMYbEZwaEWnfesp81AXOoS39fnvBeL54PtuffDbGNZiuK+uQZ9i4nA7D1k04NP2uP99KYA==}
+  '@moeru/eventa@1.0.0-alpha.11':
+    resolution: {integrity: sha512-5i2LYA19E9siAdqhobVm386dqkV4EZw0+uGDEwLiGqfopE/3yX1zdgOkdvEoT+YJf0SIUqDwuMZoYXkvfWV/kA==}
     peerDependencies:
       electron: '>=30'
       h3: 2.0.0-beta.1
@@ -6009,8 +6016,8 @@ packages:
       web-worker:
         optional: true
 
-  '@moeru/eventa@1.0.0-alpha.11':
-    resolution: {integrity: sha512-5i2LYA19E9siAdqhobVm386dqkV4EZw0+uGDEwLiGqfopE/3yX1zdgOkdvEoT+YJf0SIUqDwuMZoYXkvfWV/kA==}
+  '@moeru/eventa@1.0.0-alpha.14':
+    resolution: {integrity: sha512-VMz75aYTJO85yXj0jj/M8ImakOYr6OUZnV/I5gmseVrMFcqBc8UC6Pk2LTwoMQw/EWaU59557a1lpnUqeyTMQw==}
     peerDependencies:
       electron: '>=30'
       h3: 2.0.0-beta.1
@@ -11748,11 +11755,13 @@ packages:
 
   glob@10.5.0:
     resolution: {integrity: sha512-DfXN8DfhJ7NH3Oe7cFmu3NCu1wKbkReJ8TorzSAFbSKrlNaQSKfIzqYqVY8zlbs2NLBbWpRiU52GX2PbaBVNkg==}
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
     hasBin: true
 
   glob@11.1.0:
     resolution: {integrity: sha512-vuNwKSaKiqm7g0THUBu2x7ckSs3XJLXE+2ssL7/MfTGPLLcrJQ/4Uq1CjPTtO5cCIiRxqvN6Twy1qOwhL0Xjcw==}
     engines: {node: 20 || >=22}
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
     hasBin: true
 
   glob@13.0.0:
@@ -11761,7 +11770,7 @@ packages:
 
   glob@7.2.3:
     resolution: {integrity: sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==}
-    deprecated: Glob versions prior to v9 are no longer supported
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   global-agent@3.0.0:
     resolution: {integrity: sha512-PT6XReJ+D07JvGoxQMkT6qji/jVNfX/h364XHZOWeRzy64sSFr+xJ5OX7LI3b4MPQzdL4H8Y8M0xzPpsVMwA8Q==}
@@ -15120,12 +15129,12 @@ packages:
   tar@6.2.1:
     resolution: {integrity: sha512-DZ4yORTwrbTj/7MZYq2w+/ZFdI6OZ/f9SFHR+71gIVUZhOQPHzVCLpvRnPgyaMpfWxxk/4ONva3GQSyNIKRv6A==}
     engines: {node: '>=10'}
-    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exhorbitant rates) by contacting i@izs.me
+    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   tar@7.5.2:
     resolution: {integrity: sha512-7NyxrTE4Anh8km8iEy7o0QYPs+0JKBTj5ZaqHg6B39erLg0qYXN3BijtShwbsNSvQ+LN75+KV+C4QR/f6Gwnpg==}
     engines: {node: '>=18'}
-    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exhorbitant rates) by contacting i@izs.me
+    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   taze@19.9.2:
     resolution: {integrity: sha512-If8bq7lSckIMPfXV+C9jjEfdsQnRryh/foKfpX/ah6zI0TrQfUGWSGCaaD32Bqy5/KGRmLZie3EwMSr3Au21XQ==}
@@ -19689,13 +19698,6 @@ snapshots:
       electron: 40.0.0
       h3: 2.0.1-rc.5(crossws@0.4.3(srvx@0.10.1))
 
-  '@moeru/eventa@1.0.0-alpha.10(electron@39.2.7)':
-    dependencies:
-      nanoid: 5.1.6
-      picomatch: 4.0.3
-    optionalDependencies:
-      electron: 39.2.7
-
   '@moeru/eventa@1.0.0-alpha.11(electron@40.0.0)(h3@2.0.1-rc.5(crossws@0.4.3(srvx@0.10.1)))':
     dependencies:
       nanoid: 5.1.6
@@ -19703,6 +19705,20 @@ snapshots:
     optionalDependencies:
       electron: 40.0.0
       h3: 2.0.1-rc.5(crossws@0.4.3(srvx@0.10.1))
+
+  '@moeru/eventa@1.0.0-alpha.14(electron@39.2.7)':
+    dependencies:
+      nanoid: 5.1.6
+      picomatch: 4.0.3
+    optionalDependencies:
+      electron: 39.2.7
+
+  '@moeru/eventa@1.0.0-alpha.14(electron@40.0.0)':
+    dependencies:
+      nanoid: 5.1.6
+      picomatch: 4.0.3
+    optionalDependencies:
+      electron: 40.0.0
 
   '@moeru/std@0.1.0-beta.1': {}
 
@@ -23281,9 +23297,9 @@ snapshots:
       '@types/filesystem': 0.0.36
       '@types/har-format': 1.2.16
 
-  '@wxt-dev/module-vue@1.0.3(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
+  '@wxt-dev/module-vue@1.0.3(vite@8.0.0-beta.9(@types/node@24.10.9)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
-      '@vitejs/plugin-vue': 6.0.3(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+      '@vitejs/plugin-vue': 6.0.3(vite@8.0.0-beta.9(@types/node@24.10.9)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       wxt: 0.20.13(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - vite

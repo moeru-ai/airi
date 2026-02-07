@@ -23,16 +23,19 @@ import {
   matchesDestinations,
 } from './middlewares'
 
-function createServerEventMetadata(serverInstanceId: string, parentId?: string) {
+function createServerEventMetadata(serverInstanceId: string, parentId?: string): { source: MetadataEventSource, event: { id: string, parentId?: string } } {
   return {
     event: {
       id: nanoid(),
       parentId,
     },
     source: {
-      plugin: WebSocketEventSource.Server,
-      instanceId: serverInstanceId,
-      version: packageJSON.version,
+      kind: 'plugin',
+      plugin: {
+        id: WebSocketEventSource.Server,
+        version: packageJSON.version,
+      },
+      id: serverInstanceId,
     },
   }
 }
@@ -160,6 +163,24 @@ export function setupApp(options?: {
     }
   }
 
+  function listKnownModules() {
+    return Array.from(peers.values())
+      .filter(peerInfo => peerInfo.name && peerInfo.identity)
+      .map(peerInfo => ({
+        name: peerInfo.name,
+        index: peerInfo.index,
+        identity: peerInfo.identity!,
+      }))
+  }
+
+  function sendRegistrySync(peer: Peer, parentId?: string) {
+    send(peer, {
+      type: 'registry:modules:sync',
+      data: { modules: listKnownModules() },
+      metadata: createServerEventMetadata(instanceId, parentId),
+    })
+  }
+
   app.get('/ws', defineWebSocketHandler({
     open: (peer) => {
       if (authToken) {
@@ -168,6 +189,7 @@ export function setupApp(options?: {
       else {
         peer.send(RESPONSES.authenticated)
         peers.set(peer.id, { peer, authenticated: true, name: '', lastHeartbeatAt: Date.now() })
+        sendRegistrySync(peer)
       }
 
       logger.withFields({ peer: peer.id, activePeers: peers.size }).log('connected')
@@ -228,6 +250,8 @@ export function setupApp(options?: {
             p.authenticated = true
           }
 
+          sendRegistrySync(peer, event.metadata?.event.id)
+
           return
         }
 
@@ -253,6 +277,11 @@ export function setupApp(options?: {
               return
             }
           }
+          if (!identity || identity.kind !== 'plugin' || !identity.plugin?.id) {
+            send(peer, RESPONSES.error('module identity must include kind=plugin and a plugin id for event \'module:announce\'', instanceId))
+
+            return
+          }
           if (authToken && !p.authenticated) {
             send(peer, RESPONSES.error('must authenticate before announcing', instanceId))
 
@@ -271,7 +300,15 @@ export function setupApp(options?: {
         }
 
         case 'ui:configure': {
-          const { moduleName, moduleIndex, config } = event.data
+          const data = event.data as {
+            moduleName?: string
+            moduleIndex?: number
+            identity?: MetadataEventSource
+            config?: Record<string, unknown>
+          }
+          const moduleName = data.moduleName ?? data.identity?.plugin?.id ?? ''
+          const moduleIndex = data.moduleIndex
+          const config = data.config
 
           if (moduleName === '') {
             send(peer, RESPONSES.error('the field \'moduleName\' can\'t be empty for event \'ui:configure\'', instanceId))
