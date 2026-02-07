@@ -68,6 +68,7 @@ catalog:
   '@xsai/utils-chat': 0.4.0-beta.13
   alien-signals: ^3.1.2
   async-mutex: 0.5.0
+  aws4fetch: ^1.0.20
   better-auth: ^1.4.19
   builder-util-runtime: ^9.5.1
   capacitor-native-settings: ^8.0.0
