@@ -103,7 +103,7 @@ export async function ensurePlanks(mineflayer: Mineflayer, neededAmount: number)
       const crafted = await craftRecipe(
         mineflayer,
         `${logType}_planks`,
-        logsToCraft * PLANKS_PER_LOG,
+        logsToCraft,
       )
 
       if (crafted) {

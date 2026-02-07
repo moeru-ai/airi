@@ -7,7 +7,7 @@ import { collectBlock } from '../../skills/actions/collect-block'
 import { discard, equip, putInChest, takeFromChest } from '../../skills/actions/inventory'
 import { activateNearestBlock, breakBlockAt, placeBlock } from '../../skills/actions/world-interactions'
 import { ActionError } from '../../utils/errors'
-import { describeRecipePlan, planRecipe } from '../../utils/recipe-planner'
+import { describeRecipePlan } from '../../utils/recipe-planner'
 
 import * as skills from '../../skills'
 
@@ -322,11 +322,11 @@ export const actionsList: Action[] = [
   },
   {
     name: 'craftRecipe',
-    description: 'Craft the given recipe a given number of times.',
+    description: 'Craft an item. Automatically finds or places a crafting table if needed, and handles intermediate materials for basic items (planks, sticks). Use recipePlan first to check required materials for complex items.',
     execution: 'async',
     schema: z.object({
       recipe_name: z.string().describe('The name of the output item to craft.'),
-      num: z.number().int().describe('The number of times to craft the recipe. This is NOT the number of output items, as it may craft many more items depending on the recipe.').min(1),
+      num: z.number().int().describe('The number of times to execute the recipe (craft count, NOT output item count). E.g. crafting planks once yields 4 planks, so num=2 yields 8 planks.').min(1),
     }),
     perform: mineflayer => async (recipe_name: string, num: number) => {
       await skills.craftRecipe(mineflayer, recipe_name, num)
@@ -429,41 +429,6 @@ export const actionsList: Action[] = [
     }),
     perform: mineflayer => (item_name: string, amount: number = 1): string => {
       return pad(describeRecipePlan(mineflayer.bot, item_name, amount))
-    },
-  },
-  {
-    name: 'autoCraft',
-    description: 'Automatically craft an item if you have all the required resources. This will check the recipe, verify you have materials, and craft it. Use recipePlan first to see if crafting is possible.',
-    execution: 'async',
-    schema: z.object({
-      item_name: z.string().describe('The name of the item to craft.'),
-      amount: z.number().int().min(1).default(1).describe('How many of the item to craft.'),
-    }),
-    perform: mineflayer => async (item_name: string, amount: number = 1) => {
-      const plan = planRecipe(mineflayer.bot, item_name, amount)
-
-      if (plan.status === 'unknown_item') {
-        throw new ActionError('UNKNOWN', `Unknown item: ${item_name}`)
-      }
-
-      if (!plan.canCraftNow) {
-        const missingList = Object.entries(plan.missing)
-          .map(([item, count]) => `${count}x ${item}`)
-          .join(', ')
-        throw new ActionError('RESOURCE_MISSING', `Cannot craft ${item_name}: missing ${missingList}`, {
-          missing: plan.missing,
-          required: plan.totalRequired,
-        })
-      }
-
-      // Craft all intermediate steps first, then the final item
-      for (const step of [...plan.steps].reverse()) {
-        if (step.action === 'craft') {
-          await skills.craftRecipe(mineflayer, step.item, Math.ceil(step.amount / (step.amount || 1)))
-        }
-      }
-
-      return `Successfully crafted ${amount}x ${item_name}`
     },
   },
 ]

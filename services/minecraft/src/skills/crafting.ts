@@ -20,7 +20,7 @@ export async function craftRecipe(
   incomingItemName: string,
   num = 1,
 ): Promise<boolean> {
-  let itemName = incomingItemName.replace(' ', '_').toLowerCase()
+  let itemName = incomingItemName.replaceAll(' ', '_').toLowerCase()
 
   if (itemName.endsWith('plank'))
     itemName += 's' // Correct common mistakes
