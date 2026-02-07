@@ -131,6 +131,15 @@ inv;
     expect(result.returnValue).toContain('oak_sapling')
   })
 
+  it('returns trailing expression values from single-line statements', async () => {
+    const brain: any = new Brain(createDeps('await skip()'))
+
+    const result = await brain.executeDebugRepl('const nearestLog = [{ name: "oak_log" }]; nearestLog')
+
+    expect(result.error).toBeUndefined()
+    expect(result.returnValue).toContain('oak_log')
+  })
+
   it('queues exactly one synthetic follow-up on no-action result', async () => {
     const brain: any = new Brain(createDeps('1 + 1'))
     const enqueueSpy = vi.fn(async () => undefined)

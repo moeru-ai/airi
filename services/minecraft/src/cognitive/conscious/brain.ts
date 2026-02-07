@@ -26,6 +26,7 @@ import {
   toErrorMessage,
 } from './llmlogic'
 import { generateBrainSystemPrompt } from './prompts/brain-prompt'
+import { normalizeReplScript } from './repl-code-normalizer'
 import { createCancellationToken } from './task-state'
 
 interface BrainDeps {
@@ -507,46 +508,7 @@ export class Brain {
   }
 
   private normalizeReplCode(code: string): string {
-    // Simple top-level var persistence for REPL UX:
-    // const/let/var foo = ...  -> globalThis.foo = ...
-    const normalized = code.replace(
-      /^\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^\n]+?)\s*(?:;\s*)?$/gm,
-      (_full: string, name: string, valueExpr: string) => `globalThis.${name} = ${valueExpr}`,
-    )
-    return this.rewriteTrailingExpressionToReturn(normalized)
-  }
-
-  private rewriteTrailingExpressionToReturn(code: string): string {
-    if (/\breturn\b/.test(code))
-      return code
-
-    const lines = code.split('\n')
-    let lastIndex = -1
-    for (let i = lines.length - 1; i >= 0; i--) {
-      if (lines[i].trim().length > 0) {
-        lastIndex = i
-        break
-      }
-    }
-
-    if (lastIndex < 0)
-      return code
-
-    const rawLine = lines[lastIndex]
-    const trimmedLine = rawLine.trim()
-    if (trimmedLine.length === 0 || trimmedLine.startsWith('//'))
-      return code
-    if (trimmedLine === '}' || trimmedLine.endsWith('{'))
-      return code
-
-    const expression = trimmedLine.replace(/;$/, '').trim()
-    const blocked = /^(?:if|for|while|switch|const|let|var|function|class|try|catch|finally|return|throw|import|export)\b/
-    if (blocked.test(expression))
-      return code
-
-    const indent = rawLine.match(/^\s*/)?.[0] ?? ''
-    lines[lastIndex] = `${indent}return (${expression})`
-    return lines.join('\n')
+    return normalizeReplScript(code)
   }
 
   private toDebugReplActions(actions: Array<{
