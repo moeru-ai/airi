@@ -31,7 +31,7 @@ Use this skill to run the local bot and interact with its MCP debug interface sa
 
 ## Tooling Strategy
 
-- Use `get_state` to inspect queue/processing state.
+- Use `get_state` to inspect queue/processing state and available tools/actions (skips REPL builtins by default; pass `{ includeBuiltins: true }` to include them).
 - Use `get_logs` with a small `limit` first.
 - Use `get_last_prompt` to inspect latest LLM input.
 - Use `execute_repl` for deep object inspection or one-off targeted calls on the running brain.
@@ -43,7 +43,7 @@ Read `references/mcp-surface.md` for exact tool/resource names and argument sche
 
 ## Live-Tested Notes
 
-- `get_state` returns a large variable snapshot; prefer it over REPL for first-pass health checks.
+- `get_state` returns available tools/actions and runtime state (skips REPL builtins like `skip`, `use`, `log` by default to reduce noise; pass `{ includeBuiltins: true }` if you need to inspect them).
 - `get_last_prompt` can return very large payloads; call only when prompt-level debugging is needed.
 - `execute_repl` returns a structured result where `returnValue` is stringified; parse mentally as display output, not typed JSON.
 - `get_logs(limit=10)` is enough to verify whether an injected event reached REPL/executor.

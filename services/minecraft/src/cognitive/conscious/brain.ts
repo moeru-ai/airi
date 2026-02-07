@@ -272,7 +272,7 @@ export class Brain {
     this.runtimeMineflayer = null
   }
 
-  public getReplState(): { variables: PlannerGlobalDescriptor[], updatedAt: number, paused: boolean } {
+  public getReplState(options: { includeBuiltins?: boolean } = {}): { variables: PlannerGlobalDescriptor[], updatedAt: number, paused: boolean } {
     const snapshot = this.deps.reflexManager.getContextSnapshot()
     const replEvent: BotEvent = {
       type: 'system_alert',
@@ -283,6 +283,7 @@ export class Brain {
     const variables = this.repl.describeGlobals(
       this.deps.taskExecutor.getAvailableActions(),
       this.createRuntimeGlobals(replEvent, snapshot as unknown as Record<string, unknown>),
+      { includeBuiltins: options.includeBuiltins },
     )
 
     return {

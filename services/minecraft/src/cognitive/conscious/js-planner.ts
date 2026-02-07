@@ -93,6 +93,10 @@ export interface PlannerGlobalDescriptor {
   preview: string
 }
 
+interface DescribeGlobalsOptions {
+  includeBuiltins?: boolean
+}
+
 export function extractJavaScriptCandidate(input: string): string {
   const trimmed = input.trim()
   const fenced = trimmed.match(/^```(?:js|javascript|ts|typescript)?\s*([\s\S]*?)\s*```$/i)
@@ -180,8 +184,14 @@ export class JavaScriptPlanner {
     }
   }
 
-  public describeGlobals(availableActions: Action[], globals: RuntimeGlobals): PlannerGlobalDescriptor[] {
+  public describeGlobals(
+    availableActions: Action[],
+    globals: RuntimeGlobals,
+    options: DescribeGlobalsOptions = {},
+  ): PlannerGlobalDescriptor[] {
     const descriptors: PlannerGlobalDescriptor[] = []
+
+    const includeBuiltins = options.includeBuiltins ?? true
 
     const staticGlobals: Array<Omit<PlannerGlobalDescriptor, 'preview'>> = [
       { name: 'skip', kind: 'tool', readonly: true },
@@ -251,11 +261,13 @@ export class JavaScriptPlanner {
       forget_conversation: this.sandbox.forget_conversation,
     }
 
-    for (const item of staticGlobals) {
-      descriptors.push({
-        ...item,
-        preview: this.previewValue(valueByName[item.name]),
-      })
+    if (includeBuiltins) {
+      for (const item of staticGlobals) {
+        descriptors.push({
+          ...item,
+          preview: this.previewValue(valueByName[item.name]),
+        })
+      }
     }
 
     for (const action of availableActions) {

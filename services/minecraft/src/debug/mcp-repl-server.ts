@@ -179,9 +179,11 @@ export class McpReplServer {
 
     this.mcpServer.tool(
       'get_state',
-      {},
-      async () => {
-        const result = this.brain.getReplState()
+      {
+        includeBuiltins: z.boolean().optional(),
+      },
+      async ({ includeBuiltins }: { includeBuiltins?: boolean }) => {
+        const result = this.brain.getReplState({ includeBuiltins: includeBuiltins ?? false })
         return {
           content: [{ type: 'text', text: JSON.stringify(result) }],
         }

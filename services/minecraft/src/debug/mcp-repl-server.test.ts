@@ -123,6 +123,24 @@ describe('mcpReplServer', () => {
     }))
   })
 
+  it('gets repl state via tool handler (skips builtins by default)', async () => {
+    const toolCall = mocks.tool.mock.calls.find(call => call[0] === 'get_state')
+    const handler = toolCall[2]
+
+    await handler({})
+
+    expect(brain.getReplState).toHaveBeenCalledWith({ includeBuiltins: false })
+  })
+
+  it('gets repl state via tool handler (can include builtins)', async () => {
+    const toolCall = mocks.tool.mock.calls.find(call => call[0] === 'get_state')
+    const handler = toolCall[2]
+
+    await handler({ includeBuiltins: true })
+
+    expect(brain.getReplState).toHaveBeenCalledWith({ includeBuiltins: true })
+  })
+
   it('reads brain state via resource handler', async () => {
     const resourceCall = mocks.resource.mock.calls.find(call => call[0] === 'brain-state')
     const handler = resourceCall[2]
