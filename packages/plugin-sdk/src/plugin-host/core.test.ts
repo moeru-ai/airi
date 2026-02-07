@@ -4,7 +4,7 @@ import { createContext, defineEventa, defineInvokeHandler } from '@moeru/eventa'
 import { describe, expect, it, vi } from 'vitest'
 
 import { FileSystemLoader } from '.'
-import { channels } from '../channels'
+import { createApis } from '../plugin/apis/client'
 import { protocolProviders } from '../plugin/apis/protocol'
 
 describe('for FileSystemPluginHost', () => {
@@ -21,10 +21,11 @@ describe('for FileSystemPluginHost', () => {
     }, { cwd: '' })
 
     const ctx = createContext()
+    const apis = createApis(ctx)
     const onVitestCall = vi.fn()
     ctx.on(defineEventa('vitest-call:init'), onVitestCall)
 
-    await expect(pluginDef.init({ host: ctx })).resolves.not.toThrow()
+    await expect(pluginDef.init?.({ channels: { host: ctx }, apis })).resolves.not.toThrow()
     expect(onVitestCall).toHaveBeenCalledTimes(1)
   })
 
@@ -56,13 +57,14 @@ describe('for PluginHost', () => {
     }, { cwd: '' })
 
     const ctx = createContext()
+    const apis = createApis(ctx)
     const onVitestCall = vi.fn()
     ctx.on(defineEventa('vitest-call:init'), onVitestCall)
 
-    await expect(pluginDef.init({ host: ctx })).resolves.not.toThrow()
+    await expect(pluginDef.init?.({ channels: { host: ctx }, apis })).resolves.not.toThrow()
     expect(onVitestCall).toHaveBeenCalledTimes(1)
 
-    defineInvokeHandler(channels.data, protocolProviders.listProviders, async () => {
+    defineInvokeHandler(ctx, protocolProviders.listProviders, async () => {
       return [
         { name: 'provider1' },
       ]
@@ -70,7 +72,7 @@ describe('for PluginHost', () => {
 
     const onProviderListCall = vi.fn()
     ctx.on(protocolProviders.listProviders.sendEvent, onProviderListCall)
-    await expect(pluginDef.setupModules?.()).resolves.not.toThrow()
+    await expect(pluginDef.setupModules?.({ channels: { host: ctx }, apis })).resolves.not.toThrow()
     expect(onProviderListCall).toHaveBeenCalledTimes(1)
   })
 })
