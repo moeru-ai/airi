@@ -1,7 +1,11 @@
-import type { ChannelControlPlane } from '../channels/shared'
+import type { ChannelHost } from '../channels/shared'
+import type { PluginApis } from './apis/client'
 
 export interface ContextInit {
-  host: ChannelControlPlane
+  channels: {
+    host: ChannelHost
+  }
+  apis: PluginApis
 }
 
 export interface Plugin {
@@ -12,5 +16,5 @@ export interface Plugin {
   /**
    *
    */
-  setupModules?: () => Promise<void | undefined>
+  setupModules?: (initContext: ContextInit) => Promise<void | undefined>
 }

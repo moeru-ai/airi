@@ -1,8 +1,8 @@
 {
-  "name": "@proj-airi/plugin-sdk",
+  "name": "@proj-airi/plugin-protocol",
   "type": "module",
   "version": "0.8.4",
-  "description": "Plugin SDK for Project AIRI",
+  "description": "Plugin protocol event definitions and shared websocket types for Project AIRI",
   "author": {
     "name": "Moeru AI Project AIRI Team",
     "email": "airi@moeru.ai",
@@ -12,21 +12,16 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/moeru-ai/airi.git",
-    "directory": "packages/plugin-sdk"
+    "directory": "packages/plugin-protocol"
   },
   "exports": {
-    ".": {
-      "types": "./dist/index.d.mts",
-      "default": "./dist/index.mjs"
-    },
-    "./plugin-host": {
-      "types": "./dist/plugin-host/index.d.mts",
-      "node": "./dist/plugin-host/runtimes/node/index.mjs",
-      "default": "./dist/plugin-host/runtimes/web/index.mjs"
+    "./types": {
+      "types": "./dist/types/index.d.mts",
+      "default": "./dist/types/index.mjs"
     }
   },
-  "main": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
+  "main": "./dist/types/index.mjs",
+  "types": "./dist/types/index.d.mts",
   "files": [
     "README.md",
     "dist",
@@ -39,6 +34,6 @@
   },
   "dependencies": {
     "@moeru/eventa": "catalog:",
-    "@proj-airi/server-shared": "workspace:*"
+    "@xsai/shared-chat": "catalog:"
   }
 }

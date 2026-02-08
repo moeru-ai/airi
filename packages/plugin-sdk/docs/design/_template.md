@@ -22,7 +22,7 @@
 
 {proposal}
 
-## Design Detials
+## Design Details
 
 {tagline of design details}
 

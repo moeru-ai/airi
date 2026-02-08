@@ -5,7 +5,7 @@
 - [Goals](#goals)
 - [Non-goals](#non-goals)
 - [Proposal](#proposal)
-- [Design Detials](#design-detials)
+- [Design Details](#design-Details)
   - [Context And Transport Model](#context-and-transport-model)
   - [Lifecycle Placement](#lifecycle-placement)
   - [Host Runtime Layout](#host-runtime-layout)
@@ -54,7 +54,7 @@ Eventa is context-oriented: contexts are created per transport (in-memory, WebSo
 4. Add runtime-specific implementations under `plugin-host/runtimes/node` and `plugin-host/runtimes/web` to handle different transport adapters.
 5. Optional: introduce shared reliable WebSocket helpers if needed, but prefer Eventa adapters first.
 
-## Design Detials
+## Design Details
 
 Transport-aware contexts for isolated multi-plugin hosts.
 
@@ -132,10 +132,14 @@ Each plugin has its own context and transport. APIs are bound to that context, p
 
 ### Criteria
 
-- Multiple plugins can be loaded in one host without shared global channels.
+- Multiple plugins can be loaded in one host without shared global channels and without cross-plugin invoke/handler leakage.
 - Local plugin calls use in-memory or worker contexts without manual wiring in plugin code.
 - Remote plugin calls use WebSocket contexts and do not affect local plugins.
-- Existing plugin tests can be updated to pass by injecting a context into APIs.
+- Lifecycle transitions are host-validated by an explicit state model (invalid transitions are rejected with typed errors).
+- Capability grant/revoke is enforced at the host boundary and covered by tests for deny-by-default behavior.
+- Transport reliability behavior is defined and tested (heartbeat, reconnect, duplicate-event handling, ordering guarantees).
+- Protocol compatibility is versioned and negotiated (host/plugin version mismatch produces deterministic outcomes).
+- Required observability fields (correlation id, plugin id, transport kind, phase/status) are present in control-plane events.
 
 ### Test & QA
 
@@ -147,13 +151,27 @@ Each plugin has its own context and transport. APIs are bound to that context, p
 
 ### Status
 
-Planned.
+- Planned.
+- Baseline architecture validated; hardening required before production use.
 
 ### Next Steps
 
-- Implement `createApis(ctx)` and migrate current API modules.
-- Implement `createPluginContext` in node runtime (in-memory + websocket).
-- Update tests to construct APIs with a provided context.
+1. Finish transport wiring:
+   - Implement `createPluginContext` for node/web runtimes (in-memory, websocket, worker, and electron where available).
+   - Remove fallback global channel usage from runtime paths once context injection is complete.
+2. Formalize lifecycle contract:
+   - Define a typed state machine for module lifecycle and capability configuration phases.
+   - Enforce transitions in Plugin Host with structured error responses.
+3. Add security and policy enforcement:
+   - Implement deny-by-default capability checks and explicit grant/revoke flows.
+   - Add tests for unauthorized invoke paths and revocation behavior.
+4. Define reliability and compatibility:
+   - Specify reconnect/heartbeat/backpressure semantics for WebSocket transports.
+   - Introduce protocol/api version negotiation for host-plugin compatibility.
+5. Expand test matrix:
+   - Multi-plugin isolation tests with mixed transports in one host.
+   - Integration tests for websocket roundtrip and reconnect recovery.
+   - Regression tests validating required observability metadata on lifecycle/control events.
 
 ## Reviews
 

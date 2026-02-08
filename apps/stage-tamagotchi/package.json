@@ -178,6 +178,7 @@
     "yaml": "^2.8.2"
   },
   "build": {
-    "appId": "ai.moeru.airi"
+    "appId": "ai.moeru.airi",
+    "extends": "electron-builder.config.ts"
   }
 }

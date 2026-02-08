@@ -2,8 +2,7 @@
   "compilerOptions": {
     "target": "ESNext",
     "lib": [
-      "ESNext",
-      "DOM"
+      "ESNext"
     ],
     "module": "ESNext",
     "moduleResolution": "bundler",

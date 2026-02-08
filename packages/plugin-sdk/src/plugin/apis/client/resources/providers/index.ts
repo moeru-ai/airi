@@ -1,13 +1,14 @@
+import type { EventContext } from '@moeru/eventa'
+
 import { defineInvoke } from '@moeru/eventa'
 
-import { channels } from '../../../../../channels'
 import { protocolListProviders } from '../../../protocol/resources/providers'
 
-export async function listProviders() {
-  const func = defineInvoke(channels.data, protocolListProviders)
-  return func()
-}
-
-export const providers = {
-  listProviders,
+export function createProviders(ctx: EventContext<any, any>) {
+  return {
+    listProviders() {
+      const func = defineInvoke(ctx, protocolListProviders)
+      return func()
+    },
+  }
 }
