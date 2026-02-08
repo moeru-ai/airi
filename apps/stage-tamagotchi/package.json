@@ -179,6 +179,6 @@
   },
   "build": {
     "appId": "ai.moeru.airi",
-    "extends": "electron-builder.yml"
+    "extends": "electron-builder.config.ts"
   }
 }
