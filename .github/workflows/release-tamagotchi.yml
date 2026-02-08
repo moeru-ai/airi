@@ -129,10 +129,10 @@ jobs:
       #     security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
       #     security list-keychain -d user -s $KEYCHAIN_PATH
 
-      - name: macOS Show Xcode 26.1
+      - name: macOS Select Xcode 26.2
         if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-26'
         run: |
-          sudo xcode-select -s /Applications/Xcode_26.1.app
+          sudo xcode-select -s /Applications/Xcode_26.2.app
           xcodebuild -version
 
       - name: macOS Show Toolchain
