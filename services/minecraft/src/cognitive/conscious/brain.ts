@@ -1999,7 +1999,7 @@ export class Brain {
     parts.push(`[NO_ACTION_BUDGET] remaining=${noActionBudget.remaining}; default=${noActionBudget.default}; max=${noActionBudget.max}; stagnation=${this.noActionFollowupStagnationCount}/${NO_ACTION_STAGNATION_REPEAT_LIMIT}`)
     parts.push(`[ERROR_BURST] active=${this.errorBurstGuardState ? 'yes' : 'no'}`)
 
-    parts.push('[RUNTIME] Globals are refreshed every turn: snapshot, self, environment, social, threat, attention, autonomy, event, now, query, bot, mineflayer, currentInput, llmLog, actionQueue, noActionBudget, errorBurstGuard, mem, lastRun, prevRun, lastAction. Helpers: setNoActionBudget(n), getNoActionBudget(). Player gaze is available in environment.nearbyPlayersGaze when needed.')
+    parts.push('[RUNTIME] Globals are refreshed every turn: snapshot, self, environment, social, threat, attention, autonomy, event, now, query, bot, mineflayer, currentInput, llmLog, actionQueue, noActionBudget, errorBurstGuard, mem, lastRun, prevRun, lastAction. Helpers: setNoActionBudget(n), getNoActionBudget(). Player gaze is available via query.gaze() (lazy eval).')
 
     return parts.join('\n\n')
   }

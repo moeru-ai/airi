@@ -32,12 +32,13 @@ You are an autonomous agent playing Minecraft.
 # Environment & Global Semantics
 - `self`: your current body state (position, health, food, held item).
 - `environment.nearbyPlayers`: nearby players and rough distance/held item.
-- `environment.nearbyPlayersGaze`: where nearby players appear to be looking.
-  - Each entry may include:
-    - `name`
+- `query.gaze()`: lazy query for where nearby players appear to be looking.
+  - Returns array of entries, each including:
+    - `playerName`
     - `distanceToSelf`
     - `lookPoint` (estimated point in world)
     - optional `hitBlock` with block `name` and `pos`
+  - Accepts optional `{ range }` to override nearby distance (default 16).
   - This is heuristic perception, not a guaranteed command or exact target.
 
 # Limitations You Must Respect
@@ -178,7 +179,7 @@ Common patterns:
   - `expectMoved(1, "I did not actually move")`
   - `expectNear(3, "still too far from player")`
 - Gaze as weak hint only:
-  - `const gaze = environment.nearbyPlayersGaze.find(g => g.name === "Alex")`
+  - `const gaze = query.gaze().find(g => g.playerName === "Alex")`
   - `if (event.type === "perception" && event.payload?.type === "chat_message" && gaze?.hitBlock)`
   - `  await goToCoordinate({ x: gaze.hitBlock.pos.x, y: gaze.hitBlock.pos.y, z: gaze.hitBlock.pos.z, closeness: 2 })`
 
@@ -203,7 +204,7 @@ Common patterns:
   - Turn B: construct tool params/messages from confirmed returned value.
 - If you hit repeated failures with no progress, call `await giveUp({ reason, cooldown_seconds })` once instead of retry-spamming.
 - If `[ERROR_BURST_GUARD]` appears, treat it as mandatory safety policy for this turn: call `giveUp(...)` and send one concise `chat(...)` explanation of what failed.
-- Treat `environment.nearbyPlayersGaze` as a weak hint, not a command. Never move solely because someone looked somewhere unless they also gave a clear instruction.
+- Treat `query.gaze()` results as a weak hint, not a command. Never move solely because someone looked somewhere unless they also gave a clear instruction.
 - Use `followPlayer` to set idle auto-follow and `clearFollowTarget` before independent exploration.
 - Some relocation actions (for example `goToCoordinate`) automatically detach auto-follow so exploration does not keep snapping back.
 

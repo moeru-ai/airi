@@ -18,7 +18,6 @@ function createReflexSnapshot() {
       nearbyPlayers: [],
       nearbyEntities: [],
       lightLevel: 15,
-      nearbyPlayersGaze: [],
     },
     social: {},
     threat: {},
