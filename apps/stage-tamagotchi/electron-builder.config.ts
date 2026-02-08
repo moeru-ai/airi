@@ -2,6 +2,39 @@
 
 import type { Configuration } from 'electron-builder'
 
+import { execSync } from 'node:child_process'
+
+import { isMacOS } from 'std-env'
+
+function hasXcode26OrAbove() {
+  if (!isMacOS)
+    return false
+  try {
+    const output = execSync('xcodebuild -version')
+      .toString()
+      .match(/Xcode (\d+)/)
+    if (!output)
+      return false
+    return Number.parseInt(output[1], 10) >= 26
+  }
+  catch {
+    return false
+  }
+}
+
+/**
+ * Determine whether to use the .icon format for the macOS app icon based on the
+ * Xcode version while building.
+ * This is friendly to developers whose macOS and/or Xcode versions are below 26.
+ */
+const useIconFormattedMacAppIcon = hasXcode26OrAbove()
+if (!useIconFormattedMacAppIcon) {
+  console.warn('[electron-builder/config] Warning: Xcode version is below 26. Using .icns format for macOS app icon.')
+}
+else {
+  console.info('[electron-builder/config] Xcode version is 26 or above. Using .icon format for macOS app icon.')
+}
+
 export default {
   appId: 'ai.moeru.airi',
   productName: 'AIRI',
@@ -61,7 +94,7 @@ export default {
     notarize: false,
     hardenedRuntime: false,
     executableName: 'airi',
-    icon: 'icon.icon',
+    icon: useIconFormattedMacAppIcon ? 'icon.icon' : 'icon.icns',
   },
   dmg: {
     artifactName: '${productName}-${version}-darwin-${arch}.${ext}',
