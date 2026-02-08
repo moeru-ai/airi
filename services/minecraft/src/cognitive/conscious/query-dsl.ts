@@ -5,6 +5,8 @@ import type { Mineflayer } from '../../libs/mineflayer'
 
 import { Vec3 } from 'vec3'
 
+import { computeNearbyPlayerGaze } from '../perception/gaze'
+
 import * as world from '../../skills/world'
 
 interface BlockRecord {
@@ -388,5 +390,11 @@ export function createQueryRuntime(mineflayer: Mineflayer) {
     entities: () => new EntityQueryChain(mineflayer),
     inventory: () => new InventoryQueryChain(mineflayer),
     craftable: () => new NameQueryChain(world.getCraftableItems(mineflayer)),
+    gaze: (options?: { range?: number }) => {
+      return computeNearbyPlayerGaze(mineflayer.bot, {
+        maxDistance: 32,
+        nearbyDistance: options?.range ?? 16,
+      })
+    },
   }
 }

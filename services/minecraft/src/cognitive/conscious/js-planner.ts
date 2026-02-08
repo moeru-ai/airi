@@ -229,6 +229,7 @@ export class JavaScriptPlanner {
       { name: 'query', kind: 'object', readonly: true },
       { name: 'query.self', kind: 'function', readonly: true },
       { name: 'query.snapshot', kind: 'function', readonly: true },
+      { name: 'query.gaze', kind: 'function', readonly: true },
       { name: 'bot', kind: 'object', readonly: true },
       { name: 'mineflayer', kind: 'object', readonly: true },
       { name: 'mem', kind: 'object', readonly: false },

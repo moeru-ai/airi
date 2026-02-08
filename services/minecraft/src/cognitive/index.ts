@@ -5,7 +5,6 @@ import { DebugService } from '../debug'
 import { McpReplServer } from '../debug/mcp-repl-server'
 import { ChatMessageHandler } from '../libs/mineflayer'
 import { createAgentContainer } from './container'
-import { computeNearbyPlayerGaze } from './reflex/gaze'
 
 export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlugin {
   let container: ReturnType<typeof createAgentContainer>
@@ -91,15 +90,7 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
           if (tickCount % 5 !== 0)
             return
 
-          const gaze = computeNearbyPlayerGaze(bot.bot, { maxDistance: 32, nearbyDistance: 16 })
-          reflexManager.updateEnvironment({
-            nearbyPlayersGaze: gaze.map(g => ({
-              name: g.playerName,
-              distanceToSelf: g.distanceToSelf,
-              lookPoint: g.lookPoint,
-              hitBlock: g.hitBlock,
-            })),
-          })
+          // Other periodic updates can go here
         })
 
         // Resolve EventBus for message handling
