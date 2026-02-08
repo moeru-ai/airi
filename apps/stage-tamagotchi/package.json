@@ -183,6 +183,7 @@
     "yaml": "^2.8.2"
   },
   "build": {
+    "extends": "electron-builder.yml",
     "appId": "ai.moeru.airi"
   }
 }
