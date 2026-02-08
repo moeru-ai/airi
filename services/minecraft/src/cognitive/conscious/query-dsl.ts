@@ -3,6 +3,8 @@ import type { Item } from 'prismarine-item'
 
 import type { Mineflayer } from '../../libs/mineflayer'
 
+import { inspect } from 'node:util'
+
 import { Vec3 } from 'vec3'
 
 import { computeNearbyPlayerGaze } from '../perception/gaze'
@@ -90,6 +92,23 @@ class BlockQueryChain {
     private readonly state: BlockQueryState = { range: 16, limit: 200, predicates: [] },
   ) {}
 
+  private summarize() {
+    return {
+      type: 'BlockQueryChain',
+      range: this.state.range,
+      limit: this.state.limit,
+      predicates: this.state.predicates.length,
+    }
+  }
+
+  public toJSON() {
+    return this.summarize()
+  }
+
+  public [inspect.custom]() {
+    return this.summarize()
+  }
+
   public within(range: number): BlockQueryChain {
     return this.clone({ range: clamp(Math.floor(range), 1, 64) })
   }
@@ -150,6 +169,23 @@ class EntityQueryChain {
     private readonly state: EntityQueryState = { range: 16, limit: 200, predicates: [] },
   ) {}
 
+  private summarize() {
+    return {
+      type: 'EntityQueryChain',
+      range: this.state.range,
+      limit: this.state.limit,
+      predicates: this.state.predicates.length,
+    }
+  }
+
+  public toJSON() {
+    return this.summarize()
+  }
+
+  public [inspect.custom]() {
+    return this.summarize()
+  }
+
   public within(range: number): EntityQueryChain {
     return this.clone({ range: clamp(Math.floor(range), 1, 128) })
   }
@@ -197,6 +233,21 @@ class InventoryQueryChain {
     private readonly mineflayer: Mineflayer,
     private readonly state: InventoryQueryState = { predicates: [] },
   ) {}
+
+  private summarize() {
+    return {
+      type: 'InventoryQueryChain',
+      predicates: this.state.predicates.length,
+    }
+  }
+
+  public toJSON() {
+    return this.summarize()
+  }
+
+  public [inspect.custom]() {
+    return this.summarize()
+  }
 
   public whereName(nameOrNames: string | string[]): InventoryQueryChain {
     const names = new Set((Array.isArray(nameOrNames) ? nameOrNames : [nameOrNames]).map(name => name.toLowerCase()))
