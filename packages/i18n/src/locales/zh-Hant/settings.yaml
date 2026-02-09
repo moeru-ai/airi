@@ -294,7 +294,7 @@ pages:
             search_results: 找到 {count} / {total} 個模型
             show_less: 顯示更少
             show_more: 顯示更多
-            subtitle: 選擇一個模型
+            subtitle: 選擇一個預設模型
             title: 模型
       title: 意識
     description: 思維、視覺、語音綜合、遊戲等

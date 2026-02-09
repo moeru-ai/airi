@@ -294,7 +294,7 @@ pages:
             search_results: Encontrados {count} de {total} modelos
             show_less: Mostrar menos
             show_more: Mostrar más
-            subtitle: Selecciona un modelo del proveedor
+            subtitle: Seleccionar un modelo predeterminado del proveedor
             title: Modelo
       title: Consciencia
     description: Pensamiento, visión, síntesis de voz, juegos, etc.

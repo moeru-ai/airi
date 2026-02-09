@@ -14,10 +14,12 @@ import { useSpeechStore } from './speech'
 export interface AiriExtension {
   modules: {
     consciousness: {
+      provider: string // Example: "openai"
       model: string // Example: "gpt-4o"
     }
 
     speech: {
+      provider: string // Example: "elevenlabs"
       model: string // Example: "eleven_multilingual_v2"
       voice_id: string // Example: "alloy"
 
@@ -66,10 +68,12 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   const speechStore = useSpeechStore()
 
   const {
+    activeProvider: activeConsciousnessProvider,
     activeModel: activeConsciousnessModel,
   } = storeToRefs(consciousnessStore)
 
   const {
+    activeSpeechProvider,
     activeSpeechVoiceId,
     activeSpeechModel,
   } = storeToRefs(speechStore)
@@ -111,9 +115,11 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     // Create default modules config
     const defaultModules = {
       consciousness: {
+        provider: activeConsciousnessProvider.value,
         model: activeConsciousnessModel.value,
       },
       speech: {
+        provider: activeSpeechProvider.value,
         model: activeSpeechModel.value,
         voice_id: activeSpeechVoiceId.value,
       },
@@ -131,9 +137,11 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return {
       modules: {
         consciousness: {
+          provider: existingExtension.modules?.consciousness?.provider ?? defaultModules.consciousness.provider,
           model: existingExtension.modules?.consciousness?.model ?? defaultModules.consciousness.model,
         },
         speech: {
+          provider: existingExtension.modules?.speech?.provider ?? defaultModules.speech.provider,
           model: existingExtension.modules?.speech?.model ?? defaultModules.speech.model,
           voice_id: existingExtension.modules?.speech?.voice_id ?? defaultModules.speech.voice_id,
           pitch: existingExtension.modules?.speech?.pitch,
@@ -221,7 +229,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (!extension)
       return
 
+    activeConsciousnessProvider.value = extension?.modules?.consciousness?.provider
     activeConsciousnessModel.value = extension?.modules?.consciousness?.model
+
+    activeSpeechProvider.value = extension?.modules?.speech?.provider
     activeSpeechModel.value = extension?.modules?.speech?.model
     activeSpeechVoiceId.value = extension?.modules?.speech?.voice_id
   })
@@ -245,9 +256,11 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     currentModels: computed(() => {
       return {
         consciousness: {
+          provider: activeConsciousnessProvider.value,
           model: activeConsciousnessModel.value,
         },
         speech: {
+          provider: activeSpeechProvider.value,
           model: activeSpeechModel.value,
           voice_id: activeSpeechVoiceId.value,
         },

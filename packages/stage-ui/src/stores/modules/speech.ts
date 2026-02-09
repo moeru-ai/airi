@@ -18,7 +18,7 @@ export const useSpeechStore = defineStore('speech', () => {
 
   // State
   const activeSpeechProvider = useLocalStorageManualReset<string>('settings/speech/active-provider', '')
-  const activeSpeechModel = useLocalStorageManualReset<string>('settings/speech/active-model', 'eleven_multilingual_v2')
+  const activeSpeechModel = useLocalStorageManualReset<string>('settings/speech/active-model', '')
   const activeSpeechVoiceId = useLocalStorageManualReset<string>('settings/speech/voice', '')
   const activeSpeechVoice = refManualReset<VoiceInfo | undefined>(undefined)
 

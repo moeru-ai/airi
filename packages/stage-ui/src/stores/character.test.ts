@@ -59,9 +59,11 @@ describe('store character', () => {
           agents: {},
           modules: {
             consciousness: {
+              provider: 'mock-provider',
               model: 'mock-model',
             },
             speech: {
+              provider: 'mock-speech-provider',
               model: 'mock-speech-model',
               voice_id: 'alloy',
             },
