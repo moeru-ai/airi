@@ -77,6 +77,11 @@ The bot starts this server during normal runtime from:
   - `query.inventory().has(name, atLeast?)`
   - `query.inventory().summary()`
   - `query.snapshot(range?)`
+- REPL runtime exposes a read-only `patterns` helper for known working recipes:
+  - `patterns.get(id)`
+  - `patterns.find(query, limit?)`
+  - `patterns.ids()`
+  - `patterns.list(limit?)`
 - Log verification pattern that worked reliably:
   1. `inject_chat(...)`
   2. `get_logs(limit: 10)`

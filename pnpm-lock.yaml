@@ -3063,7 +3063,7 @@ importers:
         version: 14.1.0(vue@3.5.26(typescript@5.9.3))
       '@wxt-dev/module-vue':
         specifier: ^1.0.3
-        version: 1.0.3(vite@8.0.0-beta.9(@types/node@24.10.9)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.9)(canvas@3.2.1)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+        version: 1.0.3(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.9)(canvas@3.2.1)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       nanoid:
         specifier: ^5.1.6
         version: 5.1.6
@@ -3165,25 +3165,25 @@ importers:
         version: 3.102.3
       mineflayer:
         specifier: ^4.33.0
-        version: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)
+        version: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13)
       mineflayer-armor-manager:
         specifier: ^2.0.1
-        version: 2.0.1(mineflayer@4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a))
+        version: 2.0.1(mineflayer@4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13))
       mineflayer-auto-eat:
         specifier: ^5.0.3
-        version: 5.0.3
+        version: 5.0.3(encoding@0.1.13)
       mineflayer-collectblock:
         specifier: ^1.6.0
-        version: 1.6.0
+        version: 1.6.0(encoding@0.1.13)
       mineflayer-pathfinder:
         specifier: ^2.4.5
         version: 2.4.5(patch_hash=4e932c106617efe7663216fc5ed42556761146633ebae88a5c831dc253abafa1)
       mineflayer-pvp:
         specifier: ^1.3.2
-        version: 1.3.2(prismarine-registry@1.11.0)
+        version: 1.3.2(encoding@0.1.13)(prismarine-registry@1.11.0)
       mineflayer-tool:
         specifier: ^1.2.0
-        version: 1.2.0
+        version: 1.2.0(encoding@0.1.13)
       nanoid:
         specifier: 'catalog:'
         version: 5.1.6
@@ -3227,18 +3227,6 @@ importers:
       '@types/ws':
         specifier: 'catalog:'
         version: 8.18.1
-
-  services/minecraft-hub:
-    dependencies:
-      '@guiiai/logg':
-        specifier: 'catalog:'
-        version: 1.2.11
-      minecraft-protocol:
-        specifier: ^1.62.0
-        version: 1.62.0(encoding@0.1.13)
-      tsx:
-        specifier: ^4.21.0
-        version: 4.21.0
 
   services/satori-bot:
     dependencies:
@@ -22083,7 +22071,7 @@ snapshots:
 
   '@types/yauzl@2.10.3':
     dependencies:
-      '@types/node': 24.10.9
+      '@types/node': 22.19.7
 
   '@typescript-eslint/eslint-plugin@8.51.0(@typescript-eslint/parser@8.51.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)':
     dependencies:
@@ -23309,9 +23297,9 @@ snapshots:
       '@types/filesystem': 0.0.36
       '@types/har-format': 1.2.16
 
-  '@wxt-dev/module-vue@1.0.3(vite@8.0.0-beta.9(@types/node@24.10.9)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.9)(canvas@3.2.1)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
+  '@wxt-dev/module-vue@1.0.3(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.9)(canvas@3.2.1)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
-      '@vitejs/plugin-vue': 6.0.3(vite@8.0.0-beta.9(@types/node@24.10.9)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+      '@vitejs/plugin-vue': 6.0.3(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       wxt: 0.20.13(@types/node@24.10.9)(canvas@3.2.1)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - vite
@@ -27864,24 +27852,24 @@ snapshots:
       - encoding
       - supports-color
 
-  mineflayer-armor-manager@2.0.1(mineflayer@4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)):
+  mineflayer-armor-manager@2.0.1(mineflayer@4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13)):
     dependencies:
       minecraft-data: 3.102.3
-      mineflayer: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)
+      mineflayer: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13)
 
-  mineflayer-auto-eat@5.0.3:
+  mineflayer-auto-eat@5.0.3(encoding@0.1.13):
     dependencies:
       '@nxg-org/mineflayer-util-plugin': 1.8.4
-      mineflayer: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)
+      mineflayer: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
       - supports-color
 
-  mineflayer-collectblock@1.6.0:
+  mineflayer-collectblock@1.6.0(encoding@0.1.13):
     dependencies:
-      mineflayer: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)
+      mineflayer: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13)
       mineflayer-pathfinder: 2.4.5(patch_hash=4e932c106617efe7663216fc5ed42556761146633ebae88a5c831dc253abafa1)
-      mineflayer-tool: 1.2.0
+      mineflayer-tool: 1.2.0(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -27896,29 +27884,29 @@ snapshots:
       prismarine-physics: 1.10.0
       vec3: 0.1.10
 
-  mineflayer-pvp@1.3.2(prismarine-registry@1.11.0):
+  mineflayer-pvp@1.3.2(encoding@0.1.13)(prismarine-registry@1.11.0):
     dependencies:
-      mineflayer: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)
+      mineflayer: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13)
       mineflayer-pathfinder: 2.4.5(patch_hash=4e932c106617efe7663216fc5ed42556761146633ebae88a5c831dc253abafa1)
-      mineflayer-utils: 0.1.4(prismarine-registry@1.11.0)
+      mineflayer-utils: 0.1.4(encoding@0.1.13)(prismarine-registry@1.11.0)
     transitivePeerDependencies:
       - encoding
       - prismarine-registry
       - supports-color
 
-  mineflayer-tool@1.2.0:
+  mineflayer-tool@1.2.0(encoding@0.1.13):
     dependencies:
-      mineflayer: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)
+      mineflayer: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13)
       mineflayer-pathfinder: 2.4.5(patch_hash=4e932c106617efe7663216fc5ed42556761146633ebae88a5c831dc253abafa1)
       prismarine-nbt: 2.8.0
     transitivePeerDependencies:
       - encoding
       - supports-color
 
-  mineflayer-utils@0.1.4(prismarine-registry@1.11.0):
+  mineflayer-utils@0.1.4(encoding@0.1.13)(prismarine-registry@1.11.0):
     dependencies:
       '@types/node': 14.18.63
-      mineflayer: 2.41.0(prismarine-registry@1.11.0)
+      mineflayer: 2.41.0(encoding@0.1.13)(prismarine-registry@1.11.0)
       prismarine-entity: 1.2.0
       require-self: 0.2.3
       typescript: 3.9.10
@@ -27927,7 +27915,7 @@ snapshots:
       - prismarine-registry
       - supports-color
 
-  mineflayer@2.41.0(prismarine-registry@1.11.0):
+  mineflayer@2.41.0(encoding@0.1.13)(prismarine-registry@1.11.0):
     dependencies:
       minecraft-data: 2.221.0
       minecraft-protocol: 1.62.0(encoding@0.1.13)
@@ -27949,7 +27937,7 @@ snapshots:
       - prismarine-registry
       - supports-color
 
-  mineflayer@4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a):
+  mineflayer@4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13):
     dependencies:
       minecraft-data: 3.102.3
       minecraft-protocol: 1.62.0(encoding@0.1.13)

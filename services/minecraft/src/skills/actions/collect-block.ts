@@ -8,6 +8,7 @@ import { ActionError } from '../../utils/errors'
 import { useLogger } from '../../utils/logger'
 import { breakBlockAt } from '../blocks'
 import { getNearestBlocks } from '../world'
+import { expandBlockAliases } from './block-type-normalizer'
 import { ensurePickaxe } from './ensure'
 import { pickupNearbyItems } from './world-interactions'
 
@@ -28,7 +29,8 @@ export async function collectBlock(
     return 0
   }
 
-  const blockTypes = [blockType]
+  const normalizedBlockType = blockType.trim().toLowerCase()
+  const blockTypes = new Set(expandBlockAliases(normalizedBlockType))
 
   // Add block variants
   if (
@@ -41,21 +43,22 @@ export async function collectBlock(
       'lapis_lazuli',
       'redstone',
       'copper',
-    ].includes(blockType)
+    ].includes(normalizedBlockType)
   ) {
-    blockTypes.push(`${blockType}_ore`, `deepslate_${blockType}_ore`)
+    blockTypes.add(`${normalizedBlockType}_ore`)
+    blockTypes.add(`deepslate_${normalizedBlockType}_ore`)
   }
-  if (blockType.endsWith('ore')) {
-    blockTypes.push(`deepslate_${blockType}`)
+  if (normalizedBlockType.endsWith('ore')) {
+    blockTypes.add(`deepslate_${normalizedBlockType}`)
   }
-  if (blockType === 'dirt') {
-    blockTypes.push('grass_block')
+  if (normalizedBlockType === 'dirt') {
+    blockTypes.add('grass_block')
   }
 
   let collected = 0
 
   while (collected < num) {
-    const blocks = getNearestBlocks(mineflayer, blockTypes, range)
+    const blocks = getNearestBlocks(mineflayer, [...blockTypes], range)
 
     if (blocks.length === 0) {
       if (collected === 0)

@@ -29,6 +29,8 @@ describe('generateBrainSystemPrompt', () => {
     expect(prompt).toContain('getNoActionBudget()')
     expect(prompt).toContain('noActionBudget')
     expect(prompt).toContain('errorBurstGuard')
+    expect(prompt).toContain('patterns.get(id)')
+    expect(prompt).toContain('patterns.find(query)')
     expect(prompt).toContain('Never return function references as values')
     expect(prompt).toContain('query.inventory().summary()')
     expect(prompt).toContain('Default no-action follow-up budget is 3 and max is 8')

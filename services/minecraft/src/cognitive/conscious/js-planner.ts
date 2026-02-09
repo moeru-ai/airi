@@ -2,6 +2,7 @@ import type { Action } from '../../libs/mineflayer/action'
 import type { Mineflayer } from '../../libs/mineflayer/core'
 import type { ActionInstruction } from '../action/types'
 import type { BotEvent } from '../types'
+import type { PatternRuntime } from './patterns/types'
 
 import vm from 'node:vm'
 
@@ -65,6 +66,7 @@ function toStructuredClone<T>(value: T): T {
 export interface RuntimeGlobals {
   event: BotEvent
   snapshot: Record<string, unknown>
+  patterns?: PatternRuntime | null
   mineflayer?: Mineflayer | null
   bot?: unknown
   actionQueue?: unknown
@@ -230,6 +232,11 @@ export class JavaScriptPlanner {
       { name: 'query.self', kind: 'function', readonly: true },
       { name: 'query.snapshot', kind: 'function', readonly: true },
       { name: 'query.gaze', kind: 'function', readonly: true },
+      { name: 'patterns', kind: 'object', readonly: true },
+      { name: 'patterns.get', kind: 'function', readonly: true },
+      { name: 'patterns.find', kind: 'function', readonly: true },
+      { name: 'patterns.ids', kind: 'function', readonly: true },
+      { name: 'patterns.list', kind: 'function', readonly: true },
       { name: 'bot', kind: 'object', readonly: true },
       { name: 'mineflayer', kind: 'object', readonly: true },
       { name: 'mem', kind: 'object', readonly: false },
@@ -239,41 +246,46 @@ export class JavaScriptPlanner {
     ]
 
     const valueByName: Record<string, unknown> = {
-      snapshot: globals.snapshot,
-      event: globals.event,
-      now: Date.now(),
-      self: (globals.snapshot as Record<string, unknown>)?.self,
-      environment: (globals.snapshot as Record<string, unknown>)?.environment,
-      social: (globals.snapshot as Record<string, unknown>)?.social,
-      threat: (globals.snapshot as Record<string, unknown>)?.threat,
-      attention: (globals.snapshot as Record<string, unknown>)?.attention,
-      autonomy: (globals.snapshot as Record<string, unknown>)?.autonomy,
-      llmInput: globals.llmInput ?? null,
-      currentInput: globals.currentInput ?? null,
-      llmLog: globals.llmLog ?? null,
-      actionQueue: globals.actionQueue ?? null,
-      noActionBudget: globals.noActionBudget ?? null,
-      errorBurstGuard: globals.errorBurstGuard ?? null,
-      llmMessages: globals.llmInput?.messages ?? [],
-      llmSystemPrompt: globals.llmInput?.systemPrompt ?? '',
-      llmUserMessage: globals.llmInput?.userMessage ?? '',
-      llmConversationHistory: globals.llmInput?.conversationHistory ?? [],
-      query: globals.mineflayer ? createQueryRuntime(globals.mineflayer) : undefined,
-      bot: globals.bot ?? globals.mineflayer?.bot,
-      mineflayer: globals.mineflayer ?? null,
-      mem: this.sandbox.mem,
-      lastRun: this.sandbox.lastRun,
-      prevRun: this.sandbox.prevRun,
-      lastAction: this.sandbox.lastAction,
-      skip: this.sandbox.skip,
-      use: this.sandbox.use,
-      log: this.sandbox.log,
-      expect: this.sandbox.expect,
-      expectMoved: this.sandbox.expectMoved,
-      expectNear: this.sandbox.expectNear,
-      setNoActionBudget: this.sandbox.setNoActionBudget,
-      getNoActionBudget: this.sandbox.getNoActionBudget,
-      forget_conversation: this.sandbox.forget_conversation,
+      'snapshot': globals.snapshot,
+      'event': globals.event,
+      'now': Date.now(),
+      'self': (globals.snapshot as Record<string, unknown>)?.self,
+      'environment': (globals.snapshot as Record<string, unknown>)?.environment,
+      'social': (globals.snapshot as Record<string, unknown>)?.social,
+      'threat': (globals.snapshot as Record<string, unknown>)?.threat,
+      'attention': (globals.snapshot as Record<string, unknown>)?.attention,
+      'autonomy': (globals.snapshot as Record<string, unknown>)?.autonomy,
+      'llmInput': globals.llmInput ?? null,
+      'currentInput': globals.currentInput ?? null,
+      'llmLog': globals.llmLog ?? null,
+      'actionQueue': globals.actionQueue ?? null,
+      'noActionBudget': globals.noActionBudget ?? null,
+      'errorBurstGuard': globals.errorBurstGuard ?? null,
+      'llmMessages': globals.llmInput?.messages ?? [],
+      'llmSystemPrompt': globals.llmInput?.systemPrompt ?? '',
+      'llmUserMessage': globals.llmInput?.userMessage ?? '',
+      'llmConversationHistory': globals.llmInput?.conversationHistory ?? [],
+      'query': globals.mineflayer ? createQueryRuntime(globals.mineflayer) : undefined,
+      'patterns': globals.patterns ?? null,
+      'patterns.get': globals.patterns?.get,
+      'patterns.find': globals.patterns?.find,
+      'patterns.ids': globals.patterns?.ids,
+      'patterns.list': globals.patterns?.list,
+      'bot': globals.bot ?? globals.mineflayer?.bot,
+      'mineflayer': globals.mineflayer ?? null,
+      'mem': this.sandbox.mem,
+      'lastRun': this.sandbox.lastRun,
+      'prevRun': this.sandbox.prevRun,
+      'lastAction': this.sandbox.lastAction,
+      'skip': this.sandbox.skip,
+      'use': this.sandbox.use,
+      'log': this.sandbox.log,
+      'expect': this.sandbox.expect,
+      'expectMoved': this.sandbox.expectMoved,
+      'expectNear': this.sandbox.expectNear,
+      'setNoActionBudget': this.sandbox.setNoActionBudget,
+      'getNoActionBudget': this.sandbox.getNoActionBudget,
+      'forget_conversation': this.sandbox.forget_conversation,
     }
 
     if (includeBuiltins) {
@@ -446,6 +458,7 @@ export class JavaScriptPlanner {
     this.sandbox.llmUserMessage = llmInput?.userMessage ?? ''
     this.sandbox.llmConversationHistory = llmInput?.conversationHistory ?? []
     this.sandbox.query = query
+    this.sandbox.patterns = globals.patterns ?? null
     this.sandbox.bot = globals.bot ?? globals.mineflayer?.bot ?? null
     this.sandbox.mineflayer = globals.mineflayer ?? null
     this.sandbox.lastRun = {

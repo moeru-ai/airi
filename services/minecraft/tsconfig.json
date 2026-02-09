@@ -4,13 +4,13 @@
     "lib": [
       "ESNext"
     ],
-    "types": [
-      "node"
-    ],
     "moduleDetection": "auto",
     "module": "ESNext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
+    "types": [
+      "node"
+    ],
     "strict": true,
     "strictNullChecks": true,
     "noImplicitAny": true,

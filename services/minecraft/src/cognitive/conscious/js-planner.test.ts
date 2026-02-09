@@ -46,6 +46,44 @@ describe('javaScriptPlanner', () => {
       updatedAt: Date.now(),
       attempt: 1,
     },
+    patterns: {
+      get: (id: string) => {
+        if (id !== 'collect.wall_torch')
+          return null
+        return {
+          id: 'collect.wall_torch',
+          title: 'Collect Wall Torches Reliably',
+          intent: 'Use variant-aware block lookup for torch tasks.',
+          whenToUse: ['torch tasks'],
+          steps: ['scan blocks', 'mine exact target'],
+          code: 'const target = query.blocks().within(32).list().find(b => b.name.includes("torch"));',
+          tags: ['torch', 'wall_torch'],
+        }
+      },
+      find: (query: string, limit = 10) => {
+        if (!query.toLowerCase().includes('torch'))
+          return []
+        return [{
+          id: 'collect.wall_torch',
+          title: 'Collect Wall Torches Reliably',
+          intent: 'Use variant-aware block lookup for torch tasks.',
+          whenToUse: ['torch tasks'],
+          steps: ['scan blocks', 'mine exact target'],
+          code: 'const target = query.blocks().within(32).list().find(b => b.name.includes("torch"));',
+          tags: ['torch', 'wall_torch'],
+        }].slice(0, limit)
+      },
+      ids: () => ['collect.wall_torch'],
+      list: (limit = 10) => [{
+        id: 'collect.wall_torch',
+        title: 'Collect Wall Torches Reliably',
+        intent: 'Use variant-aware block lookup for torch tasks.',
+        whenToUse: ['torch tasks'],
+        steps: ['scan blocks', 'mine exact target'],
+        code: 'const target = query.blocks().within(32).list().find(b => b.name.includes("torch"));',
+        tags: ['torch', 'wall_torch'],
+      }].slice(0, limit),
+    },
     actionQueue: {
       executing: null,
       pending: [],
@@ -222,6 +260,9 @@ describe('javaScriptPlanner', () => {
     expect(names).toContain('llmInput')
     expect(names).toContain('llmUserMessage')
     expect(names).toContain('query')
+    expect(names).toContain('patterns')
+    expect(names).toContain('patterns.get')
+    expect(names).toContain('patterns.find')
     expect(names).toContain('bot')
     expect(names).toContain('mineflayer')
     expect(names).toContain('currentInput')
@@ -275,6 +316,17 @@ describe('javaScriptPlanner', () => {
     const executeAction = vi.fn(async action => `ok:${action.tool}`)
     const planned = await planner.evaluate('await chat("llm=" + llmUserMessage)', actions, globals, executeAction)
     expect(planned.actions[0]?.action).toEqual({ tool: 'chat', params: { message: 'llm=latest user message' } })
+  })
+
+  it('exposes patterns runtime global to scripts', async () => {
+    const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+
+    const fromGet = await planner.evaluate('return patterns.get("collect.wall_torch")?.id', actions, globals, executeAction)
+    expect(fromGet.returnValue).toContain('collect.wall_torch')
+
+    const fromFind = await planner.evaluate('return patterns.find("torch wall", 1).map(p => p.id)', actions, globals, executeAction)
+    expect(fromFind.returnValue).toContain('collect.wall_torch')
   })
 
   it('exposes forget_conversation runtime function', async () => {

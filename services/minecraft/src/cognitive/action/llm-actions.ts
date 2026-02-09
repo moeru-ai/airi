@@ -3,6 +3,7 @@ import type { Action } from '../../libs/mineflayer'
 import { Vec3 } from 'vec3'
 import { z } from 'zod'
 
+import { matchesBlockAlias } from '../../skills/actions/block-type-normalizer'
 import { collectBlock } from '../../skills/actions/collect-block'
 import { discard, equip, putInChest, takeFromChest } from '../../skills/actions/inventory'
 import { activateNearestBlock, breakBlockAt, placeBlock } from '../../skills/actions/world-interactions'
@@ -307,7 +308,7 @@ export const actionsList: Action[] = [
           throw new ActionError('TARGET_NOT_FOUND', `No block found at ${pos}`, { position: pos })
         }
 
-        if (block.name !== expected_block_type) {
+        if (!matchesBlockAlias(expected_block_type, block.name)) {
           throw new ActionError('UNKNOWN', `Block type mismatch at ${pos}: expected ${expected_block_type}, got ${block.name}`, {
             position: pos,
             expected: expected_block_type,

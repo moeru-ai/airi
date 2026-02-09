@@ -26,6 +26,8 @@ import {
   sleep,
   toErrorMessage,
 } from './llmlogic'
+import { PATTERN_CATALOG } from './patterns/catalog'
+import { createPatternRuntime } from './patterns/runtime'
 import { generateBrainSystemPrompt } from './prompts/brain-prompt'
 import { normalizeReplScript } from './repl-code-normalizer'
 import { createCancellationToken } from './task-state'
@@ -261,6 +263,7 @@ export class Brain {
   private turnCounter = 0
   private currentInputEnvelope: RuntimeInputEnvelope | null = null
   private readonly llmLogRuntime = createLlmLogRuntime(() => this.llmLogEntries)
+  private readonly patternRuntime = createPatternRuntime(PATTERN_CATALOG)
   private nextControlActionId = 0
   private pendingControlActions: ControlActionQueueEntry[] = []
   private activeControlAction: ControlActionQueueEntry | null = null
@@ -587,6 +590,7 @@ export class Brain {
     return {
       event,
       snapshot,
+      patterns: this.patternRuntime,
       mineflayer,
       bot: mineflayer?.bot,
       llmInput: this.lastLlmInputSnapshot,

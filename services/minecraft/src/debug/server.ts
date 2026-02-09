@@ -379,8 +379,8 @@ export class DebugServer {
     if (!url.searchParams.has('file')) {
       const files = fs.existsSync(logsDir)
         ? fs.readdirSync(logsDir)
-          .filter(f => f.endsWith('.jsonl'))
-          .sort((a, b) => b.localeCompare(a))
+            .filter(f => f.endsWith('.jsonl'))
+            .sort((a, b) => b.localeCompare(a))
         : []
 
       res.writeHead(200, { 'Content-Type': 'application/json' })

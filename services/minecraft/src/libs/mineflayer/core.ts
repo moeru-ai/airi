@@ -250,7 +250,7 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
   public async stop() {
     this.isStopping = true
 
-    for (const plugin of this.options?.plugins || []){
+    for (const plugin of this.options?.plugins || []) {
       if (plugin.beforeCleanup) {
         await plugin.beforeCleanup(this)
       }
