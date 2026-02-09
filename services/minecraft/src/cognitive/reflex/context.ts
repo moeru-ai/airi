@@ -19,7 +19,6 @@ export interface ReflexSocialState {
   lastSpeaker: string | null
   lastMessage: string | null
   lastMessageAt: number | null
-  lastGreetingAtBySpeaker: Record<string, number>
   lastGesture: string | null
   lastGestureAt: number | null
 }
@@ -76,7 +75,6 @@ export class ReflexContext {
         lastSpeaker: null,
         lastMessage: null,
         lastMessageAt: null,
-        lastGreetingAtBySpeaker: {},
         lastGesture: null,
         lastGestureAt: null,
       },
@@ -108,10 +106,7 @@ export class ReflexContext {
         nearbyPlayers: this.state.environment.nearbyPlayers.map(p => ({ ...p })),
         nearbyEntities: this.state.environment.nearbyEntities.map(e => ({ ...e })),
       },
-      social: {
-        ...this.state.social,
-        lastGreetingAtBySpeaker: { ...this.state.social.lastGreetingAtBySpeaker },
-      },
+      social: { ...this.state.social },
       threat: { ...this.state.threat },
       attention: { ...this.state.attention },
       autonomy: { ...this.state.autonomy },

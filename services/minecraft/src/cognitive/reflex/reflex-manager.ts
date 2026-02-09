@@ -8,7 +8,6 @@ import type { MineflayerWithAgents } from '../types'
 import type { ReflexContextState } from './context'
 
 import { DebugService } from '../../debug'
-import { greetingBehavior } from './behaviors/greeting'
 import { lookAtBehavior } from './behaviors/look-at'
 import { teabagBehavior } from './behaviors/teabag'
 import { ReflexRuntime } from './runtime'
@@ -34,7 +33,6 @@ export class ReflexManager {
       onModeChange: () => this.emitReflexState(),
     })
 
-    this.runtime.registerBehavior(greetingBehavior)
     this.runtime.registerBehavior(lookAtBehavior)
     this.runtime.registerBehavior(teabagBehavior)
   }
@@ -161,7 +159,6 @@ export class ReflexManager {
     // If it's a chat message (simulated via signal for now, or direct?)
     // For now we rely on signal metadata or separate chat event.
     // Assuming 'signal:social:chat' or similar might exist later.
-    // For greeting behavior compatibility, we might need to map specific signals to social state.
 
     // Trigger behavior selection
     this.runtime.tick(bot, 0, this.deps.perception)
