@@ -1,11 +1,11 @@
-import type { SatoriEvent, SatoriIdentifyBody, SatoriReadyBody, SatoriSignal } from '../types/satori'
+import type { SatoriEvent, SatoriIdentifyBody, SatoriReadyBody, SatoriSignal } from './types'
 
 import WebSocket from 'ws'
 
 import { useLogg } from '@guiiai/logg'
 
-import { SatoriOpcode } from '../types/satori'
-import { SatoriAPI } from './satori-api'
+import { SatoriAPI } from './api'
+import { SatoriOpcode } from './types'
 
 const log = useLogg('SatoriClient')
 
@@ -213,6 +213,8 @@ export class SatoriClient {
   // Public API for sending messages
   async sendMessage(platform: string, selfId: string, channelId: string, content: string): Promise<void> {
     const key = `${platform}:${selfId}`
+    log.debug(`sendMessage called - platform: "${platform}", selfId: "${selfId}", key: "${key}"`)
+    log.debug(`Available API clients: ${Array.from(this.apiClients.keys()).join(', ')}`)
     const api = this.apiClients.get(key)
 
     if (!api) {

@@ -78,6 +78,7 @@ export interface SatoriGuildRole {
 export interface SatoriMessage {
   id: string
   content: string
+  platform?: string
   channel?: SatoriChannel
   guild?: SatoriGuild
   member?: SatoriGuildMember

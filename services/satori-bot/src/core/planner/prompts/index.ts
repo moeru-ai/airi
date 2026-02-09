@@ -1,4 +1,4 @@
-import { velin } from '../utils/velin'
+import { velin } from './velin'
 
 export async function personality() {
   return await (velin('personality-v1.velin.md', import.meta.url))()
