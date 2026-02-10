@@ -88,6 +88,8 @@ pages:
     card_not_found: Card not found
     character: Character
     close: Close
+    chat:
+      provider: Chat / Provider
     consciousness:
       model: Consciousness / Model
     created_by: created by
@@ -116,6 +118,9 @@ pages:
         scenario: You recently woke up and forgot everything about your previous life.
         systemprompt: You will receive messages, answer to them like a real human.
         posthistoryinstructions: Remember to imitate an human.
+      modules_info: Configure modules for this character card. If not set, default module configuration will be used.
+      use_default: Use default
+      use_default_not_configured: Use default (not configured)
       fields_info:
         subtitle: >-
           You can put here some details about the character you are creating, explain his history and context, and how your interactions should be answered.
@@ -132,6 +137,8 @@ pages:
         posthistoryinstructions: Place here anything the AI LLM should read after the messages history.
         version: >-
           Card version, you should increase this if you are making changes from a previous card.
+        consciousness_model: Select the consciousness model (AI model) for this character.
+        speech_model: Select the speech synthesis model and voice for this character.
       errors:
         name: Name should be valid or non-empty.
         version: 'Error: Invalid version number !'
@@ -152,6 +159,7 @@ pages:
     search: Search cards...
     sort_by: Sort by
     speech:
+      provider: Speech / Provider
       model: Speech / Model
       voice: Speech / Voice
     systemprompt: System Prompt
@@ -294,7 +302,7 @@ pages:
             search_results: Found {count} of {total} models
             show_less: Show less
             show_more: Show more
-            subtitle: 제공업체에서 기본 모델 선택
+            subtitle: Select a default model from the provider
             title: Model
       title: Consciousness
     description: Thinking, vision, speech synthesis, gaming, etc.

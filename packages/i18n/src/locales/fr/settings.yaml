@@ -88,6 +88,8 @@ pages:
     card_not_found: Carte non trouvée
     character: Personnage
     close: Fermer
+    chat:
+      provider: Chat / Provider
     consciousness:
       model: Conscience / Modèle
     created_by: créé par
@@ -116,6 +118,9 @@ pages:
         scenario: Vous vous êtes récemment réveillé et avez tout oublié de votre vie passée.
         systemprompt: Vous recevrez des messages et y répondrez comme un humain.
         posthistoryinstructions: N’oubliez pas d’imiter un humain.
+      modules_info: Configure modules for this character card. If not set, default module configuration will be used.
+      use_default: Use default
+      use_default_not_configured: Use default (not configured)
       fields_info:
         subtitle: >-
           Vous pouvez ici ajouter des détails sur le personnage que vous créez, expliquer son histoire et son contexte, et comment vos interactions devraient être répondues.
@@ -132,6 +137,8 @@ pages:
         posthistoryinstructions: Placez ici tout ce que l’IA doit lire après l’historique des messages.
         version: >-
           Version de la carte, vous devez l’incrémenter si vous apportez des modifications par rapport à une carte précédente.
+        consciousness_model: Select the consciousness model (AI model) for this character.
+        speech_model: Select the speech synthesis model and voice for this character.
       errors:
         name: Le nom doit être valide ou non vide.
         version: 'Erreur : numéro de version invalide !'
@@ -152,6 +159,7 @@ pages:
     search: Rechercher des cartes...
     sort_by: Trier par
     speech:
+      provider: Speech / Provider
       model: Parole / Modèle
       voice: Parole / Voix
     systemprompt: Prompt système
@@ -294,7 +302,7 @@ pages:
             search_results: '{count} modèles trouvés sur {total}'
             show_less: Afficher moins
             show_more: Afficher plus
-            subtitle: Sélectionner un modèle par défaut du fournisseur
+            subtitle: Select a default model from the provider
             title: Modèle
       title: Conscience
     description: Synthèse, vision, parole, jeux, etc.
