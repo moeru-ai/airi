@@ -88,6 +88,8 @@ pages:
     card_not_found: 找不到角色卡
     character: 角色設定
     close: 關閉
+    chat:
+      provider: Chat / Provider
     consciousness:
       model: 意識 / 模型
     created_by: 建立者
@@ -116,6 +118,9 @@ pages:
         scenario: 你最近醒來，忘記了之前的所有生活。
         systemprompt: 你將會收到訊息，請像真實人類一樣回覆。
         posthistoryinstructions: 記得模仿人類的行為。
+      modules_info: Configure modules for this character card. If not set, default module configuration will be used.
+      use_default: Use default
+      use_default_not_configured: Use default (not configured)
       fields_info:
         subtitle: >-
           您可以在這裡填寫有關您正在建立的角色的一些詳細資訊，解釋他的背景與情境，以及應該如何回應您的互動。
@@ -132,6 +137,8 @@ pages:
         posthistoryinstructions: 在訊息歷史之後，放入 AI LLM 應該閱讀的內容。
         version: >-
           卡片版本，如果您從先前的卡片做了更改，應當增加此版本號。
+        consciousness_model: Select the consciousness model (AI model) for this character.
+        speech_model: Select the speech synthesis model and voice for this character.
       errors:
         name: 錯誤：你必須提供一個有效的名稱！
         version: '錯誤：版本號無效！'
@@ -152,6 +159,7 @@ pages:
     search: 搜尋角色卡...
     sort_by: 排序方式
     speech:
+      provider: Speech / Provider
       model: 聲音 / 模型
       voice: 聲音 / 聲線
     systemprompt: 系統提示詞
@@ -294,7 +302,7 @@ pages:
             search_results: 找到 {count} / {total} 個模型
             show_less: 顯示更少
             show_more: 顯示更多
-            subtitle: 選擇一個預設模型
+            subtitle: Select a default model from the provider
             title: 模型
       title: 意識
     description: 思維、視覺、語音綜合、遊戲等

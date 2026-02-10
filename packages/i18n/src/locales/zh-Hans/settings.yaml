@@ -89,7 +89,7 @@ pages:
     character: 角色设定
     close: 关闭
     chat:
-      provider: 聊天 / 提供商
+      provider: Chat / Provider
     consciousness:
       model: 意识 / 模型
     created_by: 创建者
@@ -118,9 +118,9 @@ pages:
         scenario: 你最近醒来，忘记了之前的所有生活。
         systemprompt: 你将收到消息，请像真实人类一样回复。
         posthistoryinstructions: 记得模仿人类的行为。
-      modules_info: 配置此角色卡使用的模块。如果不设置，将使用默认模块配置。
-      use_default: 使用默认
-      use_default_not_configured: 使用默认 (当前未配置)
+      modules_info: Configure modules for this character card. If not set, default module configuration will be used.
+      use_default: Use default
+      use_default_not_configured: Use default (not configured)
       fields_info:
         subtitle: >-
           您可以在这里填写有关您正在创建的角色的一些详细信息，解释他的背景和情境，以及应该如何回应您的互动。
@@ -132,13 +132,13 @@ pages:
           在这里描述您的角色的个性。例如：害羞？好奇？其他？
         scenario: 周围环境是怎样的？当前的情境是什么？
         greetings_field: 问候语
-        greetings: 您的角色应该如何说"你好"？
+        greetings: 您的角色应该如何说“你好”？
         systemprompt: 在这里向 AI LLM 解释当被提示时应该如何回应。
         posthistoryinstructions: 在消息历史之后，放入 AI LLM 应该阅读的内容。
         version: >-
           卡片版本，如果您从之前的卡片做了更改，应当增加此版本号。
-        consciousness_model: 选择此角色使用的意识模型（AI 模型）。
-        speech_model: 选择此角色使用的语音合成模型和声线。
+        consciousness_model: Select the consciousness model (AI model) for this character.
+        speech_model: Select the speech synthesis model and voice for this character.
       errors:
         name: 错误：你必须提供一个有效的名称！
         version: '错误：版本号无效！'
@@ -159,7 +159,7 @@ pages:
     search: 搜索角色卡...
     sort_by: 排序方式
     speech:
-      provider: 声音 / 提供商
+      provider: Speech / Provider
       model: 声音 / 模型
       voice: 声音 / 声线
     systemprompt: 系统提示词
@@ -302,7 +302,7 @@ pages:
             search_results: 找到 {count} / {total} 个模型
             show_less: 显示更多
             show_more: 收起
-            subtitle: 选择一个默认模型
+            subtitle: Select a default model from the provider
             title: 模型
       title: 意识
     description: 思维，视觉，言语综合，游戏等

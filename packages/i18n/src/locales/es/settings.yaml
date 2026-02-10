@@ -88,6 +88,8 @@ pages:
     card_not_found: Tarjeta no encontrada
     character: Personaje
     close: Cerrar
+    chat:
+      provider: Chat / Provider
     consciousness:
       model: Consciencia / Modelo
     created_by: creado por
@@ -116,6 +118,9 @@ pages:
         scenario: Recientemente despertaste y olvidaste todo sobre tu vida anterior.
         systemprompt: Recibirás mensajes, respóndelos como un humano real.
         posthistoryinstructions: Recuerda imitar a un humano.
+      modules_info: Configure modules for this character card. If not set, default module configuration will be used.
+      use_default: Use default
+      use_default_not_configured: Use default (not configured)
       fields_info:
         subtitle: >-
           Puedes poner aquí algunos detalles sobre el personaje que estás creando, explicar su historia y contexto, y cómo deben responderse tus interacciones.
@@ -132,6 +137,8 @@ pages:
         posthistoryinstructions: Coloca aquí cualquier cosa que el LLM de IA deba leer después del historial de mensajes.
         version: >-
           Versión de la tarjeta, deberías aumentar esto si estás haciendo cambios desde una tarjeta anterior.
+        consciousness_model: Select the consciousness model (AI model) for this character.
+        speech_model: Select the speech synthesis model and voice for this character.
       errors:
         name: El nombre debe ser válido o no estar vacío.
         version: '¡Error: Número de versión inválido!'
@@ -152,6 +159,7 @@ pages:
     search: Buscar tarjetas...
     sort_by: Ordenar por
     speech:
+      provider: Speech / Provider
       model: Habla / Modelo
       voice: Habla / Voz
     systemprompt: Prompt del Sistema
@@ -294,7 +302,7 @@ pages:
             search_results: Encontrados {count} de {total} modelos
             show_less: Mostrar menos
             show_more: Mostrar más
-            subtitle: Seleccionar un modelo predeterminado del proveedor
+            subtitle: Select a default model from the provider
             title: Modelo
       title: Consciencia
     description: Pensamiento, visión, síntesis de voz, juegos, etc.
