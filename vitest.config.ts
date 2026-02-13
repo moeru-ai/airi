@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     projects: [
       'apps/server',
+      'apps/stage-tamagotchi',
       'packages/stage-ui',
       'packages/plugin-sdk',
       'packages/vite-plugin-warpdrive',

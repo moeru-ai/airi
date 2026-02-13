@@ -9,6 +9,12 @@ export const electronOpenSettingsDevtools = defineInvokeEventa('eventa:invoke:el
 export const electronOpenDevtoolsWindow = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:devtools:open')
 export const electronStartWebSocketServer = defineInvokeEventa<void, { websocketSecureEnabled: boolean }>('eventa:invoke:electron:start-websocket-server')
 export const electronRestartWebSocketServer = defineInvokeEventa<void, { websocketSecureEnabled: boolean }>('eventa:invoke:electron:restart-websocket-server')
+export const electronPluginList = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:list')
+export const electronPluginSetEnabled = defineInvokeEventa<PluginRegistrySnapshot, { name: string, enabled: boolean, path?: string }>('eventa:invoke:electron:plugins:set-enabled')
+export const electronPluginLoadEnabled = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:load-enabled')
+export const electronPluginUpdateCapability = defineInvokeEventa<PluginCapabilityState, PluginCapabilityPayload>('eventa:invoke:electron:plugins:capability:update')
+export const pluginProtocolListProvidersEventName = 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers'
+export const pluginProtocolListProviders = defineInvokeEventa<Array<{ name: string }>>(pluginProtocolListProvidersEventName)
 export const captionIsFollowingWindowChanged = defineEventa<boolean>('eventa:event:electron:windows:caption-overlay:is-following-window-changed')
 export const captionGetIsFollowingWindow = defineInvokeEventa<boolean>('eventa:invoke:electron:windows:caption-overlay:get-is-following-window')
 
@@ -58,6 +64,33 @@ export interface WidgetSnapshot {
   componentProps: Record<string, any>
   size: 's' | 'm' | 'l' | { cols?: number, rows?: number }
   ttlMs: number
+}
+
+export interface PluginManifestSummary {
+  name: string
+  entrypoints: Record<string, string | undefined>
+  path: string
+  enabled: boolean
+  loaded: boolean
+  isNew: boolean
+}
+
+export interface PluginRegistrySnapshot {
+  root: string
+  plugins: PluginManifestSummary[]
+}
+
+export interface PluginCapabilityPayload {
+  key: string
+  state: 'announced' | 'ready'
+  metadata?: Record<string, unknown>
+}
+
+export interface PluginCapabilityState {
+  key: string
+  state: 'announced' | 'ready'
+  metadata?: Record<string, unknown>
+  updatedAt: number
 }
 
 export const widgetsOpenWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:electron:windows:widgets:open')

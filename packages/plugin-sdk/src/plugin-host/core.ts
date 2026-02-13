@@ -1,8 +1,44 @@
+import type {
+  ProtocolEvents,
+  ModuleConfigEnvelope as ProtocolModuleConfigEnvelope,
+  ModuleIdentity as ProtocolModuleIdentity,
+  ModulePhase as ProtocolModulePhase,
+  PluginIdentity as ProtocolPluginIdentity,
+} from '@proj-airi/plugin-protocol/types'
+
 import type { definePlugin } from '../plugin'
+import type { createApis } from '../plugin/apis/client'
+import type { CapabilityDescriptor } from '../plugin/apis/protocol'
 import type { Plugin } from '../plugin/shared'
+import type { PluginTransport } from './transports'
 
 import { join } from 'node:path'
 import { cwd } from 'node:process'
+
+import { defineInvokeHandler } from '@moeru/eventa'
+import {
+  moduleAnnounce,
+  moduleAuthenticate,
+  moduleAuthenticated,
+  moduleCompatibilityRequest,
+  moduleCompatibilityResult,
+  moduleConfigurationConfigured,
+  moduleConfigurationNeeded,
+  modulePrepared,
+  moduleStatus,
+  registryModulesSync,
+} from '@proj-airi/plugin-protocol/types'
+import {
+  literal,
+  object,
+  optional,
+  string,
+} from 'valibot'
+
+import { createApis as createBoundApis } from '../plugin/apis/client'
+import { protocolCapabilitySnapshot, protocolCapabilityWait } from '../plugin/apis/protocol'
+import { protocolListProvidersEventName, protocolProviders } from '../plugin/apis/protocol/resources/providers'
+import { createPluginContext } from './runtimes/node'
 
 /**
  * Plugin Host lifecycle overview (transport-aware):
@@ -117,53 +153,722 @@ import { cwd } from 'node:process'
  *     Plugin Host should treat the Module to be un-prepared status, the needed procedure will be called.
  */
 
-export class PluginHost {
-  constructor() {
+const lifecycleTransitionRules: Record<PluginSessionPhase, PluginSessionPhase[]> = {
+  'loading': ['loaded', 'failed'],
+  'loaded': ['authenticating', 'stopped', 'failed'],
+  'authenticating': ['authenticated', 'failed'],
+  'authenticated': ['announced', 'failed'],
+  'announced': ['preparing', 'configuration-needed', 'failed', 'stopped'],
+  'preparing': ['waiting-deps', 'prepared', 'failed'],
+  'waiting-deps': ['prepared', 'failed'],
+  'prepared': ['configuration-needed', 'configured', 'failed'],
+  'configuration-needed': ['configured', 'failed'],
+  'configured': ['ready', 'failed'],
+  'ready': ['announced', 'configuration-needed', 'failed', 'stopped'],
+  'failed': ['stopped'],
+  'stopped': [],
+}
 
+function assertTransition(session: PluginHostSession, to: PluginSessionPhase) {
+  const allowed = lifecycleTransitionRules[session.phase]
+  if (!allowed.includes(to)) {
+    throw new Error(`Invalid plugin lifecycle transition: ${session.phase} -> ${to} for module ${session.identity.id}`)
+  }
+
+  session.phase = to
+}
+
+function isPluginDefinition(value: unknown): value is ReturnType<typeof definePlugin> {
+  return typeof value === 'object'
+    && value !== null
+    && 'setup' in value
+    && typeof (value as { setup?: unknown }).setup === 'function'
+}
+
+async function coercePluginFromModule(moduleValue: unknown): Promise<Plugin> {
+  if (isPluginDefinition(moduleValue)) {
+    return await moduleValue.setup()
+  }
+
+  if (typeof moduleValue === 'object' && moduleValue !== null) {
+    if ('default' in moduleValue && isPluginDefinition((moduleValue as { default?: unknown }).default)) {
+      return await (moduleValue as { default: ReturnType<typeof definePlugin> }).default.setup()
+    }
+
+    if ('default' in moduleValue && typeof (moduleValue as { default?: unknown }).default === 'object') {
+      const defaultPlugin = (moduleValue as { default: Plugin }).default
+      if (typeof defaultPlugin.init === 'function' || typeof defaultPlugin.setupModules === 'function') {
+        return defaultPlugin
+      }
+    }
+
+    const plugin = moduleValue as Plugin
+    if (typeof plugin.init === 'function' || typeof plugin.setupModules === 'function') {
+      return plugin
+    }
+  }
+
+  throw new Error('Failed to resolve plugin module. The entrypoint must export either definePlugin(...) or Plugin hooks.')
+}
+
+function createModuleIdentity(name: string, index: number): ModuleIdentity {
+  const sanitizedName = name.trim() || 'plugin'
+
+  return {
+    id: `${sanitizedName}-${index}`,
+    kind: 'plugin',
+    plugin: {
+      id: sanitizedName,
+    },
   }
 }
+
+export type PluginRuntime = 'electron' | 'node' | 'web'
+
+export type ModulePhase = ProtocolModulePhase
+
+export type PluginSessionPhase
+  = | 'loading'
+    | 'loaded'
+    | 'authenticating'
+    | 'authenticated'
+    | 'waiting-deps'
+    | ModulePhase
+    | 'stopped'
+
+export type PluginIdentity = ProtocolPluginIdentity
+
+export type ModuleIdentity = ProtocolModuleIdentity
+
+export type ModuleConfigEnvelope<C = Record<string, unknown>> = ProtocolModuleConfigEnvelope<C>
+
+export type ModuleCompatibilityRequest = ProtocolEvents['module:compatibility:request']
+
+export type ModuleCompatibilityResult = ProtocolEvents['module:compatibility:result']
 
 export interface ManifestV1 {
   apiVersion: 'v1'
   kind: 'manifest.plugin.airi.moeru.ai'
   name: string
   entrypoints: {
+    default?: string
     electron?: string
+    node?: string
+    web?: string
+  }
+}
+
+export const manifestV1Schema = object({
+  apiVersion: literal('v1'),
+  kind: literal('manifest.plugin.airi.moeru.ai'),
+  name: string(),
+  entrypoints: object({
+    default: optional(string()),
+    electron: optional(string()),
+    node: optional(string()),
+    web: optional(string()),
+  }),
+})
+
+export interface PluginLoadOptions {
+  cwd?: string
+  runtime?: PluginRuntime
+}
+
+export interface PluginHostOptions {
+  runtime?: PluginRuntime
+  transport?: PluginTransport
+  protocolVersion?: string
+  apiVersion?: string
+}
+
+export interface PluginStartOptions {
+  cwd?: string
+  runtime?: PluginRuntime
+  requireConfiguration?: boolean
+  compatibility?: Omit<ModuleCompatibilityRequest, 'protocolVersion' | 'apiVersion'>
+  requiredCapabilities?: string[]
+  capabilityWaitTimeoutMs?: number
+}
+
+export interface PluginHostSession {
+  manifest: ManifestV1
+  plugin: Plugin
+  id: string
+  index: number
+  identity: ModuleIdentity
+  phase: PluginSessionPhase
+  transport: PluginTransport
+  runtime: PluginRuntime
+  channels: {
+    host: ReturnType<typeof createPluginContext>
+  }
+  apis: ReturnType<typeof createApis>
+}
+
+/**
+ * In-memory Plugin Host MVP.
+ *
+ * Procedure placement:
+ * - `load(...)` covers step 0 and step 1 preparation:
+ *   - create channel gateway/context
+ *   - prepare per-plugin isolated runtime resources
+ *   - load plugin module from manifest entrypoint
+ * - `init(...)` covers protocol/lifecycle step 2 onwards:
+ *   - authentication
+ *   - compatibility negotiation
+ *   - registry sync + announce/prepare/configure/ready flow
+ *
+ * The design intentionally keeps `load` and `init` separate so callers can:
+ * - inspect/patch session state before booting,
+ * - batch-load many plugins first, then initialize deterministically.
+ */
+export class PluginHost {
+  private readonly loader: FileSystemLoader
+  private readonly sessions = new Map<string, PluginHostSession>()
+  private readonly runtime: PluginRuntime
+  private readonly transport: PluginTransport
+  private readonly protocolVersion: string
+  private readonly apiVersion: string
+  private readonly capabilities = new Map<string, CapabilityDescriptor>()
+  private readonly capabilityWaiters = new Map<string, Set<(descriptor: CapabilityDescriptor) => void>>()
+  private providersListResolver: () => Promise<Array<{ name: string }>> | Array<{ name: string }> = () => []
+  private sessionCounter = 0
+
+  constructor(options: PluginHostOptions = {}) {
+    this.loader = new FileSystemLoader()
+    this.runtime = options.runtime ?? 'electron'
+    this.transport = options.transport ?? { kind: 'in-memory' }
+    this.protocolVersion = options.protocolVersion ?? 'v1'
+    this.apiVersion = options.apiVersion ?? 'v1'
+    this.markCapabilityReady(protocolListProvidersEventName, { source: 'plugin-host' })
+  }
+
+  listSessions() {
+    return [...this.sessions.values()]
+  }
+
+  getSession(sessionId: string) {
+    return this.sessions.get(sessionId)
+  }
+
+  async load(manifest: ManifestV1, options: PluginLoadOptions = {}): Promise<PluginHostSession> {
+    // Step 0 (channel gateway preparation): resolve runtime and transport for this plugin.
+    const runtime = options.runtime ?? this.runtime
+    const transport = this.transport
+
+    // TODO: implement other transports and runtime bindings.
+    // alpha scope guard:
+    // we intentionally fail fast for non in-memory transports while iterating on lifecycle design.
+    if (transport.kind !== 'in-memory') {
+      throw new Error(`Only in-memory transport is currently supported by PluginHost alpha. Got: ${transport.kind}`)
+    }
+
+    // Build deterministic per-session identity.
+    // `sessionCounter` gives stable ordering for registry sync and debugging.
+    const sessionIndex = this.sessionCounter
+    this.sessionCounter += 1
+
+    const id = `plugin-session-${sessionIndex}`
+    const identity = createModuleIdentity(manifest.name, sessionIndex)
+
+    // Step 1 (connect/control-plane prep): create an isolated Eventa context per plugin.
+    // All invokes/events for this plugin go through this context to prevent cross-talk.
+    const hostChannel = createPluginContext(transport)
+    defineInvokeHandler(hostChannel, protocolCapabilityWait, async (payload) => {
+      return await this.waitForCapability(payload.key, payload?.timeoutMs)
+    })
+    defineInvokeHandler(hostChannel, protocolCapabilitySnapshot, async () => {
+      return this.listCapabilities()
+    })
+    defineInvokeHandler(hostChannel, protocolProviders.listProviders, async () => {
+      return await this.providersListResolver()
+    })
+
+    const session: PluginHostSession = {
+      manifest,
+      plugin: {},
+      id,
+      index: sessionIndex,
+      identity,
+      phase: 'loading',
+      transport,
+      runtime,
+      channels: {
+        host: hostChannel,
+      },
+      apis: createBoundApis(hostChannel),
+    }
+
+    // Register session before loading so failure paths still have observable state.
+    this.sessions.set(id, session)
+
+    try {
+      // Load plugin module from manifest-selected runtime entrypoint.
+      // This is where malformed entrypoints or import errors surface.
+      session.plugin = await this.loader.loadPluginFor(manifest, {
+        cwd: options.cwd,
+        runtime,
+      })
+
+      // Assert lifecycle progression (`loading` -> `loaded`) to keep transition rules explicit.
+      // This prevents accidental phase drift if the method evolves later.
+      assertTransition(session, 'loaded')
+      return session
+    }
+    catch (error) {
+      // Load failure is terminal for this session (`loading` -> `failed`).
+      // Emit status so Configurator/observers can show deterministic diagnostics.
+      assertTransition(session, 'failed')
+      session.channels.host.emit(moduleStatus, {
+        identity: session.identity,
+        phase: 'failed',
+        reason: error instanceof Error ? error.message : 'Failed to load plugin.',
+      })
+
+      throw error
+    }
+  }
+
+  async init(sessionId: string, options: PluginStartOptions = {}): Promise<PluginHostSession> {
+    // `init` starts at procedure step 2 (authenticate) and drives lifecycle to ready.
+    const session = this.sessions.get(sessionId)
+    if (!session) {
+      throw new Error(`Unable to initialize plugin session: ${sessionId}`)
+    }
+
+    // Safety gate: initialization can only begin from a successfully loaded plugin.
+    if (session.phase !== 'loaded') {
+      throw new Error(`Session ${sessionId} cannot initialize from phase ${session.phase}. Expected loaded.`)
+    }
+
+    try {
+      let preparedEmitted = false
+
+      // Step 2: authenticate module against host control plane.
+      assertTransition(session, 'authenticating')
+      session.channels.host.emit(moduleAuthenticate, {
+        token: `${session.id}:${session.identity.id}`,
+      })
+
+      // Mark local lifecycle after authentication handshake.
+      assertTransition(session, 'authenticated')
+      session.channels.host.emit(moduleAuthenticated, { authenticated: true })
+
+      // Step 3: protocol/api compatibility negotiation.
+      const compatibilityRequest: ModuleCompatibilityRequest = {
+        protocolVersion: this.protocolVersion,
+        apiVersion: this.apiVersion,
+        supportedProtocolVersions: options.compatibility?.supportedProtocolVersions,
+        supportedApiVersions: options.compatibility?.supportedApiVersions,
+      }
+
+      session.channels.host.emit(moduleCompatibilityRequest, compatibilityRequest)
+      session.channels.host.emit(moduleCompatibilityResult, {
+        protocolVersion: compatibilityRequest.protocolVersion,
+        apiVersion: compatibilityRequest.apiVersion,
+        mode: 'exact',
+      })
+
+      // Step 4: broadcast currently known modules for dependency discovery/bootstrap.
+      session.channels.host.emit(registryModulesSync, {
+        modules: this.listSessions()
+          .filter(item => item.phase !== 'stopped')
+          .map(item => ({
+            name: item.manifest.name,
+            index: item.index,
+            identity: item.identity,
+          })),
+      })
+
+      // Step 5: module announcement to the shared control plane.
+      assertTransition(session, 'announced')
+      session.channels.host.emit(moduleAnnounce, {
+        name: session.manifest.name,
+        identity: session.identity,
+        possibleEvents: [],
+      })
+      session.channels.host.emit(moduleStatus, {
+        identity: session.identity,
+        phase: 'announced',
+      })
+
+      // Step 6/7: preparing phase (dependency/config preparation may happen inside plugin init).
+      assertTransition(session, 'preparing')
+      session.channels.host.emit(moduleStatus, {
+        identity: session.identity,
+        phase: 'preparing',
+      })
+
+      // Optional dependency gate before plugin-owned initialization.
+      if (options.requiredCapabilities?.length) {
+        assertTransition(session, 'waiting-deps')
+        session.channels.host.emit(moduleStatus, {
+          identity: session.identity,
+          phase: 'preparing',
+          reason: `Waiting for capabilities: ${options.requiredCapabilities.join(', ')}`,
+        })
+
+        await this.waitForCapabilities(options.requiredCapabilities, options.capabilityWaitTimeoutMs)
+        assertTransition(session, 'prepared')
+        session.channels.host.emit(modulePrepared, {
+          identity: session.identity,
+        })
+        session.channels.host.emit(moduleStatus, {
+          identity: session.identity,
+          phase: 'prepared',
+        })
+        preparedEmitted = true
+      }
+
+      // Run plugin-owned init hook. Returning `false` explicitly aborts startup.
+      const initResult = await session.plugin.init?.({
+        channels: session.channels,
+        apis: session.apis,
+      })
+
+      if (initResult === false) {
+        throw new Error(`Plugin initialization aborted by plugin: ${session.manifest.name}`)
+      }
+
+      // Step 8/10: module prepared.
+      if (!preparedEmitted) {
+        assertTransition(session, 'prepared')
+        session.channels.host.emit(modulePrepared, {
+          identity: session.identity,
+        })
+        session.channels.host.emit(moduleStatus, {
+          identity: session.identity,
+          phase: 'prepared',
+        })
+      }
+
+      // Step 9/11: allow host to stop at explicit "configuration-needed".
+      if (options.requireConfiguration) {
+        assertTransition(session, 'configuration-needed')
+        session.channels.host.emit(moduleConfigurationNeeded, {
+          identity: session.identity,
+          reason: 'Host requested configuration before activation.',
+        })
+        session.channels.host.emit(moduleStatus, {
+          identity: session.identity,
+          phase: 'configuration-needed',
+        })
+
+        return session
+      }
+
+      // Step 12/13: apply default config path for alpha when no manual configuration is required.
+      await this.applyConfiguration(session.id, {
+        configId: `${session.identity.id}:default`,
+        revision: 1,
+        schemaVersion: 1,
+        full: {},
+      })
+
+      // Step 14/15: plugin contributes modules/capabilities in setup hook.
+      await session.plugin.setupModules?.({
+        channels: session.channels,
+        apis: session.apis,
+      })
+
+      // Step 16: mark ready after setup/contribution flow completes.
+      assertTransition(session, 'ready')
+      session.channels.host.emit(moduleStatus, {
+        identity: session.identity,
+        phase: 'ready',
+      })
+
+      return session
+    }
+    catch (error) {
+      // Any init failure is normalized into failed phase + status event for observability.
+      const currentPhase = session.phase
+      if (lifecycleTransitionRules[currentPhase].includes('failed')) {
+        assertTransition(session, 'failed')
+      }
+      else {
+        session.phase = 'failed'
+      }
+
+      session.channels.host.emit(moduleStatus, {
+        identity: session.identity,
+        phase: 'failed',
+        reason: error instanceof Error ? error.message : 'Plugin host initialization failed.',
+      })
+
+      throw error
+    }
+  }
+
+  async start(manifest: ManifestV1, options: PluginStartOptions = {}) {
+    // Convenience wrapper: "start" = load + init in sequence.
+    // Keep this tiny so callers can still call `load`/`init` separately when needed.
+    const session = await this.load(manifest, {
+      cwd: options.cwd,
+      runtime: options.runtime,
+    })
+
+    return this.init(session.id, options)
+  }
+
+  async applyConfiguration(sessionId: string, config: ModuleConfigEnvelope) {
+    // Configuration is allowed only after prepare, during configuration-needed, or while re-configuring.
+    const session = this.sessions.get(sessionId)
+    if (!session) {
+      throw new Error(`Unable to configure plugin session: ${sessionId}`)
+    }
+
+    if (!['prepared', 'configuration-needed', 'configured'].includes(session.phase)) {
+      throw new Error(`Session ${sessionId} cannot accept configuration during phase ${session.phase}.`)
+    }
+
+    // Move into configured once per cycle; repeated apply is allowed while already configured.
+    if (session.phase !== 'configured') {
+      assertTransition(session, 'configured')
+    }
+
+    // Emit configured payload + status so Configurator can sync active config state.
+    session.channels.host.emit(moduleConfigurationConfigured, {
+      identity: session.identity,
+      config,
+    })
+
+    session.channels.host.emit(moduleStatus, {
+      identity: session.identity,
+      phase: 'configured',
+    })
+
+    return session
+  }
+
+  setProvidersListResolver(resolver: () => Promise<Array<{ name: string }>> | Array<{ name: string }>) {
+    this.providersListResolver = resolver
+    this.markCapabilityReady(protocolListProvidersEventName, { source: 'plugin-host-override' })
+  }
+
+  announceCapability(key: string, metadata?: Record<string, unknown>) {
+    const current = this.capabilities.get(key)
+    const descriptor: CapabilityDescriptor = {
+      key,
+      state: 'announced',
+      metadata: metadata ?? current?.metadata,
+      updatedAt: Date.now(),
+    }
+
+    this.capabilities.set(key, descriptor)
+    return descriptor
+  }
+
+  markCapabilityReady(key: string, metadata?: Record<string, unknown>) {
+    const current = this.capabilities.get(key)
+    const descriptor: CapabilityDescriptor = {
+      key,
+      state: 'ready',
+      metadata: metadata ?? current?.metadata,
+      updatedAt: Date.now(),
+    }
+
+    this.capabilities.set(key, descriptor)
+    const waiters = this.capabilityWaiters.get(key)
+    if (waiters) {
+      for (const resolve of waiters) {
+        resolve(descriptor)
+      }
+      this.capabilityWaiters.delete(key)
+    }
+
+    return descriptor
+  }
+
+  listCapabilities() {
+    return [...this.capabilities.values()]
+  }
+
+  isCapabilityReady(key: string) {
+    return this.capabilities.get(key)?.state === 'ready'
+  }
+
+  async waitForCapabilities(keys: string[], timeoutMs: number = 15000) {
+    await Promise.all(keys.map(async key => await this.waitForCapability(key, timeoutMs)))
+  }
+
+  async waitForCapability(key: string, timeoutMs: number = 15000) {
+    const existing = this.capabilities.get(key)
+    if (existing?.state === 'ready') {
+      return existing
+    }
+
+    return await new Promise<CapabilityDescriptor>((resolve, reject) => {
+      let timeout: ReturnType<typeof setTimeout> | undefined
+      const onReady = (descriptor: CapabilityDescriptor) => {
+        if (timeout) {
+          clearTimeout(timeout)
+        }
+        resolve(descriptor)
+      }
+
+      const waiters = this.capabilityWaiters.get(key) ?? new Set()
+      waiters.add(onReady)
+      this.capabilityWaiters.set(key, waiters)
+
+      timeout = setTimeout(() => {
+        const currentWaiters = this.capabilityWaiters.get(key)
+        currentWaiters?.delete(onReady)
+        if (currentWaiters && currentWaiters.size === 0) {
+          this.capabilityWaiters.delete(key)
+        }
+        reject(new Error(`Capability \`${key}\` is not ready after ${timeoutMs}ms.`))
+      }, timeoutMs)
+    })
+  }
+
+  markConfigurationNeeded(sessionId: string, reason?: string) {
+    // Explicit rollback/forward hook into "configuration-needed" phase.
+    // Mirrors procedure step 17 where module may request reconfiguration.
+    const session = this.sessions.get(sessionId)
+    if (!session) {
+      throw new Error(`Unable to update plugin session: ${sessionId}`)
+    }
+
+    if (!['prepared', 'configured', 'ready', 'announced'].includes(session.phase)) {
+      throw new Error(`Session ${sessionId} cannot move to configuration-needed from ${session.phase}.`)
+    }
+
+    // Assert guarded transition to avoid illegal phase jumps.
+    assertTransition(session, 'configuration-needed')
+    session.channels.host.emit(moduleConfigurationNeeded, {
+      identity: session.identity,
+      reason,
+    })
+    session.channels.host.emit(moduleStatus, {
+      identity: session.identity,
+      phase: 'configuration-needed',
+      reason,
+    })
+
+    return session
+  }
+
+  stop(sessionId: string) {
+    // Stop removes session from active registry. Lifecycle first transitions to `stopped`.
+    const session = this.sessions.get(sessionId)
+    if (!session) {
+      return undefined
+    }
+
+    // Prefer guarded transition when allowed; otherwise force-close as a safety fallback.
+    if (session.phase !== 'stopped') {
+      if (lifecycleTransitionRules[session.phase].includes('stopped')) {
+        assertTransition(session, 'stopped')
+      }
+      else {
+        session.phase = 'stopped'
+      }
+    }
+
+    this.sessions.delete(session.id)
+    return session
+  }
+
+  async reload(sessionId: string, options: PluginStartOptions = {}) {
+    // Reload preserves manifest/runtime intent, then performs stop + fresh start.
+    // This intentionally creates a new session identity for deterministic re-bootstrap.
+    const previous = this.sessions.get(sessionId)
+    if (!previous) {
+      throw new Error(`Unable to reload missing plugin session: ${sessionId}`)
+    }
+
+    const manifest = previous.manifest
+    const cwdValue = options.cwd
+    this.stop(sessionId)
+    return this.start(manifest, {
+      ...options,
+      cwd: cwdValue,
+      runtime: options.runtime ?? previous.runtime,
+    })
   }
 }
 
 export class FileSystemLoader {
+  /**
+   * Filesystem-backed plugin module loader.
+   *
+   * Responsibilities:
+   * - Resolve runtime-specific entrypoints from `ManifestV1`.
+   * - Import plugin modules from local disk.
+   * - Normalize module exports into either:
+   *   - lazy plugin definition (`definePlugin(...)`) via `loadLazyPluginFor`, or
+   *   - executable plugin hooks (`Plugin`) via `loadPluginFor`.
+   */
   constructor() {
 
   }
 
-  async loadLazyPluginFor(manifest: ManifestV1, options?: { cwd?: string }) {
+  /**
+   * Resolve a manifest entrypoint for the requested runtime.
+   *
+   * Resolution order:
+   * 1) `entrypoints.<runtime>`
+   * 2) `entrypoints.default`
+   * 3) `entrypoints.electron` (legacy fallback for current local plugin manifests)
+   *
+   * Throws an actionable error when no entrypoint can be selected.
+   */
+  resolveEntrypointFor(manifest: ManifestV1, options?: PluginLoadOptions) {
+    const runtime = options?.runtime ?? 'electron'
     const root = options?.cwd ?? cwd()
-    if (!manifest.entrypoints.electron) {
+    const entrypoint
+      = manifest.entrypoints[runtime]
+        ?? manifest.entrypoints.default
+        ?? manifest.entrypoints.electron
+
+    if (!entrypoint) {
       throw new Error(''
-        + 'For locally installed, defined plugin, electron entrypoint is required.'
-        + 'The value of `entrypoints.electron` should be the relative path to the '
-        + 'root of app.getPath(\'userData\').',
+        + `Plugin entrypoint is required for runtime \`${runtime}\`. `
+        + 'Define one of `entrypoints.<runtime>`, `entrypoints.default`, '
+        + 'or `entrypoints.electron` in the plugin manifest.',
       )
     }
 
-    const entrypoint = join(root, manifest.entrypoints.electron)
-    const pluginModule = await import(entrypoint) as { default: ReturnType<typeof definePlugin> }
-    return pluginModule.default
+    return join(root, entrypoint)
   }
 
-  async loadPluginFor(manifest: ManifestV1, options?: { cwd?: string }) {
-    const root = options?.cwd ?? cwd()
-    if (!manifest.entrypoints.electron) {
-      throw new Error(''
-        + 'For locally installed, defined plugin, electron entrypoint is required.'
-        + 'The value of `entrypoints.electron` should be the relative path to the '
-        + 'root of app.getPath(\'userData\').',
-      )
+  /**
+   * Load a lazy plugin definition (`definePlugin(...)`) without executing setup.
+   *
+   * Use this when host logic wants to inspect plugin metadata/setup contract first
+   * and control when `setup()` is called.
+   */
+  async loadLazyPluginFor(manifest: ManifestV1, options?: PluginLoadOptions) {
+    const entrypoint = this.resolveEntrypointFor(manifest, options)
+    const pluginModule = await import(entrypoint)
+
+    if (isPluginDefinition(pluginModule)) {
+      return pluginModule
     }
 
-    const entrypoint = join(root, manifest.entrypoints.electron)
-    const pluginModule = await import(entrypoint) as Plugin
-    return pluginModule
+    if (typeof pluginModule === 'object' && pluginModule !== null) {
+      const defaultExport = (pluginModule as { default?: unknown }).default
+      if (isPluginDefinition(defaultExport)) {
+        return defaultExport
+      }
+    }
+
+    throw new Error('Plugin lazy loader expects a definePlugin(...) export.')
+  }
+
+  /**
+   * Load and normalize a plugin entrypoint into executable `Plugin` hooks.
+   *
+   * Accepts:
+   * - a direct `Plugin` export
+   * - a default `Plugin` export
+   * - `definePlugin(...)` (calls `setup()` and returns the resulting `Plugin`)
+   */
+  async loadPluginFor(manifest: ManifestV1, options?: PluginLoadOptions) {
+    const entrypoint = this.resolveEntrypointFor(manifest, options)
+    const pluginModule = await import(entrypoint)
+    return coercePluginFromModule(pluginModule)
   }
 }

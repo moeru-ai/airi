@@ -37,6 +37,8 @@ AIRI is a multi-node system where plugins, bridges, and viewers communicate over
 
 AIRI needs to run across desktop, web, and mobile while keeping one clean API surface. Plugins must be able to register UI, declare capabilities, and exchange data with device-specific bridges. To keep the system scalable, high-rate streams must be separated from lifecycle and configuration traffic.
 
+Runtime dependency orchestration is intentionally split into a dedicated design document to keep this architecture document focused on platform shape and planes.
+
 ## Goals
 
 - Provide a single plugin API surface across runtimes.
@@ -112,7 +114,7 @@ Viewers render UI and character output. Examples:
 ### Plugin Lifecycle Overview
 
 The lifecycle below mirrors the detailed lifecycle comment in
-`packages/plugin-sdk/src/plugin-host/index.ts` and focuses on the module
+`packages/plugin-sdk/src/plugin-host/core.ts` and focuses on the module
 announcement, configuration, and capability phases.
 
 ```mermaid
@@ -131,6 +133,8 @@ flowchart TD
   L --> M[Capability configuration phase]
   M --> N[module:status ready]
 ```
+
+Detailed capability dependency orchestration, waiting phases, and readiness gates are defined in `capability-orchestration.md`.
 
 ### Bridges And Remote Plugins
 
@@ -210,6 +214,7 @@ Active design.
 ### Next Steps
 
 - Align runtime docs with updated plugin context and transport strategy.
+- Integrate capability registry and readiness-gate lifecycle transitions from `capability-orchestration.md`.
 - Expand remote plugin examples by language.
 
 ## Reviews
@@ -227,4 +232,5 @@ Active design.
 
 ### Related Documentations
 
-- [Multi-Transport Plugin Contexts](../../../../packages/plugin-sdk/docs/design/multi-transport.md)
+- [Multi-Transport Plugin Contexts](./multi-transport.md)
+- [Capability-Oriented Module Orchestration](./capability-orchestration.md)

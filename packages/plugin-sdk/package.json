@@ -39,6 +39,8 @@
   },
   "dependencies": {
     "@moeru/eventa": "catalog:",
-    "@proj-airi/server-shared": "workspace:*"
+    "@proj-airi/plugin-protocol": "workspace:*",
+    "@proj-airi/server-shared": "workspace:*",
+    "valibot": "^1.2.0"
   }
 }
