@@ -685,6 +685,12 @@ pages:
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry
+      minimax:
+        description: minimaxi.com
+        title: MiniMax
+      minimax-global:
+        description: minimax.io
+        title: MiniMax Global
       mistral:
         description: mistral.ai
         title: Mistral
