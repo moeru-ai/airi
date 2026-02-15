@@ -67,6 +67,12 @@ Core query entrypoints:
 - `query.entities()`: nearby entities with chain methods (`within`, `limit`, `whereType`, `names`, `first`, `list`)
 - `query.inventory()`: inventory stacks (`whereName`, `names`, `countByName`, `count`, `has`, `summary`, `list`)
 - `query.craftable()`: craftable item names (supports `uniq`, `whereIncludes`, `list`)
+- `query.gaze(options?)`: where nearby players are looking (`playerName`, `lookPoint`, `hitBlock`)
+- `query.map(options?)`: ASCII top-down or cross-section map of surroundings. Returns `{ map, legend, center, radius, view }`.
+  - Options: `{ radius?: number (1-32, default 16), view?: "top-down" | "cross-section", showEntities?: boolean, showElevation?: boolean, yLevel?: number }`
+  - Symbols: `.`=ground `#`=stone `~`=water `%`=lava `T`=tree trunk `$`=ore `!`=chest/furnace/table `@`=you `P`=player `M`=hostile `A`=animal
+  - Use `query.map()` for spatial awareness — finding trees, water, ores, structures, and navigating terrain.
+  - Use `query.map({ view: "cross-section" })` to see underground layers (caves, ore veins, elevation).
 
 Composable patterns:
 - `const ores = query.blocks().within(24).isOre().names().uniq().list()`
@@ -79,6 +85,8 @@ Composable patterns:
 - `const invSummary = query.inventory().summary(); invSummary`
 - `const invLine = query.inventory().summary().map(({ name, count }) => `${count} ${name}`).join(", "); invLine`
 - `const craftableTools = query.craftable().whereIncludes("pickaxe").uniq().list()`
+- `const area = query.map({ radius: 16 }); area.map` — top-down ASCII map of surroundings
+- `const underground = query.map({ view: "cross-section", radius: 8 }); underground.map` — vertical slice showing caves/ores
 
 Inventory summary shape reminder:
 - `query.inventory().summary()` returns an **array** of `{ name, count }`.

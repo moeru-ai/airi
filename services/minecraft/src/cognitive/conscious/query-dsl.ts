@@ -8,6 +8,7 @@ import { inspect } from 'node:util'
 import { Vec3 } from 'vec3'
 
 import { computeNearbyPlayerGaze } from '../perception/gaze'
+import { renderMap } from './map-renderer'
 
 import * as world from '../../skills/world'
 
@@ -446,6 +447,9 @@ export function createQueryRuntime(mineflayer: Mineflayer) {
         maxDistance: 32,
         nearbyDistance: options?.range ?? 16,
       })
+    },
+    map: (options?: { radius?: number, view?: 'top-down' | 'cross-section', showEntities?: boolean, showElevation?: boolean, yLevel?: number }) => {
+      return renderMap(mineflayer.bot, options)
     },
   }
 }
