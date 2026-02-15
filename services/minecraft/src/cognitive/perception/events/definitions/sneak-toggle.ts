@@ -59,22 +59,4 @@ export const sneakToggleEvent = definePerceptionEvent<[any], SneakToggleExtract>
     }),
   },
 
-  saliency: {
-    threshold: 5,
-    key: 'teabag:player',
-  },
-
-  signal: {
-    type: 'entity_attention',
-    description: extracted => `Player ${extracted.displayName || 'unknown'} is teabagging (rapid sneaking)`,
-    metadata: extracted => ({
-      kind: 'player',
-      action: 'teabag',
-      distance: extracted.distance,
-      hasLineOfSight: extracted.hasLineOfSight,
-      displayName: extracted.displayName,
-    }),
-  },
-
-  routes: ['conscious', 'reflex', 'debug'],
 })

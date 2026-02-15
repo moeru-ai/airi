@@ -86,23 +86,6 @@ function inferCauseFromName(name: string): DamageSourceCause {
   return 'unknown'
 }
 
-function describeDamageTaken(extracted: DamageTakenExtract): string {
-  const amount = extracted.amount
-  const ds = extracted.damageSource
-  const cause = ds?.cause ?? 'unknown'
-  const name = ds?.name
-  const distance = ds?.distance
-
-  const details = [
-    `amount=${amount}`,
-    `cause=${cause}`,
-    typeof name === 'string' && name.length > 0 ? `name=${name}` : null,
-    typeof distance === 'number' ? `distance=${distance.toFixed(1)}` : null,
-  ].filter(Boolean).join(', ')
-
-  return `Taken damage (${details}).`
-}
-
 export const damageTakenEvent = definePerceptionEvent<[], DamageTakenExtract>({
   id: 'damage_taken',
   modality: 'felt',
@@ -139,21 +122,4 @@ export const damageTakenEvent = definePerceptionEvent<[], DamageTakenExtract>({
     },
   },
 
-  saliency: {
-    threshold: 1,
-    key: 'felt:damage',
-  },
-
-  signal: {
-    type: 'saliency_high',
-    description: extracted => describeDamageTaken(extracted),
-    metadata: extracted => ({
-      kind: 'felt',
-      action: 'damage',
-      amount: extracted.amount,
-      damageSource: extracted.damageSource,
-    }),
-  },
-
-  routes: ['conscious', 'reflex', 'debug'],
 })

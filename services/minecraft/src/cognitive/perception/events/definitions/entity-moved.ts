@@ -34,22 +34,4 @@ export const entityMovedEvent = definePerceptionEvent<[any], EntityMovedExtract>
     }),
   },
 
-  saliency: {
-    threshold: 5,
-    key: 'move:player',
-  },
-
-  signal: {
-    type: 'entity_attention',
-    description: extracted => `Player ${extracted.displayName || 'unknown'} is moving nearby`,
-    metadata: extracted => ({
-      kind: 'player',
-      action: 'move',
-      distance: extracted.distance,
-      hasLineOfSight: extracted.hasLineOfSight,
-      displayName: extracted.displayName,
-    }),
-  },
-
-  routes: ['reflex', 'debug'],
 })

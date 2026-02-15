@@ -9,7 +9,6 @@ import type {
   ReflexStateEvent,
   ReplExecutionResultEvent,
   ReplStateEvent,
-  SaliencyEvent,
   ServerEvent,
   TraceEvent,
 } from './types'
@@ -117,24 +116,6 @@ export class DebugService {
   }
 
   /**
-   * Emit a saliency snapshot
-   */
-  public emitSaliency(
-    slot: number,
-    counters: SaliencyEvent['counters'],
-  ): void {
-    const event: ServerEvent = {
-      type: 'saliency',
-      payload: {
-        slot,
-        counters,
-        timestamp: Date.now(),
-      },
-    }
-    this.server.broadcast(event)
-  }
-
-  /**
    * Emit a single trace event from the EventBus
    */
   public emitTrace(trace: TraceEvent): void {
@@ -212,19 +193,6 @@ export class DebugService {
       case 'queue':
         this.server.broadcast({ type: 'queue', payload: payload as QueueEvent })
         break
-      case 'saliency': {
-        // Transform the saliency data to match expected format
-        const data = payload as { slot?: number, counters?: SaliencyEvent['counters'] }
-        this.server.broadcast({
-          type: 'saliency',
-          payload: {
-            slot: data.slot || 0,
-            counters: data.counters || [],
-            timestamp: Date.now(),
-          },
-        })
-        break
-      }
       case 'reflex':
         this.emitReflexState(payload as Omit<ReflexStateEvent, 'timestamp'>)
         break

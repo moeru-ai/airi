@@ -28,21 +28,4 @@ export const soundHeardEvent = definePerceptionEvent<[string, Vec3], SoundHeardE
     }),
   },
 
-  saliency: {
-    threshold: 5,
-    key: 'sound:ambient',
-  },
-
-  signal: {
-    type: 'environmental_anomaly',
-    description: extracted => `Heard sound: ${extracted.soundId}`,
-    metadata: extracted => ({
-      kind: 'sound',
-      action: 'sound',
-      soundId: extracted.soundId,
-      distance: extracted.distance,
-    }),
-  },
-
-  routes: ['conscious', 'debug'],
 })

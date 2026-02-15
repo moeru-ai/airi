@@ -732,107 +732,6 @@ class ConversationPanel {
 }
 
 // =============================================================================
-// Saliency Panel
-// =============================================================================
-
-class SaliencyPanel {
-  constructor(client) {
-    this.client = client
-    this.data = null
-    this.elements = {
-      canvas: document.getElementById('saliency-canvas'),
-      labels: document.getElementById('saliency-labels'),
-      slot: document.getElementById('saliency-slot'),
-    }
-    this.ctx = this.elements.canvas.getContext('2d')
-  }
-
-  init() {
-    this.client.on('saliency', data => this.update(data))
-    this.client.on('connected', () => this.reset())
-  }
-
-  update(data) {
-    this.data = data
-    this.render()
-  }
-
-  reset() {
-    this.data = null
-    this.render()
-  }
-
-  render() {
-    if (!this.data || !this.data.counters) {
-      this.elements.labels.innerHTML = '<div class="empty-state">No data</div>'
-      return
-    }
-
-    this.elements.slot.textContent = this.data.slot || 0
-
-    // Use all counters directly from server (fixed order)
-    const counters = this.data.counters
-
-    // Render labels
-    this.elements.labels.innerHTML = counters.map(c => `
-      <div class="saliency-label">
-        <span class="saliency-key">${escapeHtml(c.key || '')}</span>
-        <span class="saliency-total">(${c.total || 0})</span>
-      </div>
-    `).join('')
-
-    // Render canvas
-    const cols = 100
-    const rows = counters.length
-    const cellW = 6
-    const cellH = 16
-
-    this.elements.canvas.width = cols * cellW
-    this.elements.canvas.height = Math.max(1, rows) * cellH
-
-    this.ctx.fillStyle = '#0d1117'
-    this.ctx.fillRect(0, 0, this.elements.canvas.width, this.elements.canvas.height)
-
-    let maxCell = 0
-    for (const counter of counters) {
-      for (let i = 0; i < Math.min(cols, counter.window?.length || 0); i++) {
-        maxCell = Math.max(maxCell, counter.window[i] || 0)
-      }
-    }
-
-    for (let y = 0; y < rows; y++) {
-      const counter = counters[y]
-      const w = counter.window || []
-      const t = counter.triggers || []
-
-      for (let x = 0; x < cols; x++) {
-        const v = x < w.length ? (w[x] || 0) : 0
-        const fired = x < t.length ? (t[x] || 0) : 0
-
-        this.ctx.fillStyle = fired
-          ? 'rgba(248, 81, 73, 0.9)'
-          : this.colorFor(v, maxCell)
-        this.ctx.fillRect(x * cellW, y * cellH, cellW - 1, cellH - 1)
-      }
-    }
-  }
-
-  colorFor(value, maxValue) {
-    // Always show a subtle color for empty cells, never fully transparent
-    if (value === 0) {
-      return 'rgba(30, 38, 50, 1)' // Dark background for empty cells
-    }
-    // Normalize value when we have data
-    const max = maxValue || 1
-    const t = Math.min(1, value / max)
-    const r = Math.round(88 + 80 * t)
-    const g = Math.round(166 + 80 * t)
-    const b = Math.round(255 * t)
-    return `rgba(${r},${g},${b},${0.3 + 0.7 * t})`
-  }
-}
-
-// =============================================================================
 // Tools Panel
 // =============================================================================
 
@@ -1491,7 +1390,6 @@ class LayoutManager {
       { id: 'splitter-v1', var: '--col-left', type: 'v' },
       { id: 'splitter-h1', var: '--row-1', type: 'h' },
       { id: 'splitter-h2', var: '--row-2', type: 'h' },
-      { id: 'splitter-h3', var: '--row-3', type: 'h' },
     ]
 
     splitters.forEach((config) => {
@@ -1578,7 +1476,6 @@ class DebugApp {
     this.brainPanel = new BrainPanel(this.client)
     this.logsPanel = new LogsPanel(this.client)
     this.conversationPanel = new ConversationPanel(this.client)
-    this.saliencyPanel = new SaliencyPanel(this.client)
     this.timelinePanel = new TimelinePanel(this.client)
     this.toolsPanel = new ToolsPanel(this.client)
     this.replPanel = new ReplPanel(this.client)
@@ -1589,7 +1486,6 @@ class DebugApp {
       brain: this.brainPanel,
       logs: this.logsPanel,
       conversation: this.conversationPanel,
-      saliency: this.saliencyPanel,
       timeline: this.timelinePanel,
       tools: this.toolsPanel,
       repl: this.replPanel,

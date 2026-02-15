@@ -55,19 +55,6 @@ export interface QueueEvent {
   timestamp: number
 }
 
-export interface SaliencyEvent {
-  slot: number
-  counters: Array<{
-    key: string
-    total: number
-    window: number[]
-    triggers: number[]
-    lastFireSlot: number | null
-    lastFireTotal: number
-  }>
-  timestamp: number
-}
-
 /**
  * Reflex system state update
  */
@@ -189,7 +176,6 @@ export type ServerEvent
     | { type: 'llm', payload: LLMTraceEvent }
     | { type: 'blackboard', payload: BlackboardEvent }
     | { type: 'queue', payload: QueueEvent }
-    | { type: 'saliency', payload: SaliencyEvent }
     | { type: 'reflex', payload: ReflexStateEvent }
     | { type: 'trace', payload: TraceEvent }
     | { type: 'trace_batch', payload: TraceBatchEvent }

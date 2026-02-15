@@ -34,22 +34,4 @@ export const armSwingEvent = definePerceptionEvent<[any], ArmSwingExtract>({
     }),
   },
 
-  saliency: {
-    threshold: 5,
-    key: 'punch:player',
-  },
-
-  signal: {
-    type: 'entity_attention',
-    description: extracted => `Player ${extracted.displayName || 'unknown'} is punching nearby`,
-    metadata: extracted => ({
-      kind: 'player',
-      action: 'punch',
-      distance: extracted.distance,
-      hasLineOfSight: extracted.hasLineOfSight,
-      displayName: extracted.displayName,
-    }),
-  },
-
-  routes: ['conscious', 'reflex', 'debug'],
 })

@@ -8,6 +8,5 @@ export type {
   LLMTraceEvent,
   LogEvent,
   QueueEvent,
-  SaliencyEvent,
   ServerEvent,
 } from './types'
