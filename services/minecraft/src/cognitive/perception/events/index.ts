@@ -96,6 +96,10 @@ export class EventRegistry {
       clearInterval(this.timer)
       this.timer = null
     }
+    // NOTICE: Nullify context so that any stale mineflayer listeners that fire
+    // after stop() (but before detachFromBot()) are silently ignored by the
+    // guard at the top of handleMineflayerEvent.
+    this.context = null
   }
 
   public getDebugSnapshot(): SaliencySnapshot {
