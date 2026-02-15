@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@guiiai/logg": "catalog:",
+    "@modelcontextprotocol/sdk": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/server-sdk": "^0.8.1",
     "@xsai/generate-text": "catalog:",

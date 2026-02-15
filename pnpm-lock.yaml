@@ -36,6 +36,9 @@ catalogs:
     '@iconify-json/tabler':
       specifier: ^1.2.26
       version: 1.2.26
+    '@modelcontextprotocol/sdk':
+      specifier: ^1.25.3
+      version: 1.25.3
     '@moeru/eslint-config':
       specifier: 0.1.0-beta.15
       version: 0.1.0-beta.15
@@ -3136,6 +3139,9 @@ importers:
       '@guiiai/logg':
         specifier: 'catalog:'
         version: 1.2.11
+      '@modelcontextprotocol/sdk':
+        specifier: 'catalog:'
+        version: 1.25.3(@cfworker/json-schema@4.1.1)(hono@4.11.3)(zod@4.3.5)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.14

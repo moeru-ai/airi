@@ -37,6 +37,7 @@ catalog:
   '@histoire/plugin-vue': 1.0.0-beta.1
   '@iconify-json/logos': ^1.2.10
   '@iconify-json/tabler': ^1.2.26
+  '@modelcontextprotocol/sdk': ^1.25.3
   '@moeru/eslint-config': 0.1.0-beta.15
   '@moeru/eventa': '1.0.0-alpha.14'
   '@moeru/std': 0.1.0-beta.14
