@@ -417,7 +417,7 @@ export class JavaScriptPlanner {
 
   private installActionTools(availableActions: Action[]): void {
     for (const action of availableActions) {
-      this.defineGlobalTool(action.name, async (...args: unknown[]) => {
+      this.defineUpdatableGlobal(action.name, async (...args: unknown[]) => {
         const params = this.mapArgsToParams(action, args)
         return this.runAction(action.name, params)
       })
@@ -593,6 +593,18 @@ export class JavaScriptPlanner {
     Object.defineProperty(this.sandbox, name, {
       value,
       configurable: false,
+      enumerable: true,
+      writable: false,
+    })
+  }
+
+  // NOTICE: Action tools must be updatable because the set of available actions
+  // can change at runtime. Unlike builtins (which are immutable), action tool
+  // globals use configurable: true so they can be redefined on each evaluate().
+  private defineUpdatableGlobal(name: string, value: unknown): void {
+    Object.defineProperty(this.sandbox, name, {
+      value,
+      configurable: true,
       enumerable: true,
       writable: false,
     })
