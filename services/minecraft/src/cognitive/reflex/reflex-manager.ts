@@ -8,8 +8,7 @@ import type { MineflayerWithAgents } from '../types'
 import type { ReflexContextState } from './context'
 
 import { DebugService } from '../../debug'
-import { lookAtBehavior } from './behaviors/look-at'
-import { teabagBehavior } from './behaviors/teabag'
+import { idleGazeBehavior } from './behaviors/idle-gaze'
 import { ReflexRuntime } from './runtime'
 
 export class ReflexManager {
@@ -33,8 +32,7 @@ export class ReflexManager {
       onModeChange: () => this.emitReflexState(),
     })
 
-    this.runtime.registerBehavior(lookAtBehavior)
-    this.runtime.registerBehavior(teabagBehavior)
+    this.runtime.registerBehavior(idleGazeBehavior)
   }
 
   public init(bot: MineflayerWithAgents): void {
