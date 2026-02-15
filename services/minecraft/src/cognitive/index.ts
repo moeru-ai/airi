@@ -9,6 +9,7 @@ import { createAgentContainer } from './container'
 export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlugin {
   let container: ReturnType<typeof createAgentContainer>
   let spawnHandler: (() => void) | null = null
+  let mcpReplServer: McpReplServer | null = null
   let started = false
 
   // Keep airiClient reference for future use
@@ -24,7 +25,7 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
       const reflexManager = container.resolve('reflexManager')
       const taskExecutor = container.resolve('taskExecutor')
       const debugService = DebugService.getInstance()
-      const mcpReplServer = new McpReplServer(brain)
+      mcpReplServer = new McpReplServer(brain)
       mcpReplServer.start()
 
       debugService.onCommand('request_repl_state', () => {
@@ -147,7 +148,15 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
     },
 
     async beforeCleanup(bot) {
+      if (mcpReplServer) {
+        mcpReplServer.stop()
+        mcpReplServer = null
+      }
+
       if (container) {
+        const brain = container.resolve('brain')
+        brain.destroy()
+
         const taskExecutor = container.resolve('taskExecutor')
         await taskExecutor.destroy()
 
