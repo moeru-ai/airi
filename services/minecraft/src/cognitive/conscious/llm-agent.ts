@@ -27,7 +27,6 @@ export class LLMAgent {
   constructor(private config: LLMConfig) { }
 
   private isCerebrasBaseURL(baseURL: string): boolean {
-    return true // TODO: REMOVE ME
     const normalized = baseURL.toLowerCase()
     return normalized.includes('cerebras.ai') || normalized.includes('cerebras.com')
   }
