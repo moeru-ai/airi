@@ -1,6 +1,6 @@
 import type { Logg } from '@guiiai/logg'
 
-import type { EventBus } from '../os'
+import type { EventBus } from '../event-bus'
 import type { MineflayerWithAgents } from '../types'
 
 import { EventRegistry } from './events'

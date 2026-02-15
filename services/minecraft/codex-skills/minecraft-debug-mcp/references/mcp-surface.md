@@ -1,6 +1,6 @@
 # Minecraft Debug MCP Surface
 
-Implementation source: `/Users/rinshinohara/Repo/airi/services/minecraft/src/debug/mcp-repl-server.ts`.
+Implementation source: `/path/to/project/root/services/minecraft/src/debug/mcp-repl-server.ts`.
 
 ## Endpoint
 
@@ -9,7 +9,7 @@ Implementation source: `/Users/rinshinohara/Repo/airi/services/minecraft/src/deb
 - SSE fallback endpoint: `GET /sse` + `POST /messages`
 
 The bot starts this server during normal runtime from:
-- `/Users/rinshinohara/Repo/airi/services/minecraft/src/cognitive/index.ts`
+- `/path/to/project/root/services/minecraft/src/cognitive/index.ts`
 
 ## Resources
 

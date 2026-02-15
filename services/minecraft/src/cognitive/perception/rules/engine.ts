@@ -7,7 +7,7 @@
 
 import type { Logg } from '@guiiai/logg'
 
-import type { EventBus, TracedEvent } from '../../os'
+import type { EventBus, TracedEvent } from '../../event-bus'
 import type {
   AccumulatorsState,
   ParsedRule,

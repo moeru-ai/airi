@@ -1,7 +1,7 @@
 import type { Logg } from '@guiiai/logg'
 
 import type { TaskExecutor } from '../action/task-executor'
-import type { EventBus, TracedEvent } from '../os'
+import type { EventBus, TracedEvent } from '../event-bus'
 import type { PerceptionSignal } from '../perception/types/signals'
 import type { MineflayerWithAgents } from '../types'
 import type { ReflexContextState } from './context'

@@ -66,7 +66,7 @@ export interface ReflexStateEvent {
 }
 
 /**
- * Traced event from the Cognitive OS EventBus
+ * Traced event from the cognitive event bus
  */
 export interface TraceEvent {
   /** Unique event ID */

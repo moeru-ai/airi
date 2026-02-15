@@ -1,16 +1,11 @@
-import type { TracedEvent } from './types'
+import type { TracedEvent } from './event-bus'
 
-import { useLogg } from '@guiiai/logg'
 import { describe, expect, it, vi } from 'vitest'
 
-import { createEventBus } from './index'
+import { createEventBus } from './event-bus'
 
 describe('eventBus', () => {
-  const createTestBus = () =>
-    createEventBus({
-      logger: useLogg('test'),
-      config: { historySize: 100 },
-    })
+  const createTestBus = () => createEventBus()
 
   describe('emit', () => {
     it('should create an event with auto-generated id and timestamp', () => {
@@ -164,7 +159,7 @@ describe('eventBus', () => {
         payload: {},
         source: { component: 'test' },
       })
-      expect(handler).toHaveBeenCalledTimes(1) // Still 1
+      expect(handler).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -174,7 +169,6 @@ describe('eventBus', () => {
       let childEvent: TracedEvent | undefined
 
       bus.subscribe('parent:event', () => {
-        // Emit within handler - should inherit context
         childEvent = bus.emit({
           type: 'child:event',
           payload: {},
@@ -191,52 +185,6 @@ describe('eventBus', () => {
       expect(childEvent).toBeDefined()
       expect(childEvent!.traceId).toBe(parent.traceId)
       expect(childEvent!.parentId).toBe(parent.id)
-    })
-  })
-
-  describe('history', () => {
-    it('should store events in history', () => {
-      const bus = createTestBus()
-
-      bus.emit({ type: 'e1', payload: {}, source: { component: 'test' } })
-      bus.emit({ type: 'e2', payload: {}, source: { component: 'test' } })
-      bus.emit({ type: 'e3', payload: {}, source: { component: 'test' } })
-
-      const history = bus.getHistory()
-      expect(history.length).toBe(3)
-      expect(history[0].type).toBe('e1')
-      expect(history[2].type).toBe('e3')
-    })
-
-    it('should respect historySize limit (ring buffer)', () => {
-      const bus = createEventBus({
-        logger: useLogg('test'),
-        config: { historySize: 3 },
-      })
-
-      bus.emit({ type: 'e1', payload: {}, source: { component: 'test' } })
-      bus.emit({ type: 'e2', payload: {}, source: { component: 'test' } })
-      bus.emit({ type: 'e3', payload: {}, source: { component: 'test' } })
-      bus.emit({ type: 'e4', payload: {}, source: { component: 'test' } })
-
-      const history = bus.getHistory()
-      expect(history.length).toBe(3)
-      // Oldest event (e1) should be evicted
-      expect(history.map(e => e.type)).toEqual(['e2', 'e3', 'e4'])
-    })
-  })
-
-  describe('getEventsByTrace', () => {
-    it('should filter events by traceId', () => {
-      const bus = createTestBus()
-
-      const e1 = bus.emit({ type: 'a', payload: {}, source: { component: 'test' } })
-      bus.emitChild(e1, { type: 'b', payload: {}, source: { component: 'test' } })
-      bus.emit({ type: 'c', payload: {}, source: { component: 'test' } }) // Different trace
-
-      const trace = bus.getEventsByTrace(e1.traceId)
-      expect(trace.length).toBe(2)
-      expect(trace.map(e => e.type)).toEqual(['a', 'b'])
     })
   })
 })

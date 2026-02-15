@@ -11,7 +11,7 @@ Use this skill to run the local bot and interact with its MCP debug interface sa
 
 ## Quick Start Workflow
 
-1. Run `pnpm dev` from `/Users/rinshinohara/Repo/airi/services/minecraft` and keep it running.
+1. Run `pnpm dev` from `/path/to/project/root/services/minecraft` and keep it running.
 2. Wait for `MCP REPL server running at http://localhost:3001` in logs.
 3. Connect MCP client to `http://localhost:3001/sse`.
 4. Verify readiness with a read-only call:

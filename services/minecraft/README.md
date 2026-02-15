@@ -56,7 +56,7 @@ The perception layer acts as the sensory input hub, collecting raw Mineflayer si
 
 **Pipeline**:
 - Event definitions in `events/definitions/*` bind Mineflayer events to normalized raw events.
-- `EventRegistry` emits `raw:<modality>:<kind>` events to the Cognitive EventBus.
+- `EventRegistry` emits `raw:<modality>:<kind>` events to the cognitive event bus.
 - `RuleEngine` evaluates YAML rules and emits derived `signal:*` events consumed by Reflex/Conscious layers.
 
 **Key files**:
@@ -149,7 +149,7 @@ src/
 │   │   ├── action-registry.ts # Tool dispatch + schema validation
 │   │   ├── llm-actions.ts     # Tool catalog
 │   │   └── types.ts
-│   ├── os/                    # EventBus + tracing core
+│   ├── event-bus.ts           # Event bus core
 │   ├── container.ts           # Dependency injection wiring
 │   ├── index.ts               # Cognitive system entrypoint
 │   └── types.ts               # Shared cognitive types

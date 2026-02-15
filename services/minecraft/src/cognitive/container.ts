@@ -1,6 +1,6 @@
 import type { Logg } from '@guiiai/logg'
 
-import type { EventBus } from './os'
+import type { EventBus } from './event-bus'
 import type { RuleEngine } from './perception/rules'
 
 import { useLogg } from '@guiiai/logg'
@@ -10,7 +10,7 @@ import { config } from '../composables/config'
 import { TaskExecutor } from './action/task-executor'
 import { Brain } from './conscious/brain'
 import { LLMAgent } from './conscious/llm-agent'
-import { createEventBus } from './os'
+import { createEventBus } from './event-bus'
 import { PerceptionPipeline } from './perception/pipeline'
 import { createRuleEngine } from './perception/rules'
 import { ReflexManager } from './reflex/reflex-manager'
@@ -44,13 +44,8 @@ export function createAgentContainer() {
       model: config.openai.model,
     })).singleton(),
 
-    // Register EventBus (Cognitive OS core)
-    eventBus: asFunction(() =>
-      createEventBus({
-        logger: useLogg('eventBus').useGlobalConfig(),
-        config: { historySize: 10000 },
-      }),
-    ).singleton(),
+    // Register EventBus (cognitive event core)
+    eventBus: asFunction(() => createEventBus()).singleton(),
 
     // Register RuleEngine (YAML rules processing)
     ruleEngine: asFunction(({ eventBus }) => {
