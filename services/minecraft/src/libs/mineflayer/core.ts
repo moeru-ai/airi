@@ -44,6 +44,7 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
   private reconnectAttempts: number = 0
   private isReconnecting: boolean = false
   private isStopping: boolean = false
+  private reconnectPluginSetupPromise: Promise<void> = Promise.resolve()
 
   private options: MineflayerOptions
   private logger: Logg
@@ -261,6 +262,21 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
     this.removeAllListeners()
   }
 
+  private async initializeReconnectPlugins(): Promise<void> {
+    for (const plugin of this.options?.plugins || []) {
+      if (plugin.created) {
+        await plugin.created(this)
+      }
+    }
+
+    for (const plugin of this.options?.plugins || []) {
+      if (plugin.loadPlugin) {
+        const loadedPlugin = await plugin.loadPlugin(this, this.bot, this.options.botConfig)
+        this.bot.loadPlugin(loadedPlugin)
+      }
+    }
+  }
+
   private tryReconnect(reason: string) {
     const reconnectConfig = this.options.reconnect
     if (!reconnectConfig?.enabled || this.isStopping || this.isReconnecting) {
@@ -294,20 +310,11 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
       // Re-register all event handlers
       this.setupBotEventHandlers()
 
-      // Reload plugins (sync where possible)
-      for (const plugin of this.options?.plugins || []) {
-        if (plugin.created) {
-          void plugin.created(this)
-        }
-      }
-
-      for (const plugin of this.options?.plugins || []) {
-        if (plugin.loadPlugin) {
-          void Promise.resolve(plugin.loadPlugin(this, this.bot, this.options.botConfig)).then((p) => {
-            this.bot.loadPlugin(p)
-          })
-        }
-      }
+      // Reload plugins sequentially and expose readiness to spawn hooks.
+      this.reconnectPluginSetupPromise = this.initializeReconnectPlugins().catch((error) => {
+        this.logger.errorWithError('Reconnect plugin initialization failed', error as Error)
+        throw error
+      })
 
       this.logger.log('Reconnect initiated, waiting for spawn...')
     }
@@ -402,6 +409,14 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
     })
 
     this.bot.on('spawn', async () => {
+      try {
+        await this.reconnectPluginSetupPromise
+      }
+      catch {
+        this.logger.error('Skipping spawned hooks: reconnect plugin initialization failed')
+        return
+      }
+
       for (const plugin of this.options?.plugins || []) {
         if (plugin.spawned) {
           await plugin.spawned(this)
