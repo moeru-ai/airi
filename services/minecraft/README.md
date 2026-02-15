@@ -52,18 +52,18 @@ graph TB
 
 **Location**: `src/cognitive/perception/`
 
-The perception layer acts as the sensory input hub, collecting raw signals from Mineflayer and turning them into higher-level, rate-limited perception events.
+The perception layer acts as the sensory input hub, collecting raw Mineflayer signals and translating them into typed events/signals through an event registry + rule engine pipeline.
 
 **Pipeline**:
-- Mineflayer listeners collect **raw perception events** (sight/hearing/felt), including distance and line-of-sight when applicable.
-- Raw events are queued in a buffer and drained on the cognitive tick.
-- An attention detector aggregates events via leaky buckets and emits attention/perception events **only on threshold crossing** (e.g. sustained movement, punching, teabagging, interesting sounds).
+- Event definitions in `events/definitions/*` bind Mineflayer events to normalized raw events.
+- `EventRegistry` emits `raw:<modality>:<kind>` events to the Cognitive EventBus.
+- `RuleEngine` evaluates YAML rules and emits derived `signal:*` events consumed by Reflex/Conscious layers.
 
 **Key files**:
-- `mineflayer-perception-collector.ts`
-- `raw-events.ts`
-- `raw-event-buffer.ts`
-- `attention-detector.ts`
+- `events/index.ts`
+- `events/definitions/*`
+- `rules/engine.ts`
+- `rules/*.yaml`
 - `pipeline.ts`
 
 ### Layer B: Reflex
@@ -83,10 +83,10 @@ The reflex layer handles immediate, instinctive reactions. It operates on a fini
 The conscious layer handles complex reasoning, planning, and high-level decision-making. No physical execution happens here anymore.
 
 **Components**:
-- **Orchestrator**: Coordinates "Thinking" vs "Chatting" tasks.
-- **Task Manager**: Manages concurrent Primary (Physical) and Secondary (Mental) tasks.
-- **Planning Agent**: pure LLM reasoning to generate plans.
-- **Chat Agent**: Generates natural language responses.
+- **Brain** (`brain.ts`): Event queue orchestration, LLM turn lifecycle, safety/budget guards, debug REPL integration.
+- **JavaScript Planner** (`js-planner.ts`): Sandboxed planning/runtime execution against exposed tools/globals.
+- **Query Runtime** (`query-dsl.ts`): Read-only world/inventory/entity query helpers for planner scripts.
+- **Task State** (`task-state.ts`): Cancellation token and task lifecycle primitives used by action execution.
 
 ### Layer D: Action
 
@@ -95,8 +95,9 @@ The conscious layer handles complex reasoning, planning, and high-level decision
 The action layer is responsible for the actual execution of tasks in the world. It isolates "Doing" from "Thinking".
 
 **Components**:
-- **Task Executor**: Receives a `Plan` and executes it step-by-step. Handles retry logic and errors.
-- **Action Agent**: The interface to low-level Mineflayer skills (move, place, break).
+- **Task Executor** (`task-executor.ts`): Runs normalized action instructions and emits action lifecycle events.
+- **Action Registry** (`action-registry.ts`): Validates params and dispatches tool calls.
+- **Tool Catalog** (`llm-actions.ts`): Action/tool definitions and schemas bound to mineflayer skills.
 
 ### 🔄 Event Flow Example
 
@@ -109,11 +110,11 @@ Player: "build a house"
 [Conscious] Architect plans the structure
   ↓
 [Action] Executor takes the plan and manages the construction loop:
-    - Step 1: Collect wood (calls ActionAgent)
+    - Step 1: Collect wood (calls ActionRegistry tool)
     - Step 2: Craft planks
     - Step 3: Build walls
   ↓
-[Conscious] ChatAgent confirms completion: "House is ready!"
+[Conscious] Brain confirms completion: "House is ready!"
 ```
 
 ### 📁 Project Structure
@@ -121,41 +122,44 @@ Player: "build a house"
 ```
 src/
 ├── cognitive/                  # 🧠 Perception → Reflex → Conscious → Action
-│   ├── perception/            # Event ingestion
-│   │   ├── mineflayer-perception-collector.ts
-│   │   ├── raw-events.ts
-│   │   ├── raw-event-buffer.ts
-│   │   ├── attention-detector.ts
+│   ├── perception/            # Event definitions + rule evaluation
+│   │   ├── events/
+│   │   │   ├── index.ts
+│   │   │   └── definitions/*
+│   │   ├── rules/
+│   │   │   ├── *.yaml
+│   │   │   ├── engine.ts
+│   │   │   ├── loader.ts
+│   │   │   └── matcher.ts
 │   │   └── pipeline.ts
 │   ├── reflex/                # Fast, rule-based reactions
-│   │   └── reflex-manager.ts
+│   │   ├── reflex-manager.ts
+│   │   ├── runtime.ts
+│   │   ├── context.ts
+│   │   └── behaviors/idle-gaze.ts
 │   ├── conscious/             # LLM-powered reasoning
-│   │   ├── blackboard.ts      # Shared working memory
 │   │   ├── brain.ts           # Core reasoning loop/orchestration
-│   │   ├── completion.ts      # LLM completion helper
-│   │   ├── handler.ts         # Routes stimuli into the brain
-│   │   ├── task-manager.ts    # Manages concurrent tasks
+│   │   ├── js-planner.ts      # JS planning sandbox
+│   │   ├── query-dsl.ts       # Read-only query runtime
+│   │   ├── llm-log.ts         # Turn/log query helpers
 │   │   ├── task-state.ts      # Task lifecycle enums/helpers
 │   │   └── prompts/           # Prompt definitions (e.g., brain-prompt.ts)
 │   ├── action/                # Task execution layer
-│   │   ├── task-executor.ts   # Executes planned steps with retries
+│   │   ├── task-executor.ts   # Executes actions and emits lifecycle events
+│   │   ├── action-registry.ts # Tool dispatch + schema validation
+│   │   ├── llm-actions.ts     # Tool catalog
 │   │   └── types.ts
+│   ├── os/                    # EventBus + tracing core
 │   ├── container.ts           # Dependency injection wiring
 │   ├── index.ts               # Cognitive system entrypoint
 │   └── types.ts               # Shared cognitive types
-├── agents/                    # Specialized agents
-│   ├── action/               # Low-level actuator bridge
-│   ├── planning/             # Goal planner (LLM)
-│   ├── chat/                 # Conversational responses
-│   └── memory/               # Memory-related helpers
 ├── libs/
 │   └── mineflayer/           # Mineflayer bot wrapper/adapters
 ├── skills/                   # Atomic bot capabilities
 ├── composables/              # Reusable functions (config, etc.)
 ├── plugins/                  # Mineflayer/bot plugins
-├── web/                      # Debug web dashboard
+├── debug/                    # Debug web dashboard + MCP bridge
 ├── utils/                    # Helpers
-├── debug-server.ts           # Local debug server entry
 └── main.ts                   # Bot entrypoint
 ```
 
