@@ -47,23 +47,13 @@ export const actionsList: Action[] = [
     }),
     perform: () => (reason: string, cooldown_seconds: number): string => `Gave up for ${cooldown_seconds}s: ${reason}`,
   },
-  // {\n  //   name: 'setReflexMode',
-  //   description: 'Set (or clear) your reflex mode override. Use work/wander to disable idle-only reflex behaviors. Set override to null to return to automatic mode selection.',
-  //   execution: 'sequential',
-  //   schema: z.object({
-  //     mode: z.enum(['idle', 'social', 'alert', 'work', 'wander']).nullable().describe('Mode override to set'),
-  //   }),
-  //   perform: mineflayer => async (mode: 'idle' | 'social' | 'alert' | 'work' | 'wander' | null) => {
-  //     const reflexManager = (mineflayer as any).reflexManager
-  //     if (!reflexManager || typeof reflexManager.setModeOverride !== 'function')
-  //       throw new Error('ReflexManager is not available on this bot. Is CognitiveEngine enabled?')
-
-  //     reflexManager.setModeOverride(mode)
-  //     return mode
-  //       ? `Reflex mode override set to '${mode}'.`
-  //       : 'Reflex mode override cleared (automatic mode selection resumed).'
-  //   },
-  // },
+  {
+    name: 'skip',
+    description: 'Skip this turn without performing any world action.',
+    execution: 'sync',
+    schema: z.object({}),
+    perform: () => (): string => 'Skipped turn',
+  },
   {
     name: 'stop',
     description: 'Force stop all actions', // TODO: include name of the current action in description?
@@ -177,17 +167,6 @@ export const actionsList: Action[] = [
       }
     },
   },
-  // {
-  //   name: 'moveAway',
-  //   description: 'Move away from the current location in any direction by a given distance.',
-  //   schema: z.object({
-  //     distance: z.number().describe('The distance to move away.').min(0),
-  //   }),
-  //   perform: mineflayer => async (distance: number) => {
-  //     await skills.moveAway(mineflayer, distance)
-  //     return 'Moved away'
-  //   },
-  // },
   {
     name: 'givePlayer',
     description: 'Give the specified item to the given player.',
@@ -252,15 +231,6 @@ export const actionsList: Action[] = [
       return `Took [${item_name}]x${num} from chest`
     },
   },
-  // {
-  //   name: 'viewChest',
-  //   description: 'View the items/counts of the nearest chest.',
-  //   schema: z.object({}),
-  //   perform: mineflayer => async () => {
-  //     await viewChest(mineflayer)
-  //     return 'Viewed chest contents'
-  //   },
-  // },
   {
     name: 'discard',
     description: 'Discard the given item from the inventory.',

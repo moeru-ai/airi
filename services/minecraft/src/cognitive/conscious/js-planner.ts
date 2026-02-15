@@ -417,6 +417,10 @@ export class JavaScriptPlanner {
 
   private installActionTools(availableActions: Action[]): void {
     for (const action of availableActions) {
+      const existing = Object.getOwnPropertyDescriptor(this.sandbox, action.name)
+      if (existing && existing.configurable === false)
+        continue
+
       this.defineUpdatableGlobal(action.name, async (...args: unknown[]) => {
         const params = this.mapArgsToParams(action, args)
         return this.runAction(action.name, params)

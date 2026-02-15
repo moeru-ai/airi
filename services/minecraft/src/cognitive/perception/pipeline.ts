@@ -5,10 +5,8 @@ import type { MineflayerWithAgents } from '../types'
 
 import { EventRegistry } from './events'
 import { allEventDefinitions } from './events/definitions'
-import { PerceptionAPI } from './perception-api'
 
 export class PerceptionPipeline {
-  private readonly perception: PerceptionAPI
   private readonly eventRegistry: EventRegistry
   private bot: MineflayerWithAgents | null = null
 
@@ -18,8 +16,6 @@ export class PerceptionPipeline {
       logger: Logg
     },
   ) {
-    this.perception = new PerceptionAPI({ logger: this.deps.logger })
-
     this.eventRegistry = new EventRegistry({
       logger: this.deps.logger,
       onRawEvent: (event) => {
@@ -50,12 +46,5 @@ export class PerceptionPipeline {
     }
     this.eventRegistry.stop()
     this.bot = null
-  }
-
-  /**
-   * Get the PerceptionAPI for querying entity beliefs
-   */
-  public getPerceptionAPI(): PerceptionAPI {
-    return this.perception
   }
 }

@@ -42,20 +42,15 @@ export class ActionRegistry {
       throw new Error(`Unknown action: ${step.tool}`)
     }
 
-    try {
-      const actionFn = action.perform(this.mineflayer)
-      const { schema } = action
-      const parsedParams = schema.parse(step.params || {})
+    const actionFn = action.perform(this.mineflayer)
+    const { schema } = action
+    const parsedParams = schema.parse(step.params || {})
 
-      // Extract parameter values in the order defined by the schema
-      const paramValues = Object.keys((schema as any).shape || {}).map(key => parsedParams[key])
+    // Extract parameter values in the order defined by the schema
+    const paramValues = Object.keys((schema as any).shape || {}).map(key => parsedParams[key])
 
-      const result = await actionFn(...paramValues)
-      return result ?? `Action ${step.tool} completed`
-    }
-    catch (error) {
-      throw error
-    }
+    const result = await actionFn(...paramValues)
+    return result ?? `Action ${step.tool} completed`
   }
 
   /**

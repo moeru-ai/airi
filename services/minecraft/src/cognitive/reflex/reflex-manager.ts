@@ -2,7 +2,6 @@ import type { Logg } from '@guiiai/logg'
 
 import type { TaskExecutor } from '../action/task-executor'
 import type { EventBus, TracedEvent } from '../os'
-import type { PerceptionAPI } from '../perception/perception-api'
 import type { PerceptionSignal } from '../perception/types/signals'
 import type { MineflayerWithAgents } from '../types'
 import type { ReflexContextState } from './context'
@@ -21,7 +20,6 @@ export class ReflexManager {
   constructor(
     private readonly deps: {
       eventBus: EventBus
-      perception: PerceptionAPI
       taskExecutor: TaskExecutor
       logger: Logg
     },
@@ -111,7 +109,7 @@ export class ReflexManager {
     if (!this.bot)
       return
 
-    this.runtime.tick(this.bot, 0, this.deps.perception)
+    this.runtime.tick(this.bot, 0)
     this.emitReflexState()
   }
 
@@ -159,7 +157,7 @@ export class ReflexManager {
     // Assuming 'signal:social:chat' or similar might exist later.
 
     // Trigger behavior selection
-    this.runtime.tick(bot, 0, this.deps.perception)
+    this.runtime.tick(bot, 0)
 
     // Forward signals to conscious layer (Brain) ONLY when Reflex decides.
     if (this.shouldForwardToConscious(signal)) {

@@ -1,6 +1,5 @@
 import type { Logg } from '@guiiai/logg'
 
-import type { PerceptionAPI } from '../perception/perception-api'
 import type { MineflayerWithAgents } from '../types'
 import type { ReflexModeId } from './modes'
 import type { ReflexBehavior } from './types/behavior'
@@ -90,7 +89,7 @@ export class ReflexRuntime {
     this.behaviors.push(behavior)
   }
 
-  public tick(bot: MineflayerWithAgents, deltaMs: number, perception: PerceptionAPI): string | null {
+  public tick(bot: MineflayerWithAgents, deltaMs: number): string | null {
     const now = Date.now()
 
     this.context.updateNow(now)
@@ -167,7 +166,7 @@ export class ReflexRuntime {
     this.activeBehaviorUntil = null
 
     const ctx = this.context.getSnapshot()
-    const api = { bot, context: this.context, perception }
+    const api = { bot, context: this.context }
 
     let best: { behavior: ReflexBehavior, score: number } | null = null
     for (const behavior of this.behaviors) {

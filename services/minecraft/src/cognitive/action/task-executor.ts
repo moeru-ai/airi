@@ -16,7 +16,6 @@ export class TaskExecutor extends EventEmitter {
   private logger: Logger
   private initialized = false
   private actionRegistry: ActionRegistry
-  private mineflayer: Mineflayer | null = null
 
   constructor(config: TaskExecutorConfig) {
     super()
@@ -36,7 +35,6 @@ export class TaskExecutor extends EventEmitter {
    * Set the mineflayer instance for action execution
    */
   public setMineflayer(mineflayer: Mineflayer): void {
-    this.mineflayer = mineflayer
     this.actionRegistry.setMineflayer(mineflayer)
   }
 
@@ -70,34 +68,12 @@ export class TaskExecutor extends EventEmitter {
     this.emit('action:started', { action })
 
     try {
-      let result: unknown
-
-      if (action.tool === 'chat') {
-        // Handle chat action via mineflayer directly
-        const message = action.params.message
-        if (typeof message !== 'string' || message.trim().length === 0)
-          throw new Error('Invalid chat tool params: expected params.message to be a string')
-
-        if (!this.mineflayer) {
-          throw new Error('Mineflayer instance not set in TaskExecutor')
-        }
-
-        this.mineflayer.bot.chat(message)
-        result = `Sent message: "${message}"`
+      const step = {
+        description: action.tool,
+        tool: action.tool,
+        params: action.params,
       }
-      else if (action.tool === 'skip') {
-        result = 'Skipped turn'
-      }
-      else {
-        // Dispatch to ActionRegistry
-        const step = {
-          description: action.tool,
-          tool: action.tool,
-          params: action.params,
-        }
-
-        result = await this.actionRegistry.performAction(step)
-      }
+      const result = await this.actionRegistry.performAction(step)
 
       this.emit('action:completed', { action, result })
       return result

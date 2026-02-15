@@ -48,4 +48,12 @@ describe('llm-actions mineBlockAt', () => {
     await expect(perform(1, 2, 3, 'torch')).rejects.toThrow(/Block type mismatch/i)
     expect(breakBlockAt).not.toHaveBeenCalled()
   })
+
+  it('exposes skip tool with stable return value', async () => {
+    const skipAction = actionsList.find(item => item.name === 'skip')
+    expect(skipAction).toBeDefined()
+
+    const perform = skipAction!.perform({} as any)
+    expect(perform()).toBe('Skipped turn')
+  })
 })

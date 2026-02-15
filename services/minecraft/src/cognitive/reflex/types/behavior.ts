@@ -1,4 +1,3 @@
-import type { PerceptionAPI } from '../../perception/perception-api'
 import type { MineflayerWithAgents } from '../../types'
 import type { ReflexContext } from '../context'
 import type { ReflexModeId } from '../modes'
@@ -6,7 +5,6 @@ import type { ReflexModeId } from '../modes'
 export interface ReflexApi {
   bot: MineflayerWithAgents
   context: ReflexContext
-  perception: PerceptionAPI
 }
 
 export interface ReflexBehavior {

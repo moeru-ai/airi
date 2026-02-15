@@ -23,6 +23,11 @@ const actions: Action[] = [
   })),
 ]
 
+const actionsWithSkip: Action[] = [
+  createAction('skip', z.object({})),
+  ...actions,
+]
+
 describe('javaScriptPlanner', () => {
   const globals = {
     event: {
@@ -190,6 +195,21 @@ describe('javaScriptPlanner', () => {
     const executeAction = vi.fn(async action => `ok:${action.tool}`)
 
     await expect(planner.evaluate('await skip(); await chat("oops")', actions, globals, executeAction)).rejects.toThrow(/skip\(\) cannot be mixed/i)
+  })
+
+  it('allows evaluate when action catalog also includes skip', async () => {
+    const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+
+    await expect(planner.evaluate('await skip()', actionsWithSkip, globals, executeAction)).resolves.toMatchObject({
+      actions: [
+        {
+          action: { tool: 'skip', params: {} },
+          ok: true,
+          result: 'Skipped turn',
+        },
+      ],
+    })
   })
 
   it('returns structured validation failures without aborting the script', async () => {
