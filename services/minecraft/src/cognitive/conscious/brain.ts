@@ -217,6 +217,7 @@ const EVENT_PRIORITY_NO_ACTION_FOLLOWUP = 3
 const MAX_QUEUED_CONTROL_ACTIONS = 5
 const MAX_PENDING_CONTROL_ACTIONS = 4
 const ACTION_QUEUE_RECENT_HISTORY_LIMIT = 20
+const MAX_CONVERSATION_HISTORY_MESSAGES = 40
 const NO_ACTION_FOLLOWUP_BUDGET_DEFAULT = 3
 const NO_ACTION_FOLLOWUP_BUDGET_MAX = 8
 const NO_ACTION_STAGNATION_REPEAT_LIMIT = 2
@@ -277,6 +278,9 @@ export class Brain {
   private noActionFollowupStagnationCount = 0
   private errorBurstGuardState: ErrorBurstGuardState | null = null
   private errorBurstGuardSuppressUntilTurnId = 0
+  private unsubscribeEventBus: (() => void) | null = null
+  private onActionCompleted: ((...args: any[]) => void) | null = null
+  private onActionFailed: ((...args: any[]) => void) | null = null
 
   constructor(private readonly deps: BrainDeps) {
     this.debugService = DebugService.getInstance()
@@ -287,7 +291,7 @@ export class Brain {
     this.runtimeMineflayer = bot
 
     // Perception Handler
-    this.deps.eventBus.subscribe<PerceptionSignal>('conscious:signal:*', (event: TracedEvent<PerceptionSignal>) => {
+    this.unsubscribeEventBus = this.deps.eventBus.subscribe<PerceptionSignal>('conscious:signal:*', (event: TracedEvent<PerceptionSignal>) => {
       this.enqueueEvent(bot, {
         type: 'perception',
         payload: event.payload,
@@ -297,7 +301,7 @@ export class Brain {
     })
 
     // Action telemetry logger
-    this.deps.taskExecutor.on('action:completed', async ({ action, result }) => {
+    this.onActionCompleted = async ({ action, result }: { action: ActionInstruction, result: unknown }) => {
       this.deps.logger.log('INFO', `Brain: Action completed: ${action.tool}`)
       this.appendLlmLog({
         turnId: this.turnCounter,
@@ -340,9 +344,10 @@ export class Brain {
           timestamp: Date.now(),
         }).catch(err => this.deps.logger.withError(err).error('Brain: Failed to process chat feedback'))
       }
-    })
+    }
+    this.deps.taskExecutor.on('action:completed', this.onActionCompleted)
 
-    this.deps.taskExecutor.on('action:failed', async ({ action, error }) => {
+    this.onActionFailed = async ({ action, error }: { action: ActionInstruction, error: Error }) => {
       this.deps.logger.withError(error).warn(`Brain: Action failed: ${action.tool}`)
       this.appendLlmLog({
         turnId: this.turnCounter,
@@ -356,15 +361,29 @@ export class Brain {
           params: action.params,
         },
       })
-    })
+    }
+    this.deps.taskExecutor.on('action:failed', this.onActionFailed)
 
     this.deps.logger.log('INFO', 'Brain: Online.')
   }
 
   public destroy(): void {
+    if (this.unsubscribeEventBus) {
+      this.unsubscribeEventBus()
+      this.unsubscribeEventBus = null
+    }
+    if (this.onActionCompleted) {
+      this.deps.taskExecutor.off('action:completed', this.onActionCompleted)
+      this.onActionCompleted = null
+    }
+    if (this.onActionFailed) {
+      this.deps.taskExecutor.off('action:failed', this.onActionFailed)
+      this.onActionFailed = null
+    }
     this.currentCancellationToken?.cancel()
     this.clearPendingControlActions('cancelled')
     this.activeControlAction = null
+    this.stopCancelledControlActionIds.clear()
     this.touchActionQueue()
     this.runtimeMineflayer = null
   }
@@ -1398,7 +1417,11 @@ export class Brain {
   private async enqueueEvent(bot: MineflayerWithAgents, event: BotEvent): Promise<void> {
     return new Promise((resolve, reject) => {
       this.queue.push({ event, resolve, reject })
-      void this.processQueue(bot)
+      // Use setImmediate to avoid re-entrant processQueue calls that could
+      // bypass the isProcessing guard during the finally block.
+      if (!this.isProcessing) {
+        setImmediate(() => this.processQueue(bot))
+      }
     })
   }
 
@@ -1763,21 +1786,6 @@ export class Brain {
       return
     }
 
-    // Check pause again after LLM call (allows !pause to interrupt before REPL execution)
-    if (this.paused) {
-      this.appendLlmLog({
-        turnId,
-        kind: 'scheduler',
-        eventType: event.type,
-        sourceType: event.source.type,
-        sourceId: event.source.id,
-        tags: ['scheduler', 'paused', 'interrupted'],
-        text: `Interrupted before REPL execution while paused: ${event.type} from ${event.source.type}:${event.source.id}`,
-      })
-      this.deps.logger.log('INFO', `Brain: Interrupted processing before REPL while paused (${event.type} from ${event.source.type}:${event.source.id})`)
-      return
-    }
-
     try {
       // Only append to conversation history after successful parsing (avoid dirty data on retry)
       this.conversationHistory.push({ role: 'user', content: userMessage })
@@ -1788,6 +1796,12 @@ export class Brain {
         content: result,
         ...(capturedReasoning && { reasoning: capturedReasoning }),
       } as Message)
+
+      // Trim conversation history to prevent unbounded growth that would
+      // eventually exceed the LLM context window.
+      if (this.conversationHistory.length > MAX_CONVERSATION_HISTORY_MESSAGES) {
+        this.conversationHistory = this.conversationHistory.slice(-MAX_CONVERSATION_HISTORY_MESSAGES)
+      }
 
       const actionDefs = new Map(this.deps.taskExecutor.getAvailableActions().map(action => [action.name, action]))
 
