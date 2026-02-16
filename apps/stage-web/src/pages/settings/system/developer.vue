@@ -75,6 +75,12 @@ const menu = computed(() => [
     to: '/devtools/websocket-inspector',
   },
   {
+    title: 'Plugin Host Debug',
+    description: 'Inspect plugin host registry and capability state (desktop runtime)',
+    icon: 'i-solar:bug-bold-duotone',
+    to: '/devtools/plugin-host',
+  },
+  {
     title: t('settings.pages.system.sections.section.developer.sections.section.use-magic-keys.title'),
     description: t('settings.pages.system.sections.section.developer.sections.section.use-magic-keys.description'),
     icon: 'i-solar:sledgehammer-bold-duotone',

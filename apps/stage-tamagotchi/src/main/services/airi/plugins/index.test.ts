@@ -64,6 +64,19 @@ async function writeManifest(params: { dir: string, name: string, entrypoint: st
   return path
 }
 
+async function writeManifestInPluginDir(params: { rootDir: string, pluginDirName: string, pluginName: string, entrypointPath: string }) {
+  const pluginDir = join(params.rootDir, params.pluginDirName)
+  await mkdir(pluginDir, { recursive: true })
+  const entrypointFile = await copyEntrypoint({ dir: pluginDir, path: params.entrypointPath })
+  const manifestPath = await writeManifest({
+    dir: pluginDir,
+    name: params.pluginName,
+    entrypoint: `./${entrypointFile}`,
+  })
+
+  return { pluginDir, manifestPath }
+}
+
 async function copyEntrypoint(params: { dir: string, path: string }) {
   const file = basename(params.path)
   const destination = join(params.dir, file)
@@ -89,14 +102,22 @@ describe('setupPluginHost', () => {
     vi.clearAllMocks()
   })
 
-  it('lists manifests from the plugins directory', async () => {
+  it('lists manifests from plugin subdirectories', async () => {
     const normalEntrypoint = join(testDataRoot, 'test-normal-plugin.ts')
     const errorEntrypoint = join(testDataRoot, 'test-error-plugin.ts')
 
-    const normalFile = await copyEntrypoint({ dir: pluginsDir, path: normalEntrypoint })
-    const errorFile = await copyEntrypoint({ dir: pluginsDir, path: errorEntrypoint })
-    const normalPath = await writeManifest({ dir: pluginsDir, name: 'test-normal', entrypoint: normalFile })
-    const errorPath = await writeManifest({ dir: pluginsDir, name: 'test-error', entrypoint: errorFile })
+    const { manifestPath: normalPath } = await writeManifestInPluginDir({
+      rootDir: pluginsDir,
+      pluginDirName: 'test-normal',
+      pluginName: 'test-normal',
+      entrypointPath: normalEntrypoint,
+    })
+    const { manifestPath: errorPath } = await writeManifestInPluginDir({
+      rootDir: pluginsDir,
+      pluginDirName: 'test-error',
+      pluginName: 'test-error',
+      entrypointPath: errorEntrypoint,
+    })
 
     await setupPluginHost()
 
@@ -112,14 +133,55 @@ describe('setupPluginHost', () => {
     ]))
   })
 
+  it('ignores root-level manifests and only loads manifests from subdirectories', async () => {
+    const normalEntrypoint = join(testDataRoot, 'test-normal-plugin.ts')
+
+    const { manifestPath } = await writeManifestInPluginDir({
+      rootDir: pluginsDir,
+      pluginDirName: 'devtools-sample-plugin',
+      pluginName: 'devtools-sample-plugin',
+      entrypointPath: normalEntrypoint,
+    })
+    const rootEntrypointFile = await copyEntrypoint({ dir: pluginsDir, path: normalEntrypoint })
+    await writeManifest({
+      dir: pluginsDir,
+      name: 'root-level-plugin',
+      entrypoint: rootEntrypointFile,
+    })
+
+    await setupPluginHost()
+
+    expect(contextState.lastContext).toBeDefined()
+    const invokeList = defineInvoke(contextState.lastContext!, electronPluginList)
+    const snapshot = await invokeList()
+
+    expect(snapshot.plugins).toEqual([
+      expect.objectContaining({
+        name: 'devtools-sample-plugin',
+        path: manifestPath,
+        enabled: false,
+        loaded: false,
+        isNew: true,
+      }),
+    ])
+  })
+
   it('loads enabled plugins and keeps failed plugins unloaded', async () => {
     const normalEntrypoint = join(testDataRoot, 'test-normal-plugin.ts')
     const errorEntrypoint = join(testDataRoot, 'test-error-plugin.ts')
 
-    const normalFile = await copyEntrypoint({ dir: pluginsDir, path: normalEntrypoint })
-    const errorFile = await copyEntrypoint({ dir: pluginsDir, path: errorEntrypoint })
-    await writeManifest({ dir: pluginsDir, name: 'test-normal', entrypoint: normalFile })
-    await writeManifest({ dir: pluginsDir, name: 'test-error', entrypoint: errorFile })
+    await writeManifestInPluginDir({
+      rootDir: pluginsDir,
+      pluginDirName: 'test-normal',
+      pluginName: 'test-normal',
+      entrypointPath: normalEntrypoint,
+    })
+    await writeManifestInPluginDir({
+      rootDir: pluginsDir,
+      pluginDirName: 'test-error',
+      pluginName: 'test-error',
+      entrypointPath: errorEntrypoint,
+    })
 
     await setupPluginHost()
 
