@@ -1,18 +1,36 @@
 import type { Logg } from '@guiiai/logg'
 import type { Message as LLMMessage } from '@xsai/shared-chat'
 
-import type { CancellablePromise } from '../utils/promise'
-import type { SatoriMessage } from './satori'
+import type { SatoriEvent } from '../adapter/satori/types'
 
-export interface PendingMessage {
-  message: SatoriMessage
+export interface CancellablePromise<T> {
+  promise: Promise<T>
+  cancel: () => void
+}
+
+export function cancellable<T>(promise: Promise<T>): CancellablePromise<T> {
+  let cancel: () => void
+
+  const wrappedPromise = new Promise<T>((resolve, reject) => {
+    cancel = () => reject(new Error('CANCELLED'))
+    promise.then(resolve).catch(reject)
+  })
+
+  return {
+    promise: wrappedPromise,
+    cancel: () => cancel?.(),
+  }
+}
+
+export interface PendingEvent {
+  event: SatoriEvent
   status: 'pending' | 'ready'
 }
 
 export interface BotContext {
   logger: Logg
-  messageQueue: PendingMessage[]
-  unreadMessages: Record<string, SatoriMessage[]> // channelId -> messages
+  eventQueue: PendingEvent[]
+  unreadEvents: Record<string, SatoriEvent[]> // channelId -> events
   processedIds: Set<string>
   processing: boolean
   lastInteractedChannelIds: string[]
