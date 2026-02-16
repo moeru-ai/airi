@@ -2020,6 +2020,9 @@ importers:
       srvx:
         specifier: ^0.10.1
         version: 0.10.1
+      superjson:
+        specifier: 'catalog:'
+        version: 2.2.6
 
   packages/server-sdk:
     dependencies:
