@@ -31,6 +31,7 @@ const selectedModel = ref<DisplayModel | undefined>()
 
 const positionCursor = useMouse()
 const settingsStore = useSettings()
+const { scale: live2dScale } = storeToRefs(useLive2d())
 const {
   live2dDisableFocus,
   stageModelSelectedUrl,
@@ -105,6 +106,7 @@ watch(selectedModel, async () => {
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
         :disable-focus-at="live2dDisableFocus"
+        :scale="live2dScale"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
         :live2d-idle-animation-enabled="live2dIdleAnimationEnabled"
