@@ -1,6 +1,10 @@
 import type { ManifestV1 } from '@proj-airi/plugin-sdk/plugin-host'
 
-import type { PluginManifestSummary, PluginRegistrySnapshot } from '../../../../shared/eventa'
+import type {
+  PluginHostDebugSnapshot,
+  PluginManifestSummary,
+  PluginRegistrySnapshot,
+} from '../../../../shared/eventa'
 
 import { mkdir, readdir, readFile } from 'node:fs/promises'
 import { dirname, extname, join } from 'node:path'
@@ -13,9 +17,12 @@ import { app, ipcMain } from 'electron'
 import { array, object, record, safeParse, string } from 'valibot'
 
 import {
+  electronPluginInspect,
   electronPluginList,
+  electronPluginLoad,
   electronPluginLoadEnabled,
   electronPluginSetEnabled,
+  electronPluginUnload,
   electronPluginUpdateCapability,
   pluginProtocolListProviders,
   pluginProtocolListProvidersEventName,
@@ -69,15 +76,25 @@ async function loadManifestsFrom(dir: string, log: ReturnType<typeof useLogg>): 
   await mkdir(dir, { recursive: true })
   const entries = await readdir(dir, { withFileTypes: true })
   const manifests: ManifestEntry[] = []
+  const manifestPaths: string[] = []
 
   for (const entry of entries) {
-    if (!entry.isFile())
+    if (!entry.isDirectory())
       continue
 
-    if (extname(entry.name) !== '.json')
-      continue
+    const pluginDir = join(dir, entry.name)
+    const pluginEntries = await readdir(pluginDir, { withFileTypes: true })
+    for (const pluginEntry of pluginEntries) {
+      if (!pluginEntry.isFile())
+        continue
+      if (extname(pluginEntry.name) !== '.json')
+        continue
 
-    const path = join(dir, entry.name)
+      manifestPaths.push(join(pluginDir, pluginEntry.name))
+    }
+  }
+
+  for (const path of manifestPaths) {
     try {
       const raw = await readFile(path, 'utf-8')
       const parsed = JSON.parse(raw) as unknown
@@ -85,6 +102,7 @@ async function loadManifestsFrom(dir: string, log: ReturnType<typeof useLogg>): 
         log.warn('invalid plugin manifest schema', { path })
         continue
       }
+
       manifests.push({ manifest: parsed, path })
     }
     catch (error) {
@@ -145,6 +163,7 @@ export async function setupPluginHost(): Promise<PluginHostService> {
   let entries = await loadManifestsFrom(pluginsRoot, log)
   let manifests = entries.map(entry => entry.manifest)
   const loaded = new Set<string>()
+  const loadedSessionIds = new Map<string, string>()
 
   const refreshManifests = async () => {
     entries = await loadManifestsFrom(pluginsRoot, log)
@@ -163,6 +182,53 @@ export async function setupPluginHost(): Promise<PluginHostService> {
     }
   }
 
+  const toDebugSnapshot = (): PluginHostDebugSnapshot => {
+    return {
+      registry: toSnapshot(),
+      sessions: host.listSessions().map(session => ({
+        id: session.id,
+        manifestName: session.manifest.name,
+        phase: session.phase,
+        runtime: session.runtime,
+        moduleId: session.identity.id,
+      })),
+      capabilities: capabilityHost.listCapabilities(),
+      refreshedAt: Date.now(),
+    }
+  }
+
+  const findManifestEntry = (name: string) => {
+    return entries.find(entry => entry.manifest.name === name)
+  }
+
+  const loadPluginByName = async (name: string) => {
+    if (loaded.has(name))
+      return
+
+    const entry = findManifestEntry(name)
+    if (!entry) {
+      throw new Error(`Plugin manifest not found: ${name}`)
+    }
+
+    const session = await host.start(entry.manifest, { cwd: dirname(entry.path) })
+    loaded.add(name)
+    loadedSessionIds.set(name, session.id)
+    log.log('plugin loaded', { plugin: name, sessionId: session.id })
+  }
+
+  const unloadPluginByName = (name: string) => {
+    const sessionId = loadedSessionIds.get(name)
+    if (!sessionId) {
+      loaded.delete(name)
+      return
+    }
+
+    host.stop(sessionId)
+    loadedSessionIds.delete(name)
+    loaded.delete(name)
+    log.log('plugin unloaded', { plugin: name, sessionId })
+  }
+
   const loadEnabled = async () => {
     const config = getConfig()
     for (const entry of entries) {
@@ -173,9 +239,7 @@ export async function setupPluginHost(): Promise<PluginHostService> {
         continue
 
       try {
-        await host.start(entry.manifest, { cwd: dirname(entry.path) })
-        loaded.add(name)
-        log.log('plugin loaded', { plugin: name })
+        await loadPluginByName(name)
       }
       catch (error) {
         log.withError(error).withFields({ plugin: name }).error('plugin failed to start')
@@ -222,6 +286,22 @@ export async function setupPluginHost(): Promise<PluginHostService> {
     await refreshManifests()
     await loadEnabled()
     return toSnapshot()
+  })
+
+  defineInvokeHandler(context, electronPluginLoad, async (payload) => {
+    await refreshManifests()
+    await loadPluginByName(payload.name)
+    return toSnapshot()
+  })
+
+  defineInvokeHandler(context, electronPluginUnload, async (payload) => {
+    unloadPluginByName(payload.name)
+    return toSnapshot()
+  })
+
+  defineInvokeHandler(context, electronPluginInspect, async () => {
+    await refreshManifests()
+    return toDebugSnapshot()
   })
 
   defineInvokeHandler(context, electronPluginUpdateCapability, async (payload) => {

@@ -12,6 +12,9 @@ export const electronRestartWebSocketServer = defineInvokeEventa<void, { websock
 export const electronPluginList = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:list')
 export const electronPluginSetEnabled = defineInvokeEventa<PluginRegistrySnapshot, { name: string, enabled: boolean, path?: string }>('eventa:invoke:electron:plugins:set-enabled')
 export const electronPluginLoadEnabled = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:load-enabled')
+export const electronPluginLoad = defineInvokeEventa<PluginRegistrySnapshot, { name: string }>('eventa:invoke:electron:plugins:load')
+export const electronPluginUnload = defineInvokeEventa<PluginRegistrySnapshot, { name: string }>('eventa:invoke:electron:plugins:unload')
+export const electronPluginInspect = defineInvokeEventa<PluginHostDebugSnapshot>('eventa:invoke:electron:plugins:inspect')
 export const electronPluginUpdateCapability = defineInvokeEventa<PluginCapabilityState, PluginCapabilityPayload>('eventa:invoke:electron:plugins:capability:update')
 export const pluginProtocolListProvidersEventName = 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers'
 export const pluginProtocolListProviders = defineInvokeEventa<Array<{ name: string }>>(pluginProtocolListProvidersEventName)
@@ -91,6 +94,21 @@ export interface PluginCapabilityState {
   state: 'announced' | 'ready'
   metadata?: Record<string, unknown>
   updatedAt: number
+}
+
+export interface PluginHostSessionSummary {
+  id: string
+  manifestName: string
+  phase: string
+  runtime: 'electron' | 'node' | 'web'
+  moduleId: string
+}
+
+export interface PluginHostDebugSnapshot {
+  registry: PluginRegistrySnapshot
+  sessions: PluginHostSessionSummary[]
+  capabilities: PluginCapabilityState[]
+  refreshedAt: number
 }
 
 export const widgetsOpenWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:electron:windows:widgets:open')

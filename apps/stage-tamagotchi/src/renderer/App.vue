@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
+import { defineInvokeHandler } from '@moeru/eventa'
 import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
+import { usePluginHostInspectorStore } from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
@@ -24,6 +25,12 @@ import ResizeHandler from './components/ResizeHandler.vue'
 
 import {
   electronOpenSettings,
+  electronPluginInspect,
+  electronPluginList,
+  electronPluginLoad,
+  electronPluginLoadEnabled,
+  electronPluginSetEnabled,
+  electronPluginUnload,
   electronPluginUpdateCapability,
   electronStartTrackMousePosition,
   electronStartWebSocketServer,
@@ -46,6 +53,7 @@ const chatSessionStore = useChatSessionStore()
 const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
 const analyticsStore = useSharedAnalyticsStore()
+const pluginHostInspectorStore = usePluginHostInspectorStore()
 usePerfTracerBridgeStore()
 
 watch(language, () => {
@@ -60,6 +68,24 @@ onMounted(() => updateThemeColor())
 const startWebSocketServer = useElectronEventaInvoke(electronStartWebSocketServer)
 
 onMounted(async () => {
+  const context = useElectronEventaContext()
+  const listPlugins = useElectronEventaInvoke(electronPluginList)
+  const setPluginEnabled = useElectronEventaInvoke(electronPluginSetEnabled)
+  const loadEnabledPlugins = useElectronEventaInvoke(electronPluginLoadEnabled)
+  const loadPlugin = useElectronEventaInvoke(electronPluginLoad)
+  const unloadPlugin = useElectronEventaInvoke(electronPluginUnload)
+  const inspectPluginHost = useElectronEventaInvoke(electronPluginInspect)
+
+  // NOTICE: register plugin host bridge before long async startup work so devtools pages can use it immediately.
+  pluginHostInspectorStore.setBridge({
+    list: () => listPlugins(),
+    setEnabled: payload => setPluginEnabled(payload),
+    loadEnabled: () => loadEnabledPlugins(),
+    load: payload => loadPlugin(payload),
+    unload: payload => unloadPlugin(payload),
+    inspect: () => inspectPluginHost(),
+  })
+
   analyticsStore.initialize()
   cardStore.initialize()
   onboardingStore.initializeSetupCheck()
@@ -73,9 +99,8 @@ onMounted(async () => {
   await contextBridgeStore.initialize()
   characterOrchestratorStore.initialize()
 
-  const context = useElectronEventaContext()
-  const startTrackingCursorPoint = defineInvoke(context.value, electronStartTrackMousePosition)
-  const reportPluginCapability = defineInvoke(context.value, electronPluginUpdateCapability)
+  const startTrackingCursorPoint = useElectronEventaInvoke(electronStartTrackMousePosition)
+  const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
   await startTrackingCursorPoint()
 
   // Expose stage provider definitions to plugin host APIs.

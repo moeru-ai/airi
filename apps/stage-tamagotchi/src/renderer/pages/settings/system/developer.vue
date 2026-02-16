@@ -66,6 +66,12 @@ const menu = computed(() => [
     to: '/devtools/websocket-inspector',
   },
   {
+    title: 'Plugin Host Debug',
+    description: 'Inspect discovered/enabled/loaded plugins and control load/unload lifecycle',
+    icon: 'i-solar:bug-bold-duotone',
+    to: '/devtools/plugin-host',
+  },
+  {
     title: 'Screen Capture',
     description: 'Capture screen or window as video and/or audio streams',
     icon: 'i-solar:screen-share-bold-duotone',
