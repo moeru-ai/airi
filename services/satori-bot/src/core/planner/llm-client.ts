@@ -1,8 +1,8 @@
 import type { GenerateTextOptions } from '@xsai/generate-text'
 import type { Message as LLMMessage } from '@xsai/shared-chat'
 
-import type { Action } from '../types/bot'
-import type { SatoriMessage } from '../types/satori'
+import type { SatoriEvent } from '../../adapter/satori/types'
+import type { Action } from '../types'
 
 import { env } from 'node:process'
 
@@ -11,15 +11,15 @@ import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/utils-chat'
 import { parse } from 'best-effort-json-parser'
 
-import { personality, systemPrompt } from '../prompts'
+import { personality, systemPrompt } from './prompts'
 
 export async function imagineAnAction(
   currentAbortController: AbortController | undefined,
   messages: LLMMessage[],
   actions: { action: Action, result: unknown }[],
   globalStates: {
-    unreadMessages: Record<string, SatoriMessage[]>
-    incomingMessages?: SatoriMessage[]
+    unreadEvents: Record<string, SatoriEvent[]>
+    incomingEvents?: SatoriEvent[]
   },
 ): Promise<Action | undefined> {
   const logger = useLogg('imagineAnAction').useGlobalConfig()
@@ -36,15 +36,17 @@ export async function imagineAnAction(
     ...messages,
     message.user(
       [
-        globalStates?.incomingMessages?.length > 0
-          ? `Incoming messages:\n${globalStates.incomingMessages.filter(Boolean).map(msg => `- [${msg.channel?.name || msg.channel?.id}] ${msg.user?.name || msg.user?.id}: ${msg.content}`).join('\n')}`
+        globalStates?.incomingEvents?.length > 0
+          ? `Incoming events:\n${globalStates.incomingEvents.filter(Boolean).map(event =>
+            `- [${event.channel?.name || event.channel?.id}] ${event.user?.name || event.user?.id}: ${event.message?.content || '[No content]'}`,
+          ).join('\n')}`
           : '',
         'History actions:',
         actions.map(a => `- Action: ${JSON.stringify(a.action)}, Result: ${JSON.stringify(a.result)}`).join('\n'),
         `Currently, it's ${new Date()} on the server that hosts you.`,
-        `You have total ${Object.values(globalStates.unreadMessages).reduce((acc, cur) => acc + cur.length, 0)} unread messages.`,
-        'Unread messages count are:',
-        Object.entries(globalStates.unreadMessages).map(([key, value]) => `Channel ID:${key}, Unread message count:${value.length}`).join('\n'),
+        `You have total ${Object.values(globalStates.unreadEvents).reduce((acc, cur) => acc + cur.length, 0)} unread events.`,
+        'Unread events count are:',
+        Object.entries(globalStates.unreadEvents).map(([key, value]) => `Channel ID:${key}, Unread event count:${value.length}`).join('\n'),
         'Based on the context, what do you want to do? Choose a right action from the listing of the tools you want to take next.',
         'Respond with the action and parameters you choose in JSON only, without any explanation and markups.',
       ].filter(Boolean).join('\n\n'),
@@ -84,7 +86,7 @@ export async function imagineAnAction(
 
     logger.withFields({
       response: res.text,
-      unreadMessages: Object.fromEntries(Object.entries(globalStates.unreadMessages).map(([key, value]) => [key, value.length])),
+      unreadEvents: Object.fromEntries(Object.entries(globalStates.unreadEvents).map(([key, value]) => [key, value.length])),
       now: new Date().toLocaleString(),
       totalTokens: res.usage.total_tokens,
       promptTokens: res.usage.prompt_tokens,

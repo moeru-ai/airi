@@ -1,4 +1,4 @@
-import type { SatoriMessageCreateRequest, SatoriMessageCreateResponse } from '../types/satori'
+import type { SatoriMessageCreateRequest, SatoriMessageCreateResponse } from './types'
 
 import { useLogg } from '@guiiai/logg'
 

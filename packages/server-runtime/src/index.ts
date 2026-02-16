@@ -12,6 +12,7 @@ import { availableLogLevelStrings, Format, LogLevelString, logLevelStringToLogLe
 import { MessageHeartbeat, MessageHeartbeatKind, WebSocketEventSource } from '@proj-airi/server-shared/types'
 import { defineWebSocketHandler, H3 } from 'h3'
 import { nanoid } from 'nanoid'
+import { stringify } from 'superjson'
 
 import packageJSON from '../package.json'
 
@@ -40,35 +41,35 @@ function createServerEventMetadata(serverInstanceId: string, parentId?: string):
   }
 }
 
-// pre-stringified responses
+// pre-stringified responses, make sure to use the `send` helper function to send them
 const RESPONSES = {
-  authenticated: (serverInstanceId: string, parentId?: string) => JSON.stringify({
+  authenticated: (serverInstanceId: string, parentId?: string) => ({
     type: 'module:authenticated',
     data: { authenticated: true },
     metadata: createServerEventMetadata(serverInstanceId, parentId),
-  } satisfies WebSocketEvent),
-  notAuthenticated: (serverInstanceId: string, parentId?: string) => JSON.stringify({
+  }),
+  notAuthenticated: (serverInstanceId: string, parentId?: string) => ({
     type: 'error',
     data: { message: 'not authenticated' },
     metadata: createServerEventMetadata(serverInstanceId, parentId),
-  } satisfies WebSocketEvent),
-  error: (message: string, serverInstanceId: string, parentId?: string) => JSON.stringify({
+  }),
+  error: (message: string, serverInstanceId: string, parentId?: string) => ({
     type: 'error',
     data: { message },
     metadata: createServerEventMetadata(serverInstanceId, parentId),
   }),
-  heartbeat: (kind: MessageHeartbeatKind, message: MessageHeartbeat | string, serverInstanceId: string, parentId?: string) => JSON.stringify({
+  heartbeat: (kind: MessageHeartbeatKind, message: MessageHeartbeat | string, serverInstanceId: string, parentId?: string) => ({
     type: 'transport:connection:heartbeat',
     data: { kind, message, at: Date.now() },
     metadata: createServerEventMetadata(serverInstanceId, parentId),
-  } satisfies WebSocketEvent),
-}
+  }),
+} satisfies Record<string, (...args: unknown[]) => WebSocketEvent<Record<string, unknown>>>
 
 const DEFAULT_HEARTBEAT_TTL_MS = 60_000
 
 // helper send function
 function send(peer: Peer, event: WebSocketEvent<Record<string, unknown>> | string) {
-  peer.send(typeof event === 'string' ? event : JSON.stringify(event))
+  peer.send(typeof event === 'string' ? event : stringify(event))
 }
 
 export function setupApp(options?: {
@@ -187,7 +188,7 @@ export function setupApp(options?: {
         peers.set(peer.id, { peer, authenticated: false, name: '', lastHeartbeatAt: Date.now() })
       }
       else {
-        peer.send(RESPONSES.authenticated)
+        send(peer, RESPONSES.authenticated(instanceId))
         peers.set(peer.id, { peer, authenticated: true, name: '', lastHeartbeatAt: Date.now() })
         sendRegistrySync(peer)
       }
@@ -244,7 +245,7 @@ export function setupApp(options?: {
             return
           }
 
-          peer.send(RESPONSES.authenticated)
+          send(peer, RESPONSES.authenticated(instanceId, event.metadata?.event.id))
           const p = peers.get(peer.id)
           if (p) {
             p.authenticated = true
@@ -344,12 +345,12 @@ export function setupApp(options?: {
       const p = peers.get(peer.id)
       if (!p?.authenticated) {
         logger.withFields({ peer: peer.id, peerName: p?.name, peerRemote: peer.remoteAddress, peerRequest: peer.request.url }).debug('not authenticated')
-        peer.send(RESPONSES.notAuthenticated)
+        send(peer, RESPONSES.notAuthenticated(instanceId, event.metadata?.event.id))
 
         return
       }
 
-      const payload = JSON.stringify(event)
+      const payload = stringify(event)
       const allowBypass = options?.routing?.allowBypass !== false
       const shouldBypass = Boolean(event.route?.bypass && allowBypass && isDevtoolsPeer(p))
       const destinations = shouldBypass ? undefined : collectDestinations(event)
