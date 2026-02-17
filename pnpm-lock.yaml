@@ -1996,6 +1996,9 @@ importers:
       valibot:
         specifier: ^1.2.0
         version: 1.2.0(typescript@5.9.3)
+      xstate:
+        specifier: ^5.20.1
+        version: 5.28.0
 
   packages/server-runtime:
     dependencies:
@@ -16617,6 +16620,9 @@ packages:
         optional: true
       zod-to-json-schema:
         optional: true
+
+  xstate@5.28.0:
+    resolution: {integrity: sha512-Iaqq6ZrUzqeUtA3hC5LQKZfR8ZLzEFTImMHJM3jWEdVvXWdKvvVLXZEiNQWm3SCA9ZbEou/n5rcsna1wb9t28A==}
 
   xtend@4.0.2:
     resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
@@ -32199,6 +32205,8 @@ snapshots:
     optionalDependencies:
       zod: 4.3.5
       zod-to-json-schema: 3.25.1(zod@4.3.5)
+
+  xstate@5.28.0: {}
 
   xtend@4.0.2: {}
 
