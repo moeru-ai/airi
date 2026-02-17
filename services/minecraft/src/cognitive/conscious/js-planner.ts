@@ -77,6 +77,9 @@ export interface RuntimeGlobals {
   setNoActionBudget?: (value: number) => { ok: true, remaining: number, default: number, max: number }
   getNoActionBudget?: () => { remaining: number, default: number, max: number }
   forgetConversation?: () => { ok: true, cleared: string[] }
+  enterContext?: (label: string) => { ok: true, label: string, turnId: number }
+  exitContext?: (summary?: string) => { ok: true, summarized: string, messagesArchived: number }
+  history?: unknown
   llmInput?: {
     systemPrompt: string
     userMessage: string
@@ -224,6 +227,9 @@ export class JavaScriptPlanner {
       { name: 'setNoActionBudget', kind: 'function', readonly: true },
       { name: 'getNoActionBudget', kind: 'function', readonly: true },
       { name: 'forget_conversation', kind: 'function', readonly: true },
+      { name: 'enterContext', kind: 'function', readonly: true },
+      { name: 'exitContext', kind: 'function', readonly: true },
+      { name: 'history', kind: 'object', readonly: true },
       { name: 'llmMessages', kind: 'object', readonly: true },
       { name: 'llmSystemPrompt', kind: 'string', readonly: true },
       { name: 'llmUserMessage', kind: 'string', readonly: true },
@@ -286,6 +292,9 @@ export class JavaScriptPlanner {
       'setNoActionBudget': this.sandbox.setNoActionBudget,
       'getNoActionBudget': this.sandbox.getNoActionBudget,
       'forget_conversation': this.sandbox.forget_conversation,
+      'enterContext': this.sandbox.enterContext,
+      'exitContext': this.sandbox.exitContext,
+      'history': this.sandbox.history,
     }
 
     if (includeBuiltins) {
@@ -457,6 +466,9 @@ export class JavaScriptPlanner {
     this.sandbox.setNoActionBudget = globals.setNoActionBudget ?? null
     this.sandbox.getNoActionBudget = globals.getNoActionBudget ?? null
     this.sandbox.forget_conversation = globals.forgetConversation ?? null
+    this.sandbox.enterContext = globals.enterContext ?? null
+    this.sandbox.exitContext = globals.exitContext ?? null
+    this.sandbox.history = globals.history ?? null
     this.sandbox.llmMessages = llmInput?.messages ?? []
     this.sandbox.llmSystemPrompt = llmInput?.systemPrompt ?? ''
     this.sandbox.llmUserMessage = llmInput?.userMessage ?? ''

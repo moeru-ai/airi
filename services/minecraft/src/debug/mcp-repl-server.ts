@@ -238,10 +238,6 @@ export class McpReplServer {
       async ({ limit, turnId }) => {
         const result = this.brain
           .getLlmTrace(limit, turnId)
-          .map(entry => ({
-            ...entry,
-            messages: entry.messages.filter(message => message.role !== 'system'),
-          }))
         return {
           content: [{ type: 'text', text: JSON.stringify(result) }],
         }

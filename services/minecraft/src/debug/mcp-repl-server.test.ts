@@ -70,10 +70,8 @@ describe('mcpReplServer', () => {
         id: 1,
         turnId: 1,
         content: 'await skip()',
-        messages: [
-          { role: 'system', content: 'sys' },
-          { role: 'user', content: 'u' },
-        ],
+        messageCount: 2,
+        estimatedTokens: 10,
       }]),
     } as unknown as Brain
 
@@ -183,7 +181,7 @@ describe('mcpReplServer', () => {
 
     expect(brain.getLlmTrace).toHaveBeenCalledWith(5, 3)
     expect(text).toContain('await skip()')
-    expect(text).toContain('"role":"user"')
-    expect(text).not.toContain('"role":"system"')
+    expect(text).toContain('"messageCount":2')
+    expect(text).toContain('"estimatedTokens":10')
   })
 })

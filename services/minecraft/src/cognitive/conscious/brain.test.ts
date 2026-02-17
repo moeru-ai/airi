@@ -138,7 +138,7 @@ describe('brain no-action follow-up', () => {
     const result = brain.forgetConversation()
 
     expect(result.ok).toBe(true)
-    expect(result.cleared).toEqual(['conversationHistory', 'lastLlmInputSnapshot'])
+    expect(result.cleared).toEqual(['conversationHistory', 'lastLlmInputSnapshot', 'contextHistory'])
     expect(brain.conversationHistory).toEqual([])
     expect(brain.lastLlmInputSnapshot).toBeNull()
     expect(brain.llmLogEntries).toHaveLength(1)
