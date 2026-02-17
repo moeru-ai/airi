@@ -201,6 +201,10 @@ Common patterns:
 - To cross terrain, go through walls, or reach any reachable coordinate: one `goToCoordinate` call is sufficient.
 - **Never** write manual mine-then-move loops. That is what the pathfinder already does internally.
 - `collectBlocks` also uses pathfinding internally to reach and mine target blocks.
+- Navigation results include `reason`, `elapsedMs`, `estimatedTimeMs`, `movedDistance`, `distanceToTargetAfter`, and `message`.
+- Pathfinding has an **ETA-based timeout** (2× estimated travel time + grace). The ETA accounts for digging, block placement, parkour, and walking speed.
+- If navigation fails with `reason: 'timeout'` or `reason: 'stagnation'`, try a closer intermediate waypoint, a different route, or `giveUp`.
+- If navigation fails with `reason: 'noPath'`, the destination is unreachable from the current position.
 
 # Context Management (Mandatory)
 You MUST use context boundaries to manage your conversation history. Without them, old messages accumulate and degrade your reasoning quality.

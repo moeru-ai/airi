@@ -9,6 +9,7 @@ import { sleep } from '@moeru/std'
 
 import { isHostile } from '../utils/mcdata'
 import { log } from './base'
+import { patchedGoto } from './patched-goto'
 import { getNearbyEntities, getNearestEntityWhere } from './world'
 
 const { goals } = pathfinderModel
@@ -71,7 +72,7 @@ export async function attackEntity(
   if (!kill) {
     if (mineflayer.bot.entity.position.distanceTo(pos) > 5) {
       const goal = new goals.GoalNear(pos.x, pos.y, pos.z, 4)
-      await mineflayer.bot.pathfinder.goto(goal)
+      await patchedGoto(mineflayer.bot, goal)
     }
     await mineflayer.bot.attack(entity)
     return true
@@ -101,7 +102,7 @@ export async function defendSelf(mineflayer: Mineflayer, range = 9): Promise<boo
       && enemy.name !== 'creeper' && enemy.name !== 'phantom') {
       try {
         const goal = new goals.GoalFollow(enemy, 3.5)
-        await mineflayer.bot.pathfinder.goto(goal)
+        await patchedGoto(mineflayer.bot, goal)
       }
       catch { /* might error if entity dies, ignore */ }
     }
@@ -110,7 +111,7 @@ export async function defendSelf(mineflayer: Mineflayer, range = 9): Promise<boo
       try {
         const followGoal = new goals.GoalFollow(enemy, 2)
         const invertedGoal = new goals.GoalInvert(followGoal)
-        await mineflayer.bot.pathfinder.goto(invertedGoal)
+        await patchedGoto(mineflayer.bot, invertedGoal)
       }
       catch { /* might error if entity dies, ignore */ }
     }

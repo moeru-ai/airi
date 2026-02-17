@@ -10,6 +10,7 @@ import { Vec3 } from 'vec3'
 import { McData } from '../utils/mcdata'
 import { log } from './base'
 import { goToPosition } from './movement'
+import { patchedGoto } from './patched-goto'
 import { getNearestBlock, getNearestBlocks, getPosition, shouldPlaceTorch } from './world'
 
 const { goals, Movements } = pathfinderModel
@@ -81,7 +82,7 @@ async function moveIntoRange(mineflayer: Mineflayer, block: any) {
     movements.allowParkour = false
     movements.allowSprinting = false
     mineflayer.bot.pathfinder.setMovements(movements)
-    await mineflayer.bot.pathfinder.goto(new goals.GoalNear(pos.x, pos.y, pos.z, 4))
+    await patchedGoto(mineflayer.bot, new goals.GoalNear(pos.x, pos.y, pos.z, 4))
   }
 }
 
@@ -356,16 +357,14 @@ async function moveAwayFromBlock(mineflayer: Mineflayer, targetBlock: any) {
   )
   const invertedGoal = new goals.GoalInvert(goal)
   mineflayer.bot.pathfinder.setMovements(new Movements(mineflayer.bot))
-  await mineflayer.bot.pathfinder.goto(invertedGoal)
+  await patchedGoto(mineflayer.bot, invertedGoal)
 }
 
 async function moveToBlock(mineflayer: Mineflayer, targetBlock: any) {
   const pos = targetBlock.position
   const movements = new Movements(mineflayer.bot)
   mineflayer.bot.pathfinder.setMovements(movements)
-  await mineflayer.bot.pathfinder.goto(
-    new goals.GoalNear(pos.x, pos.y, pos.z, 4),
-  )
+  await patchedGoto(mineflayer.bot, new goals.GoalNear(pos.x, pos.y, pos.z, 4))
 }
 
 async function tryPlaceBlock(

@@ -20,10 +20,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 diff --git a/index.js b/index.js
-index b38bd30..2ca8205 100644
+index b38bd30..patched 100644
 --- a/index.js
 +++ b/index.js
-@@ -14,6 +14,7 @@ const interactableBlocks = require('./lib/interactable.json')
+@@ -14,6 +14,7 @@
  
  function inject (bot) {
    const waterType = bot.registry.blocksByName.water.id
@@ -31,7 +31,16 @@ index b38bd30..2ca8205 100644
    const ladderId = bot.registry.blocksByName.ladder.id
    const vineId = bot.registry.blocksByName.vine.id
    let stateMovements = new Movements(bot)
-@@ -61,6 +62,10 @@ function inject (bot) {
+@@ -29,6 +30,8 @@
+   let lastNodeTime = performance.now()
+   let returningPos = null
+   let stopPathing = false
++  let stuckCount = 0
++  let lastStuckPos = null
+   const physics = new Physics(bot)
+   const lockPlaceBlock = new Lock()
+   const lockEquipItem = new Lock()
+@@ -61,6 +64,10 @@
    }
  
    bot.pathfinder.getPathTo = (movements, goal, timeout) => {
@@ -42,7 +51,19 @@ index b38bd30..2ca8205 100644
      const generator = bot.pathfinder.getPathFromTo(movements, bot.entity.position, goal, { timeout })
      const { value: { result, astarContext: context } } = generator.next()
      astarContext = context
-@@ -170,6 +175,16 @@ function inject (bot) {
+@@ -136,6 +143,11 @@
+     lockUseBlock.release()
+     stateMovements.clearCollisionIndex()
+     if (clearStates) bot.clearControlStates()
++    // Reset stuck counter when path is reset for non-stuck reasons
++    if (reason !== 'stuck') {
++      stuckCount = 0
++      lastStuckPos = null
++    }
+     if (stopPathing) return stop()
+   }
+ 
+@@ -170,6 +182,16 @@
        const curPoint = path[i]
        if (curPoint.toBreak.length > 0 || curPoint.toPlace.length > 0) break
        const b = bot.blockAt(new Vec3(curPoint.x, curPoint.y, curPoint.z))
@@ -59,7 +80,7 @@ index b38bd30..2ca8205 100644
        if (b && (b.type === waterType || ((b.type === ladderId || b.type === vineId) && i + 1 < path.length && path[i + 1].y < curPoint.y))) {
          curPoint.x = Math.floor(curPoint.x) + 0.5
          curPoint.y = Math.floor(curPoint.y)
-@@ -524,6 +539,9 @@ function inject (bot) {
+@@ -524,6 +546,9 @@
          bot.activateBlock(bot.blockAt(new Vec3(placingBlock.x, placingBlock.y, placingBlock.z))).then(() => {
            lockUseBlock.release()
            placingBlock = nextPoint.toPlace.shift()
@@ -69,7 +90,7 @@ index b38bd30..2ca8205 100644
          }, err => {
            console.error(err)
            lockUseBlock.release()
-@@ -550,6 +568,7 @@ function inject (bot) {
+@@ -550,6 +575,7 @@
              lockEquipItem.release()
              const refBlock = bot.blockAt(new Vec3(placingBlock.x, placingBlock.y, placingBlock.z), false)
              if (!lockPlaceBlock.tryAcquire()) return
@@ -77,7 +98,7 @@ index b38bd30..2ca8205 100644
              if (interactableBlocks.includes(refBlock.name)) {
                bot.setControlState('sneak', true)
              }
-@@ -557,6 +576,7 @@ function inject (bot) {
+@@ -557,6 +583,7 @@
                .then(function () {
                  // Dont release Sneak if the block placement was not successful
                  bot.setControlState('sneak', false)
@@ -85,7 +106,7 @@ index b38bd30..2ca8205 100644
                  if (bot.pathfinder.LOSWhenPlacingBlocks && placingBlock.returnPos) returningPos = placingBlock.returnPos.clone()
                })
                .catch(_ignoreError => {
-@@ -576,7 +596,7 @@ function inject (bot) {
+@@ -576,7 +603,7 @@
      let dx = nextPoint.x - p.x
      const dy = nextPoint.y - p.y
      let dz = nextPoint.z - p.z
@@ -94,7 +115,7 @@ index b38bd30..2ca8205 100644
        // arrived at next point
        lastNodeTime = performance.now()
        if (stopPathing) {
-@@ -611,6 +631,9 @@ function inject (bot) {
+@@ -611,6 +638,9 @@
      if (bot.entity.isInWater) {
        bot.setControlState('jump', true)
        bot.setControlState('sprint', false)
@@ -104,11 +125,36 @@ index b38bd30..2ca8205 100644
      } else if (stateMovements.allowSprinting && physics.canStraightLine(path, true)) {
        bot.setControlState('jump', false)
        bot.setControlState('sprint', true)
+@@ -628,9 +658,22 @@
+       bot.setControlState('sprint', false)
+     }
+ 
+-    // check for futility
++    // check for futility — with stuck counter to prevent infinite reset loops
+     if (performance.now() - lastNodeTime > 3500) {
+-      // should never take this long to go to the next node
++      const currentPos = bot.entity.position.clone()
++      if (lastStuckPos && currentPos.distanceTo(lastStuckPos) < 1.5) {
++        stuckCount++
++      } else {
++        stuckCount = 1
++        lastStuckPos = currentPos
++      }
++      if (stuckCount >= 3) {
++        // Truly stuck after 3 consecutive resets without progress — give up
++        stuckCount = 0
++        lastStuckPos = null
++        stop()
++        return
++      }
+       resetPath('stuck')
+     }
+   }
 diff --git a/lib/movements.js b/lib/movements.js
-index a7e3505..84a0841 100644
+index a7e3505..patched 100644
 --- a/lib/movements.js
 +++ b/lib/movements.js
-@@ -50,7 +50,12 @@ class Movements {
+@@ -50,7 +50,12 @@
      this.blocksToAvoid.add(registry.blocksByName.fire.id)
      if (registry.blocksByName.cobweb) this.blocksToAvoid.add(registry.blocksByName.cobweb.id)
      if (registry.blocksByName.web) this.blocksToAvoid.add(registry.blocksByName.web.id)
@@ -122,7 +168,7 @@ index a7e3505..84a0841 100644
  
      this.liquids = new Set()
      this.liquids.add(registry.blocksByName.water.id)
-@@ -62,7 +67,13 @@ class Movements {
+@@ -62,7 +67,13 @@
  
      this.climbables = new Set()
      this.climbables.add(registry.blocksByName.ladder.id)
@@ -137,7 +183,7 @@ index a7e3505..84a0841 100644
      this.emptyBlocks = new Set()
  
      this.replaceables = new Set()
-@@ -92,13 +103,15 @@ class Movements {
+@@ -92,13 +103,15 @@
        }
      })
      registry.blocksArray.forEach(block => {
@@ -155,7 +201,7 @@ index a7e3505..84a0841 100644
  
      this.exclusionAreasStep = []
      this.exclusionAreasBreak = []
-@@ -230,8 +243,13 @@ class Movements {
+@@ -230,8 +243,13 @@
        }
      }
      b.climbable = this.climbables.has(b.type)
@@ -171,7 +217,7 @@ index a7e3505..84a0841 100644
      b.replaceable = this.replaceables.has(b.type) && !b.physical
      b.liquid = this.liquids.has(b.type)
      b.height = pos.y + dy
-@@ -284,6 +302,18 @@ class Movements {
+@@ -284,6 +302,18 @@
      cost += this.exclusionStep(block) // Is excluded so can't move or break
      cost += this.getNumEntitiesAt(block.position, 0, 0, 0) * this.entityCost
      if (block.safe) return cost
@@ -190,7 +236,7 @@ index a7e3505..84a0841 100644
      if (!this.safeToBreak(block)) return 100 // Can't break, so can't move
      toBreak.push(block.position)
  
-@@ -387,8 +417,8 @@ class Movements {
+@@ -387,8 +417,8 @@
      cost += this.safeOrBreak(blockB, toBreak)
      if (cost > 100) return
  
@@ -201,7 +247,7 @@ index a7e3505..84a0841 100644
        toPlace.push({ x: node.x + dir.x, y: node.y, z: node.z + dir.z, dx: 0, dy: 0, dz: 0, useOne: true }) // Indicate that a block should be used on this block not placed
      } else {
        cost += this.safeOrBreak(blockC, toBreak)
-@@ -554,6 +584,54 @@ class Movements {
+@@ -554,6 +584,54 @@
      neighbors.push(new Move(node.x, node.y + 1, node.z, node.remainingBlocks - toPlace.length, cost, toBreak, toPlace))
    }
  
@@ -256,7 +302,7 @@ index a7e3505..84a0841 100644
    // Jump up, down or forward over a 1 block gap
    getMoveParkourForward (node, dir, neighbors) {
      const block0 = this.getBlock(node, 0, -1, 0)
-@@ -656,8 +734,27 @@ class Movements {
+@@ -656,8 +734,27 @@
      this.getMoveDown(node, neighbors)
      this.getMoveUp(node, neighbors)
  

@@ -7,6 +7,7 @@ import pathfinder from 'mineflayer-pathfinder'
 import { ActionError } from '../../utils/errors'
 import { useLogger } from '../../utils/logger'
 import { breakBlockAt } from '../blocks'
+import { patchedGoto } from '../patched-goto'
 import { getNearestBlocks } from '../world'
 import { expandBlockAliases } from './block-type-normalizer'
 import { ensurePickaxe } from './ensure'
@@ -105,7 +106,11 @@ export async function collectBlock(
           veinBlock.position.y,
           veinBlock.position.z,
         )
-        await mineflayer.bot.pathfinder.goto(goal)
+        const navResult = await patchedGoto(mineflayer.bot, goal)
+        if (!navResult.ok) {
+          logger.log(`Failed to reach ${blockType} block: ${navResult.reason} — ${navResult.message}`)
+          continue
+        }
 
         // Break the block and collect drops
         await mineAndCollect(mineflayer, veinBlock)

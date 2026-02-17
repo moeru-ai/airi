@@ -250,7 +250,7 @@ overrides:
 
 patchedDependencies:
   mineflayer-pathfinder:
-    hash: 4e932c106617efe7663216fc5ed42556761146633ebae88a5c831dc253abafa1
+    hash: 4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797
     path: patches/mineflayer-pathfinder.patch
   mineflayer@4.33.0:
     hash: 03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a
@@ -3069,7 +3069,7 @@ importers:
         version: 14.1.0(vue@3.5.26(typescript@5.9.3))
       '@wxt-dev/module-vue':
         specifier: ^1.0.3
-        version: 1.0.3(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.9)(canvas@3.2.1)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+        version: 1.0.3(vite@8.0.0-beta.9(@types/node@24.10.9)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.9)(canvas@3.2.1)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       nanoid:
         specifier: ^5.1.6
         version: 5.1.6
@@ -3189,7 +3189,7 @@ importers:
         version: 1.6.0(encoding@0.1.13)
       mineflayer-pathfinder:
         specifier: ^2.4.5
-        version: 2.4.5(patch_hash=4e932c106617efe7663216fc5ed42556761146633ebae88a5c831dc253abafa1)
+        version: 2.4.5(patch_hash=4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797)
       mineflayer-pvp:
         specifier: ^1.3.2
         version: 1.3.2(encoding@0.1.13)(prismarine-registry@1.11.0)
@@ -23309,9 +23309,9 @@ snapshots:
       '@types/filesystem': 0.0.36
       '@types/har-format': 1.2.16
 
-  '@wxt-dev/module-vue@1.0.3(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.9)(canvas@3.2.1)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
+  '@wxt-dev/module-vue@1.0.3(vite@8.0.0-beta.9(@types/node@24.10.9)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.9)(canvas@3.2.1)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
-      '@vitejs/plugin-vue': 6.0.3(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+      '@vitejs/plugin-vue': 6.0.3(vite@8.0.0-beta.9(@types/node@24.10.9)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       wxt: 0.20.13(@types/node@24.10.9)(canvas@3.2.1)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - vite
@@ -27880,13 +27880,13 @@ snapshots:
   mineflayer-collectblock@1.6.0(encoding@0.1.13):
     dependencies:
       mineflayer: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13)
-      mineflayer-pathfinder: 2.4.5(patch_hash=4e932c106617efe7663216fc5ed42556761146633ebae88a5c831dc253abafa1)
+      mineflayer-pathfinder: 2.4.5(patch_hash=4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797)
       mineflayer-tool: 1.2.0(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
       - supports-color
 
-  mineflayer-pathfinder@2.4.5(patch_hash=4e932c106617efe7663216fc5ed42556761146633ebae88a5c831dc253abafa1):
+  mineflayer-pathfinder@2.4.5(patch_hash=4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797):
     dependencies:
       minecraft-data: 3.102.3
       prismarine-block: 1.22.0
@@ -27899,7 +27899,7 @@ snapshots:
   mineflayer-pvp@1.3.2(encoding@0.1.13)(prismarine-registry@1.11.0):
     dependencies:
       mineflayer: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13)
-      mineflayer-pathfinder: 2.4.5(patch_hash=4e932c106617efe7663216fc5ed42556761146633ebae88a5c831dc253abafa1)
+      mineflayer-pathfinder: 2.4.5(patch_hash=4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797)
       mineflayer-utils: 0.1.4(encoding@0.1.13)(prismarine-registry@1.11.0)
     transitivePeerDependencies:
       - encoding
@@ -27909,7 +27909,7 @@ snapshots:
   mineflayer-tool@1.2.0(encoding@0.1.13):
     dependencies:
       mineflayer: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13)
-      mineflayer-pathfinder: 2.4.5(patch_hash=4e932c106617efe7663216fc5ed42556761146633ebae88a5c831dc253abafa1)
+      mineflayer-pathfinder: 2.4.5(patch_hash=4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797)
       prismarine-nbt: 2.8.0
     transitivePeerDependencies:
       - encoding

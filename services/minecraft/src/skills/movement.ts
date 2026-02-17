@@ -2,6 +2,7 @@ import type { Block } from 'prismarine-block'
 import type { Entity } from 'prismarine-entity'
 
 import type { Mineflayer } from '../libs/mineflayer'
+import type { PathfindProgressInfo, PathfindResult } from './patched-goto'
 
 import pathfinder from 'mineflayer-pathfinder'
 
@@ -11,7 +12,10 @@ import { Vec3 } from 'vec3'
 
 import { useLogger } from '../utils/logger'
 import { log } from './base'
+import { patchedGoto } from './patched-goto'
 import { getNearestBlock, getNearestEntityWhere } from './world'
+
+export type { PathfindProgressInfo, PathfindResult } from './patched-goto'
 
 const logger = useLogger()
 const { goals, Movements } = pathfinder
@@ -22,16 +26,39 @@ export async function goToPosition(
   y: number,
   z: number,
   minDistance = 2,
-): Promise<boolean> {
+  options: { onProgress?: (info: PathfindProgressInfo) => void } = {},
+): Promise<PathfindResult> {
   if (x == null || y == null || z == null) {
     log(mineflayer, `Missing coordinates, given x:${x} y:${y} z:${z}`)
-    return false
+    return {
+      ok: false,
+      reason: 'error',
+      message: `Missing coordinates, given x:${x} y:${y} z:${z}`,
+      startPos: { x: 0, y: 0, z: 0 },
+      endPos: { x: 0, y: 0, z: 0 },
+      distanceTraveled: 0,
+      distanceToTarget: 0,
+      elapsedMs: 0,
+      estimatedTimeMs: 0,
+      pathCost: 0,
+    }
   }
 
   if (mineflayer.allowCheats) {
     mineflayer.bot.chat(`/tp @s ${x} ${y} ${z}`)
     log(mineflayer, `Teleported to ${x}, ${y}, ${z}.`)
-    return true
+    return {
+      ok: true,
+      reason: 'success',
+      message: `Teleported to ${x}, ${y}, ${z}.`,
+      startPos: { x: 0, y: 0, z: 0 },
+      endPos: { x, y, z },
+      distanceTraveled: 0,
+      distanceToTarget: 0,
+      elapsedMs: 0,
+      estimatedTimeMs: 0,
+      pathCost: 0,
+    }
   }
   const targetBlock = mineflayer.bot.blockAt(new Vec3(Math.floor(x), Math.floor(y), Math.floor(z)))
   const blockAbove1 = mineflayer.bot.blockAt(new Vec3(Math.floor(x), Math.floor(y) + 1, Math.floor(z)))
@@ -42,9 +69,18 @@ export async function goToPosition(
     y += 1
   }
 
-  await mineflayer.bot.pathfinder.goto(new goals.GoalNear(x, y, z, minDistance))
-  log(mineflayer, `You have reached ${x}, ${y}, ${z}.`)
-  return true
+  const result = await patchedGoto(mineflayer.bot, new goals.GoalNear(x, y, z, minDistance), {
+    onProgress: options.onProgress,
+  })
+
+  if (result.ok) {
+    log(mineflayer, `You have reached ${x}, ${y}, ${z}.`)
+  }
+  else {
+    log(mineflayer, `Navigation to ${x}, ${y}, ${z} ended: ${result.reason} — ${result.message}`)
+  }
+
+  return result
 }
 
 export async function goToNearestBlock(
@@ -65,7 +101,10 @@ export async function goToNearestBlock(
   }
 
   log(mineflayer, `Found ${blockType} at ${block.position}.`)
-  await goToPosition(mineflayer, block.position.x, block.position.y, block.position.z, minDistance)
+  const result = await goToPosition(mineflayer, block.position.x, block.position.y, block.position.z, minDistance)
+  if (!result.ok) {
+    throw new Error(`Failed to reach ${blockType}: ${result.reason} — ${result.message}`)
+  }
   return block
 }
 
@@ -88,36 +127,68 @@ export async function goToNearestEntity(
 
   const distance = mineflayer.bot.entity.position.distanceTo(entity.position)
   log(mineflayer, `Found ${entityType} ${distance} blocks away.`)
-  await goToPosition(
+  const result = await goToPosition(
     mineflayer,
     entity.position.x,
     entity.position.y,
     entity.position.z,
     minDistance,
   )
-  return true
+  return result.ok
 }
 
 export async function goToPlayer(
   mineflayer: Mineflayer,
   username: string,
   distance = 3,
-): Promise<boolean> {
+  options: { onProgress?: (info: PathfindProgressInfo) => void } = {},
+): Promise<PathfindResult> {
   if (mineflayer.allowCheats) {
     mineflayer.bot.chat(`/tp @s ${username}`)
     log(mineflayer, `Teleported to ${username}.`)
-    return true
+    return {
+      ok: true,
+      reason: 'success',
+      message: `Teleported to ${username}.`,
+      startPos: { x: 0, y: 0, z: 0 },
+      endPos: { x: 0, y: 0, z: 0 },
+      distanceTraveled: 0,
+      distanceToTarget: 0,
+      elapsedMs: 0,
+      estimatedTimeMs: 0,
+      pathCost: 0,
+    }
   }
 
   const player = mineflayer.bot.players[username]?.entity
   if (!player) {
     log(mineflayer, `Could not find ${username}.`)
-    return false
+    return {
+      ok: false,
+      reason: 'error',
+      message: `Could not find ${username}.`,
+      startPos: { x: 0, y: 0, z: 0 },
+      endPos: { x: 0, y: 0, z: 0 },
+      distanceTraveled: 0,
+      distanceToTarget: 0,
+      elapsedMs: 0,
+      estimatedTimeMs: 0,
+      pathCost: 0,
+    }
   }
 
-  await mineflayer.bot.pathfinder.goto(new goals.GoalFollow(player, distance))
-  log(mineflayer, `You have reached ${username}.`)
-  return true
+  const result = await patchedGoto(mineflayer.bot, new goals.GoalFollow(player, distance), {
+    onProgress: options.onProgress,
+  })
+
+  if (result.ok) {
+    log(mineflayer, `You have reached ${username}.`)
+  }
+  else {
+    log(mineflayer, `Navigation to ${username} ended: ${result.reason} — ${result.message}`)
+  }
+
+  return result
 }
 
 export async function followPlayer(
@@ -172,11 +243,11 @@ export async function moveAway(mineflayer: Mineflayer, distance: number): Promis
 
     const farGoal = new pathfinder.goals.GoalXZ(newX, newZ)
 
-    await mineflayer.bot.pathfinder.goto(farGoal)
+    const result = await patchedGoto(mineflayer.bot, farGoal)
     const newPos = mineflayer.bot.entity.position
     logger.log(`I moved away from nearest entity to ${newPos}.`)
     await sleep(500)
-    return true
+    return result.ok
   }
   catch (err) {
     logger.log(`I failed to move away: ${(err as Error).message}`)
@@ -191,8 +262,8 @@ export async function moveAwayFromEntity(
 ): Promise<boolean> {
   const goal = new goals.GoalFollow(entity, distance)
   const invertedGoal = new goals.GoalInvert(goal)
-  await mineflayer.bot.pathfinder.goto(invertedGoal)
-  return true
+  const result = await patchedGoto(mineflayer.bot, invertedGoal)
+  return result.ok
 }
 
 export async function stay(mineflayer: Mineflayer, seconds = 30): Promise<boolean> {

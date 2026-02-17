@@ -12,6 +12,7 @@ import { ActionError } from '../../utils/errors'
 import { useLogger } from '../../utils/logger'
 import { McData } from '../../utils/mcdata'
 import { goToPosition } from '../movement'
+import { patchedGoto } from '../patched-goto'
 
 const logger = useLogger()
 
@@ -161,7 +162,7 @@ export async function placeBlock(
       ),
     )
     // bot.pathfinder.setMovements(new pf.Movements(bot));
-    await mineflayer.bot.pathfinder.goto(goal)
+    await patchedGoto(mineflayer.bot, goal)
   }
 
   // Move closer if too far
@@ -282,7 +283,7 @@ export async function activateNearestBlock(mineflayer: Mineflayer, type: string)
   if (mineflayer.bot.entity.position.distanceTo(block.position) > 4.5) {
     const pos = block.position
     // bot.pathfinder.setMovements(new pf.Movements(bot));
-    await mineflayer.bot.pathfinder.goto(new pathfinder.goals.GoalNear(pos.x, pos.y, pos.z, 4))
+    await patchedGoto(mineflayer.bot, new pathfinder.goals.GoalNear(pos.x, pos.y, pos.z, 4))
   }
   await mineflayer.bot.activateBlock(block)
   logger.log(
@@ -388,10 +389,7 @@ export async function pickupNearbyItems(
   let pickedUp = 0
   while (nearestItem) {
     // bot.pathfinder.setMovements(new pf.Movements(bot));
-    await mineflayer.bot.pathfinder.goto(
-      new pathfinder.goals.GoalFollow(nearestItem, 0.8),
-      () => { },
-    )
+    await patchedGoto(mineflayer.bot, new pathfinder.goals.GoalFollow(nearestItem, 0.8))
     await sleep(500)
     const prev = nearestItem
     nearestItem = getNearestItem(mineflayer.bot)

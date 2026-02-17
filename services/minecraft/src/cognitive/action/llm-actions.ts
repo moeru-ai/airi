@@ -82,21 +82,24 @@ export const actionsList: Action[] = [
       const targetStart = getPlayerPos()
       const distanceToTargetBefore = targetStart ? selfStart.distanceTo(targetStart) : null
 
-      // TODO estimate time cost based on distance, trigger failure if time runs out
-      const ok = await skills.goToPlayer(mineflayer, player_name, closeness)
+      const result = await skills.goToPlayer(mineflayer, player_name, closeness)
 
       const selfEnd = cloneVec3(mineflayer.bot.entity.position)
       const targetEnd = getPlayerPos()
       const distanceToTargetAfter = targetEnd ? selfEnd.distanceTo(targetEnd) : null
 
       return {
-        ok,
+        ok: result.ok,
+        reason: result.reason,
         target: { player_name, closeness },
         startPos: toCoord(selfStart),
         endPos: toCoord(selfEnd),
         movedDistance: selfStart.distanceTo(selfEnd),
         distanceToTargetBefore,
         distanceToTargetAfter,
+        elapsedMs: result.elapsedMs,
+        estimatedTimeMs: result.estimatedTimeMs,
+        message: result.message,
       }
     },
   },
@@ -149,13 +152,14 @@ export const actionsList: Action[] = [
       const targetVec = new Vec3(x, y, z)
       const distanceToTargetBefore = selfStart.distanceTo(targetVec)
 
-      const ok = await skills.goToPosition(mineflayer, x, y, z, closeness)
+      const result = await skills.goToPosition(mineflayer, x, y, z, closeness)
 
       const selfEnd = cloneVec3(mineflayer.bot.entity.position)
       const distanceToTargetAfter = selfEnd.distanceTo(targetVec)
 
       return {
-        ok,
+        ok: result.ok,
+        reason: result.reason,
         target: { x, y, z, closeness },
         startPos: toCoord(selfStart),
         endPos: toCoord(selfEnd),
@@ -163,6 +167,9 @@ export const actionsList: Action[] = [
         distanceToTargetBefore,
         distanceToTargetAfter,
         withinCloseness: distanceToTargetAfter <= closeness,
+        elapsedMs: result.elapsedMs,
+        estimatedTimeMs: result.estimatedTimeMs,
+        message: result.message,
       }
     },
   },
