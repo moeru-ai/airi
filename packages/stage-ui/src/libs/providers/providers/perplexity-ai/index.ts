@@ -1,3 +1,5 @@
+import type { ModelInfo } from '../../types'
+
 import { createPerplexity } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
@@ -45,9 +47,43 @@ export const providerPerplexityAI = defineProvider<PerplexityConfig>({
   validationRequiredWhen(config) {
     return !!config.apiKey?.trim()
   },
+  extraMethods: {
+    async listModels() {
+      return [
+        {
+          id: 'sonar',
+          name: 'Sonar',
+          provider: 'perplexity-ai',
+          description: 'Lightweight, cost-effective search model with grounding.',
+          contextLength: 127072,
+        },
+        {
+          id: 'sonar-pro',
+          name: 'Sonar Pro',
+          provider: 'perplexity-ai',
+          description: 'Advanced search offering with grounding, supporting complex queries and follow-ups.',
+          contextLength: 200000,
+        },
+        {
+          id: 'sonar-reasoning-pro',
+          name: 'Sonar Reasoning Pro',
+          provider: 'perplexity-ai',
+          description: 'Precise reasoning offering with Chain of Thought (CoT).',
+          contextLength: 127072,
+        },
+        {
+          id: 'sonar-deep-research',
+          name: 'Sonar Deep Research',
+          provider: 'perplexity-ai',
+          description: 'Expert-level research model conducting exhaustive searches and generating comprehensive reports.',
+          contextLength: 200000,
+        },
+      ] satisfies ModelInfo[]
+    },
+  },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: ['connectivity', 'model_list'],
+      checks: ['connectivity'],
     }),
   },
 })
