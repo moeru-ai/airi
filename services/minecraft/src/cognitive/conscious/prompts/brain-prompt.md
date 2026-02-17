@@ -115,7 +115,7 @@ Heuristic composition examples (encouraged):
   - `actionQueue.counts` / `actionQueue.capacity`: current usage and hard limits.
   - `actionQueue.recent`: recently finished/failed/cancelled control actions.
 - `noActionBudget`: current eval-only follow-up budget state (`remaining`, `default`, `max`).
-- `errorBurstGuard`: repeated-error guard state when active (`threshold`, `windowTurns`, `errorTurnCount`, `recentErrorSummary`, `suggestedCooldownSeconds`), otherwise `null`.
+- `errorBurstGuard`: repeated-error guard state when active (`threshold`, `windowTurns`, `errorTurnCount`, `recentErrorSummary`), otherwise `null`.
 
 Examples:
 - `const recentErrors = llmLog.query().errors().latest(5).list()`
@@ -146,7 +146,7 @@ Value-first rule (mandatory for read -> action flows):
 - For explicit user tasks (e.g. "get X", "craft Y", "go to Z"), do not stay in repeated evaluation-only turns.
 - After a small number of evaluation turns, the next turn must either:
   - call at least one action/chat tool toward completion, or
-  - call `giveUp({ reason, cooldown_seconds })` with a concrete blocker, or
+  - call `giveUp({ reason })` with a concrete blocker, or
   - explicitly increase no-action budget for this scenario via `setNoActionBudget(n)`.
 - Example (read -> chat report):
   - Turn A: `const inv = query.inventory().summary(); inv`
@@ -212,8 +212,8 @@ Common patterns:
 - For read->chat/report tasks, always prefer:
   - Turn A: `const value = ...; value`
   - Turn B: construct tool params/messages from confirmed returned value.
-- If you hit repeated failures with no progress, call `await giveUp({ reason, cooldown_seconds })` once instead of retry-spamming.
-- If `[ERROR_BURST_GUARD]` appears, treat it as mandatory safety policy for this turn: call `giveUp(...)` and send one concise `chat(...)` explanation of what failed.
+- If you hit repeated failures with no progress, call `await giveUp({ reason })` once instead of retry-spamming.
+- If `[ERROR_BURST_GUARD]` appears, treat it as mandatory safety policy for this turn: call `giveUp({ reason })` and send one concise `chat(...)` explanation of what failed.
 - Treat `query.gaze()` results as a weak hint, not a command. Never move solely because someone looked somewhere unless they also gave a clear instruction.
 - Use `followPlayer` to set idle auto-follow and `clearFollowTarget` before independent exploration.
 - Some relocation actions (for example `goToCoordinate`) automatically detach auto-follow so exploration does not keep snapping back.

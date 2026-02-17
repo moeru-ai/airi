@@ -184,7 +184,6 @@ interface ErrorBurstGuardState {
   errorTurnCount: number
   recentTurnIds: number[]
   recentErrorSummary: string[]
-  suggestedCooldownSeconds: number
   triggeredAtTurnId: number
 }
 
@@ -224,7 +223,6 @@ const NO_ACTION_STAGNATION_REPEAT_LIMIT = 2
 const ERROR_BURST_GUARD_SOURCE_ID = 'brain:error_burst_guard'
 const ERROR_BURST_THRESHOLD = 3
 const ERROR_BURST_WINDOW_TURNS = 5
-const ERROR_BURST_COOLDOWN_SECONDS = 45
 
 function getEventPriority(event: BotEvent): number {
   if (event.type === 'perception') {
@@ -250,7 +248,7 @@ export class Brain {
   private isProcessing = false
   private isReplEvaluating = false
   private currentCancellationToken: CancellationToken | undefined
-  private giveUpUntil = 0
+  private givenUp = false
   private giveUpReason: string | undefined
   private lastContextView: string | undefined
   private lastReplOutcome: ReplOutcomeSummary | undefined
@@ -322,14 +320,12 @@ export class Brain {
       }
 
       if (action.tool === 'giveUp') {
-        const secondsRaw = Number(action.params?.cooldown_seconds ?? 45)
-        const cooldownSeconds = Number.isFinite(secondsRaw) ? Math.min(600, Math.max(10, Math.floor(secondsRaw))) : 45
-        this.giveUpUntil = Date.now() + cooldownSeconds * 1000
+        this.givenUp = true
         this.giveUpReason = typeof action.params?.reason === 'string' ? action.params.reason : undefined
 
         try {
           const reason = this.giveUpReason ? `: ${this.giveUpReason}` : ''
-          bot.bot.chat(`[debug] Giving up for ${cooldownSeconds}s${reason}`)
+          bot.bot.chat(`[debug] Gave up${reason}. Waiting for player input.`)
         }
         catch (err) {
           this.deps.logger.withError(err as Error).warn('Brain: Failed to announce giveUp to chat')
@@ -414,7 +410,7 @@ export class Brain {
     queueLength: number
     actionQueue: ActionQueueSnapshot
     turnCounter: number
-    giveUpUntil: number
+    givenUp: boolean
     paused: boolean
     contextView: string | undefined
     conversationHistory: Message[]
@@ -425,7 +421,7 @@ export class Brain {
       queueLength: this.queue.length,
       actionQueue: this.getActionQueueSnapshot(),
       turnCounter: this.turnCounter,
-      giveUpUntil: this.giveUpUntil,
+      givenUp: this.givenUp,
       paused: this.paused,
       contextView: this.lastContextView,
       conversationHistory: this.cloneMessages(this.conversationHistory),
@@ -803,7 +799,6 @@ export class Brain {
       errorTurnCount: errorTurnIds.length,
       recentTurnIds,
       recentErrorSummary,
-      suggestedCooldownSeconds: ERROR_BURST_COOLDOWN_SECONDS,
       triggeredAtTurnId: turnId,
     }
 
@@ -1981,14 +1976,13 @@ export class Brain {
       // Note: We don't update this.lastContextView here; caller does it after building message
     }
 
-    if (this.giveUpUntil > Date.now()) {
-      const remainingSec = Math.max(0, Math.ceil((this.giveUpUntil - Date.now()) / 1000))
-      parts.push(`[STATE] giveUp active (${remainingSec}s left). reason=${this.giveUpReason ?? 'unknown'}`)
+    if (this.givenUp) {
+      parts.push(`[STATE] giveUp active (halted until player input). reason=${this.giveUpReason ?? 'unknown'}`)
     }
 
     if (this.errorBurstGuardState) {
       const guard = this.errorBurstGuardState
-      parts.push(`[ERROR_BURST_GUARD] active. errors=${guard.errorTurnCount}/${guard.windowTurns}; threshold=${guard.threshold}; cooldown=${guard.suggestedCooldownSeconds}s`)
+      parts.push(`[ERROR_BURST_GUARD] active. errors=${guard.errorTurnCount}/${guard.windowTurns}; threshold=${guard.threshold}`)
       if (guard.recentErrorSummary.length > 0) {
         const condensed = guard.recentErrorSummary
           .slice(0, 3)
@@ -1996,7 +1990,7 @@ export class Brain {
           .join(' || ')
         parts.push(`[ERROR_BURST_GUARD] recent=${condensed}`)
       }
-      parts.push(`[MANDATORY] Too many recent errors. This turn must include BOTH: await giveUp({ reason: "...", cooldown_seconds: ${guard.suggestedCooldownSeconds} }) and await chat({ message: "...", feedback: false }). Explain what failed and what you will do next.`)
+      parts.push(`[MANDATORY] Too many recent errors. This turn must include BOTH: await giveUp({ reason: "..." }) and await chat({ message: "...", feedback: false }). Explain what failed and what you will do next.`)
     }
 
     if (this.lastReplOutcome) {
@@ -2023,7 +2017,7 @@ export class Brain {
   }
 
   private shouldSuppressDuringGiveUp(event: BotEvent): boolean {
-    if (Date.now() >= this.giveUpUntil)
+    if (!this.givenUp)
       return false
 
     if (event.source.type === 'system' && event.source.id === ERROR_BURST_GUARD_SOURCE_ID)
@@ -2037,7 +2031,7 @@ export class Brain {
   }
 
   private resumeFromGiveUpIfNeeded(event: BotEvent): void {
-    if (Date.now() >= this.giveUpUntil)
+    if (!this.givenUp)
       return
 
     if (event.type !== 'perception')
@@ -2047,7 +2041,7 @@ export class Brain {
     if (signal.type !== 'chat_message')
       return
 
-    this.giveUpUntil = 0
+    this.givenUp = false
     this.giveUpReason = undefined
   }
 }

@@ -45,7 +45,7 @@ describe('mcpReplServer', () => {
         isProcessing: false,
         queueLength: 0,
         turnCounter: 1,
-        giveUpUntil: 0,
+        givenUp: false,
         paused: false,
         contextView: 'test context',
         conversationHistory: [],

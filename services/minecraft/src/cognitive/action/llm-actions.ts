@@ -39,13 +39,12 @@ export const actionsList: Action[] = [
   },
   {
     name: 'giveUp',
-    description: 'Admit you are currently stuck and pause autonomous retries for a cooldown window.',
+    description: 'Admit you are currently stuck and halt all autonomous processing until a player speaks to you again.',
     execution: 'sync',
     schema: z.object({
       reason: z.string().min(1).describe('Short explanation of why you are stuck.'),
-      cooldown_seconds: z.number().int().min(10).max(600).default(45).describe('How long to pause retries before re-evaluating.'),
     }),
-    perform: () => (reason: string, cooldown_seconds: number): string => `Gave up for ${cooldown_seconds}s: ${reason}`,
+    perform: () => (reason: string): string => `Gave up: ${reason}. Halted until player input.`,
   },
   {
     name: 'skip',

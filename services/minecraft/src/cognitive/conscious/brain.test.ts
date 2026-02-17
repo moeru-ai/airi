@@ -103,7 +103,6 @@ function createGiveUpAction() {
     execution: 'sync',
     schema: z.object({
       reason: z.string(),
-      cooldown_seconds: z.number(),
     }),
     perform: () => () => 'gave up',
   } as any
@@ -324,7 +323,6 @@ inv;
       errorTurnCount: 3,
       recentTurnIds: [7, 6, 5, 4, 3],
       recentErrorSummary: ['turn=7 repl_error: parse failed'],
-      suggestedCooldownSeconds: 45,
       triggeredAtTurnId: 8,
     }
 
@@ -339,7 +337,7 @@ inv;
   })
 
   it('clears error-burst guard when giveUp and chat both succeed in one turn', async () => {
-    const deps: any = createDeps('await giveUp({ reason: "stuck", cooldown_seconds: 45 }); await chat("I got stuck after repeated errors.")')
+    const deps: any = createDeps('await giveUp({ reason: "stuck" }); await chat("I got stuck after repeated errors.")')
     deps.taskExecutor.getAvailableActions = vi.fn(() => [createGiveUpAction(), createChatAction()])
     deps.taskExecutor.executeActionWithResult = vi.fn(async (action: any) => action.tool === 'giveUp' ? 'gave up' : 'chat sent')
 
@@ -350,7 +348,6 @@ inv;
       errorTurnCount: 3,
       recentTurnIds: [7, 6, 5, 4, 3],
       recentErrorSummary: ['turn=7 repl_error: parse failed'],
-      suggestedCooldownSeconds: 45,
       triggeredAtTurnId: 8,
     }
 

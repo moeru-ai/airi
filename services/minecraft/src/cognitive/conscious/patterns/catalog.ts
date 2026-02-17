@@ -88,7 +88,7 @@ export const PATTERN_CATALOG: PatternCard[] = [
     ],
     code: [
       'if (noActionBudget.remaining <= 0) {',
-      '  await giveUp({ reason: "No verified target found for requested task", cooldown_seconds: 45 });',
+      '  await giveUp({ reason: "No verified target found for requested task" });',
       '}',
     ].join('\n'),
     tags: ['no-action', 'budget', 'giveUp', 'stagnation'],
