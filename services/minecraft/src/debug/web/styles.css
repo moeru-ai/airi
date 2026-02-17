@@ -1020,3 +1020,5 @@ button:hover,
   max-height: 100px;
   overflow-y: auto;
 }
+
+/* Context boundary styles moved to conversation.css */

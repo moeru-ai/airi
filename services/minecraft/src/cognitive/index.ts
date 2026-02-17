@@ -33,11 +33,7 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
       })
 
       debugService.onCommand('request_conversation', () => {
-        const snapshot = brain.getDebugSnapshot()
-        debugService.emitConversationUpdate({
-          messages: snapshot.conversationHistory,
-          isProcessing: snapshot.isProcessing,
-        })
+        brain.broadcastConversationState()
       })
 
       debugService.onCommand('execute_repl', async (command) => {

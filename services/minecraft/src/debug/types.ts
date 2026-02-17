@@ -97,12 +97,34 @@ export interface TraceBatchEvent {
 }
 
 /**
+ * Archived context summary for the debug dashboard
+ */
+export interface ContextBoundaryInfo {
+  label: string
+  summary: string
+  turns: number
+  archivedAt: number
+}
+
+/**
  * Live conversation state update from the brain
  */
 export interface ConversationUpdateEvent {
   messages: Array<{ role: string, content: string, reasoning?: string }>
   isProcessing: boolean
   sessionBoundary?: boolean
+  /** Active context boundary state */
+  activeContext?: {
+    label: string | null
+    startTurnId: number
+    messageCount: number
+  }
+  /** Archived context summaries */
+  archivedContexts?: ContextBoundaryInfo[]
+  /** Index in messages where the active context starts */
+  activeContextStartIndex?: number
+  /** The [CONTEXT_HISTORY] prefix message content, if any */
+  contextHistoryMessage?: string | null
   timestamp: number
 }
 

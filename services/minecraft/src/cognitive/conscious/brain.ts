@@ -813,11 +813,32 @@ export class Brain {
     return JSON.parse(JSON.stringify(messages)) as Message[]
   }
 
+  /**
+   * Re-emit the current conversation state with full context metadata.
+   * Used by the debug dashboard's `request_conversation` handler on reconnect.
+   */
+  public broadcastConversationState(): void {
+    this.emitConversationUpdate(this.isProcessing)
+  }
+
   private emitConversationUpdate(isProcessing: boolean, sessionBoundary?: boolean): void {
     this.debugService.emitConversationUpdate({
       messages: this.cloneMessages(this.conversationHistory),
       isProcessing,
       ...(sessionBoundary && { sessionBoundary }),
+      activeContext: {
+        label: this.activeContextState.label,
+        startTurnId: this.activeContextState.startTurnId,
+        messageCount: this.conversationHistory.length - this.activeContextStartIndex,
+      },
+      archivedContexts: this.archivedContexts.map(ctx => ({
+        label: ctx.label,
+        summary: ctx.summary,
+        turns: ctx.endTurnId - ctx.startTurnId + 1,
+        archivedAt: ctx.archivedAt,
+      })),
+      activeContextStartIndex: this.activeContextStartIndex,
+      contextHistoryMessage: this.getContextHistoryMessage(),
     })
   }
 

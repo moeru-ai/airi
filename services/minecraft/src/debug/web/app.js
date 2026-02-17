@@ -566,13 +566,39 @@ class LogsPanel {
 // Conversation Panel (Live Chat View)
 // =============================================================================
 
+// --- User message parser: extracts structured sections from brain's buildUserMessage output ---
+function parseUserMessage(content) {
+  if (typeof content !== 'string')
+    return { sections: [], raw: '' }
+  const sections = []
+  // Known section tags in order they may appear
+  const tagPattern = /^\[(EVENT|FEEDBACK|PERCEPTION|STATE|ERROR_BURST_GUARD|ERROR_BURST|MANDATORY|SCRIPT|ACTION_QUEUE|NO_ACTION_BUDGET|CONTEXT)\]\s*/
+  // Split on double-newline (the separator used by buildUserMessage)
+  const blocks = content.split(/\n\n/)
+  for (const block of blocks) {
+    const trimmed = block.trim()
+    if (!trimmed)
+      continue
+    const m = trimmed.match(tagPattern)
+    if (m) {
+      sections.push({ tag: m[1], text: trimmed.slice(m[0].length) })
+    }
+    else {
+      // Could be a continuation of PERCEPTION or unknown block
+      sections.push({ tag: 'OTHER', text: trimmed })
+    }
+  }
+  return { sections, raw: content }
+}
+
 class ConversationPanel {
   constructor(client) {
     this.client = client
-    // Each session: { messages: Message[], greyed: boolean }
-    this.sessions = [{ messages: [], greyed: false }]
+    this._mkSession = () => ({ messages: [], greyed: false, activeContext: null, archivedContexts: [], activeContextStartIndex: 0, contextHistoryMessage: null })
+    this.sessions = [this._mkSession()]
     this.isProcessing = false
     this.autoScroll = true
+    this.turnCounter = 0
     this.elements = {
       container: document.getElementById('conversation-container'),
       count: document.getElementById('conversation-count'),
@@ -588,44 +614,63 @@ class ConversationPanel {
       this.reset()
       this.client.send({ type: 'request_conversation' })
     })
+
+    // Unified collapsible toggle handler (event delegation — attached once)
+    if (this.elements.container) {
+      this.elements.container.addEventListener('click', (e) => {
+        const toggle = e.target.closest('[data-toggle]')
+        if (!toggle)
+          return
+        const targetId = toggle.getAttribute('data-toggle')
+        const body = document.getElementById(targetId)
+        if (!body)
+          return
+        const isOpen = body.classList.toggle('cv-open')
+        const arrow = toggle.querySelector('.cv-arrow')
+        if (arrow)
+          arrow.textContent = isOpen ? '\u25BC' : '\u25B6'
+      })
+    }
+
     this.render()
   }
 
   handleUpdate(data) {
     if (data.sessionBoundary) {
-      // Grey out current session and start a new one
-      const currentSession = this.sessions[this.sessions.length - 1]
-      if (currentSession) {
-        currentSession.greyed = true
-      }
-      this.sessions.push({ messages: [], greyed: false })
+      const cur = this.sessions[this.sessions.length - 1]
+      if (cur)
+        cur.greyed = true
+      this.sessions.push(this._mkSession())
     }
     else {
-      // Update current session messages
-      const currentSession = this.sessions[this.sessions.length - 1]
-      if (currentSession) {
-        currentSession.messages = data.messages || []
+      const cur = this.sessions[this.sessions.length - 1]
+      if (cur) {
+        cur.messages = data.messages || []
+        cur.activeContext = data.activeContext || null
+        cur.archivedContexts = data.archivedContexts || []
+        cur.activeContextStartIndex = data.activeContextStartIndex ?? 0
+        cur.contextHistoryMessage = data.contextHistoryMessage || null
       }
     }
-
     this.isProcessing = !!data.isProcessing
     this.updateStats()
     this.render()
   }
 
   reset() {
-    this.sessions = [{ messages: [], greyed: false }]
+    this.sessions = [this._mkSession()]
     this.isProcessing = false
+    this.turnCounter = 0
     this.updateStats()
     this.render()
   }
 
   updateStats() {
-    const totalMessages = this.sessions.reduce((sum, s) => sum + s.messages.length, 0)
+    const total = this.sessions.reduce((s, sess) => s + sess.messages.length, 0)
     if (this.elements.count)
-      this.elements.count.textContent = totalMessages
+      this.elements.count.textContent = total
     if (this.elements.statLlm)
-      this.elements.statLlm.textContent = totalMessages
+      this.elements.statLlm.textContent = total
     if (this.elements.processingBadge)
       this.elements.processingBadge.classList.toggle('hidden', !this.isProcessing)
   }
@@ -633,100 +678,305 @@ class ConversationPanel {
   render() {
     if (!this.elements.container)
       return
+    this.turnCounter = 0
 
-    const html = this.sessions.map((session, sessionIdx) => {
-      const sessionClass = session.greyed ? 'chat-session chat-session-greyed' : 'chat-session'
-      const messagesHtml = this.renderSessionMessages(session.messages)
-      const dividerHtml = session.greyed
-        ? '<div class="chat-session-divider"><span>Session cleared</span></div>'
-        : ''
-
-      return `<div class="${sessionClass}">${messagesHtml}</div>${dividerHtml}`
+    const html = this.sessions.map((session) => {
+      const cls = session.greyed ? 'chat-session chat-session-greyed' : 'chat-session'
+      const body = this.renderSession(session)
+      const divider = session.greyed ? '<div class="chat-session-divider"><span>Session cleared</span></div>' : ''
+      return `<div class="${cls}">${body}</div>${divider}`
     }).join('')
 
-    const typingHtml = this.isProcessing
-      ? `<div class="chat-typing-indicator">
-           <span class="chat-typing-dot"></span>
-           <span class="chat-typing-dot"></span>
-           <span class="chat-typing-dot"></span>
-         </div>`
+    const typing = this.isProcessing
+      ? '<div class="chat-typing-indicator"><span class="chat-typing-dot"></span><span class="chat-typing-dot"></span><span class="chat-typing-dot"></span></div>'
       : ''
 
-    this.elements.container.innerHTML = html + typingHtml
-
-    // Attach toggle handlers for system messages
-    this.elements.container.querySelectorAll('.chat-system-toggle').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const body = btn.closest('.chat-message-system')?.querySelector('.chat-system-body')
-        if (body) {
-          body.classList.toggle('open')
-          btn.textContent = body.classList.contains('open') ? '▼ System Prompt' : '▶ System Prompt'
-        }
-      })
-    })
+    this.elements.container.innerHTML = html + typing
 
     if (this.autoScroll) {
-      const scrollEl = this.elements.scroll
-      if (scrollEl) {
-        requestAnimationFrame(() => {
-          scrollEl.scrollTop = scrollEl.scrollHeight
-        })
-      }
+      const el = this.elements.scroll
+      if (el)
+        requestAnimationFrame(() => { el.scrollTop = el.scrollHeight })
     }
   }
 
-  renderSessionMessages(messages) {
-    if (!messages || messages.length === 0) {
+  // --- Session rendering ---
+
+  renderSession(session) {
+    const { messages, activeContext, archivedContexts, contextHistoryMessage } = session
+    if (!messages || messages.length === 0)
       return '<div class="empty-state">No messages yet</div>'
+
+    const parts = []
+
+    // Context status bar
+    if (archivedContexts?.length > 0 || activeContext) {
+      parts.push(this.renderContextStatusBar(activeContext, archivedContexts, contextHistoryMessage))
     }
 
-    return messages.map((msg) => {
-      const role = msg.role || 'unknown'
-
-      if (role === 'system') {
-        return this.renderSystemMessage(msg)
-      }
-
-      if (role === 'user') {
-        return this.renderUserMessage(msg)
-      }
-
-      if (role === 'assistant') {
-        return this.renderAssistantMessage(msg)
-      }
-
-      return `<div class="chat-message chat-message-unknown">
-        <div class="chat-role">${escapeHtml(role)}</div>
-        <div class="chat-bubble chat-bubble-unknown">${escapeHtml(msg.content || '')}</div>
-      </div>`
-    }).join('')
+    // Group messages into turns (user+assistant pairs)
+    const turns = this.groupIntoTurns(messages)
+    for (const turn of turns) {
+      parts.push(this.renderTurn(turn))
+    }
+    return parts.join('')
   }
 
-  renderSystemMessage(msg) {
-    const preview = formatSystemMessageContent(msg.content || '')
-    return `<div class="chat-message chat-message-system">
-      <button class="chat-system-toggle">▶ System Prompt</button>
-      <div class="chat-system-body">
-        <div class="chat-bubble chat-bubble-system">${escapeHtml(preview)}</div>
+  groupIntoTurns(messages) {
+    const turns = []
+    let current = null
+    for (const msg of messages) {
+      if (msg.role === 'system') {
+        turns.push({ type: 'system', system: msg })
+      }
+      else if (msg.role === 'user') {
+        current = { type: 'turn', user: msg, assistant: null }
+        turns.push(current)
+      }
+      else if (msg.role === 'assistant') {
+        if (current && !current.assistant) {
+          current.assistant = msg
+        }
+        else {
+          turns.push({ type: 'turn', user: null, assistant: msg })
+        }
+      }
+    }
+    return turns
+  }
+
+  renderTurn(turn) {
+    if (turn.type === 'system')
+      return this.renderSystemMessage(turn.system)
+
+    this.turnCounter++
+    const n = this.turnCounter
+    const userParsed = turn.user ? parseUserMessage(turn.user.content || '') : null
+    const eventSection = userParsed?.sections.find(s => s.tag === 'EVENT' || s.tag === 'FEEDBACK')
+    const contextSection = userParsed?.sections.find(s => s.tag === 'CONTEXT')
+
+    // Build a short summary for the turn header
+    let summary = `Turn ${n}`
+    if (eventSection) {
+      summary = this.summarizeEvent(eventSection)
+    }
+
+    // Detect context label from the [CONTEXT] section
+    let ctxBadge = ''
+    if (contextSection) {
+      const ctxMatch = contextSection.text.match(/active="([^"]+)"/)
+      if (ctxMatch) {
+        ctxBadge = `<span class="cv-ctx-badge cv-ctx-active">${escapeHtml(ctxMatch[1])}</span>`
+      }
+      else if (contextSection.text.includes('no active context')) {
+        ctxBadge = '<span class="cv-ctx-badge cv-ctx-none">no ctx</span>'
+      }
+    }
+
+    const turnId = `cv-turn-${n}`
+    const userHtml = turn.user ? this.renderParsedUserMessage(userParsed, n) : ''
+    const assistantHtml = turn.assistant ? this.renderParsedAssistantMessage(turn.assistant, n) : ''
+
+    return `<div class="cv-turn">
+      <button class="cv-turn-header" data-toggle="${turnId}">
+        <span class="cv-arrow">\u25B6</span>
+        <span class="cv-turn-num">#${n}</span>
+        <span class="cv-turn-summary">${escapeHtml(summary)}</span>
+        ${ctxBadge}
+      </button>
+      <div class="cv-turn-body" id="${turnId}">
+        ${userHtml}
+        ${assistantHtml}
       </div>
     </div>`
   }
 
-  renderUserMessage(msg) {
-    return `<div class="chat-message chat-message-user">
-      <div class="chat-role">user</div>
-      <div class="chat-bubble chat-bubble-user">${escapeHtml(msg.content || '')}</div>
+  // --- Event summary helpers ---
+
+  summarizeEvent(section) {
+    const text = section.text
+    // Chat messages: "Chat from X: "message""
+    const chatMatch = text.match(/^Chat from (\w+):\s*"(.+)"$/s)
+    if (chatMatch)
+      return `Chat from ${chatMatch[1]}: "${chatMatch[2].slice(0, 60)}${chatMatch[2].length > 60 ? '...' : ''}"`
+
+    // Perception Signal
+    if (text.startsWith('Perception Signal:'))
+      return text.slice(0, 70) + (text.length > 70 ? '...' : '')
+
+    // system_alert with JSON — extract reason + returnValue preview
+    if (text.startsWith('system_alert:')) {
+      try {
+        const json = JSON.parse(text.slice('system_alert:'.length).trim())
+        const reason = json.reason || 'unknown'
+        const rv = json.returnValue
+        const rvPreview = typeof rv === 'string' ? rv.slice(0, 50) : ''
+        return `system: ${reason}${rvPreview ? ` → ${rvPreview}${rv.length > 50 ? '...' : ''}` : ''}`
+      }
+      catch { /* fall through */ }
+    }
+
+    // FEEDBACK: "toolName: Success/Failed. details"
+    if (section.tag === 'FEEDBACK') {
+      const fbMatch = text.match(/^(\w+):\s*(Success|Failed)\.?\s*(.*)$/s)
+      if (fbMatch) {
+        const detail = fbMatch[3].slice(0, 50)
+        return `${fbMatch[1]}: ${fbMatch[2]}${detail ? ` — ${detail}${fbMatch[3].length > 50 ? '...' : ''}` : ''}`
+      }
+    }
+
+    // Fallback: truncate
+    const flat = text.replace(/\n/g, ' ').slice(0, 70)
+    return flat + (text.length > 70 ? '...' : '')
+  }
+
+  // --- Parsed user message rendering ---
+
+  renderParsedUserMessage(parsed, turnNum) {
+    if (!parsed)
+      return ''
+    const cards = []
+    for (const section of parsed.sections) {
+      cards.push(this.renderUserSection(section, turnNum))
+    }
+    return `<div class="cv-user">${cards.join('')}</div>`
+  }
+
+  renderUserSection(section, turnNum) {
+    const id = `cv-s-${turnNum}-${section.tag}-${Math.random().toString(36).slice(2, 6)}`
+    const tagColors = {
+      EVENT: 'cv-tag-event',
+      FEEDBACK: 'cv-tag-feedback',
+      PERCEPTION: 'cv-tag-perception',
+      SCRIPT: 'cv-tag-script',
+      ACTION_QUEUE: 'cv-tag-queue',
+      NO_ACTION_BUDGET: 'cv-tag-budget',
+      CONTEXT: 'cv-tag-context',
+      ERROR_BURST: 'cv-tag-error',
+      ERROR_BURST_GUARD: 'cv-tag-error',
+      MANDATORY: 'cv-tag-error',
+      STATE: 'cv-tag-state',
+      OTHER: 'cv-tag-other',
+    }
+    const colorCls = tagColors[section.tag] || 'cv-tag-other'
+
+    // Some sections are compact enough to show inline
+    if (['ACTION_QUEUE', 'NO_ACTION_BUDGET', 'CONTEXT', 'ERROR_BURST', 'STATE'].includes(section.tag)) {
+      return `<div class="cv-section cv-section-inline ${colorCls}">
+        <span class="cv-section-tag">${section.tag}</span>
+        <span class="cv-section-inline-text">${escapeHtml(section.text)}</span>
+      </div>`
+    }
+
+    // EVENT / FEEDBACK — show prominently
+    if (section.tag === 'EVENT' || section.tag === 'FEEDBACK') {
+      return `<div class="cv-section cv-section-event ${colorCls}">
+        <span class="cv-section-tag">${section.tag}</span>
+        <span class="cv-section-text">${escapeHtml(section.text)}</span>
+      </div>`
+    }
+
+    // SCRIPT, PERCEPTION, OTHER — collapsible
+    const preview = section.text.slice(0, 60).replace(/\n/g, ' ')
+    return `<div class="cv-section ${colorCls}">
+      <button class="cv-section-toggle" data-toggle="${id}">
+        <span class="cv-arrow">\u25B6</span>
+        <span class="cv-section-tag">${section.tag}</span>
+        <span class="cv-section-preview">${escapeHtml(preview)}${section.text.length > 60 ? '...' : ''}</span>
+      </button>
+      <div class="cv-section-body" id="${id}">
+        <pre class="cv-section-content">${escapeHtml(section.text)}</pre>
+      </div>
     </div>`
   }
 
-  renderAssistantMessage(msg) {
-    const reasoningHtml = msg.reasoning
-      ? `<div class="chat-reasoning">${escapeHtml(msg.reasoning)}</div>`
-      : ''
-    return `<div class="chat-message chat-message-assistant">
-      <div class="chat-role">assistant</div>
-      ${reasoningHtml}
-      <div class="chat-bubble chat-bubble-assistant">${escapeHtml(msg.content || '')}</div>
+  // --- Parsed assistant message rendering ---
+
+  renderParsedAssistantMessage(msg, turnNum) {
+    const reasoning = msg.reasoning || ''
+    const code = msg.content || ''
+    const parts = []
+
+    if (reasoning) {
+      const rid = `cv-reason-${turnNum}`
+      const preview = reasoning.slice(0, 80).replace(/\n/g, ' ')
+      parts.push(`<div class="cv-reasoning">
+        <button class="cv-reasoning-toggle" data-toggle="${rid}">
+          <span class="cv-arrow">\u25B6</span>
+          <span class="cv-reasoning-label">Reasoning</span>
+          <span class="cv-reasoning-preview">${escapeHtml(preview)}${reasoning.length > 80 ? '...' : ''}</span>
+        </button>
+        <div class="cv-reasoning-body" id="${rid}">
+          <pre class="cv-reasoning-content">${escapeHtml(reasoning)}</pre>
+        </div>
+      </div>`)
+    }
+
+    if (code) {
+      parts.push(`<div class="cv-code">
+        <div class="cv-code-label">Code</div>
+        <pre class="cv-code-content">${escapeHtml(code)}</pre>
+      </div>`)
+    }
+
+    return `<div class="cv-assistant">${parts.join('')}</div>`
+  }
+
+  // --- Context status bar ---
+
+  renderContextStatusBar(activeContext, archivedContexts, contextHistoryMessage) {
+    const parts = []
+    // Active context indicator
+    if (activeContext?.label) {
+      parts.push(`<span class="cv-ctx-status-active"><span class="cv-ctx-dot"></span> ${escapeHtml(activeContext.label)} (${activeContext.messageCount} msgs)</span>`)
+    }
+    else {
+      parts.push('<span class="cv-ctx-status-idle"><span class="cv-ctx-dot cv-ctx-dot-idle"></span> No active context</span>')
+    }
+
+    // Archived count
+    if (archivedContexts?.length > 0) {
+      const archId = `cv-archived-${Math.random().toString(36).slice(2, 6)}`
+      const items = archivedContexts.map((ctx, i) => {
+        const time = new Date(ctx.archivedAt).toLocaleTimeString()
+        return `<div class="cv-arch-item">
+          <span class="cv-arch-idx">#${i + 1}</span>
+          <strong>${escapeHtml(ctx.label || 'unnamed')}</strong>
+          <span class="cv-arch-meta">${ctx.turns}t &middot; ${time}</span>
+          <div class="cv-arch-summary">${escapeHtml(ctx.summary)}</div>
+        </div>`
+      }).join('')
+      parts.push(`<button class="cv-ctx-arch-btn" data-toggle="${archId}">
+        <span class="cv-arrow">\u25B6</span> ${archivedContexts.length} archived
+      </button>`)
+      // Append the collapsible body after the status bar
+      parts.push(`<div class="cv-ctx-arch-body" id="${archId}">${items}</div>`)
+    }
+
+    // Context history prefix
+    if (contextHistoryMessage) {
+      const chId = `cv-ctxhist-${Math.random().toString(36).slice(2, 6)}`
+      parts.push(`<button class="cv-ctx-hist-btn" data-toggle="${chId}">
+        <span class="cv-arrow">\u25B6</span> prefix
+      </button>`)
+      parts.push(`<div class="cv-ctx-hist-body" id="${chId}"><pre class="cv-ctx-hist-content">${escapeHtml(contextHistoryMessage)}</pre></div>`)
+    }
+
+    return `<div class="cv-ctx-bar">${parts.join('')}</div>`
+  }
+
+  // --- System message ---
+
+  renderSystemMessage(msg) {
+    const id = `cv-sys-${Math.random().toString(36).slice(2, 6)}`
+    const preview = formatSystemMessageContent(msg.content || '')
+    return `<div class="cv-system">
+      <button class="cv-system-toggle" data-toggle="${id}">
+        <span class="cv-arrow">\u25B6</span> System Prompt
+      </button>
+      <div class="cv-system-body" id="${id}">
+        <pre class="cv-system-content">${escapeHtml(preview)}</pre>
+      </div>
     </div>`
   }
 }
