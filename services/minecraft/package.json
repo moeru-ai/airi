@@ -19,10 +19,11 @@
     "@xsai/generate-text": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "awilix": "^12.0.5",
+    "canvas": "^3.2.1",
+    "crossws": "catalog:",
     "es-toolkit": "^1.44.0",
     "eventemitter3": "^5.0.4",
     "minecraft-data": "^3.102.3",
-    "canvas": "^3.2.1",
     "mineflayer": "^4.33.0",
     "mineflayer-armor-manager": "^2.0.1",
     "mineflayer-auto-eat": "^5.0.3",
@@ -45,7 +46,6 @@
     "zod-to-json-schema": "^3.25.1"
   },
   "devDependencies": {
-    "@types/node": "^22.15.0",
     "@types/ws": "catalog:"
   }
 }

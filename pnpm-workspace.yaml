@@ -39,7 +39,7 @@ catalog:
   '@iconify-json/tabler': ^1.2.26
   '@modelcontextprotocol/sdk': ^1.25.3
   '@moeru/eslint-config': 0.1.0-beta.15
-  '@moeru/eventa': '1.0.0-alpha.14'
+  '@moeru/eventa': 1.0.0-alpha.14
   '@moeru/std': 0.1.0-beta.14
   '@nekopaw/tempora': 0.4.0-alpha.1
   '@pinia/testing': ^1.0.3
@@ -65,6 +65,7 @@ catalog:
   async-mutex: 0.5.0
   better-auth: ^1.4.16
   builder-util-runtime: ^9.5.1
+  crossws: ^0.4.3
   drizzle-valibot: ^0.4.2
   electron: ^40.0.0
   embla-carousel-vue: ^9.0.0-rc01
@@ -118,6 +119,7 @@ onlyBuiltDependencies:
   - '@napi-rs/image'
   - '@parcel/watcher'
   - bufferutil
+  - canvas
   - core-js
   - electron
   - electron-click-drag-plugin
