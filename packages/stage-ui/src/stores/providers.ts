@@ -2165,6 +2165,31 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'openclaw': {
+      id: 'openclaw',
+      category: 'chat',
+      tasks: ['text-generation'],
+      nameKey: 'settings.pages.providers.provider.openclaw.title',
+      name: 'OpenClaw',
+      descriptionKey: 'settings.pages.providers.provider.openclaw.description',
+      description: 'openclaw.ai',
+      icon: 'i-lobe-icons:openai',
+      defaultOptions: () => ({}),
+      createProvider: () =>
+        ({
+          async* stream() {
+            // OpenClaw uses server path; streaming is handled by the bridge.
+          },
+        }) as ChatProvider,
+      capabilities: {
+        listModels: async () => [
+          { id: 'openclaw-main', name: 'OpenClaw', provider: 'openclaw' },
+        ],
+      },
+      validators: {
+        validateProviderConfig: async () => ({ errors: [], reason: '', valid: true }),
+      },
+    },
     'player2-speech': {
       id: 'player2-speech',
       category: 'speech',
@@ -2496,8 +2521,15 @@ export const useProvidersStore = defineStore('providers', () => {
       }
     }
 
+    // OpenClaw uses the server bridge; no local credentials
+    if (providerId === 'openclaw') {
+      if (!providerCredentials.value[providerId]) {
+        providerCredentials.value[providerId] = getDefaultProviderConfig(providerId)
+      }
+    }
+
     const config = providerCredentials.value[providerId]
-    if (!config && providerId !== 'browser-web-speech-api')
+    if (!config && providerId !== 'browser-web-speech-api' && providerId !== 'openclaw')
       return false
 
     const configString = JSON.stringify(config || {})
@@ -2516,7 +2548,7 @@ export const useProvidersStore = defineStore('providers', () => {
     if (providerRuntimeState.value[providerId]) {
       providerRuntimeState.value[providerId].isConfigured = validationResult.valid
       // Auto-mark Web Speech API as added if valid and available
-      if (validationResult.valid && ['browser-web-speech-api', 'player2'].includes(providerId)) {
+      if (validationResult.valid && ['browser-web-speech-api', 'player2', 'openclaw'].includes(providerId)) {
         markProviderAdded(providerId)
       }
     }

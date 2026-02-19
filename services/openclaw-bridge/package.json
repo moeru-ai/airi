@@ -1,0 +1,33 @@
+{
+  "name": "@proj-airi/openclaw-bridge",
+  "type": "module",
+  "private": true,
+  "description": "OpenClaw bridge for AIRI – use OpenClaw as the character's brain",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "services/openclaw-bridge"
+  },
+  "scripts": {
+    "start": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "@proj-airi/server-sdk": "workspace:^",
+    "@xsai/shared-chat": "catalog:",
+    "tsx": "^4.21.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.9",
+    "@types/ws": "^8.5.13",
+    "typescript": "~5.9.3"
+  }
+}

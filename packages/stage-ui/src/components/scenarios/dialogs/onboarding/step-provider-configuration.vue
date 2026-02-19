@@ -49,13 +49,13 @@ watch([apiKey, baseUrl, accountId], () => {
 const needsApiKey = computed(() => {
   if (!context.selectedProvider.value)
     return false
-  return context.selectedProvider.value.id !== 'ollama' && context.selectedProvider.value.id !== 'player2'
+  return context.selectedProvider.value.id !== 'ollama' && context.selectedProvider.value.id !== 'player2' && context.selectedProvider.value.id !== 'openclaw'
 })
 
 const needsBaseUrl = computed(() => {
   if (!context.selectedProvider.value)
     return false
-  return context.selectedProvider.value.id !== 'cloudflare-workers-ai'
+  return context.selectedProvider.value.id !== 'cloudflare-workers-ai' && context.selectedProvider.value.id !== 'openclaw'
 })
 
 const canProceed = computed(() => {
