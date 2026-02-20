@@ -10,6 +10,7 @@ export default defineConfig({
       'packages/vite-plugin-warpdrive',
       'packages/audio-pipelines-transcribe',
       'packages/server-runtime',
+      'services/openclaw-bridge',
     ],
   },
 })

@@ -18,6 +18,7 @@ import { useChatStreamStore } from '../../chat/stream-store'
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useProvidersStore } from '../../providers'
 import { useModsServerChannelStore } from './channel-server'
+import { createRemoteStreamCounter } from './remote-stream-counter'
 
 export const useContextBridgeStore = defineStore('mods:api:context-bridge', () => {
   const mutex = new Mutex()
@@ -41,7 +42,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     await mutex.acquire()
 
     try {
-      let isProcessingRemoteStream = false
+      const remoteStreamCounter = createRemoteStreamCounter()
 
       const { stop } = watch(incomingContext, (event) => {
         if (event)
@@ -57,6 +58,77 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }
         chatContext.ingestContextMessage(contextMessage)
         broadcastContext(toRaw(contextMessage))
+      }))
+
+      async function processStreamEvent(event: ChatStreamEvent) {
+        switch (event.type) {
+          case 'before-compose':
+            await chatOrchestrator.emitBeforeMessageComposedHooks(event.message, event.context)
+            break
+          case 'after-compose':
+            await chatOrchestrator.emitAfterMessageComposedHooks(event.message, event.context)
+            break
+          case 'before-send':
+            await chatOrchestrator.emitBeforeSendHooks(event.message, event.context)
+            remoteStreamGuard = {
+              sessionId: chatSession.activeSessionId,
+              generation: chatSession.getSessionGenerationValue(),
+            }
+            chatOrchestrator.sending = true
+            chatStream.beginStream()
+            break
+          case 'after-send':
+            await chatOrchestrator.emitAfterSendHooks(event.message, event.context)
+            break
+          case 'token-literal':
+            if (!remoteStreamGuard)
+              return
+            if (remoteStreamGuard.sessionId !== chatSession.activeSessionId)
+              return
+            if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
+              return
+            chatStream.appendStreamLiteral(event.literal)
+            await chatOrchestrator.emitTokenLiteralHooks(event.literal, event.context)
+            break
+          case 'token-special':
+            await chatOrchestrator.emitTokenSpecialHooks(event.special, event.context)
+            break
+          case 'stream-end':
+            if (!remoteStreamGuard)
+              break
+            if (remoteStreamGuard.sessionId !== chatSession.activeSessionId)
+              break
+            if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
+              break
+            await chatOrchestrator.emitStreamEndHooks(event.context)
+            chatStream.finalizeStream()
+            chatOrchestrator.sending = false
+            remoteStreamGuard = null
+            break
+          case 'assistant-end':
+            if (!remoteStreamGuard)
+              break
+            if (remoteStreamGuard.sessionId !== chatSession.activeSessionId)
+              break
+            if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
+              break
+            await chatOrchestrator.emitAssistantResponseEndHooks(event.message, event.context)
+            chatStream.finalizeStream(event.message)
+            chatOrchestrator.sending = false
+            remoteStreamGuard = null
+            break
+        }
+      }
+
+      disposeHookFns.value.push(serverChannelStore.onEvent('output:gen-ai:chat:stream', async (event) => {
+        const payload = event.data as ChatStreamEvent
+        remoteStreamCounter.enter()
+        try {
+          await processStreamEvent(payload)
+        }
+        finally {
+          remoteStreamCounter.leave()
+        }
       }))
 
       disposeHookFns.value.push(serverChannelStore.onEvent('input:text', async (event) => {
@@ -86,6 +158,11 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               createdAt,
             })
           }
+        }
+
+        if (activeProvider.value === 'openclaw') {
+          // OpenClaw replies come via output:gen-ai:chat:message/complete; do not ingest locally.
+          return
         }
 
         if (activeProvider.value && activeModel.value) {
@@ -146,49 +223,49 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
       disposeHookFns.value.push(
         chatOrchestrator.onBeforeMessageComposed(async (message, context) => {
-          if (isProcessingRemoteStream)
+          if (remoteStreamCounter.isProcessing())
             return
 
           broadcastStreamEvent({ type: 'before-compose', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onAfterMessageComposed(async (message, context) => {
-          if (isProcessingRemoteStream)
+          if (remoteStreamCounter.isProcessing())
             return
 
           broadcastStreamEvent({ type: 'after-compose', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onBeforeSend(async (message, context) => {
-          if (isProcessingRemoteStream)
+          if (remoteStreamCounter.isProcessing())
             return
 
           broadcastStreamEvent({ type: 'before-send', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onAfterSend(async (message, context) => {
-          if (isProcessingRemoteStream)
+          if (remoteStreamCounter.isProcessing())
             return
 
           broadcastStreamEvent({ type: 'after-send', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onTokenLiteral(async (literal, context) => {
-          if (isProcessingRemoteStream)
+          if (remoteStreamCounter.isProcessing())
             return
 
           broadcastStreamEvent({ type: 'token-literal', literal, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onTokenSpecial(async (special, context) => {
-          if (isProcessingRemoteStream)
+          if (remoteStreamCounter.isProcessing())
             return
 
           broadcastStreamEvent({ type: 'token-special', special, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onStreamEnd(async (context) => {
-          if (isProcessingRemoteStream)
+          if (remoteStreamCounter.isProcessing())
             return
 
           broadcastStreamEvent({ type: 'stream-end', sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onAssistantResponseEnd(async (message, context) => {
-          if (isProcessingRemoteStream)
+          if (remoteStreamCounter.isProcessing())
             return
 
           broadcastStreamEvent({ type: 'assistant-end', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
@@ -243,71 +320,12 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       const { stop: stopIncomingStreamWatch } = watch(incomingStreamEvent, async (event) => {
         if (!event)
           return
-
-        isProcessingRemoteStream = true
-
+        remoteStreamCounter.enter()
         try {
-          // Use the receiver's active session to avoid clobbering chat state when events come from other windows/devtools.
-          switch (event.type) {
-            case 'before-compose':
-              await chatOrchestrator.emitBeforeMessageComposedHooks(event.message, event.context)
-              break
-            case 'after-compose':
-              await chatOrchestrator.emitAfterMessageComposedHooks(event.message, event.context)
-              break
-            case 'before-send':
-              await chatOrchestrator.emitBeforeSendHooks(event.message, event.context)
-              remoteStreamGuard = {
-                sessionId: chatSession.activeSessionId,
-                generation: chatSession.getSessionGenerationValue(),
-              }
-              chatOrchestrator.sending = true
-              chatStream.beginStream()
-              break
-            case 'after-send':
-              await chatOrchestrator.emitAfterSendHooks(event.message, event.context)
-              break
-            case 'token-literal':
-              if (!remoteStreamGuard)
-                return
-              if (remoteStreamGuard.sessionId !== chatSession.activeSessionId)
-                return
-              if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
-                return
-              chatStream.appendStreamLiteral(event.literal)
-              await chatOrchestrator.emitTokenLiteralHooks(event.literal, event.context)
-              break
-            case 'token-special':
-              await chatOrchestrator.emitTokenSpecialHooks(event.special, event.context)
-              break
-            case 'stream-end':
-              if (!remoteStreamGuard)
-                break
-              if (remoteStreamGuard.sessionId !== chatSession.activeSessionId)
-                break
-              if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
-                break
-              await chatOrchestrator.emitStreamEndHooks(event.context)
-              chatStream.finalizeStream()
-              chatOrchestrator.sending = false
-              remoteStreamGuard = null
-              break
-            case 'assistant-end':
-              if (!remoteStreamGuard)
-                break
-              if (remoteStreamGuard.sessionId !== chatSession.activeSessionId)
-                break
-              if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
-                break
-              await chatOrchestrator.emitAssistantResponseEndHooks(event.message, event.context)
-              chatStream.finalizeStream(event.message)
-              chatOrchestrator.sending = false
-              remoteStreamGuard = null
-              break
-          }
+          await processStreamEvent(event)
         }
         finally {
-          isProcessingRemoteStream = false
+          remoteStreamCounter.leave()
         }
       })
       disposeHookFns.value.push(stopIncomingStreamWatch)

@@ -19,6 +19,7 @@ import { createChatHooks } from './chat/hooks'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useLLM } from './llm'
+import { useModsServerChannelStore } from './mods/api/channel-server'
 import { useConsciousnessStore } from './modules/consciousness'
 
 interface SendOptions {
@@ -363,6 +364,33 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   ) {
     const sessionId = targetSessionId || activeSessionId.value
     const generation = chatSession.getSessionGeneration(sessionId)
+
+    if (activeProvider.value === 'openclaw') {
+      chatSession.ensureSession(sessionId)
+      const sendingCreatedAt = Date.now()
+      const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
+      sessionMessagesForSend.push({
+        role: 'user',
+        content: sendingMessage,
+        createdAt: sendingCreatedAt,
+        id: nanoid(),
+      })
+      chatSession.persistSessionMessages(sessionId)
+      const serverChannelStore = useModsServerChannelStore()
+      const payload = {
+        type: 'input:text',
+        data: {
+          text: sendingMessage,
+          ...options.input?.data,
+        },
+      }
+      if (typeof console !== 'undefined' && console.debug) {
+        const conn = serverChannelStore.connected as boolean | { value: boolean }
+        console.debug('[OpenClaw] Sending input:text to AIRI server', { text: sendingMessage.slice(0, 60), connected: typeof conn === 'object' && conn && 'value' in conn ? !!conn.value : !!conn })
+      }
+      serverChannelStore.send(payload as Parameters<typeof serverChannelStore.send>[0])
+      return
+    }
 
     return new Promise<void>((resolve, reject) => {
       sendQueue.enqueue({
