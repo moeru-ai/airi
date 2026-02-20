@@ -1,5 +1,6 @@
 import type WebSocket from 'ws'
 
+import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 
 const DEFAULT_POLL_INTERVAL_MS = 500
@@ -8,14 +9,20 @@ const DEFAULT_WAIT_COMPLETE_MS = 120_000
 interface Req { type: 'req', id: string, method: string, params?: unknown }
 interface Res<T = unknown> { type: 'res', id: string, ok: boolean, payload?: T, error?: { message?: string } }
 
+/** Decode WebSocket message payload to UTF-8 string. Used so Buffer, Buffer[], and ArrayBuffer can be tested. */
+export function decodeWebSocketMessage(raw: Buffer | ArrayBuffer | Buffer[]): string {
+  return Buffer.isBuffer(raw) ? raw.toString('utf8') : Array.isArray(raw) ? Buffer.concat(raw).toString('utf8') : new TextDecoder().decode(raw as ArrayBuffer)
+}
+
 function onceRes<T>(ws: WebSocket, id: string, timeoutMs: number): Promise<Res<T>> {
   return new Promise((resolve, reject) => {
+    let cleanup: () => void
     const timer = setTimeout(() => {
       cleanup()
       reject(new Error(`OpenClaw gateway RPC timeout (id=${id}) after ${timeoutMs}ms`))
     }, timeoutMs)
     const onMessage = (raw: Buffer | ArrayBuffer | Buffer[]) => {
-      const data = Buffer.isBuffer(raw) ? raw.toString('utf8') : Array.isArray(raw) ? Buffer.concat(raw).toString('utf8') : new Uint8Array(raw as ArrayBuffer).toString()
+      const data = decodeWebSocketMessage(raw)
       let obj: unknown
       try {
         obj = JSON.parse(data) as unknown
@@ -29,7 +36,7 @@ function onceRes<T>(ws: WebSocket, id: string, timeoutMs: number): Promise<Res<T
         resolve(res)
       }
     }
-    const cleanup = () => {
+    cleanup = () => {
       clearTimeout(timer)
       ws.off('message', onMessage)
     }

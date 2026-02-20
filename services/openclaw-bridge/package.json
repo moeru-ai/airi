@@ -16,7 +16,8 @@
   },
   "scripts": {
     "start": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@guiiai/logg": "catalog:",
@@ -28,6 +29,7 @@
   "devDependencies": {
     "@types/node": "^24.10.9",
     "@types/ws": "^8.5.13",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "vitest": "catalog:vitest"
   }
 }

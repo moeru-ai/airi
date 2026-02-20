@@ -103,10 +103,11 @@ export class OpenClawBridgeAdapter {
       = this.config.gatewayClientId === 'openclaw-control-ui'
         ? this.gatewayWsUrl.replace(/^ws:/i, 'http:').replace(/^wss:/i, 'https:')
         : undefined
-    const ws = new (WS as typeof import('ws'))(
+    const WSConstructor = WS as new (url: string, options?: import('ws').ClientOptions) => WebSocket
+    const ws = new WSConstructor(
       this.gatewayWsUrl,
       origin != null ? { headers: { Origin: origin } } : undefined,
-    ) as WebSocket
+    )
     await new Promise<void>((resolve, reject) => {
       ws.once('open', () => resolve())
       ws.once('error', reject)
@@ -176,12 +177,26 @@ export class OpenClawBridgeAdapter {
       sessionId,
       context,
     })
-    sendEventAsPlainJson(this.airiClient, streamEventType, {
-      type: 'token-literal',
-      literal: content,
-      sessionId,
-      context,
-    })
+    const TOKEN_CHUNK_SIZE = 64
+    if (content.length > TOKEN_CHUNK_SIZE) {
+      for (let i = 0; i < content.length; i += TOKEN_CHUNK_SIZE) {
+        const chunk = content.slice(i, i + TOKEN_CHUNK_SIZE)
+        sendEventAsPlainJson(this.airiClient, streamEventType, {
+          type: 'token-literal',
+          literal: chunk,
+          sessionId,
+          context,
+        })
+      }
+    }
+    else {
+      sendEventAsPlainJson(this.airiClient, streamEventType, {
+        type: 'token-literal',
+        literal: content,
+        sessionId,
+        context,
+      })
+    }
     sendEventAsPlainJson(this.airiClient, streamEventType, {
       type: 'assistant-end',
       message: content,

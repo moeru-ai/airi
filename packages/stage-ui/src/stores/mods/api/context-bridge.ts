@@ -18,6 +18,7 @@ import { useChatStreamStore } from '../../chat/stream-store'
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useProvidersStore } from '../../providers'
 import { useModsServerChannelStore } from './channel-server'
+import { createRemoteStreamCounter } from './remote-stream-counter'
 
 export const useContextBridgeStore = defineStore('mods:api:context-bridge', () => {
   const mutex = new Mutex()
@@ -41,7 +42,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     await mutex.acquire()
 
     try {
-      let isProcessingRemoteStream = false
+      const remoteStreamCounter = createRemoteStreamCounter()
 
       const { stop } = watch(incomingContext, (event) => {
         if (event)
@@ -121,12 +122,12 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
       disposeHookFns.value.push(serverChannelStore.onEvent('output:gen-ai:chat:stream', async (event) => {
         const payload = event.data as ChatStreamEvent
-        isProcessingRemoteStream = true
+        remoteStreamCounter.enter()
         try {
           await processStreamEvent(payload)
         }
         finally {
-          isProcessingRemoteStream = false
+          remoteStreamCounter.leave()
         }
       }))
 
@@ -222,49 +223,49 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
       disposeHookFns.value.push(
         chatOrchestrator.onBeforeMessageComposed(async (message, context) => {
-          if (isProcessingRemoteStream)
+          if (remoteStreamCounter.isProcessing())
             return
 
           broadcastStreamEvent({ type: 'before-compose', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onAfterMessageComposed(async (message, context) => {
-          if (isProcessingRemoteStream)
+          if (remoteStreamCounter.isProcessing())
             return
 
           broadcastStreamEvent({ type: 'after-compose', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onBeforeSend(async (message, context) => {
-          if (isProcessingRemoteStream)
+          if (remoteStreamCounter.isProcessing())
             return
 
           broadcastStreamEvent({ type: 'before-send', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onAfterSend(async (message, context) => {
-          if (isProcessingRemoteStream)
+          if (remoteStreamCounter.isProcessing())
             return
 
           broadcastStreamEvent({ type: 'after-send', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onTokenLiteral(async (literal, context) => {
-          if (isProcessingRemoteStream)
+          if (remoteStreamCounter.isProcessing())
             return
 
           broadcastStreamEvent({ type: 'token-literal', literal, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onTokenSpecial(async (special, context) => {
-          if (isProcessingRemoteStream)
+          if (remoteStreamCounter.isProcessing())
             return
 
           broadcastStreamEvent({ type: 'token-special', special, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onStreamEnd(async (context) => {
-          if (isProcessingRemoteStream)
+          if (remoteStreamCounter.isProcessing())
             return
 
           broadcastStreamEvent({ type: 'stream-end', sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onAssistantResponseEnd(async (message, context) => {
-          if (isProcessingRemoteStream)
+          if (remoteStreamCounter.isProcessing())
             return
 
           broadcastStreamEvent({ type: 'assistant-end', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
@@ -319,12 +320,12 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       const { stop: stopIncomingStreamWatch } = watch(incomingStreamEvent, async (event) => {
         if (!event)
           return
-        isProcessingRemoteStream = true
+        remoteStreamCounter.enter()
         try {
           await processStreamEvent(event)
         }
         finally {
-          isProcessingRemoteStream = false
+          remoteStreamCounter.leave()
         }
       })
       disposeHookFns.value.push(stopIncomingStreamWatch)

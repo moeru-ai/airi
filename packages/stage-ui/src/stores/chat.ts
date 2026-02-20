@@ -385,9 +385,10 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         },
       }
       if (typeof console !== 'undefined' && console.debug) {
-        console.debug('[OpenClaw] Sending input:text to AIRI server', { text: sendingMessage.slice(0, 60), connected: !!serverChannelStore.connected?.value })
+        const conn = serverChannelStore.connected as boolean | { value: boolean }
+        console.debug('[OpenClaw] Sending input:text to AIRI server', { text: sendingMessage.slice(0, 60), connected: typeof conn === 'object' && conn && 'value' in conn ? !!conn.value : !!conn })
       }
-      serverChannelStore.send(payload)
+      serverChannelStore.send(payload as Parameters<typeof serverChannelStore.send>[0])
       return
     }
 

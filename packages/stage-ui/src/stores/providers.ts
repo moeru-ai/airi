@@ -2180,6 +2180,10 @@ export const useProvidersStore = defineStore('providers', () => {
           async* stream() {
             // OpenClaw uses server path; streaming is handled by the bridge.
           },
+          chat(model: string) {
+            // Not used; OpenClaw sends via server channel. Minimal shape for ChatProvider type.
+            return { baseURL: '', apiKey: '', model }
+          },
         }) as ChatProvider,
       capabilities: {
         listModels: async () => [
