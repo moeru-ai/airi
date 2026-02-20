@@ -1,0 +1,2326 @@
+import type { Logg } from '@guiiai/logg'
+import type { Message } from '@xsai/shared-chat'
+
+import type { Action } from '../../libs/mineflayer/action'
+import type { TaskExecutor } from '../action/task-executor'
+import type { ActionInstruction } from '../action/types'
+import type { EventBus, TracedEvent } from '../event-bus'
+import type { PerceptionSignal } from '../perception/types/signals'
+import type { ReflexManager } from '../reflex/reflex-manager'
+import type { BotEvent, MineflayerWithAgents } from '../types'
+import type { ActiveContextState, ArchivedContext } from './context-summary'
+import type { PlannerGlobalDescriptor } from './js-planner'
+import type { LLMAgent } from './llm-agent'
+import type { LlmLogEntry, LlmLogEntryKind } from './llm-log'
+import type { CancellationToken } from './task-state'
+
+import { config } from '../../composables/config'
+import { DebugService } from '../../debug'
+import { ActionError } from '../../utils/errors'
+import {
+
+  buildContextHistoryMessage,
+  collapseOldestContexts,
+  generateContextSummary,
+} from './context-summary'
+import { buildConsciousContextView } from './context-view'
+import { createHistoryRuntime } from './history-query'
+import { JavaScriptPlanner } from './js-planner'
+import { createLlmLogRuntime } from './llm-log'
+import {
+  isLikelyAuthOrBadArgError,
+  isRateLimitError,
+  shouldRetryError,
+  sleep,
+  toErrorMessage,
+} from './llmlogic'
+import { PATTERN_CATALOG } from './patterns/catalog'
+import { createPatternRuntime } from './patterns/runtime'
+import { generateBrainSystemPrompt } from './prompts/brain-prompt'
+import { normalizeReplScript } from './repl-code-normalizer'
+import { createCancellationToken } from './task-state'
+
+interface BrainDeps {
+  eventBus: EventBus
+  llmAgent: LLMAgent
+  logger: Logg
+  taskExecutor: TaskExecutor
+  reflexManager: ReflexManager
+}
+
+interface QueuedEvent {
+  event: BotEvent
+  resolve: () => void
+  reject: (err: Error) => void
+}
+
+interface ReplOutcomeSummary {
+  actionCount: number
+  okCount: number
+  errorCount: number
+  returnValue?: string
+  logs: string[]
+  updatedAt: number
+}
+
+interface DebugReplResult {
+  source: 'manual' | 'llm'
+  code: string
+  logs: string[]
+  actions: Array<{
+    tool: string
+    params: Record<string, unknown>
+    ok: boolean
+    result?: string
+    error?: string
+  }>
+  returnValue?: string
+  error?: string
+  durationMs: number
+  timestamp: number
+}
+
+interface LlmInputSnapshot {
+  systemPrompt: string
+  userMessage: string
+  messages: Message[]
+  conversationHistory: Message[]
+  updatedAt: number
+  attempt: number
+}
+
+interface LlmTraceEntry {
+  id: number
+  turnId: number
+  timestamp: number
+  eventType: string
+  sourceType: string
+  sourceId: string
+  attempt: number
+  model: string
+  // NOTICE: Full messages array is no longer stored to prevent O(turns²) memory growth.
+  // Use messageCount + estimatedTokens for diagnostics, or llmLog for detailed history.
+  messageCount: number
+  estimatedTokens: number
+  content: string
+  reasoning?: string
+  usage?: {
+    prompt_tokens?: number
+    completion_tokens?: number
+    total_tokens?: number
+  }
+  durationMs: number
+}
+
+interface RuntimeInputEnvelope {
+  id: number
+  turnId: number
+  timestamp: number
+  event: {
+    type: string
+    sourceType: string
+    sourceId: string
+    payload: unknown
+  }
+  contextView: string
+  userMessage: string
+  systemPrompt: {
+    preview: string
+    length: number
+  }
+  llm?: {
+    attempt: number
+    model: string
+    usage?: {
+      prompt_tokens?: number
+      completion_tokens?: number
+      total_tokens?: number
+    }
+  }
+}
+
+type ActionQueueEntryState = 'pending' | 'executing' | 'succeeded' | 'failed' | 'cancelled'
+
+interface ActionQueueEntryView {
+  id: number
+  tool: string
+  params: Record<string, unknown>
+  state: ActionQueueEntryState
+  enqueuedAt: number
+  sourceTurnId: number
+  startedAt?: number
+  finishedAt?: number
+  result?: unknown
+  error?: string
+}
+
+interface ActionQueueSnapshot {
+  executing: ActionQueueEntryView | null
+  pending: ActionQueueEntryView[]
+  recent: ActionQueueEntryView[]
+  capacity: {
+    total: number
+    executing: number
+    pending: number
+  }
+  counts: {
+    total: number
+    executing: number
+    pending: number
+  }
+  updatedAt: number
+}
+
+interface ControlActionQueueEntry {
+  id: number
+  action: ActionInstruction
+  sourceTurnId: number
+  state: ActionQueueEntryState
+  enqueuedAt: number
+  startedAt?: number
+  finishedAt?: number
+  result?: unknown
+  error?: string
+}
+
+interface NoActionBudgetState {
+  remaining: number
+  default: number
+  max: number
+}
+
+interface ErrorBurstGuardState {
+  threshold: number
+  windowTurns: number
+  errorTurnCount: number
+  recentTurnIds: number[]
+  recentErrorSummary: string[]
+  triggeredAtTurnId: number
+}
+
+function truncateForPrompt(value: string, maxLength = 220): string {
+  return value.length <= maxLength ? value : `${value.slice(0, maxLength - 1)}...`
+}
+
+function stringifyForLog(value: unknown): string {
+  if (typeof value === 'string')
+    return value
+  try {
+    return JSON.stringify(value)
+  }
+  catch {
+    return String(value)
+  }
+}
+
+const NO_ACTION_FOLLOWUP_SOURCE_ID = 'brain:no_action_followup'
+const NO_ACTION_BUDGET_ALERT_SOURCE_ID = 'brain:no_action_budget'
+
+/**
+ * Priority tiers for event scheduling (lower = higher priority).
+ * Player chat always takes precedence over stale system feedback.
+ */
+const EVENT_PRIORITY_PLAYER_CHAT = 0
+const EVENT_PRIORITY_PERCEPTION = 1
+const EVENT_PRIORITY_FEEDBACK = 2
+const EVENT_PRIORITY_NO_ACTION_FOLLOWUP = 3
+const MAX_QUEUED_CONTROL_ACTIONS = 5
+const MAX_PENDING_CONTROL_ACTIONS = 4
+const ACTION_QUEUE_RECENT_HISTORY_LIMIT = 20
+const MAX_CONVERSATION_HISTORY_MESSAGES = 200
+const MAX_ACTIVE_CONTEXT_MESSAGES = 30
+const MAX_CONTEXT_SUMMARIES_IN_PREFIX = 10
+const NO_ACTION_FOLLOWUP_BUDGET_DEFAULT = 3
+const NO_ACTION_FOLLOWUP_BUDGET_MAX = 8
+const NO_ACTION_STAGNATION_REPEAT_LIMIT = 2
+const ERROR_BURST_GUARD_SOURCE_ID = 'brain:error_burst_guard'
+const ERROR_BURST_THRESHOLD = 3
+const ERROR_BURST_WINDOW_TURNS = 5
+
+function getEventPriority(event: BotEvent): number {
+  if (event.type === 'perception') {
+    const signal = event.payload as PerceptionSignal
+    if (signal.type === 'chat_message')
+      return EVENT_PRIORITY_PLAYER_CHAT
+    return EVENT_PRIORITY_PERCEPTION
+  }
+  if (event.source.type === 'system' && event.source.id === NO_ACTION_FOLLOWUP_SOURCE_ID)
+    return EVENT_PRIORITY_NO_ACTION_FOLLOWUP
+  if (event.type === 'feedback')
+    return EVENT_PRIORITY_FEEDBACK
+  return EVENT_PRIORITY_PERCEPTION
+}
+
+export class Brain {
+  private debugService: DebugService
+  private readonly repl = new JavaScriptPlanner()
+  private paused = false
+
+  // State
+  private queue: QueuedEvent[] = []
+  private isProcessing = false
+  private isReplEvaluating = false
+  private currentCancellationToken: CancellationToken | undefined
+  private givenUp = false
+  private giveUpReason: string | undefined
+  private lastContextView: string | undefined
+  private lastReplOutcome: ReplOutcomeSummary | undefined
+  private conversationHistory: Message[] = []
+  private lastLlmInputSnapshot: LlmInputSnapshot | null = null
+  private runtimeMineflayer: MineflayerWithAgents | null = null
+  private readonly llmLogEntries: LlmLogEntry[] = []
+  private llmLogIdCounter = 0
+  private readonly llmTraceEntries: LlmTraceEntry[] = []
+  private llmTraceIdCounter = 0
+  private turnCounter = 0
+  private currentInputEnvelope: RuntimeInputEnvelope | null = null
+  private readonly llmLogRuntime = createLlmLogRuntime(() => this.llmLogEntries)
+  private readonly patternRuntime = createPatternRuntime(PATTERN_CATALOG)
+
+  // Context boundary state
+  private archivedContexts: ArchivedContext[] = []
+  private activeContextState: ActiveContextState = {
+    label: null,
+    startTurnId: 0,
+    startedAt: Date.now(),
+  }
+
+  private activeContextStartIndex = 0
+  private cachedContextHistoryMessage: string | null = null
+  private readonly historyRuntime = createHistoryRuntime({
+    getConversationHistory: () => this.conversationHistory,
+    getArchivedContexts: () => this.archivedContexts,
+    getLlmLogEntries: () => this.llmLogEntries,
+    getCurrentTurnId: () => this.turnCounter,
+  })
+
+  private nextControlActionId = 0
+  private pendingControlActions: ControlActionQueueEntry[] = []
+  private activeControlAction: ControlActionQueueEntry | null = null
+  private recentControlActions: ControlActionQueueEntry[] = []
+  private readonly stopCancelledControlActionIds = new Set<number>()
+  private actionQueueUpdatedAt = Date.now()
+  private isActionWorkerRunning = false
+  private completedControlActionsSinceLastFeedback = 0
+  private noActionFollowupBudgetRemaining = NO_ACTION_FOLLOWUP_BUDGET_DEFAULT
+  private noActionFollowupLastSignature: string | null = null
+  private noActionFollowupStagnationCount = 0
+  private errorBurstGuardState: ErrorBurstGuardState | null = null
+  private errorBurstGuardSuppressUntilTurnId = 0
+  private unsubscribeEventBus: (() => void) | null = null
+  private onActionCompleted: ((...args: any[]) => void) | null = null
+  private onActionFailed: ((...args: any[]) => void) | null = null
+
+  constructor(private readonly deps: BrainDeps) {
+    this.debugService = DebugService.getInstance()
+  }
+
+  public init(bot: MineflayerWithAgents): void {
+    this.deps.logger.log('INFO', 'Brain: Initializing stateful core...')
+    this.runtimeMineflayer = bot
+
+    // Perception Handler
+    this.unsubscribeEventBus = this.deps.eventBus.subscribe<PerceptionSignal>('conscious:signal:*', (event: TracedEvent<PerceptionSignal>) => {
+      this.enqueueEvent(bot, {
+        type: 'perception',
+        payload: event.payload,
+        source: { type: 'minecraft', id: event.payload.sourceId ?? 'perception' },
+        timestamp: Date.now(),
+      }).catch(err => this.deps.logger.withError(err).error('Brain: Failed to process perception event'))
+    })
+
+    // Action telemetry logger
+    this.onActionCompleted = async ({ action, result }: { action: ActionInstruction, result: unknown }) => {
+      this.deps.logger.log('INFO', `Brain: Action completed: ${action.tool}`)
+      this.appendLlmLog({
+        turnId: this.turnCounter,
+        kind: 'feedback',
+        eventType: 'feedback',
+        sourceType: 'system',
+        sourceId: 'executor',
+        tags: ['feedback', 'success', action.tool],
+        text: `Action completed: ${action.tool}`,
+        metadata: {
+          params: action.params,
+          result: stringifyForLog(result),
+        },
+      })
+
+      if (action.tool === 'chat' && action.params?.feedback !== true) {
+        return
+      }
+
+      if (action.tool === 'giveUp') {
+        this.givenUp = true
+        this.giveUpReason = typeof action.params?.reason === 'string' ? action.params.reason : undefined
+
+        try {
+          const reason = this.giveUpReason ? `: ${this.giveUpReason}` : ''
+          bot.bot.chat(`[debug] Gave up${reason}. Waiting for player input.`)
+        }
+        catch (err) {
+          this.deps.logger.withError(err as Error).warn('Brain: Failed to announce giveUp to chat')
+        }
+      }
+
+      if (action.tool === 'chat' && action.params?.feedback === true) {
+        this.enqueueEvent(bot, {
+          type: 'feedback',
+          payload: { status: 'success', action, result },
+          source: { type: 'system', id: 'executor' },
+          timestamp: Date.now(),
+        }).catch(err => this.deps.logger.withError(err).error('Brain: Failed to process chat feedback'))
+      }
+    }
+    this.deps.taskExecutor.on('action:completed', this.onActionCompleted)
+
+    this.onActionFailed = async ({ action, error }: { action: ActionInstruction, error: Error }) => {
+      this.deps.logger.withError(error).warn(`Brain: Action failed: ${action.tool}`)
+      this.appendLlmLog({
+        turnId: this.turnCounter,
+        kind: 'feedback',
+        eventType: 'feedback',
+        sourceType: 'system',
+        sourceId: 'executor',
+        tags: ['feedback', 'error', action.tool],
+        text: `Action failed: ${action.tool}: ${error?.message || String(error)}`,
+        metadata: {
+          params: action.params,
+        },
+      })
+    }
+    this.deps.taskExecutor.on('action:failed', this.onActionFailed)
+
+    this.deps.logger.log('INFO', 'Brain: Online.')
+  }
+
+  public destroy(): void {
+    if (this.unsubscribeEventBus) {
+      this.unsubscribeEventBus()
+      this.unsubscribeEventBus = null
+    }
+    if (this.onActionCompleted) {
+      this.deps.taskExecutor.off('action:completed', this.onActionCompleted)
+      this.onActionCompleted = null
+    }
+    if (this.onActionFailed) {
+      this.deps.taskExecutor.off('action:failed', this.onActionFailed)
+      this.onActionFailed = null
+    }
+    this.currentCancellationToken?.cancel()
+    this.clearPendingControlActions('cancelled')
+    this.activeControlAction = null
+    this.stopCancelledControlActionIds.clear()
+    this.touchActionQueue()
+    this.runtimeMineflayer = null
+  }
+
+  public getReplState(options: { includeBuiltins?: boolean } = {}): { variables: PlannerGlobalDescriptor[], updatedAt: number, paused: boolean } {
+    const snapshot = this.deps.reflexManager.getContextSnapshot()
+    const replEvent: BotEvent = {
+      type: 'system_alert',
+      payload: { source: 'debug-repl-state' },
+      source: { type: 'system', id: 'debug-repl' },
+      timestamp: Date.now(),
+    }
+    const variables = this.repl.describeGlobals(
+      this.deps.taskExecutor.getAvailableActions(),
+      this.createRuntimeGlobals(replEvent, snapshot as unknown as Record<string, unknown>),
+      { includeBuiltins: options.includeBuiltins },
+    )
+
+    return {
+      variables,
+      updatedAt: Date.now(),
+      paused: this.paused,
+    }
+  }
+
+  public getDebugSnapshot(): {
+    isProcessing: boolean
+    queueLength: number
+    actionQueue: ActionQueueSnapshot
+    turnCounter: number
+    givenUp: boolean
+    paused: boolean
+    contextView: string | undefined
+    conversationHistory: Message[]
+    llmLogEntries: LlmLogEntry[]
+  } {
+    return {
+      isProcessing: this.isProcessing,
+      queueLength: this.queue.length,
+      actionQueue: this.getActionQueueSnapshot(),
+      turnCounter: this.turnCounter,
+      givenUp: this.givenUp,
+      paused: this.paused,
+      contextView: this.lastContextView,
+      conversationHistory: this.cloneMessages(this.conversationHistory),
+      llmLogEntries: [...this.llmLogEntries],
+    }
+  }
+
+  public setPaused(paused: boolean): boolean {
+    this.paused = paused
+    return this.paused
+  }
+
+  public togglePaused(): boolean {
+    return this.setPaused(!this.paused)
+  }
+
+  public isPaused(): boolean {
+    return this.paused
+  }
+
+  public getLastLlmInput(): LlmInputSnapshot | null {
+    if (!this.lastLlmInputSnapshot)
+      return null
+    return JSON.parse(JSON.stringify(this.lastLlmInputSnapshot)) as LlmInputSnapshot
+  }
+
+  public getLlmLogs(limit?: number): LlmLogEntry[] {
+    const entries = [...this.llmLogEntries]
+    if (typeof limit !== 'number' || !Number.isFinite(limit) || limit <= 0)
+      return entries
+    return entries.slice(-Math.floor(limit))
+  }
+
+  public getLlmTrace(limit?: number, turnId?: number): LlmTraceEntry[] {
+    let entries = [...this.llmTraceEntries]
+    if (typeof turnId === 'number' && Number.isFinite(turnId)) {
+      const normalizedTurnId = Math.floor(turnId)
+      entries = entries.filter(entry => entry.turnId === normalizedTurnId)
+    }
+
+    if (typeof limit === 'number' && Number.isFinite(limit) && limit > 0) {
+      entries = entries.slice(-Math.floor(limit))
+    }
+
+    return JSON.parse(JSON.stringify(entries)) as LlmTraceEntry[]
+  }
+
+  public forgetConversation(): { ok: true, cleared: string[] } {
+    this.conversationHistory = []
+    this.lastLlmInputSnapshot = null
+    this.activeContextStartIndex = 0
+    this.activeContextState = { label: null, startTurnId: this.turnCounter, startedAt: Date.now() }
+    this.archivedContexts = []
+    this.cachedContextHistoryMessage = null
+    this.emitConversationUpdate(false, true)
+    return {
+      ok: true,
+      cleared: ['conversationHistory', 'lastLlmInputSnapshot', 'contextHistory'],
+    }
+  }
+
+  /**
+   * Enter a new task context boundary. Called by the LLM via REPL.
+   * If there's already an active context with messages, it is auto-exited first.
+   */
+  public enterContext(label: string): { ok: true, label: string, turnId: number } {
+    const normalizedLabel = (typeof label === 'string' && label.trim()) ? label.trim() : 'unnamed'
+
+    // If the current active context has messages, auto-exit it first
+    const activeMessageCount = this.conversationHistory.length - this.activeContextStartIndex
+    if (activeMessageCount > 0) {
+      this.exitCurrentContext(undefined, 'auto_exit_on_enter')
+    }
+
+    this.activeContextState = {
+      label: normalizedLabel,
+      startTurnId: this.turnCounter,
+      startedAt: Date.now(),
+    }
+    this.activeContextStartIndex = this.conversationHistory.length
+
+    this.appendLlmLog({
+      turnId: this.turnCounter,
+      kind: 'scheduler',
+      eventType: 'system_alert',
+      sourceType: 'system',
+      sourceId: 'brain:context',
+      tags: ['context', 'enter'],
+      text: `Entered context: "${normalizedLabel}"`,
+    })
+
+    return { ok: true, label: normalizedLabel, turnId: this.turnCounter }
+  }
+
+  /**
+   * Exit the current task context, summarize it, and archive it.
+   * Called by the LLM via REPL or internally for auto-trim.
+   */
+  public exitContext(summary?: string): { ok: true, summarized: string, messagesArchived: number } {
+    return this.exitCurrentContext(
+      typeof summary === 'string' && summary.trim() ? summary.trim() : undefined,
+      'explicit',
+    )
+  }
+
+  private exitCurrentContext(
+    providedSummary: string | undefined,
+    reason: 'explicit' | 'auto_exit_on_enter' | 'auto_trim',
+  ): { ok: true, summarized: string, messagesArchived: number } {
+    const activeMessages = this.conversationHistory.slice(this.activeContextStartIndex)
+    const startTurnId = this.activeContextState.startTurnId
+    const endTurnId = this.turnCounter
+    const label = this.activeContextState.label || 'unnamed'
+
+    // Generate summary: prefer LLM-provided, fall back to heuristic
+    const summaryText = providedSummary || generateContextSummary({
+      messages: activeMessages,
+      label,
+      llmLogEntries: this.llmLogEntries,
+      startTurnId,
+      endTurnId,
+    })
+
+    const archived: ArchivedContext = {
+      label,
+      summary: summaryText,
+      startTurnId,
+      endTurnId,
+      messageCount: activeMessages.length,
+      archivedAt: Date.now(),
+    }
+
+    this.archivedContexts.push(archived)
+
+    // Collapse oldest contexts if prefix is too large
+    if (this.archivedContexts.length > MAX_CONTEXT_SUMMARIES_IN_PREFIX) {
+      const collapseCount = this.archivedContexts.length - MAX_CONTEXT_SUMMARIES_IN_PREFIX + 1
+      this.archivedContexts = collapseOldestContexts(this.archivedContexts, collapseCount)
+    }
+
+    // Invalidate the cached prefix message so it's rebuilt next turn
+    this.cachedContextHistoryMessage = null
+
+    // Clear the active context messages from conversation history
+    // Keep them in memory for history queries but mark the new start index
+    this.activeContextStartIndex = this.conversationHistory.length
+
+    // Reset active context state
+    this.activeContextState = {
+      label: null,
+      startTurnId: this.turnCounter,
+      startedAt: Date.now(),
+    }
+
+    this.appendLlmLog({
+      turnId: this.turnCounter,
+      kind: 'scheduler',
+      eventType: 'system_alert',
+      sourceType: 'system',
+      sourceId: 'brain:context',
+      tags: ['context', 'exit', reason],
+      text: `Exited context: "${label}" (${activeMessages.length} messages archived). Summary: ${summaryText}`,
+      metadata: {
+        label,
+        reason,
+        messagesArchived: activeMessages.length,
+        summary: summaryText,
+        startTurnId,
+        endTurnId,
+      },
+    })
+
+    return {
+      ok: true,
+      summarized: summaryText,
+      messagesArchived: activeMessages.length,
+    }
+  }
+
+  /**
+   * Build the [CONTEXT_HISTORY] prefix message from archived contexts.
+   * Caches the result until invalidated by exitContext().
+   */
+  private getContextHistoryMessage(): string | null {
+    if (this.cachedContextHistoryMessage !== null)
+      return this.cachedContextHistoryMessage
+
+    const message = buildContextHistoryMessage(this.archivedContexts)
+    this.cachedContextHistoryMessage = message
+    return message
+  }
+
+  /**
+   * Auto-trim the active context if it exceeds the safety limit.
+   * Summarizes the oldest half and archives it.
+   */
+  private autoTrimActiveContext(): void {
+    const activeMessageCount = this.conversationHistory.length - this.activeContextStartIndex
+    if (activeMessageCount <= MAX_ACTIVE_CONTEXT_MESSAGES)
+      return
+
+    this.deps.logger.log('INFO', `Brain: Auto-trimming active context (${activeMessageCount} messages > ${MAX_ACTIVE_CONTEXT_MESSAGES} limit)`)
+
+    // Split: archive the oldest half, keep the newest half as active
+    const halfPoint = this.activeContextStartIndex + Math.floor(activeMessageCount / 2)
+    const oldMessages = this.conversationHistory.slice(this.activeContextStartIndex, halfPoint)
+
+    const summaryText = generateContextSummary({
+      messages: oldMessages,
+      label: this.activeContextState.label ? `${this.activeContextState.label} (partial)` : '(auto-trimmed)',
+      llmLogEntries: this.llmLogEntries,
+      startTurnId: this.activeContextState.startTurnId,
+      endTurnId: this.turnCounter,
+    })
+
+    const archived: ArchivedContext = {
+      label: this.activeContextState.label ? `${this.activeContextState.label} (partial)` : '(auto-trimmed)',
+      summary: summaryText,
+      startTurnId: this.activeContextState.startTurnId,
+      endTurnId: this.turnCounter,
+      messageCount: oldMessages.length,
+      archivedAt: Date.now(),
+    }
+
+    this.archivedContexts.push(archived)
+
+    if (this.archivedContexts.length > MAX_CONTEXT_SUMMARIES_IN_PREFIX) {
+      const collapseCount = this.archivedContexts.length - MAX_CONTEXT_SUMMARIES_IN_PREFIX + 1
+      this.archivedContexts = collapseOldestContexts(this.archivedContexts, collapseCount)
+    }
+
+    // Move the start index forward
+    this.activeContextStartIndex = halfPoint
+    this.cachedContextHistoryMessage = null
+
+    this.appendLlmLog({
+      turnId: this.turnCounter,
+      kind: 'scheduler',
+      eventType: 'system_alert',
+      sourceType: 'system',
+      sourceId: 'brain:context',
+      tags: ['context', 'auto_trim'],
+      text: `Auto-trimmed active context: archived ${oldMessages.length} messages`,
+      metadata: {
+        archivedCount: oldMessages.length,
+        remainingActive: this.conversationHistory.length - halfPoint,
+        summary: summaryText,
+      },
+    })
+  }
+
+  public async injectDebugEvent(event: BotEvent): Promise<void> {
+    if (!this.runtimeMineflayer) {
+      throw new Error('Brain runtime is not initialized yet')
+    }
+
+    // Debug-injected perception events bypass the normal Reflex signal path.
+    // Refresh context from live bot state first so conscious prompts don't use
+    // stale/default environment placeholders.
+    if (event.type === 'perception') {
+      try {
+        this.deps.reflexManager.refreshFromBotState()
+      }
+      catch (err) {
+        this.deps.logger.withError(err as Error).warn('Brain: Failed to refresh reflex context for debug event')
+      }
+    }
+
+    await this.enqueueEvent(this.runtimeMineflayer, event)
+  }
+
+  public async executeDebugRepl(code: string): Promise<DebugReplResult> {
+    const startedAt = Date.now()
+    if (this.isProcessing || this.isReplEvaluating) {
+      return {
+        source: 'manual',
+        code,
+        logs: [],
+        actions: [],
+        error: 'Brain is currently processing an event. Try again in a moment.',
+        durationMs: Date.now() - startedAt,
+        timestamp: Date.now(),
+      }
+    }
+
+    const snapshot = this.deps.reflexManager.getContextSnapshot()
+    const actionDefs = new Map(this.deps.taskExecutor.getAvailableActions().map(action => [action.name, action]))
+    const normalizedReplCode = this.normalizeReplCode(code)
+    const codeToEvaluate = this.repl.canEvaluateAsExpression(normalizedReplCode)
+      ? `return (\n${normalizedReplCode}\n)`
+      : normalizedReplCode
+
+    this.isReplEvaluating = true
+    try {
+      const runResult = await this.repl.evaluate(
+        codeToEvaluate,
+        this.deps.taskExecutor.getAvailableActions(),
+        this.createRuntimeGlobals({
+          type: 'system_alert',
+          payload: { source: 'debug-repl' },
+          source: { type: 'system', id: 'debug-repl' },
+          timestamp: Date.now(),
+        }, snapshot as unknown as Record<string, unknown>),
+        async (action: ActionInstruction) => {
+          const actionDef = actionDefs.get(action.tool)
+          if (actionDef?.followControl === 'detach')
+            this.deps.reflexManager.clearFollowTarget()
+          return this.deps.taskExecutor.executeActionWithResult(action)
+        },
+      )
+
+      return {
+        source: 'manual',
+        code,
+        logs: runResult.logs,
+        actions: this.toDebugReplActions(runResult.actions),
+        returnValue: runResult.returnValue,
+        durationMs: Date.now() - startedAt,
+        timestamp: Date.now(),
+      }
+    }
+    catch (err) {
+      return {
+        source: 'manual',
+        code,
+        logs: [],
+        actions: [],
+        error: toErrorMessage(err),
+        durationMs: Date.now() - startedAt,
+        timestamp: Date.now(),
+      }
+    }
+    finally {
+      this.isReplEvaluating = false
+    }
+  }
+
+  private normalizeReplCode(code: string): string {
+    return normalizeReplScript(code)
+  }
+
+  private toDebugReplActions(actions: Array<{
+    action: ActionInstruction
+    ok: boolean
+    result?: unknown
+    error?: string
+  }>): DebugReplResult['actions'] {
+    return actions.map(item => ({
+      tool: item.action.tool,
+      params: item.action.params,
+      ok: item.ok,
+      result: item.result === undefined ? undefined : (typeof item.result === 'string' ? item.result : JSON.stringify(item.result)),
+      error: item.error,
+    }))
+  }
+
+  private cloneMessages(messages: Message[]): Message[] {
+    return JSON.parse(JSON.stringify(messages)) as Message[]
+  }
+
+  /**
+   * Re-emit the current conversation state with full context metadata.
+   * Used by the debug dashboard's `request_conversation` handler on reconnect.
+   */
+  public broadcastConversationState(): void {
+    this.emitConversationUpdate(this.isProcessing)
+  }
+
+  private emitConversationUpdate(isProcessing: boolean, sessionBoundary?: boolean): void {
+    this.debugService.emitConversationUpdate({
+      messages: this.cloneMessages(this.conversationHistory),
+      isProcessing,
+      ...(sessionBoundary && { sessionBoundary }),
+      activeContext: {
+        label: this.activeContextState.label,
+        startTurnId: this.activeContextState.startTurnId,
+        messageCount: this.conversationHistory.length - this.activeContextStartIndex,
+      },
+      archivedContexts: this.archivedContexts.map(ctx => ({
+        label: ctx.label,
+        summary: ctx.summary,
+        turns: ctx.endTurnId - ctx.startTurnId + 1,
+        archivedAt: ctx.archivedAt,
+      })),
+      activeContextStartIndex: this.activeContextStartIndex,
+      contextHistoryMessage: this.getContextHistoryMessage(),
+    })
+  }
+
+  private createRuntimeGlobals(
+    event: BotEvent,
+    snapshot: Record<string, unknown>,
+    mineflayerOverride?: MineflayerWithAgents | null,
+  ) {
+    const mineflayer = mineflayerOverride ?? this.runtimeMineflayer
+    return {
+      event,
+      snapshot,
+      patterns: this.patternRuntime,
+      mineflayer,
+      bot: mineflayer?.bot,
+      llmInput: this.lastLlmInputSnapshot,
+      currentInput: this.currentInputEnvelope,
+      llmLog: this.llmLogRuntime,
+      actionQueue: this.getActionQueueSnapshot(),
+      noActionBudget: this.getNoActionBudgetState(),
+      errorBurstGuard: this.errorBurstGuardState ? { ...this.errorBurstGuardState } : null,
+      setNoActionBudget: (value: number) => this.setNoActionFollowupBudget(value),
+      getNoActionBudget: () => this.getNoActionBudgetState(),
+      forgetConversation: () => this.forgetConversation(),
+      enterContext: (label: string) => this.enterContext(label),
+      exitContext: (summary?: string) => this.exitContext(summary),
+      history: this.historyRuntime,
+    }
+  }
+
+  private isPlayerChatEvent(event: BotEvent): boolean {
+    if (event.type !== 'perception')
+      return false
+    const signal = event.payload as PerceptionSignal
+    return signal.type === 'chat_message'
+  }
+
+  private getNoActionBudgetState(): NoActionBudgetState {
+    return {
+      remaining: this.noActionFollowupBudgetRemaining,
+      default: NO_ACTION_FOLLOWUP_BUDGET_DEFAULT,
+      max: NO_ACTION_FOLLOWUP_BUDGET_MAX,
+    }
+  }
+
+  private resetNoActionFollowupBudget(reason: 'player_chat' | 'manual'): NoActionBudgetState {
+    this.noActionFollowupBudgetRemaining = NO_ACTION_FOLLOWUP_BUDGET_DEFAULT
+    this.noActionFollowupLastSignature = null
+    this.noActionFollowupStagnationCount = 0
+    this.appendLlmLog({
+      turnId: this.turnCounter,
+      kind: 'scheduler',
+      eventType: 'system_alert',
+      sourceType: 'system',
+      sourceId: 'brain:no_action_budget',
+      tags: ['scheduler', 'no_action', 'budget_reset', reason],
+      text: `No-action follow-up budget reset (${reason})`,
+      metadata: {
+        budget: this.getNoActionBudgetState(),
+      },
+    })
+    return this.getNoActionBudgetState()
+  }
+
+  private setNoActionFollowupBudget(value: number): { ok: true } & NoActionBudgetState {
+    const normalizedRaw = Number(value)
+    const normalized = Number.isFinite(normalizedRaw)
+      ? Math.floor(normalizedRaw)
+      : this.noActionFollowupBudgetRemaining
+    const clamped = Math.max(0, Math.min(NO_ACTION_FOLLOWUP_BUDGET_MAX, normalized))
+    this.noActionFollowupBudgetRemaining = clamped
+    this.noActionFollowupLastSignature = null
+    this.noActionFollowupStagnationCount = 0
+
+    this.appendLlmLog({
+      turnId: this.turnCounter,
+      kind: 'scheduler',
+      eventType: 'system_alert',
+      sourceType: 'system',
+      sourceId: 'brain:no_action_budget',
+      tags: ['scheduler', 'no_action', 'budget_set'],
+      text: `No-action follow-up budget set to ${clamped}`,
+      metadata: {
+        requested: value,
+        budget: this.getNoActionBudgetState(),
+      },
+    })
+
+    return {
+      ok: true,
+      ...this.getNoActionBudgetState(),
+    }
+  }
+
+  private buildNoActionSignature(returnValue: string | undefined, logs: string[]): string {
+    const returnPart = truncateForPrompt(returnValue ?? 'undefined', 320)
+    const logsPart = logs.slice(-3).map(line => truncateForPrompt(line, 140)).join('|')
+    return `${returnPart}||${logsPart}`
+  }
+
+  private emitNoActionBudgetDebugChat(
+    bot: MineflayerWithAgents,
+    reason: 'no_action_budget_exhausted' | 'no_action_stagnated',
+  ): void {
+    const message = reason === 'no_action_budget_exhausted'
+      ? `[debug] no-action follow-up budget exhausted (remaining=0).`
+      : `[debug] no-action follow-up blocked due to stagnant eval loop.`
+
+    try {
+      bot.bot.chat(message)
+    }
+    catch (err) {
+      this.deps.logger.withError(err as Error).warn('Brain: Failed to send no-action budget debug chat')
+    }
+  }
+
+  private isErrorLlmLogEntry(entry: LlmLogEntry): boolean {
+    if (entry.kind === 'repl_error')
+      return true
+
+    if (entry.kind === 'repl_result') {
+      const errorCount = Number((entry.metadata as Record<string, unknown> | undefined)?.errorCount ?? 0)
+      return Number.isFinite(errorCount) && errorCount > 0
+    }
+
+    if (entry.kind === 'feedback') {
+      const tags = new Set(entry.tags.map(tag => tag.toLowerCase()))
+      return tags.has('error') || tags.has('failure')
+    }
+
+    return false
+  }
+
+  private describeErrorLlmLogEntry(entry: LlmLogEntry): string {
+    return `${entry.kind}: ${truncateForPrompt(entry.text, 140)}`
+  }
+
+  private collectRecentErrorTurns(windowTurns = ERROR_BURST_WINDOW_TURNS): {
+    recentTurnIds: number[]
+    errorTurnIds: number[]
+    summaries: string[]
+  } {
+    const turnIds: number[] = []
+    const seen = new Set<number>()
+
+    for (let index = this.llmLogEntries.length - 1; index >= 0; index--) {
+      const entry = this.llmLogEntries[index]
+      if (!entry || entry.kind !== 'turn_input')
+        continue
+      if (seen.has(entry.turnId))
+        continue
+      seen.add(entry.turnId)
+      turnIds.push(entry.turnId)
+      if (turnIds.length >= windowTurns)
+        break
+    }
+
+    const entriesByTurnId = new Map<number, LlmLogEntry[]>()
+    for (const turnId of turnIds)
+      entriesByTurnId.set(turnId, [])
+
+    for (const entry of this.llmLogEntries) {
+      const bucket = entriesByTurnId.get(entry.turnId)
+      if (!bucket)
+        continue
+      bucket.push(entry)
+    }
+
+    const errorTurnIds: number[] = []
+    const summaries: string[] = []
+    for (const turnId of turnIds) {
+      const turnEntries = entriesByTurnId.get(turnId) ?? []
+      const errors = turnEntries.filter(entry => this.isErrorLlmLogEntry(entry))
+      if (errors.length === 0)
+        continue
+      errorTurnIds.push(turnId)
+      const evidence = errors.slice(0, 2).map(entry => this.describeErrorLlmLogEntry(entry)).join(' | ')
+      summaries.push(`turn=${turnId} ${evidence}`)
+    }
+
+    return {
+      recentTurnIds: turnIds,
+      errorTurnIds,
+      summaries,
+    }
+  }
+
+  private maybeActivateErrorBurstGuard(
+    bot: MineflayerWithAgents,
+    event: BotEvent,
+    turnId: number,
+  ): void {
+    if (this.errorBurstGuardState)
+      return
+
+    if (turnId <= this.errorBurstGuardSuppressUntilTurnId)
+      return
+
+    const { recentTurnIds, errorTurnIds, summaries } = this.collectRecentErrorTurns(ERROR_BURST_WINDOW_TURNS)
+    if (errorTurnIds.length < ERROR_BURST_THRESHOLD)
+      return
+
+    const recentErrorSummary = summaries.slice(0, ERROR_BURST_WINDOW_TURNS)
+    this.errorBurstGuardState = {
+      threshold: ERROR_BURST_THRESHOLD,
+      windowTurns: ERROR_BURST_WINDOW_TURNS,
+      errorTurnCount: errorTurnIds.length,
+      recentTurnIds,
+      recentErrorSummary,
+      triggeredAtTurnId: turnId,
+    }
+
+    this.appendLlmLog({
+      turnId,
+      kind: 'scheduler',
+      eventType: 'system_alert',
+      sourceType: 'system',
+      sourceId: ERROR_BURST_GUARD_SOURCE_ID,
+      tags: ['scheduler', 'error_burst', 'guard_triggered', 'error'],
+      text: `Error burst guard activated (${errorTurnIds.length}/${Math.max(recentTurnIds.length, ERROR_BURST_WINDOW_TURNS)} recent turns contain errors)`,
+      metadata: {
+        threshold: ERROR_BURST_THRESHOLD,
+        windowTurns: ERROR_BURST_WINDOW_TURNS,
+        errorTurnIds,
+        recentErrorSummary,
+      },
+    })
+
+    if (event.source.type === 'system' && event.source.id === ERROR_BURST_GUARD_SOURCE_ID)
+      return
+
+    void this.enqueueEvent(bot, {
+      type: 'system_alert',
+      payload: {
+        reason: 'error_burst_guard',
+        threshold: ERROR_BURST_THRESHOLD,
+        windowTurns: ERROR_BURST_WINDOW_TURNS,
+        errorTurnCount: errorTurnIds.length,
+        recentErrorSummary,
+        guidance: 'Too many recent errors. Call giveUp(...) and send one chat explanation.',
+      },
+      source: { type: 'system', id: ERROR_BURST_GUARD_SOURCE_ID },
+      timestamp: Date.now(),
+    }).catch(err => this.deps.logger.withError(err).error('Brain: Failed to enqueue error-burst guard alert'))
+  }
+
+  private clearErrorBurstGuardState(turnId: number, reason: 'resolved' | 'manual'): void {
+    if (!this.errorBurstGuardState)
+      return
+
+    this.appendLlmLog({
+      turnId,
+      kind: 'scheduler',
+      eventType: 'system_alert',
+      sourceType: 'system',
+      sourceId: ERROR_BURST_GUARD_SOURCE_ID,
+      tags: ['scheduler', 'error_burst', 'guard_cleared', reason],
+      text: `Error burst guard cleared (${reason})`,
+      metadata: {
+        guard: { ...this.errorBurstGuardState },
+      },
+    })
+
+    this.errorBurstGuardSuppressUntilTurnId = turnId + ERROR_BURST_WINDOW_TURNS
+    this.errorBurstGuardState = null
+  }
+
+  private updateErrorBurstGuardCompletion(
+    turnId: number,
+    actions: Array<{
+      action: ActionInstruction
+      ok: boolean
+    }>,
+  ): void {
+    if (!this.errorBurstGuardState)
+      return
+
+    const hasGiveUp = actions.some(item => item.action.tool === 'giveUp' && item.ok)
+    const hasChat = actions.some(item => item.action.tool === 'chat' && item.ok)
+
+    if (hasGiveUp && hasChat) {
+      this.clearErrorBurstGuardState(turnId, 'resolved')
+      return
+    }
+
+    if (hasGiveUp || hasChat) {
+      this.appendLlmLog({
+        turnId,
+        kind: 'scheduler',
+        eventType: 'system_alert',
+        sourceType: 'system',
+        sourceId: ERROR_BURST_GUARD_SOURCE_ID,
+        tags: ['scheduler', 'error_burst', 'guard_pending'],
+        text: 'Error burst guard still pending: this turn must include both giveUp and chat actions',
+      })
+    }
+  }
+
+  private appendLlmLog(entry: {
+    turnId: number
+    kind: LlmLogEntryKind
+    eventType: string
+    sourceType: string
+    sourceId: string
+    tags?: string[]
+    text: string
+    metadata?: Record<string, unknown>
+  }): void {
+    const normalized: LlmLogEntry = {
+      id: ++this.llmLogIdCounter,
+      turnId: entry.turnId,
+      kind: entry.kind,
+      timestamp: Date.now(),
+      eventType: entry.eventType,
+      sourceType: entry.sourceType,
+      sourceId: entry.sourceId,
+      tags: entry.tags ?? [],
+      text: entry.text,
+      metadata: entry.metadata,
+    }
+
+    this.llmLogEntries.push(normalized)
+    if (this.llmLogEntries.length > 1000) {
+      this.llmLogEntries.shift()
+    }
+  }
+
+  private touchActionQueue(): void {
+    this.actionQueueUpdatedAt = Date.now()
+  }
+
+  private cloneActionParams(params: Record<string, unknown>): Record<string, unknown> {
+    return JSON.parse(JSON.stringify(params)) as Record<string, unknown>
+  }
+
+  private toActionQueueEntryView(entry: ControlActionQueueEntry): ActionQueueEntryView {
+    return {
+      id: entry.id,
+      tool: entry.action.tool,
+      params: this.cloneActionParams(entry.action.params),
+      state: entry.state,
+      enqueuedAt: entry.enqueuedAt,
+      sourceTurnId: entry.sourceTurnId,
+      startedAt: entry.startedAt,
+      finishedAt: entry.finishedAt,
+      result: entry.result,
+      error: entry.error,
+    }
+  }
+
+  private pushRecentControlAction(entry: ControlActionQueueEntry): void {
+    this.recentControlActions.push({
+      ...entry,
+      action: {
+        tool: entry.action.tool,
+        params: this.cloneActionParams(entry.action.params),
+      },
+    })
+    if (this.recentControlActions.length > ACTION_QUEUE_RECENT_HISTORY_LIMIT) {
+      this.recentControlActions.shift()
+    }
+  }
+
+  private getActionQueueSnapshot(): ActionQueueSnapshot {
+    const executing = this.activeControlAction ? this.toActionQueueEntryView(this.activeControlAction) : null
+    const pending = this.pendingControlActions.map(entry => this.toActionQueueEntryView(entry))
+    const recent = this.recentControlActions.map(entry => this.toActionQueueEntryView(entry))
+    const executingCount = executing ? 1 : 0
+    const pendingCount = pending.length
+
+    return {
+      executing,
+      pending,
+      recent,
+      capacity: {
+        total: MAX_QUEUED_CONTROL_ACTIONS,
+        executing: 1,
+        pending: MAX_PENDING_CONTROL_ACTIONS,
+      },
+      counts: {
+        total: executingCount + pendingCount,
+        executing: executingCount,
+        pending: pendingCount,
+      },
+      updatedAt: this.actionQueueUpdatedAt,
+    }
+  }
+
+  private isQueueConsumingControlAction(action: ActionInstruction, actionDef: Action | undefined): boolean {
+    if (action.tool === 'chat' || action.tool === 'skip' || action.tool === 'stop')
+      return false
+
+    if (!actionDef)
+      return false
+
+    if (actionDef?.readonly)
+      return false
+
+    return actionDef.execution === 'async'
+  }
+
+  private clearPendingControlActions(state: Extract<ActionQueueEntryState, 'cancelled' | 'failed'>): number {
+    if (this.pendingControlActions.length === 0)
+      return 0
+
+    const clearedAt = Date.now()
+    const cleared = this.pendingControlActions.splice(0, this.pendingControlActions.length)
+    for (const entry of cleared) {
+      entry.state = state
+      entry.finishedAt = clearedAt
+      entry.error = state === 'failed' ? entry.error : entry.error ?? 'Cleared from action queue'
+      this.pushRecentControlAction(entry)
+    }
+    this.touchActionQueue()
+    return cleared.length
+  }
+
+  private async enqueueControlAction(
+    bot: MineflayerWithAgents,
+    action: ActionInstruction,
+    sourceTurnId: number,
+  ): Promise<unknown> {
+    const queueSize = this.pendingControlActions.length + (this.activeControlAction ? 1 : 0)
+    if (queueSize >= MAX_QUEUED_CONTROL_ACTIONS) {
+      throw new Error(`Action queue full (${queueSize}/${MAX_QUEUED_CONTROL_ACTIONS}). Use stop() or wait for completion.`)
+    }
+
+    const entry: ControlActionQueueEntry = {
+      id: ++this.nextControlActionId,
+      action: {
+        tool: action.tool,
+        params: this.cloneActionParams(action.params),
+      },
+      sourceTurnId,
+      state: 'pending',
+      enqueuedAt: Date.now(),
+    }
+    this.pendingControlActions.push(entry)
+    this.touchActionQueue()
+
+    this.appendLlmLog({
+      turnId: sourceTurnId,
+      kind: 'scheduler',
+      eventType: 'system_alert',
+      sourceType: 'system',
+      sourceId: 'brain:action_queue',
+      tags: ['scheduler', 'action_queue', 'enqueued'],
+      text: `Queued control action #${entry.id}: ${entry.action.tool}`,
+      metadata: {
+        actionId: entry.id,
+        pendingCount: this.pendingControlActions.length,
+      },
+    })
+
+    this.startControlActionWorker(bot)
+    return {
+      queued: true,
+      actionId: entry.id,
+      state: entry.state,
+      pendingAhead: Math.max(0, this.pendingControlActions.length - 1),
+      queue: this.getActionQueueSnapshot().counts,
+    }
+  }
+
+  private startControlActionWorker(bot: MineflayerWithAgents): void {
+    if (this.isActionWorkerRunning)
+      return
+
+    this.isActionWorkerRunning = true
+    setImmediate(() => {
+      void this.runControlActionWorker(bot)
+    })
+  }
+
+  private async runControlActionWorker(bot: MineflayerWithAgents): Promise<void> {
+    try {
+      while (this.pendingControlActions.length > 0) {
+        const entry = this.pendingControlActions.shift()!
+        entry.state = 'executing'
+        entry.startedAt = Date.now()
+        this.activeControlAction = entry
+        this.touchActionQueue()
+
+        this.appendLlmLog({
+          turnId: entry.sourceTurnId,
+          kind: 'scheduler',
+          eventType: 'system_alert',
+          sourceType: 'system',
+          sourceId: 'brain:action_queue',
+          tags: ['scheduler', 'action_queue', 'executing'],
+          text: `Executing control action #${entry.id}: ${entry.action.tool}`,
+          metadata: {
+            actionId: entry.id,
+          },
+        })
+
+        const actionDef = this.deps.taskExecutor.getAvailableActions().find(item => item.name === entry.action.tool)
+        if (actionDef?.followControl === 'detach')
+          this.deps.reflexManager.clearFollowTarget()
+
+        const cancellationToken = createCancellationToken()
+        this.currentCancellationToken = cancellationToken
+
+        try {
+          const result = await this.deps.taskExecutor.executeActionWithResult(entry.action, cancellationToken)
+          const cancelledByStop = cancellationToken.isCancelled || this.stopCancelledControlActionIds.has(entry.id)
+          if (cancelledByStop) {
+            entry.state = 'cancelled'
+            entry.error = 'Cancelled by stop action'
+            entry.finishedAt = Date.now()
+            this.pushRecentControlAction(entry)
+
+            this.appendLlmLog({
+              turnId: entry.sourceTurnId,
+              kind: 'scheduler',
+              eventType: 'feedback',
+              sourceType: 'system',
+              sourceId: 'brain:action_queue',
+              tags: ['scheduler', 'action_queue', 'cancelled', entry.action.tool],
+              text: `Control action #${entry.id} cancelled: ${entry.action.tool}`,
+              metadata: {
+                actionId: entry.id,
+                reason: 'stop',
+              },
+            })
+
+            this.stopCancelledControlActionIds.delete(entry.id)
+            this.activeControlAction = null
+            this.touchActionQueue()
+            continue
+          }
+
+          entry.state = 'succeeded'
+          entry.result = result
+          entry.finishedAt = Date.now()
+          this.pushRecentControlAction(entry)
+          this.completedControlActionsSinceLastFeedback++
+
+          this.appendLlmLog({
+            turnId: entry.sourceTurnId,
+            kind: 'scheduler',
+            eventType: 'feedback',
+            sourceType: 'system',
+            sourceId: 'brain:action_queue',
+            tags: ['scheduler', 'action_queue', 'success', entry.action.tool],
+            text: `Control action #${entry.id} succeeded: ${entry.action.tool}`,
+          })
+
+          this.activeControlAction = null
+          this.touchActionQueue()
+
+          if (this.pendingControlActions.length === 0) {
+            const completedCount = this.completedControlActionsSinceLastFeedback
+            this.completedControlActionsSinceLastFeedback = 0
+            await this.enqueueEvent(bot, {
+              type: 'feedback',
+              payload: {
+                status: 'success',
+                action: entry.action,
+                result: entry.result,
+                summary: {
+                  queueDrained: true,
+                  completedCount,
+                },
+              },
+              source: { type: 'system', id: 'executor' },
+              timestamp: Date.now(),
+            })
+          }
+        }
+        catch (err) {
+          const interrupted = err instanceof ActionError && err.code === 'INTERRUPTED'
+          const cancelledByStop = cancellationToken.isCancelled
+            || interrupted
+            || this.stopCancelledControlActionIds.has(entry.id)
+
+          if (cancelledByStop) {
+            entry.state = 'cancelled'
+            entry.error = 'Cancelled by stop action'
+            entry.finishedAt = Date.now()
+            this.pushRecentControlAction(entry)
+
+            this.appendLlmLog({
+              turnId: entry.sourceTurnId,
+              kind: 'scheduler',
+              eventType: 'feedback',
+              sourceType: 'system',
+              sourceId: 'brain:action_queue',
+              tags: ['scheduler', 'action_queue', 'cancelled', entry.action.tool],
+              text: `Control action #${entry.id} cancelled: ${entry.action.tool}`,
+              metadata: {
+                actionId: entry.id,
+                reason: interrupted ? 'interrupted' : 'stop',
+              },
+            })
+
+            this.stopCancelledControlActionIds.delete(entry.id)
+            this.activeControlAction = null
+            this.touchActionQueue()
+            continue
+          }
+
+          const errorMessage = toErrorMessage(err)
+          entry.state = 'failed'
+          entry.error = errorMessage
+          entry.finishedAt = Date.now()
+          this.pushRecentControlAction(entry)
+
+          const clearedCount = this.clearPendingControlActions('cancelled')
+          this.completedControlActionsSinceLastFeedback = 0
+          this.activeControlAction = null
+          this.touchActionQueue()
+
+          this.appendLlmLog({
+            turnId: entry.sourceTurnId,
+            kind: 'scheduler',
+            eventType: 'feedback',
+            sourceType: 'system',
+            sourceId: 'brain:action_queue',
+            tags: ['scheduler', 'action_queue', 'failure', entry.action.tool],
+            text: `Control action #${entry.id} failed: ${entry.action.tool}`,
+            metadata: {
+              actionId: entry.id,
+              clearedPendingCount: clearedCount,
+              error: errorMessage,
+            },
+          })
+
+          await this.enqueueEvent(bot, {
+            type: 'feedback',
+            payload: {
+              status: 'failure',
+              action: entry.action,
+              error: errorMessage,
+              summary: {
+                failedActionId: entry.id,
+                clearedPendingCount: clearedCount,
+              },
+            },
+            source: { type: 'system', id: 'executor' },
+            timestamp: Date.now(),
+          })
+          break
+        }
+        finally {
+          if (this.currentCancellationToken === cancellationToken) {
+            this.currentCancellationToken = undefined
+          }
+        }
+      }
+    }
+    finally {
+      this.isActionWorkerRunning = false
+      if (this.pendingControlActions.length > 0 && this.runtimeMineflayer) {
+        this.startControlActionWorker(this.runtimeMineflayer)
+      }
+    }
+  }
+
+  private async executeStopAction(bot: MineflayerWithAgents, sourceTurnId: number): Promise<unknown> {
+    const clearedCount = this.clearPendingControlActions('cancelled')
+    const cancelledActiveActionId = this.activeControlAction?.id
+    if (cancelledActiveActionId)
+      this.stopCancelledControlActionIds.add(cancelledActiveActionId)
+
+    this.currentCancellationToken?.cancel()
+    this.deps.reflexManager.clearFollowTarget()
+
+    try {
+      bot.interrupt('stop requested by brain')
+    }
+    catch (err) {
+      this.deps.logger.withError(err as Error).warn('Brain: Failed to interrupt mineflayer during stop')
+    }
+
+    this.completedControlActionsSinceLastFeedback = 0
+
+    this.appendLlmLog({
+      turnId: sourceTurnId,
+      kind: 'scheduler',
+      eventType: 'system_alert',
+      sourceType: 'system',
+      sourceId: 'brain:action_queue',
+      tags: ['scheduler', 'action_queue', 'stop'],
+      text: `Stop requested. Cleared pending control actions: ${clearedCount}`,
+      metadata: {
+        cancelledActiveActionId,
+      },
+    })
+
+    const result = await this.deps.taskExecutor.executeActionWithResult({ tool: 'stop', params: {} })
+    void this.enqueueEvent(bot, {
+      type: 'feedback',
+      payload: {
+        status: 'success',
+        action: { tool: 'stop', params: {} },
+        result,
+        summary: {
+          clearedPendingCount: clearedCount,
+          cancelledActiveActionId,
+        },
+      },
+      source: { type: 'system', id: 'executor' },
+      timestamp: Date.now(),
+    }).catch(err => this.deps.logger.withError(err).error('Brain: Failed to enqueue stop feedback'))
+
+    return {
+      ok: true,
+      stopped: true,
+      clearedPendingCount: clearedCount,
+      cancelledActiveActionId,
+    }
+  }
+
+  private queueNoActionFollowup(
+    bot: MineflayerWithAgents,
+    triggeringEvent: BotEvent,
+    turnId: number,
+    returnValue: string | undefined,
+    logs: string[],
+  ): void {
+    const signature = this.buildNoActionSignature(returnValue, logs)
+    const budgetBefore = this.noActionFollowupBudgetRemaining
+    if (signature === this.noActionFollowupLastSignature)
+      this.noActionFollowupStagnationCount++
+    else
+      this.noActionFollowupStagnationCount = 0
+    this.noActionFollowupLastSignature = signature
+
+    const stagnated = this.noActionFollowupStagnationCount >= NO_ACTION_STAGNATION_REPEAT_LIMIT
+    const exhausted = this.noActionFollowupBudgetRemaining <= 0
+    if (stagnated || exhausted) {
+      const reason: 'no_action_budget_exhausted' | 'no_action_stagnated' = exhausted
+        ? 'no_action_budget_exhausted'
+        : 'no_action_stagnated'
+
+      this.appendLlmLog({
+        turnId,
+        kind: 'scheduler',
+        eventType: triggeringEvent.type,
+        sourceType: triggeringEvent.source.type,
+        sourceId: triggeringEvent.source.id,
+        tags: ['scheduler', 'no_action', 'blocked', reason],
+        text: `Blocked no-action follow-up: ${reason}`,
+        metadata: {
+          budgetBefore,
+          budgetAfter: this.noActionFollowupBudgetRemaining,
+          stagnationCount: this.noActionFollowupStagnationCount,
+          signature,
+          returnValue: returnValue ?? 'undefined',
+        },
+      })
+
+      if (triggeringEvent.source.type === 'system' && triggeringEvent.source.id === NO_ACTION_BUDGET_ALERT_SOURCE_ID) {
+        this.deps.logger.log('INFO', `Brain: Suppressed repeated no-action budget alert (${reason})`)
+        return
+      }
+
+      this.debugService.log('DEBUG', `No-action follow-up blocked: ${reason}`)
+      this.emitNoActionBudgetDebugChat(bot, reason)
+
+      const followupEvent: BotEvent = {
+        type: 'system_alert',
+        payload: {
+          reason,
+          returnValue: returnValue ?? 'undefined',
+          logs: logs.slice(-3),
+          noActionBudget: this.getNoActionBudgetState(),
+          guidance: 'No-action follow-up budget exhausted. Abandon this approach or call setNoActionBudget(n) for this scenario.',
+        },
+        source: { type: 'system', id: NO_ACTION_BUDGET_ALERT_SOURCE_ID },
+        timestamp: Date.now(),
+      }
+
+      void this.enqueueEvent(bot, followupEvent).catch(err =>
+        this.deps.logger.withError(err).error('Brain: Failed to enqueue no-action budget alert'),
+      )
+      return
+    }
+
+    this.noActionFollowupBudgetRemaining = Math.max(0, this.noActionFollowupBudgetRemaining - 1)
+    const budgetAfter = this.noActionFollowupBudgetRemaining
+
+    const followupEvent: BotEvent = {
+      type: 'system_alert',
+      payload: {
+        reason: 'no_actions',
+        returnValue: returnValue ?? 'undefined',
+        logs: logs.slice(-3),
+        noActionBudget: this.getNoActionBudgetState(),
+      },
+      source: { type: 'system', id: NO_ACTION_FOLLOWUP_SOURCE_ID },
+      timestamp: Date.now(),
+    }
+
+    this.appendLlmLog({
+      turnId,
+      kind: 'scheduler',
+      eventType: triggeringEvent.type,
+      sourceType: triggeringEvent.source.type,
+      sourceId: triggeringEvent.source.id,
+      tags: ['scheduler', 'no_action'],
+      text: 'Scheduled budgeted no-action follow-up turn',
+      metadata: {
+        returnValue: returnValue ?? 'undefined',
+        budgetBefore,
+        budgetAfter,
+        stagnationCount: this.noActionFollowupStagnationCount,
+        signature,
+      },
+    })
+    this.debugService.log('DEBUG', 'Scheduling budgeted no-action follow-up turn')
+    void this.enqueueEvent(bot, followupEvent).catch(err =>
+      this.deps.logger.withError(err).error('Brain: Failed to enqueue no-action follow-up'),
+    )
+  }
+
+  // --- Event Queue Logic ---
+
+  private async enqueueEvent(bot: MineflayerWithAgents, event: BotEvent): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ event, resolve, reject })
+      // Use setImmediate to avoid re-entrant processQueue calls that could
+      // bypass the isProcessing guard during the finally block.
+      if (!this.isProcessing) {
+        setImmediate(() => this.processQueue(bot))
+      }
+    })
+  }
+
+  /**
+   * Coalesce the event queue: promote high-priority events (player chat)
+   * ahead of stale low-priority events (feedback, no-action follow-ups),
+   * and drop redundant stale follow-ups when a higher-priority event exists.
+   */
+  private coalesceQueue(): void {
+    if (this.queue.length <= 1)
+      return
+
+    const hasHighPriority = this.queue.some(
+      item => getEventPriority(item.event) <= EVENT_PRIORITY_PERCEPTION,
+    )
+    if (!hasHighPriority)
+      return
+
+    // Drop redundant no-action follow-ups when a player chat is waiting
+    const hasPlayerChat = this.queue.some(
+      item => getEventPriority(item.event) === EVENT_PRIORITY_PLAYER_CHAT,
+    )
+    if (hasPlayerChat) {
+      const before = this.queue.length
+      const dropped: QueuedEvent[] = []
+      this.queue = this.queue.filter((item) => {
+        if (getEventPriority(item.event) === EVENT_PRIORITY_NO_ACTION_FOLLOWUP) {
+          dropped.push(item)
+          return false
+        }
+        return true
+      })
+      // Resolve dropped promises so they don't hang
+      for (const item of dropped)
+        item.resolve()
+
+      if (before !== this.queue.length) {
+        this.appendLlmLog({
+          turnId: this.turnCounter,
+          kind: 'scheduler',
+          eventType: 'system_alert',
+          sourceType: 'system',
+          sourceId: 'brain:coalesce',
+          tags: ['scheduler', 'coalesce', 'drop_followups'],
+          text: `Coalesced queue: dropped ${before - this.queue.length} stale no-action follow-ups (player chat waiting)`,
+        })
+      }
+    }
+
+    // Stable-sort by priority so player chat events are processed first
+    this.queue.sort((a, b) => getEventPriority(a.event) - getEventPriority(b.event))
+  }
+
+  private async processQueue(bot: MineflayerWithAgents): Promise<void> {
+    if (this.isProcessing || this.queue.length === 0)
+      return
+
+    try {
+      this.isProcessing = true
+      this.debugService.emitBrainState({
+        status: 'processing',
+        queueLength: this.queue.length,
+        lastContextView: this.lastContextView,
+      })
+
+      this.coalesceQueue()
+      const item = this.queue.shift()!
+
+      try {
+        await this.processEvent(bot, item.event)
+        item.resolve()
+      }
+      catch (err) {
+        this.deps.logger.withError(err).error('Brain: Error processing event')
+        item.reject(err as Error)
+      }
+    }
+    finally {
+      this.isProcessing = false
+      this.debugService.emitBrainState({
+        status: 'idle',
+        queueLength: this.queue.length,
+        lastContextView: this.lastContextView,
+      })
+
+      if (this.queue.length > 0) {
+        setImmediate(() => this.processQueue(bot))
+      }
+    }
+  }
+
+  // --- Cognitive Cycle ---
+
+  private async processEvent(bot: MineflayerWithAgents, event: BotEvent): Promise<void> {
+    if (this.paused) {
+      this.appendLlmLog({
+        turnId: this.turnCounter,
+        kind: 'scheduler',
+        eventType: event.type,
+        sourceType: event.source.type,
+        sourceId: event.source.id,
+        tags: ['scheduler', 'paused', 'suppressed'],
+        text: `Suppressed event while paused: ${event.type} from ${event.source.type}:${event.source.id}`,
+      })
+      this.deps.logger.log('INFO', `Brain: Ignoring event while paused (${event.type} from ${event.source.type}:${event.source.id})`)
+      return
+    }
+
+    this.resumeFromGiveUpIfNeeded(event)
+    if (this.shouldSuppressDuringGiveUp(event))
+      return
+    if (this.isPlayerChatEvent(event))
+      this.resetNoActionFollowupBudget('player_chat')
+
+    const turnId = ++this.turnCounter
+    this.maybeActivateErrorBurstGuard(bot, event, turnId)
+
+    // 0. Build Context View
+    const snapshot = this.deps.reflexManager.getContextSnapshot()
+    const view = buildConsciousContextView(snapshot)
+    const contextView = `[PERCEPTION] Self: ${view.selfSummary}\nEnvironment: ${view.environmentSummary}`
+
+    // 1. Construct User Message (Diffing happens here)
+    const userMessage = this.buildUserMessage(event, contextView)
+
+    // Update state after consuming difference
+    this.lastContextView = contextView
+
+    // 2. Prepare System Prompt (static)
+    const systemPrompt = generateBrainSystemPrompt(this.deps.taskExecutor.getAvailableActions())
+    this.currentInputEnvelope = {
+      id: turnId,
+      turnId,
+      timestamp: Date.now(),
+      event: {
+        type: event.type,
+        sourceType: event.source.type,
+        sourceId: event.source.id,
+        payload: event.payload,
+      },
+      contextView,
+      userMessage,
+      systemPrompt: {
+        preview: truncateForPrompt(systemPrompt, 240),
+        length: systemPrompt.length,
+      },
+    }
+    this.appendLlmLog({
+      turnId,
+      kind: 'turn_input',
+      eventType: event.type,
+      sourceType: event.source.type,
+      sourceId: event.source.id,
+      tags: ['input', event.type],
+      text: truncateForPrompt(userMessage, 600),
+      metadata: {
+        queueLength: this.queue.length,
+      },
+    })
+
+    this.debugService.emitConversationUpdate({
+      messages: this.cloneMessages([
+        ...this.conversationHistory,
+        { role: 'user', content: userMessage },
+      ]),
+      isProcessing: true,
+    })
+
+    // 3. Call LLM with retry logic
+    const maxAttempts = 3
+    let result: string | null = null
+    let capturedReasoning: string | undefined
+    let lastError: unknown
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      // Check pause at start of each retry attempt
+      if (this.paused) {
+        this.appendLlmLog({
+          turnId,
+          kind: 'scheduler',
+          eventType: event.type,
+          sourceType: event.source.type,
+          sourceId: event.source.id,
+          tags: ['scheduler', 'paused', 'interrupted'],
+          text: `Interrupted during LLM retry loop (attempt ${attempt}/${maxAttempts}) while paused`,
+        })
+        this.deps.logger.log('INFO', `Brain: Interrupted LLM retry loop while paused (attempt ${attempt}/${maxAttempts})`)
+        return
+      }
+
+      try {
+        // Auto-trim active context if it exceeds the safety limit
+        this.autoTrimActiveContext()
+
+        // Build messages: system + [CONTEXT_HISTORY prefix] + active context messages + new user message
+        const contextHistoryMsg = this.getContextHistoryMessage()
+        const activeMessages = this.conversationHistory.slice(this.activeContextStartIndex)
+        const messages: Message[] = [
+          { role: 'system', content: systemPrompt },
+          ...(contextHistoryMsg ? [{ role: 'user' as const, content: contextHistoryMsg }] : []),
+          ...activeMessages,
+          { role: 'user', content: userMessage },
+        ]
+        this.lastLlmInputSnapshot = {
+          systemPrompt,
+          userMessage,
+          messages: this.cloneMessages(messages),
+          conversationHistory: this.cloneMessages(this.conversationHistory),
+          updatedAt: Date.now(),
+          attempt,
+        }
+        this.currentInputEnvelope.llm = {
+          attempt,
+          model: config.openai.model,
+        }
+        this.appendLlmLog({
+          turnId,
+          kind: 'llm_attempt',
+          eventType: event.type,
+          sourceType: event.source.type,
+          sourceId: event.source.id,
+          tags: ['llm', 'attempt'],
+          text: `LLM attempt ${attempt}/${maxAttempts}`,
+          metadata: {
+            attempt,
+            maxAttempts,
+            messageCount: messages.length,
+          },
+        })
+
+        const traceStart = Date.now()
+
+        const llmResult = await this.deps.llmAgent.callLLM({
+          messages,
+        })
+
+        const content = llmResult.text
+        const reasoning = llmResult.reasoning
+
+        if (!content)
+          throw new Error('No content from LLM')
+
+        // Capture reasoning for later use
+        capturedReasoning = reasoning
+        result = content
+
+        this.debugService.traceLLM({
+          route: 'brain',
+          messages,
+          content,
+          reasoning,
+          usage: llmResult.usage,
+          model: config.openai.model,
+          duration: Date.now() - traceStart,
+        })
+        // Store lightweight trace (no full messages clone to prevent O(turns²) memory)
+        const estimatedTokens = Math.ceil(messages.reduce((sum, m) => {
+          const c = typeof m.content === 'string' ? m.content.length : 0
+          return sum + c
+        }, 0) / 4)
+        this.llmTraceEntries.push({
+          id: ++this.llmTraceIdCounter,
+          turnId,
+          timestamp: Date.now(),
+          eventType: event.type,
+          sourceType: event.source.type,
+          sourceId: event.source.id,
+          attempt,
+          model: config.openai.model,
+          messageCount: messages.length,
+          estimatedTokens,
+          content,
+          reasoning,
+          usage: llmResult.usage,
+          durationMs: Date.now() - traceStart,
+        })
+        if (this.llmTraceEntries.length > 500) {
+          this.llmTraceEntries.shift()
+        }
+        this.currentInputEnvelope.llm = {
+          attempt,
+          model: config.openai.model,
+          usage: llmResult.usage,
+        }
+        this.appendLlmLog({
+          turnId,
+          kind: 'llm_attempt',
+          eventType: event.type,
+          sourceType: event.source.type,
+          sourceId: event.source.id,
+          tags: ['llm', 'response'],
+          text: truncateForPrompt(content, 400),
+          metadata: {
+            attempt,
+            usage: llmResult.usage,
+            reasoningSize: reasoning?.length ?? 0,
+          },
+        })
+
+        this.debugService.emitBrainState({
+          status: 'processing',
+          queueLength: this.queue.length,
+          lastContextView: this.lastContextView,
+        })
+
+        break // Success, exit retry loop
+      }
+      catch (err) {
+        lastError = err
+        const remaining = maxAttempts - attempt
+        const isRateLimit = isRateLimitError(err)
+        const isAuthOrBadArg = isLikelyAuthOrBadArgError(err)
+        const { shouldRetry } = shouldRetryError(err, remaining)
+        this.deps.logger.withError(err).error(`Brain: Decision attempt failed (attempt ${attempt}/${maxAttempts}, retry: ${shouldRetry}, rateLimit: ${isRateLimit})`)
+
+        if (!shouldRetry) {
+          if (isAuthOrBadArg)
+            throw err
+
+          this.deps.logger.withError(err).warn('Brain: Decision attempts exhausted, skipping turn')
+          break
+        }
+
+        const backoffMs = isRateLimit
+          ? Math.min(5000, 1000 * attempt) + Math.floor(Math.random() * 200)
+          : 150
+        await sleep(backoffMs)
+
+        // Check pause after backoff sleep (before next retry)
+        if (this.paused) {
+          this.appendLlmLog({
+            turnId,
+            kind: 'scheduler',
+            eventType: event.type,
+            sourceType: event.source.type,
+            sourceId: event.source.id,
+            tags: ['scheduler', 'paused', 'interrupted'],
+            text: `Interrupted after retry backoff (attempt ${attempt}/${maxAttempts}) while paused`,
+          })
+          this.deps.logger.log('INFO', `Brain: Interrupted after retry backoff while paused (attempt ${attempt}/${maxAttempts})`)
+          return
+        }
+      }
+    }
+
+    // 4. Parse & Execute
+    if (!result) {
+      this.deps.logger.withError(lastError).warn('Brain: No response after all retries')
+      this.appendLlmLog({
+        turnId,
+        kind: 'repl_error',
+        eventType: event.type,
+        sourceType: event.source.type,
+        sourceId: event.source.id,
+        tags: ['repl', 'error', 'empty_response'],
+        text: 'No LLM response after retries',
+      })
+      this.maybeActivateErrorBurstGuard(bot, event, turnId)
+      return
+    }
+
+    // Check pause again after LLM call (allows !pause to interrupt before REPL execution)
+    if (this.paused) {
+      this.appendLlmLog({
+        turnId,
+        kind: 'scheduler',
+        eventType: event.type,
+        sourceType: event.source.type,
+        sourceId: event.source.id,
+        tags: ['scheduler', 'paused', 'interrupted'],
+        text: `Interrupted before REPL execution while paused: ${event.type} from ${event.source.type}:${event.source.id}`,
+      })
+      this.deps.logger.log('INFO', `Brain: Interrupted processing before REPL while paused (${event.type} from ${event.source.type}:${event.source.id})`)
+      return
+    }
+
+    try {
+      // Only append to conversation history after successful parsing (avoid dirty data on retry)
+      this.conversationHistory.push({ role: 'user', content: userMessage })
+      // Store reasoning in the assistant message's reasoning field (if available)
+      // Reasoning is transient thinking and doesn't need the [REASONING] prefix hack anymore
+      this.conversationHistory.push({
+        role: 'assistant',
+        content: result,
+        ...(capturedReasoning && { reasoning: capturedReasoning }),
+      } as Message)
+
+      // Trim conversation history as an in-memory safety net.
+      // The active context boundary system handles LLM context window sizing;
+      // this only prevents unbounded memory growth for very long sessions.
+      if (this.conversationHistory.length > MAX_CONVERSATION_HISTORY_MESSAGES) {
+        const trimCount = this.conversationHistory.length - MAX_CONVERSATION_HISTORY_MESSAGES
+        this.conversationHistory = this.conversationHistory.slice(trimCount)
+        // Adjust the active context start index to account for removed messages
+        this.activeContextStartIndex = Math.max(0, this.activeContextStartIndex - trimCount)
+      }
+
+      const actionDefs = new Map(this.deps.taskExecutor.getAvailableActions().map(action => [action.name, action]))
+
+      const normalizedLlmCode = this.normalizeReplCode(result)
+      const codeToEvaluate = this.repl.canEvaluateAsExpression(normalizedLlmCode)
+        ? `return (\n${normalizedLlmCode}\n)`
+        : normalizedLlmCode
+
+      const runResult = await this.repl.evaluate(
+        codeToEvaluate,
+        this.deps.taskExecutor.getAvailableActions(),
+        this.createRuntimeGlobals(event, snapshot as unknown as Record<string, unknown>, bot),
+        async (action: ActionInstruction) => {
+          const actionDef = actionDefs.get(action.tool)
+          if (action.tool === 'stop') {
+            return this.executeStopAction(bot, turnId)
+          }
+
+          const isControlAction = this.isQueueConsumingControlAction(action, actionDef)
+          if (isControlAction)
+            return this.enqueueControlAction(bot, action, turnId)
+
+          if (actionDef?.followControl === 'detach')
+            this.deps.reflexManager.clearFollowTarget()
+
+          return this.deps.taskExecutor.executeActionWithResult(action)
+        },
+      )
+
+      this.lastReplOutcome = {
+        actionCount: runResult.actions.length,
+        okCount: runResult.actions.filter(item => item.ok).length,
+        errorCount: runResult.actions.filter(item => !item.ok).length,
+        returnValue: runResult.returnValue,
+        logs: runResult.logs.slice(-3),
+        updatedAt: Date.now(),
+      }
+      this.appendLlmLog({
+        turnId,
+        kind: 'repl_result',
+        eventType: event.type,
+        sourceType: event.source.type,
+        sourceId: event.source.id,
+        tags: [
+          'repl',
+          runResult.actions.length === 0 ? 'no_actions' : 'actions',
+          runResult.actions.some(item => !item.ok) ? 'error' : 'ok',
+        ],
+        text: `actions=${runResult.actions.length} return=${runResult.returnValue ?? 'undefined'}`,
+        metadata: {
+          returnValue: runResult.returnValue,
+          actionCount: runResult.actions.length,
+          okCount: runResult.actions.filter(item => item.ok).length,
+          errorCount: runResult.actions.filter(item => !item.ok).length,
+          actions: runResult.actions.map(item => ({
+            tool: item.action.tool,
+            ok: item.ok,
+            error: item.error,
+          })),
+          logs: runResult.logs.slice(-5),
+        },
+      })
+      this.updateErrorBurstGuardCompletion(
+        turnId,
+        runResult.actions.map(item => ({
+          action: item.action,
+          ok: item.ok,
+        })),
+      )
+      this.maybeActivateErrorBurstGuard(bot, event, turnId)
+
+      if (runResult.actions.length === 0 || runResult.actions.every(item => item.action.tool === 'skip')) {
+        this.debugService.emit('debug:repl_result', {
+          source: 'llm',
+          code: result,
+          logs: runResult.logs,
+          actions: this.toDebugReplActions(runResult.actions),
+          returnValue: runResult.returnValue,
+          durationMs: 0,
+          timestamp: Date.now(),
+        })
+        if (runResult.actions.length === 0) {
+          this.queueNoActionFollowup(bot, event, turnId, runResult.returnValue, runResult.logs)
+        }
+        this.deps.logger.log('INFO', 'Brain: Skipping turn (observing)')
+        this.emitConversationUpdate(false)
+        return
+      }
+
+      this.debugService.emit('debug:repl_result', {
+        source: 'llm',
+        code: result,
+        logs: runResult.logs,
+        actions: this.toDebugReplActions(runResult.actions),
+        returnValue: runResult.returnValue,
+        durationMs: 0,
+        timestamp: Date.now(),
+      })
+
+      this.deps.logger.log('INFO', `Brain: Executed ${runResult.actions.length} action(s)`, {
+        actions: runResult.actions.map(item => ({
+          tool: item.action.tool,
+          ok: item.ok,
+          result: item.result,
+          error: item.error,
+        })),
+        logs: runResult.logs,
+        returnValue: runResult.returnValue,
+      })
+      this.emitConversationUpdate(false)
+    }
+    catch (err) {
+      this.deps.logger.withError(err).error('Brain: Failed to execute decision')
+      this.appendLlmLog({
+        turnId,
+        kind: 'repl_error',
+        eventType: event.type,
+        sourceType: event.source.type,
+        sourceId: event.source.id,
+        tags: ['repl', 'error'],
+        text: truncateForPrompt(toErrorMessage(err), 360),
+        metadata: {
+          code: result,
+        },
+      })
+      this.maybeActivateErrorBurstGuard(bot, event, turnId)
+      this.debugService.emit('debug:repl_result', {
+        source: 'llm',
+        code: result,
+        logs: [],
+        actions: [],
+        error: toErrorMessage(err),
+        durationMs: 0,
+        timestamp: Date.now(),
+      })
+      void this.enqueueEvent(bot, {
+        type: 'feedback',
+        payload: { status: 'failure', error: toErrorMessage(err) },
+        source: { type: 'system', id: 'brain' },
+        timestamp: Date.now(),
+      })
+      this.emitConversationUpdate(false)
+    }
+  }
+
+  private buildUserMessage(event: BotEvent, contextView: string): string {
+    const parts: string[] = []
+
+    // 1. Event Content
+    if (event.type === 'perception') {
+      const signal = event.payload as PerceptionSignal
+      if (signal.type === 'chat_message') {
+        parts.push(`[EVENT] ${signal.description}`)
+      }
+      else {
+        parts.push(`[EVENT] Perception Signal: ${signal.description}`)
+      }
+    }
+    else if (event.type === 'feedback') {
+      const p = event.payload as any
+      const tool = p.action?.tool || 'unknown'
+      if (p.status === 'success') {
+        const resultText = typeof p.result === 'string' ? p.result : JSON.stringify(p.result)
+        parts.push(`[FEEDBACK] ${tool}: Success. ${truncateForPrompt(resultText, 200)}`)
+      }
+      else {
+        parts.push(`[FEEDBACK] ${tool}: Failed. ${p.error}`)
+      }
+    }
+    else {
+      parts.push(`[EVENT] ${event.type}: ${JSON.stringify(event.payload)}`)
+    }
+
+    // 2. Perception Snapshot Diff
+    // Compare with last
+    if (contextView !== this.lastContextView) {
+      parts.push(contextView)
+      // Note: We don't update this.lastContextView here; caller does it after building message
+    }
+
+    if (this.givenUp) {
+      parts.push(`[STATE] giveUp active (halted until player input). reason=${this.giveUpReason ?? 'unknown'}`)
+    }
+
+    if (this.errorBurstGuardState) {
+      const guard = this.errorBurstGuardState
+      parts.push(`[ERROR_BURST_GUARD] active. errors=${guard.errorTurnCount}/${guard.windowTurns}; threshold=${guard.threshold}`)
+      if (guard.recentErrorSummary.length > 0) {
+        const condensed = guard.recentErrorSummary
+          .slice(0, 3)
+          .map(summary => truncateForPrompt(summary, 180))
+          .join(' || ')
+        parts.push(`[ERROR_BURST_GUARD] recent=${condensed}`)
+      }
+      parts.push(`[MANDATORY] Too many recent errors. This turn must include BOTH: await giveUp({ reason: "..." }) and await chat({ message: "...", feedback: false }). Explain what failed and what you will do next.`)
+    }
+
+    if (this.lastReplOutcome) {
+      const ageMs = Date.now() - this.lastReplOutcome.updatedAt
+      const returnValue = truncateForPrompt(this.lastReplOutcome.returnValue ?? 'undefined')
+      const logs = this.lastReplOutcome.logs.length > 0
+        ? this.lastReplOutcome.logs.map((line, index) => `#${index + 1} ${truncateForPrompt(line, 120)}`).join(' | ')
+        : '(none)'
+      parts.push(`[SCRIPT] Last eval ${ageMs}ms ago: return=${returnValue}; actions=${this.lastReplOutcome.actionCount} (ok=${this.lastReplOutcome.okCount}, err=${this.lastReplOutcome.errorCount}); logs=${logs}`)
+    }
+
+    const queueSnapshot = this.getActionQueueSnapshot()
+    const runningLabel = queueSnapshot.executing
+      ? `${queueSnapshot.executing.tool}#${queueSnapshot.executing.id}`
+      : 'none'
+    parts.push(`[ACTION_QUEUE] executing=${runningLabel}; pending=${queueSnapshot.counts.pending}; total=${queueSnapshot.counts.total}/${queueSnapshot.capacity.total}`)
+    const noActionBudget = this.getNoActionBudgetState()
+    parts.push(`[NO_ACTION_BUDGET] remaining=${noActionBudget.remaining}; default=${noActionBudget.default}; max=${noActionBudget.max}; stagnation=${this.noActionFollowupStagnationCount}/${NO_ACTION_STAGNATION_REPEAT_LIMIT}`)
+    // Only include [ERROR_BURST] line when the guard is actually active
+    // (inactive state is the default and doesn't need to be stated every turn)
+    if (this.errorBurstGuardState) {
+      parts.push(`[ERROR_BURST] active=yes`)
+    }
+
+    // Context boundary status — reminds the model to use enterContext/exitContext
+    const activeLabel = this.activeContextState.label
+    const activeCount = this.conversationHistory.length - this.activeContextStartIndex
+    const archivedCount = this.archivedContexts.length
+    if (activeLabel) {
+      parts.push(`[CONTEXT] active="${activeLabel}" (${activeCount} messages); archived=${archivedCount}`)
+    }
+    else {
+      parts.push(`[CONTEXT] no active context (${activeCount} messages unmanaged); archived=${archivedCount}. Remember: call enterContext('label') when starting a task.`)
+    }
+
+    return parts.join('\n\n')
+  }
+
+  private shouldSuppressDuringGiveUp(event: BotEvent): boolean {
+    if (!this.givenUp)
+      return false
+
+    if (event.source.type === 'system' && event.source.id === ERROR_BURST_GUARD_SOURCE_ID)
+      return false
+
+    if (event.type !== 'perception')
+      return true
+
+    const signal = event.payload as PerceptionSignal
+    return signal.type !== 'chat_message'
+  }
+
+  private resumeFromGiveUpIfNeeded(event: BotEvent): void {
+    if (!this.givenUp)
+      return
+
+    if (event.type !== 'perception')
+      return
+
+    const signal = event.payload as PerceptionSignal
+    if (signal.type !== 'chat_message')
+      return
+
+    this.givenUp = false
+    this.giveUpReason = undefined
+  }
+}

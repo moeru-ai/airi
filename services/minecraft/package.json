@@ -13,9 +13,14 @@
   },
   "dependencies": {
     "@guiiai/logg": "catalog:",
+    "@modelcontextprotocol/sdk": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/server-sdk": "^0.8.1",
+    "@xsai/generate-text": "catalog:",
+    "@xsai/shared-chat": "catalog:",
     "awilix": "^12.0.5",
+    "canvas": "^3.2.1",
+    "crossws": "catalog:",
     "es-toolkit": "^1.44.0",
     "eventemitter3": "^5.0.4",
     "minecraft-data": "^3.102.3",
@@ -26,7 +31,7 @@
     "mineflayer-pathfinder": "^2.4.5",
     "mineflayer-pvp": "^1.3.2",
     "mineflayer-tool": "^1.2.0",
-    "neuri": "^0.2.1",
+    "nanoid": "catalog:",
     "prismarine-block": "^1.22.0",
     "prismarine-entity": "^2.5.0",
     "prismarine-item": "^1.17.0",
@@ -35,7 +40,12 @@
     "prismarine-windows": "^2.9.0",
     "valibot": "^1.2.0",
     "vec3": "^0.1.10",
+    "ws": "catalog:",
+    "yaml": "catalog:",
     "zod": "^4.3.5",
     "zod-to-json-schema": "^3.25.1"
+  },
+  "devDependencies": {
+    "@types/ws": "catalog:"
   }
 }

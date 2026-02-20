@@ -7,9 +7,10 @@ import pathfinderModel from 'mineflayer-pathfinder'
 
 import { Vec3 } from 'vec3'
 
-import { getBlockId, makeItem } from '../utils/mcdata'
+import { McData } from '../utils/mcdata'
 import { log } from './base'
 import { goToPosition } from './movement'
+import { patchedGoto } from './patched-goto'
 import { getNearestBlock, getNearestBlocks, getPosition, shouldPlaceTorch } from './world'
 
 const { goals, Movements } = pathfinderModel
@@ -81,7 +82,7 @@ async function moveIntoRange(mineflayer: Mineflayer, block: any) {
     movements.allowParkour = false
     movements.allowSprinting = false
     mineflayer.bot.pathfinder.setMovements(movements)
-    await mineflayer.bot.pathfinder.goto(new goals.GoalNear(pos.x, pos.y, pos.z, 4))
+    await patchedGoto(mineflayer.bot, new goals.GoalNear(pos.x, pos.y, pos.z, 4))
   }
 }
 
@@ -117,7 +118,8 @@ export async function placeBlock(
   placeOn: BlockFace = 'bottom',
   dontCheat = false,
 ): Promise<boolean> {
-  if (!getBlockId(blockType)) {
+  const mcData = McData.fromBot(mineflayer.bot)
+  if (!mcData.getBlockId(blockType)) {
     log(mineflayer, `Invalid block type: ${blockType}.`)
     return false
   }
@@ -218,7 +220,12 @@ async function placeWithoutCheats(
 
   let block = mineflayer.bot.inventory.items().find(item => item.name === itemName)
   if (!block && mineflayer.isCreative) {
-    await mineflayer.bot.creative.setInventorySlot(36, makeItem(itemName, 1))
+    const mcData = McData.fromBot(mineflayer.bot)
+    const itemId = mcData.getItemId(itemName)
+    if (itemId) {
+      const Item = require('prismarine-item')(mineflayer.bot.version)
+      await mineflayer.bot.creative.setInventorySlot(36, new Item(itemId, 1))
+    }
     block = mineflayer.bot.inventory.items().find(item => item.name === itemName)
   }
 
@@ -350,16 +357,14 @@ async function moveAwayFromBlock(mineflayer: Mineflayer, targetBlock: any) {
   )
   const invertedGoal = new goals.GoalInvert(goal)
   mineflayer.bot.pathfinder.setMovements(new Movements(mineflayer.bot))
-  await mineflayer.bot.pathfinder.goto(invertedGoal)
+  await patchedGoto(mineflayer.bot, invertedGoal)
 }
 
 async function moveToBlock(mineflayer: Mineflayer, targetBlock: any) {
   const pos = targetBlock.position
   const movements = new Movements(mineflayer.bot)
   mineflayer.bot.pathfinder.setMovements(movements)
-  await mineflayer.bot.pathfinder.goto(
-    new goals.GoalNear(pos.x, pos.y, pos.z, 4),
-  )
+  await patchedGoto(mineflayer.bot, new goals.GoalNear(pos.x, pos.y, pos.z, 4))
 }
 
 async function tryPlaceBlock(

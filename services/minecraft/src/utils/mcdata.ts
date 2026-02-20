@@ -1,14 +1,129 @@
-import type { Biome, ShapedRecipe, ShapelessRecipe } from 'minecraft-data'
+import type { IndexedData, ShapedRecipe, ShapelessRecipe } from 'minecraft-data'
 import type { Bot } from 'mineflayer'
 import type { Entity } from 'prismarine-entity'
 
-import minecraftData from 'minecraft-data'
-import prismarineItem from 'prismarine-item'
+/**
+ * Registry-aware minecraft data helper.
+ * Use this class when you have access to a bot to ensure item/block IDs match the server version.
+ */
+export class McData {
+  public readonly registry: IndexedData
 
-const GAME_VERSION = '1.20'
+  constructor(registry: IndexedData) {
+    this.registry = registry
+  }
 
-export const gameData = minecraftData(GAME_VERSION)
-export const Item = prismarineItem(GAME_VERSION)
+  static fromBot(bot: Bot): McData {
+    return new McData(bot.registry)
+  }
+
+  getItemId(itemName: string): number {
+    return this.registry.itemsByName[itemName]?.id ?? 0
+  }
+
+  getItemName(itemId: number): string {
+    return this.registry.items[itemId]?.name ?? ''
+  }
+
+  getBlockId(blockName: string): number {
+    return this.registry.blocksByName[blockName]?.id ?? 0
+  }
+
+  getBlockName(blockId: number): string {
+    return this.registry.blocks[blockId]?.name ?? ''
+  }
+
+  getAllItems(ignore: string[] = []): any[] {
+    return Object.values(this.registry.items).filter(item => !ignore.includes(item.name))
+  }
+
+  getAllItemIds(ignore: string[] = []): number[] {
+    return this.getAllItems(ignore).map(item => item.id)
+  }
+
+  getAllBlocks(ignore: string[] = []): any[] {
+    return Object.values(this.registry.blocks).filter(block => !ignore.includes(block.name))
+  }
+
+  getAllBlockIds(ignore: string[] = []): number[] {
+    return this.getAllBlocks(ignore).map(block => block.id)
+  }
+
+  getClosestBlockName(input: string): string | null {
+    const names = Object.keys(this.registry.blocksByName)
+    let best: { name: string | null, distance: number } = { name: null, distance: Number.POSITIVE_INFINITY }
+
+    for (const name of names) {
+      const distance = levenshteinDistance(input, name)
+      if (distance < best.distance) {
+        best = { name, distance }
+        if (distance === 0)
+          break
+      }
+    }
+
+    return best.name
+  }
+
+  getBlockTool(blockName: string): string | null {
+    const block = this.registry.blocksByName[blockName]
+    if (!block || !block.harvestTools) {
+      return null
+    }
+    const toolIds = Object.keys(block.harvestTools).map(id => Number.parseInt(id))
+    const toolName = this.getItemName(toolIds[0])
+    return toolName || null
+  }
+
+  getItemCraftingRecipes(itemName: string): Record<string, number>[] | null {
+    const itemId = this.getItemId(itemName)
+    if (!itemId || !this.registry.recipes[itemId]) {
+      return null
+    }
+
+    const recipes: Record<string, number>[] = []
+    for (const r of this.registry.recipes[itemId]) {
+      const recipe: Record<string, number> = {}
+      let ingredients: number[] = []
+
+      if (isShapelessRecipe(r)) {
+        ingredients = r.ingredients.map((ing: any) => ing.id)
+      }
+      else if (isShapedRecipe(r)) {
+        ingredients = r.inShape
+          .flat()
+          .map((ing: any) => ing?.id)
+          .filter(Boolean)
+      }
+
+      for (const ingredientId of ingredients) {
+        const ingredientName = this.getItemName(ingredientId)
+        if (ingredientName === null)
+          continue
+        if (!recipe[ingredientName])
+          recipe[ingredientName] = 0
+        recipe[ingredientName]++
+      }
+
+      recipes.push(recipe)
+    }
+
+    return recipes
+  }
+
+  getItemBlockSources(itemName: string): string[] {
+    const itemId = this.getItemId(itemName)
+    const sources: string[] = []
+    if (!itemId)
+      return sources
+    for (const block of this.getAllBlocks()) {
+      if (block.drops && block.drops.includes(itemId)) {
+        sources.push(block.name)
+      }
+    }
+    return sources
+  }
+}
 
 export const WOOD_TYPES: string[] = [
   'oak',
@@ -78,107 +193,27 @@ export function isHostile(mob: Entity): boolean {
   )
 }
 
-export function getItemId(itemName: string): number {
-  const item = gameData.itemsByName[itemName]
+function levenshteinDistance(a: string, b: string): number {
+  const matrix: number[][] = Array.from({ length: a.length + 1 }, () =>
+    Array.from({ length: b.length + 1 }, () => 0))
 
-  return item?.id || 0
-}
+  for (let i = 0; i <= a.length; i++)
+    matrix[i][0] = i
+  for (let j = 0; j <= b.length; j++)
+    matrix[0][j] = j
 
-export function getItemName(itemId: number): string {
-  const item = gameData.items[itemId]
-  return item.name || ''
-}
-
-export function getBlockId(blockName: string): number {
-  const block = gameData.blocksByName?.[blockName]
-  return block?.id || 0
-}
-
-export function getBlockName(blockId: number): string {
-  const block = gameData.blocks[blockId]
-  return block.name || ''
-}
-
-export function getAllItems(ignore: string[] = []): any[] {
-  const items: any[] = []
-  for (const itemId in gameData.items) {
-    const item = gameData.items[itemId]
-    if (!ignore.includes(item.name)) {
-      items.push(item)
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost,
+      )
     }
   }
-  return items
-}
 
-export function getAllItemIds(ignore: string[] = []): number[] {
-  const items = getAllItems(ignore)
-  const itemIds: number[] = []
-  for (const item of items) {
-    itemIds.push(item.id)
-  }
-  return itemIds
-}
-
-export function getAllBlocks(ignore: string[] = []): any[] {
-  const blocks: any[] = []
-  for (const blockId in gameData.blocks) {
-    const block = gameData.blocks[blockId]
-    if (!ignore.includes(block.name)) {
-      blocks.push(block)
-    }
-  }
-  return blocks
-}
-
-export function getAllBlockIds(ignore: string[] = []): number[] {
-  const blocks = getAllBlocks(ignore)
-  const blockIds: number[] = []
-  for (const block of blocks) {
-    blockIds.push(block.id)
-  }
-  return blockIds
-}
-
-export function getAllBiomes(): Record<number, Biome> {
-  return gameData.biomes
-}
-
-export function getItemCraftingRecipes(itemName: string): any[] | null {
-  const itemId = getItemId(itemName)
-  if (!itemId || !gameData.recipes[itemId]) {
-    return null
-  }
-
-  const recipes: Record<string, number>[] = []
-  for (const r of gameData.recipes[itemId]) {
-    const recipe: Record<string, number> = {}
-    let ingredients: number[] = []
-
-    if (isShapelessRecipe(r)) {
-      // Handle shapeless recipe
-      ingredients = r.ingredients.map((ing: any) => ing.id)
-    }
-    else if (isShapedRecipe(r)) {
-      // Handle shaped recipe
-      ingredients = r.inShape
-        .flat()
-        .map((ing: any) => ing?.id)
-        .filter(Boolean)
-    }
-
-    for (const ingredientId of ingredients) {
-      const ingredientName = getItemName(ingredientId)
-      if (ingredientName === null)
-        continue
-      if (!recipe[ingredientName])
-        recipe[ingredientName] = 0
-      recipe[ingredientName]++
-    }
-
-    recipes.push(recipe)
-  }
-
-  return recipes
+  return matrix[a.length][b.length]
 }
 
 // Type guards
@@ -210,19 +245,6 @@ export function getItemSmeltingIngredient(
   }[itemName]
 }
 
-export function getItemBlockSources(itemName: string): string[] {
-  const itemId = getItemId(itemName)
-  const sources: string[] = []
-  if (!itemId)
-    return sources
-  for (const block of getAllBlocks()) {
-    if (block.drops && block.drops.includes(itemId)) {
-      sources.push(block.name)
-    }
-  }
-  return sources
-}
-
 export function getItemAnimalSource(itemName: string): string | undefined {
   return {
     raw_beef: 'cow',
@@ -235,23 +257,6 @@ export function getItemAnimalSource(itemName: string): string | undefined {
     leather: 'cow',
     wool: 'sheep',
   }[itemName]
-}
-
-export function getBlockTool(blockName: string): string | null {
-  const block = gameData.blocksByName[blockName]
-  if (!block || !block.harvestTools) {
-    return null
-  }
-  const toolIds = Object.keys(block.harvestTools).map(id => Number.parseInt(id))
-  const toolName = getItemName(toolIds[0])
-  return toolName || null // Assuming the first tool is the simplest
-}
-
-export function makeItem(name: string, amount = 1): InstanceType<typeof Item> {
-  const itemId = getItemId(name)
-  if (itemId === null)
-    throw new Error(`Item ${name} not found.`)
-  return new Item(itemId, amount)
 }
 
 // Function to get the nearest block of a specific type using Mineflayer

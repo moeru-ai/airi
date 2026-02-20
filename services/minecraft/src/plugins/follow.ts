@@ -33,9 +33,8 @@ export function FollowCommand(options?: { rangeGoal: number }): MineflayerPlugin
 
         const target = bot.bot.players[state.following]?.entity
         if (!target) {
-          bot.bot.chat('I lost sight of you!')
           state.following = undefined
-          return
+          throw new Error('Player not found, stopped following')
         }
 
         const { x: playerX, y: playerY, z: playerZ } = target.position
@@ -47,8 +46,7 @@ export function FollowCommand(options?: { rangeGoal: number }): MineflayerPlugin
       bot.onCommand('follow', (ctx) => {
         const username = ctx.command!.sender
         if (!username) {
-          bot.bot.chat('Please specify a player name!')
-          return
+          throw new Error('Please specify a player name!')
         }
 
         startFollow(username)

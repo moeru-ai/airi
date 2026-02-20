@@ -1,0 +1,18 @@
+name: system-message
+version: 1
+
+trigger:
+  modality: system
+  kind: system_message
+
+accumulator:
+  threshold: 1
+  window: 1s
+
+signal:
+  type: system_message
+  description: '{{ message }}'
+  confidence: 1.0
+  metadata:
+    message: '{{ message }}'
+    position: '{{ position }}'
