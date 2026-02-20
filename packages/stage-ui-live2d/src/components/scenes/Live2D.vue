@@ -25,6 +25,7 @@ withDefaults(defineProps<{
   live2dIdleAnimationEnabled?: boolean
   live2dAutoBlinkEnabled?: boolean
   live2dForceAutoBlinkEnabled?: boolean
+  live2dExpressionEnabled?: boolean
   live2dShadowEnabled?: boolean
   live2dMaxFps?: number
 }>(), {
@@ -37,6 +38,7 @@ withDefaults(defineProps<{
   live2dIdleAnimationEnabled: true,
   live2dAutoBlinkEnabled: true,
   live2dForceAutoBlinkEnabled: false,
+  live2dExpressionEnabled: true,
   live2dShadowEnabled: true,
   live2dMaxFps: 0,
 })
@@ -94,6 +96,7 @@ defineExpose({
         :live2d-idle-animation-enabled="live2dIdleAnimationEnabled"
         :live2d-auto-blink-enabled="live2dAutoBlinkEnabled"
         :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
+        :live2d-expression-enabled="live2dExpressionEnabled"
         :live2d-shadow-enabled="live2dShadowEnabled"
       />
     </Live2DCanvas>
