@@ -44,7 +44,7 @@ It’s not much yet, but we already hit quite a few pitfalls and details worth r
 
 - UI overlay causing “wrong labels”.
 
-    When the pause menu or upgrade panel (TechTree) is open, the UI covers the scene, but our labels still mark ores and enemies. This is tricky to notice because the label txt looks normal, and you only see the issue during visualization.
+    When the pause menu or upgrade panel (TechTree) is open, the UI covers the scene, but our labels still mark ores and enemies. This is tricky to notice because the label files look normal, and you only see the issue during visualization.
 
     We solved it by tagging PauseMenu / TechTreePopup with a group and skipping capture whenever a visible node from that group exists.
 
@@ -52,7 +52,7 @@ It’s not much yet, but we already hit quite a few pitfalls and details worth r
 
     This was the most painful bug: every bbox was offset in the same direction, like the entire image was scaled incorrectly.
 
-    The root cause was a mismatch between the **logical view size** and the **actual texture pixel size**. We used `viewport.get_visible_rect().size` for bbox calculation, but the screenshot was taken from the texture. The fix was to scale bboxes from view‑space to image‑space first, then apply the letterbox scale + offset.
+    The root cause was a mismatch between the **logical view size** and the **actual texture pixel size**. We used `viewport.get_visible_rect().size` for bbox calculation, but the screenshot was taken from the texture. The fix was to scale bboxes from view-space to image-space first, then apply the letterbox scale + offset.
 
 - Letterbox affects labels.
 
@@ -70,7 +70,7 @@ It’s not much yet, but we already hit quite a few pitfalls and details worth r
 
 ### Summary
 
-At this point, we have a **stable and fast‑to‑validate pipeline**:
+At this point, we have a **stable and fast-to-validate pipeline**:
 Capture → filter negatives → auto split → auto generate `data.yaml` → train directly.
 
 The training logs already show progress:
