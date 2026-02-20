@@ -10,11 +10,11 @@ Happy Lunar New Year’s Eve! This is [@LemonNekoGH](https://github.com/LemonNek
 
 ## Recap
 
-In last year’s [DevLog](../DevLog-2025.08.26/index.md), we shared progress on the pure‑vision direction of `airi-factorio`. Today I want to share what we’ve been doing on the Dome Keeper direction.
+In last year’s [DevLog](../DevLog-2025.08.26/index.md), we shared progress on the pure-vision direction of `airi-factorio`. Today I want to share what we’ve been doing on the Dome Keeper direction.
 
 Wait, LemonNeko? Why not keep going on `airi-factorio`?
 
-Honestly, I chickened out — Factorio is too open‑ended and complex for me to control, so I switched to [Dome Keeper](https://store.steampowered.com/app/1637320/Dome_Keeper/), a relatively simpler game.
+Honestly, I chickened out — Factorio is too open-ended and complex for me to control, so I switched to [Dome Keeper](https://store.steampowered.com/app/1637320/Dome_Keeper/), a relatively simple game.
 
 ![Dome Keeper](https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1637320/334439c379674a719de3f12028f76977aeb176c6/header.jpg?t=1770751169)
 
