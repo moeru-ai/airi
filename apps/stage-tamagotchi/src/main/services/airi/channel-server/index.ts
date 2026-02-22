@@ -203,10 +203,11 @@ export async function setupServerChannel(options?: { websocketSecureEnabled?: bo
     const h3App = serverRuntime.setupApp()
 
     const port = env.PORT ? Number(env.PORT) : 6121
-    const hostname = env.SERVER_RUNTIME_HOSTNAME || '0.0.0.0'
 
     // FIXME: should prompt user to grant permission to save certificate files on macOS
     const tls = secureEnabled ? await getOrCreateCertificate() : undefined
+
+    const hostname = secureEnabled ? '0.0.0.0' : (env.SERVER_RUNTIME_HOSTNAME || 'localhost')
 
     const instance = serve(h3App.app, {
       // @ts-expect-error - the .crossws property wasn't extended in types

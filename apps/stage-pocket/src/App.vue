@@ -16,6 +16,8 @@ import { useI18n } from 'vue-i18n'
 import { RouterView } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
+import { useNotificationPush } from './composables/notification-push'
+
 const contextBridgeStore = useContextBridgeStore()
 const i18n = useI18n()
 const displayModelsStore = useDisplayModelsStore()
@@ -28,6 +30,7 @@ const { shouldShowSetup } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
 const analyticsStore = useSharedAnalyticsStore()
+const notificationPush = useNotificationPush()
 
 const primaryColor = computed(() => {
   return isDark.value
@@ -74,12 +77,15 @@ onMounted(async () => {
   await contextBridgeStore.initialize()
   characterOrchestratorStore.initialize()
 
+  await notificationPush.requestPermission()
+
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
 })
 
 onUnmounted(() => {
   contextBridgeStore.dispose()
+  notificationPush.cleanup()
 })
 
 // Handle first-time setup events

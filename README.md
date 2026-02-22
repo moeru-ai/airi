@@ -199,7 +199,7 @@ Open the Xcode project:
 CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
 ```
 
-Then Xcode will open and you can click the "Run" button to run the app on your iPhone.
+Then Xcode will open and you can click the "Run" button to run the app on your iPhone. If you don't want to pass env variables every time, you can set `CAPACITOR_DEV_SERVER_URL` in your `.zshrc` or `.bashrc` file, or use [direnv](https://direnv.net/) to manage your environment variables.
 
 If you need to connect server channel on pocket in wireless mode, you need to start tamagotchi as root:
 
