@@ -1985,7 +1985,39 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'perplexity.ai',
       defaultBaseUrl: 'https://api.perplexity.ai/',
       creator: createPerplexity,
-      validation: ['health', 'model_list'],
+      validation: ['health'],
+      capabilities: {
+        listModels: async () => [
+          {
+            id: 'sonar',
+            name: 'Sonar',
+            provider: 'perplexity-ai',
+            description: 'Lightweight, cost-effective search model with grounding.',
+            contextLength: 127072,
+          },
+          {
+            id: 'sonar-pro',
+            name: 'Sonar Pro',
+            provider: 'perplexity-ai',
+            description: 'Advanced search offering with grounding, supporting complex queries and follow-ups.',
+            contextLength: 200000,
+          },
+          {
+            id: 'sonar-reasoning-pro',
+            name: 'Sonar Reasoning Pro',
+            provider: 'perplexity-ai',
+            description: 'Precise reasoning offering with Chain of Thought (CoT).',
+            contextLength: 127072,
+          },
+          {
+            id: 'sonar-deep-research',
+            name: 'Sonar Deep Research',
+            provider: 'perplexity-ai',
+            description: 'Expert-level research model conducting exhaustive searches and generating comprehensive reports.',
+            contextLength: 200000,
+          },
+        ] satisfies ModelInfo[],
+      },
     }),
     'mistral-ai': buildOpenAICompatibleProvider({
       id: 'mistral-ai',
