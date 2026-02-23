@@ -4,9 +4,12 @@ import type { Mineflayer } from '../../libs/mineflayer'
 
 import pathfinder from 'mineflayer-pathfinder'
 
+import { ActionError } from '../../utils/errors'
 import { useLogger } from '../../utils/logger'
 import { breakBlockAt } from '../blocks'
+import { patchedGoto } from '../patched-goto'
 import { getNearestBlocks } from '../world'
+import { expandBlockAliases } from './block-type-normalizer'
 import { ensurePickaxe } from './ensure'
 import { pickupNearbyItems } from './world-interactions'
 
@@ -21,13 +24,14 @@ export async function collectBlock(
   blockType: string,
   num = 1,
   range = 16,
-): Promise<boolean> {
+): Promise<number> {
   if (num < 1) {
     logger.log(`Invalid number of blocks to collect: ${num}.`)
-    return false
+    return 0
   }
 
-  const blockTypes = [blockType]
+  const normalizedBlockType = blockType.trim().toLowerCase()
+  const blockTypes = new Set(expandBlockAliases(normalizedBlockType))
 
   // Add block variants
   if (
@@ -40,21 +44,22 @@ export async function collectBlock(
       'lapis_lazuli',
       'redstone',
       'copper',
-    ].includes(blockType)
+    ].includes(normalizedBlockType)
   ) {
-    blockTypes.push(`${blockType}_ore`, `deepslate_${blockType}_ore`)
+    blockTypes.add(`${normalizedBlockType}_ore`)
+    blockTypes.add(`deepslate_${normalizedBlockType}_ore`)
   }
-  if (blockType.endsWith('ore')) {
-    blockTypes.push(`deepslate_${blockType}`)
+  if (normalizedBlockType.endsWith('ore')) {
+    blockTypes.add(`deepslate_${normalizedBlockType}`)
   }
-  if (blockType === 'dirt') {
-    blockTypes.push('grass_block')
+  if (normalizedBlockType === 'dirt') {
+    blockTypes.add('grass_block')
   }
 
   let collected = 0
 
   while (collected < num) {
-    const blocks = getNearestBlocks(mineflayer, blockTypes, range)
+    const blocks = getNearestBlocks(mineflayer, [...blockTypes], range)
 
     if (blocks.length === 0) {
       if (collected === 0)
@@ -69,13 +74,22 @@ export async function collectBlock(
       // Equip appropriate tool
       if (mineflayer.bot.game.gameMode !== 'creative') {
         await mineflayer.bot.tool.equipForBlock(block)
-        const itemId = mineflayer.bot.heldItem ? mineflayer.bot.heldItem.type : null
+        let itemId = mineflayer.bot.heldItem ? mineflayer.bot.heldItem.type : null
         if (!block.canHarvest(itemId)) {
           logger.log(`Don't have right tools to harvest ${block.name}.`)
           if (block.name.includes('ore') || block.name.includes('stone')) {
             await ensurePickaxe(mineflayer)
+            // Re-equip after crafting/ensuring tool and re-check harvestability.
+            await mineflayer.bot.tool.equipForBlock(block)
+            itemId = mineflayer.bot.heldItem ? mineflayer.bot.heldItem.type : null
           }
-          throw new Error('Don\'t have right tools to harvest block.')
+          if (!block.canHarvest(itemId)) {
+            throw new ActionError(
+              'RESOURCE_MISSING',
+              `Don't have right tools to harvest ${block.name}`,
+              { blockType: block.name },
+            )
+          }
         }
       }
 
@@ -92,7 +106,11 @@ export async function collectBlock(
           veinBlock.position.y,
           veinBlock.position.z,
         )
-        await mineflayer.bot.pathfinder.goto(goal)
+        const navResult = await patchedGoto(mineflayer.bot, goal)
+        if (!navResult.ok) {
+          logger.log(`Failed to reach ${blockType} block: ${navResult.reason} — ${navResult.message}`)
+          continue
+        }
 
         // Break the block and collect drops
         await mineAndCollect(mineflayer, veinBlock)
@@ -112,12 +130,17 @@ export async function collectBlock(
         break
       }
 
+      if (err instanceof ActionError && (err.code === 'CRAFTING_FAILED' || err.code === 'RESOURCE_MISSING')) {
+        // Don't get stuck in retry loop
+        throw err
+      }
+
       continue
     }
   }
 
   logger.log(`Collected ${collected} ${blockType}(s).`)
-  return collected > 0
+  return collected
 }
 
 // Helper function to mine a block and collect drops

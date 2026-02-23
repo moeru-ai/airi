@@ -8,6 +8,9 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
+    "types": [
+      "node"
+    ],
     "strict": true,
     "strictNullChecks": true,
     "noImplicitAny": true,

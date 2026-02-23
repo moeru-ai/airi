@@ -36,6 +36,9 @@ catalogs:
     '@iconify-json/tabler':
       specifier: ^1.2.26
       version: 1.2.26
+    '@modelcontextprotocol/sdk':
+      specifier: ^1.25.3
+      version: 1.25.3
     '@moeru/eslint-config':
       specifier: 0.1.0-beta.15
       version: 0.1.0-beta.15
@@ -69,6 +72,9 @@ catalogs:
     '@types/unist':
       specifier: ^3.0.3
       version: 3.0.3
+    '@types/ws':
+      specifier: ^8.18.1
+      version: 8.18.1
     '@vueuse/core':
       specifier: 14.1.0
       version: 14.1.0
@@ -114,6 +120,9 @@ catalogs:
     builder-util-runtime:
       specifier: ^9.5.1
       version: 9.5.1
+    crossws:
+      specifier: ^0.4.3
+      version: 0.4.3
     drizzle-valibot:
       specifier: ^0.4.2
       version: 0.4.2
@@ -201,9 +210,15 @@ catalogs:
     vue-sonner:
       specifier: 2.0.9
       version: 2.0.9
+    ws:
+      specifier: ^8.18.3
+      version: 8.19.0
     xsschema:
       specifier: 0.4.0-beta.13
       version: 0.4.0-beta.13
+    yaml:
+      specifier: ^2.8.2
+      version: 2.8.2
     zod:
       specifier: ^4.3.5
       version: 4.3.5
@@ -234,6 +249,12 @@ overrides:
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 
 patchedDependencies:
+  mineflayer-pathfinder:
+    hash: 4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797
+    path: patches/mineflayer-pathfinder.patch
+  mineflayer@4.33.0:
+    hash: 03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a
+    path: patches/mineflayer@4.33.0.patch
   srvx@0.9.8:
     hash: f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d
     path: patches/srvx@0.9.8.patch
@@ -358,7 +379,7 @@ importers:
         version: 11.3.3(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       vitest:
         specifier: ^4.0.17
-        version: 4.0.17(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/browser-playwright@4.0.17)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+        version: 4.0.17(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/browser-playwright@4.0.17)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.1)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
       yaml:
         specifier: ^2.8.2
         version: 2.8.2
@@ -1842,7 +1863,7 @@ importers:
         version: 4.0.17(bufferutil@4.1.0)(playwright@1.57.0)(utf-8-validate@5.0.10)(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vitest@4.0.17)
       vitest:
         specifier: catalog:vitest
-        version: 4.0.17(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/browser-playwright@4.0.17)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+        version: 4.0.17(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/browser-playwright@4.0.17)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.1)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/ccc:
     dependencies:
@@ -2573,7 +2594,7 @@ importers:
         version: 5.2.8
       '@histoire/plugin-vue':
         specifier: 'catalog:'
-        version: 1.0.0-beta.1(histoire@1.0.0-beta.1(@types/node@24.10.9)(bufferutil@4.1.0)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(utf-8-validate@5.0.10)(vite@6.4.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(yaml@2.8.2))(vite@6.4.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+        version: 1.0.0-beta.1(histoire@1.0.0-beta.1(@types/node@24.10.9)(bufferutil@4.1.0)(canvas@3.2.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(utf-8-validate@5.0.10)(vite@6.4.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(yaml@2.8.2))(vite@6.4.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
       '@iconify-json/carbon':
         specifier: ^1.2.18
         version: 1.2.18
@@ -2642,7 +2663,7 @@ importers:
         version: 3.2.3
       histoire:
         specifier: 'catalog:'
-        version: 1.0.0-beta.1(@types/node@24.10.9)(bufferutil@4.1.0)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(utf-8-validate@5.0.10)(vite@6.4.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(yaml@2.8.2)
+        version: 1.0.0-beta.1(@types/node@24.10.9)(bufferutil@4.1.0)(canvas@3.2.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(utf-8-validate@5.0.10)(vite@6.4.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(yaml@2.8.2)
       is-network-error:
         specifier: 'catalog:'
         version: 1.3.0
@@ -3048,7 +3069,7 @@ importers:
         version: 14.1.0(vue@3.5.26(typescript@5.9.3))
       '@wxt-dev/module-vue':
         specifier: ^1.0.3
-        version: 1.0.3(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+        version: 1.0.3(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.9)(canvas@3.2.1)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       nanoid:
         specifier: ^5.1.6
         version: 5.1.6
@@ -3060,7 +3081,7 @@ importers:
         version: 3.2.1(typescript@5.9.3)
       wxt:
         specifier: ^0.20.13
-        version: 0.20.13(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+        version: 0.20.13(@types/node@24.10.9)(canvas@3.2.1)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
   services/discord-bot:
     dependencies:
@@ -3121,15 +3142,30 @@ importers:
       '@guiiai/logg':
         specifier: 'catalog:'
         version: 1.2.11
+      '@modelcontextprotocol/sdk':
+        specifier: 'catalog:'
+        version: 1.25.3(@cfworker/json-schema@4.1.1)(hono@4.11.3)(zod@4.3.5)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.14
       '@proj-airi/server-sdk':
         specifier: ^0.8.1
         version: 0.8.1(srvx@0.10.1)
+      '@xsai/generate-text':
+        specifier: 'catalog:'
+        version: 0.4.2
+      '@xsai/shared-chat':
+        specifier: 'catalog:'
+        version: 0.4.0-beta.13
       awilix:
         specifier: ^12.0.5
         version: 12.0.5
+      canvas:
+        specifier: ^3.2.1
+        version: 3.2.1
+      crossws:
+        specifier: 'catalog:'
+        version: 0.4.3(srvx@0.10.1)
       es-toolkit:
         specifier: ^1.44.0
         version: 1.44.0
@@ -3141,10 +3177,10 @@ importers:
         version: 3.102.3
       mineflayer:
         specifier: ^4.33.0
-        version: 4.33.0(encoding@0.1.13)
+        version: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13)
       mineflayer-armor-manager:
         specifier: ^2.0.1
-        version: 2.0.1(mineflayer@4.33.0(encoding@0.1.13))
+        version: 2.0.1(mineflayer@4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13))
       mineflayer-auto-eat:
         specifier: ^5.0.3
         version: 5.0.3(encoding@0.1.13)
@@ -3153,16 +3189,16 @@ importers:
         version: 1.6.0(encoding@0.1.13)
       mineflayer-pathfinder:
         specifier: ^2.4.5
-        version: 2.4.5
+        version: 2.4.5(patch_hash=4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797)
       mineflayer-pvp:
         specifier: ^1.3.2
         version: 1.3.2(encoding@0.1.13)(prismarine-registry@1.11.0)
       mineflayer-tool:
         specifier: ^1.2.0
         version: 1.2.0(encoding@0.1.13)
-      neuri:
-        specifier: ^0.2.1
-        version: 0.2.1(zod-to-json-schema@3.25.1(zod@4.3.5))(zod@4.3.5)
+      nanoid:
+        specifier: 'catalog:'
+        version: 5.1.6
       prismarine-block:
         specifier: ^1.22.0
         version: 1.22.0
@@ -3187,12 +3223,22 @@ importers:
       vec3:
         specifier: ^0.1.10
         version: 0.1.10
+      ws:
+        specifier: 'catalog:'
+        version: 8.19.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
+      yaml:
+        specifier: 'catalog:'
+        version: 2.8.2
       zod:
         specifier: ^4.3.5
         version: 4.3.5
       zod-to-json-schema:
         specifier: ^3.25.1
         version: 3.25.1(zod@4.3.5)
+    devDependencies:
+      '@types/ws':
+        specifier: 'catalog:'
+        version: 8.18.1
 
   services/satori-bot:
     dependencies:
@@ -9282,9 +9328,6 @@ packages:
   '@xsai/generate-speech@0.4.0-beta.13':
     resolution: {integrity: sha512-2Nd84TTohnZgm1/l9TYNGHn+vajEavV6wJAvdIVT+5N0m3THPlKbrys2R84NZ1OjD9y3vpqUGdHsdwJyxCXVbg==}
 
-  '@xsai/generate-text@0.3.5':
-    resolution: {integrity: sha512-alYx0h0wAh7NpBMOLwfpfxAVPwqWjFhsKxn6fIpNWMhywkajh3LEwmpeihu4Uw7dZV85dz6qg6huTxk+C+RLnA==}
-
   '@xsai/generate-text@0.4.2':
     resolution: {integrity: sha512-8VyRhyQOvG8YkEo1b93mPoaXDA6Schqs9sB37ll0I92WKVSMvxcKxfehGAXLApIuC3jMe6cORwI44jgzloBoaQ==}
 
@@ -9294,26 +9337,17 @@ packages:
   '@xsai/model@0.4.2':
     resolution: {integrity: sha512-f4Egr+a/v2GQ/eALUEWizMhPvpuHGBiRWOrU4jcqeRhZYPyb4cpyS2KHy/HHAXgVv9SoRmk5J3iyzwT/fh/0Jg==}
 
-  '@xsai/shared-chat@0.3.5':
-    resolution: {integrity: sha512-6mjrAQ3OB7taZuyUygaazjSQ12jt42/mdVfRs3fL+d42bkJO9cKcXtP30/85XIZPq35+xK0+kmCD8z36nzlWzg==}
-
   '@xsai/shared-chat@0.4.0-beta.13':
     resolution: {integrity: sha512-nvE/lrS50JsZPw09cOaa6vebMfXXuJ7j3/41CN+UqwgJwCWteT4eZRVG55sH1vOAwO8ZOBaPR8pqo88Ph3uy6A==}
 
   '@xsai/shared-chat@0.4.2':
     resolution: {integrity: sha512-omRPgbdOO5wLuQuvjs4H18o5OmsZL22F3Ed6D5mXN1rN7uIH8dVVaRV7A0BT3xjJKFQS5edDbRmeka4D60HzuA==}
 
-  '@xsai/shared@0.3.5':
-    resolution: {integrity: sha512-gxWH+9UjhXgqqKeU/o9UteC/ih1FzxEEsmPojImd/jvq4j/wtIg4aP3dCFnu+EhCT/MRQ38dkBSra99iY9cC3w==}
-
   '@xsai/shared@0.4.0-beta.13':
     resolution: {integrity: sha512-s+CUJcxDNd/IVDDIECIRcCTJimkKNu29skLv3tm21YpSWoFFPuGM682gTNuFoIfSeEy3D3/RTGXzfefgirkNxA==}
 
   '@xsai/shared@0.4.2':
     resolution: {integrity: sha512-K1rKoJ/Ge+IIvcazkph5oF6kRgfLNvLYHQ+Fcug0KbmViwTu3F/xekYN/XtX/KuvcmLoCdGMnVAkFeOMTjWBDw==}
-
-  '@xsai/stream-text@0.3.5':
-    resolution: {integrity: sha512-XUyM3/jo9FulWoqmQU6vvHFOoRZzr3rcsTGm0MY8hUXg9HJl91N0voQGb6R5AMlo5XgoSbO3GMFzJ26AVxmRMg==}
 
   '@xsai/stream-text@0.4.2':
     resolution: {integrity: sha512-zOcZp3B6tPwthlR+BiNjO9Ax6r4CMkKrJa9FEIHrddMeeJGqXAWZH6sNLCBAS/Q7Vob5r4OM+4MELohzyXndGg==}
@@ -9323,9 +9357,6 @@ packages:
 
   '@xsai/tool@0.4.2':
     resolution: {integrity: sha512-yE+3b6pBX4Cd7eKi+m59DswQJdlUV896vmat1hUN4CYgKbXE0ijzUyRDpa+HiFr0c2UPc/at2E2RWzUVfzkh+Q==}
-
-  '@xsai/utils-chat@0.3.5':
-    resolution: {integrity: sha512-nEFrBtB1Ybz31Pt4jGc+yudvxQWUVklvenuyooobWqtanT+NcqP8wWQId3zBiPTdREKr77mepZOYLPrSS+cTYw==}
 
   '@xsai/utils-chat@0.4.0-beta.13':
     resolution: {integrity: sha512-QlDIFjHT7zHq0Vm+DmgDZpq1vOf2Z5oiSxoIH3EfkN6FGbd9gXsR5JAtzaET7PttORMjv18+IXzvCxAVSOGaiA==}
@@ -9928,6 +9959,10 @@ packages:
 
   caniuse-lite@1.0.30001761:
     resolution: {integrity: sha512-JF9ptu1vP2coz98+5051jZ4PwQgd2ni8A+gYSN7EA7dPKIMf0pDlSUxhdmVOaV3/fYK5uWBkgSXJaRLr4+3A6g==}
+
+  canvas@3.2.1:
+    resolution: {integrity: sha512-ej1sPFR5+0YWtaVp6S1N1FVz69TQCqmrkGeRvQxZeAB1nAIcjNTHVwrZtYtWFFBmQsF40/uDLehsW5KuYC99mg==}
+    engines: {node: ^18.12.0 || >= 20.9.0}
 
   ccount@2.0.1:
     resolution: {integrity: sha512-eyrF0jiFpY+3drT6383f1qhkbGsLSifNAjA61IUjZjmLCWjItY6LB9ft9YhoDgwfmclB2zhu51Lc7+95b8NRAg==}
@@ -13409,9 +13444,6 @@ packages:
     resolution: {integrity: sha512-dBpDMdxv9Irdq66304OLfEmQ9tbNRFnFTuZiLo+bD+r332bBmMJ8GBLXklIXXgxd3+v9+KUnZaUR5PJMa75Gsg==}
     engines: {node: '>= 0.4.0'}
 
-  neuri@0.2.1:
-    resolution: {integrity: sha512-Aqkua0i56k3LVd8CrIEnOdKsgztyPARUZzhLuKMjFkj99v5cSN5kaOxKDBkw9ZpeeHLptRgOsDrRWowWOIZQuQ==}
-
   neverthrow@8.2.0:
     resolution: {integrity: sha512-kOCT/1MCPAxY5iUV3wytNFUMUolzuwd/VF/1KCx7kf6CutrOsTie+84zTGTpgQycjvfLdBBdvBvFLqFD2c0wkQ==}
     engines: {node: '>=18'}
@@ -16553,29 +16585,6 @@ packages:
     resolution: {integrity: sha512-TEU+nJVUUnA4CYJFLvK5X9AOeH4KvDvhIfm0vV1GaQRtchnG0hgK5p8hw/xjv8cunWYCsiPCSDzObPyhEwq3KQ==}
     engines: {node: '>=0.4.0'}
 
-  xsschema@0.3.5:
-    resolution: {integrity: sha512-f+dcy11dTv7aBEEfTbXWnrm/1b/Ds2k4taN0TpN6KCtPAD58kyE/R1znUdrHdBnhIFexj9k+pS1fm6FgtSISrQ==}
-    peerDependencies:
-      '@valibot/to-json-schema': ^1.0.0
-      arktype: ^2.1.20
-      effect: ^3.16.0
-      sury: ^10.0.0
-      zod: ^3.25.0 || ^4.0.0
-      zod-to-json-schema: ^3.24.5
-    peerDependenciesMeta:
-      '@valibot/to-json-schema':
-        optional: true
-      arktype:
-        optional: true
-      effect:
-        optional: true
-      sury:
-        optional: true
-      zod:
-        optional: true
-      zod-to-json-schema:
-        optional: true
-
   xsschema@0.4.0-beta.13:
     resolution: {integrity: sha512-gw44icHZnuaY/LqI7aKcHz4rWHI/HmpQJicnZ0+hTYWeJlhwVWzaOaguQTV6QecmAeqwOU5pmClYaFy/9dmMzw==}
     peerDependencies:
@@ -19003,14 +19012,14 @@ snapshots:
     transitivePeerDependencies:
       - vite
 
-  '@histoire/plugin-vue@1.0.0-beta.1(histoire@1.0.0-beta.1(@types/node@24.10.9)(bufferutil@4.1.0)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(utf-8-validate@5.0.10)(vite@6.4.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(yaml@2.8.2))(vite@6.4.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))':
+  '@histoire/plugin-vue@1.0.0-beta.1(histoire@1.0.0-beta.1(@types/node@24.10.9)(bufferutil@4.1.0)(canvas@3.2.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(utf-8-validate@5.0.10)(vite@6.4.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(yaml@2.8.2))(vite@6.4.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))':
     dependencies:
       '@histoire/controls': 1.0.0-beta.1(vite@6.4.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       '@histoire/shared': 1.0.0-beta.1(vite@6.4.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       '@histoire/vendors': 1.0.0-beta.1
       change-case: 5.4.4
       globby: 14.1.0
-      histoire: 1.0.0-beta.1(@types/node@24.10.9)(bufferutil@4.1.0)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(utf-8-validate@5.0.10)(vite@6.4.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(yaml@2.8.2)
+      histoire: 1.0.0-beta.1(@types/node@24.10.9)(bufferutil@4.1.0)(canvas@3.2.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(utf-8-validate@5.0.10)(vite@6.4.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(yaml@2.8.2)
       launch-editor: 2.12.0
       pathe: 1.1.2
       vue: 3.5.26(typescript@5.9.3)
@@ -22611,7 +22620,7 @@ snapshots:
       '@vitest/mocker': 4.0.17(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
       playwright: 1.57.0
       tinyrainbow: 3.0.3
-      vitest: 4.0.17(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/browser-playwright@4.0.17)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vitest: 4.0.17(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/browser-playwright@4.0.17)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.1)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - bufferutil
       - msw
@@ -22627,7 +22636,7 @@ snapshots:
       pngjs: 7.0.0
       sirv: 3.0.2
       tinyrainbow: 3.0.3
-      vitest: 4.0.17(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/browser-playwright@4.0.17)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vitest: 4.0.17(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/browser-playwright@4.0.17)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.1)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
       ws: 8.19.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - bufferutil
@@ -22647,7 +22656,7 @@ snapshots:
       obug: 2.1.1
       std-env: 3.10.0
       tinyrainbow: 3.0.3
-      vitest: 4.0.17(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/browser-playwright@4.0.17)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vitest: 4.0.17(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/browser-playwright@4.0.17)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.1)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
     optionalDependencies:
       '@vitest/browser': 4.0.17(bufferutil@4.1.0)(utf-8-validate@5.0.10)(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vitest@4.0.17)
 
@@ -22658,7 +22667,7 @@ snapshots:
       eslint: 9.39.2(jiti@2.6.1)
     optionalDependencies:
       typescript: 5.9.3
-      vitest: 4.0.17(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/browser-playwright@4.0.17)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vitest: 4.0.17(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/browser-playwright@4.0.17)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.1)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - supports-color
 
@@ -23301,10 +23310,10 @@ snapshots:
       '@types/filesystem': 0.0.36
       '@types/har-format': 1.2.16
 
-  '@wxt-dev/module-vue@1.0.3(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
+  '@wxt-dev/module-vue@1.0.3(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))(wxt@0.20.13(@types/node@24.10.9)(canvas@3.2.1)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
       '@vitejs/plugin-vue': 6.0.3(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
-      wxt: 0.20.13(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      wxt: 0.20.13(@types/node@24.10.9)(canvas@3.2.1)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - vite
       - vue
@@ -23382,11 +23391,6 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.4.2
 
-  '@xsai/generate-text@0.3.5':
-    dependencies:
-      '@xsai/shared': 0.3.5
-      '@xsai/shared-chat': 0.3.5
-
   '@xsai/generate-text@0.4.2':
     dependencies:
       '@xsai/shared': 0.4.2
@@ -23400,10 +23404,6 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.4.2
 
-  '@xsai/shared-chat@0.3.5':
-    dependencies:
-      '@xsai/shared': 0.3.5
-
   '@xsai/shared-chat@0.4.0-beta.13':
     dependencies:
       '@xsai/shared': 0.4.2
@@ -23412,15 +23412,9 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.4.2
 
-  '@xsai/shared@0.3.5': {}
-
   '@xsai/shared@0.4.0-beta.13': {}
 
   '@xsai/shared@0.4.2': {}
-
-  '@xsai/stream-text@0.3.5':
-    dependencies:
-      '@xsai/shared-chat': 0.3.5
 
   '@xsai/stream-text@0.4.2':
     dependencies:
@@ -23443,10 +23437,6 @@ snapshots:
       - sury
       - zod
       - zod-to-json-schema
-
-  '@xsai/utils-chat@0.3.5':
-    dependencies:
-      '@xsai/shared-chat': 0.3.5
 
   '@xsai/utils-chat@0.4.0-beta.13':
     dependencies:
@@ -23847,7 +23837,7 @@ snapshots:
       drizzle-orm: 0.41.0(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.17.2)(postgres@3.4.8)
       pg: 8.17.2
       react: 19.2.3
-      vitest: 4.0.17(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/browser-playwright@4.0.17)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vitest: 4.0.17(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/browser-playwright@4.0.17)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.1)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
       vue: 3.5.26(typescript@5.9.3)
 
   better-auth@1.4.16(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.8)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.17.2)(postgres@3.4.8))(pg@8.17.2)(react@19.2.3)(vitest@4.0.17)(vue@3.5.26(typescript@5.9.3)):
@@ -23871,7 +23861,7 @@ snapshots:
       drizzle-orm: 0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.17.2)(postgres@3.4.8)
       pg: 8.17.2
       react: 19.2.3
-      vitest: 4.0.17(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/browser-playwright@4.0.17)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vitest: 4.0.17(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/browser-playwright@4.0.17)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.1)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
       vue: 3.5.26(typescript@5.9.3)
 
   better-call@1.1.8(zod@4.3.5):
@@ -24147,6 +24137,11 @@ snapshots:
       three: 0.182.0
 
   caniuse-lite@1.0.30001761: {}
+
+  canvas@3.2.1:
+    dependencies:
+      node-addon-api: 7.1.1
+      prebuild-install: 7.1.3
 
   ccount@2.0.1: {}
 
@@ -26502,7 +26497,7 @@ snapshots:
       gray-matter: 4.0.3
       unplugin: 2.3.11
 
-  histoire@1.0.0-beta.1(@types/node@24.10.9)(bufferutil@4.1.0)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(utf-8-validate@5.0.10)(vite@6.4.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(yaml@2.8.2):
+  histoire@1.0.0-beta.1(@types/node@24.10.9)(bufferutil@4.1.0)(canvas@3.2.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(utf-8-validate@5.0.10)(vite@6.4.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(yaml@2.8.2):
     dependencies:
       '@akryum/tinypool': 0.3.1
       '@histoire/app': 1.0.0-beta.1(vite@6.4.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -26520,7 +26515,7 @@ snapshots:
       globby: 14.1.0
       gray-matter: 4.0.3
       jiti: 2.6.1
-      jsdom: 27.4.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
+      jsdom: 27.4.0(bufferutil@4.1.0)(canvas@3.2.1)(utf-8-validate@5.0.10)
       markdown-it: 14.1.0
       markdown-it-anchor: 9.2.0(@types/markdown-it@14.1.2)(markdown-it@14.1.0)
       markdown-it-attrs: 4.3.1(markdown-it@14.1.0)
@@ -26913,7 +26908,7 @@ snapshots:
 
   jsdoc-type-pratt-parser@7.1.0: {}
 
-  jsdom@27.4.0(bufferutil@4.1.0)(utf-8-validate@5.0.10):
+  jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.1)(utf-8-validate@5.0.10):
     dependencies:
       '@acemir/cssom': 0.9.31
       '@asamuzakjp/dom-selector': 6.7.6
@@ -26935,6 +26930,8 @@ snapshots:
       whatwg-url: 15.1.0
       ws: 8.19.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
       xml-name-validator: 5.0.0
+    optionalDependencies:
+      canvas: 3.2.1
     transitivePeerDependencies:
       - '@exodus/crypto'
       - bufferutil
@@ -27191,13 +27188,15 @@ snapshots:
 
   lines-and-columns@2.0.4: {}
 
-  linkedom@0.18.12:
+  linkedom@0.18.12(canvas@3.2.1):
     dependencies:
       css-select: 5.2.2
       cssom: 0.5.0
       html-escaper: 3.0.3
       htmlparser2: 10.0.0
       uhyphen: 0.2.0
+    optionalDependencies:
+      canvas: 3.2.1
 
   linkify-it@5.0.0:
     dependencies:
@@ -27866,29 +27865,29 @@ snapshots:
       - encoding
       - supports-color
 
-  mineflayer-armor-manager@2.0.1(mineflayer@4.33.0(encoding@0.1.13)):
+  mineflayer-armor-manager@2.0.1(mineflayer@4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13)):
     dependencies:
       minecraft-data: 3.102.3
-      mineflayer: 4.33.0(encoding@0.1.13)
+      mineflayer: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13)
 
   mineflayer-auto-eat@5.0.3(encoding@0.1.13):
     dependencies:
       '@nxg-org/mineflayer-util-plugin': 1.8.4
-      mineflayer: 4.33.0(encoding@0.1.13)
+      mineflayer: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
       - supports-color
 
   mineflayer-collectblock@1.6.0(encoding@0.1.13):
     dependencies:
-      mineflayer: 4.33.0(encoding@0.1.13)
-      mineflayer-pathfinder: 2.4.5
+      mineflayer: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13)
+      mineflayer-pathfinder: 2.4.5(patch_hash=4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797)
       mineflayer-tool: 1.2.0(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
       - supports-color
 
-  mineflayer-pathfinder@2.4.5:
+  mineflayer-pathfinder@2.4.5(patch_hash=4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797):
     dependencies:
       minecraft-data: 3.102.3
       prismarine-block: 1.22.0
@@ -27900,8 +27899,8 @@ snapshots:
 
   mineflayer-pvp@1.3.2(encoding@0.1.13)(prismarine-registry@1.11.0):
     dependencies:
-      mineflayer: 4.33.0(encoding@0.1.13)
-      mineflayer-pathfinder: 2.4.5
+      mineflayer: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13)
+      mineflayer-pathfinder: 2.4.5(patch_hash=4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797)
       mineflayer-utils: 0.1.4(encoding@0.1.13)(prismarine-registry@1.11.0)
     transitivePeerDependencies:
       - encoding
@@ -27910,8 +27909,8 @@ snapshots:
 
   mineflayer-tool@1.2.0(encoding@0.1.13):
     dependencies:
-      mineflayer: 4.33.0(encoding@0.1.13)
-      mineflayer-pathfinder: 2.4.5
+      mineflayer: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13)
+      mineflayer-pathfinder: 2.4.5(patch_hash=4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797)
       prismarine-nbt: 2.8.0
     transitivePeerDependencies:
       - encoding
@@ -27951,7 +27950,7 @@ snapshots:
       - prismarine-registry
       - supports-color
 
-  mineflayer@4.33.0(encoding@0.1.13):
+  mineflayer@4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13):
     dependencies:
       minecraft-data: 3.102.3
       minecraft-protocol: 1.62.0(encoding@0.1.13)
@@ -28165,22 +28164,6 @@ snapshots:
 
   netmask@2.0.2:
     optional: true
-
-  neuri@0.2.1(zod-to-json-schema@3.25.1(zod@4.3.5))(zod@4.3.5):
-    dependencies:
-      '@xsai/generate-text': 0.3.5
-      '@xsai/shared': 0.3.5
-      '@xsai/shared-chat': 0.3.5
-      '@xsai/stream-text': 0.3.5
-      '@xsai/utils-chat': 0.3.5
-      xsschema: 0.3.5(zod-to-json-schema@3.25.1(zod@4.3.5))(zod@4.3.5)
-    transitivePeerDependencies:
-      - '@valibot/to-json-schema'
-      - arktype
-      - effect
-      - sury
-      - zod
-      - zod-to-json-schema
 
   neverthrow@8.2.0:
     optionalDependencies:
@@ -31617,7 +31600,7 @@ snapshots:
       - universal-cookie
       - yaml
 
-  vitest@4.0.17(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/browser-playwright@4.0.17)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2):
+  vitest@4.0.17(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/browser-playwright@4.0.17)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.1)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2):
     dependencies:
       '@vitest/expect': 4.0.17
       '@vitest/mocker': 4.0.17(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -31643,7 +31626,7 @@ snapshots:
       '@opentelemetry/api': 1.9.0
       '@types/node': 24.10.9
       '@vitest/browser-playwright': 4.0.17(bufferutil@4.1.0)(playwright@1.57.0)(utf-8-validate@5.0.10)(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vitest@4.0.17)
-      jsdom: 27.4.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
+      jsdom: 27.4.0(bufferutil@4.1.0)(canvas@3.2.1)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - jiti
       - less
@@ -32099,7 +32082,7 @@ snapshots:
     dependencies:
       is-wsl: 3.1.0
 
-  wxt@0.20.13(@types/node@24.10.9)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2):
+  wxt@0.20.13(@types/node@24.10.9)(canvas@3.2.1)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.30.2)(rollup@4.55.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2):
     dependencies:
       '@1natsu/wait-element': 4.1.2
       '@aklinker1/rollup-plugin-visualizer': 5.12.0(rollup@4.55.2)
@@ -32128,7 +32111,7 @@ snapshots:
       is-wsl: 3.1.0
       json5: 2.2.3
       jszip: 3.10.1
-      linkedom: 0.18.12
+      linkedom: 0.18.12(canvas@3.2.1)
       magicast: 0.3.5
       minimatch: 10.1.1
       nano-spawn: 1.0.3
@@ -32190,11 +32173,6 @@ snapshots:
   xmlchars@2.2.0: {}
 
   xmlhttprequest-ssl@2.1.2: {}
-
-  xsschema@0.3.5(zod-to-json-schema@3.25.1(zod@4.3.5))(zod@4.3.5):
-    optionalDependencies:
-      zod: 4.3.5
-      zod-to-json-schema: 3.25.1(zod@4.3.5)
 
   xsschema@0.4.0-beta.13(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.5))(zod@4.3.5):
     optionalDependencies:

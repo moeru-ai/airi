@@ -17,15 +17,13 @@ export function PathFinder(options?: { rangeGoal: number }): MineflayerPlugin {
       const handleCome = (commandCtx: Context) => {
         const username = commandCtx.command!.sender
         if (!username) {
-          bot.bot.chat('Please specify a player name!')
-          return
+          throw new Error('no player name specified')
         }
 
         logger.withFields({ username }).log('Come command received')
         const target = bot.bot.players[username]?.entity
         if (!target) {
-          bot.bot.chat('I don\'t see that player!')
-          return
+          throw new Error(`can't find player ${username}, maybe they're too far away?`)
         }
 
         const { x: playerX, y: playerY, z: playerZ } = target.position

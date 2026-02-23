@@ -23,6 +23,8 @@ overrides:
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 
 patchedDependencies:
+  mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
+  mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
   srvx@0.9.8: patches/srvx@0.9.8.patch
 catalog:
   '@capacitor/cli': ^8.0.1
@@ -35,8 +37,9 @@ catalog:
   '@histoire/plugin-vue': 1.0.0-beta.1
   '@iconify-json/logos': ^1.2.10
   '@iconify-json/tabler': ^1.2.26
+  '@modelcontextprotocol/sdk': ^1.25.3
   '@moeru/eslint-config': 0.1.0-beta.15
-  '@moeru/eventa': '1.0.0-alpha.14'
+  '@moeru/eventa': 1.0.0-alpha.14
   '@moeru/std': 0.1.0-beta.14
   '@nekopaw/tempora': 0.4.0-alpha.1
   '@pinia/testing': ^1.0.3
@@ -46,6 +49,7 @@ catalog:
   '@types/hast': ^3.0.4
   '@types/splitpanes': ^2.2.6
   '@types/unist': ^3.0.3
+  '@types/ws': ^8.18.1
   '@vueuse/core': 14.1.0
   '@xsai-ext/providers': ^0.4.2
   '@xsai/embed': ^0.4.2
@@ -61,6 +65,7 @@ catalog:
   async-mutex: 0.5.0
   better-auth: ^1.4.16
   builder-util-runtime: ^9.5.1
+  crossws: ^0.4.3
   drizzle-valibot: ^0.4.2
   electron: ^40.0.0
   embla-carousel-vue: ^9.0.0-rc01
@@ -90,7 +95,9 @@ catalog:
   vite-plugin-mkcert: ^1.17.9
   vue: ^3.5.25
   vue-sonner: 2.0.9
+  ws: ^8.18.3
   xsschema: 0.4.0-beta.13
+  yaml: ^2.8.2
   zod: ^4.3.5
 
 catalogs:
@@ -112,6 +119,7 @@ onlyBuiltDependencies:
   - '@napi-rs/image'
   - '@parcel/watcher'
   - bufferutil
+  - canvas
   - core-js
   - electron
   - electron-click-drag-plugin
