@@ -1,8 +1,11 @@
+import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow, BrowserWindowConstructorOptions } from 'electron'
 
 import type { ResizeDirection } from '../../../shared/electron/window'
 
 import { isMacOS } from 'std-env'
+
+import { createAppService, createScreenService, createWindowService } from '../../services/electron'
 
 export function toggleWindowShow(window?: BrowserWindow | null): void {
   if (!window) {
@@ -80,4 +83,13 @@ export function resizeWindowByDelta(params: {
   }
 
   params.window.setBounds({ x, y, width, height })
+}
+
+export function setupBaseWindowElectronInvokes(params: {
+  context: ReturnType<typeof createContext>['context']
+  window: BrowserWindow
+}) {
+  createScreenService({ context: params.context, window: params.window })
+  createWindowService({ context: params.context, window: params.window })
+  createAppService({ context: params.context, window: params.window })
 }

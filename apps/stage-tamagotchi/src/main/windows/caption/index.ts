@@ -18,9 +18,8 @@ import { captionGetIsFollowingWindow, captionIsFollowingWindowChanged } from '..
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { setupBaseWindowElectronInvokes } from '../main/rpc/index.electron'
 import { mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
-import { transparentWindowConfig } from '../shared/window'
+import { setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shared/window'
 
 const captionConfigSchema = object({
   isFollowing: boolean(),
