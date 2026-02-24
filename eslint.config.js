@@ -25,6 +25,7 @@ export default defineConfig({
     'crates/**',
     '**/drizzle/**',
     '**/.astro/**',
+    'learning/**',
   ],
 }, {
   rules: {
