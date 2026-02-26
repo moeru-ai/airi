@@ -32,7 +32,7 @@
     "build": "tsdown",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
+  "devDependencies": {
     "@proj-airi/plugin-protocol": "workspace:*"
   }
 }

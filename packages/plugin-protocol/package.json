@@ -2,6 +2,7 @@
   "name": "@proj-airi/plugin-protocol",
   "type": "module",
   "version": "0.8.5-beta.1",
+  "private": true,
   "description": "Plugin protocol event definitions and shared websocket types for Project AIRI",
   "author": {
     "name": "Moeru AI Project AIRI Team",
