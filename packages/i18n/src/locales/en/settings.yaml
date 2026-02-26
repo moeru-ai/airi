@@ -779,6 +779,9 @@ pages:
       description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
       label: WebSocket Server Address
       placeholder: ws://localhost:6121/ws
+    status:
+      connected: Connected
+      disconnected: Disconnected
   scene:
     description: Configure the environment where the character lives
     title: Scene

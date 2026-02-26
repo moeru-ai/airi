@@ -752,6 +752,9 @@ pages:
       description: 'WebSocket サーバーの完全なアドレス (例: ws://localhost:6121/ws)'
       label: WebSocket サーバーアドレス
       placeholder: ws://localhost:6121/ws
+    status:
+      connected: 接続済み
+      disconnected: 未接続
   scene:
     description: キャラクターが過ごす環境を設定する
     title: シーン

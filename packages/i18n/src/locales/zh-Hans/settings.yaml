@@ -752,6 +752,9 @@ pages:
       description: WebSocket 服务器的完整地址(例如，ws://localhost:6121/ws)
       label: WebSocket 服务器地址
       placeholder: ws://localhost:6121/ws
+    status:
+      connected: 已连接
+      disconnected: 未连接
   scene:
     description: 配置角色所在环境
     title: 场景
