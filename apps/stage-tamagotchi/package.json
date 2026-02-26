@@ -129,6 +129,7 @@
   },
   "devDependencies": {
     "@electron-toolkit/tsconfig": "^2.0.0",
+    "@electron/notarize": "catalog:",
     "@iconify-json/carbon": "^1.2.18",
     "@iconify-json/eos-icons": "^1.2.4",
     "@iconify-json/lucide": "^1.2.94",

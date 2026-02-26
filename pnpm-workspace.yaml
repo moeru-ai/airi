@@ -26,6 +26,7 @@ patchedDependencies:
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
   srvx@0.9.8: patches/srvx@0.9.8.patch
+
 catalog:
   '@capacitor/cli': ^8.1.0
   '@capacitor/core': ^8.1.0
@@ -33,6 +34,7 @@ catalog:
   '@capacitor/local-notifications': ^8.0.1
   '@electric-sql/pglite': ^0.3.15
   '@electron-toolkit/preload': ^3.0.2
+  '@electron/notarize': ^3.1.1
   '@guiiai/logg': ^1.2.11
   '@histoire/plugin-vue': 1.0.0-beta.1
   '@iconify-json/logos': ^1.2.10

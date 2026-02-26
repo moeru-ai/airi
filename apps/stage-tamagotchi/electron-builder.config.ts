@@ -3,7 +3,9 @@
 import type { Configuration } from 'electron-builder'
 
 import { execSync } from 'node:child_process'
+import { env } from 'node:process'
 
+import { notarize } from '@electron/notarize'
 import { isMacOS } from 'std-env'
 
 function hasXcode26OrAbove() {
@@ -41,6 +43,30 @@ export default {
   directories: {
     output: 'dist',
     buildResources: 'build',
+  },
+  // For self-publishing, testing, and distribution after modified the code without access to
+  // an Apple Developer account, comment and uncomment the following 4 lines.
+  // Later on when you obtained one, you can set up the necessary certificates and provisioning
+  // profiles to enable these security features.
+  //
+  // https://www.bigbinary.com/blog/code-sign-notorize-mac-desktop-app
+  // https://kilianvalkhof.com/2019/electron/notarizing-your-electron-application/
+  afterSign: async (context) => {
+    const { electronPlatformName, appOutDir } = context
+    if (electronPlatformName !== 'darwin')
+      return
+    if (env.CI !== 'true') {
+      console.warn('Skipping notarizing step. Packaging is not running in CI')
+      return
+    }
+
+    const appName = context.packager.appInfo.productFilename
+    await notarize({
+      appPath: `${appOutDir}/${appName}.app`,
+      teamId: env.APPLE_DEVELOPER_TEAM_ID!,
+      appleId: env.APPLE_DEVELOPER_APPLE_ID!,
+      appleIdPassword: env.APPLE_DEVELOPER_APPLE_APP_SPECIFIC_PASSWORD!,
+    })
   },
   files: [
     'out/**',
@@ -91,8 +117,14 @@ export default {
         NSCameraUsageDescription: 'AIRI requires camera access for vision understanding',
       },
     ],
+    // We have customized the notarization step in the `afterSign` hook.
     notarize: false,
-    hardenedRuntime: false,
+    // For self-publishing, testing, and distribution after modified the code without access to
+    // an Apple Developer account, comment and uncomment the following 4 lines.
+    // Later on when you obtained one, you can set up the necessary certificates and provisioning
+    // profiles to enable these security features.
+    // hardenedRuntime: false,
+    hardenedRuntime: true,
     executableName: 'airi',
     icon: useIconFormattedMacAppIcon ? 'icon.icon' : 'icon.icns',
   },
