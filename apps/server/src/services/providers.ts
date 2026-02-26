@@ -1,11 +1,10 @@
-import type * as fullSchema from '../schemas'
 import type { Database } from './db'
 
 import { and, eq, isNull, sql } from 'drizzle-orm'
 
 import * as schema from '../schemas/providers'
 
-export function createProviderService(db: Database<typeof fullSchema>) {
+export function createProviderService(db: Database) {
   return {
     async findAll(ownerId: string) {
       const userConfigs = db
