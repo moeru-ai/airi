@@ -5,6 +5,7 @@ import type {
   ModulePhase as ProtocolModulePhase,
   PluginIdentity as ProtocolPluginIdentity,
 } from '@proj-airi/plugin-protocol/types'
+import type { ActorRefFrom } from 'xstate'
 
 import type { definePlugin } from '../plugin'
 import type { createApis } from '../plugin/apis/client'
@@ -34,6 +35,7 @@ import {
   optional,
   string,
 } from 'valibot'
+import { createActor, createMachine } from 'xstate'
 
 import { createApis as createBoundApis } from '../plugin/apis/client'
 import { protocolCapabilitySnapshot, protocolCapabilityWait } from '../plugin/apis/protocol'
@@ -153,29 +155,153 @@ import { createPluginContext } from './runtimes/node'
  *     Plugin Host should treat the Module to be un-prepared status, the needed procedure will be called.
  */
 
-const lifecycleTransitionRules: Record<PluginSessionPhase, PluginSessionPhase[]> = {
-  'loading': ['loaded', 'failed'],
-  'loaded': ['authenticating', 'stopped', 'failed'],
-  'authenticating': ['authenticated', 'failed'],
-  'authenticated': ['announced', 'failed'],
-  'announced': ['preparing', 'configuration-needed', 'failed', 'stopped'],
-  'preparing': ['waiting-deps', 'prepared', 'failed'],
-  'waiting-deps': ['prepared', 'failed'],
-  'prepared': ['configuration-needed', 'configured', 'failed'],
-  'configuration-needed': ['configured', 'failed'],
-  'configured': ['ready', 'failed'],
-  'ready': ['announced', 'configuration-needed', 'failed', 'stopped'],
-  'failed': ['stopped'],
-  'stopped': [],
+type PluginLifecycleEvent
+  = | { type: 'SESSION_LOADED' }
+    | { type: 'START_AUTHENTICATION' }
+    | { type: 'AUTHENTICATED' }
+    | { type: 'ANNOUNCED' }
+    | { type: 'START_PREPARING' }
+    | { type: 'WAITING_DEPENDENCIES' }
+    | { type: 'PREPARED' }
+    | { type: 'CONFIGURATION_NEEDED' }
+    | { type: 'CONFIGURED' }
+    | { type: 'READY' }
+    | { type: 'SESSION_FAILED' }
+    | { type: 'REANNOUNCE' }
+    | { type: 'STOP' }
+
+const pluginLifecycleMachine = createMachine({
+  id: 'plugin-lifecycle',
+  initial: 'loading',
+  states: {
+    'loading': {
+      on: {
+        SESSION_LOADED: 'loaded',
+        SESSION_FAILED: 'failed',
+      },
+    },
+    'loaded': {
+      on: {
+        START_AUTHENTICATION: 'authenticating',
+        STOP: 'stopped',
+        SESSION_FAILED: 'failed',
+      },
+    },
+    'authenticating': {
+      on: {
+        AUTHENTICATED: 'authenticated',
+        SESSION_FAILED: 'failed',
+      },
+    },
+    'authenticated': {
+      on: {
+        ANNOUNCED: 'announced',
+        SESSION_FAILED: 'failed',
+      },
+    },
+    'announced': {
+      on: {
+        START_PREPARING: 'preparing',
+        CONFIGURATION_NEEDED: 'configuration-needed',
+        STOP: 'stopped',
+        SESSION_FAILED: 'failed',
+      },
+    },
+    'preparing': {
+      on: {
+        WAITING_DEPENDENCIES: 'waiting-deps',
+        PREPARED: 'prepared',
+        SESSION_FAILED: 'failed',
+      },
+    },
+    'waiting-deps': {
+      on: {
+        PREPARED: 'prepared',
+        SESSION_FAILED: 'failed',
+      },
+    },
+    'prepared': {
+      on: {
+        CONFIGURATION_NEEDED: 'configuration-needed',
+        CONFIGURED: 'configured',
+        SESSION_FAILED: 'failed',
+      },
+    },
+    'configuration-needed': {
+      on: {
+        CONFIGURED: 'configured',
+        SESSION_FAILED: 'failed',
+      },
+    },
+    'configured': {
+      on: {
+        READY: 'ready',
+        SESSION_FAILED: 'failed',
+      },
+    },
+    'ready': {
+      on: {
+        REANNOUNCE: 'announced',
+        CONFIGURATION_NEEDED: 'configuration-needed',
+        STOP: 'stopped',
+        SESSION_FAILED: 'failed',
+      },
+    },
+    'failed': {
+      on: {
+        STOP: 'stopped',
+      },
+    },
+    'stopped': {
+      type: 'final',
+    },
+  },
+})
+
+const lifecycleTransitionEvents: Record<PluginSessionPhase, Partial<Record<PluginSessionPhase, PluginLifecycleEvent['type']>>> = {
+  'loading': { loaded: 'SESSION_LOADED', failed: 'SESSION_FAILED' },
+  'loaded': { authenticating: 'START_AUTHENTICATION', stopped: 'STOP', failed: 'SESSION_FAILED' },
+  'authenticating': { authenticated: 'AUTHENTICATED', failed: 'SESSION_FAILED' },
+  'authenticated': { announced: 'ANNOUNCED', failed: 'SESSION_FAILED' },
+  'announced': { 'preparing': 'START_PREPARING', 'configuration-needed': 'CONFIGURATION_NEEDED', 'failed': 'SESSION_FAILED', 'stopped': 'STOP' },
+  'preparing': { 'waiting-deps': 'WAITING_DEPENDENCIES', 'prepared': 'PREPARED', 'failed': 'SESSION_FAILED' },
+  'waiting-deps': { prepared: 'PREPARED', failed: 'SESSION_FAILED' },
+  'prepared': { 'configuration-needed': 'CONFIGURATION_NEEDED', 'configured': 'CONFIGURED', 'failed': 'SESSION_FAILED' },
+  'configuration-needed': { configured: 'CONFIGURED', failed: 'SESSION_FAILED' },
+  'configured': { ready: 'READY', failed: 'SESSION_FAILED' },
+  'ready': { 'announced': 'REANNOUNCE', 'configuration-needed': 'CONFIGURATION_NEEDED', 'failed': 'SESSION_FAILED', 'stopped': 'STOP' },
+  'failed': { stopped: 'STOP' },
+  'stopped': {},
 }
 
 function assertTransition(session: PluginHostSession, to: PluginSessionPhase) {
-  const allowed = lifecycleTransitionRules[session.phase]
-  if (!allowed.includes(to)) {
+  const eventType = lifecycleTransitionEvents[session.phase][to]
+  if (!eventType) {
     throw new Error(`Invalid plugin lifecycle transition: ${session.phase} -> ${to} for module ${session.identity.id}`)
   }
 
-  session.phase = to
+  const event: PluginLifecycleEvent = { type: eventType }
+  const snapshot = session.lifecycle.getSnapshot()
+  if (!snapshot.can(event)) {
+    throw new Error(`Invalid plugin lifecycle transition: ${session.phase} -> ${to} for module ${session.identity.id}`)
+  }
+
+  session.lifecycle.send(event)
+  session.phase = session.lifecycle.getSnapshot().value as PluginSessionPhase
+}
+
+function markFailedTransition(session: PluginHostSession) {
+  const event: PluginLifecycleEvent = { type: 'SESSION_FAILED' }
+  const snapshot = session.lifecycle.getSnapshot()
+  if (snapshot.can(event)) {
+    session.lifecycle.send(event)
+    session.phase = session.lifecycle.getSnapshot().value as PluginSessionPhase
+    return
+  }
+
+  if (session.phase !== 'failed') {
+    session.phase = 'failed'
+  }
 }
 
 function isPluginDefinition(value: unknown): value is ReturnType<typeof definePlugin> {
@@ -298,6 +424,7 @@ export interface PluginHostSession {
   index: number
   identity: ModuleIdentity
   phase: PluginSessionPhase
+  lifecycle: ActorRefFrom<typeof pluginLifecycleMachine>
   transport: PluginTransport
   runtime: PluginRuntime
   channels: {
@@ -375,6 +502,8 @@ export class PluginHost {
     // Step 1 (connect/control-plane prep): create an isolated Eventa context per plugin.
     // All invokes/events for this plugin go through this context to prevent cross-talk.
     const hostChannel = createPluginContext(transport)
+    const lifecycle = createActor(pluginLifecycleMachine)
+    lifecycle.start()
     defineInvokeHandler(hostChannel, protocolCapabilityWait, async (payload) => {
       return await this.waitForCapability(payload.key, payload?.timeoutMs)
     })
@@ -391,7 +520,8 @@ export class PluginHost {
       id,
       index: sessionIndex,
       identity,
-      phase: 'loading',
+      phase: lifecycle.getSnapshot().value as PluginSessionPhase,
+      lifecycle,
       transport,
       runtime,
       channels: {
@@ -419,7 +549,7 @@ export class PluginHost {
     catch (error) {
       // Load failure is terminal for this session (`loading` -> `failed`).
       // Emit status so Configurator/observers can show deterministic diagnostics.
-      assertTransition(session, 'failed')
+      markFailedTransition(session)
       session.channels.host.emit(moduleStatus, {
         identity: session.identity,
         phase: 'failed',
@@ -583,13 +713,7 @@ export class PluginHost {
     }
     catch (error) {
       // Any init failure is normalized into failed phase + status event for observability.
-      const currentPhase = session.phase
-      if (lifecycleTransitionRules[currentPhase].includes('failed')) {
-        assertTransition(session, 'failed')
-      }
-      else {
-        session.phase = 'failed'
-      }
+      markFailedTransition(session)
 
       session.channels.host.emit(moduleStatus, {
         identity: session.identity,
@@ -759,7 +883,8 @@ export class PluginHost {
 
     // Prefer guarded transition when allowed; otherwise force-close as a safety fallback.
     if (session.phase !== 'stopped') {
-      if (lifecycleTransitionRules[session.phase].includes('stopped')) {
+      const canStop = session.lifecycle.getSnapshot().can({ type: 'STOP' })
+      if (canStop) {
         assertTransition(session, 'stopped')
       }
       else {
@@ -767,6 +892,7 @@ export class PluginHost {
       }
     }
 
+    session.lifecycle.stop()
     this.sessions.delete(session.id)
     return session
   }

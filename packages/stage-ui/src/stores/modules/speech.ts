@@ -12,6 +12,14 @@ import { x } from 'xastscript'
 
 import { useProvidersStore } from '../providers'
 
+export function toSignedPercent(value: number): string {
+  if (value > 0)
+    return `+${value}%`
+  if (value < 0)
+    return `-${Math.abs(value)}%`
+  return '0%'
+}
+
 export const useSpeechStore = defineStore('speech', () => {
   const providersStore = useProvidersStore()
   const { allAudioSpeechProvidersMetadata } = storeToRefs(providersStore)
@@ -192,9 +200,7 @@ export const useSpeechStore = defineStore('speech', () => {
 
     const prosody = {
       pitch: pitch != null
-        ? pitch > 0
-          ? `+${pitch}%`
-          : `-${pitch}%`
+        ? toSignedPercent(pitch)
         : undefined,
       rate: speed != null
         ? speed !== 1.0
@@ -202,19 +208,19 @@ export const useSpeechStore = defineStore('speech', () => {
           : '1'
         : undefined,
       volume: volume != null
-        ? volume > 0
-          ? `+${volume}%`
-          : `${volume}%`
+        ? toSignedPercent(volume)
         : undefined,
     }
 
+    const hasProsody = Object.values(prosody).some(value => value != null)
+
     const ssmlXast = x('speak', { 'version': '1.0', 'xmlns': 'http://www.w3.org/2001/10/synthesis', 'xml:lang': voice.languages[0]?.code || 'en-US' }, [
       x('voice', { name: voice.id, gender: voice.gender || 'neutral' }, [
-        Object.entries(prosody).filter(([_, value]) => value != null).length > 0
+        hasProsody
           ? x('prosody', {
-              pitch: pitch != null ? pitch > 0 ? `+${pitch}%` : `-${pitch}%` : undefined,
-              rate: speed != null ? speed !== 1.0 ? `${speed}` : '1' : undefined,
-              volume: volume != null ? volume > 0 ? `+${volume}%` : `${volume}%` : undefined,
+              pitch: prosody.pitch,
+              rate: prosody.rate,
+              volume: prosody.volume,
             }, [
               text,
             ])

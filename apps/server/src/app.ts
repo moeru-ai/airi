@@ -1,6 +1,6 @@
 import type { HonoEnv } from './types/hono'
 
-import process, { exit } from 'node:process'
+import process from 'node:process'
 
 import { initLogger, LoggerFormat, LoggerLevel, useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
@@ -16,13 +16,11 @@ import { createProviderRoutes } from './routes/providers'
 import { createAuth } from './services/auth'
 import { createCharacterService } from './services/characters'
 import { createChatService } from './services/chats'
-import { createDrizzle } from './services/db'
+import { createDrizzle, migrateDatabase } from './services/db'
 import { parsedEnv } from './services/env'
 import { createProviderService } from './services/providers'
 import { ApiError, createInternalError } from './utils/error'
 import { getTrustedOrigin } from './utils/origin'
-
-import * as schema from './schemas'
 
 type AuthService = ReturnType<typeof createAuth>
 type CharacterService = ReturnType<typeof createCharacterService>
@@ -93,17 +91,17 @@ export type AppType = ReturnType<typeof buildApp>
 async function createApp() {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
   injeca.setLogger(createLoggLogger(useLogger('injeca').useGlobalConfig()))
+  const logger = useLogger('app').useGlobalConfig()
 
   const db = injeca.provide('services:db', {
     dependsOn: { env: parsedEnv },
-    build: ({ dependsOn }) => {
-      const dbInstance = createDrizzle(dependsOn.env.DATABASE_URL, schema)
-      dbInstance.execute('SELECT 1')
-        .then(() => useLogger('app').useGlobalConfig().log('Connected to database'))
-        .catch((err) => {
-          useLogger('app').useGlobalConfig().withError(err).error('Failed to connect to database')
-          exit(1)
-        })
+    build: async ({ dependsOn }) => {
+      const dbInstance = createDrizzle(dependsOn.env.DATABASE_URL)
+      await dbInstance.execute('SELECT 1')
+      logger.log('Connected to database')
+      await migrateDatabase(dbInstance)
+      logger.log('Applied schema')
+
       return dbInstance
     },
   })
@@ -137,7 +135,7 @@ async function createApp() {
     providerService: resolved.providerService,
   })
 
-  useLogger('app').useGlobalConfig().withFields({ port: 3000 }).log('Server started')
+  logger.withFields({ port: 3000 }).log('Server started')
 
   return app
 }

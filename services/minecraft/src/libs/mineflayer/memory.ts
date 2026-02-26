@@ -1,4 +1,4 @@
-import type { Message } from 'neuri/openai'
+import type { Message } from '@xsai/shared-chat'
 
 import type { Action } from './action'
 

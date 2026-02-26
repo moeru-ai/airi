@@ -1,0 +1,21 @@
+name: damage-taken
+version: 1
+
+trigger:
+  modality: felt
+  kind: damage_taken
+
+accumulator:
+  threshold: 1
+  window: 500ms
+
+signal:
+  type: saliency_high
+  description: 'Taken damage (amount={{ amount }}, cause={{ damageSource.cause }}).'
+  confidence: 1.0
+  metadata:
+    action: damage
+    amount: '{{ amount }}'
+    cause: '{{ damageSource.cause }}'
+    source_name: '{{ damageSource.name }}'
+    source_distance: '{{ damageSource.distance }}'
