@@ -65,6 +65,11 @@ function buildApp({ auth, characterService, chatService, providerService }: AppD
     })
 
     /**
+     * Health check route.
+     */
+    .on('GET', '/health', c => c.json({ status: 'ok' }))
+
+    /**
      * Auth routes are handled by the auth instance directly,
      * Powered by better-auth.
      */
