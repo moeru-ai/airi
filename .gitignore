@@ -48,6 +48,7 @@ bundle/
 *.flatpak
 # WXT specified this too
 *.output
+.vfox.toml
 
 # Vite
 dist
