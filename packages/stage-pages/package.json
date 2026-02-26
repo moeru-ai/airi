@@ -30,6 +30,7 @@
     "@proj-airi/stage-ui-live2d": "workspace:*",
     "@proj-airi/stage-ui-three": "workspace:*",
     "@proj-airi/ui": "workspace:*",
+    "@shopify/draggable": "catalog:",
     "@stdlib/string-base-kebabcase": "^0.2.2",
     "@vueuse/core": "^14.1.0",
     "@vueuse/shared": "^14.1.0",
