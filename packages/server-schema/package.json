@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server-schema",
   "type": "module",
-  "version": "0.8.4",
+  "version": "0.8.5-beta.1",
   "description": "Server schema for AIRI",
   "author": {
     "name": "Moeru AI Project AIRI Team",

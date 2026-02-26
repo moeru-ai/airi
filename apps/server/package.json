@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server",
   "type": "module",
-  "version": "0.8.4",
+  "version": "0.8.5-beta.1",
   "private": true,
   "scripts": {
     "apply:env": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE",
