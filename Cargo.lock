@@ -833,9 +833,9 @@ checksum = "bd0c93bb4b0c6d9b77f4435b0ae98c24d17f1c45b2ff844c6151a07256ca923b"
 
 [[package]]
 name = "dispatch2"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89a09f22a6c6069a18470eb92d2298acf25463f14256d24778e1230d789a2aec"
+checksum = "1e0e367e4e7da84520dedcac1901e4da967309406d1e51017ae1abfb97adbd38"
 dependencies = [
  "bitflags 2.11.0",
  "objc2",
@@ -2571,9 +2571,9 @@ checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
 name = "objc2"
-version = "0.6.3"
+version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7c2599ce0ec54857b29ce62166b0ed9b4f6f1a70ccc9a71165b6154caca8c05"
+checksum = "3a12a8ed07aefc768292f076dc3ac8c48f3781c8f2d5851dd3d98950e8c5a89f"
 dependencies = [
  "objc2-encode",
  "objc2-exception-helper",
@@ -4723,7 +4723,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-ipc-audio-transcription-ort"
-version = "0.8.5-beta.2"
+version = "0.8.5-beta.3"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -4745,7 +4745,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-ipc-audio-vad-ort"
-version = "0.8.5-beta.2"
+version = "0.8.5-beta.3"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -4769,7 +4769,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-mcp"
-version = "0.8.5-beta.2"
+version = "0.8.5-beta.3"
 dependencies = [
  "anyhow",
  "log",
@@ -4783,7 +4783,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-rdev"
-version = "0.8.5-beta.2"
+version = "0.8.5-beta.3"
 dependencies = [
  "anyhow",
  "log",
@@ -4797,7 +4797,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-window-pass-through-on-hover"
-version = "0.8.5-beta.2"
+version = "0.8.5-beta.3"
 dependencies = [
  "anyhow",
  "log",
@@ -4816,7 +4816,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-window-router-link"
-version = "0.8.5-beta.2"
+version = "0.8.5-beta.3"
 dependencies = [
  "anyhow",
  "log",
