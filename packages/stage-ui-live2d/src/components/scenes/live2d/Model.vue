@@ -15,10 +15,12 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 
 
 import {
   createBeatSyncController,
+  useExpressionController,
 
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
   useMotionUpdatePluginBeatSync,
+  useMotionUpdatePluginExpression,
   useMotionUpdatePluginIdleDisable,
   useMotionUpdatePluginIdleFocus,
 } from '../../../composables/live2d'
@@ -44,6 +46,7 @@ const props = withDefaults(defineProps<{
   live2dIdleAnimationEnabled?: boolean
   live2dAutoBlinkEnabled?: boolean
   live2dForceAutoBlinkEnabled?: boolean
+  live2dExpressionEnabled?: boolean
   live2dShadowEnabled?: boolean
 }>(), {
   mouthOpenSize: 0,
@@ -56,6 +59,7 @@ const props = withDefaults(defineProps<{
   live2dIdleAnimationEnabled: true,
   live2dAutoBlinkEnabled: true,
   live2dForceAutoBlinkEnabled: false,
+  live2dExpressionEnabled: true,
   live2dShadowEnabled: true,
 })
 
@@ -152,7 +156,18 @@ const themeColorsHueDynamic = toRef(() => props.themeColorsHueDynamic)
 const live2dIdleAnimationEnabled = toRef(() => props.live2dIdleAnimationEnabled)
 const live2dAutoBlinkEnabled = toRef(() => props.live2dAutoBlinkEnabled)
 const live2dForceAutoBlinkEnabled = toRef(() => props.live2dForceAutoBlinkEnabled)
+const live2dExpressionEnabled = toRef(() => props.live2dExpressionEnabled)
 const live2dShadowEnabled = toRef(() => props.live2dShadowEnabled)
+
+// --- Expression controller
+const internalModelRef = ref<PixiLive2DInternalModel>()
+const expressionController = useExpressionController({
+  internalModel: internalModelRef,
+  modelId: props.modelId,
+})
+// Saved SDK manager references for runtime expression toggle (restore on disable)
+const savedEyeBlink = shallowRef<any>(null)
+const savedExpressionManager = shallowRef<any>(null)
 
 const localCurrentMotion = ref<{ group: string, index: number }>({ group: 'Idle', index: 0 })
 const beatSync = createBeatSyncController({
@@ -192,6 +207,10 @@ async function loadModel() {
 
   // REVIEW: here as await until(...) guarded the pixiApp and stage to be valid.
   if (model.value && pixiApp.value?.stage) {
+    // Dispose expression controller before destroying the old model
+    expressionController.dispose()
+    internalModelRef.value = undefined
+
     try {
       pixiApp.value.stage.removeChild(model.value)
       model.value.destroy()
@@ -315,7 +334,12 @@ async function loadModel() {
     motionManagerUpdate.register(useMotionUpdatePluginBeatSync(beatSync), 'pre')
     motionManagerUpdate.register(useMotionUpdatePluginIdleDisable(), 'pre')
     motionManagerUpdate.register(useMotionUpdatePluginIdleFocus(), 'post')
-    motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(), 'post')
+    // Both run in 'final' stage (ignores handled state).
+    // Expression first: sets desired parameter values (e.g. closed eyes = 0).
+    // Blink second: reads post-expression eye values, Multiply-modulates on top.
+    // This ensures blink respects expression state (0 × blinkFactor = 0).
+    motionManagerUpdate.register(useMotionUpdatePluginExpression(expressionController), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled), 'final')
 
     const hookedUpdate = motionManager.update as (model: PixiLive2DInternalModel['coreModel'], now: number) => boolean
     motionManager.update = function (model: PixiLive2DInternalModel['coreModel'], now: number) {
@@ -367,6 +391,33 @@ async function loadModel() {
     coreModel.setParameterValueById('ParamBodyAngleZ', modelParameters.value.bodyAngleZ)
     coreModel.setParameterValueById('ParamBreath', modelParameters.value.breath)
 
+    // Save SDK manager references so they can be restored if expression is
+    // toggled off at runtime.
+    savedEyeBlink.value = internalModel.eyeBlink
+    savedExpressionManager.value = motionManager.expressionManager
+
+    // --- Expression controller initialisation (conditional)
+    if (live2dExpressionEnabled.value) {
+      // Disable built-in Cubism expression manager — our expression-controller
+      // replaces it. The SDK's manager runs after motionManager.update() and
+      // would overwrite our final-plugin values every frame.
+      if (motionManager.expressionManager) {
+        ;(motionManager as any).expressionManager = null
+      }
+      // Disable SDK eyeBlink — it runs on frames where motionUpdated=false and
+      // would conflict with expression eye parameter overrides. Our auto-blink
+      // plugin (Force Auto Blink setting) provides the replacement for models
+      // without idle-motion blink curves.
+      if (internalModel.eyeBlink) {
+        ;(internalModel as any).eyeBlink = null
+      }
+
+      internalModelRef.value = internalModel
+      initExpressionController(internalModel).catch((err) => {
+        console.warn('[Model.vue] Expression controller initialisation failed:', err)
+      })
+    }
+
     emits('modelLoaded')
   }
   finally {
@@ -374,6 +425,40 @@ async function loadModel() {
     componentState.value = 'mounted'
     modelLoadMutex.release()
   }
+}
+
+/**
+ * Initialise the expression controller by reading expression definitions from
+ * the model settings (model3.json) and parsing each referenced exp3.json file.
+ *
+ * This is intentionally fire-and-forget from loadModel so that a failure in
+ * expression loading does not prevent the model itself from rendering.
+ */
+async function initExpressionController(internalModel: PixiLive2DInternalModel) {
+  // Dispose any previous state (handles model reloads)
+  expressionController.dispose()
+
+  const settings = (internalModel as any).settings
+  if (!settings)
+    return
+
+  // model3.json stores expressions as { Name, File }[] under settings.expressions
+  const expressionRefs: { Name: string, File: string }[] = settings.expressions ?? []
+  if (expressionRefs.length === 0)
+    return
+
+  // Build a function that can read exp3 files relative to the model root.
+  // For URL-loaded models, resolveURL gives us the full URL. For ZIP-loaded
+  // models the resolved URL points to an in-memory blob/object URL.
+  const readExpFile = async (filePath: string): Promise<string> => {
+    const resolvedUrl: string = settings.resolveURL?.(filePath) ?? filePath
+    const response = await fetch(resolvedUrl)
+    if (!response.ok)
+      throw new Error(`Failed to fetch exp3 file: ${filePath} (${response.status})`)
+    return response.text()
+  }
+
+  await expressionController.initialise(expressionRefs, readExpFile)
 }
 
 async function setMotion(motionName: string, index?: number) {
@@ -600,6 +685,30 @@ watch(live2dIdleAnimationEnabled, (enabled) => {
   }
 })
 
+// Watch for expression system toggle — nullify/restore SDK managers at runtime
+watch(live2dExpressionEnabled, (enabled) => {
+  if (!model.value)
+    return
+  const im = model.value.internalModel
+  const mm = im.motionManager
+  if (enabled) {
+    if (mm.expressionManager)
+    ;(mm as any).expressionManager = null
+    if (im.eyeBlink)
+    ;(im as any).eyeBlink = null
+    internalModelRef.value = im
+    initExpressionController(im).catch((err) => {
+      console.warn('[Model.vue] Expression controller initialisation failed:', err)
+    })
+  }
+  else {
+    ;(mm as any).expressionManager = savedExpressionManager.value
+    ;(im as any).eyeBlink = savedEyeBlink.value
+    expressionController.dispose()
+    internalModelRef.value = undefined
+  }
+})
+
 watch(focusAt, (value) => {
   if (!model.value)
     return
@@ -621,6 +730,7 @@ onMounted(async () => {
 onUnmounted(() => {
   isUnmounted = true
   disposeShouldUpdateView?.()
+  expressionController.dispose()
 })
 
 function listMotionGroups() {

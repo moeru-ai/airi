@@ -24,6 +24,8 @@
     "./constants/emotions": "./src/constants/emotions.ts",
     "./stores": "./src/stores/index.ts",
     "./stores/live2d": "./src/stores/live2d.ts",
+    "./stores/expression-store": "./src/stores/expression-store.ts",
+    "./tools/expression-tools": "./src/tools/expression-tools.ts",
     "./utils/eye-motions": "./src/utils/eye-motions.ts",
     "./utils/live2d-preview": "./src/utils/live2d-preview.ts",
     "./utils/live2d-zip-loader": "./src/utils/live2d-zip-loader.ts",
@@ -52,6 +54,7 @@
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@vueuse/core": "^14.1.0",
+    "@xsai/tool": "catalog:",
     "culori": "^4.0.2",
     "es-toolkit": "catalog:",
     "jszip": "^3.10.1",
@@ -59,7 +62,8 @@
     "pixi-filters": "4",
     "pixi-live2d-display": "^0.4.0",
     "three": "^0.182.0",
-    "vue": "catalog:"
+    "vue": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/culori": "^4.0.1",
