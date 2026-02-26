@@ -24,6 +24,7 @@ import { toast, Toaster } from 'vue-sonner'
 import ResizeHandler from './components/ResizeHandler.vue'
 
 import {
+  electronGetServerChannelConfig,
   electronOpenSettings,
   electronPluginInspect,
   electronPluginList,
@@ -33,11 +34,11 @@ import {
   electronPluginUnload,
   electronPluginUpdateCapability,
   electronStartTrackMousePosition,
-  electronStartWebSocketServer,
   pluginProtocolListProviders,
   pluginProtocolListProvidersEventName,
 } from '../shared/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke } from './composables/electron-vueuse'
+import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 
 const { isDark: dark } = useTheme()
 const i18n = useI18n()
@@ -45,6 +46,7 @@ const contextBridgeStore = useContextBridgeStore()
 const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settingsStore)
+const serverChannelSettingsStore = useServerChannelSettingsStore()
 const onboardingStore = useOnboardingStore()
 const router = useRouter()
 const route = useRoute()
@@ -65,10 +67,9 @@ watch(dark, () => updateThemeColor(), { immediate: true })
 watch(route, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
 
-const startWebSocketServer = useElectronEventaInvoke(electronStartWebSocketServer)
-
 onMounted(async () => {
   const context = useElectronEventaContext()
+  const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
   const listPlugins = useElectronEventaInvoke(electronPluginList)
   const setPluginEnabled = useElectronEventaInvoke(electronPluginSetEnabled)
   const loadEnabledPlugins = useElectronEventaInvoke(electronPluginLoadEnabled)
@@ -93,7 +94,9 @@ onMounted(async () => {
   await chatSessionStore.initialize()
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
-  await startWebSocketServer({ websocketSecureEnabled: settingsStore.websocketSecureEnabled })
+
+  const serverChannelConfig = await getServerChannelConfig()
+  serverChannelSettingsStore.websocketTlsConfig = serverChannelConfig.websocketTlsConfig
 
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   await contextBridgeStore.initialize()

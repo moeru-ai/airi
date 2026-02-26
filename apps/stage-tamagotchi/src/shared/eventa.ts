@@ -2,13 +2,24 @@ import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
 export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
 export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
+
 export const electronOpenMainDevtools = defineInvokeEventa('eventa:invoke:electron:windows:main:devtools:open')
 export const electronOpenSettings = defineInvokeEventa('eventa:invoke:electron:windows:settings:open')
 export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windows:chat:open')
 export const electronOpenSettingsDevtools = defineInvokeEventa('eventa:invoke:electron:windows:settings:devtools:open')
 export const electronOpenDevtoolsWindow = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:devtools:open')
-export const electronStartWebSocketServer = defineInvokeEventa<void, { websocketSecureEnabled: boolean }>('eventa:invoke:electron:start-websocket-server')
-export const electronRestartWebSocketServer = defineInvokeEventa<void, { websocketSecureEnabled: boolean }>('eventa:invoke:electron:restart-websocket-server')
+
+export interface ElectronServerChannelTlsConfig {
+  [key: string]: unknown
+}
+export const electronStartWebSocketServer = defineInvokeEventa<void, { websocketTlsConfig: ElectronServerChannelTlsConfig | null }>('eventa:invoke:electron:start-websocket-server')
+export const electronRestartWebSocketServer = defineInvokeEventa<void, { websocketTlsConfig: ElectronServerChannelTlsConfig | null }>('eventa:invoke:electron:restart-websocket-server')
+export interface ElectronServerChannelConfig {
+  websocketTlsConfig: ElectronServerChannelTlsConfig | null
+}
+export const electronGetServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig>('eventa:invoke:electron:server-channel:get-config')
+export const electronApplyServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig, Partial<ElectronServerChannelConfig>>('eventa:invoke:electron:server-channel:apply-config')
+
 export const electronPluginList = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:list')
 export const electronPluginSetEnabled = defineInvokeEventa<PluginRegistrySnapshot, { name: string, enabled: boolean, path?: string }>('eventa:invoke:electron:plugins:set-enabled')
 export const electronPluginLoadEnabled = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:load-enabled')
@@ -16,8 +27,10 @@ export const electronPluginLoad = defineInvokeEventa<PluginRegistrySnapshot, { n
 export const electronPluginUnload = defineInvokeEventa<PluginRegistrySnapshot, { name: string }>('eventa:invoke:electron:plugins:unload')
 export const electronPluginInspect = defineInvokeEventa<PluginHostDebugSnapshot>('eventa:invoke:electron:plugins:inspect')
 export const electronPluginUpdateCapability = defineInvokeEventa<PluginCapabilityState, PluginCapabilityPayload>('eventa:invoke:electron:plugins:capability:update')
+
 export const pluginProtocolListProvidersEventName = 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers'
 export const pluginProtocolListProviders = defineInvokeEventa<Array<{ name: string }>>(pluginProtocolListProvidersEventName)
+
 export const captionIsFollowingWindowChanged = defineEventa<boolean>('eventa:event:electron:windows:caption-overlay:is-following-window-changed')
 export const captionGetIsFollowingWindow = defineInvokeEventa<boolean>('eventa:invoke:electron:windows:caption-overlay:get-is-following-window')
 
