@@ -739,6 +739,18 @@ type OutputGenAiChatCompleteEvent = {
   usage: OutputGenAiChatUsage
 } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>> & Partial<WithOutputSource<'gen-ai:chat'>>
 
+/** One chunk of the gen-ai chat stream; matches ChatStreamEvent (stage-ui). Server broadcasts these for remote/plugin-driven streams. */
+type OutputGenAiChatStreamEvent
+  = | { type: 'before-compose', message: string, sessionId: string, context: Record<string, unknown> }
+    | { type: 'after-compose', message: string, sessionId: string, context: Record<string, unknown> }
+    | { type: 'before-send', message: string, sessionId: string, context: Record<string, unknown> }
+    | { type: 'after-send', message: string, sessionId: string, context: Record<string, unknown> }
+    | { type: 'token-literal', literal: string, sessionId: string, context: Record<string, unknown> }
+    | { type: 'token-special', special: string, sessionId: string, context: Record<string, unknown> }
+    | { type: 'stream-end', sessionId: string, context: Record<string, unknown> }
+    | { type: 'assistant-end', message: string, sessionId: string, context: Record<string, unknown> }
+    | { type: 'assistant-message', message: unknown, sessionId: string, messageText: string, context: Record<string, unknown> }
+
 interface SparkNotifyEvent {
   id: string
   eventId: string
@@ -862,6 +874,7 @@ export const inputVoice = defineEventa<WebSocketEventInputVoice>('input:voice')
 export const outputGenAiChatToolCall = defineEventa<OutputGenAiChatToolCallEvent>('output:gen-ai:chat:tool-call')
 export const outputGenAiChatMessage = defineEventa<OutputGenAiChatMessageEvent>('output:gen-ai:chat:message')
 export const outputGenAiChatComplete = defineEventa<OutputGenAiChatCompleteEvent>('output:gen-ai:chat:complete')
+export const outputGenAiChatStream = defineEventa<OutputGenAiChatStreamEvent>('output:gen-ai:chat:stream')
 
 export const sparkNotify = defineEventa<SparkNotifyEvent>('spark:notify')
 export const sparkEmit = defineEventa<SparkEmitEvent>('spark:emit')
@@ -983,6 +996,7 @@ export interface ProtocolEvents<C = undefined> {
   'output:gen-ai:chat:tool-call': OutputGenAiChatToolCallEvent
   'output:gen-ai:chat:message': OutputGenAiChatMessageEvent
   'output:gen-ai:chat:complete': OutputGenAiChatCompleteEvent
+  'output:gen-ai:chat:stream': OutputGenAiChatStreamEvent
 
   /**
    * Spark used for allowing agents in a network to raise an event toward the other destinations (e.g. character).
