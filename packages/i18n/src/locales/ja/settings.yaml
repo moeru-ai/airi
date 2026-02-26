@@ -88,6 +88,8 @@ pages:
     card_not_found: カードが見つかりません
     character: キャラクター
     close: 閉じる
+    chat:
+      provider: Chat / Provider
     consciousness:
       model: 意識 / モデル
     created_by: 作成者
@@ -116,6 +118,9 @@ pages:
         scenario: あなたは最近目覚め、前世のすべてを忘れてしまいました。
         systemprompt: 受け取ったメッセージに、本物の人間のように答えてください。
         posthistoryinstructions: 人間の真似をすることを忘れないでください。
+      modules_info: Configure modules for this character card. If not set, default module configuration will be used.
+      use_default: Use default
+      use_default_not_configured: Use default (not configured)
       fields_info:
         subtitle: >-
           ここに作成するキャラクターの詳細、履歴とコンテキスト、 およびあなたにどう返答してほしいか記述できます。
@@ -132,6 +137,8 @@ pages:
         posthistoryinstructions: メッセージ履歴の後にAI LLMに読んでほしい内容をここに配置してください。
         version: >-
           カードのバージョン。以前のカードから変更を加える場合は、これを増やす必要があります。
+        consciousness_model: Select the consciousness model (AI model) for this character.
+        speech_model: Select the speech synthesis model and voice for this character.
       errors:
         name: 名前は有効であるか、空でない必要があります。
         version: 'エラー: 無効なバージョン番号です！'
@@ -152,6 +159,7 @@ pages:
     search: カードを検索…
     sort_by: 並び替え
     speech:
+      provider: Speech / Provider
       model: 発話/モデル
       voice: 発話/音声
     systemprompt: システムプロンプト
@@ -294,7 +302,7 @@ pages:
             search_results: 結果{total}個中{count}個のモデルが見つかりました
             show_less: 表示を減らす
             show_more: もっと表示
-            subtitle: プロバイダーからモデルを選択
+            subtitle: Select a default model from the provider
             title: モデル
       title: 意識
     description: 思考、視覚、音声合成、ゲームなど。
@@ -650,6 +658,12 @@ pages:
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry
+      minimax:
+        description: minimaxi.com
+        title: MiniMax
+      minimax-global:
+        description: minimax.io
+        title: MiniMax Global
       mistral:
         description: mistral.ai
         title: Mistral

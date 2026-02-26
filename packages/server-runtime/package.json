@@ -41,6 +41,7 @@
     "h3": "^2.0.1-rc.11",
     "listhen": "^1.9.0",
     "nanoid": "catalog:",
-    "srvx": "^0.10.1"
+    "srvx": "^0.10.1",
+    "superjson": "catalog:"
   }
 }

@@ -67,7 +67,7 @@
     "smol-toml": "^1.6.0",
     "taze": "^19.9.2",
     "tinyexec": "^1.0.2",
-    "tsdown": "^0.17.4",
+    "tsdown": "catalog:",
     "tsx": "^4.21.0",
     "turbo": "^2.7.5",
     "typescript": "~5.9.3",

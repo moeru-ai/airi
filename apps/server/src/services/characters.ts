@@ -1,4 +1,3 @@
-import type * as fullSchema from '../schemas'
 import type { Database } from './db'
 
 import { and, eq, isNull, sql } from 'drizzle-orm'
@@ -6,7 +5,7 @@ import { and, eq, isNull, sql } from 'drizzle-orm'
 import * as schema from '../schemas/characters'
 import * as userCharacterSchema from '../schemas/user-character'
 
-export function createCharacterService(db: Database<typeof fullSchema>) {
+export function createCharacterService(db: Database) {
   return {
     async findById(id: string) {
       return await db.query.character.findFirst({

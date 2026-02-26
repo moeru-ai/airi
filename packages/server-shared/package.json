@@ -33,7 +33,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@xsai/shared": "catalog:",
-    "@xsai/shared-chat": "catalog:"
+    "@proj-airi/plugin-protocol": "workspace:*"
   }
 }

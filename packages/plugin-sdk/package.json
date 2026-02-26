@@ -18,6 +18,11 @@
     ".": {
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"
+    },
+    "./plugin-host": {
+      "types": "./dist/plugin-host/index.d.mts",
+      "node": "./dist/plugin-host/runtimes/node/index.mjs",
+      "default": "./dist/plugin-host/runtimes/web/index.mjs"
     }
   },
   "main": "./dist/index.mjs",
@@ -31,5 +36,12 @@
     "dev": "pnpm run build",
     "build": "tsdown",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@moeru/eventa": "catalog:",
+    "@proj-airi/plugin-protocol": "workspace:*",
+    "@proj-airi/server-shared": "workspace:*",
+    "valibot": "^1.2.0",
+    "xstate": "^5.20.1"
   }
 }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { RouterView } from 'vue-router'
 
 import HeaderLink from '../components/Layouts/HeaderLink.vue'
@@ -16,6 +17,7 @@ import HeaderLink from '../components/Layouts/HeaderLink.vue'
   >
     <!-- Header -->
     <div
+      v-if="!isStageTamagotchi()"
       class="px-0 py-1 md:px-3 md:py-3"
       w-full gap-2
       bg="$bg-color"

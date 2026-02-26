@@ -13,9 +13,8 @@ import ControlsIslandFadeOnHover from './controls-island-fade-on-hover.vue'
 import ControlsIslandHearingConfig from './controls-island-hearing-config.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
-import { electronOpenChat, electronOpenSettings, electronStartDraggingWindow } from '../../../../shared/eventa'
+import { electron, electronOpenChat, electronOpenSettings, electronStartDraggingWindow } from '../../../../shared/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke } from '../../../composables/electron-vueuse/use-electron-eventa-context'
-import { isLinux } from '../../../utils/platform'
 
 const { isDark, toggleDark } = useTheme()
 const { t } = useI18n()
@@ -27,6 +26,7 @@ const { enabled } = storeToRefs(settingsAudioDeviceStore)
 const { controlsIslandIconSize } = storeToRefs(settingsStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const openChat = useElectronEventaInvoke(electronOpenChat)
+const isLinux = useElectronEventaInvoke(electron.app.isLinux)
 
 // Responsive icon & button sizing based on window height
 const { height: windowHeight } = useWindowSize()
@@ -65,7 +65,7 @@ const adjustStyleClasses = computed(() => {
  *
  * See `apps/stage-tamagotchi/src/main/windows/main/index.ts` for handler definition
  */
-const startDraggingWindow = !isLinux ? defineInvoke(context.value, electronStartDraggingWindow) : undefined
+const startDraggingWindow = !isLinux() ? defineInvoke(context.value, electronStartDraggingWindow) : undefined
 
 // Expose whether hearing dialog is open so parent can disable click-through
 const hearingDialogOpen = ref(false)

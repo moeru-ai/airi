@@ -1,21 +1,27 @@
 <script setup lang="ts">
 import SettingsGeneralFields from '@proj-airi/stage-pages/components/settings-general-fields.vue'
 
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { FieldCheckbox } from '@proj-airi/ui'
+import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { electronRestartWebSocketServer } from '../../../../shared/eventa'
+import { electronApplyServerChannelConfig } from '../../../../shared/eventa'
 import { useElectronEventaInvoke } from '../../../composables/electron-vueuse'
+import { useServerChannelSettingsStore } from '../../../stores/settings/server-channel'
 
-const settings = useSettings()
+const serverChannelSettingsStore = useServerChannelSettingsStore()
+const { websocketTlsConfig } = storeToRefs(serverChannelSettingsStore)
 const { t } = useI18n()
 
-const restartServer = useElectronEventaInvoke(electronRestartWebSocketServer)
+const applyServerChannelConfig = useElectronEventaInvoke(electronApplyServerChannelConfig)
 
-watch(() => settings.websocketSecureEnabled, async (newValue) => {
-  await restartServer({ websocketSecureEnabled: newValue })
+function setWebSocketTlsEnabled(value: boolean) {
+  websocketTlsConfig.value = value ? {} : null
+}
+
+watch(() => websocketTlsConfig.value != null, async (newValue) => {
+  await applyServerChannelConfig({ websocketTlsConfig: newValue ? {} : null })
 })
 </script>
 
@@ -23,14 +29,15 @@ watch(() => settings.websocketSecureEnabled, async (newValue) => {
   <SettingsGeneralFields>
     <template #additional-fields>
       <FieldCheckbox
-        v-model="settings.websocketSecureEnabled"
         v-motion
+        :model-value="websocketTlsConfig != null"
         :initial="{ opacity: 0, y: 10 }"
         :enter="{ opacity: 1, y: 0 }"
         :duration="250 + (5 * 10)"
         :delay="5 * 50"
         :label="t('settings.websocket-secure-enabled.title')"
         :description="t('settings.websocket-secure-enabled.description')"
+        @update:model-value="setWebSocketTlsEnabled"
       />
     </template>
   </SettingsGeneralFields>

@@ -83,9 +83,20 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
   - `pnpm -F <package.json name> build`
   - Example: `pnpm -F @proj-airi/stage-tamagotchi build` (typecheck + electron-vite build).
 
+## Development Practices
+
+- Favor clear module boundaries; shared logic goes in `packages/`.
+- Keep runtime entrypoints lean; move heavy logic into services/modules.
+- Prefer functional patterns + DI (`injeca`) for testability.
+- Use Valibot for schema validation; keep schemas close to their consumers.
+- Use Eventa (`@moeru/eventa`) for structured IPC/RPC contracts where needed.
+- Do not add backward-compatibility guards. If extended support is required, write refactor docs and spin up another Codex or Claude Code instance via shell command to complete the implementation with clear instructions and the expected post-refactor shape.
+- If the refactor scope is small, do a progressive refactor step by step.
+- When modifying code, always check for opportunities to do small, minimal progressive refactors alongside the change.
+
 ## Styling & Components
 
-- Prefer Vue v-bind class arrays for readability when working with UnoCSS & tailwindcss: do `:class="['px-2','py-1','flex','items-center','bg-white/50','dark:bg-black/50']"`, don't do `class="px-2 py-1 flex items-center bg-white/50 dark:bg-black/50"`, don't do `px="2" py="1" flex="~ items-center" bg="white/50 dark:black/50"`; avoid long inline `class=""`. Refactor legacy when you touch it.
+- Prefer Vue v-bind class arrays for readability when working with UnoCSS & tailwindcss: do `:class="['px-2 py-1','flex items-center','bg-white/50 dark:bg-black/50']"`, don't do `class="px-2 py-1 flex items-center bg-white/50 dark:bg-black/50"`, don't do `px="2" py="1" flex="~ items-center" bg="white/50 dark:black/50"`; avoid long inline `class=""`. Refactor legacy when you touch it.
 - Use/extend UnoCSS shortcuts/rules in `uno.config.ts`; add new shortcuts/rules/plugins there when standardizing styles. Prefer UnoCSS over Tailwind.
 - Check `apps/stage-web/src/styles` for existing animations; reuse or extend before adding new ones. If you need config references, see `apps/stage-web/tsconfig.json` and `uno.config.ts`.
 - Build primitives on `@proj-airi/ui` (reka-ui) instead of raw DOM; see `packages/ui/src/components/Form` for patterns.
@@ -105,6 +116,9 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - Keep JSON Schemas provider-compliant (explicit `type: object`, required fields; avoid unbounded records).
 - Favor functional patterns + DI (`injeca`); avoid new class hierarchies unless extending browser APIs (classes are harder to mock/test).
 - Centralize Eventa contracts; use `@moeru/eventa` for all events.
+- When a user asks to use a specific tool or dependency, first check Context7 docs with the search tool, then inspect actual usage of the dependency in this repo.
+- If multiple names are returned from Context7 without a clear distinction, ask the user to choose or confirm the desired one.
+- If docs conflict with typecheck results, inspect the dependency source under `node_modules` to diagnose root cause and fix types/bugs.
 
 ## i18n
 
@@ -118,7 +132,10 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 ## Naming & Comments
 
 - File names: kebab-case.
-- Avoid classes unless necessary for browser API extensions; FP + DI is easier to test/mock.
+- Avoid classes unless extending runtime/browser APIs; FP + DI is easier to test/mock.
+- Add clear, concise comments for utils, math, OS-interaction, algorithm, shared, and architectural functions that explain what the function does.
+- When using a workaround, add a `// NOTICE:` comment explaining why, the root cause, and any source context. If validated via `node_modules` inspection or external sources (e.g., GitHub), include relevant line references and links in code-formatted text.
+- When moving/refactoring/fixing/updating code, keep existing comments intact and move them with the code. If a comment is truly unnecessary, replace it with a comment stating it previously described X and why it was removed.
 - Avoid stubby/hacky scaffolding; prefer small refactors that leave code cleaner.
 - Use markers:
   - `// TODO:` follow-ups
@@ -131,3 +148,6 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - Summarize changes, how tested (commands), and follow-ups.
 - Improve legacy you touch; avoid one-off patterns.
 - Keep changes scoped; use workspace filters (`pnpm -F <workspace> <script>`).
+- Maintain structured `README.md` documentation for each `packages/` and `apps/` entry, covering what it does, how to use it, when to use it, and when not to use it.
+- Always run `pnpm typecheck` and `pnpm lint:fix` after finishing a task.
+- Use Conventional Commits for commit messages (e.g., `feat: add runner reconnect backoff`).

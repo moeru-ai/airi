@@ -88,6 +88,8 @@ pages:
     card_not_found: Không tìm thấy thẻ
     character: Nhân vật
     close: Đóng
+    chat:
+      provider: Chat / Provider
     consciousness:
       model: Ý thức / Mô hình
     created_by: được tạo bởi
@@ -116,6 +118,9 @@ pages:
         scenario: Bạn vừa tỉnh dậy và quên hết quá khứ.
         systemprompt: Bạn sẽ nhận tin nhắn và trả lời như một con người thực sự.
         posthistoryinstructions: Nhớ bắt chước như một con người.
+      modules_info: Configure modules for this character card. If not set, default module configuration will be used.
+      use_default: Use default
+      use_default_not_configured: Use default (not configured)
       fields_info:
         subtitle: >-
           Bạn có thể thêm chi tiết về nhân vật, giải thích lịch sử, bối cảnh và cách nhân vật nên trả lời.
@@ -132,6 +137,8 @@ pages:
         posthistoryinstructions: Đặt thông tin mà AI LLM nên đọc sau lịch sử hội thoại.
         version: >-
           Phiên bản thẻ, hãy tăng giá trị này nếu bạn đã chỉnh sửa thẻ từ trước.
+        consciousness_model: Select the consciousness model (AI model) for this character.
+        speech_model: Select the speech synthesis model and voice for this character.
       errors:
         name: Tên không hợp lệ hoặc rỗng.
         version: 'Lỗi: Số phiên bản không hợp lệ!'
@@ -152,6 +159,7 @@ pages:
     search: Tìm thẻ...
     sort_by: Sắp xếp theo
     speech:
+      provider: Speech / Provider
       model: Giọng nói / Mô hình
       voice: Giọng nói / Giọng
     systemprompt: Lời nhắc hệ thống
@@ -294,7 +302,7 @@ pages:
             search_results: Tìm thấy {count}/{total} mô hình
             show_less: Ẩn bớt
             show_more: Hiện thêm
-            subtitle: Chọn mô hình từ nhà cung cấp
+            subtitle: Select a default model from the provider
             title: Mô hình
       title: Ý thức
     description: Tư duy, thị giác, tổng hợp giọng nói, chơi game, v.v.
@@ -650,6 +658,12 @@ pages:
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry
+      minimax:
+        description: minimaxi.com
+        title: MiniMax
+      minimax-global:
+        description: minimax.io
+        title: MiniMax Global
       mistral:
         description: mistral.ai
         title: Mistral

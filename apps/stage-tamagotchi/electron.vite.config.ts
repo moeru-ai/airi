@@ -38,6 +38,7 @@ export default defineConfig({
     // Thanks to [@Maqsyo](https://github.com/Maqsyo)
     // https://github.com/alex8088/electron-vite/issues/99#issuecomment-1862671727
     base: './',
+
     build: {
       rolldownOptions: {
         input: {
@@ -46,6 +47,7 @@ export default defineConfig({
         },
       },
     },
+
     optimizeDeps: {
       exclude: [
         // Internal Packages
@@ -74,6 +76,7 @@ export default defineConfig({
         '@framework/model/cubismmoc',
       ],
     },
+
     resolve: {
       alias: {
         '@proj-airi/server-sdk': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-sdk', 'src')),
@@ -83,6 +86,7 @@ export default defineConfig({
         '@proj-airi/stage-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-shared', 'src')),
       },
     },
+
     server: {
       warmup: {
         clientFiles: [
@@ -91,6 +95,7 @@ export default defineConfig({
         ],
       },
     },
+
     worker: {
       format: 'es',
       rollupOptions: {

@@ -12,6 +12,7 @@ import { availableLogLevelStrings, Format, LogLevelString, logLevelStringToLogLe
 import { MessageHeartbeat, MessageHeartbeatKind, WebSocketEventSource } from '@proj-airi/server-shared/types'
 import { defineWebSocketHandler, H3 } from 'h3'
 import { nanoid } from 'nanoid'
+import { stringify } from 'superjson'
 
 import packageJSON from '../package.json'
 
@@ -23,49 +24,52 @@ import {
   matchesDestinations,
 } from './middlewares'
 
-function createServerEventMetadata(serverInstanceId: string, parentId?: string) {
+function createServerEventMetadata(serverInstanceId: string, parentId?: string): { source: MetadataEventSource, event: { id: string, parentId?: string } } {
   return {
     event: {
       id: nanoid(),
       parentId,
     },
     source: {
-      plugin: WebSocketEventSource.Server,
-      instanceId: serverInstanceId,
-      version: packageJSON.version,
+      kind: 'plugin',
+      plugin: {
+        id: WebSocketEventSource.Server,
+        version: packageJSON.version,
+      },
+      id: serverInstanceId,
     },
   }
 }
 
-// pre-stringified responses
+// pre-stringified responses, make sure to use the `send` helper function to send them
 const RESPONSES = {
-  authenticated: (serverInstanceId: string, parentId?: string) => JSON.stringify({
+  authenticated: (serverInstanceId: string, parentId?: string) => ({
     type: 'module:authenticated',
     data: { authenticated: true },
     metadata: createServerEventMetadata(serverInstanceId, parentId),
-  } satisfies WebSocketEvent),
-  notAuthenticated: (serverInstanceId: string, parentId?: string) => JSON.stringify({
+  }),
+  notAuthenticated: (serverInstanceId: string, parentId?: string) => ({
     type: 'error',
     data: { message: 'not authenticated' },
     metadata: createServerEventMetadata(serverInstanceId, parentId),
-  } satisfies WebSocketEvent),
-  error: (message: string, serverInstanceId: string, parentId?: string) => JSON.stringify({
+  }),
+  error: (message: string, serverInstanceId: string, parentId?: string) => ({
     type: 'error',
     data: { message },
     metadata: createServerEventMetadata(serverInstanceId, parentId),
   }),
-  heartbeat: (kind: MessageHeartbeatKind, message: MessageHeartbeat | string, serverInstanceId: string, parentId?: string) => JSON.stringify({
+  heartbeat: (kind: MessageHeartbeatKind, message: MessageHeartbeat | string, serverInstanceId: string, parentId?: string) => ({
     type: 'transport:connection:heartbeat',
     data: { kind, message, at: Date.now() },
     metadata: createServerEventMetadata(serverInstanceId, parentId),
-  } satisfies WebSocketEvent),
-}
+  }),
+} satisfies Record<string, (...args: unknown[]) => WebSocketEvent<Record<string, unknown>>>
 
 const DEFAULT_HEARTBEAT_TTL_MS = 60_000
 
 // helper send function
 function send(peer: Peer, event: WebSocketEvent<Record<string, unknown>> | string) {
-  peer.send(typeof event === 'string' ? event : JSON.stringify(event))
+  peer.send(typeof event === 'string' ? event : stringify(event))
 }
 
 export function setupApp(options?: {
@@ -160,14 +164,33 @@ export function setupApp(options?: {
     }
   }
 
+  function listKnownModules() {
+    return Array.from(peers.values())
+      .filter(peerInfo => peerInfo.name && peerInfo.identity)
+      .map(peerInfo => ({
+        name: peerInfo.name,
+        index: peerInfo.index,
+        identity: peerInfo.identity!,
+      }))
+  }
+
+  function sendRegistrySync(peer: Peer, parentId?: string) {
+    send(peer, {
+      type: 'registry:modules:sync',
+      data: { modules: listKnownModules() },
+      metadata: createServerEventMetadata(instanceId, parentId),
+    })
+  }
+
   app.get('/ws', defineWebSocketHandler({
     open: (peer) => {
       if (authToken) {
         peers.set(peer.id, { peer, authenticated: false, name: '', lastHeartbeatAt: Date.now() })
       }
       else {
-        peer.send(RESPONSES.authenticated)
+        send(peer, RESPONSES.authenticated(instanceId))
         peers.set(peer.id, { peer, authenticated: true, name: '', lastHeartbeatAt: Date.now() })
+        sendRegistrySync(peer)
       }
 
       logger.withFields({ peer: peer.id, activePeers: peers.size }).log('connected')
@@ -222,11 +245,13 @@ export function setupApp(options?: {
             return
           }
 
-          peer.send(RESPONSES.authenticated)
+          send(peer, RESPONSES.authenticated(instanceId, event.metadata?.event.id))
           const p = peers.get(peer.id)
           if (p) {
             p.authenticated = true
           }
+
+          sendRegistrySync(peer, event.metadata?.event.id)
 
           return
         }
@@ -253,6 +278,11 @@ export function setupApp(options?: {
               return
             }
           }
+          if (!identity || identity.kind !== 'plugin' || !identity.plugin?.id) {
+            send(peer, RESPONSES.error('module identity must include kind=plugin and a plugin id for event \'module:announce\'', instanceId))
+
+            return
+          }
           if (authToken && !p.authenticated) {
             send(peer, RESPONSES.error('must authenticate before announcing', instanceId))
 
@@ -271,7 +301,15 @@ export function setupApp(options?: {
         }
 
         case 'ui:configure': {
-          const { moduleName, moduleIndex, config } = event.data
+          const data = event.data as {
+            moduleName?: string
+            moduleIndex?: number
+            identity?: MetadataEventSource
+            config?: Record<string, unknown>
+          }
+          const moduleName = data.moduleName ?? data.identity?.plugin?.id ?? ''
+          const moduleIndex = data.moduleIndex
+          const config = data.config
 
           if (moduleName === '') {
             send(peer, RESPONSES.error('the field \'moduleName\' can\'t be empty for event \'ui:configure\'', instanceId))
@@ -307,12 +345,12 @@ export function setupApp(options?: {
       const p = peers.get(peer.id)
       if (!p?.authenticated) {
         logger.withFields({ peer: peer.id, peerName: p?.name, peerRemote: peer.remoteAddress, peerRequest: peer.request.url }).debug('not authenticated')
-        peer.send(RESPONSES.notAuthenticated)
+        send(peer, RESPONSES.notAuthenticated(instanceId, event.metadata?.event.id))
 
         return
       }
 
-      const payload = JSON.stringify(event)
+      const payload = stringify(event)
       const allowBypass = options?.routing?.allowBypass !== false
       const shouldBypass = Boolean(event.route?.bypass && allowBypass && isDevtoolsPeer(p))
       const destinations = shouldBypass ? undefined : collectDestinations(event)

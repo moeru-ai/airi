@@ -10,17 +10,9 @@ import { ipcMain } from 'electron'
 
 import { electronOpenChat, electronOpenMainDevtools, electronOpenSettings, noticeWindowEventa } from '../../../../shared/eventa'
 import { createWidgetsService } from '../../../services/airi/widgets'
-import { createAppService, createAutoUpdaterService, createScreenService, createWindowService } from '../../../services/electron'
+import { createAutoUpdaterService } from '../../../services/electron'
 import { toggleWindowShow } from '../../shared'
-
-export function setupBaseWindowElectronInvokes(params: {
-  context: ReturnType<typeof createContext>['context']
-  window: BrowserWindow
-}) {
-  createScreenService({ context: params.context, window: params.window })
-  createWindowService({ context: params.context, window: params.window })
-  createAppService({ context: params.context, window: params.window })
-}
+import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 export function setupMainWindowElectronInvokes(params: {
   window: BrowserWindow

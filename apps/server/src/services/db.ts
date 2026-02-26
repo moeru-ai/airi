@@ -1,9 +1,17 @@
 import postgres from 'postgres'
 
+import { migrate } from '@proj-airi/drizzle-orm-browser-migrator/pg'
+import { migrations } from '@proj-airi/server-schema'
 import { drizzle } from 'drizzle-orm/postgres-js'
 
-export type Database<TSchema extends Record<string, unknown>> = ReturnType<typeof createDrizzle<TSchema>>
+import * as fullSchema from '../schemas'
 
-export function createDrizzle<TSchema extends Record<string, unknown>>(dsn: string, schema?: TSchema) {
-  return drizzle(postgres(dsn), { schema })
+export type Database = ReturnType<typeof createDrizzle>
+
+export function createDrizzle(dsn: string) {
+  return drizzle(postgres(dsn), { schema: fullSchema })
+}
+
+export function migrateDatabase(db: Database) {
+  return migrate(db, migrations)
 }

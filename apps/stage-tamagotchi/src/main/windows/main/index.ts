@@ -1,4 +1,5 @@
-import type { BrowserWindowConstructorOptions, Rectangle } from 'electron'
+import type { Rectangle } from 'electron'
+import type { InferOutput } from 'valibot'
 
 import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { NoticeWindowManager } from '../notice'
@@ -17,18 +18,28 @@ import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/m
 import { defu } from 'defu'
 import { BrowserWindow, ipcMain, shell } from 'electron'
 import { isLinux, isMacOS } from 'std-env'
+import { array, number, object, optional, string } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
 
 import { electronStartDraggingWindow } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load } from '../../libs/electron/location'
+import { createConfig } from '../../libs/electron/persistence'
 import { transparentWindowConfig } from '../shared'
-import { createConfig } from '../shared/persistence'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
 
-interface AppConfig {
-  windows?: Array<Pick<BrowserWindowConstructorOptions, 'title' | 'x' | 'y' | 'width' | 'height'> & { tag: string }>
-}
+const appConfigSchema = object({
+  windows: optional(array(object({
+    title: optional(string()),
+    tag: string(),
+    x: optional(number()),
+    y: optional(number()),
+    width: optional(number()),
+    height: optional(number()),
+  }))),
+})
+
+type AppConfig = InferOutput<typeof appConfigSchema>
 
 export async function setupMainWindow(params: {
   settingsWindow: () => Promise<BrowserWindow>
@@ -40,13 +51,17 @@ export async function setupMainWindow(params: {
 }) {
   const {
     setup: setupConfig,
-    get: getConfig,
+    get: getConfigRaw,
     update: updateConfig,
-  } = createConfig<AppConfig>('app', 'config.json', { default: { windows: [] } })
+  } = createConfig('app', 'config.json', appConfigSchema, {
+    default: { windows: [] },
+    autoHeal: true,
+  })
+  const getConfig = (): AppConfig => getConfigRaw() ?? { windows: [] }
 
   setupConfig()
 
-  const mainWindowConfig = getConfig()?.windows?.find(w => w.title === 'AIRI' && w.tag === 'main')
+  const mainWindowConfig = getConfig().windows?.find(w => w.title === 'AIRI' && w.tag === 'main')
 
   const window = new BrowserWindow({
     title: 'AIRI',
@@ -83,7 +98,7 @@ export async function setupMainWindow(params: {
   }
 
   function handleNewBounds(newBounds: Rectangle) {
-    const config = getConfig()!
+    const config = getConfig()
     if (!config.windows || !Array.isArray(config.windows)) {
       config.windows = []
     }

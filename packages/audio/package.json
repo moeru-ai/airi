@@ -53,11 +53,10 @@
     }
   },
   "dependencies": {
-    "@alexanderolsen/libsamplerate-js": "^2.1.2"
+    "@alexanderolsen/libsamplerate-js": "^2.1.2",
+    "@moeru/std": "catalog:"
   },
   "devDependencies": {
-    "@moeru/std": "catalog:",
-    "@types/audioworklet": "^0.0.93",
-    "vite": "catalog:"
+    "@types/audioworklet": "^0.0.93"
   }
 }

@@ -1,4 +1,5 @@
 import type { BrowserWindow, Rectangle } from 'electron'
+import type { InferOutput } from 'valibot'
 
 import type { WidgetsAddPayload, WidgetSnapshot } from '../../../shared/eventa'
 
@@ -7,13 +8,14 @@ import { join, resolve } from 'node:path'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen, shell } from 'electron'
 import { isMacOS } from 'std-env'
+import { number, object, optional } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
 
 import { widgetsClearEvent, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdateEvent } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { createConfig } from '../shared/persistence'
 import { spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
 import { setupWidgetsWindowInvokes } from './rpc/index.electron'
 
@@ -28,9 +30,16 @@ export interface WidgetsWindowManager {
   prepareWidgetWindow: (options?: { id?: string }) => string
 }
 
-interface WidgetsWindowConfig {
-  bounds?: Rectangle
-}
+const widgetsWindowConfigSchema = object({
+  bounds: optional(object({
+    x: number(),
+    y: number(),
+    width: number(),
+    height: number(),
+  })),
+})
+
+type WidgetsWindowConfig = InferOutput<typeof widgetsWindowConfigSchema>
 
 function computeDefaultBounds(): Rectangle {
   const primary = screen.getPrimaryDisplay().workArea
@@ -85,7 +94,11 @@ interface WidgetWindowContext {
 }
 
 export function setupWidgetsWindowManager(): WidgetsWindowManager {
-  const { setup, get, update } = createConfig<WidgetsWindowConfig>('windows-widgets', 'config.json', { default: {} })
+  const { setup, get: getConfigRaw, update } = createConfig('windows-widgets', 'config.json', widgetsWindowConfigSchema, {
+    default: {},
+    autoHeal: true,
+  })
+  const getConfig = (): WidgetsWindowConfig => getConfigRaw() ?? {}
   setup()
 
   let eventaContext: ReturnType<typeof createContext>['context'] | undefined
@@ -110,7 +123,7 @@ export function setupWidgetsWindowManager(): WidgetsWindowManager {
     const { context } = createContext(ipcMain, window)
     eventaContext = context
 
-    const saved = get()?.bounds
+    const saved = getConfig().bounds
     if (saved) {
       const work = screen.getDisplayMatching(saved).workArea
       const clamped: Rectangle = {

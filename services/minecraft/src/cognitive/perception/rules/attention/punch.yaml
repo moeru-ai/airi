@@ -1,0 +1,25 @@
+name: punch-attention
+version: 1
+
+trigger:
+  modality: sighted
+  kind: arm_swing
+  where:
+    entityType: player
+    distance:
+      lt: 10
+
+accumulator:
+  threshold: 5
+  window: 2s
+  mode: sliding
+
+signal:
+  type: entity_attention
+  description: 'Player {{ displayName }} is punching nearby'
+  confidence: 1.0
+  metadata:
+    action: punch
+    distance: '{{ distance }}'
+    displayName: '{{ displayName }}'
+    hasLineOfSight: '{{ hasLineOfSight }}'

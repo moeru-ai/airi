@@ -5,15 +5,25 @@
       "name": "Debug Main Process",
       "type": "node",
       "request": "launch",
-      "cwd": "${workspaceRoot}",
-      "runtimeExecutable": "${workspaceRoot}/node_modules/.bin/electron-vite",
+      "cwd": "${workspaceRoot}/apps/stage-tamagotchi",
+      "runtimeExecutable": "${workspaceRoot}/apps/stage-tamagotchi/node_modules/.bin/electron-vite",
       "windows": {
-        "runtimeExecutable": "${workspaceRoot}/node_modules/.bin/electron-vite.cmd"
+        "runtimeExecutable": "${workspaceRoot}/apps/stage-tamagotchi/node_modules/.bin/electron-vite.cmd"
       },
       "runtimeArgs": ["--sourcemap"],
       "env": {
         "REMOTE_DEBUGGING_PORT": "9222"
       }
+    },
+    {
+      "name": "Debug Minecraft Service",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/services/minecraft",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/tsx",
+      "args": ["--env-file=.env", "--env-file-if-exists=.env.local", "src/main.ts"],
+      "envFile": "${workspaceFolder}/services/minecraft/.env",
+      "skipFiles": ["<node_internals>/**"]
     },
     {
       "name": "Debug Renderer Process",

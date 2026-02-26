@@ -1,4 +1,3 @@
-import type * as fullSchema from '../schemas'
 import type { Database } from './db'
 
 import { and, eq } from 'drizzle-orm'
@@ -46,7 +45,7 @@ function pickCharacterId(members: SyncChatMemberPayload[] | undefined) {
   return members?.find(member => member.type === 'character' && member.characterId)?.characterId
 }
 
-export function createChatService(db: Database<typeof fullSchema>) {
+export function createChatService(db: Database) {
   return {
     async syncChat(userId: string, payload: SyncChatPayload) {
       return await db.transaction(async (tx) => {
