@@ -5,10 +5,10 @@
       "name": "Debug Main Process",
       "type": "node",
       "request": "launch",
-      "cwd": "${workspaceRoot}",
-      "runtimeExecutable": "${workspaceRoot}/node_modules/.bin/electron-vite",
+      "cwd": "${workspaceRoot}/apps/stage-tamagotchi",
+      "runtimeExecutable": "${workspaceRoot}/apps/stage-tamagotchi/node_modules/.bin/electron-vite",
       "windows": {
-        "runtimeExecutable": "${workspaceRoot}/node_modules/.bin/electron-vite.cmd"
+        "runtimeExecutable": "${workspaceRoot}/apps/stage-tamagotchi/node_modules/.bin/electron-vite.cmd"
       },
       "runtimeArgs": ["--sourcemap"],
       "env": {
