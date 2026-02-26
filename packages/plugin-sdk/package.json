@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/plugin-sdk",
   "type": "module",
-  "version": "0.8.5-beta.1",
+  "version": "0.8.5-beta.2",
   "private": true,
   "description": "Plugin SDK for Project AIRI",
   "author": {
