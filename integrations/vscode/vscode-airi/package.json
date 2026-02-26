@@ -2,6 +2,7 @@
   "publisher": "proj-airi",
   "name": "vscode-airi",
   "displayName": "AIRI VSCode adapter",
+  "type": "module",
   "version": "0.8.5-beta.3",
   "private": true,
   "description": "Adapter that connects VSCode into Project AIRI",
