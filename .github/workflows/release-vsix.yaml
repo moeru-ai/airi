@@ -32,8 +32,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build:packages
       - run: pnpm run -F @proj-airi/airi-plugin-vscode build
+      - run: pnpm run -F vscode-airi build
       - run: pnpm run publish
-        working-directory: ./plugins/airi-plugin-vscode
+        working-directory: ./integrations/vscode/vscode-airi
         env:
           VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}
           OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}
