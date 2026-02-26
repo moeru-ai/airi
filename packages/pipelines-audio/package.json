@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/pipelines-audio",
   "type": "module",
-  "version": "0.8.4",
+  "version": "0.8.5-beta.1",
   "private": true,
   "description": "Audio pipeline orchestration for AIRI (capture, VAD, encode, stream)",
   "author": {
