@@ -51,19 +51,19 @@
     "@pixi/utils": "^6.5.10",
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/ui": "workspace:^",
-    "@vueuse/core": "^14.1.0",
+    "@vueuse/core": "^14.2.1",
     "culori": "^4.0.2",
     "es-toolkit": "catalog:",
     "jszip": "^3.10.1",
     "pinia": "^3.0.4",
     "pixi-filters": "4",
     "pixi-live2d-display": "^0.4.0",
-    "three": "^0.182.0",
+    "three": "^0.183.1",
     "vue": "catalog:"
   },
   "devDependencies": {
     "@types/culori": "^4.0.1",
-    "@types/three": "^0.182.0",
-    "vue-tsc": "^3.1.8"
+    "@types/three": "^0.183.1",
+    "vue-tsc": "^3.2.5"
   }
 }

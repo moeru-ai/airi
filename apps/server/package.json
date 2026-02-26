@@ -12,13 +12,13 @@
     "db:push": "pnpm run apply:env -- drizzle-kit push"
   },
   "dependencies": {
-    "@dotenvx/dotenvx": "^1.51.4",
+    "@dotenvx/dotenvx": "^1.52.0",
     "@electric-sql/pglite": "catalog:",
     "@guiiai/logg": "catalog:",
     "@hono/node-server": "^1.19.9",
     "@proj-airi/drizzle-orm-browser-migrator": "^0.1.4",
     "@proj-airi/server-schema": "workspace:*",
-    "better-auth": "^1.4.16",
+    "better-auth": "^1.4.19",
     "drizzle-orm": "^0.45.1",
     "drizzle-valibot": "catalog:",
     "hono": "catalog:",
@@ -28,7 +28,7 @@
     "valibot": "catalog:"
   },
   "devDependencies": {
-    "@better-auth/cli": "^1.4.16",
-    "drizzle-kit": "^0.31.8"
+    "@better-auth/cli": "^1.4.19",
+    "drizzle-kit": "^0.31.9"
   }
 }

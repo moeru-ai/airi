@@ -37,11 +37,11 @@
   "dependencies": {
     "@guiiai/logg": "catalog:",
     "@proj-airi/server-shared": "workspace:^",
-    "crossws": "^0.4.3",
-    "h3": "^2.0.1-rc.11",
+    "crossws": "^0.4.4",
+    "h3": "^2.0.1-rc.14",
     "listhen": "^1.9.0",
     "nanoid": "catalog:",
-    "srvx": "^0.10.1",
+    "srvx": "^0.11.8",
     "superjson": "catalog:"
   }
 }

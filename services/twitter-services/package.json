@@ -12,15 +12,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@browserbasehq/stagehand": "^3.0.7",
+    "@browserbasehq/stagehand": "^3.1.0",
     "@guiiai/logg": "catalog:",
-    "@modelcontextprotocol/sdk": "^1.25.3",
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "@moeru/std": "catalog:",
-    "@proj-airi/server-sdk": "^0.8.1",
-    "h3": "^2.0.1-rc.11",
+    "@proj-airi/server-sdk": "^0.8.4",
+    "h3": "^2.0.1-rc.14",
     "listhen": "^1.9.0",
     "ofetch": "^1.5.1",
-    "playwright": "^1.57.0",
-    "zod": "^4.3.5"
+    "playwright": "^1.58.2",
+    "zod": "^4.3.6"
   }
 }

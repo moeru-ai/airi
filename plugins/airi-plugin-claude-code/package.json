@@ -21,7 +21,7 @@
     "vue": "catalog:"
   },
   "devDependencies": {
-    "@anthropic-ai/claude-code": "^2.1.12",
+    "@anthropic-ai/claude-code": "^2.1.59",
     "tsx": "^4.21.0",
     "vue-tsc": "^3.1.8"
   }

@@ -57,6 +57,6 @@
     "@moeru/std": "catalog:"
   },
   "devDependencies": {
-    "@types/audioworklet": "^0.0.93"
+    "@types/audioworklet": "^0.0.96"
   }
 }
