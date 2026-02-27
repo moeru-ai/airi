@@ -2,11 +2,11 @@ import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow } from 'electron'
 
 import { defineInvokeHandler } from '@moeru/eventa'
+import { bounds, startLoopGetBounds } from '@proj-airi/electron-eventa'
+import { createRendererLoop } from '@proj-airi/electron-vueuse/main'
 
-import { bounds, startLoopGetBounds } from '../../../shared/electron/window'
 import { electron } from '../../../shared/eventa'
 import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecycle'
-import { createRendererLoop } from '../../libs/electron/renderer-loop'
 import { resizeWindowByDelta } from '../../windows/shared/window'
 
 export function createWindowService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
@@ -35,31 +35,31 @@ export function createWindowService(params: { context: ReturnType<typeof createC
   })
 
   defineInvokeHandler(params.context, electron.window.setBounds, (newBounds, options) => {
-    if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
+    if (newBounds && params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
       params.window.setBounds(newBounds[0])
     }
   })
 
   defineInvokeHandler(params.context, electron.window.setIgnoreMouseEvents, (opts, options) => {
-    if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
+    if (opts && params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
       params.window.setIgnoreMouseEvents(...opts)
     }
   })
 
   defineInvokeHandler(params.context, electron.window.setVibrancy, (vibrancy, options) => {
-    if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
+    if (vibrancy && params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
       params.window.setVibrancy(vibrancy[0])
     }
   })
 
   defineInvokeHandler(params.context, electron.window.setBackgroundMaterial, (backgroundMaterial, options) => {
-    if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
+    if (backgroundMaterial && params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
       params.window.setBackgroundMaterial(backgroundMaterial[0])
     }
   })
 
   defineInvokeHandler(params.context, electron.window.resize, (payload, options) => {
-    if (params.window.webContents.id !== options?.raw.ipcMainEvent.sender.id) {
+    if (!payload || params.window.webContents.id !== options?.raw.ipcMainEvent.sender.id) {
       return
     }
 

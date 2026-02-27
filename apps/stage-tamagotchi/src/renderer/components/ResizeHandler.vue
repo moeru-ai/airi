@@ -1,8 +1,7 @@
 <script setup lang="ts">
+import { electron } from '@proj-airi/electron-eventa'
+import { useElectronEventaInvoke, useElectronWindowResize } from '@proj-airi/electron-vueuse'
 import { useAsyncState } from '@vueuse/core'
-
-import { electron } from '../../shared/electron'
-import { useElectronEventaInvoke, useElectronWindowResize } from '../composables/electron-vueuse'
 
 const isWindows = useElectronEventaInvoke(electron.app.isWindows)
 const { handleResizeStart } = useElectronWindowResize()

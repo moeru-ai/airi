@@ -1,11 +1,11 @@
 <script setup lang="ts">
+import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { ButtonBar, CheckBar, IconItem } from '@proj-airi/stage-ui/components'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { electronOpenDevtoolsWindow, electronOpenMainDevtools } from '../../../../shared/eventa'
-import { useElectronEventaInvoke } from '../../../composables/electron-vueuse'
 
 const { t } = useI18n()
 const settings = useSettings()

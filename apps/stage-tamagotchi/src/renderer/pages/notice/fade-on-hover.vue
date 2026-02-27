@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { Button, Checkbox, TransitionVertical } from '@proj-airi/ui'
 import { refDebounced, useDark, useMouseInElement } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -10,7 +11,6 @@ import VideoTutorialFadeOnHoverDark from '../../assets/videos/tutorial/tutorial-
 import VideoTutorialFadeOnHoverLight from '../../assets/videos/tutorial/tutorial-fade-on-hover.light.mp4'
 
 import { noticeWindowEventa } from '../../../shared/eventa'
-import { useElectronEventaContext, useElectronEventaInvoke } from '../../composables/electron-vueuse'
 import { useControlsIslandStore } from '../../stores/controls-island'
 
 const context = useElectronEventaContext()
@@ -41,9 +41,11 @@ onMounted(async () => {
       : Array.isArray(route.query.id)
         ? route.query.id[0]
         : null
+
     const pending = await notifyMounted({ id: id ?? undefined })
-    if (pending?.id && pending.type === 'fade-on-hover')
+    if (pending?.id && pending.type === 'fade-on-hover') {
       requestId.value = pending.id
+    }
   }
   catch (error) {
     console.warn('Failed to notify notice window mounted:', error)
@@ -69,6 +71,7 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
   try {
     if (action === 'confirm')
       dontShowItAgainNoticeFadeOnHover.value = dontShowItAgainNoticeFadeOnHoverPending.value
+
     await sendAction({ id, action })
   }
   catch (error) {

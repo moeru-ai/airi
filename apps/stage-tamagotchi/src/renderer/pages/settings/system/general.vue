@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import SettingsGeneralFields from '@proj-airi/stage-pages/components/settings-general-fields.vue'
 
+import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { FieldCheckbox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { electronApplyServerChannelConfig } from '../../../../shared/eventa'
-import { useElectronEventaInvoke } from '../../../composables/electron-vueuse'
 import { useServerChannelSettingsStore } from '../../../stores/settings/server-channel'
 
 const serverChannelSettingsStore = useServerChannelSettingsStore()

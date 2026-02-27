@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { defineInvokeHandler } from '@moeru/eventa'
+import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
@@ -37,7 +38,6 @@ import {
   pluginProtocolListProviders,
   pluginProtocolListProvidersEventName,
 } from '../shared/eventa'
-import { useElectronEventaContext, useElectronEventaInvoke } from './composables/electron-vueuse'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 
 const { isDark: dark } = useTheme()

@@ -3,6 +3,14 @@ import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
+import { electron } from '@proj-airi/electron-eventa'
+import {
+  useElectronEventaInvoke,
+  useElectronMouseAroundWindowBorder,
+  useElectronMouseInElement,
+  useElectronMouseInWindow,
+  useElectronRelativeMouse,
+} from '@proj-airi/electron-vueuse'
 import { useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
@@ -21,14 +29,6 @@ import { computed, onUnmounted, ref, toRef, watch } from 'vue'
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
-import { electron } from '../../shared/electron'
-import {
-  useElectronEventaInvoke,
-  useElectronMouseAroundWindowBorder,
-  useElectronMouseInElement,
-  useElectronMouseInWindow,
-  useElectronRelativeMouse,
-} from '../composables/electron-vueuse'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useWindowStore } from '../stores/window'
 

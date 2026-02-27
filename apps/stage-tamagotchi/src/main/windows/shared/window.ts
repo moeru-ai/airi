@@ -1,7 +1,6 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
+import type { ResizeDirection } from '@proj-airi/electron-eventa'
 import type { BrowserWindow, BrowserWindowConstructorOptions } from 'electron'
-
-import type { ResizeDirection } from '../../../shared/electron/window'
 
 import { isMacOS } from 'std-env'
 
