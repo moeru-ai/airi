@@ -422,6 +422,7 @@ export interface PluginHostSession {
   plugin: Plugin
   id: string
   index: number
+  cwd: string
   identity: ModuleIdentity
   phase: PluginSessionPhase
   lifecycle: ActorRefFrom<typeof pluginLifecycleMachine>
@@ -482,6 +483,7 @@ export class PluginHost {
   async load(manifest: ManifestV1, options: PluginLoadOptions = {}): Promise<PluginHostSession> {
     // Step 0 (channel gateway preparation): resolve runtime and transport for this plugin.
     const runtime = options.runtime ?? this.runtime
+    const sessionCwd = options.cwd ?? cwd() // Explicitly assign the default CWD.
     const transport = this.transport
 
     // TODO: implement other transports and runtime bindings.
@@ -519,6 +521,7 @@ export class PluginHost {
       plugin: {},
       id,
       index: sessionIndex,
+      cwd: sessionCwd,
       identity,
       phase: lifecycle.getSnapshot().value as PluginSessionPhase,
       lifecycle,
@@ -537,7 +540,7 @@ export class PluginHost {
       // Load plugin module from manifest-selected runtime entrypoint.
       // This is where malformed entrypoints or import errors surface.
       session.plugin = await this.loader.loadPluginFor(manifest, {
-        cwd: options.cwd,
+        cwd: sessionCwd,
         runtime,
       })
 
@@ -906,11 +909,10 @@ export class PluginHost {
     }
 
     const manifest = previous.manifest
-    const cwdValue = options.cwd
     this.stop(sessionId)
     return this.start(manifest, {
       ...options,
-      cwd: cwdValue,
+      cwd: options.cwd ?? previous.cwd,
       runtime: options.runtime ?? previous.runtime,
     })
   }
