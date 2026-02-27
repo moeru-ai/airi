@@ -34,8 +34,9 @@
     "package.json"
   ],
   "scripts": {
-    "dev": "pnpm run build",
     "build": "tsdown",
+    "dev": "pnpm run build",
+    "test": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
