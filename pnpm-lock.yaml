@@ -938,9 +938,15 @@ importers:
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
         version: 0.4.29(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.19.0)(postgres@3.4.8))
+      '@proj-airi/electron-eventa':
+        specifier: workspace:^
+        version: link:../../packages/electron-eventa
       '@proj-airi/electron-screen-capture':
         specifier: workspace:^
         version: link:../../packages/electron-screen-capture
+      '@proj-airi/electron-vueuse':
+        specifier: workspace:^
+        version: link:../../packages/electron-vueuse
       '@proj-airi/font-cjkfonts-allseto':
         specifier: workspace:^
         version: link:../../packages/font-cjkfonts-allseto
@@ -1901,6 +1907,18 @@ importers:
         specifier: ^1.0.2
         version: 1.0.2
 
+  packages/electron-eventa:
+    dependencies:
+      '@moeru/eventa':
+        specifier: ^1.0.0-beta.1
+        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+      builder-util-runtime:
+        specifier: 'catalog:'
+        version: 9.5.1
+      electron:
+        specifier: '>=39 <41'
+        version: 40.6.1
+
   packages/electron-screen-capture:
     dependencies:
       '@guiiai/logg':
@@ -1934,6 +1952,34 @@ importers:
       vite:
         specifier: 'catalog:'
         version: 8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+
+  packages/electron-vueuse:
+    dependencies:
+      '@moeru/eventa':
+        specifier: ^1.0.0-beta.1
+        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.14
+      '@vueuse/core':
+        specifier: 'catalog:'
+        version: 14.1.0(vue@3.5.29(typescript@5.9.3))
+      electron:
+        specifier: '>=39 <41'
+        version: 40.6.1
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.43.0
+      std-env:
+        specifier: 'catalog:'
+        version: 4.0.0-rc.1
+      vue:
+        specifier: '>=3'
+        version: 3.5.29(typescript@5.9.3)
+    devDependencies:
+      '@proj-airi/electron-eventa':
+        specifier: workspace:^
+        version: link:../electron-eventa
 
   packages/font-cjkfonts-allseto: {}
 
