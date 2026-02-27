@@ -68,6 +68,63 @@ describe('for FileSystemPluginHost', () => {
       },
     }, { cwd: '', runtime: 'electron' })).rejects.toThrow('Test error plugin always throws an error during loading.')
   })
+
+  it('should resolve entrypoint by runtime then default then electron', () => {
+    const host = new FileSystemLoader()
+    const baseManifest = {
+      apiVersion: 'v1' as const,
+      kind: 'manifest.plugin.airi.moeru.ai' as const,
+      name: 'test-plugin',
+    }
+
+    const runtimeEntryManifest = {
+      ...baseManifest,
+      entrypoints: {
+        node: './node-entry.ts',
+        default: './default-entry.ts',
+        electron: './electron-entry.ts',
+      },
+    }
+    const defaultFallbackManifest = {
+      ...baseManifest,
+      entrypoints: {
+        default: './default-entry.ts',
+        electron: './electron-entry.ts',
+      },
+    }
+    const electronFallbackManifest = {
+      ...baseManifest,
+      entrypoints: {
+        electron: './electron-entry.ts',
+      },
+    }
+
+    expect(host.resolveEntrypointFor(runtimeEntryManifest, {
+      cwd: '/tmp/plugin',
+      runtime: 'node',
+    })).toBe('/tmp/plugin/node-entry.ts')
+
+    expect(host.resolveEntrypointFor(defaultFallbackManifest, {
+      cwd: '/tmp/plugin',
+      runtime: 'node',
+    })).toBe('/tmp/plugin/default-entry.ts')
+
+    expect(host.resolveEntrypointFor(electronFallbackManifest, {
+      cwd: '/tmp/plugin',
+      runtime: 'node',
+    })).toBe('/tmp/plugin/electron-entry.ts')
+  })
+
+  it('should throw deterministic error when no runtime entrypoint exists', () => {
+    const host = new FileSystemLoader()
+
+    expect(() => host.resolveEntrypointFor({
+      apiVersion: 'v1',
+      kind: 'manifest.plugin.airi.moeru.ai',
+      name: 'test-plugin',
+      entrypoints: {},
+    }, { runtime: 'node' })).toThrow('Plugin entrypoint is required for runtime `node`.')
+  })
 })
 
 describe('for PluginHost', () => {
@@ -222,5 +279,29 @@ describe('for PluginHost', () => {
       requiredCapabilities: ['cap:missing'],
       capabilityWaitTimeoutMs: 10,
     })).rejects.toThrow('Capability `cap:missing` is not ready after 10ms.')
+  })
+
+  it('should preserve previous cwd when reloading plugin', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+    reportPluginCapability(host, {
+      key: providersCapability,
+      state: 'ready',
+      metadata: { source: 'test' },
+    })
+
+    const session = await host.start({
+      apiVersion: 'v1',
+      kind: 'manifest.plugin.airi.moeru.ai',
+      name: 'test-reload-relative-entrypoint',
+      entrypoints: {
+        electron: './test-normal-plugin.ts',
+      },
+    }, { cwd: join(import.meta.dirname, 'testdata') })
+
+    const reloaded = await host.reload(session.id)
+    expect(reloaded.phase).toBe('ready')
   })
 })
