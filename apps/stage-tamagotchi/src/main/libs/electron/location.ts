@@ -77,7 +77,7 @@ export async function load(window: BrowserWindow, url: string | { url: string, o
           //
           // https://github.com/electron/electron/issues/17526
           // https://github.com/electron/electron/blob/8d05285a1f39c759985b17c89a449e4a6b3960df/lib/browser/api/web-contents.ts#L370-L387
-          console.warn('Electron navigation error with hash route, ignoring:', error, 'url:', url.url)
+          console.warn('Electron navigation error with hash route, ignoring:', error.message, 'url:', url.url)
 
           return
         }
