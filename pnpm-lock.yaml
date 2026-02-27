@@ -2089,7 +2089,7 @@ importers:
         version: 0.1.0-beta.14
 
   packages/server-shared:
-    devDependencies:
+    dependencies:
       '@proj-airi/plugin-protocol':
         specifier: workspace:*
         version: link:../plugin-protocol
