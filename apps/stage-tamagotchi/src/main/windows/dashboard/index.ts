@@ -18,7 +18,7 @@ import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { defu } from 'defu'
 import { BrowserWindow, ipcMain, shell } from 'electron'
-import { isLinux } from 'std-env'
+import { isLinux, isMacOS } from 'std-env'
 import { array, number, object, optional, string } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -26,6 +26,7 @@ import icon from '../../../../resources/icon.png?asset'
 import { electronStartDraggingWindow } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
+import { spotlightLikeWindowConfig } from '../shared/window'
 import { setupDashboardWindowElectronInvokes } from './rpc/index.electron'
 
 const appConfigSchema = object({
@@ -75,6 +76,10 @@ export async function setupDashboardWindow(params: {
       preload: join(dirname(fileURLToPath(import.meta.url)), '../preload/index.mjs'),
       sandbox: false,
     },
+    ...spotlightLikeWindowConfig(),
+    ...(isMacOS ? { trafficLightPosition: { x: 14, y: 14 } } : {}),
+    // TODO: implement native-like custom window control UI for Windows/Linux.
+    ...(!isMacOS ? { titleBarOverlay: true } : {}),
   })
 
   if (params.onWindowCreated) {
@@ -132,7 +137,7 @@ export async function setupDashboardWindow(params: {
     return { action: 'deny' }
   })
 
-  await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/dashboard'))
+  await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/v2/dashboard'))
 
   await setupDashboardWindowElectronInvokes({
     window,
