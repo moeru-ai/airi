@@ -2145,6 +2145,12 @@ importers:
       '@proj-airi/ccc':
         specifier: workspace:*
         version: link:../ccc
+      '@proj-airi/electron-eventa':
+        specifier: workspace:*
+        version: link:../electron-eventa
+      '@proj-airi/electron-vueuse':
+        specifier: workspace:*
+        version: link:../electron-vueuse
       '@proj-airi/i18n':
         specifier: workspace:*
         version: link:../i18n
