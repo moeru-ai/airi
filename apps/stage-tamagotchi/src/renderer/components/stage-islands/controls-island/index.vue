@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { defineInvoke } from '@moeru/eventa'
+import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { useWindowSize } from '@vueuse/core'
@@ -14,7 +15,6 @@ import ControlsIslandHearingConfig from './controls-island-hearing-config.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
 import { electron, electronOpenChat, electronOpenSettings, electronStartDraggingWindow } from '../../../../shared/eventa'
-import { useElectronEventaContext, useElectronEventaInvoke } from '../../../composables/electron-vueuse/use-electron-eventa-context'
 
 const { isDark, toggleDark } = useTheme()
 const { t } = useI18n()

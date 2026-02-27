@@ -138,5 +138,5 @@ export const widgetsRemoveEvent = defineEventa<{ id: string }>('eventa:event:ele
 export const widgetsClearEvent = defineEventa('eventa:event:electron:windows:widgets:clear')
 export const widgetsUpdateEvent = defineEventa<{ id: string, componentProps?: Record<string, any> }>('eventa:event:electron:windows:widgets:update')
 
-export { electron } from './electron'
-export * from './electron-updater'
+export { electron } from '@proj-airi/electron-eventa'
+export * from '@proj-airi/electron-eventa/electron-updater'

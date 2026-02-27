@@ -1,9 +1,9 @@
 <script setup lang="ts">
+import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { Button, FieldInput, FieldSelect, FieldTextArea } from '@proj-airi/ui'
 import { computed, reactive, ref } from 'vue'
 
 import { widgetsAdd, widgetsClear, widgetsOpenWindow, widgetsPrepareWindow, widgetsRemove, widgetsUpdate } from '../../../shared/eventa'
-import { useElectronEventaInvoke } from '../../composables/electron-vueuse/use-electron-eventa-context'
 
 type SizePreset = 's' | 'm' | 'l' | 'custom'
 

@@ -1,13 +1,12 @@
 <script setup lang="ts">
+import { electron } from '@proj-airi/electron-eventa'
+import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useAudioAnalyzer, useAudioContextFromStream } from '@proj-airi/stage-ui/composables'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useAsyncState } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, watch } from 'vue'
-
-import { electron } from '../../../../shared/electron'
-import { useElectronEventaInvoke } from '../../../composables/electron-vueuse/use-electron-eventa-context'
 
 const show = defineModel('show', { type: Boolean, default: false })
 
