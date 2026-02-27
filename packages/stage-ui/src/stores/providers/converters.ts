@@ -4,6 +4,9 @@ import type { ProviderDefinition } from '../../libs/providers/types'
 import type { ProviderValidationPlan } from '../../libs/providers/validators/run'
 import type { ProviderMetadata } from '../providers'
 
+import { listModels } from '@xsai/model'
+
+import { isModelProvider } from '../../libs/providers/types'
 import { getValidatorsOfProvider, validateProvider } from '../../libs/providers/validators/run'
 
 function getCategoryFromTasks(tasks: string[]): ProviderMetadata['category'] {
@@ -21,16 +24,32 @@ function getCategoryFromTasks(tasks: string[]): ProviderMetadata['category'] {
 }
 
 function extractSchemaDefaults(definition: ProviderDefinition<any>, t: ComposerTranslation) {
+  const defaults: Record<string, unknown> = {}
+
   try {
-    const schema = definition.createProviderConfig({ t })
-    const parsed = (schema as any).safeParse?.({})
+    const schema = definition.createProviderConfig({ t }) as any
+    const shape = schema?.shape
+
+    // Zod object-level parsing fails when required fields (for example apiKey) are missing.
+    // Extract each field default individually to preserve default base URLs.
+    if (shape && typeof shape === 'object') {
+      for (const [key, fieldSchema] of Object.entries(shape)) {
+        const parsedField = (fieldSchema as any)?.safeParse?.(undefined)
+        if (parsedField?.success) {
+          defaults[key] = parsedField.data
+        }
+      }
+    }
+
+    const parsed = schema?.safeParse?.({})
     if (parsed?.success && typeof parsed.data === 'object' && parsed.data !== null) {
-      return parsed.data as Record<string, unknown>
+      Object.assign(defaults, parsed.data as Record<string, unknown>)
     }
   }
   catch {
   }
-  return {}
+
+  return defaults
 }
 
 function buildConfigValidationResult(plan: ProviderValidationPlan) {
@@ -49,6 +68,26 @@ function buildConfigValidationResult(plan: ProviderValidationPlan) {
     reason: reasons.join('; '),
     valid: false,
   }
+}
+
+function mapModelsToMetadataModels(providerId: string, models: any[]) {
+  return models.map((model: any) => {
+    return {
+      id: model.id,
+      name: model.name || model.display_name || model.id,
+      provider: providerId,
+      description: model.description || '',
+      contextLength: model.context_length || 0,
+      deprecated: false,
+    }
+  })
+}
+
+function appendUniqueReason(reasons: string[], next: string) {
+  if (!next)
+    return
+  if (!reasons.includes(next))
+    reasons.push(next)
 }
 
 export function convertProviderDefinitionToMetadata(
@@ -88,13 +127,39 @@ export function convertProviderDefinitionToMetadata(
         ? async (config) => {
           const provider = await definition.createProvider(config as any)
           try {
-            return await definition.extraMethods!.listModels!(config as any, provider)
+            const models = await definition.extraMethods!.listModels!(config as any, provider)
+            return mapModelsToMetadataModels(definition.id, models as any[])
           }
           finally {
             await (provider as { dispose?: () => Promise<void> | void }).dispose?.()
           }
         }
-        : undefined,
+        : async (config) => {
+          const provider = await definition.createProvider(config as any)
+          try {
+            if (isModelProvider(provider)) {
+              const models = await listModels(provider.model())
+              return mapModelsToMetadataModels(definition.id, models as any[])
+            }
+
+            const baseUrl = typeof (config as any).baseUrl === 'string' ? (config as any).baseUrl.trim() : ''
+            const apiKey = typeof (config as any).apiKey === 'string' ? (config as any).apiKey.trim() : ''
+            if (!baseUrl)
+              return []
+
+            const models = await listModels({
+              baseURL: baseUrl,
+              ...(apiKey ? { apiKey } : {}),
+            })
+            return mapModelsToMetadataModels(definition.id, models as any[])
+          }
+          catch {
+            return []
+          }
+          finally {
+            await (provider as { dispose?: () => Promise<void> | void }).dispose?.()
+          }
+        },
       listVoices: definition.extraMethods?.listVoices
         ? async (config) => {
           const provider = await definition.createProvider(config as any)
@@ -140,9 +205,24 @@ export function convertProviderDefinitionToMetadata(
             }
           }
 
+          const reasons = invalidSteps.map(step => step.reason).filter(Boolean)
+          const hasMissingBaseUrlError = reasons.some(reason => reason.includes('Base URL is required'))
+          const defaultBaseUrl = typeof schemaDefaults.baseUrl === 'string' ? schemaDefaults.baseUrl.trim() : ''
+          if (hasMissingBaseUrlError && defaultBaseUrl) {
+            appendUniqueReason(reasons, `Default to ${defaultBaseUrl}.`)
+          }
+
+          const connectivityFailed = invalidSteps.some(step => step.id === 'openai-compatible:check-connectivity')
+          if (connectivityFailed) {
+            const troubleshooting = definition.business?.({ t })?.troubleshooting?.validators?.openaiCompatibleCheckConnectivity?.content || ''
+            if (troubleshooting) {
+              appendUniqueReason(reasons, troubleshooting)
+            }
+          }
+
           return {
             errors: invalidSteps.map(step => new Error(step.reason || `${step.id} is invalid`)),
-            reason: invalidSteps.map(step => step.reason).filter(Boolean).join('; '),
+            reason: reasons.join('; '),
             valid: false,
           }
         }

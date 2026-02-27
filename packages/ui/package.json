@@ -25,9 +25,9 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@vueuse/core": "^14.1.0",
+    "@vueuse/core": "^14.2.1",
     "floating-vue": "^5.2.2",
-    "reka-ui": "^2.7.0",
+    "reka-ui": "^2.8.2",
     "vue": "catalog:"
   },
   "devDependencies": {
