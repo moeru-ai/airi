@@ -635,14 +635,23 @@ export class PluginHost {
 
       // Optional dependency gate before plugin-owned initialization.
       if (options.requiredCapabilities?.length) {
+        const capabilityTimeoutMs = options.capabilityWaitTimeoutMs ?? 15000
+        const unresolvedCapabilities = options.requiredCapabilities.filter(key => !this.isCapabilityReady(key))
         assertTransition(session, 'waiting-deps')
         session.channels.host.emit(moduleStatus, {
           identity: session.identity,
           phase: 'preparing',
           reason: `Waiting for capabilities: ${options.requiredCapabilities.join(', ')}`,
+          details: {
+            // For richer observability
+            lifecyclePhase: 'waiting-deps',
+            requiredCapabilities: options.requiredCapabilities,
+            unresolvedCapabilities,
+            timeoutMs: capabilityTimeoutMs,
+          },
         })
 
-        await this.waitForCapabilities(options.requiredCapabilities, options.capabilityWaitTimeoutMs)
+        await this.waitForCapabilities(options.requiredCapabilities, capabilityTimeoutMs)
         assertTransition(session, 'prepared')
         session.channels.host.emit(modulePrepared, {
           identity: session.identity,
