@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Download artifact - metadata
-        uses: dawidd6/action-download-artifact@v12
+        uses: dawidd6/action-download-artifact@v16
         with:
           workflow_conclusion: success
           run_id: ${{ github.event.workflow_run.id }}
@@ -92,7 +92,7 @@ jobs:
 
     steps:
       - name: Download artifact - metadata
-        uses: dawidd6/action-download-artifact@v12
+        uses: dawidd6/action-download-artifact@v16
         with:
           workflow_conclusion: success
           run_id: ${{ github.event.workflow_run.id }}
@@ -193,7 +193,7 @@ jobs:
       - name: Wrangler Upload
         if: ${{ steps.build.outcome == 'success' }}
         id: wrangler-versions-upload
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v3.14.1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
