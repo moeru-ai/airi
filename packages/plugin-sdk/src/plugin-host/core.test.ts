@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 
 import { createContext, defineEventa, defineInvokeHandler } from '@moeru/eventa'
-import { moduleStatus } from '@proj-airi/plugin-protocol/types'
+import { moduleCompatibilityResult, moduleStatus } from '@proj-airi/plugin-protocol/types'
 import { describe, expect, it, vi } from 'vitest'
 
 import { FileSystemLoader, PluginHost } from '.'
@@ -407,5 +407,65 @@ describe('for PluginHost', () => {
 
     const reloaded = await host.reload(session.id)
     expect(reloaded.phase).toBe('ready')
+  })
+
+  it('should emit downgraded compatibility result when fallback versions overlap', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+      protocolVersion: 'v2',
+      apiVersion: 'v2',
+      supportedProtocolVersions: ['v1'],
+      supportedApiVersions: ['v1'],
+    })
+    reportPluginCapability(host, {
+      key: providersCapability,
+      state: 'ready',
+      metadata: { source: 'test' },
+    })
+
+    const session = await host.load(testManifest, { cwd: '' })
+    const compatibilityEvents: Array<{ body?: Record<string, unknown> }> = []
+    session.channels.host.on(moduleCompatibilityResult, (payload) => {
+      compatibilityEvents.push(payload as unknown as { body?: Record<string, unknown> })
+    })
+
+    const initialized = await host.init(session.id, {
+      compatibility: {
+        supportedProtocolVersions: ['v1'],
+        supportedApiVersions: ['v1'],
+      },
+    })
+
+    expect(initialized.phase).toBe('ready')
+    expect(compatibilityEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        body: expect.objectContaining({
+          protocolVersion: 'v1',
+          apiVersion: 'v1',
+          mode: 'downgraded',
+        }),
+      }),
+    ]))
+  })
+
+  it('should reject initialization when compatibility has no overlap', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+      protocolVersion: 'v2',
+      apiVersion: 'v2',
+    })
+
+    const session = await host.load(testManifest, { cwd: '' })
+
+    await expect(host.init(session.id, {
+      compatibility: {
+        supportedProtocolVersions: ['v9'],
+        supportedApiVersions: ['v9'],
+      },
+    })).rejects.toThrow('Negotiation rejected:')
+
+    expect(host.getSession(session.id)?.phase).toBe('failed')
   })
 })

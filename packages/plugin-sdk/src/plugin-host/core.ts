@@ -349,6 +349,49 @@ function createModuleIdentity(name: string, index: number): ModuleIdentity {
   }
 }
 
+// TODO: Maybe support more complex version formats.
+function resolveSupportedVersions(preferredVersion: string, supportedVersions?: string[]) {
+  const list = [preferredVersion, ...(supportedVersions ?? [])]
+  return [...new Set(list)]
+}
+
+function resolveNegotiatedVersion(preferredVersion: string, hostSupportedVersions: string[], peerSupportedVersions?: string[]) {
+  if (!peerSupportedVersions?.length) {
+    if (hostSupportedVersions.includes(preferredVersion)) {
+      return {
+        acceptedVersion: preferredVersion,
+        exact: true,
+      }
+    }
+
+    return {
+      exact: false,
+      reason: `Host does not support preferred version "${preferredVersion}".`,
+    }
+  }
+
+  if (peerSupportedVersions.includes(preferredVersion) && hostSupportedVersions.includes(preferredVersion)) {
+    return {
+      acceptedVersion: preferredVersion,
+      exact: true,
+    }
+  }
+
+  for (const version of hostSupportedVersions) {
+    if (peerSupportedVersions.includes(version)) {
+      return {
+        acceptedVersion: version,
+        exact: false,
+      }
+    }
+  }
+
+  return {
+    exact: false,
+    reason: `No overlapping supported versions. host=[${hostSupportedVersions.join(', ')}]; peer=[${peerSupportedVersions.join(', ')}].`,
+  }
+}
+
 export type PluginRuntime = 'electron' | 'node' | 'web'
 
 export type ModulePhase = ProtocolModulePhase
@@ -406,6 +449,8 @@ export interface PluginHostOptions {
   transport?: PluginTransport
   protocolVersion?: string
   apiVersion?: string
+  supportedProtocolVersions?: string[]
+  supportedApiVersions?: string[]
 }
 
 export interface PluginStartOptions {
@@ -458,6 +503,8 @@ export class PluginHost {
   private readonly transport: PluginTransport
   private readonly protocolVersion: string
   private readonly apiVersion: string
+  private readonly supportedProtocolVersions: string[]
+  private readonly supportedApiVersions: string[]
   private readonly capabilities = new Map<string, CapabilityDescriptor>()
   private readonly capabilityWaiters = new Map<string, Set<(descriptor: CapabilityDescriptor) => void>>()
   private providersListResolver: () => Promise<Array<{ name: string }>> | Array<{ name: string }> = () => []
@@ -469,6 +516,8 @@ export class PluginHost {
     this.transport = options.transport ?? { kind: 'in-memory' }
     this.protocolVersion = options.protocolVersion ?? 'v1'
     this.apiVersion = options.apiVersion ?? 'v1'
+    this.supportedProtocolVersions = resolveSupportedVersions(this.protocolVersion, options.supportedProtocolVersions)
+    this.supportedApiVersions = resolveSupportedVersions(this.apiVersion, options.supportedApiVersions)
     this.markCapabilityReady(protocolListProvidersEventName, { source: 'plugin-host' })
   }
 
@@ -597,10 +646,37 @@ export class PluginHost {
       }
 
       session.channels.host.emit(moduleCompatibilityRequest, compatibilityRequest)
+      const protocolNegotiation = resolveNegotiatedVersion(
+        compatibilityRequest.protocolVersion,
+        this.supportedProtocolVersions,
+        compatibilityRequest.supportedProtocolVersions,
+      )
+      const apiNegotiation = resolveNegotiatedVersion(
+        compatibilityRequest.apiVersion,
+        this.supportedApiVersions,
+        compatibilityRequest.supportedApiVersions,
+      )
+
+      const rejectionReasons = [
+        ...protocolNegotiation.acceptedVersion ? [] : [`protocol: ${protocolNegotiation.reason}`],
+        ...apiNegotiation.acceptedVersion ? [] : [`api: ${apiNegotiation.reason}`],
+      ]
+
+      if (rejectionReasons.length > 0) {
+        const reason = `Negotiation rejected: ${rejectionReasons.join('; ')}`
+        session.channels.host.emit(moduleCompatibilityResult, {
+          protocolVersion: compatibilityRequest.protocolVersion,
+          apiVersion: compatibilityRequest.apiVersion,
+          mode: 'rejected',
+          reason,
+        })
+        throw new Error(reason)
+      }
+
       session.channels.host.emit(moduleCompatibilityResult, {
-        protocolVersion: compatibilityRequest.protocolVersion,
-        apiVersion: compatibilityRequest.apiVersion,
-        mode: 'exact',
+        protocolVersion: protocolNegotiation.acceptedVersion!,
+        apiVersion: apiNegotiation.acceptedVersion!,
+        mode: protocolNegotiation.exact && apiNegotiation.exact ? 'exact' : 'downgraded',
       })
 
       // Step 4: broadcast currently known modules for dependency discovery/bootstrap.
