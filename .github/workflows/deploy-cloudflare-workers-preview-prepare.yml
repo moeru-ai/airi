@@ -21,7 +21,7 @@ jobs:
           EOF
 
       - name: Upload metadata artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: preview-meta
           path: ./preview_meta
