@@ -36,8 +36,10 @@ jobs:
       - name: Update Hash
         run: nix/update-pnpm-deps-hash.sh
 
+      - name: Pull with rebase
+        run: git pull --rebase --autostash
+
       - uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: 'chore(nix): update pnpmDeps hash'
           commit_author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
-          pull: '--rebase --autostash'
