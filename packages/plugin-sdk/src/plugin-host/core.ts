@@ -817,6 +817,32 @@ export class PluginHost {
     return descriptor
   }
 
+  markCapabilityDegraded(key: string, metadata?: Record<string, unknown>) {
+    const current = this.capabilities.get(key)
+    const descriptor: CapabilityDescriptor = {
+      key,
+      state: 'degraded',
+      metadata: metadata ?? current?.metadata,
+      updatedAt: Date.now(),
+    }
+
+    this.capabilities.set(key, descriptor)
+    return descriptor
+  }
+
+  withdrawCapability(key: string, metadata?: Record<string, unknown>) {
+    const current = this.capabilities.get(key)
+    const descriptor: CapabilityDescriptor = {
+      key,
+      state: 'withdrawn',
+      metadata: metadata ?? current?.metadata,
+      updatedAt: Date.now(),
+    }
+
+    this.capabilities.set(key, descriptor)
+    return descriptor
+  }
+
   listCapabilities() {
     return [...this.capabilities.values()]
   }
