@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 
-import { createContext, defineEventa, defineInvokeHandler } from '@moeru/eventa'
-import { moduleCompatibilityResult, moduleStatus } from '@proj-airi/plugin-protocol/types'
+import { createContext, defineEventa, defineInvoke, defineInvokeHandler } from '@moeru/eventa'
+import { moduleCompatibilityResult, moduleStatus, registryModulesSync } from '@proj-airi/plugin-protocol/types'
 import { describe, expect, it, vi } from 'vitest'
 
 import { FileSystemLoader, PluginHost } from '.'
@@ -467,5 +467,97 @@ describe('for PluginHost', () => {
     })).rejects.toThrow('Negotiation rejected:')
 
     expect(host.getSession(session.id)?.phase).toBe('failed')
+  })
+
+  it('should isolate module status events between plugin sessions', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+    reportPluginCapability(host, {
+      key: providersCapability,
+      state: 'ready',
+      metadata: { source: 'test' },
+    })
+
+    const sessionOne = await host.start({
+      ...testManifest,
+      name: 'test-plugin-session-one',
+    }, { cwd: '' })
+    const sessionTwo = await host.start({
+      ...testManifest,
+      name: 'test-plugin-session-two',
+    }, { cwd: '' })
+
+    const onSessionOneStatus = vi.fn()
+    const onSessionTwoStatus = vi.fn()
+    sessionOne.channels.host.on(moduleStatus, onSessionOneStatus)
+    sessionTwo.channels.host.on(moduleStatus, onSessionTwoStatus)
+
+    host.markConfigurationNeeded(sessionOne.id, 'session-one-only')
+
+    expect(onSessionOneStatus).toHaveBeenCalled()
+    expect(onSessionTwoStatus).not.toHaveBeenCalled()
+  })
+
+  it('should keep invoke handlers isolated per plugin context', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+
+    const sessionOne = await host.load({
+      ...testManifest,
+      name: 'test-plugin-session-one',
+    }, { cwd: '' })
+    const sessionTwo = await host.load({
+      ...testManifest,
+      name: 'test-plugin-session-two',
+    }, { cwd: '' })
+
+    defineInvokeHandler(sessionOne.channels.host, protocolProviders.listProviders, async () => [{ name: 'provider:one' }])
+    defineInvokeHandler(sessionTwo.channels.host, protocolProviders.listProviders, async () => [{ name: 'provider:two' }])
+
+    const invokeOne = defineInvoke(sessionOne.channels.host, protocolProviders.listProviders)
+    const invokeTwo = defineInvoke(sessionTwo.channels.host, protocolProviders.listProviders)
+
+    await expect(invokeOne()).resolves.toEqual([{ name: 'provider:one' }])
+    await expect(invokeTwo()).resolves.toEqual([{ name: 'provider:two' }])
+  })
+
+  it('should include active modules in registry sync when initializing another session', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+    reportPluginCapability(host, {
+      key: providersCapability,
+      state: 'ready',
+      metadata: { source: 'test' },
+    })
+
+    const sessionOne = await host.start({
+      ...testManifest,
+      name: 'test-plugin-session-one',
+    }, { cwd: '' })
+    expect(sessionOne.phase).toBe('ready')
+
+    const sessionTwo = await host.load({
+      ...testManifest,
+      name: 'test-plugin-session-two',
+    }, { cwd: '' })
+
+    const syncEvents: Array<{ body?: { modules?: Array<{ name: string }> } }> = []
+    sessionTwo.channels.host.on(registryModulesSync, payload => syncEvents.push(payload))
+
+    const initialized = await host.init(sessionTwo.id)
+    expect(initialized.phase).toBe('ready')
+
+    const moduleNames = syncEvents
+      .flatMap(event => event.body?.modules ?? [])
+      .map(module => module.name)
+
+    expect(moduleNames).toContain('test-plugin-session-one')
+    expect(moduleNames).toContain('test-plugin-session-two')
   })
 })
