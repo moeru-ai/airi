@@ -148,7 +148,7 @@
     "@proj-airi/lobe-icons": "^1.0.18",
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/ui-transitions": "workspace:^",
-    "@proj-airi/unplugin-fetch": "^0.2.1",
+    "@proj-airi/unplugin-fetch": "catalog:",
     "@proj-airi/unplugin-live2d-sdk": "^0.1.6",
     "@shikijs/markdown-it": "^3.23.0",
     "@types/audioworklet": "catalog:",
