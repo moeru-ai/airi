@@ -86,7 +86,7 @@ jobs:
           POSTHOG_CLI_TOKEN: ${{ secrets.POSTHOG_TOKEN }}
         continue-on-error: true
 
-      - uses: cloudflare/wrangler-action@v3
+      - uses: cloudflare/wrangler-action@v3.14.1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
