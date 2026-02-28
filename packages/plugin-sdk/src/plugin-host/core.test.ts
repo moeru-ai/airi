@@ -326,6 +326,65 @@ describe('for PluginHost', () => {
     })).rejects.toThrow('Capability `cap:missing` is not ready after 10ms.')
   })
 
+  it('should support degraded and withdrawn capability states', () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+
+    const announced = host.announceCapability('cap:dynamic', { source: 'announce' })
+    expect(announced).toMatchObject({
+      key: 'cap:dynamic',
+      state: 'announced',
+      metadata: { source: 'announce' },
+    })
+
+    const degraded = host.markCapabilityDegraded('cap:dynamic', { reason: 'upstream-degraded' })
+    expect(degraded).toMatchObject({
+      key: 'cap:dynamic',
+      state: 'degraded',
+      metadata: { reason: 'upstream-degraded' },
+    })
+    expect(host.isCapabilityReady('cap:dynamic')).toBe(false)
+
+    const withdrawn = host.withdrawCapability('cap:dynamic', { reason: 'disabled' })
+    expect(withdrawn).toMatchObject({
+      key: 'cap:dynamic',
+      state: 'withdrawn',
+      metadata: { reason: 'disabled' },
+    })
+    expect(host.isCapabilityReady('cap:dynamic')).toBe(false)
+    expect(host.listCapabilities()).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: 'cap:dynamic',
+        state: 'withdrawn',
+      }),
+    ]))
+  })
+
+  it('should resolve waits only when capability reaches ready state', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+
+    host.markCapabilityDegraded('cap:unstable', { reason: 'booting' })
+    const waiting = host.waitForCapability('cap:unstable', 2000)
+
+    await new Promise(resolve => setTimeout(resolve, 20))
+    host.withdrawCapability('cap:unstable', { reason: 'restarting' })
+
+    await new Promise(resolve => setTimeout(resolve, 20))
+    host.markCapabilityReady('cap:unstable', { source: 'recovered' })
+
+    const resolved = await waiting
+    expect(resolved).toMatchObject({
+      key: 'cap:unstable',
+      state: 'ready',
+      metadata: { source: 'recovered' },
+    })
+  })
+
   it('should preserve previous cwd when reloading plugin', async () => {
     const host = new PluginHost({
       runtime: 'electron',

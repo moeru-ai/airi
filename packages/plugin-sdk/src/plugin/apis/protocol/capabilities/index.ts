@@ -2,7 +2,7 @@ import { defineInvokeEventa } from '@moeru/eventa'
 
 export interface CapabilityDescriptor {
   key: string
-  state: 'announced' | 'ready'
+  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
   metadata?: Record<string, unknown>
   updatedAt: number
 }
