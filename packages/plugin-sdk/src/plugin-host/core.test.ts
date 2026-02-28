@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 
 import { createContext, defineEventa, defineInvokeHandler } from '@moeru/eventa'
+import { moduleStatus } from '@proj-airi/plugin-protocol/types'
 import { describe, expect, it, vi } from 'vitest'
 
 import { FileSystemLoader, PluginHost } from '.'
@@ -266,6 +267,50 @@ describe('for PluginHost', () => {
     })
     const session = await started
     expect(session.phase).toBe('ready')
+  })
+
+  it('should emit dependency wait details while waiting for required capabilities', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+
+    const session = await host.load(testManifest, { cwd: '' })
+    const statusEvents: Array<{ body?: Record<string, unknown> }> = []
+    session.channels.host.on(moduleStatus, (payload) => {
+      statusEvents.push(payload as unknown as { body?: Record<string, unknown> })
+    })
+
+    const started = host.init(session.id, {
+      requiredCapabilities: ['cap:custom'],
+      capabilityWaitTimeoutMs: 2000,
+    })
+
+    await new Promise(resolve => setTimeout(resolve, 20))
+
+    const waitingStatus = statusEvents.find((event) => {
+      const body = event.body
+      return body?.phase === 'preparing' && typeof body.reason === 'string' && body.reason.includes('Waiting for capabilities:')
+    })
+
+    expect(waitingStatus).toBeDefined()
+    expect(waitingStatus?.body).toMatchObject({
+      phase: 'preparing',
+      details: {
+        lifecyclePhase: 'waiting-deps',
+        requiredCapabilities: ['cap:custom'],
+        unresolvedCapabilities: ['cap:custom'],
+        timeoutMs: 2000,
+      },
+    })
+
+    reportPluginCapability(host, {
+      key: 'cap:custom',
+      state: 'ready',
+      metadata: { source: 'test' },
+    })
+    const initialized = await started
+    expect(initialized.phase).toBe('ready')
   })
 
   it('should fail when required capabilities timeout', async () => {
