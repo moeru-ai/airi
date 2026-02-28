@@ -43,7 +43,7 @@ jobs:
       - uses: actions/checkout@v6
       # Turborepo
       - name: Cache turbo build setup
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ github.sha }}
