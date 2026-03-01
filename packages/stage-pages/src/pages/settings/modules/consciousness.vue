@@ -4,7 +4,7 @@ import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
-import { watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
@@ -24,6 +24,7 @@ const {
 
 const { t } = useI18n()
 const { trackProviderClick } = useAnalytics()
+const isOpenAICompatibleProvider = computed(() => activeProvider.value === 'openai-compatible')
 
 watch(activeProvider, async (provider, oldProvider) => {
   if (!provider)
@@ -159,24 +160,48 @@ function handleDeleteProvider(providerId: string) {
         </div>
 
         <!-- Error state -->
-        <ErrorContainer
-          v-else-if="activeProviderModelError"
-          :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-          :error="activeProviderModelError"
-        />
+        <template v-else-if="activeProviderModelError">
+          <ErrorContainer
+            :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
+            :error="activeProviderModelError"
+          />
+
+          <div v-if="isOpenAICompatibleProvider" class="mt-2">
+            <label class="mb-1 block text-sm font-medium">
+              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_name') }}
+            </label>
+            <input
+              v-model="activeModel"
+              type="text"
+              class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+              :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+            >
+          </div>
+        </template>
 
         <!-- No models available -->
-        <Alert
-          v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels"
-          type="warning"
-        >
-          <template #title>
-            {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
-          </template>
-          <template #content>
-            {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
-          </template>
-        </Alert>
+        <template v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels">
+          <Alert type="warning">
+            <template #title>
+              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
+            </template>
+            <template #content>
+              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
+            </template>
+          </Alert>
+
+          <div v-if="isOpenAICompatibleProvider" class="mt-2">
+            <label class="mb-1 block text-sm font-medium">
+              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_name') }}
+            </label>
+            <input
+              v-model="activeModel"
+              type="text"
+              class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+              :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+            >
+          </div>
+        </template>
 
         <!-- Using the new RadioCardManySelect component -->
         <template v-else-if="providerModels.length > 0">
