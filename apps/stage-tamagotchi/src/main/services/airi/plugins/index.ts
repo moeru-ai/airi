@@ -39,13 +39,13 @@ interface CapabilityAwarePluginHost extends PluginHost {
   setProvidersListResolver: (resolver: () => Promise<Array<{ name: string }>> | Array<{ name: string }>) => void
   announceCapability: (key: string, metadata?: Record<string, unknown>) => {
     key: string
-    state: 'announced' | 'ready'
+    state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
     metadata?: Record<string, unknown>
     updatedAt: number
   }
   markCapabilityReady: (key: string, metadata?: Record<string, unknown>) => {
     key: string
-    state: 'announced' | 'ready'
+    state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
     metadata?: Record<string, unknown>
     updatedAt: number
   }
