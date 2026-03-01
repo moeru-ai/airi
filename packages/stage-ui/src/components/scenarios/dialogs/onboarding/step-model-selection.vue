@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Button } from '@proj-airi/ui'
+import { Button, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { inject } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -63,6 +63,14 @@ const {
           </div>
         </template>
       </Alert>
+
+      <div v-if="providerModels.length === 0" class="mt-4">
+        <FieldInput
+          :model-value="activeModel || ''"
+          :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+          @update:model-value="value => (activeModel = value || '')"
+        />
+      </div>
     </div>
 
     <!-- Action Buttons -->
