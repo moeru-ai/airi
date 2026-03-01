@@ -168,7 +168,9 @@ async function generateTestSpeech() {
 
     const input = useSSML.value
       ? ssmlText.value
-      : speechStore.supportsSSML ? speechStore.generateSSML(testText.value, voice, { ...providerConfig, pitch: pitch.value }) : testText.value
+      : ssmlEnabled.value && speechStore.supportsSSML
+        ? speechStore.generateSSML(testText.value, voice, { ...providerConfig, pitch: pitch.value })
+        : testText.value
 
     const response = await generateSpeech({
       ...provider.speech(model, providerConfig),
