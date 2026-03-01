@@ -74,19 +74,46 @@ export function createCharacterStoreController(params: {
     ?? likeMutation.error.value
     ?? bookmarkMutation.error.value)
 
+  // Adds the built-in character cards that `list` does not have yet.
+  // A stored or remote character with the same `id` wins, so a user edit of a built-in card stays.
+  function withDefaultCharacters(list: Character[]) {
+    const merged = new Map(list.map(character => [character.id, character]))
+    let added = false
+
+    for (const preset of service.buildDefaults(auth.userId)) {
+      if (merged.has(preset.id))
+        continue
+
+      merged.set(preset.id, preset)
+      added = true
+    }
+
+    return { characters: [...merged.values()], added }
+  }
+
+  async function ensureDefaultCharacters() {
+    const cached = await model.list()
+    const hydrated = withDefaultCharacters(cached)
+    if (hydrated.added)
+      await model.saveAll(hydrated.characters)
+
+    setCharactersMap(characters.value, hydrated.characters)
+    return hydrated.characters
+  }
+
   async function fetchList(all: boolean = false) {
     listAll.value = all
-    const cached = await model.list()
-    if (cached.length > 0)
-      setCharactersMap(characters.value, cached)
+    const cached = await ensureDefaultCharacters()
 
     try {
       const state = await listQuery.refetch(true)
-      if (state.data) {
-        await model.saveAll(state.data)
-        setCharactersMap(characters.value, state.data)
-      }
-      return state.data ?? cached
+      if (!state.data)
+        return cached
+
+      const merged = withDefaultCharacters(state.data).characters
+      await model.saveAll(merged)
+      setCharactersMap(characters.value, merged)
+      return merged
     }
     catch {
       return cached
@@ -229,6 +256,7 @@ export function createCharacterStoreController(params: {
     error: computed(() => listQuery.error.value),
     mutationError,
 
+    ensureDefaultCharacters,
     fetchList,
     fetchById,
     create,

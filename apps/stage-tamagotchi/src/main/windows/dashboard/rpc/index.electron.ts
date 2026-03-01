@@ -2,6 +2,7 @@ import type { BrowserWindow } from 'electron'
 
 import type { I18n } from '../../../libs/i18n'
 import type { ServerChannel } from '../../../services/airi/channel-server'
+import type { ChatWindowManager } from '../../chat'
 import type { NoticeWindowManager } from '../../notice'
 import type { SettingsWindowManager } from '../../settings'
 
@@ -10,13 +11,12 @@ import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
 import { electronOpenChat, electronOpenMainDevtools, electronOpenSettings, noticeWindowEventa } from '../../../../shared/eventa'
-import { toggleWindowShow } from '../../shared'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 export async function setupDashboardWindowElectronInvokes(params: {
   window: BrowserWindow
   settingsWindow: SettingsWindowManager
-  chatWindow: () => Promise<BrowserWindow>
+  chatWindow: ChatWindowManager
   noticeWindow: NoticeWindowManager
   i18n: I18n
   serverChannel: ServerChannel
@@ -32,6 +32,6 @@ export async function setupDashboardWindowElectronInvokes(params: {
 
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenSettings, payload => params.settingsWindow.openWindow(payload?.route))
-  defineInvokeHandler(context, electronOpenChat, async () => toggleWindowShow(await params.chatWindow()))
+  defineInvokeHandler(context, electronOpenChat, () => params.chatWindow.toggle())
   defineInvokeHandler(context, noticeWindowEventa.openWindow, payload => params.noticeWindow.open(payload))
 }

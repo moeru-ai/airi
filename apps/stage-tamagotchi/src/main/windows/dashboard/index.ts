@@ -3,6 +3,7 @@ import type { InferOutput } from 'valibot'
 
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
+import type { ChatWindowManager } from '../chat'
 import type { NoticeWindowManager } from '../notice'
 import type { SettingsWindowManager } from '../settings'
 
@@ -42,7 +43,7 @@ type AppConfig = InferOutput<typeof appConfigSchema>
 
 export async function setupDashboardWindow(params: {
   settingsWindow: SettingsWindowManager
-  chatWindow: () => Promise<BrowserWindow>
+  chatWindow: ChatWindowManager
   noticeWindow: NoticeWindowManager
   onWindowCreated?: (window: BrowserWindow) => void
   serverChannel: ServerChannel
@@ -75,7 +76,7 @@ export async function setupDashboardWindow(params: {
       sandbox: false,
     },
     ...spotlightLikeWindowConfig(),
-    ...(isMacOS ? { trafficLightPosition: { x: 14, y: 14 } } : {}),
+    ...(isMacOS ? { trafficLightPosition: { x: 10, y: 10 } } : {}),
     // TODO: implement native-like custom window control UI for Windows/Linux.
     ...(!isMacOS ? { titleBarOverlay: true } : {}),
   })
