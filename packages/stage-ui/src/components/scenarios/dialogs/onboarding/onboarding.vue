@@ -37,11 +37,12 @@ const { providers, allChatProvidersMetadata } = storeToRefs(providersStore)
 const consciousnessStore = useConsciousnessStore()
 const {
   activeProvider,
+  activeModel,
 } = storeToRefs(consciousnessStore)
 
 // Popular providers for first-time setup
 const popularProviders = computed(() => {
-  const popular = ['openai', 'anthropic', 'google-generative-ai', 'groq', 'nvidia', 'openrouter-ai', 'ollama', 'deepseek', 'player2', 'openai-compatible']
+  const popular = ['openai', 'azure-openai', 'anthropic', 'google-generative-ai', 'groq', 'nvidia', 'openrouter-ai', 'ollama', 'deepseek', 'player2', 'openai-compatible']
   return allChatProvidersMetadata.value
     .filter(provider => popular.includes(provider.id))
     .sort((a, b) => popular.indexOf(a.id) - popular.indexOf(b.id))
@@ -81,6 +82,8 @@ async function saveProviderConfiguration(data: ProviderConfigData) {
     config.baseUrl = data.baseUrl.trim()
   if (data.accountId)
     config.accountId = data.accountId.trim()
+  if (data.manualModels)
+    config.manualModels = data.manualModels.trim()
 
   providers.value[selectedProvider.value.id] = {
     ...providers.value[selectedProvider.value.id],
@@ -88,13 +91,22 @@ async function saveProviderConfiguration(data: ProviderConfigData) {
   }
 
   activeProvider.value = selectedProvider.value.id
+
+  const firstManualModel = (data.manualModels || '')
+    .split(',')
+    .map(item => item.trim())
+    .find(Boolean)
+  if (firstManualModel) {
+    activeModel.value = firstManualModel
+  }
+
   await nextTick()
 
   try {
     await consciousnessStore.loadModelsForProvider(selectedProvider.value.id)
   }
   catch (err) {
-    console.error('error', err)
+    console.error('[onboarding] Failed to load models for provider:', err)
   }
 }
 

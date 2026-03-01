@@ -1,6 +1,7 @@
 import './openai'
 import './aihubmix'
 import './lm-studio'
+import './azure-openai'
 import './openai-compatible'
 import './n1n'
 import './openrouter-ai'
