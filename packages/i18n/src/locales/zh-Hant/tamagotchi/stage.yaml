@@ -12,13 +12,13 @@ docs:
   'fade-on-hover':
     enable: 懸停時隱藏
     disable: 總是顯示
-  'open-settings': Open settings
-  'open-chat': Open Chat
-  'refresh': Refresh
-  'open-hearing-controls': Open hearing Controls
-  'drag-to-move-window': Drag to move window
-  'switch-to-light-mode': Switch to light mode
-  'switch-to-dark-mode': Switch to dark mode
+  'open-settings': 開啟設定
+  'open-chat': 打開聊天
+  'refresh': 重新整理
+  'open-hearing-controls': 開啟聽力控制
+  'drag-to-move-window': 長按以移動視窗
+  'switch-to-light-mode': 切換至亮色模式
+  'switch-to-dark-mode': 切換至深色模式
 notice:
   'fade-on-hover':
     title: 懸停淡出

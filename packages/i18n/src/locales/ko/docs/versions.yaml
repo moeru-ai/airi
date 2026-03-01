@@ -1,22 +1,22 @@
 download-buttons:
-  latest-stable: Latest Stable Release
-  latest-prerelease: Latest Pre-release
-  latest-nightly: Latest Nightly Build
-  download: Download
-  view-release: View Release
-  stable-use-case-1: Production use
-  stable-use-case-2: Users who want a stable experience
-  stable-use-case-3: Live streaming and content creationr
-  prerelease-use-case-1: Early adopters who want to try new features
-  prerelease-use-case-2: Testing and providing feedback to developers
-  prerelease-use-case-3: Users comfortable with occasional bugs
+  latest-stable: 최신 안정 릴리즈
+  latest-prerelease: 최신 베타 릴리즈
+  latest-nightly: 최신 실험적 빌드
+  download: 다운로드
+  view-release: 릴리스 보기
+  stable-use-case-1: 프로덕션 용도
+  stable-use-case-2: 안정적인 경험을 원하는 사용자
+  stable-use-case-3: 라이브 스트리밍 및 콘텐츠 제작자
+  prerelease-use-case-1: 새로운 기능을 시도하고 싶은 얼리어답터들
+  prerelease-use-case-2: 개발자에게 피드백 테스트 및 제공
+  prerelease-use-case-3: 간혹 발생하는 버그에 익숙한 사용자
 releases-list:
-  stable: Stable
-  prerelease: Pre-release
-  nightly: Nightly
-  released-on: Released on
-  built-on: Built on
-  no-releases: 'No releases available at the moment. Check the {link} directly.'
-  no-nightly: 'No nightly builds available at the moment. Check the {link} directly.'
-  releases-page: releases page
-  workflow-page: workflow page
+  stable: 안정
+  prerelease: 베타 버전
+  nightly: 실험적
+  released-on: '출시 날짜:'
+  built-on: '제작 날짜:'
+  no-releases: '현재 출시된 제품이 없습니다. {link}를 직접 확인하세요.'
+  no-nightly: '현재 실험적 빌드는 제공되지 않습니다. {link}를 직접 확인하세요.'
+  releases-page: 릴리스 페이지
+  workflow-page: 워크플로 페이지
