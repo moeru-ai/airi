@@ -34,7 +34,7 @@ export class SatoriAPI {
 
   private async request<T>(
     endpoint: string,
-    body?: any,
+    body?: unknown,
   ): Promise<T> {
     const url = `${this.config.baseUrl}${endpoint}`
 
@@ -71,7 +71,7 @@ export class SatoriAPI {
     return await this.request<SatoriMessageCreateResponse[]>('/message.create', body)
   }
 
-  async getMessage(channelId: string, messageId: string): Promise<any> {
+  async getMessage(channelId: string, messageId: string): Promise<unknown> {
     return await this.request('/message.get', {
       channel_id: channelId,
       message_id: messageId,

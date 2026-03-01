@@ -38,13 +38,13 @@ function extractStatusCode(error: unknown): number | null {
   return null
 }
 
-function extractModelId(model: any): string {
+function extractModelId(model: unknown): string {
   if (!model)
     return ''
   if (typeof model === 'string')
     return model
-  if (typeof model.id === 'string')
-    return model.id
+  if (typeof (model as Record<string, unknown>).id === 'string')
+    return (model as Record<string, unknown>).id as string
 
   return ''
 }
