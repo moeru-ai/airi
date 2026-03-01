@@ -336,21 +336,40 @@ function updateCustomModelName(value: string | undefined) {
                 </div>
 
                 <!-- Error state -->
-                <ErrorContainer
-                  v-else-if="activeProviderModelError"
-                  :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-                  :error="activeProviderModelError"
-                />
+                <template v-else-if="activeProviderModelError">
+                  <ErrorContainer
+                    :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
+                    :error="activeProviderModelError"
+                  />
+
+                  <FieldInput
+                    :model-value="activeSpeechModel || ''"
+                    label="Model"
+                    description="Enter model name manually if model discovery fails"
+                    :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+                    @update:model-value="updateCustomModelName"
+                  />
+                </template>
 
                 <!-- No models available -->
-                <Alert v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels" type="warning">
-                  <template #title>
-                    {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
-                  </template>
-                  <template #content>
-                    {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
-                  </template>
-                </Alert>
+                <template v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels">
+                  <Alert type="warning">
+                    <template #title>
+                      {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
+                    </template>
+                    <template #content>
+                      {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
+                    </template>
+                  </Alert>
+
+                  <FieldInput
+                    :model-value="activeSpeechModel || ''"
+                    label="Model"
+                    description="Enter model name manually when no models are returned"
+                    :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+                    @update:model-value="updateCustomModelName"
+                  />
+                </template>
 
                 <!-- Using the new RadioCardManySelect component -->
                 <template v-else-if="providerModels.length > 0">
