@@ -30,6 +30,7 @@ const presetVrmAvatarAUrl = new URL('../assets/vrm/models/AvatarSample-A/AvatarS
 const presetVrmAvatarAPreview = new URL('../assets/vrm/models/AvatarSample-A/preview.png', import.meta.url).href
 const presetVrmAvatarBUrl = new URL('../assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm', import.meta.url).href
 const presetVrmAvatarBPreview = new URL('../assets/vrm/models/AvatarSample-B/preview.png', import.meta.url).href
+const presetCharacterCoverUrl = new URL('../components/menu/relu.avif', import.meta.url).href
 
 export interface DisplayModelFile {
   id: string
@@ -51,11 +52,56 @@ export interface DisplayModelURL {
   importedAt: number
 }
 
-const displayModelsPresets: DisplayModel[] = [
-  { id: 'preset-live2d-1', format: DisplayModelFormat.Live2dZip, type: 'url', url: presetLive2dProUrl, name: 'Hiyori (Pro)', previewImage: presetLive2dPreview, importedAt: 1733113886840 },
-  { id: 'preset-live2d-2', format: DisplayModelFormat.Live2dZip, type: 'url', url: presetLive2dFreeUrl, name: 'Hiyori (Free)', previewImage: presetLive2dPreview, importedAt: 1733113886840 },
-  { id: 'preset-vrm-1', format: DisplayModelFormat.VRM, type: 'url', url: presetVrmAvatarAUrl, name: 'AvatarSample_A', previewImage: presetVrmAvatarAPreview, importedAt: 1733113886840 },
-  { id: 'preset-vrm-2', format: DisplayModelFormat.VRM, type: 'url', url: presetVrmAvatarBUrl, name: 'AvatarSample_B', previewImage: presetVrmAvatarBPreview, importedAt: 1733113886840 },
+export const DISPLAY_MODEL_PRESET_IDS = {
+  live2dPro: 'preset-live2d-1',
+  live2dFree: 'preset-live2d-2',
+  vrmA: 'preset-vrm-1',
+  vrmB: 'preset-vrm-2',
+} as const
+
+export interface DefaultCharacterCardPreset {
+  id: string
+  characterId: string
+  name: string
+  tagline: string
+  description: string
+  coverUrl: string
+  characterAvatarUrl: string
+  coverBackgroundUrl?: string
+  displayModelId: string
+  avatarModelType: 'live2d' | 'vrm'
+}
+
+export const displayModelPresets: DisplayModelURL[] = [
+  { id: DISPLAY_MODEL_PRESET_IDS.live2dPro, format: DisplayModelFormat.Live2dZip, type: 'url', url: presetLive2dProUrl, name: 'Hiyori (Pro)', previewImage: presetLive2dPreview, importedAt: 1733113886840 },
+  { id: DISPLAY_MODEL_PRESET_IDS.live2dFree, format: DisplayModelFormat.Live2dZip, type: 'url', url: presetLive2dFreeUrl, name: 'Hiyori (Free)', previewImage: presetLive2dPreview, importedAt: 1733113886840 },
+  { id: DISPLAY_MODEL_PRESET_IDS.vrmA, format: DisplayModelFormat.VRM, type: 'url', url: presetVrmAvatarAUrl, name: 'AvatarSample_A', previewImage: presetVrmAvatarAPreview, importedAt: 1733113886840 },
+  { id: DISPLAY_MODEL_PRESET_IDS.vrmB, format: DisplayModelFormat.VRM, type: 'url', url: presetVrmAvatarBUrl, name: 'AvatarSample_B', previewImage: presetVrmAvatarBPreview, importedAt: 1733113886840 },
+]
+
+export const defaultCharacterCardPresets: DefaultCharacterCardPreset[] = [
+  {
+    id: 'preset-character-live2d-airi',
+    characterId: 'airi-live2d',
+    name: 'AIRI · Live2D',
+    tagline: 'Friendly desktop companion powered by Live2D.',
+    description: 'AIRI default character card bound to the Live2D preset model.',
+    coverUrl: presetCharacterCoverUrl,
+    characterAvatarUrl: presetLive2dPreview,
+    displayModelId: DISPLAY_MODEL_PRESET_IDS.live2dPro,
+    avatarModelType: 'live2d',
+  },
+  {
+    id: 'preset-character-vrm-airi',
+    characterId: 'airi-vrm',
+    name: 'AIRI · VRM',
+    tagline: '3D stage-ready AIRI avatar based on VRM.',
+    description: 'AIRI default character card bound to the VRM preset model.',
+    coverUrl: presetCharacterCoverUrl,
+    characterAvatarUrl: presetVrmAvatarAPreview,
+    displayModelId: DISPLAY_MODEL_PRESET_IDS.vrmA,
+    avatarModelType: 'vrm',
+  },
 ]
 
 export const useDisplayModelsStore = defineStore('display-models', () => {
@@ -67,7 +113,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     await until(displayModelsFromIndexedDBLoading).toBe(false)
 
     displayModelsFromIndexedDBLoading.value = true
-    const models = [...displayModelsPresets]
+    const models: DisplayModel[] = [...displayModelPresets]
 
     try {
       await localforage.iterate<{ format: DisplayModelFormat, file: File, importedAt: number, previewImage?: string }, void>((val, key) => {
@@ -92,7 +138,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     }
 
     // Fallback to in-memory presets if not found in localforage
-    return displayModelsPresets.find(model => model.id === id)
+    return displayModelPresets.find(model => model.id === id)
   }
 
   const loadLive2DModelPreview = (file: File) => generateLive2DPreview(file)
@@ -142,7 +188,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
       await removeDisplayModel(id)
     }
 
-    displayModels.value = [...displayModelsPresets].sort((a, b) => b.importedAt - a.importedAt)
+    displayModels.value = [...displayModelPresets].sort((a, b) => b.importedAt - a.importedAt)
   }
 
   return {

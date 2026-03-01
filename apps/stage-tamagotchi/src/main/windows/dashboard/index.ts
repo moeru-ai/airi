@@ -72,7 +72,7 @@ export async function setupDashboardWindow(params: {
       sandbox: false,
     },
     ...spotlightLikeWindowConfig(),
-    ...(isMacOS ? { trafficLightPosition: { x: 14, y: 14 } } : {}),
+    ...(isMacOS ? { trafficLightPosition: { x: 10, y: 10 } } : {}),
     // TODO: implement native-like custom window control UI for Windows/Linux.
     ...(!isMacOS ? { titleBarOverlay: true } : {}),
   })

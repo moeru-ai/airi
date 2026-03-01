@@ -11,9 +11,13 @@ import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
+import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -51,6 +55,10 @@ const onboardingStore = useOnboardingStore()
 const router = useRouter()
 const route = useRoute()
 const cardStore = useAiriCardStore()
+const providersStore = useProvidersStore()
+const consciousnessStore = useConsciousnessStore()
+const speechStore = useSpeechStore()
+const hearingStore = useHearingStore()
 const chatSessionStore = useChatSessionStore()
 const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
@@ -107,7 +115,33 @@ onMounted(async () => {
   await startTrackingCursorPoint()
 
   // Expose stage provider definitions to plugin host APIs.
-  defineInvokeHandler(context.value, pluginProtocolListProviders, async () => listProvidersForPluginHost())
+  defineInvokeHandler(context.value, pluginProtocolListProviders, async () => {
+    return listProvidersForPluginHost({
+      metadata: providersStore.allProvidersMetadata.map(provider => ({
+        id: provider.id,
+        name: provider.name,
+        category: provider.category,
+        tasks: provider.tasks,
+      })),
+      configuredProviders: { ...providersStore.configuredProviders },
+      modelsByProvider: { ...providersStore.availableModels },
+      configsByProvider: { ...providersStore.providers },
+      assignments: {
+        consciousness: {
+          providerId: consciousnessStore.activeProvider,
+          modelId: consciousnessStore.activeModel,
+        },
+        speech: {
+          providerId: speechStore.activeSpeechProvider,
+          modelId: speechStore.activeSpeechModel,
+        },
+        transcription: {
+          providerId: hearingStore.activeTranscriptionProvider,
+          modelId: hearingStore.activeTranscriptionModel,
+        },
+      },
+    })
+  })
 
   if (shouldPublishPluginHostCapabilities()) {
     await reportPluginCapability({

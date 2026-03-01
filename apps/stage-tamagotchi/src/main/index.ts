@@ -21,6 +21,7 @@ import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
 import { setupCaptionWindowManager } from './windows/caption'
 import { setupChatWindowReusableFunc } from './windows/chat'
+import { setupDashboardWindow } from './windows/dashboard'
 import { setupDevtoolsWindow } from './windows/devtools'
 import { setupMainWindow } from './windows/main'
 import { setupNoticeWindowManager } from './windows/notice'
@@ -107,13 +108,18 @@ app.whenReady().then(async () => {
     build: async ({ dependsOn }) => setupCaptionWindowManager(dependsOn),
   })
 
+  const dashboardWindow = injeca.provide('windows:dashboard', {
+    dependsOn: { settingsWindow, chatWindow, noticeWindow },
+    build: async ({ dependsOn }) => setupDashboardWindow(dependsOn),
+  })
+
   const tray = injeca.provide('app:tray', {
     dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, beatSyncBgWindow: beatSync, aboutWindow },
     build: async ({ dependsOn }) => setupTray(dependsOn),
   })
 
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, pluginHost },
+    dependsOn: { mainWindow, dashboardWindow, tray, serverChannel, pluginHost },
     callback: noop,
   })
 
