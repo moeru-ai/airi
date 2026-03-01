@@ -96,15 +96,18 @@ export interface PluginRegistrySnapshot {
   plugins: PluginManifestSummary[]
 }
 
+// TODO: Replace these manually duplicated IPC types with re-exports from
+// @proj-airi/plugin-sdk (CapabilityDescriptor) once stage-ui and the shared
+// eventa layer can depend on the SDK without introducing unwanted coupling.
 export interface PluginCapabilityPayload {
   key: string
-  state: 'announced' | 'ready'
+  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
   metadata?: Record<string, unknown>
 }
 
 export interface PluginCapabilityState {
   key: string
-  state: 'announced' | 'ready'
+  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
   metadata?: Record<string, unknown>
   updatedAt: number
 }
