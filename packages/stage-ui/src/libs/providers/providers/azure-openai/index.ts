@@ -184,6 +184,7 @@ async function listAzureDeployments(config: AzureOpenAIConfig): Promise<Array<{ 
   const endpointHints = parseAzureEndpointHints(config.baseUrl)
   const apiKey = (config.apiKey || '').trim()
   const versions = resolveAzureApiVersionsForDeployments(config, endpointHints)
+  const allErrors: string[] = []
 
   for (const apiVersion of versions) {
     try {
@@ -198,14 +199,29 @@ async function listAzureDeployments(config: AzureOpenAIConfig): Promise<Array<{ 
       })
 
       if (!response.ok) {
+        const errorText = await response.text().catch(() => `(unable to read response body, status=${response.status})`)
+        allErrors.push(`api-version '${apiVersion}' returned ${response.status}: ${errorText}`)
         continue
       }
 
-      const payload = await response.json().catch(() => ({ data: [] })) as { data?: AzureDeploymentItem[] }
+      const payload = await response.json().catch((error) => {
+        allErrors.push(`api-version '${apiVersion}' returned invalid JSON: ${(error as Error).message}`)
+        return null
+      }) as { data?: AzureDeploymentItem[] } | null
+
+      if (!payload) {
+        continue
+      }
+
       return mapAzureDeploymentsToModels(Array.isArray(payload.data) ? payload.data : [])
     }
-    catch {
+    catch (error) {
+      allErrors.push(`api-version '${apiVersion}' request failed: ${(error as Error).message}`)
     }
+  }
+
+  if (allErrors.length > 0) {
+    throw new Error(`Failed to list Azure deployments:\n- ${allErrors.join('\n- ')}`)
   }
 
   return []
@@ -771,9 +787,19 @@ export const providerAzureOpenAI = defineProvider<AzureOpenAIConfig>({
   icon: 'i-simple-icons:microsoftazure',
   extraMethods: {
     listModels: async (config, _provider) => {
-      const deploymentModels = await listAzureDeployments(config)
       const manualModels = parseManualModels(config.manualModels)
-      return mergeAzureModels(deploymentModels, manualModels)
+
+      try {
+        const deploymentModels = await listAzureDeployments(config)
+        return mergeAzureModels(deploymentModels, manualModels)
+      }
+      catch (error) {
+        if (manualModels.length > 0) {
+          return mergeAzureModels([], manualModels)
+        }
+
+        throw error
+      }
     },
   },
 
