@@ -39,8 +39,8 @@ controls-island:
     title: 控制島嶼圖示大小
     description: 調整控制島圖示的大小
     auto: 自動（回應式）
-    large: Large (default)
-    small: Small
+    large: 大(默認)
+    small: 小
 live2d:
   change-model:
     from-file: 從檔案載入
@@ -64,7 +64,7 @@ live2d:
     title: 想切換至 3D 虛擬角色嗎？
     change-to-vrm: 切換至 3D 虛擬角色設定頁面（VRM）
   theme-color-from-model:
-    title: Extract colors from model
+    title: 從模型中提取顏色
     button-extract:
       title: 提取
   focus:
@@ -73,9 +73,9 @@ live2d:
       title: 停用
   fps:
     title: FPS
-    description: Limit rendering frame rate
+    description: 限制渲染幀率
     options:
-      unlimited: No Limit
+      unlimited: 無限制
 microphone: 麥克風
 models: 模型
 pages:
@@ -83,13 +83,13 @@ pages:
     activate: 啟用
     active: 已啟用
     active_badge: 目前使用中
-    cancel: Cancel action
-    save: Save changes
+    cancel: 取消操作
+    save: 儲存變更
     card_not_found: 找不到角色卡
     character: 角色設定
     close: 關閉
     chat:
-      provider: Chat / Provider
+      provider: 聊天 / 供應商
     consciousness:
       model: 意識 / 模型
     created_by: 建立者
@@ -101,7 +101,7 @@ pages:
     description_label: 描述
     drop_here: 放開以上傳檔案
     create_card: 建立新角色卡
-    edit_card: Edit Card
+    edit_card: 編輯卡片
     creation:
       identity: 身分
       name: 名字
@@ -118,9 +118,9 @@ pages:
         scenario: 你最近醒來，忘記了之前的所有生活。
         systemprompt: 你將會收到訊息，請像真實人類一樣回覆。
         posthistoryinstructions: 記得模仿人類的行為。
-      modules_info: Configure modules for this character card. If not set, default module configuration will be used.
-      use_default: Use default
-      use_default_not_configured: Use default (not configured)
+      modules_info: 為這個角色卡設定模組。如果沒有設定，將會使用預設模組。
+      use_default: 使用預設
+      use_default_not_configured: 使用預設(尚未設定)
       fields_info:
         subtitle: >-
           您可以在這裡填寫有關您正在建立的角色的一些詳細資訊，解釋他的背景與情境，以及應該如何回應您的互動。

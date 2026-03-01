@@ -25,30 +25,30 @@ pages:
       sections:
         section:
           use-window-mouse:
-            title: useWindowMouse
-            description: Test the Electron window cursor position
+            title: 使用WindowMouse
+            description: 測試 Electron 視窗滑鼠游標位置
 devtools:
   title: 開發者
   pages:
     context-flow:
-      title: Context Flow
+      title: 上下文流程
     lag-visualizer:
-      title: Lag Visualizer
+      title: 卡頓可視化
     performance-visualizer:
-      title: Performance Visualizer
-      description: Toggle FPS/long task/memory overlay
+      title: 效能顯示器
+      description: 切換 FPS/長任務/記憶體覆蓋
     markdown-stress:
       title: Markdown Stress
-      description: Stress markdown parsing and rendering with heavy chat payloads
+      description: 使用大量聊天負載來進行 Markdown 解析與渲染的壓力測試
     widgets-calling:
-      title: Widget Calling
+      title: 小工具調用
 screen-capture:
   permissions-prompt:
-    title: Screen Capture
-    description: To capture screens or windows, screen and system audio recording permissions are required.
-    open-preferences: Open System Preferences
-    dismiss: Dismiss
+    title: 螢幕截圖
+    description: 螢幕與語音錄製權限對於截取螢幕或視窗來說是必要的。
+    open-preferences: 打開系統偏好設定
+    dismiss: 取消
     instructions:
-      step-1: Open "System Preferences", select "Privacy & Security" from the sidebar.
-      step-2: In the "Screen & System Audio Recording" and "System Audio Recording Only" sections, turn on the switches for AIRI.
-      step-2-note: If AIRI is not listed, please add it manually by clicking the "+" button and selecting AIRI from the Applications folder.
+      step-1: 打開「系統偏好設定」，從側邊欄中選擇「隱私與安全」。
+      step-2: 在「螢幕與系統聲音錄製」以及「系統聲音錄製」區域，開啟 AIRI 的開關。
+      step-2-note: 如果 AIRI 沒有被列出，則請手動按下「+」按鈕並從應用資料夾選擇 AIRI。

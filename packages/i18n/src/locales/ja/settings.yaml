@@ -73,9 +73,9 @@ live2d:
       title: 無効
   fps:
     title: FPS
-    description: Limit rendering frame rate
+    description: レンダリングフレームレートを制限
     options:
-      unlimited: No Limit
+      unlimited: 制限なし
 microphone: マイク
 models: モデル
 pages:
@@ -89,7 +89,7 @@ pages:
     character: キャラクター
     close: 閉じる
     chat:
-      provider: Chat / Provider
+      provider: チャット / プロバイダー
     consciousness:
       model: 意識 / モデル
     created_by: 作成者
@@ -118,9 +118,9 @@ pages:
         scenario: あなたは最近目覚め、前世のすべてを忘れてしまいました。
         systemprompt: 受け取ったメッセージに、本物の人間のように答えてください。
         posthistoryinstructions: 人間の真似をすることを忘れないでください。
-      modules_info: Configure modules for this character card. If not set, default module configuration will be used.
-      use_default: Use default
-      use_default_not_configured: Use default (not configured)
+      modules_info: このキャラクターカード用のモジュールを設定してください。設定されていない場合は、デフォルトのモジュール設定が使用されます。
+      use_default: デフォルトを使用
+      use_default_not_configured: デフォルトを使用 (未設定)
       fields_info:
         subtitle: >-
           ここに作成するキャラクターの詳細、履歴とコンテキスト、 およびあなたにどう返答してほしいか記述できます。
@@ -137,8 +137,8 @@ pages:
         posthistoryinstructions: メッセージ履歴の後にAI LLMに読んでほしい内容をここに配置してください。
         version: >-
           カードのバージョン。以前のカードから変更を加える場合は、これを増やす必要があります。
-        consciousness_model: Select the consciousness model (AI model) for this character.
-        speech_model: Select the speech synthesis model and voice for this character.
+        consciousness_model: このキャラクターの意識モデル(AIモデル)を選択してください。
+        speech_model: このキャラクターの音声合成モデルと音声を選択してください。
       errors:
         name: 名前は有効であるか、空でない必要があります。
         version: 'エラー: 無効なバージョン番号です！'
@@ -159,7 +159,7 @@ pages:
     search: カードを検索…
     sort_by: 並び替え
     speech:
-      provider: Speech / Provider
+      provider: 音声/プロバイダー
       model: 発話/モデル
       voice: 発話/音声
     systemprompt: システムプロンプト
@@ -302,7 +302,7 @@ pages:
             search_results: 結果{total}個中{count}個のモデルが見つかりました
             show_less: 表示を減らす
             show_more: もっと表示
-            subtitle: Select a default model from the provider
+            subtitle: プロバイダーからデフォルトモデルを選択してください
             title: モデル
       title: 意識
     description: 思考、視覚、音声合成、ゲームなど。
@@ -365,7 +365,7 @@ pages:
               stop:
                 label: 停止
             select-voice:
-              loading: Loading model...
+              loading: モデルを読み込み中…
               required: 音声を選択してください
           provider-voice-selection:
             custom_model_placeholder: カスタムモデル名を入力…
@@ -616,29 +616,29 @@ pages:
             error-missing-api-key: 音声をテストするにはAPIキーを入力してください。
         title: ElevenLabs
       kokoro-local:
-        description: Local text-to-speech using Kokoro-82M.
+        description: Kokoro-82Mを使用したローカルテキスト読み上げ機能です。
         fields:
           field:
             model:
-              label: Model Selection
-              description: Smaller models load faster but may have slightly lower quality.
+              label: モデルの選択
+              description: モデルが小さいほど読み込みは速くなりますが、品質が若干低下する可能性があります。
         models:
           fp32-webgpu:
-            description: Full precision model using WebGPU - Recommended for supported devices
+            description: WebGPU を使用した単精度モデル - 対応デバイスでの使用を推奨します
           fp32:
-            description: Full precision model
+            description: 単精度モデル
           fp16:
-            description: Half precision
+            description: 半精度
           q8:
-            description: 8-bit quantized
+            description: 8ビット量子化
           q4:
-            description: 4-bit quantized
+            description: 4ビット量子化
           q4f16:
-            description: 4-bit with FP16
+            description: 4ビット量子化（FP16）
         playground:
-          default-text: Hello! This is a test of the Kokoro text-to-speech system.
-          title: Voice Playground
-        title: Kokoro TTS (Local)
+          default-text: こんにちは！これは音声合成システム Kokoro のテストです。
+          title: 音声合成実験場
+        title: Kokoro TTS (ローカル)
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai
@@ -653,8 +653,8 @@ pages:
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili/IndexTTS
-        callout_indextts2_unavailable_title: Limited Support
-        callout_indextts2_unavailable: Support for IndexTTS2 is currently unavailable. Please use IndexTTS.
+        callout_indextts2_unavailable_title: 限定的なサポート
+        callout_indextts2_unavailable: 現在、IndexTTS2のサポートはご利用いただけません。IndexTTSをご利用ください。
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry
@@ -790,40 +790,40 @@ pages:
                 title: マジックキーを使用
                 description: ショートカットをテスト
               audio-record:
-                title: Audio Record
-                description: Test Audio related composables
+                title: オーディオ録音
+                description: オーディオ関連のロジックをテストする
               background-gradient-blending:
-                title: Background Theme color blending
-                description: Test blending & theme
+                title: 背景テーマカラーのブレンド
+                description: テストブレンドとテーマの設定
               background-removal:
-                title: Background removal (WebGPU required)
-                description: Utility for background removal
+                title: 背景削除（WebGPUが必要）
+                description: 背景削除ユーティリティ
               chat:
-                title: Chat
-                description: Chat
+                title: チャット
+                description: チャット
               gesture-circle:
-                title: Gesture Circle (Desktop only)
-                description: Test gesture recognition
+                title: ジェスチャーサークル (デスクトップのみ)
+                description: ジェスチャー認識をテスト
               image:
-                title: Image
-                description: Image
+                title: 画像
+                description: 画像
               polaroid:
-                title: Polaroid
-                description: Utility for taking shots of models
+                title: ポラロイド
+                description: モデルを撮影するためのユーティリティ
               context-flow:
-                description: Inspect incoming context updates and outgoing chat stream events
+                description: 受信コンテキストの更新とチャットストリームの送信イベントを調査する
               websocket-inspector:
-                title: WebSocket Inspector
-                description: Inspect raw WebSocket traffic
+                title: WebSocketインスペクタ
+                description: 生のWebSocketトラフィックを調査する
               vibrant:
-                title: Color extract
-                description: Test color extraction
+                title: 色の抽出
+                description: テスト色の抽出
               providers-transcription-realtime-aliyun-nls:
-                title: Aliyun Real-time Transcriber
-                description: Stream microphone audio to Aliyun NLS and inspect live transcripts
+                title: Aliyun リアルタイム文字起こし
+                description: マイクの音声をAliyun NLSにストリーミングし、リアルタイムの文字起こしを確認する
               performance-playground:
-                title: Performance Playground
-                description: 'Test performance runtime: VRM expressions + TTS lip sync'
+                title: 機能実験場
+                description: '実行時のパフォーマンステスト: VRM 表情 + TTS リップシンク'
         theme-presets:
           presets:
             default:
