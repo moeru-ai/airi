@@ -1,22 +1,22 @@
 download-buttons:
-  latest-stable: Latest Stable Release
-  latest-prerelease: Latest Pre-release
-  latest-nightly: Latest Nightly Build
-  download: Download
-  view-release: View Release
-  stable-use-case-1: Production use
-  stable-use-case-2: Users who want a stable experience
-  stable-use-case-3: Live streaming and content creationr
-  prerelease-use-case-1: Early adopters who want to try new features
-  prerelease-use-case-2: Testing and providing feedback to developers
-  prerelease-use-case-3: Users comfortable with occasional bugs
+  latest-stable: Última versión estable
+  latest-prerelease: Última versión previa
+  latest-nightly: Última versión nocturna
+  download: Descargar
+  view-release: Ver detalles del lanzamiento
+  stable-use-case-1: Uso de producción
+  stable-use-case-2: Usuarios que desean una experiencia estable
+  stable-use-case-3: Transmisión en vivo y creación de contenido
+  prerelease-use-case-1: Usuarios que desean probar nuevas funciones
+  prerelease-use-case-2: Pruebas y proporcionar comentarios a los desarrolladores
+  prerelease-use-case-3: Usuarios cómodos con errores ocasionales
 releases-list:
-  stable: Stable
-  prerelease: Pre-release
-  nightly: Nightly
-  released-on: Released on
-  built-on: Built on
-  no-releases: 'No releases available at the moment. Check the {link} directly.'
-  no-nightly: 'No nightly builds available at the moment. Check the {link} directly.'
-  releases-page: releases page
-  workflow-page: workflow page
+  stable: Estable
+  prerelease: Pre-lanzamiento
+  nightly: Nocturna
+  released-on: Publicado él
+  built-on: Construido con
+  no-releases: 'No hay versiones disponibles en este momento. Comprueba él {link} directamente.'
+  no-nightly: 'No hay una versión nocturna disponible en este momento. Comprueba la {link} directamente.'
+  releases-page: página de lanzamiento
+  workflow-page: página de flujo de trabajo

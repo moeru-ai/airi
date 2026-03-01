@@ -73,9 +73,9 @@ live2d:
       title: Desactivar
   fps:
     title: FPS
-    description: Limit rendering frame rate
+    description: Limitar velocidad de fotogramas
     options:
-      unlimited: No Limit
+      unlimited: Sin límite
 microphone: Micrófono
 models: Modelo
 pages:
@@ -89,7 +89,7 @@ pages:
     character: Personaje
     close: Cerrar
     chat:
-      provider: Chat / Provider
+      provider: Chat / Proveedor
     consciousness:
       model: Consciencia / Modelo
     created_by: creado por
@@ -118,9 +118,9 @@ pages:
         scenario: Recientemente despertaste y olvidaste todo sobre tu vida anterior.
         systemprompt: Recibirás mensajes, respóndelos como un humano real.
         posthistoryinstructions: Recuerda imitar a un humano.
-      modules_info: Configure modules for this character card. If not set, default module configuration will be used.
-      use_default: Use default
-      use_default_not_configured: Use default (not configured)
+      modules_info: Configura los módulos para esta tarjeta de Personaje. Si no se establece, se utilizará la configuración predeterminada.
+      use_default: Usar predeterminado
+      use_default_not_configured: Usar predeterminado (no configurado)
       fields_info:
         subtitle: >-
           Puedes poner aquí algunos detalles sobre el personaje que estás creando, explicar su historia y contexto, y cómo deben responderse tus interacciones.
@@ -137,8 +137,8 @@ pages:
         posthistoryinstructions: Coloca aquí cualquier cosa que el LLM de IA deba leer después del historial de mensajes.
         version: >-
           Versión de la tarjeta, deberías aumentar esto si estás haciendo cambios desde una tarjeta anterior.
-        consciousness_model: Select the consciousness model (AI model) for this character.
-        speech_model: Select the speech synthesis model and voice for this character.
+        consciousness_model: Seleccione el modelo de conciencia (modelo IA) para este personaje.
+        speech_model: Seleccione el modelo de síntesis de voz y la voz para este personaje.
       errors:
         name: El nombre debe ser válido o no estar vacío.
         version: '¡Error: Número de versión inválido!'
@@ -159,7 +159,7 @@ pages:
     search: Buscar tarjetas...
     sort_by: Ordenar por
     speech:
-      provider: Speech / Provider
+      provider: Voz / Proveedor
       model: Habla / Modelo
       voice: Habla / Voz
     systemprompt: Prompt del Sistema
@@ -185,37 +185,37 @@ pages:
         description: Borrar modelos Live2D/VRM importados.
         delete: Borrar todos los modelos
       modules:
-        title: Modules
-        description: Reset module preferences and credentials.
-        reset: Reset module settings
+        title: Módulos
+        description: Restablece las preferencias y credenciales del módulo.
+        reset: Restablecer las configuraciones del módulo
       providers:
-        title: Providers
-        description: Reset all provider settings and credentials.
-        reset: Reset provider settings
+        title: Proveedores
+        description: Restablecer todos los ajustes y credenciales del proveedor.
+        reset: Restablecer configuración del proveedor
       danger:
-        title: Danger zone
-        description: Irreversible actions. Export what you need before continuing.
+        title: Zona de peligro
+        description: Acciones irreversibles. Exporta lo que necesitas antes de continuar.
       all:
-        title: Delete all data
-        description: Wipe every local setting, provider config, and model.
-        delete: Delete all data
+        title: Eliminar todos los datos
+        description: Limpia cada configuración local, configuración del proveedor y del modelo.
+        delete: Eliminar todos los datos
       desktop:
-        title: Reset desktop settings & states
-        description: Clear AIRI desktop settings and runtime state.
-        reset: Reset desktop data
+        title: Restablecer ajustes de escritorio y estados
+        description: Limpiar ajustes de escritorio y estado de ejecución de AIRI.
+        reset: Restablecer datos de escritorio
     confirmations:
-      tooltip: Are you sure?
-      'yes': 'Yes'
+      tooltip: '¿Estás seguro?'
+      'yes': 'Si'
     status:
-      exported: Chat sessions exported.
-      imported: Chat sessions imported.
-      import_error: Failed to import chat sessions. Please check the file format.
-      chats_deleted: Chat sessions deleted.
-      models_deleted: Models deleted.
-      modules_reset: Module settings reset.
-      providers_reset: Provider settings reset.
-      all_deleted: All local data deleted.
-      desktop_reset: Desktop data reset.
+      exported: Sesiones de chat exportadas.
+      imported: Sesiones de chat importadas.
+      import_error: Error al importar las sesiones de chat. Por favor, compruebe el formato del archivo.
+      chats_deleted: Sesiones de chat borradas.
+      models_deleted: Modelo eliminado.
+      modules_reset: Ajustes del módulo restablecidos.
+      providers_reset: Configuración del proveedor restablecida.
+      all_deleted: Se eliminaron todos los datos locales.
+      desktop_reset: Datos de escritorio restablecidos.
   models:
     description: Live2D, VRM, etc.
     title: Modelos
@@ -230,32 +230,32 @@ pages:
         scene: Escena
   modules:
     beat_sync:
-      description: Vibe with beats from the audio source
-      title: Beat Sync
+      description: Vibra con los ritmos de la fuente de audio
+      title: Sincronización de ritmo
       sections:
         audio_source:
           actions:
-            start_screen_capture: Start screen capture
-            stop: Stop
-          description: Select an audio source to detect beats from.
-          title: Audio source
+            start_screen_capture: Iniciar captura de pantalla
+            stop: Detener
+          description: Selecciona una fuente de audio para detectar los ritmos
+          title: Fuente de audio
         beat_visualizer:
-          title: Beat visualizer
+          title: Visualizador de ritmos
         parameters:
-          advanced_parameters: Advanced Parameters
-          description: Tweak the beat detection parameters.
-          title: Parameters
+          advanced_parameters: Parámetros Avanzados
+          description: Ajustar los parámetros de detección de ritmo.
+          title: Parámetros
           parameters:
             adaptive_threshold:
               description: >-
-                Whether to apply adaptive thresholds based on signal variance over time.
-              label: Adaptive threshold
+                Aplicar umbrales adaptivos basados en la variación de la señal a lo largo del tiempo
+              label: Umbral adaptable
             buffer_duration:
-              description: Duration of the internal analysis buffer.
-              label: Buffer duration
+              description: Duración del buffer de análisis interno.
+              label: Duración del buffer
             envelope_filter_frequency:
               description: >-
-                Frequency for the envelope filter applied to smooth energy changes.
+                Frecuencia del filtro envolvente aplicado para suavizar los cambios de energía.
               label: Envelope filter frequency
             highpass_filter_frequency:
               description: >-
@@ -477,8 +477,8 @@ pages:
               title: Chat Completion
           status:
             validating: Validating...
-            valid: Passed
-            invalid: Errored
+            valid: Aprobado
+            invalid: Error
           title: Checks
         providers:
           provider:
@@ -486,9 +486,9 @@ pages:
               troubleshooting:
                 validators:
                   openai-compatible-check-connectivity:
-                    label: Extra configuration needed for Ollama
+                    label: Configuración extra necesaria para Ollama
                     content: >-
-                      Sorry to hear that Connectivity check failed for Ollama. Don't worry, for Ollama instances, extra configuration is needed for making it pass for Ollama. You need to set <code>OLLAMA_HOST</code> explicitly when start the Ollama application or Ollama CLI server, for detailed information, check <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama integration guide</a>.
+                      Lamentamos escuchar que la conexion con Ollama falló. No te preocupes, para las instancias de Ollama, es necesaria una configuración extra para que pase por Ollama. Debe establecer <code>OLLAMA_HOST</code> explícitamente al iniciar la aplicación Ollama o el servidor CLI de Ollama, para obtener información detallada, consulte la guía <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">de integración Ollama</a>.
     common:
       continueAnyway: Continuar de todos modos
       fields:
@@ -557,8 +557,8 @@ pages:
         title: Cloudflare Workers AI
       common:
         status:
-          validating: Validating
-          valid: Configuration seems to be valid.
+          validating: Validando
+          valid: La configuración parece ser válida.
         fields:
           field:
             pitch:
@@ -616,15 +616,15 @@ pages:
             error-missing-api-key: Por favor ingresa una clave API para probar la voz.
         title: ElevenLabs
       kokoro-local:
-        description: Local text-to-speech using Kokoro-82M.
+        description: Texto local de voz usando Kokoro-82M.
         fields:
           field:
             model:
-              label: Model Selection
-              description: Smaller models load faster but may have slightly lower quality.
+              label: Selección de modelo
+              description: Los modelos más pequeños cargan más rápido, pero pueden tener una calidad ligeramente menor.
         models:
           fp32-webgpu:
-            description: Full precision model using WebGPU - Recommended for supported devices
+            description: Modelo de precisión completa usando WebGPU - Recomendado para dispositivos compatibles
           fp32:
             description: Full precision model
           fp16:
