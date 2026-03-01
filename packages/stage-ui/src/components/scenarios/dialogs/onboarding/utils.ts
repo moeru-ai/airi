@@ -7,7 +7,7 @@ export interface OnboardingContext {
   selectedProvider: Ref<ProviderMetadata | null>
   popularProviders: Ref<ProviderMetadata[]>
   selectProvider: (provider: ProviderMetadata) => void
-  handleNextStep: (configData?: { apiKey: string, baseUrl: string, accountId: string }) => Promise<void>
+  handleNextStep: (configData?: { apiKey: string, baseUrl: string, accountId: string, manualModels?: string }) => Promise<void>
   handlePreviousStep: () => void
   handleSave: () => void
 }

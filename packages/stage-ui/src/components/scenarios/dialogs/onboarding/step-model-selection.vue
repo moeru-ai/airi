@@ -19,6 +19,7 @@ const {
   modelSearchQuery,
   providerModels,
   isLoadingActiveProviderModels,
+  activeProviderModelError,
 } = storeToRefs(consciousnessStore)
 </script>
 
@@ -37,7 +38,6 @@ const {
     <!-- Using the new RadioCardManySelect component -->
     <div flex-1>
       <RadioCardManySelect
-        v-if="providerModels.length > 0"
         v-model="activeModel"
         v-model:search-query="modelSearchQuery"
         :items="providerModels.toSorted((a, b) => a.id === activeModel ? -1 : b.id === activeModel ? 1 : 0)"
@@ -53,13 +53,24 @@ const {
         list-class="max-h-[calc(100dvh-17rem)] sm:max-h-120"
       />
 
-      <Alert v-else type="error">
+      <Alert v-if="providerModels.length === 0 && !isLoadingActiveProviderModels && !activeModel" type="error">
         <template #title>
           {{ t('settings.dialogs.onboarding.no-models') }}
         </template>
         <template #content>
           <div class="whitespace-pre-wrap break-all">
             {{ t('settings.dialogs.onboarding.no-models-help') }}
+          </div>
+        </template>
+      </Alert>
+
+      <Alert v-if="activeProviderModelError" type="error">
+        <template #title>
+          {{ t('settings.dialogs.onboarding.validationFailed') }}
+        </template>
+        <template #content>
+          <div class="whitespace-pre-wrap break-all">
+            {{ activeProviderModelError }}
           </div>
         </template>
       </Alert>
