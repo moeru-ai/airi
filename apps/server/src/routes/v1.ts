@@ -10,7 +10,7 @@ export function createV1Routes(fluxService: FluxService, env: any) {
 
   v1.use('*', authGuard)
 
-  async function handleCompletion(c: any) {
+  async function handleCompletion(c: Context<HonoEnv>) {
     const user = c.get('user')!
     const flux = await fluxService.getFlux(user.id)
     if (flux.flux <= 0) {
