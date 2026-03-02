@@ -44,7 +44,8 @@ function extractModelId(model: unknown): string {
   if (typeof model === 'string')
     return model
   if (typeof (model as Record<string, unknown>).id === 'string')
-    return (model as Record<string, unknown>).id as string
+    if (typeof model === 'object' && model !== null && 'id' in model && typeof (model as { id: unknown }).id === 'string')
+      return (model as { id: string }).id
 
   return ''
 }
