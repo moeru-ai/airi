@@ -1,7 +1,7 @@
 import type * as fullSchema from '../schemas'
 import type { Database } from './db'
 
-import { eq } from 'drizzle-orm'
+import { and, eq, gte, sql } from 'drizzle-orm'
 
 import * as schema from '../schemas/flux'
 
@@ -23,27 +23,36 @@ export function createFluxService(db: Database<typeof fullSchema>) {
     },
 
     async consumeFlux(userId: string, amount: number) {
-      const record = await this.getFlux(userId)
-      if (record.flux < amount) {
+      // Ensure the user has a flux record
+      await this.getFlux(userId)
+
+      // Atomic check-and-deduct to prevent race conditions
+      const result = await db.update(schema.userFlux)
+        .set({
+          flux: sql`${schema.userFlux.flux} - ${amount}`,
+          updatedAt: new Date(),
+        })
+        .where(and(
+          eq(schema.userFlux.userId, userId),
+          gte(schema.userFlux.flux, amount),
+        ))
+        .returning()
+
+      if (result.length === 0) {
         throw new Error('Insufficient flux')
       }
 
-      const [updated] = await db.update(schema.userFlux)
-        .set({
-          flux: record.flux - amount,
-          updatedAt: new Date(),
-        })
-        .where(eq(schema.userFlux.userId, userId))
-        .returning()
-
-      return updated
+      return result[0]
     },
 
     async addFlux(userId: string, amount: number) {
-      const record = await this.getFlux(userId)
+      // Ensure the user has a flux record
+      await this.getFlux(userId)
+
+      // Atomic addition to prevent race conditions
       const [updated] = await db.update(schema.userFlux)
         .set({
-          flux: record.flux + amount,
+          flux: sql`${schema.userFlux.flux} + ${amount}`,
           updatedAt: new Date(),
         })
         .where(eq(schema.userFlux.userId, userId))
