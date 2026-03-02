@@ -26,6 +26,11 @@ dialogs:
     next: 下一步
     retry: 重试
     start: 开始吧！
+    loginPrompt: 登录以使用官方 AIRI 服务来源以获得最佳体验。
+    loginAction: 登录
+    localSetup: 配置本地服务来源
+    flux: Flux
+    buyFlux: 充能 Flux
     select-model: 选择模型
     no-models: 找不到可用模型
     no-models-help: >-
@@ -420,6 +425,20 @@ pages:
     mcp-server:
       description: 连接和管理 MCP 服务器及工具
       title: MCP 服务器
+  flux:
+    title: Flux
+    buy: 充能
+    description: 当前 Flux
+    packages:
+      amount_500:
+        label: 500 Flux
+        price: '$5'
+      amount_1000:
+        label: 1000 Flux
+        price: '$10'
+      amount_5000:
+        label: 5000 Flux
+        price: '$45'
   providers:
     explained:
       chat: 文本生成模型服务来源，例如 OpenRouter, OpenAI, Ollama

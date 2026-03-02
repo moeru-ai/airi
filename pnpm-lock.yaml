@@ -186,6 +186,9 @@ catalogs:
     std-env:
       specifier: ^4.0.0-rc.1
       version: 4.0.0-rc.1
+    stripe:
+      specifier: ^20.3.0
+      version: 20.3.0
     superjson:
       specifier: ^2.2.6
       version: 2.2.6
@@ -495,6 +498,9 @@ importers:
       postgres:
         specifier: ^3.4.8
         version: 3.4.8
+      stripe:
+        specifier: 'catalog:'
+        version: 20.3.0(@types/node@24.10.14)
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
@@ -15165,6 +15171,15 @@ packages:
   strip-outer@1.0.1:
     resolution: {integrity: sha512-k55yxKHwaXnpYGsOzg4Vl8+tDrWylxDEpknGjhTiZB8dFRU5rTo9CAzeycivxV3s+zlTKwrs6WxMxR95n26kwg==}
     engines: {node: '>=0.10.0'}
+
+  stripe@20.3.0:
+    resolution: {integrity: sha512-DYzcmV1MfYhycr1GwjCjeQVYk9Gu8dpxyTlu7qeDCsuguug7oUTxPsUQuZeSf/OPzK7pofqobvOKVqAwlpgf/Q==}
+    engines: {node: '>=16'}
+    peerDependencies:
+      '@types/node': '>=16'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
 
   strtok3@6.3.0:
     resolution: {integrity: sha512-fZtbhtvI9I48xDSywd/somNqgUHl2L2cstmXCCif0itOf96jeW18MBSyrLuNicYQVkvpOxkZtkzujiTJ9LW5Jw==}
@@ -30185,6 +30200,10 @@ snapshots:
   strip-outer@1.0.1:
     dependencies:
       escape-string-regexp: 1.0.5
+
+  stripe@20.3.0(@types/node@24.10.14):
+    optionalDependencies:
+      '@types/node': 24.10.14
 
   strtok3@6.3.0:
     dependencies:
