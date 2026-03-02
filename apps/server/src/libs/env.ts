@@ -4,7 +4,7 @@ import { env, exit } from 'node:process'
 
 import { useLogger } from '@guiiai/logg'
 import { injeca } from 'injeca'
-import { nonEmpty, object, parse, pipe, string } from 'valibot'
+import { nonEmpty, object, optional, parse, pipe, string, transform } from 'valibot'
 
 const EnvSchema = object({
   DATABASE_URL: pipe(string(), nonEmpty('DATABASE_URL is required')),
@@ -17,6 +17,8 @@ const EnvSchema = object({
   BACKEND_LLM_API_KEY: pipe(string(), nonEmpty('BACKEND_LLM_API_KEY is required')),
   BACKEND_LLM_BASE_URL: pipe(string(), nonEmpty('BACKEND_LLM_BASE_URL is required')),
   CLIENT_URL: pipe(string(), nonEmpty('CLIENT_URL is required')),
+  FLUX_PER_CENT: optional(pipe(string(), transform(Number)), '1'),
+  FLUX_PER_REQUEST: optional(pipe(string(), transform(Number)), '1'),
 })
 
 export type Env = InferOutput<typeof EnvSchema>

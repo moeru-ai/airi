@@ -1,12 +1,18 @@
-import type { Env } from '../services/env'
+import type { Env } from '../libs/env'
 import type { FluxService } from '../services/flux'
 import type { HonoEnv } from '../types/hono'
 
 import Stripe from 'stripe'
 
 import { Hono } from 'hono'
+import { integer, minValue, number, object, pipe, safeParse } from 'valibot'
 
 import { authGuard } from '../middlewares/auth'
+import { createBadRequestError } from '../utils/error'
+
+const CheckoutBodySchema = object({
+  amount: pipe(number(), integer(), minValue(1)),
+})
 
 export function createStripeRoutes(fluxService: FluxService, env: Env) {
   const stripe = new Stripe(env.STRIPE_SECRET_KEY)
@@ -14,7 +20,13 @@ export function createStripeRoutes(fluxService: FluxService, env: Env) {
   return new Hono<HonoEnv>()
     .post('/checkout', authGuard, async (c) => {
       const user = c.get('user')!
-      const { amount } = await c.req.json()
+      const body = await c.req.json()
+
+      const result = safeParse(CheckoutBodySchema, body)
+      if (!result.success)
+        throw createBadRequestError('Invalid checkout amount', 'INVALID_REQUEST', result.issues)
+
+      const { amount } = result.output
 
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
@@ -51,8 +63,9 @@ export function createStripeRoutes(fluxService: FluxService, env: Env) {
         const body = await c.req.text()
         event = stripe.webhooks.constructEvent(body, sig, env.STRIPE_WEBHOOK_SECRET)
       }
-      catch (err: any) {
-        return c.json({ error: `Webhook Error: ${err.message}` }, 400)
+      catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error'
+        return c.json({ error: `Webhook Error: ${message}` }, 400)
       }
 
       if (event.type === 'checkout.session.completed') {
@@ -61,8 +74,7 @@ export function createStripeRoutes(fluxService: FluxService, env: Env) {
         const amount = session.amount_total
 
         if (userId && amount) {
-        // Example: 1 flux per cent?
-          await fluxService.addFlux(userId, amount)
+          await fluxService.addFlux(userId, amount * env.FLUX_PER_CENT)
         }
       }
 
