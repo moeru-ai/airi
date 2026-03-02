@@ -24,6 +24,7 @@ import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
 import { computedAsync, useLocalStorage } from '@vueuse/core'
 import {
   createOpenAI,
+  createOpenRouter,
 } from '@xsai-ext/providers/create'
 import { createPlayer2 } from '@xsai-ext/providers/special/create'
 import {
