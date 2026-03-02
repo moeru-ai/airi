@@ -787,7 +787,7 @@ pages:
                 title: Markdown Stress
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
               use-magic-keys:
-                title: useMagicKeys
+                title: useMagicKeys 工具
                 description: 测试快捷键
               audio-record:
                 title: 音频录制

@@ -814,7 +814,7 @@ pages:
                 title: Markdown Stress
                 description: Stress markdown parsing and rendering with heavy chat payloads
               use-magic-keys:
-                title: useMagicKeys
+                title: useMagicKeys Tool
                 description: Test shortcuts
               audio-record:
                 title: Audio Record
