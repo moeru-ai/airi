@@ -1,4 +1,6 @@
+import { dirname } from 'node:path'
 import { env, platform } from 'node:process'
+import { fileURLToPath } from 'node:url'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
@@ -32,7 +34,7 @@ import { setupWidgetsWindowManager } from './windows/widgets'
 // manage events within eventa's context system.
 ipcMain.setMaxListeners(100)
 
-setElectronMainDirname(__dirname)
+setElectronMainDirname(dirname(fileURLToPath(import.meta.url)))
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
 setupDebugger()

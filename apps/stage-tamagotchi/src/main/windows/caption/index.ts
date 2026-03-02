@@ -111,7 +111,7 @@ function createCaptionWindow(options?: BrowserWindowConstructorOptions) {
     show: false,
     icon,
     webPreferences: {
-      preload: join(__dirname, '../preload/index.mjs'),
+      preload: join(getElectronMainDirname(), '../preload/index.mjs'),
       sandbox: false,
     },
     // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
