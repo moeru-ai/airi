@@ -597,11 +597,20 @@ onUnmounted(() => {
             </div>
 
             <!-- Error state -->
-            <ErrorContainer
-              v-else-if="activeProviderModelError && supportsModelListing"
-              :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-              :error="activeProviderModelError"
-            />
+            <template v-else-if="activeProviderModelError && supportsModelListing">
+              <ErrorContainer
+                :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
+                :error="activeProviderModelError"
+              />
+
+              <div v-if="activeTranscriptionProvider === 'openai-compatible-audio-transcription'" class="mt-2">
+                <FieldInput
+                  :model-value="activeTranscriptionModel || activeCustomModelName || ''"
+                  placeholder="whisper-1"
+                  @update:model-value="updateCustomModelName"
+                />
+              </div>
+            </template>
 
             <!-- Manual input for providers without model listing or when no models are available -->
             <div
