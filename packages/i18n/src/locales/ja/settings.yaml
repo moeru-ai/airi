@@ -787,7 +787,7 @@ pages:
                 title: Markdown ストレス
                 description: 大量のチャットデータを含むMarkdownの解析とレンダリング負荷のテスト
               use-magic-keys:
-                title: マジックキーを使用
+                title: useMagicKeys ツール
                 description: ショートカットをテスト
               audio-record:
                 title: オーディオ録音

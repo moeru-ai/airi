@@ -25,7 +25,7 @@ pages:
       sections:
         section:
           use-window-mouse:
-            title: 使用WindowMouse
+            title: useWindowMouse 工具
             description: 測試 Electron 視窗滑鼠游標位置
 devtools:
   title: 開發者
