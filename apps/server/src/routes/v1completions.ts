@@ -8,11 +8,7 @@ import { Hono } from 'hono'
 
 import { authGuard } from '../middlewares/auth'
 
-export function createV1Routes(fluxService: FluxService, env: Env) {
-  const v1 = new Hono<HonoEnv>()
-
-  v1.use('*', authGuard)
-
+export function createV1CompletionsRoutes(fluxService: FluxService, env: Env) {
   async function handleCompletion(c: Context<HonoEnv>) {
     const user = c.get('user')!
     const flux = await fluxService.getFlux(user.id)
@@ -40,8 +36,8 @@ export function createV1Routes(fluxService: FluxService, env: Env) {
     })
   }
 
-  v1.post('/chat/completions', handleCompletion)
-  v1.post('/chat/completion', handleCompletion)
-
-  return v1
+  return new Hono<HonoEnv>()
+    .use('*', authGuard)
+    .post('/chat/completions', handleCompletion)
+    .post('/chat/completion', handleCompletion)
 }

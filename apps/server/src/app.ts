@@ -16,7 +16,7 @@ import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
-import { createV1Routes } from './routes/v1'
+import { createV1CompletionsRoutes } from './routes/v1completions'
 import { createAuth } from './services/auth'
 import { createCharacterService } from './services/characters'
 import { createChatService } from './services/chats'
@@ -101,7 +101,7 @@ function buildApp({ auth, characterService, chatService, providerService, fluxSe
     /**
      * V1 routes for official provider.
      */
-    .route('/v1', createV1Routes(fluxService, env))
+    .route('/v1', createV1CompletionsRoutes(fluxService, env))
 
     /**
      * Flux routes.
