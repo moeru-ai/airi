@@ -24,7 +24,6 @@ import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
 import { computedAsync, useLocalStorage } from '@vueuse/core'
 import {
   createOpenAI,
-  createOpenRouter,
 } from '@xsai-ext/providers/create'
 import { createPlayer2 } from '@xsai-ext/providers/special/create'
 import {
@@ -279,63 +278,6 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
-    'openrouter-ai': buildOpenAICompatibleProvider({
-      id: 'openrouter-ai',
-      name: 'OpenRouter',
-      nameKey: 'settings.pages.providers.provider.openrouter.title',
-      descriptionKey: 'settings.pages.providers.provider.openrouter.description',
-      icon: 'i-lobe-icons:openrouter',
-      description: 'openrouter.ai',
-      defaultBaseUrl: 'https://openrouter.ai/api/v1/',
-      creator: createOpenRouter,
-      validation: ['health', 'model_list'],
-      validators: {
-        validateProviderConfig: async (config) => {
-          const errors: Error[] = []
-
-          if (!config.apiKey) {
-            errors.push(new Error('API Key is required'))
-          }
-
-          if (!config.baseUrl) {
-            errors.push(new Error('Base URL is required'))
-          }
-
-          if (errors.length > 0) {
-            return { errors, reason: errors.map(e => e.message).join(', '), valid: false }
-          }
-
-          if (!isUrl(config.baseUrl as string) || new URL(config.baseUrl as string).host.length === 0) {
-            errors.push(new Error('Base URL is not absolute. Check your input.'))
-          }
-
-          if (!(config.baseUrl as string).endsWith('/')) {
-            errors.push(new Error('Base URL must end with a trailing slash (/).'))
-          }
-
-          if (errors.length > 0) {
-            return { errors, reason: errors.map(e => e.message).join(', '), valid: false }
-          }
-
-          const response = await fetch(`${config.baseUrl as string}chat/completions`, { headers: { Authorization: `Bearer ${config.apiKey}` }, method: 'POST', body: `{"model": "test","messages": [{"role": "user","content": "Hello, world"}],"stream": false}` })
-          const responseJson = await response.json()
-
-          if (!responseJson.user_id) {
-            return {
-              errors: [new Error(`OpenRouterError: ${responseJson.error.message}`)],
-              reason: `OpenRouterError: ${responseJson.error.message}`,
-              valid: false,
-            }
-          }
-
-          return {
-            errors: [],
-            reason: '',
-            valid: true,
-          }
-        },
-      },
-    }),
     'app-local-audio-speech': buildOpenAICompatibleProvider({
       id: 'app-local-audio-speech',
       name: 'App (Local)',
@@ -1843,12 +1785,6 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Initialize provider configurations
   function initializeProvider(providerId: string) {
-    if (providerId === 'official-provider') {
-      const authStore = useAuthStore()
-      if (authStore.isAuthenticated) {
-        forceProviderConfigured(providerId)
-      }
-    }
     if (!providerCredentials.value[providerId]) {
       providerCredentials.value[providerId] = getDefaultProviderConfig(providerId)
     }
@@ -1858,6 +1794,14 @@ export const useProvidersStore = defineStore('providers', () => {
         models: [],
         isLoadingModels: false,
         modelLoadError: null,
+      }
+    }
+
+    // Must run AFTER runtime state is created so forceProviderConfigured can set isConfigured
+    if (providerId === 'official-provider') {
+      const authStore = useAuthStore()
+      if (authStore.isAuthenticated) {
+        forceProviderConfigured(providerId)
       }
     }
   }
