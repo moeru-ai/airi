@@ -77,6 +77,8 @@ export default {
     '!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}',
     '!**/node_modules/**/{.turbo,test,src,__tests__,tests,example,examples}',
     'node_modules/debug/src/**',
+    // NOTICE: debug resolves `ms` at runtime; include it explicitly to avoid packaged runtime errors like "Cannot find module 'ms'".
+    'node_modules/ms/**',
     '!electron.vite.config.{js,ts,mjs,cjs}',
     '!vite.config.{js,ts,mjs,cjs}',
     '!uno.config.{js,ts,mjs,cjs}',

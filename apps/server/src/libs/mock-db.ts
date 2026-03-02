@@ -1,4 +1,4 @@
-import type { Database } from '../services/db'
+import type { Database } from './db'
 
 import { PGlite } from '@electric-sql/pglite'
 import { vector } from '@electric-sql/pglite/vector'
