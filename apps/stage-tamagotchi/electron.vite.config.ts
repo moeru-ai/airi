@@ -22,6 +22,19 @@ const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 export default defineConfig({
   main: {
     plugins: [Info()],
+    build: {
+      rolldownOptions: {
+        output: {
+          // https://github.com/lobehub/lobehub/blob/6ecba929b738e1259e15d17e7643941e015324ee/apps/desktop/electron.vite.config.ts#L54
+          // Prevent debug package from being bundled into index.js to avoid side-effect pollution
+          manualChunks(id) {
+            if (id.includes('node_modules/debug')) {
+              return 'vendor-debug'
+            }
+          },
+        },
+      },
+    },
   },
   preload: {
     build: {

@@ -12,8 +12,7 @@ export const electronOpenDevtoolsWindow = defineInvokeEventa<void, { route?: str
 export interface ElectronServerChannelTlsConfig {
   [key: string]: unknown
 }
-export const electronStartWebSocketServer = defineInvokeEventa<void, { websocketTlsConfig: ElectronServerChannelTlsConfig | null }>('eventa:invoke:electron:start-websocket-server')
-export const electronRestartWebSocketServer = defineInvokeEventa<void, { websocketTlsConfig: ElectronServerChannelTlsConfig | null }>('eventa:invoke:electron:restart-websocket-server')
+
 export interface ElectronServerChannelConfig {
   websocketTlsConfig: ElectronServerChannelTlsConfig | null
 }
