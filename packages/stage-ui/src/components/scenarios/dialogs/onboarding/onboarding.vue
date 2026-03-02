@@ -26,11 +26,12 @@ const { providers, allChatProvidersMetadata } = storeToRefs(providersStore)
 const consciousnessStore = useConsciousnessStore()
 const {
   activeProvider,
+  activeModel,
 } = storeToRefs(consciousnessStore)
 
 // Popular providers for first-time setup
 const popularProviders = computed(() => {
-  const popular = ['openai', 'anthropic', 'google-generative-ai', 'groq', 'openrouter-ai', 'ollama', 'deepseek', 'player2', 'openai-compatible']
+  const popular = ['openai', 'azure-openai', 'anthropic', 'google-generative-ai', 'groq', 'openrouter-ai', 'ollama', 'deepseek', 'player2', 'openai-compatible']
   return allChatProvidersMetadata.value
     .filter(provider => popular.includes(provider.id))
     .sort((a, b) => popular.indexOf(a.id) - popular.indexOf(b.id))
@@ -56,7 +57,7 @@ function handlePreviousStep() {
   }
 }
 
-async function handleNextStep(configData?: { apiKey: string, baseUrl: string, accountId: string }) {
+async function handleNextStep(configData?: { apiKey: string, baseUrl: string, accountId: string, manualModels?: string }) {
   // Step 3: Provider configuration - validate and save before proceeding
   if (step.value === 3 && configData) {
     await saveProviderConfiguration(configData)
@@ -75,7 +76,7 @@ async function handleNextStep(configData?: { apiKey: string, baseUrl: string, ac
   }
 }
 
-async function saveProviderConfiguration(data: { apiKey: string, baseUrl: string, accountId: string }) {
+async function saveProviderConfiguration(data: { apiKey: string, baseUrl: string, accountId: string, manualModels?: string }) {
   if (!selectedProvider.value)
     return
 
@@ -87,6 +88,8 @@ async function saveProviderConfiguration(data: { apiKey: string, baseUrl: string
     config.baseUrl = data.baseUrl.trim()
   if (data.accountId)
     config.accountId = data.accountId.trim()
+  if (data.manualModels)
+    config.manualModels = data.manualModels.trim()
 
   providers.value[selectedProvider.value.id] = {
     ...providers.value[selectedProvider.value.id],
@@ -94,13 +97,22 @@ async function saveProviderConfiguration(data: { apiKey: string, baseUrl: string
   }
 
   activeProvider.value = selectedProvider.value.id
+
+  const firstManualModel = (data.manualModels || '')
+    .split(',')
+    .map(item => item.trim())
+    .find(Boolean)
+  if (firstManualModel) {
+    activeModel.value = firstManualModel
+  }
+
   await nextTick()
 
   try {
     await consciousnessStore.loadModelsForProvider(selectedProvider.value.id)
   }
   catch (err) {
-    console.error('error', err)
+    console.error('[onboarding] Failed to load models for provider:', err)
   }
 }
 

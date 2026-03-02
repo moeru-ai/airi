@@ -1,4 +1,5 @@
 import './openai'
+import './azure-openai'
 import './openai-compatible'
 import './n1n'
 import './openrouter-ai'
