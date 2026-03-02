@@ -23,7 +23,7 @@
     "crossws": "catalog:",
     "es-toolkit": "^1.44.0",
     "eventemitter3": "^5.0.4",
-    "minecraft-data": "^3.105.0",
+    "minecraft-data": "3.102.3",
     "mineflayer": "^4.33.0",
     "mineflayer-armor-manager": "^2.0.1",
     "mineflayer-auto-eat": "^5.0.3",
