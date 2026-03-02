@@ -1,3 +1,4 @@
+import type { Env } from '../services/env'
 import type { FluxService } from '../services/flux'
 import type { HonoEnv } from '../types/hono'
 
@@ -7,7 +8,7 @@ import { Hono } from 'hono'
 
 import { authGuard } from '../middlewares/auth'
 
-export function createStripeRoutes(fluxService: FluxService, env: any) {
+export function createStripeRoutes(fluxService: FluxService, env: Env) {
   const stripe = new Stripe(env.STRIPE_SECRET_KEY)
   const routes = new Hono<HonoEnv>()
 

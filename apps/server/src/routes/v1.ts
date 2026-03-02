@@ -1,3 +1,6 @@
+import type { Context } from 'hono'
+
+import type { Env } from '../services/env'
 import type { FluxService } from '../services/flux'
 import type { HonoEnv } from '../types/hono'
 
@@ -5,7 +8,7 @@ import { Hono } from 'hono'
 
 import { authGuard } from '../middlewares/auth'
 
-export function createV1Routes(fluxService: FluxService, env: any) {
+export function createV1Routes(fluxService: FluxService, env: Env) {
   const v1 = new Hono<HonoEnv>()
 
   v1.use('*', authGuard)
