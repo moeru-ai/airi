@@ -1,6 +1,7 @@
 import type { Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
+import type { ServerChannel } from '../../services/airi/channel-server'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { NoticeWindowManager } from '../notice'
 import type { WidgetsWindowManager } from '../widgets'
@@ -48,6 +49,7 @@ export async function setupMainWindow(params: {
   noticeWindow: NoticeWindowManager
   autoUpdater: AutoUpdater
   onWindowCreated?: (window: BrowserWindow) => void
+  serverChannel: ServerChannel
 }) {
   const {
     setup: setupConfig,
@@ -158,6 +160,7 @@ export async function setupMainWindow(params: {
     widgetsManager: params.widgetsManager,
     noticeWindow: params.noticeWindow,
     autoUpdater: params.autoUpdater,
+    serverChannel: params.serverChannel,
   })
 
   /**

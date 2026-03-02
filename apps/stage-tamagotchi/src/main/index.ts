@@ -13,7 +13,7 @@ import icon from '../../resources/icon.png?asset'
 import { openDebugger, setupDebugger } from './app/debugger'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
-import { setupServerChannelHandlers } from './services/airi/channel-server'
+import { setupServerChannel } from './services/airi/channel-server'
 import { setupPluginHost } from './services/airi/plugins'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupTray } from './tray'
@@ -73,37 +73,52 @@ initScreenCaptureForMain()
 app.whenReady().then(async () => {
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
 
-  const serverChannel = injeca.provide('modules:channel-server', () => setupServerChannelHandlers())
-  const pluginHost = injeca.provide('modules:plugin-host', () => setupPluginHost())
+  const electronApp = injeca.provide('host:electron:app', () => app)
   const autoUpdater = injeca.provide('services:auto-updater', () => setupAutoUpdater())
-  const widgetsManager = injeca.provide('windows:widgets', () => setupWidgetsWindowManager())
+
+  const serverChannel = injeca.provide('modules:channel-server', {
+    dependsOn: { app: electronApp },
+    build: async () => setupServerChannel(),
+  })
+
+  const pluginHost = injeca.provide('modules:plugin-host', {
+    dependsOn: { serverChannel },
+    build: () => setupPluginHost(),
+  })
+
+  // BeatSync will create a background window to capture and process audio.
+  const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
+
+  const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
   const noticeWindow = injeca.provide('windows:notice', () => setupNoticeWindowManager())
+
+  const widgetsManager = injeca.provide('windows:widgets', {
+    dependsOn: { serverChannel },
+    build: () => setupWidgetsWindowManager(),
+  })
+
   const aboutWindow = injeca.provide('windows:about', {
     dependsOn: { autoUpdater },
     build: ({ dependsOn }) => setupAboutWindowReusable(dependsOn),
   })
 
-  // BeatSync will create a background window to capture and process audio.
-  const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
-  const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
-
   const chatWindow = injeca.provide('windows:chat', {
-    dependsOn: { widgetsManager },
+    dependsOn: { widgetsManager, serverChannel },
     build: ({ dependsOn }) => setupChatWindowReusableFunc(dependsOn),
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsMarkdownStressWindow },
+    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsMarkdownStressWindow, serverChannel },
     build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater },
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
 
   const captionWindow = injeca.provide('windows:caption', {
-    dependsOn: { mainWindow },
+    dependsOn: { mainWindow, serverChannel },
     build: async ({ dependsOn }) => setupCaptionWindowManager(dependsOn),
   })
 
