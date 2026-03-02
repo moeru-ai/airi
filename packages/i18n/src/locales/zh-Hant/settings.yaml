@@ -137,8 +137,8 @@ pages:
         posthistoryinstructions: 在訊息歷史之後，放入 AI LLM 應該閱讀的內容。
         version: >-
           卡片版本，如果您從先前的卡片做了更改，應當增加此版本號。
-        consciousness_model: Select the consciousness model (AI model) for this character.
-        speech_model: Select the speech synthesis model and voice for this character.
+        consciousness_model: 請為該角色選擇意識模型（人工智能模型）。
+        speech_model: 請為此角色選用語音合成模型與聲線。
       errors:
         name: 錯誤：你必須提供一個有效的名稱！
         version: '錯誤：版本號無效！'
@@ -159,7 +159,7 @@ pages:
     search: 搜尋角色卡...
     sort_by: 排序方式
     speech:
-      provider: Speech / Provider
+      provider: 聲音 / 聲線
       model: 聲音 / 模型
       voice: 聲音 / 聲線
     systemprompt: 系統提示詞
@@ -171,51 +171,51 @@ pages:
     description: 存放記憶的地方，以及策略
     title: 記憶體
   data:
-    title: Data
-    description: Manage stored AIRI data, exports, and resets
+    title: 資料
+    description: 管理已儲存的 AIRI 資料、匯出與重置作業
     sections:
       chats:
-        title: Chat sessions
-        description: Export or import saved chat sessions.
-        export: Export chats
-        import: Import chats
-        delete: Delete all chat sessions
+        title: 對話紀錄
+        description: 匯出或匯入已儲存的對話紀錄。
+        export: 匯出聊天記錄
+        import: 匯入聊天記錄
+        delete: 刪除所有聊天記錄
       models:
-        title: Models
-        description: Remove imported Live2D/VRM models.
-        delete: Delete all models
+        title: 模型
+        description: 移除匯入的 Live2D/VRM 模型
+        delete: 刪除所有模型
       modules:
-        title: Modules
-        description: Reset module preferences and credentials.
-        reset: Reset module settings
+        title: 模組
+        description: 重設模組偏好設定與驗證資訊
+        reset: 重設模組設定
       providers:
-        title: Providers
-        description: Reset all provider settings and credentials.
-        reset: Reset provider settings
+        title: 服務提供者
+        description: 重設所有服務提供者的設定與驗證資訊
+        reset: 重設服務提供者的設定
       danger:
-        title: Danger zone
-        description: Irreversible actions. Export what you need before continuing.
+        title: 危險區域
+        description: 此操作無法還原。繼續前請先匯出所需資料。
       all:
-        title: Delete all data
-        description: Wipe every local setting, provider config, and model.
-        delete: Delete all data
+        title: 刪除所有資料
+        description: 清除所有本機設定、服務提供者設定與模型。
+        delete: 刪除所有資料
       desktop:
-        title: Reset desktop settings & states
-        description: Clear AIRI desktop settings and runtime state.
-        reset: Reset desktop data
+        title: 重設桌面設定與狀態
+        description: 清除 AIRI 桌面設定與執行階段狀態
+        reset: 重設桌面資料
     confirmations:
-      tooltip: Are you sure?
-      'yes': 'Yes'
+      tooltip: 您確定嗎？
+      'yes': '是'
     status:
-      exported: Chat sessions exported.
-      imported: Chat sessions imported.
-      import_error: Failed to import chat sessions. Please check the file format.
-      chats_deleted: Chat sessions deleted.
-      models_deleted: Models deleted.
-      modules_reset: Module settings reset.
-      providers_reset: Provider settings reset.
-      all_deleted: All local data deleted.
-      desktop_reset: Desktop data reset.
+      exported: 對話階段已匯出
+      imported: 對話階段已匯入
+      import_error: 匯入對話階段失敗，請檢查檔案格式
+      chats_deleted: 對話階段已刪除
+      models_deleted: 模型已刪除
+      modules_reset: 模組設定已重設
+      providers_reset: 服務提供者設定已重設
+      all_deleted: 所有本機資料已刪除
+      desktop_reset: 桌面資料已重設
   models:
     description: 切換角色的 Live2D、VRM 模型
     title: 角色模型
@@ -223,26 +223,26 @@ pages:
       section:
         live2d:
           title: Live2D
-          description: Configure Live2D models and settings
+          description: 設定 Live2D 模型與相關選項
         vrm:
           title: VRM
-          description: Configure 3D VRM models and settings
+          description: 設定 3D VRM 模型與相關選項
         scene: 場景
   modules:
     beat_sync:
-      description: Vibe with beats from the audio source
-      title: Beat Sync
+      description: 依據音訊來源的節奏同步互動
+      title: 節拍同步
       sections:
         audio_source:
           actions:
-            start_screen_capture: Start screen capture
-            stop: Stop
-          description: Select an audio source to detect beats from.
-          title: Audio source
+            start_screen_capture: 開始畫面擷取
+            stop: 停止
+          description: 請選取要偵測節拍的音訊來源
+          title: 音訊來源
         beat_visualizer:
-          title: Beat visualizer
+          title: 節拍視覺化工具
         parameters:
-          advanced_parameters: Advanced Parameters
+          advanced_parameters: 進階參數
           description: Tweak the beat detection parameters.
           title: Parameters
           parameters:
