@@ -34,6 +34,8 @@ export default defineConfig({
           options.codeSplitting = {
             groups: [{
               name(moduleId) {
+                // https://github.com/lobehub/lobehub/blob/6ecba929b738e1259e15d17e7643941e015324ee/apps/desktop/electron.vite.config.ts#L54
+                // Prevent debug package from being bundled into index.js to avoid side-effect pollution
                 if (moduleId.includes('node_modules/debug')) {
                   return 'vendor-debug'
                 }
