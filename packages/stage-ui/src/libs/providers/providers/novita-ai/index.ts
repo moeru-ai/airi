@@ -10,7 +10,7 @@ const novitaConfigSchema = z.object({
   baseUrl: z
     .string('Base URL')
     .optional()
-    .default('https://api.novita.ai/openai/'),
+    .default('https://api.novita.ai/openai'),
 })
 
 type NovitaConfig = z.input<typeof novitaConfigSchema>
