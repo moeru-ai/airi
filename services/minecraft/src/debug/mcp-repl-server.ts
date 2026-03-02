@@ -281,7 +281,13 @@ export class McpReplServer {
         if (url.pathname === '/sse' && (req.method === 'POST' || req.method === 'DELETE' || (req.method === 'GET' && typeof req.headers['mcp-session-id'] === 'string'))) {
           const requestBody = req.method === 'POST' ? await readJsonBody(req) : undefined
 
-          if (req.method === 'POST' && !this.streamableTransport) {
+          if (req.method === 'POST') {
+            // Close existing transport before creating a new one (handles client refresh)
+            if (this.streamableTransport) {
+              await this.streamableTransport.close()
+              this.streamableTransport = null
+            }
+
             const streamableTransport = new StreamableHTTPServerTransport({
               // Stateless mode keeps compatibility with clients that don't preserve mcp-session-id.
               sessionIdGenerator: undefined,
@@ -309,6 +315,12 @@ export class McpReplServer {
         }
 
         if (req.method === 'GET' && url.pathname === '/sse') {
+          // Close existing transport before creating a new one (handles client refresh)
+          if (this.transport) {
+            await this.transport.close()
+            this.transport = null
+          }
+
           res.setHeader('Content-Type', 'text/event-stream')
           res.setHeader('Cache-Control', 'no-cache')
           res.setHeader('Connection', 'keep-alive')
