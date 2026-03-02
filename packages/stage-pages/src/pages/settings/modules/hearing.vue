@@ -38,14 +38,16 @@ const { audioInputs, selectedAudioInput, stream } = storeToRefs(useSettingsAudio
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioAnalyzer()
 const { audioContext } = storeToRefs(useAudioContext())
+const hearingSpeechInputPipeline = useHearingSpeechInputPipeline()
 const {
   transcribeForRecording,
   transcribeForMediaStream,
   stopStreamingTranscription,
-} = useHearingSpeechInputPipeline()
+} = hearingSpeechInputPipeline
 const {
   supportsStreamInput,
-} = storeToRefs(useHearingSpeechInputPipeline())
+  error: transcriptionPipelineError,
+} = storeToRefs(hearingSpeechInputPipeline)
 
 const animationFrame = ref<number>()
 
@@ -269,7 +271,7 @@ onStopRecord(async (recording) => {
         console.info('STT test transcription result:', result)
       }
       else {
-        testTranscriptionError.value = 'No transcription result received'
+        testTranscriptionError.value = transcriptionPipelineError.value || 'No transcription result returned from provider'
         testStatusMessage.value = 'Transcription failed'
       }
     }
@@ -290,8 +292,13 @@ onStopRecord(async (recording) => {
 
   const res = await transcribeForRecording(recording)
 
-  if (res)
+  if (res) {
     transcriptions.value.push(res)
+    error.value = ''
+  }
+  else if (transcriptionPipelineError.value) {
+    error.value = transcriptionPipelineError.value
+  }
 })
 
 // Speech-to-Text test functions
@@ -310,6 +317,7 @@ async function startSTTTest() {
   testTranscriptionText.value = ''
   testStreamingText.value = ''
   testStatusMessage.value = ''
+  error.value = ''
   isTestingSTT.value = true
   isTranscribing.value = true
 

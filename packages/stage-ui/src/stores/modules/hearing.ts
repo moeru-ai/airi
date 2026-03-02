@@ -424,6 +424,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       return
     }
 
+    error.value = undefined
+
     try {
       const providerId = activeTranscriptionProvider.value
       if (!providerId) {
@@ -704,6 +706,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
   }
 
   async function transcribeForRecording(recording: Blob | null | undefined) {
+    error.value = undefined
+
     if (!recording)
       return
 
@@ -723,7 +727,13 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           model,
           new File([recording], 'recording.wav'),
         )
-        return result.mode === 'stream' ? await result.text : result.text
+        const text = result.mode === 'stream' ? await result.text : result.text
+        if (!text || !text.trim()) {
+          error.value = 'No transcription result returned from provider'
+          return
+        }
+
+        return text
       }
     }
     catch (err) {
