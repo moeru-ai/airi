@@ -19,7 +19,7 @@ import { defineConfig } from 'electron-vite'
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 
-const config = defineConfig({
+export default defineConfig({
   main: {
     plugins: [
       Info(),
@@ -205,7 +205,3 @@ const config = defineConfig({
     ],
   },
 })
-
-console.log(config.main?.build?.rolldownOptions)
-
-export default config
