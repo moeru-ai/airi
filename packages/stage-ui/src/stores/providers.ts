@@ -1082,6 +1082,18 @@ export const useProvidersStore = defineStore('providers', () => {
         return provider
       },
       capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'IndexTTS-1.5',
+              name: 'IndexTTS-1.5',
+              provider: 'index-tts-vllm',
+              description: 'Default model for Index-TTS vLLM deployment',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
         listVoices: async (config) => {
           const voicesUrl = config.baseUrl as string
           const response = await fetch(`${voicesUrl}audio/voices`)
