@@ -88,6 +88,7 @@ catalog:
   posthog-js: 1.306.1
   splitpanes: ^4.0.4
   std-env: ^4.0.0-rc.1
+  stripe: ^20.3.0
   superjson: ^2.2.6
   tsdown: ^0.20.3
   tsx: ^4.21.0
