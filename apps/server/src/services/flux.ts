@@ -1,5 +1,4 @@
-import type * as fullSchema from '../schemas'
-import type { Database } from './db'
+import type { Database } from '../libs/db'
 
 import { and, eq, gte, sql } from 'drizzle-orm'
 
@@ -7,7 +6,7 @@ import { createPaymentRequiredError } from '../utils/error'
 
 import * as schema from '../schemas/flux'
 
-export function createFluxService(db: Database<typeof fullSchema>) {
+export function createFluxService(db: Database) {
   return {
     async getFlux(userId: string) {
       let record = await db.query.userFlux.findFirst({
