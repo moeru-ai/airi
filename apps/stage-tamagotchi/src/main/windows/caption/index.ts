@@ -1,6 +1,8 @@
 import type { BrowserWindow, BrowserWindowConstructorOptions, Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
+import type { ServerChannel } from '../../services/airi/channel-server'
+
 import { createHash } from 'node:crypto'
 import { join, resolve } from 'node:path'
 
@@ -18,6 +20,7 @@ import { captionGetIsFollowingWindow, captionIsFollowingWindowChanged } from '..
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
+import { createServerChannelService } from '../../services/airi/channel-server'
 import { mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
 import { setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shared/window'
 
@@ -108,7 +111,7 @@ function createCaptionWindow(options?: BrowserWindowConstructorOptions) {
     show: false,
     icon,
     webPreferences: {
-      preload: join(__dirname, '../preload/index.mjs'),
+      preload: join(getElectronMainDirname(), '../preload/index.mjs'),
       sandbox: false,
     },
     // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
@@ -142,7 +145,10 @@ function createCaptionWindow(options?: BrowserWindowConstructorOptions) {
   return window
 }
 
-export function setupCaptionWindowManager(params: { mainWindow: BrowserWindow }) {
+export function setupCaptionWindowManager(params: {
+  mainWindow: BrowserWindow
+  serverChannel: ServerChannel
+}) {
   const matrixHash = computeDisplayMatrixHash()
 
   const {
@@ -269,6 +275,7 @@ export function setupCaptionWindowManager(params: { mainWindow: BrowserWindow })
     eventaContext = context
 
     setupBaseWindowElectronInvokes({ context, window })
+    createServerChannelService({ serverChannel: params.serverChannel })
 
     const cfg = getConfig()
     const saved = cfg?.matrices?.[matrixHash]?.bounds

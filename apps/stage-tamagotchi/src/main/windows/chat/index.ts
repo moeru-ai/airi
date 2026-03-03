@@ -1,3 +1,4 @@
+import type { ServerChannel } from '../../services/airi/channel-server'
 import type { WidgetsWindowManager } from '../widgets'
 
 import { join, resolve } from 'node:path'
@@ -12,6 +13,7 @@ import { setupChatWindowElectronInvokes } from './rpc/index.electron'
 
 export function setupChatWindowReusableFunc(params: {
   widgetsManager: WidgetsWindowManager
+  serverChannel: ServerChannel
 }) {
   return createReusableWindow(async () => {
     const window = new BrowserWindow({
@@ -21,7 +23,7 @@ export function setupChatWindowReusableFunc(params: {
       show: false,
       icon,
       webPreferences: {
-        preload: join(__dirname, '../preload/index.mjs'),
+        preload: join(getElectronMainDirname(), '../preload/index.mjs'),
         sandbox: false,
       },
     })
@@ -37,6 +39,7 @@ export function setupChatWindowReusableFunc(params: {
     setupChatWindowElectronInvokes({
       window,
       widgetsManager: params.widgetsManager,
+      serverChannel: params.serverChannel,
     })
 
     return window

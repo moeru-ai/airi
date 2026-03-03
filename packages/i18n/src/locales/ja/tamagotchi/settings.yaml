@@ -25,7 +25,7 @@ pages:
       sections:
         section:
           use-window-mouse:
-            title: ウィンドウマウスの使用
+            title: useWindowMouse ツール
             description: Electronウィンドウのカーソル位置をテストします
 devtools:
   title: 開発者

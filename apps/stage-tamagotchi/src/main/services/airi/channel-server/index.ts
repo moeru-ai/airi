@@ -19,14 +19,20 @@ import { z } from 'zod'
 import {
   electronApplyServerChannelConfig,
   electronGetServerChannelConfig,
-  electronRestartWebSocketServer,
-
-  electronStartWebSocketServer,
 } from '../../../../shared/eventa'
-import { onAppBeforeQuit, onAppReady } from '../../../libs/bootkit/lifecycle'
+import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 import { createConfig } from '../../../libs/electron/persistence'
 
-let serverInstance: { close: (closeActiveConnections?: boolean) => Promise<void> } | null = null
+interface ServerInstance { close: (closeActiveConnections?: boolean) => Promise<void> }
+interface ServerChannelOptions { websocketTlsConfig?: ElectronServerChannelTlsConfig | null }
+
+export interface ServerChannel {
+  start: () => Promise<void>
+  stop: () => Promise<void>
+  restart: () => Promise<void>
+  updateConfig: (newOptions: ServerChannelOptions) => void
+}
+
 let isServerQuitHookRegistered = false
 
 const channelServerConfigSchema = object({
@@ -58,11 +64,11 @@ function normalizeChannelServerOptions(
   }
 
   return {
-    websocketTlsConfig: parsed.data.websocketTlsConfig ?? fallback.websocketTlsConfig,
+    websocketTlsConfig: typeof parsed.data.websocketTlsConfig === 'undefined' ? null : parsed.data.websocketTlsConfig,
   }
 }
 
-function registerServerQuitHook() {
+function registerServerQuitHook(getServerChannel: () => ServerChannel | null) {
   if (isServerQuitHookRegistered)
     return
 
@@ -70,19 +76,17 @@ function registerServerQuitHook() {
 
   onAppBeforeQuit(async () => {
     const log = useLogg('main/server-runtime').useGlobalConfig()
-    if (serverInstance && typeof serverInstance.close === 'function') {
-      try {
-        await serverInstance.close()
-        log.log('WebSocket server closed')
-      }
-      catch (error) {
-        const nodejsError = error as NodeJS.ErrnoException
-        if ('code' in nodejsError && nodejsError.code === 'ERR_SERVER_NOT_RUNNING') {
-          return
-        }
+    const serverChannel = getServerChannel()
+    if (!serverChannel) {
+      return
+    }
 
-        log.withError(error).error('Error closing WebSocket server')
-      }
+    try {
+      await serverChannel.stop()
+      log.log('WebSocket server closed')
+    }
+    catch (error) {
+      log.withError(error).error('Error closing WebSocket server')
     }
   })
 }
@@ -260,100 +264,149 @@ async function getOrCreateCertificate() {
   return { cert, key }
 }
 
-export async function setupServerChannel(options?: { websocketTlsConfig?: ElectronServerChannelTlsConfig | null }) {
+export function createServerChannel(initialOptions: ServerChannelOptions = getChannelServerConfig()): ServerChannel {
   const log = useLogg('main/server-runtime').useGlobalConfig()
+  let serverInstance: ServerInstance | null = null
+  let options = initialOptions
 
-  const secureEnabled = options?.websocketTlsConfig != null
+  log.withFields({ hasTlsConfig: !!options.websocketTlsConfig }).log('creating server channel')
 
-  try {
-    const serverRuntime = await import('@proj-airi/server-runtime')
-    const { plugin: ws } = await import('crossws/server')
-    const { serve } = await import('h3')
-
-    const h3App = serverRuntime.setupApp()
-
-    const port = env.PORT ? Number(env.PORT) : 6121
-    const hostname = env.SERVER_RUNTIME_HOSTNAME || '0.0.0.0'
-
-    // FIXME: should prompt user to grant permission to save certificate files on macOS
-    const tls = secureEnabled ? await getOrCreateCertificate() : undefined
-
-    const instance = serve(h3App.app, {
-      // @ts-expect-error - the .crossws property wasn't extended in types
-      plugins: [ws({ resolve: async req => (await h3App.app.fetch(req)).crossws })],
-      port,
-      hostname,
-      tls,
-      reusePort: true,
-      silent: true,
-      manual: true,
-      gracefulShutdown: {
-        forceTimeout: 0.5,
-        gracefulTimeout: 0.5,
-      },
-    })
-
-    serverInstance = {
-      close: async (closeActiveConnections = false) => {
-        log.log('closing all peers')
-        h3App.closeAllPeers()
-        log.log('closing server instance')
-        await instance.close(closeActiveConnections)
-        log.log('server instance closed')
-      },
+  async function closeServer(closeActiveConnections = false) {
+    if (!serverInstance || typeof serverInstance.close !== 'function') {
+      return
     }
 
-    const servePromise = instance.serve()
-    if (servePromise instanceof Promise) {
-      servePromise.catch((error) => {
-        const nodejsError = error as NodeJS.ErrnoException
-        if ('code' in nodejsError && nodejsError.code === 'EADDRINUSE') {
-          log.withError(error).warn('Port already in use, assuming server is already running')
-          return
-        }
-
-        log.withError(error).error('Error serving WebSocket server')
-      })
-    }
-
-    const protocol = secureEnabled ? 'wss' : 'ws'
-    if (hostname === '0.0.0.0') {
-      const ips = getLocalIPs().filter(ip => ip !== '127.0.0.1' && ip !== '::1')
-      const targets = ips.length > 0 ? ips.join(', ') : 'localhost'
-      log.log(`@proj-airi/server-runtime started on ${protocol}://0.0.0.0:${port} (reachable via: ${targets})`)
-    }
-    else {
-      log.log(`@proj-airi/server-runtime started on ${protocol}://${hostname}:${port}`)
-    }
-  }
-  catch (error) {
-    log.withError(error).error('failed to start WebSocket server')
-  }
-}
-
-export async function restartServerChannel(options?: { websocketTlsConfig?: ElectronServerChannelTlsConfig | null }) {
-  const log = useLogg('main/server-runtime').useGlobalConfig()
-  log.log('restarting server channel', { options })
-
-  if (serverInstance && typeof serverInstance.close === 'function') {
     try {
-      log.log('closing existing server instance')
-      await serverInstance.close(true)
-      log.log('existing server instance closed')
+      if (closeActiveConnections) {
+        log.log('closing existing server instance')
+      }
+      await serverInstance.close(closeActiveConnections)
+      if (closeActiveConnections) {
+        log.log('existing server instance closed')
+      }
     }
-    catch {
-      // Ignore errors when closing
+    catch (error) {
+      const nodejsError = error as NodeJS.ErrnoException
+      if ('code' in nodejsError && nodejsError.code === 'ERR_SERVER_NOT_RUNNING') {
+        return
+      }
+
+      if (!closeActiveConnections) {
+        log.withError(error).error('Error closing WebSocket server')
+      }
+    }
+    finally {
+      serverInstance = null
     }
   }
 
-  serverInstance = null
-  await setupServerChannel(options)
+  async function start() {
+    if (serverInstance) {
+      return
+    }
+
+    const secureEnabled = options?.websocketTlsConfig != null
+
+    try {
+      const serverRuntime = await import('@proj-airi/server-runtime')
+      const { plugin: ws } = await import('crossws/server')
+      const { serve } = await import('h3')
+
+      const h3App = serverRuntime.setupApp()
+
+      const port = env.PORT ? Number(env.PORT) : 6121
+      const hostname = env.SERVER_RUNTIME_HOSTNAME || '0.0.0.0'
+
+      // FIXME: should prompt user to grant permission to save certificate files on macOS
+      const tls = secureEnabled ? await getOrCreateCertificate() : undefined
+
+      const instance = serve(h3App.app, {
+        // @ts-expect-error - the .crossws property wasn't extended in types
+        plugins: [ws({ resolve: async req => (await h3App.app.fetch(req)).crossws })],
+        port,
+        hostname,
+        tls,
+        reusePort: true,
+        silent: true,
+        manual: true,
+        gracefulShutdown: {
+          forceTimeout: 0.5,
+          gracefulTimeout: 0.5,
+        },
+      })
+
+      serverInstance = {
+        close: async (closeActiveConnections = false) => {
+          log.log('closing all peers')
+          h3App.closeAllPeers()
+          log.log('closing server instance')
+          await instance.close(closeActiveConnections)
+          log.log('server instance closed')
+        },
+      }
+
+      const servePromise = instance.serve()
+      if (servePromise instanceof Promise) {
+        servePromise.catch((error) => {
+          const nodejsError = error as NodeJS.ErrnoException
+          if ('code' in nodejsError && nodejsError.code === 'EADDRINUSE') {
+            log.withError(error).warn('Port already in use, assuming server is already running')
+            return
+          }
+
+          log.withError(error).error('Error serving WebSocket server')
+        })
+      }
+
+      const protocol = secureEnabled ? 'wss' : 'ws'
+      if (hostname === '0.0.0.0') {
+        const ips = getLocalIPs().filter(ip => ip !== '127.0.0.1' && ip !== '::1')
+        const targets = ips.length > 0 ? ips.join(', ') : 'localhost'
+        log.log(`@proj-airi/server-runtime started on ${protocol}://0.0.0.0:${port} (reachable via: ${targets})`)
+      }
+      else {
+        log.log(`@proj-airi/server-runtime started on ${protocol}://${hostname}:${port}`)
+      }
+    }
+    catch (error) {
+      log.withError(error).error('failed to start WebSocket server')
+    }
+  }
+
+  async function stop() {
+    await closeServer()
+  }
+
+  async function restart() {
+    log.log('restarting server channel', { options })
+    await closeServer(true)
+    await start()
+  }
+
+  async function updateConfig(newOptions: ServerChannelOptions) {
+    options = { ...options, ...newOptions }
+  }
+
+  return {
+    start,
+    stop,
+    restart,
+    updateConfig,
+  }
 }
 
-export function setupServerChannelHandlers() {
-  const { context } = createContext(ipcMain)
+export async function setupServerChannel() {
   channelServerConfigStore.setup()
-  registerServerQuitHook()
+  const serverChannel = createServerChannel(getChannelServerConfig())
+  registerServerQuitHook(() => serverChannel)
+
+  // Start the server during module initialization so startup is bound to injeca lifecycle.
+  await serverChannel.start()
+  return serverChannel
+}
+
+export async function createServerChannelService(params: { serverChannel: ServerChannel }) {
+  const { context } = createContext(ipcMain)
 
   defineInvokeHandler(context, electronGetServerChannelConfig, async () => {
     return getChannelServerConfig()
@@ -367,29 +420,14 @@ export function setupServerChannelHandlers() {
     channelServerConfigStore.update(next)
 
     if (changed) {
-      await restartServerChannel(next)
+      await params.serverChannel.stop()
+      await params.serverChannel.updateConfig(next)
+      await params.serverChannel.start()
     }
-    else if (!serverInstance) {
-      await setupServerChannel(next)
+    else {
+      await params.serverChannel.start()
     }
 
     return next
-  })
-
-  defineInvokeHandler(context, electronStartWebSocketServer, async (req) => {
-    const options = normalizeChannelServerOptions(req)
-    await setupServerChannel(options)
-  })
-
-  defineInvokeHandler(context, electronRestartWebSocketServer, async (req) => {
-    const current = getChannelServerConfig()
-    const options = normalizeChannelServerOptions(req, current)
-    channelServerConfigStore.update(options)
-    await restartServerChannel(options)
-  })
-
-  onAppReady(async () => {
-    const options = getChannelServerConfig()
-    await setupServerChannel(options)
   })
 }

@@ -25,7 +25,7 @@ pages:
       sections:
         section:
           use-window-mouse:
-            title: 창 마우스 사용
+            title: useWindowMouse 도구
             description: Electron 창 커서 위치 테스트
 devtools:
   title: 개발자 옵션

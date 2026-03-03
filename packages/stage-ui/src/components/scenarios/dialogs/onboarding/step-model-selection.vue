@@ -50,7 +50,7 @@ const {
         :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
         :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
         :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
-        list-class="max-h-[calc(100dvh-17rem)] sm:max-h-120"
+        list-class="max-h-[calc(100dvh-17rem)] sm:max-h-120 overflow-y-auto"
       />
 
       <Alert v-if="providerModels.length === 0 && !isLoadingActiveProviderModels && !activeModel" type="error">

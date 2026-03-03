@@ -5,6 +5,7 @@ import process from 'node:process'
 import { initLogger, LoggerFormat, LoggerLevel, useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
+import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
 import { createLoggLogger, injeca } from 'injeca'
@@ -47,6 +48,7 @@ function buildApp({ auth, characterService, chatService, providerService }: AppD
     )
     .use(honoLogger())
     .use('*', sessionMiddleware(auth))
+    .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
     .onError((err, c) => {
       if (err instanceof ApiError) {
         return c.json({
