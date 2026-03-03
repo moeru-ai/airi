@@ -48,7 +48,8 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { listProviders as listDefinedProviders } from '../libs/providers'
-import { getProviderValidationIntervalMs } from '../libs/providers/validators/run'
+import { SERVER_URL } from '../libs/server'
+import { useAuthStore } from '../stores/auth'
 import { getKokoroWorker } from '../workers/kokoro'
 import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
@@ -249,32 +250,43 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Centralized provider metadata with provider factory functions
   const providerMetadata: Record<string, ProviderMetadata> = {
-    'speech-noop': {
-      id: 'speech-noop',
-      category: 'speech',
-      tasks: ['text-to-speech', 'tts'],
-      nameKey: 'settings.pages.providers.provider.speech-noop.title',
-      name: 'None',
-      descriptionKey: 'settings.pages.providers.provider.speech-noop.description',
-      description: 'No speech output.',
-      icon: 'i-solar:volume-cross-bold-duotone',
-      defaultOptions: () => ({}),
-      createProvider: async () => ({
-        speech: () => ({
-          baseURL: 'http://speech-noop.invalid/v1/',
-          model: 'noop',
-        }),
-      }),
+    'official-provider': {
+      id: 'official-provider',
+      order: -1,
+      category: 'chat',
+      tasks: ['text-generation'],
+      nameKey: 'settings.pages.providers.provider.official.title',
+      name: 'Official Provider',
+      descriptionKey: 'settings.pages.providers.provider.official.description',
+      description: 'Official AI provider by AIRI.',
+      icon: 'i-solar:star-bold-duotone',
+      createProvider: async (_config) => {
+        const authStore = useAuthStore()
+        if (!authStore.isAuthenticated) {
+          throw new Error('User is not authenticated')
+        }
+        return createOpenAI('', `${SERVER_URL}/v1/`)
+      },
       capabilities: {
-        listModels: async () => [],
-        listVoices: async () => [],
+        listModels: async () => {
+          return [
+            {
+              id: 'gpt-4o',
+              name: 'GPT-4o',
+              provider: 'official-provider',
+            },
+          ]
+        },
       },
       validators: {
-        validateProviderConfig: () => ({
-          errors: [],
-          reason: '',
-          valid: true,
-        }),
+        validateProviderConfig: () => {
+          const authStore = useAuthStore()
+          return {
+            errors: [],
+            reason: '',
+            valid: authStore.isAuthenticated,
+          }
+        },
       },
     },
     'app-local-audio-speech': buildOpenAICompatibleProvider({
@@ -1788,10 +1800,18 @@ export const useProvidersStore = defineStore('providers', () => {
     if (!forceValidation && runtimeState?.validatedCredentialHash === configString && typeof runtimeState.isConfigured === 'boolean')
       return runtimeState.isConfigured
 
-    if (!forceValidation) {
-      const pending = providerValidationInFlight.get(cacheKey)
-      if (pending) {
-        return pending
+    // Always cache the current config string to prevent re-validating the same config
+    if (providerRuntimeState.value[providerId]) {
+      providerRuntimeState.value[providerId].validatedCredentialHash = configString
+    }
+
+    const validationResult = await metadata.validators.validateProviderConfig(config || {})
+
+    if (providerRuntimeState.value[providerId]) {
+      providerRuntimeState.value[providerId].isConfigured = validationResult.valid
+      // Auto-mark Web Speech API as added if valid and available
+      if (validationResult.valid && ['browser-web-speech-api', 'player2', 'official-provider'].includes(providerId)) {
+        markProviderAdded(providerId)
       }
     }
 
@@ -1845,6 +1865,14 @@ export const useProvidersStore = defineStore('providers', () => {
         modelLoadError: null,
       }
     }
+
+    // Must run AFTER runtime state is created so forceProviderConfigured can set isConfigured
+    if (providerId === 'official-provider') {
+      const authStore = useAuthStore()
+      if (authStore.isAuthenticated) {
+        forceProviderConfigured(providerId)
+      }
+    }
   }
 
   // Initialize all providers
@@ -1890,6 +1918,9 @@ export const useProvidersStore = defineStore('providers', () => {
   // Call initially and watch for changes
   watch(providerCredentials, updateConfigurationStatus, { deep: true, immediate: true })
   startPeriodicRuntimeValidation()
+
+  const authStore = useAuthStore()
+  watch(() => authStore.isAuthenticated, updateConfigurationStatus)
 
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.keys(providerMetadata).filter(providerId => providerRuntimeState.value[providerId]?.isConfigured))

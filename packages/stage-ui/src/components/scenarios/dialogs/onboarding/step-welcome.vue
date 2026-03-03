@@ -1,28 +1,33 @@
 <script setup lang="ts">
-import type { OnboardingStepNextHandler } from './types'
-
 import { all } from '@proj-airi/i18n'
 import { Button, FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import onboardingLogo from '../../../../assets/onboarding.avif'
 
+import { useAuthStore } from '../../../../stores/auth'
 import { useSettingsGeneral } from '../../../../stores/settings'
+import { OnboardingContextKey } from './utils'
 
-interface Props {
-  onNext: OnboardingStepNextHandler
-}
-
-const props = defineProps<Props>()
 const { t } = useI18n()
+const context = inject(OnboardingContextKey)!
+const authStore = useAuthStore()
 const settingsStore = useSettingsGeneral()
 const { language } = storeToRefs(settingsStore)
 
 const languages = computed(() => {
   return Object.entries(all).map(([value, label]) => ({ value, label }))
 })
+
+function handleLogin() {
+  authStore.isLoginOpen = true
+}
+
+function handleLocalSetup() {
+  context.handleNextStep()
+}
 </script>
 
 <template>
@@ -74,14 +79,28 @@ const languages = computed(() => {
         />
       </div>
     </div>
-    <Button
-      v-motion
-      :initial="{ opacity: 0 }"
-      :enter="{ opacity: 1 }"
-      :duration="500"
-      :delay="200"
-      :label="t('settings.dialogs.onboarding.start')"
-      @click="props.onNext"
-    />
+    <div flex="~ row gap-3">
+      <Button
+        v-motion
+        :initial="{ opacity: 0 }"
+        :visible="{ opacity: 1 }"
+        :duration="500"
+        :delay="200"
+        :label="t('settings.dialogs.onboarding.loginAction')"
+        class="flex-1"
+        @click="handleLogin"
+      />
+      <Button
+        v-motion
+        :initial="{ opacity: 0 }"
+        :visible="{ opacity: 1 }"
+        :duration="500"
+        :delay="250"
+        variant="secondary"
+        :label="t('settings.dialogs.onboarding.localSetup')"
+        class="flex-1"
+        @click="handleLocalSetup"
+      />
+    </div>
   </div>
 </template>
