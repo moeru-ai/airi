@@ -29,7 +29,7 @@ export function setupSettingsWindowReusableFunc(params: {
       show: false,
       icon,
       webPreferences: {
-        preload: join(__dirname, '../preload/index.mjs'),
+        preload: join(getElectronMainDirname(), '../preload/index.mjs'),
         sandbox: false,
       },
     })
