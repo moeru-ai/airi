@@ -8,7 +8,7 @@ import { Hono } from 'hono'
 import { integer, minValue, number, object, pipe, safeParse } from 'valibot'
 
 import { authGuard } from '../middlewares/auth'
-import { ApiError, createBadRequestError } from '../utils/error'
+import { createBadRequestError, createServiceUnavailableError } from '../utils/error'
 
 const CheckoutBodySchema = object({
   amount: pipe(number(), integer(), minValue(1)),
@@ -20,7 +20,7 @@ export function createStripeRoutes(fluxService: FluxService, env: Env) {
   return new Hono<HonoEnv>()
     .post('/checkout', authGuard, async (c) => {
       if (!stripe)
-        throw new ApiError(503, 'STRIPE_NOT_CONFIGURED', 'Stripe is not configured')
+        throw createServiceUnavailableError('Stripe is not configured', 'STRIPE_NOT_CONFIGURED')
 
       const user = c.get('user')!
       const body = await c.req.json()
@@ -58,11 +58,11 @@ export function createStripeRoutes(fluxService: FluxService, env: Env) {
     })
     .post('/webhook', async (c) => {
       if (!stripe || !env.STRIPE_WEBHOOK_SECRET)
-        throw new ApiError(503, 'STRIPE_NOT_CONFIGURED', 'Stripe is not configured')
+        throw createServiceUnavailableError('Stripe is not configured', 'STRIPE_NOT_CONFIGURED')
 
       const sig = c.req.header('stripe-signature')
       if (!sig)
-        return c.json({ error: 'No signature' }, 400)
+        throw createBadRequestError('No signature', 'MISSING_SIGNATURE')
 
       let event: Stripe.Event
       try {
@@ -71,7 +71,7 @@ export function createStripeRoutes(fluxService: FluxService, env: Env) {
       }
       catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Unknown error'
-        return c.json({ error: `Webhook Error: ${message}` }, 400)
+        throw createBadRequestError(`Webhook Error: ${message}`, 'WEBHOOK_ERROR')
       }
 
       if (event.type === 'checkout.session.completed') {
