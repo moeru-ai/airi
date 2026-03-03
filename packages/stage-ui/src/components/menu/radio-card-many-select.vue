@@ -14,6 +14,7 @@ interface Item {
 
 interface Props {
   items: Item[]
+  columns?: number
   searchable?: boolean
   searchPlaceholder?: string
   searchNoResultsTitle?: string
@@ -29,6 +30,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  columns: 2,
   searchable: true,
   searchPlaceholder: 'Search...',
   searchNoResultsTitle: 'No results found',
@@ -92,6 +94,10 @@ const filteredItems = computed(() => {
   return result
 })
 
+const showExpandCollapseBtn = computed(() => {
+  return filteredItems.value.length > props.columns
+})
+
 function updateCustomValue(value: string) {
   customValue.value = value
   emit('update:customValue', value)
@@ -138,9 +144,10 @@ function updateCustomValue(value: string) {
         <!-- Responsive grid container -->
         <div
           :class="[
+            'grid gap-4 mb-2',
             isListExpanded
-              ? 'grid grid-cols-1 md:grid-cols-2 gap-4'
-              : 'grid auto-cols-[min(300px,calc((100vw-5rem)/2))] grid-flow-col gap-4 overflow-x-auto scrollbar-none pb-2',
+              ? 'grid-cols-[repeat(var(--cols),minmax(0,1fr))] snap-y snap-proximity'
+              : 'grid-flow-col auto-cols-[calc((100%-(var(--cols)-1)*1rem)/var(--cols))] overflow-x-hidden',
             ...(props.listClass
               ? (typeof props.listClass === 'string'
                 ? [props.listClass]
@@ -152,7 +159,7 @@ function updateCustomValue(value: string) {
             ),
           ]"
           transition="all duration-200 ease-in-out"
-          :style="isListExpanded ? '' : 'scroll-snap-type: x mandatory;'"
+          :style="{ '--cols': props.columns }"
         >
           <RadioCardDetail
             v-for="item in filteredItems"
@@ -169,13 +176,14 @@ function updateCustomValue(value: string) {
             :custom-input-value="customValue"
             :custom-input-placeholder="customInputPlaceholder"
             name="radio-card-detail-many-select"
-            class="scroll-snap-align-start"
+            class="snap-start"
             @update:custom-input-value="updateCustomValue($event)"
           />
         </div>
 
         <!-- Expand/collapse handle -->
         <div
+          v-if="showExpandCollapseBtn"
           bg="neutral-100 dark:[rgba(0,0,0,0.3)]"
           rounded-xl
           :class="[

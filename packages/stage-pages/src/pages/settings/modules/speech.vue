@@ -378,6 +378,7 @@ function updateCustomModelName(value: string | undefined) {
                     v-model:search-query="modelSearchQuery"
                     :items="providerModels"
                     :searchable="true"
+                    :columns="1"
                     :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
                     :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"
                     :search-no-results-description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description', { query: modelSearchQuery })"
