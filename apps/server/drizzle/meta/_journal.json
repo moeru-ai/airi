@@ -57,6 +57,13 @@
       "when": 1769253946442,
       "tag": "0007_dazzling_ken_ellis",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1772519650629,
+      "tag": "0008_normal_ezekiel_stane",
+      "breakpoints": true
     }
   ]
 }
