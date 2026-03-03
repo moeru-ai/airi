@@ -38,7 +38,8 @@
     "drizzle-valibot": "catalog:",
     "hono": "catalog:",
     "injeca": "catalog:",
-    "pg": "^8.13.3",
+    "postgres": "^3.4.8",
+    "stripe": "catalog:",
     "tsx": "^4.21.0",
     "valibot": "catalog:"
   },
