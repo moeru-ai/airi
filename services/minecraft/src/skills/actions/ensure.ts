@@ -14,38 +14,15 @@ const PLANKS_PER_LOG = 4
 const STICKS_PER_PLANK = 2
 const logger = useLogger()
 
-// Helper function to ensure a crafting table
 export async function ensureCraftingTable(mineflayer: Mineflayer): Promise<boolean> {
   logger.log('Bot: Checking for a crafting table...')
-
-  const hasCraftingTable = getItemCount(mineflayer, 'crafting_table') > 0
-
-  if (hasCraftingTable) {
-    logger.log('Bot: Crafting table is available.')
+  if (getItemCount(mineflayer, 'crafting_table') > 0)
     return true
-  }
 
-  // Check if we already have wood to make it
-  try {
-    const planksEnsured = await ensurePlanks(mineflayer, 4)
-    if (!planksEnsured) {
-      throw new ActionError('RESOURCE_MISSING', 'Failed to ensure planks for crafting table', { item: 'planks', count: 4 })
-    }
-
-    // Craft crafting table
-    const result = await craftRecipe(mineflayer, 'crafting_table', 1)
-    if (result) {
-      logger.log('Bot: Crafting table crafted.')
-      return true
-    }
-  }
-  catch (error) {
-    if (error instanceof ActionError) {
-      throw error
-    }
-    // If craftRecipe failed but didn't throw ActionError (protection for mixed versions)
-    throw new ActionError('CRAFTING_FAILED', 'Failed to craft crafting table', { error })
-  }
+  await ensurePlanks(mineflayer, 4)
+  const result = await craftRecipe(mineflayer, 'crafting_table', 1)
+  if (result)
+    return true
 
   throw new ActionError('CRAFTING_FAILED', 'Failed to ensure crafting table')
 }
@@ -284,81 +261,48 @@ export async function ensureCampfire(mineflayer: Mineflayer): Promise<boolean> {
   return true
 }
 
-// Helper function to gather cobblestone
-export async function ensureCobblestone(mineflayer: Mineflayer, requiredCobblestone: number, maxDistance: number = 4): Promise<boolean> {
-  let cobblestoneCount = getItemCount(mineflayer, 'cobblestone')
+async function ensureMined(
+  mineflayer: Mineflayer,
+  itemName: string,
+  blockType: string,
+  requiredCount: number,
+  maxDistance: number,
+  moveAwayOnEmpty: boolean,
+): Promise<boolean> {
+  let count = getItemCount(mineflayer, itemName)
   let retries = 0
   const maxRetries = 3
 
-  while (cobblestoneCount < requiredCobblestone && retries < maxRetries) {
+  while (count < requiredCount && retries < maxRetries) {
     retries++
-    logger.log('Bot: Gathering more cobblestone...')
-    const cobblestoneShortage = requiredCobblestone - cobblestoneCount
-
+    logger.log(`Bot: Gathering more ${itemName}...`)
     try {
-      const collected = await collectBlock(
-        mineflayer,
-        'stone',
-        cobblestoneShortage,
-        maxDistance,
-      )
-      if (collected <= 0) {
+      const collected = await collectBlock(mineflayer, blockType, requiredCount - count, maxDistance)
+      if (collected <= 0 && moveAwayOnEmpty)
         await moveAway(mineflayer, 10)
-        continue
-      }
     }
     catch (err: unknown) {
-      if (err instanceof Error && err.message.includes('right tools')) {
+      if (err instanceof Error && err.message.includes('right tools'))
         await ensurePickaxe(mineflayer)
-        continue
-      }
-      else {
-        throw new ActionError('RESOURCE_MISSING', 'Error collecting cobblestone', { error: err })
-      }
+      else
+        throw new ActionError('RESOURCE_MISSING', `Error collecting ${itemName}`, { error: err })
     }
-
-    cobblestoneCount = getItemCount(mineflayer, 'cobblestone')
+    count = getItemCount(mineflayer, itemName)
   }
 
-  if (cobblestoneCount >= requiredCobblestone)
+  if (count >= requiredCount)
     return true
+  throw new ActionError('RESOURCE_MISSING', `Could not gather enough ${itemName}`, { required: requiredCount, current: count })
+}
 
-  throw new ActionError('RESOURCE_MISSING', 'Could not gather enough cobblestone', { required: requiredCobblestone, current: cobblestoneCount })
+export async function ensureCobblestone(mineflayer: Mineflayer, requiredCobblestone: number, maxDistance: number = 4): Promise<boolean> {
+  logger.log('Bot: Checking for cobblestone...')
+  return ensureMined(mineflayer, 'cobblestone', 'stone', requiredCobblestone, maxDistance, true)
 }
 
 export async function ensureCoal(mineflayer: Mineflayer, neededAmount: number, maxDistance: number = 4): Promise<boolean> {
   logger.log('Bot: Checking for coal...')
-  let coalCount = getItemCount(mineflayer, 'coal')
-  let retries = 0
-  const maxRetries = 3
-
-  while (coalCount < neededAmount && retries < maxRetries) {
-    retries++
-    logger.log('Bot: Gathering more coal...')
-    const coalShortage = neededAmount - coalCount
-
-    try {
-      const collected = await collectBlock(mineflayer, 'coal_ore', coalShortage, maxDistance)
-      if (collected <= 0) {
-        continue
-      }
-    }
-    catch (err: unknown) {
-      if (err instanceof Error && err.message.includes('right tools')) {
-        await ensurePickaxe(mineflayer)
-        continue
-      }
-      else {
-        throw new ActionError('RESOURCE_MISSING', 'Error collecting coal', { error: err })
-      }
-    }
-
-    coalCount = getItemCount(mineflayer, 'coal')
-  }
-
-  if (coalCount >= neededAmount)
-    return true
-  throw new ActionError('RESOURCE_MISSING', 'Could not gather enough coal', { required: neededAmount, current: coalCount })
+  return ensureMined(mineflayer, 'coal', 'coal_ore', neededAmount, maxDistance, false)
 }
 
 // Define the valid tool types as a union type
@@ -474,28 +418,22 @@ export async function hasResourcesForTool(
   }
 }
 
-// Helper functions for specific tools:
+export function ensurePickaxe(mineflayer: Mineflayer, quantity: number = 1): Promise<boolean> {
+  return ensureTool(mineflayer, 'pickaxe', quantity)
+}
 
-// Ensure a pickaxe
-export async function ensurePickaxe(mineflayer: Mineflayer, quantity: number = 1): Promise<boolean> {
-  return await ensureTool(mineflayer, 'pickaxe', quantity)
-};
+export function ensureSword(mineflayer: Mineflayer, quantity: number = 1): Promise<boolean> {
+  return ensureTool(mineflayer, 'sword', quantity)
+}
 
-// Ensure a sword
-export async function ensureSword(mineflayer: Mineflayer, quantity: number = 1): Promise<boolean> {
-  return await ensureTool(mineflayer, 'sword', quantity)
-};
+export function ensureAxe(mineflayer: Mineflayer, quantity: number = 1): Promise<boolean> {
+  return ensureTool(mineflayer, 'axe', quantity)
+}
 
-// Ensure an axe
-export async function ensureAxe(mineflayer: Mineflayer, quantity: number = 1): Promise<boolean> {
-  return await ensureTool(mineflayer, 'axe', quantity)
-};
+export function ensureShovel(mineflayer: Mineflayer, quantity: number = 1): Promise<boolean> {
+  return ensureTool(mineflayer, 'shovel', quantity)
+}
 
-// Ensure a shovel
-export async function ensureShovel(mineflayer: Mineflayer, quantity: number = 1): Promise<boolean> {
-  return await ensureTool(mineflayer, 'shovel', quantity)
-};
-
-export async function ensureHoe(mineflayer: Mineflayer, quantity: number = 1): Promise<boolean> {
-  return await ensureTool(mineflayer, 'hoe', quantity)
-};
+export function ensureHoe(mineflayer: Mineflayer, quantity: number = 1): Promise<boolean> {
+  return ensureTool(mineflayer, 'hoe', quantity)
+}
