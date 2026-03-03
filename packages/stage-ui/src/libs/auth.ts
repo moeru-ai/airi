@@ -1,10 +1,9 @@
 import { createAuthClient } from 'better-auth/vue'
 
 import { useAuthStore } from '../stores/auth'
+import { SERVER_URL } from './server'
 
 export type OAuthProvider = 'google' | 'github'
-
-export const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://airi-api.moeru.ai'
 
 export const authClient = createAuthClient({
   baseURL: SERVER_URL,

@@ -6,12 +6,21 @@ import { useI18n } from 'vue-i18n'
 
 import onboardingLogo from '../../../../assets/onboarding.avif'
 
-interface Props {
-  onNext: OnboardingStepNextHandler
-}
+import { useAuthStore } from '../../../../stores/auth'
+import { OnboardingContextKey } from './utils'
 
 const props = defineProps<Props>()
 const { t } = useI18n()
+const context = inject(OnboardingContextKey)!
+const authStore = useAuthStore()
+
+function handleLogin() {
+  authStore.isLoginOpen = true
+}
+
+function handleLocalSetup() {
+  context.handleNextStep()
+}
 </script>
 
 <template>
@@ -46,14 +55,28 @@ const { t } = useI18n()
         {{ t('settings.dialogs.onboarding.description') }}
       </p>
     </div>
-    <Button
-      v-motion
-      :initial="{ opacity: 0 }"
-      :enter="{ opacity: 1 }"
-      :duration="500"
-      :delay="200"
-      :label="t('settings.dialogs.onboarding.start')"
-      @click="props.onNext"
-    />
+    <div flex="~ row gap-3">
+      <Button
+        v-motion
+        :initial="{ opacity: 0 }"
+        :visible="{ opacity: 1 }"
+        :duration="500"
+        :delay="200"
+        :label="t('settings.dialogs.onboarding.loginAction')"
+        class="flex-1"
+        @click="handleLogin"
+      />
+      <Button
+        v-motion
+        :initial="{ opacity: 0 }"
+        :visible="{ opacity: 1 }"
+        :duration="500"
+        :delay="250"
+        variant="secondary"
+        :label="t('settings.dialogs.onboarding.localSetup')"
+        class="flex-1"
+        @click="handleLocalSetup"
+      />
+    </div>
   </div>
 </template>
