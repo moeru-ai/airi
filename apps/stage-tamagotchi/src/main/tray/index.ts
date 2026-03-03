@@ -37,7 +37,7 @@ export function setupTray(params: {
       { label: 'Show', click: () => toggleWindowShow(params.mainWindow) },
       { type: 'separator' },
       {
-        label: 'Reset main window',
+        label: 'Center and Reset Size',
         click: () => {
           params.mainWindow.setSize(450, 600)
           params.mainWindow.center()
