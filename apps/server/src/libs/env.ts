@@ -4,7 +4,7 @@ import { env, exit } from 'node:process'
 
 import { useLogger } from '@guiiai/logg'
 import { injeca } from 'injeca'
-import { nonEmpty, object, optional, parse, pipe, string } from 'valibot'
+import { nonEmpty, object, optional, parse, pipe, string, transform } from 'valibot'
 
 const EnvSchema = object({
   API_SERVER_URL: optional(string(), 'http://localhost:3000'),

@@ -1931,6 +1931,9 @@ export const useProvidersStore = defineStore('providers', () => {
   const authStore = useAuthStore()
   watch(() => authStore.isAuthenticated, updateConfigurationStatus)
 
+  const authStore = useAuthStore()
+  watch(() => authStore.isAuthenticated, updateConfigurationStatus)
+
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.keys(providerMetadata).filter(providerId => providerRuntimeState.value[providerId]?.isConfigured))
 
