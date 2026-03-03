@@ -3,7 +3,8 @@ import type { Session, User } from 'better-auth'
 import { defineStore } from 'pinia'
 import { computed, nextTick, ref, watch } from 'vue'
 
-import { fetchSession, SERVER_URL } from '../libs/auth'
+import { client } from '../composables/api'
+import { fetchSession } from '../libs/auth'
 import { useConsciousnessStore } from './modules/consciousness'
 import { useProvidersStore } from './providers'
 
@@ -27,15 +28,12 @@ export const useAuthStore = defineStore('auth', () => {
     initialized.value = true
   }
 
-  // Better fetch with credentials
   const updateCredits = async () => {
     if (!isAuthenticated.value)
       return
-    const response = await fetch(`${SERVER_URL}/api/flux`, {
-      credentials: 'include',
-    })
-    if (response.ok) {
-      const data = await response.json()
+    const res = await client.api.flux.$get()
+    if (res.ok) {
+      const data = await res.json()
       credits.value = data.flux
     }
   }

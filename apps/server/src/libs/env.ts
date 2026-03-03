@@ -16,8 +16,8 @@ const EnvSchema = object({
   AUTH_GITHUB_CLIENT_ID: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_ID is required')),
   AUTH_GITHUB_CLIENT_SECRET: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_SECRET is required')),
 
-  STRIPE_SECRET_KEY: pipe(string(), nonEmpty('STRIPE_SECRET_KEY is required')),
-  STRIPE_WEBHOOK_SECRET: pipe(string(), nonEmpty('STRIPE_WEBHOOK_SECRET is required')),
+  STRIPE_SECRET_KEY: optional(string()),
+  STRIPE_WEBHOOK_SECRET: optional(string()),
   CLIENT_URL: pipe(string(), nonEmpty('CLIENT_URL is required')),
 
   FLUX_PER_CENT: optional(pipe(string(), transform(Number)), '1'),

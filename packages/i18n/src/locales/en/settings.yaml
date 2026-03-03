@@ -444,6 +444,10 @@ pages:
     title: Flux
     buy: Charge
     description: Current Flux
+    checkout:
+      success: Payment successful! Your Flux has been topped up.
+      canceled: Payment was canceled.
+      error: Something went wrong. Please try again later.
     packages:
       title: Flux Packages
       buy: Charge

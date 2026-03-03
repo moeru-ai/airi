@@ -46,8 +46,8 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { SERVER_URL } from '../libs/auth'
 import { listProviders as listDefinedProviders } from '../libs/providers'
+import { SERVER_URL } from '../libs/server'
 import { useAuthStore } from '../stores/auth'
 import { getKokoroWorker } from '../workers/kokoro'
 import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'

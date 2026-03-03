@@ -8,17 +8,20 @@ import { Hono } from 'hono'
 import { integer, minValue, number, object, pipe, safeParse } from 'valibot'
 
 import { authGuard } from '../middlewares/auth'
-import { createBadRequestError } from '../utils/error'
+import { ApiError, createBadRequestError } from '../utils/error'
 
 const CheckoutBodySchema = object({
   amount: pipe(number(), integer(), minValue(1)),
 })
 
 export function createStripeRoutes(fluxService: FluxService, env: Env) {
-  const stripe = new Stripe(env.STRIPE_SECRET_KEY)
+  const stripe = env.STRIPE_SECRET_KEY ? new Stripe(env.STRIPE_SECRET_KEY) : null
 
   return new Hono<HonoEnv>()
     .post('/checkout', authGuard, async (c) => {
+      if (!stripe)
+        throw new ApiError(503, 'STRIPE_NOT_CONFIGURED', 'Stripe is not configured')
+
       const user = c.get('user')!
       const body = await c.req.json()
 
@@ -54,6 +57,9 @@ export function createStripeRoutes(fluxService: FluxService, env: Env) {
       return c.json({ url: session.url })
     })
     .post('/webhook', async (c) => {
+      if (!stripe || !env.STRIPE_WEBHOOK_SECRET)
+        throw new ApiError(503, 'STRIPE_NOT_CONFIGURED', 'Stripe is not configured')
+
       const sig = c.req.header('stripe-signature')
       if (!sig)
         return c.json({ error: 'No signature' }, 400)

@@ -429,6 +429,10 @@ pages:
     title: Flux
     buy: 充能
     description: 当前 Flux
+    checkout:
+      success: 支付成功！Flux 已充值。
+      canceled: 支付已取消。
+      error: 出了点问题，请稍后再试。
     packages:
       amount_500:
         label: 500 Flux
