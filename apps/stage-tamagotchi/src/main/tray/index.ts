@@ -36,6 +36,15 @@ export function setupTray(params: {
     const contextMenu = Menu.buildFromTemplate([
       { label: 'Show', click: () => toggleWindowShow(params.mainWindow) },
       { type: 'separator' },
+      {
+        label: 'Reset main window',
+        click: () => {
+          params.mainWindow.setSize(450, 600)
+          params.mainWindow.center()
+          params.mainWindow.show()
+        },
+      },
+      { type: 'separator' },
       { label: 'Settings...', click: () => params.settingsWindow().then(window => toggleWindowShow(window)) },
       { label: 'About...', click: () => params.aboutWindow().then(window => toggleWindowShow(window)) },
       { type: 'separator' },
