@@ -13,6 +13,7 @@ import { planRecipe } from '../utils/recipe-planner'
 import { collectBlock } from './actions/collect-block'
 import { ensureCraftingTable } from './actions/ensure'
 import { placeBlock } from './blocks'
+import { withFurnace } from './containers'
 import { goToNearestBlock, goToPosition, moveAway } from './movement'
 import { getInventoryCounts, getNearestBlock, getNearestFreeSpace } from './world'
 
@@ -261,97 +262,79 @@ export async function smeltItem(mineflayer: Mineflayer, itemName: string, num = 
   await mineflayer.bot.lookAt(furnaceBlock.position)
 
   logger.log('smelting...')
-  const furnace = await mineflayer.bot.openFurnace(furnaceBlock)
-  // Check if the furnace is already smelting something
-  const inputItem = furnace.inputItem()
   const mcData = McData.fromBot(mineflayer.bot)
-  if (
-    inputItem
-    && inputItem.type !== mcData.getItemId(itemName)
-    && inputItem.count > 0
-  ) {
-    await cleanupPlacedFurnace()
-    throw new ActionError('CRAFTING_FAILED', `The furnace is currently smelting ${mcData.getItemName(inputItem.type)}`)
-  }
-
-  // Check if the bot has enough items to smelt
-  const invCounts = getInventoryCounts(mineflayer)
-  if (!invCounts[itemName] || invCounts[itemName] < num) {
-    await cleanupPlacedFurnace()
-    throw new ActionError('RESOURCE_MISSING', `I do not have enough ${itemName} to smelt`, { required: num })
-  }
-
-  // Fuel the furnace
-  if (!furnace.fuelItem()) {
-    const fuel = mineflayer.bot.inventory
-      .items()
-      .find(item => item.name === 'coal' || item.name === 'charcoal')
-    const putFuel = Math.ceil(num / 8)
-    if (!fuel || fuel.count < putFuel) {
-      await cleanupPlacedFurnace()
-      throw new ActionError('RESOURCE_MISSING', `I do not have enough coal or charcoal to smelt`, { required: putFuel })
-    }
-    await furnace.putFuel(fuel.type, null, putFuel)
-  }
-
-  // Put the items in the furnace
-  const itemId = mcData.getItemId(itemName)
-  if (!itemId) {
-    await cleanupPlacedFurnace()
-    throw new ActionError('UNKNOWN', `Invalid item name: ${itemName}`)
-  }
-  await furnace.putInput(itemId, null, num)
-
-  // Wait for the items to smelt
-  let total = 0
-  let collectedLast = true
-  let smeltedItem: Item | null = null
-  await sleep(200)
-  // Wait limit 30s per item?
-  const maxWait = num * 12000 // approx 10s per item + buffer
-  let waited = 0
-
-  while (total < num) {
-    await sleep(5000)
-    waited += 5000
-
-    // Safety break
-    if (waited > maxWait) {
-      break
-    }
-
-    logger.log('checking...')
-    let collected = false
-    if (furnace.outputItem()) {
-      smeltedItem = await furnace.takeOutput()
-      if (smeltedItem) {
-        total += smeltedItem.count
-        collected = true
+  try {
+    return await withFurnace(mineflayer, furnaceBlock, async (furnace) => {
+      // Check if the furnace is already smelting something different
+      const inputItem = furnace.inputItem()
+      if (inputItem && inputItem.type !== mcData.getItemId(itemName) && inputItem.count > 0) {
+        throw new ActionError('CRAFTING_FAILED', `The furnace is currently smelting ${mcData.getItemName(inputItem.type)}`)
       }
-    }
-    if (!collected && !collectedLast) {
-      // If we didn't collect anything twice in a row, maybe it stopped?
-      // Check input
-      if (!furnace.inputItem() && !furnace.outputItem()) {
-        break // empty?
+
+      // Check if the bot has enough items to smelt
+      const invCounts = getInventoryCounts(mineflayer)
+      if (!invCounts[itemName] || invCounts[itemName] < num) {
+        throw new ActionError('RESOURCE_MISSING', `I do not have enough ${itemName} to smelt`, { required: num })
       }
-    }
-    collectedLast = collected
+
+      // Fuel the furnace
+      if (!furnace.fuelItem()) {
+        const fuel = mineflayer.bot.inventory
+          .items()
+          .find(item => item.name === 'coal' || item.name === 'charcoal')
+        const putFuel = Math.ceil(num / 8)
+        if (!fuel || fuel.count < putFuel) {
+          throw new ActionError('RESOURCE_MISSING', `I do not have enough coal or charcoal to smelt`, { required: putFuel })
+        }
+        await furnace.putFuel(fuel.type, null, putFuel)
+      }
+
+      // Put the items in the furnace
+      const itemId = mcData.getItemId(itemName)
+      if (!itemId) {
+        throw new ActionError('UNKNOWN', `Invalid item name: ${itemName}`)
+      }
+      await furnace.putInput(itemId, null, num)
+
+      // Wait for the items to smelt
+      let total = 0
+      let collectedLast = true
+      let smeltedItem: Item | null = null
+      await sleep(200)
+      const maxWait = num * 12000 // approx 10s per item + buffer
+      let waited = 0
+
+      while (total < num) {
+        await sleep(5000)
+        waited += 5000
+        if (waited > maxWait)
+          break
+
+        logger.log('checking...')
+        let collected = false
+        if (furnace.outputItem()) {
+          smeltedItem = await furnace.takeOutput()
+          if (smeltedItem) {
+            total += smeltedItem.count
+            collected = true
+          }
+        }
+        if (!collected && !collectedLast && !furnace.inputItem() && !furnace.outputItem())
+          break
+        collectedLast = collected
+      }
+
+      if (total < num) {
+        throw new ActionError('CRAFTING_FAILED', `Failed to smelt all items, only got ${total}/${num}`)
+      }
+
+      logger.log(`Successfully smelted ${itemName}, got ${total} ${mcData.getItemName(smeltedItem?.type || 0)}.`)
+      return true
+    })
   }
-  await mineflayer.bot.closeWindow(furnace)
-
-  await cleanupPlacedFurnace()
-
-  if (total < num) {
-    throw new ActionError('CRAFTING_FAILED', `Failed to smelt all items, only got ${total}/${num}`)
+  finally {
+    await cleanupPlacedFurnace()
   }
-
-  logger.log(
-    `Successfully smelted ${itemName}, got ${total} ${mcData.getItemName(
-      smeltedItem?.type || 0,
-    )}.`,
-  )
-  return true
 }
 
 export async function clearNearestFurnace(mineflayer: Mineflayer): Promise<boolean> {
@@ -361,16 +344,14 @@ export async function clearNearestFurnace(mineflayer: Mineflayer): Promise<boole
   }
 
   logger.log('clearing furnace...')
-  const furnace = await mineflayer.bot.openFurnace(furnaceBlock)
-  logger.log('opened furnace...')
-  // Take the items out of the furnace
-  if (furnace.outputItem())
-    await furnace.takeOutput()
-  if (furnace.inputItem())
-    await furnace.takeInput()
-  if (furnace.fuelItem())
-    await furnace.takeFuel()
-
-  await mineflayer.bot.closeWindow(furnace)
-  return true
+  return withFurnace(mineflayer, furnaceBlock, async (furnace) => {
+    logger.log('opened furnace...')
+    if (furnace.outputItem())
+      await furnace.takeOutput()
+    if (furnace.inputItem())
+      await furnace.takeInput()
+    if (furnace.fuelItem())
+      await furnace.takeFuel()
+    return true
+  })
 }
