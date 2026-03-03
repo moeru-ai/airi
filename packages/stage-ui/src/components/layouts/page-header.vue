@@ -59,7 +59,7 @@ watch([() => props.title, () => props.subtitle, route], async () => {
       right: 'env(safe-area-inset-right, 0px)',
       left: 'env(safe-area-inset-left, 0px)',
     }"
-    sticky inset-x-0 top-0 z-99 w-full pb-6 pt-10
+    fixed inset-x-0 top-0 z-99 w-full pb-6 pt-10
     flex="~ row items-center gap-2"
     bg="$bg-color"
   >
