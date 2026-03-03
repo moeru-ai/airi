@@ -4,7 +4,9 @@
  * Loads and parses YAML rule files from a directory
  */
 
-import type { ParsedRule, YamlRule } from './types'
+import type { ZodError } from 'zod'
+
+import type { ParsedRule } from './types'
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
@@ -13,13 +15,25 @@ import { parse as parseYaml } from 'yaml'
 
 import { parseWindowDuration } from './accumulator'
 import { buildEventType } from './matcher'
+import { yamlRuleSchema } from './types'
+
+function formatValidationError(error: ZodError, sourcePath: string): Error {
+  const details = error.issues
+    .map((issue) => {
+      const pathLabel = issue.path.length > 0 ? issue.path.join('.') : '<root>'
+      return `- ${pathLabel}: ${issue.message}`
+    })
+    .join('\n')
+
+  return new Error(`Invalid rule in ${sourcePath}:\n${details}`)
+}
 
 /**
  * Load and parse a single YAML rule file
  */
 export function loadRuleFile(filePath: string): ParsedRule {
   const content = fs.readFileSync(filePath, 'utf-8')
-  const yaml = parseYaml(content) as YamlRule
+  const yaml = parseYaml(content)
 
   return parseRule(yaml, filePath)
 }
@@ -27,43 +41,32 @@ export function loadRuleFile(filePath: string): ParsedRule {
 /**
  * Parse a YAML rule object into internal representation
  */
-export function parseRule(yaml: YamlRule, sourcePath: string): ParsedRule {
-  // Validate required fields
-  if (!yaml.name) {
-    throw new Error(`Rule missing 'name' in ${sourcePath}`)
-  }
-  if (!yaml.trigger) {
-    throw new Error(`Rule '${yaml.name}' missing 'trigger' in ${sourcePath}`)
-  }
-  if (!yaml.trigger.modality || !yaml.trigger.kind) {
-    throw new Error(`Rule '${yaml.name}' trigger missing 'modality' or 'kind' in ${sourcePath}`)
-  }
-  if (!yaml.accumulator) {
-    throw new Error(`Rule '${yaml.name}' missing 'accumulator' in ${sourcePath}`)
-  }
-  if (!yaml.signal) {
-    throw new Error(`Rule '${yaml.name}' missing 'signal' in ${sourcePath}`)
+export function parseRule(yaml: unknown, sourcePath: string): ParsedRule {
+  const parsedYaml = yamlRuleSchema.safeParse(yaml)
+  if (!parsedYaml.success) {
+    throw formatValidationError(parsedYaml.error, sourcePath)
   }
 
-  const windowMs = parseWindowDuration(yaml.accumulator.window)
+  const validatedRule = parsedYaml.data
+  const windowMs = parseWindowDuration(validatedRule.accumulator.window)
 
   return Object.freeze({
-    name: yaml.name,
-    version: yaml.version ?? 1,
+    name: validatedRule.name,
+    version: validatedRule.version ?? 1,
     trigger: Object.freeze({
-      eventType: buildEventType(yaml.trigger.modality, yaml.trigger.kind),
-      where: yaml.trigger.where ? Object.freeze(yaml.trigger.where) : undefined,
+      eventType: buildEventType(validatedRule.trigger.modality, validatedRule.trigger.kind),
+      where: validatedRule.trigger.where ? Object.freeze(validatedRule.trigger.where) : undefined,
     }),
     accumulator: Object.freeze({
-      threshold: yaml.accumulator.threshold,
+      threshold: validatedRule.accumulator.threshold,
       windowMs,
-      mode: yaml.accumulator.mode ?? 'sliding',
+      mode: validatedRule.accumulator.mode ?? 'sliding',
     }),
     signal: Object.freeze({
-      type: yaml.signal.type,
-      description: yaml.signal.description,
-      confidence: yaml.signal.confidence ?? 1.0,
-      metadata: yaml.signal.metadata ? Object.freeze(yaml.signal.metadata) : undefined,
+      type: validatedRule.signal.type,
+      description: validatedRule.signal.description,
+      confidence: validatedRule.signal.confidence ?? 1.0,
+      metadata: validatedRule.signal.metadata ? Object.freeze(validatedRule.signal.metadata) : undefined,
     }),
     sourcePath,
   })
@@ -106,6 +109,6 @@ export function loadRulesFromDirectory(dirPath: string): ParsedRule[] {
  * Useful for testing
  */
 export function parseRuleFromString(content: string, sourcePath: string = '<string>'): ParsedRule {
-  const yaml = parseYaml(content) as YamlRule
+  const yaml = parseYaml(content)
   return parseRule(yaml, sourcePath)
 }

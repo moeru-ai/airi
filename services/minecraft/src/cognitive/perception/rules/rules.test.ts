@@ -159,5 +159,96 @@ signal:
       expect(rule.accumulator.windowMs).toBe(2000)
       expect(rule.signal.type).toBe('entity_attention')
     })
+
+    it('should reject invalid accumulator threshold and confidence', () => {
+      const yaml = `
+name: invalid-threshold
+trigger:
+  modality: sighted
+  kind: arm_swing
+accumulator:
+  threshold: 0
+  window: 2s
+signal:
+  type: entity_attention
+  description: "Player {{ displayName }} is punching"
+  confidence: 1.5
+`
+
+      expect(() => parseRuleFromString(yaml)).toThrowErrorMatchingInlineSnapshot(`
+        [Error: Invalid rule in <string>:
+        - accumulator.threshold: Too small: expected number to be >0
+        - signal.confidence: Too big: expected number to be <=1]
+      `)
+    })
+
+    it('should reject invalid where operator shape', () => {
+      const yaml = `
+name: invalid-where
+trigger:
+  modality: sighted
+  kind: arm_swing
+  where:
+    distance:
+      lt: 10
+      gt: 2
+accumulator:
+  threshold: 1
+  window: 2s
+signal:
+  type: entity_attention
+  description: "Player {{ displayName }} is punching"
+`
+
+      expect(() => parseRuleFromString(yaml)).toThrowErrorMatchingInlineSnapshot(`
+        [Error: Invalid rule in <string>:
+        - trigger.where.distance: Invalid input]
+      `)
+    })
+
+    it('should reject invalid signal metadata values', () => {
+      const yaml = `
+name: invalid-metadata
+trigger:
+  modality: system
+  kind: system_message
+accumulator:
+  threshold: 1
+  window: 1s
+signal:
+  type: system_message
+  description: "{{ message }}"
+  metadata:
+    nested:
+      foo: bar
+`
+
+      expect(() => parseRuleFromString(yaml)).toThrowErrorMatchingInlineSnapshot(`
+        [Error: Invalid rule in <string>:
+        - signal.metadata.nested: Invalid input]
+      `)
+    })
+
+    it('should reject bare null where literals', () => {
+      const yaml = `
+name: invalid-null-where
+trigger:
+  modality: sighted
+  kind: arm_swing
+  where:
+    target: null
+accumulator:
+  threshold: 1
+  window: 1s
+signal:
+  type: entity_attention
+  description: "Player {{ displayName }} is punching"
+`
+
+      expect(() => parseRuleFromString(yaml)).toThrowErrorMatchingInlineSnapshot(`
+        [Error: Invalid rule in <string>:
+        - trigger.where.target: Invalid input]
+      `)
+    })
   })
 })

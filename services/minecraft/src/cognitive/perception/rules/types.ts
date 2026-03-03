@@ -1,9 +1,23 @@
 /**
  * YAML Rule DSL Types
  *
- * These types define the structure of YAML rule files.
- * All types are immutable (Readonly) to enforce FP principles.
+ * These schemas define the YAML rule DSL at runtime and expose inferred
+ * TypeScript types for the rest of the rules engine.
  */
+
+import { z } from 'zod'
+
+const perceptionModalityValues = ['sighted', 'heard', 'felt', 'system'] as const
+const accumulatorModeValues = ['sliding', 'tumbling'] as const
+
+function isValidWindowDuration(value: string): boolean {
+  const match = value.match(/^(\d+(?:\.\d+)?)(ms|s|m)?$/)
+  if (!match) {
+    return false
+  }
+
+  return Number.parseFloat(match[1]) > 0
+}
 
 /**
  * Comparison operators for where clauses
@@ -14,77 +28,105 @@ export type ComparisonOperator = 'eq' | 'ne' | 'lt' | 'lte' | 'gt' | 'gte' | 'in
  * A single condition in a where clause
  * Can be a direct value (equality) or an object with operator
  */
-export type WhereCondition
-  = | string
-    | number
-    | boolean
-    | { readonly eq?: unknown }
-    | { readonly ne?: unknown }
-    | { readonly lt?: number }
-    | { readonly lte?: number }
-    | { readonly gt?: number }
-    | { readonly gte?: number }
-    | { readonly in?: readonly unknown[] }
-    | { readonly contains?: string }
+const whereLiteralSchema = z.union([
+  z.string(),
+  z.number().finite(),
+  z.boolean(),
+])
+
+export const whereConditionSchema = z.union([
+  whereLiteralSchema,
+  z.object({ eq: whereLiteralSchema }).strict(),
+  z.object({ ne: whereLiteralSchema }).strict(),
+  z.object({ lt: z.number().finite() }).strict(),
+  z.object({ lte: z.number().finite() }).strict(),
+  z.object({ gt: z.number().finite() }).strict(),
+  z.object({ gte: z.number().finite() }).strict(),
+  z.object({ in: z.array(whereLiteralSchema).min(1) }).strict(),
+  z.object({ contains: z.string() }).strict(),
+])
+
+export type WhereCondition = z.infer<typeof whereConditionSchema>
 
 /**
  * Where clause - conditions to match against event payload
  */
-export type WhereClause = Readonly<Record<string, WhereCondition>>
+export const whereClauseSchema = z.record(
+  z.string().min(1),
+  whereConditionSchema,
+)
+
+export type WhereClause = z.infer<typeof whereClauseSchema>
 
 /**
  * Trigger definition in YAML
  */
-export interface RuleTrigger {
+export const ruleTriggerSchema = z.object({
   /** Event modality (e.g., 'sighted', 'heard', 'felt') */
-  readonly modality: string
+  modality: z.enum(perceptionModalityValues),
   /** Event kind (e.g., 'arm_swing', 'sound') */
-  readonly kind: string
+  kind: z.string().trim().min(1),
   /** Optional conditions on event payload */
-  readonly where?: WhereClause
-}
+  where: whereClauseSchema.optional(),
+}).strict()
+
+export type RuleTrigger = z.infer<typeof ruleTriggerSchema>
 
 /**
  * Accumulator configuration
  */
-export interface AccumulatorConfig {
+export const accumulatorConfigSchema = z.object({
   /** Number of events needed to trigger */
-  readonly threshold: number
+  threshold: z.number().int().positive(),
   /** Time window (e.g., '2s', '500ms') */
-  readonly window: string
+  window: z.string().trim().min(1).refine(
+    isValidWindowDuration,
+    'Window must be a positive duration like 500ms, 2s, or 1m',
+  ),
   /** Window mode: sliding (default) or tumbling */
-  readonly mode?: 'sliding' | 'tumbling'
-}
+  mode: z.enum(accumulatorModeValues).optional(),
+}).strict()
+
+export type AccumulatorConfig = z.infer<typeof accumulatorConfigSchema>
 
 /**
  * Signal output configuration
  */
-export interface SignalConfig {
+export const signalMetadataSchema = z.record(
+  z.string().min(1),
+  z.union([z.string(), z.number().finite(), z.boolean()]),
+)
+
+export const signalConfigSchema = z.object({
   /** Signal type (e.g., 'entity_attention', 'environmental_anomaly') */
-  readonly type: string
+  type: z.string().trim().min(1),
   /** Description template with {{ placeholders }} */
-  readonly description: string
+  description: z.string().trim().min(1),
   /** Confidence score (0-1) */
-  readonly confidence?: number
+  confidence: z.number().min(0).max(1).optional(),
   /** Additional metadata with templates */
-  readonly metadata?: Readonly<Record<string, string | number | boolean>>
-}
+  metadata: signalMetadataSchema.optional(),
+}).strict()
+
+export type SignalConfig = z.infer<typeof signalConfigSchema>
 
 /**
  * Complete YAML rule definition
  */
-export interface YamlRule {
+export const yamlRuleSchema = z.object({
   /** Rule name (unique identifier) */
-  readonly name: string
+  name: z.string().trim().min(1),
   /** Rule version */
-  readonly version?: number
+  version: z.number().int().positive().optional(),
   /** Trigger configuration */
-  readonly trigger: RuleTrigger
+  trigger: ruleTriggerSchema,
   /** Accumulator configuration */
-  readonly accumulator: AccumulatorConfig
+  accumulator: accumulatorConfigSchema,
   /** Signal to emit when rule fires */
-  readonly signal: SignalConfig
-}
+  signal: signalConfigSchema,
+}).strict()
+
+export type YamlRule = z.infer<typeof yamlRuleSchema>
 
 /**
  * Parsed and validated rule (internal representation)

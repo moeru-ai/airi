@@ -16,6 +16,7 @@ import { nanoid } from 'nanoid'
 import { WebSocketServer } from 'ws'
 
 import { useLogger } from '../utils/logger'
+import { debugClientMessageSchema, formatDebugValidationError } from './types'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -270,39 +271,52 @@ export class DebugServer {
   }
 
   private handleMessage(client: ClientInfo, data: string): void {
+    let rawMessage: unknown
+
     try {
-      const message = JSON.parse(data) as DebugMessage<ClientCommand>
-      const command = message.data
-
-      // Handle ping internally
-      if (command.type === 'ping') {
-        client.lastPing = Date.now()
-        const pong: ServerEvent = { type: 'pong', payload: { timestamp: Date.now() } }
-        client.ws.send(JSON.stringify(this.createMessage(pong)))
-        return
-      }
-
-      // Handle history request
-      if (command.type === 'request_history') {
-        this.sendHistory(client)
-        return
-      }
-
-      // Dispatch to registered handlers
-      const handlers = this.commandHandlers.get(command.type)
-      if (handlers) {
-        for (const handler of handlers) {
-          try {
-            handler(command, client)
-          }
-          catch (err) {
-            console.error(`Command handler error for ${command.type}:`, err)
-          }
-        }
-      }
+      rawMessage = JSON.parse(data)
     }
     catch (err) {
       console.error('Failed to parse WebSocket message:', err)
+      this.sendClientError(client, 'Invalid debug message JSON')
+      return
+    }
+
+    const parsedMessage = debugClientMessageSchema.safeParse(rawMessage)
+    if (!parsedMessage.success) {
+      const message = formatDebugValidationError(parsedMessage.error)
+      console.error(`Failed to validate WebSocket message: ${message}`)
+      this.sendClientError(client, 'Invalid debug message', { validation: message })
+      return
+    }
+
+    const command = parsedMessage.data.data
+
+    // Handle ping internally
+    if (command.type === 'ping') {
+      client.lastPing = Date.now()
+      const pong: ServerEvent = { type: 'pong', payload: { timestamp: Date.now() } }
+      client.ws.send(JSON.stringify(this.createMessage(pong)))
+      return
+    }
+
+    // Handle history request
+    if (command.type === 'request_history') {
+      this.sendHistory(client)
+      return
+    }
+
+    // Dispatch to registered handlers
+    const handlers = this.commandHandlers.get(command.type)
+    if (handlers) {
+      for (const handler of handlers) {
+        try {
+          handler(command, client)
+        }
+        catch (err) {
+          console.error(`Command handler error for ${command.type}:`, err)
+        }
+      }
     }
   }
 
@@ -359,6 +373,24 @@ export class DebugServer {
     catch (err) {
       console.error('Failed to write to log file', err)
     }
+  }
+
+  private sendClientError(client: ClientInfo, message: string, fields?: Record<string, unknown>): void {
+    if (client.ws.readyState !== 1) {
+      return
+    }
+
+    const event: ServerEvent = {
+      type: 'log',
+      payload: {
+        level: 'ERROR',
+        message,
+        fields,
+        timestamp: Date.now(),
+      },
+    }
+
+    client.ws.send(JSON.stringify(this.createMessage(event)))
   }
 
   private createMessage(event: ServerEvent): DebugMessage<ServerEvent> {

@@ -10,6 +10,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { z } from 'zod'
 
 import { useLogger } from '../utils/logger'
+import { debugEventCategorySchema, debugEventSourceSchema, debugInjectEventSchema, jsonObjectSchema, perceptionSignalSchema } from './types'
 
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = []
@@ -156,23 +157,22 @@ export class McpReplServer {
     this.mcpServer.tool(
       'inject_event',
       {
-        type: z.enum(['perception', 'feedback', 'world_update', 'system_alert']),
-        payload: z.any(),
-        source: z.object({
-          type: z.enum(['minecraft', 'airi', 'system']),
-          id: z.string(),
-        }),
+        type: debugEventCategorySchema,
+        payload: z.union([perceptionSignalSchema, jsonObjectSchema]),
+        source: debugEventSourceSchema,
       },
-      async ({ type, payload, source }: { type: any, payload: any, source: any }) => {
+      async (input: { type: string, payload: unknown, source: unknown }) => {
+        const event = debugInjectEventSchema.parse(input)
+
         await this.brain.injectDebugEvent({
-          type,
-          payload,
-          source,
+          type: event.type,
+          payload: event.payload,
+          source: event.source,
           timestamp: Date.now(),
         })
 
         return {
-          content: [{ type: 'text', text: `Injected event: ${type}` }],
+          content: [{ type: 'text', text: `Injected event: ${event.type}` }],
         }
       },
     )
