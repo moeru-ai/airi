@@ -195,9 +195,6 @@ catalogs:
     std-env:
       specifier: ^4.0.0-rc.1
       version: 4.0.0-rc.1
-    stripe:
-      specifier: ^20.3.0
-      version: 20.3.0
     superjson:
       specifier: ^2.2.6
       version: 2.2.6
@@ -556,7 +553,7 @@ importers:
         specifier: ^3.4.8
         version: 3.4.8
       stripe:
-        specifier: 'catalog:'
+        specifier: ^20.3.0
         version: 20.3.0(@types/node@24.10.14)
       tsx:
         specifier: ^4.21.0
