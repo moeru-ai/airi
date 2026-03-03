@@ -1,3 +1,4 @@
+import type { Env } from './libs/env'
 import type { HonoEnv } from './types/hono'
 
 import process from 'node:process'
@@ -16,9 +17,13 @@ import { parsedEnv } from './libs/env'
 import { sessionMiddleware } from './middlewares/auth'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatRoutes } from './routes/chats'
+import { createFluxRoutes } from './routes/flux'
 import { createProviderRoutes } from './routes/providers'
+import { createStripeRoutes } from './routes/stripe'
+import { createV1CompletionsRoutes } from './routes/v1completions'
 import { createCharacterService } from './services/characters'
 import { createChatService } from './services/chats'
+import { createFluxService } from './services/flux'
 import { createProviderService } from './services/providers'
 import { ApiError, createInternalError } from './utils/error'
 import { getTrustedOrigin } from './utils/origin'
@@ -27,15 +32,18 @@ type AuthService = ReturnType<typeof createAuth>
 type CharacterService = ReturnType<typeof createCharacterService>
 type ChatService = ReturnType<typeof createChatService>
 type ProviderService = ReturnType<typeof createProviderService>
+type FluxService = ReturnType<typeof createFluxService>
 
 interface AppDeps {
   auth: AuthService
   characterService: CharacterService
   chatService: ChatService
   providerService: ProviderService
+  fluxService: FluxService
+  env: Env
 }
 
-function buildApp({ auth, characterService, chatService, providerService }: AppDeps) {
+function buildApp({ auth, characterService, chatService, providerService, fluxService, env }: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
   return new Hono<HonoEnv>()
@@ -93,6 +101,21 @@ function buildApp({ auth, characterService, chatService, providerService }: AppD
      * Chat routes are handled by the chat service.
      */
     .route('/api/chats', createChatRoutes(chatService))
+
+    /**
+     * V1 routes for official provider.
+     */
+    .route('/v1', createV1CompletionsRoutes(fluxService, env))
+
+    /**
+     * Flux routes.
+     */
+    .route('/api/flux', createFluxRoutes(fluxService))
+
+    /**
+     * Stripe routes.
+     */
+    .route('/api/stripe', createStripeRoutes(fluxService, env))
 }
 
 export type AppType = ReturnType<typeof buildApp>
@@ -135,13 +158,20 @@ async function createApp() {
     build: ({ dependsOn }) => createChatService(dependsOn.db),
   })
 
+  const fluxService = injeca.provide('services:flux', {
+    dependsOn: { db },
+    build: ({ dependsOn }) => createFluxService(dependsOn.db),
+  })
+
   await injeca.start()
-  const resolved = await injeca.resolve({ auth, characterService, chatService, providerService })
+  const resolved = await injeca.resolve({ auth, characterService, chatService, providerService, fluxService, env: parsedEnv })
   const app = buildApp({
     auth: resolved.auth,
     characterService: resolved.characterService,
     chatService: resolved.chatService,
     providerService: resolved.providerService,
+    fluxService: resolved.fluxService,
+    env: resolved.env,
   })
 
   logger.withFields({ port: 3000 }).log('Server started')
