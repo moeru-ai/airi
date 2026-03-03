@@ -8,8 +8,9 @@ import { ActionError } from '../utils/errors'
 import { useLogger } from '../utils/logger'
 import { McData } from '../utils/mcdata'
 import { planRecipe } from '../utils/recipe-planner'
+import { collectBlock } from './actions/collect-block'
 import { ensureCraftingTable } from './actions/ensure'
-import { collectBlock, placeBlock } from './blocks'
+import { placeBlock } from './blocks'
 import { goToNearestBlock, goToPosition, moveAway } from './movement'
 import { getInventoryCounts, getNearestBlock, getNearestFreeSpace } from './world'
 
@@ -220,6 +221,18 @@ export async function smeltItem(mineflayer: Mineflayer, itemName: string, num = 
   }
 
   let placedFurnace = false
+  async function cleanupPlacedFurnace(): Promise<void> {
+    if (!placedFurnace)
+      return
+
+    try {
+      await collectBlock(mineflayer, 'furnace', 1)
+    }
+    catch (err) {
+      logger.log(`Failed to recollect temporary furnace: ${err}`)
+    }
+  }
+
   let furnaceBlock = getNearestBlock(mineflayer, 'furnace', 32)
   if (!furnaceBlock) {
     // Try to place furnace
@@ -255,16 +268,14 @@ export async function smeltItem(mineflayer: Mineflayer, itemName: string, num = 
     && inputItem.type !== mcData.getItemId(itemName)
     && inputItem.count > 0
   ) {
-    if (placedFurnace)
-      await collectBlock(mineflayer, 'furnace', 1)
+    await cleanupPlacedFurnace()
     throw new ActionError('CRAFTING_FAILED', `The furnace is currently smelting ${mcData.getItemName(inputItem.type)}`)
   }
 
   // Check if the bot has enough items to smelt
   const invCounts = getInventoryCounts(mineflayer)
   if (!invCounts[itemName] || invCounts[itemName] < num) {
-    if (placedFurnace)
-      await collectBlock(mineflayer, 'furnace', 1)
+    await cleanupPlacedFurnace()
     throw new ActionError('RESOURCE_MISSING', `I do not have enough ${itemName} to smelt`, { required: num })
   }
 
@@ -275,8 +286,7 @@ export async function smeltItem(mineflayer: Mineflayer, itemName: string, num = 
       .find(item => item.name === 'coal' || item.name === 'charcoal')
     const putFuel = Math.ceil(num / 8)
     if (!fuel || fuel.count < putFuel) {
-      if (placedFurnace)
-        await collectBlock(mineflayer, 'furnace', 1)
+      await cleanupPlacedFurnace()
       throw new ActionError('RESOURCE_MISSING', `I do not have enough coal or charcoal to smelt`, { required: putFuel })
     }
     await furnace.putFuel(fuel.type, null, putFuel)
@@ -285,8 +295,7 @@ export async function smeltItem(mineflayer: Mineflayer, itemName: string, num = 
   // Put the items in the furnace
   const itemId = mcData.getItemId(itemName)
   if (!itemId) {
-    if (placedFurnace)
-      await collectBlock(mineflayer, 'furnace', 1)
+    await cleanupPlacedFurnace()
     throw new ActionError('UNKNOWN', `Invalid item name: ${itemName}`)
   }
   await furnace.putInput(itemId, null, num)
@@ -329,9 +338,7 @@ export async function smeltItem(mineflayer: Mineflayer, itemName: string, num = 
   }
   await mineflayer.bot.closeWindow(furnace)
 
-  if (placedFurnace) {
-    await collectBlock(mineflayer, 'furnace', 1)
-  }
+  await cleanupPlacedFurnace()
 
   if (total < num) {
     throw new ActionError('CRAFTING_FAILED', `Failed to smelt all items, only got ${total}/${num}`)
