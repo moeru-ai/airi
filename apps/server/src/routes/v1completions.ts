@@ -7,6 +7,7 @@ import type { HonoEnv } from '../types/hono'
 import { Hono } from 'hono'
 
 import { authGuard } from '../middlewares/auth'
+import { createPaymentRequiredError } from '../utils/error'
 
 // Only forward these headers from the upstream LLM response
 const SAFE_RESPONSE_HEADERS = new Set([
@@ -21,7 +22,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, env: Env) {
     const user = c.get('user')!
     const flux = await fluxService.getFlux(user.id)
     if (flux.flux <= 0) {
-      return c.json({ error: 'Insufficient flux' }, 402)
+      throw createPaymentRequiredError('Insufficient flux')
     }
 
     const body = await c.req.json()

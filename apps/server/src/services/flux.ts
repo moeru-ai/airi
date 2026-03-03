@@ -3,6 +3,8 @@ import type { Database } from './db'
 
 import { and, eq, gte, sql } from 'drizzle-orm'
 
+import { createPaymentRequiredError } from '../utils/error'
+
 import * as schema from '../schemas/flux'
 
 export function createFluxService(db: Database<typeof fullSchema>) {
@@ -39,7 +41,7 @@ export function createFluxService(db: Database<typeof fullSchema>) {
         .returning()
 
       if (result.length === 0) {
-        throw new Error('Insufficient flux')
+        throw createPaymentRequiredError('Insufficient flux')
       }
 
       return result[0]
