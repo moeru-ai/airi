@@ -8,7 +8,7 @@ import { nonEmpty, object, optional, parse, pipe, string, transform } from 'vali
 
 const EnvSchema = object({
   API_SERVER_URL: optional(string(), 'http://localhost:3000'),
-
+  CLIENT_URL: optional(string(), 'https://airi.moerui.ai'),
   DATABASE_URL: pipe(string(), nonEmpty('DATABASE_URL is required')),
 
   AUTH_GOOGLE_CLIENT_ID: pipe(string(), nonEmpty('AUTH_GOOGLE_CLIENT_ID is required')),
@@ -18,13 +18,12 @@ const EnvSchema = object({
 
   STRIPE_SECRET_KEY: optional(string()),
   STRIPE_WEBHOOK_SECRET: optional(string()),
-  CLIENT_URL: pipe(string(), nonEmpty('CLIENT_URL is required')),
 
   FLUX_PER_CENT: optional(pipe(string(), transform(Number)), '1'),
   FLUX_PER_REQUEST: optional(pipe(string(), transform(Number)), '1'),
 
-  BACKEND_LLM_API_KEY: pipe(string(), nonEmpty('BACKEND_LLM_API_KEY is required')),
-  BACKEND_LLM_BASE_URL: pipe(string(), nonEmpty('BACKEND_LLM_BASE_URL is required')),
+  BACKEND_LLM_BASE_URL: optional(string()),
+  BACKEND_LLM_API_KEY: optional(string()),
 })
 
 export type Env = InferOutput<typeof EnvSchema>
