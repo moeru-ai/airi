@@ -4,6 +4,8 @@ import type { Recipe } from 'prismarine-recipe'
 
 import type { Mineflayer } from '../libs/mineflayer'
 
+import { sleep } from '@moeru/std'
+
 import { ActionError } from '../utils/errors'
 import { useLogger } from '../utils/logger'
 import { McData } from '../utils/mcdata'
@@ -304,13 +306,13 @@ export async function smeltItem(mineflayer: Mineflayer, itemName: string, num = 
   let total = 0
   let collectedLast = true
   let smeltedItem: Item | null = null
-  await new Promise(resolve => setTimeout(resolve, 200))
+  await sleep(200)
   // Wait limit 30s per item?
   const maxWait = num * 12000 // approx 10s per item + buffer
   let waited = 0
 
   while (total < num) {
-    await new Promise(resolve => setTimeout(resolve, 5000))
+    await sleep(5000)
     waited += 5000
 
     // Safety break

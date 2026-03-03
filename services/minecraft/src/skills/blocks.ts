@@ -3,6 +3,7 @@ import type { BlockFace } from './base'
 
 import pathfinderModel from 'mineflayer-pathfinder'
 
+import { sleep } from '@moeru/std'
 import { Vec3 } from 'vec3'
 
 import { McData } from '../utils/mcdata'
@@ -255,7 +256,7 @@ async function clearBlockSpace(
     log(mineflayer, `Cannot place ${blockType} at ${targetBlock.position}: block in the way.`)
     return false
   }
-  await new Promise(resolve => setTimeout(resolve, 200))
+  await sleep(200)
   return true
 }
 
@@ -363,7 +364,7 @@ async function tryPlaceBlock(
   try {
     await mineflayer.bot.placeBlock(buildOffBlock, faceVec)
     log(mineflayer, `Placed ${blockType} at ${targetDest}.`)
-    await new Promise(resolve => setTimeout(resolve, 200))
+    await sleep(200)
     return true
   }
   catch {
@@ -385,7 +386,7 @@ export async function useDoor(mineflayer: Mineflayer, doorPos: Vec3 | null = nul
 
   await goToPosition(mineflayer, doorPos.x, doorPos.y, doorPos.z, 1)
   while (mineflayer.bot.pathfinder.isMoving()) {
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await sleep(100)
   }
 
   return await operateDoor(mineflayer, doorPos)
@@ -429,12 +430,12 @@ async function operateDoor(mineflayer: Mineflayer, doorPos: Vec3): Promise<boole
   }
 
   mineflayer.bot.setControlState('forward', true)
-  await new Promise(resolve => setTimeout(resolve, 600))
+  await sleep(600)
   mineflayer.bot.setControlState('forward', false)
   await mineflayer.bot.activateBlock(doorBlock)
 
   mineflayer.bot.setControlState('forward', true)
-  await new Promise(resolve => setTimeout(resolve, 600))
+  await sleep(600)
   mineflayer.bot.setControlState('forward', false)
   await mineflayer.bot.activateBlock(doorBlock)
 

@@ -84,7 +84,7 @@ export async function placeBlock(
       `${targetBlock.name} is in the way at ${targetBlock.position}.`,
     )
     await breakBlockAt(mineflayer, x, y, z)
-    await new Promise(resolve => setTimeout(resolve, 200)) // Wait for block to break
+    await sleep(200) // Wait for block to break
   }
 
   // Determine the build-off block and face vector
@@ -183,7 +183,7 @@ export async function placeBlock(
   try {
     await mineflayer.bot.placeBlock(buildOffBlock, faceVec)
     logger.log(`Placed ${blockType} at ${targetDest}.`)
-    await new Promise(resolve => setTimeout(resolve, 200))
+    await sleep(200)
   }
   catch (err) {
     if (err instanceof Error) {
