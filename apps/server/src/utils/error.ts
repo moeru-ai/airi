@@ -48,8 +48,22 @@ export function createNotFoundError(message = 'Not Found', details?: unknown) {
 }
 
 /**
+ * Creates a payment required error (402)
+ */
+export function createPaymentRequiredError(message: string, details?: unknown) {
+  return new ApiError(402, 'PAYMENT_REQUIRED', message, details)
+}
+
+/**
  * Creates a conflict error (409)
  */
 export function createConflictError(message: string, details?: unknown) {
   return new ApiError(409, 'CONFLICT', message, details)
+}
+
+/**
+ * Creates a service unavailable error (503)
+ */
+export function createServiceUnavailableError(message = 'Service Unavailable', errorCode = 'SERVICE_UNAVAILABLE', details?: unknown) {
+  return new ApiError(503, errorCode, message, details)
 }
