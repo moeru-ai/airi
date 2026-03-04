@@ -283,6 +283,7 @@ pages:
           provider-model-selection:
             collapse: 접기
             custom_model_placeholder: 사용자 지정 모델 이름 입력...
+            current_model_label: '현재 선택된 모델：'
             description: 의식에 적합한 LLM 제공자를 선택합니다.
             error: 모델 목록을 불러오는데 오류가 발생했습니다.
             health_check_failed: 상태 점검 실패

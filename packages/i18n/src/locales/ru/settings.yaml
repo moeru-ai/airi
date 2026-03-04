@@ -283,6 +283,7 @@ pages:
           provider-model-selection:
             collapse: Свернуть
             custom_model_placeholder: Введите название кастомной модели...
+            current_model_label: 'Текущая выбранная модель：'
             description: Выберите подходящего LLM-провайдера для сознания
             error: Ошибка загрузки моделей
             health_check_failed: Health check failed

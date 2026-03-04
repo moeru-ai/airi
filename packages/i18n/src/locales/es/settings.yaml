@@ -283,6 +283,7 @@ pages:
           provider-model-selection:
             collapse: Colapsar
             custom_model_placeholder: Ingresa el nombre del modelo personalizado...
+            current_model_label: 'Modelo actual seleccionado：'
             description: Selecciona el proveedor LLM adecuado para la consciencia
             error: Error cargando modelos
             health_check_failed: Health check failed

@@ -577,14 +577,14 @@ onUnmounted(() => {
               <h2 class="text-lg md:text-2xl">
                 {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.title') }}
               </h2>
-              <div text="neutral-400 dark:neutral-400">
-                <!-- Show different description based on whether provider supports model listing and has models -->
+              <div class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-400">
                 <span v-if="supportsModelListing && providerModels.length > 0">
                   {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}
                 </span>
                 <span v-else>
                   Enter the transcription model to use (e.g., 'whisper-1', 'gpt-4o-transcribe')
                 </span>
+                <span v-if="activeTranscriptionModel" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.current_model_label') }} {{ activeTranscriptionModel }}</span>
               </div>
             </div>
 

@@ -295,6 +295,7 @@ pages:
           provider-model-selection:
             collapse: Collapse
             custom_model_placeholder: Enter custom model name...
+            current_model_label: 'Current model:'
             description: Select the suitable LLM provider for consciousness
             error: Error loading models
             health_check_failed: Health check failed
