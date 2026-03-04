@@ -14,6 +14,7 @@ import { createLoggLogger, injeca } from 'injeca'
 import { createAuth } from './libs/auth'
 import { createDrizzle, migrateDatabase } from './libs/db'
 import { parsedEnv } from './libs/env'
+import { createRedis } from './libs/redis'
 import { sessionMiddleware } from './middlewares/auth'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatRoutes } from './routes/chats'
@@ -23,6 +24,7 @@ import { createStripeRoutes } from './routes/stripe'
 import { createV1CompletionsRoutes } from './routes/v1completions'
 import { createCharacterService } from './services/characters'
 import { createChatService } from './services/chats'
+import { createConfigKVService } from './services/config-kv'
 import { createFluxService } from './services/flux'
 import { createProviderService } from './services/providers'
 import { ApiError, createInternalError } from './utils/error'
@@ -33,6 +35,7 @@ type CharacterService = ReturnType<typeof createCharacterService>
 type ChatService = ReturnType<typeof createChatService>
 type ProviderService = ReturnType<typeof createProviderService>
 type FluxService = ReturnType<typeof createFluxService>
+type ConfigKVService = ReturnType<typeof createConfigKVService>
 
 interface AppDeps {
   auth: AuthService
@@ -40,10 +43,11 @@ interface AppDeps {
   chatService: ChatService
   providerService: ProviderService
   fluxService: FluxService
+  configKV: ConfigKVService
   env: Env
 }
 
-function buildApp({ auth, characterService, chatService, providerService, fluxService, env }: AppDeps) {
+function buildApp({ auth, characterService, chatService, providerService, fluxService, configKV, env }: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
   return new Hono<HonoEnv>()
@@ -105,7 +109,7 @@ function buildApp({ auth, characterService, chatService, providerService, fluxSe
     /**
      * V1 routes for official provider.
      */
-    .route('/v1', createV1CompletionsRoutes(fluxService, env))
+    .route('/v1', createV1CompletionsRoutes(fluxService, configKV, env))
 
     /**
      * Flux routes.
@@ -115,7 +119,7 @@ function buildApp({ auth, characterService, chatService, providerService, fluxSe
     /**
      * Stripe routes.
      */
-    .route('/api/stripe', createStripeRoutes(fluxService, env))
+    .route('/api/stripe', createStripeRoutes(fluxService, configKV, env))
 }
 
 export type AppType = ReturnType<typeof buildApp>
@@ -158,19 +162,35 @@ async function createApp() {
     build: ({ dependsOn }) => createChatService(dependsOn.db),
   })
 
+  const redis = injeca.provide('services:redis', {
+    dependsOn: { env: parsedEnv },
+    build: async ({ dependsOn }) => {
+      const redisInstance = createRedis(dependsOn.env.REDIS_URL)
+      await redisInstance.connect()
+      logger.log('Connected to Redis')
+      return redisInstance
+    },
+  })
+
+  const configKV = injeca.provide('services:configKV', {
+    dependsOn: { redis },
+    build: ({ dependsOn }) => createConfigKVService(dependsOn.redis),
+  })
+
   const fluxService = injeca.provide('services:flux', {
-    dependsOn: { db },
-    build: ({ dependsOn }) => createFluxService(dependsOn.db),
+    dependsOn: { db, configKV },
+    build: ({ dependsOn }) => createFluxService(dependsOn.db, dependsOn.configKV),
   })
 
   await injeca.start()
-  const resolved = await injeca.resolve({ auth, characterService, chatService, providerService, fluxService, env: parsedEnv })
+  const resolved = await injeca.resolve({ auth, characterService, chatService, providerService, fluxService, configKV, env: parsedEnv })
   const app = buildApp({
     auth: resolved.auth,
     characterService: resolved.characterService,
     chatService: resolved.chatService,
     providerService: resolved.providerService,
     fluxService: resolved.fluxService,
+    configKV: resolved.configKV,
     env: resolved.env,
   })
 
