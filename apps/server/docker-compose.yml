@@ -18,12 +18,26 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   server:
     build:
       context: ../..
       dockerfile: apps/server/Dockerfile
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     env_file:
       - path: .env
@@ -40,4 +54,6 @@ services:
 
 volumes:
   db_data:
+    driver: local
+  redis_data:
     driver: local
