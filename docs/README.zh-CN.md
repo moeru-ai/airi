@@ -187,12 +187,12 @@ npx bumpp --no-commit --no-tag
 
 ## 原生支持的 LLM API 服务来源列表（由 [xsai](https://github.com/moeru-ai/xsai) 驱动）
 
-- [x] [AIHubMix](https://aihubmix.com/?aff=OOiX) — 推荐：支持所有模型，通过本项目请求优化 10%，同时有免费模型可以直接使用
+- [x] [AIHubMix (recommended)](https://aihubmix.com/?aff=OOiX)
 - [x] [OpenRouter](https://openrouter.ai/)
 - [x] [vLLM](https://github.com/vllm-project/vllm)
 - [x] [SGLang](https://github.com/sgl-project/sglang)
 - [x] [Ollama](https://github.com/ollama/ollama)
-- [x] [302.AI](https://share.302.ai/514k2v) — 赞助
+- [x] [302.AI (sponsored)](https://share.302.ai/514k2v)
 - [x] [OpenAI](https://platform.openai.com/docs/guides/gpt/chat-completions-api)
   - [ ] [Azure OpenAI API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)（欢迎 PR）
 - [x] [Anthropic Claude](https://anthropic.com)

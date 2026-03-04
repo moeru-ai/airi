@@ -187,12 +187,12 @@ npx bumpp --no-commit --no-tag
 
 ## Support des fournisseurs d'API LLM suivants (propulsé par [xsai](https://github.com/moeru-ai/xsai))
 
-- [x] [AIHubMix](https://aihubmix.com/?aff=OOiX) — recommandé ; prend en charge tous les modèles, optimisation des requêtes de 10 % via ce projet, avec des modèles gratuits disponibles
+- [x] [AIHubMix (recommended)](https://aihubmix.com/?aff=OOiX)
 - [x] [OpenRouter](https://openrouter.ai/)
 - [x] [vLLM](https://github.com/vllm-project/vllm)
 - [x] [SGLang](https://github.com/sgl-project/sglang)
 - [x] [Ollama](https://github.com/ollama/ollama)
-- [x] [302.AI](https://share.302.ai/514k2v) — sponsorisé
+- [x] [302.AI (sponsored)](https://share.302.ai/514k2v)
 - [x] [OpenAI](https://platform.openai.com/docs/guides/gpt/chat-completions-api)
   - [ ] [Azure OpenAI API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference) (PR bienvenue)
 - [x] [Anthropic Claude](https://anthropic.com)
