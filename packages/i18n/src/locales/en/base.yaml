@@ -56,3 +56,40 @@ toaster:
     action:
       notNow: Not now
       ok: OK
+api:
+  settings:
+    actions:
+      saveAndApply: Save and apply
+      testConnection: Test connection
+    fields:
+      provider:
+        label: Provider
+        description: Select an AI provider for chat completion.
+        placeholder: Select a provider
+      apiKey:
+        label: API Key
+        description: Enter your provider API key.
+        placeholder: Enter your API key
+      baseUrl:
+        label: Base URL
+        description: Enter the API base URL for the selected provider.
+        placeholder: https://api.example.com/v1/
+      model:
+        label: Model
+        description: Select a model after connection is verified.
+        placeholder: Select a model
+    status:
+      notConfiguredTitle: API not configured
+      notConfiguredDescription: Configure a provider, test the connection, then save the settings.
+      configuredTitle: API configured
+      activeProvider: Active provider: {provider}
+      activeModel: Active model: {model}
+      baseUrl: Base URL: {baseUrl}
+    messages:
+      requiredFields: Provider, API key, and base URL are required.
+      loadingModels: Loading available models...
+      modelCount: Models available: {count}
+      connectionTestSucceed: Connection test succeeded.
+      connectionTestFailed: Connection test failed.
+      saveSucceed: API settings saved and applied.
+      saveFailed: Failed to save API settings. Please verify your configuration.

@@ -1364,13 +1364,13 @@ export const useProvidersStore = defineStore('providers', () => {
             baseURL: baseUrl,
           })
 
-          return models.map((model: any) => {
+          return models.map((model) => {
             return {
               id: model.id,
-              name: model.name || model.display_name || model.id,
+              name: model.id,
               provider: 'kimi-chat',
-              description: model.description || '',
-              contextLength: model.context_length || 0,
+              description: '',
+              contextLength: 0,
               deprecated: false,
             } satisfies ModelInfo
           })
@@ -1425,13 +1425,13 @@ export const useProvidersStore = defineStore('providers', () => {
             baseURL: baseUrl,
           })
 
-          return models.map((model: any) => {
+          return models.map((model) => {
             return {
               id: model.id,
-              name: model.name || model.display_name || model.id,
+              name: model.id,
               provider: 'doubao-chat',
-              description: model.description || '',
-              contextLength: model.context_length || 0,
+              description: '',
+              contextLength: 0,
               deprecated: false,
             } satisfies ModelInfo
           })

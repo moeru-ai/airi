@@ -755,9 +755,6 @@ pages:
   scene:
     description: 配置角色所在环境
     title: 场景
-  api:
-    title: API 设置
-    description: 配置AI服务的API信息，确保稳定连接
   system:
     color-scheme:
       description: 更改舞台的配色方案
@@ -790,7 +787,7 @@ pages:
                 title: Markdown Stress
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
               use-magic-keys:
-                title: useMagicKeys 工具
+                title: useMagicKeys Tool
                 description: 测试快捷键
               audio-record:
                 title: 音频录制

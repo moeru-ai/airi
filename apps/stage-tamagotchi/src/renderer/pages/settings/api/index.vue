@@ -17,5 +17,4 @@ meta:
   order: 5
   stageTransition:
     name: slide
-    pageSpecificAvailable: true
 </route>
