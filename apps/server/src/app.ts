@@ -28,6 +28,7 @@ import { createChatService } from './services/chats'
 import { createConfigKVService } from './services/config-kv'
 import { createFluxService } from './services/flux'
 import { createProviderService } from './services/providers'
+import { createStripeService } from './services/stripe'
 import { ApiError, createInternalError } from './utils/error'
 import { getTrustedOrigin } from './utils/origin'
 
@@ -37,6 +38,7 @@ type ChatService = ReturnType<typeof createChatService>
 type ProviderService = ReturnType<typeof createProviderService>
 type FluxService = ReturnType<typeof createFluxService>
 type ConfigKVService = ReturnType<typeof createConfigKVService>
+type StripeDBService = ReturnType<typeof createStripeService>
 
 type OtelMetrics = ReturnType<typeof initOtel>
 
@@ -46,11 +48,12 @@ interface AppDeps {
   chatService: ChatService
   providerService: ProviderService
   fluxService: FluxService
+  stripeService: StripeDBService
   configKV: ConfigKVService
   env: Env
 }
 
-function buildApp({ auth, characterService, chatService, providerService, fluxService, configKV, env }: AppDeps) {
+function buildApp({ auth, characterService, chatService, providerService, fluxService, stripeService, configKV, env }: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
   const app = new Hono<HonoEnv>()
@@ -128,7 +131,7 @@ function buildApp({ auth, characterService, chatService, providerService, fluxSe
     /**
      * Stripe routes.
      */
-    .route('/api/stripe', createStripeRoutes(fluxService, configKV, env))
+    .route('/api/stripe', createStripeRoutes(fluxService, stripeService, configKV, env))
 }
 
 export type AppType = ReturnType<typeof buildApp>
@@ -199,19 +202,25 @@ async function createApp() {
     build: ({ dependsOn }) => createConfigKVService(dependsOn.redis),
   })
 
+  const stripeService = injeca.provide('services:stripe', {
+    dependsOn: { db },
+    build: ({ dependsOn }) => createStripeService(dependsOn.db),
+  })
+
   const fluxService = injeca.provide('services:flux', {
     dependsOn: { db, configKV },
     build: ({ dependsOn }) => createFluxService(dependsOn.db, dependsOn.configKV),
   })
 
   await injeca.start()
-  const resolved = await injeca.resolve({ auth, characterService, chatService, providerService, fluxService, configKV, env: parsedEnv })
+  const resolved = await injeca.resolve({ auth, characterService, chatService, providerService, fluxService, stripeService, configKV, env: parsedEnv })
   const app = buildApp({
     auth: resolved.auth,
     characterService: resolved.characterService,
     chatService: resolved.chatService,
     providerService: resolved.providerService,
     fluxService: resolved.fluxService,
+    stripeService: resolved.stripeService,
     configKV: resolved.configKV,
     env: resolved.env,
   })
