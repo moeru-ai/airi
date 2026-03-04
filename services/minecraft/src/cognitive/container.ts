@@ -45,7 +45,21 @@ export function createAgentContainer() {
     })).singleton(),
 
     // Register EventBus (cognitive event core)
-    eventBus: asFunction(() => createEventBus()).singleton(),
+    eventBus: asFunction(({ logger }) =>
+      createEventBus({
+        onSubscriberError: ({ event, pattern, error }) => {
+          logger
+            .withFields({
+              eventType: event.type,
+              eventId: event.id,
+              traceId: event.traceId,
+              parentId: event.parentId,
+              pattern,
+            })
+            .errorWithError('EventBus subscriber failed', error)
+        },
+      }),
+    ).singleton(),
 
     // Register RuleEngine (YAML rules processing)
     ruleEngine: asFunction(({ eventBus }) => {
