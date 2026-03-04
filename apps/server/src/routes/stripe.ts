@@ -75,15 +75,17 @@ export function createStripeRoutes(fluxService: FluxService, env: Env) {
       }
 
       if (event.type === 'checkout.session.completed') {
-        const session = event.data.object as Stripe.Checkout.Session
+        const session = event.data.object
         const userId = session.metadata?.userId
         const amount = session.amount_total
 
         if (userId && amount) {
           await fluxService.addFlux(userId, amount * env.FLUX_PER_CENT)
 
-          if (typeof session.customer === 'string')
-            await fluxService.updateStripeCustomerId(userId, session.customer)
+          if (session.customer) {
+            const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id
+            await fluxService.updateStripeCustomerId(userId, customerId)
+          }
         }
       }
 
