@@ -19,9 +19,9 @@ docs:
   'drag-to-move-window': ウィンドウをドラッグして移動
   'switch-to-light-mode': ライトモードに切り替え
   'switch-to-dark-mode': ダークモードに切り替え
-  'close': 閉じる
-  'expand': 展開
-  'collapse': 折りたたむ
+  'close': Close
+  'expand': Expand
+  'collapse': Collapse
 notice:
   'fade-on-hover':
     title: ホバー時にフェード
