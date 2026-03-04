@@ -20,9 +20,13 @@ const CheckoutBodySchema = object({
 export function createStripeRoutes(fluxService: FluxService, stripeService: StripeService, configKV: ConfigKVService, env: Env) {
   const stripe = env.STRIPE_SECRET_KEY ? new Stripe(env.STRIPE_SECRET_KEY) : null
 
-  const fluxConfigGuard = configGuard(configKV, ['FLUX_PER_CENT'])
+  const fluxConfigGuard = configGuard(configKV, ['FLUX_PER_CENT'], 'Top-up is not available yet')
 
   return new Hono<HonoEnv>()
+    .get('/packages', async (c) => {
+      const packages = await configKV.getOptional('FLUX_PACKAGES')
+      return c.json(packages ?? [])
+    })
     .post('/checkout', authGuard, fluxConfigGuard, async (c) => {
       if (!stripe)
         throw createServiceUnavailableError('Stripe is not configured', 'STRIPE_NOT_CONFIGURED')
@@ -243,14 +247,16 @@ async function handleSubscriptionEvent(
   if (!customer)
     return
 
+  // In newer Stripe API, period info is on subscription items
+  const firstItem = subscription.items.data[0]
   await stripeService.upsertSubscription({
     userId: customer.userId,
     stripeSubscriptionId: subscription.id,
     stripeCustomerId,
-    stripePriceId: subscription.items.data[0]?.price?.id,
+    stripePriceId: firstItem?.price?.id,
     status: subscription.status,
-    currentPeriodStart: new Date(subscription.current_period_start * 1000),
-    currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+    currentPeriodStart: firstItem?.current_period_start ? new Date(firstItem.current_period_start * 1000) : null,
+    currentPeriodEnd: firstItem?.current_period_end ? new Date(firstItem.current_period_end * 1000) : null,
     cancelAtPeriodEnd: String(subscription.cancel_at_period_end),
     canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
     endedAt: subscription.ended_at ? new Date(subscription.ended_at * 1000) : null,
@@ -272,7 +278,11 @@ async function handleInvoiceEvent(
   if (!customer)
     return
 
-  const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id
+  // In newer Stripe API, subscription is under parent.subscription_details
+  const subDetails = invoice.parent?.subscription_details
+  const subscriptionId = subDetails
+    ? (typeof subDetails.subscription === 'string' ? subDetails.subscription : subDetails.subscription?.id)
+    : undefined
 
   await stripeService.upsertInvoice({
     userId: customer.userId,
