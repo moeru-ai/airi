@@ -18,11 +18,17 @@ import VueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
 import VueMacros from 'vue-macros/vite'
 
-import { isEnvTruthy } from '@proj-airi/stage-shared'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { templateCompilerOptions } from '@tresjs/core'
 import { defineConfig } from 'vite'
+
+// import { isEnvTruthy } from '@proj-airi/stage-shared'
+function isEnvTruthy(value: string | undefined | null): boolean {
+  if (value == null)
+    return false
+  return /^(?:1|true|t|yes|y|on)$/i.test(value.trim())
+}
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
