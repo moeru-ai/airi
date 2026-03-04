@@ -20,6 +20,8 @@ docs:
   'switch-to-light-mode': Switch to light mode
   'switch-to-dark-mode': Switch to dark mode
   'close': Close
+  'expand': Expand
+  'collapse': Collapse
 
 notice:
   'fade-on-hover':
