@@ -16,6 +16,7 @@ import { openDebugger, setupDebugger } from './app/debugger'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
 import { setupServerChannel } from './services/airi/channel-server'
+import { setupMcpStdioManager } from './services/airi/mcp-servers'
 import { setupPluginHost } from './services/airi/plugins'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupTray } from './tray'
@@ -83,6 +84,10 @@ app.whenReady().then(async () => {
     build: async () => setupServerChannel(),
   })
 
+  const mcpStdioManager = injeca.provide('modules:mcp-stdio-manager', {
+    build: async () => setupMcpStdioManager(),
+  })
+
   const pluginHost = injeca.provide('modules:plugin-host', {
     dependsOn: { serverChannel },
     build: () => setupPluginHost(),
@@ -105,17 +110,17 @@ app.whenReady().then(async () => {
   })
 
   const chatWindow = injeca.provide('windows:chat', {
-    dependsOn: { widgetsManager, serverChannel },
+    dependsOn: { widgetsManager, serverChannel, mcpStdioManager },
     build: ({ dependsOn }) => setupChatWindowReusableFunc(dependsOn),
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsMarkdownStressWindow, serverChannel },
+    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsMarkdownStressWindow, serverChannel, mcpStdioManager },
     build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel },
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, mcpStdioManager },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
 
@@ -130,7 +135,7 @@ app.whenReady().then(async () => {
   })
 
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, pluginHost },
+    dependsOn: { mainWindow, tray, serverChannel, pluginHost, mcpStdioManager },
     callback: noop,
   })
 

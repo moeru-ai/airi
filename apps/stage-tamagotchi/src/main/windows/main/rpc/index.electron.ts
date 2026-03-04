@@ -1,6 +1,7 @@
 import type { BrowserWindow } from 'electron'
 
 import type { ServerChannel } from '../../../services/airi/channel-server'
+import type { McpStdioManager } from '../../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../../services/electron/auto-updater'
 import type { NoticeWindowManager } from '../../notice'
 import type { WidgetsWindowManager } from '../../widgets'
@@ -11,6 +12,7 @@ import { ipcMain } from 'electron'
 
 import { electronOpenChat, electronOpenMainDevtools, electronOpenSettings, noticeWindowEventa } from '../../../../shared/eventa'
 import { createServerChannelService } from '../../../services/airi/channel-server'
+import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { createAutoUpdaterService } from '../../../services/electron'
 import { toggleWindowShow } from '../../shared'
@@ -24,6 +26,7 @@ export function setupMainWindowElectronInvokes(params: {
   noticeWindow: NoticeWindowManager
   autoUpdater: AutoUpdater
   serverChannel: ServerChannel
+  mcpStdioManager: McpStdioManager
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -36,6 +39,7 @@ export function setupMainWindowElectronInvokes(params: {
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
   createAutoUpdaterService({ context, window: params.window, service: params.autoUpdater })
   createServerChannelService({ serverChannel: params.serverChannel })
+  createMcpServersService({ context, manager: params.mcpStdioManager })
 
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenSettings, async () => toggleWindowShow(await params.settingsWindow()))

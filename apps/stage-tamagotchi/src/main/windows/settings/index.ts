@@ -1,4 +1,5 @@
 import type { ServerChannel } from '../../services/airi/channel-server'
+import type { McpStdioManager } from '../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { DevtoolsWindowManager } from '../devtools'
 import type { WidgetsWindowManager } from '../widgets'
@@ -20,6 +21,7 @@ export function setupSettingsWindowReusableFunc(params: {
   devtoolsMarkdownStressWindow: DevtoolsWindowManager
   onWindowCreated?: (window: BrowserWindow) => void
   serverChannel: ServerChannel
+  mcpStdioManager: McpStdioManager
 }) {
   return createReusableWindow(async () => {
     const window = new BrowserWindow({
@@ -51,6 +53,7 @@ export function setupSettingsWindowReusableFunc(params: {
       autoUpdater: params.autoUpdater,
       devtoolsMarkdownStressWindow: params.devtoolsMarkdownStressWindow,
       serverChannel: params.serverChannel,
+      mcpStdioManager: params.mcpStdioManager,
     })
 
     initScreenCaptureForWindow(window)
