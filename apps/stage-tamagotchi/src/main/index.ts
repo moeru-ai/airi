@@ -26,6 +26,7 @@ import { setupChatWindowReusableFunc } from './windows/chat'
 import { setupDevtoolsWindow } from './windows/devtools'
 import { setupMainWindow } from './windows/main'
 import { setupNoticeWindowManager } from './windows/notice'
+import { setupOnboardingWindowManager } from './windows/onboarding'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
 import { setupWidgetsWindowManager } from './windows/widgets'
 
@@ -93,6 +94,7 @@ app.whenReady().then(async () => {
 
   const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
   const noticeWindow = injeca.provide('windows:notice', () => setupNoticeWindowManager())
+  const onboardingWindow = injeca.provide('windows:onboarding', () => setupOnboardingWindowManager())
 
   const widgetsManager = injeca.provide('windows:widgets', {
     dependsOn: { serverChannel },
@@ -132,6 +134,12 @@ app.whenReady().then(async () => {
   injeca.invoke({
     dependsOn: { mainWindow, tray, serverChannel, pluginHost },
     callback: noop,
+  })
+
+  // Show onboarding window if not completed
+  injeca.invoke({
+    dependsOn: { onboardingWindow },
+    callback: ({ onboardingWindow }) => { onboardingWindow.showIfNeeded() },
   })
 
   injeca.start().catch(err => console.error(err))
