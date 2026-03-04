@@ -3,6 +3,7 @@ import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
+import { refDebounced, useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -13,7 +14,13 @@ import ControlsIslandFadeOnHover from './controls-island-fade-on-hover.vue'
 import ControlsIslandHearingConfig from './controls-island-hearing-config.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
-import { electron, electronOpenChat, electronOpenSettings, electronStartDraggingWindow, electronWindowClose } from '../../../../shared/eventa'
+import {
+  electron,
+  electronOpenChat,
+  electronOpenSettings,
+  electronStartDraggingWindow,
+  electronWindowClose,
+} from '../../../../shared/eventa'
 
 const { isDark, toggleDark } = useTheme()
 const { t } = useI18n()
@@ -29,33 +36,22 @@ const isLinux = useElectronEventaInvoke(electron.app.isLinux)
 const closeWindow = useElectronEventaInvoke(electronWindowClose)
 
 const expanded = ref(false)
-const islandRef = ref<HTMLElement | null>(null)
+const islandRef = ref<HTMLElement>()
+
 const { isOutside } = useElectronMouseInElement(islandRef)
+const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
-let collapseTimer: ReturnType<typeof setTimeout> | null = null
-
-watch(isOutside, (val) => {
-  if (val) {
-    if (expanded.value) {
-      collapseTimer = setTimeout(() => {
-        expanded.value = false
-      }, 1500)
-    }
-  }
-  else {
-    if (collapseTimer) {
-      clearTimeout(collapseTimer)
-      collapseTimer = null
-    }
+watch(isOutsideAfter2seconds, (outside) => {
+  if (outside && expanded.value) {
+    expanded.value = false
   }
 })
 
-watch(expanded, (isExpanded) => {
-  if (!isExpanded && collapseTimer) {
-    clearTimeout(collapseTimer)
-    collapseTimer = null
+useIntervalFn(() => {
+  if (expanded.value && isOutside.value) {
+    expanded.value = false
   }
-})
+}, 1500)
 
 // Grouped classes for icon / border / padding and combined style class
 const adjustStyleClasses = computed(() => {
