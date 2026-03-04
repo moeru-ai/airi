@@ -18,6 +18,7 @@ import VueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
 import VueMacros from 'vue-macros/vite'
 
+import { isEnvTruthy } from '@proj-airi/stage-shared'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { templateCompilerOptions } from '@tresjs/core'
@@ -88,7 +89,7 @@ export default defineConfig({
   },
 
   plugins: [
-    .../^1|true|yes$/i.test(process.env.VITE_SKIP_MKCERT ?? '') ? [] : [mkcert()],
+    ...isEnvTruthy(process.env.VITE_SKIP_MKCERT ?? '') ? [] : [mkcert()],
 
     Info(),
 
@@ -145,7 +146,7 @@ export default defineConfig({
     Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', 'AvatarSample_A.vrm', 'vrm/models/AvatarSample-A', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
     Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'vrm/models/AvatarSample-B', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
 
-    .../^1|true|yes$/i.test(process.env.VITE_CAP_SYNC_IOS_AFTER_BUILD ?? '')
+    ...isEnvTruthy(process.env.VITE_CAP_SYNC_IOS_AFTER_BUILD ?? '')
       ? [{
           name: 'proj-airi:capacitor-sync',
           closeBundle: {
