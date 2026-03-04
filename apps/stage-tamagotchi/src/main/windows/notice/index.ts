@@ -1,6 +1,8 @@
 import type { BrowserWindow } from 'electron'
 
 import type { RequestWindowPayload } from '../../../shared/eventa'
+import type { I18n } from '../../libs/i18n'
+import type { ServerChannel } from '../../services/airi/channel-server'
 
 import { join, resolve } from 'node:path'
 
@@ -17,7 +19,10 @@ export interface NoticeWindowManager {
   open: (payload: RequestWindowPayload) => Promise<boolean>
 }
 
-export function setupNoticeWindowManager(): NoticeWindowManager {
+export function setupNoticeWindowManager(params: {
+  i18n: I18n
+  serverChannel: ServerChannel
+}): NoticeWindowManager {
   const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
 
   function createWindow(_id: string): BrowserWindow {
@@ -48,6 +53,8 @@ export function setupNoticeWindowManager(): NoticeWindowManager {
 
   const manager = createReferencedWindowManager({
     eventa: noticeWindowEventa,
+    i18n: params.i18n,
+    serverChannel: params.serverChannel,
     createWindow,
     loadRoute: loadNoticeRoute,
   })

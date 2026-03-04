@@ -2,6 +2,7 @@ name: Release Tamagotchi
 
 permissions:
   contents: write
+  actions: read
 
 env:
   BUNDLE_NAME: ''
@@ -214,6 +215,7 @@ jobs:
 
       - name: Upload Artifacts (Nightly + Non-Linux)
         if: ${{ github.event_name == 'schedule' && (matrix.os != 'ubuntu-latest' && matrix.os != 'ubuntu-24.04-arm') }}
+        id: unsigned-artifacts-nightly
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.BUNDLE_NAME }}
@@ -239,6 +241,29 @@ jobs:
         with:
           name: ${{ env.FLATPAK_BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.FLATPAK_BUNDLE_NAME }}
+
+      - name: Sign Windows Artifacts with SignPath (Nightly + Windows Only)
+        uses: signpath/github-action-submit-signing-request@v2
+        if: ${{ github.event_name == 'schedule' && (matrix.os == 'windows-latest' && github.repository == 'moeru-ai/airi') }}
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ secrets.SIGNPATH_ORGANIZATION_ID }}'
+          project-slug: 'airi'
+          signing-policy-slug: 'test-signing'
+          artifact-configuration-slug: ci-github-actions-artifacts-windows
+          github-artifact-id: '${{ steps.unsigned-artifacts-nightly.outputs.artifact-id }}'
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 900 # 15 minutes
+          download-signed-artifact-timeout-in-seconds: 900 # 15 minutes
+          output-artifact-directory: apps/stage-tamagotchi/bundle/signed/windows/
+
+      - name: Upload Signed Artifacts (Nightly + Non-Linux)
+        if: ${{ github.event_name == 'schedule' && (matrix.os == 'windows-latest') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }}
+          overwrite: true
 
       # ---------
       # Workflow Dispatch only
@@ -278,6 +303,7 @@ jobs:
 
       - name: Upload Artifacts (Manual + Non-Release + Non-Linux)
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os != 'ubuntu-latest' && matrix.os != 'ubuntu-24.04-arm') }}
+        id: unsigned-artifacts-workflow-dispatch
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.BUNDLE_NAME }}
@@ -304,17 +330,53 @@ jobs:
           name: ${{ env.FLATPAK_BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.FLATPAK_BUNDLE_NAME }}
 
-      - name: Upload To GitHub Releases (Manual + Overwrite Release)
+      - name: Sign Windows Artifacts with SignPath (Manual + Windows Only)
+        uses: signpath/github-action-submit-signing-request@v2
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'windows-latest' && github.repository == 'moeru-ai/airi') }}
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ secrets.SIGNPATH_ORGANIZATION_ID }}'
+          project-slug: 'airi'
+          signing-policy-slug: 'test-signing'
+          artifact-configuration-slug: ci-github-actions-artifacts-windows
+          github-artifact-id: '${{ steps.unsigned-artifacts-workflow-dispatch.outputs.artifact-id }}'
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 900 # 15 minutes
+          download-signed-artifact-timeout-in-seconds: 900 # 15 minutes
+          output-artifact-directory: apps/stage-tamagotchi/bundle/signed/windows/
+
+      - name: Move Signed Artifacts (Manual + Release + Windows Only)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && matrix.os == 'windows-latest' }}
+        run: |
+          Move-Item -Force apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }} apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
+
+      - name: Upload Signed Artifacts (Manual + Windows Only)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'windows-latest') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
+          overwrite: true
+
+      - name: Upload To GitHub Releases (Manual + Release + Overwrite Release)
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only }}
         uses: softprops/action-gh-release@v2
         with:
-          files: apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}_*
+          files: |
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.exe
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.zip
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.dmg
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.deb
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.rpm
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.flatpak
+            apps/stage-tamagotchi/bundle/latest.yml
+            apps/stage-tamagotchi/bundle/latest-*.yml
           append_body: true
           tag_name: ${{ inputs.tag }}
 
-        # ---------
-        # Version push
-        # ---------
+      # ---------
+      # Version push
+      # ---------
 
       - name: Rename Artifacts (Automatic)
         if: ${{ github.event_name == 'release' }}
@@ -328,6 +390,41 @@ jobs:
           name: latest-mac-yml-${{ matrix.arch }}
           path: apps/stage-tamagotchi/bundle/latest-mac.yml
           if-no-files-found: error
+
+      - name: Get Artifacts Envs (Automatic + Windows Only)
+        if: ${{ github.event_name == 'release' && matrix.os == 'windows-latest' }}
+        working-directory: ./apps/stage-tamagotchi
+        run: |
+          echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $env:GITHUB_ENV
+          echo "VERSION=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-version --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $env:GITHUB_ENV
+
+      - name: Upload Artifacts (Automatic + Windows Only)
+        if: ${{ github.event_name == 'release' && matrix.os == 'windows-latest' }}
+        id: unsigned-artifacts-release
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
+
+      - name: Sign Windows Artifacts with SignPath (Nightly + Windows Only)
+        uses: signpath/github-action-submit-signing-request@v2
+        if: ${{ github.event_name == 'release' && (matrix.os == 'windows-latest' && github.repository == 'moeru-ai/airi') }}
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ secrets.SIGNPATH_ORGANIZATION_ID }}'
+          project-slug: 'airi'
+          signing-policy-slug: 'test-signing'
+          artifact-configuration-slug: ci-github-actions-artifacts-windows
+          github-artifact-id: '${{ steps.unsigned-artifacts-release.outputs.artifact-id }}'
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 900 # 15 minutes
+          download-signed-artifact-timeout-in-seconds: 900 # 15 minutes
+          output-artifact-directory: apps/stage-tamagotchi/bundle/signed/windows/
+
+      - name: Move Signed Artifacts (Automatic + Windows Only)
+        if: ${{ github.event_name == 'release' && matrix.os == 'windows-latest' }}
+        run: |
+          Move-Item -Force apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }} apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
 
       - name: Upload To GitHub Releases (Automatic)
         if: ${{ github.event_name == 'release' }}
