@@ -787,7 +787,7 @@ pages:
                 title: 마크다운 스트레스
                 description: 스트레스 마크다운 구문 분석 및 대량 채팅 페이로드 렌더링
               use-magic-keys:
-                title: 매직 키 사용
+                title: useMagicKeys Tool
                 description: 테스트 단축키
               audio-record:
                 title: 오디오 녹음
