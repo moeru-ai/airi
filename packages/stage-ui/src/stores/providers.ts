@@ -861,7 +861,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'elevenlabs.io',
       icon: 'i-simple-icons:elevenlabs',
       defaultOptions: () => ({
-        baseUrl: 'https://unspeech.hyp3r.link/v1/',
+        baseUrl: 'https://api.elevenlabs.io/v1/',
         voiceSettings: {
           similarityBoost: 0.75,
           stability: 0.5,
@@ -869,17 +869,7 @@ export const useProvidersStore = defineStore('providers', () => {
       }),
       createProvider: async (config) => {
         const apiKey = (config.apiKey as string).trim()
-
-        // NOTICE: We bypass the unspeech proxy and call ElevenLabs' native API directly.
-        // The public unspeech instance (unspeech.hyp3r.link) triggers ElevenLabs' Free Tier
-        // abuse detection because many users share the same proxy IP, resulting in HTTP 401.
-        // By calling the native API directly, each user's own API key is used without routing
-        // through a shared proxy — consistent with how openai-audio-speech and index-tts-vllm
-        // are implemented in this file.
-        //
-        // @xsai/generate-speech supports an `options.fetch` override, which we use here to
-        // intercept the xsai OpenAI-format request and transform it into ElevenLabs' native
-        // POST /v1/text-to-speech/{voice_id} format before it leaves the app.
+        const baseUrl = (config.baseUrl as string).trim().replace(/\/$/, '')
         return {
           speech: (model: string, options?: UnElevenLabsOptions) => {
             const nativeFetch: typeof globalThis.fetch = async (_url, init) => {
@@ -888,12 +878,12 @@ export const useProvidersStore = defineStore('providers', () => {
                 voice?: string
                 model?: string
               }
-              const voiceId = body.voice ?? ''
+              const voiceId = encodeURIComponent(body.voice ?? '')
               const text = body.input ?? ''
               const modelId = model.replace(/^elevenlabs\//, '')
-              const voiceSettings = options?.voiceSettings ?? { similarityBoost: 0.75, stability: 0.5 }
+              const voiceSettings = options?.voiceSettings ?? (config as any).voiceSettings ?? { similarityBoost: 0.75, stability: 0.5 }
 
-              return globalThis.fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+              return globalThis.fetch(`${baseUrl}/text-to-speech/${voiceId}`, {
                 method: 'POST',
                 headers: {
                   'xi-api-key': apiKey,
@@ -915,7 +905,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
             return {
               apiKey,
-              baseURL: 'https://api.elevenlabs.io/v1/',
+              baseURL: baseUrl,
               model: `elevenlabs/${model}`,
               fetch: nativeFetch,
             }
