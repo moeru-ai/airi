@@ -1,6 +1,7 @@
 import type { Context } from 'hono'
 
 import type { Env } from '../libs/env'
+import type { ConfigKVService } from '../services/config-kv'
 import type { FluxService } from '../services/flux'
 import type { HonoEnv } from '../types/hono'
 
@@ -17,7 +18,7 @@ const SAFE_RESPONSE_HEADERS = new Set([
   'cache-control',
 ])
 
-export function createV1CompletionsRoutes(fluxService: FluxService, env: Env) {
+export function createV1CompletionsRoutes(fluxService: FluxService, configKV: ConfigKVService, env: Env) {
   async function handleCompletion(c: Context<HonoEnv>) {
     const user = c.get('user')!
     const flux = await fluxService.getFlux(user.id)
@@ -27,7 +28,8 @@ export function createV1CompletionsRoutes(fluxService: FluxService, env: Env) {
 
     const body = await c.req.json()
 
-    await fluxService.consumeFlux(user.id, env.FLUX_PER_REQUEST)
+    const fluxPerRequest = await configKV.get('FLUX_PER_REQUEST')
+    await fluxService.consumeFlux(user.id, fluxPerRequest)
 
     const response = await fetch(`${env.BACKEND_LLM_BASE_URL}chat/completions`, {
       method: 'POST',
