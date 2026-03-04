@@ -186,12 +186,12 @@ npx bumpp --no-commit --no-tag
 
 ## Các LLM API hỗ trợ (cung cấp bởi [xsai](https://github.com/moeru-ai/xsai))
 
-- [x] [AIHubMix](https://aihubmix.com/?aff=OOiX) (Hỗ trợ tất cả các model, tối ưu yêu cầu 10% thông qua dự án này, và có model miễn phí để dùng)
+- [x] [AIHubMix](https://aihubmix.com/?aff=OOiX) — khuyến nghị; hỗ trợ tất cả các model, tối ưu yêu cầu 10% thông qua dự án này, và có model miễn phí để dùng
 - [x] [OpenRouter](https://openrouter.ai/)
 - [x] [vLLM](https://github.com/vllm-project/vllm)
 - [x] [SGLang](https://github.com/sgl-project/sglang)
 - [x] [Ollama](https://github.com/ollama/ollama)
-- [x] [302.AI](https://share.302.ai/514k2v)
+- [x] [302.AI](https://share.302.ai/514k2v) — tài trợ
 - [x] [OpenAI](https://platform.openai.com/docs/guides/gpt/chat-completions-api)
   - [ ] [Azure OpenAI API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference) (PR welcome)
 - [x] [Anthropic Claude](https://anthropic.com)

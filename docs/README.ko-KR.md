@@ -224,12 +224,12 @@ npx bumpp --no-commit --no-tag
 
 ## LLM API 프로바이더 지원 ([xsai](https://github.com/moeru-ai/xsai) 기반)
 
-- [x] [AIHubMix](https://aihubmix.com/?aff=OOiX) (모든 모델 지원, 이 프로젝트를 통한 요청 10% 최적화, 무료 모델도 사용 가능)
+- [x] [AIHubMix](https://aihubmix.com/?aff=OOiX) — 추천; 모든 모델 지원, 이 프로젝트를 통한 요청 10% 최적화, 무료 모델도 사용 가능
 - [x] [OpenRouter](https://openrouter.ai/)
 - [x] [vLLM](https://github.com/vllm-project/vllm)
 - [x] [SGLang](https://github.com/sgl-project/sglang)
 - [x] [Ollama](https://github.com/ollama/ollama)
-- [x] [302.AI (후원)](https://share.302.ai/514k2v)
+- [x] [302.AI](https://share.302.ai/514k2v) — 스폰서
 - [x] [OpenAI](https://platform.openai.com/docs/guides/gpt/chat-completions-api)
   - [ ] [Azure OpenAI API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference) (PR 환영)
 - [x] [Anthropic Claude](https://anthropic.com)
