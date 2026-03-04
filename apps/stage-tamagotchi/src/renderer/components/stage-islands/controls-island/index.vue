@@ -179,7 +179,7 @@ function refreshWindow() {
 
       <!-- Main Controls -->
       <div flex flex-col gap-1>
-        <ControlButtonTooltip>
+        <ControlButtonTooltip side="left">
           <ControlButton :button-style="adjustStyleClasses.button" @click="expanded = !expanded">
             <div
 
@@ -194,7 +194,7 @@ function refreshWindow() {
           </template>
         </ControlButtonTooltip>
 
-        <ControlButtonTooltip>
+        <ControlButtonTooltip side="left">
           <ControlButton :button-style="adjustStyleClasses.button" cursor-move :class="{ 'drag-region': isLinux }" @mousedown="startDraggingWindow?.()">
             <div i-ph:arrows-out-cardinal :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
           </ControlButton>
