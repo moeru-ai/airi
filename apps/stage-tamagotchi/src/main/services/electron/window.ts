@@ -5,7 +5,7 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { bounds, startLoopGetBounds } from '@proj-airi/electron-eventa'
 import { createRendererLoop } from '@proj-airi/electron-vueuse/main'
 
-import { electron } from '../../../shared/eventa'
+import { electron, electronWindowClose } from '../../../shared/eventa'
 import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecycle'
 import { resizeWindowByDelta } from '../../windows/shared/window'
 
@@ -70,4 +70,6 @@ export function createWindowService(params: { context: ReturnType<typeof createC
       direction: payload.direction,
     })
   })
+
+  defineInvokeHandler(params.context, electronWindowClose, () => params.window.close())
 }

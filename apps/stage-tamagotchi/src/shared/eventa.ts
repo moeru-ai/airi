@@ -134,6 +134,9 @@ export const widgetsUpdate = defineInvokeEventa<void, { id: string, componentPro
 export const widgetsFetch = defineInvokeEventa<WidgetSnapshot | void, { id: string }>('eventa:invoke:electron:windows:widgets:fetch')
 export const widgetsPrepareWindow = defineInvokeEventa<string | undefined, { id?: string }>('eventa:invoke:electron:windows:widgets:prepare')
 
+export const electronWindowClose = defineInvokeEventa<void>('eventa:invoke:electron:window:close')
+export const electronAppQuit = defineInvokeEventa<void>('eventa:invoke:electron:app:quit')
+
 // Internal event from main -> widgets renderer when a widget should render
 export const widgetsRenderEvent = defineEventa<WidgetSnapshot>('eventa:event:electron:windows:widgets:render')
 export const widgetsRemoveEvent = defineEventa<{ id: string }>('eventa:event:electron:windows:widgets:remove')

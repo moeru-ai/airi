@@ -14,7 +14,7 @@ import ControlsIslandFadeOnHover from './controls-island-fade-on-hover.vue'
 import ControlsIslandHearingConfig from './controls-island-hearing-config.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
-import { electron, electronOpenChat, electronOpenSettings, electronStartDraggingWindow } from '../../../../shared/eventa'
+import { electron, electronOpenChat, electronOpenSettings, electronStartDraggingWindow, electronWindowClose } from '../../../../shared/eventa'
 
 const { isDark, toggleDark } = useTheme()
 const { t } = useI18n()
@@ -27,12 +27,13 @@ const { controlsIslandIconSize } = storeToRefs(settingsStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const openChat = useElectronEventaInvoke(electronOpenChat)
 const isLinux = useElectronEventaInvoke(electron.app.isLinux)
+const closeWindow = useElectronEventaInvoke(electronWindowClose)
 
 // Responsive icon & button sizing based on window height
 const { height: windowHeight } = useWindowSize()
-// Constants: assume each icon placeholder occupies 50px and there are 7 buttons
+// Constants: assume each icon placeholder occupies 50px and there are 8 buttons
 const ICON_PLACEHOLDER_PX = 50
-const BUTTON_COUNT = 7
+const BUTTON_COUNT = 8
 const LARGE_THRESHOLD = ICON_PLACEHOLDER_PX * BUTTON_COUNT
 
 // Grouped classes for icon / border / padding and combined style class
@@ -150,6 +151,16 @@ function refreshWindow() {
 
         <template #tooltip>
           {{ isDark ? t('tamagotchi.stage.controls-island.switch-to-light-mode') : t('tamagotchi.stage.controls-island.switch-to-dark-mode') }}
+        </template>
+      </ControlButtonTooltip>
+
+      <ControlButtonTooltip>
+        <ControlButton :button-style="adjustStyleClasses.button" hover:bg-red-500 hover:text-white @click="closeWindow()">
+          <div i-solar:close-circle-outline :class="adjustStyleClasses.icon" />
+        </ControlButton>
+
+        <template #tooltip>
+          {{ t('tamagotchi.stage.controls-island.close') }}
         </template>
       </ControlButtonTooltip>
     </div>
