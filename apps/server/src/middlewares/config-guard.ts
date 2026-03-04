@@ -9,12 +9,16 @@ import { createServiceUnavailableError } from '../utils/error'
  * Middleware factory that checks required config keys exist in Redis.
  * Returns 503 if any key is missing.
  */
-export function configGuard(configKV: ConfigKVService, keys: Parameters<ConfigKVService['get']>[0][]): MiddlewareHandler<HonoEnv> {
+export function configGuard(
+  configKV: ConfigKVService,
+  keys: Parameters<ConfigKVService['get']>[0][],
+  message = 'Service is not available yet',
+): MiddlewareHandler<HonoEnv> {
   return async (_c, next) => {
     for (const key of keys) {
       const value = await configKV.getOptional(key)
       if (value === null)
-        throw createServiceUnavailableError(`Config key "${key}" is not set in Redis`, 'CONFIG_NOT_SET')
+        throw createServiceUnavailableError(message, 'CONFIG_NOT_SET')
     }
     await next()
   }

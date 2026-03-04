@@ -473,6 +473,7 @@ pages:
     title: Flux
     buy: 充能
     description: 当前 Flux
+    packagesError: 加载充值选项失败，请稍后再试。
     checkout:
       success: 支付成功！Flux 已充值。
       canceled: 支付已取消。

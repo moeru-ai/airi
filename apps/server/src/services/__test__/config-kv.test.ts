@@ -71,4 +71,42 @@ describe('configKVService', () => {
     const value = await service.get('INITIAL_USER_FLUX')
     expect(value).toBe(500)
   })
+
+  // --- FLUX_PACKAGES (JSON) ---
+
+  it('get FLUX_PACKAGES should parse JSON array', async () => {
+    const packages = [
+      { amount: 500, label: '500 Flux', price: '$5' },
+      { amount: 1000, label: '1000 Flux', price: '$10' },
+    ]
+    redis._store.set('config:FLUX_PACKAGES', JSON.stringify(packages))
+
+    const value = await service.get('FLUX_PACKAGES')
+    expect(value).toEqual(packages)
+  })
+
+  it('set FLUX_PACKAGES should serialize as JSON', async () => {
+    const packages = [{ amount: 500, label: '500 Flux', price: '$5' }]
+    await service.set('FLUX_PACKAGES', packages)
+
+    const stored = redis._store.get('config:FLUX_PACKAGES')
+    expect(stored).toBe(JSON.stringify(packages))
+  })
+
+  it('fLUX_PACKAGES round-trip should preserve structure', async () => {
+    const packages = [
+      { amount: 500, label: '500 Flux', price: '$5' },
+      { amount: 1000, label: '1000 Flux', price: '$10' },
+      { amount: 5000, label: '5000 Flux', price: '$45' },
+    ]
+    await service.set('FLUX_PACKAGES', packages)
+
+    const value = await service.get('FLUX_PACKAGES')
+    expect(value).toEqual(packages)
+  })
+
+  it('getOptional FLUX_PACKAGES should return null when not set', async () => {
+    const value = await service.getOptional('FLUX_PACKAGES')
+    expect(value).toBeNull()
+  })
 })

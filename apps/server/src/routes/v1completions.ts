@@ -54,7 +54,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
   }
 
   return new Hono<HonoEnv>()
-    .use('*', authGuard, configGuard(configKV, ['FLUX_PER_REQUEST']))
+    .use('*', authGuard, configGuard(configKV, ['FLUX_PER_REQUEST'], 'Service is not available yet'))
     .post('/chat/completions', handleCompletion)
     .post('/chat/completion', handleCompletion)
 }
