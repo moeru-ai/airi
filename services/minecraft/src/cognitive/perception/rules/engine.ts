@@ -9,8 +9,10 @@ import type { Logg } from '@guiiai/logg'
 
 import type { EventBus, TracedEvent } from '../../event-bus'
 import type {
+  DetectorGroupBy,
   DetectorMode,
   DetectorsState,
+  DetectorState,
   ParsedRule,
   Rule,
   TypeScriptRule,
@@ -51,15 +53,30 @@ function resolveEventTimeMs(event: TracedEvent): number {
   return event.timestamp
 }
 
-function resolveDetectorGroupKey(payload: unknown): string {
+function resolveDetectorGroupKey(payload: unknown, groupBy?: DetectorGroupBy): string {
+  if (groupBy === 'global') {
+    return GLOBAL_GROUP_KEY
+  }
+
   if (payload && typeof payload === 'object') {
     const record = payload as { entityId?: unknown, sourceId?: unknown }
-    if (typeof record.entityId === 'string' && record.entityId.length > 0) {
-      return record.entityId
+    const entityId = typeof record.entityId === 'string' && record.entityId.length > 0
+      ? record.entityId
+      : undefined
+    const sourceId = typeof record.sourceId === 'string' && record.sourceId.length > 0
+      ? record.sourceId
+      : undefined
+
+    if (groupBy === 'entityId') {
+      return entityId ?? GLOBAL_GROUP_KEY
     }
-    if (typeof record.sourceId === 'string' && record.sourceId.length > 0) {
-      return record.sourceId
+
+    if (groupBy === 'sourceId') {
+      return sourceId ?? GLOBAL_GROUP_KEY
     }
+
+    // NOTICE: Keep backward compatibility when detector.groupBy is omitted.
+    return entityId ?? sourceId ?? GLOBAL_GROUP_KEY
   }
 
   return GLOBAL_GROUP_KEY
@@ -67,6 +84,15 @@ function resolveDetectorGroupKey(payload: unknown): string {
 
 function buildDetectorStateKey(ruleName: string, groupKey: string): string {
   return `${ruleName}::${groupKey}`
+}
+
+function toDetectorSnapshot(detectors: ReadonlyMap<string, DetectorState>): DetectorsState {
+  const snapshot: Record<string, DetectorState> = Object.create(null)
+  for (const [stateKey, detectorState] of detectors.entries()) {
+    snapshot[stateKey] = detectorState
+  }
+
+  return Object.freeze(snapshot)
 }
 
 /**
@@ -84,7 +110,9 @@ export interface RuleEngineConfig {
  */
 export class RuleEngine {
   private readonly rules: Rule[] = []
-  private detectors: DetectorsState = {}
+  // NOTICE: Keep detector states mutable in a Map on the hot path to avoid
+  // per-event object spreads/freezes; only export frozen snapshots for debug reads.
+  private readonly detectors: Map<string, DetectorState> = new Map()
   private readonly detectorDecisions: DetectorDecisionSnapshot[] = []
   private unsubscribe: (() => void) | null = null
 
@@ -124,10 +152,7 @@ export class RuleEngine {
 
     // Initialize detector for TS rule
     const windowSlots = calculateWindowSlots(2000, this.deps.config.slotMs ?? DEFAULT_SLOT_MS)
-    this.detectors = Object.freeze({
-      ...this.detectors,
-      [rule.name]: createDetectorState(windowSlots),
-    })
+    this.detectors.set(rule.name, createDetectorState(windowSlots))
 
     this.deps.logger.withFields({ ruleName: rule.name }).log('RuleEngine: registered TS rule')
   }
@@ -141,7 +166,7 @@ export class RuleEngine {
       this.unsubscribe = null
     }
     this.rules.length = 0
-    this.detectors = {}
+    this.detectors.clear()
     this.detectorDecisions.length = 0
   }
 
@@ -149,7 +174,7 @@ export class RuleEngine {
    * Get current detector states (for debugging)
    */
   public getDetectorStates(): DetectorsState {
-    return this.detectors
+    return toDetectorSnapshot(this.detectors)
   }
 
   /**
@@ -207,6 +232,12 @@ export class RuleEngine {
       return
     }
 
+    // NOTICE: matched_not_fired is expected on high-frequency streams and would
+    // dominate logs; keep it in snapshots/devtools and reserve default logs for fired.
+    if (snapshot.decision === 'matched_not_fired') {
+      return
+    }
+
     this.deps.logger.withFields(snapshot).log('RuleEngine: detector decision')
   }
 
@@ -229,11 +260,11 @@ export class RuleEngine {
       return
     }
 
-    const groupKey = resolveDetectorGroupKey(event.payload)
+    const groupKey = resolveDetectorGroupKey(event.payload, rule.detector.groupBy)
     const stateKey = buildDetectorStateKey(rule.name, groupKey)
 
     // Get or create detector state
-    let detectorState = this.detectors[stateKey]
+    let detectorState = this.detectors.get(stateKey)
     if (!detectorState) {
       const windowSlots = calculateWindowSlots(rule.detector.windowMs, slotMs)
       detectorState = createDetectorState(windowSlots, nowMs)
@@ -263,10 +294,7 @@ export class RuleEngine {
     })
 
     // Update state
-    this.detectors = Object.freeze({
-      ...this.detectors,
-      [stateKey]: newDetectorState,
-    })
+    this.detectors.set(stateKey, newDetectorState)
 
     this.recordDetectorDecision(Object.freeze({
       ruleName: rule.name,
@@ -299,7 +327,7 @@ export class RuleEngine {
     }
 
     // Get detector state
-    const detectorState = this.detectors[rule.name]
+    const detectorState = this.detectors.get(rule.name)
     if (!detectorState) {
       return
     }
@@ -308,10 +336,7 @@ export class RuleEngine {
     const result = rule.process(event.payload, detectorState)
 
     // Update detector state
-    this.detectors = Object.freeze({
-      ...this.detectors,
-      [rule.name]: result.newDetectorState,
-    })
+    this.detectors.set(rule.name, result.newDetectorState)
 
     // If fired, emit signal event
     if (result.fired && result.signal) {

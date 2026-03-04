@@ -61,6 +61,7 @@ export function parseRule(yaml: unknown, sourcePath: string): ParsedRule {
       threshold: validatedRule.detector.threshold,
       windowMs,
       mode: validatedRule.detector.mode ?? 'sliding',
+      groupBy: validatedRule.detector.groupBy,
     }),
     signal: Object.freeze({
       type: validatedRule.signal.type,

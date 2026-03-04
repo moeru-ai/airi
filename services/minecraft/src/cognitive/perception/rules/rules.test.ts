@@ -44,7 +44,12 @@ function createMockLogger() {
   return logger
 }
 
-function buildArmSwingRuleYaml(mode: 'sliding' | 'tumbling'): string {
+function buildArmSwingRuleYaml(
+  mode: 'sliding' | 'tumbling',
+  groupBy?: 'entityId' | 'sourceId' | 'global',
+): string {
+  const groupByYaml = groupBy ? `\n  groupBy: ${groupBy}` : ''
+
   return `
 name: test-arm-swing-${mode}
 version: 1
@@ -56,7 +61,7 @@ trigger:
 detector:
   threshold: 2
   window: 1s
-  mode: ${mode}
+  mode: ${mode}${groupByYaml}
 signal:
   type: entity_attention
   description: "Player {{ displayName }} attention"
@@ -118,20 +123,26 @@ function createRuleEngineForTest(ruleYaml: string): {
 
 function emitArmSwingEvent(eventBus: EventBus, input: {
   timestamp: number
-  entityId: string
+  entityId?: string
+  sourceId?: string
+  displayName?: string
 }): void {
+  const displayName = input.displayName ?? input.entityId ?? input.sourceId ?? 'unknown'
+  const traceLabel = input.entityId ?? input.sourceId ?? 'global'
+
   eventBus.emit({
     type: 'raw:sighted:arm_swing',
     payload: Object.freeze({
       timestamp: input.timestamp,
       entityType: 'player',
       entityId: input.entityId,
-      displayName: input.entityId,
+      sourceId: input.sourceId,
+      displayName,
       distance: 3,
       hasLineOfSight: true,
     }),
     source: { component: 'test', id: 'rule-test' },
-    traceId: `trace-${input.entityId}`,
+    traceId: `trace-${traceLabel}`,
   })
 }
 
@@ -317,6 +328,67 @@ describe('engine temporal semantics', () => {
     expect(sourceIds).toEqual(['bob', 'alice'])
   })
 
+  it('should keep legacy fallback grouping when detector.groupBy is omitted', () => {
+    const { engine, eventBus, signals } = createRuleEngineForTest(buildArmSwingRuleYaml('sliding'))
+
+    emitArmSwingEvent(eventBus, { sourceId: 'source-a', timestamp: 100 })
+    emitArmSwingEvent(eventBus, { sourceId: 'source-a', timestamp: 200 })
+
+    expect(signals).toHaveLength(1)
+    expect(engine.getDetectorDecisionSnapshot().map(item => item.groupKey)).toEqual([
+      'source-a',
+      'source-a',
+    ])
+  })
+
+  it('should respect detector.groupBy sourceId when configured', () => {
+    const { engine, eventBus, signals } = createRuleEngineForTest(buildArmSwingRuleYaml('sliding', 'sourceId'))
+
+    emitArmSwingEvent(eventBus, { entityId: 'shared-entity', sourceId: 'source-a', timestamp: 100 })
+    emitArmSwingEvent(eventBus, { entityId: 'shared-entity', sourceId: 'source-b', timestamp: 150 })
+    expect(signals).toHaveLength(0)
+
+    emitArmSwingEvent(eventBus, { entityId: 'shared-entity', sourceId: 'source-b', timestamp: 200 })
+    emitArmSwingEvent(eventBus, { entityId: 'shared-entity', sourceId: 'source-a', timestamp: 250 })
+
+    expect(signals).toHaveLength(2)
+    const firedGroupKeys = engine.getDetectorDecisionSnapshot()
+      .filter(item => item.decision === 'fired')
+      .map(item => item.groupKey)
+    expect(firedGroupKeys).toEqual(['source-b', 'source-a'])
+  })
+
+  it('should respect detector.groupBy global when configured', () => {
+    const { engine, eventBus, signals } = createRuleEngineForTest(buildArmSwingRuleYaml('sliding', 'global'))
+
+    emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 100 })
+    emitArmSwingEvent(eventBus, { entityId: 'bob', timestamp: 150 })
+
+    expect(signals).toHaveLength(1)
+    expect(engine.getDetectorDecisionSnapshot().map(item => item.groupKey)).toEqual([
+      '__global__',
+      '__global__',
+    ])
+  })
+
+  it('should expose detector state as an immutable snapshot', () => {
+    const { engine, eventBus } = createRuleEngineForTest(buildArmSwingRuleYaml('sliding'))
+
+    emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 100 })
+
+    const stateKey = 'test-arm-swing-sliding::alice'
+    const firstSnapshot = engine.getDetectorStates()
+    expect(Object.isFrozen(firstSnapshot)).toBe(true)
+    expect(firstSnapshot[stateKey]?.total).toBe(1)
+
+    emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 200 })
+
+    const secondSnapshot = engine.getDetectorStates()
+    expect(firstSnapshot).not.toBe(secondSnapshot)
+    expect(firstSnapshot[stateKey]?.total).toBe(1)
+    expect(secondSnapshot[stateKey]?.total).toBe(2)
+  })
+
   it('should ignore out-of-order timestamps to keep temporal detection deterministic', () => {
     const { engine, eventBus, logger, signals } = createRuleEngineForTest(buildArmSwingRuleYaml('sliding'))
 
@@ -386,6 +458,7 @@ describe('engine temporal semantics', () => {
         decision: 'fired',
       }),
     ]))
+    expect(decisionLogPayloads.some(fields => fields.decision === 'matched_not_fired')).toBe(false)
   })
 
   it('should default detector mode to sliding when mode is omitted', () => {
@@ -502,7 +575,27 @@ signal:
       expect(rule.detector.threshold).toBe(5)
       expect(rule.detector.windowMs).toBe(2000)
       expect(rule.detector.mode).toBe('sliding')
+      expect(rule.detector.groupBy).toBeUndefined()
       expect(rule.signal.type).toBe('entity_attention')
+    })
+
+    it('should parse explicit detector.groupBy', () => {
+      const yaml = `
+name: test-group-by
+version: 1
+trigger:
+  modality: sighted
+  kind: arm_swing
+detector:
+  threshold: 2
+  window: 1s
+  groupBy: sourceId
+signal:
+  type: entity_attention
+  description: "Player {{ displayName }} is punching"
+`
+      const rule = parseRuleFromString(yaml)
+      expect(rule.detector.groupBy).toBe('sourceId')
     })
 
     it('should reject invalid detector threshold and confidence', () => {

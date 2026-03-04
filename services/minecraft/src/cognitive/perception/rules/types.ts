@@ -9,8 +9,10 @@ import { z } from 'zod'
 
 const perceptionModalityValues = ['sighted', 'heard', 'felt', 'system'] as const
 const detectorModeValues = ['sliding', 'tumbling'] as const
+const detectorGroupByValues = ['entityId', 'sourceId', 'global'] as const
 
 export type DetectorMode = typeof detectorModeValues[number]
+export type DetectorGroupBy = typeof detectorGroupByValues[number]
 
 function isValidWindowDuration(value: string): boolean {
   const match = value.match(/^(\d+(?:\.\d+)?)(ms|s|m)?$/)
@@ -87,6 +89,11 @@ export const detectorConfigSchema = z.object({
   ),
   /** Window mode: sliding (default) or tumbling */
   mode: z.enum(detectorModeValues).optional(),
+  /**
+   * Optional grouping key selector.
+   * If omitted, engine keeps the legacy fallback: entityId -> sourceId -> global.
+   */
+  groupBy: z.enum(detectorGroupByValues).optional(),
 }).strict()
 
 export type DetectorConfig = z.infer<typeof detectorConfigSchema>
@@ -144,6 +151,7 @@ export interface ParsedRule {
     readonly threshold: number
     readonly windowMs: number
     readonly mode: DetectorMode
+    readonly groupBy?: DetectorGroupBy
   }
   readonly signal: SignalConfig
   /** Source file path for debugging */
