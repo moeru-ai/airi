@@ -4,7 +4,6 @@ import { ref } from 'vue'
 import VoiceCardManySelect from './voice-card-many-select.vue'
 
 const selectedVoiceId = ref('voice1')
-const customValue = ref('')
 const searchQuery = ref('')
 
 // Sample voice data
@@ -44,10 +43,6 @@ function handleVoiceIdUpdate(value: string) {
   selectedVoiceId.value = value
 }
 
-function handleCustomValueUpdate(value: string) {
-  customValue.value = value
-}
-
 function handleSearchQueryUpdate(value: string) {
   searchQuery.value = value
 }
@@ -66,9 +61,8 @@ function handleSearchQueryUpdate(value: string) {
     <Variant id="default" title="Default">
       <VoiceCardManySelect
         :voices="voices"
-        :selected-voice-id="selectedVoiceId"
-        @update:selected-voice-id="handleVoiceIdUpdate"
-        @update:custom-value="handleCustomValueUpdate"
+        :voice-id="selectedVoiceId"
+        @update:voice-id="handleVoiceIdUpdate"
         @update:search-query="handleSearchQueryUpdate"
       />
     </Variant>
@@ -76,20 +70,18 @@ function handleSearchQueryUpdate(value: string) {
     <Variant id="no-search" title="Without Search">
       <VoiceCardManySelect
         :voices="voices"
-        :selected-voice-id="selectedVoiceId"
+        :voice-id="selectedVoiceId"
         :searchable="false"
-        @update:selected-voice-id="handleVoiceIdUpdate"
-        @update:custom-value="handleCustomValueUpdate"
+        @update:voice-id="handleVoiceIdUpdate"
       />
     </Variant>
 
     <Variant id="no-visualizer" title="Without Visualizer">
       <VoiceCardManySelect
         :voices="voices"
-        :selected-voice-id="selectedVoiceId"
+        :voice-id="selectedVoiceId"
         :show-visualizer="false"
-        @update:selected-voice-id="handleVoiceIdUpdate"
-        @update:custom-value="handleCustomValueUpdate"
+        @update:voice-id="handleVoiceIdUpdate"
         @update:search-query="handleSearchQueryUpdate"
       />
     </Variant>
@@ -97,10 +89,9 @@ function handleSearchQueryUpdate(value: string) {
     <Variant id="custom-columns" title="Custom Columns">
       <VoiceCardManySelect
         :voices="voices"
-        :selected-voice-id="selectedVoiceId"
+        :voice-id="selectedVoiceId"
         :columns="3"
-        @update:selected-voice-id="handleVoiceIdUpdate"
-        @update:custom-value="handleCustomValueUpdate"
+        @update:voice-id="handleVoiceIdUpdate"
         @update:search-query="handleSearchQueryUpdate"
       />
     </Variant>
@@ -108,7 +99,7 @@ function handleSearchQueryUpdate(value: string) {
     <Variant id="custom-text" title="Custom Text">
       <VoiceCardManySelect
         :voices="voices"
-        :selected-voice-id="selectedVoiceId"
+        :voice-id="selectedVoiceId"
         search-placeholder="Find a voice..."
         search-no-results-title="No matching voices"
         search-no-results-description="Please try another search term"
@@ -118,8 +109,7 @@ function handleSearchQueryUpdate(value: string) {
         collapse-button-text="Collapse list"
         play-button-text="Listen"
         pause-button-text="Stop"
-        @update:selected-voice-id="handleVoiceIdUpdate"
-        @update:custom-value="handleCustomValueUpdate"
+        @update:voice-id="handleVoiceIdUpdate"
         @update:search-query="handleSearchQueryUpdate"
       />
     </Variant>
@@ -127,9 +117,8 @@ function handleSearchQueryUpdate(value: string) {
     <Variant id="empty" title="No Voices">
       <VoiceCardManySelect
         :voices="[]"
-        :selected-voice-id="selectedVoiceId"
-        @update:selected-voice-id="handleVoiceIdUpdate"
-        @update:custom-value="handleCustomValueUpdate"
+        :voice-id="selectedVoiceId"
+        @update:voice-id="handleVoiceIdUpdate"
         @update:search-query="handleSearchQueryUpdate"
       />
     </Variant>
@@ -137,9 +126,8 @@ function handleSearchQueryUpdate(value: string) {
     <Variant id="many-voices" title="Many Voices">
       <VoiceCardManySelect
         :voices="[...voices, ...voices, ...voices]"
-        :selected-voice-id="selectedVoiceId"
-        @update:selected-voice-id="handleVoiceIdUpdate"
-        @update:custom-value="handleCustomValueUpdate"
+        :voice-id="selectedVoiceId"
+        @update:voice-id="handleVoiceIdUpdate"
         @update:search-query="handleSearchQueryUpdate"
       />
     </Variant>
