@@ -6,7 +6,10 @@ interface ConfigDefinitions {
   FLUX_PER_CENT: number
   FLUX_PER_REQUEST: number
   INITIAL_USER_FLUX: number
+  GATEWAY_BASE_URL: string
 }
+
+const NUMERIC_KEYS = new Set<string>(['FLUX_PER_CENT', 'FLUX_PER_REQUEST', 'INITIAL_USER_FLUX'])
 
 const KEY_PREFIX = 'config:'
 
@@ -17,7 +20,10 @@ export function createConfigKVService(redis: Redis) {
       if (raw === null)
         return null
 
-      return Number(raw) as ConfigDefinitions[K]
+      if (NUMERIC_KEYS.has(key))
+        return Number(raw) as ConfigDefinitions[K]
+
+      return raw as ConfigDefinitions[K]
     },
 
     async get<K extends keyof ConfigDefinitions>(key: K): Promise<ConfigDefinitions[K]> {

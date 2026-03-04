@@ -27,6 +27,7 @@ import { createChatService } from './services/chats'
 import { createConfigKVService } from './services/config-kv'
 import { createFluxService } from './services/flux'
 import { createProviderService } from './services/providers'
+import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
 import { ApiError, createInternalError } from './utils/error'
 import { getTrustedOrigin } from './utils/origin'
@@ -37,6 +38,7 @@ type ChatService = ReturnType<typeof createChatService>
 type ProviderService = ReturnType<typeof createProviderService>
 type FluxService = ReturnType<typeof createFluxService>
 type ConfigKVService = ReturnType<typeof createConfigKVService>
+type RequestLogService = ReturnType<typeof createRequestLogService>
 type StripeDBService = ReturnType<typeof createStripeService>
 
 interface AppDeps {
@@ -45,17 +47,25 @@ interface AppDeps {
   chatService: ChatService
   providerService: ProviderService
   fluxService: FluxService
+  requestLogService: RequestLogService
   stripeService: StripeDBService
   configKV: ConfigKVService
   env: Env
 }
 
-function buildApp({ auth, characterService, chatService, providerService, fluxService, stripeService, configKV, env }: AppDeps) {
+function buildApp({ auth, characterService, chatService, providerService, fluxService, requestLogService, stripeService, configKV, env }: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
   return new Hono<HonoEnv>()
     .use(
       '/api/*',
+      cors({
+        origin: origin => getTrustedOrigin(origin),
+        credentials: true,
+      }),
+    )
+    .use(
+      '/v1/*',
       cors({
         origin: origin => getTrustedOrigin(origin),
         credentials: true,
@@ -112,7 +122,7 @@ function buildApp({ auth, characterService, chatService, providerService, fluxSe
     /**
      * V1 routes for official provider.
      */
-    .route('/v1', createV1CompletionsRoutes(fluxService, configKV, env))
+    .route('/v1', createV1CompletionsRoutes(fluxService, configKV, requestLogService))
 
     /**
      * Flux routes.
@@ -190,14 +200,20 @@ async function createApp() {
     build: ({ dependsOn }) => createFluxService(dependsOn.db, dependsOn.configKV),
   })
 
+  const requestLogService = injeca.provide('services:requestLog', {
+    dependsOn: { db },
+    build: ({ dependsOn }) => createRequestLogService(dependsOn.db),
+  })
+
   await injeca.start()
-  const resolved = await injeca.resolve({ auth, characterService, chatService, providerService, fluxService, stripeService, configKV, env: parsedEnv })
+  const resolved = await injeca.resolve({ auth, characterService, chatService, providerService, fluxService, requestLogService, stripeService, configKV, env: parsedEnv })
   const app = buildApp({
     auth: resolved.auth,
     characterService: resolved.characterService,
     chatService: resolved.chatService,
     providerService: resolved.providerService,
     fluxService: resolved.fluxService,
+    requestLogService: resolved.requestLogService,
     stripeService: resolved.stripeService,
     configKV: resolved.configKV,
     env: resolved.env,
