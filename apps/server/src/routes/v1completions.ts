@@ -59,14 +59,9 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
       fluxConsumed: fluxPerRequest,
     }).catch(() => {})
 
-    // Handle rate limiting from gateway
-    if (response.status === 429) {
-      // Refund the flux since the request was rate-limited
+    // Refund flux for any failed request
+    if (!response.ok) {
       await fluxService.addFlux(user.id, fluxPerRequest)
-      return c.json({
-        error: 'RATE_LIMITED',
-        message: 'Too many requests. Please try again later.',
-      }, 429)
     }
 
     const headers = new Headers()
