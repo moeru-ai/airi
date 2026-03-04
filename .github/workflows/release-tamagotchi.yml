@@ -250,6 +250,7 @@ jobs:
           organization-id: '${{ secrets.SIGNPATH_ORGANIZATION_ID }}'
           project-slug: 'airi'
           signing-policy-slug: 'test-signing'
+          artifact-configuration-slug: ci-github-actions-artifacts-windows
           github-artifact-id: '${{ steps.unsigned-artifacts-nightly.outputs.artifact-id }}'
           wait-for-completion: true
           wait-for-completion-timeout-in-seconds: 900 # 15 minutes
@@ -342,6 +343,7 @@ jobs:
           organization-id: '${{ secrets.SIGNPATH_ORGANIZATION_ID }}'
           project-slug: 'airi'
           signing-policy-slug: 'test-signing'
+          artifact-configuration-slug: ci-github-actions-artifacts-windows
           github-artifact-id: '${{ steps.unsigned-artifacts-workflow-dispatch.outputs.artifact-id }}'
           wait-for-completion: true
           wait-for-completion-timeout-in-seconds: 900 # 15 minutes
@@ -422,6 +424,7 @@ jobs:
           organization-id: '${{ secrets.SIGNPATH_ORGANIZATION_ID }}'
           project-slug: 'airi'
           signing-policy-slug: 'test-signing'
+          artifact-configuration-slug: ci-github-actions-artifacts-windows
           github-artifact-id: '${{ steps.unsigned-artifacts-release.outputs.artifact-id }}'
           wait-for-completion: true
           wait-for-completion-timeout-in-seconds: 900 # 15 minutes
