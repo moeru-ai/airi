@@ -2,6 +2,8 @@
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { OnboardingScreen } from '@proj-airi/stage-ui/components'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
+import { useTheme } from '@proj-airi/ui'
+import { computed } from 'vue'
 
 import {
   electronOnboardingClose,
@@ -10,6 +12,9 @@ import {
 } from '../../shared/eventa'
 
 const onboardingStore = useOnboardingStore()
+const { isDark } = useTheme()
+
+const bgClass = computed(() => isDark.value ? 'bg-[#0f0f0f]' : 'bg-white')
 
 const closeWindow = useElectronEventaInvoke(electronOnboardingClose)
 const markCompleted = useElectronEventaInvoke(electronOnboardingCompleted)
@@ -29,8 +34,8 @@ async function handleConfigured() {
 </script>
 
 <template>
-  <div class="onboarding-root" h-full w-full flex flex-col overflow-x-hidden overflow-y-auto overscroll-none bg="white dark:#0f0f0f">
-    <div bg="white dark:#0f0f0f" w="100dvw" min-h="12" w-full flex-shrink-0 select-none data-tauri-drag-region />
+  <div class="onboarding-root" h-full w-full flex flex-col overflow-x-hidden overflow-y-auto overscroll-none :class="bgClass">
+    <div :class="bgClass" w="100dvw" min-h="12" w-full flex-shrink-0 select-none data-tauri-drag-region />
     <div class="onboarding-scroll" w-full flex-1 px-3>
       <div class="onboarding-content" h-full>
         <OnboardingScreen @skipped="handleSkipped" @configured="handleConfigured" />
