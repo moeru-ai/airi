@@ -94,6 +94,17 @@ function handleSearchQueryUpdate(value: string) {
       />
     </Variant>
 
+    <Variant id="custom-columns" title="Custom Columns">
+      <VoiceCardManySelect
+        :voices="voices"
+        :selected-voice-id="selectedVoiceId"
+        :columns="3"
+        @update:selected-voice-id="handleVoiceIdUpdate"
+        @update:custom-value="handleCustomValueUpdate"
+        @update:search-query="handleSearchQueryUpdate"
+      />
+    </Variant>
+
     <Variant id="custom-text" title="Custom Text">
       <VoiceCardManySelect
         :voices="voices"

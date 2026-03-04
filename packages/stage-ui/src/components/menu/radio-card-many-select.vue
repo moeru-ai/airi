@@ -146,8 +146,8 @@ function updateCustomValue(value: string) {
           :class="[
             'grid gap-4 mb-2',
             isListExpanded
-              ? 'grid-cols-[repeat(var(--cols),minmax(0,1fr))] snap-y snap-proximity'
-              : 'grid-flow-col auto-cols-[calc((100%-(var(--cols)-1)*1rem)/var(--cols))] overflow-x-hidden',
+              ? 'grid-cols-1 md:grid-cols-[repeat(var(--cols),minmax(0,1fr))] snap-y snap-proximity'
+              : 'grid-flow-col auto-cols-[calc((100%-(var(--cols)-1)*1rem)/var(--cols))] overflow-x-auto scrollbar-none snap-x snap-proximity',
             ...(props.listClass
               ? (typeof props.listClass === 'string'
                 ? [props.listClass]
