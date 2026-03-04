@@ -2,6 +2,8 @@ import { dirname } from 'node:path'
 import { env, platform } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
+import messages from '@proj-airi/i18n/locales'
+
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
@@ -13,8 +15,10 @@ import { isLinux } from 'std-env'
 import icon from '../../resources/icon.png?asset'
 
 import { openDebugger, setupDebugger } from './app/debugger'
+import { createGlobalAppConfig } from './configs/global'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
+import { createI18n } from './libs/i18n'
 import { setupServerChannel } from './services/airi/channel-server'
 import { setupMcpStdioManager } from './services/airi/mcp-servers'
 import { setupPluginHost } from './services/airi/plugins'
@@ -76,8 +80,14 @@ initScreenCaptureForMain()
 app.whenReady().then(async () => {
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
 
+  const appConfig = injeca.provide('configs:app', () => createGlobalAppConfig())
   const electronApp = injeca.provide('host:electron:app', () => app)
   const autoUpdater = injeca.provide('services:auto-updater', () => setupAutoUpdater())
+
+  const i18n = injeca.provide('libs:i18n', {
+    dependsOn: { appConfig },
+    build: ({ dependsOn }) => createI18n({ messages, locale: dependsOn.appConfig.get()?.language }),
+  })
 
   const serverChannel = injeca.provide('modules:channel-server', {
     dependsOn: { app: electronApp },
@@ -97,40 +107,43 @@ app.whenReady().then(async () => {
   const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
 
   const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
-  const noticeWindow = injeca.provide('windows:notice', () => setupNoticeWindowManager())
+  const noticeWindow = injeca.provide('windows:notice', {
+    dependsOn: { i18n, serverChannel },
+    build: ({ dependsOn }) => setupNoticeWindowManager(dependsOn),
+  })
 
   const widgetsManager = injeca.provide('windows:widgets', {
-    dependsOn: { serverChannel },
-    build: () => setupWidgetsWindowManager(),
+    dependsOn: { serverChannel, i18n },
+    build: ({ dependsOn }) => setupWidgetsWindowManager(dependsOn),
   })
 
   const aboutWindow = injeca.provide('windows:about', {
-    dependsOn: { autoUpdater },
+    dependsOn: { autoUpdater, i18n, serverChannel },
     build: ({ dependsOn }) => setupAboutWindowReusable(dependsOn),
   })
 
   const chatWindow = injeca.provide('windows:chat', {
-    dependsOn: { widgetsManager, serverChannel, mcpStdioManager },
+    dependsOn: { widgetsManager, serverChannel, mcpStdioManager, i18n },
     build: ({ dependsOn }) => setupChatWindowReusableFunc(dependsOn),
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsMarkdownStressWindow, serverChannel, mcpStdioManager },
+    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsMarkdownStressWindow, serverChannel, mcpStdioManager, i18n },
     build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, mcpStdioManager },
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, mcpStdioManager, i18n },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
 
   const captionWindow = injeca.provide('windows:caption', {
-    dependsOn: { mainWindow, serverChannel },
+    dependsOn: { mainWindow, serverChannel, i18n },
     build: async ({ dependsOn }) => setupCaptionWindowManager(dependsOn),
   })
 
   const tray = injeca.provide('app:tray', {
-    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, beatSyncBgWindow: beatSync, aboutWindow },
+    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, beatSyncBgWindow: beatSync, aboutWindow, i18n },
     build: async ({ dependsOn }) => setupTray(dependsOn),
   })
 

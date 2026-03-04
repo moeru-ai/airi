@@ -46,6 +46,12 @@ export default defineConfig({
         },
       },
     ],
+
+    resolve: {
+      alias: {
+        '@proj-airi/i18n': resolve(join(import.meta.dirname, '..', '..', 'packages', 'i18n', 'src')),
+      },
+    },
   },
   preload: {
     build: {

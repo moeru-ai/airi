@@ -38,6 +38,7 @@ import {
   electronPluginUnload,
   electronPluginUpdateCapability,
   electronStartTrackMousePosition,
+  i18nSetLocale,
   pluginProtocolListProviders,
   pluginProtocolListProvidersEventName,
 } from '../shared/eventa'
@@ -73,6 +74,7 @@ const startTrackingCursorPoint = useElectronEventaInvoke(electronStartTrackMouse
 const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
 const listMcpTools = useElectronEventaInvoke(electronMcpListTools)
 const callMcpTool = useElectronEventaInvoke(electronMcpCallTool)
+const setLocale = useElectronEventaInvoke(i18nSetLocale)
 
 // NOTICE: register plugin host bridge during setup to avoid race with pages using it in immediate watchers.
 pluginHostInspectorStore.setBridge({
@@ -93,6 +95,7 @@ setMcpToolBridge({
 
 watch(language, () => {
   i18n.locale.value = language.value
+  setLocale(language.value)
 })
 
 const { updateThemeColor } = useThemeColor(themeColorFromValue({ light: 'rgb(255 255 255)', dark: 'rgb(18 18 18)' }))
