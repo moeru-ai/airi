@@ -10,6 +10,7 @@ import { Hono } from 'hono'
 import { integer, minValue, number, object, pipe, safeParse } from 'valibot'
 
 import { authGuard } from '../middlewares/auth'
+import { configGuard } from '../middlewares/config-guard'
 import { createBadRequestError, createServiceUnavailableError } from '../utils/error'
 
 const CheckoutBodySchema = object({
@@ -19,8 +20,10 @@ const CheckoutBodySchema = object({
 export function createStripeRoutes(fluxService: FluxService, stripeService: StripeService, configKV: ConfigKVService, env: Env) {
   const stripe = env.STRIPE_SECRET_KEY ? new Stripe(env.STRIPE_SECRET_KEY) : null
 
+  const fluxConfigGuard = configGuard(configKV, ['FLUX_PER_CENT'])
+
   return new Hono<HonoEnv>()
-    .post('/checkout', authGuard, async (c) => {
+    .post('/checkout', authGuard, fluxConfigGuard, async (c) => {
       if (!stripe)
         throw createServiceUnavailableError('Stripe is not configured', 'STRIPE_NOT_CONFIGURED')
 
