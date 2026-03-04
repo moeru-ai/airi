@@ -867,7 +867,61 @@ export const useProvidersStore = defineStore('providers', () => {
           stability: 0.5,
         },
       }),
-      createProvider: async config => createUnElevenLabs((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>,
+      createProvider: async (config) => {
+        const apiKey = (config.apiKey as string).trim()
+
+        // NOTICE: We bypass the unspeech proxy and call ElevenLabs' native API directly.
+        // The public unspeech instance (unspeech.hyp3r.link) triggers ElevenLabs' Free Tier
+        // abuse detection because many users share the same proxy IP, resulting in HTTP 401.
+        // By calling the native API directly, each user's own API key is used without routing
+        // through a shared proxy — consistent with how openai-audio-speech and index-tts-vllm
+        // are implemented in this file.
+        //
+        // @xsai/generate-speech supports an `options.fetch` override, which we use here to
+        // intercept the xsai OpenAI-format request and transform it into ElevenLabs' native
+        // POST /v1/text-to-speech/{voice_id} format before it leaves the app.
+        return {
+          speech: (model: string, options?: UnElevenLabsOptions) => {
+            const nativeFetch: typeof globalThis.fetch = async (_url, init) => {
+              const body = JSON.parse((init?.body as string) || '{}') as {
+                input?: string
+                voice?: string
+                model?: string
+              }
+              const voiceId = body.voice ?? ''
+              const text = body.input ?? ''
+              const modelId = model.replace(/^elevenlabs\//, '')
+              const voiceSettings = options?.voiceSettings ?? { similarityBoost: 0.75, stability: 0.5 }
+
+              return globalThis.fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+                method: 'POST',
+                headers: {
+                  'xi-api-key': apiKey,
+                  'content-type': 'application/json',
+                  'accept': 'audio/mpeg',
+                },
+                body: JSON.stringify({
+                  text,
+                  model_id: modelId,
+                  voice_settings: {
+                    stability: voiceSettings.stability ?? 0.5,
+                    similarity_boost: voiceSettings.similarityBoost ?? 0.75,
+                    style: voiceSettings.style,
+                    use_speaker_boost: voiceSettings.useSpeakerBoost,
+                  },
+                }),
+              })
+            }
+
+            return {
+              apiKey,
+              baseURL: 'https://api.elevenlabs.io/v1/',
+              model: `elevenlabs/${model}`,
+              fetch: nativeFetch,
+            }
+          },
+        } as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
+      },
       capabilities: {
         listModels: async () => {
           return elevenLabsModels.map((model) => {
