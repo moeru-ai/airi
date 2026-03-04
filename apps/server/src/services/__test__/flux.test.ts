@@ -1,9 +1,20 @@
-import { beforeAll, describe, expect, it } from 'vitest'
+import type { createConfigKVService } from '../config-kv'
+
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
 import { createFluxService } from '../flux'
 
 import * as schema from '../../schemas'
+
+function createMockConfigKV(overrides: Record<string, number> = {}): ReturnType<typeof createConfigKVService> {
+  const defaults: Record<string, number> = { INITIAL_USER_FLUX: 100, FLUX_PER_CENT: 1, FLUX_PER_REQUEST: 1, ...overrides }
+  return {
+    get: vi.fn(async (key: string) => defaults[key]),
+    getOptional: vi.fn(async (key: string) => defaults[key] ?? null),
+    set: vi.fn(),
+  } as any
+}
 
 describe('fluxService', () => {
   let db: any
@@ -12,7 +23,7 @@ describe('fluxService', () => {
 
   beforeAll(async () => {
     db = await mockDB(schema)
-    service = createFluxService(db)
+    service = createFluxService(db, createMockConfigKV())
 
     // Create a test user for foreign key constraints
     const [user] = await db.insert(schema.user).values({
