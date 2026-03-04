@@ -11,7 +11,7 @@ import type { ReflexManager } from '../reflex/reflex-manager'
 import type { BotEvent, MineflayerWithAgents } from '../types'
 import type { ActiveContextState, ArchivedContext } from './context-summary'
 import type { PlannerGlobalDescriptor } from './js-planner'
-import type { LLMAgent } from './llm-agent'
+import type { LLMAgent, LLMResult } from './llm-agent'
 import type { LlmLogEntry, LlmLogEntryKind } from './llm-log'
 import type { CancellationToken } from './task-state'
 
@@ -237,6 +237,9 @@ const NO_ACTION_STAGNATION_REPEAT_LIMIT = 2
 const ERROR_BURST_GUARD_SOURCE_ID = 'brain:error_burst_guard'
 const ERROR_BURST_THRESHOLD = 3
 const ERROR_BURST_WINDOW_TURNS = 5
+const DEFAULT_LLM_ATTEMPT_TIMEOUT_MS = 15_000
+const DEFAULT_LLM_TURN_DEADLINE_MS = 45_000
+const PAUSE_ABORT_ERROR_NAME = 'AbortError'
 
 function getEventPriority(event: BotEvent): number {
   if (event.type === 'perception') {
@@ -262,6 +265,7 @@ export class Brain {
   private isProcessing = false
   private isReplEvaluating = false
   private currentCancellationToken: CancellationToken | undefined
+  private currentLlmAbortController: AbortController | null = null
   private givenUp = false
   private giveUpReason: string | undefined
   private lastContextView: string | undefined
@@ -275,6 +279,8 @@ export class Brain {
   private llmTraceIdCounter = 0
   private turnCounter = 0
   private currentInputEnvelope: RuntimeInputEnvelope | null = null
+  private llmAttemptTimeoutMs = DEFAULT_LLM_ATTEMPT_TIMEOUT_MS
+  private llmTurnDeadlineMs = DEFAULT_LLM_TURN_DEADLINE_MS
   private readonly llmLogRuntime = createLlmLogRuntime(() => this.llmLogEntries)
   private readonly patternRuntime = createPatternRuntime(PATTERN_CATALOG)
 
@@ -408,6 +414,7 @@ export class Brain {
       this.deps.taskExecutor.off('action:failed', this.onActionFailed)
       this.onActionFailed = null
     }
+    this.cancelInFlightLlm('Brain destroyed')
     this.currentCancellationToken?.cancel()
     this.clearPendingControlActions('cancelled')
     this.activeControlAction = null
@@ -463,6 +470,8 @@ export class Brain {
 
   public setPaused(paused: boolean): boolean {
     this.paused = paused
+    if (paused)
+      this.cancelInFlightLlm('Brain paused')
     return this.paused
   }
 
@@ -499,6 +508,55 @@ export class Brain {
     }
 
     return JSON.parse(JSON.stringify(entries)) as LlmTraceEntry[]
+  }
+
+  private cancelInFlightLlm(reason: string): void {
+    if (!this.currentLlmAbortController)
+      return
+    if (!this.currentLlmAbortController.signal.aborted) {
+      const abortError = Object.assign(new Error(reason), { name: 'AbortError' })
+      this.currentLlmAbortController.abort(abortError)
+    }
+    this.currentLlmAbortController = null
+  }
+
+  private async callLLMWithTimeout(messages: Message[], attemptTimeoutMs: number): Promise<LLMResult> {
+    const abortController = new AbortController()
+    const timeoutError = Object.assign(
+      new Error(`LLM call timeout after ${attemptTimeoutMs}ms`),
+      { name: 'TimeoutError' },
+    )
+
+    this.currentLlmAbortController = abortController
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined
+    try {
+      const llmCallPromise = this.deps.llmAgent.callLLM({
+        messages,
+        abortSignal: abortController.signal,
+        timeoutMs: attemptTimeoutMs,
+      })
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+          if (!abortController.signal.aborted)
+            abortController.abort(timeoutError)
+          reject(timeoutError)
+        }, attemptTimeoutMs)
+      })
+
+      return await Promise.race([llmCallPromise, timeoutPromise])
+    }
+    finally {
+      if (timeoutHandle)
+        clearTimeout(timeoutHandle)
+      if (this.currentLlmAbortController === abortController)
+        this.currentLlmAbortController = null
+    }
+  }
+
+  private isAbortError(err: unknown): boolean {
+    if (!err || typeof err !== 'object')
+      return false
+    return (err as { name?: unknown }).name === PAUSE_ABORT_ERROR_NAME
   }
 
   public forgetConversation(): { ok: true, cleared: string[] } {
@@ -1881,6 +1939,7 @@ export class Brain {
     let result: string | null = null
     let capturedReasoning: string | undefined
     let lastError: unknown
+    const llmTurnDeadlineAt = Date.now() + this.llmTurnDeadlineMs
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       // Check pause at start of each retry attempt
@@ -1899,6 +1958,17 @@ export class Brain {
       }
 
       try {
+        const remainingTurnMs = llmTurnDeadlineAt - Date.now()
+        if (remainingTurnMs <= 0) {
+          lastError = Object.assign(
+            new Error(`LLM turn deadline exceeded after ${this.llmTurnDeadlineMs}ms`),
+            { name: 'TimeoutError' },
+          )
+          this.deps.logger.withError(lastError as Error).warn('Brain: LLM turn deadline exceeded, skipping turn')
+          break
+        }
+        const attemptTimeoutMs = Math.max(1, Math.min(this.llmAttemptTimeoutMs, remainingTurnMs))
+
         // Auto-trim active context if it exceeds the safety limit
         this.autoTrimActiveContext()
 
@@ -1935,14 +2005,14 @@ export class Brain {
             attempt,
             maxAttempts,
             messageCount: messages.length,
+            timeoutMs: attemptTimeoutMs,
+            remainingTurnMs,
           },
         })
 
         const traceStart = Date.now()
 
-        const llmResult = await this.deps.llmAgent.callLLM({
-          messages,
-        })
+        const llmResult = await this.callLLMWithTimeout(messages, attemptTimeoutMs)
 
         const content = llmResult.text
         const reasoning = llmResult.reasoning
@@ -2016,6 +2086,24 @@ export class Brain {
         break // Success, exit retry loop
       }
       catch (err) {
+        if (this.paused && this.isAbortError(err)) {
+          this.appendLlmLog({
+            turnId,
+            kind: 'scheduler',
+            eventType: event.type,
+            sourceType: event.source.type,
+            sourceId: event.source.id,
+            tags: ['scheduler', 'paused', 'interrupted'],
+            text: `Interrupted during LLM call (attempt ${attempt}/${maxAttempts}) while paused`,
+            metadata: {
+              attempt,
+              maxAttempts,
+            },
+          })
+          this.deps.logger.log('INFO', `Brain: Interrupted LLM call while paused (attempt ${attempt}/${maxAttempts})`)
+          return
+        }
+
         lastError = err
         const remaining = maxAttempts - attempt
         const isRateLimit = isRateLimitError(err)
