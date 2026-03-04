@@ -1,7 +1,10 @@
 /// <reference types="./vite.config-env.d.ts" />
 
+import type { PluginOption } from 'vite'
+
 import process from 'node:process'
 
+import { execSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
@@ -141,6 +144,20 @@ export default defineConfig({
     Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
     Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', 'AvatarSample_A.vrm', 'vrm/models/AvatarSample-A', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
     Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'vrm/models/AvatarSample-B', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
+
+    .../^1|true|yes$/i.test(process.env.VITE_CAP_SYNC_IOS_AFTER_BUILD ?? '')
+      ? [{
+          name: 'proj-airi:capacitor-sync',
+          closeBundle: {
+            sequential: true,
+            handler() {
+              if (this.meta.watchMode) {
+                execSync('cap sync ios', { stdio: 'inherit' })
+              }
+            },
+          },
+        } as PluginOption]
+      : [],
 
     {
       name: 'proj-airi:defines',
