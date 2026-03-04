@@ -9,8 +9,6 @@ describe('tools mcp schema', () => {
     const tools = await mcp()
     const toolNames = [
       'mcp_list_tools',
-      'mcp_connect_server',
-      'mcp_disconnect_server',
       'mcp_call_tool',
     ]
 

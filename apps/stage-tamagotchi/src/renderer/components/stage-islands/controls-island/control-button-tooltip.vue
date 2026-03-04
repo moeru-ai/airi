@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { TooltipContent, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
+
+const { side = 'top' } = defineProps<{
+  side?: 'top' | 'right' | 'bottom' | 'left'
+}>()
 </script>
 
 <template>
@@ -20,7 +24,7 @@ import { TooltipContent, TooltipProvider, TooltipRoot, TooltipTrigger } from 're
             'rounded-lg backdrop-blur-md',
             'text-xs',
           ]"
-          side="left"
+          :side="side"
           :side-offset="4"
         >
           <slot name="tooltip" />
