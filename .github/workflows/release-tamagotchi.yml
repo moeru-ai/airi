@@ -247,7 +247,7 @@ jobs:
         if: ${{ github.event_name == 'schedule' && (matrix.os == 'windows-latest' && github.repository == 'moeru-ai/airi') }}
         with:
           api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
-          organization-id: '${{ vars.SIGNPATH_ORGANIZATION_ID }}'
+          organization-id: '${{ secrets.SIGNPATH_ORGANIZATION_ID }}'
           project-slug: 'airi'
           github-artifact-id: '${{ steps.unsigned-artifacts-nightly.outputs.artifact-id }}'
           signing-policy-slug: 'test-signing'
@@ -337,7 +337,7 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'windows-latest' && github.repository == 'moeru-ai/airi') }}
         with:
           api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
-          organization-id: '${{ vars.SIGNPATH_ORGANIZATION_ID }}'
+          organization-id: '${{ secrets.SIGNPATH_ORGANIZATION_ID }}'
           project-slug: 'airi'
           github-artifact-id: '${{ steps.unsigned-artifacts-workflow-dispatch.outputs.artifact-id }}'
           signing-policy-slug: 'test-signing'
@@ -415,7 +415,7 @@ jobs:
         if: ${{ github.event_name == 'release' && (matrix.os == 'windows-latest' && github.repository == 'moeru-ai/airi') }}
         with:
           api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
-          organization-id: '${{ vars.SIGNPATH_ORGANIZATION_ID }}'
+          organization-id: '${{ secrets.SIGNPATH_ORGANIZATION_ID }}'
           project-slug: 'airi'
           github-artifact-id: '${{ steps.unsigned-artifacts-release.outputs.artifact-id }}'
           signing-policy-slug: 'test-signing'
