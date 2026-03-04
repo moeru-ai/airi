@@ -1335,6 +1335,128 @@ export const useProvidersStore = defineStore('providers', () => {
       ),
       validation: ['model_list'],
     }),
+    'kimi-chat': buildOpenAICompatibleProvider({
+      id: 'kimi-chat',
+      name: 'Kimi',
+      nameKey: 'settings.pages.providers.provider.kimi.title',
+      descriptionKey: 'settings.pages.providers.provider.kimi.description',
+      icon: 'i-lobe-icons:kimi',
+      description: 'kimi.moonshot.cn',
+      category: 'chat',
+      tasks: ['text-generation', 'chat'],
+      defaultBaseUrl: 'https://api.moonshot.cn/v1/',
+      creator: createOpenAI,
+      validation: ['health', 'model_list'],
+      capabilities: {
+        listModels: async (config: Record<string, unknown>) => {
+          const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+          let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+
+          if (!baseUrl.endsWith('/'))
+            baseUrl += '/'
+
+          if (!apiKey || !baseUrl) {
+            return []
+          }
+
+          const models = await listModels({
+            apiKey,
+            baseURL: baseUrl,
+          })
+
+          return models.map((model: any) => {
+            return {
+              id: model.id,
+              name: model.name || model.display_name || model.id,
+              provider: 'kimi-chat',
+              description: model.description || '',
+              contextLength: model.context_length || 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          const errors = [
+            !config.apiKey && new Error('API Key is required'),
+            !config.baseUrl && new Error('Base URL is required. Default to https://api.moonshot.cn/v1/ for Kimi API.'),
+          ].filter(Boolean)
+
+          const res = baseUrlValidator.value(config.baseUrl)
+          if (res) {
+            return res
+          }
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
+        },
+      },
+    }),
+    'doubao-chat': buildOpenAICompatibleProvider({
+      id: 'doubao-chat',
+      name: 'Doubao',
+      nameKey: 'settings.pages.providers.provider.doubao.title',
+      descriptionKey: 'settings.pages.providers.provider.doubao.description',
+      icon: 'i-lobe-icons:doubao',
+      description: 'cloud.volcengine.com',
+      category: 'chat',
+      tasks: ['text-generation', 'chat'],
+      defaultBaseUrl: 'https://ark.cn-beijing.volces.com/api/v3/',
+      creator: createOpenAI,
+      validation: ['health', 'model_list'],
+      capabilities: {
+        listModels: async (config: Record<string, unknown>) => {
+          const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+          let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+
+          if (!baseUrl.endsWith('/'))
+            baseUrl += '/'
+
+          if (!apiKey || !baseUrl) {
+            return []
+          }
+
+          const models = await listModels({
+            apiKey,
+            baseURL: baseUrl,
+          })
+
+          return models.map((model: any) => {
+            return {
+              id: model.id,
+              name: model.name || model.display_name || model.id,
+              provider: 'doubao-chat',
+              description: model.description || '',
+              contextLength: model.context_length || 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          const errors = [
+            !config.apiKey && new Error('API Key is required'),
+            !config.baseUrl && new Error('Base URL is required. Default to https://ark.cn-beijing.volces.com/api/v3/ for Doubao API.'),
+          ].filter(Boolean)
+
+          const res = baseUrlValidator.value(config.baseUrl)
+          if (res) {
+            return res
+          }
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
+        },
+      },
+    }),
     'player2-speech': {
       id: 'player2-speech',
       category: 'speech',

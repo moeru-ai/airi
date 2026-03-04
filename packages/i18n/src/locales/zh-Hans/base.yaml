@@ -17,3 +17,51 @@ toaster:
     action:
       notNow: 稍后
       ok: 好的
+api:
+  guide:
+    title: API 配置指南
+    step1:
+      title: 选择 AI 服务提供商
+      description: 我们支持国内 AI 服务，如 Kimi、Doubao 等，确保在国内网络环境下稳定连接
+      link1: 访问月之暗面 (Kimi)
+      link2: 访问火山引擎 (Doubao)
+    step2:
+      title: 获取 API 密钥
+      description: 在所选服务提供商的控制台中创建 API 密钥
+      image1: API 密钥创建界面
+    step3:
+      title: 配置 API 信息
+      description: 将获取的 API 密钥和基础 URL 填入配置对话框
+      image1: AIRI API 配置界面
+    step4:
+      title: 测试连接
+      description: 配置完成后，点击测试连接按钮确保 API 可以正常使用
+      link1: 查看完整 API 指南
+    previous: 上一步
+    next: 下一步
+    complete: 完成
+    showAgain: 下次显示
+    fullGuide: 查看完整指南
+  config:
+    title: API 配置
+    provider: 服务提供商
+    selectProvider: 选择服务提供商
+    apiKey: API 密钥
+    apiKeyPlaceholder: 请输入 API 密钥
+    apiKeyHint: 从服务提供商的控制台获取 API 密钥
+    baseUrl: 基础 URL
+    baseUrlPlaceholder: 请输入 API 基础 URL
+    baseUrlHint: API 端点 URL，例如 https://api.moonshot.cn/v1
+    model: 模型
+    selectModel: 选择模型
+    loadingModels: 正在加载模型...
+    testingConnection: 正在测试连接...
+    connectionFailed: 连接失败
+    save: 保存
+    cancel: 取消
+    testConnection: 测试连接
+  error:
+    title: 错误
+    details: 详细信息
+    solution: 解决方法
+    ok: 确定
