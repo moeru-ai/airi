@@ -102,7 +102,6 @@ export function setupOnboardingWindowManager(): OnboardingWindowManager {
     await load(newWindow, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/onboarding'))
 
     // Setup IPC handlers for this window
-    ipcMain.setMaxListeners(0)
     const { context } = createContext(ipcMain, newWindow)
 
     defineInvokeHandler(context, electronOnboardingClose, () => close())
