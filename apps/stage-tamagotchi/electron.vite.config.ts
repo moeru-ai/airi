@@ -172,6 +172,7 @@ export default defineConfig({
             exclude: base => [
               ...base,
               '**/settings/system/general.vue',
+              '**/settings/modules/mcp.vue',
             ],
           },
           resolve(import.meta.dirname, 'src', 'renderer', 'pages'),

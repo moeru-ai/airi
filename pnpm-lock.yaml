@@ -920,6 +920,9 @@ importers:
       '@huggingface/transformers':
         specifier: ^3.8.1
         version: 3.8.1
+      '@modelcontextprotocol/sdk':
+        specifier: 'catalog:'
+        version: 1.27.1(@cfworker/json-schema@4.1.1)(zod@4.3.6)
       '@moeru/eventa':
         specifier: ^1.0.0-beta.1
         version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
@@ -2442,9 +2445,6 @@ importers:
       '@proj-airi/stage-ui-three':
         specifier: workspace:^
         version: link:../stage-ui-three
-      '@proj-airi/tauri-plugin-mcp':
-        specifier: workspace:^
-        version: link:../tauri-plugin-mcp
       '@proj-airi/ui':
         specifier: workspace:^
         version: link:../ui

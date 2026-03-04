@@ -420,6 +420,14 @@ pages:
     mcp-server:
       description: 连接和管理 MCP 服务器及工具
       title: MCP 服务器
+      config-path: 配置文件路径
+      runtime-title: 运行状态
+      actions:
+        open-config: 打开 mcp.json
+        apply-and-restart: 保存并重启 MCP
+      messages:
+        opened: 已打开配置文件：{path}
+        restarted: 已重启 MCP 服务。成功 {started}，失败 {failed}，跳过 {skipped}
   providers:
     explained:
       chat: 文本生成模型服务来源，例如 OpenRouter, OpenAI, Ollama

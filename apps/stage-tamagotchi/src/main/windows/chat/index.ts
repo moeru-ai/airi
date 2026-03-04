@@ -1,4 +1,5 @@
 import type { ServerChannel } from '../../services/airi/channel-server'
+import type { McpStdioManager } from '../../services/airi/mcp-servers'
 import type { WidgetsWindowManager } from '../widgets'
 
 import { join, resolve } from 'node:path'
@@ -14,6 +15,7 @@ import { setupChatWindowElectronInvokes } from './rpc/index.electron'
 export function setupChatWindowReusableFunc(params: {
   widgetsManager: WidgetsWindowManager
   serverChannel: ServerChannel
+  mcpStdioManager: McpStdioManager
 }) {
   return createReusableWindow(async () => {
     const window = new BrowserWindow({
@@ -40,6 +42,7 @@ export function setupChatWindowReusableFunc(params: {
       window,
       widgetsManager: params.widgetsManager,
       serverChannel: params.serverChannel,
+      mcpStdioManager: params.mcpStdioManager,
     })
 
     return window
