@@ -1,9 +1,9 @@
 import { integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
-import { nanoid } from 'nanoid'
 
+import { nanoid } from '../utils/id'
 import { user } from './accounts'
 
-export const apiRequestLog = pgTable('api_request_log', {
+export const llmRequestLog = pgTable('llm_request_log', {
   id: text('id').primaryKey().$defaultFn(() => nanoid()),
   userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
   model: text('model').notNull(),

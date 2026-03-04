@@ -1,4 +1,4 @@
-CREATE TABLE "api_request_log" (
+CREATE TABLE "llm_request_log" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"model" text NOT NULL,
@@ -8,4 +8,4 @@ CREATE TABLE "api_request_log" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "api_request_log" ADD CONSTRAINT "api_request_log_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "llm_request_log" ADD CONSTRAINT "llm_request_log_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
