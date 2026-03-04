@@ -189,18 +189,19 @@ npx bumpp --no-commit --no-tag
 
 ## サポートされているLLM APIプロバイダー（[xsai](https://github.com/moeru-ai/xsai)によって提供）
 
-- [x] [302.AI](https://share.302.ai/514k2v)
+- [x] [AIHubMix](https://aihubmix.com/?aff=OOiX) (すべてのモデルに対応し、本プロジェクト経由のリクエストは10%最適化、無料モデルも利用可能)
 - [x] [OpenRouter](https://openrouter.ai/)
 - [x] [vLLM](https://github.com/vllm-project/vllm)
 - [x] [SGLang](https://github.com/sgl-project/sglang)
 - [x] [Ollama](https://github.com/ollama/ollama)
-- [x] [Google Gemini](https://developers.generativeai.google)
+- [x] [302.AI](https://share.302.ai/514k2v)
 - [x] [OpenAI](https://platform.openai.com/docs/guides/gpt/chat-completions-api)
   - [ ] [Azure OpenAI API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)（PR歓迎）
 - [x] [Anthropic Claude](https://anthropic.com)
   - [ ] [AWS Claude](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)（PR歓迎）
 - [x] [DeepSeek](https://www.deepseek.com/)
 - [x] [Qwen](https://help.aliyun.com/document_detail/2400395.html)
+- [x] [Google Gemini](https://developers.generativeai.google)
 - [x] [xAI](https://x.ai/)
 - [x] [Groq](https://wow.groq.com/)
 - [x] [Mistral](https://mistral.ai/)
