@@ -4,18 +4,11 @@ import { is } from '@electron-toolkit/utils'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { BrowserWindow, ipcMain, shell } from 'electron'
-import { boolean, object, optional } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { electronOnboardingClose, electronOnboardingCompleted, electronOnboardingGetConfig, electronOnboardingSkipped } from '../../../shared/eventa'
+import { electronOnboardingClose, electronOnboardingCompleted, electronOnboardingSkipped, electronOpenOnboarding } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
-import { createConfig } from '../../libs/electron/persistence'
-
-const onboardingConfigSchema = object({
-  completed: optional(boolean(), false),
-  skipped: optional(boolean(), false),
-})
 
 export interface OnboardingWindowManager {
   getWindow: () => BrowserWindow | null
@@ -23,21 +16,10 @@ export interface OnboardingWindowManager {
   close: () => void
   markCompleted: () => void
   markSkipped: () => void
-  isCompleted: () => boolean
 }
 
 export function setupOnboardingWindowManager(): OnboardingWindowManager {
   let window: BrowserWindow | undefined
-
-  const { setup: setupConfig, get: getConfig, update: updateConfig } = createConfig('onboarding', 'config.json', onboardingConfigSchema, {
-    default: { completed: false, skipped: false },
-    autoHeal: true,
-  })
-
-  setupConfig()
-
-  const isCompleted = () => getConfig()?.completed ?? false
-  const isSkipped = () => getConfig()?.skipped ?? false
 
   const close = () => {
     if (window && !window.isDestroyed()) {
@@ -46,12 +28,10 @@ export function setupOnboardingWindowManager(): OnboardingWindowManager {
   }
 
   const markCompleted = () => {
-    updateConfig({ completed: true, skipped: false })
     close()
   }
 
   const markSkipped = () => {
-    updateConfig({ completed: false, skipped: true })
     close()
   }
 
@@ -107,16 +87,20 @@ export function setupOnboardingWindowManager(): OnboardingWindowManager {
     defineInvokeHandler(context, electronOnboardingClose, () => close())
     defineInvokeHandler(context, electronOnboardingCompleted, () => markCompleted())
     defineInvokeHandler(context, electronOnboardingSkipped, () => markSkipped())
-    defineInvokeHandler(context, electronOnboardingGetConfig, () => getConfig())
+    defineInvokeHandler(context, electronOpenOnboarding, async () => {
+      await showIfNeeded()
+      return true
+    })
 
     window = newWindow
     return newWindow
   }
 
-  const showIfNeeded = async () => {
-    // Don't show if already completed or skipped
-    if (isCompleted() || isSkipped()) {
-      return false
+  async function showIfNeeded() {
+    if (window && !window.isDestroyed()) {
+      window.show()
+      window.focus()
+      return true
     }
 
     await createWindow()
@@ -129,6 +113,5 @@ export function setupOnboardingWindowManager(): OnboardingWindowManager {
     close,
     markCompleted,
     markSkipped,
-    isCompleted,
   }
 }

@@ -141,14 +141,10 @@ export const widgetsClearEvent = defineEventa('eventa:event:electron:windows:wid
 export const widgetsUpdateEvent = defineEventa<{ id: string, componentProps?: Record<string, any> }>('eventa:event:electron:windows:widgets:update')
 
 // Onboarding window events
-export interface OnboardingConfig {
-  completed?: boolean
-  skipped?: boolean
-}
 export const electronOnboardingClose = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:close')
 export const electronOnboardingCompleted = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:completed')
 export const electronOnboardingSkipped = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:skipped')
-export const electronOnboardingGetConfig = defineInvokeEventa<OnboardingConfig>('eventa:invoke:electron:windows:onboarding:get-config')
+export const electronOpenOnboarding = defineInvokeEventa<boolean>('eventa:invoke:electron:windows:onboarding:open')
 
 export { electron } from '@proj-airi/electron-eventa'
 export * from '@proj-airi/electron-eventa/electron-updater'
