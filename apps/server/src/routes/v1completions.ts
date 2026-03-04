@@ -1,8 +1,8 @@
 import type { Context } from 'hono'
 
-import type { Env } from '../libs/env'
 import type { ConfigKVService } from '../services/config-kv'
 import type { FluxService } from '../services/flux'
+import type { RequestLogService } from '../services/request-log'
 import type { HonoEnv } from '../types/hono'
 
 import { Hono } from 'hono'
@@ -19,7 +19,7 @@ const SAFE_RESPONSE_HEADERS = new Set([
   'cache-control',
 ])
 
-export function createV1CompletionsRoutes(fluxService: FluxService, configKV: ConfigKVService, env: Env) {
+export function createV1CompletionsRoutes(fluxService: FluxService, configKV: ConfigKVService, requestLogService: RequestLogService) {
   async function handleCompletion(c: Context<HonoEnv>) {
     const user = c.get('user')!
     const flux = await fluxService.getFlux(user.id)
@@ -32,14 +32,42 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
     const fluxPerRequest = await configKV.getOrThrow('FLUX_PER_REQUEST')
     await fluxService.consumeFlux(user.id, fluxPerRequest)
 
-    const response = await fetch(`${env.BACKEND_LLM_BASE_URL}chat/completions`, {
+    const gatewayBaseUrl = await configKV.get('GATEWAY_BASE_URL')
+
+    // Normalize: ensure trailing slash
+    const baseUrl = gatewayBaseUrl.endsWith('/') ? gatewayBaseUrl : `${gatewayBaseUrl}/`
+
+    const requestModel = body.model || 'auto'
+    const startedAt = Date.now()
+
+    const response = await fetch(`${baseUrl}chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${env.BACKEND_LLM_API_KEY}`,
       },
       body: JSON.stringify(body),
     })
+
+    const durationMs = Date.now() - startedAt
+
+    // Log the request asynchronously (don't block response)
+    requestLogService.logRequest({
+      userId: user.id,
+      model: requestModel,
+      status: response.status,
+      durationMs,
+      fluxConsumed: fluxPerRequest,
+    }).catch(() => {})
+
+    // Handle rate limiting from gateway
+    if (response.status === 429) {
+      // Refund the flux since the request was rate-limited
+      await fluxService.addFlux(user.id, fluxPerRequest)
+      return c.json({
+        error: 'RATE_LIMITED',
+        message: 'Too many requests. Please try again later.',
+      }, 429)
+    }
 
     const headers = new Headers()
     for (const [key, value] of response.headers) {
@@ -54,7 +82,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
   }
 
   return new Hono<HonoEnv>()
-    .use('*', authGuard, configGuard(configKV, ['FLUX_PER_REQUEST'], 'Service is not available yet'))
+    .use('*', authGuard, configGuard(configKV, ['FLUX_PER_REQUEST', 'GATEWAY_BASE_URL'], 'Service is not available yet'))
     .post('/chat/completions', handleCompletion)
     .post('/chat/completion', handleCompletion)
 }
