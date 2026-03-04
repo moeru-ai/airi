@@ -1,3 +1,7 @@
+/// <reference types="./vite.config-env.d.ts" />
+
+import process from 'node:process'
+
 import { join, resolve } from 'node:path'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
@@ -81,7 +85,7 @@ export default defineConfig({
   },
 
   plugins: [
-    mkcert(),
+    .../^1|true|yes$/i.test(process.env.VITE_SKIP_MKCERT ?? '') ? [] : [mkcert()],
 
     Info(),
 
