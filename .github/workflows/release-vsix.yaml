@@ -21,7 +21,7 @@ jobs:
           run_install: false
 
       - name: Install Node.js 24.x
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 24.x
           # registry-url required. Learn more at
@@ -32,8 +32,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build:packages
       - run: pnpm run -F @proj-airi/airi-plugin-vscode build
+      - run: pnpm run -F vscode-airi build
       - run: pnpm run publish
-        working-directory: ./plugins/airi-plugin-vscode
+        working-directory: ./integrations/vscode/vscode-airi
         env:
           VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}
           OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}

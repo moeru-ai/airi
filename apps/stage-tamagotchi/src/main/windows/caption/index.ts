@@ -1,4 +1,7 @@
 import type { BrowserWindow, BrowserWindowConstructorOptions, Rectangle } from 'electron'
+import type { InferOutput } from 'valibot'
+
+import type { ServerChannel } from '../../services/airi/channel-server'
 
 import { createHash } from 'node:crypto'
 import { join, resolve } from 'node:path'
@@ -9,26 +12,34 @@ import { animate, utils } from 'animejs'
 import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen, shell } from 'electron'
 import { debounce, throttle } from 'es-toolkit'
 import { isMacOS } from 'std-env'
+import { boolean, number, object, optional, record, string } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
 
 import { captionGetIsFollowingWindow, captionIsFollowingWindowChanged } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { setupBaseWindowElectronInvokes } from '../main/rpc/index.electron'
+import { createServerChannelService } from '../../services/airi/channel-server'
 import { mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
-import { createConfig } from '../shared/persistence'
-import { transparentWindowConfig } from '../shared/window'
+import { setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shared/window'
 
-interface CaptionMatrixConfig {
-  bounds: Rectangle
-  relativeToMain?: { dx: number, dy: number }
-}
-
-interface CaptionConfig {
-  isFollowing: boolean
-  matrices: Record<string, CaptionMatrixConfig>
-}
+const captionConfigSchema = object({
+  isFollowing: boolean(),
+  matrices: record(string(), object({
+    bounds: object({
+      x: number(),
+      y: number(),
+      width: number(),
+      height: number(),
+    }),
+    relativeToMain: optional(object({
+      dx: number(),
+      dy: number(),
+    })),
+  })),
+})
+type CaptionConfig = InferOutput<typeof captionConfigSchema>
 
 function computeDisplayMatrixHash(): string {
   const displays = screen.getAllDisplays()
@@ -100,7 +111,7 @@ function createCaptionWindow(options?: BrowserWindowConstructorOptions) {
     show: false,
     icon,
     webPreferences: {
-      preload: join(__dirname, '../preload/index.mjs'),
+      preload: join(getElectronMainDirname(), '../preload/index.mjs'),
       sandbox: false,
     },
     // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
@@ -134,18 +145,25 @@ function createCaptionWindow(options?: BrowserWindowConstructorOptions) {
   return window
 }
 
-export function setupCaptionWindowManager(params: { mainWindow: BrowserWindow }) {
+export function setupCaptionWindowManager(params: {
+  mainWindow: BrowserWindow
+  serverChannel: ServerChannel
+}) {
   const matrixHash = computeDisplayMatrixHash()
 
   const {
     setup: setupConfig,
-    get: getConfig,
+    get: getConfigRaw,
     update: updateConfig,
-  } = createConfig<CaptionConfig>('windows-caption', 'config.json', { default: { isFollowing: true, matrices: {} } })
+  } = createConfig('windows-caption', 'config.json', captionConfigSchema, {
+    default: { isFollowing: true, matrices: {} },
+    autoHeal: true,
+  })
+  const getConfig = (): CaptionConfig => getConfigRaw() ?? { isFollowing: true, matrices: {} }
 
   setupConfig()
 
-  let isFollowing = getConfig()?.isFollowing ?? true
+  let isFollowing = getConfig().isFollowing ?? true
   let lastProgrammaticMoveAt = 0
 
   // Keep references to listeners so we can detach when toggling
@@ -257,6 +275,7 @@ export function setupCaptionWindowManager(params: { mainWindow: BrowserWindow })
     eventaContext = context
 
     setupBaseWindowElectronInvokes({ context, window })
+    createServerChannelService({ serverChannel: params.serverChannel })
 
     const cfg = getConfig()
     const saved = cfg?.matrices?.[matrixHash]?.bounds

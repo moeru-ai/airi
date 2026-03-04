@@ -1,5 +1,6 @@
 import type { BrowserWindow } from 'electron'
 
+import type { ServerChannel } from '../../../services/airi/channel-server'
 import type { AutoUpdater } from '../../../services/electron/auto-updater'
 import type { NoticeWindowManager } from '../../notice'
 import type { WidgetsWindowManager } from '../../widgets'
@@ -9,18 +10,11 @@ import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
 import { electronOpenChat, electronOpenMainDevtools, electronOpenSettings, noticeWindowEventa } from '../../../../shared/eventa'
+import { createServerChannelService } from '../../../services/airi/channel-server'
 import { createWidgetsService } from '../../../services/airi/widgets'
-import { createAppService, createAutoUpdaterService, createScreenService, createWindowService } from '../../../services/electron'
+import { createAutoUpdaterService } from '../../../services/electron'
 import { toggleWindowShow } from '../../shared'
-
-export function setupBaseWindowElectronInvokes(params: {
-  context: ReturnType<typeof createContext>['context']
-  window: BrowserWindow
-}) {
-  createScreenService({ context: params.context, window: params.window })
-  createWindowService({ context: params.context, window: params.window })
-  createAppService({ context: params.context, window: params.window })
-}
+import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 export function setupMainWindowElectronInvokes(params: {
   window: BrowserWindow
@@ -29,6 +23,7 @@ export function setupMainWindowElectronInvokes(params: {
   widgetsManager: WidgetsWindowManager
   noticeWindow: NoticeWindowManager
   autoUpdater: AutoUpdater
+  serverChannel: ServerChannel
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -40,6 +35,7 @@ export function setupMainWindowElectronInvokes(params: {
   setupBaseWindowElectronInvokes({ context, window: params.window })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
   createAutoUpdaterService({ context, window: params.window, service: params.autoUpdater })
+  createServerChannelService({ serverChannel: params.serverChannel })
 
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenSettings, async () => toggleWindowShow(await params.settingsWindow()))

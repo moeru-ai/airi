@@ -4,7 +4,7 @@ chat:
       airi: AIRI
       core-system: Sistema Central
       you: Tu
-  reasoning: Reasoning
+  reasoning: Razonamiento
 message: Dile algo...
 operations:
   load-models: Cargar Modelos

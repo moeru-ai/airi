@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { WidgetSnapshot } from '../../shared/eventa'
 
+import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { computed, defineAsyncComponent, defineComponent, h, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { widgetsClearEvent, widgetsFetch, widgetsRemove, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdateEvent } from '../../shared/eventa'
-import { useElectronEventaContext, useElectronEventaInvoke } from '../composables/electron-vueuse'
 
 type SizePreset = 's' | 'm' | 'l' | { cols?: number, rows?: number }
 

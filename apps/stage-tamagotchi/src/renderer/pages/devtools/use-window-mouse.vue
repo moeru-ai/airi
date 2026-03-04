@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useElectronMouse } from '../../composables/electron-vueuse'
+import { useElectronMouse } from '@proj-airi/electron-vueuse'
 
 const { x, y } = useElectronMouse()
 </script>

@@ -41,7 +41,11 @@ const {
   envSelect,
   skyBoxIntensity,
 } = storeToRefs(modelStore)
-const trackingOptions = computed(() => [
+const trackingOptions = computed<{
+  value: 'camera' | 'mouse' | 'none'
+  label: string
+  class: string
+}[]>(() => [
   { value: 'camera', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.camera'), class: 'col-start-3' },
   { value: 'mouse', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.mouse'), class: 'col-start-4' },
   { value: 'none', label: t('settings.vrm.scale-and-position.eye-tracking-mode.options.option.disabled'), class: 'col-start-5' },

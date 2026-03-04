@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { defineInvoke } from '@moeru/eventa'
+import { useElectronEventaContext, useElectronMouseAroundWindowBorder, useElectronMouseInWindow } from '@proj-airi/electron-vueuse'
 import { refDebounced, useBroadcastChannel } from '@vueuse/core'
 import { computed, onMounted, ref, watch } from 'vue'
 
 import { captionGetIsFollowingWindow, captionIsFollowingWindowChanged } from '../../shared/eventa'
-import { useElectronEventaContext, useElectronMouseAroundWindowBorder, useElectronMouseInWindow } from '../composables/electron-vueuse'
 
 const attached = ref(true)
 const speakerText = ref('')

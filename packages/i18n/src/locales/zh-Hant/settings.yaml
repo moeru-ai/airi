@@ -39,8 +39,8 @@ controls-island:
     title: 控制島嶼圖示大小
     description: 調整控制島圖示的大小
     auto: 自動（回應式）
-    large: Large (default)
-    small: Small
+    large: 大(默認)
+    small: 小
 live2d:
   change-model:
     from-file: 從檔案載入
@@ -64,13 +64,18 @@ live2d:
     title: 想切換至 3D 虛擬角色嗎？
     change-to-vrm: 切換至 3D 虛擬角色設定頁面（VRM）
   theme-color-from-model:
-    title: Extract colors from model
+    title: 從模型中提取顏色
     button-extract:
       title: 提取
   focus:
     title: 停用模型滑鼠追蹤
     button-disable:
       title: 停用
+  fps:
+    title: FPS
+    description: 限制渲染幀率
+    options:
+      unlimited: 無限制
 microphone: 麥克風
 models: 模型
 pages:
@@ -78,11 +83,13 @@ pages:
     activate: 啟用
     active: 已啟用
     active_badge: 目前使用中
-    cancel: Cancel action
-    save: Save changes
+    cancel: 取消操作
+    save: 儲存變更
     card_not_found: 找不到角色卡
     character: 角色設定
     close: 關閉
+    chat:
+      provider: 聊天 / 供應商
     consciousness:
       model: 意識 / 模型
     created_by: 建立者
@@ -94,7 +101,7 @@ pages:
     description_label: 描述
     drop_here: 放開以上傳檔案
     create_card: 建立新角色卡
-    edit_card: Edit Card
+    edit_card: 編輯卡片
     creation:
       identity: 身分
       name: 名字
@@ -111,6 +118,9 @@ pages:
         scenario: 你最近醒來，忘記了之前的所有生活。
         systemprompt: 你將會收到訊息，請像真實人類一樣回覆。
         posthistoryinstructions: 記得模仿人類的行為。
+      modules_info: 為這個角色卡設定模組。如果沒有設定，將會使用預設模組。
+      use_default: 使用預設
+      use_default_not_configured: 使用預設(尚未設定)
       fields_info:
         subtitle: >-
           您可以在這裡填寫有關您正在建立的角色的一些詳細資訊，解釋他的背景與情境，以及應該如何回應您的互動。
@@ -127,6 +137,8 @@ pages:
         posthistoryinstructions: 在訊息歷史之後，放入 AI LLM 應該閱讀的內容。
         version: >-
           卡片版本，如果您從先前的卡片做了更改，應當增加此版本號。
+        consciousness_model: 請為該角色選擇意識模型（人工智能模型）。
+        speech_model: 請為此角色選用語音合成模型與聲線。
       errors:
         name: 錯誤：你必須提供一個有效的名稱！
         version: '錯誤：版本號無效！'
@@ -147,6 +159,7 @@ pages:
     search: 搜尋角色卡...
     sort_by: 排序方式
     speech:
+      provider: 聲音 / 聲線
       model: 聲音 / 模型
       voice: 聲音 / 聲線
     systemprompt: 系統提示詞
@@ -158,51 +171,51 @@ pages:
     description: 存放記憶的地方，以及策略
     title: 記憶體
   data:
-    title: Data
-    description: Manage stored AIRI data, exports, and resets
+    title: 資料
+    description: 管理已儲存的 AIRI 資料、匯出與重置作業
     sections:
       chats:
-        title: Chat sessions
-        description: Export or import saved chat sessions.
-        export: Export chats
-        import: Import chats
-        delete: Delete all chat sessions
+        title: 對話紀錄
+        description: 匯出或匯入已儲存的對話紀錄。
+        export: 匯出聊天記錄
+        import: 匯入聊天記錄
+        delete: 刪除所有聊天記錄
       models:
-        title: Models
-        description: Remove imported Live2D/VRM models.
-        delete: Delete all models
+        title: 模型
+        description: 移除匯入的 Live2D/VRM 模型
+        delete: 刪除所有模型
       modules:
-        title: Modules
-        description: Reset module preferences and credentials.
-        reset: Reset module settings
+        title: 模組
+        description: 重設模組偏好設定與驗證資訊
+        reset: 重設模組設定
       providers:
-        title: Providers
-        description: Reset all provider settings and credentials.
-        reset: Reset provider settings
+        title: 服務提供者
+        description: 重設所有服務提供者的設定與驗證資訊
+        reset: 重設服務提供者的設定
       danger:
-        title: Danger zone
-        description: Irreversible actions. Export what you need before continuing.
+        title: 危險區域
+        description: 此操作無法還原。繼續前請先匯出所需資料。
       all:
-        title: Delete all data
-        description: Wipe every local setting, provider config, and model.
-        delete: Delete all data
+        title: 刪除所有資料
+        description: 清除所有本機設定、服務提供者設定與模型。
+        delete: 刪除所有資料
       desktop:
-        title: Reset desktop settings & states
-        description: Clear AIRI desktop settings and runtime state.
-        reset: Reset desktop data
+        title: 重設桌面設定與狀態
+        description: 清除 AIRI 桌面設定與執行階段狀態
+        reset: 重設桌面資料
     confirmations:
-      tooltip: Are you sure?
-      'yes': 'Yes'
+      tooltip: 您確定嗎？
+      'yes': '是'
     status:
-      exported: Chat sessions exported.
-      imported: Chat sessions imported.
-      import_error: Failed to import chat sessions. Please check the file format.
-      chats_deleted: Chat sessions deleted.
-      models_deleted: Models deleted.
-      modules_reset: Module settings reset.
-      providers_reset: Provider settings reset.
-      all_deleted: All local data deleted.
-      desktop_reset: Desktop data reset.
+      exported: 對話階段已匯出
+      imported: 對話階段已匯入
+      import_error: 匯入對話階段失敗，請檢查檔案格式
+      chats_deleted: 對話階段已刪除
+      models_deleted: 模型已刪除
+      modules_reset: 模組設定已重設
+      providers_reset: 服務提供者設定已重設
+      all_deleted: 所有本機資料已刪除
+      desktop_reset: 桌面資料已重設
   models:
     description: 切換角色的 Live2D、VRM 模型
     title: 角色模型
@@ -210,26 +223,26 @@ pages:
       section:
         live2d:
           title: Live2D
-          description: Configure Live2D models and settings
+          description: 設定 Live2D 模型與相關選項
         vrm:
           title: VRM
-          description: Configure 3D VRM models and settings
+          description: 設定 3D VRM 模型與相關選項
         scene: 場景
   modules:
     beat_sync:
-      description: Vibe with beats from the audio source
-      title: Beat Sync
+      description: 依據音訊來源的節奏同步互動
+      title: 節拍同步
       sections:
         audio_source:
           actions:
-            start_screen_capture: Start screen capture
-            stop: Stop
-          description: Select an audio source to detect beats from.
-          title: Audio source
+            start_screen_capture: 開始畫面擷取
+            stop: 停止
+          description: 請選取要偵測節拍的音訊來源
+          title: 音訊來源
         beat_visualizer:
-          title: Beat visualizer
+          title: 節拍視覺化工具
         parameters:
-          advanced_parameters: Advanced Parameters
+          advanced_parameters: 進階參數
           description: Tweak the beat detection parameters.
           title: Parameters
           parameters:
@@ -289,7 +302,7 @@ pages:
             search_results: 找到 {count} / {total} 個模型
             show_less: 顯示更少
             show_more: 顯示更多
-            subtitle: 選擇一個模型
+            subtitle: Select a default model from the provider
             title: 模型
       title: 意識
     description: 思維、視覺、語音綜合、遊戲等
@@ -352,6 +365,7 @@ pages:
               stop:
                 label: 停止
             select-voice:
+              loading: Loading model...
               required: 請選擇聲線
           provider-voice-selection:
             custom_model_placeholder: 輸入指定模型名稱...
@@ -601,6 +615,30 @@ pages:
           validation:
             error-missing-api-key: 需要填寫 API Key 才能使用喔！
         title: ElevenLabs (11labs)
+      kokoro-local:
+        description: Local text-to-speech using Kokoro-82M.
+        fields:
+          field:
+            model:
+              label: Model Selection
+              description: Smaller models load faster but may have slightly lower quality.
+        models:
+          fp32-webgpu:
+            description: Full precision model using WebGPU - Recommended for supported devices
+          fp32:
+            description: Full precision model
+          fp16:
+            description: Half precision
+          q8:
+            description: 8-bit quantized
+          q4:
+            description: 4-bit quantized
+          q4f16:
+            description: 4-bit with FP16
+        playground:
+          default-text: Hello! This is a test of the Kokoro text-to-speech system.
+          title: Voice Playground
+        title: Kokoro TTS (Local)
       fireworks:
         description: Fireworks.ai
         title: Fireworks.ai
@@ -615,9 +653,17 @@ pages:
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili / IndexTTS
+        callout_indextts2_unavailable_title: Limited Support
+        callout_indextts2_unavailable: Support for IndexTTS2 is currently unavailable. Please use IndexTTS.
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry
+      minimax:
+        description: minimaxi.com
+        title: MiniMax
+      minimax-global:
+        description: minimax.io
+        title: MiniMax Global
       mistral:
         description: mistral.ai
         title: Mistral
@@ -741,7 +787,7 @@ pages:
                 title: Markdown Stress
                 description: Stress markdown parsing and rendering with heavy chat payloads
               use-magic-keys:
-                title: useMagicKeys
+                title: useMagicKeys Tool
                 description: 測試快捷鍵
               audio-record:
                 title: Audio Record
@@ -903,6 +949,10 @@ vrm:
   skybox:
     skybox-intensity: 天空盒光照強度
     skybox-specular-mix: 漫反射／鏡面反射混合係數
+websocket-secure-enabled:
+  title: 啟用安全 WebSocket (WSS)
+  description: >-
+    啟用 WSS（WebSocket Secure）以允許開發模式下行動裝置（pocket）的 HTTPS 連線。這將自動產生自簽名憑證。
 wip:
   title: Work in Progress
   description: >-

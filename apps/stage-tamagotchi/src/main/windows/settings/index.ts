@@ -1,3 +1,4 @@
+import type { ServerChannel } from '../../services/airi/channel-server'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { DevtoolsWindowManager } from '../devtools'
 import type { WidgetsWindowManager } from '../widgets'
@@ -18,6 +19,7 @@ export function setupSettingsWindowReusableFunc(params: {
   autoUpdater: AutoUpdater
   devtoolsMarkdownStressWindow: DevtoolsWindowManager
   onWindowCreated?: (window: BrowserWindow) => void
+  serverChannel: ServerChannel
 }) {
   return createReusableWindow(async () => {
     const window = new BrowserWindow({
@@ -27,7 +29,7 @@ export function setupSettingsWindowReusableFunc(params: {
       show: false,
       icon,
       webPreferences: {
-        preload: join(__dirname, '../preload/index.mjs'),
+        preload: join(getElectronMainDirname(), '../preload/index.mjs'),
         sandbox: false,
       },
     })
@@ -48,6 +50,7 @@ export function setupSettingsWindowReusableFunc(params: {
       widgetsManager: params.widgetsManager,
       autoUpdater: params.autoUpdater,
       devtoolsMarkdownStressWindow: params.devtoolsMarkdownStressWindow,
+      serverChannel: params.serverChannel,
     })
 
     initScreenCaptureForWindow(window)

@@ -1,8 +1,7 @@
+import { useElectronRelativeMouse } from '@proj-airi/electron-vueuse'
 import { useWindowSize } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
-
-import { useElectronRelativeMouse } from '../composables/electron-vueuse'
 
 export const useWindowStore = defineStore('tamagotchi-window', () => {
   const { width, height } = useWindowSize()

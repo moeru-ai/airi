@@ -7,10 +7,11 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { Callout } from '@proj-airi/ui'
 import { computed, onMounted, watch } from 'vue'
-// import { useI18n } from 'vue-i18n'
+import { useI18n } from 'vue-i18n'
 
-// const { t } = useI18n()
+const { t } = useI18n()
 
 const providerId = 'index-tts-vllm'
 const defaultModel = 'IndexTTS-1.5'
@@ -63,6 +64,13 @@ async function handleGenerateSpeech(input: string, voiceId: string) {
 </script>
 
 <template>
+  <Callout
+    theme="violet"
+    :label="t('settings.pages.providers.provider.index-tts-vllm.callout_indextts2_unavailable_title')"
+  >
+    {{ t('settings.pages.providers.provider.index-tts-vllm.callout_indextts2_unavailable') }}
+  </Callout>
+
   <SpeechProviderSettings :provider-id="providerId" :default-model="defaultModel">
     <!-- Replace the default playground with our standalone component -->
     <template #playground>

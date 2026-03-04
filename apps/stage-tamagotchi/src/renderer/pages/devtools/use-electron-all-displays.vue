@@ -1,8 +1,7 @@
 <script setup lang="ts">
+import { useElectronAllDisplays, useElectronMouse } from '@proj-airi/electron-vueuse'
 import { useWindowSize } from '@vueuse/core'
 import { computed } from 'vue'
-
-import { useElectronAllDisplays, useElectronMouse } from '../../composables/electron-vueuse'
 
 const allDisplays = useElectronAllDisplays()
 const { x: cursorX, y: cursorY } = useElectronMouse()

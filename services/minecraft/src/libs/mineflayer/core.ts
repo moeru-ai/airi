@@ -21,6 +21,10 @@ import { Ticker } from './ticker'
 export interface MineflayerOptions {
   botConfig: BotOptions
   plugins?: Array<MineflayerPlugin>
+  reconnect?: {
+    enabled?: boolean
+    maxRetries?: number
+  }
 }
 
 export class Mineflayer extends EventEmitter<EventHandlers> {
@@ -34,6 +38,13 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
 
   public isCreative: boolean = false
   public allowCheats: boolean = false
+
+  private respawnRequestedAt: number | null = null
+  private respawnTimer: ReturnType<typeof setTimeout> | null = null
+  private reconnectAttempts: number = 0
+  private isReconnecting: boolean = false
+  private isStopping: boolean = false
+  private reconnectPluginSetupPromise: Promise<void> = Promise.resolve()
 
   private options: MineflayerOptions
   private logger: Logg
@@ -49,32 +60,50 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
 
     this.on('interrupt', () => {
       this.logger.log('Interrupted')
-      this.bot.chat('Interrupted')
     })
+  }
+
+  public interrupt(reason?: string) {
+    this.logger.withFields({ reason }).log('Interrupt requested')
+
+    try {
+      (this.bot).pathfinder?.stop?.()
+    }
+    catch { }
+
+    try {
+      (this.bot).pvp?.stop?.()
+    }
+    catch { }
+
+    try {
+      ; (this.bot).stopDigging?.()
+    }
+    catch { }
+
+    try {
+      ; (this.bot).deactivateItem?.()
+    }
+    catch { }
+
+    try {
+      if (typeof this.bot.clearControlStates === 'function') {
+        this.bot.clearControlStates()
+      }
+      else {
+        ; (['forward', 'back', 'left', 'right', 'jump', 'sprint', 'sneak'] as const).forEach((control) => {
+          this.bot.setControlState(control as any, false)
+        })
+      }
+    }
+    catch { }
+
+    this.logger.withFields({ reason }).log('Interrupted')
+    this.emit('interrupt')
   }
 
   public static async asyncBuild(options: MineflayerOptions) {
     const mineflayer = new Mineflayer(options)
-
-    mineflayer.bot.on('messagestr', async (message, _, jsonMsg) => {
-      // jsonMsg.translate:
-      // - death.attack.player
-      // message:
-      // - <bot username> was slain by <player / entity>
-      // - <bot username> drowned
-      if (jsonMsg.translate && jsonMsg.translate.startsWith('death') && message.startsWith(mineflayer.username)) {
-        const deathPos = mineflayer.bot.entity.position
-
-        // mineflayer.memory_bank.rememberPlace('last_death_position', deathPos.x, deathPos.y, deathPos.z)
-        let deathPosStr: string | undefined
-        if (deathPos) {
-          deathPosStr = `x: ${deathPos.x.toFixed(2)}, y: ${deathPos.y.toFixed(2)}, z: ${deathPos.x.toFixed(2)}`
-        }
-
-        const dimension = mineflayer.bot.game.dimension
-        await mineflayer.handleMessage('system', `You died at position ${deathPosStr || 'unknown'} in the ${dimension} dimension with the final message: '${message}'. Your place of death has been saved as 'last_death_position' if you want to return. Previous actions were stopped and you have re-spawned.`)
-      }
-    })
 
     mineflayer.bot.once('resourcePack', () => {
       mineflayer.bot.acceptResourcePack()
@@ -112,16 +141,49 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
       mineflayer.logger.log('Bot ready')
     })
 
+    mineflayer.bot.on('spawn', () => {
+      mineflayer.respawnRequestedAt = null
+      if (mineflayer.respawnTimer) {
+        clearTimeout(mineflayer.respawnTimer)
+        mineflayer.respawnTimer = null
+      }
+    })
+
     mineflayer.bot.on('death', () => {
       mineflayer.logger.error('Bot died')
+
+      const now = Date.now()
+      if (mineflayer.respawnRequestedAt && now - mineflayer.respawnRequestedAt < 3000)
+        return
+
+      mineflayer.respawnRequestedAt = now
+      if (mineflayer.respawnTimer)
+        clearTimeout(mineflayer.respawnTimer)
+
+      mineflayer.respawnTimer = setTimeout(() => {
+        mineflayer.respawnTimer = null
+
+        if (!mineflayer.bot || !mineflayer.bot._client)
+          return
+
+        try {
+          mineflayer.bot.respawn()
+          mineflayer.logger.log('Respawn requested')
+        }
+        catch (err) {
+          mineflayer.logger.errorWithError('Failed to respawn', err as Error)
+        }
+      }, 750)
     })
 
     mineflayer.bot.on('kicked', (reason: string) => {
       mineflayer.logger.withFields({ reason }).error('Bot was kicked')
+      mineflayer.tryReconnect('kicked')
     })
 
     mineflayer.bot.on('end', (reason) => {
       mineflayer.logger.withFields({ reason }).log('Bot ended')
+      mineflayer.tryReconnect(reason ?? 'end')
     })
 
     mineflayer.bot.on('error', (err: Error) => {
@@ -182,7 +244,13 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
     this.ticker.on(event, cb)
   }
 
+  public offTick(event: TickEvents, cb: TickEventsHandler<TickEvents>) {
+    this.ticker.off(event, cb)
+  }
+
   public async stop() {
+    this.isStopping = true
+
     for (const plugin of this.options?.plugins || []) {
       if (plugin.beforeCleanup) {
         await plugin.beforeCleanup(this)
@@ -192,6 +260,169 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
     this.bot.removeListener('chat', this.handleCommand())
     this.bot.quit()
     this.removeAllListeners()
+  }
+
+  private async initializeReconnectPlugins(): Promise<void> {
+    for (const plugin of this.options?.plugins || []) {
+      if (plugin.created) {
+        await plugin.created(this)
+      }
+    }
+
+    for (const plugin of this.options?.plugins || []) {
+      if (plugin.loadPlugin) {
+        const loadedPlugin = await plugin.loadPlugin(this, this.bot, this.options.botConfig)
+        this.bot.loadPlugin(loadedPlugin)
+      }
+    }
+  }
+
+  private tryReconnect(reason: string) {
+    const reconnectConfig = this.options.reconnect
+    if (!reconnectConfig?.enabled || this.isStopping || this.isReconnecting) {
+      return
+    }
+
+    const maxRetries = reconnectConfig.maxRetries ?? 5
+
+    if (this.reconnectAttempts >= maxRetries) {
+      this.logger.error(`Max reconnect attempts (${maxRetries}) reached. Giving up.`)
+      return
+    }
+
+    this.reconnectAttempts++
+    this.isReconnecting = true
+
+    this.logger.withFields({
+      reason,
+      attempt: this.reconnectAttempts,
+      maxRetries,
+    }).log('Reconnecting...')
+
+    try {
+      // Clean up old bot
+      this.ready = false
+      this.bot.removeAllListeners()
+
+      // Create new bot with same config
+      this.bot = mineflayer.createBot(this.options.botConfig)
+
+      // Re-register all event handlers
+      this.setupBotEventHandlers()
+
+      // Reload plugins sequentially and expose readiness to spawn hooks.
+      this.reconnectPluginSetupPromise = this.initializeReconnectPlugins().catch((error) => {
+        this.logger.errorWithError('Reconnect plugin initialization failed', error as Error)
+        throw error
+      })
+
+      this.logger.log('Reconnect initiated, waiting for spawn...')
+    }
+    catch (err) {
+      this.logger.errorWithError('Reconnect failed', err as Error)
+      this.isReconnecting = false
+    }
+  }
+
+  private setupBotEventHandlers() {
+    this.bot.once('resourcePack', () => {
+      this.bot.acceptResourcePack()
+    })
+
+    this.bot.on('time', () => {
+      if (this.bot.time.timeOfDay === 0)
+        this.emit('time:sunrise', { time: this.bot.time.timeOfDay })
+      else if (this.bot.time.timeOfDay === 6000)
+        this.emit('time:noon', { time: this.bot.time.timeOfDay })
+      else if (this.bot.time.timeOfDay === 12000)
+        this.emit('time:sunset', { time: this.bot.time.timeOfDay })
+      else if (this.bot.time.timeOfDay === 18000)
+        this.emit('time:midnight', { time: this.bot.time.timeOfDay })
+    })
+
+    this.bot.on('health', () => {
+      if (this.bot.health < this.health.value) {
+        this.health.lastDamageTime = Date.now()
+        this.health.lastDamageTaken = this.health.value - this.bot.health
+      }
+      this.health.value = this.bot.health
+    })
+
+    this.bot.once('spawn', () => {
+      this.ready = true
+      this.reconnectAttempts = 0
+      this.isReconnecting = false
+      this.logger.log('Bot ready (reconnected)')
+    })
+
+    this.bot.on('spawn', () => {
+      this.respawnRequestedAt = null
+      if (this.respawnTimer) {
+        clearTimeout(this.respawnTimer)
+        this.respawnTimer = null
+      }
+    })
+
+    this.bot.on('death', () => {
+      this.logger.error('Bot died')
+
+      const now = Date.now()
+      if (this.respawnRequestedAt && now - this.respawnRequestedAt < 3000)
+        return
+
+      this.respawnRequestedAt = now
+      if (this.respawnTimer)
+        clearTimeout(this.respawnTimer)
+
+      this.respawnTimer = setTimeout(() => {
+        this.respawnTimer = null
+
+        if (!this.bot || !this.bot._client)
+          return
+
+        try {
+          this.bot.respawn()
+          this.logger.log('Respawn requested')
+        }
+        catch (err) {
+          this.logger.errorWithError('Failed to respawn', err as Error)
+        }
+      }, 750)
+    })
+
+    this.bot.on('kicked', (reason: string) => {
+      this.logger.withFields({ reason }).error('Bot was kicked')
+      this.tryReconnect('kicked')
+    })
+
+    this.bot.on('end', (reason) => {
+      this.logger.withFields({ reason }).log('Bot ended')
+      this.tryReconnect(reason ?? 'end')
+    })
+
+    this.bot.on('error', (err: Error) => {
+      this.logger.errorWithError('Bot error:', err)
+    })
+
+    this.bot.on('spawn', () => {
+      this.bot.on('chat', this.handleCommand())
+    })
+
+    this.bot.on('spawn', async () => {
+      try {
+        await this.reconnectPluginSetupPromise
+      }
+      catch {
+        this.logger.error('Skipping spawned hooks: reconnect plugin initialization failed')
+        return
+      }
+
+      for (const plugin of this.options?.plugins || []) {
+        if (plugin.spawned) {
+          await plugin.spawned(this)
+        }
+      }
+    })
   }
 
   private handleCommand() {
@@ -222,127 +453,5 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
           this.bot.chat(`Unknown command: ${cleanCommand}`)
       }
     })
-  }
-
-  private async handleMessage(_source: string, _message: string, _maxResponses: number = Infinity) {
-    // if (!source || !message) {
-  //     console.warn('Received empty message from', source);
-  //     return false;
-  // }
-
-    // let used_command = false;
-    // if (maxResponses === null) {
-    //     maxResponses = settings.max_commands === -1 ? Infinity : settings.max_commands;
-    // }
-    // if (maxResponses === -1) {
-    //     maxResponses = Infinity;
-    // }
-
-    // const self_prompt = source === 'system' || source === ctx.botName;
-    // const from_other_bot = convoManager.isOtherAgent(source);
-
-    // if (!self_prompt && !from_other_bot) { // from user, check for forced commands
-    //     const user_command_name = containsCommand(message);
-    //     if (user_command_name) {
-    //         if (!commandExists(user_command_name)) {
-    //             this.routeResponse(source, `Command '${user_command_name}' does not exist.`);
-    //             return false;
-    //         }
-    //         this.routeResponse(source, `*${source} used ${user_command_name.substring(1)}*`);
-    //         if (user_command_name === '!newAction') {
-    //             // all user-initiated commands are ignored by the bot except for this one
-    //             // add the preceding message to the history to give context for newAction
-    //             this.history.add(source, message);
-    //         }
-    //         let execute_res = await executeCommand(this, message);
-    //         if (execute_res)
-    //             this.routeResponse(source, execute_res);
-    //         return true;
-    //     }
-    // }
-
-    // if (from_other_bot)
-    //     this.last_sender = source;
-
-    // // Now translate the message
-    // message = await handleEnglishTranslation(message);
-    // console.log('received message from', source, ':', message);
-
-    // const checkInterrupt = () => this.self_prompter.shouldInterrupt(self_prompt) || this.shut_up || convoManager.responseScheduledFor(source);
-
-    // let behavior_log = this.bot.modes.flushBehaviorLog();
-    // if (behavior_log.trim().length > 0) {
-    //     const MAX_LOG = 500;
-    //     if (behavior_log.length > MAX_LOG) {
-    //         behavior_log = '...' + behavior_log.substring(behavior_log.length - MAX_LOG);
-    //     }
-    //     behavior_log = 'Recent behaviors log: \n' + behavior_log.substring(behavior_log.indexOf('\n'));
-    //     await this.history.add('system', behavior_log);
-    // }
-
-    // // Handle other user messages
-    // await this.history.add(source, message);
-    // this.history.save();
-
-    // if (!self_prompt && this.self_prompter.on) // message is from user during self-prompting
-    //     maxResponses = 1; // force only respond to this message, then let self-prompting take over
-    // for (let i=0; i<maxResponses; i++) {
-    //     if (checkInterrupt()) break;
-    //     let history = this.history.getHistory();
-    //     let res = await this.prompter.promptConvo(history);
-
-    //     console.log(`${this.name} full response to ${source}: ""${res}""`);
-
-    //     if (res.trim().length === 0) {
-    //         console.warn('no response')
-    //         break; // empty response ends loop
-    //     }
-
-    //     let command_name = containsCommand(res);
-
-    //     if (command_name) { // contains query or command
-    //         res = truncCommandMessage(res); // everything after the command is ignored
-    //         this.history.add(this.name, res);
-
-    //         if (!commandExists(command_name)) {
-    //             this.history.add('system', `Command ${command_name} does not exist.`);
-    //             console.warn('Agent hallucinated command:', command_name)
-    //             continue;
-    //         }
-
-    //         if (checkInterrupt()) break;
-    //         this.self_prompter.handleUserPromptedCmd(self_prompt, isAction(command_name));
-
-    //         if (settings.verbose_commands) {
-    //             this.routeResponse(source, res);
-    //         }
-    //         else { // only output command name
-    //             let pre_message = res.substring(0, res.indexOf(command_name)).trim();
-    //             let chat_message = `*used ${command_name.substring(1)}*`;
-    //             if (pre_message.length > 0)
-    //                 chat_message = `${pre_message}  ${chat_message}`;
-    //             this.routeResponse(source, chat_message);
-    //         }
-
-    //         let execute_res = await executeCommand(this, res);
-
-    //         console.log('Agent executed:', command_name, 'and got:', execute_res);
-    //         used_command = true;
-
-    //         if (execute_res)
-    //             this.history.add('system', execute_res);
-    //         else
-    //             break;
-    //     }
-    //     else { // conversation response
-    //         this.history.add(this.name, res);
-    //         this.routeResponse(source, res);
-    //         break;
-    //     }
-
-    //     this.history.save();
-    // }
-
-  // return used_command;
   }
 }

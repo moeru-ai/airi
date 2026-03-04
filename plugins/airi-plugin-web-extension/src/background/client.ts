@@ -28,9 +28,12 @@ export function createClientState(): ClientState {
 
 function createIdentity() {
   return {
-    plugin: PLUGIN_NAME,
-    instanceId: nanoid(),
-    version: typeof packageJSON.version === 'string' ? packageJSON.version : undefined,
+    kind: 'plugin',
+    plugin: {
+      id: PLUGIN_NAME,
+      version: typeof packageJSON.version === 'string' ? packageJSON.version : undefined,
+    },
+    id: nanoid(),
     labels: {
       runtime: 'web-extension',
     },

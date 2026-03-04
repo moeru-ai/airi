@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/pipelines-audio",
   "type": "module",
-  "version": "0.8.4",
+  "version": "0.8.5-beta.3",
   "private": true,
   "description": "Audio pipeline orchestration for AIRI (capture, VAD, encode, stream)",
   "author": {
@@ -33,7 +33,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@moeru/eventa": "^1.0.0-alpha.11",
+    "@moeru/eventa": "^1.0.0-beta.1",
     "@moeru/std": "catalog:",
     "clustr": "^1.0.2"
   },

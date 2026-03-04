@@ -24,26 +24,26 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@pixiv/three-vrm": "^3.4.5",
-    "@pixiv/three-vrm-animation": "^3.4.5",
-    "@pixiv/three-vrm-core": "^3.4.5",
+    "@pixiv/three-vrm": "^3.5.0",
+    "@pixiv/three-vrm-animation": "^3.5.0",
+    "@pixiv/three-vrm-core": "^3.5.0",
     "@proj-airi/stage-shared": "workspace:*",
     "@proj-airi/ui": "workspace:*",
-    "@tresjs/cientos": "^5.2.3",
-    "@tresjs/core": "^5.3.1",
-    "@tresjs/post-processing": "^3.2.3",
-    "@vueuse/core": "^14.1.0",
+    "@tresjs/cientos": "^5.4.0",
+    "@tresjs/core": "^5.5.0",
+    "@tresjs/post-processing": "^3.4.0",
+    "@vueuse/core": "^14.2.1",
     "culori": "^4.0.2",
     "es-toolkit": "catalog:",
     "pinia": "^3.0.4",
-    "postprocessing": "^6.38.2",
-    "three": "^0.182.0",
+    "postprocessing": "^6.38.3",
+    "three": "^0.183.1",
     "vue": "catalog:",
     "wlipsync": "^1.3.0"
   },
   "devDependencies": {
     "@types/culori": "^4.0.1",
-    "@types/three": "^0.182.0",
+    "@types/three": "^0.183.1",
     "vue-tsc": "^3.1.8"
   }
 }

@@ -1,3 +1,4 @@
+import type { InvocableEventContext } from '@moeru/eventa'
 import type { AnalyserBeatEvent, AnalyserWorkletParameters } from '@nekopaw/tempora'
 
 import type { BeatSyncDetectorState } from './types'
@@ -28,9 +29,9 @@ function getBroadcastChannel() {
   return _broadcastChannel
 }
 
-export function createContext() {
+export function createContext(): InvocableEventContext<any, { raw?: any }> {
   if (isElectronWindow(window)) {
-    return createBroadcastChannelContext(getBroadcastChannel()).context
+    return createBroadcastChannelContext(getBroadcastChannel()).context as InvocableEventContext<any, { raw?: any }>
   }
   else {
     return createWebContext()

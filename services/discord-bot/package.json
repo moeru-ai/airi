@@ -32,7 +32,7 @@
     "@xsai/generate-transcription": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "discord.js": "^14.25.1",
-    "libsodium-wrappers": "^0.7.16",
+    "libsodium-wrappers": "^0.8.2",
     "opusscript": "^0.1.1",
     "tsx": "^4.21.0",
     "wavefile": "^11.0.0"

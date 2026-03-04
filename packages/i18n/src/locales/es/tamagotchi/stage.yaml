@@ -12,13 +12,13 @@ docs:
   'fade-on-hover':
     enable: Ocultar al pasar el cursor
     disable: Mostrar siempre
-  'open-settings': Open settings
-  'open-chat': Open Chat
-  'refresh': Refresh
-  'open-hearing-controls': Open hearing Controls
-  'drag-to-move-window': Drag to move window
-  'switch-to-light-mode': Switch to light mode
-  'switch-to-dark-mode': Switch to dark mode
+  'open-settings': Abrir configuración
+  'open-chat': Abrir Chat
+  'refresh': Actualizar
+  'open-hearing-controls': Abrir controles de audición
+  'drag-to-move-window': Arrastra para mover la ventana
+  'switch-to-light-mode': Cambiar a modo claro
+  'switch-to-dark-mode': Cambiar a modo oscuro
 notice:
   'fade-on-hover':
     title: Desvanecer al pasar el cursor

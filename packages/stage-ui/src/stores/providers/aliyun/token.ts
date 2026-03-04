@@ -56,6 +56,7 @@ export async function signStringToBase64(stringToSign: string, accessKeySecret: 
     name: 'HMAC',
     hash: { name: 'SHA-1' },
   }
+
   const cryptoKey = await subtle.importKey(
     'raw',
     keyData as Uint8Array<ArrayBuffer>,

@@ -1,7 +1,6 @@
-import type * as fullSchema from '../schemas'
-import type { Database } from './db'
+import type { Database } from '../libs/db'
 
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 
 import { createConflictError, createForbiddenError } from '../utils/error'
 
@@ -46,7 +45,7 @@ function pickCharacterId(members: SyncChatMemberPayload[] | undefined) {
   return members?.find(member => member.type === 'character' && member.characterId)?.characterId
 }
 
-export function createChatService(db: Database<typeof fullSchema>) {
+export function createChatService(db: Database) {
   return {
     async syncChat(userId: string, payload: SyncChatPayload) {
       return await db.transaction(async (tx) => {
@@ -127,40 +126,38 @@ export function createChatService(db: Database<typeof fullSchema>) {
           }
         }
 
-        for (const message of payload.messages) {
-          const existing = await tx.query.messages.findFirst({
-            where: eq(schema.messages.id, message.id),
-          })
+        if (payload.messages.length > 0) {
+          const messageIds = payload.messages.map(m => m.id)
+          const existingMessages = await tx
+            .select({ id: schema.messages.id, chatId: schema.messages.chatId })
+            .from(schema.messages)
+            .where(inArray(schema.messages.id, messageIds))
 
-          const senderId = resolveSenderId(message.role, userId, characterId)
-          const createdAt = message.createdAt ? new Date(message.createdAt) : now
+          const conflicting = existingMessages.find(m => m.chatId !== chatId)
+          if (conflicting)
+            throw createConflictError('Message already belongs to another chat')
 
-          if (existing) {
-            if (existing.chatId !== chatId)
-              throw createConflictError('Message already belongs to another chat')
-
-            await tx.update(schema.messages)
-              .set({
-                senderId,
-                role: message.role,
-                content: message.content,
-                updatedAt: now,
-              })
-              .where(eq(schema.messages.id, message.id))
-            continue
-          }
-
-          await tx.insert(schema.messages).values({
-            id: message.id,
-            chatId,
-            senderId,
-            role: message.role,
-            content: message.content,
-            mediaIds: [],
-            stickerIds: [],
-            createdAt,
-            updatedAt: now,
-          })
+          await tx.insert(schema.messages)
+            .values(payload.messages.map(message => ({
+              id: message.id,
+              chatId,
+              senderId: resolveSenderId(message.role, userId, characterId),
+              role: message.role,
+              content: message.content,
+              mediaIds: [] as string[],
+              stickerIds: [] as string[],
+              createdAt: message.createdAt ? new Date(message.createdAt) : now,
+              updatedAt: now,
+            })))
+            .onConflictDoUpdate({
+              target: schema.messages.id,
+              set: {
+                senderId: sql`excluded.sender_id`,
+                role: sql`excluded.role`,
+                content: sql`excluded.content`,
+                updatedAt: sql`excluded.updated_at`,
+              },
+            })
         }
 
         return { chatId }

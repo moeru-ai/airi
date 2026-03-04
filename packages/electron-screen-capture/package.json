@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/electron-screen-capture",
   "type": "module",
-  "version": "0.8.4",
+  "version": "0.8.5-beta.3",
   "private": true,
   "description": "Screen capture",
   "author": {
@@ -22,8 +22,6 @@
     "./vue": "./dist/vue.js",
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
     "README.md",

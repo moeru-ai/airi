@@ -19,7 +19,7 @@ function createPeer(options: {
     authenticated: true,
     name: options.name,
     identity: options.plugin && options.instanceId
-      ? { plugin: options.plugin, instanceId: options.instanceId, labels: options.labels }
+      ? { kind: 'plugin', plugin: { id: options.plugin }, id: options.instanceId, labels: options.labels }
       : undefined,
   }
 }
@@ -39,7 +39,7 @@ function createSparkNotifyEvent(overrides: Partial<WebSocketEventOf<'spark:notif
     type: 'spark:notify',
     data,
     metadata: overrides.metadata ?? {
-      source: { plugin: 'server-runtime', instanceId: 'test' },
+      source: { kind: 'plugin', plugin: { id: 'server-runtime' }, id: 'test' },
       event: { id: data.id },
     },
     route: overrides.route,

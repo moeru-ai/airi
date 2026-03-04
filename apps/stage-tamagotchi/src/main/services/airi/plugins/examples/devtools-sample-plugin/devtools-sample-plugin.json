@@ -1,0 +1,8 @@
+{
+  "apiVersion": "v1",
+  "kind": "manifest.plugin.airi.moeru.ai",
+  "name": "devtools-sample-plugin",
+  "entrypoints": {
+    "electron": "./devtools-sample-plugin.mjs"
+  }
+}

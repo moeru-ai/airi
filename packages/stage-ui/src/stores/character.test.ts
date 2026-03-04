@@ -4,8 +4,9 @@ import { createTestingPinia } from '@pinia/testing'
 import { setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useCharacterStore } from './character'
+import { setCharacterLlmMarkerParserFactoryForTest, useCharacterStore } from './character'
 import { useAiriCardStore } from './modules'
+import { useSpeechRuntimeStore } from './speech-runtime'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -17,6 +18,8 @@ const writeLiteralSpy = vi.fn()
 const writeFlushSpy = vi.fn()
 const endSpy = vi.fn()
 const cancelSpy = vi.fn()
+const parserConsumeSpy = vi.fn()
+const parserEndSpy = vi.fn()
 
 const openSpeechIntentSpy = vi.fn(() => ({
   intentId: 'intent-test',
@@ -30,22 +33,32 @@ const openSpeechIntentSpy = vi.fn(() => ({
   cancel: cancelSpy,
 }))
 
-vi.mock('../speech-runtime', () => ({
-  useSpeechRuntimeStore: () => ({
-    openIntent: openSpeechIntentSpy,
-  }),
-}))
-
 describe('store character', () => {
   beforeEach(() => {
     const pinia = createTestingPinia({ createSpy: vi.fn, stubActions: false })
     setActivePinia(pinia)
+
+    setCharacterLlmMarkerParserFactoryForTest(options => ({
+      async consume(textPart: string) {
+        parserConsumeSpy(textPart)
+        if (textPart)
+          await options.onLiteral?.(textPart)
+      },
+      async end() {
+        parserEndSpy()
+      },
+    }))
 
     writeLiteralSpy.mockClear()
     writeFlushSpy.mockClear()
     endSpy.mockClear()
     cancelSpy.mockClear()
     openSpeechIntentSpy.mockClear()
+    parserConsumeSpy.mockClear()
+    parserEndSpy.mockClear()
+
+    const speechRuntimeStore = useSpeechRuntimeStore(pinia)
+    speechRuntimeStore.openIntent = openSpeechIntentSpy
 
     const airiCardStore = useAiriCardStore(pinia)
     // @ts-expect-error - testing purpose
@@ -59,9 +72,11 @@ describe('store character', () => {
           agents: {},
           modules: {
             consciousness: {
+              provider: 'mock-provider',
               model: 'mock-model',
             },
             speech: {
+              provider: 'mock-speech-provider',
               model: 'mock-speech-model',
               voice_id: 'alloy',
             },
@@ -90,7 +105,7 @@ describe('store character', () => {
     expect(store.reactions[199]?.message).toBe('message-200')
   })
 
-  it('records streamed reactions when the stream ends', () => {
+  it('records streamed reactions when the stream ends', async () => {
     const store = useCharacterStore()
     const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(123456)
 
@@ -103,10 +118,14 @@ describe('store character', () => {
     expect(store.reactions[0]?.sourceEventId).toBe('spark-1')
     expect(store.reactions[0]?.createdAt).toBe(123456)
 
-    expect(writeLiteralSpy).toHaveBeenCalledWith('Hello')
-    expect(writeLiteralSpy).toHaveBeenCalledWith(' world')
-    expect(writeFlushSpy).toHaveBeenCalled()
-    expect(endSpy).toHaveBeenCalled()
+    await vi.waitFor(() => {
+      expect(parserConsumeSpy).toHaveBeenCalled()
+      expect(parserEndSpy).toHaveBeenCalled()
+      expect(writeLiteralSpy).toHaveBeenCalledWith('Hello')
+      expect(writeLiteralSpy).toHaveBeenCalledWith(' world')
+      expect(writeFlushSpy).toHaveBeenCalled()
+      expect(endSpy).toHaveBeenCalled()
+    })
 
     nowSpy.mockRestore()
   })

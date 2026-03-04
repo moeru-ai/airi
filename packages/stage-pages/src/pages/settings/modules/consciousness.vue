@@ -25,9 +25,15 @@ const {
 const { t } = useI18n()
 const { trackProviderClick } = useAnalytics()
 
-watch(activeProvider, async (provider) => {
+watch(activeProvider, async (provider, oldProvider) => {
   if (!provider)
     return
+
+  // Reset model when switching providers (but not on initial load)
+  if (oldProvider !== undefined && oldProvider !== provider) {
+    activeModel.value = ''
+  }
+
   await consciousnessStore.loadModelsForProvider(provider)
 }, { immediate: true })
 

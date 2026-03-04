@@ -2,11 +2,34 @@ import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
 export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
 export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
+
 export const electronOpenMainDevtools = defineInvokeEventa('eventa:invoke:electron:windows:main:devtools:open')
 export const electronOpenSettings = defineInvokeEventa('eventa:invoke:electron:windows:settings:open')
 export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windows:chat:open')
 export const electronOpenSettingsDevtools = defineInvokeEventa('eventa:invoke:electron:windows:settings:devtools:open')
 export const electronOpenDevtoolsWindow = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:devtools:open')
+
+export interface ElectronServerChannelTlsConfig {
+  [key: string]: unknown
+}
+
+export interface ElectronServerChannelConfig {
+  websocketTlsConfig: ElectronServerChannelTlsConfig | null
+}
+export const electronGetServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig>('eventa:invoke:electron:server-channel:get-config')
+export const electronApplyServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig, Partial<ElectronServerChannelConfig>>('eventa:invoke:electron:server-channel:apply-config')
+
+export const electronPluginList = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:list')
+export const electronPluginSetEnabled = defineInvokeEventa<PluginRegistrySnapshot, { name: string, enabled: boolean, path?: string }>('eventa:invoke:electron:plugins:set-enabled')
+export const electronPluginLoadEnabled = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:load-enabled')
+export const electronPluginLoad = defineInvokeEventa<PluginRegistrySnapshot, { name: string }>('eventa:invoke:electron:plugins:load')
+export const electronPluginUnload = defineInvokeEventa<PluginRegistrySnapshot, { name: string }>('eventa:invoke:electron:plugins:unload')
+export const electronPluginInspect = defineInvokeEventa<PluginHostDebugSnapshot>('eventa:invoke:electron:plugins:inspect')
+export const electronPluginUpdateCapability = defineInvokeEventa<PluginCapabilityState, PluginCapabilityPayload>('eventa:invoke:electron:plugins:capability:update')
+
+export const pluginProtocolListProvidersEventName = 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers'
+export const pluginProtocolListProviders = defineInvokeEventa<Array<{ name: string }>>(pluginProtocolListProvidersEventName)
+
 export const captionIsFollowingWindowChanged = defineEventa<boolean>('eventa:event:electron:windows:caption-overlay:is-following-window-changed')
 export const captionGetIsFollowingWindow = defineInvokeEventa<boolean>('eventa:invoke:electron:windows:caption-overlay:get-is-following-window')
 
@@ -58,6 +81,51 @@ export interface WidgetSnapshot {
   ttlMs: number
 }
 
+export interface PluginManifestSummary {
+  name: string
+  entrypoints: Record<string, string | undefined>
+  path: string
+  enabled: boolean
+  loaded: boolean
+  isNew: boolean
+}
+
+export interface PluginRegistrySnapshot {
+  root: string
+  plugins: PluginManifestSummary[]
+}
+
+// TODO: Replace these manually duplicated IPC types with re-exports from
+// @proj-airi/plugin-sdk (CapabilityDescriptor) once stage-ui and the shared
+// eventa layer can depend on the SDK without introducing unwanted coupling.
+export interface PluginCapabilityPayload {
+  key: string
+  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
+  metadata?: Record<string, unknown>
+}
+
+export interface PluginCapabilityState {
+  key: string
+  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
+  metadata?: Record<string, unknown>
+  updatedAt: number
+}
+
+export interface PluginHostSessionSummary {
+  id: string
+  manifestName: string
+  phase: string
+  runtime: 'electron' | 'node' | 'web'
+  moduleId: string
+}
+
+export interface PluginHostDebugSnapshot {
+  registry: PluginRegistrySnapshot
+  sessions: PluginHostSessionSummary[]
+  capabilities: PluginCapabilityState[]
+  refreshedAt: number
+}
+
 export const widgetsOpenWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:electron:windows:widgets:open')
 export const widgetsAdd = defineInvokeEventa<string | undefined, WidgetsAddPayload>('eventa:invoke:electron:windows:widgets:add')
 export const widgetsRemove = defineInvokeEventa<void, { id: string }>('eventa:invoke:electron:windows:widgets:remove')
@@ -72,5 +140,5 @@ export const widgetsRemoveEvent = defineEventa<{ id: string }>('eventa:event:ele
 export const widgetsClearEvent = defineEventa('eventa:event:electron:windows:widgets:clear')
 export const widgetsUpdateEvent = defineEventa<{ id: string, componentProps?: Record<string, any> }>('eventa:event:electron:windows:widgets:update')
 
-export { electron } from './electron'
-export * from './electron-updater'
+export { electron } from '@proj-airi/electron-eventa'
+export * from '@proj-airi/electron-eventa/electron-updater'

@@ -93,7 +93,7 @@ function handleItemClick(item: TItem, globalIndex: number) {
       </div>
 
       <div
-        class="grid gap-4"
+        class="grid gap-4 pb-4"
         :style="{
           gridTemplateColumns: `repeat(${currentCols}, minmax(0, 1fr))`,
         }"

@@ -71,6 +71,11 @@ live2d:
     title: Отключить слежение за мышью
     button-disable:
       title: Отключить
+  fps:
+    title: FPS
+    description: Limit rendering frame rate
+    options:
+      unlimited: No Limit
 microphone: Микрофон
 models: Модель
 pages:
@@ -83,6 +88,8 @@ pages:
     card_not_found: Карта не найдена
     character: Персонаж
     close: Закрыть
+    chat:
+      provider: Chat / Provider
     consciousness:
       model: Сознание / Модель
     created_by: создано
@@ -111,6 +118,9 @@ pages:
         scenario: Вы недавно проснулись и забыли всё о прошлой жизни.
         systemprompt: Вы будете получать сообщения, отвечайте на них как настоящий человек.
         posthistoryinstructions: Не забывайте подражать человеку.
+      modules_info: Configure modules for this character card. If not set, default module configuration will be used.
+      use_default: Use default
+      use_default_not_configured: Use default (not configured)
       fields_info:
         subtitle: >-
           Здесь можно указать детали о создаваемом персонаже, описать его историю, контекст и то, как он должен отвечать на взаимодействия.
@@ -127,6 +137,8 @@ pages:
         posthistoryinstructions: Укажите, что AI должен учитывать после истории сообщений.
         version: >-
           Версия карты. Увеличьте число, если изменяете предыдущую карту.
+        consciousness_model: Select the consciousness model (AI model) for this character.
+        speech_model: Select the speech synthesis model and voice for this character.
       errors:
         name: Имя должно быть корректным и непустым.
         version: 'Ошибка: неверная версия!'
@@ -147,6 +159,7 @@ pages:
     search: Искать карточки...
     sort_by: Сортировать по
     speech:
+      provider: Speech / Provider
       model: Речь / Модель
       voice: Речь / Голос
     systemprompt: Системный промпт
@@ -289,7 +302,7 @@ pages:
             search_results: Найдено {count} из {total} моделей
             show_less: Показать меньше
             show_more: Показать больше
-            subtitle: Выберите модель у провайдера
+            subtitle: Select a default model from the provider
             title: Модель
       title: Сознание
     description: Мыслительный процесс, зрение, синтез речи, игры и т. д.
@@ -352,6 +365,7 @@ pages:
               stop:
                 label: Стоп
             select-voice:
+              loading: Loading model...
               required: Выберите голос
           provider-voice-selection:
             custom_model_placeholder: Введите название кастомной модели...
@@ -601,6 +615,30 @@ pages:
           validation:
             error-missing-api-key: Введите API-ключ, чтобы протестировать голос.
         title: ElevenLabs
+      kokoro-local:
+        description: Local text-to-speech using Kokoro-82M.
+        fields:
+          field:
+            model:
+              label: Model Selection
+              description: Smaller models load faster but may have slightly lower quality.
+        models:
+          fp32-webgpu:
+            description: Full precision model using WebGPU - Recommended for supported devices
+          fp32:
+            description: Full precision model
+          fp16:
+            description: Half precision
+          q8:
+            description: 8-bit quantized
+          q4:
+            description: 4-bit quantized
+          q4f16:
+            description: 4-bit with FP16
+        playground:
+          default-text: Hello! This is a test of the Kokoro text-to-speech system.
+          title: Voice Playground
+        title: Kokoro TTS (Local)
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai
@@ -615,9 +653,17 @@ pages:
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili / IndexTTS
+        callout_indextts2_unavailable_title: Limited Support
+        callout_indextts2_unavailable: Support for IndexTTS2 is currently unavailable. Please use IndexTTS.
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry
+      minimax:
+        description: minimaxi.com
+        title: MiniMax
+      minimax-global:
+        description: minimax.io
+        title: MiniMax Global
       mistral:
         description: mistral.ai
         title: Mistral
@@ -741,7 +787,7 @@ pages:
                 title: Markdown Stress
                 description: Stress markdown parsing and rendering with heavy chat payloads
               use-magic-keys:
-                title: useMagicKeys
+                title: useMagicKeys Tool
                 description: Test shortcuts
               audio-record:
                 title: Audio Record
@@ -903,6 +949,10 @@ vrm:
   skybox:
     skybox-intensity: SkyBox Intensity
     skybox-specular-mix: Specular Mix
+websocket-secure-enabled:
+  title: Включить безопасный WebSocket (WSS)
+  description: >-
+    Включите WSS (WebSocket Secure), чтобы разрешить HTTPS-подключения для мобильных устройств (pocket) в режиме разработки. Это автоматически сгенерирует самоподписанный сертификат.
 wip:
   title: Work in Progress
   description: >-

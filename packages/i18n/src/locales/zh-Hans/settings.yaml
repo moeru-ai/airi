@@ -71,6 +71,11 @@ live2d:
     title: 禁用模型鼠标跟踪
     button-disable:
       title: 禁用
+  fps:
+    title: 帧率
+    description: 限制渲染帧率
+    options:
+      unlimited: 无限制
 microphone: 麦克风
 models: 模型
 pages:
@@ -83,6 +88,8 @@ pages:
     card_not_found: 未找到角色卡
     character: 角色设定
     close: 关闭
+    chat:
+      provider: 聊天 / 提供商
     consciousness:
       model: 意识 / 模型
     created_by: 创建者
@@ -111,6 +118,9 @@ pages:
         scenario: 你最近醒来，忘记了之前的所有生活。
         systemprompt: 你将收到消息，请像真实人类一样回复。
         posthistoryinstructions: 记得模仿人类的行为。
+      modules_info: 为此角色卡配置模块。如未设置，将使用默认模块配置。
+      use_default: 使用默认
+      use_default_not_configured: 使用默认（未配置）
       fields_info:
         subtitle: >-
           您可以在这里填写有关您正在创建的角色的一些详细信息，解释他的背景和情境，以及应该如何回应您的互动。
@@ -127,6 +137,8 @@ pages:
         posthistoryinstructions: 在消息历史之后，放入 AI LLM 应该阅读的内容。
         version: >-
           卡片版本，如果您从之前的卡片做了更改，应当增加此版本号。
+        consciousness_model: 为这个角色选择 AI 模型。
+        speech_model: 为此角色指定语音合成模型与音色。
       errors:
         name: 错误：你必须提供一个有效的名称！
         version: '错误：版本号无效！'
@@ -147,6 +159,7 @@ pages:
     search: 搜索角色卡...
     sort_by: 排序方式
     speech:
+      provider: 语音 / 提供商
       model: 声音 / 模型
       voice: 声音 / 声线
     systemprompt: 系统提示词
@@ -289,7 +302,7 @@ pages:
             search_results: 找到 {count} / {total} 个模型
             show_less: 显示更多
             show_more: 收起
-            subtitle: 选择一个模型
+            subtitle: 选择一个默认模型
             title: 模型
       title: 意识
     description: 思维，视觉，言语综合，游戏等
@@ -352,6 +365,7 @@ pages:
               stop:
                 label: 停止
             select-voice:
+              loading: 正在加载模型...
               required: 请选择声线
           provider-voice-selection:
             custom_model_placeholder: 输入指定模型名称...
@@ -454,7 +468,7 @@ pages:
           empty: 没有可用的验证步骤。
           openai-compatible:
             check-config:
-              title: 配置 `Configuration`
+              title: 配置
             check-connectivity:
               title: 连通性
             check-supports-model-listing:
@@ -601,6 +615,30 @@ pages:
           validation:
             error-missing-api-key: 需要填写 API Key 才能用哦！
         title: ElevenLabs (11labs)
+      kokoro-local:
+        description: 基于 Kokoro-82M 的本地语音合成
+        fields:
+          field:
+            model:
+              label: 模型选择
+              description: 较小的模型加载更快，但质量可能略有下降。
+        models:
+          fp32-webgpu:
+            description: 基于 WebGPU 的全精度模型 - 建议在支持的设备上使用
+          fp32:
+            description: 全精度模型
+          fp16:
+            description: 半精度
+          q8:
+            description: 8-bit 量化
+          q4:
+            description: 4-bit 量化
+          q4f16:
+            description: 4-bit 量化 (FP16)
+        playground:
+          default-text: 您好！这是 Kokoro 文本转语音（TTS）系统的测试。
+          title: 实验平台
+        title: Kokoro TTS (本地)
       fireworks:
         description: Fireworks.ai
         title: Fireworks.ai
@@ -615,9 +653,17 @@ pages:
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili / IndexTTS
+        callout_indextts2_unavailable_title: 暂不支持
+        callout_indextts2_unavailable: 目前尚未支持 IndexTTS2，请使用 IndexTTS。
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry
+      minimax:
+        description: minimaxi.com
+        title: MiniMax
+      minimax-global:
+        description: minimax.io
+        title: MiniMax Global
       mistral:
         description: mistral.ai
         title: Mistral
@@ -637,8 +683,8 @@ pages:
         description: OpenAi.com
         title: OpenAI
       openai-compatible:
-        description: OpenAI Compatible
-        title: OpenAI Compatible
+        description: OpenAI 兼容 API
+        title: OpenAI 兼容 API
       n1n:
         description: n1n.ai - 高性能的 AI API 提供商
         title: n1n
@@ -690,8 +736,8 @@ pages:
         description: cerebras.ai
         title: Cerebras
       aliyun-nls:
-        description: Aliyun NLS
-        title: Aliyun NLS
+        description: Aliyun 智能语音服务
+        title: Aliyun 智能语音服务
       browser-web-speech-api:
         description: 浏览器原生STT (需要 Chrome/Edge/Safari)
         title: Web 语音API
@@ -738,10 +784,10 @@ pages:
                 title: 性能可视化工具
                 description: 切换 FPS/长任务/内存叠加
               markdown-stress:
-                title: Markdown压力
-                description: 用大量聊天负载来测试 markdown 的解析和渲染能力
+                title: Markdown Stress
+                description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
               use-magic-keys:
-                title: useMagicKeys
+                title: useMagicKeys Tool
                 description: 测试快捷键
               audio-record:
                 title: 音频录制
@@ -903,6 +949,10 @@ vrm:
   skybox:
     skybox-intensity: 天空盒光照强度
     skybox-specular-mix: 漫反射/镜面反射混合系数
+websocket-secure-enabled:
+  title: 启用安全 WebSocket (WSS)
+  description: >-
+    启用 WSS（WebSocket Secure）以允许开发模式下移动端（pocket）的 HTTPS 连接。这将自动生成自签名证书。
 wip:
   title: 正在开发中
   description: >-

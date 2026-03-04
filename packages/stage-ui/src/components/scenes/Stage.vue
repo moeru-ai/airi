@@ -64,6 +64,7 @@ const {
   live2dAutoBlinkEnabled,
   live2dForceAutoBlinkEnabled,
   live2dShadowEnabled,
+  live2dMaxFps,
 } = storeToRefs(settingsStore)
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext } = useAudioContext()
@@ -546,6 +547,7 @@ defineExpose({
         :live2d-auto-blink-enabled="live2dAutoBlinkEnabled"
         :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
         :live2d-shadow-enabled="live2dShadowEnabled"
+        :live2d-max-fps="live2dMaxFps"
       />
       <ThreeScene
         v-if="stageModelRenderer === 'vrm' && showStage"

@@ -2,6 +2,7 @@ import type { Item } from 'prismarine-item'
 
 import type { Mineflayer } from '../../libs/mineflayer'
 
+import { ActionError } from '../../utils/errors'
 import { useLogger } from '../../utils/logger'
 import { goToPlayer, goToPosition } from '../movement'
 import { getNearestBlock } from '../world'
@@ -12,15 +13,15 @@ const logger = useLogger()
  * Equip an item from the bot's inventory.
  * @param mineflayer The mineflayer instance.
  * @param itemName The name of the item to equip.
- * @returns Whether the item was successfully equipped.
+ * @throws {ActionError} When the item is not in inventory.
  */
-export async function equip(mineflayer: Mineflayer, itemName: string): Promise<boolean> {
+export async function equip(mineflayer: Mineflayer, itemName: string): Promise<void> {
   const item = mineflayer.bot.inventory
     .items()
     .find(item => item.name.includes(itemName))
   if (!item) {
     logger.log(`You do not have any ${itemName} to equip.`)
-    return false
+    throw new ActionError('ITEM_NOT_FOUND', `You do not have any ${itemName} to equip`, { item: itemName })
   }
   let destination: 'hand' | 'head' | 'torso' | 'legs' | 'feet' = 'hand'
   if (itemName.includes('leggings'))
@@ -33,7 +34,7 @@ export async function equip(mineflayer: Mineflayer, itemName: string): Promise<b
     destination = 'torso'
 
   await mineflayer.bot.equip(item, destination)
-  return true
+  logger.log(`Equipped ${itemName}.`)
 }
 
 /**
@@ -41,9 +42,9 @@ export async function equip(mineflayer: Mineflayer, itemName: string): Promise<b
  * @param mineflayer The mineflayer instance.
  * @param itemName The name of the item to discard.
  * @param num The number of items to discard. Default is -1 for all.
- * @returns Whether the item was successfully discarded.
+ * @throws {ActionError} When the item is not in inventory.
  */
-export async function discard(mineflayer: Mineflayer, itemName: string, num = -1): Promise<boolean> {
+export async function discard(mineflayer: Mineflayer, itemName: string, num = -1): Promise<void> {
   let discarded = 0
   while (true) {
     const item = mineflayer.bot.inventory
@@ -62,24 +63,30 @@ export async function discard(mineflayer: Mineflayer, itemName: string, num = -1
   }
   if (discarded === 0) {
     logger.log(`You do not have any ${itemName} to discard.`)
-    return false
+    throw new ActionError('ITEM_NOT_FOUND', `You do not have any ${itemName} to discard`, { item: itemName })
   }
   logger.log(`Successfully discarded ${discarded} ${itemName}.`)
-  return true
 }
 
-export async function putInChest(mineflayer: Mineflayer, itemName: string, num = -1): Promise<boolean> {
+/**
+ * Put an item in a chest.
+ * @param mineflayer The mineflayer instance.
+ * @param itemName The name of the item to put in the chest.
+ * @param num The number of items to put in the chest. Default is -1 for all.
+ * @throws {ActionError} When no chest is nearby or the item is not in inventory.
+ */
+export async function putInChest(mineflayer: Mineflayer, itemName: string, num = -1): Promise<void> {
   const chest = getNearestBlock(mineflayer, 'chest', 32)
   if (!chest) {
     logger.log(`Could not find a chest nearby.`)
-    return false
+    throw new ActionError('TARGET_NOT_FOUND', 'Could not find a chest nearby', { blockType: 'chest' })
   }
   const item = mineflayer.bot.inventory
     .items()
     .find(item => item.name.includes(itemName))
   if (!item) {
     logger.log(`You do not have any ${itemName} to put in the chest.`)
-    return false
+    throw new ActionError('ITEM_NOT_FOUND', `You do not have any ${itemName} to put in the chest`, { item: itemName })
   }
   const toPut = num === -1 ? item.count : Math.min(num, item.count)
   await goToPosition(mineflayer, chest.position.x, chest.position.y, chest.position.z)
@@ -87,18 +94,24 @@ export async function putInChest(mineflayer: Mineflayer, itemName: string, num =
   await chestContainer.deposit(item.type, null, toPut)
   await chestContainer.close()
   logger.log(`Successfully put ${toPut} ${itemName} in the chest.`)
-  return true
 }
 
+/**
+ * Take an item from a chest.
+ * @param mineflayer The mineflayer instance.
+ * @param itemName The name of the item to take.
+ * @param num The number of items to take. Default is -1 for all.
+ * @throws {ActionError} When no chest is nearby or the item is not in the chest.
+ */
 export async function takeFromChest(
   mineflayer: Mineflayer,
   itemName: string,
   num = -1,
-): Promise<boolean> {
+): Promise<void> {
   const chest = getNearestBlock(mineflayer, 'chest', 32)
   if (!chest) {
     logger.log(`Could not find a chest nearby.`)
-    return false
+    throw new ActionError('TARGET_NOT_FOUND', 'Could not find a chest nearby', { blockType: 'chest' })
   }
   await goToPosition(mineflayer, chest.position.x, chest.position.y, chest.position.z)
   const chestContainer = await mineflayer.bot.openContainer(chest)
@@ -108,25 +121,24 @@ export async function takeFromChest(
   if (!item) {
     logger.log(`Could not find any ${itemName} in the chest.`)
     await chestContainer.close()
-    return false
+    throw new ActionError('ITEM_NOT_FOUND', `Could not find any ${itemName} in the chest`, { item: itemName })
   }
   const toTake = num === -1 ? item.count : Math.min(num, item.count)
   await chestContainer.withdraw(item.type, null, toTake)
   await chestContainer.close()
   logger.log(`Successfully took ${toTake} ${itemName} from the chest.`)
-  return true
 }
 
 /**
  * View the contents of a chest near the bot.
  * @param mineflayer The mineflayer instance.
- * @returns Whether the chest was successfully viewed.
+ * @throws {ActionError} When no chest is nearby.
  */
-export async function viewChest(mineflayer: Mineflayer): Promise<boolean> {
+export async function viewChest(mineflayer: Mineflayer): Promise<void> {
   const chest = getNearestBlock(mineflayer, 'chest', 32)
   if (!chest) {
     logger.log(`Could not find a chest nearby.`)
-    return false
+    throw new ActionError('TARGET_NOT_FOUND', 'Could not find a chest nearby', { blockType: 'chest' })
   }
   await goToPosition(mineflayer, chest.position.x, chest.position.y, chest.position.z)
   const chestContainer = await mineflayer.bot.openContainer(chest)
@@ -141,16 +153,15 @@ export async function viewChest(mineflayer: Mineflayer): Promise<boolean> {
     }
   }
   await chestContainer.close()
-  return true
 }
 
 /**
  * Ask to bot to eat a food item from its inventory.
  * @param mineflayer The mineflayer instance.
  * @param foodName The name of the food item to eat.
- * @returns Whether the food was successfully eaten.
+ * @throws {ActionError} When no food is found in inventory.
  */
-export async function eat(mineflayer: Mineflayer, foodName = ''): Promise<boolean> {
+export async function eat(mineflayer: Mineflayer, foodName = ''): Promise<void> {
   let item: Item | undefined
   let name: string
   if (foodName) {
@@ -164,12 +175,11 @@ export async function eat(mineflayer: Mineflayer, foodName = ''): Promise<boolea
   }
   if (!item) {
     logger.log(`You do not have any ${name} to eat.`)
-    return false
+    throw new ActionError('ITEM_NOT_FOUND', `You do not have any ${name} to eat`, { item: name })
   }
   await mineflayer.bot.equip(item, 'hand')
   await mineflayer.bot.consume()
   logger.log(`Successfully ate ${item.name}.`)
-  return true
 }
 
 /**
@@ -178,23 +188,23 @@ export async function eat(mineflayer: Mineflayer, foodName = ''): Promise<boolea
  * @param itemType The name of the item to give.
  * @param username The username of the player to give the item to.
  * @param num The number of items to give.
- * @returns Whether the item was successfully given.
+ * @throws {ActionError} When the player is not found.
  */
 export async function giveToPlayer(
   mineflayer: Mineflayer,
   itemType: string,
   username: string,
   num = 1,
-): Promise<boolean> {
+): Promise<void> {
   const player = mineflayer.bot.players[username]?.entity
   if (!player) {
     logger.log(`Could not find a player with username: ${username}.`)
-    return false
+    throw new ActionError('TARGET_NOT_FOUND', `Could not find a player with username: ${username}`, { playerName: username })
   }
   await goToPlayer(mineflayer, username)
   await mineflayer.bot.lookAt(player.position)
   await discard(mineflayer, itemType, num)
-  return true
+  logger.log(`Gave ${num} ${itemType} to ${username}.`)
 }
 
 /**
@@ -212,26 +222,27 @@ export async function listInventory(mineflayer: Mineflayer): Promise<{ name: str
   }))
 }
 
-export async function checkForItem(mineflayer: Mineflayer, itemName: string): Promise<void> {
-  const items = await mineflayer.bot.inventory.items()
-  const searchableItems = items.filter(item => item.name.includes(itemName))
-  sayItems(mineflayer, searchableItems)
-}
+// === we probably won't need this ===
+// export async function checkForItem(mineflayer: Mineflayer, itemName: string): Promise<void> {
+//   const items = await mineflayer.bot.inventory.items()
+//   const searchableItems = items.filter(item => item.name.includes(itemName))
+//   sayItems(mineflayer, searchableItems)
+// }
 
-export async function sayItems(mineflayer: Mineflayer, items: Array<Item> | null = null) {
-  if (!items) {
-    items = mineflayer.bot.inventory.items()
-    if (mineflayer.bot.registry.isNewerOrEqualTo('1.9') && mineflayer.bot.inventory.slots[45])
-      items.push(mineflayer.bot.inventory.slots[45])
-  }
-  const output = items.map(item => `${item.name} x ${item.count}`).join(', ')
-  if (output) {
-    mineflayer.bot.chat(`My inventory contains: ${output}`)
-  }
-  else {
-    mineflayer.bot.chat('My inventory is empty.')
-  }
-}
+// export async function sayItems(mineflayer: Mineflayer, items: Array<Item> | null = null) {
+//   if (!items) {
+//     items = mineflayer.bot.inventory.items()
+//     if (mineflayer.bot.registry.isNewerOrEqualTo('1.9') && mineflayer.bot.inventory.slots[45])
+//       items.push(mineflayer.bot.inventory.slots[45])
+//   }
+//   const output = items.map(item => `${item.name} x ${item.count}`).join(', ')
+//   if (output) {
+//     mineflayer.bot.chat(`My inventory contains: ${output}`)
+//   }
+//   else {
+//     mineflayer.bot.chat('My inventory is empty.')
+//   }
+// }
 
 /**
  * Find the number of free slots in the bot's inventory.
@@ -249,13 +260,13 @@ export function checkFreeSpace(mineflayer: Mineflayer): number {
 /**
  * Transfer all items from the bot's inventory to a chest.
  * @param mineflayer The mineflayer instance.
- * @returns Whether the items were successfully transferred.
+ * @throws {ActionError} When no chest is nearby.
  */
-export async function transferAllToChest(mineflayer: Mineflayer): Promise<boolean> {
+export async function transferAllToChest(mineflayer: Mineflayer): Promise<void> {
   const chest = getNearestBlock(mineflayer, 'chest', 32)
   if (!chest) {
     logger.log(`Could not find a chest nearby.`)
-    return false
+    throw new ActionError('TARGET_NOT_FOUND', 'Could not find a chest nearby', { blockType: 'chest' })
   }
   await goToPosition(mineflayer, chest.position.x, chest.position.y, chest.position.z)
   const chestContainer = await mineflayer.bot.openContainer(chest)
@@ -266,7 +277,6 @@ export async function transferAllToChest(mineflayer: Mineflayer): Promise<boolea
   }
 
   await chestContainer.close()
-  return true
 }
 
 /**
@@ -285,7 +295,6 @@ export function getItemCount(mineflayer: Mineflayer, itemName: string): number {
 /**
  * Organize the bot's inventory.
  * @param mineflayer The mineflayer instance.
- * @returns Whether the inventory was successfully organized.
  */
 export async function organizeInventory(mineflayer: Mineflayer): Promise<void> {
   const items = mineflayer.bot.inventory.items()

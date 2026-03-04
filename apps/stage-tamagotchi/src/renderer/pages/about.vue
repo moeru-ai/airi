@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useElectronAutoUpdater } from '@proj-airi/electron-vueuse'
 import { AboutContent, MarkdownRenderer } from '@proj-airi/stage-ui/components'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics/index'
 import { Button, DoubleCheckButton, Progress } from '@proj-airi/ui'
@@ -7,8 +8,6 @@ import { storeToRefs } from 'pinia'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { DrawerContent, DrawerDescription, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTitle } from 'vaul-vue'
 import { computed, ref } from 'vue'
-
-import { useElectronAutoUpdater } from '../composables/electron-vueuse'
 
 const analyticsStore = useSharedAnalyticsStore()
 const { buildInfo } = storeToRefs(analyticsStore)

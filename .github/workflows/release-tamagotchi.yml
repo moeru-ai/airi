@@ -2,6 +2,7 @@ name: Release Tamagotchi
 
 permissions:
   contents: write
+  actions: read
 
 env:
   BUNDLE_NAME: ''
@@ -39,11 +40,6 @@ on:
           - windows
           - macos
           - linux
-      ssh_into_runner:
-        description: SSH into runner for debugging
-        required: false
-        default: false
-        type: boolean
   schedule:
     - cron: '0 0 * * *'
 
@@ -62,7 +58,7 @@ jobs:
             builder-args: --macos --x64
             skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'macos' }}
 
-          - os: macos-latest
+          - os: macos-26
             artifact: darwin-arm64
             target: aarch64-apple-darwin
             builder-args: --macos --arm64
@@ -109,39 +105,14 @@ jobs:
 
       - uses: actions/checkout@v6
 
-      # https://docs.github.com/en/actions/how-tos/deploy/deploy-to-third-party-platforms/sign-xcode-applications
-      # - name: Install the Apple certificate (macOS Only)
-      #   if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest'
-      #   env:
-      #     BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
-      #     P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-      #     KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-      #   run: |
-      #     # create variables
-      #     CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
-      #     KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-
-      #     # import certificate from secrets
-      #     echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
-
-      #     # create temporary keychain
-      #     security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-      #     security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-      #     security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-
-      #     # import certificate to keychain
-      #     security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
-      #     security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-      #     security list-keychain -d user -s $KEYCHAIN_PATH
-
-      - name: macOS Show Xcode 26.1
-        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest'
+      - name: macOS Select Xcode 26.2
+        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-26'
         run: |
-          sudo xcode-select -s /Applications/Xcode_26.1.app
+          sudo xcode-select -s /Applications/Xcode_26.2.app
           xcodebuild -version
 
       - name: macOS Show Toolchain
-        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-26'
         run: |
           xcodebuild -version
           actool --version
@@ -149,7 +120,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           run_install: false
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: lts/*
           cache: pnpm
@@ -161,27 +132,29 @@ jobs:
 
       - run: pnpm run build:packages
 
-      - if: ${{ inputs.ssh_into_runner }}
-        name: Debug - Setup upterm session
-        uses: owenthereal/action-upterm@v1
-        with:
-          limit-access-to-users: sumimakito
-
       - name: Build (Windows Only) # Windows
         if: matrix.os == 'windows-latest'
-        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=onTagOrDraft
+        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=${{ (inputs.build_only || inputs.artifacts_only) && 'never' || 'onTagOrDraft' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build (macOS Only) # macOS
-        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest'
-        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=onTagOrDraft
+        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-26'
+        run: |
+          echo "$CSC_CONTENT" | base64 --decode > apps/stage-tamagotchi/apple-developer-code-signing.p12
+          export CSC_LINK="./apple-developer-code-signing.p12"
+          pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=${{ (inputs.build_only || inputs.artifacts_only) && 'never' || 'onTagOrDraft' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_CONTENT: ${{ secrets.CSC_CONTENT }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_DEVELOPER_APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_DEVELOPER_APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_DEVELOPER_TEAM_ID }}
 
       - name: Build (Linux Only) # Linux
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
-        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=onTagOrDraft
+        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=${{ (inputs.build_only || inputs.artifacts_only) && 'never' || 'onTagOrDraft' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -222,7 +195,7 @@ jobs:
           echo "VERSION=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-version)" >> $GITHUB_ENV
 
       - name: Get Artifacts Envs (Nightly + macOS Only)
-        if: ${{ github.event_name == 'schedule' && (matrix.os == 'macos-latest' || matrix.os == 'macos-15-intel') }}
+        if: ${{ github.event_name == 'schedule' && (matrix.os == 'macos-26' || matrix.os == 'macos-15-intel') }}
         working-directory: ./apps/stage-tamagotchi
         run: |
           echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name)" >> $GITHUB_ENV
@@ -242,31 +215,57 @@ jobs:
 
       - name: Upload Artifacts (Nightly + Non-Linux)
         if: ${{ github.event_name == 'schedule' && (matrix.os != 'ubuntu-latest' && matrix.os != 'ubuntu-24.04-arm') }}
-        uses: actions/upload-artifact@v4
+        id: unsigned-artifacts-nightly
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
 
       - name: Upload Artifacts (Nightly + Linux deb)
         if: ${{ github.event_name == 'schedule' && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.DEB_BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.DEB_BUNDLE_NAME }}
 
       - name: Upload Artifacts (Nightly + Linux rpm)
         if: ${{ github.event_name == 'schedule' && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.RPM_BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.RPM_BUNDLE_NAME }}
 
       - name: Upload Flatpak Artifact (Nightly + Linux Only)
         if: ${{ github.event_name == 'schedule' && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.FLATPAK_BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.FLATPAK_BUNDLE_NAME }}
+
+      - name: Sign Windows Artifacts with SignPath (Nightly + Windows Only)
+        uses: signpath/github-action-submit-signing-request@v2
+        if: ${{ github.event_name == 'schedule' && (matrix.os == 'windows-latest' && github.repository == 'moeru-ai/airi') }}
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ vars.SIGNPATH_ORGANIZATION_ID }}'
+          project-slug: 'airi'
+          github-artifact-id: '${{ steps.unsigned-artifacts-nightly.outputs.artifact-id }}'
+          signing-policy-slug: 'test-signing'
+          wait-for-completion: true
+          output-artifact-directory: apps/stage-tamagotchi/bundle/signed/windows/
+
+      - name: Debug Windows Signed Artifacts (Nightly + Windows Only)
+        if: ${{ github.event_name == 'schedule' && matrix.os == 'windows-latest' }}
+        run: |
+          ls apps/stage-tamagotchi/bundle/signed/windows/
+
+      - name: Upload Signed Artifacts (Nightly + Non-Linux)
+        if: ${{ github.event_name == 'schedule' && (matrix.os == 'windows-latest') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }}
+          overwrite: true
 
       # ---------
       # Workflow Dispatch only
@@ -286,7 +285,7 @@ jobs:
           echo "VERSION=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-version --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" > $GITHUB_ENV
 
       - name: Get Artifacts Envs (Manual + macOS Only)
-        if: ${{ github.event_name == 'workflow_dispatch' && (matrix.os == 'macos-latest' || matrix.os == 'macos-15-intel') }}
+        if: ${{ github.event_name == 'workflow_dispatch' && (matrix.os == 'macos-26' || matrix.os == 'macos-15-intel') }}
         working-directory: ./apps/stage-tamagotchi
         run: |
           echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" > $GITHUB_ENV
@@ -306,43 +305,90 @@ jobs:
 
       - name: Upload Artifacts (Manual + Non-Release + Non-Linux)
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os != 'ubuntu-latest' && matrix.os != 'ubuntu-24.04-arm') }}
-        uses: actions/upload-artifact@v4
+        id: unsigned-artifacts-workflow-dispatch
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
 
       - name: Upload Artifacts (Manual + Non-Release + Linux deb)
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.DEB_BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.DEB_BUNDLE_NAME }}
 
       - name: Upload Artifacts (Manual + Non-Release + Linux rpm)
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.RPM_BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.RPM_BUNDLE_NAME }}
 
       - name: Upload Flatpak Artifact (Manual + Non-Release + Linux)
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.FLATPAK_BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.FLATPAK_BUNDLE_NAME }}
 
+      - name: Upload Artifacts (Manual + Release + Windows Only)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && matrix.os == 'windows-latest' }}
+        id: unsigned-artifacts-workflow-dispatch-release
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
+
+      - name: Sign Windows Artifacts with SignPath (Manual + Windows Only)
+        uses: signpath/github-action-submit-signing-request@v2
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'windows-latest' && github.repository == 'moeru-ai/airi') }}
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ vars.SIGNPATH_ORGANIZATION_ID }}'
+          project-slug: 'airi'
+          github-artifact-id: '${{ steps.unsigned-artifacts-workflow-dispatch-release.outputs.artifact-id }}'
+          signing-policy-slug: 'test-signing'
+          wait-for-completion: true
+          output-artifact-directory: apps/stage-tamagotchi/bundle/signed/windows/
+
+      - name: Debug Windows Signed Artifacts (Manual + Windows Only)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && matrix.os == 'windows-latest' }}
+        run: |
+          ls apps/stage-tamagotchi/bundle/signed/windows/
+
+      - name: Upload Signed Artifacts (Manual + Non-Linux)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'windows-latest') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }}
+          overwrite: true
+
+      - name: Move Signed Artifacts (Manual + Release + Windows Only)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && matrix.os == 'windows-latest' }}
+        run: |
+          mv apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }} apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
+
       - name: Upload To GitHub Releases (Manual + Overwrite Release)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only }}
         uses: softprops/action-gh-release@v2
         with:
-          files: apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}_*
+          files: |
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.exe
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.zip
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.dmg
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.deb
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.rpm
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.flatpak
+            apps/stage-tamagotchi/bundle/latest.yml
+            apps/stage-tamagotchi/bundle/latest-*.yml
           append_body: true
           tag_name: ${{ inputs.tag }}
 
-        # ---------
-        # Version push
-        # ---------
+      # ---------
+      # Version push
+      # ---------
 
       - name: Rename Artifacts (Automatic)
         if: ${{ github.event_name == 'release' }}
@@ -350,12 +396,49 @@ jobs:
           pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release --auto-tag
 
       - name: Upload macOS update info (Automatic + macOS Only)
-        if: ${{ github.event_name == 'release' && (matrix.os == 'macos-latest' || matrix.os == 'macos-15-intel') }}
-        uses: actions/upload-artifact@v4
+        if: ${{ github.event_name == 'release' && (matrix.os == 'macos-26' || matrix.os == 'macos-15-intel') }}
+        uses: actions/upload-artifact@v7
         with:
           name: latest-mac-yml-${{ matrix.arch }}
           path: apps/stage-tamagotchi/bundle/latest-mac.yml
           if-no-files-found: error
+
+      - name: Get Artifacts Envs (Automatic + Windows Only)
+        if: ${{ github.event_name == 'release' && matrix.os == 'windows-latest' }}
+        working-directory: ./apps/stage-tamagotchi
+        run: |
+          echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $env:GITHUB_ENV
+          echo "VERSION=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-version --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $env:GITHUB_ENV
+
+      - name: Upload Artifacts (Automatic + Windows Only)
+        if: ${{ github.event_name == 'release' && matrix.os == 'windows-latest' }}
+        id: unsigned-artifacts-release
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
+
+      - name: Sign Windows Artifacts with SignPath (Nightly + Windows Only)
+        uses: signpath/github-action-submit-signing-request@v2
+        if: ${{ github.event_name == 'release' && (matrix.os == 'windows-latest' && github.repository == 'moeru-ai/airi') }}
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ vars.SIGNPATH_ORGANIZATION_ID }}'
+          project-slug: 'airi'
+          github-artifact-id: '${{ steps.unsigned-artifacts-release.outputs.artifact-id }}'
+          signing-policy-slug: 'test-signing'
+          wait-for-completion: true
+          output-artifact-directory: apps/stage-tamagotchi/bundle/signed/windows/
+
+      - name: Debug Windows Signed Artifacts (Nightly + Windows Only)
+        if: ${{ github.event_name == 'release' && matrix.os == 'windows-latest' }}
+        run: |
+          ls apps/stage-tamagotchi/bundle/signed/windows/
+
+      - name: Move Signed Artifacts (Automatic + Windows Only)
+        if: ${{ github.event_name == 'release' && matrix.os == 'windows-latest' }}
+        run: |
+          mv apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }} apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
 
       - name: Upload To GitHub Releases (Automatic)
         if: ${{ github.event_name == 'release' }}
@@ -376,11 +459,6 @@ jobs:
             apps/stage-tamagotchi/bundle/latest-*.yml
           append_body: true
 
-      # - name: Clean up keychain and provisioning profile (macOS Only)
-      #   if: ${{ always() && (matrix.os == 'macos-15-intel' || matrix.os == 'macos-latest') }}
-      #   run: |
-      #     security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
-
   merge-mac-latest:
     name: Merge macOS latest-mac.yml
     if: ${{ github.event_name == 'release' }} # Skipping will only exist when triggered by workflow_dispatch. No need to handle here
@@ -392,20 +470,20 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           run_install: false
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: lts/*
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
       - name: Download latest-mac.yml (x64)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: latest-mac-yml-x64
           path: artifacts/x64
 
       - name: Download latest-mac.yml (arm64)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: latest-mac-yml-arm64
           path: artifacts/arm64

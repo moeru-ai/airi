@@ -23,14 +23,14 @@
     "postinstall": "tsx ./tasks/prepare-tasks.ts"
   },
   "dependencies": {
-    "@mediapipe/tasks-vision": "^0.10.21",
+    "@mediapipe/tasks-vision": "^0.10.32",
     "@moeru/std": "catalog:",
-    "@pixiv/three-vrm": "^3.4.5",
+    "@pixiv/three-vrm": "^3.5.0",
     "es-toolkit": "catalog:",
-    "three": "^0.182.0"
+    "three": "^0.183.1"
   },
   "devDependencies": {
-    "@types/three": "^0.182.0",
+    "@types/three": "^0.183.1",
     "ofetch": "catalog:",
     "tsx": "catalog:"
   }

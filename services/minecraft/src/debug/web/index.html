@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Debug Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="tools.css">
+  <link rel="stylesheet" href="conversation.css">
+</head>
+
+<body>
+  <!-- Header Bar -->
+  <header id="header">
+    <div class="header-left">
+      <h1>Debug Dashboard</h1>
+      <div class="status-indicator">
+        <span id="connection-status" class="status-dot"></span>
+        <span id="status-text">Disconnected</span>
+      </div>
+    </div>
+    <div class="header-stats">
+      <div class="stat">
+        <span class="stat-label">Events</span>
+        <span id="stat-events" class="stat-value">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Queue</span>
+        <span id="stat-queue" class="stat-value">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Reflex Mode</span>
+        <span id="stat-reflex-mode" class="stat-value">unknown</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">LLM Calls</span>
+        <span id="stat-llm" class="stat-value">0</span>
+      </div>
+    </div>
+    <div class="header-controls">
+      <button id="clear-logs-btn" title="Clear logs">Clear Logs</button>
+      <button id="pause-btn" title="Pause updates">Pause</button>
+      <button id="reconnect-btn" title="Reconnect WebSocket">Reconnect</button>
+    </div>
+  </header>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="tab-button active" data-target="main-view">Dashboard</button>
+    <button class="tab-button" data-target="tools-view">Tools</button>
+    <button class="tab-button" data-target="repl-view">REPL</button>
+  </div>
+
+  <!-- Main Layout -->
+  <main id="main-view" class="view active">
+    <div class="main-layout">
+      <!-- Left Column -->
+      <div id="left-column">
+        <!-- Queue & Processing -->
+        <section id="queue-section" class="panel">
+          <div class="panel-header">
+            <h2>Queue & Processing</h2>
+            <div class="panel-controls">
+              <span class="panel-badge" id="queue-count">0</span>
+              <button class="icon-btn maximize-btn" title="Toggle maximize">⤢</button>
+              <div class="panel-content">
+                <div id="queue-list" class="queue-list"></div>
+                <div class="divider"></div>
+                <div id="processing-info" class="processing-info">
+                  <div class="processing-label">Processing:</div>
+                  <div id="processing-content">Idle</div>
+                </div>
+              </div>
+        </section>
+
+        <!-- Reflex State -->
+        <section id="reflex-section" class="panel">
+          <div class="panel-header">
+            <h2>Reflex State</h2>
+            <div class="panel-controls">
+              <span class="panel-badge" id="reflex-mode">idle</span>
+              <button class="icon-btn maximize-btn" title="Toggle maximize">⤢</button>
+            </div>
+          </div>
+          <div class="panel-content">
+            <div class="kv-row">
+              <span class="kv-key">Active Behavior:</span>
+              <span class="kv-value" id="reflex-active-behavior">None</span>
+            </div>
+            <div class="divider"></div>
+            <div class="subsection-title">Attention</div>
+            <div class="kv-row">
+              <span class="kv-key">Last Signal:</span>
+              <span class="kv-value" id="reflex-signal-type">None</span>
+            </div>
+            <div class="kv-row">
+              <span class="kv-key">Source:</span>
+              <span class="kv-value" id="reflex-signal-source">None</span>
+            </div>
+            <div class="divider"></div>
+            <div class="subsection-title">Social</div>
+            <div class="kv-row">
+              <span class="kv-key">Last Speaker:</span>
+              <span class="kv-value" id="reflex-social-speaker">None</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Brain -->
+        <section id="brain-section" class="panel">
+          <div class="panel-header">
+            <h2>Brain</h2>
+            <div class="panel-controls">
+              <span id="brain-status" class="status-badge">Unknown</span>
+              <span class="panel-badge" title="Queue Length"><span id="brain-queue">0</span></span>
+              <button class="icon-btn maximize-btn" title="Toggle maximize">⤢</button>
+            </div>
+          </div>
+          <div class="panel-content">
+            <div id="brain-context" class="json-display"
+              style="white-space: pre-wrap; font-family: var(--font-mono); font-size: 12px;"></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Splitter V1 (Left vs Right Grid) -->
+      <div class="splitter-v" id="splitter-v1"></div>
+
+      <!-- Right Grid Container -->
+      <div id="main-grid">
+        <!-- Right Column: Logs -->
+        <section id="logs-section" class="panel">
+          <div class="panel-header">
+            <h2>Logs</h2>
+            <div class="panel-controls">
+              <input type="search" id="log-search" placeholder="Search logs..." />
+              <select id="log-level-filter">
+                <option value="all">All Levels</option>
+                <option value="ERROR">ERROR</option>
+                <option value="WARN">WARN</option>
+                <option value="INFO">INFO</option>
+                <option value="DEBUG">DEBUG</option>
+              </select>
+              <select id="log-file-select" title="Select persisted log file">
+                <option value="">Live (current session)</option>
+              </select>
+              <button id="load-log-file" class="icon-btn" title="Load selected log file">⟳</button>
+              <label class="checkbox-label">
+                <input type="checkbox" id="auto-scroll" checked />
+                Auto-scroll
+              </label>
+              <button class="icon-btn maximize-btn" title="Toggle maximize">⤢</button>
+            </div>
+          </div>
+          <div class="panel-content">
+            <div id="logs-container" class="logs-container"></div>
+          </div>
+        </section>
+
+        <!-- Splitter H1 (Logs vs Timeline) -->
+        <div class="splitter-h" id="splitter-h1"></div>
+
+        <!-- Timeline: Event Trace View -->
+        <section id="timeline-section" class="panel">
+          <div class="panel-header">
+            <h2>Event Timeline</h2>
+            <div class="panel-controls">
+              <input type="search" id="timeline-search" placeholder="Filter events..." />
+              <select id="timeline-type-filter">
+                <option value="all">All Types</option>
+                <option value="raw:">Raw Events</option>
+                <option value="signal:">Signals</option>
+              </select>
+              <button id="timeline-clear-btn" class="icon-btn" title="Clear timeline">🗑️</button>
+              <button class="icon-btn maximize-btn" title="Toggle maximize">⤢</button>
+            </div>
+          </div>
+          <div class="panel-content">
+            <div id="timeline-container" class="timeline-container">
+              <div id="timeline-list" class="timeline-list"></div>
+            </div>
+            <div id="trace-detail" class="trace-detail hidden">
+              <div class="trace-detail-header">
+                <span id="trace-detail-title">Trace Details</span>
+                <button id="trace-detail-close" class="icon-btn">✕</button>
+              </div>
+              <div id="trace-detail-content"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Splitter H2 (Timeline vs LLM) -->
+        <div class="splitter-h" id="splitter-h2"></div>
+
+        <!-- Bottom Row: Conversation -->
+        <section id="conversation-section" class="panel">
+          <div class="panel-header">
+            <h2>Conversation</h2>
+            <div class="panel-controls">
+              <span id="conversation-processing" class="panel-badge badge-processing hidden">Processing…</span>
+              <span class="panel-badge" id="conversation-count">0</span>
+              <button class="icon-btn maximize-btn" title="Toggle maximize">⤢</button>
+            </div>
+          </div>
+          <div class="panel-content">
+            <div id="conversation-container" class="conversation-container"></div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Tools View -->
+  <section id="tools-view" class="view">
+    <div class="tools-view-shell">
+      <section id="tools-section" class="panel full-height">
+        <div class="panel-header">
+          <h2>Tools</h2>
+          <div class="panel-controls">
+            <input type="search" id="tools-search" placeholder="Filter tools..." />
+            <button class="icon-btn maximize-btn" title="Toggle maximize">⤢</button>
+          </div>
+        </div>
+        <div class="panel-content">
+          <div id="tools-grid" class="tools-grid"></div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <!-- REPL View -->
+  <section id="repl-view" class="view">
+    <div class="repl-view-shell">
+      <section class="panel repl-vars-panel">
+        <div class="panel-header">
+          <h2>Registered Variables</h2>
+          <div class="panel-controls">
+            <input type="search" id="repl-vars-search" placeholder="Filter variables..." />
+            <button id="repl-refresh-state" class="icon-btn" title="Refresh variable list">⟳</button>
+          </div>
+        </div>
+        <div class="panel-content">
+          <div id="repl-vars-list" class="repl-vars-list"></div>
+        </div>
+      </section>
+      <section class="panel repl-console-panel">
+        <div class="panel-header">
+          <h2>REPL Console</h2>
+          <div class="panel-controls">
+            <button id="repl-run-btn">Run (Ctrl/Cmd+Enter)</button>
+          </div>
+        </div>
+        <div class="panel-content repl-console-content">
+          <textarea id="repl-code-input" class="repl-code-input" spellcheck="false"
+            placeholder="Example: await chat(&quot;hello from repl&quot;)"></textarea>
+          <div id="repl-result-list" class="repl-result-list"></div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

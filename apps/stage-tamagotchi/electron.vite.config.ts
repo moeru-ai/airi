@@ -21,7 +21,31 @@ const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 
 export default defineConfig({
   main: {
-    plugins: [Info()],
+    plugins: [
+      Info(),
+      {
+        // To replace `build.rolldownOptions`, as electron-vite still uses the deprecated
+        // `rollupOptions`, using `rollupOptions` and `rolldownOptions` at the same
+        // time may lead to unexpected merge results. Using `rollupOptions` to manipulate
+        // `manualChunks` also did not work. Therefore, it was transformed into a plugin
+        // declaration with the recommended `codeSplitting` option.
+        name: 'manual-chunks',
+        outputOptions(options) {
+          options.codeSplitting = {
+            groups: [{
+              name(moduleId) {
+                // https://github.com/lobehub/lobehub/blob/6ecba929b738e1259e15d17e7643941e015324ee/apps/desktop/electron.vite.config.ts#L54
+                // Prevent debug package from being bundled into index.js to avoid side-effect pollution
+                if (moduleId.includes('node_modules/debug')) {
+                  return 'vendor-debug'
+                }
+              },
+            }],
+          }
+          return options
+        },
+      },
+    ],
   },
   preload: {
     build: {
@@ -38,6 +62,7 @@ export default defineConfig({
     // Thanks to [@Maqsyo](https://github.com/Maqsyo)
     // https://github.com/alex8088/electron-vite/issues/99#issuecomment-1862671727
     base: './',
+
     build: {
       rolldownOptions: {
         input: {
@@ -46,6 +71,7 @@ export default defineConfig({
         },
       },
     },
+
     optimizeDeps: {
       exclude: [
         // Internal Packages
@@ -74,6 +100,7 @@ export default defineConfig({
         '@framework/model/cubismmoc',
       ],
     },
+
     resolve: {
       alias: {
         '@proj-airi/server-sdk': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-sdk', 'src')),
@@ -83,12 +110,22 @@ export default defineConfig({
         '@proj-airi/stage-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-shared', 'src')),
       },
     },
+
     server: {
       warmup: {
         clientFiles: [
           `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src'))}/*.vue`,
           `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src'))}/*.vue`,
         ],
+      },
+    },
+
+    worker: {
+      format: 'es',
+      rollupOptions: {
+        output: {
+          inlineDynamicImports: false,
+        },
       },
     },
 
@@ -130,8 +167,14 @@ export default defineConfig({
       VueRouter({
         dts: resolve(import.meta.dirname, 'src/renderer/typed-router.d.ts'),
         routesFolder: [
+          {
+            src: resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
+            exclude: base => [
+              ...base,
+              '**/settings/system/general.vue',
+            ],
+          },
           resolve(import.meta.dirname, 'src', 'renderer', 'pages'),
-          resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
         ],
         exclude: ['**/components/**'],
       }),

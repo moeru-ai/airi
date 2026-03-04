@@ -10,8 +10,8 @@ const { isDark: dark } = useTheme()
 
 <template>
   <RouterLink
-    to="/" flex="~" items-center
-    gap-2 px-2 text-nowrap text-2xl outline-none
+    to="/" flex="~"
+    w-max items-center gap-2 px-2 text-nowrap text-2xl outline-none
   >
     <template v-if="dark">
       <img :src="LogoDark" h-8 w-8 class="theme-colored">

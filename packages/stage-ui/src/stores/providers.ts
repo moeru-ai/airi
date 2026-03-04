@@ -23,24 +23,10 @@ import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
 import { computedAsync, useLocalStorage } from '@vueuse/core'
 import {
-  createCerebras,
-  createDeepSeek,
-  createFireworks,
-  createGoogleGenerativeAI,
-  createMistral,
-  createMoonshotai,
-  createNovita,
-  createOllama,
   createOpenAI,
-  createOpenRouter,
-  createPerplexity,
-  createTogetherAI,
-  createXai,
 } from '@xsai-ext/providers/create'
-import { createAzure, createPlayer2, createWorkersAI } from '@xsai-ext/providers/special/create'
+import { createPlayer2 } from '@xsai-ext/providers/special/create'
 import {
-  createChatProvider,
-  createEmbedProvider,
   createModelProvider,
   createSpeechProvider,
   createTranscriptionProvider,
@@ -60,7 +46,11 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { listProviders as listDefinedProviders } from '../libs/providers'
+import { getKokoroWorker } from '../workers/kokoro'
+import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
+import { convertProviderDefinitionsToMetadata } from './providers/converters'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 import { createWebSpeechAPIProvider } from './providers/web-speech-api'
@@ -196,25 +186,6 @@ export interface ProviderRuntimeState {
   modelLoadError: string | null
 }
 
-function createAnthropic(apiKey: string, baseURL: string = 'https://api.anthropic.com/v1/') {
-  const anthropicFetch = async (input: any, init: any) => {
-    init.headers ??= {}
-    if (Array.isArray(init.headers))
-      init.headers.push(['anthropic-dangerous-direct-browser-access', 'true'])
-    else if (init.headers instanceof Headers)
-      init.headers.append('anthropic-dangerous-direct-browser-access', 'true')
-    else
-      init.headers['anthropic-dangerous-direct-browser-access'] = 'true'
-    return fetch(input, init)
-  }
-
-  return merge(
-    /** @see {@link https://docs.anthropic.com/en/docs/about-claude/models/all-models} */
-    createChatProvider({ apiKey, fetch: anthropicFetch, baseURL }),
-    createModelProvider({ apiKey, fetch: anthropicFetch, baseURL }),
-  )
-}
-
 export const useProvidersStore = defineStore('providers', () => {
   const providerCredentials = useLocalStorage<Record<string, Record<string, unknown>>>('settings/credentials/providers', {})
   const addedProviders = useLocalStorage<Record<string, boolean>>('settings/providers/added', {})
@@ -266,63 +237,6 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Centralized provider metadata with provider factory functions
   const providerMetadata: Record<string, ProviderMetadata> = {
-    'openrouter-ai': buildOpenAICompatibleProvider({
-      id: 'openrouter-ai',
-      name: 'OpenRouter',
-      nameKey: 'settings.pages.providers.provider.openrouter.title',
-      descriptionKey: 'settings.pages.providers.provider.openrouter.description',
-      icon: 'i-lobe-icons:openrouter',
-      description: 'openrouter.ai',
-      defaultBaseUrl: 'https://openrouter.ai/api/v1/',
-      creator: createOpenRouter,
-      validation: ['health', 'model_list'],
-      validators: {
-        validateProviderConfig: async (config) => {
-          const errors: Error[] = []
-
-          if (!config.apiKey) {
-            errors.push(new Error('API Key is required'))
-          }
-
-          if (!config.baseUrl) {
-            errors.push(new Error('Base URL is required'))
-          }
-
-          if (errors.length > 0) {
-            return { errors, reason: errors.map(e => e.message).join(', '), valid: false }
-          }
-
-          if (!isUrl(config.baseUrl as string) || new URL(config.baseUrl as string).host.length === 0) {
-            errors.push(new Error('Base URL is not absolute. Check your input.'))
-          }
-
-          if (!(config.baseUrl as string).endsWith('/')) {
-            errors.push(new Error('Base URL must end with a trailing slash (/).'))
-          }
-
-          if (errors.length > 0) {
-            return { errors, reason: errors.map(e => e.message).join(', '), valid: false }
-          }
-
-          const response = await fetch(`${config.baseUrl as string}chat/completions`, { headers: { Authorization: `Bearer ${config.apiKey}` }, method: 'POST', body: `{"model": "test","messages": [{"role": "user","content": "Hello, world"}],"stream": false}` })
-          const responseJson = await response.json()
-
-          if (!responseJson.user_id) {
-            return {
-              errors: [new Error(`OpenRouterError: ${responseJson.error.message}`)],
-              reason: `OpenRouterError: ${responseJson.error.message}`,
-              valid: false,
-            }
-          }
-
-          return {
-            errors: [],
-            reason: '',
-            valid: true,
-          }
-        },
-      },
-    }),
     'app-local-audio-speech': buildOpenAICompatibleProvider({
       id: 'app-local-audio-speech',
       name: 'App (Local)',
@@ -442,250 +356,6 @@ export const useProvidersStore = defineStore('providers', () => {
           }
         },
       },
-    }),
-    'ollama': {
-      id: 'ollama',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.ollama.title',
-      name: 'Ollama',
-      descriptionKey: 'settings.pages.providers.provider.ollama.description',
-      description: 'ollama.com',
-      icon: 'i-lobe-icons:ollama',
-      defaultOptions: () => ({
-        baseUrl: 'http://localhost:11434/v1/',
-      }),
-      createProvider: async config => createOllama('', (config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createOllama('', (config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'ollama',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          if (!config.baseUrl) {
-            return {
-              errors: [new Error('Base URL is required.')],
-              reason: 'Base URL is required. Default to http://localhost:11434/v1/ for Ollama.',
-              valid: false,
-            }
-          }
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          // Check if the Ollama server is reachable
-          return fetch(`${(config.baseUrl as string).trim()}models`, { headers: (config.headers as HeadersInit) || undefined })
-            .then((response) => {
-              const errors = [
-                !response.ok && new Error(`Ollama server returned non-ok status code: ${response.statusText}`),
-              ].filter(Boolean)
-
-              return {
-                errors,
-                reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-                valid: response.ok,
-              }
-            })
-            .catch((err) => {
-              return {
-                errors: [err],
-                reason: `Failed to reach Ollama server, error: ${String(err)} occurred.\n\nIf you are using Ollama locally, this is likely the CORS (Cross-Origin Resource Sharing) security issue, where you will need to set OLLAMA_ORIGINS=* or OLLAMA_ORIGINS=https://airi.moeru.ai,${location.origin} environment variable before launching Ollama server to make this work.`,
-                valid: false,
-              }
-            })
-        },
-      },
-    },
-    'ollama-embedding': {
-      id: 'ollama-embedding',
-      category: 'embed',
-      tasks: ['text-feature-extraction'],
-      nameKey: 'settings.pages.providers.provider.ollama.title',
-      name: 'Ollama',
-      descriptionKey: 'settings.pages.providers.provider.ollama.description',
-      description: 'ollama.com',
-      icon: 'i-lobe-icons:ollama',
-      defaultOptions: () => ({
-        baseUrl: 'http://localhost:11434/v1/',
-      }),
-      createProvider: async config => createOllama((config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          return (await listModels({
-            ...createOllama((config.baseUrl as string).trim()).model(),
-          })).map((model) => {
-            return {
-              id: model.id,
-              name: model.id,
-              provider: 'ollama',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          if (!config.baseUrl) {
-            return {
-              errors: [new Error('Base URL is required.')],
-              reason: 'Base URL is required. Default to http://localhost:11434/v1/ for Ollama.',
-              valid: false,
-            }
-          }
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          // Check if the Ollama server is reachable
-          return fetch(`${(config.baseUrl as string).trim()}models`, { headers: (config.headers as HeadersInit) || undefined })
-            .then((response) => {
-              const errors = [
-                !response.ok && new Error(`Ollama server returned non-ok status code: ${response.statusText}`),
-              ].filter(Boolean)
-
-              return {
-                errors,
-                reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-                valid: response.ok,
-              }
-            })
-            .catch((err) => {
-              return {
-                errors: [err],
-                reason: `Failed to reach Ollama server, error: ${String(err)} occurred.\n\nIf you are using Ollama locally, this is likely the CORS (Cross-Origin Resource Sharing) security issue, where you will need to set OLLAMA_ORIGINS=* or OLLAMA_ORIGINS=https://airi.moeru.ai,http://localhost environment variable before launching Ollama server to make this work.`,
-                valid: false,
-              }
-            })
-        },
-      },
-    },
-    'lm-studio': {
-      id: 'lm-studio',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.lm-studio.title',
-      name: 'LM Studio',
-      descriptionKey: 'settings.pages.providers.provider.lm-studio.description',
-      description: 'lmstudio.ai',
-      icon: 'i-lobe-icons:lmstudio',
-      defaultOptions: () => ({
-        baseUrl: 'http://localhost:1234/v1/',
-      }),
-      createProvider: async config => createOpenAI('', (config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async (config) => {
-          try {
-            const response = await fetch(`${(config.baseUrl as string).trim()}models`, {
-              headers: (config.headers as HeadersInit) || undefined,
-            })
-
-            if (!response.ok) {
-              throw new Error(`LM Studio server returned non-ok status code: ${response.statusText}`)
-            }
-
-            const data = await response.json()
-            return data.data.map((model: any) => ({
-              id: model.id,
-              name: model.id,
-              provider: 'lm-studio',
-              description: model.description || '',
-              contextLength: model.context_length || 0,
-              deprecated: false,
-            })) satisfies ModelInfo[]
-          }
-          catch (error) {
-            console.error('Error fetching LM Studio models:', error)
-            return []
-          }
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          if (!config.baseUrl) {
-            return {
-              errors: [new Error('Base URL is required.')],
-              reason: 'Base URL is required. Default to http://localhost:1234/v1/ for LM Studio.',
-              valid: false,
-            }
-          }
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          // Check if the LM Studio server is reachable
-          return fetch(`${(config.baseUrl as string).trim()}models`, { headers: (config.headers as HeadersInit) || undefined })
-            .then((response) => {
-              const errors = [
-                !response.ok && new Error(`LM Studio server returned non-ok status code: ${response.statusText}`),
-              ].filter(Boolean)
-
-              return {
-                errors,
-                reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-                valid: response.ok,
-              }
-            })
-            .catch((err) => {
-              return {
-                errors: [err],
-                reason: `Failed to reach LM Studio server, error: ${String(err)} occurred.\n\nMake sure LM Studio is running and the local server is started. You can start the local server in LM Studio by going to the 'Local Server' tab and clicking 'Start Server'.`,
-                valid: false,
-              }
-            })
-        },
-      },
-    },
-    'groq': buildOpenAICompatibleProvider({
-      id: 'groq',
-      name: 'Groq',
-      nameKey: 'settings.pages.providers.provider.groq.title',
-      descriptionKey: 'settings.pages.providers.provider.groq.description',
-      icon: 'i-lobe-icons:groq',
-      description: 'groq.com',
-      defaultBaseUrl: 'https://api.groq.com/openai/v1/',
-      creator: createOpenAI,
-      validation: ['model_list'],
-    }),
-    'openai': buildOpenAICompatibleProvider({
-      id: 'openai',
-      name: 'OpenAI',
-      nameKey: 'settings.pages.providers.provider.openai.title',
-      descriptionKey: 'settings.pages.providers.provider.openai.description',
-      icon: 'i-lobe-icons:openai',
-      description: 'openai.com',
-      defaultBaseUrl: 'https://api.openai.com/v1/',
-      creator: createOpenAI,
-      validation: ['health', 'model_list'],
-    }),
-    'openai-compatible': buildOpenAICompatibleProvider({
-      id: 'openai-compatible',
-      name: 'OpenAI Compatible',
-      nameKey: 'settings.pages.providers.provider.openai-compatible.title',
-      descriptionKey: 'settings.pages.providers.provider.openai-compatible.description',
-      icon: 'i-lobe-icons:openai',
-      description: 'Connect to any API that follows the OpenAI specification.',
-      creator: createOpenAI,
-      validation: ['health'],
     }),
     'openai-audio-speech': buildOpenAICompatibleProvider({
       id: 'openai-audio-speech',
@@ -1181,83 +851,6 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
-    'anthropic': buildOpenAICompatibleProvider({
-      id: 'anthropic',
-      name: 'Anthropic',
-      nameKey: 'settings.pages.providers.provider.anthropic.title',
-      descriptionKey: 'settings.pages.providers.provider.anthropic.description',
-      icon: 'i-lobe-icons:anthropic',
-      description: 'anthropic.com',
-      defaultBaseUrl: 'https://api.anthropic.com/v1/',
-      creator: createAnthropic,
-      validation: ['health'],
-      additionalHeaders: {
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      capabilities: {
-        // This is a hardcoded list of Anthropic models to work around issues with
-        // fetching the model list directly from their API via browser.
-        // See: https://github.com/moeru-ai/airi/issues/729
-        // This list should be periodically updated based on Anthropic's official documentation:
-        // https://docs.anthropic.com/en/docs/models-overview
-        // Some legacy models are not listed here.
-        listModels: async () => {
-          return [{
-            id: 'claude-haiku-4-5-20251001',
-            name: 'Claude Haiku 4.5',
-            provider: 'anthropic',
-            description: 'Anthropic fastest model with near-frontier intelligence',
-          }, {
-            id: 'claude-sonnet-4-5-20250929',
-            name: 'Claude Sonnet 4.5',
-            provider: 'anthropic',
-            description: 'Anthropic smartest model for complex agents and coding',
-          }, {
-            id: 'claude-opus-4-1-20250805',
-            name: 'Claude Opus 4.1',
-            provider: 'anthropic',
-            description: 'Exceptional model for specialized reasoning tasks',
-          }] satisfies ModelInfo[]
-        },
-      },
-    }),
-    'google-generative-ai': buildOpenAICompatibleProvider({
-      id: 'google-generative-ai',
-      name: 'Google Gemini',
-      nameKey: 'settings.pages.providers.provider.google-generative-ai.title',
-      descriptionKey: 'settings.pages.providers.provider.google-generative-ai.description',
-      icon: 'i-lobe-icons:gemini',
-      description: 'ai.google.dev',
-      defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
-      creator: createGoogleGenerativeAI,
-      validation: ['health', 'model_list'],
-    }),
-    'deepseek': buildOpenAICompatibleProvider({
-      id: 'deepseek',
-      name: 'DeepSeek',
-      nameKey: 'settings.pages.providers.provider.deepseek.title',
-      descriptionKey: 'settings.pages.providers.provider.deepseek.description',
-      icon: 'i-lobe-icons:deepseek',
-      description: 'deepseek.com',
-      defaultBaseUrl: 'https://api.deepseek.com/',
-      creator: createDeepSeek,
-      validation: ['health', 'model_list'],
-    }),
-    '302-ai': buildOpenAICompatibleProvider({
-      id: '302-ai',
-      name: '302.AI',
-      nameKey: 'settings.pages.providers.provider.302-ai.title',
-      descriptionKey: 'settings.pages.providers.provider.302-ai.description',
-      icon: 'i-lobe-icons:ai302',
-      description: '302.ai',
-      defaultBaseUrl: 'https://api.302.ai/v1/',
-      creator: (apiKey, baseURL = 'https://api.302.ai/v1/') => merge(
-        createChatProvider({ apiKey, baseURL }),
-        createEmbedProvider({ apiKey, baseURL }),
-        createModelProvider({ apiKey, baseURL }),
-      ),
-      validation: ['model_list'],
-    }),
     'elevenlabs': {
       id: 'elevenlabs',
       category: 'speech',
@@ -1360,6 +953,34 @@ export const useProvidersStore = defineStore('providers', () => {
         return provider
       },
       capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'aura-2',
+              name: 'Aura 2',
+              provider: 'deepgram-tts',
+              description: 'Latest generation Aura model',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: 'aura-1',
+              name: 'Aura 1',
+              provider: 'deepgram-tts',
+              description: 'First generation Aura model',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: 'aura',
+              name: 'Aura (Legacy)',
+              provider: 'deepgram-tts',
+              description: 'Original Aura model',
+              contextLength: 0,
+              deprecated: true,
+            },
+          ]
+        },
         listVoices: async (config) => {
           const provider = createUnDeepgram((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnDeepgramOptions>
 
@@ -1508,7 +1129,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
-        validateProviderConfig: (config) => {
+        validateProviderConfig: async (config) => {
           const errors = [
             !config.baseUrl && new Error('Base URL is required. Default to http://localhost:11996/tts/ for Index-TTS.'),
           ].filter(Boolean)
@@ -1518,10 +1139,26 @@ export const useProvidersStore = defineStore('providers', () => {
             return res
           }
 
+          try {
+            const controller = new AbortController()
+            const timeout = setTimeout(() => controller.abort(), 5000)
+            const response = await fetch(`${config.baseUrl as string}audio/voices`, { signal: controller.signal })
+            clearTimeout(timeout)
+
+            if (!response.ok) {
+              const reason = `IndexTTS unreachable: HTTP ${response.status} ${response.statusText}`
+              return { errors: [new Error(reason)], reason, valid: false }
+            }
+          }
+          catch (err) {
+            const reason = `IndexTTS connection failed: ${String(err)}`
+            return { errors: [err as Error], reason, valid: false }
+          }
+
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.baseUrl,
+            valid: errors.length === 0,
           }
         },
       },
@@ -1698,377 +1335,6 @@ export const useProvidersStore = defineStore('providers', () => {
       ),
       validation: ['model_list'],
     }),
-    'cerebras-ai': buildOpenAICompatibleProvider({
-      id: 'cerebras-ai',
-      name: 'Cerebras',
-      nameKey: 'settings.pages.providers.provider.cerebras.title',
-      descriptionKey: 'settings.pages.providers.provider.cerebras.description',
-      icon: 'i-lobe-icons:cerebras',
-      description: 'cerebras.ai',
-      defaultBaseUrl: 'https://api.cerebras.ai/v1/',
-      creator: createCerebras,
-      validation: ['health', 'model_list'],
-      iconColor: 'i-lobe-icons:cerebras-color',
-    }),
-    'together-ai': buildOpenAICompatibleProvider({
-      id: 'together-ai',
-      name: 'Together.ai',
-      nameKey: 'settings.pages.providers.provider.together.title',
-      descriptionKey: 'settings.pages.providers.provider.together.description',
-      icon: 'i-lobe-icons:together',
-      description: 'together.ai',
-      defaultBaseUrl: 'https://api.together.xyz/v1/',
-      creator: createTogetherAI,
-      validation: ['health', 'model_list'],
-      iconColor: 'i-lobe-icons:together',
-    }),
-    'azure-ai-foundry': {
-      id: 'azure-ai-foundry',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.azure-ai-foundry.title',
-      name: 'Azure AI Foundry',
-      descriptionKey: 'settings.pages.providers.provider.azure-ai-foundry.description',
-      description: 'azure.com',
-      icon: 'i-lobe-icons:microsoft',
-      defaultOptions: () => ({}),
-      createProvider: async (config) => {
-        return await createAzure({
-          apiKey: async () => (config.apiKey as string).trim(),
-          resourceName: config.resourceName as string,
-          apiVersion: config.apiVersion as string,
-        })
-      },
-      capabilities: {
-        listModels: async (config) => {
-          return [{ id: config.modelId }].map((model) => {
-            return {
-              id: model.id as string,
-              name: model.id as string,
-              provider: 'azure-ai-foundry',
-              description: '',
-              contextLength: 0,
-              deprecated: false,
-            } satisfies ModelInfo
-          })
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          // return !!config.apiKey && !!config.resourceName && !!config.modelId
-
-          const errors = [
-            !config.apiKey && new Error('API key is required'),
-            !config.resourceName && new Error('Resource name is required'),
-            !config.modelId && new Error('Model ID is required'),
-          ]
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.resourceName && !!config.modelId,
-          }
-        },
-      },
-    },
-    'xai': buildOpenAICompatibleProvider({
-      id: 'xai',
-      name: 'xAI',
-      nameKey: 'settings.pages.providers.provider.xai.title',
-      descriptionKey: 'settings.pages.providers.provider.xai.description',
-      icon: 'i-lobe-icons:xai',
-      description: 'x.ai',
-      defaultBaseUrl: 'https://api.x.ai/v1/',
-      creator: createXai,
-      validation: ['health', 'model_list'],
-    }),
-    'vllm': {
-      id: 'vllm',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.vllm.title',
-      name: 'vLLM',
-      descriptionKey: 'settings.pages.providers.provider.vllm.description',
-      description: 'vllm.ai',
-      iconColor: 'i-lobe-icons:vllm',
-      createProvider: async config => createOllama((config.baseUrl as string).trim()),
-      capabilities: {
-        listModels: async () => {
-          return [
-            {
-              id: 'llama-2-7b',
-              name: 'Llama 2 (7B)',
-              provider: 'vllm',
-              description: 'Meta\'s Llama 2 7B parameter model',
-              contextLength: 4096,
-            },
-            {
-              id: 'llama-2-13b',
-              name: 'Llama 2 (13B)',
-              provider: 'vllm',
-              description: 'Meta\'s Llama 2 13B parameter model',
-              contextLength: 4096,
-            },
-            {
-              id: 'llama-2-70b',
-              name: 'Llama 2 (70B)',
-              provider: 'vllm',
-              description: 'Meta\'s Llama 2 70B parameter model',
-              contextLength: 4096,
-            },
-            {
-              id: 'mistral-7b',
-              name: 'Mistral (7B)',
-              provider: 'vllm',
-              description: 'Mistral AI\'s 7B parameter model',
-              contextLength: 8192,
-            },
-            {
-              id: 'mixtral-8x7b',
-              name: 'Mixtral (8x7B)',
-              provider: 'vllm',
-              description: 'Mistral AI\'s Mixtral 8x7B MoE model',
-              contextLength: 32768,
-            },
-            {
-              id: 'custom',
-              name: 'Custom Model',
-              provider: 'vllm',
-              description: 'Specify a custom model name',
-              contextLength: 0,
-            },
-          ]
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          if (!config.baseUrl) {
-            return {
-              errors: [new Error('Base URL is required.')],
-              reason: 'Base URL is required. Default to http://localhost:8000/v1/ for vLLM.',
-              valid: false,
-            }
-          }
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          // Check if the vLLM is reachable
-          return fetch(`${(config.baseUrl as string).trim()}models`, { headers: (config.headers as HeadersInit) || undefined })
-            .then((response) => {
-              const errors = [
-                !response.ok && new Error(`vLLM returned non-ok status code: ${response.statusText}`),
-              ].filter(Boolean)
-
-              return {
-                errors,
-                reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-                valid: response.ok,
-              }
-            })
-            .catch((err) => {
-              return {
-                errors: [err],
-                reason: `Failed to reach vLLM, error: ${String(err)} occurred.`,
-                valid: false,
-              }
-            })
-        },
-      },
-    },
-    'novita-ai': buildOpenAICompatibleProvider({
-      id: 'novita-ai',
-      name: 'Novita',
-      nameKey: 'settings.pages.providers.provider.novita.title',
-      descriptionKey: 'settings.pages.providers.provider.novita.description',
-      icon: 'i-lobe-icons:novita',
-      description: 'novita.ai',
-      defaultBaseUrl: 'https://api.novita.ai/openai/',
-      creator: createNovita,
-      validation: ['health', 'model_list'],
-      iconColor: 'i-lobe-icons:novita',
-    }),
-    'fireworks-ai': buildOpenAICompatibleProvider({
-      id: 'fireworks-ai',
-      name: 'Fireworks.ai',
-      nameKey: 'settings.pages.providers.provider.fireworks.title',
-      descriptionKey: 'settings.pages.providers.provider.fireworks.description',
-      icon: 'i-lobe-icons:fireworks',
-      description: 'fireworks.ai',
-      defaultBaseUrl: 'https://api.fireworks.ai/inference/v1/',
-      creator: createFireworks,
-      validation: ['health', 'model_list'],
-    }),
-    'featherless-ai': buildOpenAICompatibleProvider({
-      id: 'featherless-ai',
-      name: 'Featherless.ai',
-      nameKey: 'settings.pages.providers.provider.featherless.title',
-      descriptionKey: 'settings.pages.providers.provider.featherless.description',
-      icon: 'i-lobe-icons:featherless-ai',
-      description: 'featherless.ai',
-      defaultBaseUrl: 'https://api.featherless.ai/v1/',
-      creator: createOpenAI,
-      validation: ['health', 'model_list'],
-    }),
-    'cloudflare-workers-ai': {
-      id: 'cloudflare-workers-ai',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.cloudflare-workers-ai.title',
-      name: 'Cloudflare Workers AI',
-      descriptionKey: 'settings.pages.providers.provider.cloudflare-workers-ai.description',
-      description: 'cloudflare.com',
-      iconColor: 'i-lobe-icons:cloudflare',
-      createProvider: async config => createWorkersAI((config.apiKey as string).trim(), config.accountId as string),
-      capabilities: {
-        listModels: async () => {
-          return []
-        },
-      },
-      validators: {
-        validateProviderConfig: (config) => {
-          const errors = [
-            !config.apiKey && new Error('API key is required.'),
-            !config.accountId && new Error('Account ID is required.'),
-          ].filter(Boolean)
-
-          return {
-            errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.accountId,
-          }
-        },
-      },
-    },
-    'comet-api': buildOpenAICompatibleProvider({
-      id: 'comet-api',
-      name: 'CometAPI',
-      nameKey: 'settings.pages.providers.provider.comet-api.title',
-      descriptionKey: 'settings.pages.providers.provider.comet-api.description',
-      icon: 'i-lobe-icons:cometapi',
-      description: 'cometapi.com',
-      defaultBaseUrl: 'https://api.cometapi.com/v1/',
-      creator: (apiKey, baseURL = 'https://api.cometapi.com/v1/') => merge(
-        createChatProvider({ apiKey, baseURL }),
-        createModelProvider({ apiKey, baseURL }),
-      ),
-      validation: ['model_list'],
-    }),
-    'perplexity-ai': buildOpenAICompatibleProvider({
-      id: 'perplexity-ai',
-      name: 'Perplexity',
-      nameKey: 'settings.pages.providers.provider.perplexity.title',
-      descriptionKey: 'settings.pages.providers.provider.perplexity.description',
-      icon: 'i-lobe-icons:perplexity',
-      description: 'perplexity.ai',
-      defaultBaseUrl: 'https://api.perplexity.ai/',
-      creator: createPerplexity,
-      validation: ['health', 'model_list'],
-    }),
-    'mistral-ai': buildOpenAICompatibleProvider({
-      id: 'mistral-ai',
-      name: 'Mistral',
-      nameKey: 'settings.pages.providers.provider.mistral.title',
-      descriptionKey: 'settings.pages.providers.provider.mistral.description',
-      icon: 'i-lobe-icons:mistral',
-      description: 'mistral.ai',
-      defaultBaseUrl: 'https://api.mistral.ai/v1/',
-      creator: createMistral,
-      validation: ['health', 'model_list'],
-      iconColor: 'i-lobe-icons:mistral',
-    }),
-    'moonshot-ai': buildOpenAICompatibleProvider({
-      id: 'moonshot-ai',
-      name: 'Moonshot AI',
-      nameKey: 'settings.pages.providers.provider.moonshot.title',
-      descriptionKey: 'settings.pages.providers.provider.moonshot.description',
-      icon: 'i-lobe-icons:moonshot',
-      description: 'moonshot.ai',
-      defaultBaseUrl: 'https://api.moonshot.ai/v1/',
-      creator: createMoonshotai,
-      validation: ['health', 'model_list'],
-    }),
-    'modelscope': buildOpenAICompatibleProvider({
-      id: 'modelscope',
-      name: 'ModelScope',
-      nameKey: 'settings.pages.providers.provider.modelscope.title',
-      descriptionKey: 'settings.pages.providers.provider.modelscope.description',
-      icon: 'i-lobe-icons:modelscope',
-      description: 'modelscope',
-      defaultBaseUrl: 'https://api-inference.modelscope.cn/v1/',
-      creator: createOpenAI,
-      validation: ['health', 'model_list'],
-      iconColor: 'i-lobe-icons:modelscope',
-    }),
-    'player2': {
-      id: 'player2',
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.player2.title',
-      name: 'Player2',
-      descriptionKey: 'settings.pages.providers.provider.player2.description',
-      description: 'player2.game',
-      icon: 'i-lobe-icons:player2',
-      defaultOptions: () => ({
-        baseUrl: 'http://localhost:4315/v1/',
-      }),
-      createProvider: (config) => {
-        return createPlayer2((config.baseUrl as string).trim())
-      },
-      capabilities: {
-        listModels: async () => [
-          {
-            id: 'player2-model',
-            name: 'Player2 Model',
-            provider: 'player2',
-          },
-        ],
-      },
-      validators: {
-        validateProviderConfig: async (config) => {
-          if (!config.baseUrl) {
-            return {
-              errors: [new Error('Base URL is required.')],
-              reason: 'Base URL is required. Default to http://localhost:4315/v1/',
-              valid: false,
-            }
-          }
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
-
-          // Check if the local running Player 2 is reachable
-          return await fetch(`${config.baseUrl}health`, {
-            method: 'GET',
-            headers: {
-              'player2-game-key': 'airi',
-            },
-          })
-            .then((response) => {
-              const errors = [
-                !response.ok && new Error(`Player 2 returned non-ok status code: ${response.statusText}`),
-              ].filter(Boolean)
-
-              return {
-                errors,
-                reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-                valid: response.ok,
-              }
-            })
-            .catch((err) => {
-              return {
-                errors: [err],
-                reason: `Failed to reach Player 2, error: ${String(err)} occurred. If you do not have Player 2 running, please start it and try again.`,
-                valid: false,
-              }
-            })
-        },
-      },
-    },
     'player2-speech': {
       id: 'player2-speech',
       category: 'speech',
@@ -2083,6 +1349,18 @@ export const useProvidersStore = defineStore('providers', () => {
       }),
       createProvider: async config => createPlayer2((config.baseUrl as string).trim(), 'airi'),
       capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'player2-tts',
+              name: 'Player2 Speech',
+              provider: 'player2-speech',
+              description: 'Default model for Player2 speech endpoint',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
         listVoices: async (config) => {
           const baseUrl = (config.baseUrl as string).endsWith('/') ? (config.baseUrl as string).slice(0, -1) : config.baseUrl as string
           return await fetch(`${baseUrl}/tts/voices`).then(res => res.json()).then(({ voices }) => (voices as { id: string, language: 'american_english' | 'british_english' | 'japanese' | 'mandarin_chinese' | 'spanish' | 'french' | 'hindi' | 'italian' | 'brazilian_portuguese', name: string, gender: string }[]).map(({ id, language, name, gender }) => (
@@ -2138,18 +1416,223 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
-        validateProviderConfig: (config: any) => {
-          if (!config.baseUrl) {
+        validateProviderConfig: async (config) => {
+          const errors = [
+            !config.baseUrl && new Error('Base URL is required. Default to http://localhost:4315/v1/'),
+          ].filter(Boolean)
+
+          const res = baseUrlValidator.value(config.baseUrl)
+          if (res)
+            return res
+
+          try {
+            const controller = new AbortController()
+            const timeout = setTimeout(() => controller.abort(), 5000)
+            const response = await fetch(`${config.baseUrl as string}health`, {
+              method: 'GET',
+              headers: {
+                'player2-game-key': 'airi',
+              },
+              signal: controller.signal,
+            })
+            clearTimeout(timeout)
+
+            if (!response.ok) {
+              const reason = `Player2 speech unreachable: HTTP ${response.status} ${response.statusText}`
+              return { errors: [new Error(reason)], reason, valid: false }
+            }
+          }
+          catch (err) {
+            const reason = `Player2 speech connection failed: ${String(err)}`
+            return { errors: [err as Error], reason, valid: false }
+          }
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: errors.length === 0,
+          }
+        },
+      },
+    },
+    'kokoro-local': {
+      id: 'kokoro-local',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      nameKey: 'settings.pages.providers.provider.kokoro-local.title',
+      name: 'Kokoro TTS',
+      descriptionKey: 'settings.pages.providers.provider.kokoro-local.description',
+      description: 'Local text-to-speech using Kokoro-82M.',
+      icon: 'i-lobe-icons:speaker',
+
+      defaultOptions: () => {
+        const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu
+        const model = getDefaultKokoroModel(hasWebGPU)
+        return {
+          model,
+          voiceId: '',
+        }
+      },
+
+      createProvider: async (_config) => {
+        // Import the worker manager
+        const workerManagerPromise = getKokoroWorker()
+
+        const provider: SpeechProvider = {
+          speech: () => {
             return {
-              errors: [new Error('Base URL is required.')],
-              reason: 'Base URL is required. Default to http://localhost:4315/v1/',
+              baseURL: 'http://kokoro-local/v1/',
+              model: 'kokoro-82m',
+              fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
+                try {
+                  // Parse OpenAI-compatible request body
+                  if (!init?.body || typeof init.body !== 'string') {
+                    throw new Error('Invalid request body')
+                  }
+                  const body = JSON.parse(init.body)
+                  const text = body.input
+                  const voice = body.voice
+
+                  if (!voice) {
+                    throw new Error('Voice parameter is required')
+                  }
+
+                  // Generate audio in the worker thread
+                  const buffer = await (await workerManagerPromise).generate(text, voice)
+
+                  return new Response(buffer, {
+                    status: 200,
+                    headers: {
+                      'Content-Type': 'audio/wav',
+                    },
+                  })
+                }
+                catch (error) {
+                  console.error('Kokoro TTS generation failed:', error)
+                  throw error
+                }
+              },
+            }
+          },
+        }
+
+        return provider
+      },
+
+      capabilities: {
+        listModels: async (_config: Record<string, unknown>) => {
+          const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu
+          return kokoroModelsToModelInfo(hasWebGPU, t)
+        },
+
+        loadModel: async (config: Record<string, unknown>, _hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => {
+          const modelId = config.model as string
+
+          if (!modelId) {
+            throw new Error('No model specified')
+          }
+
+          const modelDef = KOKORO_MODELS.find(m => m.id === modelId)
+          if (!modelDef) {
+            throw new Error(`Invalid model: ${modelId}. Must be one of: ${KOKORO_MODELS.map(m => m.id).join(', ')}`)
+          }
+
+          // Validate platform requirements
+          if (modelDef.platform === 'webgpu') {
+            const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu
+            if (!hasWebGPU) {
+              throw new Error('WebGPU is required for this model but is not available in your browser')
+            }
+          }
+
+          try {
+            const workerManager = await getKokoroWorker()
+            await workerManager.loadModel(modelDef.quantization, modelDef.platform, { onProgress: _hooks?.onProgress })
+          }
+          catch (error) {
+            console.error('Failed to load Kokoro model:', error)
+            throw error
+          }
+        },
+
+        listVoices: async (config: Record<string, unknown>) => {
+          try {
+            // Reload the model before fetching voices
+            const modelId = config.model as string
+            if (modelId) {
+              const modelDef = KOKORO_MODELS.find(m => m.id === modelId)
+              if (modelDef) {
+                // Validate platform requirements
+                if (modelDef.platform === 'webgpu') {
+                  const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu
+                  if (!hasWebGPU) {
+                    throw new Error('WebGPU is required for this model but is not available in your browser')
+                  }
+                }
+
+                // Load the model
+                const workerManager = await getKokoroWorker()
+                await workerManager.loadModel(modelDef.quantization, modelDef.platform)
+              }
+            }
+
+            // Get worker manager and fetch voices from the model
+            const workerManager = await getKokoroWorker()
+            const modelVoices = workerManager.getVoices()
+
+            // Language code mapping
+            const languageMap: Record<string, { code: string, title: string }> = {
+              'en-us': { code: 'en-US', title: 'English (US)' },
+              'en-gb': { code: 'en-GB', title: 'English (UK)' },
+              'ja': { code: 'ja', title: 'Japanese' },
+              'zh-cn': { code: 'zh-CN', title: 'Chinese (Mandarin)' },
+              'es': { code: 'es', title: 'Spanish' },
+              'fr': { code: 'fr', title: 'French' },
+              'hi': { code: 'hi', title: 'Hindi' },
+              'it': { code: 'it', title: 'Italian' },
+              'pt-br': { code: 'pt-BR', title: 'Portuguese (Brazil)' },
+            }
+
+            // Transform the voices object to the expected array format
+            return Object.entries(modelVoices).map(([id, voice]: [string, { language: string, name: string, gender: string }]) => {
+              const languageCode = voice.language.toLowerCase()
+              const languageInfo = languageMap[languageCode] || { code: languageCode, title: voice.language }
+
+              return {
+                id,
+                name: `${voice.name} (${voice.gender}, ${languageInfo.title.split('(')[0].trim()})`,
+                provider: 'kokoro-local',
+                languages: [languageInfo],
+                gender: voice.gender.toLowerCase(),
+              }
+            })
+          }
+          catch (error) {
+            console.error('Failed to fetch Kokoro voices:', error)
+            // Return empty array if model not loaded yet
+            return []
+          }
+        },
+      },
+
+      validators: {
+        validateProviderConfig: async (config: any) => {
+          const model = config.model as string
+
+          if (!model) {
+            return {
+              errors: [new Error('No model selected')],
+              reason: 'Please select a model from the dropdown menu',
               valid: false,
             }
           }
 
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
+          if (!KOKORO_MODELS.some(m => m.id === model)) {
+            return {
+              errors: [new Error(`Invalid model: ${model}`)],
+              reason: `Invalid model. Must be one of: ${KOKORO_MODELS.map(m => m.id).join(', ')}`,
+              valid: false,
+            }
           }
 
           return {
@@ -2160,6 +1643,31 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+  }
+
+  // Progressive migration bridge:
+  // translate unified provider definitions from libs/providers to legacy store metadata.
+  // Existing metadata remains as fallback for providers not yet migrated.
+  const translatedProviderMetadata = convertProviderDefinitionsToMetadata(
+    listDefinedProviders(),
+    t,
+    providerMetadata,
+  )
+
+  // Keep only legacy ASR/TTS providers as hand-written metadata.
+  // All other categories are sourced from unified definitions in libs/providers.
+  for (const [providerId, existing] of Object.entries(providerMetadata)) {
+    if (existing.category !== 'speech' && existing.category !== 'transcription') {
+      delete providerMetadata[providerId]
+    }
+  }
+
+  // Populate non-speech providers from unified registry translation.
+  for (const [providerId, translated] of Object.entries(translatedProviderMetadata)) {
+    if (translated.category === 'speech' || translated.category === 'transcription') {
+      continue
+    }
+    providerMetadata[providerId] = translated
   }
 
   // const validatedCredentials = ref<Record<string, string>>({})
@@ -2215,7 +1723,7 @@ export const useProvidersStore = defineStore('providers', () => {
     if (providerRuntimeState.value[providerId]) {
       providerRuntimeState.value[providerId].isConfigured = validationResult.valid
       // Auto-mark Web Speech API as added if valid and available
-      if (providerId === 'browser-web-speech-api' && validationResult.valid) {
+      if (validationResult.valid && ['browser-web-speech-api', 'player2'].includes(providerId)) {
         markProviderAdded(providerId)
       }
     }

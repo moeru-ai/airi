@@ -1,11 +1,11 @@
 <script setup lang="ts">
+import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { ButtonBar, CheckBar, IconItem } from '@proj-airi/stage-ui/components'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { electronOpenDevtoolsWindow, electronOpenMainDevtools } from '../../../../shared/eventa'
-import { useElectronEventaInvoke } from '../../../composables/electron-vueuse'
 
 const { t } = useI18n()
 const settings = useSettings()
@@ -64,6 +64,12 @@ const menu = computed(() => [
     description: 'Inspect raw WebSocket traffic',
     icon: 'i-solar:transfer-horizontal-bold-duotone',
     to: '/devtools/websocket-inspector',
+  },
+  {
+    title: 'Plugin Host Debug',
+    description: 'Inspect discovered/enabled/loaded plugins and control load/unload lifecycle',
+    icon: 'i-solar:bug-bold-duotone',
+    to: '/devtools/plugin-host',
   },
   {
     title: 'Screen Capture',

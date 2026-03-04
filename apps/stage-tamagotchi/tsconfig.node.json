@@ -20,7 +20,8 @@
     "skipLibCheck": true
   },
   "include": [
-    "vite.config.ts",
+    "../../uno.config.ts",
+    "uno.config.ts",
     "electron.vite.config.ts",
 
     "src/main/**/*.ts",
@@ -31,8 +32,6 @@
     "src/shared/**/*.ts",
     "src/shared/**/*.d.ts",
     "src/shared/**/*.tsx",
-    "src/shared/**/*.vue",
-
-    "../../uno.config.ts"
+    "src/shared/**/*.vue"
   ]
 }

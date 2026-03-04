@@ -8,7 +8,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=example-PAssw0rd-xHjDYR.b7N
     ports:
-      - '5432:5432'
+      - '5435:5432'
     volumes:
       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
       - db_data:/var/lib/postgresql
@@ -25,14 +25,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      # Database
-      - DATABASE_URL=postgresql://postgres:example-PAssw0rd-xHjDYR.b7N@db:5432/postgres
-      # Auth
-      - AUTH_GOOGLE_CLIENT_ID
-      - AUTH_GOOGLE_CLIENT_SECRET
-      - AUTH_GITHUB_CLIENT_ID
-      - AUTH_GITHUB_CLIENT_SECRET
+    env_file:
+      - path: .env
+        required: false
+      - path: .env.local
+        required: false
     ports:
       - '6112:3000'
     healthcheck:

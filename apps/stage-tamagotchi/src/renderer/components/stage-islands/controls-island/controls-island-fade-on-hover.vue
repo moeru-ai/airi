@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -6,7 +7,6 @@ import ControlButtonTooltip from './control-button-tooltip.vue'
 import ControlButton from './control-button.vue'
 
 import { noticeWindowEventa } from '../../../../shared/eventa'
-import { useElectronEventaInvoke } from '../../../composables/electron-vueuse/use-electron-eventa-context'
 import { useControlsIslandStore } from '../../../stores/controls-island'
 
 interface Props {

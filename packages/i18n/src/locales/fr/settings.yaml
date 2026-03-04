@@ -71,6 +71,11 @@ live2d:
     title: Désactiver le suivi du modèle par la souris
     button-disable:
       title: Désactiver
+  fps:
+    title: FPS
+    description: Limit rendering frame rate
+    options:
+      unlimited: No Limit
 microphone: Microphone
 models: Modèle
 pages:
@@ -83,6 +88,8 @@ pages:
     card_not_found: Carte non trouvée
     character: Personnage
     close: Fermer
+    chat:
+      provider: Chat / Provider
     consciousness:
       model: Conscience / Modèle
     created_by: créé par
@@ -111,6 +118,9 @@ pages:
         scenario: Vous vous êtes récemment réveillé et avez tout oublié de votre vie passée.
         systemprompt: Vous recevrez des messages et y répondrez comme un humain.
         posthistoryinstructions: N’oubliez pas d’imiter un humain.
+      modules_info: Configure modules for this character card. If not set, default module configuration will be used.
+      use_default: Use default
+      use_default_not_configured: Use default (not configured)
       fields_info:
         subtitle: >-
           Vous pouvez ici ajouter des détails sur le personnage que vous créez, expliquer son histoire et son contexte, et comment vos interactions devraient être répondues.
@@ -127,6 +137,8 @@ pages:
         posthistoryinstructions: Placez ici tout ce que l’IA doit lire après l’historique des messages.
         version: >-
           Version de la carte, vous devez l’incrémenter si vous apportez des modifications par rapport à une carte précédente.
+        consciousness_model: Select the consciousness model (AI model) for this character.
+        speech_model: Select the speech synthesis model and voice for this character.
       errors:
         name: Le nom doit être valide ou non vide.
         version: 'Erreur : numéro de version invalide !'
@@ -147,6 +159,7 @@ pages:
     search: Rechercher des cartes...
     sort_by: Trier par
     speech:
+      provider: Speech / Provider
       model: Parole / Modèle
       voice: Parole / Voix
     systemprompt: Prompt système
@@ -289,7 +302,7 @@ pages:
             search_results: '{count} modèles trouvés sur {total}'
             show_less: Afficher moins
             show_more: Afficher plus
-            subtitle: Sélectionnez un modèle du fournisseur
+            subtitle: Select a default model from the provider
             title: Modèle
       title: Conscience
     description: Synthèse, vision, parole, jeux, etc.
@@ -352,6 +365,7 @@ pages:
               stop:
                 label: Arrêter
             select-voice:
+              loading: Loading model...
               required: Veuillez sélectionner une voix
           provider-voice-selection:
             custom_model_placeholder: Entrez le nom du modèle personnalisé...
@@ -601,6 +615,30 @@ pages:
           validation:
             error-missing-api-key: Veuillez entrer une clé API pour tester la voix.
         title: ElevenLabs
+      kokoro-local:
+        description: Local text-to-speech using Kokoro-82M.
+        fields:
+          field:
+            model:
+              label: Model Selection
+              description: Smaller models load faster but may have slightly lower quality.
+        models:
+          fp32-webgpu:
+            description: Full precision model using WebGPU - Recommended for supported devices
+          fp32:
+            description: Full precision model
+          fp16:
+            description: Half precision
+          q8:
+            description: 8-bit quantized
+          q4:
+            description: 4-bit quantized
+          q4f16:
+            description: 4-bit with FP16
+        playground:
+          default-text: Hello! This is a test of the Kokoro text-to-speech system.
+          title: Voice Playground
+        title: Kokoro TTS (Local)
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai
@@ -615,9 +653,17 @@ pages:
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili / IndexTTS
+        callout_indextts2_unavailable_title: Limited Support
+        callout_indextts2_unavailable: Support for IndexTTS2 is currently unavailable. Please use IndexTTS.
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry
+      minimax:
+        description: minimaxi.com
+        title: MiniMax
+      minimax-global:
+        description: minimax.io
+        title: MiniMax Global
       mistral:
         description: mistral.ai
         title: Mistral
@@ -741,7 +787,7 @@ pages:
                 title: Markdown Stress
                 description: Stress markdown parsing and rendering with heavy chat payloads
               use-magic-keys:
-                title: useMagicKeys
+                title: useMagicKeys Tool
                 description: Test shortcuts
               audio-record:
                 title: Audio Record
@@ -903,6 +949,10 @@ vrm:
   skybox:
     skybox-intensity: Intensité de la SkyBox
     skybox-specular-mix: Mélange spéculaire
+websocket-secure-enabled:
+  title: Activer WebSocket Sécurisé (WSS)
+  description: >-
+    Activez WSS (WebSocket Secure) pour permettre les connexions HTTPS pour mobile (pocket) en mode développement. Cela générera automatiquement un certificat auto-signé.
 wip:
   title: Work in Progress
   description: >-
