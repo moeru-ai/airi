@@ -7,6 +7,7 @@ import { useWindowSize } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
 import ControlButtonTooltip from './control-button-tooltip.vue'
 import ControlButton from './control-button.vue'
@@ -18,6 +19,7 @@ import { electron, electronOpenChat, electronOpenSettings, electronStartDragging
 
 const { isDark, toggleDark } = useTheme()
 const { t } = useI18n()
+const router = useRouter()
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const settingsStore = useSettings()
@@ -74,13 +76,23 @@ defineExpose({ hearingDialogOpen })
 function refreshWindow() {
   window.location.reload()
 }
+
+async function handleOpenSettings() {
+  try {
+    await openSettings()
+  }
+  catch (error) {
+    console.error('[ControlsIsland] Failed to open settings window via IPC, fallback to in-window settings route.', error)
+    await router.push('/settings')
+  }
+}
 </script>
 
 <template>
   <div fixed bottom-2 right-2>
     <div flex flex-col gap-1>
       <ControlButtonTooltip>
-        <ControlButton :button-style="adjustStyleClasses.button" @click="openSettings">
+        <ControlButton :button-style="adjustStyleClasses.button" @click="handleOpenSettings">
           <div i-solar:settings-minimalistic-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
         </ControlButton>
 
