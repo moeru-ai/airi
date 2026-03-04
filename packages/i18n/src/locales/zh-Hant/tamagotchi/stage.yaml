@@ -18,7 +18,11 @@ docs:
   'open-hearing-controls': 開啟聽力控制
   'drag-to-move-window': 長按以移動視窗
   'switch-to-light-mode': 切換至亮色模式
-  'switch-to-dark-mode': 切換至深色模式
+  'switch-to-dark-mode': 切換到暗色模式
+  'close': 關閉
+  'expand': 展開
+  'collapse': 收起
+
 notice:
   'fade-on-hover':
     title: 懸停淡出
