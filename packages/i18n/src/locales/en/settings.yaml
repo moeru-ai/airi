@@ -487,6 +487,7 @@ pages:
     title: Flux
     buy: Charge
     description: Current Flux
+    packagesError: Failed to load packages. Please try again later.
     checkout:
       success: Payment successful! Your Flux has been topped up.
       canceled: Payment was canceled.

@@ -2,13 +2,35 @@ import type Redis from 'ioredis'
 
 import { createServiceUnavailableError } from '../utils/error'
 
+export interface FluxPackage {
+  /** Amount in cents sent to Stripe */
+  amount: number
+  /** Display label, e.g. "500 Flux" */
+  label: string
+  /** Display price, e.g. "$5" */
+  price: string
+}
+
 interface ConfigDefinitions {
   FLUX_PER_CENT: number
   FLUX_PER_REQUEST: number
   INITIAL_USER_FLUX: number
+  FLUX_PACKAGES: FluxPackage[]
 }
 
 const KEY_PREFIX = 'config:'
+
+function parseValue<K extends keyof ConfigDefinitions>(key: K, raw: string): ConfigDefinitions[K] {
+  if (key === 'FLUX_PACKAGES')
+    return JSON.parse(raw) as ConfigDefinitions[K]
+  return Number(raw) as ConfigDefinitions[K]
+}
+
+function serializeValue<K extends keyof ConfigDefinitions>(key: K, value: ConfigDefinitions[K]): string {
+  if (key === 'FLUX_PACKAGES')
+    return JSON.stringify(value)
+  return String(value)
+}
 
 export function createConfigKVService(redis: Redis) {
   return {
@@ -17,7 +39,7 @@ export function createConfigKVService(redis: Redis) {
       if (raw === null)
         return null
 
-      return Number(raw) as ConfigDefinitions[K]
+      return parseValue(key, raw)
     },
 
     async get<K extends keyof ConfigDefinitions>(key: K): Promise<ConfigDefinitions[K]> {
@@ -29,7 +51,7 @@ export function createConfigKVService(redis: Redis) {
     },
 
     async set<K extends keyof ConfigDefinitions>(key: K, value: ConfigDefinitions[K]): Promise<void> {
-      await redis.set(`${KEY_PREFIX}${key}`, String(value))
+      await redis.set(`${KEY_PREFIX}${key}`, serializeValue(key, value))
     },
   }
 }
