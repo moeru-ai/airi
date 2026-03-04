@@ -58,6 +58,7 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
   private logger: Logg
   private commands: Map<string, EventsHandler<'command'>> = new Map()
   private ticker: Ticker = new Ticker()
+  private readonly commandChatHandler: (username: string, message: string) => void
 
   constructor(options: MineflayerOptions) {
     super()
@@ -72,6 +73,7 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
       botConfig: this.options.botConfig,
       initialPlugins: options.plugins ?? [],
     })
+    this.commandChatHandler = this.createCommandChatHandler()
 
     this.on('interrupt', () => {
       this.logger.log('Interrupted')
@@ -206,7 +208,7 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
     })
 
     mineflayer.bot.on('spawn', () => {
-      mineflayer.bot.on('chat', mineflayer.handleCommand())
+      mineflayer.attachCommandChatListener()
     })
 
     mineflayer.bot.on('spawn', async () => {
@@ -250,7 +252,7 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
 
     await this.pluginManager.runBeforeCleanupHooks()
     this.components.cleanup()
-    this.bot.removeListener('chat', this.handleCommand())
+    this.detachCommandChatListener()
     this.bot.quit()
     this.removeAllListeners()
   }
@@ -341,6 +343,7 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
         // Clean up old bot
         this.ready = false
         await this.pluginManager.runBeforeCleanupHooks()
+        this.detachCommandChatListener()
         this.bot.removeAllListeners()
 
         // Create new bot with same config
@@ -448,7 +451,7 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
     })
 
     this.bot.on('spawn', () => {
-      this.bot.on('chat', this.handleCommand())
+      this.attachCommandChatListener()
     })
 
     this.bot.on('spawn', async () => {
@@ -464,7 +467,16 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
     })
   }
 
-  private handleCommand() {
+  private attachCommandChatListener(): void {
+    this.bot.off('chat', this.commandChatHandler)
+    this.bot.on('chat', this.commandChatHandler)
+  }
+
+  private detachCommandChatListener(): void {
+    this.bot.off('chat', this.commandChatHandler)
+  }
+
+  private createCommandChatHandler() {
     return new ChatMessageHandler(this.username).handleChat((sender, message) => {
       const { isCommand, command, args } = parseCommand(sender, message)
 
