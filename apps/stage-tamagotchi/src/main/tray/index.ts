@@ -8,7 +8,7 @@ import { env } from 'node:process'
 
 import { is } from '@electron-toolkit/utils'
 import { app, Menu, nativeImage, screen, Tray } from 'electron'
-import { once } from 'es-toolkit'
+import { debounce, once } from 'es-toolkit'
 import { isMacOS } from 'std-env'
 
 import icon from '../../../resources/icon.png?asset'
@@ -23,13 +23,17 @@ const RECOMMENDED_HEIGHT = 600
 const ASPECT_RATIO = RECOMMENDED_WIDTH / RECOMMENDED_HEIGHT
 
 function applyWindowSize(window: BrowserWindow, width: number, height: number, x?: number, y?: number): void {
-  window.setFullScreen(false)
   window.setResizable(true)
-  window.setSize(width, height)
+  const bounds = {
+    width: Math.round(width),
+    height: Math.round(height),
+  } as any
   if (x !== undefined && y !== undefined) {
-    window.setPosition(x, y)
+    bounds.x = Math.round(x)
+    bounds.y = Math.round(y)
   }
-  else {
+  window.setBounds(bounds)
+  if (x === undefined || y === undefined) {
     window.center()
   }
   window.show()
@@ -61,7 +65,7 @@ function alignWindow(window: BrowserWindow, position: 'center' | 'top-left' | 't
 
 function isSizeMatch(window: BrowserWindow, targetWidth: number, targetHeight: number): boolean {
   const { width, height } = window.getBounds()
-  return Math.abs(width - targetWidth) <= 2 && Math.abs(height - targetHeight) <= 2
+  return Math.abs(width - Math.round(targetWidth)) <= 2 && Math.abs(height - Math.round(targetHeight)) <= 2
 }
 
 function isPositionMatch(window: BrowserWindow, targetX: number, targetY: number): boolean {
@@ -84,15 +88,13 @@ export function setupTray(params: {
     const appTray = new Tray(trayImage)
     onAppBeforeQuit(() => appTray.destroy())
 
-    const rebuildContextMenu = (): void => {
-      const isFull = params.mainWindow.isFullScreen()
-      const { height: screenHeight } = screen.getPrimaryDisplay().workAreaSize
+    const rebuildContextMenu = debounce((): void => {
       const { x: areaX, y: areaY, width: areaWidth, height: areaHeight } = screen.getPrimaryDisplay().workArea
       const { width: windowWidth, height: windowHeight } = params.mainWindow.getBounds()
 
-      const fullHeightTarget = screenHeight
-      const fullWidthTarget = Math.floor(screenHeight * ASPECT_RATIO)
-      const halfHeightTarget = Math.floor(screenHeight / 2)
+      const fullHeightTarget = areaHeight
+      const fullWidthTarget = Math.floor(areaHeight * ASPECT_RATIO)
+      const halfHeightTarget = Math.floor(areaHeight / 2)
       const halfWidthTarget = Math.floor(halfHeightTarget * ASPECT_RATIO)
 
       const contextMenu = Menu.buildFromTemplate([
@@ -104,38 +106,26 @@ export function setupTray(params: {
             {
               label: 'Recommended (450x600)',
               type: 'checkbox',
-              checked: !isFull && isSizeMatch(params.mainWindow, RECOMMENDED_WIDTH, RECOMMENDED_HEIGHT),
+              checked: isSizeMatch(params.mainWindow, RECOMMENDED_WIDTH, RECOMMENDED_HEIGHT),
               click: () => applyWindowSize(params.mainWindow, RECOMMENDED_WIDTH, RECOMMENDED_HEIGHT),
             },
             {
               label: 'Full Height',
               type: 'checkbox',
-              checked: !isFull && isSizeMatch(params.mainWindow, fullWidthTarget, fullHeightTarget),
+              checked: isSizeMatch(params.mainWindow, fullWidthTarget, fullHeightTarget),
               click: () => applyWindowSize(params.mainWindow, fullWidthTarget, fullHeightTarget),
             },
             {
               label: 'Half Height',
               type: 'checkbox',
-              checked: !isFull && isSizeMatch(params.mainWindow, halfWidthTarget, halfHeightTarget),
+              checked: isSizeMatch(params.mainWindow, halfWidthTarget, halfHeightTarget),
               click: () => applyWindowSize(params.mainWindow, halfWidthTarget, halfHeightTarget),
             },
             {
               label: 'Full Screen',
               type: 'checkbox',
-              checked: isFull,
-              click: () => params.mainWindow.setFullScreen(true),
-            },
-            { type: 'separator' },
-            {
-              label: 'Toggle Full Screen',
-              type: 'checkbox',
-              checked: isFull,
-              click: () => {
-                const isFull = params.mainWindow.isFullScreen()
-                params.mainWindow.setFullScreen(!isFull)
-                if (isFull)
-                  params.mainWindow.show()
-              },
+              checked: isSizeMatch(params.mainWindow, areaWidth, areaHeight),
+              click: () => applyWindowSize(params.mainWindow, areaWidth, areaHeight, areaX, areaY),
             },
           ],
         },
@@ -145,32 +135,32 @@ export function setupTray(params: {
             {
               label: 'Center',
               type: 'checkbox',
-              checked: !isFull && isPositionMatch(params.mainWindow, areaX + Math.floor((areaWidth - windowWidth) / 2), areaY + Math.floor((areaHeight - windowHeight) / 2)),
+              checked: isPositionMatch(params.mainWindow, areaX + Math.floor((areaWidth - windowWidth) / 2), areaY + Math.floor((areaHeight - windowHeight) / 2)),
               click: () => alignWindow(params.mainWindow, 'center'),
             },
             { type: 'separator' },
             {
               label: 'Top Left',
               type: 'checkbox',
-              checked: !isFull && isPositionMatch(params.mainWindow, areaX, areaY),
+              checked: isPositionMatch(params.mainWindow, areaX, areaY),
               click: () => alignWindow(params.mainWindow, 'top-left'),
             },
             {
               label: 'Top Right',
               type: 'checkbox',
-              checked: !isFull && isPositionMatch(params.mainWindow, areaX + areaWidth - windowWidth, areaY),
+              checked: isPositionMatch(params.mainWindow, areaX + areaWidth - windowWidth, areaY),
               click: () => alignWindow(params.mainWindow, 'top-right'),
             },
             {
               label: 'Bottom Left',
               type: 'checkbox',
-              checked: !isFull && isPositionMatch(params.mainWindow, areaX, areaY + areaHeight - windowHeight),
+              checked: isPositionMatch(params.mainWindow, areaX, areaY + areaHeight - windowHeight),
               click: () => alignWindow(params.mainWindow, 'bottom-left'),
             },
             {
               label: 'Bottom Right',
               type: 'checkbox',
-              checked: !isFull && isPositionMatch(params.mainWindow, areaX + areaWidth - windowWidth, areaY + areaHeight - windowHeight),
+              checked: isPositionMatch(params.mainWindow, areaX + areaWidth - windowWidth, areaY + areaHeight - windowHeight),
               click: () => alignWindow(params.mainWindow, 'bottom-right'),
             },
           ],
@@ -202,12 +192,10 @@ export function setupTray(params: {
       ])
 
       appTray.setContextMenu(contextMenu)
-    }
+    }, 50)
 
     params.mainWindow.on('resize', rebuildContextMenu)
     params.mainWindow.on('move', rebuildContextMenu)
-    params.mainWindow.on('enter-full-screen', rebuildContextMenu)
-    params.mainWindow.on('leave-full-screen', rebuildContextMenu)
 
     rebuildContextMenu()
 

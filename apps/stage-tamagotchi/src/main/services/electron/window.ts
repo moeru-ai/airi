@@ -71,5 +71,9 @@ export function createWindowService(params: { context: ReturnType<typeof createC
     })
   })
 
-  defineInvokeHandler(params.context, electronWindowClose, () => params.window.close())
+  defineInvokeHandler(params.context, electronWindowClose, (_, options) => {
+    if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
+      params.window.close()
+    }
+  })
 }

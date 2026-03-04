@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { defineInvoke } from '@moeru/eventa'
-import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
-import { useMouseInElement } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -31,7 +30,7 @@ const closeWindow = useElectronEventaInvoke(electronWindowClose)
 
 const expanded = ref(false)
 const islandRef = ref<HTMLElement | null>(null)
-const { isOutside } = useMouseInElement(islandRef)
+const { isOutside } = useElectronMouseInElement(islandRef)
 
 let collapseTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -48,6 +47,13 @@ watch(isOutside, (val) => {
       clearTimeout(collapseTimer)
       collapseTimer = null
     }
+  }
+})
+
+watch(expanded, (isExpanded) => {
+  if (!isExpanded && collapseTimer) {
+    clearTimeout(collapseTimer)
+    collapseTimer = null
   }
 })
 
