@@ -7,12 +7,6 @@ import * as path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createEventBus } from '../../event-bus'
-import {
-  calculateWindowSlots,
-  createAccumulatorState,
-  parseWindowDuration,
-  processEvent,
-} from './accumulator'
 import { RuleEngine } from './engine'
 import { parseRuleFromString } from './loader'
 import {
@@ -22,6 +16,12 @@ import {
   matchWhere,
   renderTemplate,
 } from './matcher'
+import {
+  calculateWindowSlots,
+  createDetectorState,
+  parseWindowDuration,
+  processEvent,
+} from './temporal-detector'
 
 const cleanupCallbacks: Array<() => void> = []
 
@@ -34,8 +34,8 @@ afterEach(() => {
 
 function createMockLogger() {
   const logger = {
-    withFields: vi.fn(() => logger),
-    withError: vi.fn(() => logger),
+    withFields: vi.fn((_fields?: Record<string, unknown>) => logger),
+    withError: vi.fn((_error?: Error) => logger),
     log: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
@@ -53,7 +53,7 @@ trigger:
   kind: arm_swing
   where:
     entityType: player
-accumulator:
+detector:
   threshold: 2
   window: 1s
   mode: ${mode}
@@ -63,7 +63,26 @@ signal:
 `
 }
 
+function buildArmSwingRuleYamlWithoutMode(): string {
+  return `
+name: test-arm-swing-default
+version: 1
+trigger:
+  modality: sighted
+  kind: arm_swing
+  where:
+    entityType: player
+detector:
+  threshold: 2
+  window: 1s
+signal:
+  type: entity_attention
+  description: "Player {{ displayName }} attention"
+`
+}
+
 function createRuleEngineForTest(ruleYaml: string): {
+  engine: RuleEngine
   eventBus: EventBus
   logger: ReturnType<typeof createMockLogger>
   signals: TracedEvent[]
@@ -94,7 +113,7 @@ function createRuleEngineForTest(ruleYaml: string): {
     fs.rmSync(rulesDir, { recursive: true, force: true })
   })
 
-  return { eventBus, logger, signals }
+  return { engine, eventBus, logger, signals }
 }
 
 function emitArmSwingEvent(eventBus: EventBus, input: {
@@ -116,7 +135,7 @@ function emitArmSwingEvent(eventBus: EventBus, input: {
   })
 }
 
-describe('accumulator', () => {
+describe('detector', () => {
   describe('parseWindowDuration', () => {
     it('should parse milliseconds', () => {
       expect(parseWindowDuration('500ms')).toBe(500)
@@ -142,7 +161,7 @@ describe('accumulator', () => {
 
   describe('processEvent', () => {
     it('should keep firing on every matched event after threshold in sliding mode', () => {
-      let state = createAccumulatorState(50, 0)
+      let state = createDetectorState(50, 0)
 
       const [firstFired, stateAfterFirst] = processEvent(state, {
         threshold: 2,
@@ -176,7 +195,7 @@ describe('accumulator', () => {
     })
 
     it('should treat sliding window as left-open and right-closed at the boundary', () => {
-      let state = createAccumulatorState(10, 0)
+      let state = createDetectorState(10, 0)
 
       const [, stateAfterFirst] = processEvent(state, {
         threshold: 2,
@@ -210,7 +229,7 @@ describe('accumulator', () => {
     })
 
     it('should fire at most once per fixed window in tumbling mode', () => {
-      let state = createAccumulatorState(1, 0)
+      let state = createDetectorState(1, 0)
 
       const [firstFired, stateAfterFirst] = processEvent(state, {
         threshold: 2,
@@ -283,7 +302,7 @@ describe('engine temporal semantics', () => {
     expect(signals).toHaveLength(2)
   })
 
-  it('should isolate accumulators by default group key (entityId/sourceId)', () => {
+  it('should isolate detectors by default group key (entityId/sourceId)', () => {
     const { eventBus, signals } = createRuleEngineForTest(buildArmSwingRuleYaml('sliding'))
 
     emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 100 })
@@ -299,7 +318,7 @@ describe('engine temporal semantics', () => {
   })
 
   it('should ignore out-of-order timestamps to keep temporal detection deterministic', () => {
-    const { eventBus, logger, signals } = createRuleEngineForTest(buildArmSwingRuleYaml('sliding'))
+    const { engine, eventBus, logger, signals } = createRuleEngineForTest(buildArmSwingRuleYaml('sliding'))
 
     emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 200 })
     emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 100 })
@@ -307,6 +326,86 @@ describe('engine temporal semantics', () => {
 
     expect(signals).toHaveLength(1)
     expect(logger.warn).toHaveBeenCalledTimes(1)
+
+    expect(engine.getDetectorDecisionSnapshot()).toEqual([
+      {
+        ruleName: 'test-arm-swing-sliding',
+        mode: 'sliding',
+        groupKey: 'alice',
+        count: 1,
+        threshold: 2,
+        windowMs: 1000,
+        eventTs: 200,
+        decision: 'matched_not_fired',
+      },
+      {
+        ruleName: 'test-arm-swing-sliding',
+        mode: 'sliding',
+        groupKey: 'alice',
+        count: 1,
+        threshold: 2,
+        windowMs: 1000,
+        eventTs: 100,
+        decision: 'ignored_out_of_order',
+      },
+      {
+        ruleName: 'test-arm-swing-sliding',
+        mode: 'sliding',
+        groupKey: 'alice',
+        count: 2,
+        threshold: 2,
+        windowMs: 1000,
+        eventTs: 250,
+        decision: 'fired',
+      },
+    ])
+
+    const decisionLogPayloads = logger.withFields.mock.calls
+      .map(([fields]) => fields as { decision?: string } | undefined)
+      .filter((fields): fields is { decision: string } => Boolean(fields?.decision))
+
+    expect(decisionLogPayloads).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        ruleName: 'test-arm-swing-sliding',
+        mode: 'sliding',
+        groupKey: 'alice',
+        count: 1,
+        threshold: 2,
+        windowMs: 1000,
+        eventTs: 100,
+        decision: 'ignored_out_of_order',
+      }),
+      expect.objectContaining({
+        ruleName: 'test-arm-swing-sliding',
+        mode: 'sliding',
+        groupKey: 'alice',
+        count: 2,
+        threshold: 2,
+        windowMs: 1000,
+        eventTs: 250,
+        decision: 'fired',
+      }),
+    ]))
+  })
+
+  it('should default detector mode to sliding when mode is omitted', () => {
+    const { engine, eventBus, signals } = createRuleEngineForTest(buildArmSwingRuleYamlWithoutMode())
+
+    emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 100 })
+    emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 200 })
+    emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 300 })
+
+    expect(signals).toHaveLength(2)
+    expect(engine.getDetectorDecisionSnapshot().map(item => item.decision)).toEqual([
+      'matched_not_fired',
+      'fired',
+      'fired',
+    ])
+    expect(engine.getDetectorDecisionSnapshot().map(item => item.mode)).toEqual([
+      'sliding',
+      'sliding',
+      'sliding',
+    ])
   })
 })
 
@@ -387,7 +486,7 @@ trigger:
   kind: arm_swing
   where:
     entityType: player
-accumulator:
+detector:
   threshold: 5
   window: 2s
 signal:
@@ -400,19 +499,19 @@ signal:
       expect(rule.version).toBe(1)
       expect(rule.trigger.eventType).toBe('raw:sighted:arm_swing')
       expect(rule.trigger.where).toEqual({ entityType: 'player' })
-      expect(rule.accumulator.threshold).toBe(5)
-      expect(rule.accumulator.windowMs).toBe(2000)
-      expect(rule.accumulator.mode).toBe('sliding')
+      expect(rule.detector.threshold).toBe(5)
+      expect(rule.detector.windowMs).toBe(2000)
+      expect(rule.detector.mode).toBe('sliding')
       expect(rule.signal.type).toBe('entity_attention')
     })
 
-    it('should reject invalid accumulator threshold and confidence', () => {
+    it('should reject invalid detector threshold and confidence', () => {
       const yaml = `
 name: invalid-threshold
 trigger:
   modality: sighted
   kind: arm_swing
-accumulator:
+detector:
   threshold: 0
   window: 2s
 signal:
@@ -423,7 +522,7 @@ signal:
 
       expect(() => parseRuleFromString(yaml)).toThrowErrorMatchingInlineSnapshot(`
         [Error: Invalid rule in <string>:
-        - accumulator.threshold: Too small: expected number to be >0
+        - detector.threshold: Too small: expected number to be >0
         - signal.confidence: Too big: expected number to be <=1]
       `)
     })
@@ -438,7 +537,7 @@ trigger:
     distance:
       lt: 10
       gt: 2
-accumulator:
+detector:
   threshold: 1
   window: 2s
 signal:
@@ -458,7 +557,7 @@ name: invalid-metadata
 trigger:
   modality: system
   kind: system_message
-accumulator:
+detector:
   threshold: 1
   window: 1s
 signal:
@@ -483,7 +582,7 @@ trigger:
   kind: arm_swing
   where:
     target: null
-accumulator:
+detector:
   threshold: 1
   window: 1s
 signal:

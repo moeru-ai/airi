@@ -9,23 +9,38 @@ import type { Logg } from '@guiiai/logg'
 
 import type { EventBus, TracedEvent } from '../../event-bus'
 import type {
-  AccumulatorsState,
+  DetectorMode,
+  DetectorsState,
   ParsedRule,
   Rule,
   TypeScriptRule,
 } from './types'
 
-import {
-  calculateWindowSlots,
-  createAccumulatorState,
-  DEFAULT_SLOT_MS,
-  processEvent as processAccumulator,
-} from './accumulator'
 import { loadRulesFromDirectory } from './loader'
 import { matchEventType, matchWhere, renderMetadata, renderTemplate } from './matcher'
+import {
+  calculateWindowSlots,
+  createDetectorState,
+  DEFAULT_SLOT_MS,
+  processEvent as processDetector,
+} from './temporal-detector'
 import { isTypeScriptRule } from './types'
 
 const GLOBAL_GROUP_KEY = '__global__'
+const MAX_DETECTOR_DECISIONS = 200
+
+export type DetectorDecision = 'ignored_out_of_order' | 'matched_not_fired' | 'fired'
+
+export interface DetectorDecisionSnapshot {
+  readonly ruleName: string
+  readonly mode: DetectorMode
+  readonly groupKey: string
+  readonly count: number
+  readonly threshold: number
+  readonly windowMs: number
+  readonly eventTs: number
+  readonly decision: DetectorDecision
+}
 
 function resolveEventTimeMs(event: TracedEvent): number {
   const payload = event.payload as { timestamp?: unknown } | null
@@ -36,7 +51,7 @@ function resolveEventTimeMs(event: TracedEvent): number {
   return event.timestamp
 }
 
-function resolveAccumulatorGroupKey(payload: unknown): string {
+function resolveDetectorGroupKey(payload: unknown): string {
   if (payload && typeof payload === 'object') {
     const record = payload as { entityId?: unknown, sourceId?: unknown }
     if (typeof record.entityId === 'string' && record.entityId.length > 0) {
@@ -50,7 +65,7 @@ function resolveAccumulatorGroupKey(payload: unknown): string {
   return GLOBAL_GROUP_KEY
 }
 
-function buildAccumulatorStateKey(ruleName: string, groupKey: string): string {
+function buildDetectorStateKey(ruleName: string, groupKey: string): string {
   return `${ruleName}::${groupKey}`
 }
 
@@ -69,7 +84,8 @@ export interface RuleEngineConfig {
  */
 export class RuleEngine {
   private readonly rules: Rule[] = []
-  private accumulators: AccumulatorsState = {}
+  private detectors: DetectorsState = {}
+  private readonly detectorDecisions: DetectorDecisionSnapshot[] = []
   private unsubscribe: (() => void) | null = null
 
   constructor(
@@ -106,11 +122,11 @@ export class RuleEngine {
   public registerTypeScriptRule(rule: TypeScriptRule): void {
     this.rules.push(rule)
 
-    // Initialize accumulator for TS rule
+    // Initialize detector for TS rule
     const windowSlots = calculateWindowSlots(2000, this.deps.config.slotMs ?? DEFAULT_SLOT_MS)
-    this.accumulators = Object.freeze({
-      ...this.accumulators,
-      [rule.name]: createAccumulatorState(windowSlots),
+    this.detectors = Object.freeze({
+      ...this.detectors,
+      [rule.name]: createDetectorState(windowSlots),
     })
 
     this.deps.logger.withFields({ ruleName: rule.name }).log('RuleEngine: registered TS rule')
@@ -125,14 +141,27 @@ export class RuleEngine {
       this.unsubscribe = null
     }
     this.rules.length = 0
-    this.accumulators = {}
+    this.detectors = {}
+    this.detectorDecisions.length = 0
   }
 
   /**
-   * Get current accumulator states (for debugging)
+   * Get current detector states (for debugging)
    */
-  public getAccumulatorStates(): AccumulatorsState {
-    return this.accumulators
+  public getDetectorStates(): DetectorsState {
+    return this.detectors
+  }
+
+  /**
+   * Get recent detector decisions for debugging/devtools.
+   */
+  public getDetectorDecisionSnapshot(limit: number = 50): readonly DetectorDecisionSnapshot[] {
+    const safeLimit = Math.max(0, Math.floor(limit))
+    if (safeLimit === 0) {
+      return Object.freeze([])
+    }
+
+    return Object.freeze(this.detectorDecisions.slice(-safeLimit))
   }
 
   /**
@@ -167,6 +196,20 @@ export class RuleEngine {
     }
   }
 
+  private recordDetectorDecision(snapshot: DetectorDecisionSnapshot): void {
+    this.detectorDecisions.push(snapshot)
+    if (this.detectorDecisions.length > MAX_DETECTOR_DECISIONS) {
+      this.detectorDecisions.splice(0, this.detectorDecisions.length - MAX_DETECTOR_DECISIONS)
+    }
+
+    if (snapshot.decision === 'ignored_out_of_order') {
+      this.deps.logger.withFields(snapshot).warn('RuleEngine: detector decision')
+      return
+    }
+
+    this.deps.logger.withFields(snapshot).log('RuleEngine: detector decision')
+  }
+
   /**
    * Process event through a YAML rule
    */
@@ -186,40 +229,55 @@ export class RuleEngine {
       return
     }
 
-    const groupKey = resolveAccumulatorGroupKey(event.payload)
-    const stateKey = buildAccumulatorStateKey(rule.name, groupKey)
+    const groupKey = resolveDetectorGroupKey(event.payload)
+    const stateKey = buildDetectorStateKey(rule.name, groupKey)
 
-    // Get or create accumulator state
-    let accState = this.accumulators[stateKey]
-    if (!accState) {
-      const windowSlots = calculateWindowSlots(rule.accumulator.windowMs, slotMs)
-      accState = createAccumulatorState(windowSlots, nowMs)
+    // Get or create detector state
+    let detectorState = this.detectors[stateKey]
+    if (!detectorState) {
+      const windowSlots = calculateWindowSlots(rule.detector.windowMs, slotMs)
+      detectorState = createDetectorState(windowSlots, nowMs)
     }
 
-    if (nowMs < accState.lastUpdateMs) {
-      this.deps.logger.withFields({
+    if (nowMs < detectorState.lastUpdateMs) {
+      this.recordDetectorDecision(Object.freeze({
         ruleName: rule.name,
+        mode: rule.detector.mode,
         groupKey,
-        eventTimeMs: nowMs,
-        lastSeenMs: accState.lastUpdateMs,
-      }).warn('RuleEngine: ignore out-of-order event for deterministic temporal detection')
+        count: detectorState.total,
+        threshold: rule.detector.threshold,
+        windowMs: rule.detector.windowMs,
+        eventTs: nowMs,
+        decision: 'ignored_out_of_order',
+      }))
       return
     }
 
-    // Process through accumulator
-    const [fired, newAccState] = processAccumulator(accState, {
-      threshold: rule.accumulator.threshold,
-      windowMs: rule.accumulator.windowMs,
-      mode: rule.accumulator.mode,
+    // Process through detector
+    const [fired, newDetectorState] = processDetector(detectorState, {
+      threshold: rule.detector.threshold,
+      windowMs: rule.detector.windowMs,
+      mode: rule.detector.mode,
       nowMs,
       slotMs,
     })
 
     // Update state
-    this.accumulators = Object.freeze({
-      ...this.accumulators,
-      [stateKey]: newAccState,
+    this.detectors = Object.freeze({
+      ...this.detectors,
+      [stateKey]: newDetectorState,
     })
+
+    this.recordDetectorDecision(Object.freeze({
+      ruleName: rule.name,
+      mode: rule.detector.mode,
+      groupKey,
+      count: newDetectorState.total,
+      threshold: rule.detector.threshold,
+      windowMs: rule.detector.windowMs,
+      eventTs: nowMs,
+      decision: fired ? 'fired' : 'matched_not_fired',
+    }))
 
     // If fired, emit signal
     if (fired) {
@@ -240,19 +298,19 @@ export class RuleEngine {
       return
     }
 
-    // Get accumulator state
-    const accState = this.accumulators[rule.name]
-    if (!accState) {
+    // Get detector state
+    const detectorState = this.detectors[rule.name]
+    if (!detectorState) {
       return
     }
 
     // Call TypeScript handler
-    const result = rule.process(event.payload, accState)
+    const result = rule.process(event.payload, detectorState)
 
-    // Update accumulator state
-    this.accumulators = Object.freeze({
-      ...this.accumulators,
-      [rule.name]: result.newAccumulatorState,
+    // Update detector state
+    this.detectors = Object.freeze({
+      ...this.detectors,
+      [rule.name]: result.newDetectorState,
     })
 
     // If fired, emit signal event

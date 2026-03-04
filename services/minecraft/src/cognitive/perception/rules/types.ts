@@ -8,9 +8,9 @@
 import { z } from 'zod'
 
 const perceptionModalityValues = ['sighted', 'heard', 'felt', 'system'] as const
-const accumulatorModeValues = ['sliding', 'tumbling'] as const
+const detectorModeValues = ['sliding', 'tumbling'] as const
 
-export type AccumulatorMode = typeof accumulatorModeValues[number]
+export type DetectorMode = typeof detectorModeValues[number]
 
 function isValidWindowDuration(value: string): boolean {
   const match = value.match(/^(\d+(?:\.\d+)?)(ms|s|m)?$/)
@@ -75,9 +75,9 @@ export const ruleTriggerSchema = z.object({
 export type RuleTrigger = z.infer<typeof ruleTriggerSchema>
 
 /**
- * Accumulator configuration
+ * Detector configuration
  */
-export const accumulatorConfigSchema = z.object({
+export const detectorConfigSchema = z.object({
   /** Number of events needed to trigger */
   threshold: z.number().int().positive(),
   /** Time window (e.g., '2s', '500ms') */
@@ -86,10 +86,10 @@ export const accumulatorConfigSchema = z.object({
     'Window must be a positive duration like 500ms, 2s, or 1m',
   ),
   /** Window mode: sliding (default) or tumbling */
-  mode: z.enum(accumulatorModeValues).optional(),
+  mode: z.enum(detectorModeValues).optional(),
 }).strict()
 
-export type AccumulatorConfig = z.infer<typeof accumulatorConfigSchema>
+export type DetectorConfig = z.infer<typeof detectorConfigSchema>
 
 /**
  * Signal output configuration
@@ -122,8 +122,8 @@ export const yamlRuleSchema = z.object({
   version: z.number().int().positive().optional(),
   /** Trigger configuration */
   trigger: ruleTriggerSchema,
-  /** Accumulator configuration */
-  accumulator: accumulatorConfigSchema,
+  /** Detector configuration */
+  detector: detectorConfigSchema,
   /** Signal to emit when rule fires */
   signal: signalConfigSchema,
 }).strict()
@@ -140,10 +140,10 @@ export interface ParsedRule {
     readonly eventType: string // e.g., 'raw:sighted:arm_swing'
     readonly where?: WhereClause
   }
-  readonly accumulator: {
+  readonly detector: {
     readonly threshold: number
     readonly windowMs: number
-    readonly mode: AccumulatorMode
+    readonly mode: DetectorMode
   }
   readonly signal: SignalConfig
   /** Source file path for debugging */
@@ -151,10 +151,10 @@ export interface ParsedRule {
 }
 
 /**
- * Accumulator state for a single rule instance
+ * Detector state for a single rule instance
  * Immutable - each update returns a new state
  */
-export interface AccumulatorState {
+export interface DetectorState {
   /** Circular buffer of event counts per slot */
   readonly counts: readonly number[]
   /** Current head position in buffer */
@@ -168,10 +168,10 @@ export interface AccumulatorState {
 }
 
 /**
- * Complete state for all accumulators.
+ * Complete state for all detectors.
  * Key format is implementation-defined (e.g. rule name or rule+group instance key).
  */
-export type AccumulatorsState = Readonly<Record<string, AccumulatorState>>
+export type DetectorsState = Readonly<Record<string, DetectorState>>
 
 /**
  * Result of processing an event through a rule
@@ -187,8 +187,8 @@ export interface RuleMatchResult {
     metadata: Readonly<Record<string, unknown>>
     sourceId?: string
   }>
-  /** Updated accumulator state */
-  readonly newAccumulatorState: AccumulatorState
+  /** Updated detector state */
+  readonly newDetectorState: DetectorState
 }
 
 /**
@@ -198,10 +198,10 @@ export interface RuleMatchResult {
 export interface TypeScriptRule<T = unknown> {
   readonly name: string
   readonly eventPattern: string
-  /** Process function - receives typed payload and accumulator state */
+  /** Process function - receives typed payload and detector state */
   readonly process: (
     payload: T,
-    accState: AccumulatorState,
+    detectorState: DetectorState,
   ) => RuleMatchResult
 }
 

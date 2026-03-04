@@ -1,31 +1,31 @@
 /**
- * Accumulator - Pure functions for sliding window counting
+ * Detector - Pure functions for sliding window counting
  *
  * All functions are pure: (state, input) => newState
  * No side effects, no mutation
  */
 
-import type { AccumulatorMode, AccumulatorState } from './types'
+import type { DetectorMode, DetectorState } from './types'
 
 /**
  * Default slot duration in milliseconds
  */
 export const DEFAULT_SLOT_MS = 20
 
-export interface ProcessAccumulatorInput {
+export interface ProcessDetectorInput {
   readonly threshold: number
   readonly windowMs: number
-  readonly mode: AccumulatorMode
+  readonly mode: DetectorMode
   readonly nowMs: number
   readonly slotMs?: number
 }
 
 /**
- * Create a new accumulator state with empty counts
+ * Create a new detector state with empty counts
  * @param windowSlots Number of slots in the sliding window
  * @param nowMs Current timestamp (for pure function compliance)
  */
-export function createAccumulatorState(windowSlots: number, nowMs: number = Date.now()): AccumulatorState {
+export function createDetectorState(windowSlots: number, nowMs: number = Date.now()): DetectorState {
   return Object.freeze({
     counts: Object.freeze(new Array<number>(windowSlots).fill(0)),
     head: 0,
@@ -49,17 +49,17 @@ export function calculateSlotDelta(
 }
 
 /**
- * Advance the accumulator by N slots (pure function)
+ * Advance the detector by N slots (pure function)
  * Zeros out expired slots and adjusts total
- * @param state Current accumulator state
+ * @param state Current detector state
  * @param slotsToAdvance Number of slots to advance
  * @param slotMs Duration of each slot in milliseconds
  */
 export function advanceSlots(
-  state: AccumulatorState,
+  state: DetectorState,
   slotsToAdvance: number,
   slotMs: number = DEFAULT_SLOT_MS,
-): AccumulatorState {
+): DetectorState {
   if (slotsToAdvance <= 0) {
     return state
   }
@@ -98,9 +98,9 @@ export function advanceSlots(
  * Increment the current slot count (pure function)
  */
 export function incrementCount(
-  state: AccumulatorState,
+  state: DetectorState,
   incrementBy: number = 1,
-): AccumulatorState {
+): DetectorState {
   const newCounts = [...state.counts]
   newCounts[state.head] = (newCounts[state.head] ?? 0) + incrementBy
 
@@ -114,12 +114,12 @@ export function incrementCount(
 }
 
 /**
- * Reset accumulator after firing (pure function)
+ * Reset detector after firing (pure function)
  */
 export function resetAfterFire(
-  state: AccumulatorState,
+  state: DetectorState,
   currentSlot: number,
-): AccumulatorState {
+): DetectorState {
   const windowSize = state.counts.length
 
   return Object.freeze({
@@ -132,13 +132,13 @@ export function resetAfterFire(
 }
 
 /**
- * Reset accumulator counts when entering a new tumbling window.
+ * Reset detector counts when entering a new tumbling window.
  * Preserves lastFireSlot so once-per-window checks still work.
  */
 function resetForNewWindow(
-  state: AccumulatorState,
+  state: DetectorState,
   nowMs: number,
-): AccumulatorState {
+): DetectorState {
   return Object.freeze({
     counts: Object.freeze(new Array<number>(state.counts.length).fill(0)),
     head: 0,
@@ -149,9 +149,9 @@ function resetForNewWindow(
 }
 
 function processSlidingEvent(
-  state: AccumulatorState,
-  input: ProcessAccumulatorInput,
-): readonly [boolean, AccumulatorState] {
+  state: DetectorState,
+  input: ProcessDetectorInput,
+): readonly [boolean, DetectorState] {
   const slotMs = input.slotMs ?? DEFAULT_SLOT_MS
 
   // First advance time
@@ -172,9 +172,9 @@ function processSlidingEvent(
 }
 
 function processTumblingEvent(
-  state: AccumulatorState,
-  input: ProcessAccumulatorInput,
-): readonly [boolean, AccumulatorState] {
+  state: DetectorState,
+  input: ProcessDetectorInput,
+): readonly [boolean, DetectorState] {
   const currentWindowSlot = Math.floor(input.nowMs / input.windowMs)
   const previousWindowSlot = Math.floor(state.lastUpdateMs / input.windowMs)
 
@@ -209,9 +209,9 @@ function processTumblingEvent(
  * Returns [shouldFire, newState]
  */
 export function processEvent(
-  state: AccumulatorState,
-  input: ProcessAccumulatorInput,
-): readonly [boolean, AccumulatorState] {
+  state: DetectorState,
+  input: ProcessDetectorInput,
+): readonly [boolean, DetectorState] {
   if (input.mode === 'tumbling') {
     return processTumblingEvent(state, input)
   }

@@ -13,8 +13,8 @@ import * as path from 'node:path'
 
 import { parse as parseYaml } from 'yaml'
 
-import { parseWindowDuration } from './accumulator'
 import { buildEventType } from './matcher'
+import { parseWindowDuration } from './temporal-detector'
 import { yamlRuleSchema } from './types'
 
 function formatValidationError(error: ZodError, sourcePath: string): Error {
@@ -48,7 +48,7 @@ export function parseRule(yaml: unknown, sourcePath: string): ParsedRule {
   }
 
   const validatedRule = parsedYaml.data
-  const windowMs = parseWindowDuration(validatedRule.accumulator.window)
+  const windowMs = parseWindowDuration(validatedRule.detector.window)
 
   return Object.freeze({
     name: validatedRule.name,
@@ -57,10 +57,10 @@ export function parseRule(yaml: unknown, sourcePath: string): ParsedRule {
       eventType: buildEventType(validatedRule.trigger.modality, validatedRule.trigger.kind),
       where: validatedRule.trigger.where ? Object.freeze(validatedRule.trigger.where) : undefined,
     }),
-    accumulator: Object.freeze({
-      threshold: validatedRule.accumulator.threshold,
+    detector: Object.freeze({
+      threshold: validatedRule.detector.threshold,
       windowMs,
-      mode: validatedRule.accumulator.mode ?? 'sliding',
+      mode: validatedRule.detector.mode ?? 'sliding',
     }),
     signal: Object.freeze({
       type: validatedRule.signal.type,
