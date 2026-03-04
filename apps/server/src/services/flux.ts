@@ -1,4 +1,5 @@
 import type { Database } from '../libs/db'
+import type { ConfigKVService } from './config-kv'
 
 import { and, eq, gte, sql } from 'drizzle-orm'
 
@@ -6,7 +7,7 @@ import { createPaymentRequiredError } from '../utils/error'
 
 import * as schema from '../schemas/flux'
 
-export function createFluxService(db: Database) {
+export function createFluxService(db: Database, configKV: ConfigKVService) {
   return {
     async getFlux(userId: string) {
       let record = await db.query.userFlux.findFirst({
@@ -14,9 +15,10 @@ export function createFluxService(db: Database) {
       })
 
       if (!record) {
-        [record] = await db.insert(schema.userFlux).values({
+        const initialFlux = await configKV.get('INITIAL_USER_FLUX')
+        ;[record] = await db.insert(schema.userFlux).values({
           userId,
-          flux: 100, // Default initial flux
+          flux: initialFlux,
         }).returning()
       }
 
