@@ -1,6 +1,7 @@
 import type { Logg } from '@guiiai/logg'
 import type { Message } from '@xsai/shared-chat'
 
+import type { ConversationUpdateEvent } from '../../debug/types'
 import type { Action } from '../../libs/mineflayer/action'
 import type { TaskExecutor } from '../action/task-executor'
 import type { ActionInstruction } from '../action/types'
@@ -813,6 +814,47 @@ export class Brain {
     return JSON.parse(JSON.stringify(messages)) as Message[]
   }
 
+  // FIXME: Temporary fix to normalize xsai Message[] into the debug dashboard's string-only message schema.
+  private toDebugConversationMessages(messages: Message[]): ConversationUpdateEvent['messages'] {
+    return messages.map((message) => {
+      const normalizedMessage: ConversationUpdateEvent['messages'][number] = {
+        role: message.role,
+        content: this.toDebugMessageContent(message.content),
+      }
+      const reasoning = this.extractMessageReasoning(message)
+      if (reasoning)
+        normalizedMessage.reasoning = reasoning
+      return normalizedMessage
+    })
+  }
+
+  // FIXME: Temporary fix to flatten structured message parts into a string for debug transport compatibility.
+  private toDebugMessageContent(content: Message['content']): string {
+    if (typeof content === 'string')
+      return content
+    if (!content)
+      return ''
+    return content
+      .map((part) => {
+        if (part.type === 'text')
+          return part.text
+        if (part.type === 'refusal')
+          return part.refusal
+        return JSON.stringify(part)
+      })
+      .join('\n')
+  }
+
+  // FIXME: Temporary fix to preserve reasoning in debug payload while message typing is inconsistent.
+  private extractMessageReasoning(message: Message): string | undefined {
+    const maybeReasoning = (message as Message & { reasoning?: unknown }).reasoning
+    if (typeof maybeReasoning === 'string' && maybeReasoning.length > 0)
+      return maybeReasoning
+    if ('reasoning_content' in message && typeof message.reasoning_content === 'string' && message.reasoning_content.length > 0)
+      return message.reasoning_content
+    return undefined
+  }
+
   /**
    * Re-emit the current conversation state with full context metadata.
    * Used by the debug dashboard's `request_conversation` handler on reconnect.
@@ -823,7 +865,7 @@ export class Brain {
 
   private emitConversationUpdate(isProcessing: boolean, sessionBoundary?: boolean): void {
     this.debugService.emitConversationUpdate({
-      messages: this.cloneMessages(this.conversationHistory),
+      messages: this.toDebugConversationMessages(this.cloneMessages(this.conversationHistory)),
       isProcessing,
       ...(sessionBoundary && { sessionBoundary }),
       activeContext: {
@@ -1827,10 +1869,10 @@ export class Brain {
     })
 
     this.debugService.emitConversationUpdate({
-      messages: this.cloneMessages([
+      messages: this.toDebugConversationMessages(this.cloneMessages([
         ...this.conversationHistory,
         { role: 'user', content: userMessage },
-      ]),
+      ])),
       isProcessing: true,
     })
 
