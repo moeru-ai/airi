@@ -332,14 +332,6 @@ jobs:
           name: ${{ env.FLATPAK_BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.FLATPAK_BUNDLE_NAME }}
 
-      - name: Upload Artifacts (Manual + Release + Windows Only)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && matrix.os == 'windows-latest' }}
-        id: unsigned-artifacts-workflow-dispatch-release
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ env.BUNDLE_NAME }}
-          path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
-
       - name: Sign Windows Artifacts with SignPath (Manual + Windows Only)
         uses: signpath/github-action-submit-signing-request@v2
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'windows-latest' && github.repository == 'moeru-ai/airi') }}
@@ -347,7 +339,7 @@ jobs:
           api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
           organization-id: '${{ vars.SIGNPATH_ORGANIZATION_ID }}'
           project-slug: 'airi'
-          github-artifact-id: '${{ steps.unsigned-artifacts-workflow-dispatch-release.outputs.artifact-id }}'
+          github-artifact-id: '${{ steps.unsigned-artifacts-workflow-dispatch.outputs.artifact-id }}'
           signing-policy-slug: 'test-signing'
           wait-for-completion: true
           output-artifact-directory: apps/stage-tamagotchi/bundle/signed/windows/
