@@ -25,6 +25,35 @@ import { loadRulesFromDirectory } from './loader'
 import { matchEventType, matchWhere, renderMetadata, renderTemplate } from './matcher'
 import { isTypeScriptRule } from './types'
 
+const GLOBAL_GROUP_KEY = '__global__'
+
+function resolveEventTimeMs(event: TracedEvent): number {
+  const payload = event.payload as { timestamp?: unknown } | null
+  if (payload && typeof payload.timestamp === 'number' && Number.isFinite(payload.timestamp)) {
+    return payload.timestamp
+  }
+
+  return event.timestamp
+}
+
+function resolveAccumulatorGroupKey(payload: unknown): string {
+  if (payload && typeof payload === 'object') {
+    const record = payload as { entityId?: unknown, sourceId?: unknown }
+    if (typeof record.entityId === 'string' && record.entityId.length > 0) {
+      return record.entityId
+    }
+    if (typeof record.sourceId === 'string' && record.sourceId.length > 0) {
+      return record.sourceId
+    }
+  }
+
+  return GLOBAL_GROUP_KEY
+}
+
+function buildAccumulatorStateKey(ruleName: string, groupKey: string): string {
+  return `${ruleName}::${groupKey}`
+}
+
 /**
  * Rule Engine configuration
  */
@@ -64,20 +93,6 @@ export class RuleEngine {
       ruleCount: yamlRules.length,
       rules: yamlRules.map(r => r.name),
     }).log('RuleEngine: loaded rules')
-
-    // Initialize accumulators for each rule
-    for (const rule of this.rules) {
-      if (!isTypeScriptRule(rule)) {
-        const windowSlots = calculateWindowSlots(
-          rule.accumulator.windowMs,
-          this.deps.config.slotMs ?? DEFAULT_SLOT_MS,
-        )
-        this.accumulators = Object.freeze({
-          ...this.accumulators,
-          [rule.name]: createAccumulatorState(windowSlots),
-        })
-      }
-    }
 
     // Subscribe to all raw events
     this.unsubscribe = this.deps.eventBus.subscribe('raw:*', (event) => {
@@ -131,7 +146,7 @@ export class RuleEngine {
    * Process an event through all matching rules
    */
   private processEvent(event: TracedEvent): void {
-    const nowMs = Date.now()
+    const nowMs = resolveEventTimeMs(event)
     const slotMs = this.deps.config.slotMs ?? DEFAULT_SLOT_MS
 
     for (const rule of this.rules) {
@@ -171,20 +186,39 @@ export class RuleEngine {
       return
     }
 
+    const groupKey = resolveAccumulatorGroupKey(event.payload)
+    const stateKey = buildAccumulatorStateKey(rule.name, groupKey)
+
     // Get or create accumulator state
-    let accState = this.accumulators[rule.name]
+    let accState = this.accumulators[stateKey]
     if (!accState) {
       const windowSlots = calculateWindowSlots(rule.accumulator.windowMs, slotMs)
-      accState = createAccumulatorState(windowSlots)
+      accState = createAccumulatorState(windowSlots, nowMs)
+    }
+
+    if (nowMs < accState.lastUpdateMs) {
+      this.deps.logger.withFields({
+        ruleName: rule.name,
+        groupKey,
+        eventTimeMs: nowMs,
+        lastSeenMs: accState.lastUpdateMs,
+      }).warn('RuleEngine: ignore out-of-order event for deterministic temporal detection')
+      return
     }
 
     // Process through accumulator
-    const [fired, newAccState] = processAccumulator(accState, rule.accumulator.threshold, nowMs, slotMs)
+    const [fired, newAccState] = processAccumulator(accState, {
+      threshold: rule.accumulator.threshold,
+      windowMs: rule.accumulator.windowMs,
+      mode: rule.accumulator.mode,
+      nowMs,
+      slotMs,
+    })
 
     // Update state
     this.accumulators = Object.freeze({
       ...this.accumulators,
-      [rule.name]: newAccState,
+      [stateKey]: newAccState,
     })
 
     // If fired, emit signal

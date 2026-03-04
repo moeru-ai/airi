@@ -10,6 +10,8 @@ import { z } from 'zod'
 const perceptionModalityValues = ['sighted', 'heard', 'felt', 'system'] as const
 const accumulatorModeValues = ['sliding', 'tumbling'] as const
 
+export type AccumulatorMode = typeof accumulatorModeValues[number]
+
 function isValidWindowDuration(value: string): boolean {
   const match = value.match(/^(\d+(?:\.\d+)?)(ms|s|m)?$/)
   if (!match) {
@@ -141,7 +143,7 @@ export interface ParsedRule {
   readonly accumulator: {
     readonly threshold: number
     readonly windowMs: number
-    readonly mode: 'sliding' | 'tumbling'
+    readonly mode: AccumulatorMode
   }
   readonly signal: SignalConfig
   /** Source file path for debugging */
@@ -161,12 +163,13 @@ export interface AccumulatorState {
   readonly total: number
   /** Last update timestamp */
   readonly lastUpdateMs: number
-  /** Slot when last fired */
+  /** Marker for last fired slot/window (used by tumbling once-per-window). */
   readonly lastFireSlot: number | null
 }
 
 /**
- * Complete state for all accumulators
+ * Complete state for all accumulators.
+ * Key format is implementation-defined (e.g. rule name or rule+group instance key).
  */
 export type AccumulatorsState = Readonly<Record<string, AccumulatorState>>
 

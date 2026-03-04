@@ -5,12 +5,20 @@
  * No side effects, no mutation
  */
 
-import type { AccumulatorState } from './types'
+import type { AccumulatorMode, AccumulatorState } from './types'
 
 /**
  * Default slot duration in milliseconds
  */
 export const DEFAULT_SLOT_MS = 20
+
+export interface ProcessAccumulatorInput {
+  readonly threshold: number
+  readonly windowMs: number
+  readonly mode: AccumulatorMode
+  readonly nowMs: number
+  readonly slotMs?: number
+}
 
 /**
  * Create a new accumulator state with empty counts
@@ -35,7 +43,9 @@ export function calculateSlotDelta(
   nowMs: number,
   slotMs: number,
 ): number {
-  return Math.floor((nowMs - lastUpdateMs) / slotMs)
+  const lastSlot = Math.floor(lastUpdateMs / slotMs)
+  const currentSlot = Math.floor(nowMs / slotMs)
+  return currentSlot - lastSlot
 }
 
 /**
@@ -122,36 +132,91 @@ export function resetAfterFire(
 }
 
 /**
+ * Reset accumulator counts when entering a new tumbling window.
+ * Preserves lastFireSlot so once-per-window checks still work.
+ */
+function resetForNewWindow(
+  state: AccumulatorState,
+  nowMs: number,
+): AccumulatorState {
+  return Object.freeze({
+    counts: Object.freeze(new Array<number>(state.counts.length).fill(0)),
+    head: 0,
+    total: 0,
+    lastUpdateMs: nowMs,
+    lastFireSlot: state.lastFireSlot,
+  })
+}
+
+function processSlidingEvent(
+  state: AccumulatorState,
+  input: ProcessAccumulatorInput,
+): readonly [boolean, AccumulatorState] {
+  const slotMs = input.slotMs ?? DEFAULT_SLOT_MS
+
+  // First advance time
+  const slotDelta = calculateSlotDelta(state.lastUpdateMs, input.nowMs, slotMs)
+  let newState = advanceSlots(state, slotDelta, slotMs)
+
+  // Update lastUpdateMs to current time
+  newState = Object.freeze({
+    ...newState,
+    lastUpdateMs: input.nowMs,
+  })
+
+  // Increment count
+  newState = incrementCount(newState)
+
+  // Sliding mode fires on every matched event after threshold is reached.
+  return [newState.total >= input.threshold, newState] as const
+}
+
+function processTumblingEvent(
+  state: AccumulatorState,
+  input: ProcessAccumulatorInput,
+): readonly [boolean, AccumulatorState] {
+  const currentWindowSlot = Math.floor(input.nowMs / input.windowMs)
+  const previousWindowSlot = Math.floor(state.lastUpdateMs / input.windowMs)
+
+  let newState = state
+  if (currentWindowSlot !== previousWindowSlot) {
+    newState = resetForNewWindow(state, input.nowMs)
+  }
+  else {
+    newState = Object.freeze({
+      ...newState,
+      lastUpdateMs: input.nowMs,
+    })
+  }
+
+  newState = incrementCount(newState)
+
+  // Tumbling mode fires at most once in the same window.
+  const shouldFire = newState.total >= input.threshold && newState.lastFireSlot !== currentWindowSlot
+  if (!shouldFire) {
+    return [false, newState] as const
+  }
+
+  return [true, Object.freeze({
+    ...newState,
+    lastFireSlot: currentWindowSlot,
+  })] as const
+}
+
+/**
  * Process an event and check if threshold is reached (pure function)
  *
  * Returns [shouldFire, newState]
  */
 export function processEvent(
   state: AccumulatorState,
-  threshold: number,
-  nowMs: number,
-  slotMs: number = DEFAULT_SLOT_MS,
+  input: ProcessAccumulatorInput,
 ): readonly [boolean, AccumulatorState] {
-  // First advance time
-  const slotDelta = calculateSlotDelta(state.lastUpdateMs, nowMs, slotMs)
-  let newState = advanceSlots(state, slotDelta, slotMs)
-
-  // Update lastUpdateMs to current time
-  newState = Object.freeze({
-    ...newState,
-    lastUpdateMs: nowMs,
-  })
-
-  // Increment count
-  newState = incrementCount(newState)
-
-  // Check threshold
-  if (newState.total >= threshold) {
-    const firedState = resetAfterFire(newState, newState.head)
-    return [true, firedState] as const
+  if (input.mode === 'tumbling') {
+    return processTumblingEvent(state, input)
   }
 
-  return [false, newState] as const
+  return processSlidingEvent(state, input)
 }
 
 /**

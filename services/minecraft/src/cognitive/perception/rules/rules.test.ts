@@ -1,11 +1,19 @@
-import { describe, expect, it } from 'vitest'
+import type { EventBus, TracedEvent } from '../../event-bus'
 
+import * as fs from 'node:fs'
+import * as os from 'node:os'
+import * as path from 'node:path'
+
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import { createEventBus } from '../../event-bus'
 import {
   calculateWindowSlots,
   createAccumulatorState,
   parseWindowDuration,
   processEvent,
 } from './accumulator'
+import { RuleEngine } from './engine'
 import { parseRuleFromString } from './loader'
 import {
   getNestedValue,
@@ -14,6 +22,99 @@ import {
   matchWhere,
   renderTemplate,
 } from './matcher'
+
+const cleanupCallbacks: Array<() => void> = []
+
+afterEach(() => {
+  while (cleanupCallbacks.length > 0) {
+    const cleanup = cleanupCallbacks.pop()
+    cleanup?.()
+  }
+})
+
+function createMockLogger() {
+  const logger = {
+    withFields: vi.fn(() => logger),
+    withError: vi.fn(() => logger),
+    log: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  }
+
+  return logger
+}
+
+function buildArmSwingRuleYaml(mode: 'sliding' | 'tumbling'): string {
+  return `
+name: test-arm-swing-${mode}
+version: 1
+trigger:
+  modality: sighted
+  kind: arm_swing
+  where:
+    entityType: player
+accumulator:
+  threshold: 2
+  window: 1s
+  mode: ${mode}
+signal:
+  type: entity_attention
+  description: "Player {{ displayName }} attention"
+`
+}
+
+function createRuleEngineForTest(ruleYaml: string): {
+  eventBus: EventBus
+  logger: ReturnType<typeof createMockLogger>
+  signals: TracedEvent[]
+} {
+  const rulesDir = fs.mkdtempSync(path.join(os.tmpdir(), 'airi-rule-engine-test-'))
+  fs.writeFileSync(path.join(rulesDir, 'test-rule.yaml'), ruleYaml, 'utf-8')
+
+  const eventBus = createEventBus()
+  const logger = createMockLogger()
+  const engine = new RuleEngine({
+    eventBus,
+    logger: logger as any,
+    config: {
+      rulesDir,
+      slotMs: 20,
+    },
+  })
+  const signals: TracedEvent[] = []
+  const unsubscribe = eventBus.subscribe('signal:*', (event) => {
+    signals.push(event)
+  })
+
+  engine.init()
+
+  cleanupCallbacks.push(() => {
+    unsubscribe()
+    engine.destroy()
+    fs.rmSync(rulesDir, { recursive: true, force: true })
+  })
+
+  return { eventBus, logger, signals }
+}
+
+function emitArmSwingEvent(eventBus: EventBus, input: {
+  timestamp: number
+  entityId: string
+}): void {
+  eventBus.emit({
+    type: 'raw:sighted:arm_swing',
+    payload: Object.freeze({
+      timestamp: input.timestamp,
+      entityType: 'player',
+      entityId: input.entityId,
+      displayName: input.entityId,
+      distance: 3,
+      hasLineOfSight: true,
+    }),
+    source: { component: 'test', id: 'rule-test' },
+    traceId: `trace-${input.entityId}`,
+  })
+}
 
 describe('accumulator', () => {
   describe('parseWindowDuration', () => {
@@ -40,28 +141,172 @@ describe('accumulator', () => {
   })
 
   describe('processEvent', () => {
-    it('should increment count and not fire below threshold', () => {
-      const state = createAccumulatorState(10)
-      const [fired, newState] = processEvent(state, 5, Date.now())
+    it('should keep firing on every matched event after threshold in sliding mode', () => {
+      let state = createAccumulatorState(50, 0)
 
-      expect(fired).toBe(false)
-      expect(newState.total).toBe(1)
+      const [firstFired, stateAfterFirst] = processEvent(state, {
+        threshold: 2,
+        windowMs: 1000,
+        mode: 'sliding',
+        nowMs: 100,
+        slotMs: 20,
+      })
+      expect(firstFired).toBe(false)
+      state = stateAfterFirst
+
+      const [secondFired, stateAfterSecond] = processEvent(state, {
+        threshold: 2,
+        windowMs: 1000,
+        mode: 'sliding',
+        nowMs: 200,
+        slotMs: 20,
+      })
+      expect(secondFired).toBe(true)
+      state = stateAfterSecond
+
+      const [thirdFired, stateAfterThird] = processEvent(state, {
+        threshold: 2,
+        windowMs: 1000,
+        mode: 'sliding',
+        nowMs: 300,
+        slotMs: 20,
+      })
+      expect(thirdFired).toBe(true)
+      expect(stateAfterThird.total).toBe(3)
     })
 
-    it('should fire when threshold reached', () => {
-      let state = createAccumulatorState(10)
-      const now = Date.now()
+    it('should treat sliding window as left-open and right-closed at the boundary', () => {
+      let state = createAccumulatorState(10, 0)
 
-      for (let i = 0; i < 4; i++) {
-        const [fired, newState] = processEvent(state, 5, now)
-        expect(fired).toBe(false)
-        state = newState
-      }
+      const [, stateAfterFirst] = processEvent(state, {
+        threshold: 2,
+        windowMs: 100,
+        mode: 'sliding',
+        nowMs: 0,
+        slotMs: 10,
+      })
+      state = stateAfterFirst
 
-      const [fired, newState] = processEvent(state, 5, now)
-      expect(fired).toBe(true)
-      expect(newState.total).toBe(0) // Reset after fire
+      const [firedAt99, stateAfter99] = processEvent(state, {
+        threshold: 2,
+        windowMs: 100,
+        mode: 'sliding',
+        nowMs: 99,
+        slotMs: 10,
+      })
+      expect(firedAt99).toBe(true)
+      state = stateAfter99
+
+      const [firedAt100] = processEvent(state, {
+        threshold: 3,
+        windowMs: 100,
+        mode: 'sliding',
+        nowMs: 100,
+        slotMs: 10,
+      })
+
+      // Event at t=0 is out of window when t=100.
+      expect(firedAt100).toBe(false)
     })
+
+    it('should fire at most once per fixed window in tumbling mode', () => {
+      let state = createAccumulatorState(1, 0)
+
+      const [firstFired, stateAfterFirst] = processEvent(state, {
+        threshold: 2,
+        windowMs: 1000,
+        mode: 'tumbling',
+        nowMs: 100,
+      })
+      expect(firstFired).toBe(false)
+      state = stateAfterFirst
+
+      const [secondFired, stateAfterSecond] = processEvent(state, {
+        threshold: 2,
+        windowMs: 1000,
+        mode: 'tumbling',
+        nowMs: 200,
+      })
+      expect(secondFired).toBe(true)
+      state = stateAfterSecond
+
+      const [thirdFired, stateAfterThird] = processEvent(state, {
+        threshold: 2,
+        windowMs: 1000,
+        mode: 'tumbling',
+        nowMs: 300,
+      })
+      expect(thirdFired).toBe(false)
+      state = stateAfterThird
+
+      const [newWindowFirst, stateInNextWindow] = processEvent(state, {
+        threshold: 2,
+        windowMs: 1000,
+        mode: 'tumbling',
+        nowMs: 1000,
+      })
+      expect(newWindowFirst).toBe(false)
+      state = stateInNextWindow
+
+      const [newWindowSecond] = processEvent(state, {
+        threshold: 2,
+        windowMs: 1000,
+        mode: 'tumbling',
+        nowMs: 1200,
+      })
+      expect(newWindowSecond).toBe(true)
+    })
+  })
+})
+
+describe('engine temporal semantics', () => {
+  it('should apply tumbling mode as once-per-window', () => {
+    const { eventBus, signals } = createRuleEngineForTest(buildArmSwingRuleYaml('tumbling'))
+
+    emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 100 })
+    emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 200 })
+    emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 300 })
+    expect(signals).toHaveLength(1)
+
+    emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 1100 })
+    emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 1200 })
+    expect(signals).toHaveLength(2)
+  })
+
+  it('should apply sliding mode as every-match', () => {
+    const { eventBus, signals } = createRuleEngineForTest(buildArmSwingRuleYaml('sliding'))
+
+    emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 100 })
+    emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 200 })
+    emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 300 })
+
+    expect(signals).toHaveLength(2)
+  })
+
+  it('should isolate accumulators by default group key (entityId/sourceId)', () => {
+    const { eventBus, signals } = createRuleEngineForTest(buildArmSwingRuleYaml('sliding'))
+
+    emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 100 })
+    emitArmSwingEvent(eventBus, { entityId: 'bob', timestamp: 150 })
+    expect(signals).toHaveLength(0)
+
+    emitArmSwingEvent(eventBus, { entityId: 'bob', timestamp: 200 })
+    emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 250 })
+    expect(signals).toHaveLength(2)
+
+    const sourceIds = signals.map(event => (event.payload as { sourceId?: unknown }).sourceId)
+    expect(sourceIds).toEqual(['bob', 'alice'])
+  })
+
+  it('should ignore out-of-order timestamps to keep temporal detection deterministic', () => {
+    const { eventBus, logger, signals } = createRuleEngineForTest(buildArmSwingRuleYaml('sliding'))
+
+    emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 200 })
+    emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 100 })
+    emitArmSwingEvent(eventBus, { entityId: 'alice', timestamp: 250 })
+
+    expect(signals).toHaveLength(1)
+    expect(logger.warn).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -157,6 +402,7 @@ signal:
       expect(rule.trigger.where).toEqual({ entityType: 'player' })
       expect(rule.accumulator.threshold).toBe(5)
       expect(rule.accumulator.windowMs).toBe(2000)
+      expect(rule.accumulator.mode).toBe('sliding')
       expect(rule.signal.type).toBe('entity_attention')
     })
 
