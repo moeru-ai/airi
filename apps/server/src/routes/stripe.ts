@@ -20,9 +20,13 @@ const CheckoutBodySchema = object({
 export function createStripeRoutes(fluxService: FluxService, stripeService: StripeService, configKV: ConfigKVService, env: Env) {
   const stripe = env.STRIPE_SECRET_KEY ? new Stripe(env.STRIPE_SECRET_KEY) : null
 
-  const fluxConfigGuard = configGuard(configKV, ['FLUX_PER_CENT'])
+  const fluxConfigGuard = configGuard(configKV, ['FLUX_PER_CENT'], 'Top-up is not available yet')
 
   return new Hono<HonoEnv>()
+    .get('/packages', async (c) => {
+      const packages = await configKV.getOptional('FLUX_PACKAGES')
+      return c.json(packages ?? [])
+    })
     .post('/checkout', authGuard, fluxConfigGuard, async (c) => {
       if (!stripe)
         throw createServiceUnavailableError('Stripe is not configured', 'STRIPE_NOT_CONFIGURED')
