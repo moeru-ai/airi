@@ -8,6 +8,7 @@ import type { HonoEnv } from '../types/hono'
 import { Hono } from 'hono'
 
 import { authGuard } from '../middlewares/auth'
+import { configGuard } from '../middlewares/config-guard'
 import { createPaymentRequiredError } from '../utils/error'
 
 // Only forward these headers from the upstream LLM response
@@ -53,7 +54,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
   }
 
   return new Hono<HonoEnv>()
-    .use('*', authGuard)
+    .use('*', authGuard, configGuard(configKV, ['FLUX_PER_REQUEST']))
     .post('/chat/completions', handleCompletion)
     .post('/chat/completion', handleCompletion)
 }
