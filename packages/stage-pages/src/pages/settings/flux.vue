@@ -3,7 +3,7 @@ import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -15,15 +15,22 @@ const { credits } = storeToRefs(authStore)
 
 const loadingAmount = ref<number | null>(null)
 const message = ref<{ type: 'success' | 'error', text: string } | null>(null)
+const packages = ref<{ amount: number, label: string, price: string }[]>([])
 
-// Packages with i18n labels
-const packages = computed(() => [
-  { amount: 500, label: t('settings.pages.flux.packages.amount_500.label'), price: t('settings.pages.flux.packages.amount_500.price') },
-  { amount: 1000, label: t('settings.pages.flux.packages.amount_1000.label'), price: t('settings.pages.flux.packages.amount_1000.price') },
-  { amount: 5000, label: t('settings.pages.flux.packages.amount_5000.label'), price: t('settings.pages.flux.packages.amount_5000.price') },
-])
+async function fetchPackages() {
+  try {
+    const res = await client.api.stripe.packages.$get()
+    if (res.ok)
+      packages.value = await res.json() as { amount: number, label: string, price: string }[]
+  }
+  catch {
+    message.value = { type: 'error', text: t('settings.pages.flux.packagesError') }
+  }
+}
 
 onMounted(async () => {
+  await fetchPackages()
+
   if (route.query.success === 'true') {
     message.value = { type: 'success', text: t('settings.pages.flux.checkout.success') }
     await authStore.updateCredits()
