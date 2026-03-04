@@ -333,16 +333,16 @@ jobs:
           path: apps/stage-tamagotchi/bundle/${{ env.FLATPAK_BUNDLE_NAME }}
 
       - name: Upload Artifacts (Manual + Release + Windows Only)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only && matrix.os == 'windows-latest' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && matrix.os == 'windows-latest' }}
         id: unsigned-artifacts-workflow-dispatch-release
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
 
-      - name: Sign Windows Artifacts with SignPath (Nightly + Windows Only)
+      - name: Sign Windows Artifacts with SignPath (Manual + Windows Only)
         uses: signpath/github-action-submit-signing-request@v2
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only && (matrix.os == 'windows-latest' && github.repository == 'moeru-ai/airi') }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'windows-latest' && github.repository == 'moeru-ai/airi') }}
         with:
           api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
           organization-id: '${{ vars.SIGNPATH_ORGANIZATION_ID }}'
@@ -352,13 +352,13 @@ jobs:
           wait-for-completion: true
           output-artifact-directory: apps/stage-tamagotchi/bundle/signed/windows/
 
-      - name: Debug Windows Signed Artifacts (Nightly + Windows Only)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only && matrix.os == 'windows-latest' }}
+      - name: Debug Windows Signed Artifacts (Manual + Windows Only)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && matrix.os == 'windows-latest' }}
         run: |
           ls apps/stage-tamagotchi/bundle/signed/windows/
 
-      - name: Upload Signed Artifacts (Nightly + Non-Linux)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only && (matrix.os == 'windows-latest') }}
+      - name: Upload Signed Artifacts (Manual + Non-Linux)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'windows-latest') }}
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.BUNDLE_NAME }}
@@ -366,12 +366,12 @@ jobs:
           overwrite: true
 
       - name: Move Signed Artifacts (Manual + Release + Windows Only)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only && matrix.os == 'windows-latest' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && matrix.os == 'windows-latest' }}
         run: |
           mv apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }} apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
 
       - name: Upload To GitHub Releases (Manual + Overwrite Release)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only }}
         uses: softprops/action-gh-release@v2
         with:
           files: |
