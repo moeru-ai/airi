@@ -1,6 +1,6 @@
 import type { Database } from '../libs/db'
 
-import * as schema from '../schemas/request-log'
+import * as schema from '../schemas/llm-request-log'
 
 export interface RequestLogEntry {
   userId: string
@@ -13,7 +13,7 @@ export interface RequestLogEntry {
 export function createRequestLogService(db: Database) {
   return {
     async logRequest(entry: RequestLogEntry) {
-      await db.insert(schema.apiRequestLog).values(entry)
+      await db.insert(schema.llmRequestLog).values(entry)
     },
   }
 }
