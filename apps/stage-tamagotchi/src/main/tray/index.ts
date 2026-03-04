@@ -1,5 +1,8 @@
+import type { LocaleDetector } from '@intlify/core'
 import type { BrowserWindow } from 'electron'
 
+import type { I18n } from '../libs/i18n'
+import type { ServerChannel } from '../services/airi/channel-server'
 import type { setupBeatSync } from '../windows/beat-sync'
 import type { setupCaptionWindowManager } from '../windows/caption'
 import type { WidgetsWindowManager } from '../windows/widgets'
@@ -7,6 +10,7 @@ import type { WidgetsWindowManager } from '../windows/widgets'
 import { env } from 'node:process'
 
 import { is } from '@electron-toolkit/utils'
+import { effect } from 'alien-signals'
 import { app, Menu, nativeImage, screen, Tray } from 'electron'
 import { debounce, once } from 'es-toolkit'
 import { isMacOS } from 'std-env'
@@ -80,6 +84,8 @@ export function setupTray(params: {
   widgetsWindow: WidgetsWindowManager
   beatSyncBgWindow: Awaited<ReturnType<typeof setupBeatSync>>
   aboutWindow: () => Promise<BrowserWindow>
+  serverChannel: ServerChannel
+  i18n: I18n
 }): void {
   once(() => {
     const trayImage = nativeImage.createFromPath(isMacOS ? macOSTrayIcon : icon).resize({ width: 16 })
@@ -98,31 +104,31 @@ export function setupTray(params: {
       const halfWidthTarget = Math.floor(halfHeightTarget * ASPECT_RATIO)
 
       const contextMenu = Menu.buildFromTemplate([
-        { label: 'Show', click: () => toggleWindowShow(params.mainWindow) },
+        { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.show'), click: () => toggleWindowShow(params.mainWindow) },
         { type: 'separator' },
         {
-          label: 'Adjust Sizes',
+          label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.adjust_sizes'),
           submenu: [
             {
-              label: 'Recommended (450x600)',
+              label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.recommended_size'),
               type: 'checkbox',
               checked: isSizeMatch(params.mainWindow, RECOMMENDED_WIDTH, RECOMMENDED_HEIGHT),
               click: () => applyWindowSize(params.mainWindow, RECOMMENDED_WIDTH, RECOMMENDED_HEIGHT),
             },
             {
-              label: 'Full Height',
+              label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.full_height'),
               type: 'checkbox',
               checked: isSizeMatch(params.mainWindow, fullWidthTarget, fullHeightTarget),
               click: () => applyWindowSize(params.mainWindow, fullWidthTarget, fullHeightTarget),
             },
             {
-              label: 'Half Height',
+              label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.half_height'),
               type: 'checkbox',
               checked: isSizeMatch(params.mainWindow, halfWidthTarget, halfHeightTarget),
               click: () => applyWindowSize(params.mainWindow, halfWidthTarget, halfHeightTarget),
             },
             {
-              label: 'Full Screen',
+              label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.full_screen'),
               type: 'checkbox',
               checked: isSizeMatch(params.mainWindow, areaWidth, areaHeight),
               click: () => applyWindowSize(params.mainWindow, areaWidth, areaHeight, areaX, areaY),
@@ -130,35 +136,35 @@ export function setupTray(params: {
           ],
         },
         {
-          label: 'Align to',
+          label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.align_to'),
           submenu: [
             {
-              label: 'Center',
+              label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.center'),
               type: 'checkbox',
               checked: isPositionMatch(params.mainWindow, areaX + Math.floor((areaWidth - windowWidth) / 2), areaY + Math.floor((areaHeight - windowHeight) / 2)),
               click: () => alignWindow(params.mainWindow, 'center'),
             },
             { type: 'separator' },
             {
-              label: 'Top Left',
+              label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.top_left'),
               type: 'checkbox',
               checked: isPositionMatch(params.mainWindow, areaX, areaY),
               click: () => alignWindow(params.mainWindow, 'top-left'),
             },
             {
-              label: 'Top Right',
+              label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.top_right'),
               type: 'checkbox',
               checked: isPositionMatch(params.mainWindow, areaX + areaWidth - windowWidth, areaY),
               click: () => alignWindow(params.mainWindow, 'top-right'),
             },
             {
-              label: 'Bottom Left',
+              label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.bottom_left'),
               type: 'checkbox',
               checked: isPositionMatch(params.mainWindow, areaX, areaY + areaHeight - windowHeight),
               click: () => alignWindow(params.mainWindow, 'bottom-left'),
             },
             {
-              label: 'Bottom Right',
+              label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.bottom_right'),
               type: 'checkbox',
               checked: isPositionMatch(params.mainWindow, areaX + areaWidth - windowWidth, areaY + areaHeight - windowHeight),
               click: () => alignWindow(params.mainWindow, 'bottom-right'),
@@ -166,29 +172,29 @@ export function setupTray(params: {
           ],
         },
         { type: 'separator' },
-        { label: 'Settings...', click: () => params.settingsWindow().then(window => toggleWindowShow(window)) },
-        { label: 'About...', click: () => params.aboutWindow().then(window => toggleWindowShow(window)) },
+        { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.settings'), click: () => params.settingsWindow().then(window => toggleWindowShow(window)) },
+        { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.about'), click: () => params.aboutWindow().then(window => toggleWindowShow(window)) },
         { type: 'separator' },
-        { label: 'Open Inlay...', click: () => setupInlayWindow() },
-        { label: 'Open Widgets...', click: () => params.widgetsWindow.getWindow().then(window => toggleWindowShow(window)) },
-        { label: 'Open Caption...', click: () => params.captionWindow.getWindow().then(window => toggleWindowShow(window)) },
+        { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.open_inlay'), click: () => setupInlayWindow({ i18n: params.i18n, serverChannel: params.serverChannel }) },
+        { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.open_widgets'), click: () => params.widgetsWindow.getWindow().then(window => toggleWindowShow(window)) },
+        { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.open_caption'), click: () => params.captionWindow.getWindow().then(window => toggleWindowShow(window)) },
         {
           type: 'submenu',
-          label: 'Caption Overlay',
+          label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.caption_overlay'),
           submenu: Menu.buildFromTemplate([
-            { type: 'checkbox', label: 'Follow window', checked: params.captionWindow.getIsFollowingWindow(), click: async menuItem => await params.captionWindow.setFollowWindow(Boolean(menuItem.checked)) },
-            { label: 'Reset position', click: async () => await params.captionWindow.resetToSide() },
+            { type: 'checkbox', label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.follow_window'), checked: params.captionWindow.getIsFollowingWindow(), click: async menuItem => await params.captionWindow.setFollowWindow(Boolean(menuItem.checked)) },
+            { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.reset_position'), click: async () => await params.captionWindow.resetToSide() },
           ]),
         },
         { type: 'separator' },
         ...is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG
           ? [
-              { type: 'header', label: 'DevTools' },
-              { label: 'Troubleshoot BeatSync...', click: () => params.beatSyncBgWindow.webContents.openDevTools() },
+              { type: 'header', label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.devtools') },
+              { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.troubleshoot_beatsync'), click: () => params.beatSyncBgWindow.webContents.openDevTools() },
               { type: 'separator' },
             ] as const
           : [],
-        { label: 'Quit', click: () => app.quit() },
+        { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.quit'), click: () => app.quit() },
       ])
 
       appTray.setContextMenu(contextMenu)
@@ -198,6 +204,12 @@ export function setupTray(params: {
     params.mainWindow.on('move', rebuildContextMenu)
 
     rebuildContextMenu()
+
+    effect(() => {
+      const locale = params.i18n.locale as (() => string | LocaleDetector<any[]> | undefined)
+      locale()
+      rebuildContextMenu()
+    })
 
     appTray.setToolTip('Project AIRI')
     appTray.addListener('click', () => toggleWindowShow(params.mainWindow))
