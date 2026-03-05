@@ -9,13 +9,15 @@ import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
-import { createLoggLogger, injeca } from 'injeca'
+import { createLoggLogger, injeca, lifecycle } from 'injeca'
 
 import { createAuth } from './libs/auth'
 import { createDrizzle, migrateDatabase } from './libs/db'
 import { parsedEnv } from './libs/env'
+import { initOtel } from './libs/otel'
 import { createRedis } from './libs/redis'
 import { sessionMiddleware } from './middlewares/auth'
+import { otelMiddleware } from './middlewares/otel'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
@@ -39,6 +41,8 @@ type FluxService = ReturnType<typeof createFluxService>
 type ConfigKVService = ReturnType<typeof createConfigKVService>
 type StripeDBService = ReturnType<typeof createStripeService>
 
+type OtelMetrics = ReturnType<typeof initOtel>
+
 interface AppDeps {
   auth: AuthService
   characterService: CharacterService
@@ -48,12 +52,23 @@ interface AppDeps {
   stripeService: StripeDBService
   configKV: ConfigKVService
   env: Env
+  otel: OtelMetrics | null
 }
 
-function buildApp({ auth, characterService, chatService, providerService, fluxService, stripeService, configKV, env }: AppDeps) {
+function buildApp({
+  auth,
+  characterService,
+  chatService,
+  providerService,
+  fluxService,
+  stripeService,
+  configKV,
+  env,
+  otel,
+}: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
-  return new Hono<HonoEnv>()
+  const app = new Hono<HonoEnv>()
     .use(
       '/api/*',
       cors({
@@ -62,6 +77,12 @@ function buildApp({ auth, characterService, chatService, providerService, fluxSe
       }),
     )
     .use(honoLogger())
+
+  if (otel) {
+    app.use('*', otelMiddleware(otel))
+  }
+
+  return app
     .use('*', sessionMiddleware(auth))
     .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
     .onError((err, c) => {
@@ -132,6 +153,19 @@ async function createApp() {
   injeca.setLogger(createLoggLogger(useLogger('injeca').useGlobalConfig()))
   const logger = useLogger('app').useGlobalConfig()
 
+  const otel = injeca.provide('otel', {
+    dependsOn: { env: parsedEnv, lifecycle },
+    build: ({ dependsOn }) => {
+      const o = initOtel(dependsOn.env)
+      if (!o)
+        return null
+
+      o.start()
+      dependsOn.lifecycle.appHooks.onStop(() => o.shutdown())
+      return o
+    },
+  })
+
   const db = injeca.provide('services:db', {
     dependsOn: { env: parsedEnv },
     build: async ({ dependsOn }) => {
@@ -191,7 +225,17 @@ async function createApp() {
   })
 
   await injeca.start()
-  const resolved = await injeca.resolve({ auth, characterService, chatService, providerService, fluxService, stripeService, configKV, env: parsedEnv })
+  const resolved = await injeca.resolve({
+    auth,
+    characterService,
+    chatService,
+    providerService,
+    fluxService,
+    stripeService,
+    configKV,
+    otel,
+    env: parsedEnv,
+  })
   const app = buildApp({
     auth: resolved.auth,
     characterService: resolved.characterService,
@@ -201,6 +245,7 @@ async function createApp() {
     stripeService: resolved.stripeService,
     configKV: resolved.configKV,
     env: resolved.env,
+    otel: resolved.otel,
   })
 
   logger.withFields({ port: 3000 }).log('Server started')
