@@ -15,7 +15,7 @@ export function createFluxService(db: Database, configKV: ConfigKVService) {
       })
 
       if (!record) {
-        const initialFlux = await configKV.get('INITIAL_USER_FLUX')
+        const initialFlux = await configKV.getOrThrow('INITIAL_USER_FLUX')
         ;[record] = await db.insert(schema.userFlux).values({
           userId,
           flux: initialFlux,

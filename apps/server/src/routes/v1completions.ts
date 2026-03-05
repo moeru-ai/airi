@@ -29,7 +29,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
 
     const body = await c.req.json()
 
-    const fluxPerRequest = await configKV.get('FLUX_PER_REQUEST')
+    const fluxPerRequest = await configKV.getOrThrow('FLUX_PER_REQUEST')
     await fluxService.consumeFlux(user.id, fluxPerRequest)
 
     const response = await fetch(`${env.BACKEND_LLM_BASE_URL}chat/completions`, {
