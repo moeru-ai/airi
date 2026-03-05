@@ -34,11 +34,24 @@ import { setupNoticeWindowManager } from './windows/notice'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
 import { setupWidgetsWindowManager } from './windows/widgets'
 
+function installStreamErrorGuards() {
+  const guard = (error: NodeJS.ErrnoException) => {
+    // Ignore broken pipe style errors from detached/closed console streams.
+    if (error?.code === 'EPIPE' || error?.code === 'ERR_STREAM_DESTROYED') {
+
+    }
+  }
+
+  process.stdout?.on('error', guard)
+  process.stderr?.on('error', guard)
+}
+
 // TODO: once we refactored eventa to support window-namespaced contexts,
 // we can remove the setMaxListeners call below since eventa will be able to dispatch and
 // manage events within eventa's context system.
 ipcMain.setMaxListeners(100)
 
+installStreamErrorGuards()
 setElectronMainDirname(dirname(fileURLToPath(import.meta.url)))
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
