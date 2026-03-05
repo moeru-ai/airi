@@ -44,6 +44,7 @@ function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProv
 
 async function streamFrom(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
   const headers = options?.headers
+  const chatConfig = chatProvider.chat(model)
 
   const sanitized = sanitizeMessages(messages as unknown[])
   const resolveTools = async () => {
@@ -97,7 +98,7 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
 
     try {
       streamText({
-        ...chatProvider.chat(model),
+        ...chatConfig,
         maxSteps: 10,
         messages: sanitized,
         headers,
