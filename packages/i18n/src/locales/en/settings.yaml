@@ -705,9 +705,15 @@ pages:
       moonshot:
         description: moonshot.ai
         title: Moonshot AI
+      kimi:
+        description: kimi.moonshot.cn
+        title: Kimi
       modelscope:
         description: modelscope.cn
         title: ModelScope
+      doubao:
+        description: cloud.volcengine.com
+        title: Doubao
       novita:
         description: novita.ai
         title: Novita
@@ -790,6 +796,9 @@ pages:
   scene:
     description: Configure the environment where the character lives
     title: Scene
+  api:
+    description: Configure API credentials for your AI provider.
+    title: API Settings
   system:
     color-scheme:
       description: Change the color scheme of the stage.
