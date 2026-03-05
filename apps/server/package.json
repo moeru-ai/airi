@@ -31,22 +31,21 @@
     "@opentelemetry/sdk-node": "^0.213.0",
     "@opentelemetry/sdk-trace-node": "^2.6.0",
     "@opentelemetry/semantic-conventions": "^1.40.0",
-    "@proj-airi/drizzle-orm-browser-migrator": "^0.1.6",
+    "@proj-airi/drizzle-orm-browser-migrator": "^0.1.4",
     "@proj-airi/server-schema": "workspace:*",
     "better-auth": "^1.4.19",
     "drizzle-orm": "^0.45.1",
     "drizzle-valibot": "catalog:",
     "hono": "catalog:",
     "injeca": "catalog:",
-    "ioredis": "^5.6.1",
+    "ioredis": "^5.10.0",
     "postgres": "^3.4.8",
-    "stripe": "^20.3.0",
+    "stripe": "^20.4.0",
     "tsx": "^4.21.0",
     "valibot": "catalog:"
   },
   "devDependencies": {
     "@better-auth/cli": "^1.4.21",
-    "@types/pg": "^8.11.11",
     "drizzle-kit": "^0.31.9"
   }
 }
