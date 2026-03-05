@@ -19,6 +19,9 @@ docs:
   'drag-to-move-window': Arrastra para mover la ventana
   'switch-to-light-mode': Cambiar a modo claro
   'switch-to-dark-mode': Cambiar a modo oscuro
+  'close': Close
+  'expand': Expand
+  'collapse': Collapse
 notice:
   'fade-on-hover':
     title: Desvanecer al pasar el cursor

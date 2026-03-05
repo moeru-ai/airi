@@ -17,7 +17,7 @@ type GoogleGenerativeConfig = z.input<typeof googleGenerativeConfigSchema>
 
 export const providerGoogleGenerativeAI = defineProvider<GoogleGenerativeConfig>({
   id: 'google-generative-ai',
-  order: 6,
+  order: 8,
   name: 'Google Gemini',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.google-generative-ai.title'),
   description: 'ai.google.dev',

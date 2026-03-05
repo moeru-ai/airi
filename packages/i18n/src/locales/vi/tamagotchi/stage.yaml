@@ -19,6 +19,9 @@ docs:
   'drag-to-move-window': Drag to move window
   'switch-to-light-mode': Switch to light mode
   'switch-to-dark-mode': Switch to dark mode
+  'close': Close
+  'expand': Expand
+  'collapse': Collapse
 notice:
   'fade-on-hover':
     title: Mờ dần khi rê chuột

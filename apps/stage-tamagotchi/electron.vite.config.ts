@@ -46,6 +46,12 @@ export default defineConfig({
         },
       },
     ],
+
+    resolve: {
+      alias: {
+        '@proj-airi/i18n': resolve(join(import.meta.dirname, '..', '..', 'packages', 'i18n', 'src')),
+      },
+    },
   },
   preload: {
     build: {
@@ -172,6 +178,7 @@ export default defineConfig({
             exclude: base => [
               ...base,
               '**/settings/system/general.vue',
+              '**/settings/modules/mcp.vue',
             ],
           },
           resolve(import.meta.dirname, 'src', 'renderer', 'pages'),

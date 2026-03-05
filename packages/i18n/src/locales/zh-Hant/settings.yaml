@@ -420,6 +420,14 @@ pages:
     mcp-server:
       description: 連線與管理 MCP 伺服器及工具
       title: MCP 伺服器
+      config-path: Config file path
+      runtime-title: Runtime status
+      actions:
+        open-config: Open mcp.json
+        apply-and-restart: Save and restart stdio MCP
+      messages:
+        opened: Config file opened at {path}
+        restarted: MCP servers restarted. Started {started}, failed {failed}, skipped {skipped}
   providers:
     explained:
       chat: 文字生成模型服務來源，例如 OpenRouter、OpenAI、Ollama
@@ -790,7 +798,7 @@ pages:
                 title: Markdown Stress
                 description: Stress markdown parsing and rendering with heavy chat payloads
               use-magic-keys:
-                title: useMagicKeys 工具
+                title: useMagicKeys Tool
                 description: 測試快捷鍵
               audio-record:
                 title: Audio Record
