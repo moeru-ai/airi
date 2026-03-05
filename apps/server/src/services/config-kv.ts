@@ -42,7 +42,7 @@ export function createConfigKVService(redis: Redis) {
       return parseValue(key, raw)
     },
 
-    async get<K extends keyof ConfigDefinitions>(key: K): Promise<ConfigDefinitions[K]> {
+    async getOrThrow<K extends keyof ConfigDefinitions>(key: K): Promise<ConfigDefinitions[K]> {
       const value = await this.getOptional(key)
       if (value === null)
         throw createServiceUnavailableError(`Config key "${key}" is not set in Redis`, 'CONFIG_NOT_SET')
