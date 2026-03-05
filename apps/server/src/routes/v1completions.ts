@@ -32,7 +32,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
     const fluxPerRequest = await configKV.getOrThrow('FLUX_PER_REQUEST')
     await fluxService.consumeFlux(user.id, fluxPerRequest)
 
-    const gatewayBaseUrl = await configKV.get('GATEWAY_BASE_URL')
+    const gatewayBaseUrl = await configKV.getOrThrow('GATEWAY_BASE_URL')
 
     // Normalize: ensure trailing slash
     const baseUrl = gatewayBaseUrl.endsWith('/') ? gatewayBaseUrl : `${gatewayBaseUrl}/`
