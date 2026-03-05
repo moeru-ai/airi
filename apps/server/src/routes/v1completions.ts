@@ -36,7 +36,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
 
     // Normalize: ensure trailing slash
     const baseUrl = gatewayBaseUrl.endsWith('/') ? gatewayBaseUrl : `${gatewayBaseUrl}/`
-
+const baseUrl = new URL('chat/completions', gatewayBaseUrl).toString();
     const requestModel = body.model || 'auto'
     const startedAt = Date.now()
 
@@ -57,7 +57,9 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
       status: response.status,
       durationMs,
       fluxConsumed: fluxPerRequest,
-    }).catch(() => {})
+    }).catch(err => {
+      console.error('Failed to log request:', err);
+    })
 
     // Refund flux for any failed request
     if (!response.ok) {
