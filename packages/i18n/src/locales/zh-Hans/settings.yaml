@@ -342,6 +342,10 @@ pages:
         section:
           provider-selection:
             description: 选择合适的语音转文本的服务来源
+          confidence-threshold:
+            title: 置信度阈值
+            description: 根据 avg_logprob 过滤低置信度的转录结果，值越接近 0 越严格。仅适用于基于文件的转录（如 Whisper）。
+            disabled: 已禁用
     memory-long-term:
       description: 长期记忆
       title: 长期记忆

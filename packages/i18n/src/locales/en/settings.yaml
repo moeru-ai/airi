@@ -354,6 +354,10 @@ pages:
         section:
           provider-selection:
             description: Select the suitable speech recognition provider
+          confidence-threshold:
+            title: Confidence Threshold
+            description: Filter out low-confidence transcriptions based on avg_logprob. Values closer to 0 are more strict. Only applies to file-based transcription (e.g., Whisper).
+            disabled: Disabled
     memory-long-term:
       description: Long-term memory specific settings and management
       title: Long-Term Memory

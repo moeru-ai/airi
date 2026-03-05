@@ -65,6 +65,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const transcriptionModelSearchQuery = refManualReset<string>('')
   const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false)
   const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000) // Default 2 seconds
+  const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', -1)
 
   // Computed properties
   const availableProvidersMetadata = computed(() => allAudioTranscriptionProvidersMetadata.value)
@@ -127,6 +128,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     transcriptionModelSearchQuery.reset()
     autoSendEnabled.reset()
     autoSendDelay.reset()
+    confidenceThreshold.reset()
   }
 
   async function transcription(
@@ -190,11 +192,21 @@ export const useHearingStore = defineStore('hearing-store', () => {
       throw new Error('File input is required for transcription.')
     }
 
+    const useVerboseJson = !format && confidenceThreshold.value > -2
     const response = await generateTranscription({
       ...provider.transcription(model, options?.providerOptions),
       file: normalizedInput.file,
-      responseFormat: format,
+      responseFormat: useVerboseJson ? 'verbose_json' : format,
     })
+
+    if (useVerboseJson && response.segments) {
+      const filtered = response.segments.filter(s => s.avg_logprob >= confidenceThreshold.value)
+      return {
+        mode: 'generate',
+        ...response,
+        text: filtered.map(s => s.text).join('').trim(),
+      }
+    }
 
     return {
       mode: 'generate',
@@ -210,6 +222,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     transcriptionModelSearchQuery,
     autoSendEnabled,
     autoSendDelay,
+    confidenceThreshold,
 
     supportsModelListing,
     providerModels,
