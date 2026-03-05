@@ -7,6 +7,9 @@ pages:
       description: Connect and manage MCP server and tools
       title: MCP Server
   system:
+    dock-mode:
+      title: Window Dock Mode
+      description: Dock the window to another application window.
     sections:
       section:
         window-shortcuts:
@@ -53,3 +56,23 @@ screen-capture:
       step-1: Open "System Preferences", select "Privacy & Security" from the sidebar.
       step-2: In the "Screen & System Audio Recording" and "System Audio Recording Only" sections, turn on the switches for AIRI.
       step-2-note: If AIRI is not listed, please add it manually by clicking the "+" button and selecting AIRI from the Applications folder.
+
+dock-mode:
+  select-window: Select target window
+  refresh-windows: Refresh
+  no-windows: No windows found
+  loading-windows: Loading windows...
+  dock-position: Dock position
+  position:
+    left: Left
+    right: Right
+    top: Top
+    bottom: Bottom
+  offset-x: Horizontal offset
+  offset-y: Vertical offset
+  start: Start Docking
+  stop: Stop Docking
+  status:
+    active: "Docked to: {name}"
+    inactive: Not docked
+    unsupported: Window docking is not supported on this platform
