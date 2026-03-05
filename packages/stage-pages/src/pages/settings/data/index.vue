@@ -13,6 +13,8 @@ const {
   deleteAllChatSessions,
   exportChatSessions,
   importChatSessions,
+  exportProviderConfigurations,
+  importProviderConfigurations,
   deleteAllData,
   resetDesktopApplicationState,
 } = useDataMaintenance()
@@ -21,6 +23,7 @@ const statusMessage = ref('')
 const statusTone = ref<'neutral' | 'success' | 'error'>('neutral')
 const importError = ref('')
 const importFileInput = ref<HTMLInputElement>()
+const providerImportFileInput = ref<HTMLInputElement>()
 const isDesktop = computed(() => isStageTamagotchi())
 
 function setStatus(message: string, tone: 'neutral' | 'success' | 'error' = 'success') {
@@ -83,6 +86,48 @@ async function handleImport(event: Event) {
     target.value = ''
   }
 }
+
+function triggerProviderExport() {
+  try {
+    const blob = exportProviderConfigurations()
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `airi-provider-configurations-${new Date().toISOString()}.json`
+    anchor.click()
+    URL.revokeObjectURL(url)
+    setStatus(t('settings.pages.data.status.providers_exported'))
+  }
+  catch (error) {
+    console.error(error)
+    setStatus(error instanceof Error ? error.message : String(error), 'error')
+  }
+}
+
+function triggerProviderImportPicker() {
+  importError.value = ''
+  providerImportFileInput.value?.click()
+}
+
+function handleProviderImport(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file)
+    return
+
+  file.text().then((raw) => {
+    const parsed = JSON.parse(raw) as Record<string, unknown>
+    importProviderConfigurations(parsed)
+    setStatus(t('settings.pages.data.status.providers_imported'))
+    importError.value = ''
+  }).catch((error) => {
+    console.error(error)
+    importError.value = t('settings.pages.data.status.providers_import_error')
+    setStatus(error instanceof Error ? error.message : String(error), 'error')
+  }).finally(() => {
+    target.value = ''
+  })
+}
 </script>
 
 <template>
@@ -124,6 +169,30 @@ async function handleImport(event: Event) {
       <p v-if="importError" class="text-sm text-red-500">
         {{ importError }}
       </p>
+    </div>
+
+    <div class="border-2 border-neutral-200/50 rounded-xl bg-white/70 p-4 shadow-sm dark:border-neutral-800/60 dark:bg-neutral-900/60">
+      <div class="grid grid-cols-1 items-start gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+        <div class="flex flex-col gap-1 md:max-w-[560px]">
+          <div class="text-lg font-medium">
+            {{ t('settings.pages.data.sections.providers.title') }}
+          </div>
+          <p class="text-sm text-neutral-600 dark:text-neutral-400">
+            {{ t('settings.pages.data.sections.providers.description') }}
+          </p>
+        </div>
+        <div class="flex flex-col items-start gap-2 sm:items-end">
+          <div class="flex flex-wrap gap-2">
+            <Button variant="secondary" @click="triggerProviderExport">
+              {{ t('settings.pages.data.sections.providers.export') }}
+            </Button>
+            <Button variant="primary" @click="triggerProviderImportPicker">
+              {{ t('settings.pages.data.sections.providers.import') }}
+            </Button>
+          </div>
+        </div>
+      </div>
+      <input ref="providerImportFileInput" type="file" accept="application/json" class="hidden" @change="handleProviderImport">
     </div>
 
     <div class="border-2 border-neutral-200/50 rounded-xl bg-white/70 p-4 shadow-sm dark:border-neutral-800/60 dark:bg-neutral-900/60">
