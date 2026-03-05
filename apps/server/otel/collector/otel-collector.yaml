@@ -19,6 +19,27 @@ processors:
       - key: service.namespace
         value: proj-airi
         action: upsert
+  # Tail-based sampling: keeps all errors and slow requests,
+  # samples a percentage of normal traffic to reduce storage costs.
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 100000
+    policies:
+      # Always keep traces that contain errors
+      - name: errors-policy
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      # Always keep slow requests (> 500ms)
+      - name: slow-requests-policy
+        type: latency
+        latency:
+          threshold_ms: 500
+      # Sample 10% of remaining normal traffic
+      - name: probabilistic-policy
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: 10
 
 exporters:
   # Prometheus exporter for metrics
@@ -52,7 +73,7 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, resource, batch]
+      processors: [memory_limiter, resource, tail_sampling, batch]
       exporters: [otlp/tempo, debug]
     metrics:
       receivers: [otlp]

@@ -8,7 +8,7 @@ import { Resource } from '@opentelemetry/resources'
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions'
 import { NodeSDK } from '@opentelemetry/sdk-node'
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics'
-import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-node'
+import { BatchSpanProcessor, ParentBasedSampler, TraceIdRatioBasedSampler } from '@opentelemetry/sdk-trace-node'
 import { BatchLogRecordProcessor } from '@opentelemetry/sdk-logs'
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http'
 import { IORedisInstrumentation } from '@opentelemetry/instrumentation-ioredis'
@@ -44,8 +44,16 @@ export function initOtel() {
     url: `${otlpEndpoint}/v1/logs`,
   })
 
+  // Head-based sampling ratio: 1.0 = 100% (default), 0.1 = 10%, etc.
+  // Metrics are always 100% accurate regardless of this setting.
+  const samplingRatio = Number.parseFloat(process.env.OTEL_TRACES_SAMPLING_RATIO || '1.0')
+  const sampler = new ParentBasedSampler({
+    root: new TraceIdRatioBasedSampler(samplingRatio),
+  })
+
   const sdk = new NodeSDK({
     resource,
+    sampler,
     spanProcessors: [new BatchSpanProcessor(traceExporter)],
     metricReader: new PeriodicExportingMetricReader({
       exporter: metricExporter,
@@ -68,7 +76,7 @@ export function initOtel() {
   })
 
   sdk.start()
-  logger.log(`OpenTelemetry initialized, exporting to ${otlpEndpoint}`)
+  logger.log(`OpenTelemetry initialized, exporting to ${otlpEndpoint}, sampling ratio: ${samplingRatio}`)
 
   const meter = metrics.getMeter(serviceName)
 
