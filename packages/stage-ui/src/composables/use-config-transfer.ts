@@ -69,11 +69,28 @@ function upperSnakeToCamel(str: string): string {
 }
 
 /**
+ * Keys that must never be used as object property names to prevent prototype pollution.
+ */
+const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+
+/**
+ * Sanitize a value before embedding it into a .env format line.
+ * Strips newline characters to prevent .env injection attacks where a crafted
+ * value could introduce additional key-value pairs into the exported file.
+ */
+function sanitizeEnvValue(value: unknown): string {
+  return String(value).replace(/[\r\n]/g, '')
+}
+
+/**
  * Parse a simple KEY=VALUE .env format.
  * Lines starting with '#' or empty lines are ignored.
+ * Values are trimmed and surrounding quotes are stripped.
+ * Keys matching dangerous prototype names are silently dropped.
  */
 function parseEnv(content: string): Record<string, string> {
-  const result: Record<string, string> = {}
+  // Use Object.create(null) to avoid accidental prototype-chain access on the accumulator
+  const result = Object.create(null) as Record<string, string>
   for (const line of content.split('\n')) {
     const trimmed = line.trim()
     if (!trimmed || trimmed.startsWith('#'))
@@ -82,7 +99,13 @@ function parseEnv(content: string): Record<string, string> {
     if (eqIndex < 0)
       continue
     const key = trimmed.slice(0, eqIndex).trim()
-    const value = trimmed.slice(eqIndex + 1)
+    // Reject dangerous keys that could cause prototype pollution
+    if (DANGEROUS_KEYS.has(key))
+      continue
+    let value = trimmed.slice(eqIndex + 1).trim()
+    // Strip surrounding single or double quotes
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith('\'') && value.endsWith('\'')))
+      value = value.slice(1, -1)
     result[key] = value
   }
   return result
@@ -143,14 +166,16 @@ export function useConfigTransfer() {
           continue
         if (typeof value === 'object') {
           // Handle nested objects (e.g. volcengine's app: { appId: '...' })
+          // NOTICE: Use double underscore (__) as the nested separator to stay consistent
+          // with the top-level separator and allow unambiguous reconstruction on import.
           for (const [nestedKey, nestedValue] of Object.entries(value as Record<string, unknown>)) {
             if (nestedValue !== null && nestedValue !== undefined && nestedValue !== '') {
-              lines.push(`${prefix}__${toUpperSnake(field)}_${toUpperSnake(nestedKey)}=${nestedValue}`)
+              lines.push(`${prefix}__${toUpperSnake(field)}__${toUpperSnake(nestedKey)}=${sanitizeEnvValue(nestedValue)}`)
             }
           }
         }
         else {
-          lines.push(`${prefix}__${toUpperSnake(field)}=${value}`)
+          lines.push(`${prefix}__${toUpperSnake(field)}=${sanitizeEnvValue(value)}`)
         }
       }
     }
@@ -168,12 +193,21 @@ export function useConfigTransfer() {
         throw new Error('Invalid YAML: expected format "airi-provider-credentials:v1"')
       }
       for (const [providerId, config] of Object.entries(data.providers)) {
+        // Guard against prototype pollution from crafted YAML
+        if (DANGEROUS_KEYS.has(providerId))
+          continue
+        // Safe merge: copy only own enumerable props, skipping dangerous keys
+        const safeConfig: Record<string, unknown> = Object.create(null)
+        for (const [k, v] of Object.entries(config)) {
+          if (!DANGEROUS_KEYS.has(k))
+            safeConfig[k] = v
+        }
         providersStore.providers[providerId] = {
           ...providersStore.providers[providerId],
-          ...config,
+          ...safeConfig,
         }
         // Mark the provider as added when at least one field is non-empty
-        if (Object.values(config).some(v => v !== null && v !== undefined && v !== '')) {
+        if (Object.values(safeConfig).some(v => v !== null && v !== undefined && v !== '')) {
           providersStore.addedProviders[providerId] = true
         }
       }
@@ -181,7 +215,8 @@ export function useConfigTransfer() {
     else {
       // .env format
       const env = parseEnv(content)
-      const providerMap: Record<string, Record<string, string>> = {}
+      // Use Object.create(null) to prevent prototype pollution on the accumulator
+      const providerMap = Object.create(null) as Record<string, Record<string, string>>
 
       for (const [key, value] of Object.entries(env)) {
         if (!key.startsWith('AIRI_PROV_'))
@@ -192,9 +227,13 @@ export function useConfigTransfer() {
           continue
         // Convert UPPER_SNAKE back to kebab-case provider ID
         const providerId = rest.slice(0, sepIdx).toLowerCase().replace(/_/g, '-')
+        if (DANGEROUS_KEYS.has(providerId))
+          continue
         const fieldName = upperSnakeToCamel(rest.slice(sepIdx + 2))
+        if (DANGEROUS_KEYS.has(fieldName))
+          continue
         if (!providerMap[providerId])
-          providerMap[providerId] = {}
+          providerMap[providerId] = Object.create(null) as Record<string, string>
         providerMap[providerId][fieldName] = value
       }
 
@@ -203,7 +242,7 @@ export function useConfigTransfer() {
           ...providersStore.providers[providerId],
           ...config,
         }
-        if (Object.values(config).some(v => !!v)) {
+        if (Object.values(config).some(v => v !== null && v !== undefined && v !== '')) {
           providersStore.addedProviders[providerId] = true
         }
       }
@@ -282,7 +321,8 @@ export function useConfigTransfer() {
           consciousnessStore.activeProvider = c.activeProvider
         if (c.activeModel)
           consciousnessStore.activeModel = c.activeModel
-        if (c.customModelName !== undefined)
+        // Explicit string check: YAML could provide null/non-string for this field
+        if (typeof c.customModelName === 'string')
           consciousnessStore.customModelName = c.customModelName
       }
 
@@ -310,7 +350,8 @@ export function useConfigTransfer() {
           hearingStore.activeTranscriptionProvider = h.activeProvider
         if (h.activeModel)
           hearingStore.activeTranscriptionModel = h.activeModel
-        if (h.customModelName !== undefined)
+        // Explicit string check: YAML could provide null/non-string for this field
+        if (typeof h.customModelName === 'string')
           hearingStore.activeCustomModelName = h.customModelName
         if (h.autoSendEnabled !== undefined)
           hearingStore.autoSendEnabled = h.autoSendEnabled
@@ -321,7 +362,8 @@ export function useConfigTransfer() {
     else {
       // .env format
       const env = parseEnv(content)
-      const moduleMap: Record<string, Record<string, string>> = {}
+      // Use Object.create(null) to prevent prototype pollution on the accumulator
+      const moduleMap = Object.create(null) as Record<string, Record<string, string>>
 
       for (const [key, value] of Object.entries(env)) {
         if (!key.startsWith('AIRI_MOD_'))
@@ -331,9 +373,13 @@ export function useConfigTransfer() {
         if (sepIdx < 0)
           continue
         const moduleName = upperSnakeToCamel(rest.slice(0, sepIdx).toLowerCase())
+        if (DANGEROUS_KEYS.has(moduleName))
+          continue
         const fieldName = upperSnakeToCamel(rest.slice(sepIdx + 2))
+        if (DANGEROUS_KEYS.has(fieldName))
+          continue
         if (!moduleMap[moduleName])
-          moduleMap[moduleName] = {}
+          moduleMap[moduleName] = Object.create(null) as Record<string, string>
         moduleMap[moduleName][fieldName] = value
       }
 
@@ -355,10 +401,17 @@ export function useConfigTransfer() {
           speechStore.activeSpeechModel = s.activeModel
         if (s.voiceId)
           speechStore.activeSpeechVoiceId = s.voiceId
-        if (s.pitch !== undefined)
-          speechStore.pitch = Number(s.pitch)
-        if (s.rate !== undefined)
-          speechStore.rate = Number(s.rate)
+        if (s.pitch !== undefined) {
+          const pitch = Number(s.pitch)
+          // Guard against NaN from non-numeric .env values
+          if (Number.isFinite(pitch))
+            speechStore.pitch = pitch
+        }
+        if (s.rate !== undefined) {
+          const rate = Number(s.rate)
+          if (Number.isFinite(rate))
+            speechStore.rate = rate
+        }
         if (s.ssmlEnabled !== undefined)
           speechStore.ssmlEnabled = s.ssmlEnabled === 'true'
         if (s.language)
@@ -375,8 +428,11 @@ export function useConfigTransfer() {
           hearingStore.activeCustomModelName = h.customModelName
         if (h.autoSendEnabled !== undefined)
           hearingStore.autoSendEnabled = h.autoSendEnabled === 'true'
-        if (h.autoSendDelay !== undefined)
-          hearingStore.autoSendDelay = Number(h.autoSendDelay)
+        if (h.autoSendDelay !== undefined) {
+          const delay = Number(h.autoSendDelay)
+          if (Number.isFinite(delay))
+            hearingStore.autoSendDelay = delay
+        }
       }
     }
   }

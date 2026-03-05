@@ -20,6 +20,7 @@ const importError = ref<string | null>(null)
 const importSuccess = ref(false)
 const fileInputRef = ref<HTMLInputElement>()
 const copySuccess = ref(false)
+const exportTextareaRef = ref<HTMLTextAreaElement>()
 
 const categories: Array<{ id: DataCategory, label: string, icon: string }> = [
   { id: 'provider', label: 'Provider Credentials', icon: 'i-solar:key-bold-duotone' },
@@ -37,7 +38,8 @@ const exportedText = computed<string>(() => {
       ? exportProviderCredentials(activeFormat.value)
       : exportModuleSettings(activeFormat.value)
   }
-  catch {
+  catch (err) {
+    console.error('Failed to generate export:', err)
     return '# Error generating export — check the browser console for details.'
   }
 })
@@ -55,7 +57,8 @@ async function copyToClipboard() {
     setTimeout(() => (copySuccess.value = false), 2000)
   }
   catch {
-    // fallback: select the textarea
+    // Fallback: select the export textarea so the user can copy manually
+    exportTextareaRef.value?.select()
   }
 }
 
@@ -259,6 +262,7 @@ function selectCategory(id: DataCategory) {
       </Callout>
 
       <textarea
+        ref="exportTextareaRef"
         :value="exportedText"
         readonly
         spellcheck="false"
@@ -277,7 +281,7 @@ function selectCategory(id: DataCategory) {
 <route lang="yaml">
 meta:
   layout: settings
-  titleKey: settings.pages.devtools.provider-config.title
+  title: Provider Config Import / Export
   subtitleKey: settings.pages.system.developer.title
   stageTransition:
     name: slide
