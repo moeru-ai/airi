@@ -1,7 +1,8 @@
 import type { MiddlewareHandler } from 'hono'
+
 import type { HonoEnv } from '../types/hono'
 
-import { trace, SpanStatusCode, context } from '@opentelemetry/api'
+import { context, SpanStatusCode, trace } from '@opentelemetry/api'
 
 const tracer = trace.getTracer('airi-server-hono')
 

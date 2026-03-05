@@ -1,3 +1,5 @@
+import type { IncomingMessage } from 'node:http'
+
 import process from 'node:process'
 
 import { useLogger } from '@guiiai/logg'
@@ -20,28 +22,44 @@ const logger = useLogger('otel')
 
 export function initOtel() {
   const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318'
-  const serviceName = process.env.OTEL_SERVICE_NAME || 'airi-server'
+  const serviceName = process.env.OTEL_SERVICE_NAME || 'server'
 
   if (process.env.OTEL_DEBUG === 'true') {
     diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG)
   }
 
+  // Parse OTEL_EXPORTER_OTLP_HEADERS (format: "key=value,key2=value2")
+  const headers: Record<string, string> = {}
+  const rawHeaders = process.env.OTEL_EXPORTER_OTLP_HEADERS
+  if (rawHeaders) {
+    for (const pair of rawHeaders.split(',')) {
+      const idx = pair.indexOf('=')
+      if (idx > 0) {
+        headers[pair.slice(0, idx).trim()] = pair.slice(idx + 1).trim()
+      }
+    }
+  }
+
   const resource = resourceFromAttributes({
     [ATTR_SERVICE_NAME]: serviceName,
     [ATTR_SERVICE_VERSION]: process.env.npm_package_version || '0.0.0',
+    'service.namespace': process.env.OTEL_SERVICE_NAMESPACE || 'airi',
     'deployment.environment': process.env.NODE_ENV || 'development',
   })
 
   const traceExporter = new OTLPTraceExporter({
     url: `${otlpEndpoint}/v1/traces`,
+    headers,
   })
 
   const metricExporter = new OTLPMetricExporter({
     url: `${otlpEndpoint}/v1/metrics`,
+    headers,
   })
 
   const logExporter = new OTLPLogExporter({
     url: `${otlpEndpoint}/v1/logs`,
+    headers,
   })
 
   // Head-based sampling ratio: 1.0 = 100% (default), 0.1 = 10%, etc.
@@ -62,7 +80,7 @@ export function initOtel() {
     logRecordProcessors: [new BatchLogRecordProcessor(logExporter)],
     instrumentations: [
       new HttpInstrumentation({
-        ignoreIncomingRequestHook: (req) => {
+        ignoreIncomingRequestHook: (req: IncomingMessage) => {
           // Ignore health check requests to reduce noise
           return req.url === '/health'
         },
