@@ -23,7 +23,7 @@ describe('configKVService', () => {
   // --- get ---
 
   it('get should throw 503 when key is not set', async () => {
-    await expect(service.get('FLUX_PER_CENT'))
+    await expect(service.getOrThrow('FLUX_PER_CENT'))
       .rejects
       .toThrow('Config key "FLUX_PER_CENT" is not set in Redis')
   })
@@ -31,14 +31,14 @@ describe('configKVService', () => {
   it('get should return numeric value when key is set', async () => {
     redis._store.set('config:FLUX_PER_CENT', '5')
 
-    const value = await service.get('FLUX_PER_CENT')
+    const value = await service.getOrThrow('FLUX_PER_CENT')
     expect(value).toBe(5)
   })
 
   it('get should read from correct prefixed key', async () => {
     redis._store.set('config:FLUX_PER_REQUEST', '3')
 
-    await service.get('FLUX_PER_REQUEST')
+    await service.getOrThrow('FLUX_PER_REQUEST')
     expect(redis.get).toHaveBeenCalledWith('config:FLUX_PER_REQUEST')
   })
 
@@ -68,7 +68,7 @@ describe('configKVService', () => {
   it('set then get should round-trip correctly', async () => {
     await service.set('INITIAL_USER_FLUX', 500)
 
-    const value = await service.get('INITIAL_USER_FLUX')
+    const value = await service.getOrThrow('INITIAL_USER_FLUX')
     expect(value).toBe(500)
   })
 
@@ -81,7 +81,7 @@ describe('configKVService', () => {
     ]
     redis._store.set('config:FLUX_PACKAGES', JSON.stringify(packages))
 
-    const value = await service.get('FLUX_PACKAGES')
+    const value = await service.getOrThrow('FLUX_PACKAGES')
     expect(value).toEqual(packages)
   })
 
@@ -101,7 +101,7 @@ describe('configKVService', () => {
     ]
     await service.set('FLUX_PACKAGES', packages)
 
-    const value = await service.get('FLUX_PACKAGES')
+    const value = await service.getOrThrow('FLUX_PACKAGES')
     expect(value).toEqual(packages)
   })
 
