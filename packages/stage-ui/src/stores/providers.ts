@@ -237,6 +237,34 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Centralized provider metadata with provider factory functions
   const providerMetadata: Record<string, ProviderMetadata> = {
+    'speech-noop': {
+      id: 'speech-noop',
+      category: 'speech',
+      tasks: ['text-to-speech', 'tts'],
+      nameKey: 'settings.pages.providers.provider.speech-noop.title',
+      name: 'None',
+      descriptionKey: 'settings.pages.providers.provider.speech-noop.description',
+      description: 'No speech output.',
+      icon: 'i-solar:volume-cross-bold-duotone',
+      defaultOptions: () => ({}),
+      createProvider: async () => ({
+        speech: () => ({
+          baseURL: 'http://speech-noop.invalid/v1/',
+          model: 'noop',
+        }),
+      }),
+      capabilities: {
+        listModels: async () => [],
+        listVoices: async () => [],
+      },
+      validators: {
+        validateProviderConfig: () => ({
+          errors: [],
+          reason: '',
+          valid: true,
+        }),
+      },
+    },
     'app-local-audio-speech': buildOpenAICompatibleProvider({
       id: 'app-local-audio-speech',
       name: 'App (Local)',

@@ -25,7 +25,7 @@ export const useSpeechStore = defineStore('speech', () => {
   const { allAudioSpeechProvidersMetadata } = storeToRefs(providersStore)
 
   // State
-  const activeSpeechProvider = useLocalStorageManualReset<string>('settings/speech/active-provider', '')
+  const activeSpeechProvider = useLocalStorageManualReset<string>('settings/speech/active-provider', 'speech-noop')
   const activeSpeechModel = useLocalStorageManualReset<string>('settings/speech/active-model', '')
   const activeSpeechVoiceId = useLocalStorageManualReset<string>('settings/speech/voice', '')
   const activeSpeechVoice = refManualReset<VoiceInfo | undefined>(undefined)
@@ -123,6 +123,29 @@ export const useSpeechStore = defineStore('speech', () => {
     // REVIEW: should we always load voices on init? What will happen when network is not available?
     immediate: true,
   })
+
+  if (!activeSpeechProvider.value) {
+    activeSpeechProvider.value = 'speech-noop'
+  }
+
+  watch(
+    () => providersStore.configuredSpeechProvidersMetadata.map(provider => provider.id),
+    (configuredProviderIds) => {
+      if (!activeSpeechProvider.value)
+        return
+
+      // NOTICE: clear stale selection when the currently selected speech provider
+      // is no longer configured to avoid implicit fallback behavior from persisted state.
+      if (!configuredProviderIds.includes(activeSpeechProvider.value)) {
+        activeSpeechProvider.value = 'speech-noop'
+        activeSpeechModel.value = ''
+        activeSpeechVoiceId.value = ''
+        activeSpeechVoice.value = undefined
+      }
+    },
+
+    { immediate: true },
+  )
 
   onMounted(() => {
     loadVoicesForProvider(activeSpeechProvider.value).then(() => {
@@ -232,6 +255,9 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 
   const configured = computed(() => {
+    if (activeSpeechProvider.value === 'speech-noop')
+      return false
+
     if (!activeSpeechProvider.value)
       return false
 
