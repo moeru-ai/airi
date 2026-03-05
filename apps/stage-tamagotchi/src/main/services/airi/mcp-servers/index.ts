@@ -62,8 +62,11 @@ const defaultMcpConfig: ElectronMcpStdioConfigFile = {
   mcpServers: {},
 }
 const toolNameSeparator = '::'
+const mcpServerConnectTimeoutMsec = 10_000
 const mcpRequestTimeoutMsec = 10_000
 const mcpRequestMaxTotalTimeoutMsec = 15_000
+const mcpToolRequestIdCacheTtlMsec = 30_000
+const mcpToolRequestIdCacheMaxSize = 512
 
 function stringifyError(error: unknown) {
   if (error instanceof Error) {
@@ -97,12 +100,44 @@ function resolveFallbackToolName(toolName: string): string | undefined {
     return normalizedTransportPrefix
   }
 
-  const lastSeparatorIndex = toolName.lastIndexOf(toolNameSeparator)
-  if (lastSeparatorIndex <= 0 || lastSeparatorIndex === toolName.length - toolNameSeparator.length) {
-    return undefined
+  return undefined
+}
+
+function isToolNameResolutionError(error: unknown): boolean {
+  const message = stringifyError(error).toLowerCase()
+  return message.includes('unknown tool')
+    || message.includes('tool not found')
+    || message.includes('no such tool')
+    || message.includes('method not found')
+}
+
+async function withTimeout<T>(task: Promise<T>, timeoutMsec: number, timeoutMessage: string): Promise<T> {
+  let timeoutId: NodeJS.Timeout | undefined
+  try {
+    return await Promise.race([
+      task,
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMsec)
+      }),
+    ])
+  }
+  finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+    }
+  }
+}
+
+function createSpawnEnv(overrides?: Record<string, string>): Record<string, string> {
+  const baseEnv = Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
+  if (!overrides) {
+    return baseEnv
   }
 
-  return toolName.slice(lastSeparatorIndex + toolNameSeparator.length)
+  return {
+    ...baseEnv,
+    ...overrides,
+  }
 }
 
 async function closeSession(session: McpServerSession) {
@@ -118,7 +153,25 @@ export function createMcpStdioManager(): McpStdioManager {
   const log = useLogg('main/mcp-stdio').useGlobalConfig()
   const sessions = new Map<string, McpServerSession>()
   const runtimeStatuses = new Map<string, ElectronMcpStdioServerRuntimeStatus>()
+  const inFlightToolCallsByRequestId = new Map<string, Promise<ElectronMcpCallToolResult>>()
+  const completedToolCallsByRequestId = new Map<string, { result: ElectronMcpCallToolResult, expiresAt: number }>()
   let updatedAt = Date.now()
+
+  const pruneCompletedToolCalls = (now = Date.now()) => {
+    for (const [requestId, cached] of completedToolCallsByRequestId.entries()) {
+      if (cached.expiresAt <= now) {
+        completedToolCallsByRequestId.delete(requestId)
+      }
+    }
+
+    while (completedToolCallsByRequestId.size > mcpToolRequestIdCacheMaxSize) {
+      const oldestRequestId = completedToolCallsByRequestId.keys().next().value
+      if (!oldestRequestId) {
+        break
+      }
+      completedToolCallsByRequestId.delete(oldestRequestId)
+    }
+  }
 
   const setRuntimeStatus = (status: ElectronMcpStdioServerRuntimeStatus) => {
     runtimeStatuses.set(status.name, status)
@@ -171,13 +224,18 @@ export function createMcpStdioManager(): McpStdioManager {
       })
       sessions.delete(name)
     }
+
+    inFlightToolCallsByRequestId.clear()
+    completedToolCallsByRequestId.clear()
   }
 
   const startServer = async (name: string, config: ElectronMcpStdioServerConfig) => {
     const transport = new StdioClientTransport({
       command: config.command,
       args: config.args ?? [],
-      env: config.env,
+      // NOTICE: MCP config may only define override variables.
+      // Merge with parent env to preserve PATH and other runtime essentials.
+      env: createSpawnEnv(config.env),
       cwd: config.cwd,
       stderr: 'pipe',
     })
@@ -187,7 +245,11 @@ export function createMcpStdioManager(): McpStdioManager {
     })
 
     try {
-      await client.connect(transport)
+      await withTimeout(
+        client.connect(transport),
+        mcpServerConnectTimeoutMsec,
+        `mcp server connect timeout (${mcpServerConnectTimeoutMsec}ms): ${name}`,
+      )
       transport.stderr?.on('data', (data) => {
         const text = data.toString('utf-8').trim()
         if (text) {
@@ -204,6 +266,7 @@ export function createMcpStdioManager(): McpStdioManager {
       })
     }
     catch (error) {
+      log.withFields({ serverName: name }).withError(error).warn('failed to connect mcp stdio server')
       await transport.close().catch(() => {})
       throw error
     }
@@ -260,6 +323,17 @@ export function createMcpStdioManager(): McpStdioManager {
   }
 
   const listTools = async (): Promise<ElectronMcpToolDescriptor[]> => {
+    if (sessions.size === 0) {
+      // NOTICE: users may update mcp.json outside app and forget clicking apply.
+      // Auto-attempt one restart on first tools listing to avoid a silent empty tool list.
+      try {
+        await applyAndRestart()
+      }
+      catch (error) {
+        log.withError(error).warn('failed to auto-apply mcp config before listing tools')
+      }
+    }
+
     const entries = [...sessions.entries()].sort(([left], [right]) => left.localeCompare(right))
     const listResult = await Promise.all(entries.map(async ([serverName, session]) => {
       try {
@@ -285,58 +359,108 @@ export function createMcpStdioManager(): McpStdioManager {
   }
 
   const callTool = async (payload: ElectronMcpCallToolPayload): Promise<ElectronMcpCallToolResult> => {
-    const { serverName, toolName } = parseQualifiedToolName(payload.name)
-    const session = sessions.get(serverName)
-    if (!session) {
-      throw new Error(`mcp server is not running: ${serverName}`)
-    }
+    const normalizedRequestId = payload.requestId?.trim()
+    if (normalizedRequestId) {
+      pruneCompletedToolCalls()
 
-    let result
-    try {
-      result = await session.client.callTool({
-        name: toolName,
-        arguments: payload.arguments ?? {},
-      }, undefined, {
-        timeout: mcpRequestTimeoutMsec,
-        maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
-      })
-    }
-    catch (error) {
-      const fallbackToolName = resolveFallbackToolName(toolName)
-      if (!fallbackToolName || fallbackToolName === toolName) {
-        throw error
+      const cached = completedToolCallsByRequestId.get(normalizedRequestId)
+      if (cached && cached.expiresAt > Date.now()) {
+        log.withFields({
+          requestId: normalizedRequestId,
+          name: payload.name,
+        }).warn('reusing cached mcp tool result for duplicated request id')
+        return cached.result
       }
 
-      log.withFields({
-        serverName,
-        requestedToolName: toolName,
-        fallbackToolName,
-      }).warn('retrying mcp tool call with normalized tool name')
+      const inFlight = inFlightToolCallsByRequestId.get(normalizedRequestId)
+      if (inFlight) {
+        log.withFields({
+          requestId: normalizedRequestId,
+          name: payload.name,
+        }).warn('joining in-flight mcp tool call for duplicated request id')
+        return inFlight
+      }
+    }
 
-      result = await session.client.callTool({
-        name: fallbackToolName,
-        arguments: payload.arguments ?? {},
-      }, undefined, {
-        timeout: mcpRequestTimeoutMsec,
-        maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
+    const executeCall = async (): Promise<ElectronMcpCallToolResult> => {
+      const { serverName, toolName } = parseQualifiedToolName(payload.name)
+      const session = sessions.get(serverName)
+      if (!session) {
+        throw new Error(`mcp server is not running: ${serverName}`)
+      }
+
+      let result
+      try {
+        result = await session.client.callTool({
+          name: toolName,
+          arguments: payload.arguments ?? {},
+        }, undefined, {
+          timeout: mcpRequestTimeoutMsec,
+          maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
+        })
+      }
+      catch (error) {
+        if (!isToolNameResolutionError(error)) {
+          throw error
+        }
+
+        const fallbackToolName = resolveFallbackToolName(toolName)
+        if (!fallbackToolName || fallbackToolName === toolName) {
+          throw error
+        }
+
+        log.withFields({
+          serverName,
+          requestedToolName: toolName,
+          fallbackToolName,
+        }).warn('retrying mcp tool call with normalized tool name')
+
+        result = await session.client.callTool({
+          name: fallbackToolName,
+          arguments: payload.arguments ?? {},
+        }, undefined, {
+          timeout: mcpRequestTimeoutMsec,
+          maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
+        })
+      }
+
+      const normalized: ElectronMcpCallToolResult = {}
+      if ('content' in result && Array.isArray(result.content)) {
+        normalized.content = result.content as Array<Record<string, unknown>>
+      }
+      if ('structuredContent' in result) {
+        normalized.structuredContent = result.structuredContent
+      }
+      if ('isError' in result && typeof result.isError === 'boolean') {
+        normalized.isError = result.isError
+      }
+      if ('toolResult' in result) {
+        normalized.toolResult = result.toolResult
+      }
+
+      return normalized
+    }
+
+    const execution = executeCall()
+    if (!normalizedRequestId) {
+      return execution
+    }
+
+    inFlightToolCallsByRequestId.set(normalizedRequestId, execution)
+
+    try {
+      const result = await execution
+      const now = Date.now()
+      completedToolCallsByRequestId.set(normalizedRequestId, {
+        result,
+        expiresAt: now + mcpToolRequestIdCacheTtlMsec,
       })
+      pruneCompletedToolCalls(now)
+      return result
     }
-
-    const normalized: ElectronMcpCallToolResult = {}
-    if ('content' in result && Array.isArray(result.content)) {
-      normalized.content = result.content as Array<Record<string, unknown>>
+    finally {
+      inFlightToolCallsByRequestId.delete(normalizedRequestId)
     }
-    if ('structuredContent' in result && result.structuredContent && typeof result.structuredContent === 'object' && !Array.isArray(result.structuredContent)) {
-      normalized.structuredContent = result.structuredContent as Record<string, unknown>
-    }
-    if ('isError' in result && typeof result.isError === 'boolean') {
-      normalized.isError = result.isError
-    }
-    if ('toolResult' in result) {
-      normalized.toolResult = result.toolResult
-    }
-
-    return normalized
   }
 
   const getRuntimeStatus = (): ElectronMcpStdioRuntimeStatus => {
@@ -378,18 +502,20 @@ export async function setupMcpStdioManager() {
   return manager
 }
 
-export function createMcpServersService(params: { context: ReturnType<typeof createContext>['context'], manager: McpStdioManager }) {
-  defineInvokeHandler(params.context, electronMcpOpenConfigFile, async () => {
-    return params.manager.openConfigFile()
-  })
+export function createMcpServersService(params: { context: ReturnType<typeof createContext>['context'], manager: McpStdioManager, allowManageConfig?: boolean }) {
+  if (params.allowManageConfig) {
+    defineInvokeHandler(params.context, electronMcpOpenConfigFile, async () => {
+      return params.manager.openConfigFile()
+    })
 
-  defineInvokeHandler(params.context, electronMcpApplyAndRestart, async () => {
-    return params.manager.applyAndRestart()
-  })
+    defineInvokeHandler(params.context, electronMcpApplyAndRestart, async () => {
+      return params.manager.applyAndRestart()
+    })
 
-  defineInvokeHandler(params.context, electronMcpGetRuntimeStatus, async () => {
-    return params.manager.getRuntimeStatus()
-  })
+    defineInvokeHandler(params.context, electronMcpGetRuntimeStatus, async () => {
+      return params.manager.getRuntimeStatus()
+    })
+  }
 
   defineInvokeHandler(params.context, electronMcpListTools, async () => {
     return params.manager.listTools()
