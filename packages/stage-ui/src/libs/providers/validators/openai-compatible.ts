@@ -12,6 +12,13 @@ import { isModelProvider } from '../types'
 
 type OpenAICompatibleValidationCheck = 'connectivity' | 'model_list' | 'chat_completions'
 
+interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string, baseUrl?: string }> {
+  checks?: OpenAICompatibleValidationCheck[]
+  additionalHeaders?: Record<string, string>
+  connectivityFailureReason?: (input: { config: TConfig, error: unknown, errorMessage: string }) => string
+  modelListFailureReason?: (input: { config: TConfig, error: unknown, errorMessage: string }) => string
+}
+
 function extractStatusCode(error: unknown): number | null {
   if (!error)
     return null
@@ -89,10 +96,9 @@ async function pickValidationModel<TConfig extends { apiKey?: string | null, bas
   }
 }
 
-export function createOpenAICompatibleValidators<TConfig extends { apiKey?: string, baseUrl?: string }>(options?: {
-  checks?: OpenAICompatibleValidationCheck[]
-  additionalHeaders?: Record<string, string>
-}): ProviderDefinition<TConfig>['validators'] {
+export function createOpenAICompatibleValidators<TConfig extends { apiKey?: string, baseUrl?: string }>(
+  options?: OpenAICompatibleValidationOptions<TConfig>,
+): ProviderDefinition<TConfig>['validators'] {
   const checks = options?.checks ?? ['connectivity', 'model_list', 'chat_completions']
   const additionalHeaders = options?.additionalHeaders
 
@@ -100,6 +106,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     connectivityOk: boolean
     chatOk: boolean
     errorMessage?: string
+    error?: unknown
   }
 
   const chatCheckCacheKey = 'openai-compatible:chat-check'
@@ -109,7 +116,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     provider: ProviderInstance,
     providerExtra: ProviderExtraMethods<TConfig> | undefined,
     contextOptions?: { validationCache?: Map<string, unknown> },
-  ) => {
+  ): Promise<ChatCheckResult> => {
     const cache = contextOptions?.validationCache
     const existing = cache?.get(chatCheckCacheKey) as Promise<ChatCheckResult> | undefined
     if (existing)
@@ -131,11 +138,11 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
       }
       catch (e) {
         if (isNetworkError(e)) {
-          return { connectivityOk: false, chatOk: false, errorMessage: errorMessageFrom(e) }
+          return { connectivityOk: false, chatOk: false, error: e, errorMessage: errorMessageFrom(e) }
         }
 
         const status = extractStatusCode(e)
-        const chatOk = status === 400 || (status && status >= 200 && status < 300)
+        const chatOk = status === 400 || Boolean(status && status >= 200 && status < 300)
         return { connectivityOk: true, chatOk, errorMessage: errorMessageFrom(e) }
       }
     }
@@ -169,11 +176,11 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
         }
         catch (e) {
           if (isNetworkError(e)) {
-            return { connectivityOk: false, chatOk: false, errorMessage: errorMessageFrom(e) }
+            return { connectivityOk: false, chatOk: false, error: e, errorMessage: errorMessageFrom(e) }
           }
 
           const status = extractStatusCode(e)
-          const chatOk = status === 400 || (status && status >= 200 && status < 300)
+          const chatOk = status === 400 || Boolean(status && status >= 200 && status < 300)
           return { connectivityOk: true, chatOk, errorMessage: errorMessageFrom(e) }
         }
       })()
@@ -238,7 +245,11 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
           contextOptions as { validationCache?: Map<string, unknown> } | undefined,
         )
         if (!result.connectivityOk) {
-          errors.push({ error: new Error(`Connectivity check failed: ${result.errorMessage || 'Unknown error.'}`) })
+          const errorMessage = result.errorMessage || 'Unknown error.'
+          const reason = options?.connectivityFailureReason
+            ? options.connectivityFailureReason({ config, error: result.error, errorMessage })
+            : `Connectivity check failed: ${errorMessage}`
+          errors.push({ error: new Error(reason) })
         }
 
         return {
@@ -290,7 +301,11 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
           }
         }
         catch (e) {
-          errors.push({ error: new Error(`Model list check failed: ${(e as Error).message}`) })
+          const errorMessage = errorMessageFrom(e) || 'Unknown error.'
+          const reason = options?.modelListFailureReason
+            ? options.modelListFailureReason({ config, error: e, errorMessage })
+            : `Model list check failed: ${errorMessage}`
+          errors.push({ error: new Error(reason) })
         }
 
         return {

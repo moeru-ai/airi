@@ -470,6 +470,17 @@ pages:
                     placeholder: 请求头名字
                   value:
                     placeholder: 请求头数值
+                thinking-mode:
+                  label: 思考模式
+                  description: >
+                    控制 Ollama 的思考行为。GPT-OSS 仅支持 low/medium/high 级别。
+                  options:
+                    auto: 自动（服务默认）
+                    disable: 关闭
+                    enable: 开启
+                    low: 低
+                    medium: 中
+                    high: 高
         validators:
           actions:
             validate: 验证
