@@ -49,6 +49,13 @@ interface HearingTranscriptionInvokeOptions {
   providerOptions?: Record<string, unknown>
 }
 
+export function filterTranscriptionByConfidence(
+  segments: Array<{ text: string, avg_logprob: number }>,
+  threshold: number,
+): string {
+  return segments.filter(s => s.avg_logprob >= threshold).map(s => s.text).join('').trim()
+}
+
 const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
   'aliyun-nls-transcription': streamAliyunTranscription,
   // Web Speech API is handled specially in transcribeForMediaStream since it works directly with MediaStream
@@ -200,11 +207,10 @@ export const useHearingStore = defineStore('hearing-store', () => {
     })
 
     if (useVerboseJson && response.segments) {
-      const filtered = response.segments.filter(s => s.avg_logprob >= confidenceThreshold.value)
       return {
         mode: 'generate',
         ...response,
-        text: filtered.map(s => s.text).join('').trim(),
+        text: filterTranscriptionByConfidence(response.segments, confidenceThreshold.value),
       }
     }
 
