@@ -80,11 +80,10 @@ export function initOtel(env: Env) {
     resource,
     sampler,
     spanProcessors: [new BatchSpanProcessor(traceExporter)],
-    metricReaders: [new PeriodicExportingMetricReader({
+    metricReader: new PeriodicExportingMetricReader({
       exporter: metricExporter,
-      exportIntervalMillis: 15_000,
-      exportTimeoutMillis: 10_000,
-    })],
+      exportIntervalMillis: 15000,
+    }),
     logRecordProcessors: [new BatchLogRecordProcessor(logExporter)],
     instrumentations: [
       new HttpInstrumentation({
@@ -101,11 +100,10 @@ export function initOtel(env: Env) {
     ],
   })
 
-  // SDK must start BEFORE metrics.getMeter() — the metrics API does NOT
-  // have a proxy mechanism like traces. getMeter() called before start()
-  // returns a permanent NoopMeter that never upgrades.
-  sdk.start()
-  logger.log(`OpenTelemetry initialized, exporting to ${otlpEndpoint}, sampling ratio: ${samplingRatio}`)
+  const start = () => {
+    sdk.start()
+    logger.log(`OpenTelemetry initialized, exporting to ${otlpEndpoint}, sampling ratio: ${samplingRatio}`)
+  }
 
   const meter = metrics.getMeter(serviceName)
 
@@ -163,6 +161,7 @@ export function initOtel(env: Env) {
     authFailures,
     stripeEvents,
 
+    start,
     shutdown,
   }
 }
