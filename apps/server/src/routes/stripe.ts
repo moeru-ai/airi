@@ -213,7 +213,7 @@ async function handleCheckoutSessionCompleted(
 
   // Add flux for one-time payments
   if (session.mode === 'payment' && session.amount_total) {
-    const fluxPerCent = await configKV.get('FLUX_PER_CENT')
+    const fluxPerCent = await configKV.getOrThrow('FLUX_PER_CENT')
     await fluxService.addFlux(userId, session.amount_total * fluxPerCent)
   }
 }
@@ -303,7 +303,7 @@ async function handleInvoiceEvent(
 
   // Add flux when a subscription invoice is paid
   if (invoice.status === 'paid' && invoice.amount_paid && subscriptionId) {
-    const fluxPerCent = await configKV.get('FLUX_PER_CENT')
+    const fluxPerCent = await configKV.getOrThrow('FLUX_PER_CENT')
     await fluxService.addFlux(customer.userId, invoice.amount_paid * fluxPerCent)
   }
 }
