@@ -120,7 +120,6 @@ async function createApp() {
       if (!o)
         return null
 
-      o.start()
       dependsOn.lifecycle.appHooks.onStop(() => o.shutdown())
       return o
     },
