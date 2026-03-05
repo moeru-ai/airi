@@ -9,7 +9,7 @@ import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
-import { createLoggLogger, injeca } from 'injeca'
+import { createLoggLogger, injeca, lifecycle } from 'injeca'
 
 import { createAuth } from './libs/auth'
 import { createDrizzle, migrateDatabase } from './libs/db'
@@ -55,7 +55,17 @@ interface AppDeps {
   otel: OtelMetrics | null
 }
 
-function buildApp({ auth, characterService, chatService, providerService, fluxService, stripeService, configKV, env, otel }: AppDeps) {
+function buildApp({
+  auth,
+  characterService,
+  chatService,
+  providerService,
+  fluxService,
+  stripeService,
+  configKV,
+  env,
+  otel,
+}: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
   const app = new Hono<HonoEnv>()
@@ -143,15 +153,18 @@ async function createApp() {
   injeca.setLogger(createLoggLogger(useLogger('injeca').useGlobalConfig()))
   const logger = useLogger('app').useGlobalConfig()
 
-  // Initialize OpenTelemetry (safe to skip if OTEL endpoint is not configured)
-  let otel: OtelMetrics | null = null
-  if (process.env.OTEL_EXPORTER_OTLP_ENDPOINT) {
-    otel = initOtel()
-    logger.log('OpenTelemetry observability enabled')
-  }
-  else {
-    logger.log('OpenTelemetry disabled (set OTEL_EXPORTER_OTLP_ENDPOINT to enable)')
-  }
+  const otel = injeca.provide('otel', {
+    dependsOn: { env: parsedEnv, lifecycle },
+    build: ({ dependsOn }) => {
+      const o = initOtel(dependsOn.env)
+      if (!o)
+        return null
+
+      o.start()
+      dependsOn.lifecycle.appHooks.onStop(() => o.shutdown())
+      return o
+    },
+  })
 
   const db = injeca.provide('services:db', {
     dependsOn: { env: parsedEnv },
@@ -212,7 +225,17 @@ async function createApp() {
   })
 
   await injeca.start()
-  const resolved = await injeca.resolve({ auth, characterService, chatService, providerService, fluxService, stripeService, configKV, env: parsedEnv })
+  const resolved = await injeca.resolve({
+    auth,
+    characterService,
+    chatService,
+    providerService,
+    fluxService,
+    stripeService,
+    configKV,
+    otel,
+    env: parsedEnv,
+  })
   const app = buildApp({
     auth: resolved.auth,
     characterService: resolved.characterService,
@@ -222,7 +245,7 @@ async function createApp() {
     stripeService: resolved.stripeService,
     configKV: resolved.configKV,
     env: resolved.env,
-    otel,
+    otel: resolved.otel,
   })
 
   logger.withFields({ port: 3000 }).log('Server started')

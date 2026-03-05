@@ -1,6 +1,8 @@
 import type { IncomingMessage } from 'node:http'
 
-import process from 'node:process'
+import type { Env } from './env'
+
+import { env as processEnv } from 'node:process'
 
 import { useLogger } from '@guiiai/logg'
 import { diag, DiagConsoleLogger, DiagLogLevel, metrics } from '@opentelemetry/api'
@@ -20,17 +22,22 @@ import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic
 
 const logger = useLogger('otel')
 
-export function initOtel() {
-  const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318'
-  const serviceName = process.env.OTEL_SERVICE_NAME || 'server'
+export function initOtel(env: Env) {
+  const otlpEndpoint = env.OTEL_EXPORTER_OTLP_ENDPOINT
+  const serviceName = env.OTEL_SERVICE_NAME
 
-  if (process.env.OTEL_DEBUG === 'true') {
+  if (!otlpEndpoint) {
+    logger.log('OpenTelemetry disabled (set OTEL_EXPORTER_OTLP_ENDPOINT to enable)')
+    return
+  }
+
+  if (env.OTEL_DEBUG === 'true') {
     diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG)
   }
 
   // Parse OTEL_EXPORTER_OTLP_HEADERS (format: "key=value,key2=value2")
   const headers: Record<string, string> = {}
-  const rawHeaders = process.env.OTEL_EXPORTER_OTLP_HEADERS
+  const rawHeaders = env.OTEL_EXPORTER_OTLP_HEADERS
   if (rawHeaders) {
     for (const pair of rawHeaders.split(',')) {
       const idx = pair.indexOf('=')
@@ -42,9 +49,9 @@ export function initOtel() {
 
   const resource = resourceFromAttributes({
     [ATTR_SERVICE_NAME]: serviceName,
-    [ATTR_SERVICE_VERSION]: process.env.npm_package_version || '0.0.0',
-    'service.namespace': process.env.OTEL_SERVICE_NAMESPACE || 'airi',
-    'deployment.environment': process.env.NODE_ENV || 'development',
+    [ATTR_SERVICE_VERSION]: processEnv.npm_package_version || '0.0.0',
+    'service.namespace': env.OTEL_SERVICE_NAMESPACE,
+    'deployment.environment': processEnv.NODE_ENV || 'development',
   })
 
   const traceExporter = new OTLPTraceExporter({
@@ -64,7 +71,7 @@ export function initOtel() {
 
   // Head-based sampling ratio: 1.0 = 100% (default), 0.1 = 10%, etc.
   // Metrics are always 100% accurate regardless of this setting.
-  const samplingRatio = Number.parseFloat(process.env.OTEL_TRACES_SAMPLING_RATIO || '1.0')
+  const samplingRatio = Number.parseFloat(env.OTEL_TRACES_SAMPLING_RATIO)
   const sampler = new ParentBasedSampler({
     root: new TraceIdRatioBasedSampler(samplingRatio),
   })
@@ -93,8 +100,10 @@ export function initOtel() {
     ],
   })
 
-  sdk.start()
-  logger.log(`OpenTelemetry initialized, exporting to ${otlpEndpoint}, sampling ratio: ${samplingRatio}`)
+  const start = () => {
+    sdk.start()
+    logger.log(`OpenTelemetry initialized, exporting to ${otlpEndpoint}, sampling ratio: ${samplingRatio}`)
+  }
 
   const meter = metrics.getMeter(serviceName)
 
@@ -141,9 +150,6 @@ export function initOtel() {
     }
   }
 
-  process.on('SIGTERM', shutdown)
-  process.on('SIGINT', shutdown)
-
   return {
     sdk,
     meter,
@@ -154,5 +160,8 @@ export function initOtel() {
     authAttempts,
     authFailures,
     stripeEvents,
+
+    start,
+    shutdown,
   }
 }

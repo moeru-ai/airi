@@ -25,8 +25,11 @@ const EnvSchema = object({
   BACKEND_LLM_API_KEY: optional(string()),
 
   // OpenTelemetry
+  OTEL_SERVICE_NAMESPACE: optional(string(), 'airi'),
+  OTEL_SERVICE_NAME: optional(string(), 'server'),
+  OTEL_TRACES_SAMPLING_RATIO: optional(string(), '1.0'),
   OTEL_EXPORTER_OTLP_ENDPOINT: optional(string()),
-  OTEL_SERVICE_NAME: optional(string(), 'airi-server'),
+  OTEL_EXPORTER_OTLP_HEADERS: optional(string()),
   OTEL_DEBUG: optional(string()),
 })
 
