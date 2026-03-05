@@ -1,20 +1,20 @@
 import process from 'node:process'
 
-import { DiagConsoleLogger, DiagLogLevel, diag, metrics } from '@opentelemetry/api'
+import { useLogger } from '@guiiai/logg'
+import { diag, DiagConsoleLogger, DiagLogLevel, metrics } from '@opentelemetry/api'
+import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-proto'
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto'
-import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-proto'
-import { Resource } from '@opentelemetry/resources'
-import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions'
-import { NodeSDK } from '@opentelemetry/sdk-node'
-import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics'
-import { BatchSpanProcessor, ParentBasedSampler, TraceIdRatioBasedSampler } from '@opentelemetry/sdk-trace-node'
-import { BatchLogRecordProcessor } from '@opentelemetry/sdk-logs'
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http'
 import { IORedisInstrumentation } from '@opentelemetry/instrumentation-ioredis'
 import { PgInstrumentation } from '@opentelemetry/instrumentation-pg'
 import { RuntimeNodeInstrumentation } from '@opentelemetry/instrumentation-runtime-node'
-import { useLogger } from '@guiiai/logg'
+import { resourceFromAttributes } from '@opentelemetry/resources'
+import { BatchLogRecordProcessor } from '@opentelemetry/sdk-logs'
+import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics'
+import { NodeSDK } from '@opentelemetry/sdk-node'
+import { BatchSpanProcessor, ParentBasedSampler, TraceIdRatioBasedSampler } from '@opentelemetry/sdk-trace-node'
+import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions'
 
 const logger = useLogger('otel')
 
@@ -26,7 +26,7 @@ export function initOtel() {
     diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG)
   }
 
-  const resource = new Resource({
+  const resource = resourceFromAttributes({
     [ATTR_SERVICE_NAME]: serviceName,
     [ATTR_SERVICE_VERSION]: process.env.npm_package_version || '0.0.0',
     'deployment.environment': process.env.NODE_ENV || 'development',

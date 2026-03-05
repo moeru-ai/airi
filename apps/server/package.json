@@ -12,6 +12,7 @@
     "db:push": "pnpm run apply:env -- drizzle-kit push"
   },
   "dependencies": {
+    "@better-auth/drizzle-adapter": "^1.5.3",
     "@dotenvx/dotenvx": "^1.52.0",
     "@electric-sql/pglite": "catalog:",
     "@guiiai/logg": "catalog:",
