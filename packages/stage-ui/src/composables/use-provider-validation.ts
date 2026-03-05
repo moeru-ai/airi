@@ -128,6 +128,10 @@ export function useProviderValidation(providerId: string) {
     providersStore.forceProviderConfigured(providerId)
   }
 
+  async function runValidationNow() {
+    await validateConfiguration()
+  }
+
   return {
     t,
     router,
@@ -140,5 +144,6 @@ export function useProviderValidation(providerId: string) {
     validationMessage,
     handleResetSettings,
     forceValid,
+    runValidationNow,
   }
 }

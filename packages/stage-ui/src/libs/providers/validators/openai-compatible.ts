@@ -49,12 +49,8 @@ function extractModelId(model: any): string {
   return ''
 }
 
-function shouldSkipModelId(modelId: string): boolean {
-  return [
-    'embed',
-    'tts',
-    'models/gemini-2.5-pro',
-  ].some(fragment => modelId.includes(fragment))
+function normalizeString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
 }
 
 async function resolveModels<TConfig extends { apiKey?: string | null, baseUrl?: string | URL | null }>(
@@ -72,42 +68,136 @@ async function resolveModels<TConfig extends { apiKey?: string | null, baseUrl?:
   return listModels(provider.model())
 }
 
-async function pickValidationModel<TConfig extends { apiKey?: string | null, baseUrl?: string | URL | null }>(
-  config: TConfig,
-  provider: ProviderInstance,
-  providerExtra: ProviderExtraMethods<TConfig> | undefined,
-): Promise<string> {
-  const fallback = 'test'
-
-  try {
-    const models = await resolveModels(config, provider, providerExtra)
-    const modelId = extractModelId(models.find(model => !shouldSkipModelId(extractModelId(model))))
-    return modelId || fallback
-  }
-  catch {
-    return fallback
-  }
+function getConfiguredValidationModel<TConfig extends { model?: unknown }>(config: TConfig): string {
+  const configuredModel = normalizeString(config.model)
+  return extractModelId(configuredModel)
 }
 
-export function createOpenAICompatibleValidators<TConfig extends { apiKey?: string, baseUrl?: string }>(options?: {
+export function createOpenAICompatibleValidators<TConfig extends { apiKey?: string, baseUrl?: string, model?: string }>(options?: {
   checks?: OpenAICompatibleValidationCheck[]
   additionalHeaders?: Record<string, string>
 }): ProviderDefinition<TConfig>['validators'] {
   const checks = options?.checks ?? ['connectivity', 'model_list', 'chat_completions']
   const additionalHeaders = options?.additionalHeaders
 
-  interface ChatCheckResult {
-    connectivityOk: boolean
-    chatOk: boolean
+  interface ModelListCheckResult {
+    requestOk: boolean
+    hasModels: boolean
     errorMessage?: string
+  }
+
+  interface ChatCheckResult {
+    chatOk: boolean
+    skipped: boolean
+    errorMessage?: string
+  }
+
+  const modelListCheckCacheKey = 'openai-compatible:model-list-check'
+  const modelListCheckMutexKey = 'openai-compatible:model-list-check:mutex'
+  const runModelListCheck = async (
+    config: TConfig,
+    provider: ProviderInstance,
+    providerExtra: ProviderExtraMethods<TConfig> | undefined,
+  ): Promise<ModelListCheckResult> => {
+    try {
+      const models = await resolveModels(config, provider, providerExtra)
+      return {
+        requestOk: true,
+        hasModels: Array.isArray(models) && models.length > 0,
+      }
+    }
+    catch (e) {
+      return {
+        requestOk: false,
+        hasModels: false,
+        errorMessage: errorMessageFrom(e),
+      }
+    }
+  }
+  const getModelListCheckResult = async (
+    config: TConfig,
+    provider: ProviderInstance,
+    providerExtra: ProviderExtraMethods<TConfig> | undefined,
+    contextOptions?: { validationCache?: Map<string, unknown> },
+  ) => {
+    const cache = contextOptions?.validationCache
+    const existing = cache?.get(modelListCheckCacheKey) as Promise<ModelListCheckResult> | undefined
+    if (existing)
+      return existing
+
+    if (!cache)
+      return runModelListCheck(config, provider, providerExtra)
+
+    let mutex = cache.get(modelListCheckMutexKey) as Mutex | undefined
+    if (!mutex) {
+      mutex = new Mutex()
+      cache.set(modelListCheckMutexKey, mutex)
+    }
+
+    await mutex.acquire()
+
+    try {
+      const cached = cache.get(modelListCheckCacheKey) as Promise<ModelListCheckResult> | undefined
+      if (cached)
+        return cached
+
+      const sharedCheck = runModelListCheck(config, provider, providerExtra)
+      cache.set(modelListCheckCacheKey, sharedCheck)
+      return sharedCheck
+    }
+    finally {
+      mutex.release()
+    }
   }
 
   const chatCheckCacheKey = 'openai-compatible:chat-check'
   const chatCheckMutexKey = 'openai-compatible:chat-check:mutex'
+  const runChatCheck = async (
+    config: TConfig,
+  ): Promise<ChatCheckResult> => {
+    const selectedModel = getConfiguredValidationModel(config)
+    if (!selectedModel) {
+      return {
+        chatOk: true,
+        skipped: true,
+      }
+    }
+
+    try {
+      await generateText({
+        apiKey: config.apiKey,
+        baseURL: config.baseUrl!,
+        headers: additionalHeaders,
+        model: selectedModel,
+        messages: message.messages(message.user('ping')),
+        max_tokens: 1,
+      })
+
+      return {
+        chatOk: true,
+        skipped: false,
+      }
+    }
+    catch (e) {
+      if (isNetworkError(e)) {
+        return {
+          chatOk: false,
+          skipped: false,
+          errorMessage: errorMessageFrom(e),
+        }
+      }
+
+      const status = extractStatusCode(e)
+      const chatOk = typeof status === 'number' && status >= 200 && status < 300
+      return {
+        chatOk,
+        skipped: false,
+        errorMessage: errorMessageFrom(e),
+      }
+    }
+  }
   const getChatCheckResult = async (
     config: TConfig,
-    provider: ProviderInstance,
-    providerExtra: ProviderExtraMethods<TConfig> | undefined,
     contextOptions?: { validationCache?: Map<string, unknown> },
   ) => {
     const cache = contextOptions?.validationCache
@@ -115,30 +205,8 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     if (existing)
       return existing
 
-    if (!cache) {
-      const model = await pickValidationModel(config, provider, providerExtra)
-      try {
-        await generateText({
-          apiKey: config.apiKey,
-          baseURL: config.baseUrl!,
-          headers: additionalHeaders,
-          model,
-          messages: message.messages(message.user('ping')),
-          max_tokens: 1,
-        })
-
-        return { connectivityOk: true, chatOk: true }
-      }
-      catch (e) {
-        if (isNetworkError(e)) {
-          return { connectivityOk: false, chatOk: false, errorMessage: errorMessageFrom(e) }
-        }
-
-        const status = extractStatusCode(e)
-        const chatOk = status === 400 || (status && status >= 200 && status < 300)
-        return { connectivityOk: true, chatOk, errorMessage: errorMessageFrom(e) }
-      }
-    }
+    if (!cache)
+      return runChatCheck(config)
 
     let mutex = cache.get(chatCheckMutexKey) as Mutex | undefined
     if (!mutex) {
@@ -153,30 +221,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
       if (cached)
         return cached
 
-      const sharedCheck = (async () => {
-        const model = await pickValidationModel(config, provider, providerExtra)
-        try {
-          await generateText({
-            apiKey: config.apiKey,
-            baseURL: config.baseUrl!,
-            headers: additionalHeaders,
-            model,
-            messages: message.messages(message.user('ping')),
-            max_tokens: 1,
-          })
-
-          return { connectivityOk: true, chatOk: true }
-        }
-        catch (e) {
-          if (isNetworkError(e)) {
-            return { connectivityOk: false, chatOk: false, errorMessage: errorMessageFrom(e) }
-          }
-
-          const status = extractStatusCode(e)
-          const chatOk = status === 400 || (status && status >= 200 && status < 300)
-          return { connectivityOk: true, chatOk, errorMessage: errorMessageFrom(e) }
-        }
-      })()
+      const sharedCheck = runChatCheck(config)
 
       cache.set(chatCheckCacheKey, sharedCheck)
 
@@ -231,13 +276,13 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
       name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-connectivity.title'),
       validator: async (config, provider, providerExtra, contextOptions) => {
         const errors: Array<{ error: unknown }> = []
-        const result = await getChatCheckResult(
+        const result = await getModelListCheckResult(
           config,
           provider,
           providerExtra,
           contextOptions as { validationCache?: Map<string, unknown> } | undefined,
         )
-        if (!result.connectivityOk) {
+        if (!result.requestOk) {
           errors.push({ error: new Error(`Connectivity check failed: ${result.errorMessage || 'Unknown error.'}`) })
         }
 
@@ -259,11 +304,9 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
         const errors: Array<{ error: unknown }> = []
         const result = await getChatCheckResult(
           config,
-          provider,
-          providerExtra,
           contextOptions as { validationCache?: Map<string, unknown> } | undefined,
         )
-        if (!result.chatOk) {
+        if (!result.skipped && !result.chatOk) {
           errors.push({ error: new Error(`Chat completions check failed: ${result.errorMessage || 'Unknown error.'}`) })
         }
 
@@ -281,16 +324,19 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     validatorConfig.validateProvider?.push(({ t }) => ({
       id: 'openai-compatible:check-model-list',
       name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-supports-model-listing.title'),
-      validator: async (config, provider, providerExtra) => {
+      validator: async (config, provider, providerExtra, contextOptions) => {
         const errors: Array<{ error: unknown }> = []
-        try {
-          const models = await resolveModels(config, provider, providerExtra)
-          if (!models || models.length === 0) {
-            errors.push({ error: new Error('Model list check failed: no models found') })
-          }
+        const result = await getModelListCheckResult(
+          config,
+          provider,
+          providerExtra,
+          contextOptions as { validationCache?: Map<string, unknown> } | undefined,
+        )
+        if (!result.requestOk) {
+          errors.push({ error: new Error(`Model list check failed: ${result.errorMessage || 'Unknown error.'}`) })
         }
-        catch (e) {
-          errors.push({ error: new Error(`Model list check failed: ${(e as Error).message}`) })
+        else if (!result.hasModels) {
+          errors.push({ error: new Error('Model list check failed: no models found') })
         }
 
         return {

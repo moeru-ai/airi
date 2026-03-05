@@ -12,8 +12,10 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { FieldInput, FieldSelect } from '@proj-airi/ui'
+import { useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
@@ -40,6 +42,28 @@ const baseUrl = computed({
   },
 })
 
+const model = computed({
+  get: () => providers.value[providerId]?.model || '',
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].model = value
+  },
+})
+
+const providerModels = computed(() => providersStore.getModelsForProvider(providerId))
+const isLoadingModels = computed(() => providersStore.isLoadingModels[providerId] || false)
+
+const fetchProviderModels = useDebounceFn(async () => {
+  const apiKeyValue = apiKey.value.trim()
+  const baseUrlValue = baseUrl.value.trim()
+
+  if (!apiKeyValue || !baseUrlValue)
+    return
+
+  await providersStore.fetchModelsForProvider(providerId)
+}, 600)
+
 // Use the composable to get validation logic and state
 const {
   t,
@@ -50,7 +74,20 @@ const {
   validationMessage,
   handleResetSettings,
   forceValid,
+  runValidationNow,
 } = useProviderValidation(providerId)
+
+const canRunValidation = computed(() => {
+  return Boolean(apiKey.value.trim() && baseUrl.value.trim())
+})
+
+onMounted(() => {
+  void fetchProviderModels()
+})
+
+watch([apiKey, baseUrl], () => {
+  void fetchProviderModels()
+})
 </script>
 
 <template>
@@ -69,6 +106,25 @@ const {
           v-model="apiKey"
           :provider-name="providerMetadata?.localizedName"
           placeholder="sk-..."
+        />
+
+        <FieldSelect
+          v-if="providerModels.length > 0"
+          v-model="model"
+          :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.title')"
+          :description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle')"
+          :options="providerModels.map(m => ({ value: m.id, label: m.name || m.id }))"
+          :disabled="isLoadingModels"
+          :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
+        />
+        <FieldInput
+          v-else
+          v-model="model"
+          :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_name')"
+          :description="isLoadingModels
+            ? t('settings.pages.modules.consciousness.sections.section.provider-model-selection.loading')
+            : t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description')"
+          :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
         />
       </ProviderBasicSettings>
 
@@ -104,6 +160,17 @@ const {
           {{ t('settings.dialogs.onboarding.validationSuccess') }}
         </template>
       </Alert>
+
+      <div class="mt-2 flex items-center justify-end gap-2">
+        <button
+          type="button"
+          class="rounded bg-primary-500 px-3 py-1.5 text-xs text-white font-medium transition-colors disabled:cursor-not-allowed disabled:bg-neutral-300 hover:bg-primary-600 dark:disabled:bg-neutral-700"
+          :disabled="!canRunValidation || isValidating > 0"
+          @click="runValidationNow"
+        >
+          {{ isValidating > 0 ? '检测中...' : '检测当前模型' }}
+        </button>
+      </div>
     </ProviderSettingsContainer>
   </ProviderSettingsLayout>
 </template>
