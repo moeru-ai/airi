@@ -17,32 +17,31 @@ export function otelMiddleware(otelMetrics: {
   return async (c, next) => {
     const startTime = performance.now()
     const method = c.req.method
-    const path = c.req.path
+    const path = c.req.routePath || c.req.path
+    const attributes = {
+      'http.method': method,
+      'http.route': path,
+      'http.url': c.req.url,
+    }
 
-    otelMetrics.httpActiveRequests.add(1, { 'http.request.method': method, 'http.route': path })
+    otelMetrics.httpActiveRequests.add(1, { 'http.method': method, 'http.route': path })
 
-    const span = tracer.startSpan(`${method} ${path}`, {
-      attributes: {
-        'http.request.method': method,
-        'http.route': path,
-        'url.full': c.req.url,
-      },
-    })
+    const span = tracer.startSpan(`${method} ${path}`, { attributes })
 
     try {
       await context.with(trace.setSpan(context.active(), span), () => next())
 
       const status = c.res.status
-      span.setAttribute('http.response.status_code', status)
+      span.setAttribute('http.status_code', status)
 
       if (status >= 500) {
         span.setStatus({ code: SpanStatusCode.ERROR, message: `HTTP ${status}` })
       }
 
       otelMetrics.httpRequestDuration.record(performance.now() - startTime, {
-        'http.request.method': method,
+        'http.method': method,
         'http.route': path,
-        'http.response.status_code': status,
+        'http.status_code': status,
       })
     }
     catch (err) {
@@ -51,7 +50,7 @@ export function otelMiddleware(otelMetrics: {
       throw err
     }
     finally {
-      otelMetrics.httpActiveRequests.add(-1, { 'http.request.method': method, 'http.route': path })
+      otelMetrics.httpActiveRequests.add(-1, { 'http.method': method, 'http.route': path })
       span.end()
     }
   }

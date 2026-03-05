@@ -14,6 +14,7 @@ import { createLoggLogger, injeca, lifecycle } from 'injeca'
 import { createAuth } from './libs/auth'
 import { createDrizzle, migrateDatabase } from './libs/db'
 import { parsedEnv } from './libs/env'
+import { initOtel } from './libs/otel'
 import { createRedis } from './libs/redis'
 import { sessionMiddleware } from './middlewares/auth'
 import { otelMiddleware } from './middlewares/otel'
@@ -51,9 +52,20 @@ interface AppDeps {
   stripeService: StripeDBService
   configKV: ConfigKVService
   env: Env
+  otel: OtelMetrics | null
 }
 
-function buildApp({ auth, characterService, chatService, providerService, fluxService, stripeService, configKV, env }: AppDeps) {
+function buildApp({
+  auth,
+  characterService,
+  chatService,
+  providerService,
+  fluxService,
+  stripeService,
+  configKV,
+  env,
+  otel,
+}: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
   const app = new Hono<HonoEnv>()
@@ -148,6 +160,7 @@ async function createApp() {
       if (!o)
         return null
 
+      o.start()
       dependsOn.lifecycle.appHooks.onStop(() => o.shutdown())
       return o
     },
@@ -213,7 +226,17 @@ async function createApp() {
   })
 
   await injeca.start()
-  const resolved = await injeca.resolve({ auth, characterService, chatService, providerService, fluxService, stripeService, configKV, env: parsedEnv })
+  const resolved = await injeca.resolve({
+    auth,
+    characterService,
+    chatService,
+    providerService,
+    fluxService,
+    stripeService,
+    configKV,
+    otel,
+    env: parsedEnv,
+  })
   const app = buildApp({
     auth: resolved.auth,
     characterService: resolved.characterService,
@@ -223,6 +246,7 @@ async function createApp() {
     stripeService: resolved.stripeService,
     configKV: resolved.configKV,
     env: resolved.env,
+    otel: resolved.otel,
   })
 
   logger.withFields({ port: 3000 }).log('Server started')
