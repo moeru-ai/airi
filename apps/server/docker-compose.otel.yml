@@ -12,10 +12,8 @@ services:
     volumes:
       - ./otel/collector/otel-collector.yaml:/etc/otelcol/otel-collector.yaml:ro
     ports:
-      - '4317:4317'   # OTLP gRPC
-      - '4318:4318'   # OTLP HTTP
-      # 8889 (Prometheus), 13133 (health), 55679 (zPages)
-      # are accessible within the Docker network; no need to expose to host
+      - '4317:4317' # OTLP gRPC
+      - '4318:4318' # OTLP HTTP
     depends_on:
       loki:
         condition: service_started
@@ -43,8 +41,6 @@ services:
     volumes:
       - ./otel/prometheus/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
       - prometheus_data:/prometheus
-    ports:
-      - '9090:9090'
     healthcheck:
       test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:9090/-/healthy']
       interval: 10s
@@ -61,8 +57,6 @@ services:
     volumes:
       - ./otel/loki/loki.yaml:/etc/loki/loki.yaml:ro
       - loki_data:/loki
-    ports:
-      - '3100:3100'
     healthcheck:
       test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:3100/ready']
       interval: 10s
@@ -79,9 +73,6 @@ services:
     volumes:
       - ./otel/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
       - tempo_data:/var/tempo
-    ports:
-      - '3200:3200'   # Tempo HTTP API
-      - '9095:9095'   # Tempo gRPC
     healthcheck:
       test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:3200/ready']
       interval: 10s
