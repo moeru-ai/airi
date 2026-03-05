@@ -43,8 +43,6 @@ type StripeDBService = ReturnType<typeof createStripeService>
 
 type OtelMetrics = ReturnType<typeof initOtel>
 
-type OtelMetrics = ReturnType<typeof initOtel>
-
 interface AppDeps {
   auth: AuthService
   characterService: CharacterService
@@ -155,7 +153,7 @@ async function createApp() {
   injeca.setLogger(createLoggLogger(useLogger('injeca').useGlobalConfig()))
   const logger = useLogger('app').useGlobalConfig()
 
-  const otel = injeca.provide('otel', {
+  const otel = injeca.provide('libs:otel', {
     dependsOn: { env: parsedEnv, lifecycle },
     build: ({ dependsOn }) => {
       const o = initOtel(dependsOn.env)
@@ -168,7 +166,7 @@ async function createApp() {
     },
   })
 
-  const db = injeca.provide('services:db', {
+  const db = injeca.provide('datastore:db', {
     dependsOn: { env: parsedEnv },
     build: async ({ dependsOn }) => {
       const dbInstance = createDrizzle(dependsOn.env.DATABASE_URL)
@@ -179,6 +177,21 @@ async function createApp() {
 
       return dbInstance
     },
+  })
+
+  const redis = injeca.provide('datastore:redis', {
+    dependsOn: { env: parsedEnv },
+    build: async ({ dependsOn }) => {
+      const redisInstance = createRedis(dependsOn.env.REDIS_URL)
+      await redisInstance.connect()
+      logger.log('Connected to Redis')
+      return redisInstance
+    },
+  })
+
+  const configKV = injeca.provide('datastore:configKV', {
+    dependsOn: { redis },
+    build: ({ dependsOn }) => createConfigKVService(dependsOn.redis),
   })
 
   const auth = injeca.provide('services:auth', {
@@ -199,21 +212,6 @@ async function createApp() {
   const chatService = injeca.provide('services:chats', {
     dependsOn: { db },
     build: ({ dependsOn }) => createChatService(dependsOn.db),
-  })
-
-  const redis = injeca.provide('services:redis', {
-    dependsOn: { env: parsedEnv },
-    build: async ({ dependsOn }) => {
-      const redisInstance = createRedis(dependsOn.env.REDIS_URL)
-      await redisInstance.connect()
-      logger.log('Connected to Redis')
-      return redisInstance
-    },
-  })
-
-  const configKV = injeca.provide('services:configKV', {
-    dependsOn: { redis },
-    build: ({ dependsOn }) => createConfigKVService(dependsOn.redis),
   })
 
   const stripeService = injeca.provide('services:stripe', {
