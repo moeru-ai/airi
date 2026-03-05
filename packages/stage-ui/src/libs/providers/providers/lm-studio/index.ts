@@ -53,6 +53,10 @@ export const providerLmStudio = defineProvider<LMStudioConfig>({
   validators: {
     ...createOpenAICompatibleValidators({
       checks: ['connectivity', 'model_list'],
+      schedule: {
+        mode: 'interval',
+        intervalMs: 15_000,
+      },
       connectivityFailureReason: ({ errorMessage }) =>
         `Failed to reach LM Studio server, error: ${errorMessage} occurred.\n\nMake sure LM Studio is running and the local server is started. You can start the local server in LM Studio by going to the 'Local Server' tab and clicking 'Start Server'.`,
       modelListFailureReason: ({ errorMessage }) =>

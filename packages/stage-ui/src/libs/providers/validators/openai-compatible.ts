@@ -15,6 +15,10 @@ type OpenAICompatibleValidationCheck = 'connectivity' | 'model_list' | 'chat_com
 interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string, baseUrl?: string }> {
   checks?: OpenAICompatibleValidationCheck[]
   additionalHeaders?: Record<string, string>
+  schedule?: {
+    mode: 'once' | 'interval'
+    intervalMs?: number
+  }
   connectivityFailureReason?: (input: { config: TConfig, error: unknown, errorMessage: string }) => string
   modelListFailureReason?: (input: { config: TConfig, error: unknown, errorMessage: string }) => string
 }
@@ -236,6 +240,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     validatorConfig.validateProvider?.push(({ t }) => ({
       id: 'openai-compatible:check-connectivity',
       name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-connectivity.title'),
+      schedule: options?.schedule,
       validator: async (config, provider, providerExtra, contextOptions) => {
         const errors: Array<{ error: unknown }> = []
         const result = await getChatCheckResult(
@@ -266,6 +271,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     validatorConfig.validateProvider?.push(({ t }) => ({
       id: 'openai-compatible:check-chat-completions',
       name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-supports-chat-completion.title'),
+      schedule: options?.schedule,
       validator: async (config, provider, providerExtra, contextOptions) => {
         const errors: Array<{ error: unknown }> = []
         const result = await getChatCheckResult(
@@ -292,6 +298,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     validatorConfig.validateProvider?.push(({ t }) => ({
       id: 'openai-compatible:check-model-list',
       name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-supports-model-listing.title'),
+      schedule: options?.schedule,
       validator: async (config, provider, providerExtra) => {
         const errors: Array<{ error: unknown }> = []
         try {
