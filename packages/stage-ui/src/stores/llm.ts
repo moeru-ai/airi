@@ -25,6 +25,19 @@ export interface StreamOptions {
   tools?: Tool[] | (() => Promise<Tool[] | undefined>)
 }
 
+function createToolsCompatibilityKey(model: string, chatProvider: ChatProvider): string {
+  return `${chatProvider.chat(model).baseURL}-${model}`
+}
+
+function isKnownToolsUnsupportedError(error: unknown): boolean {
+  const message = String(error).toLowerCase()
+  return message.includes('does not support tools')
+    || message.includes('no endpoints found that support tool use')
+    || message.includes('does not support tool use')
+    || message.includes('tool use is not supported')
+    || message.includes('tools are not supported')
+}
+
 // TODO: proper format for other error messages.
 function sanitizeMessages(messages: unknown[]): Message[] {
   return messages.map((m: any) => {
@@ -39,7 +52,17 @@ function sanitizeMessages(messages: unknown[]): Message[] {
 }
 
 function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProvider, _: Message[], options?: StreamOptions): boolean {
-  return !!(options?.supportsTools || options?.toolsCompatibility?.get(`${chatProvider.chat(model).baseURL}-${model}`))
+  if (typeof options?.supportsTools === 'boolean') {
+    return options.supportsTools
+  }
+
+  const discovered = options?.toolsCompatibility?.get(createToolsCompatibilityKey(model, chatProvider))
+  if (typeof discovered === 'boolean') {
+    return discovered
+  }
+
+  // NOTICE: default optimistic-on so first message after provider switch can still use tools.
+  return true
 }
 
 async function streamFrom(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
@@ -96,14 +119,25 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
     }
 
     try {
-      streamText({
+      const stream = streamText({
         ...chatProvider.chat(model),
         maxSteps: 10,
+        // NOTICE: keep tool execution serial to reduce duplicated side effects from parallel tool calls.
+        parallelToolCalls: false,
         messages: sanitized,
         headers,
         // TODO: we need Automatic tools discovery
         tools,
         onEvent,
+      })
+
+      // NOTICE: some providers can end stream without a terminal `finish` event
+      // (for example when max tool steps are exhausted). Resolve from stream completion
+      // as a fallback to avoid hanging chat turns.
+      void stream.steps.then(() => {
+        resolveOnce()
+      }).catch((error) => {
+        rejectOnce(error)
       })
     }
     catch (err) {
@@ -119,23 +153,8 @@ export async function attemptForToolsCompatibilityDiscovery(model: string, chatP
       return true
     }
     catch (err) {
-      if (err instanceof Error && err.name === new XSAIError('').name) {
-        // TODO: if you encountered many more errors like these, please, add them here.
-
-        // Ollama
-        /**
-         * {"error":{"message":"registry.ollama.ai/<scope>/<model> does not support tools","type":"api_error","param":null,"code":null}}
-         */
-        if (String(err).includes('does not support tools')) {
-          return false
-        }
-        // OpenRouter
-        /**
-         * {"error":{"message":"No endpoints found that support tool use. To learn more about provider routing, visit: https://openrouter.ai/docs/provider-routing","code":404}}
-         */
-        if (String(err).includes('No endpoints found that support tool use.')) {
-          return false
-        }
+      if (err instanceof Error && err.name === new XSAIError('').name && isKnownToolsUnsupportedError(err)) {
+        return false
       }
 
       throw err
@@ -186,17 +205,50 @@ export const useLLM = defineStore('llm', () => {
   const toolsCompatibility = ref<Map<string, boolean>>(new Map())
 
   async function discoverToolsCompatibility(model: string, chatProvider: ChatProvider, _: Message[], options?: Omit<StreamOptions, 'supportsTools'>) {
+    const key = createToolsCompatibilityKey(model, chatProvider)
+
     // Cached, no need to discover again
-    if (toolsCompatibility.value.has(`${chatProvider.chat(model).baseURL}-${model}`)) {
+    if (toolsCompatibility.value.has(key)) {
       return
     }
 
-    const res = await attemptForToolsCompatibilityDiscovery(model, chatProvider, _, { ...options, toolsCompatibility: toolsCompatibility.value })
-    toolsCompatibility.value.set(`${chatProvider.chat(model).baseURL}-${model}`, res)
+    try {
+      const res = await attemptForToolsCompatibilityDiscovery(model, chatProvider, _, { ...options, toolsCompatibility: toolsCompatibility.value })
+      toolsCompatibility.value.set(key, res)
+    }
+    catch (error) {
+      // NOTICE: remote providers may intermittently fail capability probes.
+      // Keep tools optimistic-on for MVP, then downgrade on real request rejection.
+      console.warn(`[llm] tools compatibility discovery failed for ${key}, fallback to tools enabled`, error)
+      toolsCompatibility.value.set(key, true)
+    }
   }
 
-  function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
-    return streamFrom(model, chatProvider, messages, { ...options, toolsCompatibility: toolsCompatibility.value })
+  async function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
+    const key = createToolsCompatibilityKey(model, chatProvider)
+    const toolsEnabled = streamOptionsToolsCompatibilityOk(model, chatProvider, messages, {
+      ...options,
+      toolsCompatibility: toolsCompatibility.value,
+    })
+    console.debug(`[llm] tools ${toolsEnabled ? 'enabled' : 'disabled'} for ${key}`)
+
+    try {
+      return await streamFrom(model, chatProvider, messages, { ...options, toolsCompatibility: toolsCompatibility.value })
+    }
+    catch (error) {
+      if (isKnownToolsUnsupportedError(error)) {
+        // NOTICE: probe can be wrong for some remote providers. Downgrade and retry once without tools.
+        toolsCompatibility.value.set(key, false)
+        console.warn(`[llm] provider rejected tools for ${key}, retrying without tools`, error)
+        return streamFrom(model, chatProvider, messages, {
+          ...options,
+          supportsTools: false,
+          toolsCompatibility: toolsCompatibility.value,
+        })
+      }
+
+      throw error
+    }
   }
 
   async function models(apiUrl: string, apiKey: string) {

@@ -29,14 +29,19 @@ export async function setupSettingsWindowInvokes(params: {
   // manage events within eventa's context system.
   ipcMain.setMaxListeners(0)
 
-  const { context } = createContext(ipcMain, params.settingsWindow)
+  const { context } = createContext(ipcMain, params.settingsWindow, {
+    // NOTICE: eventa main adapter listens on process-wide ipcMain channel.
+    // Restrict invoke routing to the sender window to avoid duplicate handler execution
+    // when multiple windows register handlers for the same invoke event.
+    onlySameWindow: true,
+  })
 
   createScreenService({ context, window: params.settingsWindow })
   createWindowService({ context, window: params.settingsWindow })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.settingsWindow })
   createAutoUpdaterService({ context, window: params.settingsWindow, service: params.autoUpdater })
   createServerChannelService({ serverChannel: params.serverChannel })
-  createMcpServersService({ context, manager: params.mcpStdioManager })
+  createMcpServersService({ context, manager: params.mcpStdioManager, allowManageConfig: true })
 
   defineInvokeHandler(context, electronOpenSettingsDevtools, async () => params.settingsWindow.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenDevtoolsWindow, async (payload) => {
