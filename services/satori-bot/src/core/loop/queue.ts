@@ -5,6 +5,7 @@ import type { SatoriEvent, SatoriReadyBody } from '../../adapter/satori/types'
 import type { BotContext } from '../types'
 
 import { onMessageArrival } from './scheduler'
+import { pushToEventQueue } from '../../lib/db'
 
 /**
  * Set up the ready event handler
@@ -51,9 +52,15 @@ export function setupMessageEventHandler(
     }
 
     // Add to message queue
-    botContext.eventQueue.push({
+    const queueItem = {
       event,
-      status: 'ready',
+      status: 'ready' as const,
+    }
+    const id = await pushToEventQueue(queueItem)
+
+    botContext.eventQueue.push({
+      ...queueItem,
+      id,
     })
 
     // Process message queue

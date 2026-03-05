@@ -1,6 +1,9 @@
-import type { SatoriMessageCreateRequest, SatoriMessageCreateResponse } from './types'
+import type { SatoriMessage, SatoriMessageCreateRequest, SatoriMessageCreateResponse } from './types'
 
 import { useLogg } from '@guiiai/logg'
+
+import * as v from 'valibot'
+import { SatoriMessageCreateResponseSchema, SatoriMessageSchema } from './schema'
 
 const log = useLogg('SatoriAPI')
 
@@ -34,7 +37,7 @@ export class SatoriAPI {
 
   private async request<T>(
     endpoint: string,
-    body?: any,
+    body?: unknown,
   ): Promise<T> {
     const url = `${this.config.baseUrl}${endpoint}`
 
@@ -43,6 +46,7 @@ export class SatoriAPI {
         method: 'POST',
         headers: this.getHeaders(),
         body: body ? JSON.stringify(body) : undefined,
+        signal: AbortSignal.timeout(10000),
       })
 
       if (!response.ok) {
@@ -68,14 +72,16 @@ export class SatoriAPI {
     }
 
     log.log(`Sending message to channel ${channelId}: ${content}`)
-    return await this.request<SatoriMessageCreateResponse[]>('/message.create', body)
+    const response = await this.request<unknown[]>('/message.create', body)
+    return v.parse(v.array(SatoriMessageCreateResponseSchema), response)
   }
 
-  async getMessage(channelId: string, messageId: string): Promise<any> {
-    return await this.request('/message.get', {
+  async getMessage(channelId: string, messageId: string): Promise<SatoriMessage> {
+    const response = await this.request<unknown>('/message.get', {
       channel_id: channelId,
       message_id: messageId,
     })
+    return v.parse(SatoriMessageSchema, response)
   }
 
   async deleteMessage(channelId: string, messageId: string): Promise<void> {
