@@ -14,9 +14,8 @@ services:
     ports:
       - '4317:4317'   # OTLP gRPC
       - '4318:4318'   # OTLP HTTP
-      - '8889:8889'   # Prometheus exporter
-      - '13133:13133' # Health check
-      - '55679:55679' # zPages
+      # 8889 (Prometheus), 13133 (health), 55679 (zPages)
+      # are accessible within the Docker network; no need to expose to host
     depends_on:
       loki:
         condition: service_started
