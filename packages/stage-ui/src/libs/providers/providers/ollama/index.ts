@@ -125,7 +125,7 @@ export const providerOllama = defineProvider<OllamaConfig>({
         const chatOptions = baseProvider.chat(model)
         const think = resolveOllamaThink(model, config.thinkingMode)
 
-        if (typeof think === 'undefined')
+        if (think === undefined)
           return chatOptions
 
         return { ...chatOptions, think }
