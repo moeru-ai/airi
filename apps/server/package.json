@@ -38,10 +38,10 @@
     "drizzle-valibot": "catalog:",
     "hono": "catalog:",
     "injeca": "catalog:",
-    "ioredis": "^5.6.1",
+    "ioredis": "^5.10.0",
     "pg": "^8.20.0",
     "postgres": "^3.4.8",
-    "stripe": "^20.3.0",
+    "stripe": "^20.4.0",
     "tsx": "^4.21.0",
     "valibot": "catalog:"
   },
