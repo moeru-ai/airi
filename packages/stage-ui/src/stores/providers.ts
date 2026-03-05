@@ -148,6 +148,11 @@ export interface ProviderMetadata {
       valid: boolean
     }
   }
+  /**
+   * If true, the provider does not require user-provided credentials (e.g. API keys).
+   * Used for official/built-in providers that authenticate via session.
+   */
+  requiresCredentials?: boolean
   transcriptionFeatures?: {
     supportsGenerate: boolean
     supportsStreamOutput: boolean
@@ -254,15 +259,38 @@ export const useProvidersStore = defineStore('providers', () => {
         if (!authStore.isAuthenticated) {
           throw new Error('User is not authenticated')
         }
-        return createOpenAI('', `${SERVER_URL}/v1/`)
+
+        const provider = createOpenAI('', `${SERVER_URL}/v1/`)
+
+        // Utility function to wrap a provider method and include credentials
+        const withCredentials = (_fetch: any) => {
+          return (input: RequestInfo | URL, init?: RequestInit) => {
+            return globalThis.fetch(input, {
+              ...init,
+              credentials: 'include',
+            })
+          }
+        }
+
+        // Wrap the provider's fetch method to include credentials for cookie-based auth
+        provider.chat = (model: string) => {
+          const originalChat = provider.chat.bind(provider)
+          const result = originalChat(model)
+          result.fetch = withCredentials(result.fetch)
+          return result
+        }
+
+        return provider
       },
+      requiresCredentials: false,
       capabilities: {
         listModels: async () => {
           return [
             {
-              id: 'gpt-4o',
-              name: 'GPT-4o',
+              id: 'auto',
+              name: 'Auto',
               provider: 'official-provider',
+              description: 'Automatically routed by AI Gateway',
             },
           ]
         },
@@ -1892,12 +1920,12 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Function to fetch models for a specific provider
   async function fetchModelsForProvider(providerId: string) {
-    const config = providerCredentials.value[providerId]
-    if (!config)
-      return []
-
     const metadata = providerMetadata[providerId]
     if (!metadata)
+      return []
+
+    const config = providerCredentials.value[providerId]
+    if (!config && metadata.requiresCredentials !== false)
       return []
 
     const runtimeState = providerRuntimeState.value[providerId]
@@ -1907,7 +1935,7 @@ export const useProvidersStore = defineStore('providers', () => {
     }
 
     try {
-      const models = metadata.capabilities.listModels ? await metadata.capabilities.listModels(config) : []
+      const models = metadata.capabilities.listModels ? await metadata.capabilities.listModels(config || {}) : []
 
       // Transform and store the models
       if (runtimeState) {
@@ -2041,14 +2069,15 @@ export const useProvidersStore = defineStore('providers', () => {
     if (!metadata)
       throw new Error(`Provider metadata for ${providerId} not found`)
 
-    // Web Speech API doesn't require credentials - use empty config
+    // Providers that don't require credentials use empty config
     let config = providerCredentials.value[providerId]
-    if (!config && providerId === 'browser-web-speech-api') {
-      config = getDefaultProviderConfig(providerId)
+    const noCredentials = metadata.requiresCredentials === false || providerId === 'browser-web-speech-api'
+    if (!config && noCredentials) {
+      config = getDefaultProviderConfig(providerId) || {}
       providerCredentials.value[providerId] = config
     }
 
-    if (!config && providerId !== 'browser-web-speech-api')
+    if (!config && !noCredentials)
       throw new Error(`Provider credentials for ${providerId} not found`)
 
     try {

@@ -15,15 +15,21 @@ interface ConfigDefinitions {
   FLUX_PER_CENT: number
   FLUX_PER_REQUEST: number
   INITIAL_USER_FLUX: number
+  GATEWAY_BASE_URL: string
   FLUX_PACKAGES: FluxPackage[]
 }
+
+const NUMERIC_KEYS = new Set<string>(['FLUX_PER_CENT', 'FLUX_PER_REQUEST', 'INITIAL_USER_FLUX'])
+const JSON_KEYS = new Set<string>(['FLUX_PACKAGES'])
 
 const KEY_PREFIX = 'config:'
 
 function parseValue<K extends keyof ConfigDefinitions>(key: K, raw: string): ConfigDefinitions[K] {
-  if (key === 'FLUX_PACKAGES')
+  if (JSON_KEYS.has(key))
     return JSON.parse(raw) as ConfigDefinitions[K]
-  return Number(raw) as ConfigDefinitions[K]
+  if (NUMERIC_KEYS.has(key))
+    return Number(raw) as ConfigDefinitions[K]
+  return raw as ConfigDefinitions[K]
 }
 
 function serializeValue<K extends keyof ConfigDefinitions>(key: K, value: ConfigDefinitions[K]): string {

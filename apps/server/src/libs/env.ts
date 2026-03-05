@@ -20,9 +20,6 @@ const EnvSchema = object({
 
   STRIPE_SECRET_KEY: optional(string()),
   STRIPE_WEBHOOK_SECRET: optional(string()),
-
-  BACKEND_LLM_BASE_URL: optional(string()),
-  BACKEND_LLM_API_KEY: optional(string()),
 })
 
 export type Env = InferOutput<typeof EnvSchema>
