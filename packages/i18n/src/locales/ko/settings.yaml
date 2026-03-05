@@ -420,6 +420,14 @@ pages:
     mcp-server:
       description: MCP 서버 및 도구 연결 및 관리
       title: MCP 서버
+      config-path: Config file path
+      runtime-title: Runtime status
+      actions:
+        open-config: Open mcp.json
+        apply-and-restart: Save and restart stdio MCP
+      messages:
+        opened: Config file opened at {path}
+        restarted: MCP servers restarted. Started {started}, failed {failed}, skipped {skipped}
   providers:
     explained:
       chat: '텍스트 생성 모델 제공자를 구성합니다. (예시: OpenRouter, OpenAI, Ollama)'

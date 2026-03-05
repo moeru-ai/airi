@@ -420,6 +420,14 @@ pages:
     mcp-server:
       description: Подключение и управление MCP-сервером и инструментами
       title: MCP-сервер
+      config-path: Config file path
+      runtime-title: Runtime status
+      actions:
+        open-config: Open mcp.json
+        apply-and-restart: Save and restart stdio MCP
+      messages:
+        opened: Config file opened at {path}
+        restarted: MCP servers restarted. Started {started}, failed {failed}, skipped {skipped}
   providers:
     explained:
       chat: Провайдеры текстогенерации, напр. OpenRouter, OpenAI, Ollama.

@@ -420,6 +420,14 @@ pages:
     mcp-server:
       description: Kết nối, quản lý máy chủ MCP và công cụ
       title: Máy chủ MCP
+      config-path: Config file path
+      runtime-title: Runtime status
+      actions:
+        open-config: Open mcp.json
+        apply-and-restart: Save and restart stdio MCP
+      messages:
+        opened: Config file opened at {path}
+        restarted: MCP servers restarted. Started {started}, failed {failed}, skipped {skipped}
   providers:
     explained:
       chat: 'Nhà cung cấp mô hình tạo văn bản. Ví dụ: OpenRouter, OpenAI, Ollama.'
