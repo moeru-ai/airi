@@ -110,10 +110,7 @@ async function refetch() {
   }
 }
 
-watch([baseUrl, headers], refetch, { immediate: true })
-watch(thinkingMode, refetch, { immediate: true })
-watch(headers, refetch, { deep: true })
-
+watch([baseUrl, thinkingMode, headers], refetch, { immediate: true, deep: true })
 onMounted(() => {
   providersStore.initializeProvider(providerId)
 
