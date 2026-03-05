@@ -344,7 +344,7 @@ pages:
             description: 选择合适的语音转文本的服务来源
           confidence-threshold:
             title: 置信度阈值
-            description: 根据 avg_logprob 过滤低置信度的转录结果，值越接近 0 越严格。仅适用于基于文件的转录（如 Whisper）。
+            description: 过滤低置信度的转录结果，避免 Whisper 幻觉噪音。值越接近 0 越严格，拖到最左为禁用。仅对支持 Whisper API 的服务商有效（如 OpenAI、Groq）。
             disabled: 已禁用
     memory-long-term:
       description: 长期记忆
