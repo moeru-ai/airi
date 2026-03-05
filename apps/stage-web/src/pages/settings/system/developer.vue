@@ -110,6 +110,12 @@ const menu = computed(() => [
     icon: 'i-solar:sledgehammer-bold-duotone',
     to: '/devtools/model-driver-mediapipe',
   },
+  {
+    title: 'Provider Config Import / Export',
+    description: 'Export or import provider credentials and module settings as YAML or .env',
+    icon: 'i-solar:import-bold-duotone',
+    to: '/devtools/provider-config',
+  },
 ])
 </script>
 
