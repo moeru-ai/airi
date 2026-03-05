@@ -11,6 +11,7 @@ const setIgnoreMouseEvents = defineInvokeEventa<void, [boolean, { forward: boole
 const setVibrancy = defineInvokeEventa<void, Parameters<BrowserWindow['setVibrancy']> | [null]>('eventa:invoke:electron:window:set-vibrancy')
 const setBackgroundMaterial = defineInvokeEventa<void, Parameters<BrowserWindow['setBackgroundMaterial']>>('eventa:invoke:electron:window:set-background-material')
 const resize = defineInvokeEventa<void, { deltaX: number, deltaY: number, direction: ResizeDirection }>('eventa:invoke:electron:window:resize')
+const close = defineInvokeEventa<void>('eventa:invoke:electron:window:close')
 
 export type VibrancyType = Parameters<BrowserWindow['setVibrancy']>[0]
 export type BackgroundMaterialType = Parameters<BrowserWindow['setBackgroundMaterial']>[0]
@@ -23,4 +24,5 @@ export const window = {
   setVibrancy,
   setBackgroundMaterial,
   resize,
+  close,
 }

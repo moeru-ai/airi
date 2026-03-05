@@ -4,6 +4,8 @@ import { getBeatSyncState, listenBeatSyncStateChange } from '@proj-airi/stage-sh
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import factorioIcon from '../assets/factorio-simple.png'
+
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
@@ -123,6 +125,7 @@ export function useModulesList() {
       id: 'gaming-factorio',
       name: t('settings.pages.modules.gaming-factorio.title'),
       description: t('settings.pages.modules.gaming-factorio.description'),
+      iconImage: factorioIcon,
       to: '/settings/modules/gaming-factorio',
       configured: factorioStore.configured,
       category: 'gaming',

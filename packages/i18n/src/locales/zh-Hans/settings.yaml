@@ -420,6 +420,14 @@ pages:
     mcp-server:
       description: 连接和管理 MCP 服务器及工具
       title: MCP 服务器
+      config-path: Config file path
+      runtime-title: Runtime status
+      actions:
+        open-config: Open mcp.json
+        apply-and-restart: Save and restart stdio MCP
+      messages:
+        opened: Config file opened at {path}
+        restarted: MCP servers restarted. Started {started}, failed {failed}, skipped {skipped}
   providers:
     explained:
       chat: 文本生成模型服务来源，例如 OpenRouter, OpenAI, Ollama
@@ -462,6 +470,17 @@ pages:
                     placeholder: 请求头名字
                   value:
                     placeholder: 请求头数值
+                thinking-mode:
+                  label: 思考模式
+                  description: >
+                    控制 Ollama 的思考行为。GPT-OSS 仅支持 low/medium/high 级别。
+                  options:
+                    auto: 自动（服务默认）
+                    disable: 关闭
+                    enable: 开启
+                    low: 低
+                    medium: 中
+                    high: 高
         validators:
           actions:
             validate: 验证

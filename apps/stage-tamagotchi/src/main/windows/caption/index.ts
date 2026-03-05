@@ -1,6 +1,7 @@
 import type { BrowserWindow, BrowserWindowConstructorOptions, Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
+import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 
 import { createHash } from 'node:crypto'
@@ -20,7 +21,6 @@ import { captionGetIsFollowingWindow, captionIsFollowingWindowChanged } from '..
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { createServerChannelService } from '../../services/airi/channel-server'
 import { mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
 import { setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shared/window'
 
@@ -148,6 +148,7 @@ function createCaptionWindow(options?: BrowserWindowConstructorOptions) {
 export function setupCaptionWindowManager(params: {
   mainWindow: BrowserWindow
   serverChannel: ServerChannel
+  i18n: I18n
 }) {
   const matrixHash = computeDisplayMatrixHash()
 
@@ -274,8 +275,7 @@ export function setupCaptionWindowManager(params: {
     const { context } = createContext(ipcMain, window)
     eventaContext = context
 
-    setupBaseWindowElectronInvokes({ context, window })
-    createServerChannelService({ serverChannel: params.serverChannel })
+    await setupBaseWindowElectronInvokes({ context, window, serverChannel: params.serverChannel, i18n: params.i18n })
 
     const cfg = getConfig()
     const saved = cfg?.matrices?.[matrixHash]?.bounds

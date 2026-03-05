@@ -1,3 +1,5 @@
+import type { Locale } from '@intlify/core'
+
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
 export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
@@ -126,6 +128,66 @@ export interface PluginHostDebugSnapshot {
   refreshedAt: number
 }
 
+export interface ElectronMcpStdioServerConfig {
+  command: string
+  args?: string[]
+  env?: Record<string, string>
+  cwd?: string
+  enabled?: boolean
+}
+
+export interface ElectronMcpStdioConfigFile {
+  mcpServers: Record<string, ElectronMcpStdioServerConfig>
+}
+
+export interface ElectronMcpStdioApplyResult {
+  path: string
+  started: Array<{ name: string }>
+  failed: Array<{ name: string, error: string }>
+  skipped: Array<{ name: string, reason: string }>
+}
+
+export interface ElectronMcpStdioServerRuntimeStatus {
+  name: string
+  state: 'running' | 'stopped' | 'error'
+  command: string
+  args: string[]
+  pid: number | null
+  lastError?: string
+}
+
+export interface ElectronMcpStdioRuntimeStatus {
+  path: string
+  servers: ElectronMcpStdioServerRuntimeStatus[]
+  updatedAt: number
+}
+
+export interface ElectronMcpToolDescriptor {
+  serverName: string
+  name: string
+  toolName: string
+  description?: string
+  inputSchema: Record<string, unknown>
+}
+
+export interface ElectronMcpCallToolPayload {
+  name: string
+  arguments?: Record<string, unknown>
+}
+
+export interface ElectronMcpCallToolResult {
+  content?: Array<Record<string, unknown>>
+  structuredContent?: Record<string, unknown>
+  toolResult?: unknown
+  isError?: boolean
+}
+
+export const electronMcpOpenConfigFile = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:mcp:open-config-file')
+export const electronMcpApplyAndRestart = defineInvokeEventa<ElectronMcpStdioApplyResult>('eventa:invoke:electron:mcp:apply-and-restart')
+export const electronMcpGetRuntimeStatus = defineInvokeEventa<ElectronMcpStdioRuntimeStatus>('eventa:invoke:electron:mcp:get-runtime-status')
+export const electronMcpListTools = defineInvokeEventa<ElectronMcpToolDescriptor[]>('eventa:invoke:electron:mcp:list-tools')
+export const electronMcpCallTool = defineInvokeEventa<ElectronMcpCallToolResult, ElectronMcpCallToolPayload>('eventa:invoke:electron:mcp:call-tool')
+
 export const widgetsOpenWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:electron:windows:widgets:open')
 export const widgetsAdd = defineInvokeEventa<string | undefined, WidgetsAddPayload>('eventa:invoke:electron:windows:widgets:add')
 export const widgetsRemove = defineInvokeEventa<void, { id: string }>('eventa:invoke:electron:windows:widgets:remove')
@@ -133,6 +195,9 @@ export const widgetsClear = defineInvokeEventa('eventa:invoke:electron:windows:w
 export const widgetsUpdate = defineInvokeEventa<void, { id: string, componentProps?: Record<string, any> }>('eventa:invoke:electron:windows:widgets:update')
 export const widgetsFetch = defineInvokeEventa<WidgetSnapshot | void, { id: string }>('eventa:invoke:electron:windows:widgets:fetch')
 export const widgetsPrepareWindow = defineInvokeEventa<string | undefined, { id?: string }>('eventa:invoke:electron:windows:widgets:prepare')
+
+export const electronWindowClose = defineInvokeEventa<void>('eventa:invoke:electron:window:close')
+export const electronAppQuit = defineInvokeEventa<void>('eventa:invoke:electron:app:quit')
 
 // Internal event from main -> widgets renderer when a widget should render
 export const widgetsRenderEvent = defineEventa<WidgetSnapshot>('eventa:event:electron:windows:widgets:render')
@@ -145,6 +210,9 @@ export const electronOnboardingClose = defineInvokeEventa('eventa:invoke:electro
 export const electronOnboardingCompleted = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:completed')
 export const electronOnboardingSkipped = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:skipped')
 export const electronOpenOnboarding = defineInvokeEventa<boolean>('eventa:invoke:electron:windows:onboarding:open')
+
+export const i18nSetLocale = defineInvokeEventa<void, Locale>('eventa:invoke:electron:i18n:set-locale')
+export const i18nGetLocale = defineInvokeEventa<Locale>('eventa:invoke:electron:i18n:get-locale')
 
 export { electron } from '@proj-airi/electron-eventa'
 export * from '@proj-airi/electron-eventa/electron-updater'

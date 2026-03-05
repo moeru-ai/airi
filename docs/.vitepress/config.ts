@@ -62,12 +62,10 @@ export default defineConfig({
     ['link', { rel: 'mask-icon', href: '/logo.svg', color: '#ffffff' }],
     // Proxying Plausible through Netlify | Plausible docs
     // https://plausible.io/docs/proxy/guides/netlify
-    ['script', { async: '', src: 'https://moeru-ai-airi-helper.kwaa.workers.dev/remote-assets/page-external-data/js/script.js' }],
+    ['script', { async: '', src: 'https://plausible.io/js/pa-HI8-_JIBI6d_2IgIr2Tai.js' }],
     ['script', {}, `
       window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
-      plausible.init({
-        endpoint: "https://moeru-ai-airi-helper.kwaa.workers.dev/api/v1/page-external-data/submit"
-      })
+      plausible.init()
     `],
     ['script', {}, `
       ;(function () {
