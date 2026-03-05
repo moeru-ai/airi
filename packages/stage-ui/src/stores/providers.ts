@@ -21,7 +21,7 @@ import type {
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
-import { computedAsync, useLocalStorage } from '@vueuse/core'
+import { computedAsync, useIntervalFn, useLocalStorage } from '@vueuse/core'
 import {
   createOpenAI,
 } from '@xsai-ext/providers/create'
@@ -47,6 +47,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { listProviders as listDefinedProviders } from '../libs/providers'
+import { getProviderValidationIntervalMs } from '../libs/providers/validators/run'
 import { SERVER_URL } from '../libs/server'
 import { useAuthStore } from '../stores/auth'
 import { getKokoroWorker } from '../workers/kokoro'
@@ -276,6 +277,34 @@ export const useProvidersStore = defineStore('providers', () => {
             valid: authStore.isAuthenticated,
           }
         },
+      },
+    },
+    'speech-noop': {
+      id: 'speech-noop',
+      category: 'speech',
+      tasks: ['text-to-speech', 'tts'],
+      nameKey: 'settings.pages.providers.provider.speech-noop.title',
+      name: 'None',
+      descriptionKey: 'settings.pages.providers.provider.speech-noop.description',
+      description: 'No speech output.',
+      icon: 'i-solar:volume-cross-bold-duotone',
+      defaultOptions: () => ({}),
+      createProvider: async () => ({
+        speech: () => ({
+          baseURL: 'http://speech-noop.invalid/v1/',
+          model: 'noop',
+        }),
+      }),
+      capabilities: {
+        listModels: async () => [],
+        listVoices: async () => [],
+      },
+      validators: {
+        validateProviderConfig: () => ({
+          errors: [],
+          reason: '',
+          valid: true,
+        }),
       },
     },
     'app-local-audio-speech': buildOpenAICompatibleProvider({
@@ -1689,11 +1718,24 @@ export const useProvidersStore = defineStore('providers', () => {
   // Progressive migration bridge:
   // translate unified provider definitions from libs/providers to legacy store metadata.
   // Existing metadata remains as fallback for providers not yet migrated.
+  const definedProviders = listDefinedProviders()
+
   const translatedProviderMetadata = convertProviderDefinitionsToMetadata(
-    listDefinedProviders(),
+    definedProviders,
     t,
     providerMetadata,
   )
+
+  const providerValidationIntervalMsById = new Map<string, number>()
+  for (const definition of definedProviders) {
+    const intervalMs = getProviderValidationIntervalMs({
+      definition,
+      contextOptions: { t },
+    })
+    if (intervalMs && intervalMs > 0) {
+      providerValidationIntervalMsById.set(definition.id, intervalMs)
+    }
+  }
 
   // Keep only legacy ASR/TTS providers as hand-written metadata.
   // All other categories are sourced from unified definitions in libs/providers.
@@ -1713,6 +1755,8 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // const validatedCredentials = ref<Record<string, string>>({})
   const providerRuntimeState = ref<Record<string, ProviderRuntimeState>>({})
+  const providerValidationInFlight = new Map<string, Promise<boolean>>()
+  const providerRevalidationLoops = new Map<string, { resume: () => void }>()
 
   const configuredProviders = computed(() => {
     const result: Record<string, boolean> = {}
@@ -1732,7 +1776,7 @@ export const useProvidersStore = defineStore('providers', () => {
   }
 
   // Configuration validation functions
-  async function validateProvider(providerId: string): Promise<boolean> {
+  async function validateProvider(providerId: string, options: { force?: boolean } = {}): Promise<boolean> {
     const metadata = providerMetadata[providerId]
     if (!metadata)
       return false
@@ -1750,26 +1794,43 @@ export const useProvidersStore = defineStore('providers', () => {
 
     const configString = JSON.stringify(config || {})
     const runtimeState = providerRuntimeState.value[providerId]
+    const cacheKey = `${providerId}:${configString}`
+    const forceValidation = options.force === true
 
-    if (runtimeState?.validatedCredentialHash === configString && typeof runtimeState.isConfigured === 'boolean')
+    if (!forceValidation && runtimeState?.validatedCredentialHash === configString && typeof runtimeState.isConfigured === 'boolean')
       return runtimeState.isConfigured
 
-    // Always cache the current config string to prevent re-validating the same config
-    if (providerRuntimeState.value[providerId]) {
-      providerRuntimeState.value[providerId].validatedCredentialHash = configString
-    }
-
-    const validationResult = await metadata.validators.validateProviderConfig(config || {})
-
-    if (providerRuntimeState.value[providerId]) {
-      providerRuntimeState.value[providerId].isConfigured = validationResult.valid
-      // Auto-mark Web Speech API as added if valid and available
-      if (validationResult.valid && ['browser-web-speech-api', 'player2', 'official-provider'].includes(providerId)) {
-        markProviderAdded(providerId)
+    if (!forceValidation) {
+      const pending = providerValidationInFlight.get(cacheKey)
+      if (pending) {
+        return pending
       }
     }
 
-    return validationResult.valid
+    const runValidation = async () => {
+      const validationResult = await metadata.validators.validateProviderConfig(config || {})
+
+      if (providerRuntimeState.value[providerId]) {
+        providerRuntimeState.value[providerId].isConfigured = validationResult.valid
+        providerRuntimeState.value[providerId].validatedCredentialHash = configString
+        // Auto-mark Web Speech API as added if valid and available
+        if (validationResult.valid && ['browser-web-speech-api', 'player2', 'official-provider'].includes(providerId)) {
+          markProviderAdded(providerId)
+        }
+      }
+
+      return validationResult.valid
+    }
+
+    if (forceValidation) {
+      return runValidation()
+    }
+
+    const task = runValidation()
+    providerValidationInFlight.set(cacheKey, task)
+    return task.finally(() => {
+      providerValidationInFlight.delete(cacheKey)
+    })
   }
 
   // Create computed properties for each provider's configuration status
@@ -1809,6 +1870,23 @@ export const useProvidersStore = defineStore('providers', () => {
   // Initialize all providers
   Object.keys(providerMetadata).forEach(initializeProvider)
 
+  function startPeriodicRuntimeValidation() {
+    for (const [providerId, intervalMs] of providerValidationIntervalMsById.entries()) {
+      if (!providerMetadata[providerId] || intervalMs <= 0)
+        continue
+
+      if (providerRevalidationLoops.has(providerId)) {
+        continue
+      }
+
+      const loop = useIntervalFn(() => {
+        void validateProvider(providerId, { force: true })
+      }, intervalMs, { immediate: false, immediateCallback: false })
+      loop.resume()
+      providerRevalidationLoops.set(providerId, loop)
+    }
+  }
+
   // Update configuration status for all configured providers
   async function updateConfigurationStatus() {
     await Promise.all(Object.entries(providerMetadata)
@@ -1831,6 +1909,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Call initially and watch for changes
   watch(providerCredentials, updateConfigurationStatus, { deep: true, immediate: true })
+  startPeriodicRuntimeValidation()
 
   const authStore = useAuthStore()
   watch(() => authStore.isAuthenticated, updateConfigurationStatus)

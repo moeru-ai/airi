@@ -31,7 +31,7 @@ function toggleVisible() {
         </div>
       </button>
     </template>
-    <div mt-4>
+    <div mt-4 space-y-2>
       <slot />
     </div>
   </Collapsible>

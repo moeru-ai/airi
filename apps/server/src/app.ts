@@ -43,6 +43,8 @@ type StripeDBService = ReturnType<typeof createStripeService>
 
 type OtelMetrics = ReturnType<typeof initOtel>
 
+type OtelMetrics = ReturnType<typeof initOtel>
+
 interface AppDeps {
   auth: AuthService
   characterService: CharacterService
