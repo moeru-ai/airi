@@ -72,7 +72,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const transcriptionModelSearchQuery = refManualReset<string>('')
   const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false)
   const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000) // Default 2 seconds
-  const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', -1)
+  const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', -3)
 
   // Computed properties
   const availableProvidersMetadata = computed(() => allAudioTranscriptionProvidersMetadata.value)
@@ -199,7 +199,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
       throw new Error('File input is required for transcription.')
     }
 
-    const useVerboseJson = !format && confidenceThreshold.value > -2
+    const useVerboseJson = !format && confidenceThreshold.value > -3
     const response = await generateTranscription({
       ...provider.transcription(model, options?.providerOptions),
       file: normalizedInput.file,
