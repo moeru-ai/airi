@@ -260,21 +260,27 @@ export const useProvidersStore = defineStore('providers', () => {
         if (!authStore.isAuthenticated) {
           throw new Error('User is not authenticated')
         }
+
         const provider = createOpenAI('', `${SERVER_URL}/v1/`)
-        // Wrap the provider to include credentials for cookie-based auth
-        const originalChat = provider.chat.bind(provider)
-        provider.chat = (model: string) => {
-          const result = originalChat(model)
-          return {
-            ...result,
-            fetch: (input: RequestInfo | URL, init?: RequestInit) => {
-              return globalThis.fetch(input, {
-                ...init,
-                credentials: 'include',
-              })
-            },
+
+        // Utility function to wrap a provider method and include credentials
+        const withCredentials = (_fetch: any) => {
+          return (input: RequestInfo | URL, init?: RequestInit) => {
+            return globalThis.fetch(input, {
+              ...init,
+              credentials: 'include',
+            })
           }
         }
+
+        // Wrap the provider's fetch method to include credentials for cookie-based auth
+        provider.chat = (model: string) => {
+          const originalChat = provider.chat.bind(provider)
+          const result = originalChat(model)
+          result.fetch = withCredentials(result.fetch)
+          return result
+        }
+
         return provider
       },
       requiresCredentials: false,
