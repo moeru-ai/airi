@@ -17,7 +17,7 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
 import { useProviderCatalogStore } from '@proj-airi/stage-ui/stores/provider-catalog'
-import { Button, Callout, FieldInput, FieldKeyValues } from '@proj-airi/ui'
+import { Button, Callout, FieldInput, FieldKeyValues, FieldSelect } from '@proj-airi/ui'
 import { useCloned, useDebounceFn } from '@vueuse/core'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -106,12 +106,33 @@ const schemaFields = computed(() => {
     const label = typeof meta.labelLocalized === 'string' ? meta.labelLocalized : ''
     const description = typeof meta.descriptionLocalized === 'string' ? meta.descriptionLocalized : schema.description
     const placeholder = typeof meta.placeholderLocalized === 'string' ? meta.placeholderLocalized : ''
+    const options = Array.isArray(meta.options)
+      ? meta.options
+          .map((item) => {
+            if (!item || typeof item !== 'object')
+              return null
+
+            const option = item as { label?: unknown, value?: unknown }
+            if (typeof option.label !== 'string')
+              return null
+
+            if (typeof option.value !== 'string' && typeof option.value !== 'number')
+              return null
+
+            return {
+              label: option.label,
+              value: option.value,
+            }
+          })
+          .filter((item): item is { label: string, value: string | number } => item !== null)
+      : undefined
 
     return {
       key,
       schema,
       section,
       type,
+      options,
       label,
       description,
       placeholder,
@@ -433,6 +454,14 @@ function handleDeleteProvider() {
                   :description="field.description"
                   :placeholder="field.placeholder"
                   :required="field.required"
+                />
+                <FieldSelect
+                  v-else-if="field.type === 'select'"
+                  v-model="providerConfigEdit.config[field.key]"
+                  :label="field.label"
+                  :description="field.description"
+                  :placeholder="field.placeholder"
+                  :options="field.options"
                 />
                 <FieldInput
                   v-else
