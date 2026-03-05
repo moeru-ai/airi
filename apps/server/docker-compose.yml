@@ -44,6 +44,11 @@ services:
         required: false
       - path: .env.local
         required: false
+    environment:
+      # Set OTEL endpoint when using docker-compose.otel.yml together:
+      #   docker compose -f docker-compose.yml -f docker-compose.otel.yml up
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-airi-server}
     ports:
       - '6112:3000'
     healthcheck:

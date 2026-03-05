@@ -23,6 +23,11 @@ const EnvSchema = object({
 
   BACKEND_LLM_BASE_URL: optional(string()),
   BACKEND_LLM_API_KEY: optional(string()),
+
+  // OpenTelemetry
+  OTEL_EXPORTER_OTLP_ENDPOINT: optional(string()),
+  OTEL_SERVICE_NAME: optional(string(), 'airi-server'),
+  OTEL_DEBUG: optional(string()),
 })
 
 export type Env = InferOutput<typeof EnvSchema>
