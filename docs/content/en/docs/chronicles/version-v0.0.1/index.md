@@ -9,7 +9,7 @@ title: Chronicle v0.0.1
   - [x] Model download
     - [x] Momose Hiyori (Neuro first version model) Pro version (free for commercial use by small and medium enterprises)
 
-![](../../../../public/assets/version-v0.0.1/screenshot-1.avif)
+![]( /assets/version-v0.0.1/screenshot-1.avif)
 
 - [x] Integrate GPT-4o through Vercel AI SDK (June 7, 2024)
   - [x] `@ai-sdk/openai`
