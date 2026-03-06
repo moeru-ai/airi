@@ -24,7 +24,7 @@ application after finishes.
 <br />
 
 <video controls autoplay loop muted>
- <source src="../../../../public/assets/tutorial-basic-setup-providers.mp4" type="video/mp4">
+ <source src="/assets/tutorial-basic-setup-providers.mp4" type="video/mp4">
 </video>
 
 <br />
@@ -54,7 +54,7 @@ After downloaded, start AIRI from anywhere. You will see the user interface cons
 - Onboarding / Wizard setup guide
 - Model (capable of showing Live2D & VRM models)
 
-![](../../../../public/assets/screenshot-ui.avif)
+![](/assets/screenshot-ui.avif)
 
 We have other options/commands in the system tray, including:
 
@@ -86,7 +86,7 @@ and you cannot interact with it with cursor.
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-180 translate-x--30 translate-y--2 lg:scale-150 lg:translate-x--40">
-    <source src="../../../../public/assets/tutorial-basic-fade-on-hover.mp4" type="video/mp4">
+    <source src="/assets/tutorial-basic-fade-on-hover.mp4" type="video/mp4">
   </video>
 </div>
 
@@ -100,13 +100,13 @@ while having the companion live by your side. Here are two scenarios we came up 
 #### Browsing CrunchyRoll
 
 <video autoplay loop muted>
-  <source src="../../../../public/assets/tutorial-demo-browsing-crunchy-roll.mp4" type="video/mp4">
+  <source src="/assets/tutorial-demo-browsing-crunchy-roll.mp4" type="video/mp4">
 </video>
 
 #### Browsing Steam
 
 <video autoplay loop muted>
-  <source src="../../../../public/assets/tutorial-demo-browsing-steam.mp4" type="video/mp4">
+  <source src="/assets/tutorial-demo-browsing-steam.mp4" type="video/mp4">
 </video>
 
 it's easy to disable this feature.
@@ -124,7 +124,7 @@ You can toggle this feature through:
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-200 translate-x--35 translate-y--23 lg:scale-180 lg:translate-x--60 lg:translate-y--40">
-    <source src="../../../../public/assets/tutorial-basic-disable-fade-on-hover.mp4" type="video/mp4">
+    <source src="/assets/tutorial-basic-disable-fade-on-hover.mp4" type="video/mp4">
   </video>
 </div>
 
@@ -140,7 +140,7 @@ You can customize the key mapping in [Settings] -> [General] -> [Shortcuts]
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-225 translate-x--45 translate-y--5 lg:scale-200 lg:translate-x--80 lg:translate-y--5">
-    <source src="../../../../public/assets/tutorial-basic-move.mp4" type="video/mp4">
+    <source src="/assets/tutorial-basic-move.mp4" type="video/mp4">
   </video>
 </div>
 
@@ -156,7 +156,7 @@ You can customize the key mapping in [Settings] -> [General] -> [Shortcuts]
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-160 translate-x--20 lg:scale-150 lg:translate-x--40 lg:translate-y-10">
-    <source src="../../../../public/assets/tutorial-basic-resize.mp4" type="video/mp4">
+    <source src="/assets/tutorial-basic-resize.mp4" type="video/mp4">
   </video>
 </div>
 
@@ -173,5 +173,5 @@ Shortcut for Fade on Hover is: <kbd aria-label="Shift" data-keyboard-key="shift"
 <br />
 
 <video autoplay loop muted>
- <source src="../../../../public/assets/tutorial-basic-open-chat.mp4" type="video/mp4">
+ <source src="/assets/tutorial-basic-open-chat.mp4" type="video/mp4">
 </video>

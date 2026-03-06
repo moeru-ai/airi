@@ -23,7 +23,7 @@ description: Project AIRI のたまごっちバージョンの使い方
 <br />
 
 <video controls autoplay loop muted>
- <source src="/public/assets/tutorial-basic-setup-providers.mp4" type="video/mp4">
+ <source src="/assets/tutorial-basic-setup-providers.mp4" type="video/mp4">
 </video>
 
 <br />
@@ -52,7 +52,7 @@ description: Project AIRI のたまごっちバージョンの使い方
 - オンボーディング / ウィザードセットアップガイド
 - モデル (Live2D および VRM モデルを表示可能)
 
-![](/public/assets/screenshot-ui.avif)
+![](/assets/screenshot-ui.avif)
 
 システムトレイには、次のような他のオプション/コマンドがあります：
 
@@ -83,7 +83,7 @@ description: Project AIRI のたまごっちバージョンの使い方
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-180 translate-x--30 translate-y--2 lg:scale-150 lg:translate-x--40">
-    <source src="/public/assets/tutorial-basic-fade-on-hover.mp4" type="video/mp4">
+    <source src="/assets/tutorial-basic-fade-on-hover.mp4" type="video/mp4">
   </video>
 </div>
 
@@ -94,13 +94,13 @@ description: Project AIRI のたまごっちバージョンの使い方
 #### CrunchyRoll の閲覧
 
 <video autoplay loop muted>
-  <source src="/public/assets/tutorial-demo-browsing-crunchy-roll.mp4" type="video/mp4">
+  <source src="/assets/tutorial-demo-browsing-crunchy-roll.mp4" type="video/mp4">
 </video>
 
 #### Steam の閲覧
 
 <video autoplay loop muted>
-  <source src="/public/assets/tutorial-demo-browsing-steam.mp4" type="video/mp4">
+  <source src="/assets/tutorial-demo-browsing-steam.mp4" type="video/mp4">
 </video>
 
 この機能を無効にするのは簡単です。
@@ -118,7 +118,7 @@ description: Project AIRI のたまごっちバージョンの使い方
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-200 translate-x--35 translate-y--23 lg:scale-180 lg:translate-x--60 lg:translate-y--40">
-    <source src="/public/assets/tutorial-basic-disable-fade-on-hover.mp4" type="video/mp4">
+    <source src="/assets/tutorial-basic-disable-fade-on-hover.mp4" type="video/mp4">
   </video>
 </div>
 
@@ -134,7 +134,7 @@ description: Project AIRI のたまごっちバージョンの使い方
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-225 translate-x--45 translate-y--5 lg:scale-200 lg:translate-x--80 lg:translate-y--5">
-    <source src="/public/assets/tutorial-basic-move.mp4" type="video/mp4">
+    <source src="/assets/tutorial-basic-move.mp4" type="video/mp4">
   </video>
 </div>
 
@@ -150,7 +150,7 @@ description: Project AIRI のたまごっちバージョンの使い方
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-160 translate-x--20 lg:scale-150 lg:translate-x--40 lg:translate-y-10">
-    <source src="/public/assets/tutorial-basic-resize.mp4" type="video/mp4">
+    <source src="/assets/tutorial-basic-resize.mp4" type="video/mp4">
   </video>
 </div>
 
@@ -165,5 +165,5 @@ Fade on Hover のショートカットは：<kbd aria-label="Shift" data-keyboar
 <br />
 
 <video autoplay loop muted>
- <source src="/public/assets/tutorial-basic-open-chat.mp4" type="video/mp4">
+ <source src="/assets/tutorial-basic-open-chat.mp4" type="video/mp4">
 </video>

@@ -63,7 +63,7 @@ Now can:
 - ✅ Live2D lip sync (thanks to itorr's GitHub explanation)
 - ✅ Basic Prompt
 
-![](../../../../public/assets/version-v0.0.1/screenshot-2.avif)
+![](/assets/version-v0.0.1/screenshot-2.avif)
 
 ## Multimodal
 
@@ -470,7 +470,7 @@ And the last, do what ever you want!
 
 #### Expression Prompt
 
-![](../../../../public/assets/version-v0.0.1/screenshot-3.avif)
+![](/assets/version-v0.0.1/screenshot-3.avif)
 
 #### Continuous Inference Prompt
 
