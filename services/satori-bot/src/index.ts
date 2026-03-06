@@ -1,10 +1,11 @@
-import process, { env } from 'node:process'
+import process from 'node:process'
 
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 
 import { SatoriClient } from './adapter/satori/client'
 import { globalRegistry } from './capabilities/registry'
-import { createBotContext, setupMessageEventHandler, setupReadyEventHandler, startPeriodicLoop } from './core'
+import { config } from './config'
+import { createBotContext, setupMessageEventHandler, setupReadyEventHandler, startPeriodicLoop } from './core/index'
 import { initDb } from './lib/db'
 
 setGlobalFormat(Format.Pretty)
@@ -19,13 +20,13 @@ async function main() {
 
   // Create Satori client
   const satoriClient = new SatoriClient({
-    url: env.SATORI_WS_URL || 'ws://localhost:5140/satori/v1/events',
-    token: env.SATORI_TOKEN,
-    apiBaseUrl: env.SATORI_API_BASE_URL,
+    url: config.satori.wsUrl,
+    token: config.satori.token,
+    apiBaseUrl: config.satori.apiBaseUrl,
   })
 
   // Create bot context
-  const botContext = createBotContext(log)
+  const botContext = await createBotContext(log)
 
   // Set up event handlers
   setupReadyEventHandler(satoriClient, log)
@@ -44,10 +45,22 @@ async function main() {
 
 process.on('unhandledRejection', (err) => {
   const log = useLogg('UnhandledRejection').useGlobalConfig()
+  const cause = (err instanceof Error && 'cause' in err) ? err.cause : undefined
   log
     .withError(err as Error)
-    .withField('cause', (err as any).cause)
-    .error('Unhandled rejection')
+    .withField('cause', cause)
+    .error('Unhandled rejection occurred')
 })
 
-main().catch(console.error)
+process.on('uncaughtException', (err) => {
+  const log = useLogg('UncaughtException').useGlobalConfig()
+  log
+    .withError(err)
+    .error('Uncaught exception occurred')
+})
+
+main().catch((err) => {
+  const log = useLogg('Main').useGlobalConfig()
+  log.withError(err).error('Fatal error in main loop')
+  process.exit(1)
+})

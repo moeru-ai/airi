@@ -19,6 +19,9 @@ docs:
   'drag-to-move-window': 拖动以移动窗口
   'switch-to-light-mode': 切换到亮色模式
   'switch-to-dark-mode': 切换到暗色模式
+  'close': 关闭
+  'expand': 展开
+  'collapse': 折叠
 notice:
   'fade-on-hover':
     title: 悬停淡出

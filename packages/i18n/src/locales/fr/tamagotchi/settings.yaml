@@ -25,30 +25,30 @@ pages:
       sections:
         section:
           use-window-mouse:
-            title: useWindowMouse
-            description: Test the Electron window cursor position
+            title: Outil useWindowsMouse
+            description: Tester la position du curseur dans la fenêtre Electron
 devtools:
-  title: Developer
+  title: Développeur
   pages:
     context-flow:
-      title: Context Flow
+      title: Flux contextuel
     lag-visualizer:
-      title: Lag Visualizer
+      title: Visualiseur de latence
     performance-visualizer:
-      title: Performance Visualizer
-      description: Toggle FPS/long task/memory overlay
+      title: Visualiseur de performance
+      description: Afficher l'overlay FPS / tâches longues / mémoire
     markdown-stress:
-      title: Markdown Stress
-      description: Stress markdown parsing and rendering with heavy chat payloads
+      title: Test de charge Markdown
+      description: Tester l'analyse et le rendu Markdown avec des charges de chat lourdes
     widgets-calling:
-      title: Widget Calling
+      title: Appel de widgets
 screen-capture:
   permissions-prompt:
-    title: Screen Capture
-    description: To capture screens or windows, screen and system audio recording permissions are required.
-    open-preferences: Open System Preferences
-    dismiss: Dismiss
+    title: Capture d'écran
+    description: Pour capturer des écrans ou des fenêtres, les autorisations d’enregistrement de l'écran et de l'audio du système sont requises.
+    open-preferences: Ouvrir les Préférences Système
+    dismiss: Ignorer
     instructions:
-      step-1: Open "System Preferences", select "Privacy & Security" from the sidebar.
-      step-2: In the "Screen & System Audio Recording" and "System Audio Recording Only" sections, turn on the switches for AIRI.
-      step-2-note: If AIRI is not listed, please add it manually by clicking the "+" button and selecting AIRI from the Applications folder.
+      step-1: Ouvrir les "Préférences Système", sélectionnez "Confidentialité et Sécurité" dans la barre latérale.
+      step-2: Dans les sections "Enregistrement de l'écran et de l'audio du système" et "Enregistrement de l'audio du système uniquement", activez les interrupteurs pour AIRI.
+      step-2-note: Si AIRI n'est pas listé, veuillez l'ajouter manuellement en cliquant sur le bouton "+" et en sélectionnant AIRI dans le dossier Applications.

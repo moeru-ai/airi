@@ -7,7 +7,7 @@ trigger:
   where:
     entityType: player
 
-accumulator:
+detector:
   threshold: 14
   window: 2s
 

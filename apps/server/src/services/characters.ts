@@ -1,4 +1,4 @@
-import type { Database } from './db'
+import type { Database } from '../libs/db'
 
 import { and, eq, isNull, sql } from 'drizzle-orm'
 

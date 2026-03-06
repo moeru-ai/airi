@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+  - name: AIRI Dashboards
+    orgId: 1
+    folder: AIRI
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

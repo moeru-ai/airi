@@ -1,4 +1,8 @@
+import { dirname } from 'node:path'
 import { env, platform } from 'node:process'
+import { fileURLToPath } from 'node:url'
+
+import messages from '@proj-airi/i18n/locales'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
@@ -11,9 +15,12 @@ import { isLinux } from 'std-env'
 import icon from '../../resources/icon.png?asset'
 
 import { openDebugger, setupDebugger } from './app/debugger'
+import { createGlobalAppConfig } from './configs/global'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
-import { setupServerChannelHandlers } from './services/airi/channel-server'
+import { createI18n } from './libs/i18n'
+import { setupServerChannel } from './services/airi/channel-server'
+import { setupMcpStdioManager } from './services/airi/mcp-servers'
 import { setupPluginHost } from './services/airi/plugins'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupTray } from './tray'
@@ -32,7 +39,7 @@ import { setupWidgetsWindowManager } from './windows/widgets'
 // manage events within eventa's context system.
 ipcMain.setMaxListeners(100)
 
-setElectronMainDirname(__dirname)
+setElectronMainDirname(dirname(fileURLToPath(import.meta.url)))
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
 setupDebugger()
@@ -73,47 +80,75 @@ initScreenCaptureForMain()
 app.whenReady().then(async () => {
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
 
-  const serverChannel = injeca.provide('modules:channel-server', () => setupServerChannelHandlers())
-  const pluginHost = injeca.provide('modules:plugin-host', () => setupPluginHost())
+  const appConfig = injeca.provide('configs:app', () => createGlobalAppConfig())
+  const electronApp = injeca.provide('host:electron:app', () => app)
   const autoUpdater = injeca.provide('services:auto-updater', () => setupAutoUpdater())
-  const widgetsManager = injeca.provide('windows:widgets', () => setupWidgetsWindowManager())
-  const noticeWindow = injeca.provide('windows:notice', () => setupNoticeWindowManager())
-  const aboutWindow = injeca.provide('windows:about', {
-    dependsOn: { autoUpdater },
-    build: ({ dependsOn }) => setupAboutWindowReusable(dependsOn),
+
+  const i18n = injeca.provide('libs:i18n', {
+    dependsOn: { appConfig },
+    build: ({ dependsOn }) => createI18n({ messages, locale: dependsOn.appConfig.get()?.language }),
+  })
+
+  const serverChannel = injeca.provide('modules:channel-server', {
+    dependsOn: { app: electronApp },
+    build: async () => setupServerChannel(),
+  })
+
+  const mcpStdioManager = injeca.provide('modules:mcp-stdio-manager', {
+    build: async () => setupMcpStdioManager(),
+  })
+
+  const pluginHost = injeca.provide('modules:plugin-host', {
+    dependsOn: { serverChannel },
+    build: () => setupPluginHost(),
   })
 
   // BeatSync will create a background window to capture and process audio.
   const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
+
   const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
+  const noticeWindow = injeca.provide('windows:notice', {
+    dependsOn: { i18n, serverChannel },
+    build: ({ dependsOn }) => setupNoticeWindowManager(dependsOn),
+  })
+
+  const widgetsManager = injeca.provide('windows:widgets', {
+    dependsOn: { serverChannel, i18n },
+    build: ({ dependsOn }) => setupWidgetsWindowManager(dependsOn),
+  })
+
+  const aboutWindow = injeca.provide('windows:about', {
+    dependsOn: { autoUpdater, i18n, serverChannel },
+    build: ({ dependsOn }) => setupAboutWindowReusable(dependsOn),
+  })
 
   const chatWindow = injeca.provide('windows:chat', {
-    dependsOn: { widgetsManager },
+    dependsOn: { widgetsManager, serverChannel, mcpStdioManager, i18n },
     build: ({ dependsOn }) => setupChatWindowReusableFunc(dependsOn),
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsMarkdownStressWindow },
+    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsMarkdownStressWindow, serverChannel, mcpStdioManager, i18n },
     build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater },
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, mcpStdioManager, i18n },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
 
   const captionWindow = injeca.provide('windows:caption', {
-    dependsOn: { mainWindow },
+    dependsOn: { mainWindow, serverChannel, i18n },
     build: async ({ dependsOn }) => setupCaptionWindowManager(dependsOn),
   })
 
   const tray = injeca.provide('app:tray', {
-    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, beatSyncBgWindow: beatSync, aboutWindow },
+    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, i18n },
     build: async ({ dependsOn }) => setupTray(dependsOn),
   })
 
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, pluginHost },
+    dependsOn: { mainWindow, tray, serverChannel, pluginHost, mcpStdioManager },
     callback: noop,
   })
 
