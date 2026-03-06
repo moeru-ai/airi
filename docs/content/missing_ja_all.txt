@@ -1,0 +1,3 @@
+chronicles/version-v0.0.1/assets/screenshot-1.avif
+chronicles/version-v0.0.1/assets/screenshot-2.avif
+chronicles/version-v0.0.1/assets/screenshot-3.avif

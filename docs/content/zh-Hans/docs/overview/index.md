@@ -82,8 +82,16 @@ description: 了解 Project AIRI 的用户界面
   </a>
 </div>
 
+<br/>
+
+::: warning 实验性功能与早期开发声明
+Project AIRI 目前正处于活跃的早期开发阶段。您在发布的客户端或网页版中体验到的主要为基础的稳定功能。如果您想体验正在开发中的 **实验性功能**（如 Minecraft 智能体、Discord / Telegram 机器人等），**目前暂时只能通过拉取项目源码在本地配置并启动**。
+
+有关环境配置和源码运行的详细步骤，请参阅下方的[贡献指南](../contributing/)。
+:::
+
 ## 贡献
 
-有关如何为本项目做出贡献的指南，请参阅 [贡献](../overview/contributing/) 页面。
+有关如何为本项目做出贡献的指南，请参阅 [贡献](../contributing/) 页面。
 
-有关如何设计和改进 Project AIRI 用户界面的参考资料，请参阅 [设计指南](../overview/contributing/design-guidelines/resources) 页面。
+有关如何设计和改进 Project AIRI 用户界面的参考资料，请参阅 [设计指南](../contributing/design-guidelines/resources) 页面。

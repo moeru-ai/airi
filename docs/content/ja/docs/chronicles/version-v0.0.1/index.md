@@ -9,7 +9,7 @@ title: 前日譚 v0.0.1
   - [x] モデルのダウンロード
     - [x] 桃瀬ひより (Neuro の初期バージョンモデル) Pro 版 (中小企業による商用利用は無料)
 
-![](../../../../zh-Hans/docs/chronicles/version-v0.0.1/assets/screenshot-1.avif)
+![](../../../../public/assets/version-v0.0.1/screenshot-1.avif)
 
 - [x] Vercel AI SDK を介した GPT-4o の統合 (2024年6月7日)
   - [x] `@ai-sdk/openai`
@@ -32,13 +32,12 @@ title: 前日譚 v0.0.1
     - [x] TTS ストリームリクエストをキュー経由で発行し、オーディオストリームキューに入れる
     - [x] Vue でキューを実装
       - [x] キューは先入れ先出し (FIFO) である必要がある
-        - [x] 出る、[`Array.prototype.shift`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/shift)
-        - [x] 入る、[`Array.prototype.push`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/push)
+        - [x] 取り出す（Dequeue）、[`Array.prototype.shift`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/shift)
+        - [x] 追加する（Enqueue）、[`Array.prototype.push`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/push)
         - [x] イベントベース
           - [x] イベント
             - [x] `add`、追加時に `add` イベントをトリガー
-            - [x] `pick`、取得時に `pick` イベントをトリガー
-            - [x] `processing`、ハンドラー呼び出し時に `processing` イベントをトリガー
+            - [x] `pick`、取り出し時に `pick` イベントをトリガー            - [x] `processing`、ハンドラー呼び出し時に `processing` イベントをトリガー
             - [x] `done`、ハンドラー終了時に `done` イベントをトリガー
           - [x] イベント処理
             - [x] `add` または `done` イベントが発生したとき、実行中のハンドラーがあるか確認
@@ -63,7 +62,7 @@ title: 前日譚 v0.0.1
 - ✅ Live2D リップシンク (itorr の GitHub の説明に感謝)
 - ✅ 基本的なプロンプト
 
-![](../../../../zh-Hans/docs/chronicles/version-v0.0.1/assets/screenshot-2.avif)
+![](../../../../public/assets/version-v0.0.1/screenshot-2.avif)
 
 ## マルチモーダル
 
@@ -191,7 +190,7 @@ title: 前日譚 v0.0.1
 - [ ] 大規模言語モデルにロボットを制御させるスタンフォードやベイエリアのシステムはどのように機能しているのか？
   - [ ] 直接ストリーミングトークン出力？ アクショントークン？
   - [ ] コンピュータビジョンはどのように行われているのか？
-  - [ ] 宿題を写す
+  - [ ] 他人の実装を参考にする
 - [ ] [svpino/alloy-voice-assistant](https://github.com/svpino/alloy-voice-assistant)
 
 ### メモリ

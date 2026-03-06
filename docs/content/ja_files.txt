@@ -1,0 +1,12 @@
+chronicles/version-v0.0.1/index.md
+chronicles/version-v0.1.0/index.md
+contributing/design-guidelines/index.md
+contributing/design-guidelines/resources.md
+contributing/design-guidelines/tools.md
+contributing/index.md
+manual/tamagotchi/index.md
+manual/web/index.md
+overview/about-ai-vtuber.md
+overview/about-neuro-sama.md
+overview/index.md
+overview/versions.md
