@@ -1,6 +1,6 @@
 ---
 title: Configuration Guide
-description: How to use Project AIRI (Desktop)
+description: How to use Project AIRI
 ---
 
 ## Settings
