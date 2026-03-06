@@ -6,6 +6,8 @@
 
 import type { ReflexContextState } from '../cognitive/reflex/context'
 
+import { z } from 'zod'
+
 export interface LogEvent {
   level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG'
   message: string
@@ -214,77 +216,153 @@ export type ServerEvent
 // Client -> Server commands
 // ============================================================
 
-export interface ClearLogsCommand {
-  type: 'clear_logs'
-}
+type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }
 
-export interface SetFilterCommand {
-  type: 'set_filter'
-  payload: {
-    panel: string
-    filter: string
-  }
-}
+const nonEmptyStringSchema = z.string().trim().min(1)
+const timestampSchema = z.number().int().nonnegative()
 
-export interface InjectEventCommand {
-  type: 'inject_event'
-  payload: {
-    eventType: string
-    data: unknown
-  }
-}
+export const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
+  z.union([
+    z.null(),
+    z.boolean(),
+    z.number(),
+    z.string(),
+    z.array(jsonValueSchema),
+    z.record(z.string(), jsonValueSchema),
+  ]),
+)
 
-export interface PingCommand {
-  type: 'ping'
-  payload: { timestamp: number }
-}
+export const jsonObjectSchema = z.record(z.string(), jsonValueSchema)
 
-export interface RequestHistoryCommand {
-  type: 'request_history'
-}
+export const debugEventCategorySchema = z.enum([
+  'perception',
+  'feedback',
+  'system_alert',
+  'world_update',
+])
 
-// ============================================================
-// Client Commands Extension
-// ============================================================
+export const debugEventSourceSchema = z.object({
+  type: z.enum(['minecraft', 'airi', 'system']),
+  id: nonEmptyStringSchema,
+}).strict()
 
-export interface ExecuteToolCommand {
-  type: 'execute_tool'
-  payload: {
-    toolName: string
-    params: Record<string, unknown>
-  }
-}
+export const perceptionSignalTypeSchema = z.enum([
+  'chat_message',
+  'entity_attention',
+  'environmental_anomaly',
+  'saliency_high',
+  'social_gesture',
+  'social_presence',
+  'system_message',
+])
 
-export interface RequestToolsCommand {
-  type: 'request_tools'
-}
+export const perceptionSignalSchema = z.object({
+  type: perceptionSignalTypeSchema,
+  description: nonEmptyStringSchema,
+  sourceId: nonEmptyStringSchema.optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  timestamp: timestampSchema,
+  metadata: jsonObjectSchema,
+}).strict()
 
-export interface RequestReplStateCommand {
-  type: 'request_repl_state'
-}
+export const debugInjectEventSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('perception'),
+    payload: perceptionSignalSchema,
+    source: debugEventSourceSchema,
+  }).strict(),
+  z.object({
+    type: z.literal('feedback'),
+    payload: jsonObjectSchema,
+    source: debugEventSourceSchema,
+  }).strict(),
+  z.object({
+    type: z.literal('system_alert'),
+    payload: jsonObjectSchema,
+    source: debugEventSourceSchema,
+  }).strict(),
+])
 
-export interface RequestConversationCommand {
-  type: 'request_conversation'
-}
+export const clearLogsCommandSchema = z.object({
+  type: z.literal('clear_logs'),
+}).strict()
 
-export interface ExecuteReplCommand {
-  type: 'execute_repl'
-  payload: {
-    code: string
-  }
-}
+export const setFilterCommandSchema = z.object({
+  type: z.literal('set_filter'),
+  payload: z.object({
+    panel: nonEmptyStringSchema,
+    filter: z.string(),
+  }).strict(),
+}).strict()
 
-export type ClientCommand
-  = | ClearLogsCommand
-    | SetFilterCommand
-    | InjectEventCommand
-    | PingCommand
-    | RequestHistoryCommand
-    | ExecuteToolCommand
-    | RequestToolsCommand
-    | RequestReplStateCommand
-    | ExecuteReplCommand
-    | RequestConversationCommand
+export const injectEventCommandSchema = z.object({
+  type: z.literal('inject_event'),
+  payload: debugInjectEventSchema,
+}).strict()
+
+export const pingCommandSchema = z.object({
+  type: z.literal('ping'),
+  payload: z.object({
+    timestamp: timestampSchema,
+  }).strict(),
+}).strict()
+
+export const requestHistoryCommandSchema = z.object({
+  type: z.literal('request_history'),
+}).strict()
+
+export const executeToolCommandSchema = z.object({
+  type: z.literal('execute_tool'),
+  payload: z.object({
+    toolName: nonEmptyStringSchema,
+    params: jsonObjectSchema,
+  }).strict(),
+}).strict()
+
+export const requestToolsCommandSchema = z.object({
+  type: z.literal('request_tools'),
+}).strict()
+
+export const requestReplStateCommandSchema = z.object({
+  type: z.literal('request_repl_state'),
+}).strict()
+
+export const requestConversationCommandSchema = z.object({
+  type: z.literal('request_conversation'),
+}).strict()
+
+export const executeReplCommandSchema = z.object({
+  type: z.literal('execute_repl'),
+  payload: z.object({
+    code: z.string(),
+  }).strict(),
+}).strict()
+
+export const clientCommandSchema = z.discriminatedUnion('type', [
+  clearLogsCommandSchema,
+  setFilterCommandSchema,
+  injectEventCommandSchema,
+  pingCommandSchema,
+  requestHistoryCommandSchema,
+  executeToolCommandSchema,
+  requestToolsCommandSchema,
+  requestReplStateCommandSchema,
+  executeReplCommandSchema,
+  requestConversationCommandSchema,
+])
+
+export type ClearLogsCommand = z.infer<typeof clearLogsCommandSchema>
+export type SetFilterCommand = z.infer<typeof setFilterCommandSchema>
+export type InjectEventCommand = z.infer<typeof injectEventCommandSchema>
+export type InjectEventInput = z.infer<typeof debugInjectEventSchema>
+export type PingCommand = z.infer<typeof pingCommandSchema>
+export type RequestHistoryCommand = z.infer<typeof requestHistoryCommandSchema>
+export type ExecuteToolCommand = z.infer<typeof executeToolCommandSchema>
+export type RequestToolsCommand = z.infer<typeof requestToolsCommandSchema>
+export type RequestReplStateCommand = z.infer<typeof requestReplStateCommandSchema>
+export type RequestConversationCommand = z.infer<typeof requestConversationCommandSchema>
+export type ExecuteReplCommand = z.infer<typeof executeReplCommandSchema>
+export type ClientCommand = z.infer<typeof clientCommandSchema>
 
 // ============================================================
 // Wire format
@@ -294,4 +372,21 @@ export interface DebugMessage<T = ServerEvent | ClientCommand> {
   id: string
   data: T
   timestamp: number
+}
+
+export const debugClientMessageSchema = z.object({
+  id: nonEmptyStringSchema,
+  data: clientCommandSchema,
+  timestamp: timestampSchema,
+}).strict()
+
+export type DebugClientMessage = z.infer<typeof debugClientMessageSchema>
+
+export function formatDebugValidationError(error: z.ZodError): string {
+  return error.issues
+    .map((issue) => {
+      const path = issue.path.length > 0 ? issue.path.join('.') : 'root'
+      return `${path}: ${issue.message}`
+    })
+    .join('; ')
 }
