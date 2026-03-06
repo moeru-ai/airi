@@ -81,7 +81,7 @@ description: Project AIRI への貢献
    corepack prepare pnpm@latest --activate
    ```
 4. デスクトップ版の開発を手助けしたい場合は、以下の依存関係が必要です：
-   ```
+   ```shell
    sudo apt install \
       libssl-dev \
       libglib2.0-dev \

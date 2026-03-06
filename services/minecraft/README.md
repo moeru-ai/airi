@@ -102,7 +102,7 @@ The action layer is responsible for the actual execution of tasks in the world. 
 ### 🔄 Event Flow Example
 
 **Scenario: "Build a house"**
-```
+```txt
 Player: "build a house"
   ↓
 [Perception] Event detected
@@ -119,7 +119,7 @@ Player: "build a house"
 
 ### 📁 Project Structure
 
-```
+```txt
 src/
 ├── cognitive/                  # 🧠 Perception → Reflex → Conscious → Action
 │   ├── perception/            # Event definitions + rule evaluation

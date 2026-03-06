@@ -1,0 +1,26 @@
+menu:
+  labels:
+    label:
+      show: 顯示
+      adjust_sizes: 調整大小
+      recommended_size: 建議(450x600)
+      full_height: Full Height
+      half_height: Half Height
+      full_screen: 全螢幕
+      align_to: 對齊
+      center: Center
+      top_left: Top Left
+      top_right: Top Right
+      bottom_left: Bottom Left
+      bottom_right: Bottom Right
+      settings: Settings...
+      about: 關於……
+      open_inlay: Open Inlay...
+      open_widgets: Open Widgets...
+      open_caption: Open Caption...
+      caption_overlay: Caption Overlay
+      follow_window: Follow window
+      reset_position: Reset position
+      devtools: DevTools
+      troubleshoot_beatsync: Troubleshoot BeatSync...
+      quit: 離開

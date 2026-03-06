@@ -5,6 +5,7 @@ import Tres from '@tresjs/core'
 import NProgress from 'nprogress'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
+import { isEnvTruthy } from '@proj-airi/stage-shared'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -17,8 +18,6 @@ import App from './App.vue'
 import { i18n } from './modules/i18n'
 
 import './modules/posthog'
-
-// eslint-disable-next-line perfectionist/sort-imports
 import '@proj-airi/font-cjkfonts-allseto/index.css'
 import '@proj-airi/font-xiaolai/index.css'
 import '@unocss/reset/tailwind.css'
@@ -33,7 +32,7 @@ const pinia = createPinia()
 const routeRecords = setupLayouts(routes as RouteRecordRaw[])
 
 let router: Router
-if (import.meta.env.VITE_APP_TARGET_HUGGINGFACE_SPACE)
+if (isEnvTruthy(import.meta.env.VITE_APP_TARGET_HUGGINGFACE_SPACE))
   router = createRouter({ routes: routeRecords, history: createWebHashHistory() })
 else
   router = createRouter({ routes: routeRecords, history: createWebHistory() })
