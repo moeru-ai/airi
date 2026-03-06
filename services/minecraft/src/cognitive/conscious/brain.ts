@@ -239,6 +239,8 @@ const ERROR_BURST_THRESHOLD = 3
 const ERROR_BURST_WINDOW_TURNS = 5
 const DEFAULT_LLM_ATTEMPT_TIMEOUT_MS = 15_000
 const DEFAULT_LLM_TURN_DEADLINE_MS = 45_000
+const MAX_EVENT_QUEUE_LENGTH = 256
+const MAX_CONSECUTIVE_HIGH_PRIORITY_TURNS = 8
 const PAUSE_ABORT_ERROR_NAME = 'AbortError'
 
 function getEventPriority(event: BotEvent): number {
@@ -262,6 +264,7 @@ export class Brain {
 
   // State
   private queue: QueuedEvent[] = []
+  private consecutiveHighPriorityTurns = 0
   private isProcessing = false
   private isReplEvaluating = false
   private currentCancellationToken: CancellationToken | undefined
@@ -1761,6 +1764,7 @@ export class Brain {
   private async enqueueEvent(bot: MineflayerWithAgents, event: BotEvent): Promise<void> {
     return new Promise((resolve, reject) => {
       this.queue.push({ event, resolve, reject })
+      this.trimEventQueueOverflow()
       // Use setImmediate to avoid re-entrant processQueue calls that could
       // bypass the isProcessing guard during the finally block.
       if (!this.isProcessing) {
@@ -1819,6 +1823,97 @@ export class Brain {
     this.queue.sort((a, b) => getEventPriority(a.event) - getEventPriority(b.event))
   }
 
+  private trimEventQueueOverflow(): void {
+    while (this.queue.length > MAX_EVENT_QUEUE_LENGTH) {
+      const dropIndex = this.findOverflowDropIndex()
+      const [dropped] = this.queue.splice(dropIndex, 1)
+      if (!dropped)
+        break
+
+      dropped.resolve()
+      this.appendLlmLog({
+        turnId: this.turnCounter,
+        kind: 'scheduler',
+        eventType: dropped.event.type,
+        sourceType: dropped.event.source.type,
+        sourceId: dropped.event.source.id,
+        tags: ['scheduler', 'queue', 'overflow_drop'],
+        text: `Dropped queued event due to queue overflow (max=${MAX_EVENT_QUEUE_LENGTH})`,
+        metadata: {
+          droppedPriority: getEventPriority(dropped.event),
+          queueLength: this.queue.length,
+        },
+      })
+    }
+  }
+
+  private findOverflowDropIndex(): number {
+    const nonFeedbackCandidateIndex = this.findOverflowDropIndexByFilter(
+      item => item.event.type !== 'feedback',
+    )
+    if (nonFeedbackCandidateIndex >= 0)
+      return nonFeedbackCandidateIndex
+
+    return this.findOverflowDropIndexByFilter(() => true)
+  }
+
+  private findOverflowDropIndexByFilter(filter: (item: QueuedEvent) => boolean): number {
+    let candidateIndex = -1
+    let candidatePriority = Number.NEGATIVE_INFINITY
+
+    for (let index = 0; index < this.queue.length; index++) {
+      const item = this.queue[index]!
+      if (!filter(item))
+        continue
+
+      const priority = getEventPriority(item.event)
+      if (candidateIndex === -1 || priority > candidatePriority) {
+        candidatePriority = priority
+        candidateIndex = index
+      }
+    }
+
+    return candidateIndex
+  }
+
+  private dequeueNextQueuedEvent(): QueuedEvent {
+    const shouldForceLowPriorityDispatch = this.consecutiveHighPriorityTurns >= MAX_CONSECUTIVE_HIGH_PRIORITY_TURNS
+    let item: QueuedEvent | undefined
+
+    if (shouldForceLowPriorityDispatch) {
+      const lowPriorityIndex = this.queue.findIndex(
+        candidate => getEventPriority(candidate.event) > EVENT_PRIORITY_PERCEPTION,
+      )
+      if (lowPriorityIndex >= 0) {
+        // FIXME: Temporary starvation guard. Replace with weighted-fair scheduling once queue model is refactored.
+        item = this.queue.splice(lowPriorityIndex, 1)[0]
+        this.appendLlmLog({
+          turnId: this.turnCounter,
+          kind: 'scheduler',
+          eventType: item.event.type,
+          sourceType: item.event.source.type,
+          sourceId: 'brain:starvation_guard',
+          tags: ['scheduler', 'queue', 'starvation_guard', 'temp_fix'],
+          text: 'Forced a low-priority event after high-priority streak',
+          metadata: {
+            streakBeforeDispatch: this.consecutiveHighPriorityTurns,
+            queueLength: this.queue.length,
+          },
+        })
+      }
+    }
+
+    if (!item)
+      item = this.queue.shift()!
+
+    if (getEventPriority(item.event) <= EVENT_PRIORITY_PERCEPTION)
+      this.consecutiveHighPriorityTurns += 1
+    else
+      this.consecutiveHighPriorityTurns = 0
+
+    return item
+  }
+
   private async processQueue(bot: MineflayerWithAgents): Promise<void> {
     if (this.isProcessing || this.queue.length === 0)
       return
@@ -1832,7 +1927,7 @@ export class Brain {
       })
 
       this.coalesceQueue()
-      const item = this.queue.shift()!
+      const item = this.dequeueNextQueuedEvent()
 
       try {
         await this.processEvent(bot, item.event)
@@ -1850,6 +1945,9 @@ export class Brain {
         queueLength: this.queue.length,
         lastContextView: this.lastContextView,
       })
+
+      if (this.queue.length === 0)
+        this.consecutiveHighPriorityTurns = 0
 
       if (this.queue.length > 0) {
         setImmediate(() => this.processQueue(bot))

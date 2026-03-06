@@ -527,6 +527,75 @@ describe('brain queue coalescing', () => {
     expect(brain.queue[1].event.payload.description).toContain('second')
     expect(brain.queue[2].event.type).toBe('feedback')
   })
+
+  it('drops lowest-priority events when queue exceeds hard limit', () => {
+    const brain: any = new Brain(createDeps('await skip()'))
+
+    const droppedResolver = vi.fn()
+    brain.queue = [
+      ...Array.from({ length: 256 }, () => ({
+        event: createPerceptionEvent(),
+        resolve: vi.fn(),
+        reject: vi.fn(),
+      })),
+      {
+        event: createNoActionFollowupEvent(),
+        resolve: droppedResolver,
+        reject: vi.fn(),
+      },
+    ]
+
+    brain.trimEventQueueOverflow()
+
+    expect(brain.queue).toHaveLength(256)
+    expect(droppedResolver).toHaveBeenCalledTimes(1)
+    expect(brain.queue.every((item: any) => item.event.source?.id !== 'brain:no_action_followup')).toBe(true)
+  })
+
+  it('preserves feedback event during overflow by dropping non-feedback first', () => {
+    const brain: any = new Brain(createDeps('await skip()'))
+    const feedbackResolver = vi.fn()
+
+    brain.queue = [
+      ...Array.from({ length: 256 }, () => ({
+        event: createPerceptionEvent(),
+        resolve: vi.fn(),
+        reject: vi.fn(),
+      })),
+      {
+        event: createFeedbackEvent(),
+        resolve: feedbackResolver,
+        reject: vi.fn(),
+      },
+    ]
+
+    brain.trimEventQueueOverflow()
+
+    expect(brain.queue).toHaveLength(256)
+    expect(feedbackResolver).not.toHaveBeenCalled()
+    expect(brain.queue.some((item: any) => item.event.type === 'feedback')).toBe(true)
+    expect(brain.queue.filter((item: any) => item.event.type === 'perception')).toHaveLength(255)
+  })
+
+  it('forces a low-priority dispatch after long high-priority streak', () => {
+    const brain: any = new Brain(createDeps('await skip()'))
+    brain.consecutiveHighPriorityTurns = 8
+    const feedbackEvent = {
+      ...createFeedbackEvent(),
+      timestamp: Date.now() - 2000,
+    }
+
+    brain.queue = [
+      { event: createPerceptionEvent(), resolve: vi.fn(), reject: vi.fn() },
+      { event: feedbackEvent, resolve: vi.fn(), reject: vi.fn() },
+    ]
+
+    brain.coalesceQueue()
+    const item = brain.dequeueNextQueuedEvent()
+
+    expect(item.event.type).toBe('feedback')
+    expect(brain.consecutiveHighPriorityTurns).toBe(0)
+  })
 })
 
 describe('brain control action queue', () => {
