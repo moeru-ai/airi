@@ -49,12 +49,19 @@ function parseWithSchema<TSchema extends PersistedSchema>(
   return { issues: result.issues }
 }
 
+export interface Config<TSchema extends PersistedSchema> {
+  setup: () => ConfigDiagnostics<InferOutput<TSchema>>
+  get: () => InferOutput<TSchema> | undefined
+  update: (newData: InferOutput<TSchema>) => void
+  getDiagnostics: () => ConfigDiagnostics<InferOutput<TSchema>> | undefined
+}
+
 export function createConfig<TSchema extends PersistedSchema>(
   namespace: string,
   filename: string,
   schema: TSchema,
   options?: CreateConfigOptions<InferOutput<TSchema>>,
-) {
+): Config<TSchema> {
   const key = `${namespace}:${filename}`
   const autoHeal = options?.autoHeal ?? Boolean(options?.default)
 

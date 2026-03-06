@@ -1,0 +1,26 @@
+menu:
+  labels:
+    label:
+      show: Afficher
+      adjust_sizes: Ajuster les dimensions
+      recommended_size: Recommandée (450x600)
+      full_height: Pleine hauteur
+      half_height: Demi-hauteur
+      full_screen: Plein écran
+      align_to: Aligner sur
+      center: Centrer
+      top_left: En haut à gauche
+      top_right: En haut à droite
+      bottom_left: En bas à gauche
+      bottom_right: En bas à droite
+      settings: Paramètres...
+      about: À propos...
+      open_inlay: Ouvrir l'incrustation...
+      open_widgets: Ouvrir les widgets...
+      open_caption: Ouvrir le sous-titrage...
+      caption_overlay: Superposition des sous-titres
+      follow_window: Suivre la fenêtre
+      reset_position: Réinitialiser la position
+      devtools: Outils de développement
+      troubleshoot_beatsync: Dépannage BeatSync...
+      quit: Quitter

@@ -118,7 +118,8 @@ pages:
         scenario: 你最近醒來，忘記了之前的所有生活。
         systemprompt: 你將會收到訊息，請像真實人類一樣回覆。
         posthistoryinstructions: 記得模仿人類的行為。
-      modules_info: 為這個角色卡設定模組。如果沒有設定，將會使用預設模組。
+      modules_info: >-
+        為這個角色卡設定模組。如果沒有設定，將會使用預設模組。
       use_default: 使用預設
       use_default_not_configured: 使用預設(尚未設定)
       fields_info:
@@ -420,6 +421,15 @@ pages:
     mcp-server:
       description: 連線與管理 MCP 伺服器及工具
       title: MCP 伺服器
+      config-path: Config file path
+      runtime-title: Runtime status
+      actions:
+        open-config: Open mcp.json
+        apply-and-restart: Save and restart stdio MCP
+      messages:
+        opened: Config file opened at {path}
+        restarted: >-
+          MCP servers restarted. Started {started}, failed {failed}, skipped {skipped}
   providers:
     explained:
       chat: 文字生成模型服務來源，例如 OpenRouter、OpenAI、Ollama
@@ -440,7 +450,8 @@ pages:
         validation:
           failed:
             title: Please check your provider settings, validation failed.
-            description: You can still save the current configuration if you want to proceed.
+            description: >-
+              You can still save the current configuration if you want to proceed.
             action: Save anyway
         config:
           common:
@@ -462,6 +473,17 @@ pages:
                     placeholder: Key
                   value:
                     placeholder: Value
+                thinking-mode:
+                  label: Thinking Mode
+                  description: >
+                    Controls Ollama thinking behavior. GPT-OSS only supports low/medium/high levels.
+                  options:
+                    auto: Auto (provider default)
+                    disable: Disable
+                    enable: Enable
+                    low: Low
+                    medium: Medium
+                    high: High
         validators:
           actions:
             validate: Validate
@@ -573,6 +595,9 @@ pages:
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
+      speech-noop:
+        title: None
+        description: No speech output.
       deepseek:
         description: DeepSeek.com
         title: 深度求索 DeepSeek
@@ -624,7 +649,8 @@ pages:
               description: Smaller models load faster but may have slightly lower quality.
         models:
           fp32-webgpu:
-            description: Full precision model using WebGPU - Recommended for supported devices
+            description: >-
+              Full precision model using WebGPU - Recommended for supported devices
           fp32:
             description: Full precision model
           fp16:
@@ -744,6 +770,9 @@ pages:
       transcriptions:
         playground:
           title: 實驗平台
+      aihubmix:
+        title: AIHubMix
+        description: https://aihubmix.com (10% off)
     title: 服務來源
   connection:
     description: Configure WebSocket server connection
@@ -811,7 +840,8 @@ pages:
                 title: Polaroid
                 description: Utility for taking shots of models
               context-flow:
-                description: Inspect incoming context updates and outgoing chat stream events
+                description: >-
+                  Inspect incoming context updates and outgoing chat stream events
               websocket-inspector:
                 title: WebSocket Inspector
                 description: Inspect raw WebSocket traffic
@@ -820,7 +850,8 @@ pages:
                 description: Test color extraction
               providers-transcription-realtime-aliyun-nls:
                 title: Aliyun Real-time Transcriber
-                description: Stream microphone audio to Aliyun NLS and inspect live transcripts
+                description: >-
+                  Stream microphone audio to Aliyun NLS and inspect live transcripts
               performance-playground:
                 title: Performance Playground
                 description: 'Test performance runtime: VRM expressions + TTS lip sync'

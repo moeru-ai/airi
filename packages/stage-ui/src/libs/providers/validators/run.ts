@@ -1,7 +1,12 @@
-import type { MaybePromise } from 'clustr'
 import type { ComposerTranslation } from 'vue-i18n'
 
-import type { ProviderDefinition, ProviderExtraMethods, ProviderInstance, ProviderValidationResult } from '../types'
+import type {
+  ProviderConfigValidator,
+  ProviderDefinition,
+  ProviderExtraMethods,
+  ProviderInstance,
+  ProviderRuntimeValidator,
+} from '../types'
 
 import { errorMessageFrom, merge } from '@moeru/std'
 
@@ -19,8 +24,8 @@ export interface ProviderValidationPlan {
   steps: ProviderValidationStep[]
   config: Record<string, unknown>
   definition: ProviderDefinition
-  configValidators: Array<{ id: string, name: string, validator: (config: Record<string, unknown>, contextOptions: { t: ComposerTranslation }) => MaybePromise<ProviderValidationResult> }>
-  providerValidators: Array<{ id: string, name: string, validator: (config: Record<string, unknown>, provider: ProviderInstance, providerExtra: ProviderExtraMethods<Record<string, unknown>>, contextOptions: { t: ComposerTranslation }) => MaybePromise<ProviderValidationResult> }>
+  configValidators: ProviderConfigValidator<Record<string, unknown>>[]
+  providerValidators: ProviderRuntimeValidator<Record<string, unknown>>[]
   providerExtra: ProviderExtraMethods<Record<string, unknown>> | undefined
   shouldValidate: boolean
 }
@@ -31,7 +36,7 @@ export interface ProviderValidationCallbacks {
   onValidatorError?: (info: { kind: ProviderValidationStepKind, index: number, step: ProviderValidationStep, error: unknown }) => void
 }
 
-export function createConfigValidationSteps(configValidators: Array<{ id: string, name: string, validator: (config: Record<string, unknown>, contextOptions: { t: ComposerTranslation }) => MaybePromise<ProviderValidationResult> }>): ProviderValidationStep[] {
+export function createConfigValidationSteps(configValidators: ProviderConfigValidator<Record<string, unknown>>[]): ProviderValidationStep[] {
   return configValidators.map(validator => ({
     id: validator.id,
     label: validator.name,
@@ -41,7 +46,7 @@ export function createConfigValidationSteps(configValidators: Array<{ id: string
   }))
 }
 
-export function createProviderValidationSteps(providerValidators: Array<{ id: string, name: string, validator: (config: Record<string, unknown>, provider: ProviderInstance, providerExtra: ProviderExtraMethods<Record<string, unknown>>, contextOptions: { t: ComposerTranslation }) => MaybePromise<ProviderValidationResult> }>): ProviderValidationStep[] {
+export function createProviderValidationSteps(providerValidators: ProviderRuntimeValidator<Record<string, unknown>>[]): ProviderValidationStep[] {
   return providerValidators.map(validator => ({
     id: validator.id,
     label: validator.name,
@@ -49,6 +54,24 @@ export function createProviderValidationSteps(providerValidators: Array<{ id: st
     reason: '',
     kind: 'provider' as ProviderValidationStepKind,
   }))
+}
+
+export function getProviderValidationIntervalMs(options: {
+  definition: ProviderDefinition
+  contextOptions: { t: ComposerTranslation }
+  defaultIntervalMs?: number
+}) {
+  const validators = (options.definition.validators?.validateProvider || []).map(creator => creator(options.contextOptions))
+  const defaultIntervalMs = options.defaultIntervalMs ?? 15_000
+  const intervals = validators
+    .filter(validator => validator.schedule?.mode === 'interval')
+    .map(validator => validator.schedule?.intervalMs || defaultIntervalMs)
+
+  if (intervals.length === 0) {
+    return undefined
+  }
+
+  return Math.min(...intervals)
 }
 
 export function getValidatorsOfProvider(options: {

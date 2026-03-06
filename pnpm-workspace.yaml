@@ -26,7 +26,6 @@ patchedDependencies:
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
   srvx@0.9.8: patches/srvx@0.9.8.patch
-
 catalog:
   '@capacitor/cli': ^8.1.0
   '@capacitor/core': ^8.1.0
@@ -39,6 +38,7 @@ catalog:
   '@histoire/plugin-vue': 1.0.0-beta.1
   '@iconify-json/logos': ^1.2.10
   '@iconify-json/tabler': ^1.2.27
+  '@intlify/core': ^11.2.8
   '@modelcontextprotocol/sdk': ^1.27.1
   '@moeru/eslint-config': 0.1.0-beta.15
   '@moeru/eventa': 1.0.0-alpha.14
@@ -66,6 +66,7 @@ catalog:
   '@xsai/stream-text': ^0.4.3
   '@xsai/tool': ^0.4.3
   '@xsai/utils-chat': 0.4.0-beta.13
+  alien-signals: ^3.1.2
   async-mutex: 0.5.0
   better-auth: ^1.4.19
   builder-util-runtime: ^9.5.1

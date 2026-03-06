@@ -18,13 +18,13 @@ dialogs:
     baseUrl: URL de base
     baseUrlHelp: URL de l'endpoint API (utilisez la valeur par défaut si vous n’êtes pas sûr)
     accountId: ID du compte
-    validationSuccess: Configuration validation success
+    validationSuccess: Validation de la configuration réussie
     validationFailed: La validation de la configuration a échouée.
     validationError: 'Erreur de validation: {error}'
     skipForNow: Passer pour l'instant
     saveAndContinue: Sauvegarder et Continuer
     next: Suivant
-    retry: Retry
+    retry: Réessayer
     start: Commençons !
     select-model: Choisissez un modèle
     no-models: Pas de modèle disponible
@@ -36,11 +36,11 @@ language:
     Modifier le langage de l'inteface d'AIRI. Cela n'affectera pas le langage des réponses du personnage.
 controls-island:
   icon-size:
-    title: Controls Island Icon Size
-    description: Adjust the size of the controls island icons
-    auto: Auto (responsive)
-    large: Large (default)
-    small: Small
+    title: Taille des icônes de l'îlot de contrôle
+    description: Ajuster la taille des icônes de l'îlot de contrôle
+    auto: Auto (réactif)
+    large: Grande (défaut)
+    small: Petite
 live2d:
   change-model:
     from-file: Charger depuis un Fichier
@@ -73,9 +73,9 @@ live2d:
       title: Désactiver
   fps:
     title: FPS
-    description: Limit rendering frame rate
+    description: Limiter la fréquence d'image du rendu
     options:
-      unlimited: No Limit
+      unlimited: Aucune Limite
 microphone: Microphone
 models: Modèle
 pages:
@@ -83,13 +83,13 @@ pages:
     activate: Activer
     active: Actif
     active_badge: Actuellement actif
-    cancel: Cancel action
-    save: Save changes
+    cancel: Annuler l'action
+    save: Enregistrer les modifications
     card_not_found: Carte non trouvée
     character: Personnage
     close: Fermer
     chat:
-      provider: Chat / Provider
+      provider: Chat / Fournisseur
     consciousness:
       model: Conscience / Modèle
     created_by: créé par
@@ -101,7 +101,7 @@ pages:
     description_label: Description
     drop_here: Déposer pour téléverser
     create_card: Créer une nouvelle carte
-    edit_card: Edit Card
+    edit_card: Modifier la carte
     creation:
       identity: Identité
       name: Nom
@@ -118,9 +118,10 @@ pages:
         scenario: Vous vous êtes récemment réveillé et avez tout oublié de votre vie passée.
         systemprompt: Vous recevrez des messages et y répondrez comme un humain.
         posthistoryinstructions: N’oubliez pas d’imiter un humain.
-      modules_info: Configure modules for this character card. If not set, default module configuration will be used.
-      use_default: Use default
-      use_default_not_configured: Use default (not configured)
+      modules_info: >-
+        Modules de configuration pour cette carte de personnage. Si non défini, la configuration par défaut sera utilisée.
+      use_default: Utiliser la configuration par défaut
+      use_default_not_configured: Utiliser la configuration par défaut (non configurée)
       fields_info:
         subtitle: >-
           Vous pouvez ici ajouter des détails sur le personnage que vous créez, expliquer son histoire et son contexte, et comment vos interactions devraient être répondues.
@@ -137,8 +138,8 @@ pages:
         posthistoryinstructions: Placez ici tout ce que l’IA doit lire après l’historique des messages.
         version: >-
           Version de la carte, vous devez l’incrémenter si vous apportez des modifications par rapport à une carte précédente.
-        consciousness_model: Select the consciousness model (AI model) for this character.
-        speech_model: Select the speech synthesis model and voice for this character.
+        consciousness_model: Sélectionnez le modèle de conscience (modèle AB) pour ce caractère.
+        speech_model: Sélectionnez le modèle de synthèse vocale et la voix pour ce personnage.
       errors:
         name: Le nom doit être valide ou non vide.
         version: 'Erreur : numéro de version invalide !'
@@ -159,7 +160,7 @@ pages:
     search: Rechercher des cartes...
     sort_by: Trier par
     speech:
-      provider: Speech / Provider
+      provider: Parole / Fournisseur
       model: Parole / Modèle
       voice: Parole / Voix
     systemprompt: Prompt système
@@ -171,51 +172,51 @@ pages:
     description: Endroit où les souvenirs sont stockés et organisés
     title: Mémoire
   data:
-    title: Data
-    description: Manage stored AIRI data, exports, and resets
+    title: Données
+    description: Gérer les données AIRI enregistrées, les exports et les réinitialisations
     sections:
       chats:
-        title: Chat sessions
-        description: Export or import saved chat sessions.
-        export: Export chats
-        import: Import chats
-        delete: Delete all chat sessions
+        title: Sessions de chat
+        description: Exporter ou importer les sessions de chat enregistrées.
+        export: Exporter les chats
+        import: Importer les chats
+        delete: Supprimer toutes les sessions de chat
       models:
-        title: Models
-        description: Remove imported Live2D/VRM models.
-        delete: Delete all models
+        title: Modèles
+        description: Supprimer les modèles Live2D/VRM importés.
+        delete: Supprimer tous les modèles
       modules:
         title: Modules
-        description: Reset module preferences and credentials.
-        reset: Reset module settings
+        description: Réinitialiser les préférences et identifiants des modules.
+        reset: Réinitialiser les paramètres des modules
       providers:
-        title: Providers
-        description: Reset all provider settings and credentials.
-        reset: Reset provider settings
+        title: Fournisseurs
+        description: Réinitialiser tous les paramètres et identifiants du fournisseur.
+        reset: Réinitialiser les paramètres du fournisseur
       danger:
-        title: Danger zone
-        description: Irreversible actions. Export what you need before continuing.
+        title: Zone dangereuse
+        description: Actions irréversibles. Exportez ce dont vous avez besoin avant de continuer.
       all:
-        title: Delete all data
-        description: Wipe every local setting, provider config, and model.
-        delete: Delete all data
+        title: Supprimer toutes les données
+        description: Effacer tous les réglages, configurations de fournisseurs et modèles locaux.
+        delete: Supprimer toutes les données
       desktop:
-        title: Reset desktop settings & states
-        description: Clear AIRI desktop settings and runtime state.
-        reset: Reset desktop data
+        title: Réinitialiser les paramètres et états du bureau
+        description: Effacer les paramètres du bureau AIRI et l'état d'exécution.
+        reset: Réinitialiser les données du bureau
     confirmations:
-      tooltip: Are you sure?
-      'yes': 'Yes'
+      tooltip: Êtes-vous sûr(e) ?
+      'yes': 'Oui'
     status:
-      exported: Chat sessions exported.
-      imported: Chat sessions imported.
-      import_error: Failed to import chat sessions. Please check the file format.
-      chats_deleted: Chat sessions deleted.
-      models_deleted: Models deleted.
-      modules_reset: Module settings reset.
-      providers_reset: Provider settings reset.
-      all_deleted: All local data deleted.
-      desktop_reset: Desktop data reset.
+      exported: Sessions de discussion exportées.
+      imported: Sessions de discussion importées.
+      import_error: Échec de l'importation des sessions. Veuillez vérifier le format du fichier.
+      chats_deleted: Sessions de discussion supprimées.
+      models_deleted: Modèles supprimés.
+      modules_reset: Paramètres du module réinitialisés.
+      providers_reset: Paramètres du fournisseur réinitialisés.
+      all_deleted: Toutes les données locales ont été supprimées.
+      desktop_reset: Données du bureau réinitialisées.
   models:
     description: Live2D, VRM, etc.
     title: Modèles
@@ -230,49 +231,49 @@ pages:
         scene: Scène
   modules:
     beat_sync:
-      description: Vibe with beats from the audio source
-      title: Beat Sync
+      description: Vibrez au rythme de la source audio
+      title: Synchronisation du rythme (Beat Sync)
       sections:
         audio_source:
           actions:
-            start_screen_capture: Start screen capture
-            stop: Stop
-          description: Select an audio source to detect beats from.
-          title: Audio source
+            start_screen_capture: Démarrer la capture d'écran
+            stop: Arrêter
+          description: Sélectionnez une source audio pour la détection du rythme.
+          title: Source audio
         beat_visualizer:
-          title: Beat visualizer
+          title: Visualiseur de rythme
         parameters:
-          advanced_parameters: Advanced Parameters
-          description: Tweak the beat detection parameters.
-          title: Parameters
+          advanced_parameters: Paramètres avancés
+          description: Ajustez les paramètres de détection du rythme.
+          title: Paramètres
           parameters:
             adaptive_threshold:
               description: >-
-                Whether to apply adaptive thresholds based on signal variance over time.
-              label: Adaptive threshold
+                Appliquer ou non des seuils adaptatifs basés sur la variance du signal dans le temps.
+              label: Seuil adaptatif
             buffer_duration:
-              description: Duration of the internal analysis buffer.
-              label: Buffer duration
+              description: Durée du tampon (buffer) d'analyse interne.
+              label: Durée du tampon
             envelope_filter_frequency:
               description: >-
-                Frequency for the envelope filter applied to smooth energy changes.
-              label: Envelope filter frequency
+                Fréquence du filtre d'enveloppe appliqué pour lisser les variations d'énergie.
+              label: Fréquence du filtre d'enveloppe
             highpass_filter_frequency:
               description: >-
-                Frequency for the highpass filter applied to reduce low frequencies like sub-bass noises.
-              label: Highpass filter frequency
+                Fréquence du filtre passe-haut appliqué pour réduire les basses fréquences comme les bruits de sub-basses.
+              label: Fréquence du filtre passe-haut
             lowpass_filter_frequency:
               description: >-
-                Frequency for the lowpass filter applied to reduce high frequencies like vocals.
-              label: Lowpass filter frequency
+                Fréquence du filtre passe-bas appliqué pour réduire les hautes fréquences comme les voix.
+              label: Fréquence du filtre passe-bas
             min_beat_interval:
-              description: Maximum BPM or minimum interval between detected beats.
-              label: Max BPM / Min beat interval
+              description: BPM maximum ou intervalle minimum entre les battements détectés.
+              label: BPM Max / Intervalle de battement Min
             sensitivity:
-              label: Sensitivity
+              label: Sensibilité
             spectral_flux:
-              description: Whether to enable spectral flux-based onset detection.
-              label: Spectral flux
+              description: Activer ou non la détection d'attaque (onset) basée sur le flux spectral.
+              label: Flux spectral
             warmup:
               description: Whether to warm up before detecting beats for better accuracy.
               label: Warmup
@@ -420,6 +421,15 @@ pages:
     mcp-server:
       description: Connecter et gérer le serveur MCP et ses outils
       title: Serveur MCP
+      config-path: Config file path
+      runtime-title: Runtime status
+      actions:
+        open-config: Open mcp.json
+        apply-and-restart: Save and restart stdio MCP
+      messages:
+        opened: Config file opened at {path}
+        restarted: >-
+          MCP servers restarted. Started {started}, failed {failed}, skipped {skipped}
   providers:
     explained:
       chat: Fournisseurs de modèles de génération de texte, par ex. OpenRouter, OpenAI, Ollama.
@@ -440,14 +450,15 @@ pages:
         validation:
           failed:
             title: Please check your provider settings, validation failed.
-            description: You can still save the current configuration if you want to proceed.
+            description: >-
+              You can still save the current configuration if you want to proceed.
             action: Save anyway
         config:
           common:
             fields:
               field:
                 api-key:
-                  label: API Key
+                  label: Clé API
                   description: API Key used to authorize requests to this provider
                   placeholder: sk-...
                 base-url:
@@ -462,6 +473,17 @@ pages:
                     placeholder: Key
                   value:
                     placeholder: Value
+                thinking-mode:
+                  label: Thinking Mode
+                  description: >
+                    Controls Ollama thinking behavior. GPT-OSS only supports low/medium/high levels.
+                  options:
+                    auto: Auto (provider default)
+                    disable: Disable
+                    enable: Enable
+                    low: Low
+                    medium: Medium
+                    high: High
         validators:
           actions:
             validate: Validate
@@ -573,6 +595,9 @@ pages:
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
+      speech-noop:
+        title: None
+        description: No speech output.
       deepseek:
         description: deepseek.com
         title: DeepSeek
@@ -624,7 +649,8 @@ pages:
               description: Smaller models load faster but may have slightly lower quality.
         models:
           fp32-webgpu:
-            description: Full precision model using WebGPU - Recommended for supported devices
+            description: >-
+              Full precision model using WebGPU - Recommended for supported devices
           fp32:
             description: Full precision model
           fp16:
@@ -744,6 +770,9 @@ pages:
       transcriptions:
         playground:
           title: Terrain de test de transcription
+      aihubmix:
+        title: AIHubMix
+        description: https://aihubmix.com (10% off)
     title: Fournisseurs
   connection:
     description: Configure WebSocket server connection
@@ -811,7 +840,8 @@ pages:
                 title: Polaroid
                 description: Utility for taking shots of models
               context-flow:
-                description: Inspect incoming context updates and outgoing chat stream events
+                description: >-
+                  Inspect incoming context updates and outgoing chat stream events
               websocket-inspector:
                 title: WebSocket Inspector
                 description: Inspect raw WebSocket traffic
@@ -820,7 +850,8 @@ pages:
                 description: Test color extraction
               providers-transcription-realtime-aliyun-nls:
                 title: Aliyun Real-time Transcriber
-                description: Stream microphone audio to Aliyun NLS and inspect live transcripts
+                description: >-
+                  Stream microphone audio to Aliyun NLS and inspect live transcripts
               performance-playground:
                 title: Performance Playground
                 description: 'Test performance runtime: VRM expressions + TTS lip sync'

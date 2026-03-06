@@ -164,7 +164,7 @@ You can customize the key mapping in [Settings] -> [General] -> [Shortcuts]
 
 There is no direct option/command to summon the Chat window from system tray
 right now, but we might add this in the future, currently, in order to open the
-Chat window, you will need to toggle of the **Fade on Hover** mode.
+Chat window, you will need to toggle off the **Fade on Hover** mode.
 
 ::: info TL;DR | Cheatsheet
 Shortcut for Fade on Hover is: <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="I" inline-block>I</kbd>.
