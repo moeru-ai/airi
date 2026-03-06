@@ -9,6 +9,13 @@ export function createSendMessageAction(client: SatoriClient): ActionHandler {
   return {
     name: 'send_message',
     execute: async (ctx, chatCtx, args) => {
+      if (args.action !== 'send_message') {
+        return {
+          success: false,
+          shouldContinue: true,
+          result: 'System Error: Action mismatch for send_message.',
+        }
+      }
       const logger = useLogg('Action:send_message').useGlobalConfig()
       const { channelId, content } = args
 
@@ -28,13 +35,7 @@ export function createSendMessageAction(client: SatoriClient): ActionHandler {
         await client.sendMessage(chatCtx.platform, chatCtx.selfId, channelId, content)
 
         // Logic 3: Persistence
-        await recordMessage(channelId, 'bot', 'AIRI', content)
-
-        // Logic 4: Memory State Update
-        chatCtx.messages.push({
-          role: 'assistant',
-          content,
-        })
+        await recordMessage(channelId, chatCtx.selfId, 'AIRI', content)
 
         return {
           success: true,
