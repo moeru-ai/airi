@@ -94,7 +94,7 @@ export const providerMeganovaAI = defineProvider<MeganovaConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: ['connectivity', 'model_list', 'chat_completions'],
+      checks: ['connectivity', 'model_list'],
     }),
   },
 })
