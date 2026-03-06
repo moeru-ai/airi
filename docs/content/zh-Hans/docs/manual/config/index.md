@@ -9,7 +9,7 @@ description: 如何使用桌面版的 Project AIRI
 更改 AIRI 的主题颜色，或切换到其他模型，比如 Live2D（2D 模型）或 VRM（3D 模型，就像是 Grok Companion 那样）。
 
 <video autoplay loop muted>
- <source src="../../../../../public/assets/tutorial-basic-open-settings.mp4" type="video/mp4">
+ <source src="/assets/tutorial-basic-open-settings.mp4" type="video/mp4">
 </video>
 
 设置中有很多选项，不妨多尝试一下，看看有哪些功能是你感兴趣的。
@@ -36,5 +36,5 @@ description: 如何使用桌面版的 Project AIRI
 <br />
 
 <video autoplay loop muted>
- <source src="../../../../../public/assets/tutorial-settings-change-model.mp4" type="video/mp4">
+ <source src="/assets/tutorial-settings-change-model.mp4" type="video/mp4">
 </video>
