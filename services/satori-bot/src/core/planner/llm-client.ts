@@ -96,7 +96,7 @@ export async function imagineAnAction(
     let actionToValidate = parsed
     if (parsed.parameters && typeof parsed.parameters === 'object') {
       const { parameters, ...rest } = parsed
-      
+
       if (parameters.channelId !== undefined) {
         parameters.channelId = String(parameters.channelId)
       }

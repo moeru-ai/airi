@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 
 import type { Brain } from '../cognitive/conscious/brain'
 
+import { Buffer } from 'node:buffer'
 import { createServer } from 'node:http'
 
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js'

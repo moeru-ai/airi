@@ -158,7 +158,7 @@ export const chatMessagesTable = pgTable('chat_messages', {
 
 This error will occur:
 
-```
+```txt
 ERROR: access method "hnsw" does not exist
 ```
 
@@ -331,20 +331,20 @@ const relevantMessages = await db
 
 It's easy! The key is
 
-```
+```ts
 sql<number>`(1 - (${cosineDistance(chatMessagesTable.content_vector_1536, embedding.embedding)}))`
 ```
 
 for the similarity searching,
 
-```
-gt(similarity, 0.5),
+```ts
+gt(similarity, 0.5)
 ```
 
 for the threshold, and
 
-```
-.orderBy(desc(sql`similarity`))
+```ts
+query.orderBy(desc(sql`similarity`))
 ```
 
 for the ordering.

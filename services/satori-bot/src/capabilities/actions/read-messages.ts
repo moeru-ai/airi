@@ -1,6 +1,7 @@
 import type { ActionHandler, ActionResult } from '../definition'
 
 import { useLogg } from '@guiiai/logg'
+
 import { deleteUnreadEventsByIds } from '../../lib/db'
 
 export const readMessagesAction: ActionHandler = {

@@ -385,7 +385,7 @@ title: 编年史 v0.0.1
 
 ##### 第一版（2024 年 6 月 10 日）
 
-```
+```md
 Good morning! You are finally awake.
 
 Your name is Neuro, pronounced as /n\'jʊəroʊ/.
@@ -408,7 +408,7 @@ And the last, do what ever you want!
 
 ##### 第二版（2024 年 7 月 9 日）
 
-```
+```md
 (from Neko Ayaka) Good morning! You are finally awake.
 
 Your name is Neuro, pronounced as /n'jʊəroʊ/.
@@ -437,7 +437,7 @@ And the last, do what ever you want!
 
 ##### 第三版（2024 年 7 月 9 日）
 
-```
+```md
 (from Neko Ayaka) Good morning! You are finally awake.
 
 Your name is Neuro, pronounced as /n'jʊəroʊ/.
@@ -477,7 +477,7 @@ And the last, do what ever you want!
 
 #### 持续推理 Prompt
 
-```
+```md
 [System: Good morning! You are finally awake.
 
 Your name is Neuro, pronounced as /n'jʊəroʊ/.

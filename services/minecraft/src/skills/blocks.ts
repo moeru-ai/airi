@@ -206,7 +206,8 @@ async function placeWithoutCheats(
     const mcData = McData.fromBot(mineflayer.bot)
     const itemId = mcData.getItemId(itemName)
     if (itemId) {
-      const Item = require('prismarine-item')(mineflayer.bot.version)
+      const item = await import('prismarine-item')
+      const Item = item.default(mineflayer.bot.version)
       await mineflayer.bot.creative.setInventorySlot(36, new Item(itemId, 1))
     }
     block = mineflayer.bot.inventory.items().find(item => item.name === itemName)

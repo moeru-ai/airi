@@ -442,7 +442,9 @@ export class DebugServer {
         .slice(-lineLimit)
       const events = lines
         .map((line) => {
-          try { return JSON.parse(line) }
+          try {
+            return JSON.parse(line)
+          }
           catch { return null }
         })
         .filter(Boolean)

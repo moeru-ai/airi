@@ -48,7 +48,8 @@ export async function placeBlock(
     const mcData = McData.fromBot(mineflayer.bot)
     const itemId = mcData.getItemId(blockType)
     if (itemId) {
-      const Item = require('prismarine-item')(mineflayer.bot.version)
+      const item = await import('prismarine-item')
+      const Item = item.default(mineflayer.bot.version)
       await mineflayer.bot.creative.setInventorySlot(36, new Item(itemId, 1)) // 36 is first hotbar slot
     }
     block = mineflayer.bot.inventory.items().find(item => item.name.includes(blockType))
