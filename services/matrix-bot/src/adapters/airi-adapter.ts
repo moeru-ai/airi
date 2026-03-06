@@ -130,7 +130,7 @@ export class MatrixAdapter {
       log.withFields({ data: event.data }).error('Received error event from AIRI server')
     })
 
-    this.airiClient.onEvent('module:configure', async (event) => {
+    this.airiClient.onEvent('module:configure', (event) => {
       log.log('Received module configuration from AIRI UI:', event.data.config)
     })
 
