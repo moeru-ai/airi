@@ -11,6 +11,7 @@ import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
 import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
 import { useHearingStore } from '../stores/modules/hearing'
+import { useMatrixStore } from '../stores/modules/matrix'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
 
@@ -34,6 +35,7 @@ export function useModulesList() {
   const speechStore = useSpeechStore()
   const hearingStore = useHearingStore()
   const discordStore = useDiscordStore()
+  const matrixStore = useMatrixStore()
   const twitterStore = useTwitterStore()
   const minecraftStore = useMinecraftStore()
   const factorioStore = useFactorioStore()
@@ -101,6 +103,15 @@ export function useModulesList() {
       icon: 'i-simple-icons:discord',
       to: '/settings/modules/messaging-discord',
       configured: discordStore.configured,
+      category: 'messaging',
+    },
+    {
+      id: 'messaging-matrix',
+      name: t('settings.pages.modules.messaging-matrix.title'),
+      description: t('settings.pages.modules.messaging-matrix.description'),
+      icon: 'i-simple-icons:matrix',
+      to: '/settings/modules/messaging-matrix',
+      configured: matrixStore.configured,
       category: 'messaging',
     },
     {

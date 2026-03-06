@@ -356,6 +356,21 @@ pages:
       token-description: 您的Discord机器人令牌
       token-placeholder: 输入您的Discord机器人令牌
       configured: Discord已正确配置！
+    messaging-matrix:
+      description: Matrix 发消息
+      title: Matrix
+      enable: 启用Matrix集成
+      enable-description: 允许AIRI通过Matrix进行互动
+      homeserver-url: 主轴服务器 URL
+      homeserver-url-description: 您的 Matrix 主轴服务器 URL（例如：https://matrix.org）
+      homeserver-url-placeholder: 输入您的 Matrix 主轴服务器 URL
+      access-token: 访问令牌
+      access-token-description: 您的 Matrix 机器人访问令牌
+      access-token-placeholder: 输入您的 Matrix 机器人访问令牌
+      user-id: 用户 ID
+      user-id-description: 您的 Matrix 机器人用户 ID（例如：@bot:matrix.org）
+      user-id-placeholder: 输入您的 Matrix 机器人用户 ID
+      configured: Matrix 已正确配置！
     speech:
       description: 语音合成
       sections:
