@@ -1,9 +1,0 @@
-contributing/docs.md
-contributing/services/discord.md
-contributing/services/minecraft.md
-contributing/services/satori.md
-contributing/services/telegram.md
-contributing/tamagotchi.md
-contributing/webui.md
-manual/config/index.md
-overview/other-similar-projects.md
