@@ -714,6 +714,9 @@ pages:
       n1n:
         description: n1n.ai - 고성능 AI API 제공자.
         title: n1n
+      meganova:
+        description: meganova.ai
+        title: MegaNova AI
       openrouter:
         description: openrouter.ai
         title: OpenRouter
