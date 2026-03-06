@@ -1,6 +1,6 @@
 import type { Bot, BotOptions, Plugin } from 'mineflayer'
 
-import type { Mineflayer } from '.'
+import type { Mineflayer } from './core'
 
 export interface MineflayerPlugin {
   created?: (mineflayer: Mineflayer) => void | Promise<void>

@@ -5,19 +5,22 @@ import process from 'node:process'
 import { initLogger, LoggerFormat, LoggerLevel, useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
+import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
-import { createLoggLogger, injeca } from 'injeca'
+import { createLoggLogger, injeca, lifecycle } from 'injeca'
 
+import { createAuth } from './libs/auth'
+import { createDrizzle, migrateDatabase } from './libs/db'
+import { parsedEnv } from './libs/env'
+import { initOtel } from './libs/otel'
 import { sessionMiddleware } from './middlewares/auth'
+import { otelMiddleware } from './middlewares/otel'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatRoutes } from './routes/chats'
 import { createProviderRoutes } from './routes/providers'
-import { createAuth } from './services/auth'
 import { createCharacterService } from './services/characters'
 import { createChatService } from './services/chats'
-import { createDrizzle, migrateDatabase } from './services/db'
-import { parsedEnv } from './services/env'
 import { createProviderService } from './services/providers'
 import { ApiError, createInternalError } from './utils/error'
 import { getTrustedOrigin } from './utils/origin'
@@ -27,17 +30,20 @@ type CharacterService = ReturnType<typeof createCharacterService>
 type ChatService = ReturnType<typeof createChatService>
 type ProviderService = ReturnType<typeof createProviderService>
 
+type OtelMetrics = ReturnType<typeof initOtel>
+
 interface AppDeps {
   auth: AuthService
   characterService: CharacterService
   chatService: ChatService
   providerService: ProviderService
+  otel: OtelMetrics | null
 }
 
-function buildApp({ auth, characterService, chatService, providerService }: AppDeps) {
+function buildApp({ auth, characterService, chatService, providerService, otel }: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
-  return new Hono<HonoEnv>()
+  const app = new Hono<HonoEnv>()
     .use(
       '/api/*',
       cors({
@@ -46,9 +52,18 @@ function buildApp({ auth, characterService, chatService, providerService }: AppD
       }),
     )
     .use(honoLogger())
+
+  if (otel) {
+    app.use('*', otelMiddleware(otel))
+  }
+
+  return app
     .use('*', sessionMiddleware(auth))
+    .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
     .onError((err, c) => {
       if (err instanceof ApiError) {
+        logger.withError(err).warn('API error occurred')
+
         return c.json({
           error: err.errorCode,
           message: err.message,
@@ -98,6 +113,18 @@ async function createApp() {
   injeca.setLogger(createLoggLogger(useLogger('injeca').useGlobalConfig()))
   const logger = useLogger('app').useGlobalConfig()
 
+  const otel = injeca.provide('otel', {
+    dependsOn: { env: parsedEnv, lifecycle },
+    build: ({ dependsOn }) => {
+      const o = initOtel(dependsOn.env)
+      if (!o)
+        return null
+
+      dependsOn.lifecycle.appHooks.onStop(() => o.shutdown())
+      return o
+    },
+  })
+
   const db = injeca.provide('services:db', {
     dependsOn: { env: parsedEnv },
     build: async ({ dependsOn }) => {
@@ -132,12 +159,13 @@ async function createApp() {
   })
 
   await injeca.start()
-  const resolved = await injeca.resolve({ auth, characterService, chatService, providerService })
+  const resolved = await injeca.resolve({ auth, characterService, chatService, providerService, otel })
   const app = buildApp({
     auth: resolved.auth,
     characterService: resolved.characterService,
     chatService: resolved.chatService,
     providerService: resolved.providerService,
+    otel: resolved.otel,
   })
 
   logger.withFields({ port: 3000 }).log('Server started')

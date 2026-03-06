@@ -168,7 +168,9 @@ async function generateTestSpeech() {
 
     const input = useSSML.value
       ? ssmlText.value
-      : speechStore.supportsSSML ? speechStore.generateSSML(testText.value, voice, { ...providerConfig, pitch: pitch.value }) : testText.value
+      : ssmlEnabled.value && speechStore.supportsSSML
+        ? speechStore.generateSSML(testText.value, voice, { ...providerConfig, pitch: pitch.value })
+        : testText.value
 
     const response = await generateSpeech({
       ...provider.speech(model, providerConfig),
@@ -236,6 +238,21 @@ function updateCustomVoiceName(value: string | undefined) {
 function updateCustomModelName(value: string | undefined) {
   activeSpeechModel.value = value || ''
 }
+
+function handleDeleteProvider(providerId: string) {
+  if (providerId === 'speech-noop') {
+    return
+  }
+
+  if (activeSpeechProvider.value === providerId) {
+    activeSpeechProvider.value = 'speech-noop'
+    activeSpeechModel.value = ''
+    activeSpeechVoiceId.value = ''
+    activeSpeechVoice.value = undefined
+  }
+
+  providersStore.deleteProvider(providerId)
+}
 </script>
 
 <template>
@@ -266,7 +283,18 @@ function updateCustomModelName(value: string | undefined) {
                 :title="metadata.localizedName || 'Unknown'"
                 :description="metadata.localizedDescription"
                 @click="trackProviderClick(metadata.id, 'speech')"
-              />
+              >
+                <template #topRight>
+                  <button
+                    v-if="metadata.id !== 'speech-noop'"
+                    type="button"
+                    class="rounded bg-neutral-100 p-1 text-neutral-600 transition-colors dark:bg-neutral-800/60 hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-700/60"
+                    @click.stop.prevent="handleDeleteProvider(metadata.id)"
+                  >
+                    <div i-solar:trash-bin-trash-bold-duotone class="text-base" />
+                  </button>
+                </template>
+              </RadioCardSimple>
               <RouterLink
                 to="/settings/providers#speech"
                 border="2px solid"
@@ -301,7 +329,7 @@ function updateCustomModelName(value: string | undefined) {
         </div>
         <div>
           <!-- Model selection section -->
-          <div v-if="activeSpeechProvider">
+          <div v-if="activeSpeechProvider && activeSpeechProvider !== 'speech-noop'">
             <div flex="~ col gap-4">
               <div>
                 <h2 class="text-lg md:text-2xl">
@@ -334,21 +362,40 @@ function updateCustomModelName(value: string | undefined) {
                 </div>
 
                 <!-- Error state -->
-                <ErrorContainer
-                  v-else-if="activeProviderModelError"
-                  :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-                  :error="activeProviderModelError"
-                />
+                <template v-else-if="activeProviderModelError">
+                  <ErrorContainer
+                    :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
+                    :error="activeProviderModelError"
+                  />
+
+                  <FieldInput
+                    :model-value="activeSpeechModel || ''"
+                    label="Model"
+                    description="Enter model name manually if model discovery fails"
+                    :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+                    @update:model-value="updateCustomModelName"
+                  />
+                </template>
 
                 <!-- No models available -->
-                <Alert v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels" type="warning">
-                  <template #title>
-                    {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
-                  </template>
-                  <template #content>
-                    {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
-                  </template>
-                </Alert>
+                <template v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels">
+                  <Alert type="warning">
+                    <template #title>
+                      {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
+                    </template>
+                    <template #content>
+                      {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
+                    </template>
+                  </Alert>
+
+                  <FieldInput
+                    :model-value="activeSpeechModel || ''"
+                    label="Model"
+                    description="Enter model name manually when no models are returned"
+                    :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+                    @update:model-value="updateCustomModelName"
+                  />
+                </template>
 
                 <!-- Using the new RadioCardManySelect component -->
                 <template v-else-if="providerModels.length > 0">
@@ -374,7 +421,7 @@ function updateCustomModelName(value: string | undefined) {
       </div>
 
       <!-- Voice Configuration Section -->
-      <div v-if="activeSpeechProvider">
+      <div v-if="activeSpeechProvider && activeSpeechProvider !== 'speech-noop'">
         <div flex="~ col gap-4">
           <div>
             <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">

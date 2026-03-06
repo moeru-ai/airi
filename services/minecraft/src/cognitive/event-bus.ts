@@ -32,6 +32,16 @@ export type EventHandler<T = unknown> = (event: TracedEvent<T>) => void
 export type Unsubscribe = () => void
 export type EventPattern = string
 
+export interface EventBusSubscriberError {
+  readonly event: TracedEvent
+  readonly pattern: EventPattern
+  readonly error: unknown
+}
+
+export interface EventBusOptions {
+  readonly onSubscriberError?: (error: EventBusSubscriberError) => void
+}
+
 interface TraceContext {
   traceId: string
   parentId?: string
@@ -103,9 +113,21 @@ function withTraceContext<T>(traceId: string, parentId: string, fn: () => T): T 
   return traceStorage.run({ traceId, parentId }, fn)
 }
 
+function defaultSubscriberErrorReporter(error: EventBusSubscriberError): void {
+  console.error(
+    `[EventBus] subscriber failed for event "${error.event.type}" (pattern: "${error.pattern}")`,
+    error.error,
+  )
+}
+
 export class EventBus {
   private readonly subscriptions = new Map<number, Subscription>()
+  private readonly onSubscriberError: (error: EventBusSubscriberError) => void
   private nextSubId = 0
+
+  public constructor(options: EventBusOptions = {}) {
+    this.onSubscriberError = options.onSubscriberError ?? defaultSubscriberErrorReporter
+  }
 
   public emit<T>(input: EventInput<T>): TracedEvent<T> {
     const trace = resolveTraceContext({
@@ -163,13 +185,27 @@ export class EventBus {
           sub.handler(event)
         })
       }
-      catch {
+      catch (error) {
         // Keep dispatch resilient by isolating subscriber failures.
+        try {
+          this.onSubscriberError({
+            event,
+            pattern: sub.pattern,
+            error,
+          })
+        }
+        catch (reporterError) {
+          defaultSubscriberErrorReporter({
+            event,
+            pattern: sub.pattern,
+            error: reporterError,
+          })
+        }
       }
     }
   }
 }
 
-export function createEventBus(): EventBus {
-  return new EventBus()
+export function createEventBus(options: EventBusOptions = {}): EventBus {
+  return new EventBus(options)
 }

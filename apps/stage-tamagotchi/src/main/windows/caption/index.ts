@@ -1,6 +1,9 @@
 import type { BrowserWindow, BrowserWindowConstructorOptions, Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
+import type { I18n } from '../../libs/i18n'
+import type { ServerChannel } from '../../services/airi/channel-server'
+
 import { createHash } from 'node:crypto'
 import { join, resolve } from 'node:path'
 
@@ -108,7 +111,7 @@ function createCaptionWindow(options?: BrowserWindowConstructorOptions) {
     show: false,
     icon,
     webPreferences: {
-      preload: join(__dirname, '../preload/index.mjs'),
+      preload: join(getElectronMainDirname(), '../preload/index.mjs'),
       sandbox: false,
     },
     // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
@@ -142,7 +145,11 @@ function createCaptionWindow(options?: BrowserWindowConstructorOptions) {
   return window
 }
 
-export function setupCaptionWindowManager(params: { mainWindow: BrowserWindow }) {
+export function setupCaptionWindowManager(params: {
+  mainWindow: BrowserWindow
+  serverChannel: ServerChannel
+  i18n: I18n
+}) {
   const matrixHash = computeDisplayMatrixHash()
 
   const {
@@ -268,7 +275,7 @@ export function setupCaptionWindowManager(params: { mainWindow: BrowserWindow })
     const { context } = createContext(ipcMain, window)
     eventaContext = context
 
-    setupBaseWindowElectronInvokes({ context, window })
+    await setupBaseWindowElectronInvokes({ context, window, serverChannel: params.serverChannel, i18n: params.i18n })
 
     const cfg = getConfig()
     const saved = cfg?.matrices?.[matrixHash]?.bounds

@@ -1086,18 +1086,38 @@ class ToolsPanel {
         ${tool.params.map(param => `
           <div class="param-group">
             <label class="param-label">${escapeHtml(param.name)} (${param.type})</label>
-            <input
-              type="${param.type === 'number' ? 'number' : 'text'}"
-              class="param-input"
-              data-param="${param.name}"
-              ${param.min !== undefined ? `min="${param.min}"` : ''}
-              ${param.max !== undefined ? `max="${param.max}"` : ''}
-              ${param.default !== undefined ? `value="${param.default}"` : ''}
-              placeholder="${escapeHtml(param.description || '')}"
-            />
+            ${this.renderParamInput(param)}
           </div>
         `).join('')}
       </div>
+    `
+  }
+
+  renderParamInput(param) {
+    if (param.type === 'boolean') {
+      const defaultValue = param.default === true ? 'true' : 'false'
+      return `
+        <select
+          class="param-input"
+          data-param="${param.name}"
+        >
+          <option value="false" ${defaultValue === 'false' ? 'selected' : ''}>false</option>
+          <option value="true" ${defaultValue === 'true' ? 'selected' : ''}>true</option>
+        </select>
+      `
+    }
+
+    const defaultValue = param.default !== undefined ? `value="${escapeHtml(String(param.default))}"` : ''
+    return `
+      <input
+        type="${param.type === 'number' ? 'number' : 'text'}"
+        class="param-input"
+        data-param="${param.name}"
+        ${param.min !== undefined ? `min="${param.min}"` : ''}
+        ${param.max !== undefined ? `max="${param.max}"` : ''}
+        ${defaultValue}
+        placeholder="${escapeHtml(param.description || '')}"
+      />
     `
   }
 
@@ -1119,19 +1139,34 @@ class ToolsPanel {
       if (paramDef) {
         if (paramDef.type === 'number') {
           if (value === '') {
-            // Handle empty number input if needed?
+            continue
+          }
+
+          value = Number.parseFloat(value)
+          if (isNaN(value)) {
+            this.showResult(tool.name, { error: `Invalid number for ${paramName}` }, true)
+            return
+          }
+        }
+        else if (paramDef.type === 'boolean') {
+          if (value === '') {
+            continue
+          }
+
+          const normalized = value.trim().toLowerCase()
+          if (normalized === 'true') {
+            value = true
+          }
+          else if (normalized === 'false') {
+            value = false
           }
           else {
-            value = Number.parseFloat(value)
-            if (isNaN(value)) {
-              this.showResult(tool.name, { error: `Invalid number for ${paramName}` }, true)
-              return
-            }
+            this.showResult(tool.name, { error: `Invalid boolean for ${paramName}` }, true)
+            return
           }
         }
       }
 
-      // Simple type conversion could be improved but sufficient for now
       params[paramName] = value
     }
 

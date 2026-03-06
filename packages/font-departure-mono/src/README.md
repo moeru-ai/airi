@@ -4,7 +4,7 @@ Thanks for trying Departure Mono (departuremono.com), licensed under the SIL OFL
 
 — Helena Zhang (helenazhang.com)
 
-# Font Information
+## Font Information
 
 Version 1.500 features 1,186 glyphs, including support for:
 
@@ -15,13 +15,13 @@ Version 1.500 features 1,186 glyphs, including support for:
 - Old-style numerals and fractions
 - Simple box-drawing characters and selected symbols
 
-# Usage
+## Usage
 
 For pixel-perfect results, set the font size to increments of 11px.
 
 Experiment with tighter or wider tracking (letter-spacing).
 
-# Changelog
+## Changelog
 
 v1.500
 - 1,186 glyphs
@@ -54,6 +54,6 @@ v1.350
 v1.346
 - 763 glyphs
 
-# Thanks
+## Thanks
 
 A big thank you to: Tobias Fried, Christine Lee, Daniel Stern, Kim Slawson, Parker McGowan, Alex Krivov, Karl Peterson, Alexander Zaytsev, Vadim Pleshkov, and Maxim Iorsh for their general feedback and testing across languages
