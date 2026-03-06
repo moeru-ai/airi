@@ -1146,7 +1146,7 @@ export const useProvidersStore = defineStore('providers', () => {
             throw new Error(`Failed to fetch voices: ${response.statusText}`)
           }
           const voices = await response.json()
-          return Object.keys(voices).map((voice: any) => {
+          return Object.keys(voices).map((voice: string) => {
             return {
               id: voice,
               name: voice,

@@ -1,7 +1,7 @@
 import { useDrizzle } from '../db'
 import { chatCompletionsHistoryTable } from '../db/schema'
 
-export async function recordChatCompletions(task: string, content: any, response?: any) {
+export async function recordChatCompletions(task: string, content: unknown, response?: unknown) {
   const db = useDrizzle()
 
   await db

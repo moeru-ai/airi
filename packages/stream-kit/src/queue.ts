@@ -16,7 +16,7 @@ export function createQueue<T>(options: {
   handlers: Array<(ctx: HandlerContext<T>) => Promise<void>>
 }) {
   const queue: T[] = []
-  let drainTask: Promise<any> | undefined
+  let drainTask: Promise<void> | undefined
 
   const internalEventListeners: Events<T> = {
     enqueue: [],

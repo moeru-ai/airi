@@ -7,7 +7,7 @@ export interface ToolInputSchema {
   properties: Record<string, {
     title: string
     type: string
-    default?: any
+    default?: unknown
   }>
 }
 

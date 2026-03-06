@@ -217,12 +217,12 @@ function levenshteinDistance(a: string, b: string): number {
 }
 
 // Type guards
-function isShapelessRecipe(recipe: any): recipe is ShapelessRecipe {
-  return 'ingredients' in recipe
+function isShapelessRecipe(recipe: unknown): recipe is ShapelessRecipe {
+  return !!recipe && typeof recipe === 'object' && 'ingredients' in recipe  
 }
 
-function isShapedRecipe(recipe: any): recipe is ShapedRecipe {
-  return 'inShape' in recipe
+function isShapedRecipe(recipe: unknown): recipe is ShapedRecipe {
+  return !!recipe && typeof recipe === 'object' && 'inShape' in recipe
 }
 
 export function getItemSmeltingIngredient(

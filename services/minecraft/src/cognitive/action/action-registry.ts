@@ -32,7 +32,7 @@ export class ActionRegistry {
   /**
    * Perform an action by name
    */
-  public async performAction(step: { description?: string, tool: string, params: any }): Promise<unknown> {
+  public async performAction(step: { description?: string, tool: string, params: unknown }): Promise<unknown> {
     if (!this.mineflayer) {
       throw new Error('Mineflayer instance not set in ActionRegistry')
     }

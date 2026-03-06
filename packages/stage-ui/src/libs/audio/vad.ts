@@ -27,7 +27,7 @@ export interface VADEvents {
   // Emitted for status updates and errors
   'status': { type: string, message: string }
   // Debug info
-  'debug': { message: string, data?: any }
+  'debug': { message: string, data?: unknown }
 }
 
 export type VADEventCallback<K extends keyof VADEvents> = (event: VADEvents[K]) => void

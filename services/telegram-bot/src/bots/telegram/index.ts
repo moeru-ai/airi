@@ -173,7 +173,7 @@ async function dispatchAction(ctx: BotContext, action: Action, abortController: 
   }
 }
 
-async function handleLoopStep(ctx: BotContext, chatCtx: ChatContext, incomingMessage?: Message): Promise<() => Promise<any> | undefined> {
+async function handleLoopStep(ctx: BotContext, chatCtx: ChatContext, incomingMessage?: Message): Promise<() => Promise<unknown> | undefined> {
   ctx.currentProcessingStartTime = Date.now()
 
   if (chatCtx?.currentAbortController) {

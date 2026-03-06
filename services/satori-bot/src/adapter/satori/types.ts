@@ -100,8 +100,8 @@ export interface SatoriLogin {
 // Interaction Argv
 export interface SatoriArgv {
   name: string
-  arguments: any[]
-  options: Record<string, any>
+  arguments: unknown[]
+  options: Record<string, unknown>
 }
 
 // Interaction Button
@@ -127,7 +127,7 @@ export interface SatoriEvent {
   role?: SatoriGuildRole
   user?: SatoriUser
   _type?: string
-  _data?: Record<string, any>
+  _data?: Record<string, unknown>
 }
 
 // API Request/Response types
