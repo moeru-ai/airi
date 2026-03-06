@@ -7,6 +7,9 @@ import { useLogg } from '@guiiai/logg'
 import { SatoriAPI } from './api'
 import { SatoriOpcode } from './types'
 
+import * as v from 'valibot'
+import { SatoriEventSchema, SatoriReadyBodySchema, SatoriSignalSchema } from './schema'
+
 const log = useLogg('SatoriClient')
 
 export interface SatoriClientConfig {
@@ -34,6 +37,12 @@ export class SatoriClient {
   }
 
   async connect(): Promise<void> {
+    if (this.ws) {
+      this.ws.removeAllListeners()
+      this.ws.close()
+      this.ws = undefined
+    }
+
     if (this.connected) {
       log.warn('Already connected to Satori server')
       return
@@ -107,11 +116,12 @@ export class SatoriClient {
 
   private async handleMessage(data: WebSocket.Data): Promise<void> {
     try {
-      const signal = JSON.parse(data.toString()) as SatoriSignal
+      const rawData = JSON.parse(data.toString())
+      const signal = v.parse(SatoriSignalSchema, rawData)
 
       switch (signal.op) {
         case SatoriOpcode.READY: {
-          const readyBody = signal.body as SatoriReadyBody
+          const readyBody = v.parse(SatoriReadyBodySchema, signal.body)
           log.log('Received READY signal')
 
           // Initialize API clients for each login
@@ -124,7 +134,7 @@ export class SatoriClient {
         }
 
         case SatoriOpcode.EVENT: {
-          const event = signal.body as SatoriEvent
+          const event = v.parse(SatoriEventSchema, signal.body)
           this.lastSequenceNumber = event.id
           await this.handleEvent(event)
           break
@@ -145,7 +155,15 @@ export class SatoriClient {
       }
     }
     catch (error) {
-      log.withError(error as Error).error('Failed to handle message')
+      if (v.isValiError(error)) {
+        log.error('Satori protocol validation failed:')
+        for (const issue of error.issues) {
+          log.error(`  - ${issue.path?.map(p => p.key).join('.')}: ${issue.message}`)
+        }
+      }
+      else {
+        log.withError(error as Error).error('Failed to handle message')
+      }
     }
   }
 
@@ -175,6 +193,11 @@ export class SatoriClient {
   private handleDisconnect(): void {
     this.connected = false
     this.stopHeartbeat()
+
+    if (this.ws) {
+      this.ws.removeAllListeners()
+      this.ws = undefined
+    }
 
     if (this.shouldReconnect) {
       log.log('Attempting to reconnect in 5 seconds...')
@@ -272,6 +295,7 @@ export class SatoriClient {
     }
 
     if (this.ws) {
+      this.ws.removeAllListeners()
       this.ws.close()
       this.ws = undefined
     }

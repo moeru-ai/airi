@@ -14,7 +14,7 @@ export enum SatoriOpcode {
 }
 
 // WebSocket Signal Structure
-export interface SatoriSignal<T = any> {
+export interface SatoriSignal<T = unknown> {
   op: SatoriOpcode
   body?: T
 }
@@ -28,12 +28,12 @@ export interface SatoriIdentifyBody {
 // READY signal body
 export interface SatoriReadyBody {
   logins: SatoriLogin[]
-  proxy_urls: string[]
+  proxy_urls?: string[]
 }
 
 // META signal body
 export interface SatoriMetaBody {
-  proxy_urls: string[]
+  proxy_urls?: string[]
 }
 
 // User resource
@@ -100,8 +100,8 @@ export interface SatoriLogin {
 // Interaction Argv
 export interface SatoriArgv {
   name: string
-  arguments: any[]
-  options: Record<string, any>
+  arguments: unknown[]
+  options: Record<string, unknown>
 }
 
 // Interaction Button
@@ -127,7 +127,7 @@ export interface SatoriEvent {
   role?: SatoriGuildRole
   user?: SatoriUser
   _type?: string
-  _data?: Record<string, any>
+  _data?: Record<string, unknown>
 }
 
 // API Request/Response types
@@ -138,7 +138,7 @@ export interface SatoriMessageCreateRequest {
 
 export interface SatoriMessageCreateResponse {
   id: string
-  content: string
+  content?: string
   channel?: SatoriChannel
   guild?: SatoriGuild
   member?: SatoriGuildMember
