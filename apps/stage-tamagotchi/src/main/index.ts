@@ -144,7 +144,7 @@ app.whenReady().then(async () => {
   })
 
   const dashboardWindow = injeca.provide('windows:dashboard', {
-    dependsOn: { settingsWindow, chatWindow, noticeWindow },
+    dependsOn: { settingsWindow, chatWindow, noticeWindow, serverChannel, i18n },
     build: async ({ dependsOn }) => setupDashboardWindow(dependsOn),
   })
 
