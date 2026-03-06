@@ -20,7 +20,7 @@ import { useI18n } from 'vue-i18n'
 import IndicatorMicVolume from './IndicatorMicVolume.vue'
 
 const messageInput = ref('')
-const hearingTooltipOpen = ref(false)
+const hearingPopoverOpen = ref(false)
 const isComposing = ref(false)
 const isListening = ref(false) // Transcription listening state (separate from microphone enabled)
 
@@ -128,7 +128,7 @@ async function handleSend() {
   }
 }
 
-watch(hearingTooltipOpen, async (value) => {
+watch(hearingPopoverOpen, async (value) => {
   if (value) {
     await askPermission()
   }
@@ -158,7 +158,7 @@ function teardownAnalyzer() {
 
 async function setupAnalyzer() {
   teardownAnalyzer()
-  if (!hearingTooltipOpen.value || !enabled.value || !stream.value)
+  if (!hearingPopoverOpen.value || !enabled.value || !stream.value)
     return
   if (audioContext.state === 'suspended')
     await audioContext.resume()
@@ -169,7 +169,7 @@ async function setupAnalyzer() {
   analyzerSource.connect(analyser)
 }
 
-watch([hearingTooltipOpen, enabled, stream], () => {
+watch([hearingPopoverOpen, enabled, stream], () => {
   setupAnalyzer()
 }, { immediate: true })
 
@@ -427,7 +427,7 @@ watch(autoSendEnabled, (enabled) => {
         absolute bottom-2 left-2 z-10 flex items-center gap-2
       >
         <!-- Microphone icon button -->
-        <PopoverRoot v-model:open="hearingTooltipOpen">
+        <PopoverRoot v-model:open="hearingPopoverOpen">
           <PopoverTrigger as-child>
             <button
               class="h-8 w-8 flex items-center justify-center rounded-md outline-none transition-all duration-200 active:scale-95"
