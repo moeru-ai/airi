@@ -917,6 +917,10 @@ export const useProvidersStore = defineStore('providers', () => {
             ...provider.voice(),
           })
 
+          if (!voices || !Array.isArray(voices)) {
+            return []
+          }
+
           // Find indices of Aria and Bill
           const ariaIndex = voices.findIndex(voice => voice.name.includes('Aria'))
           const billIndex = voices.findIndex(voice => voice.name.includes('Bill'))
