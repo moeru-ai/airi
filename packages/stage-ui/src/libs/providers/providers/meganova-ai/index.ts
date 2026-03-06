@@ -8,13 +8,15 @@ import meganovaIcon from '../../../../assets/meganova.svg'
 import { createOpenAICompatibleValidators } from '../../validators/openai-compatible'
 import { defineProvider } from '../registry'
 
+const MEGANOVA_BASE_URL = 'https://api.meganova.ai/v1/'
+
 const meganovaConfigSchema = z.object({
   apiKey: z
     .string('API Key'),
   baseUrl: z
     .string('Base URL')
     .optional()
-    .default('https://api.meganova.ai/v1/'),
+    .default(MEGANOVA_BASE_URL),
 })
 
 type MeganovaConfig = z.input<typeof meganovaConfigSchema>
@@ -47,10 +49,14 @@ export const providerMeganovaAI = defineProvider<MeganovaConfig>({
 
   extraMethods: {
     async listModels(config): Promise<ModelInfo[]> {
-      const baseUrl = (config.baseUrl || 'https://api.meganova.ai/v1/').replace(/\/$/, '')
+      const baseUrl = (config.baseUrl || MEGANOVA_BASE_URL).replace(/\/$/, '')
       const res = await fetch(`${baseUrl}/models`, {
         headers: { Authorization: `Bearer ${config.apiKey}` },
       })
+      if (!res.ok) {
+        const errorBody = await res.text().catch(() => 'Could not read error body')
+        throw new Error(`Failed to list models: ${res.status} ${res.statusText} - ${errorBody}`)
+      }
       const data = await res.json()
       const models = (data.data || []) as Array<{
         id: string
@@ -69,7 +75,9 @@ export const providerMeganovaAI = defineProvider<MeganovaConfig>({
         .sort((a, b) => {
           const aFeatured = a.tags?.includes('featured') ? 0 : 1
           const bFeatured = b.tags?.includes('featured') ? 0 : 1
-          return aFeatured - bFeatured
+          if (aFeatured !== bFeatured)
+            return aFeatured - bFeatured
+          return (a.name || a.id).localeCompare(b.name || b.id)
         })
         .map(m => ({
           id: m.id,
