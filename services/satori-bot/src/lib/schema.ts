@@ -1,4 +1,4 @@
-import { pgTable, text, bigint, index, json } from 'drizzle-orm/pg-core'
+import { bigint, index, json, pgTable, text } from 'drizzle-orm/pg-core'
 
 export const channels = pgTable('channels', {
   id: text('id').primaryKey(),

@@ -96,7 +96,9 @@ export const SatoriSignalSchema = v.object({
   body: v.optional(v.unknown()),
 })
 
-export const SatoriListSchema = <T extends v.BaseSchema<any, any, any>>(itemSchema: T) => v.object({
-  data: v.array(itemSchema),
-  next: v.optional(v.string()),
-})
+export function SatoriListSchema<T extends v.BaseSchema<any, any, any>>(itemSchema: T) {
+  return v.object({
+    data: v.array(itemSchema),
+    next: v.optional(v.string()),
+  })
+}

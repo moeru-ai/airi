@@ -98,7 +98,7 @@ describe('mcpReplServer', () => {
 
   it('executes repl via tool handler', async () => {
     const executeReplCall = mocks.tool.mock.calls.find(call => call[0] === 'execute_repl')
-    const handler = executeReplCall[2]
+    const handler = executeReplCall![2]
 
     const result = await handler({ code: 'test code' })
 
@@ -108,7 +108,7 @@ describe('mcpReplServer', () => {
 
   it('injects chat via tool handler', async () => {
     const injectChatCall = mocks.tool.mock.calls.find(call => call[0] === 'inject_chat')
-    const handler = injectChatCall[2]
+    const handler = injectChatCall![2]
 
     await handler({ username: 'steve', message: 'hi' })
 
@@ -123,7 +123,7 @@ describe('mcpReplServer', () => {
 
   it('gets repl state via tool handler (skips builtins by default)', async () => {
     const toolCall = mocks.tool.mock.calls.find(call => call[0] === 'get_state')
-    const handler = toolCall[2]
+    const handler = toolCall![2]
 
     await handler({})
 
@@ -132,7 +132,7 @@ describe('mcpReplServer', () => {
 
   it('gets repl state via tool handler (can include builtins)', async () => {
     const toolCall = mocks.tool.mock.calls.find(call => call[0] === 'get_state')
-    const handler = toolCall[2]
+    const handler = toolCall![2]
 
     await handler({ includeBuiltins: true })
 
@@ -141,7 +141,7 @@ describe('mcpReplServer', () => {
 
   it('reads brain state via resource handler', async () => {
     const resourceCall = mocks.resource.mock.calls.find(call => call[0] === 'brain-state')
-    const handler = resourceCall[2]
+    const handler = resourceCall![2]
 
     const result = await handler({ href: 'brain://state' })
 
@@ -151,7 +151,7 @@ describe('mcpReplServer', () => {
 
   it('gets last prompt via tool handler', async () => {
     const toolCall = mocks.tool.mock.calls.find(call => call[0] === 'get_last_prompt')
-    const handler = toolCall[2]
+    const handler = toolCall![2]
 
     const result = await handler({})
     const text = result.content[0].text as string
@@ -164,7 +164,7 @@ describe('mcpReplServer', () => {
 
   it('gets logs via tool handler', async () => {
     const toolCall = mocks.tool.mock.calls.find(call => call[0] === 'get_logs')
-    const handler = toolCall[2]
+    const handler = toolCall![2]
 
     const result = await handler({ limit: 10 })
 
@@ -174,7 +174,7 @@ describe('mcpReplServer', () => {
 
   it('gets llm trace via tool handler', async () => {
     const toolCall = mocks.tool.mock.calls.find(call => call[0] === 'get_llm_trace')
-    const handler = toolCall[2]
+    const handler = toolCall![2]
 
     const result = await handler({ limit: 5, turnId: 3 })
     const text = result.content[0].text as string

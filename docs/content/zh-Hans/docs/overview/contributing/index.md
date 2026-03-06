@@ -81,7 +81,7 @@ description: 参与并贡献 Project AIRI
    corepack prepare pnpm@latest --activate
    ```
 4. 如果你想进行桌面端的开发，你还需要下载如下依赖：
-   ```
+   ```shell
    sudo apt install \
       libssl-dev \
       libglib2.0-dev \

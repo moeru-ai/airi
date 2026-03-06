@@ -4,7 +4,7 @@ import type { SatoriClient } from '../../adapter/satori/client'
 import type { SatoriEvent } from '../../adapter/satori/types'
 import type { BotContext, ChatContext } from '../types'
 
-import { getRecentMessages, recordChannel, recordMessage, removeFromEventQueue, saveEventQueue, pushToUnreadEvents } from '../../lib/db'
+import { getRecentMessages, pushToUnreadEvents, recordChannel, recordMessage, removeFromEventQueue, saveEventQueue } from '../../lib/db'
 import {
   ACTIONS_KEEP_ON_TRIM,
   LOOP_CONTINUE_DELAY_MS,
@@ -93,7 +93,7 @@ export async function handleLoopStep(
 
       const result = await dispatchAction(ctx, chatCtx, actionPayload, currentController)
       shouldContinue = result.shouldContinue
-      
+
       if (shouldContinue) {
         await new Promise(r => setTimeout(r, LOOP_CONTINUE_DELAY_MS))
         currentIncoming = undefined // Only the first step uses the initial incoming event
@@ -102,7 +102,8 @@ export async function handleLoopStep(
     catch (err) {
       if ((err as Error).name === 'AbortError') {
         ctx.logger.log('Operation was aborted due to interruption')
-      } else {
+      }
+      else {
         ctx.logger.withError(err as Error).log('Error occurred')
       }
       shouldContinue = false
@@ -151,7 +152,7 @@ async function loopIterationPeriodicForExistingChannels(ctx: BotContext, satoriC
   for (const channelId of channelsWithUnread) {
     try {
       const chatCtx = await ensureChatContext(ctx, channelId)
-      
+
       if (chatCtx.isProcessing) {
         ctx.logger.withField('channelId', channelId).debug('Channel is already processing, skipping periodic loop for this channel')
         continue
