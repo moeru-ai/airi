@@ -8,7 +8,7 @@ description: Project AIRI デスクトップ版の使い方
 システムトレイの設定を開いて、AIRI のテーマカラーを変更したり、Live2D (2D) または VRM (3D、Grok Companion など) の別のモデルに切り替えたりするなど、さらにカスタマイズすることができます。
 
 <video autoplay loop muted>
- <source src="/public/assets/tutorial-basic-open-settings.mp4" type="video/mp4">
+ <source src="/assets/tutorial-basic-open-settings.mp4" type="video/mp4">
 </video>
 
 設定には非常に多くのオプションがあります。試して、何ができるか発見してください。
@@ -37,5 +37,5 @@ description: Project AIRI デスクトップ版の使い方
 <br />
 
 <video autoplay loop muted>
- <source src="/public/assets/tutorial-settings-change-model.mp4" type="video/mp4">
+ <source src="/assets/tutorial-settings-change-model.mp4" type="video/mp4">
 </video>

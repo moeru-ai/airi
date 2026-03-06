@@ -9,7 +9,7 @@ title: 前日譚 v0.0.1
   - [x] モデルのダウンロード
     - [x] 桃瀬ひより (Neuro の初期バージョンモデル) Pro 版 (中小企業による商用利用は無料)
 
-![](../../../../public/assets/version-v0.0.1/screenshot-1.avif)
+![](/assets/version-v0.0.1/screenshot-1.avif)
 
 - [x] Vercel AI SDK を介した GPT-4o の統合 (2024年6月7日)
   - [x] `@ai-sdk/openai`
@@ -63,7 +63,7 @@ title: 前日譚 v0.0.1
 - ✅ Live2D リップシンク (itorr の GitHub の説明に感謝)
 - ✅ 基本的なプロンプト
 
-![](../../../../public/assets/version-v0.0.1/screenshot-2.avif)
+![](/assets/version-v0.0.1/screenshot-2.avif)
 
 ## マルチモーダル
 

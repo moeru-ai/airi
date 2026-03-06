@@ -10,7 +10,7 @@ changing the theme color of AIRI, or switching to another model, either
 Live2D (2D) or VRM (3D, like Grok Companion).
 
 <video autoplay loop muted>
- <source src="../../../../public/assets/tutorial-basic-open-settings.mp4" type="video/mp4">
+ <source src="/assets/tutorial-basic-open-settings.mp4" type="video/mp4">
 </video>
 
 There are so many options in the settings, try experiment and discover what
@@ -44,5 +44,5 @@ You will have to restart AIRI after loaded the model.
 <br />
 
 <video autoplay loop muted>
- <source src="../../../../public/assets/tutorial-settings-change-model.mp4" type="video/mp4">
+ <source src="/assets/tutorial-settings-change-model.mp4" type="video/mp4">
 </video>
