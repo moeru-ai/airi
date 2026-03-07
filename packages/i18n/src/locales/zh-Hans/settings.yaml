@@ -717,6 +717,9 @@ pages:
       openrouter:
         description: OpenRouter.ai
         title: OpenRouter
+      github-models:
+        description: models.github.ai
+        title: GitHub Models
       perplexity:
         description: perplexity.ai
         title: Perplexity
