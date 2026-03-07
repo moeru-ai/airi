@@ -93,25 +93,6 @@ function parseQualifiedToolName(name: string) {
   }
 }
 
-function resolveFallbackToolName(toolName: string): string | undefined {
-  const normalizedTransportPrefix = toolName
-    .replace(/^\.(?:stdio|stdo)::/, '')
-    .replace(/^(?:stdio|stdo)::/, '')
-  if (normalizedTransportPrefix !== toolName) {
-    return normalizedTransportPrefix
-  }
-
-  return undefined
-}
-
-function isToolNameResolutionError(error: unknown): boolean {
-  const message = stringifyError(error).toLowerCase()
-  return message.includes('unknown tool')
-    || message.includes('tool not found')
-    || message.includes('no such tool')
-    || message.includes('method not found')
-}
-
 async function withTimeout<T>(task: Promise<T>, timeoutMsec: number, timeoutMessage: string): Promise<T> {
   let timeoutId: NodeJS.Timeout | undefined
   try {
@@ -369,40 +350,13 @@ export function createMcpStdioManager(): McpStdioManager {
         throw new Error(`mcp server is not running: ${serverName}`)
       }
 
-      let result
-      try {
-        result = await session.client.callTool({
-          name: toolName,
-          arguments: payload.arguments ?? {},
-        }, undefined, {
-          timeout: mcpRequestTimeoutMsec,
-          maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
-        })
-      }
-      catch (error) {
-        if (!isToolNameResolutionError(error)) {
-          throw error
-        }
-
-        const fallbackToolName = resolveFallbackToolName(toolName)
-        if (!fallbackToolName || fallbackToolName === toolName) {
-          throw error
-        }
-
-        log.withFields({
-          serverName,
-          requestedToolName: toolName,
-          fallbackToolName,
-        }).warn('retrying mcp tool call with normalized tool name')
-
-        result = await session.client.callTool({
-          name: fallbackToolName,
-          arguments: payload.arguments ?? {},
-        }, undefined, {
-          timeout: mcpRequestTimeoutMsec,
-          maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
-        })
-      }
+      const result = await session.client.callTool({
+        name: toolName,
+        arguments: payload.arguments ?? {},
+      }, undefined, {
+        timeout: mcpRequestTimeoutMsec,
+        maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
+      })
 
       const normalized: ElectronMcpCallToolResult = {}
       if ('content' in result && Array.isArray(result.content)) {
