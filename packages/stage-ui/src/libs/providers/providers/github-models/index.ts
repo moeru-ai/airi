@@ -8,7 +8,8 @@ const DEFAULT_GITHUB_MODELS_BASE_URL = 'https://models.github.ai/inference'
 
 const githubModelsConfigSchema = z.object({
   apiKey: z
-    .string(),
+    .string()
+    .min(1),
   baseUrl: z
     .string()
     .optional()
@@ -41,7 +42,7 @@ export const providerGitHubModels = defineProvider<GitHubModelsConfig>({
     }),
   }),
   createProvider(config) {
-    return createGithubModels(config.apiKey, config.baseUrl ?? DEFAULT_GITHUB_MODELS_BASE_URL)
+    return createGithubModels(config.apiKey, config.baseUrl || DEFAULT_GITHUB_MODELS_BASE_URL)
   },
 
   validationRequiredWhen(config) {
