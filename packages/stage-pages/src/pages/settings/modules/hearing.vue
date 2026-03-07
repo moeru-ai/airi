@@ -29,6 +29,7 @@ const {
   autoSendEnabled,
   autoSendDelay,
   confidenceThreshold,
+  verboseJsonNotSupported,
 } = storeToRefs(hearingStore)
 const providersStore = useProvidersStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
@@ -676,6 +677,10 @@ onUnmounted(() => {
           />
           <div v-if="confidenceThreshold > CONFIDENCE_THRESHOLD_DISABLED" class="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
             {{ t('settings.pages.modules.hearing.sections.section.confidence-threshold.verbose-json-note') }}
+          </div>
+          <div v-if="verboseJsonNotSupported" class="mt-2 flex items-center gap-1.5 text-xs text-amber-500 dark:text-amber-400">
+            <div i-solar:warning-circle-line-duotone class="shrink-0" />
+            {{ t('settings.pages.modules.hearing.sections.section.confidence-threshold.verbose-json-unsupported') }}
           </div>
         </div>
 

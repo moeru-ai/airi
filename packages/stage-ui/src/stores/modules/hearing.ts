@@ -7,7 +7,7 @@ import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 
 import vadWorkletUrl from '../../workers/vad/process.worklet?worker&url'
 
@@ -75,6 +75,11 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false)
   const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000) // Default 2 seconds
   const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', CONFIDENCE_THRESHOLD_DISABLED)
+  const verboseJsonNotSupported = ref(false)
+
+  watch(activeTranscriptionProvider, () => {
+    verboseJsonNotSupported.value = false
+  })
 
   // Computed properties
   const availableProvidersMetadata = computed(() => allAudioTranscriptionProvidersMetadata.value)
@@ -210,6 +215,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
     if (useVerboseJson) {
       if (response.segments) {
+        verboseJsonNotSupported.value = false
         return {
           mode: 'generate',
           ...response,
@@ -217,6 +223,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
         }
       }
       else {
+        verboseJsonNotSupported.value = true
         console.warn('[Hearing] Confidence filter is enabled but the provider did not return verbose_json segments. Filtering has no effect.')
       }
     }
@@ -236,6 +243,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     autoSendEnabled,
     autoSendDelay,
     confidenceThreshold,
+    verboseJsonNotSupported,
 
     supportsModelListing,
     providerModels,
