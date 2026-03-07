@@ -2,6 +2,8 @@ import { useDevicesList, useUserMedia } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, nextTick, ref, shallowRef, watch } from 'vue'
 
+import { enableIOSPlayback } from '../utils/ios-audio-unmute'
+
 function calculateVolumeWithLinearNormalize(analyser: AnalyserNode) {
   const dataBuffer = new Uint8Array(analyser.frequencyBinCount)
   analyser.getByteFrequencyData(dataBuffer)
@@ -67,6 +69,18 @@ function calculateVolume(analyser: AnalyserNode, mode: 'linear' | 'minmax' = 'li
 
 export const useAudioContext = defineStore('audio-context', () => {
   const audioContext = shallowRef<AudioContext>(new AudioContext())
+
+  // iOS silent mode workaround: must run from a user gesture.
+  // Register a one-time listener so the first interaction unlocks playback.
+  function unlockOnInteraction() {
+    enableIOSPlayback()
+    document.removeEventListener('touchend', unlockOnInteraction, true)
+    document.removeEventListener('click', unlockOnInteraction, true)
+  }
+  if (typeof document !== 'undefined') {
+    document.addEventListener('touchend', unlockOnInteraction, { capture: true, once: true })
+    document.addEventListener('click', unlockOnInteraction, { capture: true, once: true })
+  }
 
   return {
     audioContext,
