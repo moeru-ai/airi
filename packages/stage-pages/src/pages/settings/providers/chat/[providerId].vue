@@ -12,45 +12,88 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { FieldInput, FieldSelect } from '@proj-airi/ui'
+import { useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
-const providerId = route.params.providerId as string
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const rawProviderId = computed(() => typeof route.params.providerId === 'string' ? route.params.providerId : '')
+const providerId = computed(() => providersStore.hasProviderMetadata(rawProviderId.value) ? rawProviderId.value : '')
 
-// Define computed properties for credentials
-const apiKey = computed({
-  get: () => providers.value[providerId]?.apiKey || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].apiKey = value
-  },
+const providerConfig = computed(() => providerId.value ? (providers.value[providerId.value] || {}) : {})
+
+function ensureProviderConfig() {
+  if (!providerId.value)
+    return undefined
+
+  providersStore.initializeProvider(providerId.value)
+
+  if (!providers.value[providerId.value]) {
+    providers.value[providerId.value] = {}
+  }
+
+  return providers.value[providerId.value]
+}
+
+function setProviderField(key: string, value: string) {
+  const config = ensureProviderConfig()
+  if (!config)
+    return
+
+  config[key] = value
+}
+
+const model = computed({
+  get: () => providerConfig.value.model || '',
+  set: value => setProviderField('model', value),
 })
 
-const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].baseUrl = value
-  },
-})
+const providerModels = computed(() => providerId.value ? providersStore.getModelsForProvider(providerId.value) : [])
+const isLoadingModels = computed(() => providerId.value ? (providersStore.isLoadingModels[providerId.value] || false) : false)
 
 // Use the composable to get validation logic and state
 const {
   t,
   router,
   providerMetadata,
+  apiKey,
+  baseUrl,
   isValidating,
   isValid,
   validationMessage,
   handleResetSettings,
   forceValid,
+  runValidationNow,
 } = useProviderValidation(providerId)
+
+const fetchProviderModels = useDebounceFn(async () => {
+  if (!providerId.value)
+    return
+
+  const apiKeyValue = apiKey.value.trim()
+  const baseUrlValue = baseUrl.value.trim()
+
+  if (!apiKeyValue || !baseUrlValue)
+    return
+
+  await providersStore.fetchModelsForProvider(providerId.value)
+}, 600)
+
+const canRunValidation = computed(() => {
+  return Boolean(apiKey.value.trim() && baseUrl.value.trim())
+})
+
+onMounted(() => {
+  void fetchProviderModels()
+})
+
+watch([providerId, apiKey, baseUrl], () => {
+  void fetchProviderModels()
+})
 </script>
 
 <template>
@@ -69,6 +112,25 @@ const {
           v-model="apiKey"
           :provider-name="providerMetadata?.localizedName"
           placeholder="sk-..."
+        />
+
+        <FieldSelect
+          v-if="providerModels.length > 0"
+          v-model="model"
+          :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.title')"
+          :description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle')"
+          :options="providerModels.map(m => ({ value: m.id, label: m.name || m.id }))"
+          :disabled="isLoadingModels"
+          :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
+        />
+        <FieldInput
+          v-else
+          v-model="model"
+          :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_name')"
+          :description="isLoadingModels
+            ? t('settings.pages.modules.consciousness.sections.section.provider-model-selection.loading')
+            : t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description')"
+          :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
         />
       </ProviderBasicSettings>
 
@@ -104,6 +166,17 @@ const {
           {{ t('settings.dialogs.onboarding.validationSuccess') }}
         </template>
       </Alert>
+
+      <div class="mt-2 flex items-center justify-end gap-2">
+        <button
+          type="button"
+          class="rounded bg-primary-500 px-3 py-1.5 text-xs text-white font-medium transition-colors disabled:cursor-not-allowed disabled:bg-neutral-300 hover:bg-primary-600 dark:disabled:bg-neutral-700"
+          :disabled="!canRunValidation || isValidating > 0"
+          @click="runValidationNow"
+        >
+          {{ isValidating > 0 ? t('settings.pages.providers.catalog.edit.validators.status.validating') : t('settings.pages.providers.common.validateCurrentModel') }}
+        </button>
+      </div>
     </ProviderSettingsContainer>
   </ProviderSettingsLayout>
 </template>

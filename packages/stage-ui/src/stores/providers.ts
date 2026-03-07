@@ -21,7 +21,7 @@ import type {
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
-import { computedAsync, useIntervalFn, useLocalStorage } from '@vueuse/core'
+import { computedAsync, useLocalStorage } from '@vueuse/core'
 import {
   createOpenAI,
 } from '@xsai-ext/providers/create'
@@ -47,7 +47,6 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { listProviders as listDefinedProviders } from '../libs/providers'
-import { getProviderValidationIntervalMs } from '../libs/providers/validators/run'
 import { getKokoroWorker } from '../workers/kokoro'
 import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
@@ -238,34 +237,6 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Centralized provider metadata with provider factory functions
   const providerMetadata: Record<string, ProviderMetadata> = {
-    'speech-noop': {
-      id: 'speech-noop',
-      category: 'speech',
-      tasks: ['text-to-speech', 'tts'],
-      nameKey: 'settings.pages.providers.provider.speech-noop.title',
-      name: 'None',
-      descriptionKey: 'settings.pages.providers.provider.speech-noop.description',
-      description: 'No speech output.',
-      icon: 'i-solar:volume-cross-bold-duotone',
-      defaultOptions: () => ({}),
-      createProvider: async () => ({
-        speech: () => ({
-          baseURL: 'http://speech-noop.invalid/v1/',
-          model: 'noop',
-        }),
-      }),
-      capabilities: {
-        listModels: async () => [],
-        listVoices: async () => [],
-      },
-      validators: {
-        validateProviderConfig: () => ({
-          errors: [],
-          reason: '',
-          valid: true,
-        }),
-      },
-    },
     'app-local-audio-speech': buildOpenAICompatibleProvider({
       id: 'app-local-audio-speech',
       name: 'App (Local)',
@@ -917,10 +888,6 @@ export const useProvidersStore = defineStore('providers', () => {
             ...provider.voice(),
           })
 
-          if (!voices || !Array.isArray(voices)) {
-            return []
-          }
-
           // Find indices of Aria and Bill
           const ariaIndex = voices.findIndex(voice => voice.name.includes('Aria'))
           const billIndex = voices.findIndex(voice => voice.name.includes('Bill'))
@@ -1129,14 +1096,13 @@ export const useProvidersStore = defineStore('providers', () => {
       iconColor: 'i-lobe-icons:bilibiliindex',
       defaultOptions: () => ({
         baseUrl: 'http://localhost:11996/tts/',
-        model: 'IndexTTS-1.5',
       }),
       createProvider: async (config) => {
         const provider: SpeechProvider = {
           speech: () => {
             const req = {
               baseURL: config.baseUrl as string,
-              model: (config.model as string) || 'IndexTTS-1.5',
+              model: 'IndexTTS-1.5',
             }
             return req
           },
@@ -1144,18 +1110,6 @@ export const useProvidersStore = defineStore('providers', () => {
         return provider
       },
       capabilities: {
-        listModels: async () => {
-          return [
-            {
-              id: 'IndexTTS-1.5',
-              name: 'IndexTTS-1.5',
-              provider: 'index-tts-vllm',
-              description: 'Default model for Index-TTS vLLM deployment',
-              contextLength: 0,
-              deprecated: false,
-            },
-          ]
-        },
         listVoices: async (config) => {
           const voicesUrl = config.baseUrl as string
           const response = await fetch(`${voicesUrl}audio/voices`)
@@ -1694,24 +1648,11 @@ export const useProvidersStore = defineStore('providers', () => {
   // Progressive migration bridge:
   // translate unified provider definitions from libs/providers to legacy store metadata.
   // Existing metadata remains as fallback for providers not yet migrated.
-  const definedProviders = listDefinedProviders()
-
   const translatedProviderMetadata = convertProviderDefinitionsToMetadata(
-    definedProviders,
+    listDefinedProviders(),
     t,
     providerMetadata,
   )
-
-  const providerValidationIntervalMsById = new Map<string, number>()
-  for (const definition of definedProviders) {
-    const intervalMs = getProviderValidationIntervalMs({
-      definition,
-      contextOptions: { t },
-    })
-    if (intervalMs && intervalMs > 0) {
-      providerValidationIntervalMsById.set(definition.id, intervalMs)
-    }
-  }
 
   // Keep only legacy ASR/TTS providers as hand-written metadata.
   // All other categories are sourced from unified definitions in libs/providers.
@@ -1732,7 +1673,6 @@ export const useProvidersStore = defineStore('providers', () => {
   // const validatedCredentials = ref<Record<string, string>>({})
   const providerRuntimeState = ref<Record<string, ProviderRuntimeState>>({})
   const providerValidationInFlight = new Map<string, Promise<boolean>>()
-  const providerRevalidationLoops = new Map<string, { resume: () => void }>()
 
   const configuredProviders = computed(() => {
     const result: Record<string, boolean> = {}
@@ -1753,6 +1693,9 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Configuration validation functions
   async function validateProvider(providerId: string, options: { force?: boolean } = {}): Promise<boolean> {
+    if (!hasProviderMetadata(providerId))
+      return false
+
     const metadata = providerMetadata[providerId]
     if (!metadata)
       return false
@@ -1812,6 +1755,9 @@ export const useProvidersStore = defineStore('providers', () => {
   // Create computed properties for each provider's configuration status
 
   function getDefaultProviderConfig(providerId: string) {
+    if (!hasProviderMetadata(providerId))
+      return {}
+
     const metadata = providerMetadata[providerId]
     const defaultOptions = metadata?.defaultOptions?.() || {}
     return {
@@ -1822,6 +1768,9 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Initialize provider configurations
   function initializeProvider(providerId: string) {
+    if (!hasProviderMetadata(providerId))
+      return
+
     if (!providerCredentials.value[providerId]) {
       providerCredentials.value[providerId] = getDefaultProviderConfig(providerId)
     }
@@ -1837,23 +1786,6 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Initialize all providers
   Object.keys(providerMetadata).forEach(initializeProvider)
-
-  function startPeriodicRuntimeValidation() {
-    for (const [providerId, intervalMs] of providerValidationIntervalMsById.entries()) {
-      if (!providerMetadata[providerId] || intervalMs <= 0)
-        continue
-
-      if (providerRevalidationLoops.has(providerId)) {
-        continue
-      }
-
-      const loop = useIntervalFn(() => {
-        void validateProvider(providerId, { force: true })
-      }, intervalMs, { immediate: false, immediateCallback: false })
-      loop.resume()
-      providerRevalidationLoops.set(providerId, loop)
-    }
-  }
 
   // Update configuration status for all configured providers
   async function updateConfigurationStatus() {
@@ -1877,7 +1809,6 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Call initially and watch for changes
   watch(providerCredentials, updateConfigurationStatus, { deep: true, immediate: true })
-  startPeriodicRuntimeValidation()
 
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.keys(providerMetadata).filter(providerId => providerRuntimeState.value[providerId]?.isConfigured))
@@ -1907,13 +1838,36 @@ export const useProvidersStore = defineStore('providers', () => {
     return result
   })
 
+  function hasProviderMetadata(providerId: string) {
+    return Object.hasOwn(providerMetadata, providerId)
+  }
+
+  function tryGetProviderMetadata(providerId: string) {
+    if (!hasProviderMetadata(providerId))
+      return undefined
+
+    const metadata = providerMetadata[providerId]
+
+    return {
+      ...metadata,
+      localizedName: t(metadata.nameKey, metadata.name),
+      localizedDescription: t(metadata.descriptionKey, metadata.description),
+    }
+  }
+
   function deleteProvider(providerId: string) {
+    if (!hasProviderMetadata(providerId))
+      return
+
     delete providerCredentials.value[providerId]
     delete providerRuntimeState.value[providerId]
     unmarkProviderAdded(providerId)
   }
 
   function forceProviderConfigured(providerId: string) {
+    if (!hasProviderMetadata(providerId))
+      return
+
     if (providerRuntimeState.value[providerId]) {
       providerRuntimeState.value[providerId].isConfigured = true
       // Also cache the current config to prevent re-validation from overwriting
@@ -1936,6 +1890,9 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Function to fetch models for a specific provider
   async function fetchModelsForProvider(providerId: string) {
+    if (!hasProviderMetadata(providerId))
+      return []
+
     const config = providerCredentials.value[providerId]
     if (!config)
       return []
@@ -1983,6 +1940,9 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Get models for a specific provider
   function getModelsForProvider(providerId: string) {
+    if (!hasProviderMetadata(providerId))
+      return []
+
     return providerRuntimeState.value[providerId]?.models || []
   }
 
@@ -2033,16 +1993,12 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Function to get localized provider metadata
   function getProviderMetadata(providerId: string) {
-    const metadata = providerMetadata[providerId]
+    const metadata = tryGetProviderMetadata(providerId)
 
     if (!metadata)
       throw new Error(`Provider metadata for ${providerId} not found`)
 
-    return {
-      ...metadata,
-      localizedName: t(metadata.nameKey, metadata.name),
-      localizedDescription: t(metadata.descriptionKey, metadata.description),
-    }
+    return metadata
   }
 
   // Get all providers metadata (for settings page)
@@ -2197,6 +2153,8 @@ export const useProvidersStore = defineStore('providers', () => {
     availableProviders,
     configuredProviders,
     providerMetadata,
+    hasProviderMetadata,
+    tryGetProviderMetadata,
     getProviderMetadata,
     getTranscriptionFeatures,
     allProvidersMetadata,
