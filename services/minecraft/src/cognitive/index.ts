@@ -3,6 +3,7 @@ import type { CognitiveEngineOptions, MineflayerWithAgents } from './types'
 
 import { DebugService } from '../debug'
 import { McpReplServer } from '../debug/mcp-repl-server'
+import { config } from '../composables/config'
 import { ChatMessageHandler } from '../libs/mineflayer'
 import { createAgentContainer } from './container'
 
@@ -25,8 +26,11 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
       const reflexManager = container.resolve('reflexManager')
       const taskExecutor = container.resolve('taskExecutor')
       const debugService = DebugService.getInstance()
-      mcpReplServer = new McpReplServer(brain)
-      mcpReplServer.start()
+
+      if (config.debug.mcp) {
+        mcpReplServer = new McpReplServer(brain)
+        mcpReplServer.start()
+      }
 
       debugService.onCommand('request_repl_state', () => {
         debugService.emit('debug:repl_state', brain.getReplState())

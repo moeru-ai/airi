@@ -23,8 +23,22 @@ async function main() {
   initLogger() // todo: save logs to file
   initEnv()
 
+  if (config.debug.server || config.debug.viewer || config.debug.mcp) {
+    useLogger().warn('==============================================================================')
+    useLogger().warn('SECURITY NOTICE:')
+    useLogger().warn('The MCP Server, Debug Server, and/or Prismarine Viewer endpoints are currently')
+    useLogger().warn('enabled. These endpoints are completely unauthenticated. Enabling these exposes')
+    useLogger().warn('your bot\'s internal state and capabilities to anyone who can reach the ports.')
+    useLogger().warn('This can lead to Remote Code Execution (RCE) and full compromise of the bot')
+    useLogger().warn('if exposed to the internet or untrusted local networks. Ensure they are not')
+    useLogger().warn('externally accessible.')
+    useLogger().warn('==============================================================================')
+  }
+
   // Start debug server
-  DebugService.getInstance().start()
+  if (config.debug.server) {
+    DebugService.getInstance().start()
+  }
 
   const { bot } = await initBot({
     botConfig: config.bot,
@@ -42,7 +56,9 @@ async function main() {
     },
   })
 
-  setupMineflayerViewer(bot, { port: 3007, firstPerson: true })
+  if (config.debug.viewer) {
+    setupMineflayerViewer(bot, { port: 3007, firstPerson: true })
+  }
 
   // Connect airi server
   const airiClient = new Client({
