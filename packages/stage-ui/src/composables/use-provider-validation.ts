@@ -101,6 +101,14 @@ export function useProviderValidation(providerIdInput: MaybeRefOrGetter<string>)
 
       if (!isValid.value)
         finalValidationMessage = validationResult.reason
+
+      // When a provider validates successfully on its settings page,
+      // mark it as added so it appears in the model selector (e.g. Consciousness module).
+      // This fixes providers like LM Studio that use default config and may not
+      // need an API key, yet should be selectable after successful validation.
+      if (isValid.value) {
+        providersStore.markProviderAdded(providerId.value)
+      }
     }
     catch (error) {
       isValid.value = false

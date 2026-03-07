@@ -12,6 +12,17 @@ import { isModelProvider } from '../types'
 
 type OpenAICompatibleValidationCheck = 'connectivity' | 'model_list' | 'chat_completions'
 
+interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string, baseUrl?: string }> {
+  checks?: OpenAICompatibleValidationCheck[]
+  additionalHeaders?: Record<string, string>
+  schedule?: {
+    mode: 'once' | 'interval'
+    intervalMs?: number
+  }
+  connectivityFailureReason?: (input: { config: TConfig, error: unknown, errorMessage: string }) => string
+  modelListFailureReason?: (input: { config: TConfig, error: unknown, errorMessage: string }) => string
+}
+
 function extractStatusCode(error: unknown): number | null {
   if (!error)
     return null
@@ -73,10 +84,9 @@ function getConfiguredValidationModel<TConfig extends { model?: unknown }>(confi
   return extractModelId(configuredModel)
 }
 
-export function createOpenAICompatibleValidators<TConfig extends { apiKey?: string, baseUrl?: string, model?: string }>(options?: {
-  checks?: OpenAICompatibleValidationCheck[]
-  additionalHeaders?: Record<string, string>
-}): ProviderDefinition<TConfig>['validators'] {
+export function createOpenAICompatibleValidators<TConfig extends { apiKey?: string, baseUrl?: string, model?: string }>(
+  options?: OpenAICompatibleValidationOptions<TConfig>,
+): ProviderDefinition<TConfig>['validators'] {
   const checks = options?.checks ?? ['connectivity', 'model_list', 'chat_completions']
   const additionalHeaders = options?.additionalHeaders
 
@@ -84,6 +94,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     requestOk: boolean
     hasModels: boolean
     errorMessage?: string
+    error?: unknown
   }
 
   interface ChatCheckResult {
@@ -111,6 +122,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
         requestOk: false,
         hasModels: false,
         errorMessage: errorMessageFrom(e),
+        error: e,
       }
     }
   }
@@ -274,6 +286,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     validatorConfig.validateProvider?.push(({ t }) => ({
       id: 'openai-compatible:check-connectivity',
       name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-connectivity.title'),
+      schedule: options?.schedule,
       validator: async (config, provider, providerExtra, contextOptions) => {
         const errors: Array<{ error: unknown }> = []
         const result = await getModelListCheckResult(
@@ -283,7 +296,11 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
           contextOptions as { validationCache?: Map<string, unknown> } | undefined,
         )
         if (!result.requestOk) {
-          errors.push({ error: new Error(`Connectivity check failed: ${result.errorMessage || 'Unknown error.'}`) })
+          const errorMessage = result.errorMessage || 'Unknown error.'
+          const reason = options?.connectivityFailureReason
+            ? options.connectivityFailureReason({ config, error: result.error, errorMessage })
+            : `Connectivity check failed: ${errorMessage}`
+          errors.push({ error: new Error(reason) })
         }
 
         return {
@@ -300,6 +317,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     validatorConfig.validateProvider?.push(({ t }) => ({
       id: 'openai-compatible:check-chat-completions',
       name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-supports-chat-completion.title'),
+      schedule: options?.schedule,
       validator: async (config, _provider, _providerExtra, contextOptions) => {
         const errors: Array<{ error: unknown }> = []
         const result = await getChatCheckResult(
@@ -324,6 +342,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     validatorConfig.validateProvider?.push(({ t }) => ({
       id: 'openai-compatible:check-model-list',
       name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-supports-model-listing.title'),
+      schedule: options?.schedule,
       validator: async (config, provider, providerExtra, contextOptions) => {
         const errors: Array<{ error: unknown }> = []
         const result = await getModelListCheckResult(
@@ -333,7 +352,11 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
           contextOptions as { validationCache?: Map<string, unknown> } | undefined,
         )
         if (!result.requestOk) {
-          errors.push({ error: new Error(`Model list check failed: ${result.errorMessage || 'Unknown error.'}`) })
+          const errorMessage = result.errorMessage || 'Unknown error.'
+          const reason = options?.modelListFailureReason
+            ? options.modelListFailureReason({ config, error: result.error, errorMessage })
+            : `Model list check failed: ${errorMessage}`
+          errors.push({ error: new Error(reason) })
         }
         else if (!result.hasModels) {
           errors.push({ error: new Error('Model list check failed: no models found') })

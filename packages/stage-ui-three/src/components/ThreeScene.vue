@@ -91,6 +91,8 @@ const {
   envSelect,
   skyBoxSrc,
   skyBoxIntensity,
+  renderScale,
+  multisampling,
 } = storeToRefs(modelStore)
 
 const modelRef = ref<InstanceType<typeof VRMModel>>()
@@ -314,6 +316,7 @@ defineExpose({
         v-show="true"
         :camera="camera"
         :antialias="true"
+        :dpr="renderScale"
         :width="width"
         :height="height"
         :tone-mapping="ACESFilmicToneMapping"
@@ -361,7 +364,7 @@ defineExpose({
           cast-shadow
         />
         <Suspense>
-          <EffectComposerPmndrs>
+          <EffectComposerPmndrs :multisampling="multisampling">
             <HueSaturationPmndrs v-bind="effectProps" />
           </EffectComposerPmndrs>
         </Suspense>

@@ -118,7 +118,8 @@ pages:
         scenario: Bạn vừa tỉnh dậy và quên hết quá khứ.
         systemprompt: Bạn sẽ nhận tin nhắn và trả lời như một con người thực sự.
         posthistoryinstructions: Nhớ bắt chước như một con người.
-      modules_info: Configure modules for this character card. If not set, default module configuration will be used.
+      modules_info: >-
+        Configure modules for this character card. If not set, default module configuration will be used.
       use_default: Use default
       use_default_not_configured: Use default (not configured)
       fields_info:
@@ -427,7 +428,8 @@ pages:
         apply-and-restart: Save and restart stdio MCP
       messages:
         opened: Config file opened at {path}
-        restarted: MCP servers restarted. Started {started}, failed {failed}, skipped {skipped}
+        restarted: >-
+          MCP servers restarted. Started {started}, failed {failed}, skipped {skipped}
   providers:
     explained:
       chat: 'Nhà cung cấp mô hình tạo văn bản. Ví dụ: OpenRouter, OpenAI, Ollama.'
@@ -448,7 +450,8 @@ pages:
         validation:
           failed:
             title: Please check your provider settings, validation failed.
-            description: You can still save the current configuration if you want to proceed.
+            description: >-
+              You can still save the current configuration if you want to proceed.
             action: Save anyway
         config:
           common:
@@ -470,6 +473,17 @@ pages:
                     placeholder: Key
                   value:
                     placeholder: Value
+                thinking-mode:
+                  label: Thinking Mode
+                  description: >
+                    Controls Ollama thinking behavior. GPT-OSS only supports low/medium/high levels.
+                  options:
+                    auto: Auto (provider default)
+                    disable: Disable
+                    enable: Enable
+                    low: Low
+                    medium: Medium
+                    high: High
         validators:
           actions:
             validate: Validate
@@ -582,6 +596,9 @@ pages:
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
+      speech-noop:
+        title: None
+        description: No speech output.
       deepseek:
         description: deepseek.com
         title: DeepSeek
@@ -633,7 +650,8 @@ pages:
               description: Smaller models load faster but may have slightly lower quality.
         models:
           fp32-webgpu:
-            description: Full precision model using WebGPU - Recommended for supported devices
+            description: >-
+              Full precision model using WebGPU - Recommended for supported devices
           fp32:
             description: Full precision model
           fp16:
@@ -753,6 +771,9 @@ pages:
       transcriptions:
         playground:
           title: Transcription Playground
+      aihubmix:
+        title: AIHubMix
+        description: https://aihubmix.com (10% off)
     title: Nhà cung cấp
   connection:
     description: Configure WebSocket server connection
@@ -820,7 +841,8 @@ pages:
                 title: Polaroid
                 description: Utility for taking shots of models
               context-flow:
-                description: Inspect incoming context updates and outgoing chat stream events
+                description: >-
+                  Inspect incoming context updates and outgoing chat stream events
               websocket-inspector:
                 title: WebSocket Inspector
                 description: Inspect raw WebSocket traffic
@@ -829,7 +851,8 @@ pages:
                 description: Test color extraction
               providers-transcription-realtime-aliyun-nls:
                 title: Aliyun Real-time Transcriber
-                description: Stream microphone audio to Aliyun NLS and inspect live transcripts
+                description: >-
+                  Stream microphone audio to Aliyun NLS and inspect live transcripts
               performance-playground:
                 title: Performance Playground
                 description: 'Test performance runtime: VRM expressions + TTS lip sync'

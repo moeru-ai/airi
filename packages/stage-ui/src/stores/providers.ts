@@ -1672,6 +1672,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // const validatedCredentials = ref<Record<string, string>>({})
   const providerRuntimeState = ref<Record<string, ProviderRuntimeState>>({})
+  const providerValidationInFlight = new Map<string, Promise<boolean>>()
 
   const configuredProviders = computed(() => {
     const result: Record<string, boolean> = {}
@@ -1691,7 +1692,7 @@ export const useProvidersStore = defineStore('providers', () => {
   }
 
   // Configuration validation functions
-  async function validateProvider(providerId: string): Promise<boolean> {
+  async function validateProvider(providerId: string, options: { force?: boolean } = {}): Promise<boolean> {
     if (!hasProviderMetadata(providerId))
       return false
 
@@ -1712,26 +1713,43 @@ export const useProvidersStore = defineStore('providers', () => {
 
     const configString = JSON.stringify(config || {})
     const runtimeState = providerRuntimeState.value[providerId]
+    const cacheKey = `${providerId}:${configString}`
+    const forceValidation = options.force === true
 
-    if (runtimeState?.validatedCredentialHash === configString && typeof runtimeState.isConfigured === 'boolean')
+    if (!forceValidation && runtimeState?.validatedCredentialHash === configString && typeof runtimeState.isConfigured === 'boolean')
       return runtimeState.isConfigured
 
-    // Always cache the current config string to prevent re-validating the same config
-    if (providerRuntimeState.value[providerId]) {
-      providerRuntimeState.value[providerId].validatedCredentialHash = configString
-    }
-
-    const validationResult = await metadata.validators.validateProviderConfig(config || {})
-
-    if (providerRuntimeState.value[providerId]) {
-      providerRuntimeState.value[providerId].isConfigured = validationResult.valid
-      // Auto-mark Web Speech API as added if valid and available
-      if (validationResult.valid && ['browser-web-speech-api', 'player2'].includes(providerId)) {
-        markProviderAdded(providerId)
+    if (!forceValidation) {
+      const pending = providerValidationInFlight.get(cacheKey)
+      if (pending) {
+        return pending
       }
     }
 
-    return validationResult.valid
+    const runValidation = async () => {
+      const validationResult = await metadata.validators.validateProviderConfig(config || {})
+
+      if (providerRuntimeState.value[providerId]) {
+        providerRuntimeState.value[providerId].isConfigured = validationResult.valid
+        providerRuntimeState.value[providerId].validatedCredentialHash = configString
+        // Auto-mark Web Speech API as added if valid and available
+        if (validationResult.valid && ['browser-web-speech-api', 'player2'].includes(providerId)) {
+          markProviderAdded(providerId)
+        }
+      }
+
+      return validationResult.valid
+    }
+
+    if (forceValidation) {
+      return runValidation()
+    }
+
+    const task = runValidation()
+    providerValidationInFlight.set(cacheKey, task)
+    return task.finally(() => {
+      providerValidationInFlight.delete(cacheKey)
+    })
   }
 
   // Create computed properties for each provider's configuration status
