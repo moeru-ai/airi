@@ -145,8 +145,9 @@ function handleDeleteProvider(providerId: string) {
           <h2 class="text-lg md:text-2xl">
             {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.title') }}
           </h2>
-          <div text="neutral-400 dark:neutral-400">
+          <div class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-400">
             <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}</span>
+            <span v-if="activeModel" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.current_model_label') }} {{ activeModel }}</span>
           </div>
         </div>
 
@@ -195,7 +196,7 @@ function handleDeleteProvider(providerId: string) {
           <RadioCardManySelect
             v-model="activeModel"
             v-model:search-query="modelSearchQuery"
-            :items="providerModels.sort((a, b) => a.id === activeModel ? -1 : b.id === activeModel ? 1 : 0)"
+            :items="providerModels"
             :searchable="true"
             :allow-custom="true"
             :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
