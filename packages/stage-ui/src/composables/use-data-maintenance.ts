@@ -68,6 +68,45 @@ export function useDataMaintenance() {
     return new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   }
 
+  function exportProviderConfigurations() {
+    const configs = providersStore.providers
+    const added = providersStore.addedProviders
+    const data = {
+      format: 'provider-configurations:v1',
+      exportedAt: new Date().toISOString(),
+      providers: configs,
+      addedProviders: added,
+    }
+    return new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  }
+
+  function isProviderConfigPayload(payload: unknown): payload is { format: string, providers: Record<string, Record<string, unknown>>, addedProviders: Record<string, boolean> } {
+    if (!payload || typeof payload !== 'object')
+      return false
+    return (payload as { format?: string }).format === 'provider-configurations:v1'
+      && typeof (payload as any).providers === 'object'
+  }
+
+  function importProviderConfigurations(payload: Record<string, unknown>) {
+    if (!isProviderConfigPayload(payload))
+      throw new Error('Invalid provider configuration export format')
+
+    const currentProviders = providersStore.providers
+    for (const [id, config] of Object.entries(payload.providers)) {
+      if (config && typeof config === 'object') {
+        currentProviders[id] = config
+      }
+    }
+
+    if (payload.addedProviders) {
+      for (const [id, added] of Object.entries(payload.addedProviders)) {
+        if (added) {
+          providersStore.markProviderAdded(id)
+        }
+      }
+    }
+  }
+
   function isChatSessionsPayload(payload: unknown): payload is ChatSessionsExport {
     if (!payload || typeof payload !== 'object')
       return false
@@ -112,6 +151,8 @@ export function useDataMaintenance() {
     deleteAllChatSessions,
     exportChatSessions,
     importChatSessions,
+    exportProviderConfigurations,
+    importProviderConfigurations,
     deleteAllData,
     resetDesktopApplicationState,
   }

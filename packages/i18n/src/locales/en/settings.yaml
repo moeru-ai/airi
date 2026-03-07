@@ -199,7 +199,9 @@ pages:
         reset: Reset module settings
       providers:
         title: Providers
-        description: Reset all provider settings and credentials.
+        description: Export or import provider configurations and credentials.
+        export: Export providers
+        import: Import providers
         reset: Reset provider settings
       danger:
         title: Danger zone
@@ -223,6 +225,9 @@ pages:
       models_deleted: Models deleted.
       modules_reset: Module settings reset.
       providers_reset: Provider settings reset.
+      providers_exported: Provider configurations exported.
+      providers_imported: Provider configurations imported.
+      providers_import_error: Failed to import provider configurations. Please check the file format.
       all_deleted: All local data deleted.
       desktop_reset: Desktop data reset.
   models:
