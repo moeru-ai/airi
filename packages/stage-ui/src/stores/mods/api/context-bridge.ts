@@ -88,8 +88,18 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           }
         }
 
+        if (!activeProvider.value || !activeModel.value)
+          return
+
         if (activeProvider.value && activeModel.value) {
-          const chatProvider = await providersStore.getProviderInstance<ChatProvider>(activeProvider.value)
+          let chatProvider: ChatProvider
+          try {
+            chatProvider = await providersStore.getProviderInstance<ChatProvider>(activeProvider.value)
+          }
+          catch (err) {
+            console.error('[context-bridge] getProviderInstance failed for provider:', activeProvider.value, err)
+            return
+          }
 
           let messageText = text
           const targetSessionId = overrides?.sessionId
