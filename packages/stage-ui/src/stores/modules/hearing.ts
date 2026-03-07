@@ -208,11 +208,16 @@ export const useHearingStore = defineStore('hearing-store', () => {
       responseFormat: useVerboseJson ? 'verbose_json' : format,
     })
 
-    if (useVerboseJson && response.segments) {
-      return {
-        mode: 'generate',
-        ...response,
-        text: filterTranscriptionByConfidence(response.segments, confidenceThreshold.value),
+    if (useVerboseJson) {
+      if (response.segments) {
+        return {
+          mode: 'generate',
+          ...response,
+          text: filterTranscriptionByConfidence(response.segments, confidenceThreshold.value),
+        }
+      }
+      else {
+        console.warn('[Hearing] Confidence filter is enabled but the provider did not return verbose_json segments. Filtering has no effect.')
       }
     }
 
