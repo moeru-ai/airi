@@ -23,6 +23,7 @@ import './moonshot-ai'
 import './modelscope'
 import './ollama'
 import './cloudflare-workers-ai'
+import './meganova-ai'
 import './azure-ai-foundry'
 
 export {
