@@ -271,6 +271,12 @@ export const useSpeechStore = defineStore('speech', () => {
       hasVoice ||= !!providerConfig?.voice
     }
 
+    // 阿里百炼：自定义声音 ID 也视为有效 voice 配置
+    if (activeSpeechProvider.value === 'alibaba-cloud-model-studio') {
+      const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+      hasVoice ||= !!providerConfig?.customVoiceId
+    }
+
     return hasModel && hasVoice
   })
 

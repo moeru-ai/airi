@@ -299,6 +299,30 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       }
     }
 
+    // 阿里百炼：优先使用 provider config 中的模型和自定义声音 ID
+    if (activeSpeechProvider.value === 'alibaba-cloud-model-studio') {
+      // 优先使用设置页面中选择的模型
+      if (providerConfig?.model) {
+        model = providerConfig.model as string
+      }
+
+      // 当未选择声音但配置了自定义声音 ID 时，使用自定义声音 ID
+      if (!voice) {
+        const customVoiceId = providerConfig?.customVoiceId as string | undefined
+        if (customVoiceId?.trim()) {
+          voice = {
+            id: customVoiceId.trim(),
+            name: `自定义声音 (${customVoiceId.trim()})`,
+            description: customVoiceId.trim(),
+            previewURL: '',
+            languages: [{ code: 'zh-CN', title: '中文' }],
+            provider: activeSpeechProvider.value,
+            gender: 'neutral',
+          }
+        }
+      }
+    }
+
     if (!model || !voice)
       return null
 
