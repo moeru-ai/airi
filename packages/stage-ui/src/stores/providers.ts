@@ -1224,23 +1224,44 @@ export const useProvidersStore = defineStore('providers', () => {
       createProvider: async config => createUnAlibabaCloud((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
       capabilities: {
         listVoices: async (config) => {
-          const provider = createUnAlibabaCloud((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnAlibabaCloudOptions>
-
-          const voices = await listVoices({
-            ...provider.voice(),
-          })
-
-          return voices.map((voice) => {
-            return {
-              id: voice.id,
-              name: voice.name,
+          // 如果用户配置了自定义声音 ID（用于复刻声音），将其作为可选声音添加到列表开头
+          const customVoices: VoiceInfo[] = []
+          const customVoiceId = config.customVoiceId as string | undefined
+          if (customVoiceId?.trim()) {
+            customVoices.push({
+              id: customVoiceId.trim(),
+              name: `自定义声音 (${customVoiceId.trim()})`,
               provider: 'alibaba-cloud-model-studio',
-              compatibleModels: voice.compatible_models,
-              previewURL: voice.preview_audio_url,
-              languages: voice.languages,
-              gender: voice.labels?.gender,
-            }
-          })
+              languages: [{ code: 'zh-CN', title: '中文' }],
+              gender: 'neutral',
+            })
+          }
+
+          try {
+            const provider = createUnAlibabaCloud((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnAlibabaCloudOptions>
+
+            const voices = await listVoices({
+              ...provider.voice(),
+            })
+
+            const apiVoices = voices.map((voice) => {
+              return {
+                id: voice.id,
+                name: voice.name,
+                provider: 'alibaba-cloud-model-studio',
+                compatibleModels: voice.compatible_models,
+                previewURL: voice.preview_audio_url,
+                languages: voice.languages,
+                gender: voice.labels?.gender,
+              }
+            })
+
+            return [...customVoices, ...apiVoices]
+          }
+          catch {
+            // 即使 API 获取声音列表失败，仍然返回自定义声音
+            return customVoices
+          }
         },
         listModels: async () => {
           return [
@@ -1257,6 +1278,14 @@ export const useProvidersStore = defineStore('providers', () => {
               name: 'CosyVoice (New)',
               provider: 'alibaba-cloud-model-studio',
               description: '',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: 'cosyvoice-v3-flash',
+              name: 'CosyVoice v3 Flash',
+              provider: 'alibaba-cloud-model-studio',
+              description: '支持自定义复刻声音的快速语音合成模型',
               contextLength: 0,
               deprecated: false,
             },
