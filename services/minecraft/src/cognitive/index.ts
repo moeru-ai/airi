@@ -1,9 +1,9 @@
 import type { MineflayerPlugin } from '../libs/mineflayer'
 import type { CognitiveEngineOptions, MineflayerWithAgents } from './types'
 
-import { config } from '../composables/config'
 import { DebugService } from '../debug'
 import { McpReplServer } from '../debug/mcp-repl-server'
+import { config } from '../composables/config'
 import { ChatMessageHandler } from '../libs/mineflayer'
 import { createAgentContainer } from './container'
 
