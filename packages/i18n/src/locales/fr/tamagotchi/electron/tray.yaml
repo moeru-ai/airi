@@ -1,26 +1,26 @@
 menu:
   labels:
     label:
-      show: Show
-      adjust_sizes: Adjust sizes
-      recommended_size: Recommended (450x600)
-      full_height: Full Height
-      half_height: Half Height
-      full_screen: Full Screen
-      align_to: Align to
-      center: Center
-      top_left: Top Left
-      top_right: Top Right
-      bottom_left: Bottom Left
-      bottom_right: Bottom Right
-      settings: Settings...
-      about: About...
-      open_inlay: Open Inlay...
-      open_widgets: Open Widgets...
-      open_caption: Open Caption...
-      caption_overlay: Caption Overlay
-      follow_window: Follow window
-      reset_position: Reset position
-      devtools: DevTools
-      troubleshoot_beatsync: Troubleshoot BeatSync...
-      quit: Quit
+      show: Afficher
+      adjust_sizes: Ajuster les dimensions
+      recommended_size: Recommandée (450x600)
+      full_height: Pleine hauteur
+      half_height: Demi-hauteur
+      full_screen: Plein écran
+      align_to: Aligner sur
+      center: Centrer
+      top_left: En haut à gauche
+      top_right: En haut à droite
+      bottom_left: En bas à gauche
+      bottom_right: En bas à droite
+      settings: Paramètres...
+      about: À propos...
+      open_inlay: Ouvrir l'incrustation...
+      open_widgets: Ouvrir les widgets...
+      open_caption: Ouvrir le sous-titrage...
+      caption_overlay: Superposition des sous-titres
+      follow_window: Suivre la fenêtre
+      reset_position: Réinitialiser la position
+      devtools: Outils de développement
+      troubleshoot_beatsync: Dépannage BeatSync...
+      quit: Quitter

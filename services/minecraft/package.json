@@ -18,6 +18,7 @@
     "@proj-airi/server-sdk": "^0.8.4",
     "@xsai/generate-text": "catalog:",
     "@xsai/shared-chat": "catalog:",
+    "alien-signals": "^3.1.2",
     "awilix": "^12.1.1",
     "canvas": "^3.2.1",
     "crossws": "catalog:",

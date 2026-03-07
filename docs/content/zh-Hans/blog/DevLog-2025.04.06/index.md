@@ -124,7 +124,7 @@ export const chatMessagesTable = pgTable('chat_messages', {
 
 会发生如下的报错：
 
-```
+```txt
 ERROR: access method "hnsw" does not exist
 ```
 
@@ -282,20 +282,20 @@ const relevantMessages = await db
 
 非常简单，关键就是
 
-```
+```ts
 sql<number>`(1 - (${cosineDistance(chatMessagesTable.content_vector_1536, embedding.embedding)}))`
 ```
 
 作为相关度搜索，
 
-```
-gt(similarity, 0.5),
+```ts
+gt(similarity, 0.5)
 ```
 
 作为所谓的匹配度阈值控制，
 
-```
-.orderBy(desc(sql`similarity`))
+```ts
+query.orderBy(desc(sql`similarity`))
 ```
 
 则用于指定排序。
@@ -304,7 +304,7 @@ gt(similarity, 0.5),
 
 这也很简单！
 
-我曾经是一名搜索引擎工程师，我们通常使用重排表达式以及分数权重作为的 10 的幂来有效提高分数并做到数学意义上的「覆盖」操作。你可以想象的是，对于精确匹配需要提升分数和权重的话，我们通常会编写 5*10^2 * exact_match 这样的表达式来重新排序。
+我曾经是一名搜索引擎工程师，我们通常使用重排表达式以及分数权重作为的 10 的幂来有效提高分数并做到数学意义上的「覆盖」操作。你可以想象的是，对于精确匹配需要提升分数和权重的话，我们通常会编写 5*10^2* exact_match 这样的表达式来重新排序。
 
 所以数据库里面我们也可以实现某种基于数学运算的无状态查询效果，比如这样：
 
