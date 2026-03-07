@@ -19,56 +19,49 @@ import { computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
-const providerId = route.params.providerId as string
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const rawProviderId = computed(() => typeof route.params.providerId === 'string' ? route.params.providerId : '')
+const providerId = computed(() => providersStore.hasProviderMetadata(rawProviderId.value) ? rawProviderId.value : '')
 
-// Define computed properties for credentials
-const apiKey = computed({
-  get: () => providers.value[providerId]?.apiKey || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].apiKey = value
-  },
-})
+const providerConfig = computed(() => providerId.value ? (providers.value[providerId.value] || {}) : {})
 
-const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].baseUrl = value
-  },
-})
+function ensureProviderConfig() {
+  if (!providerId.value)
+    return undefined
 
-const model = computed({
-  get: () => providers.value[providerId]?.model || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].model = value
-  },
-})
+  providersStore.initializeProvider(providerId.value)
 
-const providerModels = computed(() => providersStore.getModelsForProvider(providerId))
-const isLoadingModels = computed(() => providersStore.isLoadingModels[providerId] || false)
+  if (!providers.value[providerId.value]) {
+    providers.value[providerId.value] = {}
+  }
 
-const fetchProviderModels = useDebounceFn(async () => {
-  const apiKeyValue = apiKey.value.trim()
-  const baseUrlValue = baseUrl.value.trim()
+  return providers.value[providerId.value]
+}
 
-  if (!apiKeyValue || !baseUrlValue)
+function setProviderField(key: string, value: string) {
+  const config = ensureProviderConfig()
+  if (!config)
     return
 
-  await providersStore.fetchModelsForProvider(providerId)
-}, 600)
+  config[key] = value
+}
+
+const model = computed({
+  get: () => providerConfig.value.model || '',
+  set: value => setProviderField('model', value),
+})
+
+const providerModels = computed(() => providerId.value ? providersStore.getModelsForProvider(providerId.value) : [])
+const isLoadingModels = computed(() => providerId.value ? (providersStore.isLoadingModels[providerId.value] || false) : false)
 
 // Use the composable to get validation logic and state
 const {
   t,
   router,
   providerMetadata,
+  apiKey,
+  baseUrl,
   isValidating,
   isValid,
   validationMessage,
@@ -76,6 +69,19 @@ const {
   forceValid,
   runValidationNow,
 } = useProviderValidation(providerId)
+
+const fetchProviderModels = useDebounceFn(async () => {
+  if (!providerId.value)
+    return
+
+  const apiKeyValue = apiKey.value.trim()
+  const baseUrlValue = baseUrl.value.trim()
+
+  if (!apiKeyValue || !baseUrlValue)
+    return
+
+  await providersStore.fetchModelsForProvider(providerId.value)
+}, 600)
 
 const canRunValidation = computed(() => {
   return Boolean(apiKey.value.trim() && baseUrl.value.trim())
@@ -85,7 +91,7 @@ onMounted(() => {
   void fetchProviderModels()
 })
 
-watch([apiKey, baseUrl], () => {
+watch([providerId, apiKey, baseUrl], () => {
   void fetchProviderModels()
 })
 </script>
@@ -168,7 +174,7 @@ watch([apiKey, baseUrl], () => {
           :disabled="!canRunValidation || isValidating > 0"
           @click="runValidationNow"
         >
-          {{ isValidating > 0 ? '检测中...' : '检测当前模型' }}
+          {{ isValidating > 0 ? t('settings.pages.providers.catalog.edit.validators.status.validating') : t('settings.pages.providers.common.validateCurrentModel') }}
         </button>
       </div>
     </ProviderSettingsContainer>

@@ -1692,6 +1692,9 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Configuration validation functions
   async function validateProvider(providerId: string): Promise<boolean> {
+    if (!hasProviderMetadata(providerId))
+      return false
+
     const metadata = providerMetadata[providerId]
     if (!metadata)
       return false
@@ -1734,6 +1737,9 @@ export const useProvidersStore = defineStore('providers', () => {
   // Create computed properties for each provider's configuration status
 
   function getDefaultProviderConfig(providerId: string) {
+    if (!hasProviderMetadata(providerId))
+      return {}
+
     const metadata = providerMetadata[providerId]
     const defaultOptions = metadata?.defaultOptions?.() || {}
     return {
@@ -1744,6 +1750,9 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Initialize provider configurations
   function initializeProvider(providerId: string) {
+    if (!hasProviderMetadata(providerId))
+      return
+
     if (!providerCredentials.value[providerId]) {
       providerCredentials.value[providerId] = getDefaultProviderConfig(providerId)
     }
@@ -1811,13 +1820,36 @@ export const useProvidersStore = defineStore('providers', () => {
     return result
   })
 
+  function hasProviderMetadata(providerId: string) {
+    return Object.hasOwn(providerMetadata, providerId)
+  }
+
+  function tryGetProviderMetadata(providerId: string) {
+    if (!hasProviderMetadata(providerId))
+      return undefined
+
+    const metadata = providerMetadata[providerId]
+
+    return {
+      ...metadata,
+      localizedName: t(metadata.nameKey, metadata.name),
+      localizedDescription: t(metadata.descriptionKey, metadata.description),
+    }
+  }
+
   function deleteProvider(providerId: string) {
+    if (!hasProviderMetadata(providerId))
+      return
+
     delete providerCredentials.value[providerId]
     delete providerRuntimeState.value[providerId]
     unmarkProviderAdded(providerId)
   }
 
   function forceProviderConfigured(providerId: string) {
+    if (!hasProviderMetadata(providerId))
+      return
+
     if (providerRuntimeState.value[providerId]) {
       providerRuntimeState.value[providerId].isConfigured = true
       // Also cache the current config to prevent re-validation from overwriting
@@ -1840,6 +1872,9 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Function to fetch models for a specific provider
   async function fetchModelsForProvider(providerId: string) {
+    if (!hasProviderMetadata(providerId))
+      return []
+
     const config = providerCredentials.value[providerId]
     if (!config)
       return []
@@ -1887,6 +1922,9 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Get models for a specific provider
   function getModelsForProvider(providerId: string) {
+    if (!hasProviderMetadata(providerId))
+      return []
+
     return providerRuntimeState.value[providerId]?.models || []
   }
 
@@ -1937,16 +1975,12 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Function to get localized provider metadata
   function getProviderMetadata(providerId: string) {
-    const metadata = providerMetadata[providerId]
+    const metadata = tryGetProviderMetadata(providerId)
 
     if (!metadata)
       throw new Error(`Provider metadata for ${providerId} not found`)
 
-    return {
-      ...metadata,
-      localizedName: t(metadata.nameKey, metadata.name),
-      localizedDescription: t(metadata.descriptionKey, metadata.description),
-    }
+    return metadata
   }
 
   // Get all providers metadata (for settings page)
@@ -2101,6 +2135,8 @@ export const useProvidersStore = defineStore('providers', () => {
     availableProviders,
     configuredProviders,
     providerMetadata,
+    hasProviderMetadata,
+    tryGetProviderMetadata,
     getProviderMetadata,
     getTranscriptionFeatures,
     allProvidersMetadata,

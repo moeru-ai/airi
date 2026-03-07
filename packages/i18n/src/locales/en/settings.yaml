@@ -523,6 +523,7 @@ pages:
                       information, check <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama integration guide</a>.
     common:
       continueAnyway: Continue Anyway
+      validateCurrentModel: Validate Current Model
       fields:
         field:
           api-key:

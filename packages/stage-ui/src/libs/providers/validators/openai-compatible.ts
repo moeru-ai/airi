@@ -300,7 +300,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     validatorConfig.validateProvider?.push(({ t }) => ({
       id: 'openai-compatible:check-chat-completions',
       name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-supports-chat-completion.title'),
-      validator: async (config, provider, providerExtra, contextOptions) => {
+      validator: async (config, _provider, _providerExtra, contextOptions) => {
         const errors: Array<{ error: unknown }> = []
         const result = await getChatCheckResult(
           config,
