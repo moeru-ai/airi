@@ -358,8 +358,10 @@ pages:
             title: Confidence Threshold
             description: Filter out low-confidence transcriptions to reduce Whisper hallucinations. Values closer to 0 are more strict; drag to the leftmost to disable. Only effective for providers supporting Whisper API (e.g., OpenAI, Groq).
             disabled: Disabled
-            verbose-json-note: Note: If your provider does not support verbose_json responses, this setting will have no effect.
-            verbose-json-unsupported: Your provider did not return verbose_json segments. Confidence filtering had no effect on the last transcription.
+            verbose-json-note: >-
+              Note: If your provider does not support verbose_json responses, this setting will have no effect.
+            verbose-json-unsupported: >-
+              Your provider did not return verbose_json segments. Confidence filtering had no effect on the last transcription.
     memory-long-term:
       description: Long-term memory specific settings and management
       title: Long-Term Memory
