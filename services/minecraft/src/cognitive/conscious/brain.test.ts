@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
+import { config } from '../../composables/config'
 import { ActionError } from '../../utils/errors'
 import { Brain } from './brain'
 
@@ -30,6 +31,13 @@ function createReflexSnapshot() {
 }
 
 function createDeps(llmText: string) {
+  config.openai = {
+    apiKey: 'test-api-key',
+    baseUrl: 'https://example.com/v1',
+    model: 'test-model',
+    reasoningModel: 'test-reasoning-model',
+  }
+
   const logger = {
     log: vi.fn(),
     warn: vi.fn(),
@@ -277,6 +285,59 @@ inv;
     expect(enqueueSpy).not.toHaveBeenCalled()
   })
 
+  it('uses attempt timeout guard so hanging llm call cannot stall processEvent', async () => {
+    const deps: any = createDeps('await chat("hi")')
+    deps.llmAgent.callLLM = vi.fn(async () => await new Promise(() => {}))
+    const brain: any = new Brain(deps)
+    brain.llmAttemptTimeoutMs = 25
+    brain.llmTurnDeadlineMs = 80
+
+    const outcome = await Promise.race([
+      brain.processEvent({} as any, createPerceptionEvent()).then(() => 'done'),
+      new Promise(resolve => setTimeout(() => resolve('timeout'), 350)),
+    ])
+
+    expect(outcome).toBe('done')
+    expect(deps.llmAgent.callLLM).toHaveBeenCalledTimes(1)
+    const llmCallOptions = deps.llmAgent.callLLM.mock.calls[0]?.[0]
+    expect(typeof llmCallOptions?.timeoutMs).toBe('number')
+    expect(llmCallOptions?.abortSignal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('aborts in-flight llm call when paused', async () => {
+    const deps: any = createDeps('await chat("hi")')
+    let resolveStarted!: () => void
+    const started = new Promise<void>((resolve) => {
+      resolveStarted = resolve
+    })
+    deps.llmAgent.callLLM = vi.fn(async (options: any) => {
+      resolveStarted()
+      return await new Promise((_resolve, reject) => {
+        options.abortSignal?.addEventListener('abort', () => {
+          reject(options.abortSignal.reason ?? Object.assign(new Error('Aborted'), { name: 'AbortError' }))
+        }, { once: true })
+      })
+    })
+    const brain: any = new Brain(deps)
+    brain.llmAttemptTimeoutMs = 2000
+    brain.llmTurnDeadlineMs = 2000
+
+    const processing = brain.processEvent({} as any, createPerceptionEvent()).then(() => 'done')
+    await started
+    brain.setPaused(true)
+
+    const outcome = await Promise.race([
+      processing,
+      new Promise(resolve => setTimeout(() => resolve('timeout'), 500)),
+    ])
+
+    expect(outcome).toBe('done')
+    const llmCallOptions = deps.llmAgent.callLLM.mock.calls[0]?.[0]
+    expect(llmCallOptions?.abortSignal?.aborted).toBe(true)
+    expect(brain.getLlmLogs().some((entry: any) => entry.kind === 'repl_error')).toBe(false)
+    expect(brain.getLlmLogs().some((entry: any) => entry.text === 'No LLM response after retries')).toBe(false)
+  })
+
   it('refreshes reflex context before debug perception injection', async () => {
     const deps: any = createDeps('await skip()')
     deps.reflexManager.refreshFromBotState = vi.fn()
@@ -465,6 +526,75 @@ describe('brain queue coalescing', () => {
     expect(brain.queue[0].event.payload.description).toContain('first')
     expect(brain.queue[1].event.payload.description).toContain('second')
     expect(brain.queue[2].event.type).toBe('feedback')
+  })
+
+  it('drops lowest-priority events when queue exceeds hard limit', () => {
+    const brain: any = new Brain(createDeps('await skip()'))
+
+    const droppedResolver = vi.fn()
+    brain.queue = [
+      ...Array.from({ length: 256 }, () => ({
+        event: createPerceptionEvent(),
+        resolve: vi.fn(),
+        reject: vi.fn(),
+      })),
+      {
+        event: createNoActionFollowupEvent(),
+        resolve: droppedResolver,
+        reject: vi.fn(),
+      },
+    ]
+
+    brain.trimEventQueueOverflow()
+
+    expect(brain.queue).toHaveLength(256)
+    expect(droppedResolver).toHaveBeenCalledTimes(1)
+    expect(brain.queue.every((item: any) => item.event.source?.id !== 'brain:no_action_followup')).toBe(true)
+  })
+
+  it('preserves feedback event during overflow by dropping non-feedback first', () => {
+    const brain: any = new Brain(createDeps('await skip()'))
+    const feedbackResolver = vi.fn()
+
+    brain.queue = [
+      ...Array.from({ length: 256 }, () => ({
+        event: createPerceptionEvent(),
+        resolve: vi.fn(),
+        reject: vi.fn(),
+      })),
+      {
+        event: createFeedbackEvent(),
+        resolve: feedbackResolver,
+        reject: vi.fn(),
+      },
+    ]
+
+    brain.trimEventQueueOverflow()
+
+    expect(brain.queue).toHaveLength(256)
+    expect(feedbackResolver).not.toHaveBeenCalled()
+    expect(brain.queue.some((item: any) => item.event.type === 'feedback')).toBe(true)
+    expect(brain.queue.filter((item: any) => item.event.type === 'perception')).toHaveLength(255)
+  })
+
+  it('forces a low-priority dispatch after long high-priority streak', () => {
+    const brain: any = new Brain(createDeps('await skip()'))
+    brain.consecutiveHighPriorityTurns = 8
+    const feedbackEvent = {
+      ...createFeedbackEvent(),
+      timestamp: Date.now() - 2000,
+    }
+
+    brain.queue = [
+      { event: createPerceptionEvent(), resolve: vi.fn(), reject: vi.fn() },
+      { event: feedbackEvent, resolve: vi.fn(), reject: vi.fn() },
+    ]
+
+    brain.coalesceQueue()
+    const item = brain.dequeueNextQueuedEvent()
+
+    expect(item.event.type).toBe('feedback')
+    expect(brain.consecutiveHighPriorityTurns).toBe(0)
   })
 })
 

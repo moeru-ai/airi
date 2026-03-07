@@ -13,7 +13,7 @@ Twitter Service is a web automation service based on BrowserBase, providing stru
 
 ## 3. Architecture Overview
 
-```
+```txt
 ┌─────────────────────────────────────────────┐
 │               Application/Consumer Layer    │
 │                                             │

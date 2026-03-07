@@ -118,7 +118,8 @@ pages:
         scenario: Recientemente despertaste y olvidaste todo sobre tu vida anterior.
         systemprompt: Recibirás mensajes, respóndelos como un humano real.
         posthistoryinstructions: Recuerda imitar a un humano.
-      modules_info: Configura los módulos para esta tarjeta de Personaje. Si no se establece, se utilizará la configuración predeterminada.
+      modules_info: >-
+        Configura los módulos para esta tarjeta de Personaje. Si no se establece, se utilizará la configuración predeterminada.
       use_default: Usar predeterminado
       use_default_not_configured: Usar predeterminado (no configurado)
       fields_info:
@@ -421,6 +422,15 @@ pages:
     mcp-server:
       description: Conectar y gestionar servidor MCP y herramientas
       title: Servidor MCP
+      config-path: Config file path
+      runtime-title: Runtime status
+      actions:
+        open-config: Open mcp.json
+        apply-and-restart: Save and restart stdio MCP
+      messages:
+        opened: Config file opened at {path}
+        restarted: >-
+          MCP servers restarted. Started {started}, failed {failed}, skipped {skipped}
   providers:
     explained:
       chat: Proveedores de modelos de generación de texto. ej. OpenRouter, OpenAI, Ollama.
@@ -441,7 +451,8 @@ pages:
         validation:
           failed:
             title: Please check your provider settings, validation failed.
-            description: You can still save the current configuration if you want to proceed.
+            description: >-
+              You can still save the current configuration if you want to proceed.
             action: Save anyway
         config:
           common:
@@ -463,6 +474,17 @@ pages:
                     placeholder: Key
                   value:
                     placeholder: Value
+                thinking-mode:
+                  label: Thinking Mode
+                  description: >
+                    Controls Ollama thinking behavior. GPT-OSS only supports low/medium/high levels.
+                  options:
+                    auto: Auto (provider default)
+                    disable: Disable
+                    enable: Enable
+                    low: Low
+                    medium: Medium
+                    high: High
         validators:
           actions:
             validate: Validate
@@ -574,6 +596,9 @@ pages:
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
+      speech-noop:
+        title: None
+        description: No speech output.
       deepseek:
         description: deepseek.com
         title: DeepSeek
@@ -625,7 +650,8 @@ pages:
               description: Los modelos más pequeños cargan más rápido, pero pueden tener una calidad ligeramente menor.
         models:
           fp32-webgpu:
-            description: Modelo de precisión completa usando WebGPU - Recomendado para dispositivos compatibles
+            description: >-
+              Modelo de precisión completa usando WebGPU - Recomendado para dispositivos compatibles
           fp32:
             description: Full precision model
           fp16:
@@ -745,6 +771,9 @@ pages:
       transcriptions:
         playground:
           title: Playground de Transcripción
+      aihubmix:
+        title: AIHubMix
+        description: https://aihubmix.com (10% off)
     title: Proveedores
   connection:
     description: Configure WebSocket server connection
@@ -812,7 +841,8 @@ pages:
                 title: Polaroid
                 description: Utility for taking shots of models
               context-flow:
-                description: Inspect incoming context updates and outgoing chat stream events
+                description: >-
+                  Inspect incoming context updates and outgoing chat stream events
               websocket-inspector:
                 title: WebSocket Inspector
                 description: Inspect raw WebSocket traffic
@@ -821,7 +851,8 @@ pages:
                 description: Test color extraction
               providers-transcription-realtime-aliyun-nls:
                 title: Aliyun Real-time Transcriber
-                description: Stream microphone audio to Aliyun NLS and inspect live transcripts
+                description: >-
+                  Stream microphone audio to Aliyun NLS and inspect live transcripts
               performance-playground:
                 title: Performance Playground
                 description: 'Test performance runtime: VRM expressions + TTS lip sync'

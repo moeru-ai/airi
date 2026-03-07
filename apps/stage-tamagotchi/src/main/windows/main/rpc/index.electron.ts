@@ -1,6 +1,8 @@
 import type { BrowserWindow } from 'electron'
 
+import type { I18n } from '../../../libs/i18n'
 import type { ServerChannel } from '../../../services/airi/channel-server'
+import type { McpStdioManager } from '../../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../../services/electron/auto-updater'
 import type { NoticeWindowManager } from '../../notice'
 import type { WidgetsWindowManager } from '../../widgets'
@@ -10,13 +12,13 @@ import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
 import { electronOpenChat, electronOpenMainDevtools, electronOpenSettings, noticeWindowEventa } from '../../../../shared/eventa'
-import { createServerChannelService } from '../../../services/airi/channel-server'
+import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { createAutoUpdaterService } from '../../../services/electron'
 import { toggleWindowShow } from '../../shared'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
-export function setupMainWindowElectronInvokes(params: {
+export async function setupMainWindowElectronInvokes(params: {
   window: BrowserWindow
   settingsWindow: () => Promise<BrowserWindow>
   chatWindow: () => Promise<BrowserWindow>
@@ -24,18 +26,22 @@ export function setupMainWindowElectronInvokes(params: {
   noticeWindow: NoticeWindowManager
   autoUpdater: AutoUpdater
   serverChannel: ServerChannel
+  mcpStdioManager: McpStdioManager
+  i18n: I18n
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
   // manage events within eventa's context system.
   ipcMain.setMaxListeners(0)
 
-  const { context } = createContext(ipcMain, params.window)
+  const { context } = createContext(ipcMain, params.window, {
+    onlySameWindow: true,
+  })
 
-  setupBaseWindowElectronInvokes({ context, window: params.window })
+  await setupBaseWindowElectronInvokes({ context, window: params.window, serverChannel: params.serverChannel, i18n: params.i18n })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
   createAutoUpdaterService({ context, window: params.window, service: params.autoUpdater })
-  createServerChannelService({ serverChannel: params.serverChannel })
+  createMcpServersService({ context, manager: params.mcpStdioManager, allowManageConfig: false })
 
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenSettings, async () => toggleWindowShow(await params.settingsWindow()))

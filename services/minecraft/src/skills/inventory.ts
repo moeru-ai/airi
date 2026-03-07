@@ -2,6 +2,7 @@ import type { Mineflayer } from '../libs/mineflayer'
 
 import { ActionError } from '../utils/errors'
 import { log } from './base'
+import { withContainer } from './containers'
 import { goToPlayer, goToPosition } from './movement'
 import { getNearestBlock } from './world'
 
@@ -77,11 +78,7 @@ export async function putInChest(mineflayer: Mineflayer, itemName: string, num =
 
   const toPut = num === -1 ? item.count : Math.min(num, item.count)
   await goToPosition(mineflayer, chest.position.x, chest.position.y, chest.position.z, 2)
-
-  const chestContainer = await mineflayer.bot.openContainer(chest)
-  await chestContainer.deposit(item.type, null, toPut)
-  await chestContainer.close()
-
+  await withContainer(mineflayer, chest, container => container.deposit(item.type, null, toPut))
   log(mineflayer, `Successfully put ${toPut} ${itemName} in the chest.`)
   return true
 }
@@ -94,21 +91,17 @@ export async function takeFromChest(mineflayer: Mineflayer, itemName: string, nu
   }
 
   await goToPosition(mineflayer, chest.position.x, chest.position.y, chest.position.z, 2)
-  const chestContainer = await mineflayer.bot.openContainer(chest)
-
-  const item = chestContainer.containerItems().find(item => item.name === itemName)
-  if (!item) {
-    log(mineflayer, `Could not find any ${itemName} in the chest.`)
-    await chestContainer.close()
-    return false
-  }
-
-  const toTake = num === -1 ? item.count : Math.min(num, item.count)
-  await chestContainer.withdraw(item.type, null, toTake)
-  await chestContainer.close()
-
-  log(mineflayer, `Successfully took ${toTake} ${itemName} from the chest.`)
-  return true
+  return withContainer(mineflayer, chest, async (container) => {
+    const item = container.containerItems().find(item => item.name === itemName)
+    if (!item) {
+      log(mineflayer, `Could not find any ${itemName} in the chest.`)
+      return false
+    }
+    const toTake = num === -1 ? item.count : Math.min(num, item.count)
+    await container.withdraw(item.type, null, toTake)
+    log(mineflayer, `Successfully took ${toTake} ${itemName} from the chest.`)
+    return true
+  })
 }
 
 export async function viewChest(mineflayer: Mineflayer): Promise<boolean> {
@@ -119,20 +112,18 @@ export async function viewChest(mineflayer: Mineflayer): Promise<boolean> {
   }
 
   await goToPosition(mineflayer, chest.position.x, chest.position.y, chest.position.z, 2)
-  const chestContainer = await mineflayer.bot.openContainer(chest)
-  const items = chestContainer.containerItems()
-
-  if (items.length === 0) {
-    log(mineflayer, 'The chest is empty.')
-  }
-  else {
-    log(mineflayer, 'The chest contains:')
-    for (const item of items) {
-      log(mineflayer, `${item.count} ${item.name}`)
+  await withContainer(mineflayer, chest, async (container) => {
+    const items = container.containerItems()
+    if (items.length === 0) {
+      log(mineflayer, 'The chest is empty.')
     }
-  }
-
-  await chestContainer.close()
+    else {
+      log(mineflayer, 'The chest contains:')
+      for (const item of items) {
+        log(mineflayer, `${item.count} ${item.name}`)
+      }
+    }
+  })
   return true
 }
 

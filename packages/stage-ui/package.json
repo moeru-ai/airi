@@ -69,7 +69,6 @@
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/stage-ui-live2d": "workspace:^",
     "@proj-airi/stage-ui-three": "workspace:^",
-    "@proj-airi/tauri-plugin-mcp": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@ricky0123/vad-web": "^0.0.30",
     "@shikijs/rehype": "^3.23.0",

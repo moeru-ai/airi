@@ -124,7 +124,7 @@ export const chatMessagesTable = pgTable('chat_messages', {
 
 次のようなエラーが発生します：
 
-```
+```txt
 ERROR: access method "hnsw" does not exist
 ```
 
@@ -282,20 +282,20 @@ const relevantMessages = await db
 
 非常にシンプルです。鍵となるのは
 
-```
+```ts
 sql<number>`(1 - (${cosineDistance(chatMessagesTable.content_vector_1536, embedding.embedding)}))`
 ```
 
 これを関連度検索として、
 
-```
-gt(similarity, 0.5),
+```ts
+gt(similarity, 0.5)
 ```
 
 これをいわゆる一致度閾値制御として、
 
-```
-.orderBy(desc(sql`similarity`))
+```ts
+query.orderBy(desc(sql`similarity`))
 ```
 
 これをソートの指定に使用します。

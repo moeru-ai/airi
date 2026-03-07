@@ -38,6 +38,19 @@ export default defineConfig({
     'depend/ban-dependencies': 'warn',
     'import/order': 'off',
     'no-console': ['error', { allow: ['warn', 'error', 'info'] }],
+    // 'sonarjs/cognitive-complexity': 'off',
+    // 'sonarjs/no-commented-code': 'off',
+    // 'sonarjs/pseudo-random': 'off',
+    'style/padding-line-between-statements': 'error',
+    'vue/prefer-separate-static-class': 'off',
+    'yaml/plain-scalar': 'off',
+    'markdown/require-alt-text': 'off',
+  },
+}, {
+  ignores: [
+    '**/*.md',
+  ],
+  rules: {
     'perfectionist/sort-imports': [
       'error',
       {
@@ -65,11 +78,5 @@ export default defineConfig({
         newlinesBetween: 1,
       },
     ],
-    // 'sonarjs/cognitive-complexity': 'off',
-    // 'sonarjs/no-commented-code': 'off',
-    // 'sonarjs/pseudo-random': 'off',
-    'style/padding-line-between-statements': 'error',
-    'vue/prefer-separate-static-class': 'off',
-    'yaml/plain-scalar': 'off',
   },
 })

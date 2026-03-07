@@ -240,6 +240,9 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
     if (signal.aborted)
       return null
 
+    if (activeSpeechProvider.value === 'speech-noop')
+      return null
+
     if (!activeSpeechProvider.value)
       return null
 
