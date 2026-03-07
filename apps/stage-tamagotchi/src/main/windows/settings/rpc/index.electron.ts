@@ -12,10 +12,10 @@ import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
 import { electronOpenDevtoolsWindow, electronOpenSettingsDevtools } from '../../../../shared/eventa'
+import { createServerChannelService } from '../../../services/airi/channel-server'
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createWidgetsService } from '../../../services/airi/widgets'
-import { createAutoUpdaterService } from '../../../services/electron'
-import { setupBaseWindowElectronInvokes } from '../../shared/window'
+import { createAutoUpdaterService, createScreenService, createWindowService } from '../../../services/electron'
 
 export async function setupSettingsWindowInvokes(params: {
   settingsWindow: BrowserWindow
@@ -31,13 +31,16 @@ export async function setupSettingsWindowInvokes(params: {
   // manage events within eventa's context system.
   ipcMain.setMaxListeners(0)
 
-  const { context } = createContext(ipcMain, params.settingsWindow)
+  const { context } = createContext(ipcMain, params.settingsWindow, {
+    onlySameWindow: true,
+  })
 
-  await setupBaseWindowElectronInvokes({ context, window: params.settingsWindow, i18n: params.i18n, serverChannel: params.serverChannel })
-
+  createScreenService({ context, window: params.settingsWindow })
+  createWindowService({ context, window: params.settingsWindow })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.settingsWindow })
   createAutoUpdaterService({ context, window: params.settingsWindow, service: params.autoUpdater })
-  createMcpServersService({ context, manager: params.mcpStdioManager })
+  createServerChannelService({ serverChannel: params.serverChannel })
+  createMcpServersService({ context, manager: params.mcpStdioManager, allowManageConfig: true })
 
   defineInvokeHandler(context, electronOpenSettingsDevtools, async () => params.settingsWindow.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenDevtoolsWindow, async (payload) => {
