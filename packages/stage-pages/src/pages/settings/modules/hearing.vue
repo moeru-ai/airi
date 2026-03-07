@@ -674,6 +674,9 @@ onUnmounted(() => {
             :step="0.1"
             :format-value="value => value <= CONFIDENCE_THRESHOLD_DISABLED ? t('settings.pages.modules.hearing.sections.section.confidence-threshold.disabled') : value.toFixed(1)"
           />
+          <div v-if="confidenceThreshold > CONFIDENCE_THRESHOLD_DISABLED" class="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
+            {{ t('settings.pages.modules.hearing.sections.section.confidence-threshold.verbose-json-note') }}
+          </div>
         </div>
 
         <!-- Auto-send settings -->

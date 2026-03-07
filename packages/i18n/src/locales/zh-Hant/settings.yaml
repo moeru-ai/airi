@@ -346,6 +346,7 @@ pages:
             title: 置信度閾值
             description: 過濾低置信度的轉錄結果，避免 Whisper 幻覺噪音。值越接近 0 越嚴格，拖到最左為禁用。僅對支援 Whisper API 的服務商有效（如 OpenAI、Groq）。
             disabled: 已停用
+            verbose-json-note: 注意：如果你的服務商不支援 verbose_json 響應，此設定將不會生效。
     memory-long-term:
       description: 長期記憶
       title: 長期記憶
