@@ -50,11 +50,11 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const { allAudioTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
   // State
-  const activeTranscriptionProvider = useLocalStorageManualReset('settings/hearing/active-provider', '')
-  const activeTranscriptionModel = useLocalStorageManualReset('settings/hearing/active-model', '')
+  const activeTranscriptionProvider = useLocalStorageManualReset('settings/hearing/active-provider', 'browser-web-speech-api')
+  const activeTranscriptionModel = useLocalStorageManualReset('settings/hearing/active-model', 'web-speech-api')
   const activeCustomModelName = useLocalStorageManualReset('settings/hearing/active-custom-model', '')
   const transcriptionModelSearchQuery = refManualReset<string>('')
-  const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false)
+  const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', true)
   const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000) // Default 2 seconds
 
   // Computed properties

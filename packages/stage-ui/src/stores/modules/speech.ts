@@ -22,7 +22,7 @@ export function toSignedPercent(value: number): string {
 
 export const useSpeechStore = defineStore('speech', () => {
   const providersStore = useProvidersStore()
-  const { allAudioSpeechProvidersMetadata } = storeToRefs(providersStore)
+  const { allAudioSpeechProvidersMetadata, configuredSpeechProvidersMetadata } = storeToRefs(providersStore)
 
   // State
   const activeSpeechProvider = useLocalStorageManualReset<string>('settings/speech/active-provider', '')
@@ -125,6 +125,9 @@ export const useSpeechStore = defineStore('speech', () => {
   })
 
   onMounted(() => {
+    if (!activeSpeechProvider.value && configuredSpeechProvidersMetadata.value.length > 0) {
+      activeSpeechProvider.value = configuredSpeechProvidersMetadata.value[0].id
+    }
     loadVoicesForProvider(activeSpeechProvider.value).then(() => {
       if (activeSpeechVoiceId.value) {
         activeSpeechVoice.value = availableVoices.value[activeSpeechProvider.value]?.find(voice => voice.id === activeSpeechVoiceId.value)

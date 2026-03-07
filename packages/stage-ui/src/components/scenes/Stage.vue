@@ -122,6 +122,7 @@ const live2dLipSyncOptions: Live2DLipSyncOptions = { mouthUpdateIntervalMs: 50, 
 const textMouthUntil = ref(0)
 const textMouthStrength = 0.7
 const textMouthWaveMs = 140
+const textMouthDurationMs = 6000
 const assistantMotionTriggered = ref(false)
 const idleHeadWaveId = ref<number>()
 const headFrozen = ref(false)
@@ -161,6 +162,7 @@ const EMOTION_CHOREOGRAPHY_PLAN: Record<EmotionPayload['name'], string[][]> = {
   curious: [['curious', 'interest', 'wonder'], ['look', 'focus', 'turn', 'head']],
   neutral: [['idle', 'neutral', 'normal'], ['base', 'stand', 'loop', 'default']],
 }
+const STRONG_MOTION_KEYWORDS = ['jump', 'wave', 'dance', 'special', 'fast', 'hit', 'tap', 'shake', 'spin', 'run', 'kick', 'punch', 'throw', 'attack', 'power', 'big']
 
 function toMotionSearchText(motion: { motionName: string, fileName: string }): string {
   return `${motion.motionName} ${motion.fileName}`.toLowerCase()
@@ -179,6 +181,14 @@ function pickMotionByKeywords(emotionName: EmotionPayload['name']) {
   return []
 }
 
+function pickStrongMotions() {
+  const candidates = availableMotions.value.filter((motion) => {
+    const source = toMotionSearchText(motion)
+    return STRONG_MOTION_KEYWORDS.some(keyword => source.includes(keyword))
+  })
+  return candidates.length > 0 ? candidates : []
+}
+
 function pickMotionBySettings(emotionName: EmotionPayload['name']) {
   const configured = live2dEmotionMotionMap.value?.[emotionName] ?? []
   if (configured.length === 0)
@@ -192,6 +202,7 @@ function pickMotionBySettings(emotionName: EmotionPayload['name']) {
 
 function resolveLive2DMotion(emotionName: EmotionPayload['name']) {
   const configuredCandidates = pickMotionBySettings(emotionName)
+  const strongCandidates = pickStrongMotions()
   const plannedCandidates = pickMotionByKeywords(emotionName)
   const mappedCandidates = availableMotions.value
     .filter(motion => motionMap.value[motion.fileName] === emotionName)
@@ -207,13 +218,15 @@ function resolveLive2DMotion(emotionName: EmotionPayload['name']) {
   const fallbackCandidates = nonIdleCandidates.length > 0 ? nonIdleCandidates : availableMotions.value
   const motionCandidates = configuredCandidates.length > 0
     ? configuredCandidates
-    : plannedCandidates.length > 0
-      ? plannedCandidates
-      : mappedCandidates.length > 0
-        ? mappedCandidates
-        : thinkCandidates.length > 0
-          ? thinkCandidates
-          : fallbackCandidates
+    : strongCandidates.length > 0
+      ? strongCandidates
+      : plannedCandidates.length > 0
+        ? plannedCandidates
+        : mappedCandidates.length > 0
+          ? mappedCandidates
+          : thinkCandidates.length > 0
+            ? thinkCandidates
+            : fallbackCandidates
 
   if (motionCandidates.length > 0) {
     const cursor = emotionMotionCursor.value[emotionName] ?? 0
@@ -751,13 +764,13 @@ chatHookCleanups.push(onTokenLiteral(async (literal) => {
     triggerLargeMotion(Emotion.Happy, 2400)
     assistantMotionTriggered.value = true
   }
-  bumpTextMouth(900)
+  bumpTextMouth(textMouthDurationMs)
 }))
 
 chatHookCleanups.push(onTokenSpecial(async (special) => {
   // console.debug('Stage received special token:', special)
   currentChatIntent?.writeSpecial(special)
-  bumpTextMouth(900)
+  bumpTextMouth(textMouthDurationMs)
 }))
 
 chatHookCleanups.push(onStreamEnd(async () => {
