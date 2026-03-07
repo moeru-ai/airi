@@ -1,0 +1,73 @@
+#+TITLE: AIRI Matrix Bot
+#+AUTHOR: DonjuanPlatinum
+#+OPTIONS: toc:nil
+
+* 简介
+
+为Airi实现的 Matrix Bot 以实现与Matrix的交互.
+
+* 快速开始
+
+** 前置要求
+
+1. 在您的Matrix实例(比如matrix.org)拥有一个机器人账户
+   
+2. 拥有该账号的 =Access Token= （可以通过 Element Web 端登录后，在 Settings -> Help & About -> Access Token 找到）。
+
+也可以通过curl获取   
+#+begin_src
+  curl -X POST "https://YOUR_HOMESERVER_URL/_matrix/client/v3/login" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "type": "m.login.password",
+           "identifier": {
+             "type": "m.id.user",
+             "user": "YOUR_USERNAME"
+           },
+           "password": "YOUR_PASSWORD"
+         }'
+#+end_src
+
+3. 一个Airi服务器 且开启了6121端口的ws监听. 并且在web界面配置了matrix
+
+#+begin_src shell
+  cd airi
+  pnpm run dev:server
+  pnpm run dev:web
+#+end_src
+
+** 创建matrix账户
+
+这个部分请您查询一下matrix的文档.
+
+** web界面配置
+
+在airi的web界面中 点击机体模块-> Matrix -> 填写信息.
+
+** .env配置与bot服务启动
+编辑services/matrix-bot/.env
+
+#+begin_src
+# Matrix Bot
+MATRIX_HOMESERVER_URL=https://matrix.org
+MATRIX_ACCESS_TOKEN=your token
+MATRIX_USER_ID=@bot:matrix.org
+
+# AIRI Server
+AIRI_URL=ws://localhost:6121/ws
+AIRI_TOKEN=abcd
+#+end_src
+
+
+启动bot
+
+#+begin_src shell
+  cd services/matrix-bot
+  pnpm run dev
+#+end_src
+
+** matrix那边的操作
+
+请您邀请matrix机器人到一个 **未开启端到端加密的房间(端到端加密支持将在后续实现)**
+
+按照正常的流程 它会自动的加入 然后您就可以与它进行交互.
