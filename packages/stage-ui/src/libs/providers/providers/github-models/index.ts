@@ -5,7 +5,6 @@ import { createOpenAICompatibleValidators } from '../../validators/openai-compat
 import { defineProvider } from '../registry'
 
 const DEFAULT_GITHUB_MODELS_BASE_URL = 'https://models.github.ai/inference'
-
 const githubModelsConfigSchema = z.object({
   apiKey: z
     .string()
@@ -17,6 +16,16 @@ const githubModelsConfigSchema = z.object({
 })
 
 type GitHubModelsConfig = z.input<typeof githubModelsConfigSchema>
+const githubModelsValidators = createOpenAICompatibleValidators<GitHubModelsConfig>({
+  checks: ['connectivity', 'model_list'],
+}) ?? {}
+
+function withDefaultBaseUrl<TConfig extends { baseUrl?: string }>(config: TConfig): TConfig & { baseUrl: string } {
+  return {
+    ...config,
+    baseUrl: config.baseUrl || DEFAULT_GITHUB_MODELS_BASE_URL,
+  }
+}
 
 export const providerGitHubModels = defineProvider<GitHubModelsConfig>({
   id: 'github-models',
@@ -49,8 +58,22 @@ export const providerGitHubModels = defineProvider<GitHubModelsConfig>({
     return !!config.apiKey?.trim()
   },
   validators: {
-    ...createOpenAICompatibleValidators({
-      checks: ['connectivity', 'model_list'],
+    validateConfig: githubModelsValidators.validateConfig?.map(validatorFactory => (contextOptions) => {
+      const originalValidator = validatorFactory(contextOptions)
+
+      return {
+        ...originalValidator,
+        validator: (config, context) => originalValidator.validator(withDefaultBaseUrl(config), context),
+      }
+    }),
+    validateProvider: githubModelsValidators.validateProvider?.map(validatorFactory => (contextOptions) => {
+      const originalValidator = validatorFactory(contextOptions)
+
+      return {
+        ...originalValidator,
+        validator: (config, provider, providerExtra, context) =>
+          originalValidator.validator(withDefaultBaseUrl(config), provider, providerExtra, context),
+      }
     }),
   },
 })
