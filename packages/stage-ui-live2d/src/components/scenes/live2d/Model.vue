@@ -22,7 +22,7 @@ import {
   useMotionUpdatePluginIdleDisable,
   useMotionUpdatePluginIdleFocus,
 } from '../../../composables/live2d'
-import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
+import { EMOTION_VALUES, Emotion } from '../../../constants/emotions'
 import { useLive2d } from '../../../stores/live2d'
 
 const props = withDefaults(defineProps<{
@@ -89,6 +89,28 @@ const modelLoading = ref(false)
 let isUnmounted = false
 
 const modelLoadMutex = new Mutex()
+
+const EMOTION_KEYWORDS: Record<Emotion, string[]> = {
+  [Emotion.Happy]: ['happy', 'smile', 'joy', 'laugh', 'grin', '嬉', '笑'],
+  [Emotion.Sad]: ['sad', 'cry', 'down', 'tears', '悲', '哭'],
+  [Emotion.Angry]: ['angry', 'mad', 'rage', 'fury', 'annoy', '怒', '气'],
+  [Emotion.Think]: ['think', 'thinking', 'ponder', 'consider', '思', '想'],
+  [Emotion.Surprise]: ['surprise', 'surprised', 'shock', 'wow', '惊', '讶'],
+  [Emotion.Awkward]: ['awkward', 'embarrass', 'shy', '尴尬', '羞'],
+  [Emotion.Question]: ['question', '疑', '问', 'confuse', 'unsure'],
+  [Emotion.Curious]: ['curious', 'interest', 'wonder', '好奇'],
+  [Emotion.Neutral]: ['idle', 'neutral', 'normal', 'base', '默认'],
+}
+
+function detectMotionEmotion(motionName: string, fileName: string): Emotion {
+  const source = `${motionName} ${fileName}`.toLowerCase()
+  for (const emotion of EMOTION_VALUES) {
+    const keywords = EMOTION_KEYWORDS[emotion]
+    if (keywords.some(keyword => source.includes(keyword.toLowerCase())))
+      return emotion
+  }
+  return Emotion.Neutral
+}
 
 const offset = computed(() => parsePropsOffset())
 
@@ -217,15 +239,6 @@ async function loadModel() {
 
     const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
     await Live2DFactory.setupLive2DModel(live2DModel, { url: modelSrcRef.value, id: props.modelId }, { autoInteract: false })
-    availableMotions.value.forEach((motion) => {
-      if (motion.motionName in Emotion) {
-        motionMap.value[motion.fileName] = motion.motionName
-      }
-      else {
-        motionMap.value[motion.fileName] = EmotionNeutralMotionName
-      }
-    })
-
     // --- Scene
 
     model.value = live2DModel
@@ -258,6 +271,11 @@ async function loadModel() {
         fileName: motion.File,
       })) || []))
       .filter(Boolean)
+
+    motionMap.value = {}
+    availableMotions.value.forEach((motion) => {
+      motionMap.value[motion.fileName] = detectMotionEmotion(motion.motionName, motion.fileName)
+    })
 
     // Check if user has selected a runtime motion to play as idle
     const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')

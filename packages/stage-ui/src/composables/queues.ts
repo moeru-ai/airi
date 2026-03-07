@@ -21,26 +21,102 @@ export function useEmotionsMessageQueue(emotionsQueue: UseQueueReturn<EmotionPay
     return Math.min(1, Math.max(0, value))
   }
 
-  function parseActEmotion(content: string) {
-    const match = /<\|ACT\s*(?::\s*)?(\{[\s\S]*\})\|>/i.exec(content)
-    if (!match)
-      return { ok: false, emotion: null as EmotionPayload | null }
+  const normalizeHoldMs = (value: unknown): number => {
+    if (typeof value !== 'number' || Number.isNaN(value))
+      return 1800
+    return Math.min(10000, Math.max(300, Math.floor(value)))
+  }
 
-    const payloadText = match[1]
+  function extractActPayloadTexts(content: string): string[] {
+    const source = content.replace(/\\\{ACT/gi, '{ACT')
+    const payloads: string[] = []
+    let index = 0
+
+    while (index < source.length) {
+      const openAct = source.indexOf('<|ACT', index)
+      const angleAct = source.indexOf('<ACT', index)
+      const braceAct = source.indexOf('{ACT', index)
+      const candidates = [openAct, angleAct, braceAct].filter(value => value >= 0)
+      const markerIndex = candidates.length > 0 ? Math.min(...candidates) : -1
+
+      if (markerIndex === -1)
+        break
+
+      const jsonStart = source.indexOf('{', markerIndex + 1)
+      if (jsonStart === -1)
+        break
+
+      let cursor = jsonStart
+      let depth = 0
+      let inString = false
+      let escaped = false
+      let endIndex = -1
+
+      while (cursor < source.length) {
+        const char = source[cursor]
+        if (escaped) {
+          escaped = false
+        }
+        else if (char === '\\') {
+          escaped = true
+        }
+        else if (char === '"') {
+          inString = !inString
+        }
+        else if (!inString && char === '{') {
+          depth++
+        }
+        else if (!inString && char === '}') {
+          depth--
+          if (depth === 0) {
+            endIndex = cursor
+            break
+          }
+        }
+        cursor++
+      }
+
+      if (endIndex === -1)
+        break
+
+      payloads.push(source.slice(jsonStart, endIndex + 1))
+      index = endIndex + 1
+    }
+
+    return payloads
+  }
+
+  function parseActEmotion(payloadText: string) {
     try {
-      const payload = JSON.parse(payloadText) as { emotion?: unknown }
+      const payload = JSON.parse(payloadText) as { emotion?: unknown, force?: unknown, holdMs?: unknown }
       const emotion = payload?.emotion
       if (typeof emotion === 'string') {
         const normalized = normalizeEmotionName(emotion)
         if (normalized)
-          return { ok: true, emotion: { name: normalized, intensity: 1 } }
+          return {
+            ok: true,
+            emotion: {
+              name: normalized,
+              intensity: 1,
+              force: payload.force === true,
+              holdMs: normalizeHoldMs(payload.holdMs),
+            },
+          }
       }
       else if (emotion && typeof emotion === 'object' && !Array.isArray(emotion)) {
         if ('name' in emotion && typeof (emotion as { name?: unknown }).name === 'string') {
           const normalized = normalizeEmotionName((emotion as { name: string }).name)
           if (normalized) {
             const intensity = normalizeIntensity((emotion as { intensity?: unknown }).intensity)
-            return { ok: true, emotion: { name: normalized, intensity } }
+            return {
+              ok: true,
+              emotion: {
+                name: normalized,
+                intensity,
+                force: payload.force === true,
+                holdMs: normalizeHoldMs(payload.holdMs),
+              },
+            }
           }
         }
       }
@@ -55,10 +131,13 @@ export function useEmotionsMessageQueue(emotionsQueue: UseQueueReturn<EmotionPay
   return createQueue<string>({
     handlers: [
       async (ctx) => {
-        const actParsed = parseActEmotion(ctx.data)
-        if (actParsed.ok && actParsed.emotion) {
-          ctx.emit('emotion', actParsed.emotion)
-          emotionsQueue.enqueue(actParsed.emotion)
+        const payloads = extractActPayloadTexts(ctx.data)
+        for (const payloadText of payloads) {
+          const actParsed = parseActEmotion(payloadText)
+          if (actParsed.ok && actParsed.emotion) {
+            ctx.emit('emotion', actParsed.emotion)
+            emotionsQueue.enqueue(actParsed.emotion)
+          }
         }
       },
     ],

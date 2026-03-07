@@ -34,7 +34,7 @@ export const providerOllama = defineProvider({
   createProvider(config) {
     return createOllama('', config.baseUrl)
   },
-  validationRequiredWhen: () => true,
+  validationRequiredWhen: () => false,
   validators: {
     validateConfig: [
       ({ t }) => ({

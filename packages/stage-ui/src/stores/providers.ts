@@ -1139,22 +1139,6 @@ export const useProvidersStore = defineStore('providers', () => {
             return res
           }
 
-          try {
-            const controller = new AbortController()
-            const timeout = setTimeout(() => controller.abort(), 5000)
-            const response = await fetch(`${config.baseUrl as string}audio/voices`, { signal: controller.signal })
-            clearTimeout(timeout)
-
-            if (!response.ok) {
-              const reason = `IndexTTS unreachable: HTTP ${response.status} ${response.statusText}`
-              return { errors: [new Error(reason)], reason, valid: false }
-            }
-          }
-          catch (err) {
-            const reason = `IndexTTS connection failed: ${String(err)}`
-            return { errors: [err as Error], reason, valid: false }
-          }
-
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
@@ -1424,28 +1408,6 @@ export const useProvidersStore = defineStore('providers', () => {
           const res = baseUrlValidator.value(config.baseUrl)
           if (res)
             return res
-
-          try {
-            const controller = new AbortController()
-            const timeout = setTimeout(() => controller.abort(), 5000)
-            const response = await fetch(`${config.baseUrl as string}health`, {
-              method: 'GET',
-              headers: {
-                'player2-game-key': 'airi',
-              },
-              signal: controller.signal,
-            })
-            clearTimeout(timeout)
-
-            if (!response.ok) {
-              const reason = `Player2 speech unreachable: HTTP ${response.status} ${response.statusText}`
-              return { errors: [new Error(reason)], reason, valid: false }
-            }
-          }
-          catch (err) {
-            const reason = `Player2 speech connection failed: ${String(err)}`
-            return { errors: [err as Error], reason, valid: false }
-          }
 
           return {
             errors,
@@ -1759,6 +1721,9 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Initialize all providers
   Object.keys(providerMetadata).forEach(initializeProvider)
+  if (!addedProviders.value['lobster-agent']) {
+    addedProviders.value['lobster-agent'] = true
+  }
 
   // Update configuration status for all configured providers
   async function updateConfigurationStatus() {

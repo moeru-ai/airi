@@ -1,0 +1,25 @@
+languages:
+  - typescript@5.9
+  - rust@1.82
+  - python@3.12
+frontend:
+  - vue@3.5
+  - vite@7.3
+  - unocss@66.6
+backend:
+  - hono
+  - drizzle-orm
+db:
+  - sqlite
+  - postgres
+containers:
+  - docker
+  - kubernetes
+ci:
+  - github-actions
+observability:
+  - posthog
+  - sentry
+security:
+  - oauth2
+  - openid-connect

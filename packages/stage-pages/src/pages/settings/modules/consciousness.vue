@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
+import { Button } from '@proj-airi/ui'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
@@ -48,19 +49,32 @@ function handleDeleteProvider(providerId: string) {
   }
   providersStore.deleteProvider(providerId)
 }
+
+function handleUnlockSelection() {
+  consciousnessStore.resetState()
+}
 </script>
 
 <template>
   <div bg="neutral-50 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4">
     <div>
       <div flex="~ col gap-4">
-        <div>
-          <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
-            {{ t('settings.pages.providers.title') }}
-          </h2>
-          <div text="neutral-400 dark:neutral-400">
-            <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.description') }}</span>
+        <div flex items-center justify-between gap-3>
+          <div>
+            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
+              {{ t('settings.pages.providers.title') }}
+            </h2>
+            <div text="neutral-400 dark:neutral-400">
+              <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.description') }}</span>
+            </div>
           </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            @click="handleUnlockSelection"
+          >
+            解锁选择
+          </Button>
         </div>
         <div max-w-full>
           <!--

@@ -21,6 +21,7 @@ import './moonshot-ai'
 import './modelscope'
 import './ollama'
 import './cloudflare-workers-ai'
+import './lobster-agent'
 
 export {
   getDefinedProvider,

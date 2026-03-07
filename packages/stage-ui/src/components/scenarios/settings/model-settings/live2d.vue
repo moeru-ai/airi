@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { EMOTION_VALUES, Emotion } from '../../../../constants/emotions'
 import { useSettings } from '../../../../stores/settings'
 import { Section } from '../../../layouts'
 import { ColorPalette } from '../../../widgets'
@@ -26,6 +27,8 @@ const {
   live2dForceAutoBlinkEnabled,
   live2dShadowEnabled,
   live2dMaxFps,
+  live2dDebugControlsEnabled,
+  live2dEmotionMotionMap,
 } = storeToRefs(settings)
 
 const live2d = useLive2d()
@@ -40,6 +43,10 @@ const selectedRuntimeMotion = ref<string>('')
 const selectedRuntimeMotionName = ref<string>('')
 const runtimeMotions = ref<Array<{ name: string, fullPath: string, displayPath: string, group: string, index: number }>>([])
 const showMotionSelector = ref(false)
+const emotionOptions = computed(() => EMOTION_VALUES.map(emotion => ({ value: emotion, label: emotion })))
+const selectedEmotion = ref<Emotion>(Emotion.Happy)
+const selectedEmotionMotions = computed(() => live2dEmotionMotionMap.value[selectedEmotion.value] ?? [])
+const selectedEmotionFileNames = computed(() => new Set(selectedEmotionMotions.value.map(item => item.fileName)))
 const fpsOptions = computed(() => [
   { value: 0, label: t('settings.live2d.fps.options.unlimited') },
   { value: 60, label: '60' },
@@ -105,6 +112,30 @@ function handleMotionSelect(motion: any) {
 
 function toggleMotionSelector() {
   showMotionSelector.value = !showMotionSelector.value
+}
+
+function updateSelectedEmotionMotions(nextList: Array<{ fileName: string, motionName: string, motionIndex: number }>) {
+  live2dEmotionMotionMap.value = {
+    ...live2dEmotionMotionMap.value,
+    [selectedEmotion.value]: nextList,
+  }
+}
+
+function toggleEmotionMotion(motion: { fullPath: string, group: string, index: number, name: string }) {
+  const current = selectedEmotionMotions.value
+  const exists = current.some(item => item.fileName === motion.fullPath)
+  if (exists) {
+    updateSelectedEmotionMotions(current.filter(item => item.fileName !== motion.fullPath))
+    return
+  }
+  updateSelectedEmotionMotions([
+    ...current,
+    { fileName: motion.fullPath, motionName: motion.group, motionIndex: motion.index },
+  ])
+}
+
+function clearEmotionMotions() {
+  updateSelectedEmotionMotions([])
 }
 
 // Close dropdown when clicking outside
@@ -223,6 +254,66 @@ onUnmounted(() => {
     <Button variant="secondary" @click="$emit('extractColorsFromModel')">
       {{ t('settings.live2d.theme-color-from-model.button-extract.title') }}
     </Button>
+  </Section>
+  <Section
+    title="调试控制"
+    icon="i-solar:bug-minimalistic-bold-duotone"
+    :class="[
+      'rounded-xl',
+      'bg-white/80  dark:bg-black/75',
+      'backdrop-blur-lg',
+    ]"
+    size="sm"
+    :expand="false"
+  >
+    <div flex items-center gap-2 text-sm>
+      <Checkbox v-model="live2dDebugControlsEnabled" />
+      <span>显示舞台调试按钮</span>
+    </div>
+  </Section>
+  <Section
+    title="情绪动作编排"
+    icon="i-solar:smile-circle-bold-duotone"
+    :class="[
+      'rounded-xl',
+      'bg-white/80  dark:bg-black/75',
+      'backdrop-blur-lg',
+    ]"
+    size="sm"
+    :expand="false"
+  >
+    <div flex flex-col gap-3>
+      <div flex items-center gap-2>
+        <SelectTab v-model="selectedEmotion" :options="emotionOptions" size="sm" />
+        <Button variant="secondary" @click="clearEmotionMotions">
+          清空
+        </Button>
+        <div text-xs text="neutral-500">
+          已选 {{ selectedEmotionMotions.length }}
+        </div>
+      </div>
+      <div v-if="runtimeMotions.length === 0" text-sm text="neutral-500">
+        暂无动作，请先加载 Live2D 模型
+      </div>
+      <div v-else max-h-64 overflow-auto>
+        <div
+          v-for="motion in runtimeMotions"
+          :key="motion.fullPath"
+          flex items-center gap-2 py-1 text-sm
+        >
+          <Checkbox
+            :model-value="selectedEmotionFileNames.has(motion.fullPath)"
+            @update:model-value="() => toggleEmotionMotion(motion)"
+          />
+          <div flex-1 truncate>
+            {{ motion.name }}
+          </div>
+          <div text-xs text="neutral-500">
+            {{ motion.group }} #{{ motion.index }}
+          </div>
+        </div>
+      </div>
+    </div>
   </Section>
   <!-- <Section
     v-if="modelFile"

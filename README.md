@@ -141,6 +141,22 @@ Capable of
     - [x] Auto look at
     - [x] Idle eye movement
 
+## Project Structure
+
+This project is organized as a monorepo using `pnpm` workspaces and `turbo` for build orchestration.
+
+- **apps/**: Main applications.
+  - `stage-web`: The web version of AIRI.
+  - `stage-pocket`: Mobile version (Capacitor).
+  - `server`: Backend server (Hono).
+  - `stage-tamagotchi`: Desktop version (Tauri).
+- **packages/**: Shared libraries and utilities.
+- **crates/**: Rust crates and Tauri plugins.
+- **docs/**: Documentation site (VitePress).
+
+For technical decisions, please refer to [ADR-0000: Tech Stack](./docs/adr/0000-tech-stack.md).
+For API documentation, check [API Docs](./docs/api.md).
+
 ## Development
 
 > For detailed instructions to develop this project, follow [CONTRIBUTING.md](./.github/CONTRIBUTING.md)

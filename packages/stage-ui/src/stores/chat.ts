@@ -2,7 +2,7 @@ import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 
-import type { ChatAssistantMessage, ChatSlices, ChatStreamEventContext, StreamingAssistantMessage } from '../types/chat'
+import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatStreamEventContext, StreamingAssistantMessage } from '../types/chat'
 import type { StreamEvent, StreamOptions } from './llm'
 
 import { createQueue } from '@proj-airi/stream-kit'
@@ -139,6 +139,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     updateUI()
     trackFirstMessage()
 
+    let sessionMessagesForSend: ChatHistoryItem[] = []
+
     try {
       await hooks.emitBeforeMessageComposedHooks(sendingMessage, streamingMessageContext)
 
@@ -170,7 +172,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       if (shouldAbort())
         return
 
-      const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
+      sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
       sessionMessagesForSend.push({ role: 'user', content: finalContent, createdAt: sendingCreatedAt, id: nanoid() })
       chatSession.persistSessionMessages(sessionId)
 
@@ -286,41 +288,67 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
       let fullText = ''
       const headers = (options.providerConfig?.headers || {}) as Record<string, string>
+      const streamTimeoutMs = 25000
+      let streamTimeoutId: ReturnType<typeof setTimeout> | undefined
+      let timeoutReject: ((err: Error) => void) | null = null
+      const timeoutPromise = new Promise<void>((_, reject) => {
+        timeoutReject = reject
+      })
+      const scheduleStreamTimeout = () => {
+        if (streamTimeoutId) {
+          clearTimeout(streamTimeoutId)
+        }
+        streamTimeoutId = setTimeout(() => {
+          timeoutReject?.(new Error('Stream timeout'))
+        }, streamTimeoutMs)
+      }
 
       if (shouldAbort())
         return
 
-      await llmStore.stream(options.model, options.chatProvider, newMessages as Message[], {
-        headers,
-        tools: options.tools,
-        onStreamEvent: async (event: StreamEvent) => {
-          switch (event.type) {
-            case 'tool-call':
-              toolCallQueue.enqueue({
-                type: 'tool-call',
-                toolCall: event,
-              })
+      scheduleStreamTimeout()
+      try {
+        await Promise.race([
+          llmStore.stream(options.model, options.chatProvider, newMessages as Message[], {
+            headers,
+            tools: options.tools,
+            onStreamEvent: async (event: StreamEvent) => {
+              scheduleStreamTimeout()
+              switch (event.type) {
+                case 'tool-call':
+                  toolCallQueue.enqueue({
+                    type: 'tool-call',
+                    toolCall: event,
+                  })
 
-              break
-            case 'tool-result':
-              toolCallQueue.enqueue({
-                type: 'tool-call-result',
-                id: event.toolCallId,
-                result: event.result,
-              })
+                  break
+                case 'tool-result':
+                  toolCallQueue.enqueue({
+                    type: 'tool-call-result',
+                    id: event.toolCallId,
+                    result: event.result,
+                  })
 
-              break
-            case 'text-delta':
-              fullText += event.text
-              await parser.consume(event.text)
-              break
-            case 'finish':
-              break
-            case 'error':
-              throw event.error ?? new Error('Stream error')
-          }
-        },
-      })
+                  break
+                case 'text-delta':
+                  fullText += event.text
+                  await parser.consume(event.text)
+                  break
+                case 'finish':
+                  break
+                case 'error':
+                  throw event.error ?? new Error('Stream error')
+              }
+            },
+          }),
+          timeoutPromise,
+        ])
+      }
+      finally {
+        if (streamTimeoutId) {
+          clearTimeout(streamTimeoutId)
+        }
+      }
 
       await parser.end()
 
@@ -346,6 +374,19 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     }
     catch (error) {
       console.error('Error sending message:', error)
+      if (!isStaleGeneration()) {
+        const message = error instanceof Error ? error.message : String(error || '')
+        sessionMessagesForSend.push({
+          role: 'error',
+          content: `请求失败，请检查模型配置或网络连接${message ? ` (${message})` : ''}`,
+          createdAt: Date.now(),
+          id: nanoid(),
+        })
+        chatSession.persistSessionMessages(sessionId)
+        if (isForegroundSession()) {
+          streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
+        }
+      }
       throw error
     }
     finally {
