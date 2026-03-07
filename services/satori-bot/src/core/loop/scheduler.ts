@@ -226,7 +226,7 @@ export async function onMessageArrival(
   }
   isQueueConsumerRunning = true
 
-  const _log = botContext.logger
+  const log = botContext.logger
 
   try {
     while (botContext.eventQueue.length > 0) {

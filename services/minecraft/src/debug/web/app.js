@@ -182,7 +182,7 @@ class DebugClient {
 
   scheduleReconnect() {
     if (this.reconnectAttempts >= CONFIG.RECONNECT_MAX_ATTEMPTS) {
-      console.info('Max reconnect attempts reached')
+      console.log('Max reconnect attempts reached')
       return
     }
 
@@ -796,7 +796,7 @@ class ConversationPanel {
   summarizeEvent(section) {
     const text = section.text
     // Chat messages: "Chat from X: "message""
-    const chatMatch = text.match(/^Chat from (\w+):\s*"([\s\S]+)"$/)
+    const chatMatch = text.match(/^Chat from (\w+):\s*"(.+)"$/s)
     if (chatMatch)
       return `Chat from ${chatMatch[1]}: "${chatMatch[2].slice(0, 60)}${chatMatch[2].length > 60 ? '...' : ''}"`
 
@@ -818,7 +818,7 @@ class ConversationPanel {
 
     // FEEDBACK: "toolName: Success/Failed. details"
     if (section.tag === 'FEEDBACK') {
-      const fbMatch = text.match(/^(\w+):\s*(Success|Failed)\.? *(?! )([\s\S]*)$/)
+      const fbMatch = text.match(/^(\w+):\s*(Success|Failed)\.?\s*(.*)$/s)
       if (fbMatch) {
         const detail = fbMatch[3].slice(0, 50)
         return `${fbMatch[1]}: ${fbMatch[2]}${detail ? ` — ${detail}${fbMatch[3].length > 50 ? '...' : ''}` : ''}`
@@ -1009,7 +1009,7 @@ class ToolsPanel {
   }
 
   requestTools() {
-    console.info('[ToolsPanel] Requesting tools...')
+    console.log('[ToolsPanel] Requesting tools...')
     // Check if we already have tools to avoid re-rendering on reconnect if not needed
     // But re-requesting ensures we are in sync with server capabilities
     this.client.send({ type: 'request_tools' })
@@ -1143,7 +1143,7 @@ class ToolsPanel {
           }
 
           value = Number.parseFloat(value)
-          if (Number.isNaN(value)) {
+          if (isNaN(value)) {
             this.showResult(tool.name, { error: `Invalid number for ${paramName}` }, true)
             return
           }
@@ -1186,7 +1186,7 @@ class ToolsPanel {
   }
 
   handleResult(data) {
-    const { toolName, error } = data
+    const { toolName, result, error } = data
 
     this.executingTools.delete(toolName)
     this.updateCardState(toolName, error ? 'error' : 'success')

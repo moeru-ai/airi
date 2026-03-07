@@ -182,23 +182,6 @@ async function dropItemsAndWaitForCollection(
   return new Promise((resolve, reject) => {
     let settled = false
 
-    const onCollect = (collector: any, _collected: any) => {
-      if (collector.username === username) {
-        log(mineflayer, `${username} received ${itemType}.`)
-        // eslint-disable-next-line ts/no-use-before-define
-        clearTimeout(timeout)
-        // eslint-disable-next-line ts/no-use-before-define
-        finishResolve()
-      }
-    }
-
-    const onInterrupt = () => {
-      // eslint-disable-next-line ts/no-use-before-define
-      clearTimeout(timeout)
-      // eslint-disable-next-line ts/no-use-before-define
-      finishReject(new ActionError('INTERRUPTED', `Failed to give ${itemType} to ${username}, action was cancelled`, { item: itemType }))
-    }
-
     const cleanup = () => {
       mineflayer.bot.removeListener('playerCollect', onCollect)
       mineflayer.removeListener('interrupt', onInterrupt)
@@ -224,6 +207,19 @@ async function dropItemsAndWaitForCollection(
       clearTimeout(timeout)
       finishReject(new ActionError('INTERRUPTED', `Failed to give ${itemType} to ${username}, it was never received`, { item: itemType }))
     }, 3000)
+
+    const onCollect = (collector: any, _collected: any) => {
+      if (collector.username === username) {
+        log(mineflayer, `${username} received ${itemType}.`)
+        clearTimeout(timeout)
+        finishResolve()
+      }
+    }
+
+    const onInterrupt = () => {
+      clearTimeout(timeout)
+      finishReject(new ActionError('INTERRUPTED', `Failed to give ${itemType} to ${username}, action was cancelled`, { item: itemType }))
+    }
 
     mineflayer.bot.once('playerCollect', onCollect)
     mineflayer.once('interrupt', onInterrupt)

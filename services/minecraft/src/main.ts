@@ -24,19 +24,15 @@ async function main() {
   initEnv()
 
   if (config.debug.server || config.debug.viewer || config.debug.mcp) {
-    useLogger().warn(
-      [
-        '==============================================================================',
-        'SECURITY NOTICE:',
-        'The MCP Server, Debug Server, and/or Prismarine Viewer endpoints are currently',
-        'enabled. These endpoints are completely unauthenticated. Enabling these exposes',
-        'your bot\'s internal state and capabilities to anyone who can reach the ports.',
-        'This can lead to Remote Code Execution (RCE) and full compromise of the bot',
-        'if exposed to the internet or untrusted local networks. Ensure they are not',
-        'externally accessible.',
-        '==============================================================================',
-      ].join('\n'),
-    )
+    useLogger().warn('==============================================================================')
+    useLogger().warn('SECURITY NOTICE:')
+    useLogger().warn('The MCP Server, Debug Server, and/or Prismarine Viewer endpoints are currently')
+    useLogger().warn('enabled. These endpoints are completely unauthenticated. Enabling these exposes')
+    useLogger().warn('your bot\'s internal state and capabilities to anyone who can reach the ports.')
+    useLogger().warn('This can lead to Remote Code Execution (RCE) and full compromise of the bot')
+    useLogger().warn('if exposed to the internet or untrusted local networks. Ensure they are not')
+    useLogger().warn('externally accessible.')
+    useLogger().warn('==============================================================================')
   }
 
   // Start debug server
