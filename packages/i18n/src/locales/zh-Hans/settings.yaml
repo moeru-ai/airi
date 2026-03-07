@@ -347,6 +347,7 @@ pages:
             description: 过滤低置信度的转录结果，避免 Whisper 幻觉噪音。值越接近 0 越严格，拖到最左为禁用。仅对支持 Whisper API 的服务商有效（如 OpenAI、Groq）。
             disabled: 已禁用
             verbose-json-note: 注意：如果你的服务商不支持 verbose_json 响应，此设置将不会生效。
+            verbose-json-unsupported: 你的服务商未返回 verbose_json 片段，上次转录的置信度过滤未生效。
     memory-long-term:
       description: 长期记忆
       title: 长期记忆
