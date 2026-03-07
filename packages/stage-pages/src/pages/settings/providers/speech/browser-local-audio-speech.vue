@@ -24,6 +24,7 @@ const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore)
 const { t } = useI18n()
+providersStore.initializeProvider(providerId)
 
 const speed = ref<number>(
   (providers.value[providerId] as any)?.voiceSettings?.speed
@@ -34,8 +35,6 @@ const speed = ref<number>(
 const model = computed({
   get: () => providers.value[providerId]?.model as string | undefined || defaultModel,
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
     providers.value[providerId].model = value
   },
 })
@@ -43,8 +42,6 @@ const model = computed({
 const voice = computed({
   get: () => providers.value[providerId]?.voice || 'alloy',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
     providers.value[providerId].voice = value
   },
 })
@@ -73,29 +70,11 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 }
 
 onMounted(async () => {
-  providersStore.initializeProvider(providerId)
-  if (!providers.value[providerId])
-    providers.value[providerId] = {}
-
   await providersStore.fetchModelsForProvider(providerId)
 })
 
 watch(speed, () => {
-  if (!providers.value[providerId])
-    providers.value[providerId] = {}
   providers.value[providerId].speed = speed.value
-})
-
-watch(model, () => {
-  if (!providers.value[providerId])
-    providers.value[providerId] = {}
-  providers.value[providerId].model = model.value
-})
-
-watch(voice, () => {
-  if (!providers.value[providerId])
-    providers.value[providerId] = {}
-  providers.value[providerId].voice = voice.value
 })
 </script>
 

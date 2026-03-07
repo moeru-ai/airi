@@ -13,7 +13,7 @@ import {
   FieldSelect,
 } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted } from 'vue'
 
 const providerId = 'browser-local-audio-transcription'
 const defaultModel = 'whisper-1'
@@ -21,12 +21,11 @@ const defaultModel = 'whisper-1'
 const hearingStore = useHearingStore()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+providersStore.initializeProvider(providerId)
 
 const model = computed({
   get: () => providers.value[providerId]?.model || defaultModel,
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
     providers.value[providerId].model = value
   },
 })
@@ -52,13 +51,7 @@ async function handleGenerateTranscription(file: File) {
 }
 
 onMounted(async () => {
-  providersStore.initializeProvider(providerId)
   await providersStore.fetchModelsForProvider(providerId)
-})
-
-watch(model, () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  providerConfig.model = model.value
 })
 </script>
 
