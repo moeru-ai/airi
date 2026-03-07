@@ -657,8 +657,8 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Confidence threshold -->
-        <div class="border-t border-neutral-200 pt-4 dark:border-neutral-700">
+        <!-- Confidence threshold (only for non-streaming providers) -->
+        <div v-if="!supportsStreamInput" class="border-t border-neutral-200 pt-4 dark:border-neutral-700">
           <div class="mb-4">
             <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
               {{ t('settings.pages.modules.hearing.sections.section.confidence-threshold.title') }}
