@@ -7,6 +7,7 @@ import { computed, ref, watch } from 'vue'
 
 import { client } from '../../composables/api'
 import { useLocalFirstRequest } from '../../composables/use-local-first'
+import { claimAnonymousSessions, migrateToConversations } from '../../database/migrations/migrate-to-conversations'
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
@@ -92,10 +93,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   function buildSyncMessages(messages: ChatHistoryItem[]) {
-    return messages.map(message => ({
+    return messages.map((message, i) => ({
       id: message.id ?? nanoid(),
       role: message.role,
       content: extractMessageContent(message),
+      parentId: i > 0 ? (messages[i - 1].id ?? undefined) : undefined,
       createdAt: message.createdAt,
     }))
   }
@@ -343,6 +345,15 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       return initializePromise
     initializing.value = true
     initializePromise = (async () => {
+      // Run data migration (old sessions → conversations format)
+      const currentUserId = getCurrentUserId()
+      try {
+        await migrateToConversations(currentUserId)
+      }
+      catch (err) {
+        console.warn('Migration to conversations failed:', err)
+      }
+
       await ensureActiveSessionForCharacter()
       ready.value = true
     })()
@@ -527,6 +538,25 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (!ready.value)
       return
     void ensureActiveSessionForCharacter()
+  })
+
+  // Claim anonymous sessions when user logs in
+  watch(userId, async (newUserId, oldUserId) => {
+    if (!newUserId || newUserId === 'local' || !ready.value)
+      return
+
+    // If transitioning from 'local' to a real user, claim anonymous sessions
+    if (!oldUserId || oldUserId === 'local') {
+      try {
+        const claimed = await claimAnonymousSessions(newUserId)
+        if (claimed.length > 0) {
+          console.log(`Claimed ${claimed.length} anonymous session(s)`)
+        }
+      }
+      catch (err) {
+        console.warn('Failed to claim anonymous sessions:', err)
+      }
+    }
   })
 
   return {

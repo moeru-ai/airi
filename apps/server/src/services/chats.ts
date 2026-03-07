@@ -138,12 +138,14 @@ export function createChatService(db: Database) {
             throw createConflictError('Message already belongs to another chat')
 
           await tx.insert(schema.messages)
-            .values(payload.messages.map(message => ({
+            .values(payload.messages.map((message, i) => ({
               id: message.id,
               chatId,
               senderId: resolveSenderId(message.role, userId, characterId),
               role: message.role,
               content: message.content,
+              seq: i + 1,
+              parentId: i > 0 ? payload.messages[i - 1].id : null,
               mediaIds: [] as string[],
               stickerIds: [] as string[],
               createdAt: message.createdAt ? new Date(message.createdAt) : now,
@@ -158,6 +160,17 @@ export function createChatService(db: Database) {
                 updatedAt: sql`excluded.updated_at`,
               },
             })
+        }
+
+        // Update maxSeq for the chat
+        if (payload.messages.length > 0) {
+          await tx.update(schema.chats)
+            .set({
+              maxSeq: payload.messages.length,
+              lastMessageAt: now,
+              lastMessagePreview: payload.messages[payload.messages.length - 1].content.slice(0, 100),
+            })
+            .where(eq(schema.chats.id, chatId))
         }
 
         return { chatId }

@@ -5,6 +5,7 @@ import process from 'node:process'
 
 import { initLogger, LoggerFormat, LoggerLevel, useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
+import { createNodeWebSocket } from '@hono/node-ws'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
@@ -18,15 +19,21 @@ import { createRedis } from './libs/redis'
 import { sessionMiddleware } from './middlewares/auth'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatRoutes } from './routes/chats'
+import { createConversationRoutes } from './routes/conversations'
 import { createFluxRoutes } from './routes/flux'
+import { createMessageRoutes } from './routes/messages'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
 import { createV1CompletionsRoutes } from './routes/v1completions'
+import { createWsRoute } from './routes/ws'
 import { createCharacterService } from './services/characters'
 import { createChatService } from './services/chats'
 import { createConfigKVService } from './services/config-kv'
+import { createConversationService } from './services/conversations'
 import { createFluxService } from './services/flux'
+import { createMessageService } from './services/messages'
 import { createProviderService } from './services/providers'
+import { createRealtimeService } from './services/realtime'
 import { createStripeService } from './services/stripe'
 import { ApiError, createInternalError } from './utils/error'
 import { getTrustedOrigin } from './utils/origin'
@@ -34,6 +41,9 @@ import { getTrustedOrigin } from './utils/origin'
 type AuthService = ReturnType<typeof createAuth>
 type CharacterService = ReturnType<typeof createCharacterService>
 type ChatService = ReturnType<typeof createChatService>
+type ConversationService = ReturnType<typeof createConversationService>
+type MessageService = ReturnType<typeof createMessageService>
+type RealtimeService = ReturnType<typeof createRealtimeService>
 type ProviderService = ReturnType<typeof createProviderService>
 type FluxService = ReturnType<typeof createFluxService>
 type ConfigKVService = ReturnType<typeof createConfigKVService>
@@ -43,17 +53,23 @@ interface AppDeps {
   auth: AuthService
   characterService: CharacterService
   chatService: ChatService
+  conversationService: ConversationService
+  messageService: MessageService
   providerService: ProviderService
   fluxService: FluxService
+  realtimeService: RealtimeService
   stripeService: StripeDBService
   configKV: ConfigKVService
   env: Env
 }
 
-function buildApp({ auth, characterService, chatService, providerService, fluxService, stripeService, configKV, env }: AppDeps) {
+function buildApp({ auth, characterService, chatService, conversationService, messageService, realtimeService, providerService, fluxService, stripeService, configKV, env }: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
-  return new Hono<HonoEnv>()
+  const app = new Hono<HonoEnv>()
+  const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app })
+
+  const honoApp = app
     .use(
       '/api/*',
       cors({
@@ -110,6 +126,16 @@ function buildApp({ auth, characterService, chatService, providerService, fluxSe
     .route('/api/chats', createChatRoutes(chatService))
 
     /**
+     * Conversation routes for group chat and sync.
+     */
+    .route('/api/conversations', createConversationRoutes(conversationService))
+
+    /**
+     * Message routes for incremental sync (push/pull).
+     */
+    .route('/api/conversations', createMessageRoutes(messageService))
+
+    /**
      * V1 routes for official provider.
      */
     .route('/v1', createV1CompletionsRoutes(fluxService, configKV, env))
@@ -123,9 +149,16 @@ function buildApp({ auth, characterService, chatService, providerService, fluxSe
      * Stripe routes.
      */
     .route('/api/stripe', createStripeRoutes(fluxService, stripeService, configKV, env))
+
+    /**
+     * WebSocket route for real-time sync.
+     */
+    .route('/api', createWsRoute(upgradeWebSocket, realtimeService, messageService, auth))
+
+  return { app: honoApp, injectWebSocket }
 }
 
-export type AppType = ReturnType<typeof buildApp>
+export type AppType = ReturnType<typeof buildApp>['app']
 
 async function createApp() {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
@@ -165,6 +198,16 @@ async function createApp() {
     build: ({ dependsOn }) => createChatService(dependsOn.db),
   })
 
+  const conversationService = injeca.provide('services:conversations', {
+    dependsOn: { db },
+    build: ({ dependsOn }) => createConversationService(dependsOn.db),
+  })
+
+  const messageService = injeca.provide('services:messages', {
+    dependsOn: { db },
+    build: ({ dependsOn }) => createMessageService(dependsOn.db),
+  })
+
   const redis = injeca.provide('services:redis', {
     dependsOn: { env: parsedEnv },
     build: async ({ dependsOn }) => {
@@ -173,6 +216,11 @@ async function createApp() {
       logger.log('Connected to Redis')
       return redisInstance
     },
+  })
+
+  const realtimeService = injeca.provide('services:realtime', {
+    dependsOn: { redis },
+    build: ({ dependsOn }) => createRealtimeService(dependsOn.redis),
   })
 
   const configKV = injeca.provide('services:configKV', {
@@ -191,11 +239,14 @@ async function createApp() {
   })
 
   await injeca.start()
-  const resolved = await injeca.resolve({ auth, characterService, chatService, providerService, fluxService, stripeService, configKV, env: parsedEnv })
-  const app = buildApp({
+  const resolved = await injeca.resolve({ auth, characterService, chatService, conversationService, messageService, realtimeService, providerService, fluxService, stripeService, configKV, env: parsedEnv })
+  const { app, injectWebSocket } = buildApp({
     auth: resolved.auth,
     characterService: resolved.characterService,
     chatService: resolved.chatService,
+    conversationService: resolved.conversationService,
+    messageService: resolved.messageService,
+    realtimeService: resolved.realtimeService,
     providerService: resolved.providerService,
     fluxService: resolved.fluxService,
     stripeService: resolved.stripeService,
@@ -205,11 +256,13 @@ async function createApp() {
 
   logger.withFields({ port: 3000 }).log('Server started')
 
-  return app
+  return { app, injectWebSocket }
 }
 
 // eslint-disable-next-line antfu/no-top-level-await
-serve(await createApp())
+const { app, injectWebSocket } = await createApp()
+const server = serve({ fetch: app.fetch, port: 3000 })
+injectWebSocket(server)
 
 function handleError(error: unknown, type: string) {
   useLogger().withError(error).error(type)

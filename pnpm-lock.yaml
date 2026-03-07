@@ -33,6 +33,9 @@ catalogs:
     '@histoire/plugin-vue':
       specifier: 1.0.0-beta.1
       version: 1.0.0-beta.1
+    '@hono/node-ws':
+      specifier: ^1.3.0
+      version: 1.3.0
     '@iconify-json/logos':
       specifier: ^1.2.10
       version: 1.2.10
@@ -477,6 +480,9 @@ importers:
       '@hono/node-server':
         specifier: ^1.19.9
         version: 1.19.9(hono@4.11.3)
+      '@hono/node-ws':
+        specifier: 'catalog:'
+        version: 1.3.0(@hono/node-server@1.19.9(hono@4.11.3))(bufferutil@4.1.0)(hono@4.11.3)(utf-8-validate@5.0.10)
       '@proj-airi/drizzle-orm-browser-migrator':
         specifier: ^0.1.4
         version: 0.1.4(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.9)(pg@8.19.0)(postgres@3.4.8))
@@ -5555,6 +5561,13 @@ packages:
     engines: {node: '>=18.14.1'}
     peerDependencies:
       hono: ^4
+
+  '@hono/node-ws@1.3.0':
+    resolution: {integrity: sha512-ju25YbbvLuXdqBCmLZLqnNYu1nbHIQjoyUqA8ApZOeL1k4skuiTcw5SW77/5SUYo2Xi2NVBJoVlfQurnKEp03Q==}
+    engines: {node: '>=18.14.1'}
+    peerDependencies:
+      '@hono/node-server': ^1.19.2
+      hono: ^4.6.0
 
   '@huggingface/jinja@0.5.3':
     resolution: {integrity: sha512-asqfZ4GQS0hD876Uw4qiUb7Tr/V5Q+JZuo2L+BtdrD4U40QU58nIRq3ZSgAzJgT874VLjhGVacaYfrdpXtEvtA==}
@@ -19142,6 +19155,15 @@ snapshots:
   '@hono/node-server@1.19.9(hono@4.12.2)':
     dependencies:
       hono: 4.12.2
+
+  '@hono/node-ws@1.3.0(@hono/node-server@1.19.9(hono@4.11.3))(bufferutil@4.1.0)(hono@4.11.3)(utf-8-validate@5.0.10)':
+    dependencies:
+      '@hono/node-server': 1.19.9(hono@4.11.3)
+      hono: 4.11.3
+      ws: 8.19.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
 
   '@huggingface/jinja@0.5.3': {}
 

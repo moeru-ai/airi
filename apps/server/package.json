@@ -16,6 +16,7 @@
     "@electric-sql/pglite": "catalog:",
     "@guiiai/logg": "catalog:",
     "@hono/node-server": "^1.19.9",
+    "@hono/node-ws": "catalog:",
     "@proj-airi/drizzle-orm-browser-migrator": "^0.1.4",
     "@proj-airi/server-schema": "workspace:*",
     "better-auth": "^1.4.19",
