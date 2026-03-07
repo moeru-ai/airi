@@ -197,6 +197,7 @@ export const widgetsFetch = defineInvokeEventa<WidgetSnapshot | void, { id: stri
 export const widgetsPrepareWindow = defineInvokeEventa<string | undefined, { id?: string }>('eventa:invoke:electron:windows:widgets:prepare')
 
 export const electronWindowClose = defineInvokeEventa<void>('eventa:invoke:electron:window:close')
+export const electronWindowSetAlwaysOnTop = defineInvokeEventa<void, boolean>('eventa:invoke:electron:window:set-always-on-top')
 export const electronAppQuit = defineInvokeEventa<void>('eventa:invoke:electron:app:quit')
 
 // Internal event from main -> widgets renderer when a widget should render
