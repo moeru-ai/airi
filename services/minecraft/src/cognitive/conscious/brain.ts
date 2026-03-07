@@ -1,6 +1,7 @@
 import type { Logg } from '@guiiai/logg'
 import type { Message } from '@xsai/shared-chat'
 
+import type { ConversationUpdateEvent } from '../../debug/types'
 import type { Action } from '../../libs/mineflayer/action'
 import type { TaskExecutor } from '../action/task-executor'
 import type { ActionInstruction } from '../action/types'
@@ -10,7 +11,7 @@ import type { ReflexManager } from '../reflex/reflex-manager'
 import type { BotEvent, MineflayerWithAgents } from '../types'
 import type { ActiveContextState, ArchivedContext } from './context-summary'
 import type { PlannerGlobalDescriptor } from './js-planner'
-import type { LLMAgent } from './llm-agent'
+import type { LLMAgent, LLMResult } from './llm-agent'
 import type { LlmLogEntry, LlmLogEntryKind } from './llm-log'
 import type { CancellationToken } from './task-state'
 
@@ -236,6 +237,11 @@ const NO_ACTION_STAGNATION_REPEAT_LIMIT = 2
 const ERROR_BURST_GUARD_SOURCE_ID = 'brain:error_burst_guard'
 const ERROR_BURST_THRESHOLD = 3
 const ERROR_BURST_WINDOW_TURNS = 5
+const DEFAULT_LLM_ATTEMPT_TIMEOUT_MS = 15_000
+const DEFAULT_LLM_TURN_DEADLINE_MS = 45_000
+const MAX_EVENT_QUEUE_LENGTH = 256
+const MAX_CONSECUTIVE_HIGH_PRIORITY_TURNS = 8
+const PAUSE_ABORT_ERROR_NAME = 'AbortError'
 
 function getEventPriority(event: BotEvent): number {
   if (event.type === 'perception') {
@@ -258,9 +264,11 @@ export class Brain {
 
   // State
   private queue: QueuedEvent[] = []
+  private consecutiveHighPriorityTurns = 0
   private isProcessing = false
   private isReplEvaluating = false
   private currentCancellationToken: CancellationToken | undefined
+  private currentLlmAbortController: AbortController | null = null
   private givenUp = false
   private giveUpReason: string | undefined
   private lastContextView: string | undefined
@@ -274,6 +282,8 @@ export class Brain {
   private llmTraceIdCounter = 0
   private turnCounter = 0
   private currentInputEnvelope: RuntimeInputEnvelope | null = null
+  private llmAttemptTimeoutMs = DEFAULT_LLM_ATTEMPT_TIMEOUT_MS
+  private llmTurnDeadlineMs = DEFAULT_LLM_TURN_DEADLINE_MS
   private readonly llmLogRuntime = createLlmLogRuntime(() => this.llmLogEntries)
   private readonly patternRuntime = createPatternRuntime(PATTERN_CATALOG)
 
@@ -407,6 +417,7 @@ export class Brain {
       this.deps.taskExecutor.off('action:failed', this.onActionFailed)
       this.onActionFailed = null
     }
+    this.cancelInFlightLlm('Brain destroyed')
     this.currentCancellationToken?.cancel()
     this.clearPendingControlActions('cancelled')
     this.activeControlAction = null
@@ -462,6 +473,8 @@ export class Brain {
 
   public setPaused(paused: boolean): boolean {
     this.paused = paused
+    if (paused)
+      this.cancelInFlightLlm('Brain paused')
     return this.paused
   }
 
@@ -498,6 +511,55 @@ export class Brain {
     }
 
     return JSON.parse(JSON.stringify(entries)) as LlmTraceEntry[]
+  }
+
+  private cancelInFlightLlm(reason: string): void {
+    if (!this.currentLlmAbortController)
+      return
+    if (!this.currentLlmAbortController.signal.aborted) {
+      const abortError = Object.assign(new Error(reason), { name: 'AbortError' })
+      this.currentLlmAbortController.abort(abortError)
+    }
+    this.currentLlmAbortController = null
+  }
+
+  private async callLLMWithTimeout(messages: Message[], attemptTimeoutMs: number): Promise<LLMResult> {
+    const abortController = new AbortController()
+    const timeoutError = Object.assign(
+      new Error(`LLM call timeout after ${attemptTimeoutMs}ms`),
+      { name: 'TimeoutError' },
+    )
+
+    this.currentLlmAbortController = abortController
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined
+    try {
+      const llmCallPromise = this.deps.llmAgent.callLLM({
+        messages,
+        abortSignal: abortController.signal,
+        timeoutMs: attemptTimeoutMs,
+      })
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+          if (!abortController.signal.aborted)
+            abortController.abort(timeoutError)
+          reject(timeoutError)
+        }, attemptTimeoutMs)
+      })
+
+      return await Promise.race([llmCallPromise, timeoutPromise])
+    }
+    finally {
+      if (timeoutHandle)
+        clearTimeout(timeoutHandle)
+      if (this.currentLlmAbortController === abortController)
+        this.currentLlmAbortController = null
+    }
+  }
+
+  private isAbortError(err: unknown): boolean {
+    if (!err || typeof err !== 'object')
+      return false
+    return (err as { name?: unknown }).name === PAUSE_ABORT_ERROR_NAME
   }
 
   public forgetConversation(): { ok: true, cleared: string[] } {
@@ -813,6 +875,47 @@ export class Brain {
     return JSON.parse(JSON.stringify(messages)) as Message[]
   }
 
+  // FIXME: Temporary fix to normalize xsai Message[] into the debug dashboard's string-only message schema.
+  private toDebugConversationMessages(messages: Message[]): ConversationUpdateEvent['messages'] {
+    return messages.map((message) => {
+      const normalizedMessage: ConversationUpdateEvent['messages'][number] = {
+        role: message.role,
+        content: this.toDebugMessageContent(message.content),
+      }
+      const reasoning = this.extractMessageReasoning(message)
+      if (reasoning)
+        normalizedMessage.reasoning = reasoning
+      return normalizedMessage
+    })
+  }
+
+  // FIXME: Temporary fix to flatten structured message parts into a string for debug transport compatibility.
+  private toDebugMessageContent(content: Message['content']): string {
+    if (typeof content === 'string')
+      return content
+    if (!content)
+      return ''
+    return content
+      .map((part) => {
+        if (part.type === 'text')
+          return part.text
+        if (part.type === 'refusal')
+          return part.refusal
+        return JSON.stringify(part)
+      })
+      .join('\n')
+  }
+
+  // FIXME: Temporary fix to preserve reasoning in debug payload while message typing is inconsistent.
+  private extractMessageReasoning(message: Message): string | undefined {
+    const maybeReasoning = (message as Message & { reasoning?: unknown }).reasoning
+    if (typeof maybeReasoning === 'string' && maybeReasoning.length > 0)
+      return maybeReasoning
+    if ('reasoning_content' in message && typeof message.reasoning_content === 'string' && message.reasoning_content.length > 0)
+      return message.reasoning_content
+    return undefined
+  }
+
   /**
    * Re-emit the current conversation state with full context metadata.
    * Used by the debug dashboard's `request_conversation` handler on reconnect.
@@ -823,7 +926,7 @@ export class Brain {
 
   private emitConversationUpdate(isProcessing: boolean, sessionBoundary?: boolean): void {
     this.debugService.emitConversationUpdate({
-      messages: this.cloneMessages(this.conversationHistory),
+      messages: this.toDebugConversationMessages(this.cloneMessages(this.conversationHistory)),
       isProcessing,
       ...(sessionBoundary && { sessionBoundary }),
       activeContext: {
@@ -1661,6 +1764,7 @@ export class Brain {
   private async enqueueEvent(bot: MineflayerWithAgents, event: BotEvent): Promise<void> {
     return new Promise((resolve, reject) => {
       this.queue.push({ event, resolve, reject })
+      this.trimEventQueueOverflow()
       // Use setImmediate to avoid re-entrant processQueue calls that could
       // bypass the isProcessing guard during the finally block.
       if (!this.isProcessing) {
@@ -1719,6 +1823,97 @@ export class Brain {
     this.queue.sort((a, b) => getEventPriority(a.event) - getEventPriority(b.event))
   }
 
+  private trimEventQueueOverflow(): void {
+    while (this.queue.length > MAX_EVENT_QUEUE_LENGTH) {
+      const dropIndex = this.findOverflowDropIndex()
+      const [dropped] = this.queue.splice(dropIndex, 1)
+      if (!dropped)
+        break
+
+      dropped.resolve()
+      this.appendLlmLog({
+        turnId: this.turnCounter,
+        kind: 'scheduler',
+        eventType: dropped.event.type,
+        sourceType: dropped.event.source.type,
+        sourceId: dropped.event.source.id,
+        tags: ['scheduler', 'queue', 'overflow_drop'],
+        text: `Dropped queued event due to queue overflow (max=${MAX_EVENT_QUEUE_LENGTH})`,
+        metadata: {
+          droppedPriority: getEventPriority(dropped.event),
+          queueLength: this.queue.length,
+        },
+      })
+    }
+  }
+
+  private findOverflowDropIndex(): number {
+    const nonFeedbackCandidateIndex = this.findOverflowDropIndexByFilter(
+      item => item.event.type !== 'feedback',
+    )
+    if (nonFeedbackCandidateIndex >= 0)
+      return nonFeedbackCandidateIndex
+
+    return this.findOverflowDropIndexByFilter(() => true)
+  }
+
+  private findOverflowDropIndexByFilter(filter: (item: QueuedEvent) => boolean): number {
+    let candidateIndex = -1
+    let candidatePriority = Number.NEGATIVE_INFINITY
+
+    for (let index = 0; index < this.queue.length; index++) {
+      const item = this.queue[index]!
+      if (!filter(item))
+        continue
+
+      const priority = getEventPriority(item.event)
+      if (candidateIndex === -1 || priority > candidatePriority) {
+        candidatePriority = priority
+        candidateIndex = index
+      }
+    }
+
+    return candidateIndex
+  }
+
+  private dequeueNextQueuedEvent(): QueuedEvent {
+    const shouldForceLowPriorityDispatch = this.consecutiveHighPriorityTurns >= MAX_CONSECUTIVE_HIGH_PRIORITY_TURNS
+    let item: QueuedEvent | undefined
+
+    if (shouldForceLowPriorityDispatch) {
+      const lowPriorityIndex = this.queue.findIndex(
+        candidate => getEventPriority(candidate.event) > EVENT_PRIORITY_PERCEPTION,
+      )
+      if (lowPriorityIndex >= 0) {
+        // FIXME: Temporary starvation guard. Replace with weighted-fair scheduling once queue model is refactored.
+        item = this.queue.splice(lowPriorityIndex, 1)[0]
+        this.appendLlmLog({
+          turnId: this.turnCounter,
+          kind: 'scheduler',
+          eventType: item.event.type,
+          sourceType: item.event.source.type,
+          sourceId: 'brain:starvation_guard',
+          tags: ['scheduler', 'queue', 'starvation_guard', 'temp_fix'],
+          text: 'Forced a low-priority event after high-priority streak',
+          metadata: {
+            streakBeforeDispatch: this.consecutiveHighPriorityTurns,
+            queueLength: this.queue.length,
+          },
+        })
+      }
+    }
+
+    if (!item)
+      item = this.queue.shift()!
+
+    if (getEventPriority(item.event) <= EVENT_PRIORITY_PERCEPTION)
+      this.consecutiveHighPriorityTurns += 1
+    else
+      this.consecutiveHighPriorityTurns = 0
+
+    return item
+  }
+
   private async processQueue(bot: MineflayerWithAgents): Promise<void> {
     if (this.isProcessing || this.queue.length === 0)
       return
@@ -1732,7 +1927,7 @@ export class Brain {
       })
 
       this.coalesceQueue()
-      const item = this.queue.shift()!
+      const item = this.dequeueNextQueuedEvent()
 
       try {
         await this.processEvent(bot, item.event)
@@ -1750,6 +1945,9 @@ export class Brain {
         queueLength: this.queue.length,
         lastContextView: this.lastContextView,
       })
+
+      if (this.queue.length === 0)
+        this.consecutiveHighPriorityTurns = 0
 
       if (this.queue.length > 0) {
         setImmediate(() => this.processQueue(bot))
@@ -1827,10 +2025,10 @@ export class Brain {
     })
 
     this.debugService.emitConversationUpdate({
-      messages: this.cloneMessages([
+      messages: this.toDebugConversationMessages(this.cloneMessages([
         ...this.conversationHistory,
         { role: 'user', content: userMessage },
-      ]),
+      ])),
       isProcessing: true,
     })
 
@@ -1839,6 +2037,7 @@ export class Brain {
     let result: string | null = null
     let capturedReasoning: string | undefined
     let lastError: unknown
+    const llmTurnDeadlineAt = Date.now() + this.llmTurnDeadlineMs
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       // Check pause at start of each retry attempt
@@ -1857,6 +2056,17 @@ export class Brain {
       }
 
       try {
+        const remainingTurnMs = llmTurnDeadlineAt - Date.now()
+        if (remainingTurnMs <= 0) {
+          lastError = Object.assign(
+            new Error(`LLM turn deadline exceeded after ${this.llmTurnDeadlineMs}ms`),
+            { name: 'TimeoutError' },
+          )
+          this.deps.logger.withError(lastError as Error).warn('Brain: LLM turn deadline exceeded, skipping turn')
+          break
+        }
+        const attemptTimeoutMs = Math.max(1, Math.min(this.llmAttemptTimeoutMs, remainingTurnMs))
+
         // Auto-trim active context if it exceeds the safety limit
         this.autoTrimActiveContext()
 
@@ -1893,14 +2103,14 @@ export class Brain {
             attempt,
             maxAttempts,
             messageCount: messages.length,
+            timeoutMs: attemptTimeoutMs,
+            remainingTurnMs,
           },
         })
 
         const traceStart = Date.now()
 
-        const llmResult = await this.deps.llmAgent.callLLM({
-          messages,
-        })
+        const llmResult = await this.callLLMWithTimeout(messages, attemptTimeoutMs)
 
         const content = llmResult.text
         const reasoning = llmResult.reasoning
@@ -1974,6 +2184,24 @@ export class Brain {
         break // Success, exit retry loop
       }
       catch (err) {
+        if (this.paused && this.isAbortError(err)) {
+          this.appendLlmLog({
+            turnId,
+            kind: 'scheduler',
+            eventType: event.type,
+            sourceType: event.source.type,
+            sourceId: event.source.id,
+            tags: ['scheduler', 'paused', 'interrupted'],
+            text: `Interrupted during LLM call (attempt ${attempt}/${maxAttempts}) while paused`,
+            metadata: {
+              attempt,
+              maxAttempts,
+            },
+          })
+          this.deps.logger.log('INFO', `Brain: Interrupted LLM call while paused (attempt ${attempt}/${maxAttempts})`)
+          return
+        }
+
         lastError = err
         const remaining = maxAttempts - attempt
         const isRateLimit = isRateLimitError(err)
