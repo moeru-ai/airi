@@ -44,7 +44,6 @@ const tools = [
         }
       }
       catch (error) {
-        console.warn('[mcp_call_tool] failed to call mcp tool:', error)
         const message = error instanceof Error ? error.message : String(error)
         return {
           isError: true,

@@ -61,7 +61,6 @@ function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProv
     return discovered
   }
 
-  // NOTICE: default optimistic-on so first message after provider switch can still use tools.
   return true
 }
 
@@ -121,9 +120,8 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
 
     try {
       const stream = streamText({
-        ...chatProvider.chat(model),
+        ...chatConfig,
         maxSteps: 10,
-        // NOTICE: keep tool execution serial to reduce duplicated side effects from parallel tool calls.
         parallelToolCalls: false,
         messages: sanitized,
         headers,
@@ -132,9 +130,6 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
         onEvent,
       })
 
-      // NOTICE: some providers can end stream without a terminal `finish` event
-      // (for example when max tool steps are exhausted). Resolve from stream completion
-      // as a fallback to avoid hanging chat turns.
       void stream.steps.then(() => {
         resolveOnce()
       }).catch((error) => {
@@ -213,34 +208,19 @@ export const useLLM = defineStore('llm', () => {
       return
     }
 
-    try {
-      const res = await attemptForToolsCompatibilityDiscovery(model, chatProvider, _, { ...options, toolsCompatibility: toolsCompatibility.value })
-      toolsCompatibility.value.set(key, res)
-    }
-    catch (error) {
-      // NOTICE: remote providers may intermittently fail capability probes.
-      // Keep tools optimistic-on for MVP, then downgrade on real request rejection.
-      console.warn(`[llm] tools compatibility discovery failed for ${key}, fallback to tools enabled`, error)
-      toolsCompatibility.value.set(key, true)
-    }
+    const res = await attemptForToolsCompatibilityDiscovery(model, chatProvider, _, { ...options, toolsCompatibility: toolsCompatibility.value })
+    toolsCompatibility.value.set(key, res)
   }
 
   async function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
     const key = createToolsCompatibilityKey(model, chatProvider)
-    const toolsEnabled = streamOptionsToolsCompatibilityOk(model, chatProvider, messages, {
-      ...options,
-      toolsCompatibility: toolsCompatibility.value,
-    })
-    console.debug(`[llm] tools ${toolsEnabled ? 'enabled' : 'disabled'} for ${key}`)
 
     try {
       return await streamFrom(model, chatProvider, messages, { ...options, toolsCompatibility: toolsCompatibility.value })
     }
     catch (error) {
       if (isKnownToolsUnsupportedError(error)) {
-        // NOTICE: probe can be wrong for some remote providers. Downgrade and retry once without tools.
         toolsCompatibility.value.set(key, false)
-        console.warn(`[llm] provider rejected tools for ${key}, retrying without tools`, error)
         return streamFrom(model, chatProvider, messages, {
           ...options,
           supportsTools: false,

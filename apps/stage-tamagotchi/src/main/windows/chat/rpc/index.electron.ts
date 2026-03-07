@@ -10,8 +10,10 @@ import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
 import { electronOpenMainDevtools } from '../../../../shared/eventa'
+import { createServerChannelService } from '../../../services/airi/channel-server'
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createWidgetsService } from '../../../services/airi/widgets'
+import { createScreenService, createWindowService } from '../../../services/electron'
 
 export async function setupChatWindowElectronInvokes(params: {
   window: BrowserWindow
@@ -26,9 +28,6 @@ export async function setupChatWindowElectronInvokes(params: {
   ipcMain.setMaxListeners(0)
 
   const { context } = createContext(ipcMain, params.window, {
-    // NOTICE: eventa main adapter listens on process-wide ipcMain channel.
-    // Restrict invoke routing to the sender window to avoid duplicate handler execution
-    // when multiple windows register handlers for the same invoke event.
     onlySameWindow: true,
   })
 

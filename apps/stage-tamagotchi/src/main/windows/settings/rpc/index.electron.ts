@@ -12,9 +12,10 @@ import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
 import { electronOpenDevtoolsWindow, electronOpenSettingsDevtools } from '../../../../shared/eventa'
+import { createServerChannelService } from '../../../services/airi/channel-server'
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createWidgetsService } from '../../../services/airi/widgets'
-import { createAutoUpdaterService } from '../../../services/electron'
+import { createAutoUpdaterService, createScreenService, createWindowService } from '../../../services/electron'
 
 export async function setupSettingsWindowInvokes(params: {
   settingsWindow: BrowserWindow
@@ -31,9 +32,6 @@ export async function setupSettingsWindowInvokes(params: {
   ipcMain.setMaxListeners(0)
 
   const { context } = createContext(ipcMain, params.settingsWindow, {
-    // NOTICE: eventa main adapter listens on process-wide ipcMain channel.
-    // Restrict invoke routing to the sender window to avoid duplicate handler execution
-    // when multiple windows register handlers for the same invoke event.
     onlySameWindow: true,
   })
 

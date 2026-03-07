@@ -68,12 +68,7 @@ async function handleApplyAndRestart() {
 }
 
 onMounted(async () => {
-  try {
-    await refreshStatus()
-  }
-  catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : String(error)
-  }
+  await refreshStatus()
 })
 </script>
 

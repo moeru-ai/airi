@@ -35,16 +35,12 @@ export async function setupMainWindowElectronInvokes(params: {
   ipcMain.setMaxListeners(0)
 
   const { context } = createContext(ipcMain, params.window, {
-    // NOTICE: eventa main adapter listens on process-wide ipcMain channel.
-    // Restrict invoke routing to the sender window to avoid duplicate handler execution
-    // when multiple windows register handlers for the same invoke event.
     onlySameWindow: true,
   })
 
   await setupBaseWindowElectronInvokes({ context, window: params.window, serverChannel: params.serverChannel, i18n: params.i18n })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
   createAutoUpdaterService({ context, window: params.window, service: params.autoUpdater })
-  createServerChannelService({ serverChannel: params.serverChannel })
   createMcpServersService({ context, manager: params.mcpStdioManager, allowManageConfig: false })
 
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))

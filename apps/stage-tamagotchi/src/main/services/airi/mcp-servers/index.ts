@@ -13,6 +13,7 @@ import type {
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { env } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
@@ -129,7 +130,7 @@ async function withTimeout<T>(task: Promise<T>, timeoutMsec: number, timeoutMess
 }
 
 function createSpawnEnv(overrides?: Record<string, string>): Record<string, string> {
-  const baseEnv = Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
+  const baseEnv = Object.fromEntries(Object.entries(env).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
   if (!overrides) {
     return baseEnv
   }
@@ -233,8 +234,6 @@ export function createMcpStdioManager(): McpStdioManager {
     const transport = new StdioClientTransport({
       command: config.command,
       args: config.args ?? [],
-      // NOTICE: MCP config may only define override variables.
-      // Merge with parent env to preserve PATH and other runtime essentials.
       env: createSpawnEnv(config.env),
       cwd: config.cwd,
       stderr: 'pipe',
@@ -323,17 +322,6 @@ export function createMcpStdioManager(): McpStdioManager {
   }
 
   const listTools = async (): Promise<ElectronMcpToolDescriptor[]> => {
-    if (sessions.size === 0) {
-      // NOTICE: users may update mcp.json outside app and forget clicking apply.
-      // Auto-attempt one restart on first tools listing to avoid a silent empty tool list.
-      try {
-        await applyAndRestart()
-      }
-      catch (error) {
-        log.withError(error).warn('failed to auto-apply mcp config before listing tools')
-      }
-    }
-
     const entries = [...sessions.entries()].sort(([left], [right]) => left.localeCompare(right))
     const listResult = await Promise.all(entries.map(async ([serverName, session]) => {
       try {
@@ -365,19 +353,11 @@ export function createMcpStdioManager(): McpStdioManager {
 
       const cached = completedToolCallsByRequestId.get(normalizedRequestId)
       if (cached && cached.expiresAt > Date.now()) {
-        log.withFields({
-          requestId: normalizedRequestId,
-          name: payload.name,
-        }).warn('reusing cached mcp tool result for duplicated request id')
         return cached.result
       }
 
       const inFlight = inFlightToolCallsByRequestId.get(normalizedRequestId)
       if (inFlight) {
-        log.withFields({
-          requestId: normalizedRequestId,
-          name: payload.name,
-        }).warn('joining in-flight mcp tool call for duplicated request id')
         return inFlight
       }
     }
