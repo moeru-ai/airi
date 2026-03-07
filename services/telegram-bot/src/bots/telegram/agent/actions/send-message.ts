@@ -25,10 +25,19 @@ export function parseMayStructuredMessage(responseText: string) {
   if (result) {
     logger.withField('text', JSON.stringify(responseText)).withField('result', result).log('Multiple messages detected')
 
-    const parsedResponse = parse(result?.[0]) as ({ messages?: string[], reply_to_message_id?: string } | undefined)
-    parsedResponse.messages = parsedResponse.messages?.filter(message => message.trim() !== '')
+    const parsedResponse = parse(result[0]) as ({ messages?: unknown, reply_to_message_id?: unknown } | undefined)
+    const messages = Array.isArray(parsedResponse?.messages)
+      ? parsedResponse.messages.filter((message): message is string => typeof message === 'string' && message.trim() !== '')
+      : []
+    const replyToMessageId = typeof parsedResponse?.reply_to_message_id === 'string'
+      ? parsedResponse.reply_to_message_id
+      : undefined
 
-    return parsedResponse
+    if (messages.length > 0) {
+      return { messages, reply_to_message_id: replyToMessageId }
+    }
+
+    return { messages: [responseText], reply_to_message_id: replyToMessageId }
   }
 
   return { messages: [responseText], reply_to_message_id: undefined }

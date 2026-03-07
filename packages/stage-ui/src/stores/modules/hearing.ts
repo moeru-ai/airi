@@ -15,6 +15,15 @@ import { useProvidersStore } from '../providers'
 import { streamAliyunTranscription } from '../providers/aliyun/stream-transcription'
 import { streamWebSpeechAPITranscription } from '../providers/web-speech-api'
 
+function errorMessage(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err)
+  // Browsers hide the real reason (CORS, timeout, DNS, …) behind this generic string.
+  if (msg === 'Failed to fetch' || msg === 'Load failed') {
+    return `${msg} — check the browser console (Network tab) for the exact reason (e.g. CORS, network timeout, DNS failure).`
+  }
+  return msg
+}
+
 export interface StreamTranscriptionFileInputOptions extends Omit<XSAIStreamTranscriptionOptions, 'file' | 'fileName'> {
   file: Blob
   fileName?: string
@@ -348,7 +357,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           return text
         }
         catch (err) {
-          error.value = err instanceof Error ? err.message : String(err)
+          error.value = errorMessage(err)
           console.error('Error getting transcription result:', error.value)
         }
       }
@@ -393,7 +402,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
         return text
       }
       catch (err) {
-        error.value = err instanceof Error ? err.message : String(err)
+        error.value = errorMessage(err)
         console.error('Error generating transcription:', error.value)
       }
     }
@@ -423,6 +432,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       console.warn('[Hearing Pipeline] Stream input not supported')
       return
     }
+
+    error.value = undefined
 
     try {
       const providerId = activeTranscriptionProvider.value
@@ -698,12 +709,14 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       }
     }
     catch (err) {
-      error.value = err instanceof Error ? err.message : String(err)
+      error.value = errorMessage(err)
       console.error('Error generating transcription:', error.value)
     }
   }
 
   async function transcribeForRecording(recording: Blob | null | undefined) {
+    error.value = undefined
+
     if (!recording)
       return
 
@@ -723,11 +736,17 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           model,
           new File([recording], 'recording.wav'),
         )
-        return result.mode === 'stream' ? await result.text : result.text
+        const text = result.mode === 'stream' ? await result.text : result.text
+        if (!text || !text.trim()) {
+          error.value = 'No transcription result returned from provider'
+          return
+        }
+
+        return text
       }
     }
     catch (err) {
-      error.value = err instanceof Error ? err.message : String(err)
+      error.value = errorMessage(err)
       console.error('Error generating transcription:', error.value)
     }
   }

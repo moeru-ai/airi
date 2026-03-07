@@ -86,8 +86,6 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
           tickCount++
           if (tickCount % 5 !== 0)
             return
-
-          // Other periodic updates can go here
         })
 
         // Resolve EventBus for message handling

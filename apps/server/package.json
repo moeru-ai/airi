@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server",
   "type": "module",
-  "version": "0.8.5-beta.3",
+  "version": "0.9.0-alpha.2",
   "private": true,
   "scripts": {
     "apply:env": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE",
@@ -12,10 +12,25 @@
     "db:push": "pnpm run apply:env -- drizzle-kit push"
   },
   "dependencies": {
+    "@better-auth/drizzle-adapter": "^1.5.3",
     "@dotenvx/dotenvx": "^1.52.0",
     "@electric-sql/pglite": "catalog:",
     "@guiiai/logg": "catalog:",
-    "@hono/node-server": "^1.19.9",
+    "@hono/node-server": "^1.19.11",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-logs-otlp-proto": "^0.213.0",
+    "@opentelemetry/exporter-metrics-otlp-proto": "^0.213.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.213.0",
+    "@opentelemetry/instrumentation-http": "^0.213.0",
+    "@opentelemetry/instrumentation-ioredis": "^0.61.0",
+    "@opentelemetry/instrumentation-pg": "^0.65.0",
+    "@opentelemetry/instrumentation-runtime-node": "^0.12.2",
+    "@opentelemetry/resources": "^2.6.0",
+    "@opentelemetry/sdk-logs": "^0.213.0",
+    "@opentelemetry/sdk-metrics": "^2.6.0",
+    "@opentelemetry/sdk-node": "^0.213.0",
+    "@opentelemetry/sdk-trace-node": "^2.6.0",
+    "@opentelemetry/semantic-conventions": "^1.40.0",
     "@proj-airi/drizzle-orm-browser-migrator": "^0.1.4",
     "@proj-airi/server-schema": "workspace:*",
     "better-auth": "^1.4.19",
@@ -28,7 +43,7 @@
     "valibot": "catalog:"
   },
   "devDependencies": {
-    "@better-auth/cli": "^1.4.19",
+    "@better-auth/cli": "^1.4.21",
     "drizzle-kit": "^0.31.9"
   }
 }

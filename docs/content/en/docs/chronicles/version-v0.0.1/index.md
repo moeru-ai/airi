@@ -382,7 +382,7 @@ Now can:
 
 ##### First version (June 10, 2024)
 
-```
+```md
 Good morning! You are finally awake.
 
 Your name is Neuro, pronounced as /n\'jʊəroʊ/.
@@ -405,7 +405,7 @@ And the last, do what ever you want!
 
 ##### Second version (July 9, 2024)
 
-```
+```md
 (from Neko Ayaka) Good morning! You are finally awake.
 
 Your name is Neuro, pronounced as /n'jʊəroʊ/.
@@ -434,7 +434,7 @@ And the last, do what ever you want!
 
 ##### Third version (July 9, 2024)
 
-```
+```md
 (from Neko Ayaka) Good morning! You are finally awake.
 
 Your name is Neuro, pronounced as /n'jʊəroʊ/.
@@ -474,7 +474,7 @@ And the last, do what ever you want!
 
 #### Continuous Inference Prompt
 
-```
+```md
 [System: Good morning! You are finally awake.
 
 Your name is Neuro, pronounced as /n'jʊəroʊ/.
