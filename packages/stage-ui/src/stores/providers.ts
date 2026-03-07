@@ -36,9 +36,7 @@ import { listModels } from '@xsai/model'
 import { isWebGPUSupported } from 'gpuu/webgpu'
 import { defineStore } from 'pinia'
 import {
-  createUnAlibabaCloud,
   createUnDeepgram,
-  createUnElevenLabs,
   createUnMicrosoft,
   createUnVolcengine,
   listVoices,
@@ -861,9 +859,7 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'elevenlabs.io',
       icon: 'i-simple-icons:elevenlabs',
       defaultOptions: () => ({
-        baseUrl: isStageTamagotchi()
-          ? 'https://api.elevenlabs.io/v1/' // Desktop: direct native API
-          : 'https://unspeech.hyp3r.link/v1/', // Web: unspeech proxy (CORS)
+        baseUrl: 'https://api.elevenlabs.io/v1/', // Direct native API for all platforms
         voiceSettings: {
           similarityBoost: 0.75,
           stability: 0.5,
@@ -873,63 +869,52 @@ export const useProvidersStore = defineStore('providers', () => {
         const apiKey = (config.apiKey as string).trim()
         const baseUrl = (config.baseUrl as string).trim().replace(/\/$/, '')
 
-        if (isStageTamagotchi()) {
-          // On desktop (Electron), we bypass the unspeech proxy and call ElevenLabs' native
-          // API directly. The public unspeech instance triggers ElevenLabs' Free Tier abuse
-          // detection because many users share the same proxy IP (HTTP 401). In Electron the
-          // renderer is not subject to browser CORS rules, so direct cross-origin fetch works.
-          //
-          // @xsai/generate-speech supports an `options.fetch` override that lets us intercept
-          // the xsai OpenAI-format request and transform it into ElevenLabs' native format
-          // (POST /v1/text-to-speech/{voice_id}) before it leaves the app.
-          return {
-            speech: (model: string, options?: UnElevenLabsOptions) => {
-              const nativeFetch: typeof globalThis.fetch = async (_url, init) => {
-                const body = JSON.parse((init?.body as string) || '{}') as {
-                  input?: string
-                  voice?: string
-                  model?: string
-                }
-                const voiceId = encodeURIComponent(body.voice ?? '')
-                const text = body.input ?? ''
-                const modelId = model.replace(/^elevenlabs\//, '')
-                // Priority: per-request options > provider-level config > hardcoded defaults
-                const voiceSettings = options?.voiceSettings ?? (config as any).voiceSettings ?? { similarityBoost: 0.75, stability: 0.5 }
+        // We bypass the unspeech proxy and call ElevenLabs' native API directly across
+        // all platforms. Previously this was Desktop-only due to CORS issues, but
+        // ElevenLabs now returns 'Access-Control-Allow-Origin: *'. This avoids the
+        // HTTP 401 errors caused by many users sharing the public unspeech proxy IP.
+        return {
+          speech: (model: string, options?: UnElevenLabsOptions) => {
+            const nativeFetch: typeof globalThis.fetch = async (_url, init) => {
+              const body = JSON.parse((init?.body as string) || '{}') as {
+                input?: string
+                voice?: string
+                model?: string
+              }
+              const voiceId = encodeURIComponent(body.voice ?? '')
+              const text = body.input ?? ''
+              const modelId = model.replace(/^elevenlabs\//, '')
+              // Priority: per-request options > provider-level config > hardcoded defaults
+              const voiceSettings = options?.voiceSettings ?? (config as any).voiceSettings ?? { similarityBoost: 0.75, stability: 0.5 }
 
-                return globalThis.fetch(`${baseUrl}/text-to-speech/${voiceId}`, {
-                  method: 'POST',
-                  headers: {
-                    'xi-api-key': apiKey,
-                    'content-type': 'application/json',
-                    'accept': 'audio/mpeg',
+              return globalThis.fetch(`${baseUrl}/text-to-speech/${voiceId}`, {
+                method: 'POST',
+                headers: {
+                  'xi-api-key': apiKey,
+                  'content-type': 'application/json',
+                  'accept': 'audio/mpeg',
+                },
+                body: JSON.stringify({
+                  text,
+                  model_id: modelId,
+                  voice_settings: {
+                    stability: voiceSettings.stability ?? 0.5,
+                    similarity_boost: voiceSettings.similarityBoost ?? 0.75,
+                    style: voiceSettings.style,
+                    use_speaker_boost: voiceSettings.useSpeakerBoost,
                   },
-                  body: JSON.stringify({
-                    text,
-                    model_id: modelId,
-                    voice_settings: {
-                      stability: voiceSettings.stability ?? 0.5,
-                      similarity_boost: voiceSettings.similarityBoost ?? 0.75,
-                      style: voiceSettings.style,
-                      use_speaker_boost: voiceSettings.useSpeakerBoost,
-                    },
-                  }),
-                })
-              }
+                }),
+              })
+            }
 
-              return {
-                apiKey,
-                baseURL: baseUrl,
-                model: `elevenlabs/${model}`,
-                fetch: nativeFetch,
-              }
-            },
-          } as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
-        }
-
-        // On web, the browser enforces CORS and ElevenLabs does not set
-        // Access-Control-Allow-Origin headers, so direct fetch is blocked.
-        // We keep routing through the unspeech proxy here.
-        return createUnElevenLabs(apiKey, `${baseUrl}/`) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
+            return {
+              apiKey,
+              baseURL: baseUrl,
+              model: `elevenlabs/${model}`,
+              fetch: nativeFetch,
+            }
+          },
+        } as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
       },
       capabilities: {
         listModels: async () => {
@@ -948,31 +933,24 @@ export const useProvidersStore = defineStore('providers', () => {
           const apiKey = (config.apiKey as string).trim()
           const baseUrl = (config.baseUrl as string).trim().replace(/\/$/, '')
 
-          // Step 1: fetch + normalize to VoiceInfo[] — different sources per platform
-          let voices: VoiceInfo[]
-          if (isStageTamagotchi()) {
-            // Desktop: native GET /v1/voices (unspeech SDK constructs a wrong URL for this host)
-            const res = await fetch(`${baseUrl}/voices`, { headers: { 'xi-api-key': apiKey } })
-            if (!res.ok)
-              throw new Error(`ElevenLabs voices: ${res.status} ${res.statusText}`)
-            const { voices: raw } = await res.json() as { voices: { voice_id: string, name: string, preview_url?: string, labels?: Record<string, string>, fine_tuning?: { language?: string } }[] }
-            voices = (raw ?? []).map(v => ({
-              id: v.voice_id,
-              name: v.name,
-              provider: 'elevenlabs' as const,
-              previewURL: v.preview_url,
-              languages: v.fine_tuning?.language ? [{ code: v.fine_tuning.language, title: v.fine_tuning.language }] : [],
-              gender: v.labels?.gender,
-            }))
-          }
-          else {
-            // Web: unspeech proxy (required for CORS)
-            const provider = createUnElevenLabs(apiKey, `${baseUrl}/`) as VoiceProviderWithExtraOptions<UnElevenLabsOptions>
-            const raw = await listVoices({ ...provider.voice() })
-            voices = raw.map(v => ({ id: v.id, name: v.name, provider: 'elevenlabs' as const, previewURL: v.preview_audio_url, languages: v.languages }))
-          }
+          // Fetch ElevenLabs native GET /v1/voices directly.
+          // The unspeech SDK's listVoices() constructs {baseURL}/api/voices?provider=elevenlabs
+          // which does not exist on api.elevenlabs.io. We bypass it and call the real endpoint.
+          const res = await fetch(`${baseUrl}/voices`, { headers: { 'xi-api-key': apiKey } })
+          if (!res.ok)
+            throw new Error(`ElevenLabs voices: ${res.status} ${res.statusText}`)
 
-          // Step 2: rearrange — move Aria & Bill range to the end (shared for both platforms)
+          const { voices: raw } = await res.json() as { voices: { voice_id: string, name: string, preview_url?: string, labels?: Record<string, string>, fine_tuning?: { language?: string } }[] }
+          const voices = (raw ?? []).map(v => ({
+            id: v.voice_id,
+            name: v.name,
+            provider: 'elevenlabs' as const,
+            previewURL: v.preview_url,
+            languages: v.fine_tuning?.language ? [{ code: v.fine_tuning.language, title: v.fine_tuning.language }] : [],
+            gender: v.labels?.gender,
+          }))
+
+          // Rearrange — move Aria & Bill range to the end
           const lo = Math.min(...['Aria', 'Bill'].map((n) => { const i = voices.findIndex(v => v.name.includes(n)); return i !== -1 ? i : voices.length - 1 }))
           const hi = Math.max(...['Aria', 'Bill'].map((n) => { const i = voices.findIndex(v => v.name.includes(n)); return i !== -1 ? i : 0 }))
           return [...voices.slice(0, lo), ...voices.slice(hi + 1), ...voices.slice(lo, hi + 1)]
