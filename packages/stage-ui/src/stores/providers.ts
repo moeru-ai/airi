@@ -50,6 +50,7 @@ import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '.
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { convertProviderDefinitionsToMetadata } from './providers/converters'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
+import { createNativeElevenLabsProvider } from './providers/elevenlabs/native'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 import { createWebSpeechAPIProvider } from './providers/web-speech-api'
 
@@ -868,53 +869,13 @@ export const useProvidersStore = defineStore('providers', () => {
       createProvider: async (config) => {
         const apiKey = (config.apiKey as string).trim()
         const baseUrl = (config.baseUrl as string).trim().replace(/\/$/, '')
+        const voiceSettings = (config as any).voiceSettings ?? { similarityBoost: 0.75, stability: 0.5 }
 
         // We bypass the unspeech proxy and call ElevenLabs' native API directly across
         // all platforms. Previously this was Desktop-only due to CORS issues, but
         // ElevenLabs now returns 'Access-Control-Allow-Origin: *'. This avoids the
         // HTTP 401 errors caused by many users sharing the public unspeech proxy IP.
-        return {
-          speech: (model: string, options?: UnElevenLabsOptions) => {
-            const nativeFetch: typeof globalThis.fetch = async (_url, init) => {
-              const body = JSON.parse((init?.body as string) || '{}') as {
-                input?: string
-                voice?: string
-                model?: string
-              }
-              const voiceId = encodeURIComponent(body.voice ?? '')
-              const text = body.input ?? ''
-              const modelId = model.replace(/^elevenlabs\//, '')
-              // Priority: per-request options > provider-level config > hardcoded defaults
-              const voiceSettings = options?.voiceSettings ?? (config as any).voiceSettings ?? { similarityBoost: 0.75, stability: 0.5 }
-
-              return globalThis.fetch(`${baseUrl}/text-to-speech/${voiceId}`, {
-                method: 'POST',
-                headers: {
-                  'xi-api-key': apiKey,
-                  'content-type': 'application/json',
-                  'accept': 'audio/mpeg',
-                },
-                body: JSON.stringify({
-                  text,
-                  model_id: modelId,
-                  voice_settings: {
-                    stability: voiceSettings.stability ?? 0.5,
-                    similarity_boost: voiceSettings.similarityBoost ?? 0.75,
-                    style: voiceSettings.style,
-                    use_speaker_boost: voiceSettings.useSpeakerBoost,
-                  },
-                }),
-              })
-            }
-
-            return {
-              apiKey,
-              baseURL: baseUrl,
-              model: `elevenlabs/${model}`,
-              fetch: nativeFetch,
-            }
-          },
-        } as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
+        return createNativeElevenLabsProvider(apiKey, baseUrl, voiceSettings) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
       },
       capabilities: {
         listModels: async () => {
