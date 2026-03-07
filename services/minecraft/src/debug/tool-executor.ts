@@ -4,6 +4,7 @@ import type { Mineflayer } from '../libs/mineflayer'
 import type { ToolDefinition, ToolParameter } from './types'
 
 import { actionsList } from '../cognitive/action/llm-actions'
+import { useLogger } from '../utils/logger'
 import { DebugService } from './debug-service'
 
 export class ToolExecutor {
@@ -13,23 +14,23 @@ export class ToolExecutor {
   constructor(mineflayer: Mineflayer) {
     this.mineflayer = mineflayer
     this.debugService = DebugService.getInstance()
-    console.log('[ToolExecutor] Initializing ToolExecutor')
+    useLogger().log('[ToolExecutor] Initializing ToolExecutor')
     this.setupHandlers()
   }
 
   private setupHandlers(): void {
-    console.log('[ToolExecutor] Key registered for request_tools')
+    useLogger().log('[ToolExecutor] Key registered for request_tools')
 
     // Handle tool list request
     this.debugService.onCommand('request_tools', () => {
-      console.log('[ToolExecutor] Received request_tools command')
+      useLogger().log('[ToolExecutor] Received request_tools command')
       this.sendToolsList()
     })
 
     // Handle tool execution
     this.debugService.onCommand('execute_tool', (cmd) => {
       if (cmd.type === 'execute_tool') {
-        console.log(`[ToolExecutor] Executing tool: ${cmd.payload.toolName}`)
+        useLogger().log(`[ToolExecutor] Executing tool: ${cmd.payload.toolName}`)
         this.executeTool(cmd.payload.toolName, cmd.payload.params)
       }
     })
@@ -38,11 +39,11 @@ export class ToolExecutor {
   private sendToolsList(): void {
     try {
       const tools = this.extractToolDefinitions()
-      console.log(`[ToolExecutor] Sending ${tools.length} tools`)
+      useLogger().log(`[ToolExecutor] Sending ${tools.length} tools`)
       this.debugService.emit('debug:tools_list', { tools })
     }
     catch (err) {
-      console.error('[ToolExecutor] Error sending tool list:', err)
+      useLogger().errorWithError('[ToolExecutor] Error sending tool list', err)
     }
   }
 
@@ -125,7 +126,7 @@ export class ToolExecutor {
   // Helper to extract metadata from Zod types
   private getZodDef(zodType: ZodType<any>): { typeName: 'string' | 'number' | 'boolean', description?: string, min?: number, max?: number, defaultValue?: any } {
     let typeName: 'string' | 'number' | 'boolean' = 'string'
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     let curr: any = zodType
     const description = curr.description
 
@@ -167,7 +168,7 @@ export class ToolExecutor {
     else if (typeId === 'ZodNumber') {
       typeName = 'number'
       // Try to extract min/max from checks
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       if (curr._def.checks) {
         for (const check of (curr as any)._def.checks) {
           if (check.kind === 'min')
