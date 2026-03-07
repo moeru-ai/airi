@@ -4,13 +4,15 @@ import { z } from 'zod'
 import { createOpenAICompatibleValidators } from '../../validators/openai-compatible'
 import { defineProvider } from '../registry'
 
+const DEFAULT_GITHUB_MODELS_BASE_URL = 'https://models.github.ai/inference'
+
 const githubModelsConfigSchema = z.object({
   apiKey: z
-    .string('API Key'),
+    .string(),
   baseUrl: z
-    .string('Base URL')
+    .string()
     .optional()
-    .default('https://models.github.ai/inference'),
+    .default(DEFAULT_GITHUB_MODELS_BASE_URL),
 })
 
 type GitHubModelsConfig = z.input<typeof githubModelsConfigSchema>
@@ -39,7 +41,7 @@ export const providerGitHubModels = defineProvider<GitHubModelsConfig>({
     }),
   }),
   createProvider(config) {
-    return createGithubModels(config.apiKey, config.baseUrl)
+    return createGithubModels(config.apiKey, config.baseUrl ?? DEFAULT_GITHUB_MODELS_BASE_URL)
   },
 
   validationRequiredWhen(config) {
