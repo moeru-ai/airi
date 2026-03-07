@@ -108,7 +108,7 @@ app.whenReady().then(async () => {
   const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
 
   const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
-  
+
   const onboardingWindow = injeca.provide('windows:onboarding', () => setupOnboardingWindowManager())
   const noticeWindow = injeca.provide('windows:notice', {
     dependsOn: { i18n, serverChannel },
