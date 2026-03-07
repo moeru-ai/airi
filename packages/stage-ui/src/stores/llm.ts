@@ -31,11 +31,22 @@ function createToolsCompatibilityKey(model: string, chatProvider: ChatProvider):
 
 function isKnownToolsUnsupportedError(error: unknown): boolean {
   const message = String(error).toLowerCase()
-  return message.includes('does not support tools')
+  return (
+    // OpenAI / Azure OpenAI / Ollama
+    message.includes('does not support tools')
+    // OpenRouter
     || message.includes('no endpoints found that support tool use')
+    // Anthropic
     || message.includes('does not support tool use')
+    // Together AI
     || message.includes('tool use is not supported')
+    // Fireworks AI
     || message.includes('tools are not supported')
+    // Google Gemini
+    || message.includes('tool use with function calling is unsupported')
+    // Cloudflare Workers AI / vLLM / SGLang
+    || message.includes('function calling is not supported')
+  )
 }
 
 // TODO: proper format for other error messages.
