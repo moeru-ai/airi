@@ -1,5 +1,5 @@
 import { dirname } from 'node:path'
-import { env, platform } from 'node:process'
+import { env, platform, stderr, stdout } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import messages from '@proj-airi/i18n/locales'
@@ -38,12 +38,16 @@ function installStreamErrorGuards() {
   const guard = (error: NodeJS.ErrnoException) => {
     // Ignore broken pipe style errors from detached/closed console streams.
     if (error?.code === 'EPIPE' || error?.code === 'ERR_STREAM_DESTROYED') {
-
+      return
     }
+
+    // NOTICE: Attaching an 'error' listener marks the error as handled.
+    // Re-throw unexpected stream errors so they still surface during development and crash reporting.
+    throw error
   }
 
-  process.stdout?.on('error', guard)
-  process.stderr?.on('error', guard)
+  stdout?.on('error', guard)
+  stderr?.on('error', guard)
 }
 
 // TODO: once we refactored eventa to support window-namespaced contexts,
