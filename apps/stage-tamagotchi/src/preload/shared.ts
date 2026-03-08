@@ -5,8 +5,13 @@ import { contextIsolated, platform } from 'node:process'
 import { electronAPI } from '@electron-toolkit/preload'
 import { contextBridge, ipcRenderer } from 'electron'
 
-// Always-on-top window controls
-export const alwaysOnTopAPI = {
+// Always-on-top window controls API interface
+export interface AlwaysOnTopAPI {
+  set: (enabled: boolean) => Promise<boolean>
+  get: () => Promise<boolean>
+}
+
+export const alwaysOnTopAPI: AlwaysOnTopAPI = {
   set: (enabled: boolean) => ipcRenderer.invoke('window:set-always-on-top', enabled),
   get: () => ipcRenderer.invoke('window:get-always-on-top'),
 }

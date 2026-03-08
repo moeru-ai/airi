@@ -143,18 +143,17 @@ export async function setupMainWindow(params: {
   // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
   // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
   // Always on top - can be toggled via IPC
-  let alwaysOnTopEnabled = true // default enabled
-  window.setAlwaysOnTop(alwaysOnTopEnabled, 'screen-saver', 1)
+  // BrowserWindow is the single source of truth (no separate state variable)
+  window.setAlwaysOnTop(true, 'screen-saver', 1)
 
   // IPC handler for toggling always-on-top
   ipcMain.handle('window:set-always-on-top', (_event, enabled: boolean) => {
-    alwaysOnTopEnabled = enabled
     window.setAlwaysOnTop(enabled, 'screen-saver', 1)
     return enabled
   })
 
   ipcMain.handle('window:get-always-on-top', () => {
-    return alwaysOnTopEnabled
+    return window.isAlwaysOnTop()
   })
   window.setFullScreenable(false)
   window.setVisibleOnAllWorkspaces(true)
