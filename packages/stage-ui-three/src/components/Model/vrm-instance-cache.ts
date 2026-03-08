@@ -36,10 +36,7 @@ export function stashManagedVrmInstance(scopeKey: string, instance: ManagedVrmIn
   const previous = managedVrmCacheState.detachedByScope[scopeKey]
   managedVrmCacheState.detachedByScope[scopeKey] = instance
 
-  if (previous === instance)
-    return undefined
-
-  return previous ?? undefined
+  return previous === instance ? undefined : previous
 }
 
 export function clearManagedVrmInstance(scopeKey: string) {
