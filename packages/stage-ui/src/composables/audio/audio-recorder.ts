@@ -44,31 +44,38 @@ export function useAudioRecorder(
     await mediaOutput.value.start()
   }
 
+  const finalizing = ref(false)
+
   async function stopRecord() {
-    if (!mediaOutput.value) {
+    if (!mediaOutput.value || finalizing.value) {
       return
     }
 
-    await mediaOutput.value.finalize()
-    const bufferTarget = mediaOutput.value.target as BufferTarget | undefined
-    const buffer = bufferTarget?.buffer
-    const audioBlob = buffer ? new Blob([buffer], { type: mediaFormat.value }) : undefined
+    finalizing.value = true
+    try {
+      await mediaOutput.value.finalize()
+      const bufferTarget = mediaOutput.value.target as BufferTarget | undefined
+      const buffer = bufferTarget?.buffer
+      const audioBlob = buffer ? new Blob([buffer], { type: mediaFormat.value }) : undefined
 
-    recording.value = audioBlob
+      recording.value = audioBlob
 
-    // await hooks and catch errors
-    for (const hook of onStopRecordHooks.value) {
-      try {
-        await hook(audioBlob)
+      // await hooks and catch errors
+      for (const hook of onStopRecordHooks.value) {
+        try {
+          await hook(audioBlob)
+        }
+        catch (err) {
+          console.error('onStopRecord hook failed:', err)
+        }
       }
-      catch (err) {
-        console.error('onStopRecord hook failed:', err)
-      }
+
+      mediaOutput.value = undefined
+      return audioBlob
     }
-
-    mediaOutput.value = undefined
-
-    return audioBlob
+    finally {
+      finalizing.value = false
+    }
   }
 
   return {

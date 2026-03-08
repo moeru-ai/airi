@@ -30,6 +30,7 @@ import ControlsIsland from '../components/stage-islands/controls-island/index.vu
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
 import { useControlsIslandStore } from '../stores/controls-island'
+import { widgetsTools } from '../stores/tools/builtin/widgets'
 import { useWindowStore } from '../stores/window'
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
@@ -61,6 +62,17 @@ const isTransparentByThree = useThreeSceneIsTransparentAtPoint(
   relativeMouseY,
   { regionRadius: 25 },
 )
+
+const llmStore = useLLM()
+watch([activeChatProvider, activeChatModel], async () => {
+  if (activeChatProvider.value && activeChatModel.value) {
+    console.log('[Main Page] Discovering tools compatibility for:', activeChatModel.value)
+    const provider = await providersStore.getProviderInstance<ChatProvider>(activeChatProvider.value)
+    if (provider) {
+      await llmStore.discoverToolsCompatibility(activeChatModel.value, provider, [])
+    }
+  }
+}, { immediate: true })
 
 const { stageModelRenderer } = storeToRefs(useSettings())
 const isTransparent = computed(() => {
@@ -142,8 +154,9 @@ const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!strea
 
 const {
   init: initVAD,
-  dispose: disposeVAD,
   start: startVAD,
+  stop: stopVAD,
+  dispose: disposeVAD,
   loaded: vadLoaded,
 } = useVAD(workletUrl, {
   threshold: ref(0.6),
@@ -187,12 +200,11 @@ async function startAudioInteraction() {
   try {
     console.info('[Main Page] Starting audio interaction with device:', selectedAudioInputLabel.value)
 
-    initVAD().then(() => {
-      if (stream.value)
-        return startVAD(stream.value)
-    }).catch((err) => {
-      console.warn('[Main Page] VAD initialization failed (non-critical for Web Speech API):', err)
-    })
+    if (stream.value) {
+      // Ensure VAD is initialized and then start it
+      await initVAD()
+      await startVAD(stream.value)
+    }
 
     if (shouldUseStreamInput.value) {
       console.info('[Main Page] Starting streaming transcription...', {
@@ -225,7 +237,15 @@ async function startAudioInteraction() {
               }
 
               console.info('[Main Page] Sending transcription to chat:', finalText)
-              await chatStore.ingest(finalText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+              console.log('[Main Page] Ingesting with tools:', {
+                model: activeChatModel.value,
+                hasTools: !!widgetsTools,
+              })
+              await chatStore.ingest(finalText, {
+                model: activeChatModel.value,
+                chatProvider: provider as ChatProvider,
+                tools: widgetsTools,
+              })
             }
             catch (err) {
               console.error('[Main Page] Failed to send chat from voice:', err)
@@ -274,7 +294,15 @@ async function startAudioInteraction() {
         if (!provider || !activeChatModel.value)
           return
 
-        await chatStore.ingest(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+        console.log('[Main Page] Ingesting (Manual) with tools:', {
+          model: activeChatModel.value,
+          hasTools: !!widgetsTools,
+        })
+        await chatStore.ingest(text, {
+          model: activeChatModel.value,
+          chatProvider: provider as ChatProvider,
+          tools: widgetsTools,
+        })
       }
       catch (err) {
         console.error('Failed to send chat from voice:', err)
@@ -286,14 +314,23 @@ async function startAudioInteraction() {
   }
 }
 
-function stopAudioInteraction() {
+async function stopAudioInteraction() {
   try {
+    // Await the final recording chunk to ensure full transcription
+    await stopRecord()
+
     stopOnStopRecord?.()
     stopOnStopRecord = undefined
-    void stopStreamingTranscription(true)
-    disposeVAD()
+
+    // Gracefully stop transcription without abrupt abort
+    await stopStreamingTranscription(false)
+
+    // Stop VAD processing loop without disposing the model
+    stopVAD()
   }
-  catch {}
+  catch (e) {
+    console.warn('[Main Page] Error during audio interaction stop:', e)
+  }
 }
 
 watch(enabled, async (val) => {
@@ -309,7 +346,7 @@ watch(enabled, async (val) => {
     await startAudioInteraction()
   }
   else {
-    stopAudioInteraction()
+    await stopAudioInteraction()
   }
 }, { immediate: true })
 
@@ -321,6 +358,11 @@ watch(stream, (newStream) => {
 })
 
 onMounted(() => {
+  // Initialize VAD model immediately to avoid startup lag
+  initVAD().catch((err) => {
+    console.error('[Main Page] VAD initialization failed:', err)
+  })
+
   if (window.electron?.ipcRenderer) {
     window.electron.ipcRenderer.on('toggle-mic-from-shortcut', () => {
       console.info('[Main Page] Toggling mic from shortcut')
@@ -329,8 +371,9 @@ onMounted(() => {
   }
 })
 
-onUnmounted(() => {
-  stopAudioInteraction()
+onUnmounted(async () => {
+  await stopAudioInteraction()
+  disposeVAD()
 })
 
 watch([stream, () => vadLoaded.value], async ([s, loaded]) => {

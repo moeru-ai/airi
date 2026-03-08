@@ -532,7 +532,7 @@ chatHookCleanups.push(onTokenSpecial(async (special) => {
 }))
 
 chatHookCleanups.push(onStreamEnd(async () => {
-  delaysQueue.enqueue(llmInferenceEndToken)
+  specialTokenQueue.enqueue(llmInferenceEndToken)
   currentChatIntent?.writeFlush()
 }))
 
