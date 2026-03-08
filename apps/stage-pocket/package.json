@@ -16,8 +16,7 @@
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
     "dev:web": "vite",
-    "dev:ios": "VITE_CAP_SYNC_IOS_AFTER_BUILD=1 vite build --watch",
-    "open:ios": "vite build && cap sync ios && cap open ios"
+    "dev:ios": "cap-vite ios"
   },
   "dependencies": {
     "@capacitor/core": "catalog:",
@@ -111,6 +110,7 @@
     "@iconify-json/svg-spinners": "^1.2.4",
     "@iconify-json/vscode-icons": "^1.2.44",
     "@intlify/unplugin-vue-i18n": "^11.0.7",
+    "@proj-airi/cap-vite": "workspace:*",
     "@proj-airi/iconify-meteocons": "catalog:",
     "@proj-airi/lobe-icons": "^1.0.18",
     "@proj-airi/unplugin-fetch": "catalog:",
