@@ -1,3 +1,4 @@
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { createOpenAI } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
@@ -23,6 +24,7 @@ export const providerNvidia = defineProvider<NvidiaConfig>({
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.nvidia.description'),
   tasks: ['chat'],
   icon: 'i-simple-icons:nvidia',
+  isAvailableBy: isStageTamagotchi,
 
   createProviderConfig: ({ t }) => nvidiaConfigSchema.extend({
     apiKey: nvidiaConfigSchema.shape.apiKey.meta({
