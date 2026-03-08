@@ -137,6 +137,9 @@ export const useSpeechStore = defineStore('speech', () => {
       // NOTICE: clear stale selection when the currently selected speech provider
       // is no longer configured to avoid implicit fallback behavior from persisted state.
       if (!configuredProviderIds.includes(activeSpeechProvider.value)) {
+        console.warn(`[Speech Store] Active provider "${activeSpeechProvider.value}" is no longer in the configured list. Resetting to "speech-noop".`, {
+          configuredProviderIds,
+        })
         activeSpeechProvider.value = 'speech-noop'
         activeSpeechModel.value = ''
         activeSpeechVoiceId.value = ''

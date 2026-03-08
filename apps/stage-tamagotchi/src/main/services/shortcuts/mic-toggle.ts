@@ -48,7 +48,8 @@ export function setupMicToggleShortcut(mainWindow: BrowserWindow) {
 
   // 2. Listen to renderer state changes for the mic
   // If the user clicks the UI button, we need to sync the LED to match the new mic state.
-  ipcMain.on('mic-state-changed', (event, micEnabled: boolean) => {
+  ipcMain.on('mic-state-changed', (event, micEnabled: boolean, deviceName?: string) => {
+    console.log(`[Mic Toggle] State changed: ${micEnabled ? 'ENABLED' : 'DISABLED'} | Device: ${deviceName || 'Unknown'}`)
     currentMicState = micEnabled
     if (micEnabled !== currentLEDState) {
       // Toggle the Scroll Lock LED via SendKeys

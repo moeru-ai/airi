@@ -124,8 +124,8 @@ watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTrans
 })
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
-const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
-const { askPermission } = settingsAudioDeviceStore
+const { stream, enabled, selectedAudioInputLabel } = storeToRefs(settingsAudioDeviceStore)
+const { askPermission, startStream } = settingsAudioDeviceStore
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
 const {
@@ -164,6 +164,7 @@ type CaptionChannelEvent
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
 
 async function handleSpeechStart() {
+  console.info('[Main Page] Speech Start detected')
   if (shouldUseStreamInput.value) {
     console.info('Speech detected - transcription session should already be active')
     return
@@ -173,6 +174,7 @@ async function handleSpeechStart() {
 }
 
 async function handleSpeechEnd() {
+  console.info('[Main Page] Speech End detected')
   if (shouldUseStreamInput.value) {
     // Keep streaming session alive; idle timer in pipeline will handle teardown.
     return
@@ -183,7 +185,7 @@ async function handleSpeechEnd() {
 
 async function startAudioInteraction() {
   try {
-    console.info('[Main Page] Starting audio interaction...')
+    console.info('[Main Page] Starting audio interaction with device:', selectedAudioInputLabel.value)
 
     initVAD().then(() => {
       if (stream.value)
@@ -246,8 +248,17 @@ async function startAudioInteraction() {
       })
     }
 
+    if (stopOnStopRecord)
+      stopOnStopRecord()
+
     // Hook once
     stopOnStopRecord = onStopRecord(async (recording) => {
+      console.info('[Main Page] Voice recording stopped, size:', recording?.size, 'bytes')
+      if (!recording || recording.size === 0) {
+        console.warn('[Main Page] Recording is empty, skipping transcription')
+        return
+      }
+
       if (shouldUseStreamInput.value)
         return
 
@@ -287,18 +298,27 @@ function stopAudioInteraction() {
 
 watch(enabled, async (val) => {
   if (window.electron?.ipcRenderer) {
-    window.electron.ipcRenderer.send('mic-state-changed', val)
+    window.electron.ipcRenderer.send('mic-state-changed', val, selectedAudioInputLabel.value)
   }
 
   console.info('[Main Page] Audio enabled changed:', val, 'stream available:', !!stream.value)
   if (val) {
     await askPermission()
+    // Force a fresh stream acquisition on every enable
+    await startStream()
     await startAudioInteraction()
   }
   else {
     stopAudioInteraction()
   }
 }, { immediate: true })
+
+watch(stream, (newStream) => {
+  if (enabled.value && newStream) {
+    console.info('[Main Page] Stream changed while enabled, restarting audio interaction')
+    void startAudioInteraction()
+  }
+})
 
 onMounted(() => {
   if (window.electron?.ipcRenderer) {
