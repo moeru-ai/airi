@@ -7,7 +7,7 @@ import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 
 import vadWorkletUrl from '../../workers/vad/process.worklet?worker&url'
 
@@ -49,6 +49,15 @@ interface HearingTranscriptionInvokeOptions {
   providerOptions?: Record<string, unknown>
 }
 
+export const CONFIDENCE_THRESHOLD_DISABLED = -3
+
+export function filterTranscriptionByConfidence(
+  segments: Array<{ text: string, avg_logprob: number }>,
+  threshold: number,
+): string {
+  return segments.filter(s => s.avg_logprob >= threshold).map(s => s.text).join('').trim()
+}
+
 const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
   'aliyun-nls-transcription': streamAliyunTranscription,
   // Web Speech API is handled specially in transcribeForMediaStream since it works directly with MediaStream
@@ -65,6 +74,12 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const transcriptionModelSearchQuery = refManualReset<string>('')
   const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false)
   const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000) // Default 2 seconds
+  const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', CONFIDENCE_THRESHOLD_DISABLED)
+  const verboseJsonNotSupported = ref(false)
+
+  watch(activeTranscriptionProvider, () => {
+    verboseJsonNotSupported.value = false
+  })
 
   // Computed properties
   const availableProvidersMetadata = computed(() => allAudioTranscriptionProvidersMetadata.value)
@@ -127,6 +142,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     transcriptionModelSearchQuery.reset()
     autoSendEnabled.reset()
     autoSendDelay.reset()
+    confidenceThreshold.reset()
   }
 
   async function transcription(
@@ -190,11 +206,27 @@ export const useHearingStore = defineStore('hearing-store', () => {
       throw new Error('File input is required for transcription.')
     }
 
+    const useVerboseJson = !format && confidenceThreshold.value > CONFIDENCE_THRESHOLD_DISABLED
     const response = await generateTranscription({
       ...provider.transcription(model, options?.providerOptions),
       file: normalizedInput.file,
-      responseFormat: format,
+      responseFormat: useVerboseJson ? 'verbose_json' : format,
     })
+
+    if (useVerboseJson) {
+      if (response.segments) {
+        verboseJsonNotSupported.value = false
+        return {
+          mode: 'generate',
+          ...response,
+          text: filterTranscriptionByConfidence(response.segments, confidenceThreshold.value),
+        }
+      }
+      else {
+        verboseJsonNotSupported.value = true
+        console.warn('[Hearing] Confidence filter is enabled but the provider did not return verbose_json segments. Filtering has no effect.')
+      }
+    }
 
     return {
       mode: 'generate',
@@ -210,6 +242,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
     transcriptionModelSearchQuery,
     autoSendEnabled,
     autoSendDelay,
+    confidenceThreshold,
+    verboseJsonNotSupported,
 
     supportsModelListing,
     providerModels,

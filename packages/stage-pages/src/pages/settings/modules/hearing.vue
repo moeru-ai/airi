@@ -5,7 +5,7 @@ import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple
 import { useAnalytics, useAudioAnalyzer, useAudioRecorder } from '@proj-airi/stage-ui/composables'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
-import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { CONFIDENCE_THRESHOLD_DISABLED, useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Button, FieldCheckbox, FieldInput, FieldRange, FieldSelect } from '@proj-airi/ui'
@@ -28,6 +28,8 @@ const {
   activeCustomModelName,
   autoSendEnabled,
   autoSendDelay,
+  confidenceThreshold,
+  verboseJsonNotSupported,
 } = storeToRefs(hearingStore)
 const providersStore = useProvidersStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
@@ -653,6 +655,32 @@ onUnmounted(() => {
                 @update:custom-value="updateCustomModelName"
               />
             </template>
+          </div>
+        </div>
+
+        <!-- Confidence threshold (only for non-streaming providers) -->
+        <div v-if="!supportsStreamInput" class="border-t border-neutral-200 pt-4 dark:border-neutral-700">
+          <div class="mb-4">
+            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
+              {{ t('settings.pages.modules.hearing.sections.section.confidence-threshold.title') }}
+            </h2>
+            <div text="neutral-400 dark:neutral-400">
+              {{ t('settings.pages.modules.hearing.sections.section.confidence-threshold.description') }}
+            </div>
+          </div>
+          <FieldRange
+            v-model="confidenceThreshold"
+            :min="CONFIDENCE_THRESHOLD_DISABLED"
+            :max="0"
+            :step="0.1"
+            :format-value="value => value <= CONFIDENCE_THRESHOLD_DISABLED ? t('settings.pages.modules.hearing.sections.section.confidence-threshold.disabled') : value.toFixed(1)"
+          />
+          <div v-if="confidenceThreshold > CONFIDENCE_THRESHOLD_DISABLED" class="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
+            {{ t('settings.pages.modules.hearing.sections.section.confidence-threshold.verbose-json-note') }}
+          </div>
+          <div v-if="verboseJsonNotSupported" class="mt-2 flex items-center gap-1.5 text-xs text-amber-500 dark:text-amber-400">
+            <div i-solar:warning-circle-line-duotone class="shrink-0" />
+            {{ t('settings.pages.modules.hearing.sections.section.confidence-threshold.verbose-json-unsupported') }}
           </div>
         </div>
 

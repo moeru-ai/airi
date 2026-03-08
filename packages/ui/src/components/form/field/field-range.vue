@@ -36,9 +36,9 @@ const modelValue = defineModel<number>({ required: true })
     <div :class="['flex', 'flex-row', 'items-center', 'gap-2']">
       <Range
         v-model="modelValue"
-        :min="min || 0"
-        :max="max || 1"
-        :step="step || 0.01"
+        :min="min ?? 0"
+        :max="max ?? 1"
+        :step="step ?? 0.01"
         :class="['w-full']"
       />
     </div>
