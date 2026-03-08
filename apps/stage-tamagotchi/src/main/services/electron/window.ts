@@ -12,7 +12,6 @@ import {
   electronGetWindowLifecycleState,
   electronWindowClose,
   electronWindowLifecycleChanged,
-
 } from '../../../shared/eventa'
 import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecycle'
 import { resizeWindowByDelta } from '../../windows/shared/window'
