@@ -161,6 +161,7 @@ export class DiscordAdapter {
       try {
         const message = (event.data as { message?: { content: string } }).message
         const discordContext = (event.data)['gen-ai:chat'].input.data.discord
+
         if (message?.content && discordContext?.channelId) {
           const channel = await this.discordClient.channels.fetch(discordContext.channelId)
           if (channel?.isTextBased() && 'send' in channel && typeof channel.send === 'function') {

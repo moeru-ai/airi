@@ -200,7 +200,11 @@ export function setupApp(options?: {
       let event: WebSocketEvent
 
       try {
-        event = parse(message.text()) as WebSocketEvent
+        // NOTICE: SDK clients send events using superjson.stringify, so we must use
+        // superjson.parse here instead of message.json() (which uses JSON.parse).
+        // Using JSON.parse on a superjson-encoded string returns the wrapper object
+        // { json: {...}, meta: {...} } with type=undefined, which breaks all event routing.
+        event = parse<WebSocketEvent>(message.text())
       }
       catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err)
