@@ -17,6 +17,7 @@
   "exports": {
     "./assets/vrm": "./src/assets/vrm/index.ts",
     "./composables/vrm": "./src/composables/vrm/index.ts",
+    "./trace": "./src/trace/index.ts",
     "./utils/vrm-preview": "./src/utils/vrm-preview.ts",
     ".": "./src/index.ts"
   },
@@ -24,6 +25,7 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@moeru/eventa": "^1.0.0-beta.1",
     "@pixiv/three-vrm": "^3.5.0",
     "@pixiv/three-vrm-animation": "^3.5.0",
     "@pixiv/three-vrm-core": "^3.5.0",

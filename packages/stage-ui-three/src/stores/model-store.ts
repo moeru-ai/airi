@@ -56,11 +56,20 @@ type BroadcastChannelEvents
   = | BroadcastChannelEventShouldUpdateView
 
 interface BroadcastChannelEventShouldUpdateView {
-  type: 'should-update-view'
+  type: 'vrm-should-update-view'
+  href: string
+  instanceId: string
+  reason: string
+  sentAt: number
+  stack?: string
 }
 
+const vrmViewUpdateChannelName = 'airi-stores-stage-ui-three-vrm'
+const vrmViewUpdateRuntimeInstanceId = Math.random().toString(36).slice(2, 10)
+let vrmViewUpdateMessageSequence = 0
+
 export const useModelStore = defineStore('modelStore', () => {
-  const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: 'airi-stores-live2d' })
+  const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: vrmViewUpdateChannelName })
   const shouldUpdateViewHooks = ref(new Set<() => void>())
 
   const onShouldUpdateView = (hook: () => void) => {
@@ -70,19 +79,39 @@ export const useModelStore = defineStore('modelStore', () => {
     }
   }
 
-  function shouldUpdateView() {
-    post({ type: 'should-update-view' })
+  function shouldUpdateView(reason = 'unknown') {
+    const event: BroadcastChannelEventShouldUpdateView = {
+      type: 'vrm-should-update-view',
+      href: typeof window !== 'undefined' ? window.location.href : 'unknown',
+      instanceId: `${vrmViewUpdateRuntimeInstanceId}:${++vrmViewUpdateMessageSequence}`,
+      reason,
+      sentAt: Date.now(),
+      stack: new Error('[VRM shouldUpdateView]').stack,
+    }
+
+    // if (import.meta.env.DEV) {
+    //   console.warn('[VRM shouldUpdateView][send]', event)
+    // }
+
+    post(event)
     shouldUpdateViewHooks.value.forEach(hook => hook())
   }
 
   watch(data, (event) => {
-    if (event.type === 'should-update-view') {
+    if (event?.type === 'vrm-should-update-view') {
+      // if (import.meta.env.DEV) {
+      //   console.warn('[VRM shouldUpdateView][recv]', {
+      //     currentHref: typeof window !== 'undefined' ? window.location.href : 'unknown',
+      //     event,
+      //   })
+      // }
+
       shouldUpdateViewHooks.value.forEach(hook => hook())
     }
   })
 
   const scale = useLocalStorage('settings/stage-ui-three/scale', 1)
-  const lastModelSrc = useLocalStorage('settings/stage-ui-three/lastModelSrc', '')
+  const lastModelSrc = ref('')
 
   const modelSize = useLocalStorage('settings/stage-ui-three/modelSize', { x: 0, y: 0, z: 0 })
   const modelOrigin = useLocalStorage('settings/stage-ui-three/modelOrigin', { x: 0, y: 0, z: 0 })

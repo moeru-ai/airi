@@ -854,7 +854,7 @@ pages:
                   Aliyun NLS로 마이크 오디오 스트리밍 및 라이브 녹취록 검사
               performance-playground:
                 title: 성능 놀이터
-                description: '테스트 성능 런타임: VRM 표현 + TTS 립싱크'
+                description: 'VRM 표현 + TTS 립싱크 플레이그라운드'
         theme-presets:
           presets:
             default:
