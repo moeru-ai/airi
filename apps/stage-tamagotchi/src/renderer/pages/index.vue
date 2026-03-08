@@ -112,14 +112,21 @@ watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTrans
   }
   else {
     const fadeEnabled = fadeOnHoverEnabled.value
-    // Otherwise allow click-through while we fade UI based on transparency (when enabled)
-    isIgnoringMouseEvents.value = fadeEnabled
-    shouldFadeOnCursorWithin.value = fadeEnabled && !isOutsideWindow.value && !isTransparent.value
-    setIgnoreMouseEvents([fadeEnabled, { forward: true }])
-    if (fadeEnabled)
+    if (fadeEnabled) {
+      // Fade on hover enabled: original fade + click-through logic
+      isIgnoringMouseEvents.value = true
+      shouldFadeOnCursorWithin.value = !isOutsideWindow.value && !isTransparent.value
+      setIgnoreMouseEvents([true, { forward: true }])
       resume()
-    else
-      pause()
+    }
+    else {
+      // Fade on hover disabled: transparent areas click-through, model areas interactive, no UI fade
+      const shouldIgnore = isTransparent.value
+      isIgnoringMouseEvents.value = shouldIgnore
+      shouldFadeOnCursorWithin.value = false
+      setIgnoreMouseEvents([shouldIgnore, { forward: true }])
+      resume()
+    }
   }
 })
 
