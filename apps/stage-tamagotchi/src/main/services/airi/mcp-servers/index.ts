@@ -110,16 +110,24 @@ async function withTimeout<T>(task: Promise<T>, timeoutMsec: number, timeoutMess
   }
 }
 
+/**
+ * Creates environment variables for spawning MCP server processes.
+ * 
+ * Security: Only passes environment variables explicitly defined in the
+ * MCP server configuration. Does NOT inherit all environment variables
+ * from the main process to prevent disclosure of sensitive information
+ * like API keys, cloud credentials, or tokens.
+ * 
+ * @see https://github.com/moeru-ai/airi/issues/1186
+ */
 function createSpawnEnv(overrides?: Record<string, string>): Record<string, string> {
-  const baseEnv = Object.fromEntries(Object.entries(env).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
+  // Security: Start with empty object, NOT process.env
+  // This prevents disclosure of sensitive environment variables
   if (!overrides) {
-    return baseEnv
+    return {}
   }
 
-  return {
-    ...baseEnv,
-    ...overrides,
-  }
+  return { ...overrides }
 }
 
 async function closeSession(session: McpServerSession) {
