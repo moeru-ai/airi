@@ -1,9 +1,9 @@
-import type { BotContext, ChatContext } from '../core/types'
+import type { Action, BotContext, ChatContext } from '../core/types'
 
 export interface ActionResult {
   success: boolean
   shouldContinue: boolean
-  result: any
+  result: unknown
 }
 
 export interface ActionHandler {
@@ -12,7 +12,7 @@ export interface ActionHandler {
   execute: (
     ctx: BotContext,
     chatCtx: ChatContext,
-    args: any,
+    args: Action,
     abortSignal?: AbortSignal,
   ) => Promise<ActionResult>
 }

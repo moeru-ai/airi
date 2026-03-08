@@ -238,6 +238,21 @@ function updateCustomVoiceName(value: string | undefined) {
 function updateCustomModelName(value: string | undefined) {
   activeSpeechModel.value = value || ''
 }
+
+function handleDeleteProvider(providerId: string) {
+  if (providerId === 'speech-noop') {
+    return
+  }
+
+  if (activeSpeechProvider.value === providerId) {
+    activeSpeechProvider.value = 'speech-noop'
+    activeSpeechModel.value = ''
+    activeSpeechVoiceId.value = ''
+    activeSpeechVoice.value = undefined
+  }
+
+  providersStore.deleteProvider(providerId)
+}
 </script>
 
 <template>
@@ -268,7 +283,18 @@ function updateCustomModelName(value: string | undefined) {
                 :title="metadata.localizedName || 'Unknown'"
                 :description="metadata.localizedDescription"
                 @click="trackProviderClick(metadata.id, 'speech')"
-              />
+              >
+                <template #topRight>
+                  <button
+                    v-if="metadata.id !== 'speech-noop'"
+                    type="button"
+                    class="rounded bg-neutral-100 p-1 text-neutral-600 transition-colors dark:bg-neutral-800/60 hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-700/60"
+                    @click.stop.prevent="handleDeleteProvider(metadata.id)"
+                  >
+                    <div i-solar:trash-bin-trash-bold-duotone class="text-base" />
+                  </button>
+                </template>
+              </RadioCardSimple>
               <RouterLink
                 to="/settings/providers#speech"
                 border="2px solid"
@@ -303,7 +329,7 @@ function updateCustomModelName(value: string | undefined) {
         </div>
         <div>
           <!-- Model selection section -->
-          <div v-if="activeSpeechProvider">
+          <div v-if="activeSpeechProvider && activeSpeechProvider !== 'speech-noop'">
             <div flex="~ col gap-4">
               <div>
                 <h2 class="text-lg md:text-2xl">
@@ -395,7 +421,7 @@ function updateCustomModelName(value: string | undefined) {
       </div>
 
       <!-- Voice Configuration Section -->
-      <div v-if="activeSpeechProvider">
+      <div v-if="activeSpeechProvider && activeSpeechProvider !== 'speech-noop'">
         <div flex="~ col gap-4">
           <div>
             <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">

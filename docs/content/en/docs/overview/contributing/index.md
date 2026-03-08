@@ -81,7 +81,7 @@ Hello! Thank you for your interest in contributing to this project. This guide w
    corepack prepare pnpm@latest --activate
    ```
 4. If you would love to help to develop the desktop version, you will need those dependencies:
-   ```
+   ```shell
    sudo apt install \
       libssl-dev \
       libglib2.0-dev \
