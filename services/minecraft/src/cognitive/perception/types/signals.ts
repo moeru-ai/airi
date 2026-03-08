@@ -17,5 +17,6 @@ export interface PerceptionSignal {
   timestamp: number
 
   // Structured Data (for logic)
+  // FIXME unsafe type
   metadata: Record<string, any>
 }

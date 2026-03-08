@@ -6,7 +6,8 @@ import { defineProvider } from '../registry'
 
 const lmStudioConfigSchema = z.object({
   apiKey: z
-    .string('API Key'),
+    .string('API Key')
+    .optional(),
   baseUrl: z
     .string('Base URL')
     .optional()
@@ -48,13 +49,18 @@ export const providerLmStudio = defineProvider<LMStudioConfig>({
   },
 
   validationRequiredWhen(config) {
-    return !!config.apiKey?.trim()
+    return !!config.baseUrl?.trim()
   },
   validators: {
     ...createOpenAICompatibleValidators({
       checks: ['connectivity', 'model_list'],
+      skipApiKeyCheck: true,
+      schedule: {
+        mode: 'interval',
+        intervalMs: 15_000,
+      },
       connectivityFailureReason: ({ errorMessage }) =>
-        `Failed to reach LM Studio server, error: ${errorMessage} occurred.\n\nMake sure LM Studio is running and the local server is started. You can start the local server in LM Studio by going to the 'Local Server' tab and clicking 'Start Server'.`,
+        `Failed to reach LM Studio server, error: ${errorMessage} occurred.\n\nMake sure LM Studio is running and the local server is started. You can start the local server in LM Studio by going to the 'Local Server' tab and clicking 'Start Server'.\n\nIf the LM Studio instance is already running, this is likely a CORS (Cross-Origin Resource Sharing) issue. You need to enable CORS in LM Studio: go to 'Local Server' tab and check 'Enable CORS' option in the Server Settings.`,
       modelListFailureReason: ({ errorMessage }) =>
         `Failed to reach LM Studio server, error: ${errorMessage} occurred.\n\nMake sure LM Studio is running and the local server is started. You can start the local server in LM Studio by going to the 'Local Server' tab and clicking 'Start Server'.`,
     }),

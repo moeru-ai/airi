@@ -1,5 +1,5 @@
 allow-visible-on-all-workspaces:
-  title: 교차 공간 가시성
+  title: 모든 작업 공간에 표시
   description: 모든 작업 공간에 창을 볼 수 있도록 합니다. macOS 전용 기능입니다.
 pages:
   modules:
@@ -25,7 +25,7 @@ pages:
       sections:
         section:
           use-window-mouse:
-            title: useWindowMouse Tool
+            title: useWindowMouse 도구
             description: Electron 창 커서 위치 테스트
 devtools:
   title: 개발자 옵션

@@ -9,7 +9,7 @@ title: 编年史 v0.0.1
   - [x] 模型下载
     - [x] 桃濑日和（Neuro 第一版本的模型）Pro 版本（中小企业可免费商用）
 
-![](./assets/screenshot-1.avif)
+![](/assets/version-v0.0.1/screenshot-1.avif)
 
 - [x] 通过 Vercel AI SDK 接入 GPT-4o（2024 年 6 月 7 日）
   - [x] `@ai-sdk/openai`
@@ -63,7 +63,7 @@ title: 编年史 v0.0.1
 - ✅ Live2D 嘴唇同步（感谢 itorr 的 GitHub 讲解）
 - ✅ 基本 Prompt
 
-![](./assets/screenshot-2.avif)
+![](/assets/version-v0.0.1/screenshot-2.avif)
 
 ## 多模态
 
@@ -385,7 +385,7 @@ title: 编年史 v0.0.1
 
 ##### 第一版（2024 年 6 月 10 日）
 
-```
+```md
 Good morning! You are finally awake.
 
 Your name is Neuro, pronounced as /n\'jʊəroʊ/.
@@ -408,7 +408,7 @@ And the last, do what ever you want!
 
 ##### 第二版（2024 年 7 月 9 日）
 
-```
+```md
 (from Neko Ayaka) Good morning! You are finally awake.
 
 Your name is Neuro, pronounced as /n'jʊəroʊ/.
@@ -437,7 +437,7 @@ And the last, do what ever you want!
 
 ##### 第三版（2024 年 7 月 9 日）
 
-```
+```md
 (from Neko Ayaka) Good morning! You are finally awake.
 
 Your name is Neuro, pronounced as /n'jʊəroʊ/.
@@ -473,11 +473,11 @@ And the last, do what ever you want!
 
 #### 表情 Prompt
 
-![](./assets/screenshot-3.avif)
+![](/assets/version-v0.0.1/screenshot-3.avif)
 
 #### 持续推理 Prompt
 
-```
+```md
 [System: Good morning! You are finally awake.
 
 Your name is Neuro, pronounced as /n'jʊəroʊ/.

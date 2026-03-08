@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 
 import type { Brain } from '../cognitive/conscious/brain'
 
+import { Buffer } from 'node:buffer'
 import { createServer } from 'node:http'
 
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js'
@@ -10,6 +11,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { z } from 'zod'
 
 import { useLogger } from '../utils/logger'
+import { debugEventCategorySchema, debugEventSourceSchema, debugInjectEventSchema, jsonObjectSchema, perceptionSignalSchema } from './types'
 
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = []
@@ -156,23 +158,22 @@ export class McpReplServer {
     this.mcpServer.tool(
       'inject_event',
       {
-        type: z.enum(['perception', 'feedback', 'world_update', 'system_alert']),
-        payload: z.any(),
-        source: z.object({
-          type: z.enum(['minecraft', 'airi', 'system']),
-          id: z.string(),
-        }),
+        type: debugEventCategorySchema,
+        payload: z.union([perceptionSignalSchema, jsonObjectSchema]),
+        source: debugEventSourceSchema,
       },
-      async ({ type, payload, source }: { type: any, payload: any, source: any }) => {
+      async (input: { type: string, payload: unknown, source: unknown }) => {
+        const event = debugInjectEventSchema.parse(input)
+
         await this.brain.injectDebugEvent({
-          type,
-          payload,
-          source,
+          type: event.type,
+          payload: event.payload,
+          source: event.source,
           timestamp: Date.now(),
         })
 
         return {
-          content: [{ type: 'text', text: `Injected event: ${type}` }],
+          content: [{ type: 'text', text: `Injected event: ${event.type}` }],
         }
       },
     )
@@ -281,7 +282,13 @@ export class McpReplServer {
         if (url.pathname === '/sse' && (req.method === 'POST' || req.method === 'DELETE' || (req.method === 'GET' && typeof req.headers['mcp-session-id'] === 'string'))) {
           const requestBody = req.method === 'POST' ? await readJsonBody(req) : undefined
 
-          if (req.method === 'POST' && !this.streamableTransport) {
+          if (req.method === 'POST') {
+            // Close existing transport before creating a new one (handles client refresh)
+            if (this.streamableTransport) {
+              await this.streamableTransport.close()
+              this.streamableTransport = null
+            }
+
             const streamableTransport = new StreamableHTTPServerTransport({
               // Stateless mode keeps compatibility with clients that don't preserve mcp-session-id.
               sessionIdGenerator: undefined,
@@ -309,6 +316,12 @@ export class McpReplServer {
         }
 
         if (req.method === 'GET' && url.pathname === '/sse') {
+          // Close existing transport before creating a new one (handles client refresh)
+          if (this.transport) {
+            await this.transport.close()
+            this.transport = null
+          }
+
           res.setHeader('Content-Type', 'text/event-stream')
           res.setHeader('Cache-Control', 'no-cache')
           res.setHeader('Connection', 'keep-alive')
