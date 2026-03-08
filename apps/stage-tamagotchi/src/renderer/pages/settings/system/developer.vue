@@ -125,7 +125,7 @@ const openDevtoolsWindow = useElectronEventaInvoke(electronOpenDevtoolsWindow)
     :duration="250 + (19 * 10)"
     :delay="3 * 50"
     transition="all ease-in-out duration-250"
-    @click="() => router.push('/devtools/lag-visualizer')"
+    @click="() => router.push('/devtools/performance-visualizer')"
   >
     {{ t('tamagotchi.settings.devtools.pages.lag-visualizer.title') }}
   </ButtonBar>
