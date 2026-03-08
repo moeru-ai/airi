@@ -77,6 +77,11 @@ if (isLinux) {
   }
 }
 
+// Force high-performance GPU (NVIDIA/AMD) over integrated Intel graphics
+app.commandLine.appendSwitch('force-high-performance-gpu')
+app.commandLine.appendSwitch('enable-gpu-rasterization')
+app.commandLine.appendSwitch('ignore-gpu-blocklist')
+
 app.dock?.setIcon(icon)
 electronApp.setAppUserModelId('ai.moeru.airi')
 
@@ -176,6 +181,19 @@ app.whenReady().then(async () => {
     callback: (deps) => {
       import('./services/shortcuts/mic-toggle').then((m) => {
         m.setupMicToggleShortcut(deps.mainWindow)
+      })
+
+      ipcMain.on('provider-validation-result', (_, data: { providerId: string, valid: boolean, reason: string, config: any }) => {
+        const status = data.valid ? '✅ VALID' : '❌ INVALID'
+        const color = data.valid ? '\x1B[32m' : '\x1B[31m'
+        const reset = '\x1B[0m'
+        console.log(`${color}[Provider Validation]${reset} [${data.providerId}] ${status}`)
+        if (!data.valid) {
+          console.log(`  └─ Reason: ${data.reason}`)
+        }
+        if (data.config) {
+          console.log(`  └─ Config: ${JSON.stringify(data.config)}`)
+        }
       })
     },
   })

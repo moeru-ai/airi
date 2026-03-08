@@ -77,22 +77,71 @@ export const useAudioContext = defineStore('audio-context', () => {
 export function useAudioDevice(requestPermission: boolean = false) {
   const devices = useDevicesList({ constraints: { audio: true }, requestPermissions: requestPermission })
   const audioInputs = computed(() => devices.audioInputs.value)
-  const selectedAudioInput = ref<string>(devices.audioInputs.value.find(device => device.deviceId === 'default')?.deviceId || '')
-  const deviceConstraints = computed<MediaStreamConstraints>(() => ({ audio: { deviceId: { exact: selectedAudioInput.value }, autoGainControl: true, echoCancellation: true, noiseSuppression: true } }))
-  const { stream, stop: stopStream, start: startStream } = useUserMedia({ constraints: deviceConstraints, enabled: false, autoSwitch: true })
 
-  watch(audioInputs, () => {
-    if (!selectedAudioInput.value && audioInputs.value.length > 0) {
-      selectedAudioInput.value = audioInputs.value.find(input => input.deviceId === 'default')?.deviceId || audioInputs.value[0].deviceId
-    }
+  const selectedAudioInput = ref<string>('')
+
+  function findBestDevice(inputs: MediaDeviceInfo[]) {
+    if (inputs.length === 0)
+      return ''
+
+    // 1. Look for "Microphone Array" that is NOT "Communications" (User's specific preference)
+    const arrayMic = inputs.find(d => d.label.toLowerCase().includes('microphone array') && !d.label.toLowerCase().includes('communications'))
+    if (arrayMic)
+      return arrayMic.deviceId
+
+    // 2. Fallback to any "Microphone Array"
+    const anyArrayMic = inputs.find(d => d.label.toLowerCase().includes('microphone array'))
+    if (anyArrayMic)
+      return anyArrayMic.deviceId
+
+    // 3. Look for "default"
+    const defaultMic = inputs.find(d => d.deviceId === 'default')
+    if (defaultMic)
+      return defaultMic.deviceId
+
+    // 4. Fallback to first available
+    return inputs[0].deviceId
+  }
+
+  const selectedAudioInputLabel = computed(() => {
+    const device = audioInputs.value.find(d => d.deviceId === selectedAudioInput.value)
+    return device?.label || 'Unknown Device'
   })
+
+  const deviceConstraints = computed<MediaStreamConstraints>(() => ({
+    audio: {
+      deviceId: selectedAudioInput.value ? { exact: selectedAudioInput.value } : undefined,
+      autoGainControl: true,
+      echoCancellation: true,
+      noiseSuppression: true,
+    },
+  }))
+
+  const { stream, stop: stopStream, start: startStream } = useUserMedia({
+    constraints: deviceConstraints,
+    enabled: false,
+    autoSwitch: true,
+  })
+
+  watch(audioInputs, (newInputs) => {
+    const isCommunications = selectedAudioInputLabel.value.toLowerCase().includes('communications')
+    const needsBest = !selectedAudioInput.value || selectedAudioInput.value === 'default' || isCommunications
+
+    if (needsBest && newInputs.length > 0) {
+      const best = findBestDevice(newInputs)
+      if (best && best !== selectedAudioInput.value) {
+        console.info('[Audio Store] Switching away from Communications/Default device to:', best)
+        selectedAudioInput.value = best
+      }
+    }
+  }, { immediate: true })
 
   function askPermission() {
     return devices.ensurePermissions()
       .then(() => nextTick())
       .then(() => {
         if (audioInputs.value.length > 0 && !selectedAudioInput.value) {
-          selectedAudioInput.value = audioInputs.value.find(input => input.deviceId === 'default')?.deviceId || audioInputs.value[0].deviceId
+          selectedAudioInput.value = findBestDevice(audioInputs.value)
         }
       })
       .catch((error) => {
@@ -104,6 +153,7 @@ export function useAudioDevice(requestPermission: boolean = false) {
   return {
     audioInputs,
     selectedAudioInput,
+    selectedAudioInputLabel,
     stream,
     deviceConstraints,
 

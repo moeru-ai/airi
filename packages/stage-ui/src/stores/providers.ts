@@ -46,6 +46,7 @@ import {
 } from 'unspeech'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { toast } from 'vue-sonner'
 
 import { listProviders as listDefinedProviders } from '../libs/providers'
 import { getProviderValidationIntervalMs } from '../libs/providers/validators/run'
@@ -1786,6 +1787,22 @@ export const useProvidersStore = defineStore('providers', () => {
 
     const runValidation = async () => {
       const validationResult = await metadata.validators.validateProviderConfig(config || {})
+
+      if ((window as any).electron?.ipcRenderer) {
+        (window as any).electron.ipcRenderer.send('provider-validation-result', {
+          providerId,
+          valid: validationResult.valid,
+          reason: validationResult.reason,
+          config: config ? { ...config, apiKey: config.apiKey ? '***' : undefined } : undefined,
+        })
+      }
+
+      if (!validationResult.valid && options.force) {
+        const localizedName = t(metadata.nameKey, metadata.name)
+        toast.error(`Provider "${localizedName}" validation failed`, {
+          description: validationResult.reason || 'Check your configuration in Settings > Providers.',
+        })
+      }
 
       if (providerRuntimeState.value[providerId]) {
         providerRuntimeState.value[providerId].isConfigured = validationResult.valid

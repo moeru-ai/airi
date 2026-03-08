@@ -141,6 +141,9 @@ export const useSpeechStore = defineStore('speech', () => {
       // configuredSpeechProvidersMetadata and incorrectly reset activeSpeechProvider
       // to 'speech-noop', permanently wiping the persisted selection from localStorage.
       if (!configuredProviderIds.includes(activeSpeechProvider.value)) {
+        console.warn(`[Speech Store] Active provider "${activeSpeechProvider.value}" is no longer in the configured list. Resetting to "speech-noop".`, {
+          configuredProviderIds,
+        })
         activeSpeechProvider.value = 'speech-noop'
         activeSpeechModel.value = ''
         activeSpeechVoiceId.value = ''

@@ -5,6 +5,8 @@ import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/el
 import { computed, defineAsyncComponent, defineComponent, h, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
+import WeatherSkeleton from '../widgets/weather/components/Skeleton.vue'
+
 import { widgetsClearEvent, widgetsFetch, widgetsRemove, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdateEvent } from '../../shared/eventa'
 
 type SizePreset = 's' | 'm' | 'l' | { cols?: number, rows?: number }
@@ -55,6 +57,7 @@ async function requestRemoval(id: string) {
 }
 
 function applySnapshot(snapshot: WidgetSnapshot) {
+  console.log('[Widgets] Applying snapshot:', snapshot)
   clearTtl()
   widget.value = {
     id: snapshot.id,
@@ -115,14 +118,19 @@ onMounted(() => {
       if (!body || body.id !== widgetId.value)
         return
 
+      console.log(`[Widgets] 📥 Update Received for ${body.id}:`, body.componentProps)
+
       if (!widget.value) {
         requestSnapshot(body.id)
         return
       }
 
+      const merged = { ...widget.value.componentProps, ...body.componentProps }
+      console.log(`[Widgets] 🌓 Props Merged. New State:`, merged)
+
       widget.value = {
         ...widget.value,
-        componentProps: body.componentProps ?? widget.value.componentProps,
+        componentProps: merged,
       }
     })
   }
@@ -154,9 +162,13 @@ onBeforeUnmount(() => {
   clearTtl()
 })
 
-const Registry: Record<string, ReturnType<typeof defineAsyncComponent>> = {
-  map: defineAsyncComponent(async () => (await import('../widgets/map')).Map),
-  weather: defineAsyncComponent(async () => (await import('../widgets/weather')).Weather),
+const Registry: Record<string, any> = {
+  weather: defineAsyncComponent({
+    loader: () => import('../widgets/weather').then(m => m.Weather),
+    loadingComponent: WeatherSkeleton,
+  }),
+  map: defineAsyncComponent(() => import('../widgets/map').then(m => m.Map)),
+  comfy: defineAsyncComponent(() => import('../widgets/comfy').then(m => m.Comfy)),
 }
 
 const GenericWidget = defineComponent({
@@ -204,7 +216,7 @@ function handleClose() {
     </div>
     <div v-else-if="widget" class="relative h-full">
       <button
-        class="absolute right-2 top-2 z-10 size-7 rounded-full bg-black/40 text-xs text-white transition hover:bg-black/60"
+        class="absolute right-2 top-2 z-50 size-7 rounded-full bg-black/40 text-xs text-white shadow-lg transition hover:bg-black/60"
         title="Close widget"
         @click="handleClose"
       >
@@ -225,7 +237,7 @@ function handleClose() {
       </div>
     </div>
   </div>
-  <div class="[-webkit-app-region:drag] pointer-events-none absolute left-1/2 top-2 h-[14px] w-[36px] rounded-[10px] bg-[rgba(125,125,125,0.28)] backdrop-blur-[6px] -translate-x-1/2">
+  <div class="[-webkit-app-region:drag] pointer-events-auto absolute left-1/2 top-2 z-50 h-[14px] w-[36px] cursor-grab border border-white/10 rounded-[10px] bg-[rgba(125,125,125,0.4)] shadow-sm backdrop-blur-[6px] -translate-x-1/2 active:cursor-grabbing">
     <div class="absolute left-1/2 top-1/2 h-[3px] w-4 rounded-full bg-[rgba(255,255,255,0.85)] -translate-x-1/2 -translate-y-1/2" />
   </div>
 </template>

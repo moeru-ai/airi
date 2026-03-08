@@ -18,6 +18,7 @@ import { widgetsClearEvent, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdat
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
+import { setupCuippBridge } from '../../services/airi/widgets/cuipp'
 import { spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
 import { setupWidgetsWindowInvokes } from './rpc/index.electron'
 
@@ -282,7 +283,9 @@ export function setupWidgetsWindowManager(params: {
 
     const nextSnapshot: WidgetSnapshot = {
       ...toSnapshot(existing),
-      componentProps: payload.componentProps ?? existing.componentProps,
+      componentProps: payload.componentProps
+        ? { ...existing.componentProps, ...payload.componentProps }
+        : existing.componentProps,
     }
 
     upsertRecord(nextSnapshot)
@@ -314,6 +317,10 @@ export function setupWidgetsWindowManager(params: {
     return toSnapshot(record)
   }
 
+  const emit = (event: any, payload: any) => {
+    eventaContext?.emit(event, payload)
+  }
+
   widgetsManager = {
     getWindow,
     openWindow,
@@ -323,7 +330,23 @@ export function setupWidgetsWindowManager(params: {
     clearWidgets,
     getWidgetSnapshot,
     prepareWidgetWindow,
+    emit,
   }
 
+  // Initialize CUIPP bridge
+  setupCuippBridge({ widgetsManager: widgetsManager! })
+
   return widgetsManager!
+}
+
+export interface WidgetsWindowManager {
+  getWindow: () => Promise<BrowserWindow>
+  openWindow: (params?: { id?: string }) => Promise<void>
+  pushWidget: (payload: WidgetsAddPayload) => Promise<string>
+  updateWidget: (payload: { id: string, componentProps?: Record<string, any> }) => Promise<void>
+  removeWidget: (id: string) => Promise<void>
+  clearWidgets: () => Promise<void>
+  getWidgetSnapshot: (id: string) => WidgetSnapshot | undefined
+  prepareWidgetWindow: (options?: { id?: string }) => string
+  emit: (event: any, payload: any) => void
 }
