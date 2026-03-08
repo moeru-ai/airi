@@ -48,7 +48,7 @@ export const providerNvidia = defineProvider<NvidiaConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: [],
+      checks: ['connectivity', 'model_list'],
     }),
   },
 })
