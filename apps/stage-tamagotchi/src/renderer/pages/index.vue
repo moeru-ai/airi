@@ -18,6 +18,7 @@ import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composab
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
+import { useLLM } from '@proj-airi/stage-ui/stores/llm'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
@@ -62,17 +63,6 @@ const isTransparentByThree = useThreeSceneIsTransparentAtPoint(
   relativeMouseY,
   { regionRadius: 25 },
 )
-
-const llmStore = useLLM()
-watch([activeChatProvider, activeChatModel], async () => {
-  if (activeChatProvider.value && activeChatModel.value) {
-    console.log('[Main Page] Discovering tools compatibility for:', activeChatModel.value)
-    const provider = await providersStore.getProviderInstance<ChatProvider>(activeChatProvider.value)
-    if (provider) {
-      await llmStore.discoverToolsCompatibility(activeChatModel.value, provider, [])
-    }
-  }
-}, { immediate: true })
 
 const { stageModelRenderer } = storeToRefs(useSettings())
 const isTransparent = computed(() => {
@@ -150,6 +140,18 @@ const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
 const chatStore = useChatOrchestratorStore()
+
+const llmStore = useLLM()
+watch([activeChatProvider, activeChatModel], async () => {
+  if (activeChatProvider.value && activeChatModel.value) {
+    console.log('[Main Page] Discovering tools compatibility for:', activeChatModel.value)
+    const provider = await providersStore.getProviderInstance<ChatProvider>(activeChatProvider.value)
+    if (provider) {
+      await llmStore.discoverToolsCompatibility(activeChatModel.value, provider, [])
+    }
+  }
+}, { immediate: true })
+
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
 const {
