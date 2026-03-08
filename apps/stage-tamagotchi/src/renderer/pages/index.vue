@@ -395,7 +395,6 @@ onMounted(() => {
     })
   }
 })
-
 onUnmounted(async () => {
   await stopAudioInteraction()
   disposeVAD()
