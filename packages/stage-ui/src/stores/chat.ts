@@ -342,6 +342,13 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
       await parser.end()
 
+      // Ensure final rollup is logged
+      ;(window as any).electron.ipcRenderer.send('llm-raw-output', {
+        type: 'full',
+        text: fullText,
+        sessionId,
+      })
+
       if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
         sessionMessagesForSend.push(toRaw(buildingMessage))
         chatSession.persistSessionMessages(sessionId)
