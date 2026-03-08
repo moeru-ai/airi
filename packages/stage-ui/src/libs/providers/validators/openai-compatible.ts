@@ -15,6 +15,7 @@ type OpenAICompatibleValidationCheck = 'connectivity' | 'model_list' | 'chat_com
 interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string, baseUrl?: string }> {
   checks?: OpenAICompatibleValidationCheck[]
   additionalHeaders?: Record<string, string>
+  allowValidationWithoutModel?: boolean
   schedule?: {
     mode: 'once' | 'interval'
     intervalMs?: number
@@ -87,16 +88,14 @@ async function pickValidationModel<TConfig extends { apiKey?: string | null, bas
   config: TConfig,
   provider: ProviderInstance,
   providerExtra: ProviderExtraMethods<TConfig> | undefined,
-): Promise<string> {
-  const fallback = 'test'
-
+): Promise<string | null> {
   try {
     const models = await resolveModels(config, provider, providerExtra)
     const modelId = extractModelId(models.find(model => !shouldSkipModelId(extractModelId(model))))
-    return modelId || fallback
+    return modelId || null
   }
   catch {
-    return fallback
+    return null
   }
 }
 
@@ -105,12 +104,55 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
 ): ProviderDefinition<TConfig>['validators'] {
   const checks = options?.checks ?? ['connectivity', 'model_list', 'chat_completions']
   const additionalHeaders = options?.additionalHeaders
+  const missingValidationModelReason = 'No model available for validation. Configure a model manually and try again.'
 
   interface ChatCheckResult {
     connectivityOk: boolean
     chatOk: boolean
     errorMessage?: string
     error?: unknown
+  }
+
+  async function runChatCheck(
+    config: TConfig,
+    provider: ProviderInstance,
+    providerExtra: ProviderExtraMethods<TConfig> | undefined,
+  ): Promise<ChatCheckResult> {
+    const model = await pickValidationModel(config, provider, providerExtra)
+
+    if (!model) {
+      if (options?.allowValidationWithoutModel) {
+        return { connectivityOk: true, chatOk: true }
+      }
+
+      return {
+        connectivityOk: false,
+        chatOk: false,
+        errorMessage: missingValidationModelReason,
+      }
+    }
+
+    try {
+      await generateText({
+        apiKey: config.apiKey,
+        baseURL: config.baseUrl!,
+        headers: additionalHeaders,
+        model,
+        messages: message.messages(message.user('ping')),
+        max_tokens: 1,
+      })
+
+      return { connectivityOk: true, chatOk: true }
+    }
+    catch (e) {
+      if (isNetworkError(e)) {
+        return { connectivityOk: false, chatOk: false, error: e, errorMessage: errorMessageFrom(e) }
+      }
+
+      const status = extractStatusCode(e)
+      const chatOk = status === 400 || Boolean(status && status >= 200 && status < 300)
+      return { connectivityOk: true, chatOk, errorMessage: errorMessageFrom(e) }
+    }
   }
 
   const chatCheckCacheKey = 'openai-compatible:chat-check'
@@ -127,28 +169,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
       return existing
 
     if (!cache) {
-      const model = await pickValidationModel(config, provider, providerExtra)
-      try {
-        await generateText({
-          apiKey: config.apiKey,
-          baseURL: config.baseUrl!,
-          headers: additionalHeaders,
-          model,
-          messages: message.messages(message.user('ping')),
-          max_tokens: 1,
-        })
-
-        return { connectivityOk: true, chatOk: true }
-      }
-      catch (e) {
-        if (isNetworkError(e)) {
-          return { connectivityOk: false, chatOk: false, error: e, errorMessage: errorMessageFrom(e) }
-        }
-
-        const status = extractStatusCode(e)
-        const chatOk = status === 400 || Boolean(status && status >= 200 && status < 300)
-        return { connectivityOk: true, chatOk, errorMessage: errorMessageFrom(e) }
-      }
+      return runChatCheck(config, provider, providerExtra)
     }
 
     let mutex = cache.get(chatCheckMutexKey) as Mutex | undefined
@@ -164,30 +185,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
       if (cached)
         return cached
 
-      const sharedCheck = (async () => {
-        const model = await pickValidationModel(config, provider, providerExtra)
-        try {
-          await generateText({
-            apiKey: config.apiKey,
-            baseURL: config.baseUrl!,
-            headers: additionalHeaders,
-            model,
-            messages: message.messages(message.user('ping')),
-            max_tokens: 1,
-          })
-
-          return { connectivityOk: true, chatOk: true }
-        }
-        catch (e) {
-          if (isNetworkError(e)) {
-            return { connectivityOk: false, chatOk: false, error: e, errorMessage: errorMessageFrom(e) }
-          }
-
-          const status = extractStatusCode(e)
-          const chatOk = status === 400 || Boolean(status && status >= 200 && status < 300)
-          return { connectivityOk: true, chatOk, errorMessage: errorMessageFrom(e) }
-        }
-      })()
+      const sharedCheck = runChatCheck(config, provider, providerExtra)
 
       cache.set(chatCheckCacheKey, sharedCheck)
 
