@@ -541,6 +541,7 @@ pages:
                       integration guide</a>.
     common:
       continueAnyway: Continue Anyway
+      validateCurrentModel: Validate Current Model
       fields:
         field:
           api-key:
