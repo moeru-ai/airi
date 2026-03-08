@@ -173,9 +173,9 @@ app.whenReady().then(async () => {
         const yellow = '\x1B[33m'
         if (data.type === 'delta') {
           // Log deltas in yellow, but only if they are not just whitespace (too noisy otherwise)
-          if (data.text.trim()) {
-            console.log(`${yellow}[LLM Delta]${reset} ${data.text}`)
-          }
+          // if (data.text.trim()) {
+          //   console.log(`${yellow}[LLM Delta]${reset} ${data.text}`)
+          // }
         }
         else {
           console.log(`${cyan}[LLM Final Output]${reset} Session: ${data.sessionId}`)
