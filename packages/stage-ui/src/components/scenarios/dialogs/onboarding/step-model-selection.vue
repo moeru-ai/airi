@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import Alert from '../../../misc/alert.vue'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
 import { RadioCardManySelect } from '../../../menu'
 import { OnboardingContextKey } from './utils'
@@ -33,7 +34,21 @@ const {
     </div>
 
     <!-- Using the new RadioCardManySelect component -->
-    <div flex-1>
+    <div flex-1 flex flex-col gap-4>
+      <Alert
+        v-if="providerModels.length === 0 && !isLoadingActiveProviderModels"
+        type="error"
+      >
+        <template #title>
+          {{ t('settings.dialogs.onboarding.no-models') }}
+        </template>
+        <template #content>
+          <div class="whitespace-pre-wrap break-all">
+            {{ t('settings.dialogs.onboarding.no-models-help') }}
+          </div>
+        </template>
+      </Alert>
+
       <RadioCardManySelect
         v-model="activeModel"
         v-model:search-query="modelSearchQuery"
