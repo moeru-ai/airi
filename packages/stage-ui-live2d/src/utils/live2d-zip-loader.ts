@@ -90,7 +90,11 @@ ZipLoader.readText = (jsZip: JSZip, path: string) => {
 ZipLoader.getFilePaths = (jsZip: JSZip) => {
   const paths: string[] = []
 
-  jsZip.forEach(relativePath => paths.push(relativePath))
+  jsZip.forEach((relativePath, file) => {
+    if (!file.dir) {
+      paths.push(relativePath)
+    }
+  })
 
   return Promise.resolve(paths)
 }

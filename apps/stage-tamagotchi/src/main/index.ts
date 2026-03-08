@@ -173,7 +173,11 @@ app.whenReady().then(async () => {
 
   injeca.invoke({
     dependsOn: { mainWindow, tray, serverChannel, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager },
-    callback: noop,
+    callback: (deps) => {
+      import('./services/shortcuts/mic-toggle').then((m) => {
+        m.setupMicToggleShortcut(deps.mainWindow)
+      })
+    },
   })
 
   injeca.start().catch(err => console.error(err))
@@ -235,6 +239,7 @@ async function handleAppExit() {
   await Promise.all([
     logIfError('execute onAppBeforeQuit hooks', () => emitAppBeforeQuit()),
     logIfError('stop injeca', () => injeca.stop()),
+    logIfError('cleanup mic-toggle shortcut', () => import('./services/shortcuts/mic-toggle').then(m => m.cleanupMicToggleShortcut())),
   ])
 
   // Prevent the global log hook from trying to write to the file after close() is called,

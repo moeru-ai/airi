@@ -3,7 +3,7 @@ import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
-import { refDebounced, useIntervalFn } from '@vueuse/core'
+import { useTimeoutFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -17,10 +17,10 @@ import IndicatorMicVolume from './indicator-mic-volume.vue'
 
 import {
   electron,
-  electronAppQuit,
   electronOpenChat,
   electronOpenSettings,
   electronStartDraggingWindow,
+  electronWindowClose,
   electronWindowSetAlwaysOnTop,
 } from '../../../../shared/eventa'
 
@@ -31,43 +31,41 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const settingsStore = useSettings()
 const context = useElectronEventaContext()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
-const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
+const { controlsIslandIconSize } = storeToRefs(settingsStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const openChat = useElectronEventaInvoke(electronOpenChat)
 const isLinux = useElectronEventaInvoke(electron.app.isLinux)
-const closeWindow = useElectronEventaInvoke(electronAppQuit)
+const closeWindow = useElectronEventaInvoke(electronWindowClose)
 const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 
 const expanded = ref(false)
 const islandRef = ref<HTMLElement>()
 
-// Expose whether hearing dialog is open so parent can disable click-through
-const hearingDialogOpen = ref(false)
-defineExpose({ hearingDialogOpen })
-
 const { isOutside } = useElectronMouseInElement(islandRef)
-const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
-watch(isOutsideAfter2seconds, (outside) => {
-  if (outside && expanded.value && !hearingDialogOpen.value) {
+const { start: startCollapseTimer, stop: stopCollapseTimer } = useTimeoutFn(() => {
+  if (expanded.value) {
     expanded.value = false
+  }
+}, 1500, { immediate: false })
+
+watch(isOutside, (outside) => {
+  if (outside && expanded.value) {
+    startCollapseTimer()
+  }
+  else {
+    stopCollapseTimer()
   }
 })
 
-useIntervalFn(() => {
-  if (expanded.value && isOutside.value && !hearingDialogOpen.value) {
-    expanded.value = false
+watch(expanded, (isExp) => {
+  if (isExp && isOutside.value) {
+    startCollapseTimer()
   }
-}, 1500)
-
-// Apply alwaysOnTop on mount and when it changes
-watch(alwaysOnTop, (val) => {
-  setAlwaysOnTop(val)
-}, { immediate: true })
-
-function toggleAlwaysOnTop() {
-  alwaysOnTop.value = !alwaysOnTop.value
-}
+  else if (!isExp) {
+    stopCollapseTimer()
+  }
+})
 
 // Grouped classes for icon / border / padding and combined style class
 const adjustStyleClasses = computed(() => {
@@ -103,6 +101,10 @@ const adjustStyleClasses = computed(() => {
  */
 const startDraggingWindow = !isLinux() ? defineInvoke(context.value, electronStartDraggingWindow) : undefined
 
+// Expose whether hearing dialog is open so parent can disable click-through
+const hearingDialogOpen = ref(false)
+defineExpose({ hearingDialogOpen })
+
 function refreshWindow() {
   window.location.reload()
 }
@@ -120,8 +122,8 @@ function refreshWindow() {
       >
         <div v-if="expanded" border="1 neutral-200 dark:neutral-800" mb-2 flex flex-col gap-1 rounded-2xl p-2 backdrop-blur-xl class="bg-neutral-100/80 shadow-2xl shadow-black/20 dark:bg-neutral-900/80">
           <div grid grid-cols-3 gap-2>
-            <ControlButtonTooltip disable-hoverable-content>
-              <ControlButton :button-style="adjustStyleClasses.button" @click="openSettings({ route: '/settings' })">
+            <ControlButtonTooltip>
+              <ControlButton :button-style="adjustStyleClasses.button" @click="openSettings">
                 <div i-solar:settings-minimalistic-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
               </ControlButton>
               <template #tooltip>
@@ -151,7 +153,7 @@ function refreshWindow() {
               </template>
             </ControlButtonTooltip>
 
-            <ControlButtonTooltip disable-hoverable-content>
+            <ControlButtonTooltip>
               <ControlButton :button-style="adjustStyleClasses.button" @click="refreshWindow">
                 <div i-solar:refresh-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
               </ControlButton>
@@ -160,7 +162,7 @@ function refreshWindow() {
               </template>
             </ControlButtonTooltip>
 
-            <ControlButtonTooltip disable-hoverable-content>
+            <ControlButtonTooltip>
               <ControlButton :button-style="adjustStyleClasses.button" @click="toggleDark()">
                 <Transition name="fade" mode="out-in">
                   <div v-if="isDark" i-solar:moon-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
@@ -172,7 +174,7 @@ function refreshWindow() {
               </template>
             </ControlButtonTooltip>
 
-            <ControlButtonTooltip disable-hoverable-content>
+            <ControlButtonTooltip>
               <ControlsIslandHearingConfig v-model:show="hearingDialogOpen">
                 <div class="relative">
                   <ControlButton :button-style="adjustStyleClasses.button">
@@ -188,19 +190,9 @@ function refreshWindow() {
               </template>
             </ControlButtonTooltip>
 
-            <ControlButtonTooltip disable-hoverable-content>
-              <ControlButton :button-style="adjustStyleClasses.button" @click="toggleAlwaysOnTop()">
-                <div v-if="alwaysOnTop" i-solar:pin-bold :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-                <div v-else i-solar:pin-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300 opacity-50" />
-              </ControlButton>
-              <template #tooltip>
-                {{ alwaysOnTop ? t('tamagotchi.stage.controls-island.unpin-from-top') : t('tamagotchi.stage.controls-island.pin-on-top') }}
-              </template>
-            </ControlButtonTooltip>
-
             <ControlsIslandFadeOnHover :icon-class="adjustStyleClasses.icon" :button-style="adjustStyleClasses.button" />
 
-            <ControlButtonTooltip disable-hoverable-content>
+            <ControlButtonTooltip>
               <ControlButton :button-style="adjustStyleClasses.button" hover:bg-red-500 hover:text-white @click="closeWindow()">
                 <div i-solar:close-circle-outline :class="adjustStyleClasses.icon" />
               </ControlButton>

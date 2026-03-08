@@ -2,6 +2,8 @@ import type { VRMCore } from '@pixiv/three-vrm-core'
 
 import { ref } from 'vue'
 
+let frameCounter = 0
+
 interface EmotionState {
   expression?: {
     name: string
@@ -78,6 +80,12 @@ export function useVRMEmote(vrm: VRMCore) {
       ],
       blendDuration: 0.5,
     }],
+    ['cool', {
+      expression: [
+        { name: 'Pixel glasses', value: 1.0 },
+      ],
+      blendDuration: 0.3,
+    }],
   ])
 
   const clearResetTimeout = () => {
@@ -90,12 +98,45 @@ export function useVRMEmote(vrm: VRMCore) {
   const setEmotion = (emotionName: string, intensity = 1) => {
     clearResetTimeout()
 
+    // eslint-disable-next-line no-console
+    console.log('[VRMExpression] setEmotion called:', { emotionName, intensity })
+
     if (!emotionStates.has(emotionName)) {
-      console.warn(`Emotion ${emotionName} not found`)
-      return
+      // eslint-disable-next-line no-console
+      console.log('[VRMExpression] Emotion not in states map, checking raw fallback...')
+
+      let targetName = emotionName
+      let isFound = !!(vrm.expressionManager && vrm.expressionManager.getExpression(targetName))
+
+      // Case-insensitive search if exact match fails
+      if (!isFound && vrm.expressionManager) {
+        const lowerName = emotionName.toLowerCase()
+        const match = Object.keys(vrm.expressionManager.expressionMap).find(k => k.toLowerCase() === lowerName)
+        if (match) {
+          // eslint-disable-next-line no-console
+          console.log(`[VRMExpression] Case-insensitive match found: ${match}`)
+          targetName = match
+          isFound = true
+        }
+      }
+
+      if (isFound) {
+        // eslint-disable-next-line no-console
+        console.log(`[VRMExpression] Falling back to raw expression: ${targetName}`)
+        emotionStates.set(emotionName, {
+          expression: [{ name: targetName, value: intensity }],
+          blendDuration: 0.3,
+        })
+      }
+      else {
+        console.warn(`[VRMExpression] Emotion ${emotionName} not found and is not a valid VRM expression`)
+        return
+      }
     }
 
     const emotionState = emotionStates.get(emotionName)!
+    // eslint-disable-next-line no-console
+    console.log('[VRMExpression] Target state found:', emotionState)
     currentEmotion.value = emotionName
     isTransitioning.value = true
     transitionProgress.value = 0
@@ -137,19 +178,28 @@ export function useVRMEmote(vrm: VRMCore) {
   }
 
   const update = (deltaTime: number) => {
-    if (!isTransitioning.value || !currentEmotion.value)
+    if (!currentEmotion.value) {
+      if (isTransitioning.value) {
+        isTransitioning.value = false
+        transitionProgress.value = 0
+      }
       return
+    }
 
     const emotionState = emotionStates.get(currentEmotion.value)!
-    const blendDuration = emotionState.blendDuration || 0.3
-
-    transitionProgress.value += deltaTime / blendDuration
-    if (transitionProgress.value >= 1.0) {
-      transitionProgress.value = 1.0
-      isTransitioning.value = false
+    if (isTransitioning.value) {
+      const blendDuration = emotionState.blendDuration || 0.3
+      transitionProgress.value += deltaTime / blendDuration
+      if (transitionProgress.value >= 1.0) {
+        transitionProgress.value = 1.0
+        isTransitioning.value = false
+      }
     }
 
     // Update all expressions
+    frameCounter++
+    const shouldLog = frameCounter % 30 === 0 // Log twice per second
+
     for (const [exprName, targetValue] of targetExpressionValues.value) {
       const startValue = currentExpressionValues.value.get(exprName) || 0
       const currentValue = lerp(
@@ -157,6 +207,12 @@ export function useVRMEmote(vrm: VRMCore) {
         targetValue,
         easeInOutCubic(transitionProgress.value),
       )
+
+      if (shouldLog && currentValue > 0.01) {
+        // eslint-disable-next-line no-console
+        console.log(`[VRMExpression] Applying: ${exprName} = ${currentValue.toFixed(2)} (target: ${targetValue})`)
+      }
+
       vrm.expressionManager?.setValue(exprName, currentValue)
     }
   }
