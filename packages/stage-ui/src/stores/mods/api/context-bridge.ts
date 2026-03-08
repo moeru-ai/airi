@@ -88,9 +88,6 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           }
         }
 
-        if (!activeProvider.value || !activeModel.value)
-          return
-
         if (activeProvider.value && activeModel.value) {
           let chatProvider: ChatProvider
           try {
