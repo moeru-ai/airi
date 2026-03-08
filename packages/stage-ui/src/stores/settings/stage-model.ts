@@ -1,30 +1,96 @@
 import type { DisplayModel } from '../display-models'
 
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
-import { refManualReset, useEventListener } from '@vueuse/core'
+import { refManualReset, useBroadcastChannel, useEventListener } from '@vueuse/core'
 import { defineStore } from 'pinia'
+import { computed, watch } from 'vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 
+export type StageModelRenderer = 'live2d' | 'vrm' | 'disabled' | undefined
+
+interface StageModelDebugEvent {
+  type: 'stage-model-selected-set'
+  href: string
+  instanceId: string
+  nextValue: string
+  previousValue: string
+  sentAt: number
+  stack?: string
+}
+
+const stageModelDebugChannelName = 'airi-debug-stage-model'
+const stageModelRuntimeInstanceId = Math.random().toString(36).slice(2, 10)
+let stageModelMessageSequence = 0
+
+// function toPlainStageModelDebugEvent(event?: StageModelDebugEvent | null) {
+//   if (!event)
+//     return null
+//
+//   return {
+//     href: event.href,
+//     instanceId: event.instanceId,
+//     nextValue: event.nextValue,
+//     previousValue: event.previousValue,
+//     sentAt: event.sentAt,
+//     stack: event.stack,
+//     type: event.type,
+//   }
+// }
+
 export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const displayModelsStore = useDisplayModelsStore()
+  let stageModelUpdateSequence = 0
+  const stageModelStorageKey = 'settings/stage/model'
+  const { post: postStageModelDebug, data: _stageModelDebugData } = useBroadcastChannel<StageModelDebugEvent, StageModelDebugEvent>({ name: stageModelDebugChannelName })
 
-  const stageModelSelected = useLocalStorageManualReset<string>('settings/stage/model', 'preset-live2d-1')
+  const stageModelSelectedState = useLocalStorageManualReset<string>(stageModelStorageKey, 'preset-live2d-1')
+  const stageModelSelected = computed<string>({
+    get: () => stageModelSelectedState.value,
+    set: (value) => {
+      const previousValue = stageModelSelectedState.value
+
+      if (import.meta.env.DEV && value !== previousValue) {
+        const event: StageModelDebugEvent = {
+          type: 'stage-model-selected-set',
+          href: typeof window !== 'undefined' ? window.location.href : 'unknown',
+          instanceId: `${stageModelRuntimeInstanceId}:${++stageModelMessageSequence}`,
+          nextValue: value,
+          previousValue,
+          sentAt: Date.now(),
+          stack: new Error('[StageModel][set]').stack,
+        }
+
+        // console.warn('[StageModel][set]', toPlainStageModelDebugEvent(event))
+        // if (event.stack)
+        //   console.warn(`[StageModel][set][stack]\n${event.stack}`)
+        postStageModelDebug(event)
+      }
+
+      stageModelSelectedState.value = value
+    },
+  })
   const stageModelSelectedDisplayModel = refManualReset<DisplayModel | undefined>(undefined)
   const stageModelSelectedUrl = refManualReset<string | undefined>(undefined)
-  const stageModelRenderer = refManualReset<'live2d' | 'vrm' | 'disabled' | undefined>(undefined)
+  const stageModelRenderer = refManualReset<StageModelRenderer>(undefined)
 
   const stageViewControlsEnabled = refManualReset<boolean>(false)
 
   async function updateStageModel() {
-    if (!stageModelSelected.value) {
+    const requestId = ++stageModelUpdateSequence
+    const selectedModelId = stageModelSelectedState.value
+
+    if (!selectedModelId) {
       stageModelSelectedUrl.value = undefined
       stageModelSelectedDisplayModel.value = undefined
       stageModelRenderer.value = 'disabled'
       return
     }
 
-    const model = await displayModelsStore.getDisplayModel(stageModelSelected.value)
+    const model = await displayModelsStore.getDisplayModel(selectedModelId)
+    if (requestId !== stageModelUpdateSequence)
+      return
+
     if (!model) {
       stageModelSelectedUrl.value = undefined
       stageModelSelectedDisplayModel.value = undefined
@@ -45,11 +111,16 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     }
 
     if (model.type === 'file') {
-      if (stageModelSelectedUrl.value) {
-        URL.revokeObjectURL(stageModelSelectedUrl.value)
+      const nextUrl = URL.createObjectURL(model.file)
+      if (requestId !== stageModelUpdateSequence) {
+        URL.revokeObjectURL(nextUrl)
+        return
       }
 
-      stageModelSelectedUrl.value = URL.createObjectURL(model.file)
+      if (stageModelSelectedUrl.value)
+        URL.revokeObjectURL(stageModelSelectedUrl.value)
+
+      stageModelSelectedUrl.value = nextUrl
     }
     else {
       stageModelSelectedUrl.value = model.url
@@ -68,11 +139,51 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     }
   })
 
+  // useEventListener(window, 'storage', (event) => {
+  //   if (!import.meta.env.DEV || event.key !== stageModelStorageKey)
+  //     return
+  //
+  //   console.warn('[StageModel][storage]', {
+  //     currentHref: typeof window !== 'undefined' ? window.location.href : 'unknown',
+  //     eventUrl: event.url,
+  //     newValue: event.newValue,
+  //     oldValue: event.oldValue,
+  //   })
+  // })
+  //
+  // watch(stageModelDebugData, (event) => {
+  //   if (!import.meta.env.DEV || event?.type !== 'stage-model-selected-set')
+  //     return
+  //
+  //   console.warn('[StageModel][set][recv]', {
+  //     currentHref: typeof window !== 'undefined' ? window.location.href : 'unknown',
+  //     senderHref: event.href,
+  //     senderInstanceId: event.instanceId,
+  //     nextValue: event.nextValue,
+  //     previousValue: event.previousValue,
+  //     sentAt: event.sentAt,
+  //   })
+  //   if (event.stack)
+  //     console.warn(`[StageModel][set][recv][stack]\n${event.stack}`)
+  // })
+
+  watch(stageModelSelectedState, (_newValue, _oldValue) => {
+    // if (import.meta.env.DEV) {
+    //   console.warn('[StageModel][selected]', {
+    //     currentHref: typeof window !== 'undefined' ? window.location.href : 'unknown',
+    //     newValue: _newValue,
+    //     oldValue: _oldValue,
+    //   })
+    // }
+
+    void updateStageModel()
+  })
+
   async function resetState() {
     if (stageModelSelectedUrl.value)
       URL.revokeObjectURL(stageModelSelectedUrl.value)
 
-    stageModelSelected.reset()
+    stageModelSelectedState.reset()
     stageModelSelectedDisplayModel.reset()
     stageModelSelectedUrl.reset()
     stageModelRenderer.reset()

@@ -6,7 +6,7 @@ import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
 import { Button, Callout } from '@proj-airi/ui'
 import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 
 import Live2D from './live2d.vue'
 import VRM from './vrm.vue'
@@ -27,8 +27,7 @@ defineEmits<{
   (e: 'extractColorsFromModel'): void
 }>()
 
-const selectedModel = ref<DisplayModel | undefined>()
-
+const modelSelectorOpen = ref(false)
 const positionCursor = useMouse()
 const settingsStore = useSettings()
 const { scale: live2dScale } = storeToRefs(useLive2d())
@@ -36,6 +35,7 @@ const {
   live2dDisableFocus,
   stageModelSelectedUrl,
   stageModelSelected,
+  stageModelSelectedDisplayModel,
   stageModelRenderer,
   themeColorsHue,
   themeColorsHueDynamic,
@@ -46,21 +46,43 @@ const {
   live2dMaxFps,
 } = storeToRefs(settingsStore)
 
-watch(selectedModel, async () => {
-  stageModelSelected.value = selectedModel.value?.id ?? ''
+const currentSelectedDisplayModel = computed<DisplayModel | undefined>(() => stageModelSelectedDisplayModel.value)
+
+async function handleModelPick(selectedModel: DisplayModel | undefined) {
+  if (!modelSelectorOpen.value) {
+    // if (import.meta.env.DEV) {
+    //   console.warn('[StageModel][ignore pick while dialog closed]', {
+    //     currentHref: typeof window !== 'undefined' ? window.location.href : 'unknown',
+    //     nextModelFormat: selectedModel?.format,
+    //     nextModelId: selectedModel?.id ?? '',
+    //   })
+    // }
+    return
+  }
+
+  // if (import.meta.env.DEV) {
+  //   console.warn('[StageModel][set from model-settings]', {
+  //     currentHref: typeof window !== 'undefined' ? window.location.href : 'unknown',
+  //     nextModelFormat: selectedModel?.format,
+  //     nextModelId: selectedModel?.id ?? '',
+  //     stack: new Error('[StageModel][model-settings]').stack,
+  //   })
+  // }
+
+  stageModelSelected.value = selectedModel?.id ?? ''
   await settingsStore.updateStageModel()
 
-  if (selectedModel.value) {
-    switch (selectedModel.value.format) {
+  if (selectedModel) {
+    switch (selectedModel.format) {
       case DisplayModelFormat.Live2dZip:
         useLive2d().shouldUpdateView()
         break
       case DisplayModelFormat.VRM:
-        useModelStore().shouldUpdateView()
+        useModelStore().shouldUpdateView('settings-model-change')
         break
     }
   }
-}, { deep: true })
+}
 </script>
 
 <template>
@@ -82,11 +104,13 @@ watch(selectedModel, async () => {
         uses 3D model that is driven by VRM / MMD open formats.
       </p>
     </Callout>
-    <ModelSelectorDialog v-model="selectedModel">
-      <Button variant="secondary">
-        Select Model
-      </Button>
-    </ModelSelectorDialog>
+    <div :class="['flex flex-wrap gap-2']">
+      <ModelSelectorDialog v-model:show="modelSelectorOpen" :selected-model="currentSelectedDisplayModel" @pick="handleModelPick">
+        <Button variant="secondary">
+          Select Model
+        </Button>
+      </ModelSelectorDialog>
+    </div>
     <Live2D
       v-if="stageModelRenderer === 'live2d'"
       :palette="palette"

@@ -7,8 +7,10 @@ type BroadcastChannelEvents
   = | BroadcastChannelEventShouldUpdateView
 
 interface BroadcastChannelEventShouldUpdateView {
-  type: 'should-update-view'
+  type: 'live2d-should-update-view'
 }
+
+const live2dViewUpdateChannelName = 'airi-stores-stage-ui-live2d'
 
 export const defaultModelParameters = {
   angleX: 0,
@@ -36,7 +38,7 @@ export const defaultModelParameters = {
 }
 
 export const useLive2d = defineStore('live2d', () => {
-  const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: 'airi-stores-live2d' })
+  const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: live2dViewUpdateChannelName })
   const shouldUpdateViewHooks = ref(new Set<() => void>())
 
   const onShouldUpdateView = (hook: () => void) => {
@@ -47,12 +49,12 @@ export const useLive2d = defineStore('live2d', () => {
   }
 
   function shouldUpdateView() {
-    post({ type: 'should-update-view' })
+    post({ type: 'live2d-should-update-view' })
     shouldUpdateViewHooks.value.forEach(hook => hook())
   }
 
   watch(data, (event) => {
-    if (event.type === 'should-update-view') {
+    if (event?.type === 'live2d-should-update-view') {
       shouldUpdateViewHooks.value.forEach(hook => hook())
     }
   })

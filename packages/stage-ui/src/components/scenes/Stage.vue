@@ -13,7 +13,7 @@ import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline } from '@proj-airi/pipelines-audio'
 import { Live2DScene, useLive2d } from '@proj-airi/stage-ui-live2d'
-import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
+import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { createQueue } from '@proj-airi/stream-kit'
 import { useBroadcastChannel } from '@vueuse/core'
@@ -22,7 +22,7 @@ import { useBroadcastChannel } from '@vueuse/core'
 // import { embed } from '@xsai/embed'
 import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { useDelayMessageQueue, useEmotionsMessageQueue } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
@@ -34,8 +34,9 @@ import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
 import { useSpeechRuntimeStore } from '../../stores/speech-runtime'
+import { shouldRunLive2dLipSyncLoop } from './runtime'
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   paused?: boolean
   focusAt: { x: number, y: number }
   xOffset?: number | string
@@ -77,11 +78,7 @@ const chatHookCleanups: Array<() => void> = []
 //             cross-window broadcast wiring.
 
 const providersStore = useProvidersStore()
-const live2dStore = useLive2d()
-const vrmStore = useModelStore()
-
 const showStage = ref(true)
-const viewUpdateCleanups: Array<() => void> = []
 
 // Caption + Presentation broadcast channels
 type CaptionChannelEvent
@@ -94,22 +91,6 @@ type PresentEvent
   = | { type: 'assistant-reset' }
     | { type: 'assistant-append', text: string }
 const { post: postPresent } = useBroadcastChannel<PresentEvent, PresentEvent>({ name: 'airi-chat-present' })
-
-viewUpdateCleanups.push(live2dStore.onShouldUpdateView(async () => {
-  showStage.value = false
-  await settingsStore.updateStageModel()
-  setTimeout(() => {
-    showStage.value = true
-  }, 100)
-}))
-
-viewUpdateCleanups.push(vrmStore.onShouldUpdateView(async () => {
-  showStage.value = false
-  await settingsStore.updateStageModel()
-  setTimeout(() => {
-    showStage.value = true
-  }, 100)
-}))
 
 const audioAnalyser = ref<AnalyserNode>()
 const nowSpeaking = ref(false)
@@ -378,7 +359,48 @@ function startLipSyncLoop() {
   lipSyncLoopId.value = requestAnimationFrame(tick)
 }
 
+function stopLipSyncLoop() {
+  if (lipSyncLoopId.value) {
+    cancelAnimationFrame(lipSyncLoopId.value)
+    lipSyncLoopId.value = undefined
+  }
+
+  mouthOpenSize.value = 0
+}
+
+function resetLive2dLipSync() {
+  stopLipSyncLoop()
+
+  try {
+    lipSyncNode.value?.disconnect()
+  }
+  catch {
+
+  }
+
+  lipSyncNode.value = undefined
+  live2dLipSync.value = undefined
+  lipSyncStarted.value = false
+}
+
+function syncLipSyncLoop() {
+  if (shouldRunLive2dLipSyncLoop({
+    stageModelRenderer: stageModelRenderer.value,
+    paused: Boolean(props.paused),
+  }) && lipSyncStarted.value) {
+    startLipSyncLoop()
+    return
+  }
+
+  stopLipSyncLoop()
+}
+
 async function setupLipSync() {
+  if (stageModelRenderer.value !== 'live2d') {
+    resetLive2dLipSync()
+    return
+  }
+
   if (lipSyncStarted.value)
     return
 
@@ -387,11 +409,11 @@ async function setupLipSync() {
     live2dLipSync.value = lipSync
     lipSyncNode.value = lipSync.node
     await audioContext.resume()
-    startLipSyncLoop()
     lipSyncStarted.value = true
+    syncLipSyncLoop()
   }
   catch (error) {
-    lipSyncStarted.value = false
+    resetLive2dLipSync()
     console.error('Failed to setup Live2D lip sync', error)
   }
 }
@@ -495,6 +517,15 @@ onMounted(async () => {
   await db.value.execute(`CREATE TABLE memory_test (vec FLOAT[768]);`)
 })
 
+watch([stageModelRenderer, () => props.paused], ([renderer]) => {
+  if (renderer !== 'live2d') {
+    resetLive2dLipSync()
+    return
+  }
+
+  syncLipSyncLoop()
+}, { immediate: true })
+
 function canvasElement() {
   if (stageModelRenderer.value === 'live2d')
     return live2dSceneRef.value?.canvasElement()
@@ -511,13 +542,8 @@ function readRenderTargetRegionAtClientPoint(clientX: number, clientY: number, r
 }
 
 onUnmounted(() => {
-  if (lipSyncLoopId.value) {
-    cancelAnimationFrame(lipSyncLoopId.value)
-    lipSyncLoopId.value = undefined
-  }
-
+  resetLive2dLipSync()
   chatHookCleanups.forEach(dispose => dispose?.())
-  viewUpdateCleanups.forEach(dispose => dispose?.())
 })
 
 defineExpose({

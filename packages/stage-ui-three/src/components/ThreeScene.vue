@@ -16,7 +16,6 @@ import type { Vec3 } from '../stores/model-store'
 import { Screen } from '@proj-airi/ui'
 import { TresCanvas } from '@tresjs/core'
 import { EffectComposerPmndrs, HueSaturationPmndrs } from '@tresjs/post-processing'
-import { useElementBounding } from '@vueuse/core'
 import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
 import { BlendFunction } from 'postprocessing'
@@ -33,6 +32,11 @@ import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useRenderTargetRegionAtClientPoint } from '../composables/render-target'
 // pinia store
 import { useModelStore } from '../stores/model-store'
+import {
+  getStageThreeRuntimeTraceContext,
+  isStageThreeRuntimeTraceEnabled,
+  stageThreeTraceRenderInfoEvent,
+} from '../trace'
 import { OrbitControls } from './Controls'
 import { SkyBox } from './Environment'
 import { VRMModel } from './Model'
@@ -57,8 +61,6 @@ const emit = defineEmits<{
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 
-const sceneContainerRef = ref<HTMLDivElement>()
-const { width, height } = useElementBounding(sceneContainerRef)
 const modelStore = useModelStore()
 const {
   lastModelSrc,
@@ -102,6 +104,7 @@ const controlsRef = shallowRef<InstanceType<typeof OrbitControls>>()
 const tresCanvasRef = shallowRef<TresContext>()
 const skyBoxEnvRef = ref<InstanceType<typeof SkyBox>>()
 const dirLightRef = ref<InstanceType<typeof DirectionalLight>>()
+const stageThreeRuntimeTraceContext = getStageThreeRuntimeTraceContext()
 const { readRenderTargetRegionAtClientPoint, disposeRenderTarget } = useRenderTargetRegionAtClientPoint({
   getRenderer: () => tresCanvasRef.value?.renderer.instance as WebGLRenderer | undefined,
   getScene: () => tresCanvasRef.value?.scene.value,
@@ -195,6 +198,25 @@ function onSkyBoxReady(EnvPayload: {
 // === Tres Canvas ===
 function onTresReady(context: TresContext) {
   tresCanvasRef.value = context
+}
+
+function onTresRender() {
+  if (!isStageThreeRuntimeTraceEnabled())
+    return
+
+  const renderer = tresCanvasRef.value?.renderer.instance
+  if (!renderer)
+    return
+
+  stageThreeRuntimeTraceContext.emit(stageThreeTraceRenderInfoEvent, {
+    drawCalls: renderer.info.render.calls,
+    geometries: renderer.info.memory.geometries,
+    lines: renderer.info.render.lines,
+    points: renderer.info.render.points,
+    textures: renderer.info.memory.textures,
+    ts: performance.now(),
+    triangles: renderer.info.render.triangles,
+  })
 }
 
 onMounted(() => {
@@ -310,19 +332,20 @@ defineExpose({
 </script>
 
 <template>
-  <Screen>
-    <div ref="sceneContainerRef" class="h-full w-full">
+  <Screen v-slot="{ width, height }">
+    <div class="h-full w-full">
       <TresCanvas
-        v-show="true"
+        v-show="width > 0 && height > 0"
         :camera="camera"
         :antialias="true"
         :dpr="renderScale"
-        :width="width"
-        :height="height"
+        :width="Math.max(width, 1)"
+        :height="Math.max(height, 1)"
         :tone-mapping="ACESFilmicToneMapping"
         :tone-mapping-exposure="1"
         :clear-alpha="0"
         @ready="onTresReady"
+        @render="onTresRender"
       >
         <OrbitControls
           ref="controlsRef"

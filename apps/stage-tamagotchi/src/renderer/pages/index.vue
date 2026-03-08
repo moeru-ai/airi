@@ -30,7 +30,9 @@ import ControlsIsland from '../components/stage-islands/controls-island/index.vu
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
 import { useControlsIslandStore } from '../stores/controls-island'
+import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
 import { useWindowStore } from '../stores/window'
+import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
@@ -63,9 +65,20 @@ const isTransparentByThree = useThreeSceneIsTransparentAtPoint(
 )
 
 const { stageModelRenderer } = storeToRefs(useSettings())
+const { stagePaused } = storeToRefs(useStageWindowLifecycleStore())
+const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
+const shouldUseThreeTransparencyHitTest = computed(() => shouldSampleStageTransparency({
+  componentState: componentStateStage.value,
+  fadeOnHoverEnabled: fadeOnHoverEnabled.value,
+  stageModelRenderer: stageModelRenderer.value,
+  stagePaused: stagePaused.value,
+}))
 const isTransparent = computed(() => {
+  if (stagePaused.value || componentStateStage.value !== 'mounted' || !fadeOnHoverEnabled.value)
+    return true
+
   if (stageModelRenderer.value === 'vrm')
-    return isTransparentByThree.value
+    return shouldUseThreeTransparencyHitTest.value ? isTransparentByThree.value : true
 
   if (stageModelRenderer.value === 'live2d')
     return isTransparentByPixels.value
@@ -80,7 +93,6 @@ const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMo
 
 const { scale, positionInPercentageString } = storeToRefs(useLive2d())
 const { live2dLookAtX, live2dLookAtY } = storeToRefs(useWindowStore())
-const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
 
 watch(componentStateStage, () => isLoading.value = componentStateStage.value !== 'mounted', { immediate: true })
 
@@ -90,7 +102,15 @@ const { pause, resume } = watch(isTransparent, (transparent) => {
 
 const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
 
-watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled], () => {
+watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled, stagePaused], () => {
+  if (stagePaused.value) {
+    isIgnoringMouseEvents.value = false
+    shouldFadeOnCursorWithin.value = false
+    setIgnoreMouseEvents([false, { forward: true }])
+    pause()
+    return
+  }
+
   if (hearingDialogOpen.value) {
     // Hearing dialog/drawer is open; keep window interactive
     isIgnoringMouseEvents.value = false
@@ -345,6 +365,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
           v-model:state="componentStateStage"
           h-full w-full
           flex-1
+          :paused="stagePaused"
           :focus-at="{ x: live2dLookAtX, y: live2dLookAtY }"
           :scale="scale"
           :x-offset="positionInPercentageString.x"

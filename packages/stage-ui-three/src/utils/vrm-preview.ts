@@ -1,9 +1,25 @@
 import type { VRM } from '@pixiv/three-vrm'
+import type { Group, Object3D } from 'three'
 
+import { VRMUtils } from '@pixiv/three-vrm'
 import { AmbientLight, AnimationMixer, DirectionalLight, PerspectiveCamera, Scene, WebGLRenderer } from 'three'
 
 import { animations } from '../assets/vrm'
 import { clipFromVRMAnimation, loadVrm, loadVRMAnimation, reAnchorRootPositionTrack } from '../composables/vrm'
+
+function disposePreviewVrm(vrm?: VRM, group?: Group) {
+  group?.removeFromParent()
+
+  if (vrm) {
+    VRMUtils.deepDispose(vrm.scene as unknown as Object3D)
+  }
+}
+
+function disposePreviewRenderer(renderer: WebGLRenderer) {
+  renderer.renderLists.dispose()
+  renderer.dispose()
+  renderer.forceContextLoss()
+}
 
 /**
  * Render a VRM file to an offscreen canvas and return a preview data URL.
@@ -39,6 +55,8 @@ export async function loadVrmModelPreview(file: File) {
 
   const objUrl = URL.createObjectURL(file)
   let vrmInstance: VRM | undefined
+  let vrmGroup: Group | undefined
+  let mixer: AnimationMixer | undefined
 
   try {
     const vrmData = await loadVrm(objUrl, { scene, lookAt: true })
@@ -46,6 +64,7 @@ export async function loadVrmModelPreview(file: File) {
       return
 
     vrmInstance = vrmData._vrm
+    vrmGroup = vrmData._vrmGroup
     const { modelCenter, initialCameraOffset } = vrmData
 
     camera.position.copy(modelCenter).add(initialCameraOffset)
@@ -57,7 +76,7 @@ export async function loadVrmModelPreview(file: File) {
       const clip = await clipFromVRMAnimation(vrmData._vrm, animation)
       if (clip) {
         reAnchorRootPositionTrack(clip, vrmData._vrm)
-        const mixer = new AnimationMixer(vrmData._vrm.scene)
+        mixer = new AnimationMixer(vrmData._vrm.scene)
         const action = mixer.clipAction(clip)
         action.play()
         mixer.update(0.1)
@@ -73,25 +92,14 @@ export async function loadVrmModelPreview(file: File) {
     return dataUrl
   }
   finally {
-    renderer.dispose()
-    if (vrmInstance) {
-      vrmInstance.scene.traverse((child) => {
-        const node = child as any
-        if (node.geometry?.dispose)
-          node.geometry.dispose()
-
-        if (node.material) {
-          const materials = Array.isArray(node.material) ? node.material : [node.material]
-          for (const mat of materials) {
-            if (mat?.map?.dispose)
-              mat.map.dispose()
-            mat?.dispose?.()
-          }
-        }
-      })
-    }
+    mixer?.stopAllAction()
+    disposePreviewVrm(vrmInstance, vrmGroup)
+    scene.clear()
+    disposePreviewRenderer(renderer)
     URL.revokeObjectURL(objUrl)
     if (offscreenCanvas.isConnected)
       document.body.removeChild(offscreenCanvas)
+    offscreenCanvas.width = 0
+    offscreenCanvas.height = 0
   }
 }
