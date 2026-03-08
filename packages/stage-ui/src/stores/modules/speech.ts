@@ -129,14 +129,25 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 
   watch(
-    () => providersStore.configuredSpeechProvidersMetadata.map(provider => provider.id),
-    (configuredProviderIds) => {
-      if (!activeSpeechProvider.value)
+    () => availableSpeechProvidersMetadata.value.map(provider => provider.id),
+    (availableProviderIds) => {
+      // NOTICE: availableSpeechProvidersMetadata is a computedAsync property in providersStore.
+      // During initialization or navigation, it may temporarily return an empty array [].
+      // We must ignore empty lists to prevent a race condition that wipes the user's selection.
+      if (availableProviderIds.length === 0)
         return
 
-      // NOTICE: clear stale selection when the currently selected speech provider
-      // is no longer configured to avoid implicit fallback behavior from persisted state.
-      if (!configuredProviderIds.includes(activeSpeechProvider.value)) {
+      if (!activeSpeechProvider.value || activeSpeechProvider.value === 'speech-noop')
+        return
+
+      // NOTICE: Only reset to no-op if the provider is physically missing from the codebase/plugin list.
+      // We do NOT reset just because validation fails, as that frustrates users who are
+      // in the middle of configuring it or want it to remain selected despite issues.
+      if (!availableProviderIds.includes(activeSpeechProvider.value)) {
+        console.warn(`[Speech Store] Active provider "${activeSpeechProvider.value}" no longer exists. Resetting to "speech-noop".`, {
+          availableProviderIds,
+          activeSpeechProvider: activeSpeechProvider.value,
+        })
         activeSpeechProvider.value = 'speech-noop'
         activeSpeechModel.value = ''
         activeSpeechVoiceId.value = ''
