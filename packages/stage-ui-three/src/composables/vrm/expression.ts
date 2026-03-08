@@ -2,6 +2,8 @@ import type { VRMCore } from '@pixiv/three-vrm-core'
 
 import { ref } from 'vue'
 
+let frameCounter = 0
+
 interface EmotionState {
   expression?: {
     name: string
@@ -125,6 +127,9 @@ export function useVRMEmote(vrm: VRMCore) {
   const setEmotion = (emotionName: string, intensity = 1) => {
     clearResetTimeout()
 
+    // eslint-disable-next-line no-console
+    console.log('[VRMExpression] setEmotion called:', { emotionName, intensity })
+
     if (!emotionStates.has(emotionName)) {
       // Try to auto-register as a raw expression
       const targetName = resolveExpressionName(emotionName)
@@ -141,6 +146,8 @@ export function useVRMEmote(vrm: VRMCore) {
     }
 
     const emotionState = emotionStates.get(emotionName)!
+    // eslint-disable-next-line no-console
+    console.log('[VRMExpression] Target state found:', emotionState)
     currentEmotion.value = emotionName
     isTransitioning.value = true
     transitionProgress.value = 0
@@ -218,6 +225,7 @@ export function useVRMEmote(vrm: VRMCore) {
         targetValue,
         easeInOutCubic(transitionProgress.value),
       )
+
 
       vrm.expressionManager?.setValue(exprName, currentValue)
     }

@@ -154,7 +154,6 @@ app.whenReady().then(async () => {
       import('./services/shortcuts/mic-toggle').then((m) => {
         m.setupMicToggleShortcut(deps.mainWindow)
       })
-
       ipcMain.on('provider-validation-result', (_, data: { providerId: string, valid: boolean, reason: string, config: any }) => {
         const status = data.valid ? 'PASS' : 'FAIL'
         const color = data.valid ? '\x1B[32m' : '\x1B[31m'
