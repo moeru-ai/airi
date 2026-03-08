@@ -10,8 +10,6 @@ interface BroadcastChannelEventShouldUpdateView {
   type: 'live2d-should-update-view'
 }
 
-const live2dViewUpdateChannelName = 'airi-stores-stage-ui-live2d'
-
 export const defaultModelParameters = {
   angleX: 0,
   angleY: 0,
