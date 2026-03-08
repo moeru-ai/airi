@@ -8,7 +8,6 @@ import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
 import { app, ipcMain } from 'electron'
-import { noop } from 'es-toolkit'
 import { createLoggLogger, injeca } from 'injeca'
 import { isLinux } from 'std-env'
 
@@ -149,7 +148,11 @@ app.whenReady().then(async () => {
 
   injeca.invoke({
     dependsOn: { mainWindow, tray, serverChannel, pluginHost, mcpStdioManager },
-    callback: noop,
+    callback: (deps) => {
+      import('./services/shortcuts/mic-toggle').then((m) => {
+        m.setupMicToggleShortcut(deps.mainWindow)
+      })
+    },
   })
 
   injeca.start().catch(err => console.error(err))
@@ -183,4 +186,5 @@ app.on('window-all-closed', () => {
 app.on('before-quit', async () => {
   emitAppBeforeQuit()
   injeca.stop()
+  import('./services/shortcuts/mic-toggle').then(m => m.cleanupMicToggleShortcut())
 })

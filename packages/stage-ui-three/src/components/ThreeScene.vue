@@ -292,12 +292,15 @@ watch(directionalLightRotation, (newRotation) => {
 }, { deep: true })
 
 defineExpose({
-  setExpression: (expression: string, intensity = 1) => {
-    modelRef.value?.setExpression(expression, intensity)
+  setExpression: (expression: string, intensity = 1, resetMs?: number) => {
+    modelRef.value?.setExpression(expression, intensity, resetMs)
   },
   setVrmFrameHook: (hook?: (vrm: VRM, delta: number) => void) => {
     vrmFrameHook.value = hook
     applyVrmFrameHook()
+  },
+  listExpressions: () => {
+    return modelRef.value?.listExpressions() || []
   },
   canvasElement: () => {
     return tresCanvasRef.value?.renderer.instance.domElement
@@ -305,6 +308,9 @@ defineExpose({
   camera: () => camera.value,
   renderer: () => tresCanvasRef.value?.renderer.instance,
   scene: () => modelRef.value?.scene,
+  stopAnimations: () => {
+    modelRef.value?.stopAnimations()
+  },
   readRenderTargetRegionAtClientPoint,
 })
 </script>
@@ -315,6 +321,7 @@ defineExpose({
       <TresCanvas
         v-show="true"
         :camera="camera"
+        :alpha="true"
         :antialias="true"
         :dpr="renderScale"
         :width="width"
@@ -363,7 +370,7 @@ defineExpose({
           :intensity="directionalLightIntensity"
           cast-shadow
         />
-        <Suspense>
+        <Suspense v-if="tresCanvasRef?.renderer?.value">
           <EffectComposerPmndrs :multisampling="multisampling">
             <HueSaturationPmndrs v-bind="effectProps" />
           </EffectComposerPmndrs>

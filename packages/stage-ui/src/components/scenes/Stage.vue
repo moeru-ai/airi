@@ -24,11 +24,12 @@ import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
-import { useDelayMessageQueue, useEmotionsMessageQueue } from '../../composables/queues'
+import { useSpecialTokenQueue } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useChatOrchestratorStore } from '../../stores/chat'
+import { useModsServerChannelStore } from '../../stores/mods/api/channel-server'
 import { useAiriCardStore } from '../../stores/modules'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
@@ -81,7 +82,20 @@ const live2dStore = useLive2d()
 const vrmStore = useModelStore()
 
 const showStage = ref(true)
+const showStageTimeout = ref<ReturnType<typeof setTimeout>>()
 const viewUpdateCleanups: Array<() => void> = []
+
+function reloadStage() {
+  if (showStageTimeout.value) {
+    clearTimeout(showStageTimeout.value)
+  }
+  showStage.value = false
+  showStageTimeout.value = setTimeout(async () => {
+    await settingsStore.updateStageModel()
+    showStage.value = true
+    showStageTimeout.value = undefined
+  }, 100)
+}
 
 // Caption + Presentation broadcast channels
 type CaptionChannelEvent
@@ -96,19 +110,11 @@ type PresentEvent
 const { post: postPresent } = useBroadcastChannel<PresentEvent, PresentEvent>({ name: 'airi-chat-present' })
 
 viewUpdateCleanups.push(live2dStore.onShouldUpdateView(async () => {
-  showStage.value = false
-  await settingsStore.updateStageModel()
-  setTimeout(() => {
-    showStage.value = true
-  }, 100)
+  reloadStage()
 }))
 
 viewUpdateCleanups.push(vrmStore.onShouldUpdateView(async () => {
-  showStage.value = false
-  await settingsStore.updateStageModel()
-  setTimeout(() => {
-    showStage.value = true
-  }, 100)
+  reloadStage()
 }))
 
 const audioAnalyser = ref<AnalyserNode>()
@@ -130,12 +136,24 @@ const emotionsQueue = createQueue<EmotionPayload>({
   handlers: [
     async (ctx) => {
       if (stageModelRenderer.value === 'vrm') {
-        // console.debug('VRM emotion anime: ', ctx.data)
-        const value = EMOTION_VRMExpressionName_value[ctx.data.name]
-        if (!value)
-          return
+        const value = EMOTION_VRMExpressionName_value[ctx.data.name as Emotion] ?? ctx.data.name
+        // eslint-disable-next-line no-console
+        console.log('[Stage] VRM emotion processing:', { name: ctx.data.name, mappedValue: value, intensity: ctx.data.intensity })
 
-        await vrmViewerRef.value!.setExpression(value, ctx.data.intensity)
+        if (!value) {
+          console.warn('[Stage] No VRM mapping or raw name found for emotion:', ctx.data.name)
+          return
+        }
+
+        if (vrmViewerRef.value) {
+          // eslint-disable-next-line no-console
+          console.log('[Stage] Calling vrmViewerRef.setExpression')
+          // Reset to neutral after 2 seconds to prevent getting stuck in an emotion
+          await vrmViewerRef.value.setExpression(value, ctx.data.intensity, 2000)
+        }
+        else {
+          console.warn('[Stage] vrmViewerRef is NULL')
+        }
       }
       else if (stageModelRenderer.value === 'live2d') {
         currentMotion.value = { group: EMOTION_EmotionMotionName_value[ctx.data.name] }
@@ -144,24 +162,86 @@ const emotionsQueue = createQueue<EmotionPayload>({
   ],
 })
 
-const emotionMessageContentQueue = useEmotionsMessageQueue(emotionsQueue)
-emotionMessageContentQueue.onHandlerEvent('emotion', (emotion) => {
+const specialTokenQueue = useSpecialTokenQueue(emotionsQueue)
+specialTokenQueue.onHandlerEvent('emotion', (emotion) => {
   // eslint-disable-next-line no-console
-  console.debug('emotion detected', emotion)
+  console.log('[Stage] Emotion token detected:', emotion)
 })
-
-const delaysQueue = useDelayMessageQueue()
-delaysQueue.onHandlerEvent('delay', (delay) => {
+specialTokenQueue.onHandlerEvent('delay', (delay) => {
   // eslint-disable-next-line no-console
-  console.debug('delay detected', delay)
+  console.log('[Stage] Delay token detected:', delay)
 })
 
 // Play special token: delay or emotion
 function playSpecialToken(special: string) {
-  delaysQueue.enqueue(special)
-  emotionMessageContentQueue.enqueue(special)
+  // eslint-disable-next-line no-console
+  console.log('[Stage] Enqueueing special token:', special)
+  specialTokenQueue.enqueue(special)
 }
+
+const modsServer = useModsServerChannelStore()
+
+function processMarkers(content: string) {
+  const markers = content.match(/<\|(?:ACT|DELAY)[\s\S]*?\|>/gi)
+  if (markers) {
+    // eslint-disable-next-line no-console
+    console.debug('[Stage] Markers detected:', markers)
+    for (const marker of markers) {
+      playSpecialToken(marker)
+    }
+  }
+}
+
+modsServer.onEvent('output:gen-ai:chat:message', (event) => {
+  // eslint-disable-next-line no-console
+  console.debug('[Stage] Received external message:', event.data)
+  if (event.data?.message?.content) {
+    processMarkers(event.data.message.content)
+  }
+})
+
+modsServer.onEvent('input:text', (event) => {
+  // eslint-disable-next-line no-console
+  console.debug('[Stage] Received external input:', event.data)
+  if (event.data?.text) {
+    processMarkers(event.data.text)
+  }
+})
+
 const lipSyncNode = ref<AudioNode>()
+
+if (typeof window !== 'undefined') {
+  (window as any).testEmotion = (emotion: string) => {
+    // eslint-disable-next-line no-console
+    console.log('[DEBUG] Manually triggering emotion:', emotion)
+    processMarkers(`<|ACT:{"emotion":"${emotion}"}|>`)
+  }
+
+  (window as any).listExpressions = () => {
+    const expressions = vrmViewerRef.value?.listExpressions?.()
+    // eslint-disable-next-line no-console
+    console.log('[DEBUG] Available Expressions:', expressions)
+    return expressions
+  }
+
+  (window as any).setRawExpression = (name: string, value: number) => {
+    // eslint-disable-next-line no-console
+    console.log('[DEBUG] Setting raw expression (3s reset):', name, value)
+    vrmViewerRef.value?.setExpression(name, value, 3000)
+  }
+
+  (window as any).setPersistentExpression = (name: string, value: number) => {
+    // eslint-disable-next-line no-console
+    console.log('[DEBUG] Setting persistent expression (NO reset):', name, value)
+    vrmViewerRef.value?.setExpression(name, value)
+  }
+
+  (window as any).stopAnimations = () => {
+    // eslint-disable-next-line no-console
+    console.log('[DEBUG] Stopping all animations')
+    vrmViewerRef.value?.stopAnimations()
+  }
+}
 
 async function playFunction(item: Parameters<Parameters<typeof createPlaybackManager<AudioBuffer>>[0]['play']>[0], signal: AbortSignal): Promise<void> {
   if (!audioContext || !item.audio)
@@ -516,6 +596,9 @@ onUnmounted(() => {
     lipSyncLoopId.value = undefined
   }
 
+  if (showStageTimeout.value) {
+    clearTimeout(showStageTimeout.value)
+  }
   chatHookCleanups.forEach(dispose => dispose?.())
   viewUpdateCleanups.forEach(dispose => dispose?.())
 })

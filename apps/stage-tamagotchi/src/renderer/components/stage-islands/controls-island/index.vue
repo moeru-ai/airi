@@ -3,7 +3,7 @@ import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
-import { refDebounced, useIntervalFn } from '@vueuse/core'
+import { useTimeoutFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -39,19 +39,30 @@ const expanded = ref(false)
 const islandRef = ref<HTMLElement>()
 
 const { isOutside } = useElectronMouseInElement(islandRef)
-const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
-watch(isOutsideAfter2seconds, (outside) => {
-  if (outside && expanded.value) {
+const { start: startCollapseTimer, stop: stopCollapseTimer } = useTimeoutFn(() => {
+  if (expanded.value) {
     expanded.value = false
+  }
+}, 1500, { immediate: false })
+
+watch(isOutside, (outside) => {
+  if (outside && expanded.value) {
+    startCollapseTimer()
+  }
+  else {
+    stopCollapseTimer()
   }
 })
 
-useIntervalFn(() => {
-  if (expanded.value && isOutside.value) {
-    expanded.value = false
+watch(expanded, (isExp) => {
+  if (isExp && isOutside.value) {
+    startCollapseTimer()
   }
-}, 1500)
+  else if (!isExp) {
+    stopCollapseTimer()
+  }
+})
 
 // Grouped classes for icon / border / padding and combined style class
 const adjustStyleClasses = computed(() => {

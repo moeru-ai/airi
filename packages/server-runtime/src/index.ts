@@ -12,7 +12,7 @@ import { availableLogLevelStrings, Format, LogLevelString, logLevelStringToLogLe
 import { MessageHeartbeat, MessageHeartbeatKind, WebSocketEventSource } from '@proj-airi/server-shared/types'
 import { defineWebSocketHandler, H3 } from 'h3'
 import { nanoid } from 'nanoid'
-import { stringify } from 'superjson'
+import { parse, stringify } from 'superjson'
 
 import packageJSON from '../package.json'
 
@@ -193,14 +193,14 @@ export function setupApp(options?: {
         sendRegistrySync(peer)
       }
 
-      logger.withFields({ peer: peer.id, activePeers: peers.size }).log('connected')
+      logger.withFields({ peer: peer.id, activePeers: peers.size }).log('[TESTING] connected')
     },
     message: (peer, message) => {
       const authenticatedPeer = peers.get(peer.id)
       let event: WebSocketEvent
 
       try {
-        event = message.json() as WebSocketEvent
+        event = parse(message.text()) as WebSocketEvent
       }
       catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err)
@@ -378,7 +378,7 @@ export function setupApp(options?: {
       const targetIds = decision?.type === 'targets' ? decision.targetIds : undefined
       const shouldBroadcast = decision?.type === 'broadcast' || !targetIds
 
-      logger.withFields({ peer: peer.id, peerName: p.name, event }).debug('broadcasting event to peers')
+      logger.withFields({ peer: peer.id, peerName: p.name, event }).log('broadcasting event to peers')
 
       for (const [id, other] of peers.entries()) {
         if (id === peer.id) {
@@ -395,7 +395,7 @@ export function setupApp(options?: {
         }
 
         try {
-          logger.withFields({ fromPeer: peer.id, fromPeerName: p.name, toPeer: other.peer.id, toPeerName: other.name, event }).debug('sending event to peer')
+          logger.withFields({ fromPeer: peer.id, fromPeerName: p.name, toPeer: other.peer.id, toPeerName: other.name, event }).log('sending event to peer')
           other.peer.send(payload)
         }
         catch (err) {
@@ -415,7 +415,7 @@ export function setupApp(options?: {
       if (p)
         unregisterModulePeer(p)
 
-      logger.withFields({ peer: peer.id, peerRemote: peer.remoteAddress, details, activePeers: peers.size }).log('closed')
+      logger.withFields({ peer: peer.id, peerRemote: peer.remoteAddress, details, activePeers: peers.size }).log('[TESTING] closed')
       peers.delete(peer.id)
     },
   }))

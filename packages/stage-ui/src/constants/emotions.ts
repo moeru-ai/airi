@@ -8,6 +8,7 @@ export enum Emotion {
   Question = 'question',
   Curious = 'curious',
   Neutral = 'neutral',
+  Cool = 'cool',
 }
 
 export const EMOTION_VALUES = Object.values(Emotion)
@@ -21,6 +22,7 @@ export const EmotionSurpriseMotionName = 'Surprise'
 export const EmotionQuestionMotionName = 'Question'
 export const EmotionNeutralMotionName = 'Idle'
 export const EmotionCuriousMotionName = 'Curious'
+export const EmotionCoolMotionName = 'Cool'
 
 export const EMOTION_EmotionMotionName_value = {
   [Emotion.Happy]: EmotionHappyMotionName,
@@ -32,6 +34,7 @@ export const EMOTION_EmotionMotionName_value = {
   [Emotion.Question]: EmotionQuestionMotionName,
   [Emotion.Neutral]: EmotionNeutralMotionName,
   [Emotion.Curious]: EmotionCuriousMotionName,
+  [Emotion.Cool]: EmotionCoolMotionName,
 }
 
 export const EMOTION_VRMExpressionName_value = {
@@ -44,9 +47,10 @@ export const EMOTION_VRMExpressionName_value = {
   [Emotion.Question]: 'think',
   [Emotion.Neutral]: 'neutral',
   [Emotion.Curious]: 'think',
+  [Emotion.Cool]: 'cool',
 } satisfies Record<Emotion, string | undefined>
 
 export interface EmotionPayload {
-  name: Emotion
+  name: Emotion | string
   intensity: number
 }

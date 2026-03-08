@@ -24,7 +24,7 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { refDebounced, useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onUnmounted, ref, toRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
@@ -286,6 +286,10 @@ function stopAudioInteraction() {
 }
 
 watch(enabled, async (val) => {
+  if (window.electron?.ipcRenderer) {
+    window.electron.ipcRenderer.send('mic-state-changed', val)
+  }
+
   console.info('[Main Page] Audio enabled changed:', val, 'stream available:', !!stream.value)
   if (val) {
     await askPermission()
@@ -295,6 +299,15 @@ watch(enabled, async (val) => {
     stopAudioInteraction()
   }
 }, { immediate: true })
+
+onMounted(() => {
+  if (window.electron?.ipcRenderer) {
+    window.electron.ipcRenderer.on('toggle-mic-from-shortcut', () => {
+      console.info('[Main Page] Toggling mic from shortcut')
+      settingsAudioDeviceStore.enabled = !settingsAudioDeviceStore.enabled
+    })
+  }
+})
 
 onUnmounted(() => {
   stopAudioInteraction()

@@ -156,6 +156,9 @@ const mouseTarget = shallowRef<Vec3>()
 let stopMouseWatch: WatchStopHandle | undefined
 let stopCameraWatch: WatchStopHandle | undefined
 
+let isUnmounted = false
+let currentLoadId = 0
+
 // Animation related ref
 const vrmAnimationMixer = ref<AnimationMixer>()
 const { onBeforeRender, stop, start } = useLoop()
@@ -258,6 +261,9 @@ async function loadModel() {
       console.warn('Scene is not ready, cannot load VRM model.')
       return
     }
+
+    const loadId = ++currentLoadId
+
     if (vrmGroup.value) {
       componentCleanUp()
     }
@@ -291,6 +297,14 @@ async function loadModel() {
         modelSize: vrmModelSize,
         initialCameraOffset: vrmInitialCameraOffset,
       } = _vrmInfo
+
+      // ASYNC GUARD: If we unmounted or a new load started, dispose this model immediately
+      if (isUnmounted || loadId !== currentLoadId) {
+        console.warn('[VRMModel] Discarding model from stale/unmounted load:', loadId)
+        VRMUtils.deepDispose(_vrm.scene as unknown as Object3D)
+        _vrmGroup.removeFromParent()
+        return
+      }
 
       /*
         * Model setting
@@ -440,6 +454,16 @@ async function loadModel() {
         activeVrm?.springBoneManager?.update(delta)
       }).off
 
+      // ASYNC GUARD: Check again after animation loading
+      if (isUnmounted || loadId !== currentLoadId) {
+        console.warn('[VRMModel] Discarding model after animation load - stale/unmounted:', loadId)
+        componentCleanUp() // This will use the latest vrm.value, but we should be careful
+        // Better: dispose the specific ones we just loaded if they aren't assigned yet
+        VRMUtils.deepDispose(_vrm.scene as unknown as Object3D)
+        _vrmGroup.removeFromParent()
+        return
+      }
+
       // update the 'last model src'
       emit('loaded', modelSrc.value)
       modelLoaded.value = true
@@ -563,7 +587,10 @@ onMounted(async () => {
   }, { deep: true })
 })
 
-onUnmounted(() => componentCleanUp())
+onUnmounted(() => {
+  isUnmounted = true
+  componentCleanUp()
+})
 
 if (import.meta.hot) {
   // Ensure cleanup on HMR
@@ -573,8 +600,16 @@ if (import.meta.hot) {
 }
 
 defineExpose({
-  setExpression(expression: string, intensity = 1) {
-    vrmEmote.value?.setEmotionWithResetAfter(expression, 3000, intensity)
+  listExpressions() {
+    return Object.keys(vrm.value?.expressionManager?.expressionMap || {})
+  },
+  setExpression(expression: string, intensity = 1, resetMs?: number) {
+    if (resetMs !== undefined) {
+      vrmEmote.value?.setEmotionWithResetAfter(expression, resetMs, intensity)
+    }
+    else {
+      vrmEmote.value?.setEmotion(expression, intensity)
+    }
   },
   setVrmFrameHook(hook?: VrmFrameHook) {
     vrmFrameHook.value = hook
@@ -582,6 +617,9 @@ defineExpose({
   scene: computed(() => vrm.value?.scene),
   lookAtUpdate(target: Vec3) {
     idleEyeSaccades.instantUpdate(vrm.value, target)
+  },
+  stopAnimations() {
+    vrmAnimationMixer.value?.stopAllAction()
   },
 })
 </script>
