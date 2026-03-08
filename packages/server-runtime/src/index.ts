@@ -12,7 +12,7 @@ import { availableLogLevelStrings, Format, LogLevelString, logLevelStringToLogLe
 import { MessageHeartbeat, MessageHeartbeatKind, WebSocketEventSource } from '@proj-airi/server-shared/types'
 import { defineWebSocketHandler, H3 } from 'h3'
 import { nanoid } from 'nanoid'
-import { stringify } from 'superjson'
+import { parse, stringify } from 'superjson'
 
 import packageJSON from '../package.json'
 
@@ -200,7 +200,11 @@ export function setupApp(options?: {
       let event: WebSocketEvent
 
       try {
-        event = message.json() as WebSocketEvent
+        // NOTICE: SDK clients send events using superjson.stringify, so we must use
+        // superjson.parse here instead of message.json() (which uses JSON.parse).
+        // Using JSON.parse on a superjson-encoded string returns the wrapper object
+        // { json: {...}, meta: {...} } with type=undefined, which breaks all event routing.
+        event = parse<WebSocketEvent>(message.text())
       }
       catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err)

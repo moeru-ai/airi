@@ -20,6 +20,7 @@ interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string, b
     mode: 'once' | 'interval'
     intervalMs?: number
   }
+  skipApiKeyCheck?: boolean
   connectivityFailureReason?: (input: { config: TConfig, error: unknown, errorMessage: string }) => string
   modelListFailureReason?: (input: { config: TConfig, error: unknown, errorMessage: string }) => string
 }
@@ -209,7 +210,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
       const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
       const baseUrl = (config.baseUrl as string | URL | undefined) instanceof URL ? config.baseUrl?.toString() : (typeof config.baseUrl === 'string' ? config.baseUrl.trim() : '')
 
-      if (!apiKey)
+      if (!options?.skipApiKeyCheck && !apiKey)
         errors.push({ error: new Error('API key is required.') })
       if (!baseUrl)
         errors.push({ error: new Error('Base URL is required.') })
