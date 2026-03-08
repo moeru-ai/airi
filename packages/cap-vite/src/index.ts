@@ -142,8 +142,8 @@ async function stopCapProcess(current: Result | undefined) {
   }
 }
 
-function startCapProcess(cwd: string, platform: CapacitorPlatform, deviceId: string) {
-  return x('cap', ['run', platform, '--target', deviceId], { persist: true, throwOnError: false, nodeOptions: { cwd, stdio: 'inherit' } })
+function startCapProcess(cwd: string, platform: CapacitorPlatform, deviceId: string, url: URL) {
+  return x('cap', ['run', platform, '--target', deviceId], { persist: true, throwOnError: false, nodeOptions: { cwd, stdio: 'inherit', env: { CAPACITOR_DEV_SERVER_URL: url.toString() } } })
 }
 
 export async function runCapVite(
@@ -164,9 +164,7 @@ export async function runCapVite(
   const url = pickServerUrl(server)
   const logger = server.config.logger
 
-  await x('cap', ['sync', platform], { persist: true, throwOnError: false, nodeOptions: { cwd, env: { CAPACITOR_DEV_SERVER_URL: url.toString() }, stdio: 'inherit' } })
-
-  let currentCapProcess: Result | undefined = startCapProcess(cwd, platform, deviceId)
+  let currentCapProcess: Result | undefined = startCapProcess(cwd, platform, deviceId, url)
   let restartTimer: NodeJS.Timeout | undefined
   let shuttingDown = false
 
@@ -179,7 +177,7 @@ export async function runCapVite(
     const previous = currentCapProcess
     currentCapProcess = undefined
     await stopCapProcess(previous)
-    currentCapProcess = startCapProcess(cwd, platform, deviceId)
+    currentCapProcess = startCapProcess(cwd, platform, deviceId, url)
   }
 
   const onWatcherEvent = (_event: string, file: string) => {
