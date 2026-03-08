@@ -318,9 +318,21 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
               break
             case 'text-delta':
               fullText += event.text
+              // Log raw delta to main process
+              ;(window as any).electron.ipcRenderer.send('llm-raw-output', {
+                type: 'delta',
+                text: event.text,
+                sessionId,
+              })
               await parser.consume(event.text)
               break
             case 'finish':
+              // Log final full text to main process
+              ;(window as any).electron.ipcRenderer.send('llm-raw-output', {
+                type: 'full',
+                text: fullText,
+                sessionId,
+              })
               break
             case 'error':
               throw event.error ?? new Error('Stream error')

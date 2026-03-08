@@ -141,6 +141,13 @@ export const useHearingStore = defineStore('hearing-store', () => {
       file?: File
       inputAudioStream?: ReadableStream<ArrayBuffer>
     }
+    console.info('[Hearing Store] transcription call received', {
+      providerId,
+      model,
+      hasFile: !!normalizedInput.file,
+      fileSize: normalizedInput.file?.size,
+      hasStream: !!normalizedInput.inputAudioStream,
+    })
     const features = providersStore.getTranscriptionFeatures(providerId)
     const streamExecutor = STREAM_TRANSCRIPTION_EXECUTORS[providerId]
 
@@ -194,6 +201,10 @@ export const useHearingStore = defineStore('hearing-store', () => {
       ...provider.transcription(model, options?.providerOptions),
       file: normalizedInput.file,
       responseFormat: format,
+    })
+
+    console.info('[Hearing Store] generateTranscription response received', {
+      text: response.text?.substring(0, 50),
     })
 
     return {
@@ -728,8 +739,12 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           throw new Error('Failed to initialize speech provider')
         }
 
-        // Get model from configuration or use default
         const model = activeTranscriptionModel.value
+        console.info('[Hearing Pipeline] Triggering hearingStore.transcription', {
+          providerId,
+          model,
+          fileName: 'recording.wav',
+        })
         const result = await hearingStore.transcription(
           providerId,
           provider,
