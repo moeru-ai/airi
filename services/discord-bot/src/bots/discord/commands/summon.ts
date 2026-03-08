@@ -318,18 +318,18 @@ export class VoiceManager extends EventEmitter {
 
   leaveChannel(channel: BaseGuildVoiceChannel) {
     const connection = this.connections.get(channel.id)
-    const listeners = this.connectionListeners.get(channel.id)
-
-    if (connection && listeners) {
-      // Remove event listeners to prevent memory leaks
-      connection.off('stateChange', listeners.stateChange)
-      connection.off('error', listeners.error)
-      connection.receiver.speaking.off('start', listeners.speakingStart)
-      connection.receiver.speaking.off('end', listeners.speakingEnd)
-      this.connectionListeners.delete(channel.id)
-    }
 
     if (connection) {
+      // Remove event listeners to prevent memory leaks
+      const listeners = this.connectionListeners.get(channel.id)
+      if (listeners) {
+        connection.off('stateChange', listeners.stateChange)
+        connection.off('error', listeners.error)
+        connection.receiver.speaking.off('start', listeners.speakingStart)
+        connection.receiver.speaking.off('end', listeners.speakingEnd)
+        this.connectionListeners.delete(channel.id)
+      }
+
       connection.destroy()
       this.connections.delete(channel.id)
     }
