@@ -1787,16 +1787,36 @@ export const useProvidersStore = defineStore('providers', () => {
     const runValidation = async () => {
       const validationResult = await metadata.validators.validateProviderConfig(config || {})
 
+      // Suppress logging and toasts for unconfigured providers unless forced
+      const configObj = (config || {}) as Record<string, any>
+      const hasKey = !!configObj.apiKey?.trim()
+      const defaultUrl = (metadata.defaultOptions?.() as any)?.baseUrl || ''
+      const hasCustomUrl = !!configObj.baseUrl?.trim() && configObj.baseUrl !== defaultUrl
+      const isConfigured = hasKey || hasCustomUrl
+      const isUnconfigured = !validationResult.valid && !isConfigured
+
       if ((window as any).electron?.ipcRenderer) {
-        (window as any).electron.ipcRenderer.send('provider-validation-result', {
-          providerId,
-          valid: validationResult.valid,
-          reason: validationResult.reason,
-          config: config ? { ...config, apiKey: config.apiKey ? '***' : undefined } : undefined,
-        })
+        // Only send results to the main process if it's NOT unconfigured.
+        // Even if forced (periodic check), we don't want terminal spam for things that aren't set up.
+        if (!isUnconfigured) {
+          try {
+            // Use safe cloning to prevent "object could not be cloned" errors with Vue/Pinia Proxies
+            const safeConfig = config ? JSON.parse(JSON.stringify({ ...config, apiKey: config.apiKey ? '***' : undefined })) : undefined
+
+            ;(window as any).electron.ipcRenderer.send('provider-validation-result', {
+              providerId,
+              valid: validationResult.valid,
+              reason: validationResult.reason,
+              config: safeConfig,
+            })
+          }
+          catch (e) {
+            console.error('[Provider Validation] IPC send failed:', e)
+          }
+        }
       }
 
-      if (!validationResult.valid && options.force) {
+      if (!validationResult.valid && options.force && !isUnconfigured) {
         const localizedName = t(metadata.nameKey, metadata.name)
         toast.error(`Provider "${localizedName}" validation failed`, {
           description: validationResult.reason || 'Check your configuration in Settings > Providers.',
@@ -2160,15 +2180,15 @@ export const useProvidersStore = defineStore('providers', () => {
   })
 
   const configuredChatProvidersMetadata = computed(() => {
-    return allChatProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+    return allChatProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id] || shouldListProvider(metadata.id))
   })
 
   const configuredSpeechProvidersMetadata = computed(() => {
-    return allAudioSpeechProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+    return allAudioSpeechProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id] || shouldListProvider(metadata.id))
   })
 
   const configuredTranscriptionProvidersMetadata = computed(() => {
-    return allAudioTranscriptionProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+    return allAudioTranscriptionProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id] || shouldListProvider(metadata.id))
   })
 
   function isProviderConfigDirty(providerId: string) {

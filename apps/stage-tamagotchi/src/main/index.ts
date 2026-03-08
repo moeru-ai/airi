@@ -159,14 +159,14 @@ app.whenReady().then(async () => {
       })
 
       ipcMain.on('provider-validation-result', (_, data: { providerId: string, valid: boolean, reason: string, config: any }) => {
-        const status = data.valid ? '✅ VALID' : '❌ INVALID'
+        const status = data.valid ? 'PASS' : 'FAIL'
         const color = data.valid ? '\x1B[32m' : '\x1B[31m'
         const reset = '\x1B[0m'
         console.log(`${color}[Provider Validation]${reset} [${data.providerId}] ${status}`)
         if (!data.valid) {
           console.log(`  └─ Reason: ${data.reason}`)
         }
-        if (data.config) {
+        if (data.config && (data.valid || !data.reason?.includes('required'))) {
           console.log(`  └─ Config: ${JSON.stringify(data.config)}`)
         }
       })
