@@ -121,13 +121,7 @@ async function withTimeout<T>(task: Promise<T>, timeoutMsec: number, timeoutMess
  * @see https://github.com/moeru-ai/airi/issues/1186
  */
 function createSpawnEnv(overrides?: Record<string, string>): Record<string, string> {
-  // Security: Start with empty object, NOT process.env
-  // This prevents disclosure of sensitive environment variables
-  if (!overrides) {
-    return {}
-  }
-
-  return { ...overrides }
+  return { ...(overrides ?? {}) }
 }
 
 async function closeSession(session: McpServerSession) {
