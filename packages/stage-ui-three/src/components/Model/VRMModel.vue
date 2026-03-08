@@ -258,6 +258,8 @@ async function loadModel() {
       console.warn('Scene is not ready, cannot load VRM model.')
       return
     }
+    const loadId = ++currentLoadId
+
     if (vrmGroup.value) {
       componentCleanUp()
     }
