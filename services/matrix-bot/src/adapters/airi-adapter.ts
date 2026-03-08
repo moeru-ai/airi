@@ -1,3 +1,4 @@
+import type { OutputGenAiChatMessageEvent } from '@proj-airi/server-sdk'
 import type { MatrixClient, MatrixEvent, Room } from 'matrix-js-sdk'
 
 import { useLogg } from '@guiiai/logg'
@@ -109,9 +110,9 @@ export class MatrixAdapter {
 
     this.airiClient.onEvent('output:gen-ai:chat:message', (event) => {
       log.debug('Received output:gen-ai:chat:message from AIRI server', event.data)
-      const data = event.data as any
+      const data = event.data as OutputGenAiChatMessageEvent
       const message = data.message
-      const matrixContext = data.matrix || data['gen-ai:chat']?.input?.data?.matrix
+      const matrixContext = data.matrix || (data as any)['gen-ai:chat']?.input?.data?.matrix
       const roomId = matrixContext?.roomId || data.overrides?.sessionId
 
       if (roomId && message?.content) {
@@ -157,6 +158,16 @@ export class MatrixAdapter {
       log.log(`Matrix sync state changed: ${prevState} -> ${state}`)
       if (state === SyncState.Error) {
         log.error('Matrix sync error occurred')
+      }
+    })
+
+    // Robust invite handling: listen for Room events and join if we are invited
+    this.matrixClient.on('Room' as any, (room: Room) => {
+      if (room.getMyMembership() === 'invite') {
+        log.log(`Received invite to room ${room.roomId}, joining...`)
+        this.matrixClient.joinRoom(room.roomId).catch((err) => {
+          log.withError(err).error(`Failed to join room ${room.roomId}`)
+        })
       }
     })
   }
