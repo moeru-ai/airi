@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/cap-vite",
   "type": "module",
-  "version": "0.9.0-alpha.2",
+  "version": "0.9.0-alpha.3",
   "private": true,
   "description": "CLI that starts a Vite dev server and runs Capacitor live reload",
   "author": {
