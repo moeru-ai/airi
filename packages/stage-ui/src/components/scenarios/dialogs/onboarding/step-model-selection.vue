@@ -5,6 +5,7 @@ import { inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Alert from '../../../misc/alert.vue'
+
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
 import { RadioCardManySelect } from '../../../menu'
 import { OnboardingContextKey } from './utils'
@@ -34,7 +35,7 @@ const {
     </div>
 
     <!-- Using the new RadioCardManySelect component -->
-    <div flex-1 flex flex-col gap-4>
+    <div flex flex-1 flex-col gap-4>
       <Alert
         v-if="providerModels.length === 0 && !isLoadingActiveProviderModels"
         type="error"
