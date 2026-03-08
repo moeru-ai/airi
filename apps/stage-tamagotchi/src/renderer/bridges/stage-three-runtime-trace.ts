@@ -91,7 +91,7 @@ function replayLatestTraceEnvelopes() {
   }
 }
 
-function forwardTraceEvent<T>(eventa: Eventa<T>, createEnvelope: (payload: T) => StageThreeRuntimeTraceEnvelope) {
+function subscribeTraceEvent<T>(eventa: Eventa<T>, createEnvelope: (payload: T) => StageThreeRuntimeTraceEnvelope) {
   localTraceContext.on(eventa, (event) => {
     if (!event?.body)
       return
