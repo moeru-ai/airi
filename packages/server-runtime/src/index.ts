@@ -382,7 +382,7 @@ export function setupApp(options?: {
       const targetIds = decision?.type === 'targets' ? decision.targetIds : undefined
       const shouldBroadcast = decision?.type === 'broadcast' || !targetIds
 
-      logger.withFields({ peer: peer.id, peerName: p.name, event }).log('broadcasting event to peers')
+      logger.withFields({ peer: peer.id, peerName: p.name, event }).debug('broadcasting event to peers')
 
       for (const [id, other] of peers.entries()) {
         if (id === peer.id) {
@@ -399,7 +399,7 @@ export function setupApp(options?: {
         }
 
         try {
-          logger.withFields({ fromPeer: peer.id, fromPeerName: p.name, toPeer: other.peer.id, toPeerName: other.name, event }).log('sending event to peer')
+          logger.withFields({ fromPeer: peer.id, fromPeerName: p.name, toPeer: other.peer.id, toPeerName: other.name, event }).debug('sending event to peer')
           other.peer.send(payload)
         }
         catch (err) {
