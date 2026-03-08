@@ -5,6 +5,12 @@ import { contextIsolated, platform } from 'node:process'
 import { electronAPI } from '@electron-toolkit/preload'
 import { contextBridge, ipcRenderer } from 'electron'
 
+// Always-on-top window controls
+export const alwaysOnTopAPI = {
+  set: (enabled: boolean) => ipcRenderer.invoke('window:set-always-on-top', enabled),
+  get: () => ipcRenderer.invoke('window:get-always-on-top'),
+}
+
 export function expose() {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -18,6 +24,7 @@ export function expose() {
     try {
       contextBridge.exposeInMainWorld('electron', electronAPI)
       contextBridge.exposeInMainWorld('platform', platform)
+      contextBridge.exposeInMainWorld('alwaysOnTop', alwaysOnTopAPI)
     }
     catch (error) {
       console.error(error)
