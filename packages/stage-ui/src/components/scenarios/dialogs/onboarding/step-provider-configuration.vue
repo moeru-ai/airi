@@ -146,6 +146,7 @@ function getApiKeyPlaceholder(providerId: string): string {
     'modelscope': 'ms-...',
     'fireworks-ai': 'fw-...',
     'featherless-ai': 'fw-...',
+    'nvidia': 'nvapi-...',
     'novita-ai': 'nvt-...',
   }
 
