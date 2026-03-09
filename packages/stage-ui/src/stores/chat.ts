@@ -170,7 +170,10 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       if (shouldAbort())
         return
 
-      const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
+      const sessionMessagesForSend = chatSession.sessionMessages[sessionId]
+      if (!sessionMessagesForSend) {
+        throw new Error('Session messages not found')
+      }
       sessionMessagesForSend.push({ role: 'user', content: finalContent, createdAt: sendingCreatedAt, id: nanoid() })
       chatSession.persistSessionMessages(sessionId)
 
