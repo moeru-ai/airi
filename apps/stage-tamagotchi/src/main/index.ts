@@ -149,7 +149,7 @@ app.whenReady().then(async () => {
   })
 
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, pluginHost, mcpStdioManager, onboardingWindow },
+    dependsOn: { mainWindow, tray, serverChannel, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager },
     callback: (deps) => {
       import('./services/shortcuts/mic-toggle').then((m) => {
         m.setupMicToggleShortcut(deps.mainWindow)
