@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server",
   "type": "module",
-  "version": "0.9.0-alpha.5",
+  "version": "0.9.0-alpha.6",
   "private": true,
   "scripts": {
     "apply:env": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE",
@@ -31,19 +31,20 @@
     "@opentelemetry/sdk-node": "^0.213.0",
     "@opentelemetry/sdk-trace-node": "^2.6.0",
     "@opentelemetry/semantic-conventions": "^1.40.0",
-    "@proj-airi/drizzle-orm-browser-migrator": "^0.1.4",
+    "@proj-airi/drizzle-orm-browser-migrator": "^0.1.6",
     "@proj-airi/server-schema": "workspace:*",
     "better-auth": "^1.4.19",
     "drizzle-orm": "^0.45.1",
     "drizzle-valibot": "catalog:",
     "hono": "catalog:",
     "injeca": "catalog:",
-    "postgres": "^3.4.8",
+    "pg": "^8.13.3",
     "tsx": "^4.21.0",
     "valibot": "catalog:"
   },
   "devDependencies": {
     "@better-auth/cli": "^1.4.21",
+    "@types/pg": "^8.11.11",
     "drizzle-kit": "^0.31.9"
   }
 }
