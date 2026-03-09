@@ -20,6 +20,7 @@ import {
   electronOpenSettings,
   electronStartDraggingWindow,
   electronWindowClose,
+  electronWindowSetAlwaysOnTop,
 } from '../../../../shared/eventa'
 
 const { isDark, toggleDark } = useTheme()
@@ -30,12 +31,17 @@ const settingsStore = useSettings()
 const modelStore = useModelStore()
 const context = useElectronEventaContext()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
+<<<<<<< HEAD
 const { controlsIslandIconSize } = storeToRefs(settingsStore)
 const { favoriteExpression, activeExpressions } = storeToRefs(modelStore)
+=======
+const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
+>>>>>>> 604341a1 (feat(tamagotchi): add "Pin on top" toggle to controls island (#1183))
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const openChat = useElectronEventaInvoke(electronOpenChat)
 const isLinux = ref(false)
 const closeWindow = useElectronEventaInvoke(electronWindowClose)
+const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 
 const isLocked = inject('isLocked', ref(false))
 
@@ -72,6 +78,15 @@ watch(expanded, (isExp) => {
     view.value = 'main' // Reset sub-menu when collapsing
   }
 })
+
+// Apply alwaysOnTop on mount and when it changes
+watch(alwaysOnTop, (val) => {
+  setAlwaysOnTop(val)
+}, { immediate: true })
+
+function toggleAlwaysOnTop() {
+  alwaysOnTop.value = !alwaysOnTop.value
+}
 
 // Grouped classes for icon / border / padding and combined style class
 const adjustStyleClasses = computed(() => {
@@ -232,6 +247,16 @@ function toggleFavorite() {
                 </ControlsIslandHearingConfig>
                 <template #tooltip>
                   {{ t('tamagotchi.stage.controls-island.open-hearing-controls') }}
+                </template>
+              </ControlButtonTooltip>
+
+              <ControlButtonTooltip>
+                <ControlButton :button-style="adjustStyleClasses.button" @click="toggleAlwaysOnTop()">
+                  <div v-if="alwaysOnTop" i-solar:pin-bold :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                  <div v-else i-solar:pin-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300 opacity-50" />
+                </ControlButton>
+                <template #tooltip>
+                  {{ alwaysOnTop ? t('tamagotchi.stage.controls-island.unpin-from-top') : t('tamagotchi.stage.controls-island.pin-on-top') }}
                 </template>
               </ControlButtonTooltip>
 
