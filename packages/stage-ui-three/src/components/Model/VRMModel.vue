@@ -530,11 +530,6 @@ async function loadModel() {
     // First load or not? if yes then reset the pinia store
     const isFirstLoad = modelSrc.value !== lastModelSrc.value
 
-    logVrmLoadDebug('start', {
-      isFirstLoad,
-      reason: loadReason,
-      requestId,
-    })
 
     emit('loadStart')
     modelLoaded.value = false
