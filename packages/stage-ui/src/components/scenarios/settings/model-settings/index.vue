@@ -50,13 +50,6 @@ const currentSelectedDisplayModel = computed<DisplayModel | undefined>(() => sta
 
 async function handleModelPick(selectedModel: DisplayModel | undefined) {
   if (!modelSelectorOpen.value) {
-    // if (import.meta.env.DEV) {
-    //   console.warn('[StageModel][ignore pick while dialog closed]', {
-    //     currentHref: typeof window !== 'undefined' ? window.location.href : 'unknown',
-    //     nextModelFormat: selectedModel?.format,
-    //     nextModelId: selectedModel?.id ?? '',
-    //   })
-    // }
     return
   }
 
