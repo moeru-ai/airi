@@ -98,13 +98,6 @@ export const useModelStore = defineStore('modelStore', () => {
 
   watch(data, (event) => {
     if (event?.type === 'vrm-should-update-view') {
-      // if (import.meta.env.DEV) {
-      //   console.warn('[VRM shouldUpdateView][recv]', {
-      //     currentHref: typeof window !== 'undefined' ? window.location.href : 'unknown',
-      //     event,
-      //   })
-      // }
-
       shouldUpdateViewHooks.value.forEach(hook => hook())
     }
   })
