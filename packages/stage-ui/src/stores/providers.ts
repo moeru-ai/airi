@@ -48,13 +48,13 @@ import { useI18n } from 'vue-i18n'
 
 import { listProviders as listDefinedProviders } from '../libs/providers'
 import { getProviderValidationIntervalMs } from '../libs/providers/validators/run'
-import { SERVER_URL } from '../libs/server'
 import { useAuthStore } from '../stores/auth'
 import { getKokoroWorker } from '../workers/kokoro'
 import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { convertProviderDefinitionsToMetadata } from './providers/converters'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
+import { createOfficialProviders, OFFICIAL_PROVIDER_IDS } from './providers/official'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 import { createWebSpeechAPIProvider } from './providers/web-speech-api'
 
@@ -244,69 +244,9 @@ export const useProvidersStore = defineStore('providers', () => {
   }
 
   // Centralized provider metadata with provider factory functions
+  const authStore = useAuthStore()
   const providerMetadata: Record<string, ProviderMetadata> = {
-    'official-provider': {
-      id: 'official-provider',
-      order: -1,
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.official.title',
-      name: 'Official Provider',
-      descriptionKey: 'settings.pages.providers.provider.official.description',
-      description: 'Official AI provider by AIRI.',
-      icon: 'i-solar:star-bold-duotone',
-      createProvider: async (_config) => {
-        const authStore = useAuthStore()
-        if (!authStore.isAuthenticated) {
-          throw new Error('User is not authenticated')
-        }
-
-        const provider = createOpenAI('', `${SERVER_URL}/v1/`)
-
-        // Utility function to wrap a provider method and include credentials
-        const withCredentials = (_fetch: any) => {
-          return (input: RequestInfo | URL, init?: RequestInit) => {
-            return globalThis.fetch(input, {
-              ...init,
-              credentials: 'include',
-            })
-          }
-        }
-
-        // Wrap the provider's fetch method to include credentials for cookie-based auth
-        provider.chat = (model: string) => {
-          const originalChat = provider.chat.bind(provider)
-          const result = originalChat(model)
-          result.fetch = withCredentials(result.fetch)
-          return result
-        }
-
-        return provider
-      },
-      requiresCredentials: false,
-      capabilities: {
-        listModels: async () => {
-          return [
-            {
-              id: 'auto',
-              name: 'Auto',
-              provider: 'official-provider',
-              description: 'Automatically routed by AI Gateway',
-            },
-          ]
-        },
-      },
-      validators: {
-        validateProviderConfig: () => {
-          const authStore = useAuthStore()
-          return {
-            errors: [],
-            reason: '',
-            valid: authStore.isAuthenticated,
-          }
-        },
-      },
-    },
+    ...createOfficialProviders(() => authStore.isAuthenticated),
     'speech-noop': {
       id: 'speech-noop',
       category: 'speech',
@@ -1782,10 +1722,11 @@ export const useProvidersStore = defineStore('providers', () => {
     }
   }
 
-  // Keep only legacy ASR/TTS providers as hand-written metadata.
+  // Keep only legacy ASR/TTS providers and official providers as hand-written metadata.
   // All other categories are sourced from unified definitions in libs/providers.
   for (const [providerId, existing] of Object.entries(providerMetadata)) {
-    if (existing.category !== 'speech' && existing.category !== 'transcription') {
+    if (existing.category !== 'speech' && existing.category !== 'transcription'
+      && !(OFFICIAL_PROVIDER_IDS as readonly string[]).includes(providerId)) {
       delete providerMetadata[providerId]
     }
   }
@@ -1904,8 +1845,7 @@ export const useProvidersStore = defineStore('providers', () => {
     }
 
     // Must run AFTER runtime state is created so forceProviderConfigured can set isConfigured
-    if (providerId === 'official-provider') {
-      const authStore = useAuthStore()
+    if ((OFFICIAL_PROVIDER_IDS as readonly string[]).includes(providerId)) {
       if (authStore.isAuthenticated) {
         forceProviderConfigured(providerId)
       }
@@ -1959,7 +1899,6 @@ export const useProvidersStore = defineStore('providers', () => {
   const authStore = useAuthStore()
   watch(() => authStore.isAuthenticated, updateConfigurationStatus)
 
-  const authStore = useAuthStore()
   watch(() => authStore.isAuthenticated, updateConfigurationStatus)
 
   // Available providers (only those that are properly configured)

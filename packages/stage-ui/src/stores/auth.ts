@@ -5,7 +5,6 @@ import { computed, nextTick, ref, watch } from 'vue'
 
 import { client } from '../composables/api'
 import { fetchSession } from '../libs/auth'
-import { useConsciousnessStore } from './modules/consciousness'
 import { useProvidersStore } from './providers'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -39,24 +38,49 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Get store references once
+  // Get providers store eagerly (it's always available since auth is a dependency of providers)
   const providersStore = useProvidersStore()
-  const consciousnessStore = useConsciousnessStore()
 
   watch(isAuthenticated, async (val) => {
     if (val) {
       updateCredits()
 
-      // Automatically enable official provider when authenticated
+      // Automatically enable official providers when authenticated
       const officialProviderId = 'official-provider'
+      const officialSpeechId = 'official-provider-speech'
+      const officialTranscriptionId = 'official-provider-transcription'
+
       providersStore.forceProviderConfigured(officialProviderId)
+      providersStore.forceProviderConfigured(officialSpeechId)
+      providersStore.forceProviderConfigured(officialTranscriptionId)
+
+      // Lazy-import module stores to avoid circular init:
+      // auth → speech → providers → auth (providers store may not be fully set up yet)
+      const { useConsciousnessStore } = await import('./modules/consciousness')
+      const { useSpeechStore } = await import('./modules/speech')
+      const { useHearingStore } = await import('./modules/hearing')
+
+      const consciousnessStore = useConsciousnessStore()
+      const speechStore = useSpeechStore()
+      const hearingStore = useHearingStore()
+
       consciousnessStore.activeProvider = officialProviderId
+      consciousnessStore.activeModel = 'auto'
+      speechStore.activeSpeechProvider = officialSpeechId
+      speechStore.activeSpeechModel = 'auto'
+      hearingStore.activeTranscriptionProvider = officialTranscriptionId
+      hearingStore.activeTranscriptionModel = 'auto'
+
       await nextTick()
       try {
-        await consciousnessStore.loadModelsForProvider(officialProviderId)
+        await Promise.all([
+          consciousnessStore.loadModelsForProvider(officialProviderId),
+          providersStore.fetchModelsForProvider(officialSpeechId),
+          providersStore.fetchModelsForProvider(officialTranscriptionId),
+        ])
       }
       catch (err) {
-        console.error('error loading models for official provider', err)
+        console.error('error loading models for official providers', err)
       }
     }
     else {

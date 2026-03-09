@@ -14,12 +14,14 @@ export interface FluxPackage {
 interface ConfigDefinitions {
   FLUX_PER_CENT: number
   FLUX_PER_REQUEST: number
+  FLUX_PER_REQUEST_TTS: number
+  FLUX_PER_REQUEST_ASR: number
   INITIAL_USER_FLUX: number
   FLUX_PACKAGES: FluxPackage[]
   GATEWAY_BASE_URL: string
 }
 
-const NUMERIC_KEYS = new Set<string>(['FLUX_PER_CENT', 'FLUX_PER_REQUEST', 'INITIAL_USER_FLUX'])
+const NUMERIC_KEYS = new Set<string>(['FLUX_PER_CENT', 'FLUX_PER_REQUEST', 'FLUX_PER_REQUEST_TTS', 'FLUX_PER_REQUEST_ASR', 'INITIAL_USER_FLUX'])
 
 const KEY_PREFIX = 'config:'
 
