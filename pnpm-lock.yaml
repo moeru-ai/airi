@@ -830,6 +830,9 @@ importers:
       '@intlify/unplugin-vue-i18n':
         specifier: ^11.0.7
         version: 11.0.7(@vue/compiler-dom@3.5.29)(eslint@9.39.3(jiti@2.6.1))(rollup@2.80.0)(typescript@5.9.3)(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
+      '@proj-airi/cap-vite':
+        specifier: workspace:*
+        version: link:../../packages/cap-vite
       '@proj-airi/iconify-meteocons':
         specifier: 'catalog:'
         version: 0.1.4
@@ -1948,6 +1951,18 @@ importers:
       vitest:
         specifier: catalog:vitest
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@24.10.14)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.1)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+
+  packages/cap-vite:
+    dependencies:
+      '@capacitor/cli':
+        specifier: ^8.0.0
+        version: 8.1.0
+      tinyexec:
+        specifier: ^1.0.2
+        version: 1.0.2
+      vite:
+        specifier: ^7.0.0 || ^8.0.0-beta.0
+        version: 7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/ccc:
     dependencies:
@@ -3309,8 +3324,8 @@ importers:
         specifier: ^5.0.4
         version: 5.0.4
       minecraft-data:
-        specifier: ^3.105.0
-        version: 3.105.0
+        specifier: 3.102.3
+        version: 3.102.3
       mineflayer:
         specifier: ^4.33.0
         version: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13)
@@ -13673,8 +13688,8 @@ packages:
   minecraft-data@2.221.0:
     resolution: {integrity: sha512-0AhqzbIKb6WqPSF6qBevaPryeWOz545hLxt6q+gfJF8YIQX/YfkyX/nXWhl+pSIS2rTBcQ0RJkRCtTeRzQwHDA==}
 
-  minecraft-data@3.105.0:
-    resolution: {integrity: sha512-4bu0PYcd7qFDmLHYA0wzFYS9jqO4EpbbD4ntzdNg/wsLgqpQ/Mku8UbQcQFdap0X2zN+7Eiio0GYq2SOEoOCfg==}
+  minecraft-data@3.102.3:
+    resolution: {integrity: sha512-JxUPTUlamQ04GSK7YI3657BRurHLBRAhsmPb4gajd4z/p6t3LJh4l0HWIyNHRpJbQiUCIjn+mhos5oB+yqH0mQ==}
 
   minecraft-folder-path@1.2.0:
     resolution: {integrity: sha512-qaUSbKWoOsH9brn0JQuBhxNAzTDMwrOXorwuRxdJKKKDYvZhtml+6GVCUrY5HRiEsieBEjCUnhVpDuQiKsiFaw==}
@@ -28608,7 +28623,7 @@ snapshots:
 
   minecraft-data@2.221.0: {}
 
-  minecraft-data@3.105.0: {}
+  minecraft-data@3.102.3: {}
 
   minecraft-folder-path@1.2.0: {}
 
@@ -28621,7 +28636,7 @@ snapshots:
       debug: 4.4.3
       endian-toggle: 0.0.0
       lodash.merge: 4.6.2
-      minecraft-data: 3.105.0
+      minecraft-data: 3.102.3
       minecraft-folder-path: 1.2.0
       node-fetch: 2.7.0(encoding@0.1.13)
       node-rsa: 0.4.2
@@ -28639,7 +28654,7 @@ snapshots:
 
   mineflayer-armor-manager@2.0.1(mineflayer@4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13)):
     dependencies:
-      minecraft-data: 3.105.0
+      minecraft-data: 3.102.3
       mineflayer: 4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13)
 
   mineflayer-auto-eat@5.0.3(encoding@0.1.13):
@@ -28661,7 +28676,7 @@ snapshots:
 
   mineflayer-pathfinder@2.4.5(patch_hash=4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797):
     dependencies:
-      minecraft-data: 3.105.0
+      minecraft-data: 3.102.3
       prismarine-block: 1.22.0
       prismarine-entity: 2.5.0
       prismarine-item: 1.17.0
@@ -28724,12 +28739,12 @@ snapshots:
 
   mineflayer@4.33.0(patch_hash=03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a)(encoding@0.1.13):
     dependencies:
-      minecraft-data: 3.105.0
+      minecraft-data: 3.102.3
       minecraft-protocol: 1.62.0(encoding@0.1.13)
-      prismarine-biome: 1.3.0(minecraft-data@3.105.0)(prismarine-registry@1.11.0)
+      prismarine-biome: 1.3.0(minecraft-data@3.102.3)(prismarine-registry@1.11.0)
       prismarine-block: 1.22.0
       prismarine-chat: 1.12.0
-      prismarine-chunk: 1.39.0(minecraft-data@3.105.0)
+      prismarine-chunk: 1.39.0(minecraft-data@3.102.3)
       prismarine-entity: 2.5.0
       prismarine-item: 1.17.0
       prismarine-nbt: 2.8.0
@@ -29769,15 +29784,15 @@ snapshots:
       minecraft-data: 2.221.0
       prismarine-registry: 1.11.0
 
-  prismarine-biome@1.3.0(minecraft-data@3.105.0)(prismarine-registry@1.11.0):
+  prismarine-biome@1.3.0(minecraft-data@3.102.3)(prismarine-registry@1.11.0):
     dependencies:
-      minecraft-data: 3.105.0
+      minecraft-data: 3.102.3
       prismarine-registry: 1.11.0
 
   prismarine-block@1.22.0:
     dependencies:
-      minecraft-data: 3.105.0
-      prismarine-biome: 1.3.0(minecraft-data@3.105.0)(prismarine-registry@1.11.0)
+      minecraft-data: 3.102.3
+      prismarine-biome: 1.3.0(minecraft-data@3.102.3)(prismarine-registry@1.11.0)
       prismarine-chat: 1.12.0
       prismarine-item: 1.17.0
       prismarine-nbt: 2.8.0
@@ -29802,9 +29817,9 @@ snapshots:
     transitivePeerDependencies:
       - minecraft-data
 
-  prismarine-chunk@1.39.0(minecraft-data@3.105.0):
+  prismarine-chunk@1.39.0(minecraft-data@3.102.3):
     dependencies:
-      prismarine-biome: 1.3.0(minecraft-data@3.105.0)(prismarine-registry@1.11.0)
+      prismarine-biome: 1.3.0(minecraft-data@3.102.3)(prismarine-registry@1.11.0)
       prismarine-block: 1.22.0
       prismarine-nbt: 2.8.0
       prismarine-registry: 1.11.0
@@ -29837,7 +29852,7 @@ snapshots:
 
   prismarine-physics@1.10.0:
     dependencies:
-      minecraft-data: 3.105.0
+      minecraft-data: 3.102.3
       prismarine-nbt: 2.8.0
       vec3: 0.1.10
 
@@ -29855,7 +29870,7 @@ snapshots:
 
   prismarine-registry@1.11.0:
     dependencies:
-      minecraft-data: 3.105.0
+      minecraft-data: 3.102.3
       prismarine-block: 1.22.0
       prismarine-nbt: 2.8.0
 
@@ -29864,9 +29879,9 @@ snapshots:
       '@tweenjs/tween.js': 23.1.3
       compression: 1.8.1
       express: 4.22.1
-      minecraft-data: 3.105.0
+      minecraft-data: 3.102.3
       prismarine-block: 1.22.0
-      prismarine-chunk: 1.39.0(minecraft-data@3.105.0)
+      prismarine-chunk: 1.39.0(minecraft-data@3.102.3)
       prismarine-world: 3.6.3
       socket.io: 4.8.3(bufferutil@4.1.0)(utf-8-validate@5.0.10)
       socket.io-client: 4.8.3(bufferutil@4.1.0)(utf-8-validate@5.0.10)

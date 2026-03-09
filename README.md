@@ -175,31 +175,15 @@ nix run github:moeru-ai/airi
 
 ### Stage Pocket (Mobile Version)
 
-Start the development server for the capacitor web version:
+Start the development server for the capacitor:
 
 ```shell
-pnpm dev:pocket
+pnpm dev:pocket:ios <DEVICE_ID_OR_SIMULATOR_NAME>
+# Or
+CAPACITOR_DEVICE_ID=<DEVICE_ID_OR_SIMULATOR_NAME> pnpm dev:pocket:ios
 ```
 
-Check your IP address in the output of the command above:
-
-```shell
-  ROLLDOWN-VITE v7.3.0  ready in 1073 ms
-
-  ➜  Local:   https://localhost:5273/
-  ➜  Network: https://<ip-will-be-here>:5273/
-  ➜  Vue DevTools: Open https://localhost:5273/__devtools__/ as a separate window
-  ➜  Vue DevTools: Press Option(⌥)+Shift(⇧)+D in App to toggle the Vue DevTools
-  ➜  UnoCSS Inspector: https://localhost:5273/__unocss/
-```
-
-Open the Xcode project:
-
-```shell
-CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
-```
-
-Then Xcode will open and you can click the "Run" button to run the app on your iPhone.
+You can see the list of available devices and simulators by running `pnpm exec cap run ios --list`.
 
 If you need to connect server channel on pocket in wireless mode, you need to start tamagotchi as root:
 

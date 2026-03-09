@@ -474,7 +474,7 @@ pages:
                   value:
                     placeholder: 请求头数值
                 thinking-mode:
-                  label: Thinking Mode
+                  label:
                   description: >
                     Controls Ollama thinking behavior. GPT-OSS only supports low/medium/high levels.
                   options:

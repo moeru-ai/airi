@@ -2,7 +2,7 @@ menu:
   labels:
     label:
       show: Show
-      adjust_sizes: Adjust sizes
+      adjust_sizes: Ajustar tamaños
       recommended_size: Recommended (450x600)
       full_height: Full Height
       half_height: Half Height
@@ -23,4 +23,4 @@ menu:
       reset_position: Reset position
       devtools: DevTools
       troubleshoot_beatsync: Troubleshoot BeatSync...
-      quit: Quit
+      quit: Salir
