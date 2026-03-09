@@ -1,0 +1,44 @@
+{
+  "name": "@proj-airi/cap-vite",
+  "type": "module",
+  "version": "0.9.0-alpha.5",
+  "description": "CLI that starts a Vite dev server and runs Capacitor live reload",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/cap-vite"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "bin": {
+    "cap-vite": "./dist/bin/run.mjs"
+  },
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@capacitor/cli": "^8.0.0",
+    "vite": "^7.0.0 || ^8.0.0-beta.0"
+  },
+  "dependencies": {
+    "tinyexec": "^1.0.2"
+  }
+}

@@ -35,9 +35,22 @@ const {
     </div>
 
     <!-- Using the new RadioCardManySelect component -->
-    <div flex-1>
+    <div flex flex-1 flex-col gap-4>
+      <Alert
+        v-if="providerModels.length === 0 && !isLoadingActiveProviderModels"
+        type="error"
+      >
+        <template #title>
+          {{ t('settings.dialogs.onboarding.no-models') }}
+        </template>
+        <template #content>
+          <div class="whitespace-pre-wrap break-all">
+            {{ t('settings.dialogs.onboarding.no-models-help') }}
+          </div>
+        </template>
+      </Alert>
+
       <RadioCardManySelect
-        v-if="providerModels.length > 0"
         v-model="activeModel"
         v-model:search-query="modelSearchQuery"
         :items="providerModels.toSorted((a, b) => a.id === activeModel ? -1 : b.id === activeModel ? 1 : 0)"
@@ -52,17 +65,6 @@ const {
         :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
         list-class="max-h-[calc(100dvh-17rem)] sm:max-h-120 overflow-y-auto"
       />
-
-      <Alert v-else type="error">
-        <template #title>
-          {{ t('settings.dialogs.onboarding.no-models') }}
-        </template>
-        <template #content>
-          <div class="whitespace-pre-wrap break-all">
-            {{ t('settings.dialogs.onboarding.no-models-help') }}
-          </div>
-        </template>
-      </Alert>
     </div>
 
     <!-- Action Buttons -->

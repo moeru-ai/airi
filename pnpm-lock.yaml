@@ -523,8 +523,8 @@ importers:
         specifier: ^1.40.0
         version: 1.40.0
       '@proj-airi/drizzle-orm-browser-migrator':
-        specifier: ^0.1.4
-        version: 0.1.4(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))
+        specifier: ^0.1.6
+        version: 0.1.6(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))
       '@proj-airi/server-schema':
         specifier: workspace:*
         version: link:../../packages/server-schema
@@ -543,9 +543,9 @@ importers:
       injeca:
         specifier: 'catalog:'
         version: 0.1.7(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6)
-      postgres:
-        specifier: ^3.4.8
-        version: 3.4.8
+      pg:
+        specifier: ^8.13.3
+        version: 8.19.0
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
@@ -556,6 +556,9 @@ importers:
       '@better-auth/cli':
         specifier: ^1.4.21
         version: 1.4.21(@better-fetch/fetch@1.1.21)(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(better-call@1.1.8(zod@4.3.6))(drizzle-kit@0.31.9)(jose@6.1.3)(kysely@0.28.11)(magicast@0.5.2)(nanostores@1.1.1)(postgres@3.4.8)(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3))
+      '@types/pg':
+        specifier: ^8.11.11
+        version: 8.16.0
       drizzle-kit:
         specifier: ^0.31.9
         version: 0.31.9
@@ -830,6 +833,9 @@ importers:
       '@intlify/unplugin-vue-i18n':
         specifier: ^11.0.7
         version: 11.0.7(@vue/compiler-dom@3.5.29)(eslint@9.39.3(jiti@2.6.1))(rollup@2.80.0)(typescript@5.9.3)(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
+      '@proj-airi/cap-vite':
+        specifier: workspace:*
+        version: link:../../packages/cap-vite
       '@proj-airi/iconify-meteocons':
         specifier: 'catalog:'
         version: 0.1.4
@@ -1948,6 +1954,18 @@ importers:
       vitest:
         specifier: catalog:vitest
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@24.10.14)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.1)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+
+  packages/cap-vite:
+    dependencies:
+      '@capacitor/cli':
+        specifier: ^8.0.0
+        version: 8.1.0
+      tinyexec:
+        specifier: ^1.0.2
+        version: 1.0.2
+      vite:
+        specifier: ^7.0.0 || ^8.0.0-beta.0
+        version: 7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/ccc:
     dependencies:
@@ -7808,8 +7826,8 @@ packages:
       web-worker:
         optional: true
 
-  '@proj-airi/drizzle-orm-browser-migrator@0.1.4':
-    resolution: {integrity: sha512-xglys6t2+h62aLwAvIN7L4V/lUB3FkVSbm7nj8dCHQ+OxCSQtEPyjgiwqahlFBRg6n9/L/ASvD78ASk/2VT/RQ==}
+  '@proj-airi/drizzle-orm-browser-migrator@0.1.6':
+    resolution: {integrity: sha512-7A7Ay5vSLBer2P+Ydbrl9AktE7geIlh396zB/3a9odwI/1GT89Pljzvjz5SVxG0e17+wMOPLRKnTnCzukL1B9Q==}
     peerDependencies:
       drizzle-orm: '>=0.44.0'
 
@@ -21912,7 +21930,7 @@ snapshots:
     transitivePeerDependencies:
       - '@75lb/nature'
 
-  '@proj-airi/drizzle-orm-browser-migrator@0.1.4(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))':
+  '@proj-airi/drizzle-orm-browser-migrator@0.1.6(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))':
     dependencies:
       '@guiiai/logg': 1.2.11
       drizzle-orm: 0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)
