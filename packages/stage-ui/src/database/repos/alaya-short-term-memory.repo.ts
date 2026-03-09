@@ -52,6 +52,9 @@ function normalizeLocalStorageKey(key: string) {
   if (!relativeKey.startsWith(INDEXED_DB_BASE_PREFIX))
     return normalizeStorageLookupKey(key)
 
+  // NOTICE: unstorage's IndexedDB driver rewrites the local mount key prefix to
+  // `airi-local:` internally. We normalize that implementation detail back to
+  // the logical `local:` namespace so prefix scans still work across drivers.
   return normalizeStorageLookupKey(
     `${LOCAL_MOUNT_PREFIX}${relativeKey.slice(INDEXED_DB_BASE_PREFIX.length)}`,
   )

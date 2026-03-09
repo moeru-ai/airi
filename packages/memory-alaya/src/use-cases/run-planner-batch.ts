@@ -447,7 +447,7 @@ async function attachEmbeddings(
   }
   catch (error) {
     errors.push({
-      code: 'ALAYA_E_STORE_WRITE_FAILED',
+      code: 'ALAYA_E_EMBEDDING_FAILED',
       message: error instanceof Error ? error.message : 'Failed to generate embeddings',
       retriable: true,
     })

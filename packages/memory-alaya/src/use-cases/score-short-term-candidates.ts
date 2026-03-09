@@ -6,6 +6,10 @@ import type {
 import type { MemoryEmbeddingProvider } from '../ports/embedding-provider'
 
 const dayMs = 24 * 60 * 60 * 1000
+const similarityScoreWeight = 0.72
+const importanceScoreWeight = 0.15
+const timeScoreWeight = 0.08
+const emotionScoreWeight = 0.05
 
 export interface ScoredRecallCandidate {
   record: ShortTermMemoryRecord
@@ -141,10 +145,10 @@ function calculateCompositeScore(
   const timeWeight = calculateTimeWeight(record, now)
   const emotionWeight = calculateEmotionWeight(record)
   const score = clamp01(
-    similarity * 0.72
-    + importanceNorm * 0.15
-    + timeWeight * 0.08
-    + emotionWeight * 0.05,
+    similarity * similarityScoreWeight
+    + importanceNorm * importanceScoreWeight
+    + timeWeight * timeScoreWeight
+    + emotionWeight * emotionScoreWeight,
   )
 
   return {
