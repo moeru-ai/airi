@@ -1,37 +1,15 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow } from 'electron'
 
-import type { ElectronWindowLifecycleState } from '../../../shared/eventa'
-
 import { defineInvokeHandler } from '@moeru/eventa'
 import { bounds, startLoopGetBounds } from '@proj-airi/electron-eventa'
-import { createRendererLoop, safeClose } from '@proj-airi/electron-vueuse/main'
+import { createRendererLoop } from '@proj-airi/electron-vueuse/main'
 
-import {
-  electron,
-  electronGetWindowLifecycleState,
-  electronWindowClose,
-  electronWindowLifecycleChanged,
-  electronWindowSetAlwaysOnTop,
-} from '../../../shared/eventa'
+import { electron, electronWindowClose, electronWindowSetAlwaysOnTop } from '../../../shared/eventa'
 import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecycle'
 import { resizeWindowByDelta } from '../../windows/shared/window'
 
 export function createWindowService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
-  function getWindowLifecycleState(reason: ElectronWindowLifecycleState['reason']): ElectronWindowLifecycleState {
-    return {
-      focused: params.window.isFocused(),
-      minimized: params.window.isMinimized(),
-      reason,
-      updatedAt: Date.now(),
-      visible: params.window.isVisible(),
-    }
-  }
-
-  function emitWindowLifecycle(reason: ElectronWindowLifecycleState['reason']) {
-    params.context.emit(electronWindowLifecycleChanged, getWindowLifecycleState(reason))
-  }
-
   const { start, stop } = createRendererLoop({
     window: params.window,
     run: () => {
@@ -42,17 +20,6 @@ export function createWindowService(params: { context: ReturnType<typeof createC
   onAppWindowAllClosed(() => stop())
   onAppBeforeQuit(() => stop())
   defineInvokeHandler(params.context, startLoopGetBounds, () => start())
-  defineInvokeHandler(params.context, electronGetWindowLifecycleState, (_, options) => {
-    if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id)
-      return getWindowLifecycleState('snapshot')
-  })
-
-  params.window.on('show', () => emitWindowLifecycle('show'))
-  params.window.on('hide', () => emitWindowLifecycle('hide'))
-  params.window.on('minimize', () => emitWindowLifecycle('minimize'))
-  params.window.on('restore', () => emitWindowLifecycle('restore'))
-  params.window.on('focus', () => emitWindowLifecycle('focus'))
-  params.window.on('blur', () => emitWindowLifecycle('blur'))
 
   defineInvokeHandler(params.context, electron.window.getBounds, (_, options) => {
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
@@ -117,7 +84,7 @@ export function createWindowService(params: { context: ReturnType<typeof createC
 
   defineInvokeHandler(params.context, electronWindowClose, (_, options) => {
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
-      safeClose(params.window)
+      params.window.close()
     }
   })
 }
