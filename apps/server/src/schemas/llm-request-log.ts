@@ -10,5 +10,9 @@ export const llmRequestLog = pgTable('llm_request_log', {
   status: integer('status').notNull(),
   durationMs: integer('duration_ms').notNull(),
   fluxConsumed: integer('flux_consumed').notNull(),
+  // TODO: Add usage-based billing fields once billing model is finalized:
+  //   promptTokens: integer('prompt_tokens'),
+  //   completionTokens: integer('completion_tokens'),
+  //   audioDurationMs: integer('audio_duration_ms'),  // for ASR billing
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })

@@ -44,6 +44,12 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
 
     const body = await c.req.json()
 
+    // TODO: Billing model needs rework - currently flat rate per request.
+    // Should be usage-based:
+    //   - LLM chat/completions: bill by input/output token count (read from gateway response usage field)
+    //   - ASR/transcription: bill by audio duration
+    //   - TTS: bill by character count
+    // For now, use a flat per-request charge as placeholder.
     const fluxPerRequest = await configKV.getOrThrow('FLUX_PER_REQUEST')
     await fluxService.consumeFlux(user.id, fluxPerRequest)
 
@@ -61,6 +67,9 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
     })
 
     const durationMs = Date.now() - startedAt
+
+    // TODO: Parse response body to extract usage (prompt_tokens, completion_tokens)
+    // for token-based billing. For streaming responses, need to accumulate from SSE chunks.
 
     // Log the request asynchronously (don't block response)
     requestLogService.logRequest({
