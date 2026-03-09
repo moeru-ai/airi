@@ -547,6 +547,7 @@ async function loadModel() {
           airiIblProbe = createIblProbeController(scene.value)
 
         commitManagedVrmInstance(reusableInstance)
+        didCommitLoad = true
 
         if (isStageThreeRuntimeTraceEnabled()) {
           stageThreeRuntimeTraceContext.emit(stageThreeTraceVrmLoadEndEvent, {
