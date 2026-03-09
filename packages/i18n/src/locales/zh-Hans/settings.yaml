@@ -513,7 +513,7 @@ pages:
                       很抱歉，Ollama 连接检查失败。不要担心，如果是 Ollama，需要额外配置才能通过 Ollama。 您需要在启动 Olama 应用程序或 Ollama CLI 服务器时明确设置 <code>OLLAMA_HOST</code> 详情，请检查 <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama 集成指南</a>。
     common:
       continueAnyway: 仍然继续
-      goToModelSelection: "选择模型 \u2192"
+      goToModelSelection: "选择模型 →"
       fields:
         field:
           api-key:
