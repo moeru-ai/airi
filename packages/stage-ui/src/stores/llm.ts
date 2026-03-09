@@ -34,6 +34,12 @@ function sanitizeMessages(messages: unknown[]): Message[] {
         content: `User encountered error: ${String(m.content ?? '')}`,
       } as Message
     }
+    if (m && Array.isArray(m.content) && !m.content.some((p: any) => p?.type === 'image_url')) {
+      return {
+        ...m,
+        content: m.content.map((p: any) => p?.text ?? '').join(''),
+      } as Message
+    }
     return m as Message
   })
 }
