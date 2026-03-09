@@ -166,14 +166,15 @@ async function createApp() {
   })
 
   const db = injeca.provide('datastore:db', {
-    dependsOn: { env: parsedEnv },
+    dependsOn: { env: parsedEnv, lifecycle },
     build: async ({ dependsOn }) => {
-      const dbInstance = createDrizzle(dependsOn.env.DATABASE_URL)
+      const { db: dbInstance, pool } = createDrizzle(dependsOn.env.DATABASE_URL)
       await dbInstance.execute('SELECT 1')
       logger.log('Connected to database')
       await migrateDatabase(dbInstance)
       logger.log('Applied schema')
 
+      dependsOn.lifecycle.appHooks.onStop(() => pool.end())
       return dbInstance
     },
   })

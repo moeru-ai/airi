@@ -17,9 +17,12 @@
   "scripts": {
     "start": "tsx --env-file=.env --env-file-if-exists=.env.local src/index.ts",
     "dev": "tsx watch --env-file=.env --env-file-if-exists=.env.local src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "@electric-sql/pglite": "catalog:",
     "@guiiai/logg": "catalog:",
     "@moeru/std": "catalog:",
     "@velin-dev/core": "^0.3.4",
@@ -27,14 +30,16 @@
     "@xsai/shared-chat": "catalog:",
     "@xsai/utils-chat": "catalog:",
     "best-effort-json-parser": "^1.2.1",
+    "drizzle-orm": "^0.45.1",
     "es-toolkit": "^1.44.0",
-    "lowdb": "^7.0.1",
     "nanoid": "^5.1.6",
+    "valibot": "^1.2.0",
     "ws": "^8.19.0"
   },
   "devDependencies": {
     "@types/node": "^22.19.12",
     "@types/ws": "^8.18.1",
+    "drizzle-kit": "^0.31.9",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }

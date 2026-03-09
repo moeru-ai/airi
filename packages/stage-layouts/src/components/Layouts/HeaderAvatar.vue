@@ -60,7 +60,7 @@ async function handleListSessions() {
           w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
           title="Login"
           type="button"
-          @click="authStore.isLoginOpen = true"
+          @click="authStore.isLoginDrawerOpen = true"
         >
           <div i-solar:user-bold-duotone />
         </button>

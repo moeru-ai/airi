@@ -16,7 +16,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   const credits = ref<number>(0)
 
-  const isLoginOpen = ref(false)
+  // For controlling the login drawer on mobile
+  const isLoginDrawerOpen = ref(false)
 
   const initialized = ref(false)
   const initialize = () => {
@@ -72,6 +73,6 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     credits,
     updateCredits,
-    isLoginOpen,
+    isLoginDrawerOpen,
   }
 })
