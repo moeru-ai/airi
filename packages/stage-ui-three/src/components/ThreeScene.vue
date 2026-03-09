@@ -254,6 +254,9 @@ watch([sceneReady, modelLoaded], ([ready, loaded]) => {
   else if (loaded) {
     componentState.value = 'loading'
   }
+  else {
+    componentState.value = 'pending'
+  }
 }, { immediate: true })
 
 function updateDirLightTarget(newRotation: { x: number, y: number, z: number }) {
