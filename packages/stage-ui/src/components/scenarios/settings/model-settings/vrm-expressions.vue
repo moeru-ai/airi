@@ -6,7 +6,7 @@ import { computed, ref } from 'vue'
 import { Container } from '../../../data-pane'
 
 const modelStore = useModelStore()
-const { availableExpressions, activeExpressions, emotionMappings } = storeToRefs(modelStore)
+const { availableExpressions, activeExpressions, emotionMappings, favoriteExpression } = storeToRefs(modelStore)
 
 // Categorize: Presets have mixed case (e.g., "happy", "MouthLeft"), Custom are all lowercase
 const presets = computed(() =>
@@ -87,6 +87,18 @@ function clearMapping() {
   mappingTarget.value = null
 }
 
+function toggleFavorite() {
+  if (!mappingTarget.value)
+    return
+  if (favoriteExpression.value === mappingTarget.value) {
+    favoriteExpression.value = ''
+  }
+  else {
+    favoriteExpression.value = mappingTarget.value
+  }
+  mappingTarget.value = null
+}
+
 function closeModal() {
   mappingTarget.value = null
 }
@@ -149,6 +161,7 @@ const ACT_EMOJI: Record<string, string> = {
             @pointerup="onPointerUp(name)"
             @pointerleave="onPointerLeave()"
           >
+            <span v-if="favoriteExpression === name" class="mr-0.5 text-[10px]">⭐</span>
             {{ name }}
             <span
               v-if="getMappedEmotion(name)"
@@ -178,6 +191,7 @@ const ACT_EMOJI: Record<string, string> = {
             @pointerup="onPointerUp(name)"
             @pointerleave="onPointerLeave()"
           >
+            <span v-if="favoriteExpression === name" class="mr-0.5 text-[10px]">⭐</span>
             {{ name }}
             <span
               v-if="getMappedEmotion(name)"
@@ -235,6 +249,20 @@ const ACT_EMOJI: Record<string, string> = {
               {{ ACT_EMOJI[emotion] }} {{ emotion }}
             </button>
           </div>
+
+          <!-- Favorite Toggle -->
+          <button
+            :class="[
+              'mt-3 w-full rounded-lg px-3 py-2 text-sm transition-all duration-150',
+              'border border-solid',
+              favoriteExpression === mappingTarget
+                ? 'bg-amber-500/20 border-amber-400 text-amber-600 dark:text-amber-300 font-medium'
+                : 'bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700',
+            ]"
+            @click="toggleFavorite"
+          >
+            ⭐ {{ favoriteExpression === mappingTarget ? 'Remove Favorite' : 'Set as Favorite' }}
+          </button>
 
           <div class="mt-3 flex gap-2">
             <button
