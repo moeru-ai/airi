@@ -454,7 +454,7 @@ function componentCleanUp(
     destroyManagedVrmInstance(clearManagedVrmInstance(getManagedVrmScopeKey()))
   }
   else if (shouldStashVrmResources(reason)) {
-    destroyManagedVrmInstance(activeInstance ? stashManagedVrmInstance(getManagedVrmScopeKey(), activeInstance) : undefined)
+    destroyManagedVrmInstance(activeInstance ? stashManagedVrmInstance(activeInstance) : undefined)
   }
   else {
     destroyManagedVrmInstance(activeInstance)
