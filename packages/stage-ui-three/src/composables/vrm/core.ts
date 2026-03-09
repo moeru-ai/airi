@@ -1,7 +1,6 @@
 import type { VRM, VRMCore } from '@pixiv/three-vrm'
 import type { Mesh, Object3D, Scene } from 'three'
 
-import { VRMUtils } from '@pixiv/three-vrm'
 import { VRMLookAtQuaternionProxy } from '@pixiv/three-vrm-animation'
 import { Box3, Group, Quaternion, Vector3 } from 'three'
 

@@ -4,10 +4,9 @@ import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInEl
 import { useModelStore } from '@proj-airi/stage-ui-three'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
-import { useIntervalFn, useTimeoutFn } from '@vueuse/core'
-import { refDebounced } from '@vueuse/core'
+import { useTimeoutFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, inject, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ControlButtonTooltip from './control-button-tooltip.vue'
@@ -40,8 +39,6 @@ const isLinux = ref(false)
 const closeWindow = useElectronEventaInvoke(electronWindowClose)
 const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 
-const isLocked = inject('isLocked', ref(false))
-
 const expanded = ref(false)
 const islandRef = ref<HTMLElement>()
 
@@ -56,20 +53,21 @@ defineExpose({ hearingDialogOpen })
 const view = ref<'main' | 'emotions'>('main')
 
 const { isOutside } = useElectronMouseInElement(islandRef)
-const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
-watch(isOutsideAfter2seconds, (outside) => {
-  if (outside && expanded.value && !hearingDialogOpen.value) {
+const { start: startCollapseTimer, stop: stopCollapseTimer } = useTimeoutFn(() => {
+  if (expanded.value && !hearingDialogOpen.value) {
     expanded.value = false
     view.value = 'main' // Reset sub-menu on collapse
+  }
+}, 1500)
+
+watch(isOutside, (outside) => {
+  if (outside) {
+    startCollapseTimer()
+  } else {
+    stopCollapseTimer()
   }
 })
-
-useIntervalFn(() => {
-  if (expanded.value && isOutside.value && !hearingDialogOpen.value) {
-    expanded.value = false
-    view.value = 'main' // Reset sub-menu on collapse
-  }
 }, 1000)
 
 watch(expanded, (isExp) => {

@@ -11,9 +11,7 @@ import type {
   Group,
   Object3D,
   PerspectiveCamera,
-  ShaderMaterial,
   SphericalHarmonics3,
-  Texture,
 } from 'three'
 import type { Ref, WatchStopHandle } from 'vue'
 
@@ -25,14 +23,9 @@ import { until, useMouse } from '@vueuse/core'
 import {
   AnimationMixer,
   MathUtils,
-  Mesh,
-  MeshPhysicalMaterial,
-  MeshStandardMaterial,
   Plane,
   Raycaster,
 
-  REVISION,
-  SRGBColorSpace,
   Vector2,
   Vector3,
 } from 'three'
@@ -51,7 +44,6 @@ import {
 
 import {
   createIblProbeController,
-  injectDiffuseIBL,
   normalizeEnvMode,
   updateNprShaderSetting,
 } from '../../composables/shader/ibl'
@@ -146,7 +138,7 @@ const {
 } = toRefs(props)
 
 // Model and scene ref
-const { scene, renderer: rendererRef } = useTresContext()
+const { scene } = useTresContext()
 const vrm = shallowRef<VRM | null>(null)
 const vrmGroup = shallowRef<Group>()
 const modelLoaded = ref<boolean>(false)
@@ -384,12 +376,6 @@ async function loadModel() {
         * Shader setting
       */
       // material selection
-      function isMToon(mat: any): boolean {
-        return !!(mat?.isShaderMaterial && mat.userData?.vrmMaterialType === 'MToon'
-        )
-      }
-      const isShaderMat = (m: any): m is ShaderMaterial => !!m?.isShaderMaterial
-
       // refactoring
       // MToon material sky box lightProbe setting
       if (!airiIblProbe && scene.value)
@@ -604,7 +590,9 @@ onMounted(async () => {
     }
   }, { immediate: true })
   watch(lookAtTarget, (newTarget) => {
-    idleEyeSaccades.instantUpdate(vrm.value, newTarget)
+    if (vrm.value) {
+      idleEyeSaccades.instantUpdate(vrm.value, newTarget)
+    }
   }, { deep: true })
 })
 
@@ -637,7 +625,9 @@ defineExpose({
   },
   scene: computed(() => vrm.value?.scene),
   lookAtUpdate(target: Vec3) {
-    idleEyeSaccades.instantUpdate(vrm.value, target)
+    if (vrm.value) {
+      idleEyeSaccades.instantUpdate(vrm.value, target)
+    }
   },
   stopAnimations() {
     vrmAnimationMixer.value?.stopAllAction()
