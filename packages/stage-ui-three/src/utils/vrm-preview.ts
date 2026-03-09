@@ -1,12 +1,13 @@
 import type { VRM } from '@pixiv/three-vrm'
 
-import { AmbientLight, AnimationMixer, DirectionalLight, PerspectiveCamera, Scene, WebGLRenderer } from 'three'
-
-import { animations } from '../assets/vrm'
-import { clipFromVRMAnimation, loadVrm, loadVRMAnimation, reAnchorRootPositionTrack } from '../composables/vrm'
+import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm'
+import { AmbientLight, Box3, DirectionalLight, PerspectiveCamera, Scene, Vector3, WebGLRenderer } from 'three'
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 
 /**
  * Render a VRM file to an offscreen canvas and return a preview data URL.
+ * Uses minimal loading (matching the standalone test harness) to avoid
+ * megazord issues caused by VRMUtils optimizations or shader injection.
  */
 export async function loadVrmModelPreview(file: File) {
   const offscreenCanvas = document.createElement('canvas')
@@ -41,30 +42,47 @@ export async function loadVrmModelPreview(file: File) {
   let vrmInstance: VRM | undefined
 
   try {
-    const vrmData = await loadVrm(objUrl, { scene, lookAt: true })
-    if (!vrmData)
+    // Direct loading — same as test harness, bypass core.ts
+    const loader = new GLTFLoader()
+    loader.crossOrigin = 'anonymous'
+    loader.register(parser => new VRMLoaderPlugin(parser))
+
+    const gltf = await loader.loadAsync(objUrl)
+    const vrm = gltf.userData.vrm as VRM | undefined
+    if (!vrm)
       return
 
-    vrmInstance = vrmData._vrm
-    const { modelCenter, initialCameraOffset } = vrmData
+    vrmInstance = vrm
 
-    camera.position.copy(modelCenter).add(initialCameraOffset)
-    camera.lookAt(modelCenter)
+    // VRM0 rotation support
+    VRMUtils.rotateVRM0(vrm)
+
+    // Add to scene
+    scene.add(vrm.scene)
+
+    // Compute bounding box for camera framing
+    const box = new Box3().setFromObject(vrm.scene)
+    const modelSize = new Vector3()
+    const modelCenter = new Vector3()
+    box.getSize(modelSize)
+    box.getCenter(modelCenter)
+
+    // Hardcode camera to be clearly in front at +Z
+    // (Model center Y is around the waist/chest. Adding 25% of height points roughly at the head)
+    const headY = modelCenter.y + (modelSize.y * 0.25)
+    camera.position.set(modelCenter.x, headY, 1.2)
+
+    // Look directly at the face
+    const target = new Vector3(modelCenter.x, headY, 0)
+    camera.lookAt(target)
     camera.updateProjectionMatrix()
 
-    try {
-      const animation = await loadVRMAnimation(animations.idleLoop.toString())
-      const clip = await clipFromVRMAnimation(vrmData._vrm, animation)
-      if (clip) {
-        reAnchorRootPositionTrack(clip, vrmData._vrm)
-        const mixer = new AnimationMixer(vrmData._vrm.scene)
-        const action = mixer.clipAction(clip)
-        action.play()
-        mixer.update(0.1)
-      }
-    }
-    catch (err) {
-      console.warn('Failed to load VRM animation for preview:', err)
+    // CRITICAL FIX: The test harness runs an animation loop that calls vrm.update(delta).
+    // The static preview doesn't. Calling update(0) forces the VRM ExpressionManager
+    // and springbones to initialize cleanly, which should clear the default "megazord" state
+    // that might be baked into the raw GLTF meshes.
+    if (vrmInstance && vrmInstance.update) {
+      vrmInstance.update(0)
     }
 
     renderer.render(scene, camera)
@@ -75,20 +93,7 @@ export async function loadVrmModelPreview(file: File) {
   finally {
     renderer.dispose()
     if (vrmInstance) {
-      vrmInstance.scene.traverse((child) => {
-        const node = child as any
-        if (node.geometry?.dispose)
-          node.geometry.dispose()
-
-        if (node.material) {
-          const materials = Array.isArray(node.material) ? node.material : [node.material]
-          for (const mat of materials) {
-            if (mat?.map?.dispose)
-              mat.map.dispose()
-            mat?.dispose?.()
-          }
-        }
-      })
+      VRMUtils.deepDispose(vrmInstance.scene)
     }
     URL.revokeObjectURL(objUrl)
     if (offscreenCanvas.isConnected)
