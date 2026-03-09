@@ -99,6 +99,8 @@ export const useModelStore = defineStore('modelStore', () => {
 
   const availableExpressions = useLocalStorage<string[]>('settings/stage-ui-three/availableExpressions', [])
   const activeExpressions = useLocalStorage<Record<string, number>>('settings/stage-ui-three/activeExpressions', {})
+  // Maps VRM expression names to ACT emotion slots (e.g., { "anger": "angry", "pixel_glasses": "cool" })
+  const emotionMappings = useLocalStorage<Record<string, string>>('settings/stage-ui-three/emotionMappings', {})
 
   function resetModelStore() {
     modelSize.value = { x: 0, y: 0, z: 0 }
@@ -116,6 +118,7 @@ export const useModelStore = defineStore('modelStore', () => {
 
     availableExpressions.value = []
     activeExpressions.value = {}
+    emotionMappings.value = {}
   }
 
   // === Lighting ===
@@ -192,6 +195,7 @@ export const useModelStore = defineStore('modelStore', () => {
 
     availableExpressions,
     activeExpressions,
+    emotionMappings,
 
     onShouldUpdateView,
     shouldUpdateView,

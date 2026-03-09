@@ -647,8 +647,11 @@ defineExpose({
 // === Manual Expression Sync ===
 // Applies weights from the settings panel (activeExpressions in store)
 // directly to the VRM model, bypassing the ACT emotion system.
-watch(() => modelStore.activeExpressions, (active) => {
-  if (!vrm.value?.expressionManager)
+// Watches both activeExpressions AND modelLoaded so it fires:
+//   - When the user toggles an expression (change in activeExpressions)
+//   - When the model finishes loading (modelLoaded becomes true)
+watch([() => modelStore.activeExpressions, modelLoaded], ([active, loaded]) => {
+  if (!loaded || !vrm.value?.expressionManager)
     return
 
   for (const name of modelStore.availableExpressions) {
@@ -656,6 +659,35 @@ watch(() => modelStore.activeExpressions, (active) => {
     vrm.value.expressionManager.setValue(name, weight)
   }
   vrm.value.expressionManager.update()
+}, { deep: true })
+
+// === ACT Emotion Mapping Sync ===
+// Injects user-configured VRM expression → ACT emotion mappings
+// into the emote system (Layer 3: ACT Mapping).
+// Also watches modelLoaded so mappings are applied on boot.
+watch([() => modelStore.emotionMappings, modelLoaded], ([mappings, loaded]) => {
+  if (!loaded || !vrmEmote.value || !vrm.value?.expressionManager)
+    return
+
+  // For each mapping: emotionMappings[vrmExpressionName] = actEmotionSlot
+  // e.g., { "anger": "angry" } means the ACT "angry" emotion should fire VRM "anger"
+  // We invert the map: for each ACT slot, collect the VRM expressions mapped to it
+  const actToVrm = new Map<string, { name: string, value: number }[]>()
+  for (const [vrmName, actSlot] of Object.entries(mappings)) {
+    if (!actSlot)
+      continue
+    if (!actToVrm.has(actSlot))
+      actToVrm.set(actSlot, [])
+    actToVrm.get(actSlot)!.push({ name: vrmName, value: 1.0 })
+  }
+
+  // Register/update each ACT emotion with the user's mapped expressions
+  for (const [actSlot, expressions] of actToVrm) {
+    vrmEmote.value.addEmotionState(actSlot, {
+      expression: expressions,
+      blendDuration: 0.3,
+    })
+  }
 }, { deep: true })
 </script>
 
