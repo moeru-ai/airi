@@ -1896,9 +1896,6 @@ export const useProvidersStore = defineStore('providers', () => {
   watch(providerCredentials, updateConfigurationStatus, { deep: true, immediate: true })
   startPeriodicRuntimeValidation()
 
-  const authStore = useAuthStore()
-  watch(() => authStore.isAuthenticated, updateConfigurationStatus)
-
   watch(() => authStore.isAuthenticated, updateConfigurationStatus)
 
   // Available providers (only those that are properly configured)

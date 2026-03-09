@@ -64,6 +64,7 @@ function buildApp({
   chatService,
   providerService,
   fluxService,
+  requestLogService,
   stripeService,
   configKV,
   env,
@@ -265,9 +266,13 @@ async function createApp() {
     otel: resolved.otel,
   })
 
-  logger.withFields({ port: 3000 }).log('Server started')
+  logger.withFields({ hostname: resolved.env.HOST, port: resolved.env.PORT }).log('Server started')
 
-  return app
+  return {
+    ...app,
+    port: Number(resolved.env.PORT),
+    hostname: resolved.env.HOST,
+  } satisfies Parameters<typeof serve>[0]
 }
 
 // eslint-disable-next-line antfu/no-top-level-await
