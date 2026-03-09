@@ -15,11 +15,9 @@ import type { Vec3 } from '../stores/model-store'
 
 import { Screen } from '@proj-airi/ui'
 import { TresCanvas } from '@tresjs/core'
-import { EffectComposerPmndrs, HueSaturationPmndrs } from '@tresjs/post-processing'
 import { useElementBounding } from '@vueuse/core'
 import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
-import { BlendFunction } from 'postprocessing'
 import {
   ACESFilmicToneMapping,
   Euler,
@@ -92,7 +90,6 @@ const {
   skyBoxSrc,
   skyBoxIntensity,
   renderScale,
-  multisampling,
 } = storeToRefs(modelStore)
 
 const modelRef = ref<InstanceType<typeof VRMModel>>()
@@ -206,12 +203,6 @@ onMounted(() => {
 onUnmounted(() => {
   disposeRenderTarget()
 })
-
-const effectProps = {
-  saturation: 0.3,
-  hue: 0,
-  blendFunction: BlendFunction.SRC,
-}
 
 const vrmFrameHook = shallowRef<((vrm: VRM, delta: number) => void) | undefined>(undefined)
 function applyVrmFrameHook() {
