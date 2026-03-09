@@ -548,7 +548,6 @@ async function loadModel() {
 
         commitManagedVrmInstance(reusableInstance)
 
-
         if (isStageThreeRuntimeTraceEnabled()) {
           stageThreeRuntimeTraceContext.emit(stageThreeTraceVrmLoadEndEvent, {
             durationMs: performance.now() - loadStartedAt,
