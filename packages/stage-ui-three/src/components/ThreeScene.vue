@@ -277,7 +277,7 @@ watch([sceneReady, modelLoaded], ([ready, loaded]) => {
   if (ready && loaded) {
     componentState.value = 'mounted'
   }
-  else if (loaded) {
+  else if (componentState.value !== 'pending') {
     componentState.value = 'loading'
   }
 }, { immediate: true })
