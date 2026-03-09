@@ -1258,7 +1258,7 @@ export const useProvidersStore = defineStore('providers', () => {
             return {
               id: voice,
               name: voice,
-              provider: 'index-tts-vllm',
+              provider: 'index-tts-2',
               // previewURL: voice.preview_audio_url,
               languages: [{ code: 'cn', title: 'Chinese' }, { code: 'en', title: 'English' }],
             }
