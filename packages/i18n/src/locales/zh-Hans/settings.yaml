@@ -171,6 +171,52 @@ pages:
   memory:
     description: 存放记忆的地方，以及策略
     title: 记忆体
+    actions:
+      open_planner_settings: 打开 Planner 设置
+      loading: 加载中...
+      refresh: 刷新
+      deleting: 删除中...
+      delete_all: 全部删除
+      delete: 删除
+    short_term_entries:
+      title: 短期记忆条目
+      workspace: '工作区：{workspace}'
+      no_active_workspace: 无活动工作区
+    no_workspace_hint: 请先打开或创建一个聊天会话，随后这里会显示 planner 筛选出的记忆。
+    errors:
+      load_failed: '记忆加载失败：{error}'
+    empty:
+      title: 暂无短期记忆条目
+      content: 请继续聊天并等待 planner 达到触发轮次，或在 planner 设置中手动运行。
+    metrics:
+      importance: 重要度 {value}
+      durability: 持久度 {value}
+      emotion: 情绪强度 {value}
+    embedding:
+      title: 向量
+      status:
+        ready: 已就绪
+        pending: 待生成
+        failed: 失败
+      model: '模型：{value}'
+      dimension: '维度：{value}'
+      vector_length: '向量长度：{value}'
+      generated: '生成时间：{value}'
+      failure: '失败原因：{value}'
+      vector_preview: 显示向量预览（前 {count} 个值）
+    meta:
+      tags: '标签：{value}'
+      retention_reason: '保留原因：{value}'
+      status: '状态：{value}'
+      emotion: '情绪：{value}'
+      created: '创建时间：{value}'
+      updated: '更新时间：{value}'
+      event_at: '事件时间：{value}'
+      last_accessed: '上次访问：{value}'
+      access_count: '访问次数：{value}'
+      half_life: '半衰期（天）：{value}'
+      reinforced: '强化次数：{value}'
+      source_refs: '来源引用数：{value}'
   data:
     title: Data
     description: 管理存储 AIRI 数据、导出和重置
@@ -348,6 +394,44 @@ pages:
     memory-short-term:
       description: 短期记忆
       title: 短期记忆
+      planner_llm_source:
+        title: Planner LLM来源
+      common:
+        unknown: 未知
+      status:
+        configured: 已配置
+        not_configured: 未配置
+      actions:
+        running: 运行中...
+        run_planner_now: 立即运行 Planner
+      trigger:
+        rounds_label: Planner 触发轮数 (N)
+        timeout_ms_label: Planner LLM 超时（毫秒）
+        timeout_effective: '生效值：{value} ms'
+        description: 在完成 {n} 轮 user-assistant 对话后触发 planner。
+        pending_rounds: '待触发轮数：{count}'
+      prompt_hint:
+        prefix: Planner 系统提示词可在
+        link: 开发者工具 / Memory Alaya
+        suffix: 中编辑。
+      embedding_runtime:
+        title: Planner Embedding 运行时
+        description: 请先在 Provider 页面配置凭据，再在此选择 embedding 模型。
+        status:
+          ready: Embedding 已就绪
+          not_ready: Embedding 未就绪
+        enable: 启用 Embedding
+        timeout_ms: 超时（毫秒）
+        batch_size: 批大小
+        effective_value: '生效值：{value}'
+        resolved_provider_model: '当前生效 provider/model：{provider} / {model}'
+        providers:
+          title: Embedding Providers
+          description: 仅显示已在 Provider 设置中完成配置的 provider。
+        models:
+          title: Embedding Models
+          description: 从已选 embedding provider 中选择一个模型。
+          manual_hint: 当前 embedding provider 不支持模型列表，请手动输入模型 ID。
     messaging-discord:
       description: Discord 发消息和语音聊天
       title: Discord

@@ -86,6 +86,12 @@ const menu = computed(() => [
     icon: 'i-solar:transfer-horizontal-bold-duotone',
     to: '/devtools/websocket-inspector',
   },
+  {
+    title: 'Memory Alaya',
+    description: 'Inspect planner trigger logs and short-term write results',
+    icon: 'i-solar:database-bold-duotone',
+    to: '/devtools/memory-alaya',
+  },
 ])
 </script>
 

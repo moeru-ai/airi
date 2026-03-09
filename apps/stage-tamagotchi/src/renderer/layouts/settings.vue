@@ -21,6 +21,7 @@ const routeMeta = computed(() => route.meta as {
   subtitleKey?: string
   title?: string
   subtitle?: string
+  disableBackButton?: boolean
 })
 
 const providerTitle = computed(() => {
@@ -64,6 +65,11 @@ const routeHeaderMetadata = computed(() => {
 
   return undefined
 })
+
+const pageHeaderDisableBackButton = computed(() => {
+  return (isStageTamagotchi() && route.path === '/settings')
+    || Boolean(routeMeta.value.disableBackButton)
+})
 </script>
 
 <template>
@@ -84,7 +90,7 @@ const routeHeaderMetadata = computed(() => {
           <PageHeader
             :title="routeHeaderMetadata?.title ?? ''"
             :subtitle="routeHeaderMetadata?.subtitle ?? ''"
-            :disable-back-button="isStageTamagotchi() && route.path === '/settings'"
+            :disable-back-button="pageHeaderDisableBackButton"
             px-4
           />
           <div min-h-0 flex-1 px-4>

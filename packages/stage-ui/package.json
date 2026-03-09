@@ -59,6 +59,7 @@
     "@proj-airi/ccc": "workspace:^",
     "@proj-airi/chromatic": "^1.0.2",
     "@proj-airi/core-character": "workspace:^",
+    "@proj-airi/memory-alaya": "workspace:^",
     "@proj-airi/drizzle-duckdb-wasm": "catalog:",
     "@proj-airi/font-cjkfonts-allseto": "workspace:^",
     "@proj-airi/font-xiaolai": "workspace:^",

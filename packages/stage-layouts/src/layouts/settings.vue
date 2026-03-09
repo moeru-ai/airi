@@ -19,6 +19,7 @@ const routeMeta = computed(() => route.meta as {
   subtitleKey?: string
   title?: string
   subtitle?: string
+  disableBackButton?: boolean
 })
 
 const providerTitle = computed(() => {
@@ -63,6 +64,10 @@ const routeHeaderMetadata = computed(() => {
   return undefined
 })
 
+const pageHeaderDisableBackButton = computed(() => {
+  return route.path === '/settings' || Boolean(routeMeta.value.disableBackButton)
+})
+
 const { updateThemeColor } = useThemeColor(themeColorFromValue({ light: 'rgb(255 255 255)', dark: 'rgb(18 18 18)' }))
 watch(dark, () => updateThemeColor(), { immediate: true })
 watch(route, () => updateThemeColor(), { immediate: true })
@@ -92,7 +97,7 @@ onMounted(() => updateThemeColor())
       <PageHeader
         :title="routeHeaderMetadata?.title || ''"
         :subtitle="routeHeaderMetadata?.subtitle"
-        :disable-back-button="route.path === '/settings'"
+        :disable-back-button="pageHeaderDisableBackButton"
       />
       <div relative min-h-0 flex-1 overflow-y-auto scrollbar-none>
         <RouterView />

@@ -11,7 +11,7 @@ export const useChatMaintenanceStore = defineStore('chat-maintenance', () => {
   const chatContext = useChatContextStore()
   const chatOrchestrator = useChatOrchestratorStore()
 
-  function cleanupMessages(sessionId = chatSession.activeSessionId) {
+  async function cleanupMessages(sessionId = chatSession.activeSessionId) {
     chatSession.cleanupMessages(sessionId)
     chatContext.resetContexts()
     chatOrchestrator.cancelPendingSends(sessionId)

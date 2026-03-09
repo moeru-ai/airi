@@ -179,6 +179,52 @@ pages:
   memory:
     description: Where memories got stored, and organized
     title: Memory
+    actions:
+      open_planner_settings: Open Planner Settings
+      loading: Loading...
+      refresh: Refresh
+      deleting: Deleting...
+      delete_all: Delete All
+      delete: Delete
+    short_term_entries:
+      title: Short-Term Memory Entries
+      workspace: 'Workspace: {workspace}'
+      no_active_workspace: No active workspace
+    no_workspace_hint: Open or create a chat session first, then planner memories will be shown here.
+    errors:
+      load_failed: 'Failed to load memories: {error}'
+    empty:
+      title: No short-term memory entries yet
+      content: Keep chatting and wait until planner reaches the trigger rounds, or run planner manually in planner settings.
+    metrics:
+      importance: importance {value}
+      durability: durability {value}
+      emotion: emotion {value}
+    embedding:
+      title: Embedding
+      status:
+        ready: ready
+        pending: pending
+        failed: failed
+      model: 'Model: {value}'
+      dimension: 'Dimension: {value}'
+      vector_length: 'Vector Length: {value}'
+      generated: 'Generated: {value}'
+      failure: 'Failure: {value}'
+      vector_preview: Show vector preview (first {count} values)
+    meta:
+      tags: 'Tags: {value}'
+      retention_reason: 'Retention: {value}'
+      status: 'Status: {value}'
+      emotion: 'Emotion: {value}'
+      created: 'Created: {value}'
+      updated: 'Updated: {value}'
+      event_at: 'Event At: {value}'
+      last_accessed: 'Last Accessed: {value}'
+      access_count: 'Access Count: {value}'
+      half_life: 'Half-Life (days): {value}'
+      reinforced: 'Reinforced: {value}'
+      source_refs: 'Source Refs: {value}'
   data:
     title: Data
     description: Manage stored AIRI data, exports, and resets
@@ -360,6 +406,44 @@ pages:
     memory-short-term:
       description: Short-term memory specific settings and management
       title: Short-Term Memory
+      planner_llm_source:
+        title: Planner LLM Source
+      common:
+        unknown: Unknown
+      status:
+        configured: Configured
+        not_configured: Not configured
+      actions:
+        running: Running...
+        run_planner_now: Run Planner Now
+      trigger:
+        rounds_label: Planner Trigger Rounds (N)
+        timeout_ms_label: Planner LLM Timeout (ms)
+        timeout_effective: 'effective: {value} ms'
+        description: Trigger planner after {n} completed user-assistant rounds.
+        pending_rounds: 'Pending rounds: {count}'
+      prompt_hint:
+        prefix: Planner system prompt can be edited in
+        link: Developer Tools / Memory Alaya
+        suffix: .
+      embedding_runtime:
+        title: Planner Embedding Runtime
+        description: Configure credentials in Provider first, then select the embedding model here.
+        status:
+          ready: Embedding ready
+          not_ready: Embedding not ready
+        enable: Enable Embedding
+        timeout_ms: Timeout (ms)
+        batch_size: Batch Size
+        effective_value: 'effective: {value}'
+        resolved_provider_model: 'Effective provider/model: {provider} / {model}'
+        providers:
+          title: Embedding Providers
+          description: Select from providers already configured under Provider settings.
+        models:
+          title: Embedding Models
+          description: Choose one embedding model from the selected embedding provider.
+          manual_hint: Selected embedding provider does not expose model listing. Enter model id manually.
     messaging-discord:
       description: Chat & voice chat over Discord
       title: Discord

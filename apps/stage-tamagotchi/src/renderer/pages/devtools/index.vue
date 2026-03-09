@@ -8,6 +8,5 @@ import { RouterView } from 'vue-router'
 
 <route lang="yaml">
 meta:
-  layout: settings
   titleKey: tamagotchi.settings.devtools.title
 </route>
