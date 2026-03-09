@@ -476,7 +476,7 @@ pages:
                 thinking-mode:
                   label: Thinking Mode
                   description: >
-                    Controls Ollama thinking behavior. GPT-OSS only supports low/medium/high levels.
+                    Controla el comportamiento de pensamiento de Ollama. GPT-OSS solo soporta los niveles bajo/medio/alto (low/medium/high).
                   options:
                     auto: Auto (provider default)
                     disable: Disable
