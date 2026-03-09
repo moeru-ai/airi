@@ -116,7 +116,7 @@ function resolveFallbackToolName(toolName: string): string | undefined {
  * @see https://github.com/moeru-ai/airi/issues/1186
  */
 function createSpawnEnv(overrides?: Record<string, string>): Record<string, string> {
-  return { ...overrides }
+  return { ...(overrides ?? {}) }
 }
 
 async function closeSession(session: McpServerSession) {
