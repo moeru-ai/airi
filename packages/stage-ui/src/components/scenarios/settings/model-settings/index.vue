@@ -53,14 +53,6 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
     return
   }
 
-  // if (import.meta.env.DEV) {
-  //   console.warn('[StageModel][set from model-settings]', {
-  //     currentHref: typeof window !== 'undefined' ? window.location.href : 'unknown',
-  //     nextModelFormat: selectedModel?.format,
-  //     nextModelId: selectedModel?.id ?? '',
-  //     stack: new Error('[StageModel][model-settings]').stack,
-  //   })
-  // }
 
   stageModelSelected.value = selectedModel?.id ?? ''
   await settingsStore.updateStageModel()
