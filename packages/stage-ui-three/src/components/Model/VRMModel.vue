@@ -66,6 +66,7 @@ import {
 import { loadVrm } from '../../composables/vrm/core'
 import { useVRMEmote } from '../../composables/vrm/expression'
 import { useVRMLipSync } from '../../composables/vrm/lip-sync'
+import { useModelStore } from '../../stores/model-store'
 
 /*
   * Props:
@@ -172,6 +173,7 @@ let disposeBeforeRenderLoop: (() => void | undefined)
 const blink = useBlink()
 const idleEyeSaccades = useIdleEyeSaccades()
 const vrmEmote = ref<ReturnType<typeof useVRMEmote>>()
+const modelStore = useModelStore()
 const vrmLipSync = useVRMLipSync(currentAudioSource)
 
 // For sky box update
@@ -339,6 +341,12 @@ async function loadModel() {
       if (isFirstLoad) {
         // Reset model rotation Y
         emit('modelRotationY', 0)
+      }
+
+      // Populate available expressions for the settings UI
+      if (_vrm.expressionManager) {
+        const expressions = Object.keys(_vrm.expressionManager.expressionMap).sort()
+        modelStore.availableExpressions = expressions
       }
 
       /*
@@ -635,6 +643,20 @@ defineExpose({
     vrmAnimationMixer.value?.stopAllAction()
   },
 })
+
+// === Manual Expression Sync ===
+// Applies weights from the settings panel (activeExpressions in store)
+// directly to the VRM model, bypassing the ACT emotion system.
+watch(() => modelStore.activeExpressions, (active) => {
+  if (!vrm.value?.expressionManager)
+    return
+
+  for (const name of modelStore.availableExpressions) {
+    const weight = active[name] || 0
+    vrm.value.expressionManager.setValue(name, weight)
+  }
+  vrm.value.expressionManager.update()
+}, { deep: true })
 </script>
 
 <template>

@@ -5,6 +5,8 @@ import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import VRMExpressions from './vrm-expressions.vue'
+
 import { Container, PropertyColor, PropertyNumber, PropertyPoint } from '../../../data-pane'
 import { ColorPalette } from '../../../widgets'
 
@@ -202,6 +204,7 @@ const envOptions = computed(() => [
       </div>
     </div>
   </Container>
+  <VRMExpressions />
   <Container
     :title="t('settings.vrm.change-model.title')"
     icon="i-solar:magic-stick-3-bold-duotone"

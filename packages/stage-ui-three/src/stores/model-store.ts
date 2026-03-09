@@ -97,6 +97,9 @@ export const useModelStore = defineStore('modelStore', () => {
   const trackingMode = useLocalStorage('settings/stage-ui-three/trackingMode', 'none' as 'camera' | 'mouse' | 'none')
   const eyeHeight = useLocalStorage('settings/stage-ui-three/eyeHeight', 0)
 
+  const availableExpressions = useLocalStorage<string[]>('settings/stage-ui-three/availableExpressions', [])
+  const activeExpressions = useLocalStorage<Record<string, number>>('settings/stage-ui-three/activeExpressions', {})
+
   function resetModelStore() {
     modelSize.value = { x: 0, y: 0, z: 0 }
     modelOrigin.value = { x: 0, y: 0, z: 0 }
@@ -110,6 +113,9 @@ export const useModelStore = defineStore('modelStore', () => {
     lookAtTarget.value = { x: 0, y: 0, z: 0 }
     trackingMode.value = 'none'
     eyeHeight.value = 0
+
+    availableExpressions.value = []
+    activeExpressions.value = {}
   }
 
   // === Lighting ===
@@ -183,6 +189,9 @@ export const useModelStore = defineStore('modelStore', () => {
     envSelect,
     skyBoxSrc,
     skyBoxIntensity,
+
+    availableExpressions,
+    activeExpressions,
 
     onShouldUpdateView,
     shouldUpdateView,
