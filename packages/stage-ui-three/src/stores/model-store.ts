@@ -2,14 +2,24 @@ import type { Vector3 } from 'three'
 
 import { useBroadcastChannel, useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import defaultSkyBoxSrc from '../components/Environment/assets/sky_linekotsi_23_HDRI.hdr?url'
 
 // TODO: this is for future type injection features
 // TODO: make a separate type.ts
 export interface Vec3 { x: number, y: number, z: number }
+export interface SceneBootstrap {
+  cacheHit: boolean
+  cameraDistance: number
+  cameraPosition: Vec3
+  eyeHeight: number
+  lookAtTarget: Vec3
+  modelOrigin: Vec3
+  modelSize: Vec3
+}
 export type TrackingMode = 'camera' | 'mouse' | 'none'
+export type ScenePhase = 'pending' | 'loading' | 'binding' | 'mounted' | 'no-model' | 'error'
 export type HexColor = string & { __hex?: true }
 
 export interface FieldBase<T> {
@@ -102,23 +112,58 @@ export const useModelStore = defineStore('modelStore', () => {
     }
   })
 
-  const scale = useLocalStorage('settings/stage-ui-three/scale', 1)
-  const lastModelSrc = useLocalStorage('settings/stage-ui-three/lastModelSrc', '')
+  // === Scene runtime orchestration ===
+  const scenePhase = ref<ScenePhase>('pending')
+  const sceneTransactionDepth = ref(0)
+  const sceneMutationLocked = computed(() => scenePhase.value !== 'mounted' || sceneTransactionDepth.value > 0)
 
+  function setScenePhase(phase: ScenePhase) {
+    scenePhase.value = phase
+  }
+
+  function beginSceneBindingTransaction() {
+    sceneTransactionDepth.value += 1
+  }
+
+  function endSceneBindingTransaction() {
+    sceneTransactionDepth.value = Math.max(0, sceneTransactionDepth.value - 1)
+  }
+
+  function resetSceneBindingTransactions() {
+    sceneTransactionDepth.value = 0
+  }
+
+  // === Legacy / shared controls ===
+  // REVIEW: `scale` is still shared with non-VRM view controls. The VRM path should
+  // gradually move to `cameraDistance` as the primary user-facing zoom concept.
+  const scale = useLocalStorage('settings/stage-ui-three/scale', 1)
+
+  // === Model lifecycle / bootstrap ===
+  // These values are recalculated from the currently bound model instance whenever
+  // a new bootstrap payload is committed into the scene.
   const modelSize = useLocalStorage('settings/stage-ui-three/modelSize', { x: 0, y: 0, z: 0 })
   const modelOrigin = useLocalStorage('settings/stage-ui-three/modelOrigin', { x: 0, y: 0, z: 0 })
-  const modelOffset = useLocalStorage('settings/stage-ui-three/modelOffset', { x: 0, y: 0, z: 0 })
-  const modelRotationY = useLocalStorage('settings/stage-ui-three/modelRotationY', 0)
-
-  const cameraFOV = useLocalStorage('settings/stage-ui-three/cameraFOV', 40)
-  const cameraPosition = useLocalStorage('settings/stage-ui-three/camera-position', { x: 0, y: 0, z: -1 })
-  const cameraDistance = useLocalStorage('settings/stage-ui-three/cameraDistance', 0)
-
-  const lookAtTarget = useLocalStorage('settings/stage-ui-three/lookAtTarget', { x: 0, y: 0, z: 0 })
-  const trackingMode = useLocalStorage('settings/stage-ui-three/trackingMode', 'none' as 'camera' | 'mouse' | 'none')
   const eyeHeight = useLocalStorage('settings/stage-ui-three/eyeHeight', 0)
 
+  // === User scene settings ===
+  // These values are intended to survive model reloads and direct edits from settings UI.
+  const modelOffset = useLocalStorage('settings/stage-ui-three/modelOffset', { x: 0, y: 0, z: 0 })
+  const modelRotationY = useLocalStorage('settings/stage-ui-three/modelRotationY', 0)
+  const cameraFOV = useLocalStorage('settings/stage-ui-three/cameraFOV', 40)
+  const trackingMode = useLocalStorage('settings/stage-ui-three/trackingMode', 'none' as 'camera' | 'mouse' | 'none')
+
+  // === View state ===
+  // `cameraDistance` is the user-facing distance control. `cameraPosition` and
+  // `lookAtTarget` represent the current runtime pose and may be recalculated when
+  // a new model bootstrap is applied.
+  const cameraPosition = useLocalStorage('settings/stage-ui-three/camera-position', { x: 0, y: 0, z: -1 })
+  const cameraDistance = useLocalStorage('settings/stage-ui-three/cameraDistance', 0)
+  const lookAtTarget = useLocalStorage('settings/stage-ui-three/lookAtTarget', { x: 0, y: 0, z: 0 })
+
   function resetModelStore() {
+    scenePhase.value = 'pending'
+    sceneTransactionDepth.value = 0
+
     modelSize.value = { x: 0, y: 0, z: 0 }
     modelOrigin.value = { x: 0, y: 0, z: 0 }
     modelOffset.value = { x: 0, y: 0, z: 0 }
@@ -133,7 +178,7 @@ export const useModelStore = defineStore('modelStore', () => {
     eyeHeight.value = 0
   }
 
-  // === Lighting ===
+  // === Environment / lighting / render settings ===
   const directionalLightPosition = useLocalStorage('settings/stage-ui-three/scenes/scene/directional-light/position', { x: 0, y: 0, z: -1 })
   const directionalLightTarget = useLocalStorage('settings/stage-ui-three/scenes/scene/directional-light/target', { x: 0, y: 0, z: 0 })
   const directionalLightRotation = useLocalStorage('settings/stage-ui-three/scenes/scene/directional-light/rotation', { x: 0, y: 0, z: 0 })
@@ -170,8 +215,11 @@ export const useModelStore = defineStore('modelStore', () => {
   const skyBoxIntensity = useLocalStorage('settings/stage-ui-three/skyBoxIntensity', 0.1)
 
   return {
+    scenePhase,
+    sceneTransactionDepth,
+    sceneMutationLocked,
+
     scale,
-    lastModelSrc,
 
     modelSize,
     modelOrigin,
@@ -207,6 +255,10 @@ export const useModelStore = defineStore('modelStore', () => {
 
     onShouldUpdateView,
     shouldUpdateView,
+    setScenePhase,
+    beginSceneBindingTransaction,
+    endSceneBindingTransaction,
+    resetSceneBindingTransactions,
 
     resetModelStore,
   }

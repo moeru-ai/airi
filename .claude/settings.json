@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh pr view 904 --repo moeru-ai/airi)",
+      "WebFetch(domain:github.com)"
+    ]
+  }
+}

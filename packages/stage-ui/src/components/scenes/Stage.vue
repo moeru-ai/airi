@@ -564,7 +564,7 @@ defineExpose({
 </script>
 
 <template>
-  <div relative>
+  <div relative h-full w-full>
     <div h-full w-full>
       <Live2DScene
         v-if="stageModelRenderer === 'live2d' && showStage"
@@ -589,18 +589,21 @@ defineExpose({
         :live2d-shadow-enabled="live2dShadowEnabled"
         :live2d-max-fps="live2dMaxFps"
       />
-      <ThreeScene
+      <div
         v-if="stageModelRenderer === 'vrm' && showStage"
-        ref="vrmViewerRef"
-        v-model:state="componentState"
-        :model-src="stageModelSelectedUrl"
-        :idle-animation="animations.idleLoop.toString()"
-        min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
-        :paused="paused"
-        :show-axes="stageViewControlsEnabled"
-        :current-audio-source="currentAudioSource"
-        @error="console.error"
-      />
+        absolute inset-0
+      >
+        <ThreeScene
+          ref="vrmViewerRef"
+          v-model:state="componentState"
+          :model-src="stageModelSelectedUrl"
+          :idle-animation="animations.idleLoop.toString()"
+          :paused="paused"
+          :show-axes="stageViewControlsEnabled"
+          :current-audio-source="currentAudioSource"
+          @error="console.error"
+        />
+      </div>
     </div>
   </div>
 </template>

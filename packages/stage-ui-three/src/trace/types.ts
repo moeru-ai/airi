@@ -47,6 +47,69 @@ export interface VrmUpdateFrameTracePayload extends StageThreeRuntimeTraceBasePa
   vrmFrameHookMs: number
 }
 
+export type ThreeSceneTracePhase = 'pending' | 'loading' | 'binding' | 'mounted' | 'no-model' | 'error'
+export type ThreeSceneTraceModelPhase = 'no-model' | 'loading' | 'ready' | 'error'
+export type ThreeSceneTraceComponentState = 'pending' | 'loading' | 'mounted'
+export type ThreeSceneTracePhaseCause
+  = | 'binding:complete'
+    | 'component:unmount'
+    | 'controls-ready'
+    | 'controls-ref:detached'
+    | 'model-ref:detached'
+    | 'props:model-src'
+    | 'tres:ready'
+    | 'vrm:error'
+    | 'vrm:load-start'
+    | 'vrm:loaded'
+export type ThreeSceneTraceSubtreeKey = 'controlsRef' | 'dirLightRef' | 'modelRef' | 'tresCanvasRef'
+export type ThreeSceneTraceSubtreeAction = 'attached' | 'detached'
+export type ThreeSceneTraceTransactionAction = 'begin' | 'end' | 'reset'
+export type ThreeSceneTraceTransactionReason
+  = | 'component-unmount'
+    | 'initial-load'
+    | 'model-switch'
+    | 'no-model'
+    | 'subtree-remount'
+    | 'unknown'
+
+export interface ThreeScenePhaseTracePayload extends StageThreeRuntimeTraceBasePayload {
+  cause: ThreeSceneTracePhaseCause
+  from?: ThreeSceneTracePhase
+  modelSrc?: string
+  to: ThreeSceneTracePhase
+  transactionDepth: number
+}
+
+export interface ThreeSceneSubtreeTracePayload extends StageThreeRuntimeTraceBasePayload {
+  action: ThreeSceneTraceSubtreeAction
+  key: ThreeSceneTraceSubtreeKey
+  scenePhase: ThreeSceneTracePhase
+  transactionDepth: number
+}
+
+export interface ThreeSceneTransactionTracePayload extends StageThreeRuntimeTraceBasePayload {
+  action: ThreeSceneTraceTransactionAction
+  depth: number
+  reason: ThreeSceneTraceTransactionReason
+  scenePhase: ThreeSceneTracePhase
+}
+
+export interface ThreeSceneComponentStateTracePayload extends StageThreeRuntimeTraceBasePayload {
+  canvasReady: boolean
+  controlsReady: boolean
+  from?: ThreeSceneTraceComponentState
+  modelPhase: ThreeSceneTraceModelPhase
+  scenePhase: ThreeSceneTracePhase
+  to: ThreeSceneTraceComponentState
+  transactionDepth: number
+}
+
+export interface ThreeSceneMutationLockTracePayload extends StageThreeRuntimeTraceBasePayload {
+  locked: boolean
+  scenePhase: ThreeSceneTracePhase
+  transactionDepth: number
+}
+
 export interface VrmSceneSummarySnapshot {
   animationActionCount: number
   materialCount: number

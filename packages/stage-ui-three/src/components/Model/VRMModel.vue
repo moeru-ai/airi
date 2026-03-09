@@ -18,7 +18,7 @@ import type {
 } from 'three'
 import type { Ref, WatchStopHandle } from 'vue'
 
-import type { Vec3 } from '../../stores/model-store'
+import type { SceneBootstrap, Vec3 } from '../../stores/model-store'
 import type { VrmLifecycleReason } from '../../trace'
 import type { ManagedVrmInstance } from './vrm-instance-cache'
 
@@ -27,6 +27,7 @@ import { useLoop, useTresContext } from '@tresjs/core'
 import { until, useMouse } from '@vueuse/core'
 import {
   AnimationMixer,
+  Box3,
   MathUtils,
   Mesh,
   MeshPhysicalMaterial,
@@ -100,7 +101,6 @@ import {
 const props = withDefaults(defineProps<{
   currentAudioSource?: AudioBufferSourceNode
   modelSrc?: string
-  lastModelSrc?: string
   idleAnimation: string
   // loadAnimations?: string[]
   paused?: boolean
@@ -130,11 +130,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   (e: 'loadingProgress', value: number): void
   (e: 'loadStart'): void
-  (e: 'cameraPosition', value: Vec3): void
-  (e: 'modelOrigin', value: Vec3): void
-  (e: 'modelSize', value: Vec3): void
-  (e: 'modelRotationY', value: number): void
-  (e: 'eyeHeight', value: number): void
+  (e: 'sceneBootstrap', value: SceneBootstrap): void
   (e: 'lookAtTarget', value: Vec3): void
 
   (e: 'error', value: unknown): void
@@ -144,7 +140,6 @@ const emit = defineEmits<{
 const {
   currentAudioSource,
   modelSrc,
-  lastModelSrc,
   idleAnimation,
   // loadAnimations, // TBC
   paused,
@@ -497,6 +492,75 @@ function defaultTookAt(eyeHeight: number): Vec3 {
   }
 }
 
+function computeBoundingBox(vrmScene: Object3D) {
+  const box = new Box3()
+  const childBox = new Box3()
+
+  vrmScene.updateMatrixWorld(true)
+
+  vrmScene.traverse((obj) => {
+    if (!obj.visible)
+      return
+
+    const mesh = obj as Mesh
+    if (!mesh.isMesh || !mesh.geometry)
+      return
+
+    if (mesh.name.startsWith('VRMC_springBone_collider'))
+      return
+
+    if (!mesh.geometry.boundingBox)
+      mesh.geometry.computeBoundingBox()
+
+    childBox.copy(mesh.geometry.boundingBox!)
+    childBox.applyMatrix4(mesh.matrixWorld)
+    box.union(childBox)
+  })
+
+  return box
+}
+
+function getEyePosition(activeVrm: VRM): number | null {
+  const eye = activeVrm.humanoid?.getNormalizedBoneNode('head')
+  if (!eye)
+    return null
+
+  const eyePos = new Vector3()
+  eye.getWorldPosition(eyePos)
+  return eyePos.y
+}
+
+function buildSceneBootstrap(activeVrm: VRM, cacheHit: boolean): SceneBootstrap {
+  const bootstrapRoot = activeVrm.scene.parent ?? activeVrm.scene
+  const box = computeBoundingBox(bootstrapRoot)
+  const modelSize = new Vector3()
+  const modelCenter = new Vector3()
+  box.getSize(modelSize)
+  box.getCenter(modelCenter)
+  modelCenter.y += modelSize.y / 5
+
+  const fov = camera.value?.fov ?? 40
+  const radians = (fov / 2 * Math.PI) / 180
+  const initialCameraOffset = new Vector3(
+    modelSize.x / 16,
+    modelSize.y / 8,
+    -(modelSize.y / 3) / Math.tan(radians),
+  )
+
+  const eyePositionY = getEyePosition(activeVrm) ?? modelCenter.y
+  const cameraPosition = modelCenter.clone().add(initialCameraOffset)
+
+  return {
+    cacheHit,
+    cameraDistance: cameraPosition.distanceTo(modelCenter),
+    cameraPosition: { x: cameraPosition.x, y: cameraPosition.y, z: cameraPosition.z },
+    eyeHeight: eyePositionY,
+    lookAtTarget: defaultTookAt(eyePositionY),
+    modelOrigin: { x: modelCenter.x, y: modelCenter.y, z: modelCenter.z },
+    modelSize: { x: modelSize.x, y: modelSize.y, z: modelSize.z },
+  }
+}
+
 async function loadModel() {
   const requestId = invalidatePendingLoads()
   const loadReason: VrmLifecycleReason = vrmGroup.value ? 'model-switch' : 'initial-load'
@@ -509,8 +573,9 @@ async function loadModel() {
 
   try {
     if (!scene.value) {
-      console.warn('Scene is not ready, cannot load VRM model.')
-      return
+      await until(() => scene.value).toBeTruthy()
+      if (!isLoadRequestCurrent(requestId))
+        return
     }
     if (!modelSrc.value) {
       console.warn('NO model src, cannot load VRM model.')
@@ -526,9 +591,6 @@ async function loadModel() {
         ts: loadStartedAt,
       })
     }
-
-    // First load or not? if yes then reset the pinia store
-    const isFirstLoad = modelSrc.value !== lastModelSrc.value
 
     emit('loadStart')
     modelLoaded.value = false
@@ -546,6 +608,7 @@ async function loadModel() {
         if (!airiIblProbe && scene.value)
           airiIblProbe = createIblProbeController(scene.value)
 
+        emit('sceneBootstrap', buildSceneBootstrap(reusableInstance.vrm, true))
         commitManagedVrmInstance(reusableInstance)
         didCommitLoad = true
 
@@ -574,15 +637,13 @@ async function loadModel() {
       if (isLoadRequestCurrent(requestId)) {
         emitVrmLoadError(loadReason, loadStartedAt, 'VRM model loading failure')
         console.warn('VRM model loading failure!')
+        emit('error', new Error('VRM model loading failure'))
       }
       return
     }
     const {
       _vrm,
       _vrmGroup,
-      modelCenter: vrmModelCenter,
-      modelSize: vrmModelSize,
-      initialCameraOffset: vrmInitialCameraOffset,
     } = _vrmInfo
     nextVrm = _vrm
     nextVrmGroup = _vrmGroup
@@ -590,35 +651,6 @@ async function loadModel() {
     if (!isLoadRequestCurrent(requestId)) {
       disposeDetachedVrm(nextVrm, nextVrmGroup)
       return
-    }
-
-    /*
-      * Model setting
-    */
-    // If it's first load
-    if (isFirstLoad) {
-      emit('cameraPosition', {
-        x: vrmModelCenter.x + vrmInitialCameraOffset.x,
-        y: vrmModelCenter.y + vrmInitialCameraOffset.y,
-        z: vrmModelCenter.z + vrmInitialCameraOffset.z,
-      })
-      emit('modelOrigin', {
-        x: vrmModelCenter.x,
-        y: vrmModelCenter.y,
-        z: vrmModelCenter.z,
-      })
-      emit('modelSize', {
-        x: vrmModelSize.x,
-        y: vrmModelSize.y,
-        z: vrmModelSize.z,
-      })
-    }
-
-    // Set model facing direction
-    // Lilia: I brought forward the rotation to the core.ts, so that any ad-hoc rotation will not impact the model centre position.
-    if (isFirstLoad) {
-      // Reset model rotation Y
-      emit('modelRotationY', 0)
     }
 
     /*
@@ -634,6 +666,8 @@ async function loadModel() {
       disposeDetachedVrm(nextVrm, nextVrmGroup)
       emitVrmLoadError(loadReason, loadStartedAt, 'No VRM animation loaded')
       console.warn('No VRM animation loaded')
+      if (isLoadRequestCurrent(requestId))
+        emit('error', new Error('No VRM animation loaded'))
       return
     }
     // Re-anchor the root position track to the model origin
@@ -702,28 +736,11 @@ async function loadModel() {
       }
     })
 
-    /*
-      * Eye tracking setting
-    */
-    function getEyePosition(activeVrm: VRM): number | null {
-      const eye = activeVrm.humanoid?.getNormalizedBoneNode('head')
-      if (!eye)
-        return null
-      const eyePos = new Vector3()
-      eye.getWorldPosition(eyePos)
-      return eyePos.y
-    }
-    if (isFirstLoad) {
-      const eyePositionY = getEyePosition(_vrm)
-      if (eyePositionY) {
-        emit('eyeHeight', eyePositionY)
-        emit('lookAtTarget', defaultTookAt(eyePositionY))
-      }
-    }
-
     if (loadReason === 'model-switch') {
       componentCleanUp('model-switch', { invalidate: false })
     }
+
+    emit('sceneBootstrap', buildSceneBootstrap(_vrm, false))
 
     commitManagedVrmInstance(createManagedVrmInstance({
       emote: nextVrmEmote,
@@ -759,6 +776,15 @@ async function loadModel() {
 }
 
 onMounted(async () => {
+  // watch if the model needs to be reloaded
+  // Registered BEFORE the initial load to avoid missing src changes
+  // that arrive while the first loadModel() is still in-flight.
+  watch(modelSrc, (newSrc, oldSrc) => {
+    if (newSrc !== oldSrc) {
+      loadModel()
+    }
+  })
+
   // wait until scene is not undefined
   await until(() => scene.value).toBeTruthy()
   await loadModel()
@@ -767,12 +793,6 @@ onMounted(async () => {
     * Downward info flow
     * - Pinia store value updated => command take effect
   */
-  // watch if the model needs to be reloaded
-  watch(modelSrc, (newSrc, oldSrc) => {
-    if (newSrc !== oldSrc) {
-      loadModel()
-    }
-  })
   // watch if the animation should be paused
   watch(paused, (isPaused) => {
     if (isPaused) {
@@ -866,7 +886,9 @@ onMounted(async () => {
   }, { deep: true })
 })
 
-onUnmounted(() => componentCleanUp('component-unmount'))
+onUnmounted(() => {
+  componentCleanUp('component-unmount')
+})
 
 if (import.meta.hot) {
   // Ensure cleanup on HMR
