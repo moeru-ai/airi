@@ -37,18 +37,10 @@ watch(showDialog, async (open) => {
   })
 })
 
+const PICK_GUARD_WINDOW_MS = 500
 function handlePick(value: DisplayModel | undefined) {
-  const hasRecentDialogPointerDown = performance.now() - lastDialogPointerDownAt.value < 500
-
-  if (!showDialog.value || !canAcceptPick.value || !hasRecentDialogPointerDown) {
-    // if (import.meta.env.DEV) {
-    //   console.warn('[StageModel][ignore pick before dialog ready]', {
-    //     currentHref: typeof window !== 'undefined' ? window.location.href : 'unknown',
-    //     canAcceptPick: canAcceptPick.value,
-    //     hasRecentDialogPointerDown,
-    //     showDialog: showDialog.value,
-    //   })
-    // }
+  // lilia: Guard against the dialog-opening pointer event being reused as an immediate pick on dialog content.
+  const hasRecentDialogPointerDown = performance.now() - lastDialogPointerDownAt.value < PICK_GUARD_WINDOW_MS
     return
   }
 
