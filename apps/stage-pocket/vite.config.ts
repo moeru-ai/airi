@@ -95,7 +95,11 @@ export default defineConfig({
   },
 
   plugins: [
-    ...isEnvTruthy(process.env.VITE_SKIP_MKCERT ?? '') ? [] : [mkcert()],
+    ...isEnvTruthy(process.env.VITE_SKIP_MKCERT ?? '') ? [] : [mkcert((() => {
+      // Workaround: plugin's bundled downloader has a feaxios bug, prefer system mkcert
+      try { return { mkcertPath: execSync('which mkcert', { stdio: 'pipe' }).toString().trim() } }
+      catch { return {} }
+    })())],
 
     Info(),
 
