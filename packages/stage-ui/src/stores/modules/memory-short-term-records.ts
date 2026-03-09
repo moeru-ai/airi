@@ -1,7 +1,6 @@
 import type { ShortTermMemoryRecord } from '@proj-airi/memory-alaya'
 
 import { alayaSchemaVersion } from '@proj-airi/memory-alaya'
-
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 

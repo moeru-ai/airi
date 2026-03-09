@@ -31,7 +31,7 @@ function summarize(content: string, maxLength = 96) {
 function distillContent(content: string, maxLength = 240) {
   const normalized = content
     .replace(/\s+/g, ' ')
-    .replace(/^(?:hmm+|uh+|well+|okay+|alright+)[,.!?\s-]*/i, '')
+    .replace(/^(?:hm{2,}|uh+|wel{2,}|okay+|alright+)[,.!?\s-]*/i, '')
     .trim()
 
   if (normalized.length <= maxLength)

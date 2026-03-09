@@ -5,5 +5,5 @@ export interface ShortTermMemoryMarkAccessedInput {
 }
 
 export interface ShortTermMemoryActivityStore {
-  markAccessed(input: ShortTermMemoryMarkAccessedInput): Promise<number>
+  markAccessed: (input: ShortTermMemoryMarkAccessedInput) => Promise<number>
 }

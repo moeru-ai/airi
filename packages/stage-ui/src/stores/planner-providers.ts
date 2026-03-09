@@ -9,11 +9,11 @@ import type {
   TranscriptionProviderWithExtraOptions,
 } from '@xsai-ext/providers/utils'
 
+import type { ModelInfo, ProviderMetadata, ProviderRuntimeState } from './providers'
+
 import { computedAsync, useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
-
-import type { ModelInfo, ProviderMetadata, ProviderRuntimeState } from './providers'
 
 import { useProvidersStore } from './providers'
 

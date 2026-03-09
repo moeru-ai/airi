@@ -10,10 +10,10 @@ export interface ShortTermMemoryStoreUpsertResult {
 }
 
 export interface ShortTermMemoryStore {
-  getCheckpoint(workspaceId: string): Promise<PlannerCheckpoint | undefined>
-  saveCheckpoint(checkpoint: PlannerCheckpoint): Promise<void>
-  upsert(
+  getCheckpoint: (workspaceId: string) => Promise<PlannerCheckpoint | undefined>
+  saveCheckpoint: (checkpoint: PlannerCheckpoint) => Promise<void>
+  upsert: (
     records: ShortTermMemoryRecord[],
     options: { runId: string },
-  ): Promise<ShortTermMemoryStoreUpsertResult>
+  ) => Promise<ShortTermMemoryStoreUpsertResult>
 }

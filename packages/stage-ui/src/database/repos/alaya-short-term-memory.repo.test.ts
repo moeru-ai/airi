@@ -1,8 +1,8 @@
 import type { ShortTermMemoryRecord } from '@proj-airi/memory-alaya'
 
+import { alayaSchemaVersion } from '@proj-airi/memory-alaya'
 import { describe, expect, it } from 'vitest'
 
-import { alayaSchemaVersion } from '@proj-airi/memory-alaya'
 import { createAlayaShortTermMemoryRepo } from './alaya-short-term-memory.repo'
 
 function normalizeLookupKey(key: string) {

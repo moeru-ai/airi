@@ -5,5 +5,5 @@ export interface MemoryEmbeddingResult {
 }
 
 export interface MemoryEmbeddingProvider {
-  embed(input: { texts: string[] }): Promise<MemoryEmbeddingResult>
+  embed: (input: { texts: string[] }) => Promise<MemoryEmbeddingResult>
 }

@@ -68,7 +68,7 @@ const {
     :on-back="() => router.back()"
   >
     <ProviderSettingsContainer>
-      <div class="mb-4 rounded border border-primary-200 bg-primary-50 px-3 py-2 text-xs text-primary-700 dark:border-primary-800/60 dark:bg-primary-900/20 dark:text-primary-300">
+      <div class="mb-4 border border-primary-200 rounded bg-primary-50 px-3 py-2 text-xs text-primary-700 dark:border-primary-800/60 dark:bg-primary-900/20 dark:text-primary-300">
         Planner scope credentials are fully isolated from chat scope.
       </div>
 

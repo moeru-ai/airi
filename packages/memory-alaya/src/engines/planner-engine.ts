@@ -9,8 +9,8 @@ import { runPlannerBatch } from '../use-cases/run-planner-batch'
 import { shouldTriggerPlanner } from '../use-cases/should-trigger-planner'
 
 export interface PlannerEngine {
-  run(input: PlannerRunInput): ReturnType<typeof runPlannerBatch>
-  shouldTrigger(input: ShouldTriggerPlannerInput): ShouldTriggerPlannerOutput
+  run: (input: PlannerRunInput) => ReturnType<typeof runPlannerBatch>
+  shouldTrigger: (input: ShouldTriggerPlannerInput) => ShouldTriggerPlannerOutput
 }
 
 export function createPlannerEngine(deps: RunPlannerBatchDeps): PlannerEngine {

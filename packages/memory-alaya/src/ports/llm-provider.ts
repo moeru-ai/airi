@@ -15,5 +15,5 @@ export interface MemoryLlmExtractInput {
 }
 
 export interface MemoryLlmProvider {
-  extractCandidates(input: MemoryLlmExtractInput): Promise<PlannerExtractionFromLlm | unknown>
+  extractCandidates: (input: MemoryLlmExtractInput) => Promise<PlannerExtractionFromLlm | unknown>
 }

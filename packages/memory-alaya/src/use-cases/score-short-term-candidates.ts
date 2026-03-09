@@ -122,7 +122,7 @@ function calculateTimeWeight(record: ShortTermMemoryRecord, now: number) {
 
   const ageDays = Math.max(0, (now - anchorAt) / dayMs)
   const halfLifeDays = Math.max(1, record.decay.halfLifeDays || 14)
-  const baseDecay = Math.pow(0.5, ageDays / halfLifeDays)
+  const baseDecay = 0.5 ** (ageDays / halfLifeDays)
   const usageBoost = clamp01(Math.log1p((record.accessCount ?? 0) + (record.decay.reinforcedCount ?? 0)) * 0.08)
 
   return clamp01(baseDecay * 0.92 + usageBoost)

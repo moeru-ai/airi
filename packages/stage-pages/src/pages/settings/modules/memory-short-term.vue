@@ -355,24 +355,24 @@ function updateEmbeddingProvider(value: string) {
     </div>
 
     <div class="flex flex-col gap-3 border border-neutral-200 rounded-xl bg-neutral-100/80 p-4 dark:border-neutral-800 dark:bg-neutral-900/50">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div class="flex flex-col gap-1">
-            <h3 class="text-lg text-neutral-600 font-semibold dark:text-neutral-200">
-              {{ t('settings.pages.modules.memory-short-term.embedding_runtime.title') }}
-            </h3>
-            <p class="text-sm text-neutral-500 dark:text-neutral-400">
-              {{ t('settings.pages.modules.memory-short-term.embedding_runtime.description') }}
-            </p>
-          </div>
-          <span
-            class="rounded px-2 py-1 text-xs font-medium"
-            :class="embeddingConfigured
-              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
-              : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'"
-          >
-            {{ embeddingConfigured ? t('settings.pages.modules.memory-short-term.embedding_runtime.status.ready') : t('settings.pages.modules.memory-short-term.embedding_runtime.status.not_ready') }}
-          </span>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-col gap-1">
+          <h3 class="text-lg text-neutral-600 font-semibold dark:text-neutral-200">
+            {{ t('settings.pages.modules.memory-short-term.embedding_runtime.title') }}
+          </h3>
+          <p class="text-sm text-neutral-500 dark:text-neutral-400">
+            {{ t('settings.pages.modules.memory-short-term.embedding_runtime.description') }}
+          </p>
         </div>
+        <span
+          class="rounded px-2 py-1 text-xs font-medium"
+          :class="embeddingConfigured
+            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+            : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'"
+        >
+          {{ embeddingConfigured ? t('settings.pages.modules.memory-short-term.embedding_runtime.status.ready') : t('settings.pages.modules.memory-short-term.embedding_runtime.status.not_ready') }}
+        </span>
+      </div>
 
       <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <label class="flex items-center gap-2 border border-neutral-300 rounded bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900">

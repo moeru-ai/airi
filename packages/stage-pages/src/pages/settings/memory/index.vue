@@ -284,7 +284,7 @@ watch(
             </button>
           </div>
 
-          <div class="flex flex-col gap-2 rounded border border-neutral-200 bg-neutral-50 p-2.5 dark:border-neutral-800 dark:bg-neutral-950/40">
+          <div class="flex flex-col gap-2 border border-neutral-200 rounded bg-neutral-50 p-2.5 dark:border-neutral-800 dark:bg-neutral-950/40">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div class="text-xs text-neutral-500 dark:text-neutral-400">
                 {{ t('settings.pages.memory.embedding.title') }}
@@ -306,7 +306,7 @@ watch(
 
             <div
               v-if="record.embedding?.status === 'failed' && record.embedding?.failureReason"
-              class="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-900/20 dark:text-red-300"
+              class="border border-red-200 rounded bg-red-50 px-2 py-1 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-900/20 dark:text-red-300"
             >
               {{ t('settings.pages.memory.embedding.failure', { value: record.embedding.failureReason }) }}
             </div>

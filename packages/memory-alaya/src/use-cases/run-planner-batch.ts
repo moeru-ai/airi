@@ -480,4 +480,3 @@ function createNextCheckpoint(
     updatedAt: input.now,
   }
 }
-

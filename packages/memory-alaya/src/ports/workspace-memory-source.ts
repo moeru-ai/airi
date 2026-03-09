@@ -19,5 +19,5 @@ export interface WorkspaceListTurnsOutput {
 }
 
 export interface WorkspaceMemorySource {
-  listTurns(input: WorkspaceListTurnsInput): Promise<WorkspaceListTurnsOutput>
+  listTurns: (input: WorkspaceListTurnsInput) => Promise<WorkspaceListTurnsOutput>
 }
