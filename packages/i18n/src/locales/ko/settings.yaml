@@ -681,6 +681,9 @@ pages:
         title: Bilibili / IndexTTS
         callout_indextts2_unavailable_title: 제한된 지원
         callout_indextts2_unavailable: 현재 IndexTTS2에 대한 지원이 제공되지 않습니다. IndexTTS를 사용해 주세요.
+      index-tts-2:
+        description: https://index-tts.github.io/
+        title: Bilibili / IndexTTS-2
       azure-ai-foundry:
         description: Azure AI 파운더리
         title: Azure AI 파운드리

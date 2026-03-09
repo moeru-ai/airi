@@ -681,6 +681,9 @@ pages:
         title: Bilibili/IndexTTS
         callout_indextts2_unavailable_title: 限定的なサポート
         callout_indextts2_unavailable: 現在、IndexTTS2のサポートはご利用いただけません。IndexTTSをご利用ください。
+      index-tts-2:
+        description: https://index-tts.github.io/
+        title: Bilibili / IndexTTS-2
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry

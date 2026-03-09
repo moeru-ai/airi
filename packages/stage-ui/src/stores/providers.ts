@@ -1209,6 +1209,97 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'index-tts-2': {
+      id: 'index-tts-2',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      nameKey: 'settings.pages.providers.provider.index-tts-2.title',
+      name: 'Index-TTS-2 by Bilibili',
+      descriptionKey: 'settings.pages.providers.provider.index-tts-2.description',
+      description: 'index-tts.github.io',
+      iconColor: 'i-lobe-icons:bilibiliindex',
+      defaultOptions: () => ({
+        baseUrl: 'http://localhost:8002/tts/',
+        model: 'IndexTTS-2',
+      }),
+      createProvider: async (config) => {
+        const provider: SpeechProvider = {
+          speech: () => {
+            const req = {
+              baseURL: config.baseUrl as string,
+              model: (config.model as string) || 'IndexTTS-2',
+            }
+            return req
+          },
+        }
+        return provider
+      },
+      capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'IndexTTS-2',
+              name: 'IndexTTS-2',
+              provider: 'index-tts-2',
+              description: 'Default model for Index-TTS-2 deployment',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
+        listVoices: async (config) => {
+          const voicesUrl = config.baseUrl as string
+          const response = await fetch(`${voicesUrl}audio/voices`)
+          if (!response.ok) {
+            throw new Error(`Failed to fetch voices: ${response.statusText}`)
+          }
+          const voices = await response.json()
+          return Object.keys(voices).map((voice: any) => {
+            return {
+              id: voice,
+              name: voice,
+              provider: 'index-tts-vllm',
+              // previewURL: voice.preview_audio_url,
+              languages: [{ code: 'cn', title: 'Chinese' }, { code: 'en', title: 'English' }],
+            }
+          })
+        },
+      },
+      validators: {
+        validateProviderConfig: async (config) => {
+          const errors = [
+            !config.baseUrl && new Error('Base URL is required. Default to http://localhost:8002/tts/ for Index-TTS.'),
+          ].filter(Boolean)
+
+          const res = baseUrlValidator.value(config.baseUrl)
+          if (res) {
+            return res
+          }
+
+          try {
+            const controller = new AbortController()
+            const timeout = setTimeout(() => controller.abort(), 5000)
+            const response = await fetch(`${config.baseUrl as string}audio/voices`, { signal: controller.signal })
+            clearTimeout(timeout)
+
+            if (!response.ok) {
+              const reason = `IndexTTS unreachable: HTTP ${response.status} ${response.statusText}`
+              return { errors: [new Error(reason)], reason, valid: false }
+            }
+          }
+          catch (err) {
+            const reason = `IndexTTS connection failed: ${String(err)}`
+            return { errors: [err as Error], reason, valid: false }
+          }
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: errors.length === 0,
+          }
+        },
+      },
+    },
     'alibaba-cloud-model-studio': {
       id: 'alibaba-cloud-model-studio',
       category: 'speech',
