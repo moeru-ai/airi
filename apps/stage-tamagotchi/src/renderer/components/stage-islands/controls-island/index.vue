@@ -4,7 +4,8 @@ import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInEl
 import { useModelStore } from '@proj-airi/stage-ui-three'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
-import { useTimeoutFn } from '@vueuse/core'
+import { useIntervalFn, useTimeoutFn } from '@vueuse/core'
+import { refDebounced } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, inject, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -32,12 +33,8 @@ const settingsStore = useSettings()
 const modelStore = useModelStore()
 const context = useElectronEventaContext()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
-<<<<<<< HEAD
-const { controlsIslandIconSize } = storeToRefs(settingsStore)
-const { favoriteExpression, activeExpressions } = storeToRefs(modelStore)
-=======
 const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
->>>>>>> 604341a1 (feat(tamagotchi): add "Pin on top" toggle to controls island (#1183))
+const { favoriteExpression, activeExpressions } = storeToRefs(modelStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const openChat = useElectronEventaInvoke(electronOpenChat)
 const isLinux = ref(false)
@@ -52,30 +49,29 @@ const islandRef = ref<HTMLElement>()
 // === Sub-menu state ===
 const view = ref<'main' | 'emotions'>('main')
 
-const { isOutside } = useElectronMouseInElement(islandRef)
+// Expose whether hearing dialog is open so parent can disable click-through
+const hearingDialogOpen = ref(false)
+defineExpose({ hearingDialogOpen })
 
-const { start: startCollapseTimer, stop: stopCollapseTimer } = useTimeoutFn(() => {
-  if (expanded.value) {
+const { isOutside } = useElectronMouseInElement(islandRef)
+const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
+
+watch(isOutsideAfter2seconds, (outside) => {
+  if (outside && expanded.value && !hearingDialogOpen.value) {
     expanded.value = false
     view.value = 'main' // Reset sub-menu on collapse
   }
-}, 1500, { immediate: false })
-
-watch(isOutside, (outside) => {
-  if (outside && expanded.value) {
-    startCollapseTimer()
-  }
-  else {
-    stopCollapseTimer()
-  }
 })
 
-watch(expanded, (isExp) => {
-  if (isExp && isOutside.value) {
-    startCollapseTimer()
+useIntervalFn(() => {
+  if (expanded.value && isOutside.value && !hearingDialogOpen.value) {
+    expanded.value = false
+    view.value = 'main' // Reset sub-menu on collapse
   }
-  else if (!isExp) {
-    stopCollapseTimer()
+}, 1000)
+
+watch(expanded, (isExp) => {
+  if (!isExp) {
     view.value = 'main' // Reset sub-menu when collapsing
   }
 })
@@ -127,10 +123,6 @@ function startDraggingWindow() {
     startDraggingWindowInvoke()
   }
 }
-
-// Expose whether hearing dialog is open so parent can disable click-through
-const hearingDialogOpen = ref(false)
-defineExpose({ hearingDialogOpen })
 
 function refreshWindow() {
   window.location.reload()
