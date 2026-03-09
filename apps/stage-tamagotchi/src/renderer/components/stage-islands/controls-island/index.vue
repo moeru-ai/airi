@@ -5,7 +5,7 @@ import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/
 import { useTheme } from '@proj-airi/ui'
 import { useTimeoutFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, inject, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ControlButtonTooltip from './control-button-tooltip.vue'
@@ -16,7 +16,6 @@ import ControlsIslandProfilePicker from './controls-island-profile-picker.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
 import {
-  electron,
   electronOpenChat,
   electronOpenSettings,
   electronStartDraggingWindow,
@@ -34,9 +33,11 @@ const { enabled } = storeToRefs(settingsAudioDeviceStore)
 const { controlsIslandIconSize } = storeToRefs(settingsStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const openChat = useElectronEventaInvoke(electronOpenChat)
-const isLinux = useElectronEventaInvoke(electron.app.isLinux)
+const isLinux = ref(false)
 const closeWindow = useElectronEventaInvoke(electronWindowClose)
 const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
+
+const isLocked = inject('isLocked', ref(false))
 
 const expanded = ref(false)
 const islandRef = ref<HTMLElement>()
@@ -99,7 +100,12 @@ const adjustStyleClasses = computed(() => {
  *
  * See `apps/stage-tamagotchi/src/main/windows/main/index.ts` for handler definition
  */
-const startDraggingWindow = !isLinux() ? defineInvoke(context.value, electronStartDraggingWindow) : undefined
+const startDraggingWindowInvoke = defineInvoke(context.value, electronStartDraggingWindow)
+function startDraggingWindow() {
+  if (!isLinux.value) {
+    startDraggingWindowInvoke()
+  }
+}
 
 // Expose whether hearing dialog is open so parent can disable click-through
 const hearingDialogOpen = ref(false)
@@ -209,9 +215,7 @@ function refreshWindow() {
         <ControlButtonTooltip side="left">
           <ControlButton :button-style="adjustStyleClasses.button" @click="expanded = !expanded">
             <div
-
               :class="[adjustStyleClasses.icon, expanded ? 'rotate-180' : 'rotate-0']"
-
               i-solar:alt-arrow-up-line-duotone scale-110 transition-all duration-300
               text="neutral-800 dark:neutral-300"
             />
@@ -222,8 +226,16 @@ function refreshWindow() {
         </ControlButtonTooltip>
 
         <ControlButtonTooltip side="left">
-          <ControlButton :button-style="adjustStyleClasses.button" cursor-move :class="{ 'drag-region': isLinux }" @mousedown="startDraggingWindow?.()">
-            <div i-ph:arrows-out-cardinal :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+          <ControlButton
+            :button-style="adjustStyleClasses.button"
+            cursor-move
+            class="drag-region"
+            @mousedown="startDraggingWindow()"
+          >
+            <div
+              i-ph:arrows-out-cardinal
+              :class="[adjustStyleClasses.icon, 'text-neutral-800 dark:neutral-300']"
+            />
           </ControlButton>
           <template #tooltip>
             {{ t('tamagotchi.stage.controls-island.drag-to-move-window') }}

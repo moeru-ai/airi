@@ -51,33 +51,18 @@ setupDebugger()
 
 const log = useLogg('main').useGlobalConfig()
 
-// Thanks to [@blurymind](https://github.com/blurymind),
-//
-// When running Electron on Linux, navigator.gpu.requestAdapter() fails.
-// In order to enable WebGPU and process the shaders fast enough, we need the following
-// command line switches to be set.
-//
-// https://github.com/electron/electron/issues/41763#issuecomment-2051725363
-// https://github.com/electron/electron/issues/41763#issuecomment-3143338995
 if (isLinux) {
   app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer')
   app.commandLine.appendSwitch('enable-unsafe-webgpu')
   app.commandLine.appendSwitch('enable-features', 'Vulkan')
 
-  // NOTICE: we need UseOzonePlatform, WaylandWindowDecorations for working on Wayland.
-  // Partially related to https://github.com/electron/electron/issues/41551, since X11 is deprecating now,
-  // we can safely remove the feature flags for Electron once they made it default supported.
-  // Fixes: https://github.com/moeru-ai/airi/issues/757
-  // Ref: https://github.com/mmaura/poe2linuxcompanion/blob/90664607a147ea5ccea28df6139bd95fb0ebab0e/electron/main/index.ts#L28-L46
   if (env.XDG_SESSION_TYPE === 'wayland') {
     app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal')
-
     app.commandLine.appendSwitch('enable-features', 'UseOzonePlatform')
     app.commandLine.appendSwitch('enable-features', 'WaylandWindowDecorations')
   }
 }
 
-// Force high-performance GPU (NVIDIA/AMD) over integrated Intel graphics
 app.commandLine.appendSwitch('force-high-performance-gpu')
 app.commandLine.appendSwitch('enable-gpu-rasterization')
 app.commandLine.appendSwitch('ignore-gpu-blocklist')
@@ -126,9 +111,7 @@ app.whenReady().then(async () => {
     build: () => setupPluginHost(),
   })
 
-  // BeatSync will create a background window to capture and process audio.
   const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
-
   const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
 
   const onboardingWindowManager = injeca.provide('windows:onboarding', {
@@ -172,8 +155,15 @@ app.whenReady().then(async () => {
   })
 
   const tray = injeca.provide('app:tray', {
-    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, i18n },
-    build: async ({ dependsOn }) => setupTray(dependsOn),
+    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, i18n, appConfig },
+    build: async ({ dependsOn }) => {
+      const configHelper = dependsOn.appConfig
+      return setupTray({
+        ...dependsOn,
+        getConfig: () => configHelper.get(),
+        updateConfig: config => configHelper.update(config),
+      })
+    },
   })
 
   injeca.invoke({
@@ -199,12 +189,8 @@ app.whenReady().then(async () => {
       ipcMain.on('llm-raw-output', (_, data: { type: 'delta' | 'full', text: string, sessionId: string }) => {
         const reset = '\x1B[0m'
         const cyan = '\x1B[36m'
-        const yellow = '\x1B[33m'
         if (data.type === 'delta') {
-          // Log deltas in yellow, but only if they are not just whitespace (too noisy otherwise)
-          // if (data.text.trim()) {
-          //   console.log(`${yellow}[LLM Delta]${reset} ${data.text}`)
-          // }
+          // Log deltas if needed
         }
         else {
           console.log(`${cyan}[LLM Final Output]${reset} Session: ${data.sessionId}`)
@@ -218,26 +204,16 @@ app.whenReady().then(async () => {
 
   injeca.start().catch(err => console.error(err))
 
-  // Lifecycle
   emitAppReady()
-
-  // Extra
   openDebugger()
 
-  // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
 }).catch((err) => {
   log.withError(err).error('Error during app initialization')
 })
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
   emitAppWindowAllClosed()
-
   if (platform !== 'darwin') {
     app.quit()
   }

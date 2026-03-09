@@ -77,7 +77,6 @@ async function handleComfyTrigger(params: {
         id: params.id,
         componentProps: { status: 'done', progress: 100 },
       })
-      // NEVER call process.exit(0) here, it kills the entire Electron app!
     })
   }
   else if (status === 'generating') {
@@ -88,7 +87,6 @@ async function handleComfyTrigger(params: {
 export function setupCuippBridge(params: { widgetsManager: WidgetsWindowManager }) {
   debugLog('🚀 Initializing bridge (Spawn + Update Interceptor)...')
 
-  // Wrap updateWidget
   const originalUpdateWidget = params.widgetsManager.updateWidget
   params.widgetsManager.updateWidget = async (payload) => {
     const snapshot = params.widgetsManager.getWidgetSnapshot(payload.id)
@@ -101,12 +99,10 @@ export function setupCuippBridge(params: { widgetsManager: WidgetsWindowManager 
     return originalUpdateWidget.call(params.widgetsManager, payload)
   }
 
-  // Wrap pushWidget to catch triggers during SPAWN
   const originalPushWidget = params.widgetsManager.pushWidget
   params.widgetsManager.pushWidget = async (payload) => {
     debugLog(`📦 PUSH WIDGET intercepted: ${payload.id} (${payload.componentName})`)
 
-    // Force Comfy widgets to be persistent (Living Wall mode)
     if (payload.componentName === 'comfy') {
       debugLog(`🖼️  Enabling 'Living Wall' mode for ${payload.id}. Forcing infinite TTL.`)
       payload.ttlMs = 0
@@ -114,7 +110,6 @@ export function setupCuippBridge(params: { widgetsManager: WidgetsWindowManager 
 
     const resultId = await originalPushWidget.call(params.widgetsManager, payload)
 
-    // We handle the trigger AFTER the original push so the widget exists in the manager
     await handleComfyTrigger({
       id: resultId,
       componentName: payload.componentName,
@@ -143,7 +138,6 @@ async function triggerCuippGeneration(params: {
     ...(params.targetId ? ['--targetId', String(params.targetId)] : []),
   ]
 
-  // generate uses individual flags, remix uses --overrides
   if (isRemix) {
     args.push('--overrides', JSON.stringify({ checkpoint: 'bunnyMint_bunnyMint.safetensors', batch_size: 1 }))
   }
@@ -152,6 +146,7 @@ async function triggerCuippGeneration(params: {
   }
 
   console.log(`[CUIPP] Spawning: ${args.join(' ')}`)
+  debugLog(`[CLI SPAWN] ${args.join(' ')}`)
 
   const child = spawn(args[0], args.slice(1), { cwd: 'E:\\CUIPP\\comfyGalleryAppBackend' })
   let lastProgress = 0
@@ -159,6 +154,7 @@ async function triggerCuippGeneration(params: {
   return new Promise<void>((resolve) => {
     child.stdout.on('data', (data) => {
       const output = data.toString()
+      debugLog(`[CLI STDOUT] ${output}`)
 
       const progressMatch = output.match(/(\d+)%/)
       if (progressMatch) {
@@ -180,10 +176,10 @@ async function triggerCuippGeneration(params: {
         })
       }
 
-      // Handle multiple file outputs in case batch_size > 1 or multiple items in buffer
       const fileMatches = output.matchAll(/File: (.*\.webp|.*\.png|.*\.jpg)/g)
       for (const match of fileMatches) {
         const fullPath = match[1].trim()
+        debugLog(`[CLI IMAGE FIND] ${fullPath}`)
         const filename = fullPath.split('/').pop() || fullPath.split('\\').pop()
         const imageUrl = `https://comfyui-plus.duckdns.org/${filename}`
 
@@ -198,10 +194,13 @@ async function triggerCuippGeneration(params: {
     })
 
     child.stderr.on('data', (data) => {
-      console.error(`[CUIPP] 🔴 Error: ${data}`)
+      const errorMsg = data.toString()
+      debugLog(`[CLI STDERR] ${errorMsg}`)
+      console.error(`[CUIPP] 🔴 Error: ${errorMsg}`)
     })
 
     child.on('close', (code) => {
+      debugLog(`[CLI CLOSE] Process exited with code ${code}`)
       console.log(`[CUIPP] 🔚 CLI Process exited with code ${code}`)
       if (code !== 0) {
         params.widgetsManager.updateWidget({

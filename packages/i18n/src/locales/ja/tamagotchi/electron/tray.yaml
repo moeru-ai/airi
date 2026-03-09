@@ -8,6 +8,10 @@ menu:
       half_height: 高さ半分
       full_screen: フルスクリーン
       align_to: 揃える
+      position: 位置
+      lock: ロック
+      snapshot: スナップショット
+      restore: 復元
       center: 中央揃え
       top_left: 左上
       top_right: 右上

@@ -8,6 +8,10 @@ menu:
       half_height: Demi-hauteur
       full_screen: Plein écran
       align_to: Aligner sur
+      position: Position
+      lock: Verrouiller
+      snapshot: Instantanée
+      restore: Restaurer
       center: Centrer
       top_left: En haut à gauche
       top_right: En haut à droite

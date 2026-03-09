@@ -251,6 +251,9 @@ export const stageThreeRuntimeTraceForwardedEvent = defineEventa<StageThreeRunti
 export const stageThreeRuntimeTraceRemoteEnableEvent = defineEventa<StageThreeRuntimeTraceRemoteControlPayload>('eventa:event:stage-three-runtime-trace:remote-enable')
 export const stageThreeRuntimeTraceRemoteDisableEvent = defineEventa<StageThreeRuntimeTraceRemoteControlPayload>('eventa:event:stage-three-runtime-trace:remote-disable')
 
+export const electronGetMainWindowConfig = defineInvokeEventa<any>('eventa:invoke:electron:windows:main:get-config')
+export const electronMainWindowConfigChanged = defineEventa<any>('eventa:event:electron:windows:main:config-changed')
+
 // Internal event from main -> widgets renderer when a widget should render
 export const widgetsRenderEvent = defineEventa<WidgetSnapshot>('eventa:event:electron:windows:widgets:render')
 export const widgetsRemoveEvent = defineEventa<{ id: string }>('eventa:event:electron:windows:widgets:remove')

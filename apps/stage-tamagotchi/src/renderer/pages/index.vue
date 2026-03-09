@@ -25,11 +25,12 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { refDebounced, useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, provide, ref, toRef, watch } from 'vue'
 
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
+import { electronGetMainWindowConfig } from '../../shared/eventa'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { widgetsTools } from '../stores/tools/builtin/widgets'
 import { useWindowStore } from '../stores/window'
@@ -89,6 +90,26 @@ watch(componentStateStage, () => isLoading.value = componentStateStage.value !==
 const { pause, resume } = watch(isTransparent, (transparent) => {
   shouldFadeOnCursorWithin.value = fadeOnHoverEnabled.value && !transparent
 }, { immediate: true })
+
+const isLocked = ref(false)
+provide('isLocked', isLocked)
+
+const getMainWindowConfig = useElectronEventaInvoke(electronGetMainWindowConfig)
+
+onMounted(async () => {
+  const config = await getMainWindowConfig() as any
+  if (config) {
+    isLocked.value = !!config.locked
+  }
+
+  if (window.electron?.ipcRenderer) {
+    window.electron.ipcRenderer.on('eventa:event:electron:windows:main:config-changed', (_event, config: any) => {
+      if (config) {
+        isLocked.value = !!config.locked
+      }
+    })
+  }
+})
 
 const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
 
@@ -431,6 +452,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
         />
         <ControlsIsland
           ref="controlsIslandRef"
+          :is-locked="isLocked"
         />
       </div>
     </div>

@@ -13,7 +13,13 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
-import { electronOpenChat, electronOpenMainDevtools, electronOpenSettings, noticeWindowEventa } from '../../../../shared/eventa'
+import {
+  electronGetMainWindowConfig,
+  electronOpenChat,
+  electronOpenMainDevtools,
+  electronOpenSettings,
+  noticeWindowEventa,
+} from '../../../../shared/eventa'
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createOnboardingService } from '../../../services/airi/onboarding'
 import { createWidgetsService } from '../../../services/airi/widgets'
@@ -50,4 +56,12 @@ export async function setupMainWindowElectronInvokes(params: {
   defineInvokeHandler(context, electronOpenSettings, payload => params.settingsWindow.openWindow(payload?.route))
   defineInvokeHandler(context, electronOpenChat, async () => toggleWindowShow(await params.chatWindow()))
   defineInvokeHandler(context, noticeWindowEventa.openWindow, payload => params.noticeWindow.open(payload))
+
+  defineInvokeHandler(context, electronGetMainWindowConfig, () => {
+    return (params.window as any).__airi_config
+  })
+
+  ipcMain.on('main-window-config-updated', (_event, config) => {
+    params.window.webContents.send('eventa:event:electron:windows:main:config-changed', config)
+  })
 }

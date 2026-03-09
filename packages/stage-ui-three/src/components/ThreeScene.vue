@@ -371,7 +371,7 @@ defineExpose({
           :intensity="directionalLightIntensity"
           cast-shadow
         />
-        <Suspense v-if="tresCanvasRef?.renderer?.value">
+        <Suspense v-if="(tresCanvasRef as any)?.renderer">
           <EffectComposerPmndrs :multisampling="multisampling">
             <HueSaturationPmndrs v-bind="effectProps" />
           </EffectComposerPmndrs>
