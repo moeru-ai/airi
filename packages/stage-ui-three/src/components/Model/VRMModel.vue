@@ -548,12 +548,6 @@ async function loadModel() {
 
         commitManagedVrmInstance(reusableInstance)
 
-        logVrmLoadDebug('end', {
-          isFirstLoad,
-          reason: loadReason,
-          requestId,
-          reused: true,
-        })
 
         if (isStageThreeRuntimeTraceEnabled()) {
           stageThreeRuntimeTraceContext.emit(stageThreeTraceVrmLoadEndEvent, {
