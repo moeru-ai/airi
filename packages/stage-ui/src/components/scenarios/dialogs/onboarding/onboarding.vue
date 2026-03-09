@@ -1,6 +1,15 @@
 <script setup lang="ts">
+import type { ProviderMetadata } from '../../../../stores/providers'
+import type {
+  OnboardingStep,
+  OnboardingStepGuard,
+  OnboardingStepNextHandler,
+  OnboardingStepPrevHandler,
+  ProviderConfigData,
+} from './types'
+
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, provide, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 
 import StepModelSelection from './step-model-selection.vue'
 import StepProviderConfiguration from './step-provider-configuration.vue'
@@ -9,17 +18,20 @@ import StepWelcome from './step-welcome.vue'
 
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
 import { useProvidersStore } from '../../../../stores/providers'
-import { OnboardingContextKey } from './utils'
 
 interface Emits {
   (e: 'configured'): void
   (e: 'skipped'): void
 }
 
+const props = defineProps<{
+  extraSteps?: OnboardingStep[]
+}>()
 const emit = defineEmits<Emits>()
-
-const step = ref(1)
+const step = ref(0)
 const direction = ref<'next' | 'previous'>('next')
+const extraSteps = computed(() => props.extraSteps ?? [])
+const pendingProviderConfig = ref<ProviderConfigData | null>(null)
 
 const providersStore = useProvidersStore()
 const { providers, allChatProvidersMetadata } = storeToRefs(providersStore)
@@ -45,37 +57,20 @@ const selectedProvider = computed(() => {
 })
 
 // Reset validation state when provider changes
-function selectProvider(provider: typeof popularProviders.value[0]) {
+function selectProvider(provider: ProviderMetadata) {
   selectedProviderId.value = provider.id
 }
 
-function handlePreviousStep() {
-  if (step.value > 1) {
-    direction.value = 'previous'
-    step.value--
-  }
+const requestPreviousStep: OnboardingStepPrevHandler = () => {
+  return navigatePrevious()
 }
 
-async function handleNextStep(configData?: { apiKey: string, baseUrl: string, accountId: string }) {
-  // Step 3: Provider configuration - validate and save before proceeding
-  if (step.value === 3 && configData) {
-    await saveProviderConfiguration(configData)
-    direction.value = 'next'
-    step.value++
-    return
-  }
-
-  // Other steps: just proceed
-  if (step.value < 4) {
-    direction.value = 'next'
-    step.value++
-  }
-  else {
-    handleSave()
-  }
+const requestNextStep: OnboardingStepNextHandler = async (configData?: ProviderConfigData) => {
+  pendingProviderConfig.value = configData ?? null
+  await navigateNext()
 }
 
-async function saveProviderConfiguration(data: { apiKey: string, baseUrl: string, accountId: string }) {
+async function saveProviderConfiguration(data: ProviderConfigData) {
   if (!selectedProvider.value)
     return
 
@@ -108,77 +103,188 @@ async function handleSave() {
   emit('configured')
 }
 
-provide(OnboardingContextKey, {
-  selectedProviderId,
-  selectedProvider,
-  selectProvider,
-  popularProviders,
-  handleNextStep,
-  handlePreviousStep,
-  handleSave,
+const allSteps = computed<OnboardingStep[]>(() => {
+  const coreSteps: OnboardingStep[] = [
+    {
+      id: 'welcome',
+      component: StepWelcome,
+    },
+    {
+      id: 'provider-selection',
+      component: StepProviderSelection,
+      props: () => ({
+        selectedProviderId: selectedProviderId.value,
+        popularProviders: popularProviders.value,
+        onSelectProvider: selectProvider,
+      }),
+    },
+    {
+      id: 'provider-configuration',
+      component: StepProviderConfiguration,
+      props: () => ({
+        selectedProviderId: selectedProviderId.value,
+        selectedProvider: selectedProvider.value,
+      }),
+      beforeNext: async () => {
+        if (!pendingProviderConfig.value)
+          return false
+
+        await saveProviderConfiguration(pendingProviderConfig.value)
+        pendingProviderConfig.value = null
+        return true
+      },
+    },
+    ...extraSteps.value.map(step => ({
+      ...step,
+      props: () => ({
+        ...step.props?.(),
+      }),
+    })),
+    {
+      id: 'model-selection',
+      component: StepModelSelection,
+    },
+  ]
+
+  return coreSteps
 })
+
+const currentStep = computed(() => allSteps.value[step.value] ?? null)
+const isLastStep = computed(() => step.value === allSteps.value.length - 1)
+const currentStepProps = computed(() => currentStep.value?.props?.() ?? {})
+
+async function canPassGuard(guard?: OnboardingStepGuard) {
+  if (!guard)
+    return true
+
+  return await guard()
+}
+
+async function navigateNext() {
+  if (!currentStep.value)
+    return
+
+  if (!(await canPassGuard(currentStep.value.beforeNext)))
+    return
+
+  if (isLastStep.value) {
+    await handleSave()
+    return
+  }
+
+  direction.value = 'next'
+  step.value++
+}
+
+async function navigatePrevious() {
+  if (!currentStep.value || step.value <= 0)
+    return
+
+  if (!(await canPassGuard(currentStep.value.beforePrev)))
+    return
+
+  direction.value = 'previous'
+  step.value--
+}
 </script>
 
 <template>
-  <div h-full w-full>
+  <div class="onboarding-step-container" h-full w-full>
     <Transition :name="direction === 'next' ? 'slide-next' : 'slide-prev'" mode="out-in">
-      <StepWelcome v-if="step === 1" :key="1" />
-      <StepProviderSelection v-else-if="step === 2" :key="2" />
-      <StepProviderConfiguration v-else-if="step === 3" :key="3" />
-      <StepModelSelection v-else-if="step === 4" :key="4" />
+      <component
+        :is="currentStep.component"
+        v-if="currentStep"
+        :key="currentStep.id"
+        v-bind="currentStepProps"
+        :on-next="requestNextStep"
+        :on-previous="requestPreviousStep"
+      />
     </Transition>
   </div>
 </template>
 
 <style scoped>
+.onboarding-step-container {
+  overflow-x: hidden;
+}
+
 .slide-next-enter-active,
-.slide-next-leave-active {
-  transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out;
-}
-
-.slide-next-enter-from {
-  transform: translateX(100%);
-  opacity: 0;
-}
-
-.slide-next-enter-to {
-  transform: translateX(0);
-  opacity: 1;
-}
-
-.slide-next-leave-from {
-  transform: translateX(0);
-  opacity: 1;
-}
-
-.slide-next-leave-to {
-  transform: translateX(-100%);
-  opacity: 0;
-}
-
-/* Slide Previous Animation */
+.slide-next-leave-active,
 .slide-prev-enter-active,
 .slide-prev-leave-active {
-  transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out;
+  will-change: transform, opacity;
 }
 
-.slide-prev-enter-from {
-  transform: translateX(-100%);
-  opacity: 0;
+.slide-next-enter-active {
+  animation: onboarding-slide-next-in 0.2s ease-in-out both;
 }
 
-.slide-prev-enter-to {
-  transform: translateX(0);
-  opacity: 1;
+.slide-next-leave-active {
+  animation: onboarding-slide-next-out 0.2s ease-in-out both;
 }
 
-.slide-prev-leave-from {
-  transform: translateX(0);
-  opacity: 1;
+.slide-prev-enter-active {
+  animation: onboarding-slide-prev-in 0.2s ease-in-out both;
 }
 
-.slide-prev-leave-to {
-  transform: translateX(100%);
-  opacity: 0;
+.slide-prev-leave-active {
+  animation: onboarding-slide-prev-out 0.2s ease-in-out both;
+}
+
+@keyframes onboarding-slide-next-in {
+  from {
+    transform: translateX(2rem);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes onboarding-slide-next-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  to {
+    transform: translateX(-2rem);
+    opacity: 0;
+  }
+}
+
+@keyframes onboarding-slide-prev-in {
+  from {
+    transform: translateX(-2rem);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes onboarding-slide-prev-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  to {
+    transform: translateX(2rem);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide-next-enter-active,
+  .slide-next-leave-active,
+  .slide-prev-enter-active,
+  .slide-prev-leave-active {
+    animation-duration: 1ms;
+  }
 }
 </style>
