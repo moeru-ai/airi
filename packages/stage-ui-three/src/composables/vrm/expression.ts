@@ -88,6 +88,39 @@ export function useVRMEmote(vrm: VRMCore) {
     }],
   ])
 
+  // CRITICAL: Zero out all expressions on initialization to prevent "Megazord" state
+  // from models exported with dirty default weights.
+  if (vrm.expressionManager) {
+    // eslint-disable-next-line no-console
+    console.log('[VRMExpression] Initializing: Zeroing out all expressions...')
+    const expressionNames = Object.keys(vrm.expressionManager.expressionMap)
+    for (const name of expressionNames) {
+      vrm.expressionManager.setValue(name, 0)
+    }
+    vrm.expressionManager.update()
+    if (typeof window !== 'undefined') {
+      (window as any).__VRM_EXPRESSION_FIX_APPLIED__ = true
+      // Expose the VRM instance and common debug functions globally
+      ;(window as any).vrm = vrm
+      ;(window as any).expressionManager = vrm.expressionManager
+      ;(window as any).resetVrm = () => {
+        const names = Object.keys(vrm.expressionManager!.expressionMap)
+        names.forEach(n => vrm.expressionManager!.setValue(n, 0))
+        vrm.expressionManager!.update()
+        console.log('[VRMDebug] Reset all expression weights to 0')
+      }
+      ;(window as any).nuclearReset = () => {
+        vrm.scene.traverse((obj) => {
+          if ((obj as any).morphTargetInfluences) {
+            ;(obj as any).morphTargetInfluences.fill(0)
+          }
+        })
+        vrm.expressionManager!.update()
+        console.log('[VRMDebug] Forced all morph target influences to 0 (Nuclear)')
+      }
+    }
+  }
+
   const clearResetTimeout = () => {
     if (resetTimeout.value) {
       clearTimeout(resetTimeout.value)
@@ -162,7 +195,19 @@ export function useVRMEmote(vrm: VRMCore) {
 
     // Override target values for specified expressions in the emotion state
     for (const expr of emotionState.expression || []) {
-      targetExpressionValues.value.set(expr.name, expr.value * normalizedIntensity)
+      const normalizedExprIntensity = expr.value * normalizedIntensity
+      let targetName = expr.name
+
+      // Case-insensitive lookup for individual expressions in the state list
+      if (vrm.expressionManager && !vrm.expressionManager.getExpression(targetName)) {
+        const lowerName = targetName.toLowerCase()
+        const match = Object.keys(vrm.expressionManager.expressionMap).find(k => k.toLowerCase() === lowerName)
+        if (match) {
+          targetName = match
+        }
+      }
+
+      targetExpressionValues.value.set(targetName, normalizedExprIntensity)
     }
   }
 
