@@ -39,10 +39,11 @@ watch(showDialog, async (open) => {
 
 const PICK_GUARD_WINDOW_MS = 500
 function handlePick(value: DisplayModel | undefined) {
-  // lilia: Guard against the dialog-opening pointer event being reused as an immediate pick on dialog content.
+  // Lilia: Guard against the dialog-opening pointer event being reused as an immediate pick on dialog content.
   const hasRecentDialogPointerDown = performance.now() - lastDialogPointerDownAt.value < PICK_GUARD_WINDOW_MS
+
+  if (!showDialog.value || !canAcceptPick.value || !hasRecentDialogPointerDown)
     return
-  }
 
   emits('pick', value)
 }
