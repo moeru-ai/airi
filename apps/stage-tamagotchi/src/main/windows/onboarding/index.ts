@@ -1,6 +1,5 @@
 import { join, resolve } from 'node:path'
 
-import { is } from '@electron-toolkit/utils'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { BrowserWindow, ipcMain, shell } from 'electron'
@@ -58,16 +57,6 @@ export function setupOnboardingWindowManager(): OnboardingWindowManager {
         sandbox: false,
       },
     })
-
-    // NOTICE: in development mode, open devtools by default
-    if (is.dev) {
-      try {
-        newWindow.webContents.openDevTools({ mode: 'detach' })
-      }
-      catch (err) {
-        console.error('failed to open devtools:', err)
-      }
-    }
 
     newWindow.on('ready-to-show', () => newWindow.show())
     newWindow.webContents.setWindowOpenHandler((details) => {
