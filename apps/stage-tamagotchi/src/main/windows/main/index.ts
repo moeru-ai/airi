@@ -6,6 +6,7 @@ import type { ServerChannel } from '../../services/airi/channel-server'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { NoticeWindowManager } from '../notice'
+import type { OnboardingWindowManager } from '../onboarding'
 import type { WidgetsWindowManager } from '../widgets'
 
 import { dirname, resolve } from 'node:path'
@@ -56,6 +57,7 @@ export async function setupMainWindow(params: {
   serverChannel: ServerChannel
   mcpStdioManager: McpStdioManager
   i18n: I18n
+  onboardingWindowManager: OnboardingWindowManager
 }) {
   const {
     setup: setupConfig,
@@ -134,6 +136,7 @@ export async function setupMainWindow(params: {
     serverChannel: params.serverChannel,
     mcpStdioManager: params.mcpStdioManager,
     i18n: params.i18n,
+    onboardingWindowManager: params.onboardingWindowManager,
   })
 
   function handleNewBounds(newBounds: Rectangle) {
