@@ -226,21 +226,6 @@ function toErrorMessage(error: unknown) {
   }
 }
 
-function logVrmLoadDebug(
-  _phase: 'start' | 'stale-after-vrm' | 'stale-after-animation' | 'end' | 'error',
-  _payload: Record<string, unknown> = {},
-) {
-  // if (!import.meta.env.DEV)
-  //   return
-  //
-  // console.warn(`[VRMModel][load:${_phase}]`, {
-  //   href: typeof window !== 'undefined' ? window.location.href : 'unknown',
-  //   loadSequence,
-  //   modelSrc: modelSrc.value,
-  //   ..._payload,
-  // })
-}
-
 function emitVrmLoadError(reason: VrmLifecycleReason, startedAt: number, error: unknown) {
   if (!isStageThreeRuntimeTraceEnabled())
     return
