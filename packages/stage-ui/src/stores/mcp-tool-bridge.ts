@@ -9,12 +9,11 @@ export interface McpToolDescriptor {
 export interface McpCallToolPayload {
   name: string
   arguments?: Record<string, unknown>
-  requestId?: string
 }
 
 export interface McpCallToolResult {
   content?: Array<Record<string, unknown>>
-  structuredContent?: unknown
+  structuredContent?: Record<string, unknown>
   toolResult?: unknown
   isError?: boolean
 }

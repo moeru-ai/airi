@@ -183,12 +183,11 @@ export interface ElectronMcpToolDescriptor {
 export interface ElectronMcpCallToolPayload {
   name: string
   arguments?: Record<string, unknown>
-  requestId?: string
 }
 
 export interface ElectronMcpCallToolResult {
   content?: Array<Record<string, unknown>>
-  structuredContent?: unknown
+  structuredContent?: Record<string, unknown>
   toolResult?: unknown
   isError?: boolean
 }
