@@ -513,6 +513,7 @@ pages:
                       Sorry to hear that Connectivity check failed for Ollama. Don't worry, for Ollama instances, extra configuration is needed for making it pass for Ollama. You need to set <code>OLLAMA_HOST</code> explicitly when start the Ollama application or Ollama CLI server, for detailed information, check <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama integration guide</a>.
     common:
       continueAnyway: Tiếp tục bất chấp
+      goToModelSelection: 'Chọn mô hình →'
       fields:
         field:
           api-key:
@@ -714,6 +715,9 @@ pages:
       openai-compatible:
         description: Tương thích OpenAI
         title: OpenAI Compatible
+      nvidia:
+        description: build.nvidia.com
+        title: NVIDIA NIM
       n1n:
         description: n1n.ai - High-performance AI API provider.
         title: n1n

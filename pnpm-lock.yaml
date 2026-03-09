@@ -523,8 +523,8 @@ importers:
         specifier: ^1.40.0
         version: 1.40.0
       '@proj-airi/drizzle-orm-browser-migrator':
-        specifier: ^0.1.4
-        version: 0.1.4(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))
+        specifier: ^0.1.6
+        version: 0.1.6(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))
       '@proj-airi/server-schema':
         specifier: workspace:*
         version: link:../../packages/server-schema
@@ -543,9 +543,9 @@ importers:
       injeca:
         specifier: 'catalog:'
         version: 0.1.7(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6)
-      postgres:
-        specifier: ^3.4.8
-        version: 3.4.8
+      pg:
+        specifier: ^8.13.3
+        version: 8.19.0
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
@@ -556,6 +556,9 @@ importers:
       '@better-auth/cli':
         specifier: ^1.4.21
         version: 1.4.21(@better-fetch/fetch@1.1.21)(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(better-call@1.1.8(zod@4.3.6))(drizzle-kit@0.31.9)(jose@6.1.3)(kysely@0.28.11)(magicast@0.5.2)(nanostores@1.1.1)(postgres@3.4.8)(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3))
+      '@types/pg':
+        specifier: ^8.11.11
+        version: 8.16.0
       drizzle-kit:
         specifier: ^0.31.9
         version: 0.31.9
@@ -7823,8 +7826,8 @@ packages:
       web-worker:
         optional: true
 
-  '@proj-airi/drizzle-orm-browser-migrator@0.1.4':
-    resolution: {integrity: sha512-xglys6t2+h62aLwAvIN7L4V/lUB3FkVSbm7nj8dCHQ+OxCSQtEPyjgiwqahlFBRg6n9/L/ASvD78ASk/2VT/RQ==}
+  '@proj-airi/drizzle-orm-browser-migrator@0.1.6':
+    resolution: {integrity: sha512-7A7Ay5vSLBer2P+Ydbrl9AktE7geIlh396zB/3a9odwI/1GT89Pljzvjz5SVxG0e17+wMOPLRKnTnCzukL1B9Q==}
     peerDependencies:
       drizzle-orm: '>=0.44.0'
 
@@ -21927,7 +21930,7 @@ snapshots:
     transitivePeerDependencies:
       - '@75lb/nature'
 
-  '@proj-airi/drizzle-orm-browser-migrator@0.1.4(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))':
+  '@proj-airi/drizzle-orm-browser-migrator@0.1.6(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))':
     dependencies:
       '@guiiai/logg': 1.2.11
       drizzle-orm: 0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)
