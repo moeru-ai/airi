@@ -33,6 +33,7 @@ import {
   merge,
 } from '@xsai-ext/providers/utils'
 import { listModels } from '@xsai/model'
+import { debounce } from 'es-toolkit'
 import { isWebGPUSupported } from 'gpuu/webgpu'
 import { defineStore } from 'pinia'
 import {
@@ -1758,12 +1759,8 @@ export const useProvidersStore = defineStore('providers', () => {
     if (!metadata)
       return false
 
-    // Web Speech API doesn't require credentials - use empty config if not present
-    if (providerId === 'browser-web-speech-api') {
-      if (!providerCredentials.value[providerId]) {
-        providerCredentials.value[providerId] = getDefaultProviderConfig(providerId)
-      }
-    }
+    if (!metadata)
+      return false
 
     const config = providerCredentials.value[providerId]
     if (!config && providerId !== 'browser-web-speech-api')
@@ -1872,8 +1869,7 @@ export const useProvidersStore = defineStore('providers', () => {
     }
   }
 
-  // Initialize all providers
-  Object.keys(providerMetadata).forEach(initializeProvider)
+  // Object.keys(providerMetadata).forEach(initializeProvider)
 
   function startPeriodicRuntimeValidation() {
     for (const [providerId, intervalMs] of providerValidationIntervalMsById.entries()) {
@@ -1893,7 +1889,7 @@ export const useProvidersStore = defineStore('providers', () => {
   }
 
   // Update configuration status for all configured providers
-  async function updateConfigurationStatus() {
+  const updateConfigurationStatus = debounce(async () => {
     await Promise.all(Object.entries(providerMetadata)
       // TODO: ignore un-configured provider
       // .filter(([_, provider]) => provider.configured)
@@ -1910,10 +1906,17 @@ export const useProvidersStore = defineStore('providers', () => {
           }
         }
       }))
-  }
+  }, 250)
 
   // Call initially and watch for changes
-  watch(providerCredentials, updateConfigurationStatus, { deep: true, immediate: true })
+  watch(providerCredentials, updateConfigurationStatus, { deep: true, immediate: false })
+
+  // Initialize all providers
+  Object.keys(providerMetadata).forEach(initializeProvider)
+
+  // Initial validation run
+  void updateConfigurationStatus()
+
   startPeriodicRuntimeValidation()
 
   // Available providers (only those that are properly configured)
