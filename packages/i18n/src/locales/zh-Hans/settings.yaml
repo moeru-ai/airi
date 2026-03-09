@@ -719,6 +719,10 @@ pages:
         title: OpenRouter
       github-models:
         description: models.github.ai
+        fields:
+          field:
+            baseUrl:
+              description: GitHub Models 的推理端点。除非你在通过兼容代理转发请求，否则保持默认值即可。
         title: GitHub Models
       perplexity:
         description: perplexity.ai

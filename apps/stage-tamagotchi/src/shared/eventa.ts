@@ -174,6 +174,20 @@ export interface ElectronMcpCallToolPayload {
   name: string
   arguments?: Record<string, unknown>
   requestId?: string
+  approvalSessionId?: string
+}
+
+export interface ElectronDesktopAutomationApprovalPayload {
+  serverName: string
+  toolName: string
+  pendingActionId: string
+  actionKind: string
+  summary: string
+  sessionScoped: boolean
+}
+
+export interface ElectronDesktopAutomationApprovalResult {
+  approved: boolean
 }
 
 export interface ElectronMcpCallToolResult {
@@ -188,6 +202,12 @@ export const electronMcpApplyAndRestart = defineInvokeEventa<ElectronMcpStdioApp
 export const electronMcpGetRuntimeStatus = defineInvokeEventa<ElectronMcpStdioRuntimeStatus>('eventa:invoke:electron:mcp:get-runtime-status')
 export const electronMcpListTools = defineInvokeEventa<ElectronMcpToolDescriptor[]>('eventa:invoke:electron:mcp:list-tools')
 export const electronMcpCallTool = defineInvokeEventa<ElectronMcpCallToolResult, ElectronMcpCallToolPayload>('eventa:invoke:electron:mcp:call-tool')
+export const electronPromptDesktopAutomationApproval = defineInvokeEventa<ElectronDesktopAutomationApprovalResult, ElectronDesktopAutomationApprovalPayload>('eventa:invoke:electron:airi:desktop-automation:approval')
+
+// NOTICE: Push event from main → renderer when any MCP server reports its tool
+// list has changed (via MCP protocol `notifications/tools/list_changed`).
+// Renderer should invalidate cached tool snapshots on receipt.
+export const electronMcpToolsChangedEvent = defineEventa<{ serverName: string }>('eventa:event:electron:mcp:tools-changed')
 
 export const widgetsOpenWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:electron:windows:widgets:open')
 export const widgetsAdd = defineInvokeEventa<string | undefined, WidgetsAddPayload>('eventa:invoke:electron:windows:widgets:add')

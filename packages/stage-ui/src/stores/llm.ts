@@ -7,7 +7,9 @@ import { streamText } from '@xsai/stream-text'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-import { debug, mcp } from '../tools'
+import { mcp } from '../tools'
+import { runManualToolLoop } from './llm-tool-loop'
+import { beginMcpApprovalSession, endMcpApprovalSession } from './mcp-approval-session'
 
 export type StreamEvent
   = | { type: 'text-delta', text: string }
@@ -62,6 +64,40 @@ function sanitizeMessages(messages: unknown[]): Message[] {
   })
 }
 
+function createApprovalSessionId() {
+  if (typeof globalThis.crypto?.randomUUID === 'function')
+    return globalThis.crypto.randomUUID()
+
+  return `mcp-approval-${Date.now()}`
+}
+
+function injectGithubComputerUseGuidance(messages: Message[]): Message[] {
+  // NOTICE: This guidance is critical for GitHub Models where the manual tool
+  // loop is used.  Without hard constraints the model sometimes fabricates
+  // tool results (e.g. outputting "status=running") instead of actually
+  // calling `mcp_call_tool`.  The phrasing below is intentionally strong.
+  const guidance: Message = {
+    role: 'developer',
+    content: [
+      'CRITICAL TOOL-USE RULES:',
+      '1. When the user asks you to perform an action that can be fulfilled by calling a tool, you MUST make the tool call. NEVER simulate, fabricate, or assume the result of a tool call. If you need to run a workflow, execute a command, take a screenshot, or interact with the desktop, you MUST call mcp_call_tool with the correct tool name and parameters.',
+      '2. NEVER output text like "status=running", "executing...", or any fabricated status. If you haven\'t actually called the tool, say so and then call it.',
+      '3. When using computer_use MCP tools, prefer desktop_observe_windows first, then terminal_exec or other structured tools. Use desktop_screenshot only when window metadata is insufficient. Treat click/type/press/scroll as the last resort.',
+      '4. Terminal and app-open actions may trigger desktop approval dialogs.',
+    ].join('\n') as any,
+  }
+
+  const systemBoundary = messages.findIndex(message => message.role !== 'system')
+  if (systemBoundary === -1)
+    return [...messages, guidance]
+
+  return [
+    ...messages.slice(0, systemBoundary),
+    guidance,
+    ...messages.slice(systemBoundary),
+  ]
+}
+
 function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProvider, _: Message[], options?: StreamOptions): boolean {
   if (typeof options?.supportsTools === 'boolean') {
     return options.supportsTools
@@ -79,7 +115,13 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
   const headers = options?.headers
   const chatConfig = chatProvider.chat(model)
 
-  const sanitized = sanitizeMessages(messages as unknown[])
+  const approvalSessionId = createApprovalSessionId()
+  beginMcpApprovalSession(approvalSessionId)
+
+  const sanitizedBase = sanitizeMessages(messages as unknown[])
+  const sanitized = shouldUseManualToolLoop(String(chatConfig.baseURL))
+    ? injectGithubComputerUseGuidance(sanitizedBase)
+    : sanitizedBase
   const resolveTools = async () => {
     const tools = typeof options?.tools === 'function'
       ? await options.tools()
@@ -88,10 +130,11 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
   }
 
   const supportedTools = streamOptionsToolsCompatibilityOk(model, chatProvider, messages, options)
+  const mcpPromptContentMode = resolveMcpPromptContentMode(String(chatConfig.baseURL), model)
+  const parallelToolCalls = resolveParallelToolCalls(String(chatConfig.baseURL), model)
   const tools = supportedTools
     ? [
-        ...await mcp(),
-        ...await debug(),
+        ...await mcp({ promptContentMode: mcpPromptContentMode }),
         ...await resolveTools(),
       ]
     : undefined
@@ -130,10 +173,28 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
     }
 
     try {
+      if (tools && tools.length > 0 && shouldUseManualToolLoop(String(chatConfig.baseURL))) {
+        void runManualToolLoop({
+          chatProvider,
+          headers,
+          maxSteps: 10,
+          messages: sanitized,
+          model,
+          onStreamEvent: onEvent as StreamOptions['onStreamEvent'],
+          promptContentMode: mcpPromptContentMode,
+          tools,
+        }).then(() => {
+          resolveOnce()
+        }).catch((error) => {
+          rejectOnce(error)
+        })
+        return
+      }
+
       const stream = streamText({
         ...chatConfig,
         maxSteps: 10,
-        parallelToolCalls: false,
+        ...(typeof parallelToolCalls === 'boolean' ? { parallelToolCalls } : {}),
         messages: sanitized,
         headers,
         // TODO: we need Automatic tools discovery
@@ -150,7 +211,42 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
     catch (err) {
       rejectOnce(err)
     }
+  }).finally(() => {
+    endMcpApprovalSession(approvalSessionId)
   })
+}
+
+function resolveMcpPromptContentMode(baseURL: string, model: string): 'default' | 'tight' | 'tight-text-only' {
+  const normalizedBaseURL = baseURL.toLowerCase()
+  const normalizedModel = model.toLowerCase()
+
+  if (normalizedBaseURL.includes('models.github.ai')) {
+    // NOTICE: GitHub Models currently chokes on large tool-result payloads, and some
+    // model backends reject inline images inside `tool` role messages entirely.
+    return 'tight-text-only'
+  }
+
+  if (normalizedModel.endsWith('gpt-4.1-mini')) {
+    return 'tight'
+  }
+
+  return 'default'
+}
+
+function resolveParallelToolCalls(baseURL: string, model: string): boolean | undefined {
+  const normalizedBaseURL = baseURL.toLowerCase()
+  const normalizedModel = model.toLowerCase()
+
+  if (normalizedBaseURL.includes('models.github.ai') && /(?:^|\/)o\d/.test(normalizedModel)) {
+    // NOTICE: GitHub Models' o-series backends reject the `parallel_tool_calls` request field.
+    return undefined
+  }
+
+  return false
+}
+
+function shouldUseManualToolLoop(baseURL: string): boolean {
+  return baseURL.toLowerCase().includes('models.github.ai')
 }
 
 export async function attemptForToolsCompatibilityDiscovery(model: string, chatProvider: ChatProvider, _: Message[], options?: Omit<StreamOptions, 'supportsTools'>): Promise<boolean> {

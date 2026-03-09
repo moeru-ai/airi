@@ -28,6 +28,7 @@ import {
   electronMcpGetRuntimeStatus,
   electronMcpListTools,
   electronMcpOpenConfigFile,
+  electronMcpToolsChangedEvent,
 } from '../../../../shared/eventa'
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 
@@ -45,6 +46,8 @@ export interface McpStdioManager {
   callTool: (payload: ElectronMcpCallToolPayload) => Promise<ElectronMcpCallToolResult>
   stopAll: () => Promise<void>
   getRuntimeStatus: () => ElectronMcpStdioRuntimeStatus
+  /** Register a callback fired when any MCP server sends `notifications/tools/list_changed`. */
+  onToolsChanged: (handler: (serverName: string) => void) => () => void
 }
 
 const mcpServerConfigSchema = z.object({
@@ -137,6 +140,7 @@ export function createMcpStdioManager(): McpStdioManager {
   const runtimeStatuses = new Map<string, ElectronMcpStdioServerRuntimeStatus>()
   const inFlightToolCallsByRequestId = new Map<string, Promise<ElectronMcpCallToolResult>>()
   const completedToolCallsByRequestId = new Map<string, { result: ElectronMcpCallToolResult, expiresAt: number }>()
+  const toolsChangedHandlers = new Set<(serverName: string) => void>()
   let updatedAt = Date.now()
 
   const pruneCompletedToolCalls = (now = Date.now()) => {
@@ -222,6 +226,31 @@ export function createMcpStdioManager(): McpStdioManager {
     const client = new Client({
       name: `proj-airi:stage-tamagotchi:mcp:${name}`,
       version: app.getVersion(),
+    }, {
+      // NOTICE: When the MCP server advertises `tools.listChanged` capability
+      // and sends `notifications/tools/list_changed`, the SDK will
+      // auto-call `client.listTools()` and invoke `onChanged` with the
+      // refreshed tool list. We forward this to our registered handlers
+      // so the renderer can invalidate its cached tool snapshot.
+      listChanged: {
+        tools: {
+          onChanged: (error) => {
+            if (error) {
+              log.withFields({ serverName: name }).withError(error).warn('tools list_changed refresh failed')
+              return
+            }
+            log.withFields({ serverName: name }).log('tools list changed notification received')
+            for (const handler of toolsChangedHandlers) {
+              try {
+                handler(name)
+              }
+              catch (handlerError) {
+                log.withError(handlerError).warn('toolsChanged handler threw')
+              }
+            }
+          },
+        },
+      },
     })
 
     try {
@@ -413,6 +442,12 @@ export function createMcpStdioManager(): McpStdioManager {
     callTool,
     stopAll,
     getRuntimeStatus,
+    onToolsChanged: (handler: (serverName: string) => void) => {
+      toolsChangedHandlers.add(handler)
+      return () => {
+        toolsChangedHandlers.delete(handler)
+      }
+    },
   }
 }
 
@@ -437,6 +472,12 @@ export async function setupMcpStdioManager() {
 }
 
 export function createMcpServersService(params: { context: ReturnType<typeof createContext>['context'], manager: McpStdioManager, allowManageConfig?: boolean }) {
+  // NOTICE: Forward MCP `notifications/tools/list_changed` from any server to
+  // all renderer windows so they can invalidate cached tool snapshots.
+  params.manager.onToolsChanged((serverName) => {
+    params.context.emit(electronMcpToolsChangedEvent, { serverName })
+  })
+
   if (params.allowManageConfig) {
     defineInvokeHandler(params.context, electronMcpOpenConfigFile, async () => {
       return params.manager.openConfigFile()

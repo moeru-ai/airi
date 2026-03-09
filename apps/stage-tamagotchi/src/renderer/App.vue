@@ -8,7 +8,8 @@ import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/charac
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { usePluginHostInspectorStore } from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
-import { clearMcpToolBridge, setMcpToolBridge } from '@proj-airi/stage-ui/stores/mcp-tool-bridge'
+import { onMcpApprovalSessionEnded } from '@proj-airi/stage-ui/stores/mcp-approval-session'
+import { clearMcpToolBridge, notifyMcpToolsChanged, setMcpToolBridge } from '@proj-airi/stage-ui/stores/mcp-tool-bridge'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -29,6 +30,7 @@ import {
   electronGetServerChannelConfig,
   electronMcpCallTool,
   electronMcpListTools,
+  electronMcpToolsChangedEvent,
   electronOpenSettings,
   electronPluginInspect,
   electronPluginList,
@@ -37,11 +39,13 @@ import {
   electronPluginSetEnabled,
   electronPluginUnload,
   electronPluginUpdateCapability,
+  electronPromptDesktopAutomationApproval,
   electronStartTrackMousePosition,
   i18nSetLocale,
   pluginProtocolListProviders,
   pluginProtocolListProvidersEventName,
 } from '../shared/eventa'
+import { installAiriDebugBridge } from './modules/airi-debug-bridge'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 
 const { isDark: dark } = useTheme()
@@ -73,8 +77,133 @@ const inspectPluginHost = useElectronEventaInvoke(electronPluginInspect)
 const startTrackingCursorPoint = useElectronEventaInvoke(electronStartTrackMousePosition)
 const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
 const listMcpTools = useElectronEventaInvoke(electronMcpListTools)
-const callMcpTool = useElectronEventaInvoke(electronMcpCallTool)
+const callMcpToolRaw = useElectronEventaInvoke(electronMcpCallTool)
+const promptDesktopAutomationApproval = useElectronEventaInvoke(electronPromptDesktopAutomationApproval)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
+
+const computerUseApprovalGrants = new Map<string, { scope: 'terminal_and_apps' }>()
+const disposeAiriDebugBridge = installAiriDebugBridge({
+  navigateTo: path => router.push(path),
+})
+
+function patchComputerUseTerminalState(result: any, approvalSessionId?: string) {
+  if (!result || typeof result !== 'object')
+    return result
+
+  const structuredContent = result.structuredContent
+  if (!structuredContent || typeof structuredContent !== 'object')
+    return result
+
+  const terminalState = structuredContent.terminalState
+  if (!terminalState || typeof terminalState !== 'object')
+    return result
+
+  const granted = Boolean(approvalSessionId && computerUseApprovalGrants.has(approvalSessionId))
+  return {
+    ...result,
+    structuredContent: {
+      ...structuredContent,
+      terminalState: {
+        ...terminalState,
+        approvalSessionActive: granted,
+        approvalGrantedScope: granted ? 'terminal_and_apps' : terminalState.approvalGrantedScope,
+      },
+    },
+  }
+}
+
+function buildDesktopApprovalSummary(action: any) {
+  const kind = action?.kind
+  const input = action?.input || {}
+
+  switch (kind) {
+    case 'terminal_exec':
+      return `Allow AIRI to execute terminal command: ${String(input.command || '')}`
+    case 'open_app':
+      return `Allow AIRI to open ${String(input.app || 'the requested app')}`
+    case 'focus_app':
+      return `Allow AIRI to focus ${String(input.app || 'the requested app')}`
+    case 'click':
+      return `Allow AIRI to click at (${String(input.x)}, ${String(input.y)})`
+    case 'type_text':
+      return 'Allow AIRI to type text into the current UI target'
+    case 'press_keys':
+      return `Allow AIRI to press keys: ${Array.isArray(input.keys) ? input.keys.join('+') : ''}`
+    case 'scroll':
+      return 'Allow AIRI to scroll the current UI target'
+    default:
+      return `Allow AIRI to execute ${String(kind || 'the requested desktop action')}`
+  }
+}
+
+async function callMcpTool(payload: any): Promise<any> {
+  const result = await callMcpToolRaw(payload)
+  const isComputerUse = typeof payload?.name === 'string' && payload.name.startsWith('computer_use::')
+
+  if (!isComputerUse)
+    return result
+
+  if (payload?.approvalSessionId && payload.name === 'computer_use::terminal_reset_state')
+    computerUseApprovalGrants.delete(payload.approvalSessionId)
+
+  const structuredContent = result?.structuredContent
+  if (!structuredContent || typeof structuredContent !== 'object')
+    return patchComputerUseTerminalState(result, payload?.approvalSessionId)
+
+  const approvalContent = structuredContent as Record<string, any>
+  if (approvalContent.status !== 'approval_required')
+    return patchComputerUseTerminalState(result, payload?.approvalSessionId)
+
+  const pendingActionId = approvalContent.pendingActionId
+  const action = approvalContent.action
+  const actionKind = action?.kind
+  if (!pendingActionId || typeof pendingActionId !== 'string')
+    return patchComputerUseTerminalState(result, payload?.approvalSessionId)
+
+  const sessionScoped = Boolean(payload?.approvalSessionId && ['terminal_exec', 'open_app', 'focus_app'].includes(String(actionKind || '')))
+  if (sessionScoped && computerUseApprovalGrants.has(payload.approvalSessionId)) {
+    const approved = await callMcpToolRaw({
+      name: 'computer_use::desktop_approve_pending_action',
+      arguments: { id: pendingActionId },
+      approvalSessionId: payload.approvalSessionId,
+      requestId: payload?.requestId ? `${payload.requestId}:approve` : undefined,
+    })
+    return patchComputerUseTerminalState(approved, payload?.approvalSessionId)
+  }
+
+  const prompt = await promptDesktopAutomationApproval({
+    serverName: 'computer_use',
+    toolName: payload.name,
+    pendingActionId,
+    actionKind: String(actionKind || 'unknown'),
+    summary: buildDesktopApprovalSummary(action),
+    sessionScoped,
+  })
+
+  if (prompt?.approved) {
+    if (sessionScoped && payload?.approvalSessionId)
+      computerUseApprovalGrants.set(payload.approvalSessionId, { scope: 'terminal_and_apps' })
+
+    const approved = await callMcpToolRaw({
+      name: 'computer_use::desktop_approve_pending_action',
+      arguments: { id: pendingActionId },
+      approvalSessionId: payload?.approvalSessionId,
+      requestId: payload?.requestId ? `${payload.requestId}:approve` : undefined,
+    })
+    return patchComputerUseTerminalState(approved, payload?.approvalSessionId)
+  }
+
+  const rejected = await callMcpToolRaw({
+    name: 'computer_use::desktop_reject_pending_action',
+    arguments: {
+      id: pendingActionId,
+      reason: 'Rejected in AIRI desktop approval dialog',
+    },
+    approvalSessionId: payload?.approvalSessionId,
+    requestId: payload?.requestId ? `${payload.requestId}:reject` : undefined,
+  })
+  return patchComputerUseTerminalState(rejected, payload?.approvalSessionId)
+}
 
 // NOTICE: register plugin host bridge during setup to avoid race with pages using it in immediate watchers.
 pluginHostInspectorStore.setBridge({
@@ -91,6 +220,24 @@ pluginHostInspectorStore.setBridge({
 setMcpToolBridge({
   listTools: () => listMcpTools(),
   callTool: payload => callMcpTool(payload),
+})
+
+// NOTICE: Forward MCP `notifications/tools/list_changed` push events from main
+// to the stage-ui bridge so cached tool snapshots are invalidated in real time.
+try {
+  context.value.on(electronMcpToolsChangedEvent, () => {
+    notifyMcpToolsChanged()
+  })
+}
+catch (error) {
+  console.warn('[App] failed to listen for MCP tools changed event:', error)
+}
+
+const stopMcpApprovalSessionListener = onMcpApprovalSessionEnded((sessionId) => {
+  if (!sessionId)
+    return
+
+  computerUseApprovalGrants.delete(sessionId)
 })
 
 watch(language, () => {
@@ -146,6 +293,8 @@ watch(themeColorsHueDynamic, () => {
 }, { immediate: true })
 
 onUnmounted(() => {
+  disposeAiriDebugBridge()
+  stopMcpApprovalSessionListener()
   contextBridgeStore.dispose()
   clearMcpToolBridge()
 })

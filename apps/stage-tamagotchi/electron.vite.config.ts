@@ -118,6 +118,12 @@ export default defineConfig({
     },
 
     server: {
+      // NOTICE: strictPort prevents Vite from silently picking a random port
+      // when the default is occupied (e.g., by a stale dev process), which
+      // would cause the Electron renderer to fail to connect. Combined with
+      // requestSingleInstanceLock in main/index.ts, this ensures only one dev
+      // instance can run at a time.
+      strictPort: true,
       warmup: {
         clientFiles: [
           `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src'))}/*.vue`,

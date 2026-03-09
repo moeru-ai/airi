@@ -1,0 +1,265 @@
+import type { ChatProvider } from '@xsai-ext/providers/utils'
+import type { Message, Tool } from '@xsai/shared-chat'
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { runManualToolLoop } from './llm-tool-loop'
+import { clearMcpToolBridge, setMcpToolBridge } from './mcp-tool-bridge'
+
+// ---------------------------------------------------------------------------
+// Helpers — fake SSE stream that returns canned responses
+// ---------------------------------------------------------------------------
+
+function sseChunk(data: Record<string, unknown>): Uint8Array {
+  return new TextEncoder().encode(`data: ${JSON.stringify(data)}\n\n`)
+}
+
+function doneChunk(): Uint8Array {
+  return new TextEncoder().encode('data: [DONE]\n\n')
+}
+
+function buildSseBody(chunks: Uint8Array[]): ReadableStream<Uint8Array> {
+  let idx = 0
+  return new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (idx < chunks.length) {
+        controller.enqueue(chunks[idx++])
+      }
+      else {
+        controller.close()
+      }
+    },
+  })
+}
+
+/**
+ * Create a mock fetch that returns one SSE response per call.
+ * Each element in `responses` is an array of SSE data objects.
+ */
+function createMockFetch(responses: Array<Array<Record<string, unknown>>>) {
+  let callIdx = 0
+  return vi.fn(async () => {
+    const dataObjs = responses[callIdx] ?? responses[responses.length - 1]
+    callIdx++
+    const chunks = [...dataObjs.map(d => sseChunk(d)), doneChunk()]
+    return new Response(buildSseBody(chunks), {
+      status: 200,
+      headers: { 'content-type': 'text/event-stream' },
+    })
+  })
+}
+
+/** SSE data object for a text-only assistant response */
+function textOnlyResponse(text: string, finishReason = 'stop') {
+  return [
+    { choices: [{ delta: { content: text }, finish_reason: null }] },
+    { choices: [{ delta: {}, finish_reason: finishReason }] },
+  ]
+}
+
+/** SSE data object for an assistant response with a tool call */
+function toolCallResponse(toolName: string, args: Record<string, unknown>, toolCallId = 'tc-1', finishReason = 'tool_calls') {
+  return [
+    {
+      choices: [{
+        delta: {
+          tool_calls: [{
+            index: 0,
+            id: toolCallId,
+            function: { name: toolName, arguments: JSON.stringify(args) },
+          }],
+        },
+        finish_reason: null,
+      }],
+    },
+    { choices: [{ delta: {}, finish_reason: finishReason }] },
+  ]
+}
+
+// ---------------------------------------------------------------------------
+// Shared fixtures
+// ---------------------------------------------------------------------------
+
+function createChatProvider(mockFetch: ReturnType<typeof createMockFetch>): ChatProvider {
+  return {
+    chat: () => ({
+      baseURL: new URL('https://models.github.ai/chat/completions'),
+      apiKey: 'test-key',
+      fetch: mockFetch as any,
+    }),
+  } as unknown as ChatProvider
+}
+
+function createDummyTool(name: string, executeFn?: (...args: any[]) => any): Tool {
+  return {
+    type: 'function',
+    function: {
+      name,
+      description: `mock tool: ${name}`,
+      parameters: { type: 'object', properties: {}, additionalProperties: false },
+    },
+    execute: executeFn ?? vi.fn(async () => 'ok'),
+  } as unknown as Tool
+}
+
+describe('runManualToolLoop', () => {
+  beforeEach(() => {
+    clearMcpToolBridge()
+    setMcpToolBridge({
+      listTools: vi.fn().mockResolvedValue([]),
+      callTool: vi.fn().mockResolvedValue({
+        content: [{ type: 'text', text: 'tool ok' }],
+      }),
+    })
+  })
+
+  afterEach(() => {
+    clearMcpToolBridge()
+    vi.restoreAllMocks()
+  })
+
+  it('finishes immediately when assistant responds with text only (no tools, step > 0 semantics)', async () => {
+    // When the model genuinely doesn't need tools on the SECOND+ step,
+    // it should finish without retry.
+    const mockFetch = createMockFetch([
+      // Step 0: model makes a tool call
+      toolCallResponse('dummy_tool', {}),
+      // Step 1: model responds with text only — should finish
+      textOnlyResponse('All done.'),
+    ])
+
+    const events: string[] = []
+    await runManualToolLoop({
+      chatProvider: createChatProvider(mockFetch),
+      maxSteps: 5,
+      messages: [{ role: 'user', content: 'hi' }],
+      model: 'gpt-4.1',
+      tools: [createDummyTool('dummy_tool')],
+      promptContentMode: 'default',
+      onStreamEvent: async (e) => { events.push(e.type) },
+    })
+
+    // fetch called twice: once for step 0 (tool call), once for step 1 (text only)
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(events).toContain('finish')
+  })
+
+  it('retries once on step 0 when model returns text without calling tools', async () => {
+    const mockFetch = createMockFetch([
+      // Step 0: model fabricates text without calling tools
+      textOnlyResponse('I ran the tests and they all pass.'),
+      // Step 1 (retry): after developer nudge, model actually calls the tool
+      toolCallResponse('mcp_call_tool', { name: 'demo::run', parameters: [] }),
+      // Step 2: model finishes
+      textOnlyResponse('Done — all tests passed.'),
+    ])
+
+    const events: string[] = []
+    await runManualToolLoop({
+      chatProvider: createChatProvider(mockFetch),
+      maxSteps: 5,
+      messages: [{ role: 'user', content: 'run workflow_run_tests' }],
+      model: 'gpt-4.1',
+      tools: [createDummyTool('mcp_call_tool')],
+      promptContentMode: 'default',
+      onStreamEvent: async (e) => { events.push(e.type) },
+    })
+
+    // 3 fetch calls: fabricated text → retry with tool call → final text
+    expect(mockFetch).toHaveBeenCalledTimes(3)
+    expect(events).toContain('tool-call')
+    expect(events).toContain('finish')
+  })
+
+  it('does not retry endlessly — only retries once on step 0', async () => {
+    const mockFetch = createMockFetch([
+      // Step 0: text only (triggers retry)
+      textOnlyResponse('Let me check...'),
+      // Step 1 (retry): still text only — should finish, NOT retry again
+      textOnlyResponse('Everything looks good.'),
+    ])
+
+    const events: string[] = []
+    await runManualToolLoop({
+      chatProvider: createChatProvider(mockFetch),
+      maxSteps: 5,
+      messages: [{ role: 'user', content: 'run workflow_run_tests' }],
+      model: 'gpt-4.1',
+      tools: [createDummyTool('mcp_call_tool')],
+      promptContentMode: 'default',
+      onStreamEvent: async (e) => { events.push(e.type) },
+    })
+
+    // Only 2 fetch calls: fabricated → retry text (finishes)
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(events).toContain('finish')
+    // No tool-call should have been emitted
+    expect(events).not.toContain('tool-call')
+  })
+
+  it('does not retry when no tools are provided', async () => {
+    const mockFetch = createMockFetch([
+      textOnlyResponse('Hello!'),
+    ])
+
+    const events: string[] = []
+    await runManualToolLoop({
+      chatProvider: createChatProvider(mockFetch),
+      maxSteps: 5,
+      messages: [{ role: 'user', content: 'hi' }],
+      model: 'gpt-4.1',
+      tools: [],
+      promptContentMode: 'default',
+      onStreamEvent: async (e) => { events.push(e.type) },
+    })
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(events).toContain('finish')
+  })
+
+  it('injects a developer message in the retry attempt', async () => {
+    // Capture the request bodies to verify the developer nudge is injected
+    const requestBodies: any[] = []
+    let callIdx = 0
+    const responses = [
+      textOnlyResponse('Fabricated result'),
+      toolCallResponse('mcp_call_tool', { name: 'demo::run', parameters: [] }),
+      textOnlyResponse('Done.'),
+    ]
+
+    const mockFetch = vi.fn(async (...fetchArgs: any[]) => {
+      const init = fetchArgs[1] as any
+      if (init?.body) {
+        try {
+          requestBodies.push(JSON.parse(init.body))
+        }
+        catch {}
+      }
+      const dataObjs = responses[callIdx] ?? responses[responses.length - 1]
+      callIdx++
+      const chunks = [...dataObjs.map((d: any) => sseChunk(d)), doneChunk()]
+      return new Response(buildSseBody(chunks), {
+        status: 200,
+        headers: { 'content-type': 'text/event-stream' },
+      })
+    })
+
+    await runManualToolLoop({
+      chatProvider: createChatProvider(mockFetch),
+      maxSteps: 5,
+      messages: [{ role: 'user', content: 'run tests' }],
+      model: 'gpt-4.1',
+      tools: [createDummyTool('mcp_call_tool')],
+      promptContentMode: 'default',
+    })
+
+    // The second request (retry) should contain a developer message
+    expect(requestBodies.length).toBeGreaterThanOrEqual(2)
+    const retryBody = requestBodies[1]
+    const developerMessages = retryBody.messages.filter((m: Message) => m.role === 'developer')
+    expect(developerMessages.length).toBeGreaterThan(0)
+    expect(developerMessages.some((m: any) =>
+      typeof m.content === 'string' && m.content.includes('MUST make the tool call NOW'),
+    )).toBe(true)
+  })
+})

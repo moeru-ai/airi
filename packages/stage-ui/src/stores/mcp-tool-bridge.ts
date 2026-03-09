@@ -10,6 +10,7 @@ export interface McpCallToolPayload {
   name: string
   arguments?: Record<string, unknown>
   requestId?: string
+  approvalSessionId?: string
 }
 
 export interface McpCallToolResult {
@@ -19,12 +20,17 @@ export interface McpCallToolResult {
   isError?: boolean
 }
 
+type ToolsChangedCallback = () => void
+
 interface McpToolBridge {
   listTools: () => Promise<McpToolDescriptor[]>
   callTool: (payload: McpCallToolPayload) => Promise<McpCallToolResult>
+  /** Subscribe to tool-list-changed notifications from the main process. */
+  onToolsChanged?: (callback: ToolsChangedCallback) => () => void
 }
 
 let bridge: McpToolBridge | undefined
+const toolsChangedCallbacks = new Set<ToolsChangedCallback>()
 
 export function setMcpToolBridge(nextBridge: McpToolBridge) {
   bridge = nextBridge
@@ -32,6 +38,7 @@ export function setMcpToolBridge(nextBridge: McpToolBridge) {
 
 export function clearMcpToolBridge() {
   bridge = undefined
+  toolsChangedCallbacks.clear()
 }
 
 export function getMcpToolBridge(): McpToolBridge {
@@ -40,4 +47,30 @@ export function getMcpToolBridge(): McpToolBridge {
   }
 
   return bridge
+}
+
+/**
+ * Register a callback that fires when MCP servers report a tool list change.
+ * Returns an unsubscribe function.
+ */
+export function onMcpToolsChanged(callback: ToolsChangedCallback): () => void {
+  toolsChangedCallbacks.add(callback)
+  return () => {
+    toolsChangedCallbacks.delete(callback)
+  }
+}
+
+/**
+ * Notify all registered toolsChanged callbacks.
+ * Called by the renderer bridge when it receives a push event from main.
+ */
+export function notifyMcpToolsChanged(): void {
+  for (const callback of toolsChangedCallbacks) {
+    try {
+      callback()
+    }
+    catch (error) {
+      console.warn('[mcp-tool-bridge] toolsChanged callback threw:', error)
+    }
+  }
 }

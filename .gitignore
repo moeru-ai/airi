@@ -121,3 +121,13 @@ plugins-local
 plugins-development
 
 apps/stage-pocket/ios/buildServer.json
+
+
+# 屏蔽环境变量
+.env
+local.settings.json
+# Local env files (should not be committed)
+.env.local
+
+# computer-use-mcp runtime artifacts
+services/computer-use-mcp/.computer-use-mcp/

@@ -7,7 +7,7 @@ import messages from '@proj-airi/i18n/locales'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
-import { app, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import { noop } from 'es-toolkit'
 import { createLoggLogger, injeca } from 'injeca'
 import { isLinux } from 'std-env'
@@ -74,6 +74,28 @@ if (isLinux) {
 
 app.dock?.setIcon(icon)
 electronApp.setAppUserModelId('ai.moeru.airi')
+
+// NOTICE: Prevent multiple instances from running simultaneously, which could
+// cause port conflicts (Vite HMR, debug port 9222, server channels) and
+// resource contention. When a second instance launches, focus the existing
+// window instead.
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+  log.warn('Another instance is already running — quitting.')
+  app.quit()
+}
+else {
+  // When a second instance tries to launch, focus the existing main window.
+  app.on('second-instance', () => {
+    const windows = BrowserWindow.getAllWindows()
+    const main = windows[0]
+    if (main) {
+      if (main.isMinimized())
+        main.restore()
+      main.focus()
+    }
+  })
+}
 
 initScreenCaptureForMain()
 

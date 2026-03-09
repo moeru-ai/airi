@@ -751,6 +751,10 @@ pages:
         title: OpenRouter
       github-models:
         description: models.github.ai
+        fields:
+          field:
+            baseUrl:
+              description: GitHub Models inference endpoint. Leave the default unless you are routing through a compatible proxy.
         title: GitHub Models
       perplexity:
         description: perplexity.ai
