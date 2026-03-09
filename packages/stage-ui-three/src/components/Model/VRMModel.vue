@@ -25,7 +25,7 @@ import {
   MathUtils,
   Plane,
   Raycaster,
-
+  SRGBColorSpace,
   Vector2,
   Vector3,
 } from 'three'
@@ -34,12 +34,9 @@ import {
   onMounted,
   onUnmounted,
   ref,
-
   shallowRef,
-
   toRefs,
   watch,
-
 } from 'vue'
 
 import {
@@ -631,15 +628,6 @@ defineExpose({
   },
   stopAnimations() {
     vrmAnimationMixer.value?.stopAllAction()
-  },
-  restoreDefaultExpressions() {
-    if (!vrm.value?.expressionManager)
-      return
-    for (const name of modelStore.availableExpressions) {
-      const weight = modelStore.activeExpressions[name] || 0
-      vrm.value.expressionManager.setValue(name, weight)
-    }
-    vrm.value.expressionManager.update()
   },
   restoreDefaultExpressions() {
     if (!vrm.value?.expressionManager)
