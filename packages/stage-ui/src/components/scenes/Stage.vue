@@ -80,6 +80,7 @@ const chatHookCleanups: Array<() => void> = []
 const providersStore = useProvidersStore()
 const live2dStore = useLive2d()
 const showStage = ref(true)
+const viewUpdateCleanups: Array<() => void> = []
 
 // Caption + Presentation broadcast channels
 type CaptionChannelEvent
