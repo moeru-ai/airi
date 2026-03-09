@@ -34,8 +34,8 @@ export function setupOnboardingWindowManager(params: {
   const reusableWindow = createReusableWindow(async () => {
     const newWindow = new BrowserWindow({
       title: 'Welcome to AIRI',
-      width: 1200,
-      height: 600,
+      width: 1000,
+      height: 650,
       minWidth: 400,
       minHeight: 500,
       show: false,
