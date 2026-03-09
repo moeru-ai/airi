@@ -53,7 +53,6 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
     return
   }
 
-
   stageModelSelected.value = selectedModel?.id ?? ''
   await settingsStore.updateStageModel()
 
