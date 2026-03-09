@@ -64,7 +64,6 @@ interface BroadcastChannelEventShouldUpdateView {
   stack?: string
 }
 
-const vrmViewUpdateChannelName = 'airi-stores-stage-ui-three-vrm'
 const vrmViewUpdateRuntimeInstanceId = Math.random().toString(36).slice(2, 10)
 let vrmViewUpdateMessageSequence = 0
 
