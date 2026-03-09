@@ -78,6 +78,7 @@ const chatHookCleanups: Array<() => void> = []
 //             cross-window broadcast wiring.
 
 const providersStore = useProvidersStore()
+const live2dStore = useLive2d()
 const showStage = ref(true)
 
 // Caption + Presentation broadcast channels
