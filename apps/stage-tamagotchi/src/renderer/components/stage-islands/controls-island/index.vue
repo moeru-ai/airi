@@ -20,6 +20,7 @@ import {
   electronOpenSettings,
   electronStartDraggingWindow,
   electronWindowClose,
+  electronWindowSetAlwaysOnTop,
 } from '../../../../shared/eventa'
 
 const { isDark, toggleDark } = useTheme()
@@ -29,11 +30,12 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const settingsStore = useSettings()
 const context = useElectronEventaContext()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
-const { controlsIslandIconSize } = storeToRefs(settingsStore)
+const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const openChat = useElectronEventaInvoke(electronOpenChat)
 const isLinux = useElectronEventaInvoke(electron.app.isLinux)
 const closeWindow = useElectronEventaInvoke(electronWindowClose)
+const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 
 const expanded = ref(false)
 const islandRef = ref<HTMLElement>()
@@ -52,6 +54,15 @@ useIntervalFn(() => {
     expanded.value = false
   }
 }, 1500)
+
+// Apply alwaysOnTop on mount and when it changes
+watch(alwaysOnTop, (val) => {
+  setAlwaysOnTop(val)
+}, { immediate: true })
+
+function toggleAlwaysOnTop() {
+  alwaysOnTop.value = !alwaysOnTop.value
+}
 
 // Grouped classes for icon / border / padding and combined style class
 const adjustStyleClasses = computed(() => {
@@ -160,6 +171,16 @@ function refreshWindow() {
               </ControlsIslandHearingConfig>
               <template #tooltip>
                 {{ t('tamagotchi.stage.controls-island.open-hearing-controls') }}
+              </template>
+            </ControlButtonTooltip>
+
+            <ControlButtonTooltip>
+              <ControlButton :button-style="adjustStyleClasses.button" @click="toggleAlwaysOnTop()">
+                <div v-if="alwaysOnTop" i-solar:pin-bold :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                <div v-else i-solar:pin-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300 opacity-50" />
+              </ControlButton>
+              <template #tooltip>
+                {{ alwaysOnTop ? t('tamagotchi.stage.controls-island.unpin-from-top') : t('tamagotchi.stage.controls-island.pin-on-top') }}
               </template>
             </ControlButtonTooltip>
 

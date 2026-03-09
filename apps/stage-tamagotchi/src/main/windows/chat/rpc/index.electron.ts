@@ -10,10 +10,9 @@ import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
 import { electronOpenMainDevtools } from '../../../../shared/eventa'
-import { createServerChannelService } from '../../../services/airi/channel-server'
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createWidgetsService } from '../../../services/airi/widgets'
-import { createScreenService, createWindowService } from '../../../services/electron'
+import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 export async function setupChatWindowElectronInvokes(params: {
   window: BrowserWindow
@@ -27,15 +26,12 @@ export async function setupChatWindowElectronInvokes(params: {
   // manage events within eventa's context system.
   ipcMain.setMaxListeners(0)
 
-  const { context } = createContext(ipcMain, params.window, {
-    onlySameWindow: true,
-  })
+  const { context } = createContext(ipcMain, params.window)
 
-  createScreenService({ context, window: params.window })
-  createWindowService({ context, window: params.window })
+  await setupBaseWindowElectronInvokes({ context, window: params.window, i18n: params.i18n, serverChannel: params.serverChannel })
+
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
-  createServerChannelService({ serverChannel: params.serverChannel })
-  createMcpServersService({ context, manager: params.mcpStdioManager, allowManageConfig: false })
+  createMcpServersService({ context, manager: params.mcpStdioManager })
 
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
 }
