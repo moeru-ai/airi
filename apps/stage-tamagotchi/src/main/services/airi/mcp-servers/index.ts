@@ -97,6 +97,14 @@ function resolveFallbackToolName(toolName: string): string | undefined {
     return normalizedTransportPrefix
   }
 
+  const lastSeparatorIndex = toolName.lastIndexOf(toolNameSeparator)
+  if (lastSeparatorIndex <= 0 || lastSeparatorIndex === toolName.length - toolNameSeparator.length) {
+    return undefined
+  }
+
+  return toolName.slice(lastSeparatorIndex + toolNameSeparator.length)
+}
+
 /**
  * Creates environment variables for spawning MCP server processes.
  * 
