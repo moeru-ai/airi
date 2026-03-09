@@ -150,4 +150,4 @@ export default {
     owner: 'moeru-ai',
     repo: 'airi',
   },
-} as Configuration
+} satisfies Configuration
