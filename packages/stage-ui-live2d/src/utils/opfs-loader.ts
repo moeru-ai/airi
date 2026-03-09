@@ -114,7 +114,7 @@ export class OPFSCache {
         writePromises.push(OPFSCache.writeFile(dirHandle, relativePath, file))
       }
 
-      const settingsFile = files.find(f => f.name.endsWith('model.json') || f.name.endsWith('model3.json'))
+      const settingsFile = files.find(f => f.name.endsWith('.model.json') || f.name.endsWith('.model3.json'))
 
       if (!settingsFile) {
         // reconstruct settings files from ModelSettings
