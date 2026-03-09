@@ -153,14 +153,6 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   // })
 
   watch(stageModelSelectedState, (_newValue, _oldValue) => {
-    // if (import.meta.env.DEV) {
-    //   console.warn('[StageModel][selected]', {
-    //     currentHref: typeof window !== 'undefined' ? window.location.href : 'unknown',
-    //     newValue: _newValue,
-    //     oldValue: _oldValue,
-    //   })
-    // }
-
     void updateStageModel()
   })
 
