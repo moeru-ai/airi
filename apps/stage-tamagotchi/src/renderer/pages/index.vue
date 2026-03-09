@@ -422,10 +422,10 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
     transition="opacity duration-500 ease-in-out"
   >
     <div
-      v-show="!isLoading"
       :class="[
         'relative h-full w-full items-end gap-2',
         'transition-opacity duration-250 ease-in-out',
+        isLoading ? 'opacity-0 pointer-events-none' : 'opacity-100',
       ]"
     >
       <div
@@ -456,7 +456,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
         />
       </div>
     </div>
-    <div v-show="isLoading" h-full w-full>
+    <div v-if="isLoading" class="pointer-events-none absolute left-0 top-0 z-100 h-full w-full">
       <div class="absolute left-0 top-0 z-99 h-full w-full flex cursor-grab items-center justify-center overflow-hidden">
         <div
           :class="[
