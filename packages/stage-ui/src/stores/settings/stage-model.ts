@@ -124,7 +124,6 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     }
   })
 
-
   watch(stageModelSelectedState, (_newValue, _oldValue) => {
     void updateStageModel()
   })
