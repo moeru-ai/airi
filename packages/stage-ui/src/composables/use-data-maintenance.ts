@@ -39,14 +39,6 @@ export function useDataMaintenance() {
   const airiCardStore = useAiriCardStore()
 
   async function deleteAllModels() {
-    // if (import.meta.env.DEV) {
-    //   console.warn('[StageModel][set from data-maintenance-delete-models]', {
-    //     currentHref: typeof window !== 'undefined' ? window.location.href : 'unknown',
-    //     nextModelId: 'preset-live2d-1',
-    //     stack: new Error('[StageModel][data-maintenance-delete-models]').stack,
-    //   })
-    // }
-
     await displayModelsStore.resetDisplayModels()
     settingsStore.stageModelSelected = 'preset-live2d-1'
     await settingsStore.updateStageModel()
