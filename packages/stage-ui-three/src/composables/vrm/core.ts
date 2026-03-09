@@ -36,18 +36,6 @@ export async function loadVrm(model: string, options?: {
   VRMUtils.removeUnnecessaryVertices(_vrm.scene)
   VRMUtils.combineSkeletons(_vrm.scene)
 
-  // Zero out all expression weights on load.
-  // Some VRM models (e.g. Satoimo) ship with non-zero default weights
-  // for custom expressions (hearts, glasses, music overlays), causing
-  // everything to render simultaneously ("megazord" state).
-  // This runs at load time so both static preview and animated views start clean.
-  if (_vrm.expressionManager) {
-    const expressionNames = Object.keys(_vrm.expressionManager.expressionMap)
-    for (const name of expressionNames) {
-      _vrm.expressionManager.setValue(name, 0)
-    }
-    _vrm.expressionManager.update()
-  }
 
   // Disable frustum culling
   _vrm.scene.traverse((object: Object3D) => {
