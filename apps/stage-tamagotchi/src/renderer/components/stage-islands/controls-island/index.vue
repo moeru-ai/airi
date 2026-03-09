@@ -42,6 +42,7 @@ const closeWindow = useElectronEventaInvoke(electronWindowClose)
 const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 
 const expanded = ref(false)
+
 const islandRef = ref<HTMLElement>()
 
 // === Sub-menu state ===
