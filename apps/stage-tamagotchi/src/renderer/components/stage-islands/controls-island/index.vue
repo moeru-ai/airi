@@ -53,6 +53,9 @@ const view = ref<'main' | 'emotions'>('main')
 const hearingDialogOpen = ref(false)
 defineExpose({ hearingDialogOpen })
 
+// === Sub-menu state ===
+const view = ref<'main' | 'emotions'>('main')
+
 const { isOutside } = useElectronMouseInElement(islandRef)
 const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
