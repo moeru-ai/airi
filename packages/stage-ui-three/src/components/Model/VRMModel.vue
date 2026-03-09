@@ -11,9 +11,7 @@ import type {
   Group,
   Object3D,
   PerspectiveCamera,
-  ShaderMaterial,
   SphericalHarmonics3,
-  Texture,
 } from 'three'
 import type { Ref, WatchStopHandle } from 'vue'
 
@@ -25,12 +23,8 @@ import { until, useMouse } from '@vueuse/core'
 import {
   AnimationMixer,
   MathUtils,
-  Mesh,
-  MeshPhysicalMaterial,
-  MeshStandardMaterial,
   Plane,
   Raycaster,
-
   SRGBColorSpace,
   Vector2,
   Vector3,
@@ -40,17 +34,13 @@ import {
   onMounted,
   onUnmounted,
   ref,
-
   shallowRef,
-
   toRefs,
   watch,
-
 } from 'vue'
 
 import {
   createIblProbeController,
-  injectDiffuseIBL,
   normalizeEnvMode,
   updateNprShaderSetting,
 } from '../../composables/shader/ibl'
@@ -145,7 +135,7 @@ const {
 
 // Model and scene ref
 const { scene } = useTresContext()
-const vrm = shallowRef<VRM>()
+const vrm = shallowRef<VRM | null>(null)
 const vrmGroup = shallowRef<Group>()
 const modelLoaded = ref<boolean>(false)
 // for eye tracking modes
@@ -345,12 +335,6 @@ async function loadModel() {
         * Shader setting
       */
       // material selection
-      function isMToon(mat: any): boolean {
-        return !!(mat?.isShaderMaterial && mat.userData?.vrmMaterialType === 'MToon'
-        )
-      }
-      const isShaderMat = (m: any): m is ShaderMaterial => !!m?.isShaderMaterial
-
       // refactoring
       // MToon material sky box lightProbe setting
       if (!airiIblProbe && scene.value)
@@ -559,7 +543,9 @@ onMounted(async () => {
     }
   }, { immediate: true })
   watch(lookAtTarget, (newTarget) => {
-    idleEyeSaccades.instantUpdate(vrm.value, newTarget)
+    if (vrm.value) {
+      idleEyeSaccades.instantUpdate(vrm.value, newTarget)
+    }
   }, { deep: true })
 })
 
@@ -573,15 +559,14 @@ if (import.meta.hot) {
 }
 
 defineExpose({
-  setExpression(expression: string, intensity = 1) {
-    vrmEmote.value?.setEmotionWithResetAfter(expression, 3000, intensity)
-  },
-  setVrmFrameHook(hook?: VrmFrameHook) {
-    vrmFrameHook.value = hook
-  },
   scene: computed(() => vrm.value?.scene),
   lookAtUpdate(target: Vec3) {
-    idleEyeSaccades.instantUpdate(vrm.value, target)
+    if (vrm.value) {
+      idleEyeSaccades.instantUpdate(vrm.value, target)
+    }
+  },
+  stopAnimations() {
+    vrmAnimationMixer.value?.stopAllAction()
   },
   restoreDefaultExpressions() {
     if (!vrm.value?.expressionManager)

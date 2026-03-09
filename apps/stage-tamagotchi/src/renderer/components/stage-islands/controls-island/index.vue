@@ -3,7 +3,7 @@ import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
-import { refDebounced, useIntervalFn } from '@vueuse/core'
+import { useTimeoutFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -45,19 +45,36 @@ const hearingDialogOpen = ref(false)
 defineExpose({ hearingDialogOpen })
 
 const { isOutside } = useElectronMouseInElement(islandRef)
-const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
-watch(isOutsideAfter2seconds, (outside) => {
-  if (outside && expanded.value && !hearingDialogOpen.value) {
+const { start: startCollapseTimer, stop: stopCollapseTimer } = useTimeoutFn(() => {
+  if (expanded.value && !hearingDialogOpen.value) {
     expanded.value = false
   }
+}, 1500)
+
+watch(isOutside, (outside) => {
+  if (outside) {
+    startCollapseTimer()
+  } else {
+    stopCollapseTimer()
+  }
 })
+<<<<<<< HEAD
 
 useIntervalFn(() => {
   if (expanded.value && isOutside.value && !hearingDialogOpen.value) {
     expanded.value = false
   }
 }, 1500)
+=======
+}, 1000)
+
+watch(expanded, (isExp) => {
+  if (!isExp) {
+    view.value = 'main' // Reset sub-menu when collapsing
+  }
+})
+>>>>>>> aab83e04 (fix: resolve ReferenceError and clean up type regressions)
 
 // Apply alwaysOnTop on mount and when it changes
 watch(alwaysOnTop, (val) => {
