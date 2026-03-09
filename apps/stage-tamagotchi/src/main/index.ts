@@ -171,7 +171,39 @@ app.whenReady().then(async () => {
 
   injeca.invoke({
     dependsOn: { mainWindow, tray, serverChannel, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager },
-    callback: noop,
+    callback: (deps) => {
+      import('./services/shortcuts/mic-toggle').then((m) => {
+        m.setupMicToggleShortcut(deps.mainWindow)
+      })
+
+      ipcMain.on('provider-validation-result', (_, data: { providerId: string, valid: boolean, reason: string, config: any }) => {
+        const status = data.valid ? 'PASS' : 'FAIL'
+        const color = data.valid ? '\x1B[32m' : '\x1B[31m'
+        const reset = '\x1B[0m'
+        console.log(`${color}[Provider Validation]${reset} [${data.providerId}] ${status}`)
+        if (!data.valid) {
+          console.log(`  └─ Reason: ${data.reason}`)
+        }
+        if (data.config && (data.valid || !data.reason?.includes('required'))) {
+          console.log(`  └─ Config: ${JSON.stringify(data.config)}`)
+        }
+      })
+
+      ipcMain.on('llm-raw-output', (_, data: { type: 'delta' | 'full', text: string, sessionId: string }) => {
+        const reset = '\x1B[0m'
+        const cyan = '\x1B[36m'
+        if (data.type === 'delta') {
+          // Log deltas if needed
+        }
+        else {
+          console.log(`${cyan}[LLM Final Output]${reset} Session: ${data.sessionId}`)
+          console.log(`----------------------------------------`)
+          console.log(data.text)
+          console.log(`----------------------------------------`)
+        }
+      })
+    },
+
   })
 
   injeca.start().catch(err => console.error(err))

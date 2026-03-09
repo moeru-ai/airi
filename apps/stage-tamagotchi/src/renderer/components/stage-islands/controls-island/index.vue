@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
+import { useModelStore } from '@proj-airi/stage-ui-three'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
-import { refDebounced, useIntervalFn } from '@vueuse/core'
+import { refDebounced, useTimeoutFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -28,9 +29,12 @@ const { t } = useI18n()
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const settingsStore = useSettings()
+const modelStore = useModelStore()
 const context = useElectronEventaContext()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
 const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
+const { favoriteExpression, activeExpressions } = storeToRefs(modelStore)
+
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const openChat = useElectronEventaInvoke(electronOpenChat)
 const isLinux = useElectronEventaInvoke(electron.app.isLinux)
@@ -40,6 +44,9 @@ const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 const expanded = ref(false)
 const islandRef = ref<HTMLElement>()
 
+// === Sub-menu state ===
+const view = ref<'main' | 'emotions'>('main')
+
 // Expose whether hearing dialog is open so parent can disable click-through
 const hearingDialogOpen = ref(false)
 defineExpose({ hearingDialogOpen })
@@ -47,17 +54,27 @@ defineExpose({ hearingDialogOpen })
 const { isOutside } = useElectronMouseInElement(islandRef)
 const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
-watch(isOutsideAfter2seconds, (outside) => {
-  if (outside && expanded.value && !hearingDialogOpen.value) {
+const { start: startCollapseTimer, stop: stopCollapseTimer } = useTimeoutFn(() => {
+  if (expanded.value && !hearingDialogOpen.value) {
     expanded.value = false
+    view.value = 'main' // Reset sub-menu on collapse
+  }
+}, 1500)
+
+watch(isOutside, (outside) => {
+  if (outside) {
+    startCollapseTimer()
+  }
+  else {
+    stopCollapseTimer()
   }
 })
 
-useIntervalFn(() => {
-  if (expanded.value && isOutside.value && !hearingDialogOpen.value) {
-    expanded.value = false
+watch(expanded, (isExp) => {
+  if (!isExp) {
+    view.value = 'main' // Reset sub-menu when collapsing
   }
-}, 1500)
+})
 
 // Apply alwaysOnTop on mount and when it changes
 watch(alwaysOnTop, (val) => {
@@ -100,7 +117,13 @@ const adjustStyleClasses = computed(() => {
  *
  * See `apps/stage-tamagotchi/src/main/windows/main/index.ts` for handler definition
  */
-const startDraggingWindow = !isLinux() ? defineInvoke(context.value, electronStartDraggingWindow) : undefined
+const startDraggingWindowInvoke = defineInvoke(context.value, electronStartDraggingWindow)
+function startDraggingWindow() {
+  if (!isLinux.value) {
+    startDraggingWindowInvoke()
+  }
+}
+
 
 function refreshWindow() {
   window.location.reload()
