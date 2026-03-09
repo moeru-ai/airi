@@ -32,7 +32,8 @@ export function takeManagedVrmInstance(scopeKey: string, modelSrc: string) {
   return cached
 }
 
-export function stashManagedVrmInstance(scopeKey: string, instance: ManagedVrmInstance) {
+export function stashManagedVrmInstance(instance: ManagedVrmInstance) {
+  const { scopeKey } = instance
   const previous = managedVrmCacheState.detachedByScope[scopeKey]
   managedVrmCacheState.detachedByScope[scopeKey] = instance
 
