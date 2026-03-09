@@ -33,8 +33,8 @@ export async function loadVrm(model: string, options?: {
   const _vrm = userData.vrm
 
   // calling these functions greatly improves the performance
-  VRMUtils.removeUnnecessaryVertices(_vrm.scene)
-  VRMUtils.combineSkeletons(_vrm.scene)
+  // VRMUtils.removeUnnecessaryVertices(_vrm.scene)
+  // VRMUtils.combineSkeletons(_vrm.scene)
 
   // Zero out all expression weights on load.
   // Some VRM models (e.g. Satoimo) ship with non-zero default weights
