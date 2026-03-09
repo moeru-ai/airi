@@ -104,7 +104,10 @@ export default defineConfig({
     optimizeDeps: {
       exclude: [
         // Internal Packages
+        '@proj-airi/stage-ui',
         '@proj-airi/stage-ui/*',
+        '@proj-airi/stage-ui-three',
+        '@proj-airi/stage-ui-three/*',
         '@proj-airi/drizzle-duckdb-wasm',
         '@proj-airi/drizzle-duckdb-wasm/*',
         '@proj-airi/electron-screen-capture',

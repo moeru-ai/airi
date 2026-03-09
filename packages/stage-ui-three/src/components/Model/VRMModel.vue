@@ -349,11 +349,27 @@ async function loadModel() {
       // Re-anchor the root position track to the model origin
       reAnchorRootPositionTrack(clip, _vrm)
 
+      // Strip expression/blendShape tracks from the idle animation.
+      // The idle loop should only drive bone transforms, not facial expressions.
+      // Without this, the animation overrides our expression system each frame.
+      const originalCount = clip.tracks.length
+      clip.tracks = clip.tracks.filter((track) => {
+        const isExpression = track.name.includes('blendShapes') || track.name.includes('expressions')
+        return !isExpression
+      })
+      if (clip.tracks.length !== originalCount) {
+        // eslint-disable-next-line no-console
+        console.log(`[VRMModel] Stripped ${originalCount - clip.tracks.length} expression tracks from idle animation`)
+      }
+
       // play animation
       vrmAnimationMixer.value = new AnimationMixer(_vrm.scene)
       vrmAnimationMixer.value.clipAction(clip).play()
 
       vrmEmote.value = useVRMEmote(_vrm)
+      // Force neutral state immediately after initialization to ensure
+      // any default weights are properly cleared and mapped.
+      vrmEmote.value.setEmotion('neutral')
 
       /*
         * Shader setting
@@ -409,6 +425,110 @@ async function loadModel() {
               injectDiffuseIBL(mat)
             }
           })
+        }
+      })
+
+      // CRITICAL FIX: Hide accessory materials that are "shown-by-expression".
+      // three-vrm uses a delta-based system: it captures the material's initial
+      // color/alpha at load time and interpolates FROM that base. If accessory
+      // materials start with alpha=1  (visible), weight=0 means "reset to visible".
+      // We must patch both the Three.js material AND the expression bind's
+      // internal initialValue so the base state is "hidden" (alpha=0).
+      //
+      // Also hides the dark uniform (dress-B*) so only the nightgown is shown
+      // by default, matching VSeeFace's default rendering.
+      if (_vrm.expressionManager) {
+        const expressionMap = _vrm.expressionManager.expressionMap as Record<string, any>
+        for (const [, expression] of Object.entries(expressionMap)) {
+          const binds = expression._binds as any[] | undefined
+          if (!binds)
+            continue
+
+          for (const bind of binds) {
+            // Only patch VRMExpressionMaterialColorBind instances
+            // that target the "color" type (which controls opacity via alpha)
+            if (!bind.material || bind.type !== 'color')
+              continue
+
+            const mat = bind.material
+            const matName: string = mat.name || ''
+
+            // Materials to hide by default:
+            // - emo-* : Emotion overlays (hearts, stars, X eyes, etc.)
+            // - dec-* : Decorations (glasses, shine, etc.)
+            // - dress-B* : Dark uniform (alternate outfit, nightgown is default)
+            // - Body-chest-B : Dark chest piece (part of dark uniform)
+            const shouldHide = /^(emo-|dec-|dress-B|Body-chest-B)/i.test(matName)
+            if (!shouldHide)
+              continue
+
+            // eslint-disable-next-line no-console
+            console.log(`[VRMModel] Patching material "${matName}" to hidden-by-default`)
+
+            // 1. Set the actual Three.js material to transparent
+            if ('opacity' in mat) {
+              mat.opacity = 0
+              mat.transparent = true
+              mat.needsUpdate = true
+            }
+
+            // 2. Patch the bind's internal initialValue so clearAppliedWeight()
+            //    resets to alpha=0 instead of alpha=1
+            const state = bind._state
+            if (state?.alpha) {
+              state.alpha.initialValue = 0
+              // Recalculate delta: targetAlpha - newInitialValue
+              state.alpha.deltaValue = (bind.targetAlpha ?? 1) - 0
+            }
+
+            // 3. Also patch the color initial if needed (set to match current color)
+            if (state?.color?.initialValue && 'color' in mat) {
+              state.color.initialValue.copy(mat.color)
+            }
+          }
+        }
+
+        // Force an update to apply the patched state
+        _vrm.expressionManager.update()
+      }
+
+      // FIX: Ensure eye/face overlay materials render in correct order.
+      // VRM models specify renderQueue to control draw order, but Three.js
+      // doesn't always respect this for transparent (BLEND) materials.
+      // We assign explicit renderOrder based on the material's intended layer:
+      //   Face (base)  → renderOrder 0 (default)
+      //   FaceBrow      → renderOrder 5
+      //   EyeWhite      → renderOrder 6
+      //   EyeIris       → renderOrder 7
+      //   EyeHighlight  → renderOrder 8
+      //   Eyeline       → renderOrder 9
+      //   Mouth         → renderOrder 4
+      const eyeRenderOrderMap: Record<string, number> = {
+        'Mouth': 4,
+        'FaceBrow': 5,
+        'EyeWhite': 6,
+        'EyeIris': 7,
+        'EyeIris-star': 7,
+        'EyeIris-love': 7,
+        'EyeIris-tear': 7,
+        'EyeHighlight': 8,
+        'Eyeline': 9,
+        'Face-eyefade': 3,
+      }
+      _vrm.scene.traverse((child) => {
+        if (child instanceof Mesh && child.material) {
+          const mats = Array.isArray(child.material) ? child.material : [child.material]
+          for (const mat of mats) {
+            const name: string = mat.name || ''
+            const order = eyeRenderOrderMap[name]
+            if (order !== undefined) {
+              child.renderOrder = order
+              if ('depthWrite' in mat) {
+                mat.depthWrite = false
+              }
+              mat.needsUpdate = true
+            }
+          }
         }
       })
 
