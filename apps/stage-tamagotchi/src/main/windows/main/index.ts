@@ -8,25 +8,20 @@ import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { NoticeWindowManager } from '../notice'
 import type { WidgetsWindowManager } from '../widgets'
 
-import { dirname, join, resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { env } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import clickDragPlugin from 'electron-click-drag-plugin'
 
 import { is } from '@electron-toolkit/utils'
-import { defineInvokeHandler } from '@moeru/eventa'
-import { createContext } from '@moeru/eventa/adapters/electron/main'
-import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { defu } from 'defu'
 import { BrowserWindow, ipcMain, shell } from 'electron'
-import { isLinux, isMacOS } from 'std-env'
-import { array, number, object, optional, string } from 'valibot'
+import { array, boolean, number, object, optional, string } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { electronStartDraggingWindow } from '../../../shared/eventa'
-import { baseUrl, getElectronMainDirname, load } from '../../libs/electron/location'
+import { baseUrl, load } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { transparentWindowConfig } from '../shared'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
@@ -39,6 +34,13 @@ const appConfigSchema = object({
     y: optional(number()),
     width: optional(number()),
     height: optional(number()),
+    locked: optional(boolean()),
+    snapshot: optional(object({
+      x: number(),
+      y: number(),
+      width: number(),
+      height: number(),
+    })),
   }))),
 })
 
@@ -67,7 +69,7 @@ export async function setupMainWindow(params: {
 
   setupConfig()
 
-  const mainWindowConfig = getConfig().windows?.find(w => w.title === 'AIRI' && w.tag === 'main')
+  const mainWindowConfig = getConfig().windows?.find((w: any) => w.title === 'AIRI' && w.tag === 'main')
 
   const window = new BrowserWindow({
     title: 'AIRI',
@@ -78,84 +80,49 @@ export async function setupMainWindow(params: {
     show: false,
     icon,
     webPreferences: {
-      preload: join(dirname(fileURLToPath(import.meta.url)), '../preload/index.mjs'),
+      preload: resolve(dirname(fileURLToPath(import.meta.url)), '../preload/index.mjs'),
       sandbox: false,
     },
-    // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
-    //
-    // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
-    // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
     type: 'panel',
+    alwaysOnTop: true,
     ...transparentWindowConfig(),
   })
+
+  // Attach config for RPC sync
+  ;(window as any).__airi_config = mainWindowConfig
+
+  window.setMovable(true)
+  window.setResizable(true)
 
   if (params.onWindowCreated) {
     params.onWindowCreated(window)
   }
 
-  // NOTICE: in development mode, open devtools by default
+  ipcMain.on('main-window-config-updated', (_event, config) => {
+    window.webContents.send('eventa:event:electron:windows:main:config-changed', config)
+  })
+
   if (is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG) {
     try {
       window.webContents.openDevTools({ mode: 'detach' })
     }
-    catch (err) {
-      console.error('failed to open devtools:', err)
-    }
+    catch {}
   }
 
-  function handleNewBounds(newBounds: Rectangle) {
-    const config = getConfig()
-    if (!config.windows || !Array.isArray(config.windows)) {
-      config.windows = []
-    }
+  window.on('ready-to-show', () => {
+    window.show()
+  })
 
-    const existingConfigIndex = config.windows.findIndex(w => w.title === 'AIRI' && w.tag === 'main')
-
-    if (existingConfigIndex === -1) {
-      config.windows.push({
-        title: 'AIRI',
-        tag: 'main',
-        x: newBounds.x,
-        y: newBounds.y,
-        width: newBounds.width,
-        height: newBounds.height,
-      })
-    }
-    else {
-      const mainWindowConfig = defu(config.windows[existingConfigIndex], { title: 'AIRI', tag: 'main' })
-
-      mainWindowConfig.x = newBounds.x
-      mainWindowConfig.y = newBounds.y
-      mainWindowConfig.width = newBounds.width
-      mainWindowConfig.height = newBounds.height
-
-      config.windows[existingConfigIndex] = mainWindowConfig
-    }
-
-    updateConfig(config)
-  }
-
-  window.on('resize', () => handleNewBounds(window.getBounds()))
-  window.on('move', () => handleNewBounds(window.getBounds()))
-
-  // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
-  //
-  // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
-  // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
-  window.setAlwaysOnTop(true, 'screen-saver', 1)
-  window.setFullScreenable(false)
-  window.setVisibleOnAllWorkspaces(true)
-  if (isMacOS) {
-    window.setWindowButtonVisibility(false)
-  }
-
-  window.on('ready-to-show', () => window!.show())
   window.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
 
-  await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')))
+  if (typeof clickDragPlugin === 'function') {
+    (clickDragPlugin as any)(window)
+  }
+
+  load(window, baseUrl(resolve(dirname(fileURLToPath(import.meta.url)), '..', 'renderer')))
 
   await setupMainWindowElectronInvokes({
     window,
@@ -169,38 +136,45 @@ export async function setupMainWindow(params: {
     i18n: params.i18n,
   })
 
-  /**
-   * This is a know issue (or expected behavior maybe) to Electron.
-   * We don't use this approach on Linux because it's not working.
-   *
-   * Discussion: https://github.com/electron/electron/issues/37789
-   * Workaround: https://github.com/noobfromph/electron-click-drag-plugin
-   */
-  if (!isLinux) {
-    function handleStartDraggingWindow() {
-      try {
-        const windowId = window.getNativeWindowHandle()
-        clickDragPlugin.startDrag(windowId)
-      }
-      catch (error) {
-        console.error(error)
-      }
+  function handleNewBounds(newBounds: Rectangle) {
+    const config = getConfig()
+    if (!config.windows || !Array.isArray(config.windows)) {
+      config.windows = []
     }
 
-    // TODO: once we refactored eventa to support window-namespaced contexts,
-    // we can remove the setMaxListeners call below since eventa will be able to dispatch and
-    // manage events within eventa's context system.
-    ipcMain.setMaxListeners(0)
+    const existingConfigIndex = config.windows.findIndex((w: any) => w.title === 'AIRI' && w.tag === 'main')
+    const existingConfig = existingConfigIndex !== -1 ? config.windows[existingConfigIndex] : null
 
-    const { context } = createContext(ipcMain, window)
-    const cleanUpWindowDraggingInvokeHandler = defineInvokeHandler(context, electronStartDraggingWindow, handleStartDraggingWindow)
+    if (existingConfig?.locked) {
+      return
+    }
 
-    window.on('closed', () => {
-      cleanUpWindowDraggingInvokeHandler()
-    })
+    if (existingConfigIndex === -1) {
+      config.windows.push({
+        title: 'AIRI',
+        tag: 'main',
+        x: newBounds.x,
+        y: newBounds.y,
+        width: newBounds.width,
+        height: newBounds.height,
+      })
+    }
+    else {
+      const currentConfig = config.windows[existingConfigIndex]
+      config.windows[existingConfigIndex] = defu({
+        x: newBounds.x,
+        y: newBounds.y,
+        width: newBounds.width,
+        height: newBounds.height,
+      }, currentConfig)
+    }
+
+    updateConfig(config)
+    window.webContents.send('eventa:event:electron:windows:main:config-changed', config.windows.find((w: any) => w.title === 'AIRI' && w.tag === 'main'))
   }
 
-  initScreenCaptureForWindow(window)
+  window.on('resize', () => handleNewBounds(window.getBounds()))
+  window.on('move', () => handleNewBounds(window.getBounds()))
 
   return window
 }

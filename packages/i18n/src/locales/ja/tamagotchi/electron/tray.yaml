@@ -8,6 +8,10 @@ menu:
       half_height: Half Height
       full_screen: Full Screen
       align_to: Align to
+      position: Position
+      lock: Lock
+      snapshot: Snapshot
+      restore: Restore
       center: Center
       top_left: Top Left
       top_right: Top Right

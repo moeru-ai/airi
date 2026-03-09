@@ -86,6 +86,8 @@ export function setupTray(params: {
   aboutWindow: () => Promise<BrowserWindow>
   serverChannel: ServerChannel
   i18n: I18n
+  getConfig: () => any
+  updateConfig: (config: any) => void
 }): void {
   once(() => {
     const trayImage = nativeImage.createFromPath(isMacOS ? macOSTrayIcon : icon).resize({ width: 16 })
@@ -102,6 +104,10 @@ export function setupTray(params: {
       const fullWidthTarget = Math.floor(areaHeight * ASPECT_RATIO)
       const halfHeightTarget = Math.floor(areaHeight / 2)
       const halfWidthTarget = Math.floor(halfHeightTarget * ASPECT_RATIO)
+
+      const t = params.i18n.t
+      const config = params.getConfig()
+      const mainWindowConfig = config.windows?.find((w: any) => w.title === 'AIRI' && w.tag === 'main')
 
       const contextMenu = Menu.buildFromTemplate([
         { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.show'), click: () => toggleWindowShow(params.mainWindow) },
@@ -168,6 +174,56 @@ export function setupTray(params: {
               type: 'checkbox',
               checked: isPositionMatch(params.mainWindow, areaX + areaWidth - windowWidth, areaY + areaHeight - windowHeight),
               click: () => alignWindow(params.mainWindow, 'bottom-right'),
+            },
+          ],
+        },
+        {
+          label: t('tamagotchi.electron.tray.menu.labels.label.position'),
+          submenu: [
+            {
+              label: t('tamagotchi.electron.tray.menu.labels.label.lock'),
+              type: 'checkbox',
+              checked: !!mainWindowConfig?.locked,
+              click: (item) => {
+                const config = params.getConfig()
+                const index = config.windows?.findIndex((w: any) => w.title === 'AIRI' && w.tag === 'main') ?? -1
+                if (index !== -1 && config.windows) {
+                  config.windows[index].locked = item.checked
+                  params.updateConfig(config)
+                  params.mainWindow.setMovable(!item.checked)
+                  params.mainWindow.setResizable(!item.checked)
+                  params.mainWindow.webContents.send('eventa:event:electron:windows:main:config-changed', config.windows[index])
+                }
+              },
+            },
+            {
+              label: t('tamagotchi.electron.tray.menu.labels.label.snapshot'),
+              click: () => {
+                const config = params.getConfig()
+                const index = config.windows?.findIndex((w: any) => w.title === 'AIRI' && w.tag === 'main') ?? -1
+                if (index !== -1 && config.windows) {
+                  const bounds = params.mainWindow.getBounds()
+                  config.windows[index].snapshot = {
+                    x: bounds.x,
+                    y: bounds.y,
+                    width: bounds.width,
+                    height: bounds.height,
+                  }
+                  params.updateConfig(config)
+                  params.mainWindow.webContents.send('eventa:event:electron:windows:main:config-changed', config.windows[index])
+                }
+              },
+            },
+            {
+              label: t('tamagotchi.electron.tray.menu.labels.label.restore'),
+              enabled: !!mainWindowConfig?.snapshot,
+              click: () => {
+                const config = params.getConfig()
+                const mainWindow = config.windows?.find((w: any) => w.title === 'AIRI' && w.tag === 'main')
+                if (mainWindow?.snapshot) {
+                  params.mainWindow.setBounds(mainWindow.snapshot)
+                }
+              },
             },
           ],
         },

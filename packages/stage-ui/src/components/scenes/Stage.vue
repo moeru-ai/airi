@@ -136,7 +136,7 @@ const emotionsQueue = createQueue<EmotionPayload>({
   handlers: [
     async (ctx) => {
       if (stageModelRenderer.value === 'vrm') {
-        const value = EMOTION_VRMExpressionName_value[ctx.data.name as Emotion] ?? ctx.data.name
+        const value = (EMOTION_VRMExpressionName_value as any)[ctx.data.name] ?? ctx.data.name
         // eslint-disable-next-line no-console
         console.log('[Stage] VRM emotion processing:', { name: ctx.data.name, mappedValue: value, intensity: ctx.data.intensity })
 
@@ -156,7 +156,7 @@ const emotionsQueue = createQueue<EmotionPayload>({
         }
       }
       else if (stageModelRenderer.value === 'live2d') {
-        currentMotion.value = { group: EMOTION_EmotionMotionName_value[ctx.data.name] }
+        currentMotion.value = { group: (EMOTION_EmotionMotionName_value as any)[ctx.data.name] }
       }
     },
   ],
@@ -195,7 +195,7 @@ function processMarkers(content: string) {
 modsServer.onEvent('output:gen-ai:chat:message', (event) => {
   // eslint-disable-next-line no-console
   console.debug('[Stage] Received external message:', event.data)
-  if (event.data?.message?.content) {
+  if (typeof event.data?.message?.content === 'string') {
     processMarkers(event.data.message.content)
   }
 })

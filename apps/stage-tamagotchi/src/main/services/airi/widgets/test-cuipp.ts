@@ -6,7 +6,7 @@ import { setupCuippBridge } from './cuipp'
  */
 
 const mockManager: any = {
-  updateWidget: async (payload: any) => {
+  updateWidget: async (_payload: any) => {
     // This will be replaced by setupCuippBridge
     console.log('[Mock] Original updateWidget called')
   },
