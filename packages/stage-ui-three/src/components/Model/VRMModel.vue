@@ -530,7 +530,6 @@ async function loadModel() {
     // First load or not? if yes then reset the pinia store
     const isFirstLoad = modelSrc.value !== lastModelSrc.value
 
-
     emit('loadStart')
     modelLoaded.value = false
     const reusableInstance = takeManagedVrmInstance(getManagedVrmScopeKey(), modelSrc.value)
