@@ -711,6 +711,9 @@ pages:
       openai-compatible:
         description: Compatible avec OpenAI
         title: Compatible avec OpenAI
+      nvidia:
+        description: build.nvidia.com
+        title: NVIDIA NIM
       n1n:
         description: n1n.ai - Fournisseur d'API d'IA haute performance.
         title: n1n
