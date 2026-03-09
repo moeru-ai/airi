@@ -23,21 +23,6 @@ const stageModelDebugChannelName = 'airi-debug-stage-model'
 const stageModelRuntimeInstanceId = Math.random().toString(36).slice(2, 10)
 let stageModelMessageSequence = 0
 
-// function toPlainStageModelDebugEvent(event?: StageModelDebugEvent | null) {
-//   if (!event)
-//     return null
-//
-//   return {
-//     href: event.href,
-//     instanceId: event.instanceId,
-//     nextValue: event.nextValue,
-//     previousValue: event.previousValue,
-//     sentAt: event.sentAt,
-//     stack: event.stack,
-//     type: event.type,
-//   }
-// }
-
 export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const displayModelsStore = useDisplayModelsStore()
   let stageModelUpdateSequence = 0
