@@ -539,7 +539,7 @@ async function loadModel() {
       }
       else {
         if (!isLoadRequestCurrent(requestId)) {
-          destroyManagedVrmInstance(stashManagedVrmInstance(getManagedVrmScopeKey(), reusableInstance))
+          destroyManagedVrmInstance(stashManagedVrmInstance(reusableInstance))
           return
         }
 
@@ -588,7 +588,6 @@ async function loadModel() {
     nextVrmGroup = _vrmGroup
 
     if (!isLoadRequestCurrent(requestId)) {
-      logVrmLoadDebug('stale-after-vrm', { requestId })
       disposeDetachedVrm(nextVrm, nextVrmGroup)
       return
     }
@@ -628,7 +627,6 @@ async function loadModel() {
     const animation = await loadVRMAnimation(idleAnimation.value)
     const clip = await clipFromVRMAnimation(_vrm, animation)
     if (!isLoadRequestCurrent(requestId)) {
-      logVrmLoadDebug('stale-after-animation', { requestId })
       disposeDetachedVrm(nextVrm, nextVrmGroup)
       return
     }
@@ -735,12 +733,6 @@ async function loadModel() {
     }))
     didCommitLoad = true
 
-    logVrmLoadDebug('end', {
-      isFirstLoad,
-      reason: loadReason,
-      requestId,
-    })
-
     if (isStageThreeRuntimeTraceEnabled()) {
       stageThreeRuntimeTraceContext.emit(stageThreeTraceVrmLoadEndEvent, {
         durationMs: performance.now() - loadStartedAt,
@@ -759,12 +751,6 @@ async function loadModel() {
     }
     if (!isLoadRequestCurrent(requestId))
       return
-
-    logVrmLoadDebug('error', {
-      error: toErrorMessage(err),
-      reason: loadReason,
-      requestId,
-    })
 
     emitVrmLoadError(loadReason, loadStartedAt, err)
     console.error(err)

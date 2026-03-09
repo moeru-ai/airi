@@ -554,6 +554,7 @@ function readRenderTargetRegionAtClientPoint(clientX: number, clientY: number, r
 onUnmounted(() => {
   resetLive2dLipSync()
   chatHookCleanups.forEach(dispose => dispose?.())
+  viewUpdateCleanups.forEach(dispose => dispose?.())
 })
 
 defineExpose({

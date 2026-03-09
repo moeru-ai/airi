@@ -151,10 +151,7 @@ const controlEnable = ref<boolean>(false)
 function onVRMModelLoadStart() {
   modelLoaded.value = false
   controlEnable.value = false
-function onVRMModelLoadStart() {
- modelLoaded.value = false
- controlEnable.value = false
- componentState.value = 'loading'
+  componentState.value = 'loading'
 }
 function onVRMModelCameraPosition(value: Vec3) {
   cameraPosition.value.x = value.x
