@@ -31,6 +31,7 @@ import {
   Plane,
   Raycaster,
 
+  REVISION,
   SRGBColorSpace,
   Vector2,
   Vector3,
@@ -144,8 +145,8 @@ const {
 } = toRefs(props)
 
 // Model and scene ref
-const { scene } = useTresContext()
-const vrm = shallowRef<VRM>()
+const { scene, renderer: rendererRef } = useTresContext()
+const vrm = shallowRef<VRM | null>(null)
 const vrmGroup = shallowRef<Group>()
 const modelLoaded = ref<boolean>(false)
 // for eye tracking modes
@@ -262,11 +263,14 @@ async function loadModel() {
       return
     }
 
+    // console.log('[VRMModel] Loading:', modelSrc.value)
+
     const loadId = ++currentLoadId
 
-    if (vrmGroup.value) {
+    if (vrmGroup.value || scene.value) {
       componentCleanUp()
     }
+
     if (!modelSrc.value) {
       console.warn('NO model src, cannot load VRM model.')
       return
@@ -383,7 +387,8 @@ async function loadModel() {
       if (!airiIblProbe && scene.value)
         airiIblProbe = createIblProbeController(scene.value)
 
-      // Material traverse setting
+      // Material traverse setting (CLEANSED IN V10)
+      /*
       _vrm.scene.traverse((child) => {
         if (child instanceof Mesh && child.material) {
           const material = Array.isArray(child.material) ? child.material : [child.material]
@@ -405,10 +410,10 @@ async function loadModel() {
               // console.debug("Mat: ", mat)
               // TODO: stylised shader injection
               // Lilia: I plan to replace all injected shader code to be my own, so that it can always avoid double injection and unknown user upload VRM injected shader behaviour...
-              if ('toneMapped' in mat)
-                mat.toneMapped = false
-              if ('envMap' in mat && mat.envMap)
-                mat.envMap = null
+              // if ('toneMapped' in mat)
+              //   mat.toneMapped = false
+              // if ('envMap' in mat && mat.envMap)
+              //   mat.envMap = null
               // NPR materials usually use sRGB textures
               const tex = (mat as any).map as Texture | undefined
               if (tex && (tex as any).colorSpace !== undefined) {
@@ -419,11 +424,12 @@ async function loadModel() {
                   console.warn('Failed to set colorSpace on texture:', e)
                 }
               }
-              injectDiffuseIBL(mat)
+              // injectDiffuseIBL(mat)
             }
           })
         }
       })
+      */
 
       /*
         * Eye tracking setting
@@ -444,27 +450,21 @@ async function loadModel() {
         }
       }
 
-      // Clean up & animation setting
+      // Standard VRM Update Loop
       disposeBeforeRenderLoop = onBeforeRender(({ delta }) => {
         vrmAnimationMixer.value?.update(delta)
         const activeVrm = vrm.value
-        if (activeVrm && vrmFrameHook.value) {
-          try {
-            vrmFrameHook.value(activeVrm, delta)
-          }
-          catch (err) {
-            console.error(err)
-            emit('error', err)
-          }
-        }
-        activeVrm?.humanoid.update()
-        activeVrm?.lookAt?.update?.(delta)
+        if (!activeVrm)
+          return
+
+        // 1. Core update (humanoid, springbone, expressions)
+        activeVrm.update(delta)
+
+        // 2. Plugin updates
         blink.update(activeVrm, delta)
         idleEyeSaccades.update(activeVrm, lookAtTarget, delta)
         vrmEmote.value?.update(delta)
         vrmLipSync.update(activeVrm, delta)
-        activeVrm?.expressionManager?.update()
-        activeVrm?.springBoneManager?.update(delta)
       }).off
 
       // ASYNC GUARD: Check again after animation loading
