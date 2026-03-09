@@ -4,8 +4,8 @@ import type { SatoriClient } from '../../adapter/satori/client'
 import type { SatoriEvent, SatoriReadyBody } from '../../adapter/satori/types'
 import type { BotContext } from '../types'
 
-import { onMessageArrival } from './scheduler'
 import { pushToEventQueue } from '../../lib/db'
+import { onMessageArrival } from './scheduler'
 
 /**
  * Set up the ready event handler

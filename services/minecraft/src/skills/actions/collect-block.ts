@@ -9,7 +9,7 @@ import { useLogger } from '../../utils/logger'
 import { breakBlockAt } from '../blocks'
 import { patchedGoto } from '../patched-goto'
 import { getNearestBlocks } from '../world'
-import { expandBlockAliases } from './block-type-normalizer'
+import { expandCollectibleBlockAliases } from './block-type-normalizer'
 import { ensurePickaxe } from './ensure'
 import { pickupNearbyItems } from './world-interactions'
 
@@ -31,30 +31,7 @@ export async function collectBlock(
   }
 
   const normalizedBlockType = blockType.trim().toLowerCase()
-  const blockTypes = new Set(expandBlockAliases(normalizedBlockType))
-
-  // Add block variants
-  if (
-    [
-      'coal',
-      'diamond',
-      'emerald',
-      'iron',
-      'gold',
-      'lapis_lazuli',
-      'redstone',
-      'copper',
-    ].includes(normalizedBlockType)
-  ) {
-    blockTypes.add(`${normalizedBlockType}_ore`)
-    blockTypes.add(`deepslate_${normalizedBlockType}_ore`)
-  }
-  if (normalizedBlockType.endsWith('ore')) {
-    blockTypes.add(`deepslate_${normalizedBlockType}`)
-  }
-  if (normalizedBlockType === 'dirt') {
-    blockTypes.add('grass_block')
-  }
+  const blockTypes = new Set(expandCollectibleBlockAliases(normalizedBlockType))
 
   let collected = 0
 

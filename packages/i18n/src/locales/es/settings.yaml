@@ -476,7 +476,7 @@ pages:
                 thinking-mode:
                   label: Thinking Mode
                   description: >
-                    Controls Ollama thinking behavior. GPT-OSS only supports low/medium/high levels.
+                    Controla el comportamiento de pensamiento de Ollama. GPT-OSS solo soporta los niveles bajo/medio/alto (low/medium/high).
                   options:
                     auto: Auto (provider default)
                     disable: Disable
@@ -513,6 +513,7 @@ pages:
                       Lamentamos escuchar que la conexion con Ollama falló. No te preocupes, para las instancias de Ollama, es necesaria una configuración extra para que pase por Ollama. Debe establecer <code>OLLAMA_HOST</code> explícitamente al iniciar la aplicación Ollama o el servidor CLI de Ollama, para obtener información detallada, consulte la guía <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">de integración Ollama</a>.
     common:
       continueAnyway: Continuar de todos modos
+      goToModelSelection: 'Seleccionar modelo →'
       fields:
         field:
           api-key:
@@ -711,6 +712,9 @@ pages:
       openai-compatible:
         description: OpenAI Compatible
         title: OpenAI Compatible
+      nvidia:
+        description: build.nvidia.com
+        title: NVIDIA NIM
       n1n:
         description: n1n.ai - High-performance AI API provider.
         title: n1n

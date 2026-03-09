@@ -34,7 +34,6 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
 
 describe('mcpReplServer', () => {
   let brain: Brain
-  let server: McpReplServer
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -75,7 +74,7 @@ describe('mcpReplServer', () => {
       }]),
     } as unknown as Brain
 
-    server = new McpReplServer(brain)
+    void new McpReplServer(brain)
   })
 
   it('registers resources on initialization', () => {
@@ -90,6 +89,7 @@ describe('mcpReplServer', () => {
   it('registers tools on initialization', () => {
     expect(mocks.tool).toHaveBeenCalledWith('execute_repl', expect.anything(), expect.any(Function))
     expect(mocks.tool).toHaveBeenCalledWith('inject_chat', expect.anything(), expect.any(Function))
+    expect(mocks.tool).toHaveBeenCalledWith('inject_event', expect.anything(), expect.any(Function))
     expect(mocks.tool).toHaveBeenCalledWith('get_state', expect.anything(), expect.any(Function))
     expect(mocks.tool).toHaveBeenCalledWith('get_last_prompt', expect.anything(), expect.any(Function))
     expect(mocks.tool).toHaveBeenCalledWith('get_logs', expect.anything(), expect.any(Function))
@@ -98,7 +98,7 @@ describe('mcpReplServer', () => {
 
   it('executes repl via tool handler', async () => {
     const executeReplCall = mocks.tool.mock.calls.find(call => call[0] === 'execute_repl')
-    const handler = executeReplCall[2]
+    const handler = executeReplCall![2]
 
     const result = await handler({ code: 'test code' })
 
@@ -108,7 +108,7 @@ describe('mcpReplServer', () => {
 
   it('injects chat via tool handler', async () => {
     const injectChatCall = mocks.tool.mock.calls.find(call => call[0] === 'inject_chat')
-    const handler = injectChatCall[2]
+    const handler = injectChatCall![2]
 
     await handler({ username: 'steve', message: 'hi' })
 
@@ -121,9 +121,68 @@ describe('mcpReplServer', () => {
     }))
   })
 
+  it('injects validated events via tool handler', async () => {
+    const injectEventCall = mocks.tool.mock.calls.find(call => call[0] === 'inject_event')!
+    const handler = injectEventCall[2]
+
+    await handler({
+      type: 'perception',
+      payload: {
+        type: 'chat_message',
+        description: 'Chat from steve: "hi"',
+        sourceId: 'steve',
+        confidence: 1,
+        timestamp: 123,
+        metadata: {
+          username: 'steve',
+          message: 'hi',
+        },
+      },
+      source: {
+        type: 'minecraft',
+        id: 'steve',
+      },
+    })
+
+    expect(brain.injectDebugEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'perception',
+      payload: expect.objectContaining({
+        type: 'chat_message',
+        metadata: {
+          username: 'steve',
+          message: 'hi',
+        },
+      }),
+      source: {
+        type: 'minecraft',
+        id: 'steve',
+      },
+    }))
+  })
+
+  it('rejects invalid inject_event payloads', async () => {
+    const injectEventCall = mocks.tool.mock.calls.find(call => call[0] === 'inject_event')!
+    const handler = injectEventCall[2]
+
+    await expect(handler({
+      type: 'perception',
+      payload: {
+        type: 'chat_message',
+        description: 'Chat from steve: "hi"',
+        confidence: 2,
+        timestamp: 123,
+        metadata: {},
+      },
+      source: {
+        type: 'minecraft',
+        id: 'steve',
+      },
+    })).rejects.toThrow()
+  })
+
   it('gets repl state via tool handler (skips builtins by default)', async () => {
     const toolCall = mocks.tool.mock.calls.find(call => call[0] === 'get_state')
-    const handler = toolCall[2]
+    const handler = toolCall![2]
 
     await handler({})
 
@@ -132,7 +191,7 @@ describe('mcpReplServer', () => {
 
   it('gets repl state via tool handler (can include builtins)', async () => {
     const toolCall = mocks.tool.mock.calls.find(call => call[0] === 'get_state')
-    const handler = toolCall[2]
+    const handler = toolCall![2]
 
     await handler({ includeBuiltins: true })
 
@@ -141,7 +200,7 @@ describe('mcpReplServer', () => {
 
   it('reads brain state via resource handler', async () => {
     const resourceCall = mocks.resource.mock.calls.find(call => call[0] === 'brain-state')
-    const handler = resourceCall[2]
+    const handler = resourceCall![2]
 
     const result = await handler({ href: 'brain://state' })
 
@@ -151,7 +210,7 @@ describe('mcpReplServer', () => {
 
   it('gets last prompt via tool handler', async () => {
     const toolCall = mocks.tool.mock.calls.find(call => call[0] === 'get_last_prompt')
-    const handler = toolCall[2]
+    const handler = toolCall![2]
 
     const result = await handler({})
     const text = result.content[0].text as string
@@ -164,7 +223,7 @@ describe('mcpReplServer', () => {
 
   it('gets logs via tool handler', async () => {
     const toolCall = mocks.tool.mock.calls.find(call => call[0] === 'get_logs')
-    const handler = toolCall[2]
+    const handler = toolCall![2]
 
     const result = await handler({ limit: 10 })
 
@@ -174,7 +233,7 @@ describe('mcpReplServer', () => {
 
   it('gets llm trace via tool handler', async () => {
     const toolCall = mocks.tool.mock.calls.find(call => call[0] === 'get_llm_trace')
-    const handler = toolCall[2]
+    const handler = toolCall![2]
 
     const result = await handler({ limit: 5, turnId: 3 })
     const text = result.content[0].text as string

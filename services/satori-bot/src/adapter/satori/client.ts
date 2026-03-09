@@ -4,11 +4,11 @@ import WebSocket from 'ws'
 
 import { useLogg } from '@guiiai/logg'
 
-import { SatoriAPI } from './api'
-import { SatoriOpcode } from './types'
-
 import * as v from 'valibot'
+
+import { SatoriAPI } from './api'
 import { SatoriEventSchema, SatoriReadyBodySchema, SatoriSignalSchema } from './schema'
+import { SatoriOpcode } from './types'
 
 const log = useLogg('SatoriClient')
 

@@ -244,39 +244,39 @@ pages:
           title: 節拍視覺化工具
         parameters:
           advanced_parameters: 進階參數
-          description: Tweak the beat detection parameters.
-          title: Parameters
+          description: 調整節拍檢測參數。
+          title: 參數
           parameters:
             adaptive_threshold:
               description: >-
-                Whether to apply adaptive thresholds based on signal variance over time.
-              label: Adaptive threshold
+                是否根據訊號隨時間的變異性套用自適應閾值。
+              label: 自適應閾值
             buffer_duration:
-              description: Duration of the internal analysis buffer.
-              label: Buffer duration
+              description: 內部分析緩衝區的時長。
+              label: 緩衝時長
             envelope_filter_frequency:
               description: >-
-                Frequency for the envelope filter applied to smooth energy changes.
-              label: Envelope filter frequency
+                用於平滑能量變化的包絡濾波器頻率
+              label: 包絡濾波器頻率
             highpass_filter_frequency:
               description: >-
-                Frequency for the highpass filter applied to reduce low frequencies like sub-bass noises.
-              label: Highpass filter frequency
+                用於抑制次低音等低頻雜訊的高通濾波器頻率。
+              label: 高通濾波器頻率
             lowpass_filter_frequency:
               description: >-
-                Frequency for the lowpass filter applied to reduce high frequencies like vocals.
-              label: Lowpass filter frequency
+                低通濾波器的頻率是用來降低像人聲等高頻成分。
+              label: 低通濾波器
             min_beat_interval:
-              description: Maximum BPM or minimum interval between detected beats.
-              label: Max BPM / Min beat interval
+              description: 已偵測節拍之間的最大分鐘節拍數(BPM)或最小間隔。
+              label: 最大分鐘節拍數(BPM)/最小節拍間隔
             sensitivity:
-              label: Sensitivity
+              label: 靈敏度
             spectral_flux:
-              description: Whether to enable spectral flux-based onset detection.
-              label: Spectral flux
+              description: 是否啟用基於頻譜通量的起始點偵測。
+              label: 頻譜通量
             warmup:
-              description: Whether to warm up before detecting beats for better accuracy.
-              label: Warmup
+              description: 是否在偵測節拍前進行預熱以提高準確度。
+              label: 預熱
     consciousness:
       description: 人格設定、使用的模型等設定
       sections:
@@ -286,9 +286,9 @@ pages:
             custom_model_placeholder: 輸入自訂模型名稱
             description: 為意識選擇合適的 LLM 服務來源
             error: 取得發生錯誤
-            health_check_failed: Health check failed
-            no_providers_configured_title: No Providers Configured
-            no_providers_configured_description: Click here to set up your LLM providers
+            health_check_failed: 健康度檢查失敗
+            no_providers_configured_title: 未設定任何供應商
+            no_providers_configured_description: 點此設定你的 LLM 提供者
             expand: 展開
             loading: 載入模型中...
             manual_model_name: 模型名稱
@@ -303,7 +303,7 @@ pages:
             search_results: 找到 {count} / {total} 個模型
             show_less: 顯示更少
             show_more: 顯示更多
-            subtitle: Select a default model from the provider
+            subtitle: 從該提供者中選擇預設模型
             title: 模型
       title: 意識
     description: 思維、視覺、語音綜合、遊戲等
@@ -341,7 +341,7 @@ pages:
       sections:
         section:
           provider-selection:
-            description: Select the suitable speech recognition provider
+            description: 選擇合適的語音辨識提供者
     memory-long-term:
       description: 長期記憶
       title: 長期記憶
@@ -366,7 +366,7 @@ pages:
               stop:
                 label: 停止
             select-voice:
-              loading: Loading model...
+              loading: 載入模型中......
               required: 請選擇聲線
           provider-voice-selection:
             custom_model_placeholder: 輸入指定模型名稱...
@@ -376,16 +376,16 @@ pages:
             no_models_description: 該服務來源的模型清單沒有回傳任何資料
             no_voices: 沒有任何可用的聲線
             no_voices_description: 該服務來源的聲線清單沒有回傳任何資料
-            no_voices_hint: You can enter a custom voice name below.
-            pause: Pause
+            no_voices_hint: 您可以在下方輸入自訂語音名稱。
+            pause: 暫停
             play_sample: Play
             search_models_placeholder: 搜尋模型...
             search_models_results: 找到 {count} / {total} 個模型
             search_voices_placeholder: 搜尋聲線...
             search_voices_results: 找到 {count} / {total} 條聲線
-            unsupported_voice_warning_title: No supported voices
+            unsupported_voice_warning_title: 未支援的語音
             unsupported_voice_warning_content: >-
-              Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub at https://github.com/moeru-ai/airi/issues.
+              嘗試使用不同的模型或提供者。我們正努力盡快支援此模型的所有語音；若你急需此功能，請在 GitHub 回報：https://github.com/moeru-ai/airi/issues。
             show_less: 顯示更少
             show_more: 顯示更多
             title: 選擇語音合成服務來源
@@ -421,15 +421,15 @@ pages:
     mcp-server:
       description: 連線與管理 MCP 伺服器及工具
       title: MCP 伺服器
-      config-path: Config file path
-      runtime-title: Runtime status
+      config-path: 設定檔路徑
+      runtime-title: 執行狀態
       actions:
-        open-config: Open mcp.json
-        apply-and-restart: Save and restart stdio MCP
+        open-config: 開啟 mcp.json
+        apply-and-restart: 儲存並重新啟動 stdio MCP
       messages:
-        opened: Config file opened at {path}
+        opened: 已於 {path} 開啟設定檔
         restarted: >-
-          MCP servers restarted. Started {started}, failed {failed}, skipped {skipped}
+          MCP 伺服器已重新啟動。已啟動：{started}，已失敗：{failed}，已略過：{skipped}
   providers:
     explained:
       chat: 文字生成模型服務來源，例如 OpenRouter、OpenAI、Ollama
@@ -442,32 +442,32 @@ pages:
         AIRI 需要設定至少一個 {chat} 服務來源，才能正常思考與運作。你可以把它看作是 AIRI 系統中角色的大腦。
     catalog:
       edit:
-        config-id-not-found: Provider configuration not found.
-        definition-id-not-found: Provider definition not found.
+        config-id-not-found: 找不到提供者設定。
+        definition-id-not-found: 找不到提供者定義。
         actions:
-          more-options: More options
-          delete: Delete
+          more-options: 更多選項
+          delete: 刪除
         validation:
           failed:
-            title: Please check your provider settings, validation failed.
+            title: 請檢查您的提供者設定，驗證失敗。
             description: >-
-              You can still save the current configuration if you want to proceed.
-            action: Save anyway
+              如果您想繼續，之後仍可儲存目前的設定。
+            action: 仍然儲存
         config:
           common:
             fields:
               field:
                 api-key:
-                  label: API Key
-                  description: API Key used to authorize requests to this provider
+                  label: API 金鑰
+                  description: 用於授權向此提供者發送請求的 API 金鑰
                   placeholder: sk-...
                 base-url:
-                  label: Base URL
+                  label: 基礎 URL
                   description: >-
-                    The base url used to connect to remote service. Often looks like http://localhost:11434/v1 or https://example.com/v1.
-                  placeholder: Base url...
+                    用於連接遠端服務的基礎 URL。通常看起來像 http://localhost:11434/v1 或 https://example.com/v1
+                  placeholder: 基礎 url...
                 headers:
-                  label: Custom HTTP Headers
+                  label: 自訂 HTTP 標頭
                   description: Add custom HTTP headers
                   key:
                     placeholder: Key
@@ -513,6 +513,7 @@ pages:
                       Sorry to hear that Connectivity check failed for Ollama. Don't worry, for Ollama instances, extra configuration is needed for making it pass for Ollama. You need to set <code>OLLAMA_HOST</code> explicitly when start the Ollama application or Ollama CLI server, for detailed information, check <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama integration guide</a>.
     common:
       continueAnyway: 仍然繼續
+      goToModelSelection: '選擇模型 →'
       fields:
         field:
           api-key:
@@ -711,6 +712,9 @@ pages:
       openai-compatible:
         description: OpenAI 相容
         title: OpenAI Compatible
+      nvidia:
+        description: build.nvidia.com
+        title: NVIDIA NIM
       n1n:
         description: n1n.ai - High-performance AI API provider.
         title: n1n

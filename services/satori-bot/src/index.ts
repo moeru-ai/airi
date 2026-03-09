@@ -2,9 +2,9 @@ import process from 'node:process'
 
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 
-import { config } from './config'
 import { SatoriClient } from './adapter/satori/client'
 import { globalRegistry } from './capabilities/registry'
+import { config } from './config'
 import { createBotContext, setupMessageEventHandler, setupReadyEventHandler, startPeriodicLoop } from './core/index'
 import { initDb } from './lib/db'
 
@@ -64,4 +64,3 @@ main().catch((err) => {
   log.withError(err).error('Fatal error in main loop')
   process.exit(1)
 })
-

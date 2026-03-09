@@ -14,8 +14,8 @@ For IPC contract definitions, use `@proj-airi/electron-eventa`.
 ## Usage
 
 ```ts
-import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { electron } from '@proj-airi/electron-eventa'
+import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 
 const openSettings = useElectronEventaInvoke(electron.window.getBounds)
 ```

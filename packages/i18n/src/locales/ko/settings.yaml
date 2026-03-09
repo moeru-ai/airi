@@ -429,7 +429,7 @@ pages:
       messages:
         opened: '{path}에서 설정 파일 열림'
         restarted: >-
-          MCP servers restarted. Started {started}, failed {failed}, skipped {skipped}
+          MCP 서버 재시작 완료. 시작: {started}, 실패: {failed}, 건너뜀: {skipped}
   providers:
     explained:
       chat: '텍스트 생성 모델 제공자를 구성합니다. (예시: OpenRouter, OpenAI, Ollama)'
@@ -474,16 +474,16 @@ pages:
                   value:
                     placeholder: 값
                 thinking-mode:
-                  label: Thinking Mode
+                  label: 사고 모드
                   description: >
-                    Controls Ollama thinking behavior. GPT-OSS only supports low/medium/high levels.
+                    Ollama의 사고 방식을 제어합니다. GPT-OSS는 낮음/중간/높음 단계만 지원합니다.
                   options:
-                    auto: Auto (provider default)
-                    disable: Disable
-                    enable: Enable
-                    low: Low
-                    medium: Medium
-                    high: High
+                    auto: 자동 (제공자 기본값)
+                    disable: 비활성화
+                    enable: 활성화
+                    low: 낮음
+                    medium: 보통
+                    high: 높음
         validators:
           actions:
             validate: 검증
@@ -513,6 +513,7 @@ pages:
                       Ollama에 대한 연결 검사가 실패했다는 소식을 듣게 되어 유감입니다. 걱정하지 마세요. Ollama 인스턴스의 경우 Ollama를 통과시키기 위해 추가 구성이 필요합니다. Ollama 애플리케이션 또는 Ollama CLI 서버를 시작할 때 <code>OLLAMA_HOST</code>를 명시적으로 설정해야 하며, 자세한 정보는 <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama 통합 가이드</a>를 확인하세요.
     common:
       continueAnyway: 계속 진행
+      goToModelSelection: '모델 선택 →'
       fields:
         field:
           api-key:
@@ -596,8 +597,8 @@ pages:
         description: deepgram.com
         title: Deepgram
       speech-noop:
-        title: None
-        description: No speech output.
+        title: 없음
+        description: 음성 출력이 없습니다.
       deepseek:
         description: deepseek.com
         title: DeepSeek
@@ -711,6 +712,9 @@ pages:
       openai-compatible:
         description: OpenAI 호환
         title: OpenAI 호환
+      nvidia:
+        description: build.nvidia.com
+        title: NVIDIA NIM
       n1n:
         description: n1n.ai - 고성능 AI API 제공자.
         title: n1n
@@ -772,7 +776,7 @@ pages:
           title: 전사 놀이터
       aihubmix:
         title: AIHubMix
-        description: https://aihubmix.com (10% off)
+        description: https://aihubmix.com (10% 할인)
     title: 제공자
   connection:
     description: 웹소켓 서버 연결 구성
@@ -816,7 +820,7 @@ pages:
                 title: 마크다운 스트레스
                 description: 스트레스 마크다운 구문 분석 및 대량 채팅 페이로드 렌더링
               use-magic-keys:
-                title: useMagicKeys Tool
+                title: useMagicKeys 도구
                 description: 테스트 단축키
               audio-record:
                 title: 오디오 녹음

@@ -1,4 +1,5 @@
-import { env } from 'node:process'
+import { env, exit } from 'node:process'
+
 import * as v from 'valibot'
 
 const ConfigSchema = v.object({
@@ -21,7 +22,8 @@ const ConfigSchema = v.object({
 export type Config = v.InferOutput<typeof ConfigSchema>
 
 function parseBoolean(value: string | undefined): boolean | undefined {
-  if (value === undefined) return undefined
+  if (value === undefined)
+    return undefined
   return value.toLowerCase() === 'true' || value === '1'
 }
 
@@ -56,7 +58,7 @@ export function loadConfig(): Config {
     else {
       console.error('❌ Failed to load configuration:', error)
     }
-    process.exit(1)
+    exit(1)
   }
 }
 
