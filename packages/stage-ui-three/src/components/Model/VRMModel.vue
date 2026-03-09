@@ -487,8 +487,22 @@ async function loadModel() {
         'EyeIris-love': 7,
         'EyeIris-tear': 7,
         'EyeHighlight': 8,
+        'EyeHighlight2': 8,
         'Eyeline': 9,
         'Face-eyefade': 3,
+        // Morinatsu / Spirit / Accessories
+        'spirit-butterfly': 10,
+        'dress.-trans': 10,
+        'dec': 10,
+        'emo': 10,
+        'emo--ring': 10,
+        // Generic VRoid fallbacks (Sitali & others)
+        'N00_000_00_EyeWhite_00_EYE': 6,
+        'N00_000_00_EyeIris_00_EYE': 7,
+        'N00_000_00_EyeHighlight_00_EYE': 8,
+        'N00_000_00_FaceBrow_00_FACE': 5,
+        'N00_000_00_FaceEyelash_00_FACE': 9,
+        'N00_000_00_FaceEyeline_00_FACE': 10,
       }
       _vrm.scene.traverse((child) => {
         if (child instanceof Mesh && child.material) {
@@ -500,6 +514,12 @@ async function loadModel() {
               child.renderOrder = order
               if ('depthWrite' in mat) {
                 mat.depthWrite = false
+              }
+              // FIX: For materials that represent overlays (butterfly, indicators),
+              // ensure transparency is active and alphaTest is set to discard black backgrounds.
+              if (name === 'spirit-butterfly' || name === 'dec' || name.startsWith('emo')) {
+                mat.transparent = true
+                mat.alphaTest = 0.5
               }
               mat.needsUpdate = true
             }
