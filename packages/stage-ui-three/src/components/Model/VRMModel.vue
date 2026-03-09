@@ -265,9 +265,11 @@ async function loadModel() {
       return
     }
 
+    // console.log('[VRMModel] Loading:', modelSrc.value)
+
     const loadId = ++currentLoadId
 
-    if (vrmGroup.value) {
+    if (vrmGroup.value || scene.value) {
       componentCleanUp()
     }
 
