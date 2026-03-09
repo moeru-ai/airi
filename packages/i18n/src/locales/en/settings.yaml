@@ -541,7 +541,7 @@ pages:
                       integration guide</a>.
     common:
       continueAnyway: Continue Anyway
-      goToModelSelection: "Select Model \u2192"
+      goToModelSelection: "Select Model →"
       fields:
         field:
           api-key:
