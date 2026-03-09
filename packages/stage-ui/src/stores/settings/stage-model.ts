@@ -124,33 +124,6 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     }
   })
 
-  // useEventListener(window, 'storage', (event) => {
-  //   if (!import.meta.env.DEV || event.key !== stageModelStorageKey)
-  //     return
-  //
-  //   console.warn('[StageModel][storage]', {
-  //     currentHref: typeof window !== 'undefined' ? window.location.href : 'unknown',
-  //     eventUrl: event.url,
-  //     newValue: event.newValue,
-  //     oldValue: event.oldValue,
-  //   })
-  // })
-  //
-  // watch(stageModelDebugData, (event) => {
-  //   if (!import.meta.env.DEV || event?.type !== 'stage-model-selected-set')
-  //     return
-  //
-  //   console.warn('[StageModel][set][recv]', {
-  //     currentHref: typeof window !== 'undefined' ? window.location.href : 'unknown',
-  //     senderHref: event.href,
-  //     senderInstanceId: event.instanceId,
-  //     nextValue: event.nextValue,
-  //     previousValue: event.previousValue,
-  //     sentAt: event.sentAt,
-  //   })
-  //   if (event.stack)
-  //     console.warn(`[StageModel][set][recv][stack]\n${event.stack}`)
-  // })
 
   watch(stageModelSelectedState, (_newValue, _oldValue) => {
     void updateStageModel()
