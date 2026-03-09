@@ -168,6 +168,8 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
       this.respawnTimer = null
     }
 
+    this.ticker.stop()
+
     await this.pluginRuntime.beforeCleanup()
     this.components.cleanup()
     this.detachCommandChatListener()
