@@ -100,7 +100,6 @@ app.whenReady().then(async () => {
     dependsOn: { serverChannel, i18n },
     build: ({ dependsOn }) => setupOnboardingWindowManager(dependsOn),
   })
-
   const noticeWindow = injeca.provide('windows:notice', {
     dependsOn: { i18n, serverChannel },
     build: ({ dependsOn }) => setupNoticeWindowManager(dependsOn),
@@ -170,12 +169,8 @@ app.whenReady().then(async () => {
       ipcMain.on('llm-raw-output', (_, data: { type: 'delta' | 'full', text: string, sessionId: string }) => {
         const reset = '\x1B[0m'
         const cyan = '\x1B[36m'
-        const yellow = '\x1B[33m'
         if (data.type === 'delta') {
-          // Log deltas in yellow, but only if they are not just whitespace (too noisy otherwise)
-          // if (data.text.trim()) {
-          //   console.log(`${yellow}[LLM Delta]${reset} ${data.text}`)
-          // }
+          // Log deltas if needed
         }
         else {
           console.log(`${cyan}[LLM Final Output]${reset} Session: ${data.sessionId}`)
