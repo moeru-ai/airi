@@ -35,47 +35,47 @@
   <a href="https://static-cn-proj-airi.oss-cn-shanghai.aliyuncs.com/artifacts/apps/desktop/versions/v0.9.0-alpha.6/AIRI-0.9.0-alpha.6-windows-x64-setup.exe">
     <picture>
       <source
-        width="19.5%"
+        width="33%"
         srcset="./content/public/assets/download-buttons/download-buttons.windows.dark.zh-Hans.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
-        width="19.5%"
+        width="33%"
         srcset="./content/public/assets/download-buttons/download-buttons.windows.light.zh-Hans.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="19.5%" src="./docs/content/public/assets/download-buttons/download-buttons.windows.light.zh-Hans.avif" />
+      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.windows.light.zh-Hans.avif" />
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
   <a href="https://static-cn-proj-airi.oss-cn-shanghai.aliyuncs.com/artifacts/apps/desktop/versions/v0.9.0-alpha.6/AIRI-0.9.0-alpha.6-darwin-arm64.dmg">
     <picture>
       <source
-        width="19.5%"
+        width="33%"
         srcset="./content/public/assets/download-buttons/download-buttons.macos.dark.zh-Hans.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
-        width="19.5%"
+        width="33%"
         srcset="./content/public/assets/download-buttons/download-buttons.macos.light.zh-Hans.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="19.5%" src="./docs/content/public/assets/download-buttons/download-buttons.macos.light.zh-Hans.avif" />
+      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.macos.light.zh-Hans.avif" />
     </picture>
   </a>
   <a href="https://github.com/moeru-ai/airi/releases/latest">
     <picture>
       <source
-        width="19.5%"
+        width="33%"
         srcset="./content/public/assets/download-buttons/download-buttons.linux.dark.zh-Hans.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
-        width="19.5%"
+        width="33%"
         srcset="./content/public/assets/download-buttons/download-buttons.linux.light.zh-Hans.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="19.5%" src="./docs/content/public/assets/download-buttons/download-buttons.linux.light.zh-Hans.avif" />
+      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.linux.light.zh-Hans.avif" />
     </picture>
   </a>
 </p>
@@ -83,31 +83,31 @@
   <a href="https://airi.moeru.ai">
     <picture>
       <source
-        width="19.5%"
+        width="33%"
         srcset="./content/public/assets/download-buttons/download-buttons.mobile.dark.zh-Hans.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
-        width="19.5%"
+        width="33%"
         srcset="./content/public/assets/download-buttons/download-buttons.mobile.light.zh-Hans.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="19.5%" src="./docs/content/public/assets/download-buttons/download-buttons.mobile.light.zh-Hans.avif" />
+      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.mobile.light.zh-Hans.avif" />
     </picture>
   </a>
   <a href="https://airi.moeru.ai">
     <picture>
       <source
-        width="19.1%"
+        width="33%"
         srcset="./content/public/assets/download-buttons/download-buttons.browser.dark.zh-Hans.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
-        width="19.1%"
+        width="33%"
         srcset="./content/public/assets/download-buttons/download-buttons.browser.light.zh-Hans.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="19.1%" src="./docs/content/public/assets/download-buttons/download-buttons.browser.light.zh-Hans.avif" />
+      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.browser.light.zh-Hans.avif" />
     </picture>
   </a>
 </p>
