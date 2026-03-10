@@ -1,49 +1,41 @@
+import type { I18n } from '../../libs/i18n'
+import type { ServerChannel } from '../../services/airi/channel-server'
+
 import { join, resolve } from 'node:path'
 
-import { is } from '@electron-toolkit/utils'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { BrowserWindow, ipcMain, shell } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { electronOnboardingClose, electronOnboardingCompleted, electronOnboardingSkipped, electronOpenOnboarding } from '../../../shared/eventa'
+import { electronOnboardingClose, electronOnboardingCompleted, electronOnboardingSkipped } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { createReusableWindow } from '../../libs/electron/window-manager'
+import { toggleWindowShow } from '../shared'
+import { setupBaseWindowElectronInvokes } from '../shared/window'
 
 export interface OnboardingWindowManager {
-  getWindow: () => BrowserWindow | null
-  showIfNeeded: () => Promise<boolean>
-  close: () => void
-  markCompleted: () => void
-  markSkipped: () => void
+  getWindow: () => Promise<BrowserWindow>
+  getAndToggleWindow: () => Promise<BrowserWindow>
 }
 
-export function setupOnboardingWindowManager(): OnboardingWindowManager {
-  let window: BrowserWindow | undefined
+export function setupOnboardingWindowManager(params: {
+  serverChannel: ServerChannel
+  i18n: I18n
+}): OnboardingWindowManager {
+  async function getOnboardingWindow(getWindow: () => Promise<BrowserWindow>) {
+    const window = await getWindow()
+    await toggleWindowShow(window)
 
-  const close = () => {
-    if (window && !window.isDestroyed()) {
-      window.close()
-    }
+    return window
   }
 
-  const markCompleted = () => {
-    close()
-  }
-
-  const markSkipped = () => {
-    close()
-  }
-
-  const createWindow = async () => {
-    if (window && !window.isDestroyed()) {
-      return window
-    }
-
+  const reusableWindow = createReusableWindow(async () => {
     const newWindow = new BrowserWindow({
       title: 'Welcome to AIRI',
-      width: 500,
-      height: 700,
+      width: 1000,
+      height: 650,
       minWidth: 400,
       minHeight: 500,
       show: false,
@@ -59,59 +51,32 @@ export function setupOnboardingWindowManager(): OnboardingWindowManager {
       },
     })
 
-    // NOTICE: in development mode, open devtools by default
-    if (is.dev) {
-      try {
-        newWindow.webContents.openDevTools({ mode: 'detach' })
-      }
-      catch (err) {
-        console.error('failed to open devtools:', err)
-      }
-    }
-
     newWindow.on('ready-to-show', () => newWindow.show())
     newWindow.webContents.setWindowOpenHandler((details) => {
       shell.openExternal(details.url)
       return { action: 'deny' }
     })
 
-    newWindow.on('closed', () => {
-      window = undefined
-    })
+    // TODO: once we refactored eventa to support window-namespaced contexts,
+    // we can remove the setMaxListeners call below since eventa will be able to dispatch and
+    // manage events within eventa's context system.
+    ipcMain.setMaxListeners(0)
+
+    const { context } = createContext(ipcMain, newWindow)
+
+    defineInvokeHandler(context, electronOnboardingClose, async () => newWindow.close())
+    defineInvokeHandler(context, electronOnboardingCompleted, async () => newWindow.close())
+    defineInvokeHandler(context, electronOnboardingSkipped, async () => newWindow.close())
+
+    await setupBaseWindowElectronInvokes({ context, window: newWindow, i18n: params.i18n, serverChannel: params.serverChannel })
 
     await load(newWindow, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/onboarding'))
 
-    // Setup IPC handlers for this window
-    const { context } = createContext(ipcMain, newWindow)
-
-    defineInvokeHandler(context, electronOnboardingClose, () => close())
-    defineInvokeHandler(context, electronOnboardingCompleted, () => markCompleted())
-    defineInvokeHandler(context, electronOnboardingSkipped, () => markSkipped())
-    defineInvokeHandler(context, electronOpenOnboarding, async () => {
-      await showIfNeeded()
-      return true
-    })
-
-    window = newWindow
     return newWindow
-  }
-
-  async function showIfNeeded() {
-    if (window && !window.isDestroyed()) {
-      window.show()
-      window.focus()
-      return true
-    }
-
-    await createWindow()
-    return true
-  }
+  })
 
   return {
-    getWindow: () => window ?? null,
-    showIfNeeded,
-    close,
-    markCompleted,
-    markSkipped,
+    getWindow: async () => reusableWindow.getWindow(),
+    getAndToggleWindow: async () => await getOnboardingWindow(reusableWindow.getWindow),
   }
 }

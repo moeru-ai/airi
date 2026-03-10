@@ -19,6 +19,8 @@ docs:
   'drag-to-move-window': 드레그하여 창 이동
   'switch-to-light-mode': 라이트 모드로 전환
   'switch-to-dark-mode': 다크 모드로 전환
+  'pin-on-top': Pin on top
+  'unpin-from-top': Unpin from top
   'close': 닫기
   'expand': 확장
   'collapse': 접기
