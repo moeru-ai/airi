@@ -62,6 +62,27 @@ const defaultMapProps = {
   ],
 }
 
+const defaultArtistryProps = {
+  status: 'generating',
+  progress: 45,
+  actionLabel: 'Thinking...',
+  prompt: '1girl, looking at viewer',
+  remixId: '48250602',
+  _artistryConfig: {
+    // This block normally gets injected dynamically by the stage
+    // For manual testing, we supply it explicitly so the widget bridge routes it properly
+    provider: localStorage.getItem('artistry-provider') || 'comfyui',
+    options: {
+      aspect_ratio: localStorage.getItem('artistry-replicate-aspect-ratio') || '16:9',
+      num_inference_steps: Number.parseInt(localStorage.getItem('artistry-replicate-inference-steps') || '4', 10),
+    },
+    Globals: {
+      replicateApiKey: localStorage.getItem('artistry-replicate-api-key') || '',
+      comfyuiHostUrl: localStorage.getItem('artistry-comfyui-host-url') || 'https://comfyui-plus.duckdns.org',
+    }
+  }
+}
+
 const form = reactive<FormState>({
   id: '',
   componentName: 'weather',
@@ -243,6 +264,16 @@ function applyMapPreset() {
   form.ttlSeconds = ''
   resetFeedback()
 }
+
+function applyArtistryPreset() {
+  form.componentName = 'artistry'
+  form.sizePreset = 'm'
+  form.customCols = '2'
+  form.customRows = '1'
+  form.componentProps = JSON.stringify(defaultArtistryProps, null, 2)
+  form.ttlSeconds = ''
+  resetFeedback()
+}
 </script>
 
 <template>
@@ -270,6 +301,13 @@ function applyMapPreset() {
           @click="applyMapPreset"
         >
           Map Preset
+        </Button>
+        <Button
+          variant="secondary"
+          :disabled="busy"
+          @click="applyArtistryPreset"
+        >
+          Artistry Preset
         </Button>
       </div>
     </div>

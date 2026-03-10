@@ -16,6 +16,7 @@ export interface AiriExtension {
     consciousness: {
       provider: string // Example: "openai"
       model: string // Example: "gpt-4o"
+      moduleConfigs?: Record<string, any>
     }
 
     speech: {
@@ -40,6 +41,13 @@ export interface AiriExtension {
       file?: string // Example: "live2d/model.json"
       url?: string // Example: "https://example.com/live2d/model.json"
     }
+  }
+
+  artistry?: {
+    provider?: string
+    model?: string
+    promptPrefix?: string
+    options?: Record<string, any>
   }
 
   agents: {
@@ -117,6 +125,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       consciousness: {
         provider: activeConsciousnessProvider.value,
         model: activeConsciousnessModel.value,
+        moduleConfigs: {
+          defaultPromptPrefix: t('base.prompt.prefix'),
+        },
       },
       speech: {
         provider: activeSpeechProvider.value,
@@ -152,6 +163,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         vrm: existingExtension.modules?.vrm,
         live2d: existingExtension.modules?.live2d,
       },
+      artistry: existingExtension.artistry,
       agents: existingExtension.agents ?? {},
     }
   }

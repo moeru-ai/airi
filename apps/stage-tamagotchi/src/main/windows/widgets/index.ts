@@ -18,19 +18,23 @@ import { widgetsClearEvent, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdat
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
+import { setupArtistryBridge } from '../../services/airi/widgets/artistry-bridge'
 import { spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
 import { setupWidgetsWindowInvokes } from './rpc/index.electron'
 
 export interface WidgetsWindowManager {
   getWindow: () => Promise<BrowserWindow>
   openWindow: (params?: { id?: string }) => Promise<void>
+  hideWindow: (params?: { id?: string }) => Promise<void>
   pushWidget: (payload: WidgetsAddPayload) => Promise<string>
   updateWidget: (payload: { id: string, componentProps?: Record<string, any> }) => Promise<void>
   removeWidget: (id: string) => Promise<void>
   clearWidgets: () => Promise<void>
   getWidgetSnapshot: (id: string) => WidgetSnapshot | undefined
   prepareWidgetWindow: (options?: { id?: string }) => string
+  emit: (event: any, payload: any) => void
 }
+
 
 const widgetsWindowConfigSchema = object({
   bounds: optional(object({
@@ -255,6 +259,17 @@ export function setupWidgetsWindowManager(params: {
     await showWindowWithRoute(route, context)
   }
 
+  async function hideWindow(params?: { id?: string }) {
+    const id = params?.id
+    const context = id ? windowContexts.get(id) : undefined
+    if (context?.window) {
+      context.window.hide()
+    } else {
+      const window = await getWindow()
+      window.hide()
+    }
+  }
+
   async function pushWidget(payload: WidgetsAddPayload): Promise<string> {
     const id = prepareWidgetWindow({ id: payload.id })
     const snapshot: WidgetSnapshot = {
@@ -314,16 +329,26 @@ export function setupWidgetsWindowManager(params: {
     return toSnapshot(record)
   }
 
+  function emit(event: any, payload: any) {
+    eventaContext?.emit(event, payload)
+  }
+
   widgetsManager = {
     getWindow,
     openWindow,
+    hideWindow,
     pushWidget,
     updateWidget,
     removeWidget,
     clearWidgets,
     getWidgetSnapshot,
     prepareWidgetWindow,
+    emit,
   }
+
+  setupArtistryBridge({ widgetsManager: widgetsManager! })
+
 
   return widgetsManager!
 }
+

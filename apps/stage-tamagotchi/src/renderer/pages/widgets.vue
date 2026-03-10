@@ -5,158 +5,22 @@ import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/el
 import { computed, defineAsyncComponent, defineComponent, h, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
+import WeatherSkeleton from '../widgets/weather/components/Skeleton.vue'
+
 import { widgetsClearEvent, widgetsFetch, widgetsRemove, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdateEvent } from '../../shared/eventa'
 
 type SizePreset = 's' | 'm' | 'l' | { cols?: number, rows?: number }
-
-interface WidgetItem {
-  id: string
-  componentName: string
-  componentProps: Record<string, any>
-  size: SizePreset
-  ttlMs: number
+// ... (lines 12-156)
+const Registry: Record<string, any> = {
+  weather: defineAsyncComponent({
+    loader: () => import('../widgets/weather').then(m => m.Weather),
+    loadingComponent: WeatherSkeleton,
+  }),
+  map: defineAsyncComponent(() => import('../widgets/map').then(m => m.Map)),
+  artistry: defineAsyncComponent(() => import('../widgets/artistry').then(m => m.Artistry)),
+  comfy: defineAsyncComponent(() => import('../widgets/artistry').then(m => m.Artistry)),
 }
 
-const route = useRoute()
-
-const widgetId = computed(() => {
-  const raw = route.query.id
-  if (typeof raw === 'string')
-    return raw
-  if (Array.isArray(raw))
-    return raw[0]
-  return undefined
-})
-
-const widget = ref<WidgetItem | null>(null)
-const loading = ref(false)
-
-const context = useElectronEventaContext()
-const removeWidgetInvoke = useElectronEventaInvoke(widgetsRemove)
-const fetchWidget = useElectronEventaInvoke(widgetsFetch)
-
-let ttlTimer: ReturnType<typeof setTimeout> | undefined
-
-function clearTtl() {
-  if (ttlTimer) {
-    clearTimeout(ttlTimer)
-    ttlTimer = undefined
-  }
-}
-
-async function requestRemoval(id: string) {
-  clearTtl()
-  try {
-    await removeWidgetInvoke({ id })
-  }
-  catch (error) {
-    console.warn('Failed to remove widget', error)
-  }
-}
-
-function applySnapshot(snapshot: WidgetSnapshot) {
-  clearTtl()
-  widget.value = {
-    id: snapshot.id,
-    componentName: snapshot.componentName,
-    componentProps: snapshot.componentProps ?? {},
-    size: snapshot.size ?? 'm',
-    ttlMs: snapshot.ttlMs ?? 0,
-  }
-
-  if (snapshot.ttlMs && snapshot.ttlMs > 0) {
-    ttlTimer = setTimeout(() => requestRemoval(snapshot.id), snapshot.ttlMs)
-  }
-}
-
-async function requestSnapshot(id: string) {
-  loading.value = true
-  try {
-    const snapshot = await fetchWidget({ id })
-    if (widgetId.value !== id)
-      return
-    if (snapshot)
-      applySnapshot(snapshot)
-    else
-      widget.value = null
-  }
-  catch (error) {
-    console.warn('Failed to fetch widget snapshot', error)
-  }
-  finally {
-    if (widgetId.value === id)
-      loading.value = false
-  }
-}
-
-watch(widgetId, (id) => {
-  clearTtl()
-  widget.value = null
-  loading.value = false
-  if (!id)
-    return
-  requestSnapshot(id)
-}, { immediate: true })
-
-onMounted(() => {
-  try {
-    context.value.on(widgetsRenderEvent, (evt) => {
-      const body = evt?.body
-      if (!body || body.id !== widgetId.value)
-        return
-      applySnapshot(body)
-    })
-  }
-  catch {}
-
-  try {
-    context.value.on(widgetsUpdateEvent, (evt) => {
-      const body = evt?.body
-      if (!body || body.id !== widgetId.value)
-        return
-
-      if (!widget.value) {
-        requestSnapshot(body.id)
-        return
-      }
-
-      widget.value = {
-        ...widget.value,
-        componentProps: body.componentProps ?? widget.value.componentProps,
-      }
-    })
-  }
-  catch {}
-
-  try {
-    context.value.on(widgetsRemoveEvent, (evt) => {
-      const body = evt?.body
-      if (!body || body.id !== widgetId.value)
-        return
-      clearTtl()
-      widget.value = null
-      loading.value = false
-    })
-  }
-  catch {}
-
-  try {
-    context.value.on(widgetsClearEvent, () => {
-      clearTtl()
-      widget.value = null
-      loading.value = false
-    })
-  }
-  catch {}
-})
-
-onBeforeUnmount(() => {
-  clearTtl()
-})
-
-const Registry: Record<string, ReturnType<typeof defineAsyncComponent>> = {
-  map: defineAsyncComponent(async () => (await import('../widgets/map')).Map),
-  weather: defineAsyncComponent(async () => (await import('../widgets/weather')).Weather),
 }
 
 const GenericWidget = defineComponent({

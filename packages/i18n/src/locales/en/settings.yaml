@@ -238,6 +238,9 @@ pages:
           description: Configure 3D VRM models and settings
         scene: Scene
   modules:
+    artistry:
+      description: Generate images and visual content during conversations
+      title: Artistry
     beat_sync:
       description: Vibe with beats from the audio source
       title: Beat Sync
@@ -577,6 +580,14 @@ pages:
       browser-local-audio-speech:
         title: Browser (Local)
         description: https://github.com/moeru-ai/xsai-transformers
+      replicate:
+        title: Replicate
+        settings:
+          title: Replicate.ai User Configuration
+      comfyui:
+        title: ComfyUI
+        settings:
+          title: ComfyUI User Configuration
       alibaba-cloud-model-studio:
         description: bailian.console.aliyun.com
         title: Alibaba Cloud Model Studio
