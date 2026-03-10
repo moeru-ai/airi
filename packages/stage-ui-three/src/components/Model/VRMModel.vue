@@ -641,6 +641,15 @@ defineExpose({
     }
     vrm.value.expressionManager.update()
   },
+  restoreDefaultExpressions() {
+    if (!vrm.value?.expressionManager)
+      return
+    for (const name of modelStore.availableExpressions) {
+      const weight = modelStore.activeExpressions[name] || 0
+      vrm.value.expressionManager.setValue(name, weight)
+    }
+    vrm.value.expressionManager.update()
+  },
 })
 
 // === Manual Expression Sync ===
