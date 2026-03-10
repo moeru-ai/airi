@@ -24,13 +24,12 @@ interface Emits {
   (e: 'skipped'): void
 }
 
-const props = defineProps<{
+const { extraSteps = [] } = defineProps<{
   extraSteps?: OnboardingStep[]
 }>()
 const emit = defineEmits<Emits>()
 const step = ref(0)
 const direction = ref<'next' | 'previous'>('next')
-const extraSteps = computed(() => props.extraSteps ?? [])
 const pendingProviderConfig = ref<ProviderConfigData | null>(null)
 
 const providersStore = useProvidersStore()
@@ -134,7 +133,7 @@ const allSteps = computed<OnboardingStep[]>(() => {
         return true
       },
     },
-    ...extraSteps.value.map(step => ({
+    ...extraSteps.map(step => ({
       ...step,
       props: () => ({
         ...step.props?.(),
