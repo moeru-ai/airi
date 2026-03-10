@@ -5,12 +5,16 @@ CLI for [Capacitor](https://capacitorjs.com/) live-reload development using Vite
 ## Usage
 
 ```bash
-pnpm cap-vite ios <DEVICE_ID_OR_SIMULATOR_NAME>
-pnpm cap-vite android <DEVICE_ID_OR_SIMULATOR_NAME>
+pnpm cap-vite ios --target <DEVICE_ID_OR_SIMULATOR_NAME>
+pnpm cap-vite android --target <DEVICE_ID_OR_SIMULATOR_NAME>
+pnpm cap-vite ios --target <DEVICE_ID_OR_SIMULATOR_NAME> -- --scheme AIRI
+pnpm cap-vite android --target <DEVICE_ID_OR_SIMULATOR_NAME> -- --flavor release
 # Or
 CAPACITOR_DEVICE_ID=<DEVICE_ID_OR_SIMULATOR_NAME> pnpm cap-vite ios
 CAPACITOR_DEVICE_ID=<DEVICE_ID_OR_SIMULATOR_NAME> pnpm cap-vite android
 ```
+
+- Arguments after `--` are forwarded to `cap run`, example: `pnpm cap-vite ios --target <DEVICE_ID_OR_SIMULATOR_NAME> -- --scheme AIRI` will run `cap run ios --target <DEVICE_ID_OR_SIMULATOR_NAME> --scheme AIRI`.
 
 You can see the list of available devices and simulators by running `pnpm exec cap run ios --list` or `pnpm exec cap run android --list`.
 

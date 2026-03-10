@@ -1963,6 +1963,9 @@ importers:
       '@capacitor/cli':
         specifier: ^8.0.0
         version: 8.1.0
+      cac:
+        specifier: ^6.7.14
+        version: 6.7.14
       tinyexec:
         specifier: ^1.0.2
         version: 1.0.2
