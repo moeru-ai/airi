@@ -719,6 +719,10 @@ pages:
         title: OpenRouter
       github-models:
         description: models.github.ai
+        fields:
+          field:
+            baseUrl:
+              description: GitHub Models の推論エンドポイントです。互換プロキシ経由でルーティングしていない限り、既定値のままにしてください。
         title: GitHub Models
       perplexity:
         description: perplexity.ai
