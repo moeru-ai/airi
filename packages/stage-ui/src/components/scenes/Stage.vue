@@ -124,7 +124,7 @@ const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice,
 const activeCardId = computed(() => activeCard.value?.name ?? 'default')
 const speechRuntimeStore = useSpeechRuntimeStore()
 
-const { currentMotion } = storeToRefs(useLive2d())
+const { currentMotion, availableExpressions: live2dExpressions, expressionData: live2dExpressionData, activeExpressions: live2dActiveExpressions, modelParameters: live2dModelParameters } = storeToRefs(live2dStore)
 
 const emotionsQueue = createQueue<EmotionPayload>({
   handlers: [
@@ -138,7 +138,61 @@ const emotionsQueue = createQueue<EmotionPayload>({
         await vrmViewerRef.value!.setExpression(value, ctx.data.intensity)
       }
       else if (stageModelRenderer.value === 'live2d') {
+<<<<<<< HEAD
         currentMotion.value = { group: EMOTION_EmotionMotionName_value[ctx.data.name] }
+=======
+
+        const emotionName = ctx.data.name
+        // eslint-disable-next-line no-console
+        console.log('[Stage] Live2D emotion processing:', { name: emotionName, intensity: ctx.data.intensity })
+
+        // Case-insensitive match against available Live2D expressions
+        const matchedExp = live2dExpressions.value.find(
+          e => e.name.toLowerCase() === emotionName.toLowerCase(),
+        )
+
+        if (matchedExp) {
+          // eslint-disable-next-line no-console
+          console.log('[Stage] Live2D expression matched:', matchedExp.name, matchedExp.fileName)
+
+          // Apply the expression parameters
+          const expEntry = live2dExpressionData.value.find((e: any) => e.fileName === matchedExp.fileName)
+          if (expEntry?.data?.Parameters) {
+            // Store original values so we can restore them
+            const originalValues: Record<string, number> = {}
+            for (const param of expEntry.data.Parameters) {
+              const id = param.Id || param.id
+              const value = param.Value ?? param.value
+              if (id !== undefined && value !== undefined) {
+                originalValues[id] = live2dModelParameters.value[id] ?? 0
+                live2dModelParameters.value[id] = value
+              }
+            }
+            // Mark as active
+            live2dActiveExpressions.value = { ...live2dActiveExpressions.value, [matchedExp.fileName]: 1 }
+
+            // Auto-reset after 2 seconds (like VRM)
+            setTimeout(() => {
+              for (const [id, origValue] of Object.entries(originalValues)) {
+                live2dModelParameters.value[id] = origValue
+              }
+              live2dActiveExpressions.value = { ...live2dActiveExpressions.value, [matchedExp.fileName]: 0 }
+              // eslint-disable-next-line no-console
+              console.log('[Stage] Live2D expression auto-reset:', matchedExp.name)
+            }, 2000)
+          }
+        }
+        else {
+          // Fallback: try motion mapping
+          const motionGroup = (EMOTION_EmotionMotionName_value as any)[emotionName]
+          if (motionGroup) {
+            currentMotion.value = { group: motionGroup }
+          }
+          else {
+            console.warn('[Stage] No Live2D expression or motion found for:', emotionName)
+          }
+        }
+>>>>>>> e66798ff (feat(live2d): integrate ACT emotion pipeline for Live2D expressions)
       }
     },
   ],
