@@ -6,6 +6,7 @@ import type { ServerChannel } from '../../services/airi/channel-server'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
+import { safeClose } from '@proj-airi/electron-vueuse/main'
 import { ipcMain } from 'electron'
 
 import { setupBaseWindowElectronInvokes } from './window'
@@ -90,8 +91,8 @@ export function createReferencedWindowManager<Payload extends RequestWindowPaylo
     const ctx = windows.get(id)
     if (!ctx)
       return
-    if (!ctx.window.isDestroyed())
-      ctx.window.close()
+
+    safeClose(ctx.window)
     windows.delete(id)
   }
 

@@ -5,6 +5,7 @@ import type { BrowserWindow, BrowserWindowConstructorOptions } from 'electron'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 
+import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
 import { isMacOS } from 'std-env'
 
 import { createServerChannelService } from '../../services/airi/channel-server'
@@ -15,7 +16,7 @@ export function toggleWindowShow(window?: BrowserWindow | null): void {
   if (!window) {
     return
   }
-  if (window.isDestroyed()) {
+  if (isRendererUnavailable(window)) {
     return
   }
 
