@@ -30,6 +30,88 @@
   <a href="https://qun.qq.com/universal-share/share?ac=1&authKey=9g00d%2BZS7nORzcJugNNddJ7rCghZTIR7fhXabGwch2S%2BG%2BKGIKwlN1N2nIqkh2jg&busi_data=eyJncm91cENvZGUiOiIxMDU4MTU2Njk3IiwidG9rZW4iOiJmcnkra1hWNFIxNytEcG0zcHRUdVJIaldlRDFxN0dzK080QWtvTEdOQjJkNEY2eUFta1g1clNpbkxSMS9FQWFYIiwidWluIjoiMTI2MDkwNzMzNSJ9&data=b1eJrwn3GVOUh7YIxZ7l9vHQo99HPmRxKPpMKlDCmfzx8Y57IXb2EZCMaOC9rVTd2U558qpNjwUYUWlPHxVHvg&svctype=4&tempid=h5_group_info"><img src="https://img.shields.io/badge/QQ-%2312B7F5?logo=qq&labelColor=FFFFFF"></a>
 </p>
 
+<p float="left" align="center">
+  <!-- readme-section:release-binary-windows -->
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.6/AIRI-0.9.0-alpha.6-windows-x64-setup.exe">
+    <picture>
+      <source
+        width="33%"
+        srcset="./docs/content/public/assets/download-buttons/download-buttons.windows.dark.en-US.avif"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="33%"
+        srcset="./docs/content/public/assets/download-buttons/download-buttons.windows.light.en-US.avif"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.windows.light.en-US.avif" />
+    </picture>
+  </a>
+  <!-- readme-section:release-binary-macos -->
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.6/AIRI-0.9.0-alpha.6-darwin-arm64.dmg">
+    <picture>
+      <source
+        width="33%"
+        srcset="./docs/content/public/assets/download-buttons/download-buttons.macos.dark.en-US.avif"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="33%"
+        srcset="./docs/content/public/assets/download-buttons/download-buttons.macos.light.en-US.avif"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.macos.light.en-US.avif" />
+    </picture>
+  </a>
+  <a href="https://github.com/moeru-ai/airi/releases/latest">
+    <picture>
+      <source
+        width="33%"
+        srcset="./docs/content/public/assets/download-buttons/download-buttons.linux.dark.en-US.avif"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="33%"
+        srcset="./docs/content/public/assets/download-buttons/download-buttons.linux.light.en-US.avif"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.linux.light.en-US.avif" />
+    </picture>
+  </a>
+</p>
+<p float="left" align="center">
+  <a href="https://airi.moeru.ai">
+    <picture>
+      <source
+        width="33%"
+        srcset="./docs/content/public/assets/download-buttons/download-buttons.mobile.dark.en-US.avif"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="33%"
+        srcset="./docs/content/public/assets/download-buttons/download-buttons.mobile.light.en-US.avif"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.mobile.light.en-US.avif" />
+    </picture>
+  </a>
+  <a href="https://airi.moeru.ai">
+    <picture>
+      <source
+        width="33%"
+        srcset="./docs/content/public/assets/download-buttons/download-buttons.browser.dark.en-US.avif"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="33%"
+        srcset="./docs/content/public/assets/download-buttons/download-buttons.browser.light.en-US.avif"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.browser.light.en-US.avif" />
+    </picture>
+  </a>
+</p>
+
 <p align="center">
   <a href="https://www.producthunt.com/products/airi?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-airi" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=993524&theme=neutral&t=1752696535380" alt="AIRI - A&#0032;container&#0032;of&#0032;cyber&#0032;living&#0032;souls&#0044;&#0032;re&#0045;creation&#0032;of&#0032;Neuro&#0045;sama | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
   <a href="https://trendshift.io/repositories/14636" target="_blank"><img src="https://trendshift.io/api/badge/repositories/14636" alt="moeru-ai%2Fairi | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
@@ -59,61 +141,6 @@ With the power of modern large language models like [ChatGPT](https://chatgpt.co
 Perhaps you know [Neuro-sama](https://www.youtube.com/@Neurosama) already. She is currently the best virtual streamer capable of playing games, chatting, and interacting with you and the participants. Some also call this kind of being "digital human." **Sadly, as it's not open sourced, you cannot interact with her after her live streams go offline**.
 
 Therefore, this project, AIRI, offers another possibility here: **let you own your digital life, cyber living, easily, anywhere, anytime**.
-
-## Download or Web?
-
-You can try the web version of AIRI at [airi.moeru.ai](https://airi.moeru.ai) directly.
-You may also download the following desktop versions for Windows, macOS, and Linux, can be used as desktop mate / desktop pet, many unique features included:
-
-<p float="left">
-  <!-- readme-section:release-binary-windows -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.6/AIRI-0.9.0-alpha.6-darwin-arm64.dmg">
-    <picture>
-      <source
-        width="33.5%"
-        srcset="./docs/content/public/assets/download-buttons/Download buttons - Windows.dark.en-US.avif"
-        media="(prefers-color-scheme: dark)"
-      />
-      <source
-        width="33.5%"
-        srcset="./docs/content/public/assets/download-buttons/Download buttons - Windows.light.en-US.avif"
-        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
-      />
-      <img width="33.5%" src="./docs/content/public/assets/download-buttons/Download buttons - Windows.light.en-US.avif" />
-    </picture>
-  </a>
-  <!-- readme-section:release-binary-macos -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.6/AIRI-0.9.0-alpha.6-darwin-arm64.dmg">
-    <picture>
-      <source
-        width="33.5%"
-        srcset="./docs/content/public/assets/download-buttons/Download buttons - macOS.dark.en-US.avif"
-        media="(prefers-color-scheme: dark)"
-      />
-      <source
-        width="33.5%"
-        srcset="./docs/content/public/assets/download-buttons/Download buttons - macOS.light.en-US.avif"
-        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
-      />
-      <img width="33.5%" src="./docs/content/public/assets/download-buttons/Download buttons - macOS.light.en-US.avif" />
-    </picture>
-  </a>
-  <a href="https://github.com/moeru-ai/airi/releases/latest">
-    <picture>
-      <source
-        width="32%"
-        srcset="./docs/content/public/assets/download-buttons/Download buttons - Linux.dark.en-US.avif"
-        media="(prefers-color-scheme: dark)"
-      />
-      <source
-        width="32%"
-        srcset="./docs/content/public/assets/download-buttons/Download buttons - Linux.light.en-US.avif"
-        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
-      />
-      <img width="32%" src="./docs/content/public/assets/download-buttons/Download buttons - Linux.light.en-US.avif" />
-    </picture>
-  </a>
-</p>
 
 ## DevLogs We Posted & Recent Updates
 
