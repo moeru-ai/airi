@@ -81,7 +81,7 @@ app.whenReady().then(async () => {
 
   const serverChannel = injeca.provide('modules:channel-server', {
     dependsOn: { app: electronApp },
-    build: async () => setupServerChannel(),
+    build: async () => setupServerChannel({ serverChannelService: true }),
   })
 
   const mcpStdioManager = injeca.provide('modules:mcp-stdio-manager', {

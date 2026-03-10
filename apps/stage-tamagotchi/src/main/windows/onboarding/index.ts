@@ -64,9 +64,9 @@ export function setupOnboardingWindowManager(params: {
 
     const { context } = createContext(ipcMain, newWindow)
 
-    defineInvokeHandler(context, electronOnboardingClose, async () => newWindow.hide())
-    defineInvokeHandler(context, electronOnboardingCompleted, async () => newWindow.hide())
-    defineInvokeHandler(context, electronOnboardingSkipped, async () => newWindow.hide())
+    defineInvokeHandler(context, electronOnboardingClose, async () => newWindow.close())
+    defineInvokeHandler(context, electronOnboardingCompleted, async () => newWindow.close())
+    defineInvokeHandler(context, electronOnboardingSkipped, async () => newWindow.close())
 
     await setupBaseWindowElectronInvokes({ context, window: newWindow, i18n: params.i18n, serverChannel: params.serverChannel })
 
