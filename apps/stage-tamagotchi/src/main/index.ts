@@ -126,7 +126,7 @@ app.whenReady().then(async () => {
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, mcpStdioManager, i18n, onboardingWindowManager },
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, mcpStdioManager, i18n, onboardingWindowManager, appConfig },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
 
@@ -148,8 +148,13 @@ app.whenReady().then(async () => {
   })
 
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager },
+    dependsOn: { mainWindow, tray, serverChannel, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, appConfig },
     callback: (deps) => {
+      import('./libs/bootkit/lifecycle').then((m) => {
+        m.onAppBeforeQuit(() => {
+          deps.appConfig.flush()
+        })
+      })
       import('./services/shortcuts/mic-toggle').then((m) => {
         m.setupMicToggleShortcut(deps.mainWindow)
       })
