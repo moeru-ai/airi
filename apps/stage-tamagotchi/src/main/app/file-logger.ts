@@ -185,9 +185,7 @@ export async function setupFileLogger(): Promise<FileLoggerHandle> {
       console.info(`[FileLogger] Session log file: ${logFilePath}${sizeInfo}`)
     }
 
-    const handle: FileLoggerHandle = { logFilePath, logFileFd, appendLog, close }
-
-    return handle
+    return { logFilePath, logFileFd, appendLog, close }
   }
   catch (error) {
     const message = getErrorMessage(error)
