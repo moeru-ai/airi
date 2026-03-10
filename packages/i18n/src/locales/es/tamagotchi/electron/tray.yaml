@@ -1,7 +1,7 @@
 menu:
   labels:
     label:
-      show: Show
+      show: Mostrar
       adjust_sizes: Ajustar tamaños
       recommended_size: Recommended (450x600)
       full_height: Full Height
