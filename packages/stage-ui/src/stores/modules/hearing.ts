@@ -52,7 +52,7 @@ interface HearingTranscriptionInvokeOptions {
 export const CONFIDENCE_THRESHOLD_DISABLED = -3
 
 export function filterTranscriptionByConfidence(
-  segments: Array<{ text: string, avg_logprob: number }>,
+  segments: Array<{ text?: string, avg_logprob?: number }>,
   threshold: number,
 ): string {
   // if provider side doesn't implement this correctly
