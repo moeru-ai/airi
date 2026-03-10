@@ -58,7 +58,7 @@
               name = "airi-electron-fhs";
               targetPkgs =
                 p: with p; [
-                  nodejs_22
+                  nodejs_24
                   pnpm
                   # Electron system library dependencies
                   # Note: some packages need explicit output refs because the
