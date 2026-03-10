@@ -1,6 +1,7 @@
 import type { Logg } from '@guiiai/logg'
 import type { Message } from '@xsai/shared-chat'
 
+import type { AiriBridge } from '../../airi/airi-bridge'
 import type { ConversationUpdateEvent } from '../../debug/types'
 import type { Action } from '../../libs/mineflayer/action'
 import type { TaskExecutor } from '../action/task-executor'
@@ -47,6 +48,7 @@ interface BrainDeps {
   logger: Logg
   taskExecutor: TaskExecutor
   reflexManager: ReflexManager
+  airiBridge: AiriBridge
 }
 
 interface QueuedEvent {
@@ -969,6 +971,10 @@ export class Brain {
       enterContext: (label: string) => this.enterContext(label),
       exitContext: (summary?: string) => this.exitContext(summary),
       history: this.historyRuntime,
+      notifyAiri: (headline: string, note?: string, urgency?: 'immediate' | 'soon' | 'later') =>
+        this.deps.airiBridge.sendNotify(headline, note, urgency),
+      updateAiriContext: (text: string, hints?: string[], lane?: string) =>
+        this.deps.airiBridge.sendContextUpdate(text, hints, lane),
     }
   }
 

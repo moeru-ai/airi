@@ -13,19 +13,19 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
   let mcpReplServer: McpReplServer | null = null
   let started = false
 
-  // Keep airiClient reference for future use
-  void options.airiClient
-
   return {
     async created(bot) {
       // Create container and get required services
-      container = createAgentContainer()
+      container = createAgentContainer(options.airiClient)
 
       const perceptionPipeline = container.resolve('perceptionPipeline')
       const brain = container.resolve('brain')
       const reflexManager = container.resolve('reflexManager')
       const taskExecutor = container.resolve('taskExecutor')
+      const airiBridge = container.resolve('airiBridge')
       const debugService = DebugService.getInstance()
+
+      airiBridge.init()
 
       if (config.debug.mcp) {
         mcpReplServer = new McpReplServer(brain)
@@ -149,6 +149,9 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
       }
 
       if (container) {
+        const airiBridge = container.resolve('airiBridge')
+        airiBridge.destroy()
+
         const brain = container.resolve('brain')
         brain.destroy()
 

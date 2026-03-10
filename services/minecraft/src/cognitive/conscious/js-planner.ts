@@ -79,6 +79,8 @@ export interface RuntimeGlobals {
   forgetConversation?: () => { ok: true, cleared: string[] }
   enterContext?: (label: string) => { ok: true, label: string, turnId: number }
   exitContext?: (summary?: string) => { ok: true, summarized: string, messagesArchived: number }
+  notifyAiri?: (headline: string, note?: string, urgency?: 'immediate' | 'soon' | 'later') => void
+  updateAiriContext?: (text: string, hints?: string[], lane?: string) => void
   history?: unknown
   llmInput?: {
     systemPrompt: string
@@ -249,6 +251,8 @@ export class JavaScriptPlanner {
       { name: 'lastRun', kind: 'object', readonly: true },
       { name: 'prevRun', kind: 'object', readonly: true },
       { name: 'lastAction', kind: 'object', readonly: true },
+      { name: 'notifyAiri', kind: 'function', readonly: true },
+      { name: 'updateAiriContext', kind: 'function', readonly: true },
     ]
 
     const valueByName: Record<string, unknown> = {
@@ -283,6 +287,8 @@ export class JavaScriptPlanner {
       'lastRun': this.sandbox.lastRun,
       'prevRun': this.sandbox.prevRun,
       'lastAction': this.sandbox.lastAction,
+      'notifyAiri': this.sandbox.notifyAiri,
+      'updateAiriContext': this.sandbox.updateAiriContext,
       'skip': this.sandbox.skip,
       'use': this.sandbox.use,
       'log': this.sandbox.log,
@@ -469,6 +475,8 @@ export class JavaScriptPlanner {
     this.sandbox.enterContext = globals.enterContext ?? null
     this.sandbox.exitContext = globals.exitContext ?? null
     this.sandbox.history = globals.history ?? null
+    this.sandbox.notifyAiri = globals.notifyAiri ?? null
+    this.sandbox.updateAiriContext = globals.updateAiriContext ?? null
     this.sandbox.llmMessages = llmInput?.messages ?? []
     this.sandbox.llmSystemPrompt = llmInput?.systemPrompt ?? ''
     this.sandbox.llmUserMessage = llmInput?.userMessage ?? ''
