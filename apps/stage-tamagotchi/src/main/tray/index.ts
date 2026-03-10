@@ -186,34 +186,40 @@ export function setupTray(params: {
               checked: !!mainWindowConfig?.locked,
               click: (item) => {
                 const config = params.getConfig()
-                const index = config.windows?.findIndex((w: any) => w.title === 'AIRI' && w.tag === 'main') ?? -1
-                if (index !== -1 && config.windows) {
-                  config.windows[index].locked = item.checked
-                  params.updateConfig(config)
-                  params.mainWindow.setMovable(!item.checked)
-                  params.mainWindow.setResizable(!item.checked)
-                  params.mainWindow.webContents.send('eventa:event:electron:windows:main:config-changed', config.windows[index])
-                  rebuildContextMenu()
+                if (!config.windows)
+                  config.windows = []
+                let index = config.windows.findIndex((w: any) => w.title === 'AIRI' && w.tag === 'main')
+                if (index === -1) {
+                  index = config.windows.push({ title: 'AIRI', tag: 'main' }) - 1
                 }
+                config.windows[index].locked = item.checked
+                params.updateConfig(config)
+                params.mainWindow.setMovable(!item.checked)
+                params.mainWindow.setResizable(!item.checked)
+                params.mainWindow.webContents.send('eventa:event:electron:windows:main:config-changed', config.windows[index])
+                rebuildContextMenu()
               },
             },
             {
               label: t('tamagotchi.electron.tray.menu.labels.label.snapshot'),
               click: () => {
                 const config = params.getConfig()
-                const index = config.windows?.findIndex((w: any) => w.title === 'AIRI' && w.tag === 'main') ?? -1
-                if (index !== -1 && config.windows) {
-                  const bounds = params.mainWindow.getBounds()
-                  config.windows[index].snapshot = {
-                    x: bounds.x,
-                    y: bounds.y,
-                    width: bounds.width,
-                    height: bounds.height,
-                  }
-                  params.updateConfig(config)
-                  params.mainWindow.webContents.send('eventa:event:electron:windows:main:config-changed', config.windows[index])
-                  rebuildContextMenu()
+                if (!config.windows)
+                  config.windows = []
+                let index = config.windows.findIndex((w: any) => w.title === 'AIRI' && w.tag === 'main')
+                if (index === -1) {
+                  index = config.windows.push({ title: 'AIRI', tag: 'main' }) - 1
                 }
+                const bounds = params.mainWindow.getBounds()
+                config.windows[index].snapshot = {
+                  x: bounds.x,
+                  y: bounds.y,
+                  width: bounds.width,
+                  height: bounds.height,
+                }
+                params.updateConfig(config)
+                params.mainWindow.webContents.send('eventa:event:electron:windows:main:config-changed', config.windows[index])
+                rebuildContextMenu()
               },
             },
             {
