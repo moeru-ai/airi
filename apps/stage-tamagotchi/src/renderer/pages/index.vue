@@ -27,8 +27,7 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { refDebounced, useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { isLinux } from 'std-env'
-import { computed, onUnmounted, ref, toRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
@@ -49,6 +48,8 @@ const shouldFadeOnCursorWithin = ref(false)
 
 const onboardingStore = useOnboardingStore()
 const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
+
+const isLinux = useElectronEventaInvoke(electron.app.isLinux)
 
 const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
 const { isOutside } = useElectronMouseInElement(controlsIslandRef)
@@ -87,7 +88,7 @@ const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
 
 const context = useElectronEventaContext()
-const startDraggingWindow = !isLinux ? defineInvoke(context.value, electronStartDraggingWindow) : undefined
+const startDraggingWindow = !isLinux() ? defineInvoke(context.value, electronStartDraggingWindow) : undefined
 
 const live2dStore = useLive2d()
 const { scale, positionInPercentageString } = storeToRefs(live2dStore)
@@ -316,6 +317,10 @@ watch([() => onboardingStore.shouldShowSetup], ([shouldShowSetup]) => {
     openOnboarding()
   }
 }, { immediate: true })
+
+onMounted(() => {
+  onboardingStore.initializeSetupCheck()
+})
 
 onUnmounted(() => {
   stopAudioInteraction()
