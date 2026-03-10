@@ -29,6 +29,7 @@ import {
   electronGetServerChannelConfig,
   electronMcpCallTool,
   electronMcpListTools,
+  electronOpenOnboarding,
   electronOpenSettings,
   electronPluginInspect,
   electronPluginList,
@@ -75,6 +76,7 @@ const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapab
 const listMcpTools = useElectronEventaInvoke(electronMcpListTools)
 const callMcpTool = useElectronEventaInvoke(electronMcpCallTool)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
+const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
 
 // NOTICE: register plugin host bridge during setup to avoid race with pages using it in immediate watchers.
 pluginHostInspectorStore.setBridge({
@@ -143,6 +145,12 @@ watch(themeColorsHue, () => {
 
 watch(themeColorsHueDynamic, () => {
   document.documentElement.classList.toggle('dynamic-hue', themeColorsHueDynamic.value)
+}, { immediate: true })
+
+watch(() => onboardingStore.shouldShowSetup, () => {
+  if (onboardingStore.shouldShowSetup) {
+    openOnboarding()
+  }
 }, { immediate: true })
 
 onUnmounted(() => {

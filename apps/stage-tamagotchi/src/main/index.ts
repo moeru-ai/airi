@@ -109,7 +109,11 @@ app.whenReady().then(async () => {
 
   const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
 
-  const onboardingWindow = injeca.provide('windows:onboarding', () => setupOnboardingWindowManager())
+  const onboardingWindowManager = injeca.provide('windows:onboarding', {
+    dependsOn: { serverChannel, i18n },
+    build: ({ dependsOn }) => setupOnboardingWindowManager(dependsOn),
+  })
+
   const noticeWindow = injeca.provide('windows:notice', {
     dependsOn: { i18n, serverChannel },
     build: ({ dependsOn }) => setupNoticeWindowManager(dependsOn),
@@ -136,7 +140,7 @@ app.whenReady().then(async () => {
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, mcpStdioManager, i18n },
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, mcpStdioManager, i18n, onboardingWindowManager },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
 
@@ -151,14 +155,8 @@ app.whenReady().then(async () => {
   })
 
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, pluginHost, mcpStdioManager },
+    dependsOn: { mainWindow, tray, serverChannel, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager },
     callback: noop,
-  })
-
-  // Show onboarding window if not completed
-  injeca.invoke({
-    dependsOn: { onboardingWindow },
-    callback: ({ onboardingWindow }) => { onboardingWindow.showIfNeeded() },
   })
 
   injeca.start().catch(err => console.error(err))

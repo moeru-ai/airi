@@ -40,17 +40,21 @@ const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 const expanded = ref(false)
 const islandRef = ref<HTMLElement>()
 
+// Expose whether hearing dialog is open so parent can disable click-through
+const hearingDialogOpen = ref(false)
+defineExpose({ hearingDialogOpen })
+
 const { isOutside } = useElectronMouseInElement(islandRef)
 const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
 watch(isOutsideAfter2seconds, (outside) => {
-  if (outside && expanded.value) {
+  if (outside && expanded.value && !hearingDialogOpen.value) {
     expanded.value = false
   }
 })
 
 useIntervalFn(() => {
-  if (expanded.value && isOutside.value) {
+  if (expanded.value && isOutside.value && !hearingDialogOpen.value) {
     expanded.value = false
   }
 }, 1500)
@@ -97,10 +101,6 @@ const adjustStyleClasses = computed(() => {
  * See `apps/stage-tamagotchi/src/main/windows/main/index.ts` for handler definition
  */
 const startDraggingWindow = !isLinux() ? defineInvoke(context.value, electronStartDraggingWindow) : undefined
-
-// Expose whether hearing dialog is open so parent can disable click-through
-const hearingDialogOpen = ref(false)
-defineExpose({ hearingDialogOpen })
 
 function refreshWindow() {
   window.location.reload()
