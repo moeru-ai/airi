@@ -78,7 +78,7 @@ export const useSpeechStore = defineStore('speech', () => {
     if (activeSpeechProvider.value === 'alibaba-cloud-model-studio' && activeSpeechModel.value === 'cosyvoice-v2') {
       return true
     }
-    return ['elevenlabs', 'microsoft-speech', 'azure-speech', 'google', 'volcengine'].includes(activeSpeechProvider.value)
+    return ['elevenlabs', 'microsoft-speech', 'azure-speech', 'google'].includes(activeSpeechProvider.value)
   })
 
   async function loadVoicesForProvider(provider: string) {
