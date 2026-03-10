@@ -171,6 +171,24 @@ pages:
   memory:
     description: 存放记忆的地方，以及策略
     title: 记忆体
+  chat:
+    title: 聊天
+    description: 聊天行为、输入与流式传输设置
+    enter-to-send:
+      title: 发送消息快捷键
+      description: 选择发送消息的键盘快捷键。
+    stream-idle-timeout:
+      title: 流式响应空闲超时
+      description: 如果在指定时间内未收到任何数据，将自动中断请求。防止提供商无响应时回复框无限加载。
+      options:
+        '30000': 30 秒
+        '60000': 1 分钟
+        '120000': 2 分钟
+        '300000': 5 分钟
+        '-1': 无限制
+    max-tool-steps:
+      title: 每轮最大工具调用次数
+      description: AI 在单次对话中可以连续调用工具（MCP 等）的最大次数。
   data:
     title: Data
     description: 管理存储 AIRI 数据、导出和重置

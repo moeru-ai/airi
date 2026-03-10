@@ -171,6 +171,24 @@ pages:
   memory:
     description: Nơi lưu trữ và tổ chức ký ức
     title: Bộ nhớ
+  chat:
+    title: Trò chuyện
+    description: Cài đặt hành vi trò chuyện, nhập liệu và phát trực tuyến
+    enter-to-send:
+      title: Phím tắt gửi tin nhắn
+      description: Chọn phím tắt để gửi tin nhắn.
+    stream-idle-timeout:
+      title: Thời gian chờ phản hồi
+      description: Hủy yêu cầu nếu không nhận được dữ liệu trong khoảng thời gian này. Ngăn hộp trả lời tải mãi khi nhà cung cấp không phản hồi.
+      options:
+        '30000': 30 giây
+        '60000': 1 phút
+        '120000': 2 phút
+        '300000': 5 phút
+        '-1': Không giới hạn
+    max-tool-steps:
+      title: Số lần gọi công cụ tối đa mỗi lượt
+      description: Số lần gọi công cụ tuần tự tối đa (MCP, v.v.) mà AI có thể thực hiện trong một lượt trò chuyện.
   data:
     title: Data
     description: Manage stored AIRI data, exports, and resets

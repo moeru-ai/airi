@@ -20,6 +20,7 @@ import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useLLM } from './llm'
 import { useConsciousnessStore } from './modules/consciousness'
+import { useSettingsChat } from './settings/chat'
 
 interface SendOptions {
   model: string
@@ -52,6 +53,7 @@ interface QueuedSend {
 export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const llmStore = useLLM()
   const consciousnessStore = useConsciousnessStore()
+  const chatSettings = useSettingsChat()
   const { activeProvider } = storeToRefs(consciousnessStore)
   const { trackFirstMessage } = useAnalytics()
 
@@ -139,6 +141,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     updateUI()
     trackFirstMessage()
 
+    const sessionMessagesForSend = chatSession.sessionMessages[sessionId]
+
     try {
       await hooks.emitBeforeMessageComposedHooks(sendingMessage, streamingMessageContext)
 
@@ -170,7 +174,6 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       if (shouldAbort())
         return
 
-      const sessionMessagesForSend = chatSession.sessionMessages[sessionId]
       if (!sessionMessagesForSend) {
         throw new Error('Session messages not found')
       }
@@ -293,65 +296,118 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       if (shouldAbort())
         return
 
-      await llmStore.stream(options.model, options.chatProvider, newMessages as Message[], {
-        headers,
-        tools: options.tools,
-        // NOTICE: xsai stream may emit `finish` before tool steps continue, so keep waiting until
-        // the final non-tool finish to avoid ending the chat turn with no assistant reply.
-        waitForTools: true,
-        onStreamEvent: async (event: StreamEvent) => {
-          switch (event.type) {
-            case 'tool-call':
-              toolCallQueue.enqueue({
-                type: 'tool-call',
-                toolCall: event,
-              })
+      const idleTimeoutMs = chatSettings.streamIdleTimeoutMs
+      const abortController = new AbortController()
+      let idleTimeoutId: ReturnType<typeof setTimeout> | undefined
 
-              break
-            case 'tool-result':
-              toolCallQueue.enqueue({
-                type: 'tool-call-result',
-                id: event.toolCallId,
-                result: event.result,
-              })
+      const resetIdleTimeout = () => {
+        if (idleTimeoutMs < 0)
+          return
+        if (idleTimeoutId !== undefined)
+          clearTimeout(idleTimeoutId)
+        idleTimeoutId = setTimeout(() => {
+          abortController.abort(new Error(`Stream timed out: no data received within ${idleTimeoutMs / 1000} seconds`))
+        }, idleTimeoutMs)
+      }
+      const clearIdleTimeout = () => {
+        if (idleTimeoutId !== undefined) {
+          clearTimeout(idleTimeoutId)
+          idleTimeoutId = undefined
+        }
+      }
 
-              break
-            case 'text-delta':
-              fullText += event.text
-              await parser.consume(event.text)
-              break
-            case 'finish':
-              break
-            case 'error':
-              throw event.error ?? new Error('Stream error')
-          }
-        },
-      })
+      resetIdleTimeout()
+
+      try {
+        await llmStore.stream(options.model, options.chatProvider, newMessages as Message[], {
+          headers,
+          tools: options.tools,
+          // NOTICE: xsai stream may emit `finish` before tool steps continue, so keep waiting until
+          // the final non-tool finish to avoid ending the chat turn with no assistant reply.
+          waitForTools: true,
+          abortSignal: abortController.signal,
+          maxSteps: chatSettings.maxToolSteps,
+          onStreamEvent: async (event: StreamEvent) => {
+            resetIdleTimeout()
+            switch (event.type) {
+              case 'tool-call':
+                toolCallQueue.enqueue({
+                  type: 'tool-call',
+                  toolCall: event,
+                })
+
+                break
+              case 'tool-result':
+                toolCallQueue.enqueue({
+                  type: 'tool-call-result',
+                  id: event.toolCallId,
+                  result: event.result,
+                })
+
+                break
+              case 'text-delta':
+                fullText += event.text
+                await parser.consume(event.text)
+                break
+              case 'finish':
+                break
+              case 'error':
+                throw event.error ?? new Error('Stream error')
+            }
+          },
+        })
+      }
+      finally {
+        clearIdleTimeout()
+      }
 
       await parser.end()
 
       if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
         sessionMessagesForSend.push(toRaw(buildingMessage))
         chatSession.persistSessionMessages(sessionId)
+        console.debug('[chat] ✅ assistant message persisted, slices:', buildingMessage.slices.length, 'messages now:', sessionMessagesForSend.length)
+      }
+      else {
+        console.warn('[chat] ⚠️ assistant message NOT persisted — stale:', isStaleGeneration(), 'slices:', buildingMessage.slices.length)
       }
 
-      await hooks.emitStreamEndHooks(streamingMessageContext)
-      await hooks.emitAssistantResponseEndHooks(fullText, streamingMessageContext)
+      // Post-stream hooks are non-critical: the assistant message is already
+      // persisted, so hook failures must not propagate and cause the error
+      // handler to remove the persisted message from the chat history.
+      try {
+        await hooks.emitStreamEndHooks(streamingMessageContext)
+        await hooks.emitAssistantResponseEndHooks(fullText, streamingMessageContext)
 
-      await hooks.emitAfterSendHooks(sendingMessage, streamingMessageContext)
-      await hooks.emitAssistantMessageHooks({ ...buildingMessage }, fullText, streamingMessageContext)
-      await hooks.emitChatTurnCompleteHooks({
-        output: { ...buildingMessage },
-        outputText: fullText,
-        toolCalls: sessionMessagesForSend.filter(msg => msg.role === 'tool') as ToolMessage[],
-      }, streamingMessageContext)
+        await hooks.emitAfterSendHooks(sendingMessage, streamingMessageContext)
+        await hooks.emitAssistantMessageHooks({ ...buildingMessage }, fullText, streamingMessageContext)
+        await hooks.emitChatTurnCompleteHooks({
+          output: { ...buildingMessage },
+          outputText: fullText,
+          toolCalls: sessionMessagesForSend.filter(msg => msg.role === 'tool') as ToolMessage[],
+        }, streamingMessageContext)
+      }
+      catch (hookError) {
+        console.warn('Post-stream hook error (message already persisted):', hookError)
+      }
 
       if (isForegroundSession()) {
         streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
       }
     }
     catch (error) {
-      console.error('Error sending message:', error)
+      // Persist partial assistant content so the user doesn't lose what was
+      // already streamed when the connection drops mid-response (common on iOS).
+      if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
+        sessionMessagesForSend.push(toRaw(buildingMessage))
+        chatSession.persistSessionMessages(sessionId)
+      }
+
+      if (isForegroundSession()) {
+        streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
+      }
+
+      console.error('[chat] ❌ stream error, slices at failure:', buildingMessage.slices.length, error)
       throw error
     }
     finally {

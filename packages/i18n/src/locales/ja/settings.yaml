@@ -171,6 +171,24 @@ pages:
   memory:
     description: 記憶が保存され、整理される場所
     title: 記憶
+  chat:
+    title: チャット
+    description: チャットの動作、入力、ストリーミングの設定
+    enter-to-send:
+      title: メッセージ送信ショートカット
+      description: メッセージを送信するキーボードショートカットを選択します。
+    stream-idle-timeout:
+      title: ストリーミング応答のアイドルタイムアウト
+      description: 指定時間内にデータを受信しない場合、リクエストを中断します。プロバイダーが応答しない場合の無限ローディングを防ぎます。
+      options:
+        '30000': 30秒
+        '60000': 1分
+        '120000': 2分
+        '300000': 5分
+        '-1': 無制限
+    max-tool-steps:
+      title: ターンあたりの最大ツール呼び出し回数
+      description: AI が1回のチャットターンで連続して呼び出せるツール（MCPなど）の最大回数。
   data:
     title: データ
     description: AIRIデータの保存、エクスポート、およびリセットの管理

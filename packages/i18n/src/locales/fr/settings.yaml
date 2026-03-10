@@ -171,6 +171,24 @@ pages:
   memory:
     description: Endroit où les souvenirs sont stockés et organisés
     title: Mémoire
+  chat:
+    title: Chat
+    description: Comportement du chat, saisie et paramètres de streaming
+    enter-to-send:
+      title: Raccourci d'envoi
+      description: Choisissez le raccourci clavier pour envoyer un message.
+    stream-idle-timeout:
+      title: Délai d'inactivité du flux
+      description: Abandonner la requête si aucune donnée n'est reçue pendant cette durée. Empêche le chargement infini lorsqu'un fournisseur ne répond pas.
+      options:
+        '30000': 30 secondes
+        '60000': 1 minute
+        '120000': 2 minutes
+        '300000': 5 minutes
+        '-1': Pas de limite
+    max-tool-steps:
+      title: Appels d'outils max par tour
+      description: Nombre maximum d'appels séquentiels d'outils (MCP, etc.) que l'IA peut effectuer en un tour de chat.
   data:
     title: Données
     description: Gérer les données AIRI enregistrées, les exports et les réinitialisations

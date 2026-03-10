@@ -171,6 +171,24 @@ pages:
   memory:
     description: 存放記憶的地方，以及策略
     title: 記憶體
+  chat:
+    title: 聊天
+    description: 聊天行為、輸入與串流傳輸設定
+    enter-to-send:
+      title: 傳送訊息快捷鍵
+      description: 選擇傳送訊息的鍵盤快捷鍵。
+    stream-idle-timeout:
+      title: 串流回應閒置逾時
+      description: 若在指定時間內未收到任何資料，將自動中斷請求。防止供應商無回應時回覆框無限載入。
+      options:
+        '30000': 30 秒
+        '60000': 1 分鐘
+        '120000': 2 分鐘
+        '300000': 5 分鐘
+        '-1': 無限制
+    max-tool-steps:
+      title: 每輪最大工具呼叫次數
+      description: AI 在單次對話中可連續呼叫工具（MCP 等）的最大次數。
   data:
     title: 資料
     description: 管理已儲存的 AIRI 資料、匯出與重置作業

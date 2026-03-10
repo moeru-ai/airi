@@ -171,6 +171,24 @@ pages:
   memory:
     description: Donde se almacenan y organizan las memorias
     title: Memoria
+  chat:
+    title: Chat
+    description: Comportamiento del chat, entrada y configuración de streaming
+    enter-to-send:
+      title: Atajo para enviar mensaje
+      description: Elige el atajo de teclado para enviar un mensaje.
+    stream-idle-timeout:
+      title: Tiempo de espera inactivo del stream
+      description: Abortar la solicitud si no se reciben datos en este periodo. Evita la carga infinita cuando un proveedor no responde.
+      options:
+        '30000': 30 segundos
+        '60000': 1 minuto
+        '120000': 2 minutos
+        '300000': 5 minutos
+        '-1': Sin límite
+    max-tool-steps:
+      title: Máximo de llamadas a herramientas por turno
+      description: Número máximo de llamadas secuenciales a herramientas (MCP, etc.) que la IA puede hacer en un turno de chat.
   data:
     title: Datos
     description: Administrar, exportar y restablecer los datos de AIRI
