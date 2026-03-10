@@ -26,7 +26,7 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { refDebounced, useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onUnmounted, ref, toRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
@@ -82,8 +82,8 @@ const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
 
 const context = useElectronEventaContext()
-const isLinux = useElectronEventaInvoke(electron.app.isLinux)
-const startDraggingWindow = !isLinux() ? defineInvoke(context.value, electronStartDraggingWindow) : undefined
+const isLinux = ref(false)
+const startDraggingWindow = computed(() => !isLinux.value ? defineInvoke(context.value, electronStartDraggingWindow) : undefined)
 
 const live2dStore = useLive2d()
 const { scale, positionInPercentageString } = storeToRefs(live2dStore)
@@ -92,6 +92,10 @@ const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
 
 // Drag hint for window dragging
 const showDragHint = ref(false)
+
+onMounted(async () => {
+  isLinux.value = await useElectronEventaInvoke(electron.app.isLinux)()
+})
 
 watch(componentStateStage, () => isLoading.value = componentStateStage.value !== 'mounted', { immediate: true })
 
