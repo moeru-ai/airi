@@ -1,8 +1,38 @@
 import type { SatoriEvent, SatoriMessage } from '../adapter/satori/types'
-import type { BotContext, ChatContext } from './types'
+import type { Action, BotContext, ChatContext } from './types'
+/**
+ * Intelligently truncate action history while preserving logical chains.
+ * If the first action in the kept list is a 'continue', it backtracks to include
+ * the action that triggered it, ensuring the LLM has full context of its sequence.
+ */
+export function trimActions(
+  actions: { action: Action, result: unknown }[],
+  max: number,
+  keep: number,
+): { action: Action, result: unknown }[] {
+  if (actions.length <= max) {
+    return actions
+  }
+
+  let startIndex = actions.length - keep
+
+  // Backtrack to avoid starting with a 'continue' action which lacks its previous context
+  while (startIndex > 0) {
+    const currentAction = actions[startIndex].action
+    if (currentAction.action === 'continue') {
+      startIndex--
+    }
+    else {
+      break
+    }
+  }
+
+  return actions.slice(startIndex)
+}
 
 /**
  * Safely extract string content from message
+...
  * Handles string, array, and other types
  */
 export function getMessageContentString(content: unknown): string {
@@ -56,14 +86,7 @@ export function formatDebugContext(
 
   if (chatCtx) {
     context.channelId = chatCtx.channelId
-    context.totalMessagesInContext = chatCtx.messages.length
     context.totalActionsInContext = chatCtx.actions.length
-
-    const lastMessages = chatCtx.messages.slice(-3).map(msg => ({
-      role: msg.role,
-      content: getMessageContentString(msg.content).substring(0, 50),
-    }))
-    context.lastMessages = lastMessages
 
     const lastActions = chatCtx.actions.slice(-3).map(action => ({
       action: action.action.action,

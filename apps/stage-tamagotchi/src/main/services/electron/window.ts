@@ -5,7 +5,7 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { bounds, startLoopGetBounds } from '@proj-airi/electron-eventa'
 import { createRendererLoop } from '@proj-airi/electron-vueuse/main'
 
-import { electron, electronWindowClose } from '../../../shared/eventa'
+import { electron, electronWindowClose, electronWindowSetAlwaysOnTop } from '../../../shared/eventa'
 import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecycle'
 import { resizeWindowByDelta } from '../../windows/shared/window'
 
@@ -43,6 +43,17 @@ export function createWindowService(params: { context: ReturnType<typeof createC
   defineInvokeHandler(params.context, electron.window.setIgnoreMouseEvents, (opts, options) => {
     if (opts && params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
       params.window.setIgnoreMouseEvents(...opts)
+    }
+  })
+
+  defineInvokeHandler(params.context, electronWindowSetAlwaysOnTop, (flag, options) => {
+    if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
+      if (flag) {
+        params.window.setAlwaysOnTop(true, 'screen-saver', 1)
+      }
+      else {
+        params.window.setAlwaysOnTop(false)
+      }
     }
   })
 

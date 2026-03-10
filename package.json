@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/root",
   "type": "module",
-  "version": "0.9.0-alpha.2",
+  "version": "0.9.0-alpha.6",
   "private": true,
   "packageManager": "pnpm@10.30.3",
   "description": "LLM powered virtual character",
@@ -17,7 +17,8 @@
     "dev:docs": "pnpm -rF @proj-airi/docs run dev",
     "dev:ui": "pnpm -rF @proj-airi/stage-ui run story:dev",
     "dev:web": "pnpm -rF @proj-airi/stage-web run dev",
-    "dev:pocket": "pnpm -rF @proj-airi/stage-pocket run dev:web",
+    "dev:pocket:ios": "pnpm -rF @proj-airi/stage-pocket run dev:ios",
+    "dev:pocket:android": "pnpm -rF @proj-airi/stage-pocket run dev:android",
     "dev:server": "pnpm -rF @proj-airi/server-runtime run dev",
     "dev:tamagotchi": "pnpm -rF @proj-airi/stage-tamagotchi run dev",
     "dev:apps": "pnpm -rF=\"./apps/*\" run --parallel dev",

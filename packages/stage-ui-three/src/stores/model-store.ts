@@ -139,6 +139,10 @@ export const useModelStore = defineStore('modelStore', () => {
   const ambientLightColor = useLocalStorage('settings/stage-ui-three/scenes/scene/ambient-light/color', '#FFFFFF')
   const ambientLightIntensity = useLocalStorage('settings/stage-ui-three/scenes/scene/ambient-light/intensity', 0.6)
 
+  // Rendering quality
+  const renderScale = useLocalStorage('settings/stage-ui-three/renderScale', Math.min(window.devicePixelRatio, 2))
+  const multisampling = useLocalStorage('settings/stage-ui-three/multisampling', 4)
+
   // environment related setting
   const envSelect = useLocalStorage('settings/stage-ui-three/envEnabled', 'hemisphere' as 'hemisphere' | 'skyBox')
   const skyBoxSrc = useLocalStorage('settings/stage-ui-three/skyBoxUrl', defaultSkyBoxSrc)
@@ -173,6 +177,9 @@ export const useModelStore = defineStore('modelStore', () => {
     lookAtTarget,
     trackingMode,
     eyeHeight,
+    renderScale,
+    multisampling,
+
     envSelect,
     skyBoxSrc,
     skyBoxIntensity,

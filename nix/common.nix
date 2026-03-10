@@ -53,6 +53,7 @@ stdenvNoCC.mkDerivation (final: {
     '';
 
     outputHashMode = "recursive";
+    outputHashAlgo = "sha256";
     outputHash = builtins.readFile ./assets-hash.txt;
   };
 

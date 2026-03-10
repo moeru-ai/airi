@@ -262,8 +262,14 @@ export class Client<C = undefined> {
 
   private async handleMessage(event: MessageEvent) {
     try {
-      const data = superjson.parse<WebSocketEvent<C> | undefined>(event.data as string)
-      if (!data) {
+      // Try superjson first (used by SDK clients), fall back to plain JSON
+      // for external clients that send standard JSON-encoded messages.
+      const raw = event.data as string
+      const parsed = superjson.parse<WebSocketEvent<C> | undefined>(raw)
+      const data = (parsed && typeof parsed === 'object' && 'type' in parsed)
+        ? parsed
+        : JSON.parse(raw) as WebSocketEvent<C>
+      if (!data || typeof data !== 'object' || !('type' in data)) {
         console.warn('Received empty message')
         return
       }

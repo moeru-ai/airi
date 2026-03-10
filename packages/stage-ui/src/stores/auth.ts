@@ -11,7 +11,8 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!user.value && !!session.value)
   const userId = computed(() => user.value?.id ?? 'local')
 
-  const isLoginOpen = ref(false)
+  // For controlling the login drawer on mobile
+  const isLoginDrawerOpen = ref(false)
 
   const initialized = ref(false)
   const initialize = () => {
@@ -30,6 +31,6 @@ export const useAuthStore = defineStore('auth', () => {
     userId,
     session,
     isAuthenticated,
-    isLoginOpen,
+    isLoginDrawerOpen,
   }
 })

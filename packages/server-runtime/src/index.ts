@@ -12,7 +12,7 @@ import { availableLogLevelStrings, Format, LogLevelString, logLevelStringToLogLe
 import { MessageHeartbeat, MessageHeartbeatKind, WebSocketEventSource } from '@proj-airi/server-shared/types'
 import { defineWebSocketHandler, H3 } from 'h3'
 import { nanoid } from 'nanoid'
-import { stringify } from 'superjson'
+import { parse, stringify } from 'superjson'
 
 import packageJSON from '../package.json'
 
@@ -115,6 +115,10 @@ export function setupApp(options?: {
     ...(options?.routing?.middleware ?? []),
   ]
 
+  const HEALTH_CHECK_MISSES_UNHEALTHY = 5
+  const HEALTH_CHECK_MISSES_DEAD = HEALTH_CHECK_MISSES_UNHEALTHY * 2
+  const healthCheckIntervalMs = Math.max(5_000, Math.floor(heartbeatTtlMs / HEALTH_CHECK_MISSES_UNHEALTHY))
+
   setInterval(() => {
     const now = Date.now()
     for (const [id, peerInfo] of peers.entries()) {
@@ -122,8 +126,18 @@ export function setupApp(options?: {
         continue
       }
 
-      if (now - peerInfo.lastHeartbeatAt > heartbeatTtlMs) {
-        logger.withFields({ peer: id, peerName: peerInfo.name }).debug('heartbeat expired, dropping peer')
+      const elapsed = now - peerInfo.lastHeartbeatAt
+
+      if (elapsed > healthCheckIntervalMs) {
+        peerInfo.missedHeartbeats = (peerInfo.missedHeartbeats ?? 0) + 1
+      }
+      else {
+        peerInfo.missedHeartbeats = 0
+      }
+
+      if (peerInfo.missedHeartbeats >= HEALTH_CHECK_MISSES_DEAD) {
+        // 10 consecutive misses — completely dead, drop the peer
+        logger.withFields({ peer: id, peerName: peerInfo.name, missedHeartbeats: peerInfo.missedHeartbeats }).debug('heartbeat expired after max misses, dropping peer')
         try {
           peerInfo.peer.close?.()
         }
@@ -131,10 +145,20 @@ export function setupApp(options?: {
           logger.withFields({ peer: id, peerName: peerInfo.name }).withError(error as Error).debug('failed to close expired peer')
         }
         peers.delete(id)
-        unregisterModulePeer(peerInfo)
+        unregisterModulePeer(peerInfo, 'heartbeat expired')
+      }
+      else if (peerInfo.missedHeartbeats >= HEALTH_CHECK_MISSES_UNHEALTHY && peerInfo.healthy !== false && peerInfo.name && peerInfo.identity) {
+        // 5 consecutive misses — mark unhealthy
+        peerInfo.healthy = false
+        logger.withFields({ peer: id, peerName: peerInfo.name, missedHeartbeats: peerInfo.missedHeartbeats }).debug('heartbeat late, marking unhealthy')
+        broadcastToAuthenticated({
+          type: 'registry:modules:health:unhealthy',
+          data: { name: peerInfo.name, index: peerInfo.index, identity: peerInfo.identity, reason: 'heartbeat late' },
+          metadata: createServerEventMetadata(instanceId),
+        })
       }
     }
-  }, Math.max(5_000, Math.floor(heartbeatTtlMs / 2)))
+  }, healthCheckIntervalMs)
 
   function registerModulePeer(p: AuthenticatedPeer, name: string, index?: number) {
     if (!peersByModule.has(name)) {
@@ -147,10 +171,12 @@ export function setupApp(options?: {
       logger.withFields({ name, index }).debug('peer replaced for module')
     }
 
+    p.healthy = true
     group.set(index, p)
+    broadcastRegistrySync()
   }
 
-  function unregisterModulePeer(p: AuthenticatedPeer) {
+  function unregisterModulePeer(p: AuthenticatedPeer, reason?: string) {
     if (!p.name)
       return
 
@@ -162,6 +188,17 @@ export function setupApp(options?: {
         peersByModule.delete(p.name)
       }
     }
+
+    // broadcast module:de-announced to all authenticated peers
+    if (p.identity) {
+      broadcastToAuthenticated({
+        type: 'module:de-announced',
+        data: { name: p.name, index: p.index, identity: p.identity, reason },
+        metadata: createServerEventMetadata(instanceId),
+      })
+    }
+
+    broadcastRegistrySync()
   }
 
   function listKnownModules() {
@@ -182,6 +219,22 @@ export function setupApp(options?: {
     })
   }
 
+  function broadcastRegistrySync() {
+    for (const p of peers.values()) {
+      if (p.authenticated) {
+        sendRegistrySync(p.peer)
+      }
+    }
+  }
+
+  function broadcastToAuthenticated(event: WebSocketEvent<Record<string, unknown>>) {
+    for (const p of peers.values()) {
+      if (p.authenticated) {
+        send(p.peer, event)
+      }
+    }
+  }
+
   app.get('/ws', defineWebSocketHandler({
     open: (peer) => {
       if (authToken) {
@@ -200,7 +253,26 @@ export function setupApp(options?: {
       let event: WebSocketEvent
 
       try {
-        event = message.json() as WebSocketEvent
+        // NOTICE: SDK clients send events using superjson.stringify, so we must use
+        // superjson.parse here instead of message.json() (which uses JSON.parse).
+        // Using JSON.parse on a superjson-encoded string returns the wrapper object
+        // { json: {...}, meta: {...} } with type=undefined, which breaks all event routing.
+        //
+        // However, external clients may send plain JSON (not superjson-encoded).
+        // superjson.parse on plain JSON returns undefined since there is no `json` wrapper key.
+        // In that case, fall back to JSON.parse so external clients can interoperate.
+        const text = message.text()
+        const parsed = parse<WebSocketEvent>(text)
+        const potentialEvent = (parsed && typeof parsed === 'object' && 'type' in parsed)
+          ? parsed
+          : JSON.parse(text)
+
+        if (!potentialEvent || typeof potentialEvent !== 'object' || !('type' in potentialEvent)) {
+          send(peer, RESPONSES.error('invalid event format', instanceId))
+          return
+        }
+
+        event = potentialEvent as WebSocketEvent
       }
       catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err)
@@ -228,6 +300,18 @@ export function setupApp(options?: {
           const p = peers.get(peer.id)
           if (p) {
             p.lastHeartbeatAt = Date.now()
+            p.missedHeartbeats = 0
+
+            // recover from unhealthy → healthy
+            if (p.healthy === false && p.name && p.identity) {
+              p.healthy = true
+              logger.withFields({ peer: peer.id, peerName: p.name }).debug('heartbeat recovered, marking healthy')
+              broadcastToAuthenticated({
+                type: 'registry:modules:health:healthy',
+                data: { name: p.name, index: p.index, identity: p.identity },
+                metadata: createServerEventMetadata(instanceId, event.metadata?.event.id),
+              })
+            }
           }
 
           if (event.data.kind === MessageHeartbeatKind.Ping) {
@@ -262,7 +346,7 @@ export function setupApp(options?: {
             return
           }
 
-          unregisterModulePeer(p)
+          unregisterModulePeer(p, 're-announcing')
 
           // verify
           const { name, index, identity } = event.data as { name: string, index?: number, identity?: MetadataEventSource }
@@ -296,6 +380,17 @@ export function setupApp(options?: {
           }
 
           registerModulePeer(p, name, index)
+
+          // broadcast module:announced to all authenticated peers
+          for (const other of peers.values()) {
+            if (other.authenticated) {
+              send(other.peer, {
+                type: 'module:announced',
+                data: { name, index, identity },
+                metadata: createServerEventMetadata(instanceId, event.metadata?.event.id),
+              })
+            }
+          }
 
           return
         }
@@ -403,7 +498,7 @@ export function setupApp(options?: {
           logger.withFields({ peer: peer.id, peerName: other.name }).debug('removing closed peer')
           peers.delete(id)
 
-          unregisterModulePeer(other)
+          unregisterModulePeer(other, 'send failed')
         }
       }
     },
@@ -413,7 +508,7 @@ export function setupApp(options?: {
     close: (peer, details) => {
       const p = peers.get(peer.id)
       if (p)
-        unregisterModulePeer(p)
+        unregisterModulePeer(p, 'connection closed')
 
       logger.withFields({ peer: peer.id, peerRemote: peer.remoteAddress, details, activePeers: peers.size }).log('closed')
       peers.delete(peer.id)

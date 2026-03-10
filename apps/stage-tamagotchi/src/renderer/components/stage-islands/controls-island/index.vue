@@ -20,6 +20,7 @@ import {
   electronOpenSettings,
   electronStartDraggingWindow,
   electronWindowClose,
+  electronWindowSetAlwaysOnTop,
 } from '../../../../shared/eventa'
 
 const { isDark, toggleDark } = useTheme()
@@ -29,29 +30,43 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const settingsStore = useSettings()
 const context = useElectronEventaContext()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
-const { controlsIslandIconSize } = storeToRefs(settingsStore)
+const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const openChat = useElectronEventaInvoke(electronOpenChat)
 const isLinux = useElectronEventaInvoke(electron.app.isLinux)
 const closeWindow = useElectronEventaInvoke(electronWindowClose)
+const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 
 const expanded = ref(false)
 const islandRef = ref<HTMLElement>()
+
+// Expose whether hearing dialog is open so parent can disable click-through
+const hearingDialogOpen = ref(false)
+defineExpose({ hearingDialogOpen })
 
 const { isOutside } = useElectronMouseInElement(islandRef)
 const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
 watch(isOutsideAfter2seconds, (outside) => {
-  if (outside && expanded.value) {
+  if (outside && expanded.value && !hearingDialogOpen.value) {
     expanded.value = false
   }
 })
 
 useIntervalFn(() => {
-  if (expanded.value && isOutside.value) {
+  if (expanded.value && isOutside.value && !hearingDialogOpen.value) {
     expanded.value = false
   }
 }, 1500)
+
+// Apply alwaysOnTop on mount and when it changes
+watch(alwaysOnTop, (val) => {
+  setAlwaysOnTop(val)
+}, { immediate: true })
+
+function toggleAlwaysOnTop() {
+  alwaysOnTop.value = !alwaysOnTop.value
+}
 
 // Grouped classes for icon / border / padding and combined style class
 const adjustStyleClasses = computed(() => {
@@ -86,10 +101,6 @@ const adjustStyleClasses = computed(() => {
  * See `apps/stage-tamagotchi/src/main/windows/main/index.ts` for handler definition
  */
 const startDraggingWindow = !isLinux() ? defineInvoke(context.value, electronStartDraggingWindow) : undefined
-
-// Expose whether hearing dialog is open so parent can disable click-through
-const hearingDialogOpen = ref(false)
-defineExpose({ hearingDialogOpen })
 
 function refreshWindow() {
   window.location.reload()
@@ -160,6 +171,16 @@ function refreshWindow() {
               </ControlsIslandHearingConfig>
               <template #tooltip>
                 {{ t('tamagotchi.stage.controls-island.open-hearing-controls') }}
+              </template>
+            </ControlButtonTooltip>
+
+            <ControlButtonTooltip>
+              <ControlButton :button-style="adjustStyleClasses.button" @click="toggleAlwaysOnTop()">
+                <div v-if="alwaysOnTop" i-solar:pin-bold :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                <div v-else i-solar:pin-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300 opacity-50" />
+              </ControlButton>
+              <template #tooltip>
+                {{ alwaysOnTop ? t('tamagotchi.stage.controls-island.unpin-from-top') : t('tamagotchi.stage.controls-island.pin-on-top') }}
               </template>
             </ControlButtonTooltip>
 
