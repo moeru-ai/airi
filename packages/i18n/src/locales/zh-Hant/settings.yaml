@@ -208,10 +208,10 @@ pages:
       tooltip: 您確定嗎？
       'yes': '是'
     status:
-      exported: 對話階段已匯出
-      imported: 對話階段已匯入
-      import_error: 匯入對話階段失敗，請檢查檔案格式
-      chats_deleted: 對話階段已刪除
+      exported: 對話階段已匯出。
+      imported: 對話階段已匯入。
+      import_error: 匯入對話階段失敗，請檢查檔案格式。
+      chats_deleted: 對話階段已刪除。
       models_deleted: 模型已刪除
       modules_reset: 模組設定已重設
       providers_reset: 服務提供者設定已重設
@@ -366,7 +366,7 @@ pages:
               stop:
                 label: 停止
             select-voice:
-              loading: 載入模型中......
+              loading: 載入模型中……
               required: 請選擇聲線
           provider-voice-selection:
             custom_model_placeholder: 輸入指定模型名稱...
@@ -510,10 +510,10 @@ pages:
                   openai-compatible-check-connectivity:
                     label: Extra configuration needed for Ollama
                     content: >-
-                      Sorry to hear that Connectivity check failed for Ollama. Don't worry, for Ollama instances, extra configuration is needed for making it pass for Ollama. You need to set <code>OLLAMA_HOST</code> explicitly when start the Ollama application or Ollama CLI server, for detailed information, check <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama integration guide</a>.
+                      很抱歉，Ollama 連接檢查失敗。不要擔心，如果使用 Ollama，需要額外配置才能通過 Ollama。 您需要在啟動 Olama 應用程序或 Ollama CLI 伺服器時明確設置 <code>OLLAMA_HOST</code> 詳情，請檢查 <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama 集成指南</a>。
     common:
       continueAnyway: 仍然繼續
-      goToModelSelection: '選擇模型 →'
+      goToModelSelection: 'Select Model →'
       fields:
         field:
           api-key:
@@ -989,6 +989,6 @@ websocket-secure-enabled:
   description: >-
     啟用 WSS（WebSocket Secure）以允許開發模式下行動裝置（pocket）的 HTTPS 連線。這將自動產生自簽名憑證。
 wip:
-  title: Work in Progress
+  title: 正在開發中
   description: >-
-    This feature is currently under development and not yet publicly available. Check back in future updates for this functionality.
+    此功能正在開發中，尚未公開發佈。請在未來的更新中再次查看此功能。
