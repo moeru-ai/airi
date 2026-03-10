@@ -6,7 +6,7 @@ import { watch } from 'vue'
 import { electronApplyServerChannelConfig, electronGetServerChannelConfig } from '../../../shared/eventa'
 
 export const useServerChannelSettingsStore = defineStore('tamagotchi-server-channel-settings', () => {
-  const websocketTlsConfig = useLocalStorage<{ cert?: string, key?: string, passphrase?: string } | null>('settings/server-channel/websocket-tls-config', null)
+  const websocketTlsConfig = useLocalStorage<{ cert?: string, key?: string, passphrase?: string } | null | undefined>('settings/server-channel/websocket-tls-config', null)
 
   const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
   const applyServerChannelConfig = useElectronEventaInvoke(electronApplyServerChannelConfig)
