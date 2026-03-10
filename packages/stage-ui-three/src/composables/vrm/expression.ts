@@ -2,8 +2,6 @@ import type { VRMCore } from '@pixiv/three-vrm-core'
 
 import { ref } from 'vue'
 
-let frameCounter = 0
-
 interface EmotionState {
   expression?: {
     name: string
@@ -225,7 +223,6 @@ export function useVRMEmote(vrm: VRMCore) {
         targetValue,
         easeInOutCubic(transitionProgress.value),
       )
-
 
       vrm.expressionManager?.setValue(exprName, currentValue)
     }
