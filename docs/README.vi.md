@@ -69,15 +69,15 @@ Bạn cũng có thể tải các phiên bản desktop cho Windows, macOS và Lin
     <picture>
       <source
         width="33.5%"
-        srcset="./content/public/assets/download-buttons/Download buttons - Windows.dark.en-US.avif"
+        srcset="./content/public/assets/download-buttons/download-button-Windows.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33.5%"
-        srcset="./content/public/assets/download-buttons/Download buttons - Windows.light.en-US.avif"
+        srcset="./content/public/assets/download-buttons/download-button-Windows.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33.5%" src="./content/public/assets/download-buttons/Download buttons - Windows.light.en-US.avif" />
+      <img width="33.5%" src="./content/public/assets/download-buttons/download-button-Windows.light.en-US.avif" />
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
@@ -85,30 +85,30 @@ Bạn cũng có thể tải các phiên bản desktop cho Windows, macOS và Lin
     <picture>
       <source
         width="33.5%"
-        srcset="./content/public/assets/download-buttons/Download buttons - macOS.dark.en-US.avif"
+        srcset="./content/public/assets/download-buttons/download-button-macOS.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33.5%"
-        srcset="./content/public/assets/download-buttons/Download buttons - macOS.light.en-US.avif"
+        srcset="./content/public/assets/download-buttons/download-button-macOS.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33.5%" src="./content/public/assets/download-buttons/Download buttons - macOS.light.en-US.avif" />
+      <img width="33.5%" src="./content/public/assets/download-buttons/download-button-macOS.light.en-US.avif" />
     </picture>
   </a>
   <a href="https://github.com/moeru-ai/airi/releases/latest">
     <picture>
       <source
         width="32%"
-        srcset="./content/public/assets/download-buttons/Download buttons - Linux.dark.en-US.avif"
+        srcset="./content/public/assets/download-buttons/download-button-Linux.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="32%"
-        srcset="./content/public/assets/download-buttons/Download buttons - Linux.light.en-US.avif"
+        srcset="./content/public/assets/download-buttons/download-button-Linux.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="32%" src="./content/public/assets/download-buttons/Download buttons - Linux.light.en-US.avif" />
+      <img width="32%" src="./content/public/assets/download-buttons/download-button-Linux.light.en-US.avif" />
     </picture>
   </a>
 </p>
