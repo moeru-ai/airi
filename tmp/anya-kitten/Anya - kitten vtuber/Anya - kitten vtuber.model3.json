@@ -1,0 +1,30 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "Anya - kitten vtuber.moc3",
+		"Textures": [
+			"Anya - kitten vtuber.4096/texture_00.png",
+			"Anya - kitten vtuber.4096/texture_01.png",
+			"Anya - kitten vtuber.4096/texture_02.png",
+			"Anya - kitten vtuber.4096/texture_03.png",
+			"Anya - kitten vtuber.4096/texture_04.png",
+			"Anya - kitten vtuber.4096/texture_05.png",
+			"Anya - kitten vtuber.4096/texture_06.png",
+			"Anya - kitten vtuber.4096/texture_07.png"
+		],
+		"Physics": "Anya - kitten vtuber.physics3.json",
+		"DisplayInfo": "Anya - kitten vtuber.cdi3.json"
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": []
+		},
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": []
+		}
+	]
+}

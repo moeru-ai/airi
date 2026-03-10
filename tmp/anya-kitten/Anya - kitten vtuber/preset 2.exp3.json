@@ -1,0 +1,35 @@
+{
+    "Type": "Live2D Expression",
+    "Parameters": [
+        {
+            "Id": "ParamOnOff6",
+            "Value": 1.0,
+            "Blend": "Add"
+        },
+        {
+            "Id": "ParamOnOff9",
+            "Value": 1.0,
+            "Blend": "Add"
+        },
+        {
+            "Id": "ParamOnOff5",
+            "Value": 1.0,
+            "Blend": "Add"
+        },
+        {
+            "Id": "ParamOnOff7",
+            "Value": 1.0,
+            "Blend": "Add"
+        },
+        {
+            "Id": "ParamOnOff8",
+            "Value": 1.0,
+            "Blend": "Add"
+        },
+        {
+            "Id": "ParamOnOff13",
+            "Value": 0.5478600263595581,
+            "Blend": "Add"
+        }
+    ]
+}

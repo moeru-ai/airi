@@ -5,7 +5,7 @@ import type { WidgetsWindowManager } from '../../../windows/widgets'
 
 import { defineInvokeHandlers } from '@moeru/eventa'
 
-import { widgetsAdd, widgetsClear, widgetsFetch, widgetsOpenWindow, widgetsPrepareWindow, widgetsRemove, widgetsUpdate } from '../../../../shared/eventa'
+import { widgetsAdd, widgetsClear, widgetsFetch, widgetsHideWindow, widgetsOpenWindow, widgetsPrepareWindow, widgetsRemove, widgetsUpdate } from '../../../../shared/eventa'
 
 interface InvokeOptions {
   raw?: { ipcMainEvent?: IpcMainEvent }
@@ -32,6 +32,7 @@ export function createWidgetsService(params: { context: ReturnType<typeof create
     widgetsRemove,
     widgetsClear,
     widgetsFetch,
+    widgetsHideWindow,
   }, {
     widgetsPrepareWindow: async (payload, options) => {
       if (!isFromWindow(options as InvokeOptions, params.window))
@@ -67,6 +68,11 @@ export function createWidgetsService(params: { context: ReturnType<typeof create
       if (!isFromWindow(options as InvokeOptions, params.window))
         return undefined
       return payload?.id ? params.widgetsManager!.getWidgetSnapshot(payload.id) : undefined
+    },
+    widgetsHideWindow: async (payload, options) => {
+      if (!isFromWindow(options as InvokeOptions, params.window))
+        return undefined
+      return params.widgetsManager!.hideWindow(payload ?? undefined)
     },
   })
 }
