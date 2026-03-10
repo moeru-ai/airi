@@ -11,7 +11,7 @@ import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLe
 import { initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
 import { app, ipcMain } from 'electron'
 import { noop } from 'es-toolkit'
-import { createLoggLogger, injeca } from 'injeca'
+import { createLoggLogger, injeca, lifecycle } from 'injeca'
 import { isLinux } from 'std-env'
 
 import icon from '../../resources/icon.png?asset'
@@ -106,8 +106,8 @@ app.whenReady().then(async () => {
   })
 
   const serverChannel = injeca.provide('modules:channel-server', {
-    dependsOn: { app: electronApp },
-    build: async () => setupServerChannel(),
+    dependsOn: { app: electronApp, lifecycle },
+    build: async ({ dependsOn }) => setupServerChannel(dependsOn),
   })
 
   const mcpStdioManager = injeca.provide('modules:mcp-stdio-manager', {

@@ -160,8 +160,8 @@ catalogs:
       specifier: ^6.2.2
       version: 6.2.2
     injeca:
-      specifier: ^0.1.7
-      version: 0.1.7
+      specifier: ^0.1.8
+      version: 0.1.8
     is-network-error:
       specifier: ^1.3.0
       version: 1.3.0
@@ -273,9 +273,9 @@ patchedDependencies:
   pixi-live2d-display:
     hash: 122ac09349321d5bfe9d9817aa095cd1c9c4132af86345aa9e27ba8b63dadf2c
     path: patches/pixi-live2d-display.patch
-  srvx@0.9.8:
-    hash: f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d
-    path: patches/srvx@0.9.8.patch
+  srvx:
+    hash: c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d
+    path: patches/srvx.patch
 
 importers:
 
@@ -545,7 +545,7 @@ importers:
         version: 4.11.3
       injeca:
         specifier: 'catalog:'
-        version: 0.1.7(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6)
+        version: 0.1.8(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6)
       pg:
         specifier: ^8.13.3
         version: 8.19.0
@@ -588,7 +588,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -660,7 +660,7 @@ importers:
         version: 0.4.3
       '@xsai-transformers/embed':
         specifier: ^0.0.11
-        version: 0.0.11(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+        version: 0.0.11(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -991,7 +991,7 @@ importers:
         version: 1.27.1(@cfworker/json-schema@4.1.1)(zod@4.3.6)
       '@moeru/eventa':
         specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -1066,7 +1066,7 @@ importers:
         version: 0.4.3
       '@xsai-transformers/transcription':
         specifier: ^0.0.11
-        version: 0.0.11(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+        version: 0.0.11(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -1100,12 +1100,15 @@ importers:
       animejs:
         specifier: ^4.3.6
         version: 4.3.6
+      async-mutex:
+        specifier: 'catalog:'
+        version: 0.5.0
       colorjs.io:
         specifier: ^0.6.1
         version: 0.6.1
       crossws:
         specifier: ^0.4.4
-        version: 0.4.4(srvx@0.11.8)
+        version: 0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))
       culori:
         specifier: ^4.0.2
         version: 4.0.2
@@ -1134,11 +1137,11 @@ importers:
         specifier: ^1.44.0
         version: 1.44.0
       h3:
-        specifier: 2.0.1-rc.5
-        version: 2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8))
+        specifier: ^2.0.1-rc.14
+        version: 2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)))
       injeca:
         specifier: 'catalog:'
-        version: 0.1.7(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6)
+        version: 0.1.8(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6)
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
@@ -1331,7 +1334,7 @@ importers:
         version: 3.0.3(magicast@0.5.2)(vue@3.5.29(typescript@5.9.3))
       '@xsai-transformers/embed':
         specifier: ^0.0.11
-        version: 0.0.11(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+        version: 0.0.11(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       builder-util-runtime:
         specifier: 'catalog:'
         version: 9.5.1
@@ -1400,7 +1403,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -1475,7 +1478,7 @@ importers:
         version: 0.4.3
       '@xsai-transformers/embed':
         specifier: ^0.0.11
-        version: 0.0.11(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+        version: 0.0.11(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -1918,7 +1921,7 @@ importers:
         version: 1.43.0
       injeca:
         specifier: 'catalog:'
-        version: 0.1.7(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6)
+        version: 0.1.8(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6)
       nanoid:
         specifier: 'catalog:'
         version: 5.1.6
@@ -1998,7 +2001,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       builder-util-runtime:
         specifier: 'catalog:'
         version: 9.5.1
@@ -2044,7 +2047,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2137,7 +2140,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2177,24 +2180,24 @@ importers:
       '@guiiai/logg':
         specifier: 'catalog:'
         version: 1.2.11
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
       '@proj-airi/server-shared':
         specifier: workspace:^
         version: link:../server-shared
       crossws:
         specifier: ^0.4.4
-        version: 0.4.4(srvx@0.11.8)
+        version: 0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))
       h3:
         specifier: ^2.0.1-rc.14
-        version: 2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8))
-      listhen:
-        specifier: ^1.9.0
-        version: 1.9.0
+        version: 2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)))
       nanoid:
         specifier: 'catalog:'
         version: 5.1.6
       srvx:
         specifier: ^0.11.8
-        version: 0.11.8
+        version: 0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)
       superjson:
         specifier: 'catalog:'
         version: 2.2.6
@@ -2212,7 +2215,7 @@ importers:
         version: link:../server-shared
       crossws:
         specifier: ^0.4.4
-        version: 0.4.4(srvx@0.11.8)
+        version: 0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))
       superjson:
         specifier: 'catalog:'
         version: 2.2.6
@@ -2231,7 +2234,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2334,7 +2337,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2465,7 +2468,7 @@ importers:
         version: 3.0.2(electron@40.6.1)
       '@moeru/eventa':
         specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@nekopaw/tempora':
         specifier: 'catalog:'
         version: 0.4.0-alpha.1
@@ -2489,7 +2492,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../audio
@@ -2558,10 +2561,10 @@ importers:
         version: 0.4.3
       '@xsai-transformers/embed':
         specifier: ^0.0.11
-        version: 0.0.11(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+        version: 0.0.11(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@xsai-transformers/shared':
         specifier: ^0.0.11
-        version: 0.0.11(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+        version: 0.0.11(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@xsai/embed':
         specifier: 'catalog:'
         version: 0.4.3
@@ -3214,7 +3217,7 @@ importers:
         version: 1.2.4
       '@moeru/eventa':
         specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+        version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../../packages/server-sdk
@@ -3310,7 +3313,7 @@ importers:
         version: 0.1.0-beta.17
       '@proj-airi/server-sdk':
         specifier: ^0.8.4
-        version: 0.8.4(srvx@0.11.8)
+        version: 0.8.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))
       '@xsai/generate-text':
         specifier: 'catalog:'
         version: 0.4.3
@@ -3328,7 +3331,7 @@ importers:
         version: 3.2.1
       crossws:
         specifier: 'catalog:'
-        version: 0.4.4(srvx@0.11.8)
+        version: 0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))
       es-toolkit:
         specifier: ^1.44.0
         version: 1.44.0
@@ -3589,13 +3592,10 @@ importers:
         version: 0.1.0-beta.17
       '@proj-airi/server-sdk':
         specifier: ^0.8.4
-        version: 0.8.4(srvx@0.11.8)
+        version: 0.8.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))
       h3:
         specifier: ^2.0.1-rc.14
-        version: 2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8))
-      listhen:
-        specifier: ^1.9.0
-        version: 1.9.0
+        version: 2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)))
       ofetch:
         specifier: ^1.5.1
         version: 1.5.1
@@ -7301,100 +7301,6 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@parcel/watcher-android-arm64@2.5.1':
-    resolution: {integrity: sha512-KF8+j9nNbUN8vzOFDpRMsaKBHZ/mcjEjMToVMJOhTozkDonQFFrRcfdLWn6yWKCmJKmdVxSgHiYvTCef4/qcBA==}
-    engines: {node: '>= 10.0.0'}
-    cpu: [arm64]
-    os: [android]
-
-  '@parcel/watcher-darwin-arm64@2.5.1':
-    resolution: {integrity: sha512-eAzPv5osDmZyBhou8PoF4i6RQXAfeKL9tjb3QzYuccXFMQU0ruIc/POh30ePnaOyD1UXdlKguHBmsTs53tVoPw==}
-    engines: {node: '>= 10.0.0'}
-    cpu: [arm64]
-    os: [darwin]
-
-  '@parcel/watcher-darwin-x64@2.5.1':
-    resolution: {integrity: sha512-1ZXDthrnNmwv10A0/3AJNZ9JGlzrF82i3gNQcWOzd7nJ8aj+ILyW1MTxVk35Db0u91oD5Nlk9MBiujMlwmeXZg==}
-    engines: {node: '>= 10.0.0'}
-    cpu: [x64]
-    os: [darwin]
-
-  '@parcel/watcher-freebsd-x64@2.5.1':
-    resolution: {integrity: sha512-SI4eljM7Flp9yPuKi8W0ird8TI/JK6CSxju3NojVI6BjHsTyK7zxA9urjVjEKJ5MBYC+bLmMcbAWlZ+rFkLpJQ==}
-    engines: {node: '>= 10.0.0'}
-    cpu: [x64]
-    os: [freebsd]
-
-  '@parcel/watcher-linux-arm-glibc@2.5.1':
-    resolution: {integrity: sha512-RCdZlEyTs8geyBkkcnPWvtXLY44BCeZKmGYRtSgtwwnHR4dxfHRG3gR99XdMEdQ7KeiDdasJwwvNSF5jKtDwdA==}
-    engines: {node: '>= 10.0.0'}
-    cpu: [arm]
-    os: [linux]
-    libc: [glibc]
-
-  '@parcel/watcher-linux-arm-musl@2.5.1':
-    resolution: {integrity: sha512-6E+m/Mm1t1yhB8X412stiKFG3XykmgdIOqhjWj+VL8oHkKABfu/gjFj8DvLrYVHSBNC+/u5PeNrujiSQ1zwd1Q==}
-    engines: {node: '>= 10.0.0'}
-    cpu: [arm]
-    os: [linux]
-    libc: [musl]
-
-  '@parcel/watcher-linux-arm64-glibc@2.5.1':
-    resolution: {integrity: sha512-LrGp+f02yU3BN9A+DGuY3v3bmnFUggAITBGriZHUREfNEzZh/GO06FF5u2kx8x+GBEUYfyTGamol4j3m9ANe8w==}
-    engines: {node: '>= 10.0.0'}
-    cpu: [arm64]
-    os: [linux]
-    libc: [glibc]
-
-  '@parcel/watcher-linux-arm64-musl@2.5.1':
-    resolution: {integrity: sha512-cFOjABi92pMYRXS7AcQv9/M1YuKRw8SZniCDw0ssQb/noPkRzA+HBDkwmyOJYp5wXcsTrhxO0zq1U11cK9jsFg==}
-    engines: {node: '>= 10.0.0'}
-    cpu: [arm64]
-    os: [linux]
-    libc: [musl]
-
-  '@parcel/watcher-linux-x64-glibc@2.5.1':
-    resolution: {integrity: sha512-GcESn8NZySmfwlTsIur+49yDqSny2IhPeZfXunQi48DMugKeZ7uy1FX83pO0X22sHntJ4Ub+9k34XQCX+oHt2A==}
-    engines: {node: '>= 10.0.0'}
-    cpu: [x64]
-    os: [linux]
-    libc: [glibc]
-
-  '@parcel/watcher-linux-x64-musl@2.5.1':
-    resolution: {integrity: sha512-n0E2EQbatQ3bXhcH2D1XIAANAcTZkQICBPVaxMeaCVBtOpBZpWJuf7LwyWPSBDITb7In8mqQgJ7gH8CILCURXg==}
-    engines: {node: '>= 10.0.0'}
-    cpu: [x64]
-    os: [linux]
-    libc: [musl]
-
-  '@parcel/watcher-wasm@2.5.1':
-    resolution: {integrity: sha512-RJxlQQLkaMMIuWRozy+z2vEqbaQlCuaCgVZIUCzQLYggY22LZbP5Y1+ia+FD724Ids9e+XIyOLXLrLgQSHIthw==}
-    engines: {node: '>= 10.0.0'}
-    bundledDependencies:
-      - napi-wasm
-
-  '@parcel/watcher-win32-arm64@2.5.1':
-    resolution: {integrity: sha512-RFzklRvmc3PkjKjry3hLF9wD7ppR4AKcWNzH7kXR7GUe0Igb3Nz8fyPwtZCSquGrhU5HhUNDr/mKBqj7tqA2Vw==}
-    engines: {node: '>= 10.0.0'}
-    cpu: [arm64]
-    os: [win32]
-
-  '@parcel/watcher-win32-ia32@2.5.1':
-    resolution: {integrity: sha512-c2KkcVN+NJmuA7CGlaGD1qJh1cLfDnQsHjE89E60vUEMlqduHGCdCLJCID5geFVM0dOtA3ZiIO8BoEQmzQVfpQ==}
-    engines: {node: '>= 10.0.0'}
-    cpu: [ia32]
-    os: [win32]
-
-  '@parcel/watcher-win32-x64@2.5.1':
-    resolution: {integrity: sha512-9lHBdJITeNR++EvSQVUcaZoWupyHfXe1jZvGZ06O/5MflPcuPLtEphScIBL+AiCWBO46tDSHzWyD0uDmmZqsgA==}
-    engines: {node: '>= 10.0.0'}
-    cpu: [x64]
-    os: [win32]
-
-  '@parcel/watcher@2.5.1':
-    resolution: {integrity: sha512-dfUnCxiN9H4ap84DvD2ubjw+3vUNpstxa0TneY/Paat8a3R4uQZDLSvWjmznAY/DoahqTHl9V46HF/Zs3F29pg==}
-    engines: {node: '>= 10.0.0'}
-
   '@pinia/testing@1.0.3':
     resolution: {integrity: sha512-g+qR49GNdI1Z8rZxKrQC3GN+LfnGTNf5Kk8Nz5Cz6mIGva5WRS+ffPXQfzhA0nu6TveWzPNYTjGl4nJqd3Cu9Q==}
     peerDependencies:
@@ -10590,10 +10496,6 @@ packages:
     resolution: {integrity: sha512-nPdaFdQ0h/GEigbPClz11D0v/ZJEwxmeVZGeMo3Z5StPtUTkA9o1lD6QwoirYiSDzbcwn2XcjwmCp68W1IS4TA==}
     engines: {node: '>=18'}
 
-  clipboardy@4.0.0:
-    resolution: {integrity: sha512-5mOlNS0mhX0707P2I0aZ2V/cmHUEO/fL7VFLqszkhUsxt7RwnmrInf/eEQKlf5GzvYeHIjT+Ov1HRfNmymlG0w==}
-    engines: {node: '>=18'}
-
   cliui@8.0.1:
     resolution: {integrity: sha512-BSeNnyus75C4//NQ9gQt1/csTXyo/8Sb+afLAkzAptFuMsod9HFokGNudZpi/oQV73hnVK+sR+5PVRMd+Dr7YQ==}
     engines: {node: '>=12'}
@@ -10982,11 +10884,6 @@ packages:
   destroy@1.2.0:
     resolution: {integrity: sha512-2sJGJTaXIIaR1w4iJSNoN0hnMY7Gpc/n8D4qSCJw8QqFWXf7cuAgnEHxBpweaVcPevC2l3KpjYCx3NypQQgaJg==}
     engines: {node: '>= 0.8', npm: 1.2.8000 || >= 1.4.16}
-
-  detect-libc@1.0.3:
-    resolution: {integrity: sha512-pGjwhsmsp4kL2RTz08wcOlGN83otlqHeD/Z5T8GXZB+/YcpQ/dgo+lbU8ZsGxV0HIvqqxo9l7mqYwyYMD9bKDg==}
-    engines: {node: '>=0.10'}
-    hasBin: true
 
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
@@ -11847,10 +11744,6 @@ packages:
     resolution: {integrity: sha512-8uSpZZocAZRBAPIEINJj3Lo9HyGitllczc27Eh5YYojjMFMn8yHMDMaUHE2Jqfq05D/wucwI4JGURyXt1vchyg==}
     engines: {node: '>=10'}
 
-  execa@8.0.1:
-    resolution: {integrity: sha512-VyhnebXciFV2DESc+p6B+y0LjSm0krU4OgJN44qFAhBY0TJ+1V61tYD2+wHusZ6F9n5K+vl8k0sTy7PEfV4qpg==}
-    engines: {node: '>=16.17'}
-
   exif-parser@0.1.12:
     resolution: {integrity: sha512-c2bQfLNbMzLPmzQuOr8fy0csy84WmwnER81W88DzTp9CYNPJ6yzOj2EZAh9pywYpqHnshVLHQJ8WzldAyfY+Iw==}
 
@@ -12243,10 +12136,6 @@ packages:
     resolution: {integrity: sha512-ts6Wi+2j3jQjqi70w5AlN8DFnkSwC+MqmxEzdEALB2qXZYV3X/b1CTfgPLGJNMeAWxdPfU8FO1ms3NUfaHCPYg==}
     engines: {node: '>=10'}
 
-  get-stream@8.0.1:
-    resolution: {integrity: sha512-VaUJspBffn/LMCJVoMvSAdmscJyS1auj5Zulnn5UoYcY531UWmdwhRWkcGKnGU93m5HSXP9LP2usOryrBtQowA==}
-    engines: {node: '>=16'}
-
   get-tsconfig@4.13.6:
     resolution: {integrity: sha512-shZT/QMiSHc/YBLxxOkMtgSid5HFoauqCE3/exfsEcwg1WkeqjG+V40yBbBrsD+jW2HDXcs28xOfcbm2jI8Ddw==}
 
@@ -12423,15 +12312,6 @@ packages:
       crossws:
         optional: true
 
-  h3@2.0.1-rc.5:
-    resolution: {integrity: sha512-qkohAzCab0nLzXNm78tBjZDvtKMTmtygS8BJLT3VPczAQofdqlFXDPkXdLMJN4r05+xqneG8snZJ0HgkERCZTg==}
-    engines: {node: '>=20.11.1'}
-    peerDependencies:
-      crossws: ^0.4.1
-    peerDependenciesMeta:
-      crossws:
-        optional: true
-
   has-flag@4.0.0:
     resolution: {integrity: sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==}
     engines: {node: '>=8'}
@@ -12582,10 +12462,6 @@ packages:
     resolution: {integrity: sha512-T1gkAiYYDWYx3V5Bmyu7HcfcvL7mUrTWiM6yOfa3PIphViJ/gFPbvidQ+veqSOHci/PxBcDabeUNCzpOODJZig==}
     engines: {node: '>= 14'}
 
-  http-shutdown@1.2.2:
-    resolution: {integrity: sha512-S9wWkJ/VSY9/k4qcjG318bqJNruzE4HySUhFYknwmu6LBP97KLLfwNf+n4V1BHurvFNkSKLFnK/RsuUnRTf9Vw==}
-    engines: {iojs: '>= 1.0.0', node: '>= 0.12.0'}
-
   http2-wrapper@1.0.3:
     resolution: {integrity: sha512-V+23sDMr12Wnz7iTcDeJr3O6AIxlnvT/bmaAAAP/Xda35C90p9599p0F1eHR/N1KILWSoWVAiOMFjBBXaXSMxg==}
     engines: {node: '>=10.19.0'}
@@ -12597,10 +12473,6 @@ packages:
   human-signals@2.1.0:
     resolution: {integrity: sha512-B4FFZ6q/T2jhhksgkbEW3HBvWIfDW85snkQgawt07S7J5QXTk6BkNV+0yAeZrM5QpMAdYlocGoljn0sJ/WQkFw==}
     engines: {node: '>=10.17.0'}
-
-  human-signals@5.0.0:
-    resolution: {integrity: sha512-AXcZb6vzzrFAUE61HnN4mpLqd/cSIwNQjtNWR0euPm6y0iqx3G4gOXaIDdtdDwZmhwe82LA6+zinmW4UBWVePQ==}
-    engines: {node: '>=16.17.0'}
 
   humanize-ms@1.2.1:
     resolution: {integrity: sha512-Fl70vYtsAFb/C06PTS9dZBo7ihau+Tu/DNCk/OyHhea07S+aeMWpFFkUaXRa8fI+ScZbEI8dfSxwY7gxZ9SAVQ==}
@@ -12701,8 +12573,8 @@ packages:
     resolution: {integrity: sha512-X7rqawQBvfdjS10YU1y1YVreA3SsLrW9dX2CewP2EbBJM4ypVNLDkO5y04gejPwKIY9lR+7r9gn3rFPt/kmWFg==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
 
-  injeca@0.1.7:
-    resolution: {integrity: sha512-Nh166QCTJbshSNBTWGzdGNDkxMKvHALJfCW70zYJ9AF+4FDQLXRcjGJnaaazW7RZWLQsnWEvK5/sXMnexUjvBg==}
+  injeca@0.1.8:
+    resolution: {integrity: sha512-S8Y7adw2y/2dSp/8b3rhwu4A8Fegq4GAY7hRRSitxEmapegrkwCLGnWVHuT+DqbAmpITSKu/Dl8FU3RIl8ygyw==}
     peerDependencies:
       '@guiiai/logg': '>= 1'
       error-stack-parser: ^2.1.4
@@ -12860,10 +12732,6 @@ packages:
     resolution: {integrity: sha512-hFoiJiTl63nn+kstHGBtewWSKnQLpyb155KHheA1l39uvtO9nWIop1p3udqPcUd/xbF1VLMO4n7OI6p7RbngDg==}
     engines: {node: '>=8'}
 
-  is-stream@3.0.0:
-    resolution: {integrity: sha512-LnQR4bZ9IADDRSkvpqMGvt/tEJWclzklNgSw48V5EAaAeDd6qGvN8ei6k5p0tvxSR171VmGyHuTiAOfxAbr8kA==}
-    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
-
   is-typedarray@1.0.0:
     resolution: {integrity: sha512-cyA56iCMHAh5CdzjJIa4aohJyeO1YbwLi3Jc35MmRU6poroFjIGZzUzupGiRPOjgHg9TLu43xbpwXk523fMxKA==}
 
@@ -12889,10 +12757,6 @@ packages:
   is-wsl@3.1.0:
     resolution: {integrity: sha512-UcVfVfaK4Sc4m7X3dUSoHoozQGBEFeDC+zVo06t98xe8CzHSZZBekNXH+tu0NalHolcJ/QAGqS46Hef7QXBIMw==}
     engines: {node: '>=16'}
-
-  is64bit@2.0.0:
-    resolution: {integrity: sha512-jv+8jaWCl0g2lSBkNSVXdzfBA0npK1HGC2KtWM9FumFRoGS94g3NbCCLVnCYHLjp4GrW2KZeeSTMo5ddtznmGw==}
-    engines: {node: '>=18'}
 
   isbinaryfile@4.0.10:
     resolution: {integrity: sha512-iHrqe5shvBUcFbmZq9zOQHBoeOhZJu6RQGrDpBgenUm/Am+F3JM2MgQj+rK3Z601fzrL5gLZWtAPH2OBaSVcyw==}
@@ -13269,10 +13133,6 @@ packages:
 
   linkify-it@5.0.0:
     resolution: {integrity: sha512-5aHCbzQRADcdP+ATqnDuhhJ/MRIqDkZX5pyjFHRRysS8vZ5AbqGEoFIb6pYHPZ+L/OC2Lc+xT8uHVVR5CAK/wQ==}
-
-  listhen@1.9.0:
-    resolution: {integrity: sha512-I8oW2+QL5KJo8zXNWX046M134WchxsXC7SawLPvRQpogCbkyQIaFxPE89A2HiwR7vAK2Dm2ERBAmyjTYGYEpBg==}
-    hasBin: true
 
   listr2@8.3.3:
     resolution: {integrity: sha512-LWzX2KsqcB1wqQ4AHgYb4RsDXauQiqhjLk+6hjbaeHG4zpjjVAB6wC/gz6X0l+Du1cN3pUB5ZlrvTbhGSNnUQQ==}
@@ -13678,10 +13538,6 @@ packages:
     resolution: {integrity: sha512-OqbOk5oEQeAZ8WXWydlu9HJjz9WVdEIvamMCcXmuqUYjTknH/sqsWvhQ3vgwKFRR1HpjvNBKQ37nbJgYzGqGcg==}
     engines: {node: '>=6'}
 
-  mimic-fn@4.0.0:
-    resolution: {integrity: sha512-vqiC06CuhBTUdZH+RYl8sFrL096vA45Ok5ISO6sE/Mr1jRbGH4Csnhi8f3wKVl7x8mO4Au7Ir9D3Oyv1VYMFJw==}
-    engines: {node: '>=12'}
-
   mimic-function@5.0.1:
     resolution: {integrity: sha512-VP79XUPxV2CigYP3jWwAUFSku2aKqBH7uTAapFWCBqutsbmDo96KY5o8uh6U+/YSIn5OxJnXp73beVkpqMIGhA==}
     engines: {node: '>=18'}
@@ -14019,10 +13875,6 @@ packages:
     resolution: {integrity: sha512-S48WzZW777zhNIrn7gxOlISNAqi9ZC/uQFnRdbeIHhZhCA6UqpkOT8T1G7BvfdgP4Er8gF4sUbaS0i7QvIfCWw==}
     engines: {node: '>=8'}
 
-  npm-run-path@5.3.0:
-    resolution: {integrity: sha512-ppwTtiJZq0O/ai0z7yfudtBpWIoxM8yE6nHi1X47eFR2EWORqfbu6CnPlNsjeN683eT0qG6H/Pyf9fCcvjnnnQ==}
-    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
-
   nprogress@0.2.0:
     resolution: {integrity: sha512-I19aIingLgR1fmhftnbWWO3dXc0hSxqHQHQb3H8m+K3TnEn/iSeTZZOyvKXWqQESMwuUVnatlCnZdLBZZt2VSA==}
 
@@ -14093,10 +13945,6 @@ packages:
   onetime@5.1.2:
     resolution: {integrity: sha512-kbpaSSGJTWdAY5KPVeMOKXSrPtr8C8C7wodJbcsd51jRnmD+GZu8Y0VoU6Dm5Z4vWr0Ig/1NKuWRKf7j5aaYSg==}
     engines: {node: '>=6'}
-
-  onetime@6.0.0:
-    resolution: {integrity: sha512-1FlR+gjXK7X+AsAHso35MnyN5KqGwJRi/31ft6x0M194ht7S+rWAvd7PHss9xSKMzE0asv1pyIHaJYq+BbacAQ==}
-    engines: {node: '>=12'}
 
   onetime@7.0.0:
     resolution: {integrity: sha512-VXJjc87FScF88uafS3JllDgvAm+c/Slfz06lorj2uAY34rlUu0Nt+v8wreiImcrgAjjIHp1rXpTDlLOGw29WwQ==}
@@ -14310,10 +14158,6 @@ packages:
   path-key@3.1.1:
     resolution: {integrity: sha512-ojmeN0qd+y0jszEtoY48r0Peq5dwMEkIlCOu6Q5f41lfkswXuKtYrhgoTpLnyIcHm24Uhqx+5Tqm2InSwLhE6Q==}
     engines: {node: '>=8'}
-
-  path-key@4.0.0:
-    resolution: {integrity: sha512-haREypq7xkM7ErfgIyA0z+Bj4AGKlMSdlQE2jvJo6huWD1EdkKYV+G/T4nq0YEF2vgTT8kqMFKo1uHn950r4SQ==}
-    engines: {node: '>=12'}
 
   path-parse@1.0.7:
     resolution: {integrity: sha512-LDJzPVEEEPR+y48z93A0Ed0yXb8pAByGWo/k5YYdYgpY2/2EsOsksJrq7lOHxryrVOn1ejG6oAp8ahvOIQD8sw==}
@@ -15454,11 +15298,6 @@ packages:
     engines: {node: '>=20.16.0'}
     hasBin: true
 
-  srvx@0.9.8:
-    resolution: {integrity: sha512-RZaxTKJEE/14HYn8COLuUOJAt0U55N9l1Xf6jj+T0GoA01EUH1Xz5JtSUOI+EHn+AEgPCVn7gk6jHJffrr06fQ==}
-    engines: {node: '>=20.16.0'}
-    hasBin: true
-
   ssri@12.0.0:
     resolution: {integrity: sha512-S7iGNosepx9RadX82oimUkvr0Ct7IjJbEbs4mJcTxst8um95J3sDYU1RBEOvdu6oL1Wek2ODI5i4MAw+dZ6cAQ==}
     engines: {node: ^18.17.0 || >=20.5.0}
@@ -15562,10 +15401,6 @@ packages:
     resolution: {integrity: sha512-BrpvfNAE3dcvq7ll3xVumzjKjZQ5tI1sEUIKr3Uoks0XUl45St3FlatVqef9prk4jRDzhW6WZg+3bk93y6pLjA==}
     engines: {node: '>=6'}
 
-  strip-final-newline@3.0.0:
-    resolution: {integrity: sha512-dOESqjYr96iWYylGObzd39EuNTa5VJxyvVAEm5Jnh7KGo75V43Hk1odPQkNDyXNmUR6k+gEiDVXnjB8HJ3crXw==}
-    engines: {node: '>=12'}
-
   strip-indent@4.1.1:
     resolution: {integrity: sha512-SlyRoSkdh1dYP0PzclLE7r0M9sgbFKKMFXpFRUMNuKhQSbC6VQIGzq3E0qsfvGJaUFJPGv6Ws1NZ/haTAjfbMA==}
     engines: {node: '>=12'}
@@ -15636,10 +15471,6 @@ packages:
   synckit@0.11.12:
     resolution: {integrity: sha512-Bh7QjT8/SuKUIfObSXNHNSK6WHo6J1tHCqJsuaFDP7gP0fkzSfTxI8y85JrppZ0h8l0maIgc2tfuZQ6/t3GtnQ==}
     engines: {node: ^14.18.0 || >=16.0.0}
-
-  system-architecture@0.1.0:
-    resolution: {integrity: sha512-ulAk51I9UVUyJgxlv9M6lFot2WP3e7t8Kz9+IS6D4rVba1tR9kON+Ey69f+1R4Q8cd45Lod6a4IcJIxnzGc/zA==}
-    engines: {node: '>=18'}
 
   tabbable@6.4.0:
     resolution: {integrity: sha512-05PUHKSNE8ou2dwIxTngl4EzcnsCDZGJ/iCLtDflR/SHB/ny14rXc+qU5P4mG9JkusiV7EivzY9Mhm55AzAvCg==}
@@ -16377,10 +16208,6 @@ packages:
     resolution: {integrity: sha512-KK8xQ1mkzZeg9inewmFVDNkg3l5LUhoq9kN6iWYB/CC9YMG8HA+c1Q8HwDe6dEX7kErrEVNVBO3fWsVq5iDgtw==}
     engines: {node: '>=8'}
 
-  untun@0.1.3:
-    resolution: {integrity: sha512-4luGP9LMYszMRZwsvyUd9MrxgEGZdZuZgpVQHEEX0lCYFESasVRvZd0EYpCkOIbJKHMuv0LskpXc/8Un+MJzEQ==}
-    hasBin: true
-
   untyped@2.0.0:
     resolution: {integrity: sha512-nwNCjxJTjNuLCgFr42fEak5OcLuB3ecca+9ksPFNvtfYSLpjf+iJqSIaSnIile6ZPbKYxI5k2AfXqeopGudK/g==}
     hasBin: true
@@ -16398,9 +16225,6 @@ packages:
   update-notifier@7.3.1:
     resolution: {integrity: sha512-+dwUY4L35XFYEzE+OAL3sarJdUioVovq+8f7lcIJ7wnmnYQV5UD1Y/lcwaMSyaQ6Bj3JMj1XSTjZbNLHn/19yA==}
     engines: {node: '>=18'}
-
-  uqr@0.1.2:
-    resolution: {integrity: sha512-MJu7ypHq6QasgF5YRTjqscSzQp/W11zoUk6kvmlH+fmWEs63Y0Eib13hYFwAzagRJcVY8WVnlV+eBDUGMJ5IbA==}
 
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
@@ -20185,13 +20009,13 @@ snapshots:
       - supports-color
       - typescript
 
-  '@moeru/eventa@0.3.0(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))':
+  '@moeru/eventa@0.3.0(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))':
     dependencies:
       nanoid: 5.1.6
       picomatch: 4.0.3
     optionalDependencies:
       electron: 40.6.1
-      h3: 2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8))
+      h3: 2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)))
 
   '@moeru/eventa@1.0.0-alpha.14(electron@39.7.0)':
     dependencies:
@@ -20207,13 +20031,13 @@ snapshots:
     optionalDependencies:
       electron: 40.6.1
 
-  '@moeru/eventa@1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))':
+  '@moeru/eventa@1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))':
     dependencies:
       nanoid: 5.1.6
       picomatch: 4.0.3
     optionalDependencies:
       electron: 40.6.1
-      h3: 2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8))
+      h3: 2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)))
 
   '@moeru/std@0.1.0-beta.1': {}
 
@@ -21474,71 +21298,6 @@ snapshots:
   '@oxlint/binding-win32-x64-msvc@1.50.0':
     optional: true
 
-  '@parcel/watcher-android-arm64@2.5.1':
-    optional: true
-
-  '@parcel/watcher-darwin-arm64@2.5.1':
-    optional: true
-
-  '@parcel/watcher-darwin-x64@2.5.1':
-    optional: true
-
-  '@parcel/watcher-freebsd-x64@2.5.1':
-    optional: true
-
-  '@parcel/watcher-linux-arm-glibc@2.5.1':
-    optional: true
-
-  '@parcel/watcher-linux-arm-musl@2.5.1':
-    optional: true
-
-  '@parcel/watcher-linux-arm64-glibc@2.5.1':
-    optional: true
-
-  '@parcel/watcher-linux-arm64-musl@2.5.1':
-    optional: true
-
-  '@parcel/watcher-linux-x64-glibc@2.5.1':
-    optional: true
-
-  '@parcel/watcher-linux-x64-musl@2.5.1':
-    optional: true
-
-  '@parcel/watcher-wasm@2.5.1':
-    dependencies:
-      is-glob: 4.0.3
-      micromatch: 4.0.8
-
-  '@parcel/watcher-win32-arm64@2.5.1':
-    optional: true
-
-  '@parcel/watcher-win32-ia32@2.5.1':
-    optional: true
-
-  '@parcel/watcher-win32-x64@2.5.1':
-    optional: true
-
-  '@parcel/watcher@2.5.1':
-    dependencies:
-      detect-libc: 1.0.3
-      is-glob: 4.0.3
-      micromatch: 4.0.8
-      node-addon-api: 7.1.1
-    optionalDependencies:
-      '@parcel/watcher-android-arm64': 2.5.1
-      '@parcel/watcher-darwin-arm64': 2.5.1
-      '@parcel/watcher-darwin-x64': 2.5.1
-      '@parcel/watcher-freebsd-x64': 2.5.1
-      '@parcel/watcher-linux-arm-glibc': 2.5.1
-      '@parcel/watcher-linux-arm-musl': 2.5.1
-      '@parcel/watcher-linux-arm64-glibc': 2.5.1
-      '@parcel/watcher-linux-arm64-musl': 2.5.1
-      '@parcel/watcher-linux-x64-glibc': 2.5.1
-      '@parcel/watcher-linux-x64-musl': 2.5.1
-      '@parcel/watcher-win32-arm64': 2.5.1
-      '@parcel/watcher-win32-ia32': 2.5.1
-      '@parcel/watcher-win32-x64': 2.5.1
-
   '@pinia/testing@1.0.3(pinia@3.0.4(typescript@5.9.3)(vue@3.5.29(typescript@5.9.3)))':
     dependencies:
       pinia: 3.0.4(typescript@5.9.3)(vue@3.5.29(typescript@5.9.3))
@@ -21960,10 +21719,10 @@ snapshots:
     dependencies:
       '@iconify/types': 2.0.0
 
-  '@proj-airi/server-sdk@0.8.4(srvx@0.11.8)':
+  '@proj-airi/server-sdk@0.8.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))':
     dependencies:
       '@proj-airi/server-shared': 0.8.4
-      crossws: 0.4.4(srvx@0.11.8)
+      crossws: 0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))
       defu: 6.1.4
       superjson: 2.2.6
     transitivePeerDependencies:
@@ -24131,13 +23890,13 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.4.3
 
-  '@xsai-transformers/embed@0.0.11(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))':
+  '@xsai-transformers/embed@0.0.11(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))':
     dependencies:
       '@huggingface/transformers': 3.8.1
-      '@moeru/eventa': 0.3.0(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+      '@moeru/eventa': 0.3.0(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@moeru/std': 0.1.0-beta.17
       '@xsai-ext/shared-providers': 0.4.0-beta.12
-      '@xsai-transformers/shared': 0.0.11(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+      '@xsai-transformers/shared': 0.0.11(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@xsai/embed': 0.4.3
       '@xsai/shared': 0.4.3
       gpuu: 1.0.6
@@ -24145,10 +23904,10 @@ snapshots:
       - electron
       - h3
 
-  '@xsai-transformers/shared@0.0.11(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))':
+  '@xsai-transformers/shared@0.0.11(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))':
     dependencies:
       '@huggingface/transformers': 3.8.1
-      '@moeru/eventa': 0.3.0(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+      '@moeru/eventa': 0.3.0(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@moeru/std': 0.1.0-beta.17
       '@xsai-ext/shared-providers': 0.4.0-beta.12
       '@xsai/shared': 0.4.3
@@ -24158,13 +23917,13 @@ snapshots:
       - h3
       - web-worker
 
-  '@xsai-transformers/transcription@0.0.11(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))':
+  '@xsai-transformers/transcription@0.0.11(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))':
     dependencies:
       '@huggingface/transformers': 3.8.1
-      '@moeru/eventa': 0.3.0(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+      '@moeru/eventa': 0.3.0(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@moeru/std': 0.1.0-beta.17
       '@xsai-ext/shared-providers': 0.4.0-beta.12
-      '@xsai-transformers/shared': 0.0.11(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
+      '@xsai-transformers/shared': 0.0.11(electron@40.6.1)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@xsai/embed': 0.4.3
       '@xsai/generate-transcription': 0.4.3
       '@xsai/shared': 0.4.3
@@ -25069,12 +24828,6 @@ snapshots:
       slice-ansi: 5.0.0
       string-width: 7.2.0
 
-  clipboardy@4.0.0:
-    dependencies:
-      execa: 8.0.1
-      is-wsl: 3.1.0
-      is64bit: 2.0.0
-
   cliui@8.0.1:
     dependencies:
       string-width: 4.2.3
@@ -25270,9 +25023,9 @@ snapshots:
     dependencies:
       uncrypto: 0.1.3
 
-  crossws@0.4.4(srvx@0.11.8):
+  crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)):
     optionalDependencies:
-      srvx: 0.11.8
+      srvx: 0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)
 
   crypto-random-string@2.0.0: {}
 
@@ -25412,8 +25165,6 @@ snapshots:
   destr@2.0.5: {}
 
   destroy@1.2.0: {}
-
-  detect-libc@1.0.3: {}
 
   detect-libc@2.1.2: {}
 
@@ -26387,18 +26138,6 @@ snapshots:
       signal-exit: 3.0.7
       strip-final-newline: 2.0.0
 
-  execa@8.0.1:
-    dependencies:
-      cross-spawn: 7.0.6
-      get-stream: 8.0.1
-      human-signals: 5.0.0
-      is-stream: 3.0.0
-      merge-stream: 2.0.0
-      npm-run-path: 5.3.0
-      onetime: 6.0.0
-      signal-exit: 4.1.0
-      strip-final-newline: 3.0.0
-
   exif-parser@0.1.12: {}
 
   expand-template@2.0.3: {}
@@ -26863,8 +26602,6 @@ snapshots:
 
   get-stream@6.0.1: {}
 
-  get-stream@8.0.1: {}
-
   get-tsconfig@4.13.6:
     dependencies:
       resolve-pkg-maps: 1.0.0
@@ -27095,19 +26832,12 @@ snapshots:
       ufo: 1.6.3
       uncrypto: 0.1.3
 
-  h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8)):
+  h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))):
     dependencies:
       rou3: 0.7.12
-      srvx: 0.11.8
+      srvx: 0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)
     optionalDependencies:
-      crossws: 0.4.4(srvx@0.11.8)
-
-  h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)):
-    dependencies:
-      rou3: 0.7.12
-      srvx: 0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d)
-    optionalDependencies:
-      crossws: 0.4.4(srvx@0.11.8)
+      crossws: 0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))
 
   has-flag@4.0.0: {}
 
@@ -27394,8 +27124,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  http-shutdown@1.2.2: {}
-
   http2-wrapper@1.0.3:
     dependencies:
       quick-lru: 5.1.1
@@ -27409,8 +27137,6 @@ snapshots:
       - supports-color
 
   human-signals@2.1.0: {}
-
-  human-signals@5.0.0: {}
 
   humanize-ms@1.2.1:
     dependencies:
@@ -27507,7 +27233,7 @@ snapshots:
 
   ini@4.1.3: {}
 
-  injeca@0.1.7(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6):
+  injeca@0.1.8(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6):
     dependencies:
       error-stack-parser: 2.1.4
       nanoid: 5.1.6
@@ -27609,8 +27335,6 @@ snapshots:
 
   is-stream@2.0.1: {}
 
-  is-stream@3.0.0: {}
-
   is-typedarray@1.0.0: {}
 
   is-unicode-supported@0.1.0: {}
@@ -27628,10 +27352,6 @@ snapshots:
   is-wsl@3.1.0:
     dependencies:
       is-inside-container: 1.0.0
-
-  is64bit@2.0.0:
-    dependencies:
-      system-architecture: 0.1.0
 
   isbinaryfile@4.0.10: {}
 
@@ -28009,27 +27729,6 @@ snapshots:
   linkify-it@5.0.0:
     dependencies:
       uc.micro: 2.1.0
-
-  listhen@1.9.0:
-    dependencies:
-      '@parcel/watcher': 2.5.1
-      '@parcel/watcher-wasm': 2.5.1
-      citty: 0.1.6
-      clipboardy: 4.0.0
-      consola: 3.4.2
-      crossws: 0.3.5
-      defu: 6.1.4
-      get-port-please: 3.2.0
-      h3: 1.15.5
-      http-shutdown: 1.2.2
-      jiti: 2.6.1
-      mlly: 1.8.0
-      node-forge: 1.3.3
-      pathe: 1.1.2
-      std-env: 3.10.0
-      ufo: 1.6.3
-      untun: 0.1.3
-      uqr: 0.1.2
 
   listr2@8.3.3:
     dependencies:
@@ -28620,8 +28319,6 @@ snapshots:
 
   mimic-fn@2.1.0: {}
 
-  mimic-fn@4.0.0: {}
-
   mimic-function@5.0.1: {}
 
   mimic-response@1.0.1: {}
@@ -29052,10 +28749,6 @@ snapshots:
     dependencies:
       path-key: 3.1.1
 
-  npm-run-path@5.3.0:
-    dependencies:
-      path-key: 4.0.0
-
   nprogress@0.2.0: {}
 
   nth-check@2.1.1:
@@ -29116,10 +28809,6 @@ snapshots:
   onetime@5.1.2:
     dependencies:
       mimic-fn: 2.1.0
-
-  onetime@6.0.0:
-    dependencies:
-      mimic-fn: 4.0.0
 
   onetime@7.0.0:
     dependencies:
@@ -29415,8 +29104,6 @@ snapshots:
   path-is-absolute@1.0.1: {}
 
   path-key@3.1.1: {}
-
-  path-key@4.0.0: {}
 
   path-parse@1.0.7: {}
 
@@ -30916,9 +30603,7 @@ snapshots:
 
   sprintf-js@1.1.3: {}
 
-  srvx@0.11.8: {}
-
-  srvx@0.9.8(patch_hash=f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d): {}
+  srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d): {}
 
   ssri@12.0.0:
     dependencies:
@@ -31019,8 +30704,6 @@ snapshots:
 
   strip-final-newline@2.0.0: {}
 
-  strip-final-newline@3.0.0: {}
-
   strip-indent@4.1.1: {}
 
   strip-json-comments@2.0.1: {}
@@ -31088,8 +30771,6 @@ snapshots:
   synckit@0.11.12:
     dependencies:
       '@pkgr/core': 0.2.9
-
-  system-architecture@0.1.0: {}
 
   tabbable@6.4.0: {}
 
@@ -31975,12 +31656,6 @@ snapshots:
 
   untildify@4.0.0: {}
 
-  untun@0.1.3:
-    dependencies:
-      citty: 0.1.6
-      consola: 3.4.2
-      pathe: 1.1.2
-
   untyped@2.0.0:
     dependencies:
       citty: 0.1.6
@@ -32010,8 +31685,6 @@ snapshots:
       pupa: 3.3.0
       semver: 7.7.4
       xdg-basedir: 5.1.0
-
-  uqr@0.1.2: {}
 
   uri-js@4.4.1:
     dependencies:
