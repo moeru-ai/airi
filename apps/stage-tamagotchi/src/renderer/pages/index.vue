@@ -3,10 +3,8 @@ import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
-import { defineInvoke } from '@moeru/eventa'
 import { electron } from '@proj-airi/electron-eventa'
 import {
-  useElectronEventaContext,
   useElectronEventaInvoke,
   useElectronMouseAroundWindowBorder,
   useElectronMouseInElement,
@@ -32,7 +30,7 @@ import { computed, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
-import { electronOpenOnboarding, electronStartDraggingWindow } from '../../shared/eventa'
+import { electronOpenOnboarding } from '../../shared/eventa'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useWindowStore } from '../stores/window'
 
@@ -48,8 +46,6 @@ const shouldFadeOnCursorWithin = ref(false)
 
 const onboardingStore = useOnboardingStore()
 const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
-
-const isLinux = useElectronEventaInvoke(electron.app.isLinux)
 
 const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
 const { isOutside } = useElectronMouseInElement(controlsIslandRef)
@@ -87,16 +83,10 @@ const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
 
-const context = useElectronEventaContext()
-const startDraggingWindow = !isLinux() ? defineInvoke(context.value, electronStartDraggingWindow) : undefined
-
 const live2dStore = useLive2d()
 const { scale, positionInPercentageString } = storeToRefs(live2dStore)
 const { live2dLookAtX, live2dLookAtY } = storeToRefs(useWindowStore())
 const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
-
-// Drag hint for window dragging
-const showDragHint = ref(false)
 
 watch(componentStateStage, () => isLoading.value = componentStateStage.value !== 'mounted', { immediate: true })
 
@@ -348,16 +338,6 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
     relative z-2 h-full overflow-hidden rounded-xl
     transition="opacity duration-500 ease-in-out"
   >
-    <div
-      v-show="!isLoading"
-      absolute left-0 top-0 z-10 h-12 w-full
-      cursor-move
-      :class="{ 'drag-region': isLinux }"
-      @mousedown="startDraggingWindow?.()"
-      @mouseenter="showDragHint = true"
-      @mouseleave="showDragHint = false"
-    />
-
     <div
       v-show="!isLoading"
       :class="[
