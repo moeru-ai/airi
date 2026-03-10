@@ -1,11 +1,16 @@
 <script setup lang="ts">
+import type { Live2DValidationReport } from '@proj-airi/stage-ui-live2d'
+
 import type { DisplayModel } from '../../../../stores/display-models'
 
+import { validateLive2DZip } from '@proj-airi/stage-ui-live2d'
 import { Button } from '@proj-airi/ui'
 import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger, EditableArea, EditableEditTrigger, EditableInput, EditablePreview, EditableRoot, EditableSubmitTrigger } from 'reka-ui'
 import { ref, watch } from 'vue'
+
+import Live2DReportModal from './Live2DReportModal.vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
 
@@ -30,13 +35,35 @@ watch(() => props.selectedModel?.id, (modelId) => {
   highlightDisplayModelCard.value = modelId
 }, { immediate: true })
 
-function handleAddLive2DModel(file: FileList | null) {
+const showReportModal = ref(false)
+const pendingFile = ref<File | null>(null)
+const validationReport = ref<Live2DValidationReport | null>(null)
+
+async function handleAddLive2DModel(file: FileList | null) {
   if (file === null || file.length === 0)
     return
   if (!file[0].name.endsWith('.zip'))
     return
 
-  displayModelStore.addDisplayModel(DisplayModelFormat.Live2dZip, file[0])
+  const report = await validateLive2DZip(file[0])
+  validationReport.value = report
+  pendingFile.value = file[0]
+
+  if (report.status === 'VALID' && report.errors.length === 0) {
+    // Auto-confirm if perfectly valid
+    confirmImport()
+  }
+  else {
+    // Show report if warnings or errors exist
+    showReportModal.value = true
+  }
+}
+
+function confirmImport() {
+  if (pendingFile.value) {
+    displayModelStore.addDisplayModel(DisplayModelFormat.Live2dZip, pendingFile.value)
+    pendingFile.value = null
+  }
 }
 
 function handlePick(m: DisplayModel) {
@@ -78,6 +105,11 @@ vrmDialog.onChange(handleAddVRMModel)
 <template>
   <div pt="4 sm:0" gap="4 sm:6" h-full flex flex-col>
     <div flex items-center>
+      <Live2DReportModal
+        v-model:open="showReportModal"
+        :report="validationReport"
+        @confirm="confirmImport"
+      />
       <div w-full flex-1 text-xl>
         Model Selector
       </div>
