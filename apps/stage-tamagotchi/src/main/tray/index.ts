@@ -194,6 +194,7 @@ export function setupTray(params: {
                   params.mainWindow.setMovable(!item.checked)
                   params.mainWindow.setResizable(!item.checked)
                   params.mainWindow.webContents.send('eventa:event:electron:windows:main:config-changed', config.windows[index])
+                  rebuildContextMenu()
                 }
               },
             },
@@ -212,6 +213,7 @@ export function setupTray(params: {
                   }
                   params.updateConfig(config)
                   params.mainWindow.webContents.send('eventa:event:electron:windows:main:config-changed', config.windows[index])
+                  rebuildContextMenu()
                 }
               },
             },
