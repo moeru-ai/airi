@@ -55,7 +55,12 @@ export function filterTranscriptionByConfidence(
   segments: Array<{ text: string, avg_logprob: number }>,
   threshold: number,
 ): string {
-  return segments.filter(s => s.avg_logprob >= threshold).map(s => s.text).join('').trim()
+  // if provider side doesn't implement this correctly
+  if (!segments.some(s => s?.avg_logprob) || !segments.some(s => s?.text)) {
+    return segments
+  }
+  
+  return segments.filter(s => s?.avg_logprob >= threshold).map(s => s?.text).join('').trim()
 }
 
 const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
