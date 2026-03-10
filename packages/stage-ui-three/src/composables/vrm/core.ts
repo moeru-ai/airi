@@ -48,7 +48,6 @@ export async function loadVrm(model: string, options?: {
     _vrm.expressionManager.update()
   }
 
-
   // Disable frustum culling
   _vrm.scene.traverse((object: Object3D) => {
     object.frustumCulled = false

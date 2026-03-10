@@ -49,9 +49,6 @@ const view = ref<'main' | 'emotions'>('main')
 const hearingDialogOpen = ref(false)
 defineExpose({ hearingDialogOpen })
 
-// === Sub-menu state ===
-const view = ref<'main' | 'emotions'>('main')
-
 const { isOutside } = useElectronMouseInElement(islandRef)
 
 const { start: startCollapseTimer, stop: stopCollapseTimer } = useTimeoutFn(() => {
@@ -64,11 +61,11 @@ const { start: startCollapseTimer, stop: stopCollapseTimer } = useTimeoutFn(() =
 watch(isOutside, (outside) => {
   if (outside) {
     startCollapseTimer()
-  } else {
+  }
+  else {
     stopCollapseTimer()
   }
 })
-}, 1000)
 
 watch(expanded, (isExp) => {
   if (!isExp) {
