@@ -58,6 +58,61 @@ Có lẽ bạn đã biết [Neuro-sama](https://www.youtube.com/@Neurosama). Cô
 
 Do đó, dự án AIRI mang đến một lựa chọn khác: **cho phép bạn sở hữu thực thể số của riêng mình, dễ dàng, mọi lúc, mọi nơi.**
 
+## Tải Về Hay Dùng Web?
+
+Bạn có thể thử phiên bản web của AIRI tại [airi.moeru.ai](https://airi.moeru.ai) ngay bây giờ.
+Bạn cũng có thể tải các phiên bản desktop cho Windows, macOS và Linux dưới đây, có thể dùng làm bạn đồng hành trên máy tính / thú cưng ảo trên desktop, bao gồm nhiều tính năng độc đáo:
+
+<p float="left">
+  <!-- readme-section:release-binary-windows -->
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.6/AIRI-0.9.0-alpha.6-darwin-arm64.dmg">
+    <picture>
+      <source
+        width="33.5%"
+        srcset="./content/public/assets/download-buttons/Download buttons - Windows.dark.en-US.avif"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="33.5%"
+        srcset="./content/public/assets/download-buttons/Download buttons - Windows.light.en-US.avif"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="33.5%" src="./content/public/assets/download-buttons/Download buttons - Windows.light.en-US.avif" />
+    </picture>
+  </a>
+  <!-- readme-section:release-binary-macos -->
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.6/AIRI-0.9.0-alpha.6-darwin-arm64.dmg">
+    <picture>
+      <source
+        width="33.5%"
+        srcset="./content/public/assets/download-buttons/Download buttons - macOS.dark.en-US.avif"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="33.5%"
+        srcset="./content/public/assets/download-buttons/Download buttons - macOS.light.en-US.avif"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="33.5%" src="./content/public/assets/download-buttons/Download buttons - macOS.light.en-US.avif" />
+    </picture>
+  </a>
+  <a href="https://github.com/moeru-ai/airi/releases/latest">
+    <picture>
+      <source
+        width="32%"
+        srcset="./content/public/assets/download-buttons/Download buttons - Linux.dark.en-US.avif"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="32%"
+        srcset="./content/public/assets/download-buttons/Download buttons - Linux.light.en-US.avif"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="32%" src="./content/public/assets/download-buttons/Download buttons - Linux.light.en-US.avif" />
+    </picture>
+  </a>
+</p>
+
 ---
 
 ## DevLogs Đã Đăng & Cập Nhật Gần Đây
