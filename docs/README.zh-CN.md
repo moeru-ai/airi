@@ -72,15 +72,15 @@
     <picture>
       <source
         width="33.5%"
-        srcset="./docs/content/public/assets/download-buttons/Download buttons - Windows.dark.zh-Hans.avif"
+        srcset="./content/public/assets/download-buttons/Download buttons - Windows.dark.zh-Hans.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33.5%"
-        srcset="./docs/content/public/assets/download-buttons/Download buttons - Windows.light.zh-Hans.avif"
+        srcset="./content/public/assets/download-buttons/Download buttons - Windows.light.zh-Hans.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33.5%" src="./docs/content/public/assets/download-buttons/Download buttons - Windows.light.zh-Hans.avif" />
+      <img width="33.5%" src="./content/public/assets/download-buttons/Download buttons - Windows.light.zh-Hans.avif" />
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
@@ -88,30 +88,30 @@
   <picture>
     <source
       width="33.5%"
-      srcset="./docs/content/public/assets/download-buttons/Download buttons - macOS.dark.zh-Hans.avif"
+      srcset="./content/public/assets/download-buttons/Download buttons - macOS.dark.zh-Hans.avif"
       media="(prefers-color-scheme: dark)"
     />
     <source
       width="33.5%"
-      srcset="./docs/content/public/assets/download-buttons/Download buttons - macOS.light.zh-Hans.avif"
+      srcset="./content/public/assets/download-buttons/Download buttons - macOS.light.zh-Hans.avif"
       media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
     />
-    <img width="33.5%" src="./docs/content/public/assets/download-buttons/Download buttons - macOS.light.zh-Hans.avif" />
+    <img width="33.5%" src="./content/public/assets/download-buttons/Download buttons - macOS.light.zh-Hans.avif" />
     </picture>
   </a>
   <a href="https://github.com/moeru-ai/airi/releases/latest">
     <picture>
       <sourc
         width="32%"
-        srcset="./docs/content/public/assets/download-buttons/Download buttons - Linux.dark.zh-Hans.avif"
+        srcset="./content/public/assets/download-buttons/Download buttons - Linux.dark.zh-Hans.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="32%"
-        srcset="./docs/content/public/assets/download-buttons/Download buttons - Linux.light.zh-Hans.avif"
+        srcset="./content/public/assets/download-buttons/Download buttons - Linux.light.zh-Hans.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="32%" src="./docs/content/public/assets/download-buttons/Download buttons - Linux.light.zh-Hans.avif" />
+      <img width="32%" src="./content/public/assets/download-buttons/Download buttons - Linux.light.zh-Hans.avif" />
     </picture>
   </a>
 </p>
