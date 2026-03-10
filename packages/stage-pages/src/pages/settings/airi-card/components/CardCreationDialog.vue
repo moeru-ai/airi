@@ -5,6 +5,7 @@ import type { AiriExtension } from '@proj-airi/stage-ui/stores/modules/airi-card
 import kebabcase from '@stdlib/string-base-kebabcase'
 
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
@@ -37,10 +38,12 @@ const { t } = useI18n()
 const cardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
 const speechStore = useSpeechStore()
+const artistryStore = useArtistryStore()
 const providersStore = useProvidersStore()
 
 const { activeProvider: consciousnessProvider, activeModel: defaultConsciousnessModel } = storeToRefs(consciousnessStore)
 const { activeSpeechProvider: speechProvider, activeSpeechModel: defaultSpeechModel, activeSpeechVoiceId: defaultSpeechVoiceId } = storeToRefs(speechStore)
+const { activeProvider: defaultArtistryProvider } = storeToRefs(artistryStore)
 
 // Determine if we're in edit mode
 const isEditMode = computed(() => !!props.cardId)
@@ -51,13 +54,23 @@ const selectedConsciousnessModel = ref<string>('')
 const selectedSpeechProvider = ref<string>('')
 const selectedSpeechModel = ref<string>('')
 const selectedSpeechVoiceId = ref<string>('')
+const selectedArtistryProvider = ref<string>('')
+const selectedArtistryModel = ref<string>('')
+const selectedArtistryPromptPrefix = ref<string>('')
+const selectedArtistryConfigStr = ref<string>('{\n  \n}')
 
-// Computed: available consciousness provider options
 const consciousnessProviderOptions = computed(() => {
   return providersStore.configuredChatProvidersMetadata.map(provider => ({
     value: provider.id,
     label: provider.localizedName || provider.name,
   }))
+})
+
+const artistryProviderOptions = computed(() => {
+  return [
+    { value: 'replicate', label: 'Replicate' },
+    { value: 'comfyui', label: 'ComfyUI' },
+  ]
 })
 
 // Computed: available consciousness models options
@@ -260,6 +273,20 @@ function saveCard(card: Card): boolean {
     },
   }
 
+  // Inject artistry manually to avoid TS errors
+  cardWithModules.extensions.airi.artistry = {
+    provider: selectedArtistryProvider.value || defaultArtistryProvider.value,
+    model: selectedArtistryModel.value,
+    promptPrefix: selectedArtistryPromptPrefix.value,
+    options: (() => {
+      try {
+        return selectedArtistryConfigStr.value.trim() ? JSON.parse(selectedArtistryConfigStr.value) : undefined
+      } catch {
+        return undefined
+      }
+    })()
+  }
+
   if (isEditMode.value && props.cardId) {
     // Edit mode: update existing card
     cardStore.updateCard(props.cardId, cardWithModules)
@@ -287,6 +314,14 @@ function initializeCard(): Card {
   selectedSpeechProvider.value = airiExt?.modules?.speech?.provider || speechProvider.value
   selectedSpeechModel.value = airiExt?.modules?.speech?.model || defaultSpeechModel.value
   selectedSpeechVoiceId.value = airiExt?.modules?.speech?.voice_id || defaultSpeechVoiceId.value
+  selectedArtistryProvider.value = airiExt?.artistry?.provider || defaultArtistryProvider.value
+  selectedArtistryModel.value = airiExt?.artistry?.model || ''
+  selectedArtistryPromptPrefix.value = airiExt?.artistry?.promptPrefix || ''
+  try {
+    selectedArtistryConfigStr.value = airiExt?.artistry?.options ? JSON.stringify(airiExt.artistry.options, null, 2) : '{\n  \n}'
+  } catch {
+    selectedArtistryConfigStr.value = '{\n  \n}'
+  }
 
   // Return existing card data or defaults
   if (existingCard) {
@@ -503,6 +538,41 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   :placeholder="getDefaultPlaceholder(defaultSpeechVoiceId)"
                   :disabled="!selectedSpeechProvider && !speechProvider"
                   class="w-full"
+                />
+              </div>
+
+              <!-- Artistry Provider -->
+              <div :class="['flex', 'flex-col', 'gap-2']">
+                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
+                  <div i-lucide:image />
+                  Artistry Provider
+                </label>
+                <Select
+                  v-model="selectedArtistryProvider"
+                  :options="artistryProviderOptions"
+                  :placeholder="getDefaultPlaceholder(defaultArtistryProvider)"
+                  class="w-full"
+                />
+              </div>
+
+              <!-- Artistry Extra Config -->
+              <div class="col-span-1 md:col-span-2 mt-4 flex flex-col gap-5">
+                <FieldInput
+                  v-model="selectedArtistryModel"
+                  label="Artistry Model (Optional Override)"
+                  description="Model identifier if needed by provider"
+                  placeholder="e.g. black-forest-labs/flux-schnell"
+                />
+                <FieldInput
+                  v-model="selectedArtistryPromptPrefix"
+                  label="Artistry Prompt Default Prefix"
+                  description="Pre-pended to every prompt sent to the image generator."
+                  placeholder="e.g. Masterpiece, high quality, 1girl, anime,"
+                />
+                <FieldInput
+                  v-model="selectedArtistryConfigStr"
+                  label="Artistry Provider Options (JSON)"
+                  :single-line="false"
                 />
               </div>
             </div>

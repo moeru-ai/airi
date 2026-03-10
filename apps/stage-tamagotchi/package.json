@@ -114,6 +114,7 @@
     "reka-ui": "^2.8.2",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
+    "replicate": "^1.0.1",
     "shiki": "^3.23.0",
     "splitpanes": "catalog:",
     "std-env": "^4.0.0-rc.1",

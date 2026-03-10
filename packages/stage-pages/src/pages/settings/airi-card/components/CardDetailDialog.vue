@@ -4,6 +4,7 @@ import type { AiriCard } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import DOMPurify from 'dompurify'
 
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { Button } from '@proj-airi/ui'
@@ -36,8 +37,10 @@ const consciousnessStore = useConsciousnessStore()
 const speechStore = useSpeechStore()
 const { removeCard } = cardStore
 const { activeCardId } = storeToRefs(cardStore)
+const artistryStore = useArtistryStore()
 const { activeProvider: consciousnessProvider, activeModel: defaultConsciousnessModel } = storeToRefs(consciousnessStore)
 const { activeSpeechProvider: speechProvider, activeSpeechModel: defaultSpeechModel, activeSpeechVoiceId: defaultVoiceId } = storeToRefs(speechStore)
+const { activeProvider: defaultArtistryProvider } = storeToRefs(artistryStore)
 
 // Get selected card data
 const selectedCard = computed<AiriCard | undefined>(() => {
@@ -65,6 +68,12 @@ const moduleSettings = computed(() => {
     speechProvider: airiExt.speech?.provider || '',
     speech: airiExt.speech?.model || '',
     voice: airiExt.speech?.voice_id || '',
+    artistryProvider: selectedCard.value.extensions.airi?.artistry?.provider || '',
+    artistryModel: selectedCard.value.extensions.airi?.artistry?.model || '',
+    artistryPromptPrefix: selectedCard.value.extensions.airi?.artistry?.promptPrefix || '',
+    artistryOptions: selectedCard.value.extensions.airi?.artistry?.options
+      ? JSON.stringify(selectedCard.value.extensions.airi.artistry.options)
+      : '',
   }
 })
 
@@ -380,6 +389,58 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                   </span>
                   <div truncate font-medium>
                     {{ getModuleDisplayValue(moduleSettings.voice, defaultVoiceId) }}
+                  </div>
+                </div>
+
+                <div
+                  flex="~ col"
+                  bg="white/60 dark:black/30"
+                  gap-2 rounded-lg p-3
+                  border="~ neutral-200/50 dark:neutral-700/30"
+                  transition="all duration-200"
+                  hover="bg-white/80 dark:bg-black/40"
+                >
+                  <div class="col-span-1 flex flex-col gap-1">
+                    <span class="text-xs text-neutral-400 dark:text-neutral-500 flex items-center gap-1">
+                      <div class="i-lucide:image text-xs" />
+                      Artistry Provider
+                    </span>
+                    <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                      {{ getModuleDisplayValue(moduleSettings.artistryProvider, defaultArtistryProvider) }}
+                    </span>
+                  </div>
+                  
+                  <!-- Artistry Model -->
+                  <div class="col-span-1 flex flex-col gap-1">
+                    <span class="text-xs text-neutral-400 dark:text-neutral-500 flex items-center gap-1">
+                      <div class="i-lucide:cpu text-xs" />
+                      Artistry Model (Optional Override)
+                    </span>
+                    <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                      {{ getModuleDisplayValue(moduleSettings.artistryModel, 'None') }}
+                    </span>
+                  </div>
+
+                  <!-- Artistry Prompt Prefix -->
+                  <div class="col-span-1 md:col-span-2 flex flex-col gap-1">
+                    <span class="text-xs text-neutral-400 dark:text-neutral-500 flex items-center gap-1">
+                      <div class="i-lucide:type text-xs" />
+                      Artistry Prompt Default Prefix
+                    </span>
+                    <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                      {{ getModuleDisplayValue(moduleSettings.artistryPromptPrefix, 'None') }}
+                    </span>
+                  </div>
+
+                  <!-- Artistry Config JSON -->
+                  <div class="col-span-1 md:col-span-2 flex flex-col gap-1">
+                    <span class="text-xs text-neutral-400 dark:text-neutral-500 flex items-center gap-1">
+                      <div class="i-lucide:braces text-xs" />
+                      Artistry Provider Options (JSON)
+                    </span>
+                    <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300 font-mono break-all whitespace-pre-wrap">
+                      {{ getModuleDisplayValue(moduleSettings.artistryOptions, 'None') }}
+                    </span>
                   </div>
                 </div>
               </div>

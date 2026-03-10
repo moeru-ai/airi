@@ -18,7 +18,7 @@ import { widgetsClearEvent, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdat
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { setupCuippBridge } from '../../services/airi/widgets/cuipp'
+import { setupArtistryBridge } from '../../services/airi/widgets/artistry-bridge'
 import { spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
 import { setupWidgetsWindowInvokes } from './rpc/index.electron'
 
@@ -256,6 +256,17 @@ export function setupWidgetsWindowManager(params: {
     await showWindowWithRoute(route, context)
   }
 
+  async function hideWindow(params?: { id?: string }) {
+    const id = params?.id
+    const context = id ? windowContexts.get(id) : undefined
+    if (context?.window) {
+      context.window.hide()
+    } else {
+      const window = await getWindow()
+      window.hide()
+    }
+  }
+
   async function pushWidget(payload: WidgetsAddPayload): Promise<string> {
     const id = prepareWidgetWindow({ id: payload.id })
     const snapshot: WidgetSnapshot = {
@@ -330,11 +341,12 @@ export function setupWidgetsWindowManager(params: {
     clearWidgets,
     getWidgetSnapshot,
     prepareWidgetWindow,
+    hideWindow,
     emit,
   }
 
-  // Initialize CUIPP bridge
-  setupCuippBridge({ widgetsManager: widgetsManager! })
+  // Initialize Artistry Bridge (handles ComfyUI + Replicate image generation)
+  setupArtistryBridge({ widgetsManager: widgetsManager! })
 
   return widgetsManager!
 }
@@ -342,6 +354,7 @@ export function setupWidgetsWindowManager(params: {
 export interface WidgetsWindowManager {
   getWindow: () => Promise<BrowserWindow>
   openWindow: (params?: { id?: string }) => Promise<void>
+  hideWindow: (params?: { id?: string }) => Promise<void>
   pushWidget: (payload: WidgetsAddPayload) => Promise<string>
   updateWidget: (payload: { id: string, componentProps?: Record<string, any> }) => Promise<void>
   removeWidget: (id: string) => Promise<void>

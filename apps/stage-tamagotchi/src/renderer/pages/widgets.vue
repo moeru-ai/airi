@@ -168,7 +168,8 @@ const Registry: Record<string, any> = {
     loadingComponent: WeatherSkeleton,
   }),
   map: defineAsyncComponent(() => import('../widgets/map').then(m => m.Map)),
-  comfy: defineAsyncComponent(() => import('../widgets/comfy').then(m => m.Comfy)),
+  artistry: defineAsyncComponent(() => import('../widgets/artistry').then(m => m.Artistry)),
+  comfy: defineAsyncComponent(() => import('../widgets/artistry').then(m => m.Artistry)),
 }
 
 const GenericWidget = defineComponent({
