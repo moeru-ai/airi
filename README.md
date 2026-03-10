@@ -255,6 +255,15 @@ A Nix package for Tamagotchi is included. To run airi with Nix, first make sure 
 nix run github:moeru-ai/airi
 ```
 
+#### NixOS
+
+Electron requires shared libraries that aren't in standard paths on NixOS. Use the FHS shell defined in `flake.nix`:
+
+```shell
+nix develop .#fhs
+pnpm dev:tamagotchi
+```
+
 ### Stage Pocket (Mobile Version)
 
 Start the development server for the capacitor:
