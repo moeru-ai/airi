@@ -67,6 +67,12 @@ export const useLive2d = defineStore('live2d', () => {
   const motionMap = useLocalStorageManualReset<Record<string, string>>('settings/live2d/motion-map', {})
   const scale = useLocalStorageManualReset('settings/live2d/scale', 1)
 
+  // Meta information from CDI and EXP files
+  const availableExpressions = useLocalStorageManualReset<{ name: string, fileName: string }[]>('settings/live2d/available-expressions', () => [])
+  const parameterMetadata = useLocalStorageManualReset<{ id: string, name: string, groupId?: string, groupName?: string }[]>('settings/live2d/parameter-metadata', () => [])
+  const emotionMappings = useLocalStorageManualReset<Record<string, string>>('settings/live2d/emotion-mappings', {})
+  const expressionData = ref<Array<{ name: string, fileName: string, data: any }>>([])
+
   // Live2D model parameters
   const modelParameters = useLocalStorageManualReset<Record<string, number>>('settings/live2d/parameters', defaultModelParameters)
 
@@ -76,6 +82,9 @@ export const useLive2d = defineStore('live2d', () => {
     availableMotions.reset()
     motionMap.reset()
     scale.reset()
+    availableExpressions.reset()
+    parameterMetadata.reset()
+    emotionMappings.reset()
     modelParameters.reset()
     shouldUpdateView()
   }
@@ -87,6 +96,10 @@ export const useLive2d = defineStore('live2d', () => {
     availableMotions,
     motionMap,
     scale,
+    availableExpressions,
+    parameterMetadata,
+    emotionMappings,
+    expressionData,
     modelParameters,
 
     onShouldUpdateView,

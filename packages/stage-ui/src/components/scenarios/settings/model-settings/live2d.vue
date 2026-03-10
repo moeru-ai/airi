@@ -6,6 +6,8 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import Live2DCustomization from './live2d-customization.vue'
+
 import { useSettings } from '../../../../stores/settings'
 import { Section } from '../../../layouts'
 import { ColorPalette } from '../../../widgets'
@@ -292,6 +294,20 @@ onUnmounted(() => {
       v-model="live2dDisableFocus"
       :label="t('settings.live2d.focus.button-disable.title')"
     />
+  </Section>
+
+  <Section
+    title="Customization"
+    icon="i-solar:magic-stick-bold-duotone"
+    :class="[
+      'rounded-xl',
+      'bg-white/80  dark:bg-black/75',
+      'backdrop-blur-lg',
+    ]"
+    size="sm"
+    :expand="true"
+  >
+    <Live2DCustomization />
   </Section>
   <Section
     title="Parameters"
