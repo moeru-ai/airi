@@ -5,7 +5,7 @@
  *
  * Log file naming: airi-tamagotchi-{timestamp}.log
  * - No rotation needed due to unique timestamp per session
- * - No concurrent write issues (single Electron instance per timestamp)
+ * - Unique timestamp per session avoids cross-process log file sharing
  * - Easy to identify and debug specific sessions
  *
  * @example
