@@ -3,7 +3,7 @@ import type { BrowserWindow } from 'electron'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { bounds, startLoopGetBounds } from '@proj-airi/electron-eventa'
-import { createRendererLoop } from '@proj-airi/electron-vueuse/main'
+import { createRendererLoop, safeClose } from '@proj-airi/electron-vueuse/main'
 
 import { electron, electronWindowClose, electronWindowSetAlwaysOnTop } from '../../../shared/eventa'
 import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecycle'
@@ -84,7 +84,7 @@ export function createWindowService(params: { context: ReturnType<typeof createC
 
   defineInvokeHandler(params.context, electronWindowClose, (_, options) => {
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
-      params.window.close()
+      safeClose(params.window)
     }
   })
 }

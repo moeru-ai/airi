@@ -1187,6 +1187,9 @@ importers:
       std-env:
         specifier: ^4.0.0-rc.1
         version: 4.0.0-rc.1
+      superjson:
+        specifier: 'catalog:'
+        version: 2.2.6
       three:
         specifier: ^0.183.1
         version: 0.183.1

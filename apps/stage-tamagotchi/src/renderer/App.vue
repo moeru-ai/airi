@@ -18,7 +18,7 @@ import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from 
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { onMounted, onUnmounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
@@ -77,6 +77,7 @@ const listMcpTools = useElectronEventaInvoke(electronMcpListTools)
 const callMcpTool = useElectronEventaInvoke(electronMcpCallTool)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
 const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
+const shouldHandleOnboardingInCurrentWindow = computed(() => route.path === '/')
 
 // NOTICE: register plugin host bridge during setup to avoid race with pages using it in immediate watchers.
 pluginHostInspectorStore.setBridge({
@@ -108,11 +109,14 @@ onMounted(() => updateThemeColor())
 onMounted(async () => {
   analyticsStore.initialize()
   cardStore.initialize()
-  onboardingStore.initializeSetupCheck()
 
   await chatSessionStore.initialize()
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
+
+  if (shouldHandleOnboardingInCurrentWindow.value) {
+    await onboardingStore.initializeSetupCheck()
+  }
 
   const serverChannelConfig = await getServerChannelConfig()
   serverChannelSettingsStore.websocketTlsConfig = serverChannelConfig.websocketTlsConfig
@@ -147,8 +151,8 @@ watch(themeColorsHueDynamic, () => {
   document.documentElement.classList.toggle('dynamic-hue', themeColorsHueDynamic.value)
 }, { immediate: true })
 
-watch(() => onboardingStore.shouldShowSetup, () => {
-  if (onboardingStore.shouldShowSetup) {
+watch([() => onboardingStore.shouldShowSetup, shouldHandleOnboardingInCurrentWindow], ([shouldShowSetup, shouldHandleOnboarding]) => {
+  if (shouldHandleOnboarding && shouldShowSetup) {
     openOnboarding()
   }
 }, { immediate: true })
