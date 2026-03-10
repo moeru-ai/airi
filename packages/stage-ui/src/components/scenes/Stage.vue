@@ -539,6 +539,12 @@ chatHookCleanups.push(onStreamEnd(async () => {
 chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
   currentChatIntent?.end()
   currentChatIntent = null
+
+  // Restore VRM expressions to user-configured defaults after speech ends
+  // (e.g., school uniform stays on even after the AI triggered other expressions)
+  if (stageModelRenderer.value === 'vrm') {
+    vrmViewerRef.value?.restoreDefaultExpressions()
+  }
   // const res = await embed({
   //   ...transformersProvider.embed('Xenova/nomic-embed-text-v1'),
   //   input: message,
