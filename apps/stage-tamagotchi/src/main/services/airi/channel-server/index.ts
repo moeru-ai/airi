@@ -325,3 +325,5 @@ export async function createServerChannelService(params: { serverChannel: Server
     }
   })
 }
+
+export type { Server as ServerChannel }
