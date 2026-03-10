@@ -263,9 +263,16 @@ export function setupApp(options?: {
         // In that case, fall back to JSON.parse so external clients can interoperate.
         const text = message.text()
         const parsed = parse<WebSocketEvent>(text)
-        event = (parsed && typeof parsed === 'object' && 'type' in parsed)
+        const potentialEvent = (parsed && typeof parsed === 'object' && 'type' in parsed)
           ? parsed
-          : JSON.parse(text) as WebSocketEvent
+          : JSON.parse(text)
+
+        if (!potentialEvent || typeof potentialEvent !== 'object' || !('type' in potentialEvent)) {
+          send(peer, RESPONSES.error('invalid event format', instanceId))
+          return
+        }
+
+        event = potentialEvent as WebSocketEvent
       }
       catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err)
