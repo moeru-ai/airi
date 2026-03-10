@@ -88,7 +88,7 @@ export function createConfig<TSchema extends PersistedSchema>(
     try {
       const path = configPath()
       if (existsSync(path)) {
-        await copyFile(path, `${path}.bak`).catch(() => {})
+await copyFile(path, `${path}.bak`).catch(err => console.warn('Failed to create backup for config:', path, err))
       }
       await writeFile(path, JSON.stringify(value))
       return true
