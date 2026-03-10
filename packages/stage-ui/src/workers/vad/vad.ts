@@ -4,6 +4,8 @@ import type { BaseVAD, BaseVADConfig, VADEventCallback, VADEvents } from '../../
 
 import { AutoModel, Tensor } from '@huggingface/transformers'
 
+import { getVadModelBaseUrl } from '../../libs/audio/vad-assets'
+
 /**
  * Voice Activity Detection processor
  */
@@ -48,8 +50,12 @@ export class VAD implements BaseVAD {
     try {
       this.emit('status', { type: 'info', message: 'Loading VAD model...' })
 
-      // Full-precision
-      this.model = await AutoModel.from_pretrained('onnx-community/silero-vad', { config: { model_type: 'custom' } as any, dtype: 'fp32' })
+      const modelBaseUrl = getVadModelBaseUrl()
+      this.model = await AutoModel.from_pretrained(modelBaseUrl, {
+        config: { model_type: 'custom' } as any,
+        dtype: 'fp32',
+        local_files_only: true,
+      })
       this.isReady = true
 
       this.emit('status', { type: 'info', message: 'VAD model loaded successfully' })

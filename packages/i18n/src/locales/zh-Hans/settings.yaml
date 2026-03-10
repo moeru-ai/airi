@@ -34,6 +34,12 @@ language:
   title: 语言
   description: >
     切换显示界面的语言
+hearing:
+  title: 听觉
+  description: 语音识别
+narration:
+  title: 朗诵回复
+  description: 开启后将朗读 AIRI 的回复
 controls-island:
   icon-size:
     title: 控制岛图标大小
@@ -391,6 +397,9 @@ pages:
           voice-settings:
             input-ssml:
               placeholder: 请输入 SSML 文本
+            narration:
+              label: 朗诵回复
+              description: 朗读回复同时保留字幕与嘴型动作
             use-ssml:
               description: 启用后可以输入原始 SSML 而不是纯文本
               label: 选用自定义 SSML

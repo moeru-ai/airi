@@ -501,9 +501,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           || (providerConfig.language as string)
           || 'en-US'
 
-        // Web Speech API in continuous mode should run indefinitely - no idle timeout
-        // Only stop when explicitly requested (e.g., microphone disabled)
-        const idleTimeout = options?.idleTimeoutMs ?? 0 // 0 = disabled
+        const idleTimeout = options?.idleTimeoutMs ?? DEFAULT_STREAM_IDLE_TIMEOUT
         let idleTimer: ReturnType<typeof setTimeout> | undefined
         const bumpIdle = () => {
           if (idleTimeout > 0) {

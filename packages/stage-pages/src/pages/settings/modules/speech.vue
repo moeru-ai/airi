@@ -35,6 +35,7 @@ const {
   activeSpeechVoice,
   activeSpeechVoiceId,
   pitch,
+  narrationEnabled,
   isLoadingSpeechProviderVoices,
   supportsModelListing,
   providerModels,
@@ -91,15 +92,13 @@ onMounted(async () => {
 })
 
 watch(activeSpeechProvider, async (newProvider, oldProvider) => {
-  await providersStore.loadModelsForConfiguredProviders()
-  await speechStore.loadVoicesForProvider(newProvider)
-
-  // Reset model and voice when switching providers (but not on initial load)
   if (oldProvider !== undefined && oldProvider !== newProvider) {
     activeSpeechModel.value = ''
     activeSpeechVoiceId.value = ''
     activeSpeechVoice.value = undefined
   }
+  await providersStore.loadModelsForConfiguredProviders()
+  await speechStore.loadVoicesForProvider(newProvider)
 
   syncOpenAICompatibleSettings()
 })
@@ -493,6 +492,11 @@ function updateCustomModelName(value: string | undefined) {
 
           <!-- Voice parameters -->
           <div flex="~ col gap-4">
+            <FieldCheckbox
+              v-model="narrationEnabled"
+              :label="t('settings.pages.modules.speech.sections.section.voice-settings.narration.label')"
+              :description="t('settings.pages.modules.speech.sections.section.voice-settings.narration.description')"
+            />
             <FieldRange
               v-model="pitch"
               label="Pitch"

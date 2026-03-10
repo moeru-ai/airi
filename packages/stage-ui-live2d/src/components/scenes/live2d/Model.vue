@@ -22,7 +22,7 @@ import {
   useMotionUpdatePluginIdleDisable,
   useMotionUpdatePluginIdleFocus,
 } from '../../../composables/live2d'
-import { EMOTION_VALUES, Emotion } from '../../../constants/emotions'
+import { Emotion, EMOTION_VALUES } from '../../../constants/emotions'
 import { useLive2d } from '../../../stores/live2d'
 
 const props = withDefaults(defineProps<{
@@ -167,6 +167,7 @@ const {
   availableMotions,
   motionMap,
   modelParameters,
+  motionLockEnabled,
 } = storeToRefs(live2dStore)
 
 const themeColorsHue = toRef(() => props.themeColorsHue)
@@ -327,6 +328,7 @@ async function loadModel() {
       live2dIdleAnimationEnabled,
       live2dAutoBlinkEnabled,
       live2dForceAutoBlinkEnabled,
+      motionLockEnabled,
       lastUpdateTime,
     })
 

@@ -32,6 +32,7 @@ export const useSpeechStore = defineStore('speech', () => {
 
   const pitch = useLocalStorageManualReset<number>('settings/speech/pitch', 0)
   const rate = useLocalStorageManualReset<number>('settings/speech/rate', 1)
+  const narrationEnabled = useLocalStorageManualReset<boolean>('settings/speech/narration-enabled', true)
   const ssmlEnabled = useLocalStorageManualReset<boolean>('settings/speech/ssml-enabled', false)
   const isLoadingSpeechProviderVoices = refManualReset<boolean>(false)
   const speechProviderError = refManualReset<string | null>(null)
@@ -81,6 +82,28 @@ export const useSpeechStore = defineStore('speech', () => {
     return ['elevenlabs', 'microsoft-speech', 'azure-speech', 'google', 'volcengine'].includes(activeSpeechProvider.value)
   })
 
+  function ensureDefaultModel(provider: string) {
+    if (activeSpeechModel.value)
+      return
+    if (provider === 'alibaba-cloud-model-studio') {
+      activeSpeechModel.value = 'cosyvoice-v1'
+      return
+    }
+    const models = providersStore.getModelsForProvider(provider)
+    if (models.length > 0) {
+      activeSpeechModel.value = models[0].id
+    }
+  }
+
+  function ensureDefaultVoice(provider: string, voices: VoiceInfo[]) {
+    if (activeSpeechProvider.value !== provider)
+      return
+    if (activeSpeechVoiceId.value || voices.length === 0)
+      return
+    activeSpeechVoiceId.value = voices[0].id
+    activeSpeechVoice.value = voices[0]
+  }
+
   async function loadVoicesForProvider(provider: string) {
     if (!provider) {
       return []
@@ -96,6 +119,8 @@ export const useSpeechStore = defineStore('speech', () => {
         ...availableVoices.value,
         [provider]: voices,
       }
+      ensureDefaultModel(provider)
+      ensureDefaultVoice(provider, voices)
       return voices
     }
     catch (error) {
@@ -116,6 +141,7 @@ export const useSpeechStore = defineStore('speech', () => {
   // Watch for provider changes and load voices
   watch(activeSpeechProvider, async (newProvider) => {
     if (newProvider) {
+      ensureDefaultModel(newProvider)
       await loadVoicesForProvider(newProvider)
       // Don't reset voice settings when changing providers to allow for persistence
     }
@@ -127,6 +153,9 @@ export const useSpeechStore = defineStore('speech', () => {
   onMounted(() => {
     if (!activeSpeechProvider.value && configuredSpeechProvidersMetadata.value.length > 0) {
       activeSpeechProvider.value = configuredSpeechProvidersMetadata.value[0].id
+    }
+    if (activeSpeechProvider.value) {
+      ensureDefaultModel(activeSpeechProvider.value)
     }
     loadVoicesForProvider(activeSpeechProvider.value).then(() => {
       if (activeSpeechVoiceId.value) {
@@ -258,6 +287,7 @@ export const useSpeechStore = defineStore('speech', () => {
     activeSpeechVoice.reset()
     pitch.reset()
     rate.reset()
+    narrationEnabled.reset()
     ssmlEnabled.reset()
     selectedLanguage.reset()
     modelSearchQuery.reset()
@@ -275,6 +305,7 @@ export const useSpeechStore = defineStore('speech', () => {
     activeSpeechVoiceId,
     pitch,
     rate,
+    narrationEnabled,
     ssmlEnabled,
     selectedLanguage,
     isLoadingSpeechProviderVoices,

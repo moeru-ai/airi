@@ -37,6 +37,12 @@ language:
   description: >
     Change the language of the AIRI interface. This will not affect the language
     of the character's responses.
+hearing:
+  title: Hearing
+  description: Speech recognition
+narration:
+  title: Narrate Responses
+  description: Enable speech playback for AIRI responses
 controls-island:
   icon-size:
     title: Controls Island Icon Size
@@ -406,6 +412,9 @@ pages:
           voice-settings:
             input-ssml:
               placeholder: Enter SSML text...
+            narration:
+              label: Narrate Responses
+              description: Read responses aloud while keeping subtitles and mouth motion
             use-ssml:
               description: Enable to input raw SSML instead of plain text
               label: Use Custom SSML

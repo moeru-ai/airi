@@ -66,6 +66,7 @@ export const useLive2d = defineStore('live2d', () => {
   const availableMotions = useLocalStorageManualReset<{ motionName: string, motionIndex: number, fileName: string }[]>('settings/live2d/available-motions', () => [])
   const motionMap = useLocalStorageManualReset<Record<string, string>>('settings/live2d/motion-map', {})
   const scale = useLocalStorageManualReset('settings/live2d/scale', 1)
+  const motionLockEnabled = useLocalStorageManualReset('settings/live2d/motion-lock-enabled', false)
 
   // Live2D model parameters
   const modelParameters = useLocalStorageManualReset<Record<string, number>>('settings/live2d/parameters', defaultModelParameters)
@@ -87,6 +88,7 @@ export const useLive2d = defineStore('live2d', () => {
     availableMotions,
     motionMap,
     scale,
+    motionLockEnabled,
     modelParameters,
 
     onShouldUpdateView,

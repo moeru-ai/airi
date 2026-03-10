@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { all } from '@proj-airi/i18n'
+import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { FieldCheckbox, FieldSelect, useTheme } from '@proj-airi/ui'
+import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -14,6 +16,8 @@ const props = withDefaults(defineProps<{
 const showControlsIsland = computed(() => props.needsControlsIslandIconSizeSetting)
 
 const settings = useSettings()
+const speechStore = useSpeechStore()
+const { narrationEnabled } = storeToRefs(speechStore)
 
 const { t } = useI18n()
 const { isDark: dark } = useTheme()
@@ -51,6 +55,17 @@ const languages = computed(() => {
       :options="languages as Array<{ value: string; label: string }>"
     />
 
+    <FieldCheckbox
+      v-model="narrationEnabled"
+      v-motion
+      :initial="{ opacity: 0, y: 10 }"
+      :enter="{ opacity: 1, y: 0 }"
+      :duration="250 + (4 * 10)"
+      :delay="4 * 50"
+      :label="t('settings.narration.title')"
+      :description="t('settings.narration.description')"
+    />
+
     <!-- Controls Island Icon Size -->
     <FieldSelect
       v-if="showControlsIsland"
@@ -58,8 +73,8 @@ const languages = computed(() => {
       v-motion
       :initial="{ opacity: 0, y: 10 }"
       :enter="{ opacity: 1, y: 0 }"
-      :duration="250 + (4 * 10)"
-      :delay="4 * 50"
+      :duration="250 + (5 * 10)"
+      :delay="5 * 50"
       transition="all ease-in-out duration-250"
       :label="t('settings.controls-island.icon-size.title')"
       :description="t('settings.controls-island.icon-size.description')"

@@ -42,8 +42,12 @@ const hearingStore = useHearingStore()
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
-const { configured: hearingConfigured, autoSendEnabled, autoSendDelay } = storeToRefs(hearingStore)
-const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
+const { configured: hearingConfigured, autoSendEnabled, autoSendDelay, activeTranscriptionProvider } = storeToRefs(hearingStore)
+const shouldUseStreamInput = computed(() => {
+  if (activeTranscriptionProvider.value === 'browser-web-speech-api')
+    return supportsStreamInput.value
+  return supportsStreamInput.value && !!stream.value
+})
 
 // Auto-send logic
 let autoSendTimeout: ReturnType<typeof setTimeout> | undefined
@@ -244,7 +248,8 @@ async function startListening() {
     }
 
     // Request microphone permission if needed (microphone should already be enabled by the user)
-    if (!stream.value) {
+    const isWebSpeech = hearingStore.activeTranscriptionProvider === 'browser-web-speech-api'
+    if (!stream.value && !isWebSpeech) {
       console.info('[ChatArea] Requesting microphone permission...')
       await askPermission()
 
@@ -264,7 +269,7 @@ async function startListening() {
       }
     }
 
-    if (!stream.value) {
+    if (!stream.value && !isWebSpeech) {
       const errorMsg = 'Failed to get audio stream for transcription. Please check microphone permissions and ensure a device is selected.'
       console.error('[ChatArea]', errorMsg)
       isListening.value = false
@@ -272,7 +277,7 @@ async function startListening() {
     }
 
     // Check if streaming input is supported
-    if (!shouldUseStreamInput.value) {
+    if (!shouldUseStreamInput.value && !isWebSpeech) {
       const errorMsg = 'Streaming input not supported by the selected transcription provider. Please select a provider that supports streaming (e.g., Web Speech API).'
       console.warn('[ChatArea]', errorMsg)
       // Clean up any existing sessions from other pages (e.g., test page) that might interfere
@@ -281,12 +286,13 @@ async function startListening() {
       return
     }
 
-    console.info('[ChatArea] Starting streaming transcription with stream:', stream.value.id)
+    const transcriptionStream = stream.value ?? new MediaStream()
+    console.info('[ChatArea] Starting streaming transcription with stream:', transcriptionStream.id)
 
     // Call transcribeForMediaStream - it's async so we await it
     // Set listening state AFTER successful call
     try {
-      await transcribeForMediaStream(stream.value, {
+      await transcribeForMediaStream(transcriptionStream, {
         onSentenceEnd: (delta) => {
           if (delta && delta.trim()) {
             // Append transcribed text to message input
