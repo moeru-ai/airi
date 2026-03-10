@@ -134,7 +134,7 @@ jobs:
 
       - name: Build (Windows Only) # Windows
         if: matrix.os == 'windows-latest'
-        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=${{ (inputs.build_only || inputs.artifacts_only) && 'never' || 'onTagOrDraft' }}
+        run: pnpm run -F @proj-airi/stage-tamagotchi build -- --sourcemap && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --config.includePdb=true --publish=${{ (inputs.build_only || inputs.artifacts_only) && 'never' || 'onTagOrDraft' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
