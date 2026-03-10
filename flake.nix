@@ -34,7 +34,12 @@
       };
 
       devShells = forAllSystems (
-        system: with (pkgsForSystem system); {
+        system:
+        let
+          pkgs = pkgsForSystem system;
+        in
+        with pkgs;
+        {
           default = mkShell {
             inputsFrom = [ self.packages.${system}.airi ];
             packages = [
@@ -45,6 +50,51 @@
               python314
             ];
           };
+
+          # FHS environment for running Electron on NixOS
+          # Usage: nix develop .#fhs
+          fhs = (
+            buildFHSEnv {
+              name = "airi-electron-fhs";
+              targetPkgs =
+                p: with p; [
+                  nodejs_22
+                  pnpm
+                  # Electron system library dependencies
+                  # Note: some packages need explicit output refs because the
+                  # default attribute doesn't point to the output with .so files
+                  glib.out # default 'glib' points to 'bin' output
+                  nss
+                  nspr
+                  dbus.lib # libdbus-1.so.3 is in 'lib' output, not 'out'
+                  atk
+                  at-spi2-atk
+                  at-spi2-core
+                  cups.lib # libcups.so.2 is in 'lib' output, not 'out'
+                  libdrm
+                  xorg.libX11
+                  xorg.libXcomposite
+                  xorg.libXdamage
+                  xorg.libXext
+                  xorg.libXfixes
+                  xorg.libXrandr
+                  xorg.libxcb
+                  xorg.libXcursor
+                  xorg.libXi
+                  xorg.libXtst
+                  expat
+                  libxkbcommon
+                  libgbm # libgbm.so.1 is now a separate package from mesa
+                  alsa-lib
+                  pango.out # default 'pango' points to 'bin' output
+                  cairo
+                  libGL
+                  gtk3
+                  systemd
+                ];
+              runScript = "bash";
+            }
+          ).env;
         }
       );
     };
