@@ -86,7 +86,7 @@ let fileLogger: FileLoggerHandle = nullFileLoggerHandle
 app.whenReady().then(async () => {
   // Initialize file logger and register the hook
   fileLogger = await setupFileLogger()
-  
+
   // Register the global hook for file logging
   setGlobalHookPostLog((_, formatted) => {
     if (fileLogger.logFileFd !== null) {
