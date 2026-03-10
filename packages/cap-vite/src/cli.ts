@@ -1,63 +1,55 @@
-import type { CapacitorPlatform } from '.'
+const usage = 'cap-vite [vite args...] -- <ios|android> [cap run args...]'
 
-import process from 'node:process'
-
-import { cac } from 'cac'
+const helpText = [
+  'Run a Vite dev server and forward a second argument group to `cap run`.',
+  '',
+  'Usage:',
+  `  ${usage}`,
+  '',
+  'Examples:',
+  '  cap-vite -- ios --target "iPhone 16 Pro"',
+  '  cap-vite --host 0.0.0.0 --port 5173 -- android --target emulator-5554 --flavor release',
+  '',
+  'Notes:',
+  '  Arguments before `--` are forwarded to Vite.',
+  '  Arguments after `--` are forwarded to `cap run`.',
+].join('\n')
 
 export interface ParsedCapViteCliArgs {
   capArgs: string[]
-  platform: CapacitorPlatform
-  target: string
+  viteArgs: string[]
 }
 
-const usage = 'cap-vite <ios|android> [--target <DEVICE_ID_OR_SIMULATOR_NAME>] [-- <cap args...>]'
-
-function createCapViteCli() {
-  const cli = cac('cap-vite')
-
-  cli.help()
-  cli
-    .command('<platform>', 'Run Capacitor with a Vite dev server')
-    .usage(usage)
-    .option('--target <target>', 'Set the Capacitor device target')
-    .example('cap-vite ios --target "iPhone 16 Pro" -- --scheme AIRI')
-    .example('CAPACITOR_DEVICE_ID=emulator-5554 cap-vite android -- --flavor release')
-
-  return cli
+export function getCapViteCliHelpText(): string {
+  return helpText
 }
 
-export function parseCapViteCliArgs(
-  argv: string[],
-  env: NodeJS.ProcessEnv = process.env,
-): ParsedCapViteCliArgs | null {
-  const cli = createCapViteCli()
-  const parsed = cli.parse(['node', 'cap-vite', ...argv], { run: false })
+export function getCapViteCliUsage(): string {
+  return usage
+}
 
-  if (cli.options.help) {
+export function parseCapViteCliArgs(argv: string[]): ParsedCapViteCliArgs | null {
+  if (argv.length === 1 && (argv[0] === '--help' || argv[0] === '-h')) {
     return null
   }
 
-  cli.matchedCommand?.checkUnknownOptions()
-  cli.matchedCommand?.checkOptionValue()
-  cli.matchedCommand?.checkRequiredArgs()
-
-  if (parsed.args.length > 1) {
+  const separatorIndex = argv.indexOf('--')
+  if (separatorIndex === -1) {
     throw new Error(usage)
   }
 
-  const platform = parsed.args[0]
+  const capArgs = argv.slice(separatorIndex + 1)
+  if (capArgs.length === 0) {
+    throw new Error(usage)
+  }
+
+  const platform = capArgs[0]
   if (platform !== 'android' && platform !== 'ios') {
     throw new Error(usage)
   }
 
-  const target = typeof parsed.options.target === 'string' ? parsed.options.target : env.CAPACITOR_DEVICE_ID
-  if (!target) {
-    throw new Error(usage)
-  }
-
   return {
-    capArgs: Array.isArray(parsed.options['--']) ? parsed.options['--'] : [],
-    platform,
-    target,
+    capArgs,
+    viteArgs: argv.slice(0, separatorIndex),
   }
 }
