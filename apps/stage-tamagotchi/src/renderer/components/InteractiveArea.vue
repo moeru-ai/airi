@@ -11,8 +11,10 @@ import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { BasicTextarea } from '@proj-airi/ui'
+import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { widgetsTools } from '../stores/tools/builtin/widgets'
@@ -32,6 +34,16 @@ const { t } = useI18n()
 const providersStore = useProvidersStore()
 const { activeModel, activeProvider } = storeToRefs(useConsciousnessStore())
 const isComposing = ref(false)
+const DOUBLE_ENTER_INTERVAL_MS = 300
+const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
+type SendMode = (typeof SEND_MODES)[number]
+const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter')
+const lastEnterTime = ref(0)
+const sendModeLabels = computed<Record<SendMode, string>>(() => ({
+  'enter': t('stage.send-mode.enter'),
+  'ctrl-enter': t('stage.send-mode.ctrl-enter'),
+  'double-enter': t('stage.send-mode.double-enter'),
+}))
 
 async function handleSend() {
   if (isComposing.value) {
@@ -78,6 +90,47 @@ async function handleSend() {
   }
 }
 
+function sendFromKeyboard() {
+  // eslint-disable-next-line e18e/prefer-static-regex
+  messageInput.value = messageInput.value.replace(/[\r\n]+$/, '')
+  void handleSend()
+}
+
+function handleMessageInputKeydown(event: KeyboardEvent) {
+  if (isComposing.value || event.key !== 'Enter')
+    return
+
+  const hasControl = event.ctrlKey || event.metaKey
+  const hasShift = event.shiftKey
+
+  switch (sendMode.value) {
+    case 'enter':
+      if (!hasShift && !hasControl) {
+        event.preventDefault()
+        sendFromKeyboard()
+      }
+      return
+    case 'ctrl-enter':
+      if (hasControl) {
+        event.preventDefault()
+        sendFromKeyboard()
+      }
+      return
+    case 'double-enter':
+      if (!hasShift && !hasControl) {
+        const now = Date.now()
+        if (now - lastEnterTime.value < DOUBLE_ENTER_INTERVAL_MS) {
+          event.preventDefault()
+          sendFromKeyboard()
+          lastEnterTime.value = 0
+        }
+        else {
+          lastEnterTime.value = now
+        }
+      }
+  }
+}
+
 async function handleFilePaste(files: File[]) {
   for (const file of files) {
     if (file.type.startsWith('image/')) {
@@ -112,6 +165,10 @@ onAfterMessageComposed(async () => {
   attachments.value = []
 })
 
+watch(sendMode, () => {
+  lastEnterTime.value = 0
+})
+
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 </script>
 
@@ -133,6 +190,50 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
       </div>
     </div>
     <div class="flex items-center justify-end gap-2 py-1">
+      <DropdownMenuRoot>
+        <DropdownMenuTrigger as-child>
+          <button
+            :class="[
+              'max-h-[10lh] min-h-[1lh] flex items-center justify-center rounded-md p-2 outline-none',
+              'transition-colors transition-transform active:scale-95',
+            ]"
+            bg="neutral-100 dark:neutral-800"
+            text="lg neutral-500 dark:neutral-400"
+            :title="t('stage.send-mode.title')"
+          >
+            <div class="i-solar:keyboard-bold-duotone" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuPortal>
+          <DropdownMenuContent
+            align="end"
+            side="top"
+            :side-offset="8"
+            :class="[
+              'z-50 min-w-[180px] rounded-lg border border-primary-200 bg-white p-1 shadow-xl',
+              'dark:border-primary-700 dark:bg-neutral-800',
+              'flex flex-col gap-1',
+            ]"
+          >
+            <DropdownMenuItem
+              v-for="mode in SEND_MODES"
+              :key="mode"
+              :class="[
+                'w-full flex cursor-pointer items-center rounded-md px-3 py-2 text-left text-xs outline-none transition-colors',
+                'hover:bg-primary-100 dark:hover:bg-primary-900/50',
+                sendMode === mode ? 'bg-primary-50 text-primary-600 font-semibold dark:bg-primary-900/20 dark:text-primary-300' : 'text-neutral-500',
+              ]"
+              @select="sendMode = mode"
+            >
+              <div class="mr-2 h-4 w-4 flex shrink-0 items-center justify-center">
+                <div v-if="sendMode === mode" class="i-ph:check-bold text-base" />
+              </div>
+              <span>{{ sendModeLabels[mode] }}</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenuPortal>
+      </DropdownMenuRoot>
+
       <button
         class="max-h-[10lh] min-h-[1lh]"
         bg="neutral-100 dark:neutral-800"
@@ -147,6 +248,7 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
     </div>
     <BasicTextarea
       v-model="messageInput"
+      :submit-on-enter="false"
       :placeholder="t('stage.message')"
       class="ph-no-capture"
       text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
@@ -157,7 +259,7 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
       transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
       @compositionstart="isComposing = true"
       @compositionend="isComposing = false"
-      @keydown.enter.exact.prevent="handleSend"
+      @keydown="handleMessageInputKeydown"
       @paste-file="handleFilePaste"
     />
   </div>
