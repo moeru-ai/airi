@@ -305,6 +305,9 @@ defineExpose({
   stopAnimations: () => {
     modelRef.value?.stopAnimations()
   },
+  restoreDefaultExpressions: () => {
+    modelRef.value?.restoreDefaultExpressions()
+  },
   readRenderTargetRegionAtClientPoint,
 })
 </script>
