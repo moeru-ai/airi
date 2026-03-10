@@ -12,13 +12,12 @@ import { clearMcpToolBridge, setMcpToolBridge } from '@proj-airi/stage-ui/stores
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
@@ -29,7 +28,6 @@ import {
   electronGetServerChannelConfig,
   electronMcpCallTool,
   electronMcpListTools,
-  electronOpenOnboarding,
   electronOpenSettings,
   electronPluginInspect,
   electronPluginList,
@@ -52,7 +50,6 @@ const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settingsStore)
 const serverChannelSettingsStore = useServerChannelSettingsStore()
-const onboardingStore = useOnboardingStore()
 const router = useRouter()
 const route = useRoute()
 const cardStore = useAiriCardStore()
@@ -76,8 +73,6 @@ const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapab
 const listMcpTools = useElectronEventaInvoke(electronMcpListTools)
 const callMcpTool = useElectronEventaInvoke(electronMcpCallTool)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
-const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
-const shouldHandleOnboardingInCurrentWindow = computed(() => route.path === '/')
 
 // NOTICE: register plugin host bridge during setup to avoid race with pages using it in immediate watchers.
 pluginHostInspectorStore.setBridge({
@@ -114,10 +109,6 @@ onMounted(async () => {
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
 
-  if (shouldHandleOnboardingInCurrentWindow.value) {
-    await onboardingStore.initializeSetupCheck()
-  }
-
   const serverChannelConfig = await getServerChannelConfig()
   serverChannelSettingsStore.websocketTlsConfig = serverChannelConfig.websocketTlsConfig
 
@@ -149,12 +140,6 @@ watch(themeColorsHue, () => {
 
 watch(themeColorsHueDynamic, () => {
   document.documentElement.classList.toggle('dynamic-hue', themeColorsHueDynamic.value)
-}, { immediate: true })
-
-watch([() => onboardingStore.shouldShowSetup, shouldHandleOnboardingInCurrentWindow], ([shouldShowSetup, shouldHandleOnboarding]) => {
-  if (shouldHandleOnboarding && shouldShowSetup) {
-    openOnboarding()
-  }
 }, { immediate: true })
 
 onUnmounted(() => {

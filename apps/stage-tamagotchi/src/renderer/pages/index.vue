@@ -22,6 +22,7 @@ import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { refDebounced, useBroadcastChannel } from '@vueuse/core'
@@ -32,7 +33,7 @@ import { computed, onUnmounted, ref, toRef, watch } from 'vue'
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
-import { electronStartDraggingWindow } from '../../shared/eventa'
+import { electronOpenOnboarding, electronStartDraggingWindow } from '../../shared/eventa'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useWindowStore } from '../stores/window'
 
@@ -45,6 +46,9 @@ const isLoading = ref(true)
 
 const isIgnoringMouseEvents = ref(false)
 const shouldFadeOnCursorWithin = ref(false)
+
+const onboardingStore = useOnboardingStore()
+const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
 
 const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
 const { isOutside } = useElectronMouseInElement(controlsIslandRef)
@@ -304,6 +308,12 @@ watch(enabled, async (val) => {
   }
   else {
     stopAudioInteraction()
+  }
+}, { immediate: true })
+
+watch([() => onboardingStore.shouldShowSetup], ([shouldShowSetup]) => {
+  if (shouldShowSetup) {
+    openOnboarding()
   }
 }, { immediate: true })
 
