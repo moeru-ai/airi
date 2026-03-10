@@ -333,24 +333,6 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
     relative z-2 h-full overflow-hidden rounded-xl
     transition="opacity duration-500 ease-in-out"
   >
-    <!-- Drag area at top to move window -->
-    <Transition
-      enter-active-class="transition-opacity duration-250 ease-in-out"
-      enter-from-class="opacity-50"
-      enter-to-class="opacity-100"
-      leave-active-class="transition-opacity duration-250 ease-in-out"
-      leave-from-class="opacity-100"
-      leave-to-class="opacity-50"
-    >
-      <div v-if="showDragHint && !isLoading" class="pointer-events-none absolute left-0 top-0 z-10 h-12 w-full">
-        <div
-          :class="[
-            'b-primary/50',
-            'h-full w-full animate-flash animate-duration-3s animate-count-infinite b-t-4 rounded-t-2xl',
-          ]"
-        />
-      </div>
-    </Transition>
     <div
       v-show="!isLoading"
       absolute left-0 top-0 z-10 h-12 w-full
