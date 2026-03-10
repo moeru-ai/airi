@@ -27,7 +27,6 @@ patchedDependencies:
   mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
   pixi-live2d-display: patches/pixi-live2d-display.patch
   srvx@0.9.8: patches/srvx@0.9.8.patch
-
 catalog:
   '@capacitor/cli': ^8.1.0
   '@capacitor/core': ^8.1.0
@@ -41,6 +40,7 @@ catalog:
   '@iconify-json/logos': ^1.2.10
   '@iconify-json/tabler': ^1.2.27
   '@intlify/core': ^11.2.8
+  '@midscene/core': ^1.5.3
   '@modelcontextprotocol/sdk': ^1.27.1
   '@moeru/eslint-config': 0.1.0-beta.15
   '@moeru/eventa': 1.0.0-alpha.14
@@ -68,10 +68,12 @@ catalog:
   '@xsai/stream-text': ^0.4.3
   '@xsai/tool': ^0.4.3
   '@xsai/utils-chat': 0.4.0-beta.13
+  active-win: ^9.0.0
   alien-signals: ^3.1.2
   async-mutex: 0.5.0
   better-auth: ^1.4.19
   builder-util-runtime: ^9.5.1
+  consola: ^3.4.2
   crossws: ^0.4.4
   drizzle-valibot: ^0.4.2
   electron: ^40.6.1
@@ -89,6 +91,8 @@ catalog:
   ofetch: ^1.5.1
   pinia: ^3.0.4
   posthog-js: 1.306.1
+  robotjs: ^0.6.0
+  screenshot-desktop: ^1.15.3
   splitpanes: ^4.0.4
   std-env: ^4.0.0-rc.1
   superjson: ^2.2.6

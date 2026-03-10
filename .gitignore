@@ -120,5 +120,8 @@ plugins/development
 plugins-local
 plugins-development
 
+# Trae IDE
+.trae/
+
 apps/stage-pocket/ios/buildServer.json
 .ghfs/

@@ -23,6 +23,7 @@ import { setupServerChannel } from './services/airi/channel-server'
 import { setupMcpStdioManager } from './services/airi/mcp-servers'
 import { setupPluginHost } from './services/airi/plugins'
 import { setupAutoUpdater } from './services/electron/auto-updater'
+import { destroyVisionService, initVisionService } from './services/vision'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -161,6 +162,14 @@ app.whenReady().then(async () => {
 
   injeca.start().catch(err => console.error(err))
 
+  // Initialize vision service
+  try {
+    await initVisionService()
+  }
+  catch (err) {
+    log.withError(err).error('Failed to initialize vision service')
+  }
+
   // Lifecycle
   emitAppReady()
 
@@ -189,5 +198,6 @@ app.on('window-all-closed', () => {
 // Clean up server and intervals when app quits
 app.on('before-quit', async () => {
   emitAppBeforeQuit()
+  destroyVisionService()
   injeca.stop()
 })
