@@ -61,6 +61,61 @@
 
 그래서 이 프로젝트 AIRI는 여기서 또 다른 가능성을 제시합니다: **언제 어디서나 쉽게, 당신만의 디지털 라이프, 사이버 생명을 가질 수 있도록**.
 
+## 다운로드 또는 웹?
+
+AIRI의 웹 버전을 [airi.moeru.ai](https://airi.moeru.ai)에서 바로 체험할 수 있습니다.
+또한 Windows, macOS, Linux용 데스크톱 버전을 다운로드할 수 있으며, 데스크톱 메이트 / 데스크톱 펫으로 사용할 수 있고, 다양한 고유 기능이 포함되어 있습니다:
+
+<p float="left">
+  <!-- readme-section:release-binary-windows -->
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.6/AIRI-0.9.0-alpha.6-darwin-arm64.dmg">
+    <picture>
+      <source
+        width="33.5%"
+        srcset="./docs/content/public/assets/download-buttons/Download buttons - Windows.dark.en-US.avif"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="33.5%"
+        srcset="./docs/content/public/assets/download-buttons/Download buttons - Windows.light.en-US.avif"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="33.5%" src="./docs/content/public/assets/download-buttons/Download buttons - Windows.light.en-US.avif" />
+    </picture>
+  </a>
+  <!-- readme-section:release-binary-macos -->
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.6/AIRI-0.9.0-alpha.6-darwin-arm64.dmg">
+    <picture>
+      <source
+        width="33.5%"
+        srcset="./docs/content/public/assets/download-buttons/Download buttons - macOS.dark.en-US.avif"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="33.5%"
+        srcset="./docs/content/public/assets/download-buttons/Download buttons - macOS.light.en-US.avif"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="33.5%" src="./docs/content/public/assets/download-buttons/Download buttons - macOS.light.en-US.avif" />
+    </picture>
+  </a>
+  <a href="https://github.com/moeru-ai/airi/releases/latest">
+    <picture>
+      <source
+        width="32%"
+        srcset="./docs/content/public/assets/download-buttons/Download buttons - Linux.dark.en-US.avif"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="32%"
+        srcset="./docs/content/public/assets/download-buttons/Download buttons - Linux.light.en-US.avif"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="32%" src="./docs/content/public/assets/download-buttons/Download buttons - Linux.light.en-US.avif" />
+    </picture>
+  </a>
+</p>
+
 ## 게시한 DevLog 및 최근 업데이트
 
 - [DevLog @ 2026.01.01](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) — 2026년 1월 1일

@@ -61,6 +61,61 @@
 
 因此，这个项目 AIRI，在这里提供了另一种可能性：**让你轻松拥有自己的数字生命、赛博生命，随时随地**。
 
+## 下载桌面端？或者网页版也可以？
+
+你可以直接通过我们的网页端 [airi.moeru.ai](https://airi.moeru.ai) 来试用 AIRI。
+你也可以下载以下适用于 Windows、macOS 和 Linux 的桌面端版本，可以当桌宠用哦，还有很多特殊功能：
+
+<p float="left">
+  <!-- readme-section:release-binary-windows -->
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.6/AIRI-0.9.0-alpha.6-darwin-arm64.dmg">
+    <picture>
+      <source
+        width="33.5%"
+        srcset="./docs/content/public/assets/download-buttons/Download buttons - Windows.dark.zh-Hans.avif"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="33.5%"
+        srcset="./docs/content/public/assets/download-buttons/Download buttons - Windows.light.zh-Hans.avif"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="33.5%" src="./docs/content/public/assets/download-buttons/Download buttons - Windows.light.zh-Hans.avif" />
+    </picture>
+  </a>
+  <!-- readme-section:release-binary-macos -->
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.6/AIRI-0.9.0-alpha.6-darwin-arm64.dmg">
+  <picture>
+    <source
+      width="33.5%"
+      srcset="./docs/content/public/assets/download-buttons/Download buttons - macOS.dark.zh-Hans.avif"
+      media="(prefers-color-scheme: dark)"
+    />
+    <source
+      width="33.5%"
+      srcset="./docs/content/public/assets/download-buttons/Download buttons - macOS.light.zh-Hans.avif"
+      media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+    />
+    <img width="33.5%" src="./docs/content/public/assets/download-buttons/Download buttons - macOS.light.zh-Hans.avif" />
+    </picture>
+  </a>
+  <a href="https://github.com/moeru-ai/airi/releases/latest">
+    <picture>
+      <sourc
+        width="32%"
+        srcset="./docs/content/public/assets/download-buttons/Download buttons - Linux.dark.zh-Hans.avif"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="32%"
+        srcset="./docs/content/public/assets/download-buttons/Download buttons - Linux.light.zh-Hans.avif"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="32%" src="./docs/content/public/assets/download-buttons/Download buttons - Linux.light.zh-Hans.avif" />
+    </picture>
+  </a>
+</p>
+
 ## 我们发布的 DevLog & 近期更新
 
 - [DevLog @ 2026.01.01](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2026.01.01/) — 2026 年 1 月 1 日

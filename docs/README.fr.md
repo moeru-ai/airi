@@ -60,6 +60,61 @@ Peut-être connaissez-vous déjà [Neuro-sama](https://www.youtube.com/@Neurosam
 
 Ainsi, ce projet AIRI offre une autre possibilité : **vous permettre de posséder votre vie digitale, votre cyber-vie, facilement, partout et à tout moment**.
 
+## Télécharger ou Web ?
+
+Vous pouvez essayer la version web d'AIRI sur [airi.moeru.ai](https://airi.moeru.ai) directement.
+Vous pouvez également télécharger les versions de bureau suivantes pour Windows, macOS et Linux, utilisables comme compagnon de bureau / animal de compagnie numérique, avec de nombreuses fonctionnalités uniques :
+
+<p float="left">
+  <!-- readme-section:release-binary-windows -->
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.6/AIRI-0.9.0-alpha.6-darwin-arm64.dmg">
+    <picture>
+      <source
+        width="33.5%"
+        srcset="./docs/content/public/assets/download-buttons/Download buttons - Windows.dark.en-US.avif"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="33.5%"
+        srcset="./docs/content/public/assets/download-buttons/Download buttons - Windows.light.en-US.avif"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="33.5%" src="./docs/content/public/assets/download-buttons/Download buttons - Windows.light.en-US.avif" />
+    </picture>
+  </a>
+  <!-- readme-section:release-binary-macos -->
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.6/AIRI-0.9.0-alpha.6-darwin-arm64.dmg">
+    <picture>
+      <source
+        width="33.5%"
+        srcset="./docs/content/public/assets/download-buttons/Download buttons - macOS.dark.en-US.avif"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="33.5%"
+        srcset="./docs/content/public/assets/download-buttons/Download buttons - macOS.light.en-US.avif"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="33.5%" src="./docs/content/public/assets/download-buttons/Download buttons - macOS.light.en-US.avif" />
+    </picture>
+  </a>
+  <a href="https://github.com/moeru-ai/airi/releases/latest">
+    <picture>
+      <source
+        width="32%"
+        srcset="./docs/content/public/assets/download-buttons/Download buttons - Linux.dark.en-US.avif"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="32%"
+        srcset="./docs/content/public/assets/download-buttons/Download buttons - Linux.light.en-US.avif"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="32%" src="./docs/content/public/assets/download-buttons/Download buttons - Linux.light.en-US.avif" />
+    </picture>
+  </a>
+</p>
+
 ## Journaux de développement et mises à jour récentes
 
 - [DevLog @ 01.01.2026](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) du 1er janvier 2026
