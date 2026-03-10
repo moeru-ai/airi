@@ -42,7 +42,7 @@ function getEventSource(entry: FlowEntry) {
 function summarizeContextUpdate(update: { text?: string, content?: unknown, destinations?: unknown }) {
   const summaryParts: string[] = []
   if (update.text) {
-    summaryParts.push(`text="${truncateText(update.text, 120)}"`)
+    summaryParts.push('text="' + truncateText(update.text, 120) + '"')
   }
   if (update.content !== undefined) {
     const contentText = typeof update.content === 'string'
@@ -55,10 +55,10 @@ function summarizeContextUpdate(update: { text?: string, content?: unknown, dest
             return '[unserializable]'
           }
         })()
-    summaryParts.push(`content="${truncateText(contentText, 120)}"`)
+    summaryParts.push('content="' + truncateText(contentText, 120) + '"')
   }
   if (update.destinations !== undefined) {
-    summaryParts.push(`destinations="${truncateText(formatDestinations(update.destinations), 120)}"`)
+    summaryParts.push('destinations="' + truncateText(formatDestinations(update.destinations), 120) + '"')
   }
   return summaryParts.join(' ')
 }
