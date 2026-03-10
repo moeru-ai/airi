@@ -1838,6 +1838,21 @@ export const useProvidersStore = defineStore('providers', () => {
   // Initialize all providers
   Object.keys(providerMetadata).forEach(initializeProvider)
 
+  const runtimeValidationByDefaultProviderIds = new Set(['browser-web-speech-api', 'player2'])
+
+  function shouldValidateProviderRuntime(providerId: string) {
+    if (runtimeValidationByDefaultProviderIds.has(providerId))
+      return true
+
+    if (addedProviders.value[providerId])
+      return true
+
+    if (isProviderConfigDirty(providerId))
+      return true
+
+    return providerRuntimeState.value[providerId]?.isConfigured === true
+  }
+
   function startPeriodicRuntimeValidation() {
     for (const [providerId, intervalMs] of providerValidationIntervalMsById.entries()) {
       if (!providerMetadata[providerId] || intervalMs <= 0)
@@ -1848,6 +1863,10 @@ export const useProvidersStore = defineStore('providers', () => {
       }
 
       const loop = useIntervalFn(() => {
+        if (!shouldValidateProviderRuntime(providerId)) {
+          return
+        }
+
         void validateProvider(providerId, { force: true })
       }, intervalMs, { immediate: false, immediateCallback: false })
       loop.resume()
@@ -1861,6 +1880,13 @@ export const useProvidersStore = defineStore('providers', () => {
       // TODO: ignore un-configured provider
       // .filter(([_, provider]) => provider.configured)
       .map(async ([providerId]) => {
+        if (!shouldValidateProviderRuntime(providerId)) {
+          if (providerRuntimeState.value[providerId]) {
+            providerRuntimeState.value[providerId].isConfigured = false
+          }
+          return
+        }
+
         try {
           if (providerRuntimeState.value[providerId]) {
             const isValid = await validateProvider(providerId)
