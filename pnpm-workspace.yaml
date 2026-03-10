@@ -73,7 +73,7 @@ catalog:
   builder-util-runtime: ^9.5.1
   crossws: ^0.4.4
   drizzle-valibot: ^0.4.2
-  electron: ^40.6.1
+  electron: ^40.8.0
   embla-carousel-vue: ^9.0.0-rc01
   es-toolkit: 1.43.0
   histoire: 1.0.0-beta.1
