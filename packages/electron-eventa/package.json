@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/electron-eventa",
   "type": "module",
-  "version": "0.9.0-alpha.11",
+  "version": "0.9.0-alpha.12",
   "private": true,
   "description": "Shared Eventa contracts for Electron IPC",
   "author": {
