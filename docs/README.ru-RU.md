@@ -67,19 +67,19 @@
 
 <p float="left">
   <!-- readme-section:release-binary-windows -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.6/AIRI-0.9.0-alpha.6-darwin-arm64.dmg">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.6/AIRI-0.9.0-alpha.6-windows-x64-setup.exe">
     <picture>
       <source
         width="33.5%"
-        srcset="./content/public/assets/download-buttons/download-button-Windows.dark.en-US.avif"
+        srcset="./docs/content/public/assets/download-buttons/download-button-Windows.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33.5%"
-        srcset="./content/public/assets/download-buttons/download-button-Windows.light.en-US.avif"
+        srcset="./docs/content/public/assets/download-buttons/download-button-Windows.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33.5%" src="./content/public/assets/download-buttons/download-button-Windows.light.en-US.avif" />
+      <img width="33.5%" src="./docs/content/public/assets/download-buttons/download-button-Windows.light.en-US.avif" />
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
@@ -87,30 +87,30 @@
     <picture>
       <source
         width="33.5%"
-        srcset="./content/public/assets/download-buttons/download-button-macOS.dark.en-US.avif"
+        srcset="./docs/content/public/assets/download-buttons/download-button-macOS.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33.5%"
-        srcset="./content/public/assets/download-buttons/download-button-macOS.light.en-US.avif"
+        srcset="./docs/content/public/assets/download-buttons/download-button-macOS.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33.5%" src="./content/public/assets/download-buttons/download-button-macOS.light.en-US.avif" />
+      <img width="33.5%" src="./docs/content/public/assets/download-buttons/download-button-macOS.light.en-US.avif" />
     </picture>
   </a>
   <a href="https://github.com/moeru-ai/airi/releases/latest">
     <picture>
       <source
         width="32%"
-        srcset="./content/public/assets/download-buttons/download-button-Linux.dark.en-US.avif"
+        srcset="./docs/content/public/assets/download-buttons/download-button-Linux.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="32%"
-        srcset="./content/public/assets/download-buttons/download-button-Linux.light.en-US.avif"
+        srcset="./docs/content/public/assets/download-buttons/download-button-Linux.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="32%" src="./content/public/assets/download-buttons/download-button-Linux.light.en-US.avif" />
+      <img width="32%" src="./docs/content/public/assets/download-buttons/download-button-Linux.light.en-US.avif" />
     </picture>
   </a>
 </p>

@@ -67,7 +67,7 @@ You may also download the following desktop versions for Windows, macOS, and Lin
 
 <p float="left">
   <!-- readme-section:release-binary-windows -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.6/AIRI-0.9.0-alpha.6-darwin-arm64.dmg">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.6/AIRI-0.9.0-alpha.6-windows-x64-setup.exe">
     <picture>
       <source
         width="33.5%"
