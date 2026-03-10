@@ -1,7 +1,7 @@
 import type { BaseIssue, BaseSchema, InferIssue, InferOutput } from 'valibot'
 
 import { existsSync, readFileSync } from 'node:fs'
-import { writeFile } from 'node:fs/promises'
+import { copyFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { safeDestr } from 'destr'
@@ -74,7 +74,10 @@ export function createConfig<TSchema extends PersistedSchema>(
 
   const save = throttle(async () => {
     try {
-      await writeFile(configPath(), JSON.stringify(persistenceMap.get(key)))
+      const path = configPath()
+      const tmpPath = `${path}.tmp`
+      await writeFile(tmpPath, JSON.stringify(persistenceMap.get(key)))
+      await rename(tmpPath, path)
     }
     catch (error) {
       console.error('Failed to save config', error)
@@ -83,7 +86,11 @@ export function createConfig<TSchema extends PersistedSchema>(
 
   const writeHealingConfig = async (value: InferOutput<TSchema>) => {
     try {
-      await writeFile(configPath(), JSON.stringify(value))
+      const path = configPath()
+      if (existsSync(path)) {
+        await copyFile(path, `${path}.bak`).catch(() => {})
+      }
+      await writeFile(path, JSON.stringify(value))
       return true
     }
     catch (error) {
