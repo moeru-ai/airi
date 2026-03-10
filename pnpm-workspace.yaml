@@ -25,7 +25,9 @@ overrides:
 patchedDependencies:
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
+  pixi-live2d-display: patches/pixi-live2d-display.patch
   srvx@0.9.8: patches/srvx@0.9.8.patch
+
 catalog:
   '@capacitor/cli': ^8.1.0
   '@capacitor/core': ^8.1.0
