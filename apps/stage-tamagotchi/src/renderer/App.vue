@@ -77,17 +77,7 @@ const listMcpTools = useElectronEventaInvoke(electronMcpListTools)
 const callMcpTool = useElectronEventaInvoke(electronMcpCallTool)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
 const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
-const shouldHandleOnboardingInCurrentWindow = computed(() => {
-  if (route.path === '/settings' || route.path === '/chat' || route.path === '/onboarding' || route.path === '/caption' || route.path === '/widgets') {
-    return false
-  }
-
-  if (route.path.startsWith('/notice')) {
-    return false
-  }
-
-  return true
-})
+const shouldHandleOnboardingInCurrentWindow = computed(() => route.path === '/')
 
 // NOTICE: register plugin host bridge during setup to avoid race with pages using it in immediate watchers.
 pluginHostInspectorStore.setBridge({
