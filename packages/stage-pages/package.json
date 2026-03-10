@@ -51,6 +51,7 @@
     "vue-router": "^4.6.4",
     "vue-sonner": "catalog:",
     "xsschema": "catalog:",
+    "yaml": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

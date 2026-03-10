@@ -9,6 +9,9 @@ jobs:
   prepare:
     name: Prepare preview sources
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
 
     steps:
       - name: Persist checkout metadata

@@ -131,6 +131,7 @@
     "xast-util-to-xml": "^4.0.0",
     "xastscript": "^4.0.0",
     "xsschema": "catalog:",
+    "yaml": "catalog:",
     "zod": "^4.3.6"
   },
   "devDependencies": {
