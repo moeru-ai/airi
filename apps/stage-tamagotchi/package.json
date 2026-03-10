@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stage-tamagotchi",
   "type": "module",
-  "version": "0.9.0-alpha.9",
+  "version": "0.9.0-alpha.10",
   "private": true,
   "description": "LLM powered virtual character",
   "author": {
@@ -89,6 +89,7 @@
     "active-win": "catalog:",
     "alien-signals": "catalog:",
     "animejs": "^4.3.6",
+    "async-mutex": "catalog:",
     "colorjs.io": "^0.6.1",
     "consola": "catalog:",
     "crossws": "^0.4.4",
@@ -101,7 +102,7 @@
     "electron-click-drag-plugin": "^2.0.2",
     "electron-updater": "^6.8.3",
     "es-toolkit": "^1.44.0",
-    "h3": "2.0.1-rc.5",
+    "h3": "^2.0.1-rc.14",
     "injeca": "catalog:",
     "jszip": "^3.10.1",
     "localforage": "^1.10.0",

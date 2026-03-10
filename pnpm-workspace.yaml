@@ -26,7 +26,7 @@ patchedDependencies:
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
   pixi-live2d-display: patches/pixi-live2d-display.patch
-  srvx@0.9.8: patches/srvx@0.9.8.patch
+  srvx: patches/srvx.patch
 catalog:
   '@capacitor/cli': ^8.1.0
   '@capacitor/core': ^8.1.0
@@ -82,7 +82,7 @@ catalog:
   histoire: 1.0.0-beta.1
   hono: 4.11.3
   idb-keyval: ^6.2.2
-  injeca: ^0.1.7
+  injeca: ^0.1.8
   is-network-error: ^1.3.0
   knip: ^5.85.0
   mkcert: ^3.2.0

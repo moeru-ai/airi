@@ -1,4 +1,5 @@
 import type { Locale } from '@intlify/core'
+import type { ServerOptions } from '@proj-airi/server-runtime/server'
 
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
@@ -11,12 +12,8 @@ export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windo
 export const electronOpenSettingsDevtools = defineInvokeEventa('eventa:invoke:electron:windows:settings:devtools:open')
 export const electronOpenDevtoolsWindow = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:devtools:open')
 
-export interface ElectronServerChannelTlsConfig {
-  [key: string]: unknown
-}
-
 export interface ElectronServerChannelConfig {
-  websocketTlsConfig: ElectronServerChannelTlsConfig | null
+  tlsConfig?: ServerOptions['tlsConfig'] | null
 }
 export const electronGetServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig>('eventa:invoke:electron:server-channel:get-config')
 export const electronApplyServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig, Partial<ElectronServerChannelConfig>>('eventa:invoke:electron:server-channel:apply-config')

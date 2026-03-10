@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/docs",
   "type": "module",
-  "version": "0.9.0-alpha.9",
+  "version": "0.9.0-alpha.10",
   "private": true,
   "scripts": {
     "build": "vitepress build",

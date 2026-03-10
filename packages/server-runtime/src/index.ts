@@ -72,7 +72,7 @@ function send(peer: Peer, event: WebSocketEvent<Record<string, unknown>> | strin
   peer.send(typeof event === 'string' ? event : stringify(event))
 }
 
-export function setupApp(options?: {
+export interface AppOptions {
   instanceId?: string
   auth?: {
     token: string
@@ -90,14 +90,27 @@ export function setupApp(options?: {
     readTimeout?: number
     message?: MessageHeartbeat | string
   }
-}): { app: H3, closeAllPeers: () => void } {
-  const instanceId = options?.instanceId || optionOrEnv(undefined, 'SERVER_INSTANCE_ID', nanoid())
-  const authToken = optionOrEnv(options?.auth?.token, 'AUTHENTICATION_TOKEN', '')
+}
 
+export function normalizeLoggerConfig(options?: AppOptions) {
   const appLogLevel = optionOrEnv(options?.logger?.app?.level, 'LOG_LEVEL', LogLevelString.Log, { validator: (value): value is LogLevelString => availableLogLevelStrings.includes(value as LogLevelString) })
   const appLogFormat = optionOrEnv(options?.logger?.app?.format, 'LOG_FORMAT', Format.Pretty, { validator: (value): value is Format => Object.values(Format).includes(value as Format) })
   const websocketLogLevel = options?.logger?.websocket?.level || appLogLevel || LogLevelString.Log
   const websocketLogFormat = options?.logger?.websocket?.format || appLogFormat || Format.Pretty
+
+  return {
+    appLogLevel,
+    appLogFormat,
+    websocketLogLevel,
+    websocketLogFormat,
+  }
+}
+
+export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => void } {
+  const instanceId = options?.instanceId || optionOrEnv(undefined, 'SERVER_INSTANCE_ID', nanoid())
+  const authToken = optionOrEnv(options?.auth?.token, 'AUTHENTICATION_TOKEN', '')
+
+  const { appLogLevel, appLogFormat, websocketLogLevel, websocketLogFormat } = normalizeLoggerConfig(options)
 
   const appLogger = useLogg('@proj-airi/server-runtime').withLogLevel(logLevelStringToLogLevelMap[appLogLevel]).withFormat(appLogFormat)
   const logger = useLogg('@proj-airi/server-runtime:websocket').withLogLevel(logLevelStringToLogLevelMap[websocketLogLevel]).withFormat(websocketLogFormat)
