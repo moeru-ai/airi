@@ -1,8 +1,8 @@
 import type { BaseIssue, BaseSchema, InferIssue, InferOutput } from 'valibot'
 
 import { existsSync, readFileSync } from 'node:fs'
-import { copyFile, rename, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { copyFile, mkdir, rename, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 
 import { safeDestr } from 'destr'
 import { app } from 'electron'
@@ -33,6 +33,10 @@ const diagnosticsMap = new Map<string, ConfigDiagnostics<unknown>>()
 
 function createConfigPath(namespace: string, filename: string) {
   return join(app.getPath('userData'), `${namespace}-${filename}`)
+}
+
+async function ensureConfigDirectory(path: string) {
+  await mkdir(dirname(path), { recursive: true })
 }
 
 type PersistedSchema = BaseSchema<unknown, unknown, BaseIssue<unknown>>
@@ -75,6 +79,7 @@ export function createConfig<TSchema extends PersistedSchema>(
   const save = throttle(async () => {
     try {
       const path = configPath()
+      await ensureConfigDirectory(path)
       const tmpPath = `${path}.tmp`
       await writeFile(tmpPath, JSON.stringify(persistenceMap.get(key)))
       await rename(tmpPath, path)
@@ -87,6 +92,7 @@ export function createConfig<TSchema extends PersistedSchema>(
   const writeHealingConfig = async (value: InferOutput<TSchema>) => {
     try {
       const path = configPath()
+      await ensureConfigDirectory(path)
       if (existsSync(path)) {
         await copyFile(path, `${path}.bak`).catch(err => console.warn('Failed to create backup for config:', path, err))
       }
