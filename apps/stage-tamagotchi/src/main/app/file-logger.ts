@@ -170,10 +170,9 @@ export async function setupFileLogger(): Promise<FileLoggerHandle> {
         return
       }
 
-      isFileClosed = true
-
       try {
         await fileHandle.close()
+        isFileClosed = true
         console.info('[FileLogger] File closed successfully')
       }
       catch (error) {
