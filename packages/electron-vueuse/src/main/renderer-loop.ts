@@ -19,6 +19,7 @@ export function shouldStopForRendererError(error: unknown) {
 }
 
 export function stopLoopWhenRendererIsGone(window: BrowserWindow, stop: () => void) {
+  window.on('close', stop)
   window.on('closed', stop)
   window.webContents.on('destroyed', stop)
   window.webContents.on('render-process-gone', stop)

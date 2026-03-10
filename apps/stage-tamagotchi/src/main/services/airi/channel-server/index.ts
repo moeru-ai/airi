@@ -395,13 +395,18 @@ export function createServerChannel(initialOptions: ServerChannelOptions = getCh
   }
 }
 
-export async function setupServerChannel() {
+export async function setupServerChannel(params: { serverChannelService?: boolean } = {}) {
   channelServerConfigStore.setup()
   const serverChannel = createServerChannel(getChannelServerConfig())
   registerServerQuitHook(() => serverChannel)
 
   // Start the server during module initialization so startup is bound to injeca lifecycle.
   await serverChannel.start()
+
+  if (params.serverChannelService) {
+    await createServerChannelService({ serverChannel })
+  }
+
   return serverChannel
 }
 

@@ -13,15 +13,25 @@ export function createWindowService(params: { context: ReturnType<typeof createC
   const { start, stop } = createRendererLoop({
     window: params.window,
     run: () => {
+      if (params.window.isDestroyed())
+        return
+
       params.context.emit(bounds, params.window.getBounds())
     },
   })
 
   onAppWindowAllClosed(() => stop())
   onAppBeforeQuit(() => stop())
+  const cleanup = () => stop()
+  params.window.on('close', cleanup)
+  params.window.on('closed', cleanup)
+
   defineInvokeHandler(params.context, startLoopGetBounds, () => start())
 
   defineInvokeHandler(params.context, electron.window.getBounds, (_, options) => {
+    if (params.window.isDestroyed())
+      return
+
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
       return params.window.getBounds()
     }
@@ -35,18 +45,27 @@ export function createWindowService(params: { context: ReturnType<typeof createC
   })
 
   defineInvokeHandler(params.context, electron.window.setBounds, (newBounds, options) => {
+    if (params.window.isDestroyed())
+      return
+
     if (newBounds && params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
       params.window.setBounds(newBounds[0])
     }
   })
 
   defineInvokeHandler(params.context, electron.window.setIgnoreMouseEvents, (opts, options) => {
+    if (params.window.isDestroyed())
+      return
+
     if (opts && params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
       params.window.setIgnoreMouseEvents(...opts)
     }
   })
 
   defineInvokeHandler(params.context, electronWindowSetAlwaysOnTop, (flag, options) => {
+    if (params.window.isDestroyed())
+      return
+
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
       if (flag) {
         params.window.setAlwaysOnTop(true, 'screen-saver', 1)
@@ -58,18 +77,27 @@ export function createWindowService(params: { context: ReturnType<typeof createC
   })
 
   defineInvokeHandler(params.context, electron.window.setVibrancy, (vibrancy, options) => {
+    if (params.window.isDestroyed())
+      return
+
     if (vibrancy && params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
       params.window.setVibrancy(vibrancy[0])
     }
   })
 
   defineInvokeHandler(params.context, electron.window.setBackgroundMaterial, (backgroundMaterial, options) => {
+    if (params.window.isDestroyed())
+      return
+
     if (backgroundMaterial && params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
       params.window.setBackgroundMaterial(backgroundMaterial[0])
     }
   })
 
   defineInvokeHandler(params.context, electron.window.resize, (payload, options) => {
+    if (params.window.isDestroyed())
+      return
+
     if (!payload || params.window.webContents.id !== options?.raw.ipcMainEvent.sender.id) {
       return
     }
@@ -83,8 +111,13 @@ export function createWindowService(params: { context: ReturnType<typeof createC
   })
 
   defineInvokeHandler(params.context, electronWindowClose, (_, options) => {
+    if (params.window.isDestroyed())
+      return
+
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
       params.window.close()
     }
   })
+
+  return cleanup
 }

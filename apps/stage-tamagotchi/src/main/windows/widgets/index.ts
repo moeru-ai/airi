@@ -260,10 +260,10 @@ export function setupWidgetsWindowManager(params: {
     const id = params?.id
     const context = id ? windowContexts.get(id) : undefined
     if (context?.window) {
-      context.window.hide()
+      context.window.close()
     } else {
       const window = await getWindow()
-      window.hide()
+      window.close()
     }
   }
 
