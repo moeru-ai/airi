@@ -583,6 +583,15 @@ defineExpose({
   lookAtUpdate(target: Vec3) {
     idleEyeSaccades.instantUpdate(vrm.value, target)
   },
+  restoreDefaultExpressions() {
+    if (!vrm.value?.expressionManager)
+      return
+    for (const name of modelStore.availableExpressions) {
+      const weight = modelStore.activeExpressions[name] || 0
+      vrm.value.expressionManager.setValue(name, weight)
+    }
+    vrm.value.expressionManager.update()
+  },
 })
 </script>
 

@@ -305,8 +305,15 @@ defineExpose({
   camera: () => camera.value,
   renderer: () => tresCanvasRef.value?.renderer.instance,
   scene: () => modelRef.value?.scene,
+  stopAnimations: () => {
+    modelRef.value?.stopAnimations()
+  },
+  restoreDefaultExpressions: () => {
+    modelRef.value?.restoreDefaultExpressions()
+  },
   readRenderTargetRegionAtClientPoint,
 })
+
 </script>
 
 <template>
