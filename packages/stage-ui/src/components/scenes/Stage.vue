@@ -11,7 +11,7 @@ import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
 import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
-import { createPlaybackManager, createSpeechPipeline } from '@proj-airi/pipelines-audio'
+import { createPlaybackManager, createSpeechPipeline, createTtsSegmentStream } from '@proj-airi/pipelines-audio'
 import { defaultModelParameters, Live2DScene, useLive2d } from '@proj-airi/stage-ui-live2d'
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
@@ -22,7 +22,7 @@ import { useBroadcastChannel } from '@vueuse/core'
 // import { embed } from '@xsai/embed'
 import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { useDelayMessageQueue, useEmotionsMessageQueue } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
@@ -33,6 +33,7 @@ import { useAiriCardStore } from '../../stores/modules'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
+import { useSettingsAudioDevice } from '../../stores/settings/audio-device'
 import { useSpeechRuntimeStore } from '../../stores/speech-runtime'
 
 withDefaults(defineProps<{
@@ -118,6 +119,12 @@ const nowSpeaking = ref(false)
 const lipSyncStarted = ref(false)
 const lipSyncLoopId = ref<number>()
 const live2dLipSync = ref<Live2DLipSync>()
+const stageActionState = ref<'idle' | 'listening' | 'done'>('idle')
+const stageActionTimer = ref<number>()
+const stageActionEmotionMap: Record<'listening' | 'done', EmotionPayload['name']> = {
+  listening: Emotion.Think,
+  done: Emotion.Happy,
+}
 const live2dLipSyncOptions: Live2DLipSyncOptions = { mouthUpdateIntervalMs: 50, mouthLerpWindowMs: 50 }
 const textMouthUntil = ref(0)
 const textMouthStrength = 0.7
@@ -127,14 +134,25 @@ const assistantMotionTriggered = ref(false)
 const idleHeadWaveId = ref<number>()
 const headFrozen = ref(false)
 const headFrozenAngles = ref<{ x: number, y: number, z: number }>({ x: 0, y: 0, z: 0 })
+const expressionReleaseMs = 900
+const expressionAnimationId = ref<number>()
+const expressionState = ref<{
+  base: Record<string, number>
+  target: Partial<typeof defaultModelParameters>
+  startAt: number
+  endAt: number
+} | null>(null)
 
 const { activeCard } = storeToRefs(useAiriCardStore())
 const speechStore = useSpeechStore()
-const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
+const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch, narrationEnabled } = storeToRefs(speechStore)
 const activeCardId = computed(() => activeCard.value?.name ?? 'default')
 const speechRuntimeStore = useSpeechRuntimeStore()
+const audioDeviceStore = useSettingsAudioDevice()
+const { enabled: audioDeviceEnabled } = storeToRefs(audioDeviceStore)
 
-const { currentMotion, availableMotions, motionMap, modelParameters } = storeToRefs(useLive2d())
+const { currentMotion, availableMotions, motionMap, modelParameters, motionLockEnabled } = storeToRefs(useLive2d())
+const motionLockReasons = ref(new Set<string>())
 const emotionMotionCursor = ref<Record<string, number>>({})
 const forceMotionTimer = ref<number>()
 const cachedIdleAnimationEnabled = ref<boolean>()
@@ -162,7 +180,23 @@ const EMOTION_CHOREOGRAPHY_PLAN: Record<EmotionPayload['name'], string[][]> = {
   curious: [['curious', 'interest', 'wonder'], ['look', 'focus', 'turn', 'head']],
   neutral: [['idle', 'neutral', 'normal'], ['base', 'stand', 'loop', 'default']],
 }
-const STRONG_MOTION_KEYWORDS = ['jump', 'wave', 'dance', 'special', 'fast', 'hit', 'tap', 'shake', 'spin', 'run', 'kick', 'punch', 'throw', 'attack', 'power', 'big']
+const STRONG_MOTION_KEYWORD_WEIGHTS: Array<{ keyword: string, weight: number }> = [
+  { keyword: 'attack', weight: 5 },
+  { keyword: 'punch', weight: 5 },
+  { keyword: 'kick', weight: 5 },
+  { keyword: 'throw', weight: 4 },
+  { keyword: 'hit', weight: 4 },
+  { keyword: 'shake', weight: 4 },
+  { keyword: 'spin', weight: 4 },
+  { keyword: 'jump', weight: 4 },
+  { keyword: 'dance', weight: 4 },
+  { keyword: 'wave', weight: 3 },
+  { keyword: 'fast', weight: 3 },
+  { keyword: 'special', weight: 3 },
+  { keyword: 'run', weight: 3 },
+  { keyword: 'power', weight: 2 },
+  { keyword: 'big', weight: 2 },
+]
 
 function toMotionSearchText(motion: { motionName: string, fileName: string }): string {
   return `${motion.motionName} ${motion.fileName}`.toLowerCase()
@@ -181,12 +215,24 @@ function pickMotionByKeywords(emotionName: EmotionPayload['name']) {
   return []
 }
 
+function scoreStrongMotion(motion: { motionName: string, fileName: string }) {
+  const source = toMotionSearchText(motion)
+  let score = 0
+  for (const { keyword, weight } of STRONG_MOTION_KEYWORD_WEIGHTS) {
+    if (source.includes(keyword))
+      score += weight
+  }
+  if (!source.includes('idle'))
+    score += 1
+  return score
+}
+
 function pickStrongMotions() {
-  const candidates = availableMotions.value.filter((motion) => {
-    const source = toMotionSearchText(motion)
-    return STRONG_MOTION_KEYWORDS.some(keyword => source.includes(keyword))
-  })
-  return candidates.length > 0 ? candidates : []
+  const scored = availableMotions.value
+    .map(motion => ({ motion, score: scoreStrongMotion(motion) }))
+    .filter(item => item.score > 0)
+  scored.sort((a, b) => b.score - a.score)
+  return scored.map(item => item.motion)
 }
 
 function pickMotionBySettings(emotionName: EmotionPayload['name']) {
@@ -248,6 +294,20 @@ function clearForceMotionTimer() {
   }
 }
 
+function enableMotionLock(reason: string) {
+  const next = new Set(motionLockReasons.value)
+  next.add(reason)
+  motionLockReasons.value = next
+  motionLockEnabled.value = next.size > 0
+}
+
+function disableMotionLock(reason: string) {
+  const next = new Set(motionLockReasons.value)
+  next.delete(reason)
+  motionLockReasons.value = next
+  motionLockEnabled.value = next.size > 0
+}
+
 function applyLive2DMotionByEmotion(emotion: EmotionPayload) {
   const nextMotion = resolveLive2DMotion(emotion.name)
   if (nextMotion) {
@@ -261,12 +321,15 @@ function applyLive2DMotionByEmotion(emotion: EmotionPayload) {
     cachedIdleAnimationEnabled.value = live2dIdleAnimationEnabled.value
   }
   live2dIdleAnimationEnabled.value = false
+  enableMotionLock('force-motion')
   const holdMs = emotion.holdMs ?? 1800
+  setExpression(expressionTargetsForEmotion(emotion.name), holdMs)
   forceMotionTimer.value = window.setTimeout(() => {
     live2dIdleAnimationEnabled.value = commandOnlyMotionMode
       ? false
       : (cachedIdleAnimationEnabled.value ?? true)
     cachedIdleAnimationEnabled.value = undefined
+    disableMotionLock('force-motion')
     forceMotionTimer.value = undefined
   }, holdMs)
 }
@@ -292,6 +355,98 @@ function stopDebugPulse() {
   if (debugPulseAnimationId.value) {
     cancelAnimationFrame(debugPulseAnimationId.value)
     debugPulseAnimationId.value = undefined
+  }
+}
+
+function clearStageActionTimer() {
+  if (stageActionTimer.value) {
+    clearTimeout(stageActionTimer.value)
+    stageActionTimer.value = undefined
+  }
+}
+
+function applyStageActionState(next: 'idle' | 'listening' | 'done', holdMs = 1600) {
+  clearStageActionTimer()
+  stageActionState.value = next
+  if (next === 'idle') {
+    startIdleHeadWave()
+    return
+  }
+  const emotion = stageActionEmotionMap[next]
+  if (emotion) {
+    triggerLargeMotion(emotion, holdMs)
+  }
+  stageActionTimer.value = window.setTimeout(() => {
+    stageActionState.value = audioDeviceEnabled.value ? 'listening' : 'idle'
+  }, holdMs)
+}
+
+function setExpression(target: Partial<typeof defaultModelParameters>, holdMs: number) {
+  if (expressionAnimationId.value) {
+    cancelAnimationFrame(expressionAnimationId.value)
+    expressionAnimationId.value = undefined
+  }
+  const now = performance.now()
+  expressionState.value = {
+    base: { ...modelParameters.value },
+    target,
+    startAt: now,
+    endAt: now + Math.max(holdMs, 0),
+  }
+  const step = (timestamp: number) => {
+    const current = expressionState.value
+    if (!current) {
+      expressionAnimationId.value = undefined
+      return
+    }
+    const { base, target, startAt, endAt } = current
+    const rising = Math.min(1, Math.max(0, (timestamp - startAt) / 240))
+    const holding = timestamp < endAt
+    const falling = holding ? 1 : Math.max(0, 1 - (timestamp - endAt) / expressionReleaseMs)
+    const intensity = Math.min(rising, falling)
+    modelParameters.value = {
+      ...modelParameters.value,
+      leftEyeSmile: base.leftEyeSmile + (target.leftEyeSmile ?? base.leftEyeSmile) * intensity,
+      rightEyeSmile: base.rightEyeSmile + (target.rightEyeSmile ?? base.rightEyeSmile) * intensity,
+      leftEyebrowY: base.leftEyebrowY + (target.leftEyebrowY ?? base.leftEyebrowY) * intensity,
+      rightEyebrowY: base.rightEyebrowY + (target.rightEyebrowY ?? base.rightEyebrowY) * intensity,
+      leftEyebrowAngle: base.leftEyebrowAngle + (target.leftEyebrowAngle ?? base.leftEyebrowAngle) * intensity,
+      rightEyebrowAngle: base.rightEyebrowAngle + (target.rightEyebrowAngle ?? base.rightEyebrowAngle) * intensity,
+      leftEyebrowForm: base.leftEyebrowForm + (target.leftEyebrowForm ?? base.leftEyebrowForm) * intensity,
+      rightEyebrowForm: base.rightEyebrowForm + (target.rightEyebrowForm ?? base.rightEyebrowForm) * intensity,
+      mouthForm: base.mouthForm + (target.mouthForm ?? base.mouthForm) * intensity,
+      cheek: base.cheek + (target.cheek ?? base.cheek) * intensity,
+    }
+    if (intensity > 0) {
+      expressionAnimationId.value = requestAnimationFrame(step)
+      return
+    }
+    expressionState.value = null
+    expressionAnimationId.value = undefined
+  }
+  expressionAnimationId.value = requestAnimationFrame(step)
+}
+
+function expressionTargetsForEmotion(name: EmotionPayload['name']) {
+  switch (name) {
+    case Emotion.Happy:
+      return { mouthForm: 0.6, cheek: 0.7, leftEyeSmile: 0.7, rightEyeSmile: 0.7 }
+    case Emotion.Sad:
+      return { leftEyebrowY: -0.4, rightEyebrowY: -0.4, mouthForm: -0.4, cheek: 0.1 }
+    case Emotion.Angry:
+      return { leftEyebrowAngle: -0.6, rightEyebrowAngle: 0.6, mouthForm: -0.3, cheek: 0.2 }
+    case Emotion.Think:
+      return { leftEyebrowY: 0.2, rightEyebrowY: 0.2, leftEyebrowForm: -0.3, rightEyebrowForm: -0.3 }
+    case Emotion.Surprise:
+      return { leftEyebrowY: 0.8, rightEyebrowY: 0.8, mouthForm: 0.4, cheek: 0.3 }
+    case Emotion.Awkward:
+      return { leftEyebrowY: 0.2, rightEyebrowY: 0.2, mouthForm: -0.1, cheek: 0.2 }
+    case Emotion.Question:
+      return { leftEyebrowY: 0.5, rightEyebrowY: 0.1, mouthForm: 0.1 }
+    case Emotion.Curious:
+      return { leftEyebrowY: 0.4, rightEyebrowY: 0.4, mouthForm: 0.2 }
+    default:
+      return {}
   }
 }
 
@@ -390,6 +545,7 @@ function releaseHeadAngles() {
 function startIdleHeadWave() {
   if (idleHeadWaveId.value)
     return
+  enableMotionLock('idle-head-wave')
   const base = {
     x: modelParameters.value.angleX,
     y: modelParameters.value.angleY,
@@ -416,6 +572,7 @@ function stopIdleHeadWave() {
     return
   cancelAnimationFrame(idleHeadWaveId.value)
   idleHeadWaveId.value = undefined
+  disableMotionLock('idle-head-wave')
 }
 
 const emotionsQueue = createQueue<EmotionPayload>({
@@ -448,6 +605,10 @@ delaysQueue.onHandlerEvent('delay', (delay) => {
   // eslint-disable-next-line no-console
   console.debug('delay detected', delay)
 })
+
+watch(audioDeviceEnabled, (enabled) => {
+  applyStageActionState(enabled ? 'listening' : 'idle', 1400)
+}, { immediate: true })
 
 // Play special token: delay or emotion
 function playSpecialToken(special: string) {
@@ -543,6 +704,9 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
     if (signal.aborted)
       return null
 
+    if (!narrationEnabled.value)
+      return null
+
     if (!activeSpeechProvider.value)
       return null
 
@@ -606,24 +770,43 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       ? speechStore.generateSSML(request.text, voice, { ...providerConfig, pitch: pitch.value })
       : request.text
 
-    try {
-      const res = await generateSpeech({
-        ...provider.speech(model, providerConfig),
-        input,
-        voice: voice.id,
-      })
+    const requestAudio = async () => {
+      try {
+        const res = await generateSpeech({
+          ...provider.speech(model, providerConfig),
+          input,
+          voice: voice.id,
+        })
 
-      if (signal.aborted || !res || res.byteLength === 0)
+        if (signal.aborted || !res || res.byteLength === 0)
+          return null
+
+        const audioBuffer = await audioContext.decodeAudioData(res)
+        return audioBuffer
+      }
+      catch {
         return null
+      }
+    }
 
-      const audioBuffer = await audioContext.decodeAudioData(res)
-      return audioBuffer
+    let audioBuffer = await requestAudio()
+    for (const delayMs of [400, 800]) {
+      if (audioBuffer || signal.aborted)
+        break
+      await new Promise(resolve => setTimeout(resolve, delayMs))
+      if (!signal.aborted) {
+        audioBuffer = await requestAudio()
+      }
     }
-    catch {
-      return null
-    }
+
+    return audioBuffer
   },
   playback: playbackManager,
+  segmenter: (tokens, meta) => createTtsSegmentStream(tokens, meta, {
+    boost: 0,
+    minimumWords: 12,
+    maximumWords: 32,
+  }),
 })
 
 void speechRuntimeStore.registerHost(speechPipeline)
@@ -758,6 +941,19 @@ chatHookCleanups.push(onBeforeSend(async (message) => {
 chatHookCleanups.push(onTokenLiteral(async (literal) => {
   currentChatIntent?.writeLiteral(literal)
   playSpecialToken(literal)
+  if (!narrationEnabled.value) {
+    assistantCaption.value += ` ${literal}`
+    try {
+      postCaption({ type: 'caption-assistant', text: assistantCaption.value })
+    }
+    catch {
+    }
+    try {
+      postPresent({ type: 'assistant-append', text: literal })
+    }
+    catch {
+    }
+  }
   if (!assistantMotionTriggered.value) {
     stopIdleHeadWave()
     freezeHeadAngles()
@@ -785,6 +981,7 @@ chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
   startIdleHeadWave()
   textMouthUntil.value = Date.now()
   assistantMotionTriggered.value = false
+  applyStageActionState('done', 1400)
   // const res = await embed({
   //   ...transformersProvider.embed('Xenova/nomic-embed-text-v1'),
   //   input: message,
@@ -795,6 +992,7 @@ chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
 
 onUnmounted(() => {
   lipSyncStarted.value = false
+  clearStageActionTimer()
 })
 
 // Resume audio context on first user interaction (browser requirement)
@@ -843,6 +1041,13 @@ onUnmounted(() => {
   clearForceMotionTimer()
   stopDebugMotionScan()
   stopDebugPulse()
+  if (expressionAnimationId.value) {
+    cancelAnimationFrame(expressionAnimationId.value)
+    expressionAnimationId.value = undefined
+  }
+  expressionState.value = null
+  motionLockReasons.value = new Set()
+  motionLockEnabled.value = false
   stopIdleHeadWave()
   if (cachedIdleAnimationEnabled.value !== undefined) {
     live2dIdleAnimationEnabled.value = cachedIdleAnimationEnabled.value
