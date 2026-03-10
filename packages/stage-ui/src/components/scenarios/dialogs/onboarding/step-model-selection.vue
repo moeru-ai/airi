@@ -1,17 +1,20 @@
 <script setup lang="ts">
+import type { OnboardingStepNextHandler, OnboardingStepPrevHandler } from './types'
+
 import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Alert from '../../../misc/alert.vue'
 
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
 import { RadioCardManySelect } from '../../../menu'
-import { OnboardingContextKey } from './utils'
 
+const props = defineProps<{
+  onNext: OnboardingStepNextHandler
+  onPrevious: OnboardingStepPrevHandler
+}>()
 const { t } = useI18n()
-const context = inject(OnboardingContextKey)!
 
 const consciousnessStore = useConsciousnessStore()
 const {
@@ -25,7 +28,7 @@ const {
 <template>
   <div h-full flex flex-col gap-4>
     <div sticky top-0 z-100 flex flex-shrink-0 items-center gap-2>
-      <button outline-none @click="context.handlePreviousStep">
+      <button outline-none @click="props.onPrevious">
         <div i-solar:alt-arrow-left-line-duotone h-5 w-5 />
       </button>
       <h2 class="flex-1 text-center text-xl text-neutral-800 font-semibold md:text-left md:text-2xl dark:text-neutral-100">
@@ -73,7 +76,7 @@ const {
       :disabled="!activeModel"
       :loading="isLoadingActiveProviderModels"
       :label="t('settings.dialogs.onboarding.saveAndContinue')"
-      @click="context.handleSave"
+      @click="props.onNext"
     />
   </div>
 </template>
