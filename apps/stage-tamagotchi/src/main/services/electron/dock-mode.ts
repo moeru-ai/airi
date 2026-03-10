@@ -1,5 +1,5 @@
-import type { DockModeConfig, DockModeStatus, DockPosition, TargetWindowBounds } from '@proj-airi/electron-eventa'
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
+import type { DockModeConfig, DockModeStatus, DockPosition, TargetWindowBounds } from '@proj-airi/electron-eventa'
 import type { BrowserWindow, DesktopCapturerSource } from 'electron'
 
 import { defineInvokeHandler } from '@moeru/eventa'
