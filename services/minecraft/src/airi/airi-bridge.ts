@@ -36,7 +36,6 @@ export class AiriBridge {
           eventId: cmd.commandId,
           state: 'queued',
           note: 'Command received',
-          destinations: ['minecraft'],
         },
       } as Parameters<typeof this.client.send>[0])
 
@@ -86,7 +85,6 @@ export class AiriBridge {
         urgency,
         headline,
         note,
-        destinations: ['minecraft'],
       },
     } as Parameters<typeof this.client.send>[0])
     this.logger.log('Sent spark:notify', { headline, urgency })
@@ -102,7 +100,6 @@ export class AiriBridge {
         text,
         hints,
         strategy: 'append-self',
-        destinations: ['minecraft'],
       },
     } as Parameters<typeof this.client.send>[0])
     this.logger.log('Sent context:update', { lane, preview: text.slice(0, 80) })
