@@ -149,6 +149,7 @@ const {
   availableExpressions,
   parameterMetadata,
   expressionData,
+  activeExpressions,
 } = storeToRefs(live2dStore)
 
 const themeColorsHue = toRef(() => props.themeColorsHue)
@@ -503,6 +504,26 @@ async function loadModel() {
         params: parameterMetadata.value.length,
         expressions: availableExpressions.value.length,
       })
+
+      // 3. Restore saved active expressions on model load
+      if (expressionData.value.length > 0 && Object.keys(activeExpressions.value).length > 0) {
+        console.info('🔄 [Live2D-Alpha] Restoring saved active expressions')
+        for (const [fileName, weight] of Object.entries(activeExpressions.value)) {
+          if (weight > 0) {
+            const expEntry = expressionData.value.find((e: any) => e.fileName === fileName)
+            if (expEntry?.data?.Parameters) {
+              for (const param of expEntry.data.Parameters) {
+                const id = param.Id || param.id
+                const value = param.Value ?? param.value
+                if (id !== undefined && value !== undefined) {
+                  modelParameters.value[id] = value
+                }
+              }
+              console.info(`  ✅ Restored: ${fileName}`)
+            }
+          }
+        }
+      }
     }
     catch (e) {
       console.error('❌ [Live2D-Alpha] CRITICAL PARSE FAILURE:', e)
