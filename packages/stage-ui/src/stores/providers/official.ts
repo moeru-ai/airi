@@ -16,7 +16,7 @@ function withCredentials() {
 }
 
 function createOfficialOpenAIProvider() {
-  return createOpenAI('', `${SERVER_URL}/v1/`)
+  return createOpenAI('', `${SERVER_URL}/api/v1/`)
 }
 
 export const OFFICIAL_PROVIDER_IDS = [
@@ -61,8 +61,8 @@ export function createOfficialProviders(getIsAuthenticated: () => boolean): Reco
         assertAuthenticated()
         const provider = createOfficialOpenAIProvider()
 
+        const originalChat = provider.chat.bind(provider)
         provider.chat = (model: string) => {
-          const originalChat = provider.chat.bind(provider)
           const result = originalChat(model)
           result.fetch = withCredentials()
           return result
@@ -100,8 +100,8 @@ export function createOfficialProviders(getIsAuthenticated: () => boolean): Reco
         assertAuthenticated()
         const provider = createOfficialOpenAIProvider()
 
+        const originalSpeech = provider.speech.bind(provider)
         provider.speech = (model: string) => {
-          const originalSpeech = provider.speech.bind(provider)
           const result = originalSpeech(model)
           result.fetch = withCredentials()
           return result
@@ -152,8 +152,8 @@ export function createOfficialProviders(getIsAuthenticated: () => boolean): Reco
         assertAuthenticated()
         const provider = createOfficialOpenAIProvider()
 
+        const originalTranscription = provider.transcription.bind(provider)
         provider.transcription = (model: string) => {
-          const originalTranscription = provider.transcription.bind(provider)
           const result = originalTranscription(model)
           result.fetch = withCredentials()
           return result

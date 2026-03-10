@@ -80,13 +80,6 @@ function buildApp({
         credentials: true,
       }),
     )
-    .use(
-      '/v1/*',
-      cors({
-        origin: origin => getTrustedOrigin(origin),
-        credentials: true,
-      }),
-    )
     .use(honoLogger())
 
   if (otel) {
@@ -144,7 +137,7 @@ function buildApp({
     /**
      * V1 routes for official provider.
      */
-    .route('/v1', createV1CompletionsRoutes(fluxService, configKV, requestLogService))
+    .route('/api/v1', createV1CompletionsRoutes(fluxService, configKV, requestLogService))
 
     /**
      * Flux routes.

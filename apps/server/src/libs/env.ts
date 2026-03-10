@@ -24,9 +24,6 @@ const EnvSchema = object({
   STRIPE_SECRET_KEY: optional(string()),
   STRIPE_WEBHOOK_SECRET: optional(string()),
 
-  BACKEND_LLM_BASE_URL: optional(string()),
-  BACKEND_LLM_API_KEY: optional(string()),
-
   // OpenTelemetry
   OTEL_SERVICE_NAMESPACE: optional(string(), 'airi'),
   OTEL_SERVICE_NAME: optional(string(), 'server'),
