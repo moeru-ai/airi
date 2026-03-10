@@ -257,7 +257,22 @@ export function setupApp(options?: {
         // superjson.parse here instead of message.json() (which uses JSON.parse).
         // Using JSON.parse on a superjson-encoded string returns the wrapper object
         // { json: {...}, meta: {...} } with type=undefined, which breaks all event routing.
-        event = parse<WebSocketEvent>(message.text())
+        //
+        // However, external clients may send plain JSON (not superjson-encoded).
+        // superjson.parse on plain JSON returns undefined since there is no `json` wrapper key.
+        // In that case, fall back to JSON.parse so external clients can interoperate.
+        const text = message.text()
+        const parsed = parse<WebSocketEvent>(text)
+        const potentialEvent = (parsed && typeof parsed === 'object' && 'type' in parsed)
+          ? parsed
+          : JSON.parse(text)
+
+        if (!potentialEvent || typeof potentialEvent !== 'object' || !('type' in potentialEvent)) {
+          send(peer, RESPONSES.error('invalid event format', instanceId))
+          return
+        }
+
+        event = potentialEvent as WebSocketEvent
       }
       catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err)

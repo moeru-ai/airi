@@ -52,8 +52,8 @@ catalogs:
       specifier: 1.0.0-alpha.14
       version: 1.0.0-alpha.14
     '@moeru/std':
-      specifier: 0.1.0-beta.14
-      version: 0.1.0-beta.14
+      specifier: 0.1.0-beta.17
+      version: 0.1.0-beta.17
     '@nekopaw/tempora':
       specifier: 0.4.0-alpha.1
       version: 0.4.0-alpha.1
@@ -270,6 +270,9 @@ patchedDependencies:
   mineflayer@4.33.0:
     hash: 03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a
     path: patches/mineflayer@4.33.0.patch
+  pixi-live2d-display:
+    hash: 122ac09349321d5bfe9d9817aa095cd1c9c4132af86345aa9e27ba8b63dadf2c
+    path: patches/pixi-live2d-display.patch
   srvx@0.9.8:
     hash: f0151386fdcbcb6f53833cf8f66926ef2eb31b71a2782d6e0960dec832ef108d
     path: patches/srvx@0.9.8.patch
@@ -588,7 +591,7 @@ importers:
         version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../../packages/audio
@@ -991,7 +994,7 @@ importers:
         version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../../packages/audio
@@ -1187,6 +1190,9 @@ importers:
       std-env:
         specifier: ^4.0.0-rc.1
         version: 4.0.0-rc.1
+      superjson:
+        specifier: 'catalog:'
+        version: 2.2.6
       three:
         specifier: ^0.183.1
         version: 0.183.1
@@ -1397,7 +1403,7 @@ importers:
         version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../../packages/audio
@@ -1761,7 +1767,7 @@ importers:
         version: 5.2.8
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@proj-airi/chromatic':
         specifier: ^1.0.2
         version: 1.0.2
@@ -1900,7 +1906,7 @@ importers:
         version: 1.2.11
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@proj-airi/server-sdk':
         specifier: workspace:*
         version: link:../../../packages/server-sdk
@@ -1930,7 +1936,7 @@ importers:
         version: 2.1.2
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       vue:
         specifier: '>=3'
         version: 3.5.29(typescript@5.9.3)
@@ -1943,7 +1949,7 @@ importers:
     dependencies:
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       uncrypto:
         specifier: 'catalog:'
         version: 0.1.3
@@ -1960,6 +1966,9 @@ importers:
       '@capacitor/cli':
         specifier: ^8.0.0
         version: 8.1.0
+      cac:
+        specifier: ^6.7.14
+        version: 6.7.14
       tinyexec:
         specifier: ^1.0.2
         version: 1.0.2
@@ -1977,7 +1986,7 @@ importers:
     dependencies:
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@proj-airi/stream-kit':
         specifier: workspace:^
         version: link:../stream-kit
@@ -2020,7 +2029,7 @@ importers:
         version: 1.0.0-alpha.14(electron@39.7.0)
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       async-mutex:
         specifier: 'catalog:'
         version: 0.5.0
@@ -2038,7 +2047,7 @@ importers:
         version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@vueuse/core':
         specifier: 'catalog:'
         version: 14.1.0(vue@3.5.29(typescript@5.9.3))
@@ -2103,7 +2112,7 @@ importers:
         version: 0.10.32
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@pixiv/three-vrm':
         specifier: ^3.5.0
         version: 3.5.0(three@0.183.1)
@@ -2131,7 +2140,7 @@ importers:
         version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       clustr:
         specifier: ^1.0.2
         version: 1.0.2
@@ -2210,7 +2219,7 @@ importers:
     devDependencies:
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
 
   packages/server-shared:
     dependencies:
@@ -2225,7 +2234,7 @@ importers:
         version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@proj-airi/ccc':
         specifier: workspace:*
         version: link:../ccc
@@ -2328,7 +2337,7 @@ importers:
         version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@proj-airi/ccc':
         specifier: workspace:*
         version: link:../ccc
@@ -2772,7 +2781,7 @@ importers:
         version: 1.2.44
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@pinia/testing':
         specifier: 'catalog:'
         version: 1.0.3(pinia@3.0.4(typescript@5.9.3)(vue@3.5.29(typescript@5.9.3)))
@@ -2907,7 +2916,7 @@ importers:
         version: 4.2.0(5af797a0b5bd919a06578c24a7479046)
       pixi-live2d-display:
         specifier: ^0.4.0
-        version: 0.4.0(0736f5bd67d2e4de7e9fff36ad63fa2e)
+        version: 0.4.0(patch_hash=122ac09349321d5bfe9d9817aa095cd1c9c4132af86345aa9e27ba8b63dadf2c)(0736f5bd67d2e4de7e9fff36ad63fa2e)
       three:
         specifier: ^0.183.1
         version: 0.183.1
@@ -3138,7 +3147,7 @@ importers:
     devDependencies:
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
 
   plugins/airi-plugin-bilibili-laplace:
     dependencies:
@@ -3220,7 +3229,7 @@ importers:
         version: 14.1.0(vue@3.5.29(typescript@5.9.3))
       '@wxt-dev/module-vue':
         specifier: ^1.0.3
-        version: 1.0.3(vite@7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))(wxt@0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+        version: 1.0.3(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))(wxt@0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
       nanoid:
         specifier: ^5.1.6
         version: 5.1.6
@@ -3298,7 +3307,7 @@ importers:
         version: 1.27.1(@cfworker/json-schema@4.1.1)(zod@4.3.6)
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@proj-airi/server-sdk':
         specifier: ^0.8.4
         version: 0.8.4(srvx@0.11.8)
@@ -3404,7 +3413,7 @@ importers:
         version: 1.2.11
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@velin-dev/core':
         specifier: ^0.3.4
         version: 0.3.4(typescript@5.9.3)
@@ -3468,7 +3477,7 @@ importers:
         version: 1.2.11
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@napi-rs/image':
         specifier: ^1.12.0
         version: 1.12.0
@@ -3577,7 +3586,7 @@ importers:
         version: 1.27.1(@cfworker/json-schema@4.1.1)(zod@4.3.6)
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@proj-airi/server-sdk':
         specifier: ^0.8.4
         version: 0.8.4(srvx@0.11.8)
@@ -6213,11 +6222,11 @@ packages:
   '@moeru/std@0.1.0-beta.1':
     resolution: {integrity: sha512-ImfoMBchZP+F4aos2nFmlcipcgIhT+ZkUUVWB/bBHEqyB/w/nbI/xgA8a1ibJUtG7RcQnQH+SKom0r4/1xCWqA==}
 
-  '@moeru/std@0.1.0-beta.14':
-    resolution: {integrity: sha512-MFeOb5CEvwbUoR2RgwkvNXQinIq+4lc5ZdNzACk2NYag8bBnkg5H+VTT/gJ4uB0chusqSUF+fQ82CQ1T+2UJAg==}
-
   '@moeru/std@0.1.0-beta.15':
     resolution: {integrity: sha512-lTi/b2ysilOSE/yo9uY9JIaNOE32kHpemWMxA4ZDIMxWeHZAEXK+jLi8EiXHtdBltjDlBYfNWeWcfH0KKiEJQA==}
+
+  '@moeru/std@0.1.0-beta.17':
+    resolution: {integrity: sha512-GyLDCKHiqXyO60Wn0+Hc7Tfo/GJQA3pV5FZGkzGhvJM7LQPZDB0tksuJV92LuRF1lG8x78B+8UfVFhVf8xXVfg==}
 
   '@mrleebo/prisma-ast@0.13.1':
     resolution: {integrity: sha512-XyroGQXcHrZdvmrGJvsA9KNeOOgGMg1Vg9OlheUsBOSKznLMDl+YChxbkboRHvtFYJEMRYmlV3uoo/njCw05iw==}
@@ -20211,9 +20220,9 @@ snapshots:
 
   '@moeru/std@0.1.0-beta.1': {}
 
-  '@moeru/std@0.1.0-beta.14': {}
-
   '@moeru/std@0.1.0-beta.15': {}
+
+  '@moeru/std@0.1.0-beta.17': {}
 
   '@mrleebo/prisma-ast@0.13.1':
     dependencies:
@@ -24096,9 +24105,9 @@ snapshots:
       '@types/filesystem': 0.0.36
       '@types/har-format': 1.2.16
 
-  '@wxt-dev/module-vue@1.0.3(vite@7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))(wxt@0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))':
+  '@wxt-dev/module-vue@1.0.3(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))(wxt@0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
-      '@vitejs/plugin-vue': 6.0.4(vite@7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))
+      '@vitejs/plugin-vue': 6.0.4(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))
       wxt: 0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - vite
@@ -24131,7 +24140,7 @@ snapshots:
     dependencies:
       '@huggingface/transformers': 3.8.1
       '@moeru/eventa': 0.3.0(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
-      '@moeru/std': 0.1.0-beta.15
+      '@moeru/std': 0.1.0-beta.17
       '@xsai-ext/shared-providers': 0.4.0-beta.12
       '@xsai-transformers/shared': 0.0.11(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
       '@xsai/embed': 0.4.3
@@ -24145,7 +24154,7 @@ snapshots:
     dependencies:
       '@huggingface/transformers': 3.8.1
       '@moeru/eventa': 0.3.0(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
-      '@moeru/std': 0.1.0-beta.15
+      '@moeru/std': 0.1.0-beta.17
       '@xsai-ext/shared-providers': 0.4.0-beta.12
       '@xsai/shared': 0.4.3
       onnxruntime-common: 1.24.2
@@ -24158,7 +24167,7 @@ snapshots:
     dependencies:
       '@huggingface/transformers': 3.8.1
       '@moeru/eventa': 0.3.0(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
-      '@moeru/std': 0.1.0-beta.15
+      '@moeru/std': 0.1.0-beta.17
       '@xsai-ext/shared-providers': 0.4.0-beta.12
       '@xsai-transformers/shared': 0.0.11(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
       '@xsai/embed': 0.4.3
@@ -29614,7 +29623,7 @@ snapshots:
       - '@pixi/settings'
       - '@pixi/utils'
 
-  pixi-live2d-display@0.4.0(0736f5bd67d2e4de7e9fff36ad63fa2e):
+  pixi-live2d-display@0.4.0(patch_hash=122ac09349321d5bfe9d9817aa095cd1c9c4132af86345aa9e27ba8b63dadf2c)(0736f5bd67d2e4de7e9fff36ad63fa2e):
     dependencies:
       '@pixi/core': 6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
       '@pixi/display': 6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))

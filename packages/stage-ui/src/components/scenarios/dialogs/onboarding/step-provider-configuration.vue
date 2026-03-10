@@ -1,15 +1,24 @@
 <script setup lang="ts">
+import type { ProviderMetadata } from '../../../../stores/providers'
+import type { OnboardingStepNextHandler, OnboardingStepPrevHandler } from './types'
+
 import { Button, Callout, FieldInput } from '@proj-airi/ui'
-import { computed, inject, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useProvidersStore } from '../../../../stores/providers'
 import { Alert } from '../../../misc'
 import { ProviderAccountIdInput } from '../../../scenarios/providers'
-import { OnboardingContextKey } from './utils'
 
+interface Props {
+  selectedProviderId: string
+  selectedProvider: ProviderMetadata | null
+  onNext: OnboardingStepNextHandler
+  onPrevious: OnboardingStepPrevHandler
+}
+
+const props = defineProps<Props>()
 const { t } = useI18n()
-const context = inject(OnboardingContextKey)!
 const providersStore = useProvidersStore()
 
 const apiKey = ref('')
@@ -21,7 +30,7 @@ const validationError = ref<any>()
 
 // Initialize form with default values when provider changes
 function initializeForm() {
-  const provider = context.selectedProvider.value
+  const provider = props.selectedProvider
   if (!provider)
     return
 
@@ -36,7 +45,7 @@ function initializeForm() {
 }
 
 // Watch for provider changes
-watch(() => context.selectedProvider.value?.id, initializeForm)
+watch(() => props.selectedProvider?.id, initializeForm)
 
 watch([apiKey, baseUrl, accountId], () => {
   if (validation.value === 'failed' || validation.value === 'succeed') {
@@ -47,19 +56,19 @@ watch([apiKey, baseUrl, accountId], () => {
 
 // Computed properties
 const needsApiKey = computed(() => {
-  if (!context.selectedProvider.value)
+  if (!props.selectedProvider)
     return false
-  return context.selectedProvider.value.id !== 'ollama' && context.selectedProvider.value.id !== 'player2'
+  return props.selectedProvider.id !== 'ollama' && props.selectedProvider.id !== 'player2'
 })
 
 const needsBaseUrl = computed(() => {
-  if (!context.selectedProvider.value)
+  if (!props.selectedProvider)
     return false
-  return context.selectedProvider.value.id !== 'cloudflare-workers-ai'
+  return props.selectedProvider.id !== 'cloudflare-workers-ai'
 })
 
 const canProceed = computed(() => {
-  if (!context.selectedProviderId.value)
+  if (!props.selectedProviderId)
     return false
 
   if (needsApiKey.value && !apiKey.value.trim())
@@ -75,7 +84,7 @@ const primaryActionLabel = computed(() => {
 })
 
 async function validateConfiguration() {
-  if (!context.selectedProvider.value)
+  if (!props.selectedProvider)
     return
 
   validation.value = 'pending'
@@ -89,11 +98,11 @@ async function validateConfiguration() {
       config.apiKey = apiKey.value.trim()
     if (needsBaseUrl.value)
       config.baseUrl = baseUrl.value.trim()
-    if (context.selectedProvider.value.id === 'cloudflare-workers-ai')
+    if (props.selectedProvider.id === 'cloudflare-workers-ai')
       config.accountId = accountId.value.trim()
 
     // Validate using provider's validator
-    const metadata = providersStore.getProviderMetadata(context.selectedProvider.value.id)
+    const metadata = providersStore.getProviderMetadata(props.selectedProvider.id)
     const validationResult = await metadata.validators.validateProviderConfig(config)
     validation.value = validationResult.valid ? 'succeed' : 'failed'
     if (validation.value === 'failed') {
@@ -111,7 +120,7 @@ async function validateConfiguration() {
 async function handleNext() {
   await validateConfiguration()
   if (validation.value === 'succeed') {
-    await context.handleNextStep({
+    await props.onNext({
       apiKey: apiKey.value,
       baseUrl: baseUrl.value,
       accountId: accountId.value,
@@ -120,15 +129,15 @@ async function handleNext() {
 }
 
 async function handleContinueAnyway() {
-  if (!context.selectedProvider.value)
+  if (!props.selectedProvider)
     return
 
-  await context.handleNextStep({
+  await props.onNext({
     apiKey: apiKey.value,
     baseUrl: baseUrl.value,
     accountId: accountId.value,
   })
-  providersStore.forceProviderConfigured(context.selectedProvider.value.id)
+  providersStore.forceProviderConfigured(props.selectedProvider.id)
 }
 
 // Placeholder helpers
@@ -154,7 +163,7 @@ function getApiKeyPlaceholder(providerId: string): string {
 }
 
 function getBaseUrlPlaceholder(_providerId: string): string {
-  const defaultOptions = context.selectedProvider.value?.defaultOptions?.() || {}
+  const defaultOptions = props.selectedProvider?.defaultOptions?.() || {}
   return (defaultOptions as any)?.baseUrl || 'https://api.example.com/v1/'
 }
 
@@ -165,15 +174,15 @@ initializeForm()
 <template>
   <div h-full flex flex-col gap-4>
     <div sticky top-0 z-100 flex flex-shrink-0 items-center gap-2>
-      <button outline-none @click="context.handlePreviousStep">
+      <button outline-none @click="props.onPrevious">
         <div i-solar:alt-arrow-left-line-duotone h-5 w-5 />
       </button>
       <h2 class="flex-1 text-center text-xl text-neutral-800 font-semibold md:text-left md:text-2xl dark:text-neutral-100">
-        {{ t('settings.dialogs.onboarding.configureProvider', { provider: context.selectedProvider.value?.localizedName }) }}
+        {{ t('settings.dialogs.onboarding.configureProvider', { provider: props.selectedProvider?.localizedName }) }}
       </h2>
       <div h-5 w-5 />
     </div>
-    <div v-if="context.selectedProvider.value" flex-1 overflow-y-auto space-y-4>
+    <div v-if="props.selectedProvider" flex-1 overflow-y-auto space-y-4>
       <Callout label="Keep your API keys and credentials safe!" theme="violet">
         <div>
           <div>
@@ -191,7 +200,7 @@ initializeForm()
         <div v-if="needsApiKey">
           <FieldInput
             v-model="apiKey"
-            :placeholder="getApiKeyPlaceholder(context.selectedProvider.value.id)"
+            :placeholder="getApiKeyPlaceholder(props.selectedProvider.id)"
             type="password"
             label="API Key"
             description="Enter your API key for the selected provider."
@@ -203,7 +212,7 @@ initializeForm()
         <div v-if="needsBaseUrl">
           <FieldInput
             v-model="baseUrl"
-            :placeholder="getBaseUrlPlaceholder(context.selectedProvider.value.id)"
+            :placeholder="getBaseUrlPlaceholder(props.selectedProvider.id)"
             type="text"
             label="Base URL"
             description="Enter the base URL for the provider's API."
@@ -211,7 +220,7 @@ initializeForm()
         </div>
 
         <!-- Account ID for Cloudflare -->
-        <div v-if="context.selectedProvider.value.id === 'cloudflare-workers-ai'">
+        <div v-if="props.selectedProvider.id === 'cloudflare-workers-ai'">
           <ProviderAccountIdInput v-model="accountId" />
         </div>
       </div>

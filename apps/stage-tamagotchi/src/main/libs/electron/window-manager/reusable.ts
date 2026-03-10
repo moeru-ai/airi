@@ -1,11 +1,13 @@
 import type { BrowserWindow } from 'electron'
 
+import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
+
 export function createReusableWindow(setupFn: () => BrowserWindow | Promise<BrowserWindow>): { getWindow: () => Promise<BrowserWindow> } {
   let window: BrowserWindow | undefined
   let windowSetupFnPromise: Promise<BrowserWindow> | undefined
 
   const ensureWindow = async () => {
-    if (window && !window.isDestroyed())
+    if (window && !isRendererUnavailable(window))
       return window
 
     if (windowSetupFnPromise)

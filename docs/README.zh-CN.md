@@ -30,52 +30,84 @@
   <a href="https://qun.qq.com/universal-share/share?ac=1&authKey=9g00d%2BZS7nORzcJugNNddJ7rCghZTIR7fhXabGwch2S%2BG%2BKGIKwlN1N2nIqkh2jg&busi_data=eyJncm91cENvZGUiOiIxMDU4MTU2Njk3IiwidG9rZW4iOiJmcnkra1hWNFIxNytEcG0zcHRUdVJIaldlRDFxN0dzK080QWtvTEdOQjJkNEY2eUFta1g1clNpbkxSMS9FQWFYIiwidWluIjoiMTI2MDkwNzMzNSJ9&data=b1eJrwn3GVOUh7YIxZ7l9vHQo99HPmRxKPpMKlDCmfzx8Y57IXb2EZCMaOC9rVTd2U558qpNjwUYUWlPHxVHvg&svctype=4&tempid=h5_group_info"><img src="https://img.shields.io/badge/QQ%E7%BE%A4-%2312B7F5?logo=qq&labelColor=FFFFFF"></a>
 </p>
 
-<p float="left">
+<p float="left" align="center">
   <!-- readme-section:release-binary-windows -->
-  <a href="https://static-cn-proj-airi.oss-cn-shanghai.aliyuncs.com/artifacts/apps/desktop/versions/v0.9.0-alpha.6/AIRI-0.9.0-alpha.6-windows-x64-setup.exe">
+  <a href="https://static-cn-proj-airi.oss-cn-shanghai.aliyuncs.com/artifacts/apps/desktop/versions/v0.9.0-alpha.7/AIRI-0.9.0-alpha.7-windows-x64-setup.exe">
     <picture>
       <source
-        width="33.5%"
-        srcset="./content/public/assets/download-buttons/download-button-Windows.dark.zh-Hans.avif"
+        width="33%"
+        srcset="./content/public/assets/download-buttons/download-buttons.windows.dark.zh-Hans.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
-        width="33.5%"
-        srcset="./content/public/assets/download-buttons/download-button-Windows.light.zh-Hans.avif"
+        width="33%"
+        srcset="./content/public/assets/download-buttons/download-buttons.windows.light.zh-Hans.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33.5%" src="./content/public/assets/download-buttons/download-button-Windows.light.zh-Hans.avif" />
+      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.windows.light.zh-Hans.avif" />
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
-  <a href="https://static-cn-proj-airi.oss-cn-shanghai.aliyuncs.com/artifacts/apps/desktop/versions/v0.9.0-alpha.6/AIRI-0.9.0-alpha.6-darwin-arm64.dmg">
-  <picture>
-    <source
-      width="33.5%"
-      srcset="./content/public/assets/download-buttons/download-button-macOS.dark.zh-Hans.avif"
-      media="(prefers-color-scheme: dark)"
-    />
-    <source
-      width="33.5%"
-      srcset="./content/public/assets/download-buttons/download-button-macOS.light.zh-Hans.avif"
-      media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
-    />
-    <img width="33.5%" src="./content/public/assets/download-buttons/download-button-macOS.light.zh-Hans.avif" />
+  <a href="https://static-cn-proj-airi.oss-cn-shanghai.aliyuncs.com/artifacts/apps/desktop/versions/v0.9.0-alpha.7/AIRI-0.9.0-alpha.7-darwin-arm64.dmg">
+    <picture>
+      <source
+        width="33%"
+        srcset="./content/public/assets/download-buttons/download-buttons.macos.dark.zh-Hans.avif"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="33%"
+        srcset="./content/public/assets/download-buttons/download-buttons.macos.light.zh-Hans.avif"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.macos.light.zh-Hans.avif" />
     </picture>
   </a>
   <a href="https://github.com/moeru-ai/airi/releases/latest">
     <picture>
       <source
-        width="32%"
-        srcset="./content/public/assets/download-buttons/download-button-Linux.dark.zh-Hans.avif"
+        width="33%"
+        srcset="./content/public/assets/download-buttons/download-buttons.linux.dark.zh-Hans.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
-        width="32%"
-        srcset="./content/public/assets/download-buttons/download-button-Linux.light.zh-Hans.avif"
+        width="33%"
+        srcset="./content/public/assets/download-buttons/download-buttons.linux.light.zh-Hans.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="32%" src="./content/public/assets/download-buttons/download-button-Linux.light.zh-Hans.avif" />
+      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.linux.light.zh-Hans.avif" />
+    </picture>
+  </a>
+</p>
+<p float="left" align="center">
+  <a href="https://airi.moeru.ai">
+    <picture>
+      <source
+        width="33%"
+        srcset="./content/public/assets/download-buttons/download-buttons.mobile.dark.zh-Hans.avif"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="33%"
+        srcset="./content/public/assets/download-buttons/download-buttons.mobile.light.zh-Hans.avif"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.mobile.light.zh-Hans.avif" />
+    </picture>
+  </a>
+  <a href="https://airi.moeru.ai">
+    <picture>
+      <source
+        width="33%"
+        srcset="./content/public/assets/download-buttons/download-buttons.browser.dark.zh-Hans.avif"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="33%"
+        srcset="./content/public/assets/download-buttons/download-buttons.browser.light.zh-Hans.avif"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.browser.light.zh-Hans.avif" />
     </picture>
   </a>
 </p>

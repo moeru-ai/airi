@@ -11,6 +11,7 @@ import { createServer } from 'vite'
 export type CapacitorPlatform = 'android' | 'ios'
 
 export interface RunCapViteOptions {
+  capArgs?: string[]
   cwd?: string
   debounceMs?: number
 }
@@ -142,15 +143,18 @@ async function stopCapProcess(current: Result | undefined) {
   }
 }
 
-function startCapProcess(cwd: string, platform: CapacitorPlatform, deviceId: string, url: URL) {
-  return x('cap', ['run', platform, '--target', deviceId], { persist: true, throwOnError: false, nodeOptions: { cwd, stdio: 'inherit', env: { CAPACITOR_DEV_SERVER_URL: url.toString() } } })
+function startCapProcess(cwd: string, platform: CapacitorPlatform, target: string, url: URL, capArgs: string[]) {
+  console.info('\n----------------------\n')
+  console.info('Running cap run', platform, '--target', target, ...capArgs)
+  return x('cap', ['run', platform, '--target', target, ...capArgs], { persist: true, throwOnError: false, nodeOptions: { cwd, stdio: 'inherit', env: { CAPACITOR_DEV_SERVER_URL: url.toString() } } })
 }
 
 export async function runCapVite(
   platform: CapacitorPlatform,
-  deviceId: string,
+  target: string,
   options: RunCapViteOptions = {},
 ): Promise<void> {
+  const capArgs = options.capArgs ?? []
   const cwd = resolve(options.cwd ?? process.cwd())
   const debounceMs = options.debounceMs ?? 300
   const server = await createServer({
@@ -164,7 +168,7 @@ export async function runCapVite(
   const url = pickServerUrl(server)
   const logger = server.config.logger
 
-  let currentCapProcess: Result | undefined = startCapProcess(cwd, platform, deviceId, url)
+  let currentCapProcess: Result | undefined = startCapProcess(cwd, platform, target, url, capArgs)
   let restartTimer: NodeJS.Timeout | undefined
   let shuttingDown = false
 
@@ -177,7 +181,7 @@ export async function runCapVite(
     const previous = currentCapProcess
     currentCapProcess = undefined
     await stopCapProcess(previous)
-    currentCapProcess = startCapProcess(cwd, platform, deviceId, url)
+    currentCapProcess = startCapProcess(cwd, platform, target, url, capArgs)
   }
 
   const onWatcherEvent = (_event: string, file: string) => {
