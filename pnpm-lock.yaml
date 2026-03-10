@@ -52,8 +52,8 @@ catalogs:
       specifier: 1.0.0-alpha.14
       version: 1.0.0-alpha.14
     '@moeru/std':
-      specifier: 0.1.0-beta.14
-      version: 0.1.0-beta.14
+      specifier: 0.1.0-beta.17
+      version: 0.1.0-beta.17
     '@nekopaw/tempora':
       specifier: 0.4.0-alpha.1
       version: 0.4.0-alpha.1
@@ -591,7 +591,7 @@ importers:
         version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../../packages/audio
@@ -994,7 +994,7 @@ importers:
         version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../../packages/audio
@@ -1403,7 +1403,7 @@ importers:
         version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../../packages/audio
@@ -1767,7 +1767,7 @@ importers:
         version: 5.2.8
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@proj-airi/chromatic':
         specifier: ^1.0.2
         version: 1.0.2
@@ -1906,7 +1906,7 @@ importers:
         version: 1.2.11
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@proj-airi/server-sdk':
         specifier: workspace:*
         version: link:../../../packages/server-sdk
@@ -1936,7 +1936,7 @@ importers:
         version: 2.1.2
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       vue:
         specifier: '>=3'
         version: 3.5.29(typescript@5.9.3)
@@ -1949,7 +1949,7 @@ importers:
     dependencies:
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       uncrypto:
         specifier: 'catalog:'
         version: 0.1.3
@@ -1986,7 +1986,7 @@ importers:
     dependencies:
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@proj-airi/stream-kit':
         specifier: workspace:^
         version: link:../stream-kit
@@ -2029,7 +2029,7 @@ importers:
         version: 1.0.0-alpha.14(electron@39.7.0)
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       async-mutex:
         specifier: 'catalog:'
         version: 0.5.0
@@ -2047,7 +2047,7 @@ importers:
         version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@vueuse/core':
         specifier: 'catalog:'
         version: 14.1.0(vue@3.5.29(typescript@5.9.3))
@@ -2112,7 +2112,7 @@ importers:
         version: 0.10.32
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@pixiv/three-vrm':
         specifier: ^3.5.0
         version: 3.5.0(three@0.183.1)
@@ -2140,7 +2140,7 @@ importers:
         version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       clustr:
         specifier: ^1.0.2
         version: 1.0.2
@@ -2219,7 +2219,7 @@ importers:
     devDependencies:
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
 
   packages/server-shared:
     dependencies:
@@ -2234,7 +2234,7 @@ importers:
         version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@proj-airi/ccc':
         specifier: workspace:*
         version: link:../ccc
@@ -2337,7 +2337,7 @@ importers:
         version: 1.0.0-beta.1(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@proj-airi/ccc':
         specifier: workspace:*
         version: link:../ccc
@@ -2781,7 +2781,7 @@ importers:
         version: 1.2.44
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@pinia/testing':
         specifier: 'catalog:'
         version: 1.0.3(pinia@3.0.4(typescript@5.9.3)(vue@3.5.29(typescript@5.9.3)))
@@ -3147,7 +3147,7 @@ importers:
     devDependencies:
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
 
   plugins/airi-plugin-bilibili-laplace:
     dependencies:
@@ -3307,7 +3307,7 @@ importers:
         version: 1.27.1(@cfworker/json-schema@4.1.1)(zod@4.3.6)
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@proj-airi/server-sdk':
         specifier: ^0.8.4
         version: 0.8.4(srvx@0.11.8)
@@ -3413,7 +3413,7 @@ importers:
         version: 1.2.11
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@velin-dev/core':
         specifier: ^0.3.4
         version: 0.3.4(typescript@5.9.3)
@@ -3477,7 +3477,7 @@ importers:
         version: 1.2.11
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@napi-rs/image':
         specifier: ^1.12.0
         version: 1.12.0
@@ -3586,7 +3586,7 @@ importers:
         version: 1.27.1(@cfworker/json-schema@4.1.1)(zod@4.3.6)
       '@moeru/std':
         specifier: 'catalog:'
-        version: 0.1.0-beta.14
+        version: 0.1.0-beta.17
       '@proj-airi/server-sdk':
         specifier: ^0.8.4
         version: 0.8.4(srvx@0.11.8)
@@ -6222,11 +6222,11 @@ packages:
   '@moeru/std@0.1.0-beta.1':
     resolution: {integrity: sha512-ImfoMBchZP+F4aos2nFmlcipcgIhT+ZkUUVWB/bBHEqyB/w/nbI/xgA8a1ibJUtG7RcQnQH+SKom0r4/1xCWqA==}
 
-  '@moeru/std@0.1.0-beta.14':
-    resolution: {integrity: sha512-MFeOb5CEvwbUoR2RgwkvNXQinIq+4lc5ZdNzACk2NYag8bBnkg5H+VTT/gJ4uB0chusqSUF+fQ82CQ1T+2UJAg==}
-
   '@moeru/std@0.1.0-beta.15':
     resolution: {integrity: sha512-lTi/b2ysilOSE/yo9uY9JIaNOE32kHpemWMxA4ZDIMxWeHZAEXK+jLi8EiXHtdBltjDlBYfNWeWcfH0KKiEJQA==}
+
+  '@moeru/std@0.1.0-beta.17':
+    resolution: {integrity: sha512-GyLDCKHiqXyO60Wn0+Hc7Tfo/GJQA3pV5FZGkzGhvJM7LQPZDB0tksuJV92LuRF1lG8x78B+8UfVFhVf8xXVfg==}
 
   '@mrleebo/prisma-ast@0.13.1':
     resolution: {integrity: sha512-XyroGQXcHrZdvmrGJvsA9KNeOOgGMg1Vg9OlheUsBOSKznLMDl+YChxbkboRHvtFYJEMRYmlV3uoo/njCw05iw==}
@@ -20220,9 +20220,9 @@ snapshots:
 
   '@moeru/std@0.1.0-beta.1': {}
 
-  '@moeru/std@0.1.0-beta.14': {}
-
   '@moeru/std@0.1.0-beta.15': {}
+
+  '@moeru/std@0.1.0-beta.17': {}
 
   '@mrleebo/prisma-ast@0.13.1':
     dependencies:
@@ -24140,7 +24140,7 @@ snapshots:
     dependencies:
       '@huggingface/transformers': 3.8.1
       '@moeru/eventa': 0.3.0(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
-      '@moeru/std': 0.1.0-beta.15
+      '@moeru/std': 0.1.0-beta.17
       '@xsai-ext/shared-providers': 0.4.0-beta.12
       '@xsai-transformers/shared': 0.0.11(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
       '@xsai/embed': 0.4.3
@@ -24154,7 +24154,7 @@ snapshots:
     dependencies:
       '@huggingface/transformers': 3.8.1
       '@moeru/eventa': 0.3.0(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
-      '@moeru/std': 0.1.0-beta.15
+      '@moeru/std': 0.1.0-beta.17
       '@xsai-ext/shared-providers': 0.4.0-beta.12
       '@xsai/shared': 0.4.3
       onnxruntime-common: 1.24.2
@@ -24167,7 +24167,7 @@ snapshots:
     dependencies:
       '@huggingface/transformers': 3.8.1
       '@moeru/eventa': 0.3.0(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
-      '@moeru/std': 0.1.0-beta.15
+      '@moeru/std': 0.1.0-beta.17
       '@xsai-ext/shared-providers': 0.4.0-beta.12
       '@xsai-transformers/shared': 0.0.11(electron@40.6.1)(h3@2.0.1-rc.5(crossws@0.4.4(srvx@0.11.8)))
       '@xsai/embed': 0.4.3
