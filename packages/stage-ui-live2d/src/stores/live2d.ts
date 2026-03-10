@@ -71,6 +71,7 @@ export const useLive2d = defineStore('live2d', () => {
   const availableExpressions = useLocalStorageManualReset<{ name: string, fileName: string }[]>('settings/live2d/available-expressions', () => [])
   const parameterMetadata = useLocalStorageManualReset<{ id: string, name: string, groupId?: string, groupName?: string }[]>('settings/live2d/parameter-metadata', () => [])
   const emotionMappings = useLocalStorageManualReset<Record<string, string>>('settings/live2d/emotion-mappings', {})
+  const activeExpressions = useLocalStorageManualReset<Record<string, number>>('settings/live2d/active-expressions', {})
   const expressionData = ref<Array<{ name: string, fileName: string, data: any }>>([])
 
   // Live2D model parameters
@@ -85,6 +86,7 @@ export const useLive2d = defineStore('live2d', () => {
     availableExpressions.reset()
     parameterMetadata.reset()
     emotionMappings.reset()
+    activeExpressions.reset()
     modelParameters.reset()
     shouldUpdateView()
   }
@@ -99,6 +101,7 @@ export const useLive2d = defineStore('live2d', () => {
     availableExpressions,
     parameterMetadata,
     emotionMappings,
+    activeExpressions,
     expressionData,
     modelParameters,
 
