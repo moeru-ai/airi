@@ -19,8 +19,8 @@ docs:
   'drag-to-move-window': Glisser pour déplacer la fenêtre
   'switch-to-light-mode': Passer au mode clair
   'switch-to-dark-mode': Passer au mode sombre
-  'pin-on-top': Pin on top
-  'unpin-from-top': Unpin from top
+  'pin-on-top': Épingler en haut
+  'unpin-from-top': Désépingler du haut
   'close': Fermer
   'expand': Développer
   'collapse': Réduire
