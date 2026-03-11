@@ -48,9 +48,9 @@ import { useI18n } from 'vue-i18n'
 
 import { listProviders as listDefinedProviders } from '../libs/providers'
 import { getProviderValidationIntervalMs } from '../libs/providers/validators/run'
-import { useAuthStore } from '../stores/auth'
 import { getKokoroWorker } from '../workers/kokoro'
 import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
+import { useAuthStore } from './auth'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { convertProviderDefinitionsToMetadata } from './providers/converters'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
@@ -244,9 +244,9 @@ export const useProvidersStore = defineStore('providers', () => {
   }
 
   // Centralized provider metadata with provider factory functions
-  const authStore = useAuthStore()
+  const authState = useAuthStore()
   const providerMetadata: Record<string, ProviderMetadata> = {
-    ...createOfficialProviders(() => authStore.isAuthenticated),
+    ...createOfficialProviders(() => authState.isAuthenticated),
     'speech-noop': {
       id: 'speech-noop',
       category: 'speech',
@@ -1846,7 +1846,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
     // Must run AFTER runtime state is created so forceProviderConfigured can set isConfigured
     if ((OFFICIAL_PROVIDER_IDS as readonly string[]).includes(providerId)) {
-      if (authStore.isAuthenticated) {
+      if (authState.isAuthenticated) {
         forceProviderConfigured(providerId)
       }
     }
@@ -1896,7 +1896,7 @@ export const useProvidersStore = defineStore('providers', () => {
   watch(providerCredentials, updateConfigurationStatus, { deep: true, immediate: true })
   startPeriodicRuntimeValidation()
 
-  watch(() => authStore.isAuthenticated, updateConfigurationStatus)
+  watch(() => authState.isAuthenticated, updateConfigurationStatus)
 
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.keys(providerMetadata).filter(providerId => providerRuntimeState.value[providerId]?.isConfigured))
