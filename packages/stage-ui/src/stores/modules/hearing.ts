@@ -12,6 +12,7 @@ import { toast } from 'vue-sonner'
 
 import vadWorkletUrl from '../../workers/vad/process.worklet?worker&url'
 
+import { useProvidersStore } from '../providers'
 import { streamAliyunTranscription } from '../providers/aliyun/stream-transcription'
 import { streamWebSpeechAPITranscription } from '../providers/web-speech-api'
 
@@ -547,6 +548,13 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
             bumpIdle() // Bump idle timer on activity (only if enabled)
             // Call the options callback
             options?.onSentenceEnd?.(delta)
+
+            // Transcription feedback toast
+            console.debug('[Hearing Pipeline] Web Speech API delta:', delta)
+            toast.dismiss('transcription-feedback')
+            toast.info(`🎤 You said: ${delta}`, {
+              id: 'transcription-feedback',
+            })
           },
           onSpeechEnd: (text) => {
             // Call the options callback
@@ -708,6 +716,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
                 sessionCallbacks.onSentenceEnd?.(value)
 
                 // Transcription feedback toast
+                console.debug('[Hearing Pipeline] Stream delta:', value)
                 toast.dismiss('transcription-feedback')
                 toast.info(`🎤 You said: ${value}`, {
                   id: 'transcription-feedback',
