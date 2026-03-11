@@ -9,10 +9,9 @@ Driven by a cron-like interval timer, the system evaluates the user's current co
 ## 2. UI Placement: Where does this live?
 Currently, an AIRI card has 4 tabs: **Identity**, **Behavior**, **Modules**, and **Settings**.
 
-**Recommendation: A new "Proactivity" tab.**
+**Decision: A new "Proactivity" tab.**
 *Why?* The existing tabs manage the *reactive* state of the AI. "Behavior" defines *how* it responds to your prompt, and "Settings" configures the LLM backend parameters for those prompts.
-Heartbeats introduce a completely new paradigm (Push vs. Pull) with complex configurations (schedules, activity checkboxes, independent system prompts). Forcing this into "Behavior" or "Settings" would clutter the UI and obscure the distinct nature of the proactivity engine.
-*Alternative*: If we must use an existing tab, **Behavior** is the closest semantic fit, perhaps under a collapsible "Autonomous Behavior" section.
+Heartbeats introduce a completely new paradigm (Push vs. Pull) with complex configurations (schedules, activity checkboxes, independent system prompts). Forcing this into existing tabs would clutter the UI. A dedicated tab ensures a clean, focused experience for configuring autonomous behavior.
 
 ---
 
