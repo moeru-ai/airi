@@ -4842,7 +4842,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-ipc-audio-transcription-ort"
-version = "0.9.0-alpha.12"
+version = "0.9.0-alpha.13"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -4864,7 +4864,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-ipc-audio-vad-ort"
-version = "0.9.0-alpha.12"
+version = "0.9.0-alpha.13"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -4888,7 +4888,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-mcp"
-version = "0.9.0-alpha.12"
+version = "0.9.0-alpha.13"
 dependencies = [
  "anyhow",
  "log",
@@ -4902,7 +4902,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-rdev"
-version = "0.9.0-alpha.12"
+version = "0.9.0-alpha.13"
 dependencies = [
  "anyhow",
  "log",
@@ -4916,7 +4916,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-window-pass-through-on-hover"
-version = "0.9.0-alpha.12"
+version = "0.9.0-alpha.13"
 dependencies = [
  "anyhow",
  "log",
@@ -4935,7 +4935,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-window-router-link"
-version = "0.9.0-alpha.12"
+version = "0.9.0-alpha.13"
 dependencies = [
  "anyhow",
  "log",
@@ -5079,9 +5079,9 @@ dependencies = [
 
 [[package]]
 name = "tempfile"
-version = "3.26.0"
+version = "3.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82a72c767771b47409d2345987fda8628641887d5466101319899796367354a0"
+checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
  "getrandom 0.4.2",
