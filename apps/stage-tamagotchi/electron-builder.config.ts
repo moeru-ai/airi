@@ -75,6 +75,13 @@ export default {
     '!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}',
     '!**/node_modules/**/{.turbo,test,src,__tests__,tests,example,examples}',
     '**/node_modules/debug/**/*',
+    // NOTICE: h3@2.x resolves rou3 at runtime from its distributed ESM entry.
+    // Electron Builder misses this transitive dependency in the packaged app under pnpm,
+    // which makes released Windows builds fail at startup with:
+    // `Cannot find package 'rou3' imported from ...\\node_modules\\h3\\dist\\*.mjs`.
+    // Keep h3/rou3 explicitly included until upstream packaging reliably preserves them.
+    '**/node_modules/h3/**/*',
+    '**/node_modules/rou3/**/*',
     '**/node_modules/superjson/**/*',
     '!electron.vite.config.{js,ts,mjs,cjs}',
     '!vite.config.{js,ts,mjs,cjs}',

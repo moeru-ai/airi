@@ -104,8 +104,22 @@ function removeAttachment(index: number) {
 }
 
 watch([activeProvider, activeModel], async () => {
-  if (activeProvider.value && activeModel.value) {
-    await discoverToolsCompatibility(activeModel.value, await providersStore.getProviderInstance<ChatProvider>(activeProvider.value), [])
+  if (!activeProvider.value || !activeModel.value) {
+    return
+  }
+
+  try {
+    await discoverToolsCompatibility(
+      activeModel.value,
+      await providersStore.getProviderInstance<ChatProvider>(activeProvider.value),
+      [],
+    )
+  }
+  catch (error) {
+    // NOTICE: Capability discovery is a best-effort warm-up. Some providers/models
+    // can fail this probe during onboarding completion, and letting that rejection
+    // escape can take down the stage renderer right after setup.
+    console.error('[InteractiveArea] Failed to discover tools compatibility:', error)
   }
 }, { immediate: true })
 
