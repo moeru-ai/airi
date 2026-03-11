@@ -113,12 +113,6 @@ onMounted(async () => {
   cardStore.initialize()
   onboardingStore.initializeSetupCheck()
 
-  // eslint-disable-next-line no-console
-  console.log('[Proactivity] Starting global heartbeat loop (60s tick)...')
-  setInterval(() => {
-    void proactivityStore.evaluateHeartbeat()
-  }, 60 * 1000)
-
   await chatSessionStore.initialize()
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
