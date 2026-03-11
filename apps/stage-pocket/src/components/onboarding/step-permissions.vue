@@ -2,10 +2,11 @@
 import { Capacitor } from '@capacitor/core'
 import { LocalNotifications } from '@capacitor/local-notifications'
 import { Button } from '@proj-airi/ui'
-import { computed, onMounted, ref } from 'vue'
+import { AndroidSettings, IOSSettings, NativeSettings } from 'capacitor-native-settings'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-type PermissionState = 'unknown' | 'requesting' | 'granted' | 'not-granted'
+type PermissionState = boolean | undefined
 
 interface Props {
   onNext: () => Promise<void> | void
@@ -17,74 +18,28 @@ const { t } = useI18n()
 
 const isNativePlatform = Capacitor.isNativePlatform()
 
-const notificationPermission = ref<PermissionState>('unknown')
-
-const shouldShowOpenSettings = computed(() => {
-  if (!isNativePlatform)
-    return false
-  return notificationPermission.value === 'not-granted'
-})
-
-const notificationStateLabel = computed(() => getPermissionLabel(notificationPermission.value))
-
-function getPermissionLabel(state: PermissionState): string {
-  if (state === 'granted')
-    return t('settings.dialogs.onboarding.permissions.stateGranted')
-  if (state === 'not-granted')
-    return t('settings.dialogs.onboarding.permissions.stateNotGranted')
-  if (state === 'requesting')
-    return t('settings.dialogs.onboarding.permissions.stateRequesting')
-  return t('settings.dialogs.onboarding.permissions.stateUnknown')
-}
-
-function mapNotificationPermission(display: string): PermissionState {
-  if (display === 'granted')
-    return 'granted'
-  if (display === 'denied')
-    return 'not-granted'
-  return 'unknown'
-}
-
-async function syncNotificationPermission() {
-  try {
-    const permission = await LocalNotifications.checkPermissions()
-    notificationPermission.value = mapNotificationPermission(permission.display)
-  }
-  catch {
-    notificationPermission.value = 'unknown'
-  }
-}
+const notificationPermissionGranted = ref<PermissionState>(undefined)
 
 async function requestNotificationPermission() {
-  notificationPermission.value = 'requesting'
-
-  try {
-    const beforeRequest = await LocalNotifications.checkPermissions()
-    if (beforeRequest.display === 'granted') {
-      notificationPermission.value = 'granted'
-      return
-    }
-
-    const requested = await LocalNotifications.requestPermissions()
-    notificationPermission.value = mapNotificationPermission(requested.display)
+  const beforeRequest = await LocalNotifications.checkPermissions()
+  if (beforeRequest.display === 'granted') {
+    notificationPermissionGranted.value = true
+    return
   }
-  catch {
-    notificationPermission.value = 'not-granted'
+
+  const requested = await LocalNotifications.requestPermissions()
+  if (requested.display === 'granted') {
+    notificationPermissionGranted.value = true
+    return
+  }
+
+  if (isNativePlatform) {
+    NativeSettings.open({
+      optionAndroid: AndroidSettings.AppNotification,
+      optionIOS: IOSSettings.AppNotification,
+    })
   }
 }
-
-async function openSystemSettings() {
-  interface CapacitorAppPlugin {
-    openSettings?: () => Promise<void>
-  }
-
-  const appPlugin = (window as { Capacitor?: { Plugins?: { App?: CapacitorAppPlugin } } }).Capacitor?.Plugins?.App
-  await appPlugin?.openSettings?.()
-}
-
-onMounted(async () => {
-  await syncNotificationPermission()
-})
 </script>
 
 <template>
@@ -114,27 +69,13 @@ onMounted(async () => {
               {{ t('settings.dialogs.onboarding.permissions.notificationsDescription') }}
             </p>
           </div>
-          <span class="rounded-full bg-neutral-200 px-2 py-1 text-xs text-neutral-700 font-medium dark:bg-neutral-700 dark:text-neutral-100">
-            {{ notificationStateLabel }}
-          </span>
+          <span v-if="notificationPermissionGranted" class="i-solar:check-circle-linear h-5 w-5 text-green-700 dark:text-green-400" />
         </div>
         <Button
           :label="t('settings.dialogs.onboarding.permissions.notificationsAction')"
-          :loading="notificationPermission === 'requesting'"
-          :disabled="notificationPermission === 'requesting'"
           @click="requestNotificationPermission"
         />
-        <p v-if="notificationPermission === 'not-granted'" class="mt-2 text-xs text-amber-600 dark:text-amber-400">
-          {{ t('settings.dialogs.onboarding.permissions.notificationsNotGrantedHint') }}
-        </p>
       </section>
-
-      <Button
-        v-if="shouldShowOpenSettings"
-        variant="secondary"
-        :label="t('settings.dialogs.onboarding.permissions.openSettings')"
-        @click="openSystemSettings"
-      />
 
       <p class="text-xs text-neutral-500 dark:text-neutral-400">
         {{ t('settings.dialogs.onboarding.permissions.optionalHint') }}

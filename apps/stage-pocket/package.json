@@ -59,6 +59,7 @@
     "@xsai/stream-transcription": "0.4.0-beta.8",
     "@xsai/utils-chat": "catalog:",
     "animejs": "^4.3.6",
+    "capacitor-native-settings": "catalog:",
     "colorjs.io": "^0.6.1",
     "culori": "^4.0.2",
     "date-fns": "^4.1.0",
