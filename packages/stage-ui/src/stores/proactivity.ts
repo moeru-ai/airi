@@ -168,8 +168,8 @@ export const useProactivityStore = defineStore('proactivity', () => {
       const sessionId = chatSession.activeSessionId
       const sessionMessages = chatSession.sessionMessages[sessionId] || []
 
-      // Inject the last 10 messages for conversational context
-      const recentMessages = sessionMessages.slice(-10)
+      // Inject the last 6 messages (approx 3 turns) for conversational context
+      const recentMessages = sessionMessages.slice(-6)
       for (const msg of recentMessages) {
         if (msg.role === 'user' || msg.role === 'assistant') {
           let msgContent = ''
