@@ -810,6 +810,13 @@ pages:
       aliyun-nls:
         description: Aliyun 智能语音服务
         title: Aliyun 智能语音服务
+      official:
+        title: 官方服务
+        description: 由 AIRI 提供的官方 AI 服务。
+        speech-title: 官方语音合成服务
+        speech-description: 由 AIRI 提供的官方文字转语音服务。
+        transcription-title: 官方语音识别服务
+        transcription-description: 由 AIRI 提供的官方语音转文字服务。
       browser-web-speech-api:
         description: 浏览器原生STT (需要 Chrome/Edge/Safari)
         title: Web 语音API
