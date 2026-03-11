@@ -29,8 +29,9 @@ export const useProactivityStore = defineStore('proactivity', () => {
   // eslint-disable-next-line no-console
   console.log('[Proactivity] Proactivity Store initialized.')
 
-  const lastHeartbeatTime = ref<number>(0)
+  const lastHeartbeatTime = ref<number>(Date.now())
   const isHeartbeatEvaluating = ref(false)
+  let heartbeatInterval: any = null
 
   const isElectron = typeof window !== 'undefined' && !!(window as any).electron
   const getIdleTimeInvoke = isElectron ? useElectronEventaInvoke(sensorsGetIdleTime) : null
@@ -62,50 +63,38 @@ export const useProactivityStore = defineStore('proactivity', () => {
     const now = new Date()
 
     // Check schedule
-    if (!options?.force && config?.schedule && config.schedule.start && config.schedule.end) {
+    // Schedule check
+    if (!options?.force && config?.schedule?.start && config.schedule.end) {
       const [startH, startM] = config.schedule.start.split(':').map(Number)
       const [endH, endM] = config.schedule.end.split(':').map(Number)
       const curH = now.getHours()
       const curM = now.getMinutes()
+      const curMinsTotal = curH * 60 + curM
+      const startMinsTotal = startH * 60 + startM
+      const endMinsTotal = endH * 60 + endM
 
-      const startMins = startH * 60 + startM
-      const endMins = endH * 60 + endM
-      const curMins = curH * 60 + curM
+      const isInWindow = startMinsTotal <= endMinsTotal
+        ? (curMinsTotal >= startMinsTotal && curMinsTotal <= endMinsTotal)
+        : (curMinsTotal >= startMinsTotal || curMinsTotal <= endMinsTotal)
 
-      // eslint-disable-next-line no-console
-      console.log('[Proactivity] Checking Schedule:', {
-        current: `${curH}:${curM} (${curMins}m)`,
-        window: `${config.schedule.start} to ${config.schedule.end} (${startMins}m-${endMins}m)`,
-      })
-
-      if (startMins <= endMins) {
-        if (curMins < startMins || curMins > endMins) {
-          // eslint-disable-next-line no-console
-          console.log('[Proactivity] Aborted: Current time is outside the permitted schedule window.')
-          return
-        }
-      }
-      else {
-        // Crosses midnight
-        if (curMins < startMins && curMins > endMins) {
-          // eslint-disable-next-line no-console
-          console.log('[Proactivity] Aborted: Current time is outside the permitted schedule window (across midnight).')
-          return
-        }
+      if (!isInWindow) {
+        // eslint-disable-next-line no-console
+        console.log(`[Proactivity] Aborted: Outside schedule window (${config.schedule.start} - ${config.schedule.end}).`)
+        return
       }
     }
 
     // Check interval
+    // Check interval
     const intervalMs = (config?.intervalMinutes || 1) * 60 * 1000
     const timeSinceLast = now.getTime() - lastHeartbeatTime.value
     const timeLeftMs = Math.max(0, intervalMs - timeSinceLast)
-    const timeLeftMins = Math.floor(timeLeftMs / 60000)
-    const timeLeftSecs = Math.floor((timeLeftMs % 60000) / 1000)
 
-    // eslint-disable-next-line no-console
-    console.log(`[Proactivity] Heartbeat Tick - Next evaluation in: ${timeLeftMins}m ${timeLeftSecs}s (Interval: ${config?.intervalMinutes}m)`)
-
-    if (!options?.force && timeSinceLast < intervalMs) {
+    if (!options?.force && timeLeftMs > 0) {
+      const mins = Math.floor(timeLeftMs / 60000)
+      const secs = Math.floor((timeLeftMs % 60000) / 1000)
+      // eslint-disable-next-line no-console
+      console.log(`[Proactivity] Next evaluation due in: ${mins}m ${secs}s (Interval: ${config?.intervalMinutes}m)`)
       return
     }
 
@@ -330,9 +319,29 @@ export const useProactivityStore = defineStore('proactivity', () => {
     }
   }
 
+  function startHeartbeatLoop() {
+    if (heartbeatInterval)
+      stopHeartbeatLoop()
+
+    // eslint-disable-next-line no-console
+    console.log('[Proactivity] Starting global heartbeat loop (60s tick)...')
+    heartbeatInterval = setInterval(() => {
+      void evaluateHeartbeat()
+    }, 60 * 1000)
+  }
+
+  function stopHeartbeatLoop() {
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval)
+      heartbeatInterval = null
+    }
+  }
+
   return {
     lastHeartbeatTime,
     isHeartbeatEvaluating,
     evaluateHeartbeat,
+    startHeartbeatLoop,
+    stopHeartbeatLoop,
   }
 })

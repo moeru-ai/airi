@@ -146,6 +146,8 @@ onMounted(async () => {
 
   // Listen for open-settings IPC message from main process
   defineInvokeHandler(context.value, electronOpenSettings, () => router.push('/settings'))
+
+  proactivityStore.startHeartbeatLoop()
 })
 
 watch(themeColorsHue, () => {
@@ -165,6 +167,7 @@ watch(() => onboardingStore.shouldShowSetup, () => {
 onUnmounted(() => {
   contextBridgeStore.dispose()
   clearMcpToolBridge()
+  proactivityStore.stopHeartbeatLoop()
 })
 </script>
 
