@@ -8,6 +8,8 @@ export interface RequestLogEntry {
   status: number
   durationMs: number
   fluxConsumed: number
+  promptTokens?: number
+  completionTokens?: number
 }
 
 export function createRequestLogService(db: Database) {
