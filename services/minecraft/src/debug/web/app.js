@@ -1186,7 +1186,7 @@ class ToolsPanel {
   }
 
   handleResult(data) {
-    const { toolName, result: _result, error } = data
+    const { toolName, error } = data
 
     this.executingTools.delete(toolName)
     this.updateCardState(toolName, error ? 'error' : 'success')
