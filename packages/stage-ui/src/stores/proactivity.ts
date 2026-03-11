@@ -26,6 +26,9 @@ export const useProactivityStore = defineStore('proactivity', () => {
   const consciousnessStore = useConsciousnessStore()
   const providersStore = useProvidersStore()
 
+  // eslint-disable-next-line no-console
+  console.log('[Proactivity] Proactivity Store initialized.')
+
   const lastHeartbeatTime = ref<number>(0)
   const isHeartbeatEvaluating = ref(false)
 
@@ -95,18 +98,14 @@ export const useProactivityStore = defineStore('proactivity', () => {
     // Check interval
     const intervalMs = (config?.intervalMinutes || 1) * 60 * 1000
     const timeSinceLast = now.getTime() - lastHeartbeatTime.value
+    const timeLeftMs = Math.max(0, intervalMs - timeSinceLast)
+    const timeLeftMins = Math.floor(timeLeftMs / 60000)
+    const timeLeftSecs = Math.floor((timeLeftMs % 60000) / 1000)
 
     // eslint-disable-next-line no-console
-    console.log('[Proactivity] Checking Interval:', {
-      intervalMinutes: config?.intervalMinutes,
-      elapsedMs: timeSinceLast,
-      requiredMs: intervalMs,
-      lastHeartbeat: new Date(lastHeartbeatTime.value).toLocaleTimeString(),
-    })
+    console.log(`[Proactivity] Heartbeat Tick - Next evaluation in: ${timeLeftMins}m ${timeLeftSecs}s (Interval: ${config?.intervalMinutes}m)`)
 
     if (!options?.force && timeSinceLast < intervalMs) {
-      // eslint-disable-next-line no-console
-      console.log(`[Proactivity] Aborted: Interval of ${config?.intervalMinutes}m has not elapsed yet.`)
       return
     }
 
@@ -120,10 +119,10 @@ export const useProactivityStore = defineStore('proactivity', () => {
           // eslint-disable-next-line no-console
           console.log(`[Proactivity] OS Sensor -> Idle Time: ${idleTime}ms`)
 
-          // If useAsLocalGate is true, require at least 60 seconds of idle time
-          if (!options?.force && config.useAsLocalGate && (idleTime === undefined || idleTime < 60000)) {
+          // If useAsLocalGate is true, abort if user is idle for more than 60 seconds (likely AFK)
+          if (!options?.force && config.useAsLocalGate && (idleTime !== undefined && idleTime > 60000)) {
             // eslint-disable-next-line no-console
-            console.log('[Proactivity] Aborted: Local Gate is active and user is not idle (> 60s).', { idleTime })
+            console.log('[Proactivity] Aborted: Local Gate is active and user is idle (> 60s), likely AFK.', { idleTime })
             return
           }
 

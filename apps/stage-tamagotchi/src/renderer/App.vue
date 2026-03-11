@@ -113,6 +113,12 @@ onMounted(async () => {
   cardStore.initialize()
   onboardingStore.initializeSetupCheck()
 
+  // eslint-disable-next-line no-console
+  console.log('[Proactivity] Starting global heartbeat loop (60s tick)...')
+  setInterval(() => {
+    void proactivityStore.evaluateHeartbeat()
+  }, 60 * 1000)
+
   await chatSessionStore.initialize()
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
@@ -140,11 +146,6 @@ onMounted(async () => {
 
   // Listen for open-settings IPC message from main process
   defineInvokeHandler(context.value, electronOpenSettings, () => router.push('/settings'))
-
-  // Start global Proactivity Heartbeat loop
-  setInterval(() => {
-    void proactivityStore.evaluateHeartbeat()
-  }, 60 * 1000)
 })
 
 watch(themeColorsHue, () => {
