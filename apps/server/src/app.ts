@@ -28,6 +28,7 @@ import { createCharacterService } from './services/characters'
 import { createChatService } from './services/chats'
 import { createConfigKVService } from './services/config-kv'
 import { createFluxService } from './services/flux'
+import { createFluxWriteBack } from './services/flux-write-back'
 import { createProviderService } from './services/providers'
 import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
@@ -224,13 +225,26 @@ async function createApp() {
   })
 
   const fluxService = injeca.provide('services:flux', {
-    dependsOn: { db, configKV },
-    build: ({ dependsOn }) => createFluxService(dependsOn.db, dependsOn.configKV),
+    dependsOn: { db, redis, configKV },
+    build: ({ dependsOn }) => createFluxService(dependsOn.db, dependsOn.redis, dependsOn.configKV),
   })
 
   const requestLogService = injeca.provide('services:requestLog', {
     dependsOn: { db },
     build: ({ dependsOn }) => createRequestLogService(dependsOn.db),
+  })
+
+  const fluxWriteBack = injeca.provide('services:fluxWriteBack', {
+    dependsOn: { db, lifecycle },
+    build: ({ dependsOn }) => {
+      const wb = createFluxWriteBack(dependsOn.db)
+      wb.start()
+      dependsOn.lifecycle.appHooks.onStop(async () => {
+        wb.stop()
+        await wb.flush()
+      })
+      return wb
+    },
   })
 
   await injeca.start()
@@ -245,6 +259,7 @@ async function createApp() {
     configKV,
     env: parsedEnv,
     otel,
+    fluxWriteBack,
   })
   const app = buildApp({
     auth: resolved.auth,
