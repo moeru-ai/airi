@@ -5,6 +5,9 @@ CREATE TABLE "llm_request_log" (
 	"status" integer NOT NULL,
 	"duration_ms" integer NOT NULL,
 	"flux_consumed" integer NOT NULL,
+	"prompt_tokens" integer,
+	"completion_tokens" integer,
+	"settled" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
