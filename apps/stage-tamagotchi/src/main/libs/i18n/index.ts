@@ -9,7 +9,7 @@ import type {
 } from '@intlify/core'
 
 import { useLogg } from '@guiiai/logg'
-import { compile, createCoreContext, fallbackWithLocaleChain, resolveValue, translate } from '@intlify/core'
+import { createCoreContext, translate } from '@intlify/core'
 import { effect, signal } from 'alien-signals'
 import { isString } from 'es-toolkit'
 
@@ -149,21 +149,6 @@ export function createI18n<Schema extends Record<string, any> = Record<string, a
     missingWarn: false,
     warnHtmlMessage: false,
     fallbackFormat: true,
-    // Register the messageCompiler, messageResolver, and localeFallbacker.
-    //
-    // While vue-i18n registers them globally:
-    //
-    // ```
-    // registerMessageCompiler(compile)
-    // registerMessageResolver(resolveValue)
-    // registerLocaleFallbacker(fallbackWithLocaleChain)
-    // ```
-    // See: https://github.com/intlify/vue-i18n/blob/884060b63122ccca3088e4af283ef223a1e2bd29/packages/vue-i18n/src/runtime.ts#L15-L22
-    //
-    // ... but we will provide them to `createCoreContext` here for better scoping.
-    messageCompiler: compile,
-    messageResolver: resolveValue,
-    localeFallbacker: fallbackWithLocaleChain,
     ...options,
   })
 

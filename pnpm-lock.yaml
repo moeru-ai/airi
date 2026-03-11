@@ -977,6 +977,9 @@ importers:
       '@huggingface/transformers':
         specifier: ^3.8.1
         version: 3.8.1
+      '@intlify/core':
+        specifier: 'catalog:'
+        version: 11.2.8
       '@moeru/eventa':
         specifier: ^1.0.0-beta.1
         version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
@@ -1242,9 +1245,6 @@ importers:
       '@iconify/utils':
         specifier: ^3.1.0
         version: 3.1.0
-      '@intlify/core':
-        specifier: 'catalog:'
-        version: 11.2.8
       '@intlify/unplugin-vue-i18n':
         specifier: ^11.0.7
         version: 11.0.7(@vue/compiler-dom@3.5.29)(eslint@9.39.3(jiti@2.6.1))(rollup@4.59.0)(typescript@5.9.3)(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
