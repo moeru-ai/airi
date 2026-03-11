@@ -47,10 +47,10 @@ export async function setupMainWindow(params: {
 
   const window = new BrowserWindow({
     title: 'AIRI',
-    width: mainWindowConfig?.width ?? 450.0,
-    height: mainWindowConfig?.height ?? 600.0,
-    x: mainWindowConfig?.x,
-    y: mainWindowConfig?.y,
+    width: mainWindowConfig?.snapshot?.width ?? mainWindowConfig?.width ?? 450.0,
+    height: mainWindowConfig?.snapshot?.height ?? mainWindowConfig?.height ?? 600.0,
+    x: mainWindowConfig?.snapshot?.x ?? mainWindowConfig?.x,
+    y: mainWindowConfig?.snapshot?.y ?? mainWindowConfig?.y,
     show: false,
     icon,
     webPreferences: {
@@ -83,8 +83,18 @@ export async function setupMainWindow(params: {
     catch {}
   }
 
+  function restoreBounds() {
+    const mainWindow = getConfig().windows?.find((w: any) => w.title === 'AIRI' && w.tag === 'main')
+    if (mainWindow?.snapshot) {
+      window.setBounds(mainWindow.snapshot)
+    }
+  }
+
   window.on('ready-to-show', () => {
+    restoreBounds()
     window.show()
+    // NOTICE: on some platforms/transparency settings, first bounds application might be ignored
+    setTimeout(() => restoreBounds(), 500)
   })
 
   window.webContents.setWindowOpenHandler((details) => {
