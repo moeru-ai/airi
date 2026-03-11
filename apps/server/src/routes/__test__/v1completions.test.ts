@@ -13,9 +13,9 @@ import { createV1CompletionsRoutes } from '../v1completions'
 
 function createMockFluxService(flux = 100): FluxService {
   return {
-    getFlux: vi.fn(async () => ({ userId: 'user-1', flux, stripeCustomerId: null })),
-    consumeFlux: vi.fn(async (_userId, amount) => ({ userId: 'user-1', flux: flux - amount, stripeCustomerId: null })),
-    addFlux: vi.fn(async (_userId, amount) => ({ userId: 'user-1', flux: flux + amount, stripeCustomerId: null })),
+    getFlux: vi.fn(async () => ({ userId: 'user-1', flux })),
+    consumeFlux: vi.fn(async (_userId: string, amount: number) => ({ userId: 'user-1', flux: flux - amount })),
+    addFlux: vi.fn(async (_userId: string, amount: number) => ({ userId: 'user-1', flux: flux + amount })),
     updateStripeCustomerId: vi.fn(),
   } as any
 }
@@ -216,7 +216,7 @@ describe('v1CompletionsRoutes', () => {
       )
     })
 
-    it('should refund flux when upstream returns error', async () => {
+    it('should not charge flux when upstream returns error', async () => {
       globalThis.fetch = vi.fn(async () => new Response('{"error":"bad"}', {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
@@ -235,7 +235,9 @@ describe('v1CompletionsRoutes', () => {
       )
 
       expect(res.status).toBe(500)
-      expect(fluxService.addFlux).toHaveBeenCalledWith('user-1', 1)
+      // Post-billing: no charge on failed requests, no refund needed
+      expect(fluxService.consumeFlux).not.toHaveBeenCalled()
+      expect(fluxService.addFlux).not.toHaveBeenCalled()
     })
 
     it('should return 503 when config keys are missing', async () => {
