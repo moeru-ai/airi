@@ -935,12 +935,6 @@ importers:
       '@date-fns/utc':
         specifier: ^2.1.1
         version: 2.1.1
-      '@electron-toolkit/preload':
-        specifier: ^3.0.2
-        version: 3.0.2(electron@40.8.0)
-      '@electron-toolkit/utils':
-        specifier: ^4.0.0
-        version: 4.0.0(electron@40.8.0)
       '@fontsource-variable/comfortaa':
         specifier: ^5.2.8
         version: 5.2.8
@@ -983,12 +977,6 @@ importers:
       '@huggingface/transformers':
         specifier: ^3.8.1
         version: 3.8.1
-      '@intlify/core':
-        specifier: 'catalog:'
-        version: 11.2.8
-      '@modelcontextprotocol/sdk':
-        specifier: 'catalog:'
-        version: 1.27.1(@cfworker/json-schema@4.1.1)(zod@4.3.6)
       '@moeru/eventa':
         specifier: ^1.0.0-beta.1
         version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
@@ -1004,15 +992,6 @@ importers:
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
         version: 0.4.29(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))
-      '@proj-airi/electron-eventa':
-        specifier: workspace:^
-        version: link:../../packages/electron-eventa
-      '@proj-airi/electron-screen-capture':
-        specifier: workspace:^
-        version: link:../../packages/electron-screen-capture
-      '@proj-airi/electron-vueuse':
-        specifier: workspace:^
-        version: link:../../packages/electron-vueuse
       '@proj-airi/font-cjkfonts-allseto':
         specifier: workspace:^
         version: link:../../packages/font-cjkfonts-allseto
@@ -1022,12 +1001,6 @@ importers:
       '@proj-airi/i18n':
         specifier: workspace:^
         version: link:../../packages/i18n
-      '@proj-airi/plugin-sdk':
-        specifier: workspace:^
-        version: link:../../packages/plugin-sdk
-      '@proj-airi/server-runtime':
-        specifier: workspace:^
-        version: link:../../packages/server-runtime
       '@proj-airi/server-sdk':
         specifier: workspace:*
         version: link:../../packages/server-sdk
@@ -1049,21 +1022,33 @@ importers:
       '@proj-airi/ui':
         specifier: workspace:^
         version: link:../../packages/ui
+      '@shikijs/markdown-it':
+        specifier: ^3.23.0
+        version: 3.23.0
       '@tresjs/cientos':
         specifier: ^5.4.0
         version: 5.4.0(@tresjs/core@5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3)))(@types/three@0.183.1)(react@19.2.3)(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
       '@tresjs/core':
         specifier: ^5.5.0
         version: 5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
+      '@unocss/reset':
+        specifier: ^66.6.2
+        version: 66.6.2
       '@vueuse/core':
         specifier: ^14.2.1
         version: 14.2.1(vue@3.5.29(typescript@5.9.3))
+      '@vueuse/motion':
+        specifier: ^3.0.3
+        version: 3.0.3(magicast@0.5.2)(vue@3.5.29(typescript@5.9.3))
       '@vueuse/shared':
         specifier: ^14.2.1
         version: 14.2.1(vue@3.5.29(typescript@5.9.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
         version: 0.4.3
+      '@xsai-transformers/embed':
+        specifier: ^0.0.11
+        version: 0.0.11(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@xsai-transformers/transcription':
         specifier: ^0.0.11
         version: 0.0.11(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
@@ -1106,9 +1091,6 @@ importers:
       colorjs.io:
         specifier: ^0.6.1
         version: 0.6.1
-      crossws:
-        specifier: ^0.4.4
-        version: 0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))
       culori:
         specifier: ^4.0.2
         version: 4.0.2
@@ -1124,21 +1106,12 @@ importers:
       dompurify:
         specifier: ^3.3.1
         version: 3.3.1
-      drizzle-orm:
-        specifier: ^0.45.1
-        version: 0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)
       electron-click-drag-plugin:
         specifier: ^2.0.2
         version: 2.0.2
-      electron-updater:
-        specifier: ^6.8.3
-        version: 6.8.3
       es-toolkit:
         specifier: ^1.44.0
         version: 1.44.0
-      h3:
-        specifier: ^2.0.1-rc.14
-        version: 2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)))
       injeca:
         specifier: 'catalog:'
         version: 0.1.8(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6)
@@ -1151,9 +1124,6 @@ importers:
       mediabunny:
         specifier: ^1.35.0
         version: 1.35.0
-      mkcert:
-        specifier: 'catalog:'
-        version: 3.2.0
       node-vibrant:
         specifier: ^4.0.4
         version: 4.0.4(encoding@0.1.13)
@@ -1190,12 +1160,6 @@ importers:
       splitpanes:
         specifier: 'catalog:'
         version: 4.0.4(vue@3.5.29(typescript@5.9.3))
-      std-env:
-        specifier: ^4.0.0-rc.1
-        version: 4.0.0-rc.1
-      superjson:
-        specifier: 'catalog:'
-        version: 2.2.6
       three:
         specifier: ^0.183.1
         version: 0.183.1
@@ -1232,16 +1196,19 @@ importers:
       xsschema:
         specifier: 'catalog:'
         version: 0.4.0-beta.13(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
-      yauzl:
-        specifier: ^3.2.0
-        version: 3.2.0
       zod:
         specifier: ^4.3.6
         version: 4.3.6
     devDependencies:
+      '@electron-toolkit/preload':
+        specifier: ^3.0.2
+        version: 3.0.2(electron@40.8.0)
       '@electron-toolkit/tsconfig':
         specifier: ^2.0.0
         version: 2.0.0(@types/node@24.10.14)
+      '@electron-toolkit/utils':
+        specifier: ^4.0.0
+        version: 4.0.0(electron@40.8.0)
       '@electron/notarize':
         specifier: 'catalog:'
         version: 3.1.1
@@ -1275,18 +1242,39 @@ importers:
       '@iconify/utils':
         specifier: ^3.1.0
         version: 3.1.0
+      '@intlify/core':
+        specifier: 'catalog:'
+        version: 11.2.8
       '@intlify/unplugin-vue-i18n':
         specifier: ^11.0.7
         version: 11.0.7(@vue/compiler-dom@3.5.29)(eslint@9.39.3(jiti@2.6.1))(rollup@4.59.0)(typescript@5.9.3)(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
+      '@modelcontextprotocol/sdk':
+        specifier: 'catalog:'
+        version: 1.27.1(@cfworker/json-schema@4.1.1)(zod@4.3.6)
       '@pnpm/find-workspace-dir':
         specifier: ^1000.1.4
         version: 1000.1.4
+      '@proj-airi/electron-eventa':
+        specifier: workspace:^
+        version: link:../../packages/electron-eventa
+      '@proj-airi/electron-screen-capture':
+        specifier: workspace:^
+        version: link:../../packages/electron-screen-capture
+      '@proj-airi/electron-vueuse':
+        specifier: workspace:^
+        version: link:../../packages/electron-vueuse
       '@proj-airi/iconify-meteocons':
         specifier: 'catalog:'
         version: 0.1.4
       '@proj-airi/lobe-icons':
         specifier: ^1.0.18
         version: 1.0.18
+      '@proj-airi/plugin-sdk':
+        specifier: workspace:^
+        version: link:../../packages/plugin-sdk
+      '@proj-airi/server-runtime':
+        specifier: workspace:^
+        version: link:../../packages/server-runtime
       '@proj-airi/stage-shared':
         specifier: workspace:^
         version: link:../../packages/stage-shared
@@ -1299,9 +1287,6 @@ importers:
       '@proj-airi/unplugin-live2d-sdk':
         specifier: ^0.1.6
         version: 0.1.6(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
-      '@shikijs/markdown-it':
-        specifier: ^3.23.0
-        version: 3.23.0
       '@types/audioworklet':
         specifier: 'catalog:'
         version: 0.0.96
@@ -1320,42 +1305,54 @@ importers:
       '@types/yauzl':
         specifier: ^2.10.3
         version: 2.10.3
-      '@unocss/reset':
-        specifier: ^66.6.2
-        version: 66.6.2
       '@vitejs/plugin-vue':
         specifier: ^6.0.4
         version: 6.0.4(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))
       '@vue-macros/volar':
         specifier: ^3.1.2
         version: 3.1.2(typescript@5.9.3)(vue-tsc@3.2.5(typescript@5.9.3))(vue@3.5.29(typescript@5.9.3))
-      '@vueuse/motion':
-        specifier: ^3.0.3
-        version: 3.0.3(magicast@0.5.2)(vue@3.5.29(typescript@5.9.3))
-      '@xsai-transformers/embed':
-        specifier: ^0.0.11
-        version: 0.0.11(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       builder-util-runtime:
         specifier: 'catalog:'
         version: 9.5.1
       cac:
         specifier: ^6.7.14
         version: 6.7.14
+      crossws:
+        specifier: ^0.4.4
+        version: 0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))
       csstype:
         specifier: ^3.2.3
         version: 3.2.3
+      drizzle-orm:
+        specifier: ^0.45.1
+        version: 0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)
       electron:
         specifier: 'catalog:'
         version: 40.8.0
       electron-builder:
         specifier: ^26.8.1
         version: 26.8.1(electron-builder-squirrel-windows@26.8.1)
+      electron-updater:
+        specifier: ^6.8.3
+        version: 6.8.3
       electron-vite:
         specifier: ^5.0.0
         version: 5.0.0(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+      h3:
+        specifier: ^2.0.1-rc.14
+        version: 2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)))
       less:
         specifier: ^4.5.1
         version: 4.5.1
+      mkcert:
+        specifier: 'catalog:'
+        version: 3.2.0
+      std-env:
+        specifier: ^4.0.0-rc.1
+        version: 4.0.0-rc.1
+      superjson:
+        specifier: 'catalog:'
+        version: 2.2.6
       unocss-preset-scrollbar:
         specifier: ^3.2.0
         version: 3.2.0(unocss@66.6.2(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)))
@@ -1389,6 +1386,9 @@ importers:
       yaml:
         specifier: ^2.8.2
         version: 2.8.2
+      yauzl:
+        specifier: ^3.2.0
+        version: 3.2.0
 
   apps/stage-web:
     dependencies:
