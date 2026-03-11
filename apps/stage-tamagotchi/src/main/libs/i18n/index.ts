@@ -160,7 +160,7 @@ export function createI18n<Schema extends Record<string, any> = Record<string, a
     // ```
     // See: https://github.com/intlify/vue-i18n/blob/884060b63122ccca3088e4af283ef223a1e2bd29/packages/vue-i18n/src/runtime.ts#L15-L22
     //
-    // ... but we will provide them via `createCoreContext` for better scoping.
+    // ... but we will provide them to `createCoreContext` here for better scoping.
     messageCompiler: compile,
     messageResolver: resolveValue,
     localeFallbacker: fallbackWithLocaleChain,
