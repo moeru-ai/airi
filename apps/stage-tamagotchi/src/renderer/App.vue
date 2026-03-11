@@ -15,6 +15,7 @@ import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
+import { useProactivityStore } from '@proj-airi/stage-ui/stores/proactivity'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -62,6 +63,8 @@ const characterOrchestratorStore = useCharacterOrchestratorStore()
 const analyticsStore = useSharedAnalyticsStore()
 const pluginHostInspectorStore = usePluginHostInspectorStore()
 usePerfTracerBridgeStore()
+
+const proactivityStore = useProactivityStore()
 
 const context = useElectronEventaContext()
 const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
@@ -137,6 +140,11 @@ onMounted(async () => {
 
   // Listen for open-settings IPC message from main process
   defineInvokeHandler(context.value, electronOpenSettings, () => router.push('/settings'))
+
+  // Start global Proactivity Heartbeat loop
+  setInterval(() => {
+    void proactivityStore.evaluateHeartbeat()
+  }, 60 * 1000)
 })
 
 watch(themeColorsHue, () => {

@@ -23,7 +23,7 @@ const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
 const { cleanupMessages } = useChatMaintenanceStore()
-const { ingest, onAfterMessageComposed, discoverToolsCompatibility } = chatOrchestrator
+const { ingest, onAfterMessageComposed } = chatOrchestrator
 const { messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { sending } = storeToRefs(chatOrchestrator)
@@ -102,12 +102,6 @@ function removeAttachment(index: number) {
     attachments.value.splice(index, 1)
   }
 }
-
-watch([activeProvider, activeModel], async () => {
-  if (activeProvider.value && activeModel.value) {
-    await discoverToolsCompatibility(activeModel.value, await providersStore.getProviderInstance<ChatProvider>(activeProvider.value), [])
-  }
-}, { immediate: true })
 
 onAfterMessageComposed(async () => {
   messageInput.value = ''

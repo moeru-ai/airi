@@ -8,6 +8,7 @@ import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/c
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
+import { useProactivityStore } from '@proj-airi/stage-ui/stores/proactivity'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
@@ -36,6 +37,7 @@ const { showingSetup } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
 const analyticsStore = useSharedAnalyticsStore()
+const proactivityStore = useProactivityStore()
 
 const primaryColor = computed(() => {
   return isDark.value
@@ -87,6 +89,11 @@ onMounted(async () => {
 
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
+
+  // Start global Proactivity Heartbeat loop
+  setInterval(() => {
+    void proactivityStore.evaluateHeartbeat()
+  }, 60 * 1000)
 })
 
 onUnmounted(() => {

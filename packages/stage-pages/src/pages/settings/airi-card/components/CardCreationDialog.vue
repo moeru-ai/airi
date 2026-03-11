@@ -74,6 +74,15 @@ const selectedArtistryModel = ref<string>('')
 const selectedArtistryPromptPrefix = ref<string>('')
 const selectedArtistryConfigStr = ref<string>('{\n  \n}')
 
+// Heartbeats configuration
+const heartbeatsEnabled = ref<boolean>(false)
+const heartbeatsIntervalMinutes = ref<number>(30)
+const heartbeatsPrompt = ref<string>('')
+const heartbeatsInjectIntoPrompt = ref<boolean>(true)
+const heartbeatsUseAsLocalGate = ref<boolean>(true)
+const heartbeatsScheduleStart = ref<string>('09:00')
+const heartbeatsScheduleEnd = ref<string>('22:00')
+
 const consciousnessProviderOptions = computed(() => {
   return providersStore.configuredChatProvidersMetadata.map(provider => ({
     value: provider.id,
@@ -197,6 +206,7 @@ const tabs: Tab[] = [
   { id: 'identity', label: t('settings.pages.card.creation.identity'), icon: 'i-solar:emoji-funny-square-bold-duotone' },
   { id: 'behavior', label: t('settings.pages.card.creation.behavior'), icon: 'i-solar:chat-round-line-bold-duotone' },
   { id: 'modules', label: t('settings.pages.card.modules'), icon: 'i-solar:widget-4-bold-duotone' },
+  { id: 'proactivity', label: t('settings.pages.card.creation.proactivity', 'Proactivity'), icon: 'i-solar:heart-pulse-bold-duotone' },
   { id: 'settings', label: t('settings.pages.card.creation.settings'), icon: 'i-solar:settings-bold-duotone' },
 ]
 
@@ -285,6 +295,17 @@ function saveCard(card: Card): boolean {
           displayModelId: selectedDisplayModelId.value || defaultDisplayModelId.value,
         },
         agents: {},
+        heartbeats: {
+          enabled: heartbeatsEnabled.value,
+          intervalMinutes: heartbeatsIntervalMinutes.value,
+          prompt: heartbeatsPrompt.value,
+          injectIntoPrompt: heartbeatsInjectIntoPrompt.value,
+          useAsLocalGate: heartbeatsUseAsLocalGate.value,
+          schedule: {
+            start: heartbeatsScheduleStart.value,
+            end: heartbeatsScheduleEnd.value,
+          },
+        },
       } as AiriExtension,
     },
   }
@@ -297,10 +318,11 @@ function saveCard(card: Card): boolean {
     options: (() => {
       try {
         return selectedArtistryConfigStr.value.trim() ? JSON.parse(selectedArtistryConfigStr.value) : undefined
-      } catch {
+      }
+      catch {
         return undefined
       }
-    })()
+    })(),
   }
 
   if (isEditMode.value && props.cardId) {
@@ -336,9 +358,18 @@ function initializeCard(): Card {
   selectedArtistryPromptPrefix.value = airiExt?.artistry?.promptPrefix || ''
   try {
     selectedArtistryConfigStr.value = airiExt?.artistry?.options ? JSON.stringify(airiExt.artistry.options, null, 2) : '{\n  \n}'
-  } catch {
+  }
+  catch {
     selectedArtistryConfigStr.value = '{\n  \n}'
   }
+
+  heartbeatsEnabled.value = airiExt?.heartbeats?.enabled ?? false
+  heartbeatsIntervalMinutes.value = airiExt?.heartbeats?.intervalMinutes ?? 30
+  heartbeatsPrompt.value = airiExt?.heartbeats?.prompt ?? ''
+  heartbeatsInjectIntoPrompt.value = airiExt?.heartbeats?.injectIntoPrompt ?? true
+  heartbeatsUseAsLocalGate.value = airiExt?.heartbeats?.useAsLocalGate ?? true
+  heartbeatsScheduleStart.value = airiExt?.heartbeats?.schedule?.start ?? '09:00'
+  heartbeatsScheduleEnd.value = airiExt?.heartbeats?.schedule?.end ?? '22:00'
 
   // Return existing card data or defaults
   if (existingCard) {
@@ -587,7 +618,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
               </div>
 
               <!-- Artistry Extra Config -->
-              <div class="col-span-1 md:col-span-2 mt-4 flex flex-col gap-5">
+              <div class="col-span-1 mt-4 flex flex-col gap-5 md:col-span-2">
                 <FieldInput
                   v-model="selectedArtistryModel"
                   label="Artistry Model (Optional Override)"
@@ -605,6 +636,54 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   label="Artistry Provider Options (JSON)"
                   :single-line="false"
                 />
+              </div>
+            </div>
+          </div>
+          <!-- Proactivity -->
+          <div v-else-if="activeTab === 'proactivity'" class="tab-content ml-auto mr-auto w-95%">
+            <p class="mb-3 text-sm text-neutral-500">
+              Configure how often AIRI will proactively speak to you without being prompted.
+            </p>
+            <div class="input-list ml-auto mr-auto w-90% flex flex-col flex-wrap justify-center gap-6">
+              <div class="flex items-center gap-2">
+                <input id="heartbeats-enabled" v-model="heartbeatsEnabled" type="checkbox" class="h-4 w-4 border-gray-300 rounded text-primary-600">
+                <label for="heartbeats-enabled" class="font-medium">Enable Proactive Heartbeats</label>
+              </div>
+
+              <div v-if="heartbeatsEnabled" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div class="flex flex-col gap-2">
+                  <label class="text-sm text-neutral-700 font-medium dark:text-neutral-300">Interval (Minutes)</label>
+                  <input v-model="heartbeatsIntervalMinutes" type="number" min="1" max="1440" class="border border-neutral-200 rounded-lg bg-transparent px-3 py-2 dark:border-neutral-700">
+                  <span class="text-xs text-neutral-500">How often to tick the heartbeat polling.</span>
+                </div>
+
+                <div class="flex flex-col gap-2">
+                  <label class="text-sm text-neutral-700 font-medium dark:text-neutral-300">Schedule Options</label>
+                  <div class="flex items-center gap-2">
+                    <input v-model="heartbeatsScheduleStart" type="time" class="flex-1 border border-neutral-200 rounded-lg bg-transparent px-2 py-1 dark:border-neutral-700">
+                    <span>to</span>
+                    <input v-model="heartbeatsScheduleEnd" type="time" class="flex-1 border border-neutral-200 rounded-lg bg-transparent px-2 py-1 dark:border-neutral-700">
+                  </div>
+                  <span class="mt-1 text-xs text-neutral-500">Only trigger heartbeats between these hours.</span>
+                </div>
+
+                <div class="col-span-1 mt-4 flex flex-col gap-2 sm:col-span-2">
+                  <div class="flex items-center gap-2">
+                    <input id="heartbeats-injectContext" v-model="heartbeatsInjectIntoPrompt" type="checkbox" class="h-4 w-4">
+                    <label for="heartbeats-injectContext" class="text-sm text-neutral-700 font-medium dark:text-neutral-300">Inject Event Context into Prompt</label>
+                  </div>
+                  <span class="pl-6 text-xs text-neutral-500">Provides sensor payload context to Heartbeat LLM completions.</span>
+
+                  <div class="mt-2 flex items-center gap-2">
+                    <input id="heartbeats-localGate" v-model="heartbeatsUseAsLocalGate" type="checkbox" class="h-4 w-4">
+                    <label for="heartbeats-localGate" class="text-sm text-neutral-700 font-medium dark:text-neutral-300">Require Keyboard/Mouse Inactivity</label>
+                  </div>
+                  <span class="pl-6 text-xs text-neutral-500">Only trigger the LLM if the user is currently idle (mouse/keyboard).</span>
+                </div>
+
+                <div class="col-span-1 mt-4 sm:col-span-2">
+                  <FieldInput v-model="heartbeatsPrompt" label="Stealth Heartbeat Prompt" description="The hidden instruction sent to the LLM during a heartbeat tick. Instruct it to reply with exactly &quot;NO_REPLY&quot; if you want it to remain silent." :single-line="false" placeholder="You are evaluating a proactive heartbeat. Provide a fun comment, or output NO_REPLY to remain silent." />
+                </div>
               </div>
             </div>
           </div>

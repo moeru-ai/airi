@@ -12,6 +12,18 @@ import { useSettingsStageModel } from '../settings/stage-model'
 import { useConsciousnessStore } from './consciousness'
 import { useSpeechStore } from './speech'
 
+export interface HeartbeatConfig {
+  enabled: boolean
+  intervalMinutes: number
+  prompt: string
+  injectIntoPrompt: boolean
+  useAsLocalGate: boolean
+  schedule: {
+    start: string // e.g., '09:00'
+    end: string // e.g., '23:00'
+  }
+}
+
 export interface AiriExtension {
   modules: {
     consciousness: {
@@ -60,6 +72,8 @@ export interface AiriExtension {
       enabled?: boolean
     }
   }
+
+  heartbeats?: HeartbeatConfig
 }
 
 export interface AiriCard extends Card {
@@ -142,11 +156,24 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       displayModelId: stageModelStore.stageModelSelected,
     }
 
+    const defaultHeartbeats: HeartbeatConfig = {
+      enabled: false,
+      intervalMinutes: 30,
+      prompt: '',
+      injectIntoPrompt: true,
+      useAsLocalGate: true,
+      schedule: {
+        start: '09:00',
+        end: '22:00',
+      },
+    }
+
     // Return default if no extension exists
     if (!existingExtension) {
       return {
         modules: defaultModules,
         agents: {},
+        heartbeats: defaultHeartbeats,
       }
     }
 
@@ -172,6 +199,17 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       },
       artistry: existingExtension.artistry,
       agents: existingExtension.agents ?? {},
+      heartbeats: {
+        enabled: existingExtension.heartbeats?.enabled ?? defaultHeartbeats.enabled,
+        intervalMinutes: existingExtension.heartbeats?.intervalMinutes ?? defaultHeartbeats.intervalMinutes,
+        prompt: existingExtension.heartbeats?.prompt ?? defaultHeartbeats.prompt,
+        injectIntoPrompt: existingExtension.heartbeats?.injectIntoPrompt ?? defaultHeartbeats.injectIntoPrompt,
+        useAsLocalGate: existingExtension.heartbeats?.useAsLocalGate ?? defaultHeartbeats.useAsLocalGate,
+        schedule: {
+          start: existingExtension.heartbeats?.schedule?.start ?? defaultHeartbeats.schedule.start,
+          end: existingExtension.heartbeats?.schedule?.end ?? defaultHeartbeats.schedule.end,
+        },
+      },
     }
   }
 

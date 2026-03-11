@@ -163,15 +163,6 @@ const { activeProvider: activeChatProvider, activeModel: activeChatModel } = sto
 const chatStore = useChatOrchestratorStore()
 
 const llmStore = useLLM()
-watch([activeChatProvider, activeChatModel], async () => {
-  if (activeChatProvider.value && activeChatModel.value) {
-    console.log('[Main Page] Discovering tools compatibility for:', activeChatModel.value)
-    const provider = await providersStore.getProviderInstance<ChatProvider>(activeChatProvider.value)
-    if (provider) {
-      await llmStore.discoverToolsCompatibility(activeChatModel.value, provider, [])
-    }
-  }
-}, { immediate: true })
 
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 

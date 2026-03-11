@@ -22,6 +22,7 @@ import { setupServerChannel } from './services/airi/channel-server'
 import { setupMcpStdioManager } from './services/airi/mcp-servers'
 import { setupPluginHost } from './services/airi/plugins'
 import { setupAutoUpdater } from './services/electron/auto-updater'
+import { setupSensorsService } from './services/sensors'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -138,6 +139,9 @@ app.whenReady().then(async () => {
   const tray = injeca.provide('app:tray', {
     dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, i18n, appConfig },
     build: async ({ dependsOn }) => {
+      // Start global OS sensor hooks
+      setupSensorsService()
+
       const configHelper = dependsOn.appConfig
       return setupTray({
         ...dependsOn,
@@ -159,8 +163,11 @@ app.whenReady().then(async () => {
         m.setupMicToggleShortcut(deps.mainWindow)
       })
       ipcMain.on('provider-validation-result', (_, data: { providerId: string, valid: boolean, reason: string, config: any }) => {
-        const status = data.valid ? 'PASS' : 'FAIL'
-        const color = data.valid ? '\x1B[32m' : '\x1B[31m'
+        if (data.valid)
+          return
+
+        const status = 'FAIL'
+        const color = '\x1B[31m'
         const reset = '\x1B[0m'
         console.log(`${color}[Provider Validation]${reset} [${data.providerId}] ${status}`)
         if (!data.valid) {

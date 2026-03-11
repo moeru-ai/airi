@@ -1,13 +1,13 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { CommonContentPart, CompletionToolCall, Message, Tool } from '@xsai/shared-chat'
 
+import { generateText } from '@xsai/generate-text'
 import { listModels } from '@xsai/model'
-import { XSAIError } from '@xsai/shared'
 import { streamText } from '@xsai/stream-text'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-import { debug, mcp } from '../tools'
+import { mcp } from '../tools'
 
 export type StreamEvent
   = | { type: 'text-delta', text: string }
@@ -58,7 +58,6 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
   const tools = supportedTools
     ? [
         ...await mcp(),
-        ...await debug(),
         ...await resolveTools(),
       ]
     : undefined
@@ -113,91 +112,45 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
   })
 }
 
-export async function attemptForToolsCompatibilityDiscovery(model: string, chatProvider: ChatProvider, _: Message[], options?: Omit<StreamOptions, 'supportsTools'>): Promise<boolean> {
-  async function attempt(enable: boolean) {
-    try {
-      await streamFrom(model, chatProvider, [{ role: 'user', content: 'Hello, world!' }], { ...options, supportsTools: enable })
-      return true
-    }
-    catch (err) {
-      if (err instanceof Error && err.name === new XSAIError('').name) {
-        // TODO: if you encountered many more errors like these, please, add them here.
+async function generateFrom(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
+  const headers = options?.headers
+  const chatConfig = chatProvider.chat(model)
+  const sanitized = sanitizeMessages(messages as unknown[])
 
-        // Ollama
-        /**
-         * {"error":{"message":"registry.ollama.ai/<scope>/<model> does not support tools","type":"api_error","param":null,"code":null}}
-         */
-        if (String(err).includes('does not support tools')) {
-          return false
-        }
-        // OpenRouter
-        /**
-         * {"error":{"message":"No endpoints found that support tool use. To learn more about provider routing, visit: https://openrouter.ai/docs/provider-routing","code":404}}
-         */
-        if (String(err).includes('No endpoints found that support tool use.')) {
-          return false
-        }
-      }
-
-      throw err
-    }
+  const resolveTools = async () => {
+    const tools = typeof options?.tools === 'function'
+      ? await options.tools()
+      : options?.tools
+    return tools ?? []
   }
 
-  function promiseAllWithInterval<T>(promises: (() => Promise<T>)[], interval: number): Promise<{ result?: T, error?: any }[]> {
-    return new Promise((resolve) => {
-      const results: { result?: T, error?: any }[] = []
-      let completed = 0
+  const supportedTools = streamOptionsToolsCompatibilityOk(model, chatProvider, messages, options)
+  const tools = supportedTools
+    ? [
+        ...await mcp(),
+        ...await resolveTools(),
+      ]
+    : undefined
 
-      promises.forEach((promiseFn, index) => {
-        setTimeout(() => {
-          promiseFn()
-            .then((result) => {
-              results[index] = { result }
-            })
-            .catch((err) => {
-              results[index] = { error: err }
-            })
-            .finally(() => {
-              completed++
-              if (completed === promises.length) {
-                resolve(results)
-              }
-            })
-        }, index * interval)
-      })
-    })
-  }
-
-  const attempts = [
-    () => attempt(true),
-    () => attempt(false),
-  ]
-
-  const attemptsResults = await promiseAllWithInterval<boolean | undefined>(attempts, 1000)
-  if (attemptsResults.some(res => res.error)) {
-    const err = new Error(`Error during tools compatibility discovery for model: ${model}. Errors: ${attemptsResults.map(res => res.error).filter(Boolean).join(', ')}`)
-    err.cause = attemptsResults.map(res => res.error).filter(Boolean)
-    throw err
-  }
-
-  return attemptsResults[0].result === true && attemptsResults[1].result === true
+  return await generateText({
+    ...chatConfig,
+    messages: sanitized,
+    headers,
+    tools,
+  })
 }
 
 export const useLLM = defineStore('llm', () => {
   const toolsCompatibility = ref<Map<string, boolean>>(new Map())
 
-  async function discoverToolsCompatibility(model: string, chatProvider: ChatProvider, _: Message[], options?: Omit<StreamOptions, 'supportsTools'>) {
-    // Cached, no need to discover again
-    if (toolsCompatibility.value.has(`${chatProvider.chat(model).baseURL}-${model}`)) {
-      return
-    }
-
-    const res = await attemptForToolsCompatibilityDiscovery(model, chatProvider, _, { ...options, toolsCompatibility: toolsCompatibility.value })
-    toolsCompatibility.value.set(`${chatProvider.chat(model).baseURL}-${model}`, res)
+  function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
+    // Disable automatic discovery to save user credits.
+    // Tools will be attempted blindly or skip discovery entirely.
+    return streamFrom(model, chatProvider, messages, { ...options, toolsCompatibility: toolsCompatibility.value })
   }
 
-  function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
-    return streamFrom(model, chatProvider, messages, { ...options, toolsCompatibility: toolsCompatibility.value })
+  function generate(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
+    return generateFrom(model, chatProvider, messages, { ...options, toolsCompatibility: toolsCompatibility.value })
   }
 
   async function models(apiUrl: string, apiKey: string) {
@@ -223,6 +176,6 @@ export const useLLM = defineStore('llm', () => {
   return {
     models,
     stream,
-    discoverToolsCompatibility,
+    generate,
   }
 })

@@ -21,7 +21,7 @@ import type {
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
-import { computedAsync, useIntervalFn, useLocalStorage } from '@vueuse/core'
+import { computedAsync, useDebounceFn, useLocalStorage } from '@vueuse/core'
 import {
   createOpenAI,
 } from '@xsai-ext/providers/create'
@@ -1734,7 +1734,6 @@ export const useProvidersStore = defineStore('providers', () => {
   // const validatedCredentials = ref<Record<string, string>>({})
   const providerRuntimeState = ref<Record<string, ProviderRuntimeState>>({})
   const providerValidationInFlight = new Map<string, Promise<boolean>>()
-  const providerRevalidationLoops = new Map<string, { resume: () => void }>()
 
   const configuredProviders = computed(() => {
     const result: Record<string, boolean> = {}
@@ -1871,23 +1870,6 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Object.keys(providerMetadata).forEach(initializeProvider)
 
-  function startPeriodicRuntimeValidation() {
-    for (const [providerId, intervalMs] of providerValidationIntervalMsById.entries()) {
-      if (!providerMetadata[providerId] || intervalMs <= 0)
-        continue
-
-      if (providerRevalidationLoops.has(providerId)) {
-        continue
-      }
-
-      const loop = useIntervalFn(() => {
-        void validateProvider(providerId, { force: true })
-      }, intervalMs, { immediate: false, immediateCallback: false })
-      loop.resume()
-      providerRevalidationLoops.set(providerId, loop)
-    }
-  }
-
   // Update configuration status for all configured providers
   const updateConfigurationStatus = debounce(async () => {
     await Promise.all(Object.entries(providerMetadata)
@@ -1916,8 +1898,6 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Initial validation run
   void updateConfigurationStatus()
-
-  startPeriodicRuntimeValidation()
 
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.keys(providerMetadata).filter(providerId => providerRuntimeState.value[providerId]?.isConfigured))

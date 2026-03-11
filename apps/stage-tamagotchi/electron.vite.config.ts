@@ -141,6 +141,7 @@ export default defineConfig({
         '@proj-airi/stage-ui-three': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui-three', 'src')),
         '@proj-airi/stage-pages': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src')),
         '@proj-airi/stage-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-shared', 'src')),
+        '@proj-airi/electron-vueuse': resolve(join(import.meta.dirname, '..', '..', 'packages', 'electron-vueuse', 'src')),
       },
     },
 

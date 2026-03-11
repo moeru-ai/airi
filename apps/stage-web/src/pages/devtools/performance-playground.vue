@@ -5,7 +5,7 @@ import type { ChatProvider, SpeechProviderWithExtraOptions } from '@xsai-ext/pro
 import { createPlaybackManager, createSpeechPipeline } from '@proj-airi/pipelines-audio'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
-import { useDelayMessageQueue, useEmotionsMessageQueue } from '@proj-airi/stage-ui/composables/queues'
+import { useSpecialTokenQueue } from '@proj-airi/stage-ui/composables/queues'
 import { llmInferenceEndToken } from '@proj-airi/stage-ui/constants'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '@proj-airi/stage-ui/constants/emotions'
 import { useAudioContext, useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
@@ -49,28 +49,14 @@ const { activeSpeechProvider, activeSpeechVoice, activeSpeechModel, ssmlEnabled,
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
 
-const delaysQueue = useDelayMessageQueue()
-const currentMotion = ref<{ group: string }>({ group: EmotionThinkMotionName })
-const emotionsQueue = createQueue<EmotionPayload>({
-  handlers: [
-    async (ctx) => {
-      const motion = EMOTION_EmotionMotionName_value[ctx.data.name]
-      const expression = EMOTION_VRMExpressionName_value[ctx.data.name]
-      if (motion)
-        currentMotion.value = { group: motion }
-      if (expression)
-        sceneRef.value?.setExpression(expression, ctx.data.intensity)
-    },
-  ],
-})
-const emotionMessageQueue = useEmotionsMessageQueue(emotionsQueue)
+const specialTokenQueue = useSpecialTokenQueue(emotionsQueue)
 
-emotionMessageQueue.on('enqueue', (token) => {
-  log(`    - special 入队：${token}`)
+specialTokenQueue.onHandlerEvent('emotion', (emotion) => {
+  log(`    - special 入队：${emotion.name}`)
 })
 
-emotionMessageQueue.on('dequeue', (token) => {
-  log(`special 出队处理：${token}`)
+specialTokenQueue.onHandlerEvent('delay', (delay) => {
+  log(`special 延迟：${delay}`)
 })
 
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
@@ -178,7 +164,7 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
 
 speechPipeline.on('onSpecial', (segment) => {
   if (segment.special)
-    emotionMessageQueue.enqueue(segment.special)
+    specialTokenQueue.enqueue(segment.special)
 })
 
 playbackManager.onStart(({ item }) => {
@@ -250,7 +236,7 @@ chatHookCleanups.push(onTokenSpecial(async (special) => {
 }))
 
 chatHookCleanups.push(onStreamEnd(async () => {
-  delaysQueue.enqueue(llmInferenceEndToken)
+  specialTokenQueue.enqueue(llmInferenceEndToken)
   currentIntent?.writeFlush()
 }))
 
