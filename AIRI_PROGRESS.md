@@ -24,12 +24,14 @@
     - **Action**: `git status`, commit, and push to `dasilva333/airi`.
 
 3. **ScrollLock Microphone Toggle**
-    - **Goal**: Add feature where the ScrollLock button enables the microphone.
-    - **Action**: Create feature branch and submit PR.
+    - **Goal**: Isolate existing ScrollLock mic toggle feature into its own branch.
+    - **Status**: Code already exists in `airi-rebase-scratch`.
+    - **Action**: Identify code, port to `airi-clean-pr`, and submit PR.
 
 4. **Improved VAD Voice Quality**
-    - **Goal**: Port improvements to VAD (voice quality/PCM settings).
-    - **Action**: Create feature branch and submit PR.
+    - **Goal**: Isolate existing VAD quality improvements (PCM settings).
+    - **Status**: Code already exists in `airi-rebase-scratch`.
+    - **Action**: Identify code, port to `airi-clean-pr`, and submit PR.
 
 ## Notes
 - Always ensure files are UTF-8 encoded before PR submission.
