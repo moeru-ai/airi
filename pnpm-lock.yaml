@@ -1139,6 +1139,9 @@ importers:
       h3:
         specifier: ^2.0.1-rc.14
         version: 2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)))
+      rou3:
+        specifier: ^0.7.12
+        version: 0.7.12
       injeca:
         specifier: 'catalog:'
         version: 0.1.8(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6)
