@@ -292,6 +292,10 @@ function stopAudioInteraction() {
 }
 
 watch(enabled, async (val) => {
+  if (window.electron?.ipcRenderer) {
+    window.electron.ipcRenderer.send('mic-state-changed', val, settingsAudioDeviceStore.selectedAudioInputLabel)
+  }
+
   console.info('[Main Page] Audio enabled changed:', val, 'stream available:', !!stream.value)
   if (val) {
     await askPermission()
@@ -310,6 +314,13 @@ watch([() => onboardingStore.shouldShowSetup], ([shouldShowSetup]) => {
 
 onMounted(() => {
   onboardingStore.initializeSetupCheck()
+
+  if (window.electron?.ipcRenderer) {
+    window.electron.ipcRenderer.on('toggle-mic-from-shortcut', () => {
+      console.info('[Main Page] Toggling mic from shortcut')
+      settingsAudioDeviceStore.enabled = !settingsAudioDeviceStore.enabled
+    })
+  }
 })
 
 onUnmounted(() => {
