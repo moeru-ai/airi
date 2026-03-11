@@ -140,6 +140,71 @@ async function generateFrom(model: string, chatProvider: ChatProvider, messages:
   })
 }
 
+export async function attemptForToolsCompatibilityDiscovery(model: string, chatProvider: ChatProvider, _: Message[], options?: Omit<StreamOptions, 'supportsTools'>): Promise<boolean> {
+  async function attempt(enable: boolean) {
+    let toolsError = false
+    try {
+      await streamFrom(model, chatProvider, [{ role: 'user', content: 'Hello, world!' }], {
+        ...options,
+        supportsTools: enable,
+        onStreamEvent: (event) => {
+          if (event.type === 'error') {
+            const errStr = String(event.error)
+            if (errStr.includes('does not support tools') || errStr.includes('No endpoints found that support tool use.')) {
+              toolsError = true
+            }
+          }
+        },
+      })
+      return !toolsError
+    }
+    catch (err) {
+      if (toolsError)
+        return false
+      throw err
+    }
+  }
+
+  function promiseAllWithInterval<T>(promises: (() => Promise<T>)[], interval: number): Promise<{ result?: T, error?: any }[]> {
+    return new Promise((resolve) => {
+      const results: { result?: T, error?: any }[] = []
+      let completed = 0
+
+      promises.forEach((promiseFn, index) => {
+        setTimeout(() => {
+          promiseFn()
+            .then((result) => {
+              results[index] = { result }
+            })
+            .catch((err) => {
+              results[index] = { error: err }
+            })
+            .finally(() => {
+              completed++
+              if (completed === promises.length) {
+                resolve(results)
+              }
+            })
+        }, index * interval)
+      })
+    })
+  }
+
+  const attempts = [
+    () => attempt(true),
+    () => attempt(false),
+  ]
+
+  const attemptsResults = await promiseAllWithInterval<boolean | undefined>(attempts, 1000)
+  if (attemptsResults.some(res => res.error)) {
+    const err = new Error(`Error during tools compatibility discovery for model: ${model}. Errors: ${attemptsResults.map(res => res.error).filter(Boolean).join(', ')}`)
+    err.cause = attemptsResults.map(res => res.error).filter(Boolean)
+    throw err
+  }
+
+  return attemptsResults[0].result === true && attemptsResults[1].result === true
+}
+
 export const useLLM = defineStore('llm', () => {
   const toolsCompatibility = ref<Map<string, boolean>>(new Map())
 
@@ -151,6 +216,16 @@ export const useLLM = defineStore('llm', () => {
 
   function generate(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
     return generateFrom(model, chatProvider, messages, { ...options, toolsCompatibility: toolsCompatibility.value })
+  }
+
+  async function discoverToolsCompatibility(model: string, chatProvider: ChatProvider, _: Message[], options?: Omit<StreamOptions, 'supportsTools'>) {
+    // Cached, no need to discover again
+    if (toolsCompatibility.value.has(`${chatProvider.chat(model).baseURL}-${model}`)) {
+      return
+    }
+
+    const res = await attemptForToolsCompatibilityDiscovery(model, chatProvider, _, { ...options, toolsCompatibility: toolsCompatibility.value })
+    toolsCompatibility.value.set(`${chatProvider.chat(model).baseURL}-${model}`, res)
   }
 
   async function models(apiUrl: string, apiKey: string) {
@@ -177,5 +252,6 @@ export const useLLM = defineStore('llm', () => {
     models,
     stream,
     generate,
+    discoverToolsCompatibility,
   }
 })

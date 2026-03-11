@@ -1,6 +1,6 @@
-import Replicate from 'replicate'
-
 import type { ArtistryJob, ArtistryJobStatus, ArtistryProvider, ArtistryRequest } from './base'
+
+import Replicate from 'replicate'
 
 import { useLogg } from '@guiiai/logg'
 
@@ -48,14 +48,14 @@ export class ReplicateProvider implements ArtistryProvider {
     }
 
     log.log(`[Replicate] Generating with model ${model}...`)
-    
+
     // We don't await the result here because the interface expects us to return an ArtistryJob immediately.
     // However, replicate.run() blocks until completion. We'll run it in the background and store the result.
     const jobId = request.extra?.internalJobId || Math.random().toString(36).slice(2)
-    
+
     // Start generation asynchronously
     this.runGeneration(jobId, model, inputOptions)
-    
+
     return { jobId, providerJobId: jobId }
   }
 
@@ -64,10 +64,10 @@ export class ReplicateProvider implements ArtistryProvider {
 
   private async runGeneration(jobId: string, model: `${string}/${string}`, input: object) {
     this.jobResults.set(jobId, { status: 'running', actionLabel: 'Requesting cloud generation...' })
-    
+
     try {
       const output = await this.replicate!.run(model, { input })
-      
+
       if (!output) {
         throw new Error('No output received from Replicate.')
       }
@@ -78,17 +78,21 @@ export class ReplicateProvider implements ArtistryProvider {
           const imageUrl = typeof fileOutput.url === 'function' ? fileOutput.url().href : fileOutput.url
           log.log(`[Replicate] EXTRACTED IMAGE: ${imageUrl}`)
           this.jobResults.set(jobId, { status: 'succeeded', progress: 100, imageUrl })
-        } else if (typeof output[0] === 'string' && output[0].startsWith('http')) {
+        }
+        else if (typeof output[0] === 'string' && output[0].startsWith('http')) {
           const imageUrl = output[0]
           log.log(`[Replicate] EXTRACTED IMAGE: ${imageUrl}`)
           this.jobResults.set(jobId, { status: 'succeeded', progress: 100, imageUrl })
-        } else {
+        }
+        else {
           throw new Error('Output does not contain a recognizable URL.')
         }
-      } else {
+      }
+      else {
         throw new Error(`Unexpected output format: ${JSON.stringify(output)}`)
       }
-    } catch (error: any) {
+    }
+    catch (error: any) {
       log.error(`[Replicate] Error: ${error.message}`)
       this.jobResults.set(jobId, { status: 'failed', error: error.message, actionLabel: `Error: ${error.message}` })
     }

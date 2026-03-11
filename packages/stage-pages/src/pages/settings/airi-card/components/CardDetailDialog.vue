@@ -401,44 +401,44 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                   hover="bg-white/80 dark:bg-black/40"
                 >
                   <div class="col-span-1 flex flex-col gap-1">
-                    <span class="text-xs text-neutral-400 dark:text-neutral-500 flex items-center gap-1">
+                    <span class="flex items-center gap-1 text-xs text-neutral-400 dark:text-neutral-500">
                       <div class="i-lucide:image text-xs" />
                       Artistry Provider
                     </span>
-                    <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                    <span class="text-sm text-neutral-700 font-medium dark:text-neutral-300">
                       {{ getModuleDisplayValue(moduleSettings.artistryProvider, defaultArtistryProvider) }}
                     </span>
                   </div>
-                  
+
                   <!-- Artistry Model -->
                   <div class="col-span-1 flex flex-col gap-1">
-                    <span class="text-xs text-neutral-400 dark:text-neutral-500 flex items-center gap-1">
+                    <span class="flex items-center gap-1 text-xs text-neutral-400 dark:text-neutral-500">
                       <div class="i-lucide:cpu text-xs" />
                       Artistry Model (Optional Override)
                     </span>
-                    <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                    <span class="text-sm text-neutral-700 font-medium dark:text-neutral-300">
                       {{ getModuleDisplayValue(moduleSettings.artistryModel, 'None') }}
                     </span>
                   </div>
 
                   <!-- Artistry Prompt Prefix -->
-                  <div class="col-span-1 md:col-span-2 flex flex-col gap-1">
-                    <span class="text-xs text-neutral-400 dark:text-neutral-500 flex items-center gap-1">
+                  <div class="col-span-1 flex flex-col gap-1 md:col-span-2">
+                    <span class="flex items-center gap-1 text-xs text-neutral-400 dark:text-neutral-500">
                       <div class="i-lucide:type text-xs" />
                       Artistry Prompt Default Prefix
                     </span>
-                    <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                    <span class="text-sm text-neutral-700 font-medium dark:text-neutral-300">
                       {{ getModuleDisplayValue(moduleSettings.artistryPromptPrefix, 'None') }}
                     </span>
                   </div>
 
                   <!-- Artistry Config JSON -->
-                  <div class="col-span-1 md:col-span-2 flex flex-col gap-1">
-                    <span class="text-xs text-neutral-400 dark:text-neutral-500 flex items-center gap-1">
+                  <div class="col-span-1 flex flex-col gap-1 md:col-span-2">
+                    <span class="flex items-center gap-1 text-xs text-neutral-400 dark:text-neutral-500">
                       <div class="i-lucide:braces text-xs" />
                       Artistry Provider Options (JSON)
                     </span>
-                    <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300 font-mono break-all whitespace-pre-wrap">
+                    <span class="whitespace-pre-wrap break-all text-sm text-neutral-700 font-medium font-mono dark:text-neutral-300">
                       {{ getModuleDisplayValue(moduleSettings.artistryOptions, 'None') }}
                     </span>
                   </div>

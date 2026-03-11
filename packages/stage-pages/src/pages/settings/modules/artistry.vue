@@ -30,7 +30,7 @@ const availableProviders = [
 
 <template>
   <div class="flex flex-col gap-6">
-    <div class="bg-neutral-100 dark:bg-[rgba(0,0,0,0.3)] rounded-xl p-4 flex flex-col gap-4 h-fit w-full">
+    <div class="h-fit w-full flex flex-col gap-4 rounded-xl bg-neutral-100 p-4 dark:bg-[rgba(0,0,0,0.3)]">
       <div>
         <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
           Artistry Provider Configuration
@@ -42,7 +42,7 @@ const availableProviders = [
 
       <div class="max-w-full">
         <fieldset
-          class="flex flex-row gap-4 min-w-0 overflow-x-scroll scroll-smooth"
+          class="min-w-0 flex flex-row gap-4 overflow-x-scroll scroll-smooth"
           style="scrollbar-width: none;"
           role="radiogroup"
         >
@@ -64,12 +64,12 @@ const availableProviders = [
 
   <div
     v-motion
-    class="text-neutral-200/50 dark:text-neutral-600/20 pointer-events-none fixed top-[calc(100dvh-15rem)] bottom-0 right-[-1.25rem] z-[-1] flex items-center justify-center size-60"
+    class="pointer-events-none fixed bottom-0 right-[-1.25rem] top-[calc(100dvh-15rem)] z-[-1] size-60 flex items-center justify-center text-neutral-200/50 dark:text-neutral-600/20"
     :initial="{ scale: 0.9, opacity: 0, x: 20 }"
     :enter="{ scale: 1, opacity: 1, x: 0 }"
     :duration="500"
   >
-    <div class="text-[60px] i-solar:gallery-bold-duotone" />
+    <div class="i-solar:gallery-bold-duotone text-[60px]" />
   </div>
 </template>
 

@@ -65,7 +65,13 @@ const isTransparentByThree = useThreeSceneIsTransparentAtPoint(
   { regionRadius: 25 },
 )
 
+const { stageModelRenderer } = storeToRefs(useSettings())
+
 const llmStore = useLLM()
+const providersStore = useProvidersStore()
+const consciousnessStore = useConsciousnessStore()
+const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
+
 watch([activeChatProvider, activeChatModel], async () => {
   if (activeChatProvider.value && activeChatModel.value) {
     console.log('[Main Page] Discovering tools compatibility for:', activeChatModel.value)
@@ -75,8 +81,6 @@ watch([activeChatProvider, activeChatModel], async () => {
     }
   }
 }, { immediate: true })
-
-const { stageModelRenderer } = storeToRefs(useSettings())
 const isTransparent = computed(() => {
   if (stageModelRenderer.value === 'vrm')
     return isTransparentByThree.value
@@ -168,12 +172,7 @@ const {
   stopStreamingTranscription,
 } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
-const providersStore = useProvidersStore()
-const consciousnessStore = useConsciousnessStore()
-const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
 const chatStore = useChatOrchestratorStore()
-
-const llmStore = useLLM()
 
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 

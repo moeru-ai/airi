@@ -30,7 +30,7 @@ export function setupSensorsService() {
     context,
     sensorsGetActiveWindow,
     async () => {
-      if (process.platform !== 'windows' && process.platform !== 'win32') {
+      if (process.platform !== 'win32') {
         console.warn('[Sensors Service] get-active-window requested but OS is not Windows. Returning null.')
         return null
       }

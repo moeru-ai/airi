@@ -61,28 +61,28 @@ export interface ArtistryProvider {
    * Start an image generation job.
    * Returns a job handle for tracking.
    */
-  generate(request: ArtistryRequest): Promise<ArtistryJob>
+  generate: (request: ArtistryRequest) => Promise<ArtistryJob>
 
   /**
    * Poll the current status of a running job.
    * Returns status, progress, and final image URL when done.
    */
-  getStatus(jobId: string): Promise<ArtistryJobStatus>
+  getStatus: (jobId: string) => Promise<ArtistryJobStatus>
 
   /**
    * Cancel a running job (optional — not all providers support this).
    */
-  cancel?(jobId: string): Promise<void>
+  cancel?: (jobId: string) => Promise<void>
 
   /**
    * Called when the provider is first initialized with its config.
    */
-  initialize?(config: ArtistryProviderConfig): Promise<void>
+  initialize?: (config: ArtistryProviderConfig) => Promise<void>
 
   /**
    * Clean up resources when the provider is being switched out.
    */
-  dispose?(): void
+  dispose?: () => void
 }
 
 /**

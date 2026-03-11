@@ -310,7 +310,6 @@ defineExpose({
   },
   readRenderTargetRegionAtClientPoint,
 })
-
 </script>
 
 <template>

@@ -21,7 +21,7 @@ import type {
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
-import { computedAsync, useDebounceFn, useLocalStorage } from '@vueuse/core'
+import { computedAsync, useLocalStorage } from '@vueuse/core'
 import {
   createOpenAI,
 } from '@xsai-ext/providers/create'

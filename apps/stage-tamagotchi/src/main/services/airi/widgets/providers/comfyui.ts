@@ -1,9 +1,9 @@
+import type { ArtistryJob, ArtistryJobStatus, ArtistryProvider, ArtistryRequest } from './base'
+
 import { spawn } from 'node:child_process'
 import { appendFileSync } from 'node:fs'
 
 import { useLogg } from '@guiiai/logg'
-
-import type { ArtistryJob, ArtistryJobStatus, ArtistryProvider, ArtistryRequest } from './base'
 
 const log = useLogg('comfyui-provider').useGlobalConfig()
 const LOG_FILE = 'C:\\Users\\h4rdc\\cuipp.log'
@@ -90,7 +90,8 @@ export class ComfyUIProvider implements ArtistryProvider {
       const output = data.toString()
       debugLog(`[CLI STDOUT] ${output}`)
 
-      if (!activeCallback) return
+      if (!activeCallback)
+        return
 
       const progressMatch = output.match(/(\d+)%/)
       if (progressMatch) {

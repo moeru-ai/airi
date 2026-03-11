@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 
 import factorioIcon from '../assets/factorio-simple.png'
 
+import { useArtistryStore } from '../stores/modules/artistry'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
@@ -13,7 +14,6 @@ import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
 import { useHearingStore } from '../stores/modules/hearing'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
-import { useArtistryStore } from '../stores/modules/artistry'
 
 export interface Module {
   id: string

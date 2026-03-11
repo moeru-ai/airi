@@ -25,7 +25,6 @@ import {
   MathUtils,
   Plane,
   Raycaster,
-  SRGBColorSpace,
   Vector2,
   Vector3,
 } from 'three'

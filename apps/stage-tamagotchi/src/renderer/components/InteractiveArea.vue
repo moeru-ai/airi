@@ -11,7 +11,7 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { BasicTextarea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { widgetsTools } from '../stores/tools/builtin/widgets'

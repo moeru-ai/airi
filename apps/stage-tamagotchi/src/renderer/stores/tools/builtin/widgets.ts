@@ -2,6 +2,7 @@ import type { Tool } from '@xsai/shared-chat'
 
 import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
+import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { tool } from '@xsai/tool'
 import { z } from 'zod'
 
@@ -108,8 +109,6 @@ export function normalizeComponentProps(raw?: string | Record<string, any>) {
   return {}
 }
 
-import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
-
 function getArtistryConfig() {
   try {
     const store = useArtistryStore()
@@ -127,9 +126,10 @@ function getArtistryConfig() {
         replicateDefaultModel: store.replicateDefaultModel,
         replicateAspectRatio: store.replicateAspectRatio,
         replicateInferenceSteps: store.replicateInferenceSteps,
-      }
+      },
     }
-  } catch (e) {
+  }
+  catch (e) {
     return {}
   }
 }

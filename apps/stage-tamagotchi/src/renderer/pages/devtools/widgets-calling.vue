@@ -79,8 +79,8 @@ const defaultArtistryProps = {
     Globals: {
       replicateApiKey: localStorage.getItem('artistry-replicate-api-key') || '',
       comfyuiHostUrl: localStorage.getItem('artistry-comfyui-host-url') || 'https://comfyui-plus.duckdns.org',
-    }
-  }
+    },
+  },
 }
 
 const form = reactive<FormState>({

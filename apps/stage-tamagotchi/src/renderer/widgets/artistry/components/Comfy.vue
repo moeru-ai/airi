@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { Button, FieldTextArea } from '@proj-airi/ui'
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { widgetsHideWindow, widgetsRemove } from '../../../../shared/eventa'
 

@@ -2,6 +2,7 @@ import type { WidgetsWindowManager } from '../../../windows/widgets'
 import type { ArtistryProvider, ArtistryRequest } from './providers/base'
 
 import { useLogg } from '@guiiai/logg'
+
 import { ComfyUIProvider } from './providers/comfyui'
 import { ReplicateProvider } from './providers/replicate'
 
@@ -42,14 +43,14 @@ async function handleArtistryTrigger(params: {
   const props = robustParse(params.componentProps)
   const status = props.status
   const prompt = props.payload?.prompt || props.prompt
-  
+
   const config = props._artistryConfig || {}
   const providerId = config.provider || 'comfyui'
-  
+
   // Extract options and remix ID fallback
   const options = config.options || {}
   const remixId = props.payload?.remixId || props.remixId || options.remixId || (props.status === 'generating' && !prompt ? '48250602' : undefined)
-  
+
   const mode = props.mode || (remixId ? 'remix' : 'generate')
   const triggerFingerprint = `${mode}:${remixId || ''}:${prompt || ''}`
 
@@ -81,7 +82,7 @@ async function handleArtistryTrigger(params: {
           ...options,
           internalJobId: params.id, // For tracking
           remixId,
-        }
+        },
       }
 
       // If the provider accepts callbacks (like ComfyUI streaming stdout)
@@ -104,7 +105,7 @@ async function handleArtistryTrigger(params: {
           if (status.status === 'succeeded' || status.status === 'failed') {
             isDone = true
           }
-          
+
           params.widgetsManager.updateWidget({
             id: params.id,
             componentProps: status,
@@ -121,8 +122,8 @@ async function handleArtistryTrigger(params: {
         id: params.id,
         componentProps: { status: 'done', progress: 100 },
       })
-
-    } catch (error: any) {
+    }
+    catch (error: any) {
       log.error(`🔴 Generation failed: ${error.message}`)
       params.widgetsManager.updateWidget({
         id: params.id,

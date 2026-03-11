@@ -65,12 +65,13 @@ export const useArtistryStore = defineStore('artistry', () => {
   }
 
   const configured = computed(() => {
-    if (!activeProvider.value) return false
-    
+    if (!activeProvider.value)
+      return false
+
     if (activeProvider.value === 'replicate') {
       return !!replicateApiKey.value
     }
-    
+
     if (activeProvider.value === 'comfyui') {
       return !!comfyuiHostUrl.value
     }
