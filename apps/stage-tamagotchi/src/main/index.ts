@@ -176,6 +176,27 @@ app.whenReady().then(async () => {
 
   injeca.start().catch(err => console.error(err))
 
+  ipcMain.on('llm-raw-output', (_, data: { type: 'delta' | 'full', text: string, sessionId: string }) => {
+    const reset = '\x1B[0m'
+    const cyan = '\x1B[36m'
+    const yellow = '\x1B[33m'
+    if (data.type === 'delta') {
+      // Log deltas in yellow, but only if they are not just whitespace (too noisy otherwise)
+      // NOTICE: Silenced as requested for being too verbose
+      /*
+      if (data.text.trim()) {
+        console.log(`${yellow}[LLM Delta]${reset} ${data.text}`)
+      }
+      */
+    }
+    else {
+      console.log(`${cyan}[LLM Final Output]${reset} Session: ${data.sessionId}`)
+      console.log(`----------------------------------------`)
+      console.log(data.text)
+      console.log(`----------------------------------------`)
+    }
+  })
+
   // Lifecycle
   emitAppReady()
 

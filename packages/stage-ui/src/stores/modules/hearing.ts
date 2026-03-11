@@ -738,7 +738,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
         )
         const text = result.mode === 'stream' ? await result.text : result.text
         if (!text || !text.trim()) {
-          error.value = 'No transcription result returned from provider'
+          console.info('[Hearing Store] No transcription result returned from provider')
           return
         }
 

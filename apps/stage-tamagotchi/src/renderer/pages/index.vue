@@ -26,6 +26,7 @@ import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/
 import { refDebounced, useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
+import { toast } from 'vue-sonner'
 
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
@@ -33,6 +34,7 @@ import ResourceStatusIsland from '../components/stage-islands/resource-status-is
 import { electronOpenOnboarding } from '../../shared/eventa'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useWindowStore } from '../stores/window'
+import { widgetsTools } from '../stores/tools/builtin/widgets'
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
@@ -237,7 +239,10 @@ async function startAudioInteraction() {
           })()
         },
         onSpeechEnd: (text) => {
-          console.info('[Main Page] Speech ended, final text:', text)
+          if (text) {
+            toast.info(`🎤 You said: ${text}`, { id: 'transcription-feedback' })
+            console.info('[Main Page] Speech ended, final text:', text)
+          }
           postCaption({ type: 'caption-speaker', text })
         },
       })
@@ -258,8 +263,12 @@ async function startAudioInteraction() {
         return
 
       const text = await transcribeForRecording(recording)
-      if (!text || !text.trim())
+      if (!text || !text.trim()) {
+        toast.error('STT: No speech detected', { id: 'transcription-feedback' })
         return
+      }
+
+      toast.info(`🎤 You said: ${text}`, { id: 'transcription-feedback' })
 
       // Update caption overlay speaker text via BroadcastChannel
       postCaption({ type: 'caption-speaker', text })
@@ -269,7 +278,15 @@ async function startAudioInteraction() {
         if (!provider || !activeChatModel.value)
           return
 
-        await chatStore.ingest(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+        console.log('[Main Page] Ingesting (Manual) with tools:', {
+          model: activeChatModel.value,
+          hasTools: !!widgetsTools,
+        })
+        await chatStore.ingest(text, {
+          model: activeChatModel.value,
+          chatProvider: provider as ChatProvider,
+          tools: widgetsTools,
+        })
       }
       catch (err) {
         console.error('Failed to send chat from voice:', err)
