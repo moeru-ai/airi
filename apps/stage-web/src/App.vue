@@ -75,6 +75,8 @@ watch(settings.themeColorsHueDynamic, () => {
 
 // Initialize first-time setup check when app mounts
 onMounted(async () => {
+  proactivityStore.startHeartbeatLoop()
+
   analyticsStore.initialize()
   cardStore.initialize()
 
@@ -89,8 +91,6 @@ onMounted(async () => {
 
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
-
-  proactivityStore.startHeartbeatLoop()
 })
 
 onUnmounted(() => {

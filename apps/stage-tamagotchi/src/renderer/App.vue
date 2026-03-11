@@ -109,6 +109,8 @@ watch(route, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
 
 onMounted(async () => {
+  proactivityStore.startHeartbeatLoop()
+
   analyticsStore.initialize()
   cardStore.initialize()
   onboardingStore.initializeSetupCheck()
@@ -140,8 +142,6 @@ onMounted(async () => {
 
   // Listen for open-settings IPC message from main process
   defineInvokeHandler(context.value, electronOpenSettings, () => router.push('/settings'))
-
-  proactivityStore.startHeartbeatLoop()
 })
 
 watch(themeColorsHue, () => {
