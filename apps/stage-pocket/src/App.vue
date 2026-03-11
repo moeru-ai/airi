@@ -5,6 +5,7 @@ import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/charac
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
+import { useMemoryBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/memory-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
@@ -17,6 +18,7 @@ import { RouterView } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
 const contextBridgeStore = useContextBridgeStore()
+const memoryBridgeStore = useMemoryBridgeStore()
 const i18n = useI18n()
 const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
@@ -72,6 +74,7 @@ onMounted(async () => {
 
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   await contextBridgeStore.initialize()
+  await memoryBridgeStore.initialize()
   characterOrchestratorStore.initialize()
 
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
@@ -80,6 +83,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   contextBridgeStore.dispose()
+  memoryBridgeStore.dispose()
 })
 
 // Handle first-time setup events

@@ -355,8 +355,23 @@ pages:
           provider-selection:
             description: Select the suitable speech recognition provider
     memory-long-term:
-      description: Long-term memory specific settings and management
+      description: Cloud-backed long-term memory powered by mem9
       title: Long-Term Memory
+      enable: Enable long-term memory
+      enable-description: Automatically provision a mem9 cloud memory space for this AIRI instance
+      auto-recall: Auto recall before each reply
+      auto-recall-description: Search relevant memories from mem9 and inject them into the next prompt
+      auto-capture: Auto capture after each reply
+      auto-capture-description: Send recent dialogue back to mem9 for smart memory extraction
+      status-title: Connection status
+      status-disabled: Long-term memory is disabled
+      status-provisioning: Provisioning mem9 space
+      status-error: mem9 is unavailable
+      status-ready: mem9 memory is ready
+      status-idle: Waiting to connect
+      reconnect: Re-provision memory space
+      reconnecting: Re-provisioning...
+      saving: Saving...
     memory-short-term:
       description: Short-term memory specific settings and management
       title: Short-Term Memory
