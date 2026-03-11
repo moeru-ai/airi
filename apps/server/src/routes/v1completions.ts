@@ -1,16 +1,22 @@
 import type { Context } from 'hono'
 
+import type { initOtel } from '../libs/otel'
 import type { ConfigKVService } from '../services/config-kv'
 import type { FluxService } from '../services/flux'
 import type { RequestLogService } from '../services/request-log'
 import type { HonoEnv } from '../types/hono'
 
+import { useLogger } from '@guiiai/logg'
+import { context, SpanStatusCode, trace } from '@opentelemetry/api'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 
 import { authGuard } from '../middlewares/auth'
 import { configGuard } from '../middlewares/config-guard'
 import { createPaymentRequiredError } from '../utils/error'
+
+type OtelMetrics = ReturnType<typeof initOtel>
+const tracer = trace.getTracer('v1-completions')
 
 const SAFE_RESPONSE_HEADERS = new Set([
   'content-type',
@@ -56,7 +62,22 @@ function calculateFluxFromUsage(usage: UsageInfo, fluxPer1kTokens: number, fallb
   return fallbackRate
 }
 
-export function createV1CompletionsRoutes(fluxService: FluxService, configKV: ConfigKVService, requestLogService: RequestLogService) {
+export function createV1CompletionsRoutes(fluxService: FluxService, configKV: ConfigKVService, requestLogService: RequestLogService, otel: OtelMetrics | null) {
+  const logger = useLogger('v1-completions').useGlobalConfig()
+
+  function recordMetrics(opts: { model: string, status: number, type: string, durationMs: number, fluxConsumed: number, promptTokens?: number, completionTokens?: number }) {
+    if (!otel)
+      return
+    const attrs = { model: opts.model, type: opts.type, status: opts.status }
+    otel.llmRequestCount.add(1, attrs)
+    otel.llmRequestDuration.record(opts.durationMs, attrs)
+    otel.fluxConsumed.add(opts.fluxConsumed, { model: opts.model, type: opts.type })
+    if (opts.promptTokens != null)
+      otel.llmTokensPrompt.add(opts.promptTokens, { model: opts.model })
+    if (opts.completionTokens != null)
+      otel.llmTokensCompletion.add(opts.completionTokens, { model: opts.model })
+  }
+
   async function handleCompletion(c: Context<HonoEnv>) {
     const user = c.get('user')!
     const flux = await fluxService.getFlux(user.id)
@@ -73,17 +94,29 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
       requestModel = await configKV.getOrThrow('DEFAULT_CHAT_MODEL')
     }
 
-    const startedAt = Date.now()
-
-    const response = await fetch(`${baseUrl}chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...body, model: requestModel }),
+    const span = tracer.startSpan('llm.gateway.chat', {
+      attributes: {
+        'llm.model': requestModel,
+        'llm.stream': !!body.stream,
+      },
     })
 
+    const startedAt = Date.now()
+
+    const response = await context.with(trace.setSpan(context.active(), span), () =>
+      fetch(`${baseUrl}chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, model: requestModel }),
+      }))
+
     const durationMs = Date.now() - startedAt
+    span.setAttribute('http.response.status_code', response.status)
 
     if (!response.ok) {
+      span.setStatus({ code: SpanStatusCode.ERROR, message: `Gateway ${response.status}` })
+      span.end()
+      recordMetrics({ model: requestModel, status: response.status, type: 'chat', durationMs, fluxConsumed: 0 })
       return new Response(response.body, {
         status: response.status,
         headers: buildSafeResponseHeaders(response),
@@ -127,15 +160,23 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
               usage = extractUsageFromBody(json)
             }
           }
-          catch { /* fallback to flat rate */ }
+          catch (err) { logger.withError(err).warn('Failed to extract usage from stream, falling back to flat rate') }
 
           const fluxConsumed = calculateFluxFromUsage(usage, fluxPer1kTokens, fallbackRate)
+
+          span.setAttributes({
+            'llm.tokens.prompt': usage.promptTokens ?? 0,
+            'llm.tokens.completion': usage.completionTokens ?? 0,
+            'llm.flux_consumed': fluxConsumed,
+          })
+          span.end()
+          recordMetrics({ model: requestModel, status: response.status, type: 'chat', durationMs, fluxConsumed, ...usage })
 
           // Best-effort billing — don't throw on insufficient flux during streaming
           try {
             await fluxService.consumeFlux(user.id, fluxConsumed)
           }
-          catch { /* already streaming, can't reject now */ }
+          catch (err) { logger.withError(err).withFields({ userId: user.id, fluxConsumed }).warn('Failed to consume flux after streaming') }
 
           requestLogService.logRequest({
             userId: user.id,
@@ -145,7 +186,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
             fluxConsumed,
             promptTokens: usage.promptTokens,
             completionTokens: usage.completionTokens,
-          }).catch(() => {})
+          }).catch(err => logger.withError(err).warn('Failed to log streaming request'))
         }
       })()
 
@@ -160,12 +201,20 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
     const usage = extractUsageFromBody(responseBody)
     const fluxConsumed = calculateFluxFromUsage(usage, fluxPer1kTokens, fallbackRate)
 
+    span.setAttributes({
+      'llm.tokens.prompt': usage.promptTokens ?? 0,
+      'llm.tokens.completion': usage.completionTokens ?? 0,
+      'llm.flux_consumed': fluxConsumed,
+    })
+    span.end()
+    recordMetrics({ model: requestModel, status: response.status, type: 'chat', durationMs, fluxConsumed, ...usage })
+
     // Best-effort billing — gateway already processed the request,
     // don't return 402 after work is done
     try {
       await fluxService.consumeFlux(user.id, fluxConsumed)
     }
-    catch { /* log will still capture the charge for write-back */ }
+    catch (err) { logger.withError(err).withFields({ userId: user.id, fluxConsumed }).warn('Failed to consume flux') }
 
     requestLogService.logRequest({
       userId: user.id,
@@ -175,7 +224,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
       fluxConsumed,
       promptTokens: usage.promptTokens,
       completionTokens: usage.completionTokens,
-    }).catch(() => {})
+    }).catch(err => logger.withError(err).warn('Failed to log request'))
 
     return c.json(responseBody)
   }
@@ -191,17 +240,27 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
     const gatewayBaseUrl = await configKV.getOrThrow('GATEWAY_BASE_URL')
     const baseUrl = normalizeBaseUrl(gatewayBaseUrl)
     const requestModel = body.model || 'auto'
-    const startedAt = Date.now()
 
-    const response = await fetch(`${baseUrl}audio/speech`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+    const span = tracer.startSpan('llm.gateway.tts', {
+      attributes: { 'llm.model': requestModel },
     })
 
+    const startedAt = Date.now()
+
+    const response = await context.with(trace.setSpan(context.active(), span), () =>
+      fetch(`${baseUrl}audio/speech`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }))
+
     const durationMs = Date.now() - startedAt
+    span.setAttribute('http.response.status_code', response.status)
 
     if (!response.ok) {
+      span.setStatus({ code: SpanStatusCode.ERROR, message: `Gateway ${response.status}` })
+      span.end()
+      recordMetrics({ model: requestModel, status: response.status, type: 'tts', durationMs, fluxConsumed: 0 })
       return new Response(response.body, {
         status: response.status,
         headers: buildSafeResponseHeaders(response),
@@ -211,13 +270,17 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
     const fluxPerRequest = await configKV.getOrThrow('FLUX_PER_REQUEST_TTS')
     await fluxService.consumeFlux(user.id, fluxPerRequest)
 
+    span.setAttribute('llm.flux_consumed', fluxPerRequest)
+    span.end()
+    recordMetrics({ model: requestModel, status: response.status, type: 'tts', durationMs, fluxConsumed: fluxPerRequest })
+
     requestLogService.logRequest({
       userId: user.id,
       model: requestModel,
       status: response.status,
       durationMs,
       fluxConsumed: fluxPerRequest,
-    }).catch(() => {})
+    }).catch(err => logger.withError(err).warn('Failed to log TTS request'))
 
     return new Response(response.body, {
       status: response.status,
@@ -234,20 +297,30 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
 
     const gatewayBaseUrl = await configKV.getOrThrow('GATEWAY_BASE_URL')
     const baseUrl = normalizeBaseUrl(gatewayBaseUrl)
+
+    const span = tracer.startSpan('llm.gateway.asr', {
+      attributes: { 'llm.model': 'auto' },
+    })
+
     const startedAt = Date.now()
 
     const rawBody = await c.req.arrayBuffer()
     const contentType = c.req.header('content-type') || 'multipart/form-data'
 
-    const response = await fetch(`${baseUrl}audio/transcriptions`, {
-      method: 'POST',
-      headers: { 'Content-Type': contentType },
-      body: rawBody,
-    })
+    const response = await context.with(trace.setSpan(context.active(), span), () =>
+      fetch(`${baseUrl}audio/transcriptions`, {
+        method: 'POST',
+        headers: { 'Content-Type': contentType },
+        body: rawBody,
+      }))
 
     const durationMs = Date.now() - startedAt
+    span.setAttribute('http.response.status_code', response.status)
 
     if (!response.ok) {
+      span.setStatus({ code: SpanStatusCode.ERROR, message: `Gateway ${response.status}` })
+      span.end()
+      recordMetrics({ model: 'auto', status: response.status, type: 'asr', durationMs, fluxConsumed: 0 })
       return new Response(response.body, {
         status: response.status,
         headers: buildSafeResponseHeaders(response),
@@ -257,13 +330,17 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
     const fluxPerRequest = await configKV.getOrThrow('FLUX_PER_REQUEST_ASR')
     await fluxService.consumeFlux(user.id, fluxPerRequest)
 
+    span.setAttribute('llm.flux_consumed', fluxPerRequest)
+    span.end()
+    recordMetrics({ model: 'auto', status: response.status, type: 'asr', durationMs, fluxConsumed: fluxPerRequest })
+
     requestLogService.logRequest({
       userId: user.id,
       model: 'auto',
       status: response.status,
       durationMs,
       fluxConsumed: fluxPerRequest,
-    }).catch(() => {})
+    }).catch(err => logger.withError(err).warn('Failed to log ASR request'))
 
     return new Response(response.body, {
       status: response.status,

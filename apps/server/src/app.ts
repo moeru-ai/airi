@@ -138,7 +138,7 @@ function buildApp({
     /**
      * V1 routes for official provider.
      */
-    .route('/api/v1', createV1CompletionsRoutes(fluxService, configKV, requestLogService))
+    .route('/api/v1', createV1CompletionsRoutes(fluxService, configKV, requestLogService, otel))
 
     /**
      * Flux routes.

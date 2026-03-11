@@ -6,6 +6,12 @@ import { and, eq, lte, sql } from 'drizzle-orm'
 import * as fluxSchema from '../schemas/flux'
 import * as logSchema from '../schemas/llm-request-log'
 
+/**
+ * NOTE: Flux balances are deducted in real-time via Redis (DECRBY) in FluxService.consumeFlux().
+ * This write-back service only syncs the DB — it does NOT touch Redis.
+ * It periodically aggregates unsettled request logs and batch-updates the DB's user_flux table
+ * so that the persistent balance stays consistent with the Redis cache.
+ */
 export function createFluxWriteBack(db: Database) {
   const logger = useLogger('flux-write-back').useGlobalConfig()
   let timer: ReturnType<typeof setInterval> | null = null

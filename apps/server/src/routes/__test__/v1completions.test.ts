@@ -52,7 +52,7 @@ function createTestApp(
   configKV: ConfigKVService,
   requestLogService: RequestLogService,
 ) {
-  const routes = createV1CompletionsRoutes(fluxService, configKV, requestLogService)
+  const routes = createV1CompletionsRoutes(fluxService, configKV, requestLogService, null)
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {
