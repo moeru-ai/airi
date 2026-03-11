@@ -48,7 +48,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "sum(rate(http_server_request_duration_milliseconds_count{service_name=~\"$service\"}[$__rate_interval]))",
+          "expr": "sum(rate(http_server_request_duration_milliseconds_count{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
           "legendFormat": "req/s"
         }
       ]
@@ -80,7 +80,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "sum(rate(http_server_request_duration_milliseconds_count{service_name=~\"$service\", http_status_code=~\"5..\"}[$__rate_interval])) / sum(rate(http_server_request_duration_milliseconds_count{service_name=~\"$service\"}[$__rate_interval]))",
+          "expr": "sum(rate(http_server_request_duration_milliseconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_status_code=~\"5..\"}[$__rate_interval])) / sum(rate(http_server_request_duration_milliseconds_count{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
           "legendFormat": "error rate"
         }
       ]
@@ -112,7 +112,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_request_duration_milliseconds_bucket{service_name=~\"$service\"}[$__rate_interval])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_request_duration_milliseconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval])) by (le))",
           "legendFormat": "p95"
         }
       ]
@@ -136,7 +136,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (http_route) (rate(http_server_request_duration_milliseconds_count{service_name=~\"$service\"}[$__rate_interval]))",
+          "expr": "sum by (http_route) (rate(http_server_request_duration_milliseconds_count{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
           "legendFormat": "{{http_route}}"
         }
       ]
@@ -159,7 +159,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_request_duration_milliseconds_bucket{service_name=~\"$service\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_request_duration_milliseconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval])))",
           "legendFormat": "{{http_route}}"
         }
       ]
@@ -182,7 +182,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (http_status_code) (rate(http_server_request_duration_milliseconds_count{service_name=~\"$service\"}[$__rate_interval]))",
+          "expr": "sum by (http_status_code) (rate(http_server_request_duration_milliseconds_count{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
           "legendFormat": "{{http_status_code}}"
         }
       ]
@@ -212,11 +212,11 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "process_runtime_nodejs_memory_heap_total{service_name=~\"$service\"}",
+          "expr": "process_runtime_nodejs_memory_heap_total{service_name=~\"$service\", deployment_environment=~\"$env\"}",
           "legendFormat": "heap total"
         },
         {
-          "expr": "process_runtime_nodejs_memory_heap_used{service_name=~\"$service\"}",
+          "expr": "process_runtime_nodejs_memory_heap_used{service_name=~\"$service\", deployment_environment=~\"$env\"}",
           "legendFormat": "heap used"
         }
       ]
@@ -239,11 +239,11 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "process_runtime_nodejs_memory_rss{service_name=~\"$service\"}",
+          "expr": "process_runtime_nodejs_memory_rss{service_name=~\"$service\", deployment_environment=~\"$env\"}",
           "legendFormat": "RSS"
         },
         {
-          "expr": "process_runtime_nodejs_memory_array_buffers{service_name=~\"$service\"}",
+          "expr": "process_runtime_nodejs_memory_array_buffers{service_name=~\"$service\", deployment_environment=~\"$env\"}",
           "legendFormat": "array buffers"
         }
       ]
@@ -266,11 +266,11 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "process_runtime_nodejs_event_loop_lag_p99{service_name=~\"$service\"}",
+          "expr": "process_runtime_nodejs_event_loop_lag_p99{service_name=~\"$service\", deployment_environment=~\"$env\"}",
           "legendFormat": "p99 lag"
         },
         {
-          "expr": "process_runtime_nodejs_event_loop_lag_p50{service_name=~\"$service\"}",
+          "expr": "process_runtime_nodejs_event_loop_lag_p50{service_name=~\"$service\", deployment_environment=~\"$env\"}",
           "legendFormat": "p50 lag"
         }
       ]
@@ -293,11 +293,11 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "process_runtime_nodejs_active_handles_total{service_name=~\"$service\"}",
+          "expr": "process_runtime_nodejs_active_handles_total{service_name=~\"$service\", deployment_environment=~\"$env\"}",
           "legendFormat": "active handles"
         },
         {
-          "expr": "process_runtime_nodejs_active_requests_total{service_name=~\"$service\"}",
+          "expr": "process_runtime_nodejs_active_requests_total{service_name=~\"$service\", deployment_environment=~\"$env\"}",
           "legendFormat": "active requests"
         }
       ]
@@ -327,7 +327,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le, db_operation) (rate(db_client_operation_duration_milliseconds_bucket{service_name=~\"$service\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le, db_operation) (rate(db_client_operation_duration_milliseconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval])))",
           "legendFormat": "{{db_operation}}"
         }
       ]
@@ -350,7 +350,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (db_operation) (rate(db_client_operation_duration_milliseconds_count{service_name=~\"$service\"}[$__rate_interval]))",
+          "expr": "sum by (db_operation) (rate(db_client_operation_duration_milliseconds_count{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
           "legendFormat": "{{db_operation}}"
         }
       ]
@@ -373,15 +373,15 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "db_client_connections_usage{service_name=~\"$service\", state=\"used\"}",
+          "expr": "db_client_connections_usage{service_name=~\"$service\", deployment_environment=~\"$env\", state=\"used\"}",
           "legendFormat": "used"
         },
         {
-          "expr": "db_client_connections_usage{service_name=~\"$service\", state=\"idle\"}",
+          "expr": "db_client_connections_usage{service_name=~\"$service\", deployment_environment=~\"$env\", state=\"idle\"}",
           "legendFormat": "idle"
         },
         {
-          "expr": "db_client_connections_pending_requests{service_name=~\"$service\"}",
+          "expr": "db_client_connections_pending_requests{service_name=~\"$service\", deployment_environment=~\"$env\"}",
           "legendFormat": "pending"
         }
       ]
@@ -411,7 +411,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le, db_operation) (rate(db_client_operation_duration_milliseconds_bucket{service_name=~\"$service\", db_system=\"redis\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le, db_operation) (rate(db_client_operation_duration_milliseconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", db_system=\"redis\"}[$__rate_interval])))",
           "legendFormat": "{{db_operation}}"
         }
       ]
@@ -434,7 +434,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (db_operation) (rate(db_client_operation_duration_milliseconds_count{service_name=~\"$service\", db_system=\"redis\"}[$__rate_interval]))",
+          "expr": "sum by (db_operation) (rate(db_client_operation_duration_milliseconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", db_system=\"redis\"}[$__rate_interval]))",
           "legendFormat": "{{db_operation}}"
         }
       ]
@@ -442,19 +442,261 @@
     {
       "collapsed": false,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 68 },
+      "id": 105,
+      "title": "LLM Gateway",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "red", "value": 200 }
+            ]
+          },
+          "unit": "reqps"
+        }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 69 },
+      "id": 17,
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "title": "LLM Request Rate",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(rate(llm_request_count_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "legendFormat": "req/s"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 500 },
+              { "color": "red", "value": 2000 }
+            ]
+          },
+          "unit": "ms"
+        }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 69 },
+      "id": 18,
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "title": "LLM P95 Latency",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(llm_request_duration_milliseconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval])) by (le))",
+          "legendFormat": "p95"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 100 },
+              { "color": "red", "value": 1000 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 69 },
+      "id": 19,
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "title": "Total Flux Consumed",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(rate(flux_consumed_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "legendFormat": "flux/s"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20,
+            "stacking": { "mode": "none" }
+          },
+          "unit": "reqps"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 77 },
+      "id": 20,
+      "title": "LLM Request Rate by Model",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (model) (rate(llm_request_count_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "legendFormat": "{{model}}"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20
+          },
+          "unit": "reqps"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 77 },
+      "id": 21,
+      "title": "LLM Request Rate by Type",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (type) (rate(llm_request_count_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "legendFormat": "{{type}}"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20
+          },
+          "unit": "ms"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 85 },
+      "id": 22,
+      "title": "LLM Latency by Model (P95)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, model) (rate(llm_request_duration_milliseconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval])))",
+          "legendFormat": "{{model}}"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 85 },
+      "id": 23,
+      "title": "Flux Consumed by Model",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (model) (rate(flux_consumed_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "legendFormat": "{{model}}"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 93 },
+      "id": 24,
+      "title": "Prompt Tokens by Model",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (model) (rate(llm_tokens_prompt_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "legendFormat": "{{model}}"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 93 },
+      "id": 25,
+      "title": "Completion Tokens by Model",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (model) (rate(llm_tokens_completion_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "legendFormat": "{{model}}"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 101 },
       "id": 104,
       "title": "Application Logs",
       "type": "row"
     },
     {
       "datasource": { "type": "loki", "uid": "grafanacloud-projairi-logs" },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 69 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 102 },
       "id": 16,
       "title": "Application Logs",
       "type": "logs",
       "targets": [
         {
-          "expr": "{service_name=~\"$service\"} |= ``",
+          "expr": "{service_name=~\"$service\", deployment_environment=~\"$env\"} |= ``",
           "legendFormat": ""
         }
       ],
@@ -474,14 +716,26 @@
   "templating": {
     "list": [
       {
+        "current": { "selected": false, "text": "production", "value": "production" },
+        "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
+        "definition": "label_values(http_server_request_duration_milliseconds_count, deployment_environment)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": false,
+        "name": "env",
+        "query": "label_values(http_server_request_duration_milliseconds_count, deployment_environment)",
+        "refresh": 2,
+        "type": "query"
+      },
+      {
         "current": { "selected": false, "text": "server", "value": "server" },
         "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
-        "definition": "label_values(http_server_request_duration_milliseconds_count, service_name)",
+        "definition": "label_values(http_server_request_duration_milliseconds_count{deployment_environment=~\"$env\"}, service_name)",
         "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "service",
-        "query": "label_values(http_server_request_duration_milliseconds_count, service_name)",
+        "query": "label_values(http_server_request_duration_milliseconds_count{deployment_environment=~\"$env\"}, service_name)",
         "refresh": 2,
         "type": "query"
       }
