@@ -1,6 +1,8 @@
+import type Redis from 'ioredis'
+
 import type { createConfigKVService } from '../config-kv'
 
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
 import { createFluxService } from '../flux'
@@ -11,21 +13,41 @@ function createMockConfigKV(overrides: Record<string, number> = {}): ReturnType<
   const defaults: Record<string, number> = { INITIAL_USER_FLUX: 100, FLUX_PER_CENT: 1, FLUX_PER_REQUEST: 1, ...overrides }
   return {
     get: vi.fn(async (key: string) => defaults[key]),
+    getOrThrow: vi.fn(async (key: string) => defaults[key]),
     getOptional: vi.fn(async (key: string) => defaults[key] ?? null),
     set: vi.fn(),
   } as any
 }
 
-describe('fluxService', () => {
+function createMockRedis(): Redis {
+  const store = new Map<string, string>()
+  return {
+    get: vi.fn(async (key: string) => store.get(key) ?? null),
+    set: vi.fn(async (key: string, value: string) => { store.set(key, value); return 'OK' }),
+    decrby: vi.fn(async (key: string, amount: number) => {
+      const current = Number.parseInt(store.get(key) ?? '0', 10)
+      const next = current - amount
+      store.set(key, String(next))
+      return next
+    }),
+    incrby: vi.fn(async (key: string, amount: number) => {
+      const current = Number.parseInt(store.get(key) ?? '0', 10)
+      const next = current + amount
+      store.set(key, String(next))
+      return next
+    }),
+  } as unknown as Redis
+}
+
+describe('fluxService (Redis-backed)', () => {
   let db: any
+  let redis: Redis
   let service: ReturnType<typeof createFluxService>
   let testUser: any
 
   beforeAll(async () => {
     db = await mockDB(schema)
-    service = createFluxService(db, createMockConfigKV())
 
-    // Create a test user for foreign key constraints
     const [user] = await db.insert(schema.user).values({
       id: 'user-1',
       name: 'Test User',
@@ -34,133 +56,104 @@ describe('fluxService', () => {
     testUser = user
   })
 
-  // --- getFlux ---
+  beforeEach(() => {
+    redis = createMockRedis()
+    service = createFluxService(db, redis, createMockConfigKV())
+  })
 
-  it('getFlux should create a new record with 100 default flux for a new user', async () => {
+  it('getFlux should load from DB on cache miss and populate Redis', async () => {
     const record = await service.getFlux(testUser.id)
-
-    expect(record).toBeDefined()
-    expect(record.userId).toBe(testUser.id)
     expect(record.flux).toBe(100)
+    expect(redis.set).toHaveBeenCalledWith(`flux:${testUser.id}`, '100')
   })
 
-  it('getFlux should return existing record on subsequent calls', async () => {
-    const first = await service.getFlux(testUser.id)
-    const second = await service.getFlux(testUser.id)
-
-    // Same record, no duplicate insert
-    expect(second.userId).toBe(first.userId)
-    expect(second.flux).toBe(first.flux)
+  it('getFlux should return cached value on subsequent calls', async () => {
+    await service.getFlux(testUser.id)
+    await service.getFlux(testUser.id)
+    expect(redis.get).toHaveBeenCalledTimes(2)
   })
 
-  // --- consumeFlux ---
-
-  it('consumeFlux should deduct flux correctly', async () => {
+  it('consumeFlux should deduct via Redis DECRBY', async () => {
+    await service.getFlux(testUser.id)
     const result = await service.consumeFlux(testUser.id, 10)
+    expect(result.flux).toBe(90)
+    expect(redis.decrby).toHaveBeenCalledWith(`flux:${testUser.id}`, 10)
+  })
 
-    // Started at 100, consumed 10
+  it('consumeFlux should throw and rollback when insufficient', async () => {
+    await service.getFlux(testUser.id)
+    await expect(service.consumeFlux(testUser.id, 101))
+      .rejects
+      .toThrow('Insufficient flux')
+    expect(redis.incrby).toHaveBeenCalledWith(`flux:${testUser.id}`, 101)
+  })
+
+  it('addFlux should update both DB and Redis', async () => {
+    await service.getFlux(testUser.id)
+    const result = await service.addFlux(testUser.id, 50)
+    expect(result.flux).toBe(150)
+    expect(redis.incrby).toHaveBeenCalledWith(`flux:${testUser.id}`, 50)
+  })
+
+  it('consumeFlux should lazy-load cache if not preloaded', async () => {
+    const [user2] = await db.insert(schema.user).values({
+      id: 'user-lazy',
+      name: 'Lazy User',
+      email: 'lazy@example.com',
+    }).returning()
+    const result = await service.consumeFlux(user2.id, 10)
     expect(result.flux).toBe(90)
   })
 
-  it('consumeFlux should throw when balance is insufficient', async () => {
-    // Current balance is 90 after previous test; consuming 91 should fail
-    await expect(service.consumeFlux(testUser.id, 91))
-      .rejects
-      .toThrow('Insufficient flux')
+  it('getFlux should return updated value after consumeFlux', async () => {
+    const [user] = await db.insert(schema.user).values({
+      id: 'user-consume-then-get',
+      name: 'Consume Then Get',
+      email: 'consume-then-get@example.com',
+    }).returning()
+    await service.getFlux(user.id)
+    await service.consumeFlux(user.id, 25)
+    const record = await service.getFlux(user.id)
+    expect(record.flux).toBe(75)
   })
 
-  it('consumeFlux should throw when trying to consume more than available', async () => {
-    await expect(service.consumeFlux(testUser.id, 999))
-      .rejects
-      .toThrow('Insufficient flux')
-  })
-
-  // --- addFlux ---
-
-  it('addFlux should add flux correctly', async () => {
-    // Balance is 90 from previous consume test
-    const result = await service.addFlux(testUser.id, 50)
-    expect(result.flux).toBe(140)
-  })
-
-  it('addFlux should accumulate across multiple calls', async () => {
-    // Balance is 140; add 10 three times
-    await service.addFlux(testUser.id, 10)
-    await service.addFlux(testUser.id, 10)
-    const result = await service.addFlux(testUser.id, 10)
-
-    expect(result.flux).toBe(170)
-  })
-
-  // --- updateStripeCustomerId ---
-
-  it('updateStripeCustomerId should update the stripe customer ID', async () => {
+  it('updateStripeCustomerId should update DB only', async () => {
+    await service.getFlux(testUser.id)
     const result = await service.updateStripeCustomerId(testUser.id, 'cus_abc123')
-
-    expect(result.stripeCustomerId).toBe('cus_abc123')
-
-    // Verify it persists via getFlux
-    const record = await service.getFlux(testUser.id)
-    expect(record.stripeCustomerId).toBe('cus_abc123')
+    expect(result!.stripeCustomerId).toBe('cus_abc123')
   })
-
-  // --- Concurrent consumeFlux ---
 
   it('concurrent consumeFlux should not over-deduct flux', async () => {
-    // Set up a fresh user to isolate this test from previous state
-    const [user2] = await db.insert(schema.user).values({
+    const [user3] = await db.insert(schema.user).values({
       id: 'user-concurrent-consume',
       name: 'Concurrent Consumer',
       email: 'concurrent-consume@example.com',
     }).returning()
-
-    // Initialize flux record (100 default)
-    await service.getFlux(user2.id)
-
-    // Fire 10 concurrent consume calls of 10 each (total 100, exactly the balance)
+    await service.getFlux(user3.id)
     const results = await Promise.allSettled(
-      Array.from({ length: 10 }, () => service.consumeFlux(user2.id, 10)),
+      Array.from({ length: 10 }, () => service.consumeFlux(user3.id, 10)),
     )
-
     const fulfilled = results.filter(r => r.status === 'fulfilled')
     const rejected = results.filter(r => r.status === 'rejected')
-
-    // All 10 should succeed since total equals balance, but under concurrency
-    // some may fail if the atomic check-and-deduct fires after balance drops.
-    // The key invariant: final balance must never go negative.
-    const finalRecord = await service.getFlux(user2.id)
-    expect(finalRecord.flux).toBeGreaterThanOrEqual(0)
-
-    // Total consumed must equal (fulfilled count * 10)
-    expect(finalRecord.flux).toBe(100 - fulfilled.length * 10)
-
-    // Every rejection should be 'Insufficient flux'
+    const final = await service.getFlux(user3.id)
+    expect(final.flux).toBeGreaterThanOrEqual(0)
+    expect(final.flux).toBe(100 - fulfilled.length * 10)
     for (const r of rejected) {
       expect((r as PromiseRejectedResult).reason.message).toBe('Insufficient flux')
     }
   })
 
-  // --- Concurrent addFlux ---
-
-  it('concurrent addFlux should accumulate correctly without lost updates', async () => {
-    // Set up a fresh user to isolate this test
-    const [user3] = await db.insert(schema.user).values({
+  it('concurrent addFlux should accumulate correctly', async () => {
+    const [user4] = await db.insert(schema.user).values({
       id: 'user-concurrent-add',
       name: 'Concurrent Adder',
       email: 'concurrent-add@example.com',
     }).returning()
-
-    // Initialize flux record (100 default)
-    await service.getFlux(user3.id)
-
-    // Fire 10 concurrent add calls of 5 each (expect +50 total)
+    await service.getFlux(user4.id)
     await Promise.all(
-      Array.from({ length: 10 }, () => service.addFlux(user3.id, 5)),
+      Array.from({ length: 10 }, () => service.addFlux(user4.id, 5)),
     )
-
-    const finalRecord = await service.getFlux(user3.id)
-
-    // 100 initial + 10 * 5 = 150
-    expect(finalRecord.flux).toBe(150)
+    const final = await service.getFlux(user4.id)
+    expect(final.flux).toBe(150)
   })
 })

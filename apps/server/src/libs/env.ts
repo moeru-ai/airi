@@ -7,6 +7,9 @@ import { injeca } from 'injeca'
 import { nonEmpty, object, optional, parse, pipe, string } from 'valibot'
 
 const EnvSchema = object({
+  HOST: optional(string(), '0.0.0.0'),
+  PORT: optional(string(), '3000'),
+
   API_SERVER_URL: optional(string(), 'http://localhost:3000'),
   CLIENT_URL: optional(string(), 'https://airi.moerui.ai'),
 
@@ -20,9 +23,6 @@ const EnvSchema = object({
 
   STRIPE_SECRET_KEY: optional(string()),
   STRIPE_WEBHOOK_SECRET: optional(string()),
-
-  BACKEND_LLM_BASE_URL: optional(string()),
-  BACKEND_LLM_API_KEY: optional(string()),
 
   // OpenTelemetry
   OTEL_SERVICE_NAMESPACE: optional(string(), 'airi'),

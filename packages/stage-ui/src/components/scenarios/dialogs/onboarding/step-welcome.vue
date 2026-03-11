@@ -8,12 +8,14 @@ import { useI18n } from 'vue-i18n'
 import onboardingLogo from '../../../../assets/onboarding.avif'
 
 import { useAuthStore } from '../../../../stores/auth'
+import { useOnboardingStore } from '../../../../stores/onboarding'
 import { useSettingsGeneral } from '../../../../stores/settings'
 import { OnboardingContextKey } from './utils'
 
 const { t } = useI18n()
 const context = inject(OnboardingContextKey)!
 const authStore = useAuthStore()
+const onboardingStore = useOnboardingStore()
 const settingsStore = useSettingsGeneral()
 const { language } = storeToRefs(settingsStore)
 
@@ -22,6 +24,7 @@ const languages = computed(() => {
 })
 
 function handleLogin() {
+  onboardingStore.shouldShowSetup = false
   authStore.isLoginOpen = true
 }
 
