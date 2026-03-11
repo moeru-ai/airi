@@ -19,6 +19,7 @@ interface ConfigDefinitions {
   INITIAL_USER_FLUX: number
   FLUX_PACKAGES: FluxPackage[]
   GATEWAY_BASE_URL: string
+  DEFAULT_CHAT_MODEL: string
 }
 
 const NUMERIC_KEYS = new Set<string>(['FLUX_PER_CENT', 'FLUX_PER_REQUEST', 'FLUX_PER_REQUEST_TTS', 'FLUX_PER_REQUEST_ASR', 'INITIAL_USER_FLUX'])

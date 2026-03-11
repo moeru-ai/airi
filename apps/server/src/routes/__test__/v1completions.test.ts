@@ -26,6 +26,7 @@ function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVServic
     FLUX_PER_REQUEST_TTS: 1,
     FLUX_PER_REQUEST_ASR: 1,
     GATEWAY_BASE_URL: 'http://mock-gateway/',
+    DEFAULT_CHAT_MODEL: 'openai/gpt-5-mini',
     ...overrides,
   }
   return {
@@ -151,10 +152,67 @@ describe('v1CompletionsRoutes', () => {
       // Verify flux was consumed
       expect(fluxService.consumeFlux).toHaveBeenCalledWith('user-1', 1)
 
-      // Verify upstream was called with correct URL
+      // Verify upstream was called with correct URL and resolved model
       expect(globalThis.fetch).toHaveBeenCalledWith(
         'http://mock-gateway/chat/completions',
-        expect.objectContaining({ method: 'POST' }),
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('"model":"openai/gpt-5-mini"'),
+        }),
+      )
+    })
+
+    it('should resolve "auto" model to DEFAULT_CHAT_MODEL from config', async () => {
+      globalThis.fetch = vi.fn(async () => new Response('{}', {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({ DEFAULT_CHAT_MODEL: 'anthropic/claude-sonnet' }),
+        createMockRequestLogService(),
+      )
+
+      await app.fetch(
+        new Request('http://localhost/api/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', messages: [] }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        'http://mock-gateway/chat/completions',
+        expect.objectContaining({
+          body: expect.stringContaining('"model":"anthropic/claude-sonnet"'),
+        }),
+      )
+    })
+
+    it('should pass through non-auto model as-is', async () => {
+      globalThis.fetch = vi.fn(async () => new Response('{}', {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+
+      const app = createTestApp(createMockFluxService(), createMockConfigKV(), createMockRequestLogService())
+
+      await app.fetch(
+        new Request('http://localhost/api/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'openai/gpt-5-mini', messages: [] }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        'http://mock-gateway/chat/completions',
+        expect.objectContaining({
+          body: expect.stringContaining('"model":"openai/gpt-5-mini"'),
+        }),
       )
     })
 

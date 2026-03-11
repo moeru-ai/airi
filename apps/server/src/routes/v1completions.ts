@@ -55,7 +55,13 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
 
     const gatewayBaseUrl = await configKV.getOrThrow('GATEWAY_BASE_URL')
     const baseUrl = normalizeBaseUrl(gatewayBaseUrl)
-    const requestModel = body.model || 'auto'
+    let requestModel = body.model || 'auto'
+
+    // Resolve "auto" to the configured default model
+    if (requestModel === 'auto') {
+      requestModel = await configKV.getOrThrow('DEFAULT_CHAT_MODEL')
+    }
+
     const startedAt = Date.now()
 
     const response = await fetch(`${baseUrl}chat/completions`, {
@@ -63,7 +69,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, model: requestModel }),
     })
 
     const durationMs = Date.now() - startedAt
@@ -188,7 +194,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
     })
   }
 
-  const chatGuard = configGuard(configKV, ['FLUX_PER_REQUEST', 'GATEWAY_BASE_URL'], 'Service is not available yet')
+  const chatGuard = configGuard(configKV, ['FLUX_PER_REQUEST', 'GATEWAY_BASE_URL', 'DEFAULT_CHAT_MODEL'], 'Service is not available yet')
   const ttsGuard = configGuard(configKV, ['FLUX_PER_REQUEST_TTS', 'GATEWAY_BASE_URL'], 'TTS service is not available yet')
   const asrGuard = configGuard(configKV, ['FLUX_PER_REQUEST_ASR', 'GATEWAY_BASE_URL'], 'ASR service is not available yet')
 

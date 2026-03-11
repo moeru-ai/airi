@@ -11,6 +11,7 @@ function createMockConfigKV(overrides: Record<string, number> = {}): ReturnType<
   const defaults: Record<string, number> = { INITIAL_USER_FLUX: 100, FLUX_PER_CENT: 1, FLUX_PER_REQUEST: 1, ...overrides }
   return {
     get: vi.fn(async (key: string) => defaults[key]),
+    getOrThrow: vi.fn(async (key: string) => defaults[key]),
     getOptional: vi.fn(async (key: string) => defaults[key] ?? null),
     set: vi.fn(),
   } as any
