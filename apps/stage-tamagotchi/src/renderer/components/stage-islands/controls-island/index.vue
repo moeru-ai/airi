@@ -125,7 +125,6 @@ function startDraggingWindow() {
   }
 }
 
-
 function refreshWindow() {
   window.location.reload()
 }
