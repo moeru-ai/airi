@@ -6,13 +6,16 @@ import { useI18n } from 'vue-i18n'
 import onboardingLogo from '../../../../assets/onboarding.avif'
 
 import { useAuthStore } from '../../../../stores/auth'
+import { useOnboardingStore } from '../../../../stores/onboarding'
 import { OnboardingContextKey } from './utils'
 
 const { t } = useI18n()
 const context = inject(OnboardingContextKey)!
 const authStore = useAuthStore()
+const onboardingStore = useOnboardingStore()
 
 function handleLogin() {
+  onboardingStore.shouldShowSetup = false
   authStore.isLoginOpen = true
 }
 

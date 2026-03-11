@@ -48,13 +48,13 @@ import { useI18n } from 'vue-i18n'
 
 import { listProviders as listDefinedProviders } from '../libs/providers'
 import { getProviderValidationIntervalMs } from '../libs/providers/validators/run'
-import { SERVER_URL } from '../libs/server'
-import { useAuthStore } from '../stores/auth'
 import { getKokoroWorker } from '../workers/kokoro'
 import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
+import { useAuthStore } from './auth'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { convertProviderDefinitionsToMetadata } from './providers/converters'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
+import { createOfficialProviders, OFFICIAL_PROVIDER_IDS } from './providers/official'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 import { createWebSpeechAPIProvider } from './providers/web-speech-api'
 
@@ -149,6 +149,11 @@ export interface ProviderMetadata {
       valid: boolean
     }
   }
+  /**
+   * If true, the provider does not require user-provided credentials (e.g. API keys).
+   * Used for official/built-in providers that authenticate via session.
+   */
+  requiresCredentials?: boolean
   transcriptionFeatures?: {
     supportsGenerate: boolean
     supportsStreamOutput: boolean
@@ -239,46 +244,9 @@ export const useProvidersStore = defineStore('providers', () => {
   }
 
   // Centralized provider metadata with provider factory functions
+  const authState = useAuthStore()
   const providerMetadata: Record<string, ProviderMetadata> = {
-    'official-provider': {
-      id: 'official-provider',
-      order: -1,
-      category: 'chat',
-      tasks: ['text-generation'],
-      nameKey: 'settings.pages.providers.provider.official.title',
-      name: 'Official Provider',
-      descriptionKey: 'settings.pages.providers.provider.official.description',
-      description: 'Official AI provider by AIRI.',
-      icon: 'i-solar:star-bold-duotone',
-      createProvider: async (_config) => {
-        const authStore = useAuthStore()
-        if (!authStore.isAuthenticated) {
-          throw new Error('User is not authenticated')
-        }
-        return createOpenAI('', `${SERVER_URL}/v1/`)
-      },
-      capabilities: {
-        listModels: async () => {
-          return [
-            {
-              id: 'gpt-4o',
-              name: 'GPT-4o',
-              provider: 'official-provider',
-            },
-          ]
-        },
-      },
-      validators: {
-        validateProviderConfig: () => {
-          const authStore = useAuthStore()
-          return {
-            errors: [],
-            reason: '',
-            valid: authStore.isAuthenticated,
-          }
-        },
-      },
-    },
+    ...createOfficialProviders(() => authState.isAuthenticated),
     'speech-noop': {
       id: 'speech-noop',
       category: 'speech',
@@ -1754,10 +1722,11 @@ export const useProvidersStore = defineStore('providers', () => {
     }
   }
 
-  // Keep only legacy ASR/TTS providers as hand-written metadata.
+  // Keep only legacy ASR/TTS providers and official providers as hand-written metadata.
   // All other categories are sourced from unified definitions in libs/providers.
   for (const [providerId, existing] of Object.entries(providerMetadata)) {
-    if (existing.category !== 'speech' && existing.category !== 'transcription') {
+    if (existing.category !== 'speech' && existing.category !== 'transcription'
+      && !(OFFICIAL_PROVIDER_IDS as readonly string[]).includes(providerId)) {
       delete providerMetadata[providerId]
     }
   }
@@ -1876,9 +1845,8 @@ export const useProvidersStore = defineStore('providers', () => {
     }
 
     // Must run AFTER runtime state is created so forceProviderConfigured can set isConfigured
-    if (providerId === 'official-provider') {
-      const authStore = useAuthStore()
-      if (authStore.isAuthenticated) {
+    if ((OFFICIAL_PROVIDER_IDS as readonly string[]).includes(providerId)) {
+      if (authState.isAuthenticated) {
         forceProviderConfigured(providerId)
       }
     }
@@ -1928,8 +1896,7 @@ export const useProvidersStore = defineStore('providers', () => {
   watch(providerCredentials, updateConfigurationStatus, { deep: true, immediate: true })
   startPeriodicRuntimeValidation()
 
-  const authStore = useAuthStore()
-  watch(() => authStore.isAuthenticated, updateConfigurationStatus)
+  watch(() => authState.isAuthenticated, updateConfigurationStatus)
 
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.keys(providerMetadata).filter(providerId => providerRuntimeState.value[providerId]?.isConfigured))
@@ -1988,12 +1955,12 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Function to fetch models for a specific provider
   async function fetchModelsForProvider(providerId: string) {
-    const config = providerCredentials.value[providerId]
-    if (!config)
-      return []
-
     const metadata = providerMetadata[providerId]
     if (!metadata)
+      return []
+
+    const config = providerCredentials.value[providerId]
+    if (!config && metadata.requiresCredentials !== false)
       return []
 
     const runtimeState = providerRuntimeState.value[providerId]
@@ -2003,7 +1970,7 @@ export const useProvidersStore = defineStore('providers', () => {
     }
 
     try {
-      const models = metadata.capabilities.listModels ? await metadata.capabilities.listModels(config) : []
+      const models = metadata.capabilities.listModels ? await metadata.capabilities.listModels(config || {}) : []
 
       // Transform and store the models
       if (runtimeState) {
@@ -2137,14 +2104,15 @@ export const useProvidersStore = defineStore('providers', () => {
     if (!metadata)
       throw new Error(`Provider metadata for ${providerId} not found`)
 
-    // Web Speech API doesn't require credentials - use empty config
+    // Providers that don't require credentials use empty config
     let config = providerCredentials.value[providerId]
-    if (!config && providerId === 'browser-web-speech-api') {
-      config = getDefaultProviderConfig(providerId)
+    const noCredentials = metadata.requiresCredentials === false || providerId === 'browser-web-speech-api'
+    if (!config && noCredentials) {
+      config = getDefaultProviderConfig(providerId) || {}
       providerCredentials.value[providerId] = config
     }
 
-    if (!config && providerId !== 'browser-web-speech-api')
+    if (!config && !noCredentials)
       throw new Error(`Provider credentials for ${providerId} not found`)
 
     try {

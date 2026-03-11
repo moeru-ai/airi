@@ -1,13 +1,16 @@
 import type { Session, User } from 'better-auth'
 
 import { defineStore } from 'pinia'
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { client } from '../composables/api'
-import { fetchSession } from '../libs/auth'
-import { useConsciousnessStore } from './modules/consciousness'
-import { useProvidersStore } from './providers'
 
+/**
+ * Auth store — holds identity state and credits.
+ *
+ * This store has no dependency on `stores/providers`, which allows
+ * `providers` to safely depend on it without creating a circular import.
+ */
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User>()
   const session = ref<Session>()
@@ -19,16 +22,6 @@ export const useAuthStore = defineStore('auth', () => {
   // For controlling the login drawer on mobile
   const isLoginDrawerOpen = ref(false)
 
-  const initialized = ref(false)
-  const initialize = () => {
-    if (initialized.value)
-      return
-
-    fetchSession().catch(() => {})
-
-    initialized.value = true
-  }
-
   const updateCredits = async () => {
     if (!isAuthenticated.value)
       return
@@ -39,32 +32,14 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Get store references once
-  const providersStore = useProvidersStore()
-  const consciousnessStore = useConsciousnessStore()
-
   watch(isAuthenticated, async (val) => {
     if (val) {
       updateCredits()
-
-      // Automatically enable official provider when authenticated
-      const officialProviderId = 'official-provider'
-      providersStore.forceProviderConfigured(officialProviderId)
-      consciousnessStore.activeProvider = officialProviderId
-      await nextTick()
-      try {
-        await consciousnessStore.loadModelsForProvider(officialProviderId)
-      }
-      catch (err) {
-        console.error('error loading models for official provider', err)
-      }
     }
     else {
       credits.value = 0
     }
   }, { immediate: true })
-
-  initialize()
 
   return {
     user,
