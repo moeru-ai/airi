@@ -40,6 +40,12 @@ const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 const expanded = ref(false)
 const islandRef = ref<HTMLElement>()
 
+async function captureAndAnalyze() {
+  const { useVisionStore } = await import('../../../stores/vision')
+  const visionStore = useVisionStore()
+  await visionStore.captureAndAnalyze()
+}
+
 // Expose whether hearing dialog is open so parent can disable click-through
 const hearingDialogOpen = ref(false)
 defineExpose({ hearingDialogOpen })
@@ -185,6 +191,15 @@ function refreshWindow() {
             </ControlButtonTooltip>
 
             <ControlsIslandFadeOnHover :icon-class="adjustStyleClasses.icon" :button-style="adjustStyleClasses.button" />
+
+            <ControlButtonTooltip disable-hoverable-content>
+              <ControlButton :button-style="adjustStyleClasses.button" @click="captureAndAnalyze">
+                <div i-solar:eye-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+              </ControlButton>
+              <template #tooltip>
+                {{ t('tamagotchi.stage.controls-island.vision-see-screen') }}
+              </template>
+            </ControlButtonTooltip>
 
             <ControlButtonTooltip disable-hoverable-content>
               <ControlButton :button-style="adjustStyleClasses.button" hover:bg-red-500 hover:text-white @click="closeWindow()">

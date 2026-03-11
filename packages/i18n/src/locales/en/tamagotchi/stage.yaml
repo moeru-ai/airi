@@ -24,6 +24,7 @@ docs:
   'close': Close
   'expand': Expand
   'collapse': Collapse
+  'vision-see-screen': Let AIRI see screen
 
 notice:
   'fade-on-hover':

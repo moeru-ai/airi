@@ -24,6 +24,7 @@ docs:
   'close': 关闭
   'expand': 展开
   'collapse': 折叠
+  'vision-see-screen': 让 AIRI 看屏幕
 notice:
   'fade-on-hover':
     title: 悬停淡出

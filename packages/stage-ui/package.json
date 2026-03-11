@@ -32,6 +32,8 @@
     "./stores/settings": "./src/stores/settings/index.ts",
     "./stores/*": "./src/stores/*.ts",
     "./stores": "./src/stores/index.ts",
+    "./services/*": "./src/services/*.ts",
+    "./services": "./src/services/index.ts",
     "./workers/vad": "./src/workers/vad/index.ts",
     "./workers/*": "./src/workers/*.ts",
     "./workers": "./src/workers/index.ts",

@@ -25,6 +25,12 @@ const settings = computed(() => [
     to: '/settings/system/window-shortcuts',
   },
   {
+    title: t('tamagotchi.settings.pages.system.vision.title'),
+    description: t('tamagotchi.settings.pages.system.vision.description'),
+    icon: 'i-solar:eye-bold-duotone',
+    to: '/settings/system/vision',
+  },
+  {
     title: t('settings.pages.system.developer.title'),
     description: t('settings.pages.system.developer.description'),
     icon: 'i-solar:code-bold-duotone',
