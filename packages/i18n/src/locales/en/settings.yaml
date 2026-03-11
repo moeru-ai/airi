@@ -611,6 +611,22 @@ pages:
       alibaba-cloud-model-studio:
         description: bailian.console.aliyun.com
         title: Alibaba Cloud Model Studio
+      amazon-bedrock:
+        title: Amazon Bedrock
+        description: aws.amazon.com/bedrock
+        config:
+          region:
+            label: AWS Region
+            description: AWS region for Bedrock (e.g. us-east-1, ap-northeast-1)
+          access-key-id:
+            label: Access Key ID
+            description: AWS Access Key ID with Bedrock permissions
+          secret-access-key:
+            label: Secret Access Key
+            description: AWS Secret Access Key
+          session-token:
+            label: Session Token
+            description: Optional session token (for temporary credentials / IAM roles)
       anthropic:
         description: anthropic.com
         title: Anthropic | Claude

@@ -92,6 +92,7 @@
     "@xsai/tool": "catalog:",
     "@xsai/utils-chat": "catalog:",
     "animejs": "^4.3.6",
+    "aws4fetch": "catalog:",
     "better-auth": "catalog:",
     "culori": "^4.0.2",
     "date-fns": "^4.1.0",
