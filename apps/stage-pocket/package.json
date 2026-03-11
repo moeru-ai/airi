@@ -16,7 +16,7 @@
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
     "dev:web": "vite",
-    "dev:ios": "cap-vite ios"
+    "dev:ios": "cap-vite -- ios"
   },
   "dependencies": {
     "@capacitor/core": "catalog:",

@@ -72,7 +72,7 @@ live2d:
     button-disable:
       title: Отключить
   fps:
-    title: FPS
+    title: ФПС
     description: Limit rendering frame rate
     options:
       unlimited: No Limit
@@ -284,6 +284,7 @@ pages:
           provider-model-selection:
             collapse: Свернуть
             custom_model_placeholder: Введите название кастомной модели...
+            current_model_label: 'Текущая выбранная модель：'
             description: Выберите подходящего LLM-провайдера для сознания
             error: Ошибка загрузки моделей
             health_check_failed: Health check failed
@@ -513,7 +514,7 @@ pages:
                       Sorry to hear that Connectivity check failed for Ollama. Don't worry, for Ollama instances, extra configuration is needed for making it pass for Ollama. You need to set <code>OLLAMA_HOST</code> explicitly when start the Ollama application or Ollama CLI server, for detailed information, check <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama integration guide</a>.
     common:
       continueAnyway: Продолжить всё равно
-      goToModelSelection: 'Выбрать модель →'
+      goToModelSelection: 'Select Model →'
       fields:
         field:
           api-key:

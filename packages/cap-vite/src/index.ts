@@ -1,217 +1,176 @@
-import type { Result } from 'tinyexec'
-import type { ViteDevServer } from 'vite'
+import type { Output } from 'tinyexec'
 
 import process from 'node:process'
 
-import { basename, extname, relative, resolve, sep } from 'node:path'
+import { extname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { x } from 'tinyexec'
-import { createServer } from 'vite'
 
-export type CapacitorPlatform = 'android' | 'ios'
+import { parseCapacitorPlatform } from './native'
+
+export type { CapacitorPlatform } from './native'
 
 export interface RunCapViteOptions {
   cwd?: string
-  debounceMs?: number
 }
 
-const nativeExtensionsByPlatform: Record<CapacitorPlatform, Set<string>> = {
-  ios: new Set([
-    '.entitlements',
-    '.h',
-    '.hpp',
-    '.m',
-    '.mm',
-    '.pbxproj',
-    '.plist',
-    '.storyboard',
-    '.strings',
-    '.swift',
-    '.xcodeproj',
-    '.xcconfig',
-    '.xcscheme',
-    '.xib',
-  ]),
-  android: new Set([
-    '.gradle',
-    '.java',
-    '.json',
-    '.kts',
-    '.kt',
-    '.properties',
-    '.xml',
-  ]),
+interface PreparedViteLaunch {
+  baseConfigFile?: string
+  configLoader?: 'bundle' | 'native' | 'runner'
+  projectRoot: string
+  viteArgs: string[]
+  wrapperConfigFile: string
 }
 
-const nativeNamesByPlatform: Record<CapacitorPlatform, Set<string>> = {
-  ios: new Set([
-    'Podfile',
-    'Podfile.lock',
-    'project.pbxproj',
-  ]),
-  android: new Set([
-    'AndroidManifest.xml',
-    'build.gradle',
-    'build.gradle.kts',
-    'gradle.properties',
-    'settings.gradle',
-    'settings.gradle.kts',
-  ]),
+interface ParsedViteArg {
+  baseConfigFile?: string
+  configLoader?: 'bundle' | 'native' | 'runner'
+  consumedArgs: number
+  forwardedArgs: string[]
 }
 
-const ignoredNames = new Set([
-  'capacitor.config.json',
-])
-
-const ignoredPathSegments = new Set([
-  '.gradle',
-  'DerivedData',
-  'Pods',
-  'build',
-  'xcuserdata',
-])
-
-const ignoredPathPrefixesByPlatform: Record<CapacitorPlatform, string[][]> = {
-  ios: [
-    ['App', 'CapApp-SPM'],
-  ],
-  android: [],
+function resolveWrapperConfigFile(): string {
+  const currentModulePath = fileURLToPath(import.meta.url)
+  const wrapperExtension = extname(currentModulePath) === '.ts' ? '.ts' : '.mjs'
+  return fileURLToPath(new URL(`./vite-wrapper-config${wrapperExtension}`, import.meta.url))
 }
 
-function pickServerUrl(server: ViteDevServer): URL {
-  const url = server.resolvedUrls?.network?.[0] ?? server.resolvedUrls?.local?.[0]
-
-  if (!url) {
-    throw new Error('Vite did not expose a reachable dev server URL.')
+function parseViteConfigLoader(value: string | undefined): 'bundle' | 'native' | 'runner' | undefined {
+  if (value === 'bundle' || value === 'native' || value === 'runner') {
+    return value
   }
 
-  const resolved = new URL(url)
-
-  return resolved
+  return undefined
 }
 
-function shouldRestartForNativeChange(file: string, platform: CapacitorPlatform, cwd: string): boolean {
-  const absoluteFile = resolve(cwd, file)
-  const platformRoot = resolve(cwd, platform)
-
-  if (!absoluteFile.startsWith(`${platformRoot}${sep}`) && absoluteFile !== platformRoot) {
-    return false
-  }
-
-  const fileName = basename(absoluteFile)
-
-  if (ignoredNames.has(fileName)) {
-    return false
-  }
-
-  const segments = absoluteFile.split(sep)
-  if (segments.some(segment => ignoredPathSegments.has(segment))) {
-    return false
-  }
-
-  const relativeFile = relative(platformRoot, absoluteFile)
-  const relativeSegments = relativeFile.split(sep).filter(Boolean)
-
-  if (ignoredPathPrefixesByPlatform[platform].some(prefix =>
-    prefix.every((segment, index) => relativeSegments[index] === segment),
-  )) {
-    // NOTICE: Capacitor regenerates ios/App/CapApp-SPM/Package.swift during `cap run`.
-    // Treating that generated tree as a native source change causes an infinite restart loop.
-    return false
-  }
-
-  if (nativeNamesByPlatform[platform].has(fileName)) {
-    return true
-  }
-
-  return nativeExtensionsByPlatform[platform].has(extname(fileName).toLowerCase())
+function resolveConfigPath(cwd: string, value: string): string {
+  return resolve(cwd, value)
 }
 
-async function stopCapProcess(current: Result | undefined) {
-  if (!current) {
-    return
+function readRequiredOptionValue(viteArgs: string[], index: number, optionName: string): string {
+  const value = viteArgs[index + 1]
+  if (!value) {
+    throw new Error(`Missing value for \`${optionName}\`.`)
   }
 
-  current.kill('SIGINT')
-
-  try {
-    await current
-  }
-  catch {
-    // tinyexec rejects on interrupted exits when the child was stopped for a restart.
-  }
+  return value
 }
 
-function startCapProcess(cwd: string, platform: CapacitorPlatform, deviceId: string, url: URL) {
-  return x('cap', ['run', platform, '--target', deviceId], { persist: true, throwOnError: false, nodeOptions: { cwd, stdio: 'inherit', env: { CAPACITOR_DEV_SERVER_URL: url.toString() } } })
+function parseConfigArg(viteArgs: string[], index: number, cwd: string): ParsedViteArg | null {
+  const arg = viteArgs[index]
+
+  // NOTICE: Vite only accepts one `--config` entrypoint. cap-vite consumes that slot
+  // for its wrapper config, then loads the user config from inside the wrapper.
+  if (arg === '--config' || arg === '-c') {
+    return {
+      baseConfigFile: resolveConfigPath(cwd, readRequiredOptionValue(viteArgs, index, '--config')),
+      consumedArgs: 2,
+      forwardedArgs: [],
+    }
+  }
+
+  if (arg.startsWith('--config=')) {
+    return {
+      baseConfigFile: resolveConfigPath(cwd, arg.slice('--config='.length)),
+      consumedArgs: 1,
+      forwardedArgs: [],
+    }
+  }
+
+  return null
+}
+
+function parseConfigLoaderArg(viteArgs: string[], index: number): ParsedViteArg | null {
+  const arg = viteArgs[index]
+
+  if (arg === '--configLoader') {
+    const value = readRequiredOptionValue(viteArgs, index, '--configLoader')
+
+    return {
+      configLoader: parseViteConfigLoader(value),
+      consumedArgs: 2,
+      forwardedArgs: [arg, value],
+    }
+  }
+
+  if (arg.startsWith('--configLoader=')) {
+    return {
+      configLoader: parseViteConfigLoader(arg.slice('--configLoader='.length)),
+      consumedArgs: 1,
+      forwardedArgs: [arg],
+    }
+  }
+
+  return null
+}
+
+function parseViteArg(viteArgs: string[], index: number, cwd: string): ParsedViteArg {
+  return parseConfigArg(viteArgs, index, cwd)
+    ?? parseConfigLoaderArg(viteArgs, index)
+    ?? {
+      consumedArgs: 1,
+      forwardedArgs: [viteArgs[index]],
+    }
+}
+
+function resolveProjectRoot(viteArgs: string[], cwd: string): string {
+  const firstArg = viteArgs[0]
+
+  return firstArg && !firstArg.startsWith('-')
+    ? resolve(cwd, firstArg)
+    : cwd
+}
+
+export function prepareCapViteLaunch(viteArgs: string[], cwd: string = process.cwd()): PreparedViteLaunch {
+  const resolvedCwd = resolve(cwd)
+  const projectRoot = resolveProjectRoot(viteArgs, resolvedCwd)
+
+  let baseConfigFile: string | undefined
+  let configLoader: 'bundle' | 'native' | 'runner' | undefined
+  const forwardedViteArgs: string[] = []
+
+  for (let index = 0; index < viteArgs.length;) {
+    const parsedArg = parseViteArg(viteArgs, index, resolvedCwd)
+
+    baseConfigFile = parsedArg.baseConfigFile ?? baseConfigFile
+    configLoader = parsedArg.configLoader ?? configLoader
+    forwardedViteArgs.push(...parsedArg.forwardedArgs)
+    index += parsedArg.consumedArgs
+  }
+
+  return {
+    baseConfigFile,
+    configLoader,
+    projectRoot,
+    viteArgs: forwardedViteArgs,
+    wrapperConfigFile: resolveWrapperConfigFile(),
+  }
 }
 
 export async function runCapVite(
-  platform: CapacitorPlatform,
-  deviceId: string,
+  viteArgs: string[],
+  capArgs: string[],
   options: RunCapViteOptions = {},
-): Promise<void> {
+): Promise<Output> {
+  if (!parseCapacitorPlatform(capArgs[0])) {
+    throw new Error('The first `cap run` argument must be `ios` or `android`.')
+  }
+
   const cwd = resolve(options.cwd ?? process.cwd())
-  const debounceMs = options.debounceMs ?? 300
-  const server = await createServer({
-    clearScreen: false,
-    root: cwd,
-  })
+  const prepared = prepareCapViteLaunch(viteArgs, cwd)
 
-  await server.listen()
-  server.printUrls()
-
-  const url = pickServerUrl(server)
-  const logger = server.config.logger
-
-  let currentCapProcess: Result | undefined = startCapProcess(cwd, platform, deviceId, url)
-  let restartTimer: NodeJS.Timeout | undefined
-  let shuttingDown = false
-
-  async function restartCapProcess(reason: string) {
-    if (shuttingDown) {
-      return
-    }
-
-    logger.info(`[cap-vite] ${reason}. Re-running cap run ${platform}.`)
-    const previous = currentCapProcess
-    currentCapProcess = undefined
-    await stopCapProcess(previous)
-    currentCapProcess = startCapProcess(cwd, platform, deviceId, url)
-  }
-
-  const onWatcherEvent = (_event: string, file: string) => {
-    if (!shouldRestartForNativeChange(file, platform, cwd)) {
-      return
-    }
-
-    clearTimeout(restartTimer)
-    restartTimer = setTimeout(() => {
-      void restartCapProcess(`native file changed: ${resolve(cwd, file)}`)
-    }, debounceMs)
-  }
-
-  const shutdown = async (exitCode: number) => {
-    if (shuttingDown) {
-      return
-    }
-
-    shuttingDown = true
-    clearTimeout(restartTimer)
-    server.watcher.off('all', onWatcherEvent)
-    await server.watcher.unwatch(platform)
-    await server.close()
-    await stopCapProcess(currentCapProcess)
-    process.exit(exitCode)
-  }
-
-  server.watcher.add(platform)
-  server.watcher.on('all', onWatcherEvent)
-
-  process.once('SIGINT', () => {
-    void shutdown(0)
-  })
-  process.once('SIGTERM', () => {
-    void shutdown(0)
+  return await x('vite', ['--config', prepared.wrapperConfigFile, ...prepared.viteArgs], {
+    throwOnError: false,
+    nodeOptions: {
+      cwd,
+      env: {
+        CAP_VITE_BASE_CONFIG: prepared.baseConfigFile ?? '',
+        CAP_VITE_CAP_ARGS_JSON: JSON.stringify(capArgs),
+        CAP_VITE_CONFIG_LOADER: prepared.configLoader ?? '',
+        CAP_VITE_ROOT: prepared.projectRoot,
+      },
+      stdio: 'inherit',
+    },
   })
 }

@@ -284,6 +284,7 @@ pages:
           provider-model-selection:
             collapse: 접기
             custom_model_placeholder: 사용자 지정 모델 이름 입력...
+            current_model_label: '현재 선택된 모델：'
             description: 의식에 적합한 LLM 제공자를 선택합니다.
             error: 모델 목록을 불러오는데 오류가 발생했습니다.
             health_check_failed: 상태 점검 실패
@@ -513,7 +514,7 @@ pages:
                       Ollama에 대한 연결 검사가 실패했다는 소식을 듣게 되어 유감입니다. 걱정하지 마세요. Ollama 인스턴스의 경우 Ollama를 통과시키기 위해 추가 구성이 필요합니다. Ollama 애플리케이션 또는 Ollama CLI 서버를 시작할 때 <code>OLLAMA_HOST</code>를 명시적으로 설정해야 하며, 자세한 정보는 <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama 통합 가이드</a>를 확인하세요.
     common:
       continueAnyway: 계속 진행
-      goToModelSelection: '모델 선택 →'
+      goToModelSelection: 'Select Model →'
       fields:
         field:
           api-key:

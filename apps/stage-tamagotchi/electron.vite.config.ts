@@ -21,8 +21,14 @@ const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 
 export default defineConfig({
   main: {
+    build: {
+      externalizeDeps: {
+        include: [
+          'electron-click-drag-plugin',
+        ],
+      },
+    },
     plugins: [
-      Info(),
       {
         // To replace `build.rolldownOptions`, as electron-vite still uses the deprecated
         // `rollupOptions`, using `rollupOptions` and `rolldownOptions` at the same
@@ -32,19 +38,32 @@ export default defineConfig({
         name: 'manual-chunks',
         outputOptions(options) {
           options.codeSplitting = {
-            groups: [{
-              name(moduleId) {
-                // https://github.com/lobehub/lobehub/blob/6ecba929b738e1259e15d17e7643941e015324ee/apps/desktop/electron.vite.config.ts#L54
-                // Prevent debug package from being bundled into index.js to avoid side-effect pollution
-                if (moduleId.includes('node_modules/debug')) {
-                  return 'vendor-debug'
-                }
+            groups: [
+              {
+                name(moduleId) {
+                  // https://github.com/lobehub/lobehub/blob/6ecba929b738e1259e15d17e7643941e015324ee/apps/desktop/electron.vite.config.ts#L54
+                  // Prevent debug package from being bundled into index.js to avoid side-effect pollution
+                  if (moduleId.includes('node_modules/debug')) {
+                    return 'vendor-debug'
+                  }
+                },
               },
-            }],
+              {
+                name(moduleId) {
+                  // https://github.com/lobehub/lobehub/blob/6ecba929b738e1259e15d17e7643941e015324ee/apps/desktop/electron.vite.config.ts#L54
+                  // Prevent debug package from being bundled into index.js to avoid side-effect pollution
+                  if (moduleId.includes('node_modules/h3')) {
+                    return 'vendor-h3'
+                  }
+                },
+              },
+            ],
           }
+
           return options
         },
       },
+      Info(),
     ],
 
     resolve: {
@@ -53,6 +72,7 @@ export default defineConfig({
       },
     },
   },
+
   preload: {
     build: {
       lib: {
@@ -62,8 +82,10 @@ export default defineConfig({
         },
       },
     },
+
     plugins: [],
   },
+
   renderer: {
     // Thanks to [@Maqsyo](https://github.com/Maqsyo)
     // https://github.com/alex8088/electron-vite/issues/99#issuecomment-1862671727

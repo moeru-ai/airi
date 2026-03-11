@@ -5,11 +5,13 @@ import { join, resolve } from 'node:path'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
+import { safeClose } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow, ipcMain, shell } from 'electron'
+import { isMacOS } from 'std-env'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { electronOnboardingClose, electronOnboardingCompleted, electronOnboardingSkipped } from '../../../shared/eventa'
+import { electronOnboardingClose } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { toggleWindowShow } from '../shared'
@@ -41,8 +43,8 @@ export function setupOnboardingWindowManager(params: {
       show: false,
       icon,
       resizable: true,
-      frame: false,
-      titleBarStyle: 'hidden',
+      frame: !isMacOS,
+      titleBarStyle: isMacOS ? 'hidden' : undefined,
       transparent: false,
       backgroundColor: '#0f0f0f',
       webPreferences: {
@@ -64,9 +66,9 @@ export function setupOnboardingWindowManager(params: {
 
     const { context } = createContext(ipcMain, newWindow)
 
-    defineInvokeHandler(context, electronOnboardingClose, async () => newWindow.close())
-    defineInvokeHandler(context, electronOnboardingCompleted, async () => newWindow.close())
-    defineInvokeHandler(context, electronOnboardingSkipped, async () => newWindow.close())
+    defineInvokeHandler(context, electronOnboardingClose, async () => {
+      safeClose(newWindow)
+    })
 
     await setupBaseWindowElectronInvokes({ context, window: newWindow, i18n: params.i18n, serverChannel: params.serverChannel })
 

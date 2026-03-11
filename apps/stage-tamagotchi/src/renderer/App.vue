@@ -12,7 +12,6 @@ import { clearMcpToolBridge, setMcpToolBridge } from '@proj-airi/stage-ui/stores
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
@@ -29,7 +28,6 @@ import {
   electronGetServerChannelConfig,
   electronMcpCallTool,
   electronMcpListTools,
-  electronOpenOnboarding,
   electronOpenSettings,
   electronPluginInspect,
   electronPluginList,
@@ -54,7 +52,6 @@ const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settingsStore)
 const serverChannelSettingsStore = useServerChannelSettingsStore()
-const onboardingStore = useOnboardingStore()
 const router = useRouter()
 const route = useRoute()
 const cardStore = useAiriCardStore()
@@ -80,7 +77,6 @@ const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapab
 const listMcpTools = useElectronEventaInvoke(electronMcpListTools)
 const callMcpTool = useElectronEventaInvoke(electronMcpCallTool)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
-const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
 
 // NOTICE: register plugin host bridge during setup to avoid race with pages using it in immediate watchers.
 pluginHostInspectorStore.setBridge({
@@ -112,14 +108,13 @@ onMounted(() => updateThemeColor())
 onMounted(async () => {
   analyticsStore.initialize()
   cardStore.initialize()
-  onboardingStore.initializeSetupCheck()
 
   await chatSessionStore.initialize()
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
 
   const serverChannelConfig = await getServerChannelConfig()
-  serverChannelSettingsStore.websocketTlsConfig = serverChannelConfig.websocketTlsConfig
+  serverChannelSettingsStore.websocketTlsConfig = serverChannelConfig.tlsConfig
 
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   await contextBridgeStore.initialize()
@@ -149,12 +144,6 @@ watch(themeColorsHue, () => {
 
 watch(themeColorsHueDynamic, () => {
   document.documentElement.classList.toggle('dynamic-hue', themeColorsHueDynamic.value)
-}, { immediate: true })
-
-watch(() => onboardingStore.shouldShowSetup, () => {
-  if (onboardingStore.shouldShowSetup) {
-    openOnboarding()
-  }
 }, { immediate: true })
 
 onUnmounted(() => {

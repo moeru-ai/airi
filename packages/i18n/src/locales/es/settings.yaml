@@ -284,6 +284,7 @@ pages:
           provider-model-selection:
             collapse: Colapsar
             custom_model_placeholder: Ingresa el nombre del modelo personalizado...
+            current_model_label: 'Modelo actual seleccionado：'
             description: Selecciona el proveedor LLM adecuado para la consciencia
             error: Error cargando modelos
             health_check_failed: Health check failed
@@ -513,7 +514,7 @@ pages:
                       Lamentamos escuchar que la conexion con Ollama falló. No te preocupes, para las instancias de Ollama, es necesaria una configuración extra para que pase por Ollama. Debe establecer <code>OLLAMA_HOST</code> explícitamente al iniciar la aplicación Ollama o el servidor CLI de Ollama, para obtener información detallada, consulte la guía <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">de integración Ollama</a>.
     common:
       continueAnyway: Continuar de todos modos
-      goToModelSelection: 'Seleccionar modelo →'
+      goToModelSelection: 'Select Model →'
       fields:
         field:
           api-key:
