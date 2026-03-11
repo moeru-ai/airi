@@ -141,6 +141,28 @@ export function initOtel(env: Env) {
     description: 'Number of Stripe webhook events processed',
   })
 
+  // LLM / Gateway metrics
+  const llmRequestDuration = meter.createHistogram('llm.request.duration', {
+    description: 'LLM gateway request duration in milliseconds',
+    unit: 'ms',
+  })
+
+  const llmRequestCount = meter.createCounter('llm.request.count', {
+    description: 'Number of LLM gateway requests',
+  })
+
+  const llmTokensPrompt = meter.createCounter('llm.tokens.prompt', {
+    description: 'Total prompt tokens consumed',
+  })
+
+  const llmTokensCompletion = meter.createCounter('llm.tokens.completion', {
+    description: 'Total completion tokens consumed',
+  })
+
+  const fluxConsumed = meter.createCounter('flux.consumed', {
+    description: 'Total flux consumed',
+  })
+
   // Graceful shutdown
   const shutdown = async () => {
     try {
@@ -162,6 +184,11 @@ export function initOtel(env: Env) {
     authAttempts,
     authFailures,
     stripeEvents,
+    llmRequestDuration,
+    llmRequestCount,
+    llmTokensPrompt,
+    llmTokensCompletion,
+    fluxConsumed,
 
     shutdown,
   }

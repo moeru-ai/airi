@@ -11,7 +11,7 @@ import { createServiceUnavailableError } from '../utils/error'
  */
 export function configGuard(
   configKV: ConfigKVService,
-  keys: Parameters<ConfigKVService['get']>[0][],
+  keys: Parameters<ConfigKVService['getOrThrow']>[0][],
   message = 'Service is not available yet',
 ): MiddlewareHandler<HonoEnv> {
   return async (_c, next) => {
