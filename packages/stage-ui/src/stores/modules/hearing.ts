@@ -8,10 +8,10 @@ import { refManualReset } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
+import { toast } from 'vue-sonner'
 
 import vadWorkletUrl from '../../workers/vad/process.worklet?worker&url'
 
-import { useProvidersStore } from '../providers'
 import { streamAliyunTranscription } from '../providers/aliyun/stream-transcription'
 import { streamWebSpeechAPITranscription } from '../providers/web-speech-api'
 
@@ -706,6 +706,12 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
                 fullText += value
                 // Use captured callbacks to avoid cross-session leakage
                 sessionCallbacks.onSentenceEnd?.(value)
+
+                // Transcription feedback toast
+                toast.dismiss('transcription-feedback')
+                toast.info(`🎤 You said: ${value}`, {
+                  id: 'transcription-feedback',
+                })
               }
             }
           }
@@ -756,6 +762,12 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           error.value = 'No transcription result returned from provider'
           return
         }
+
+        // Transcription feedback toast
+        toast.dismiss('transcription-feedback')
+        toast.info(`🎤 You said: ${text}`, {
+          id: 'transcription-feedback',
+        })
 
         return text
       }
