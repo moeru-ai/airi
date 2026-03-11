@@ -730,6 +730,11 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
         // Get model from configuration or use default
         const model = activeTranscriptionModel.value
+        console.info('[Hearing Pipeline] Triggering hearingStore.transcription', {
+          providerId,
+          model,
+          fileName: 'recording.wav',
+        })
         const result = await hearingStore.transcription(
           providerId,
           provider,

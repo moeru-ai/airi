@@ -88,12 +88,23 @@ export function buildOpenAICompatibleProvider(
         return []
       }
 
+      const ttsKeywords = ['tts', 'speech', 'whisper']
+      const isSpeech = category === 'speech'
+      const filter = (model: any) => {
+        if (isSpeech) {
+          return ttsKeywords.some(kw => model.id.toLowerCase().includes(kw))
+        }
+        return !ttsKeywords.some(kw => model.id.toLowerCase().includes(kw))
+      }
+
       // Previously: fetch(`${baseUrl}models`)
-      const models = await listModels({
+      const fetchedModels = await listModels({
         apiKey,
         baseURL: baseUrl,
         headers: additionalHeaders,
       })
+
+      const models = fetchedModels.filter(filter)
 
       return models.map((model: any) => {
         return {
@@ -195,14 +206,27 @@ export function buildOpenAICompatibleProvider(
         asyncChecks.push((async () => {
           try {
             const model = await modelPromise
-            await generateText({
-              apiKey,
-              baseURL: baseUrl,
-              headers: additionalHeaders,
-              model,
-              messages: message.messages(message.user('ping')),
-              max_tokens: 1,
-            })
+            const provider = await creator(apiKey, baseUrl)
+            if (category === 'speech') {
+              await generateSpeech({
+                apiKey,
+                baseURL: baseUrl,
+                headers: additionalHeaders,
+                model,
+                input: 'ping',
+                voice: 'ping', // Placeholder voice
+              })
+            }
+            else {
+              await generateText({
+                apiKey,
+                baseURL: baseUrl,
+                headers: additionalHeaders,
+                model,
+                messages: [{ role: 'user', content: 'ping' }],
+                max_tokens: 1,
+              })
+            }
             return null
           }
           catch (e) {

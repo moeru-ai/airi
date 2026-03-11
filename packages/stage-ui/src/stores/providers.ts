@@ -1856,7 +1856,7 @@ export const useProvidersStore = defineStore('providers', () => {
   }
 
   // Update configuration status for all configured providers
-  async function updateConfigurationStatus() {
+  const updateConfigurationStatus = debounce(async () => {
     await Promise.all(Object.entries(providerMetadata)
       // TODO: ignore un-configured provider
       // .filter(([_, provider]) => provider.configured)
@@ -1873,11 +1873,16 @@ export const useProvidersStore = defineStore('providers', () => {
           }
         }
       }))
-  }
+  }, 250)
 
   // Call initially and watch for changes
-  watch(providerCredentials, updateConfigurationStatus, { deep: true, immediate: true })
-  startPeriodicRuntimeValidation()
+  watch(providerCredentials, updateConfigurationStatus, { deep: true, immediate: false })
+
+  // Initialize all providers
+  Object.keys(providerMetadata).forEach(initializeProvider)
+
+  // Initial validation run
+  void updateConfigurationStatus()
 
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.keys(providerMetadata).filter(providerId => providerRuntimeState.value[providerId]?.isConfigured))
@@ -2143,15 +2148,15 @@ export const useProvidersStore = defineStore('providers', () => {
   })
 
   const configuredChatProvidersMetadata = computed(() => {
-    return allChatProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+    return allChatProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id] || shouldListProvider(metadata.id))
   })
 
   const configuredSpeechProvidersMetadata = computed(() => {
-    return allAudioSpeechProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+    return allAudioSpeechProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id] || shouldListProvider(metadata.id))
   })
 
   const configuredTranscriptionProvidersMetadata = computed(() => {
-    return allAudioTranscriptionProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+    return allAudioTranscriptionProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id] || shouldListProvider(metadata.id))
   })
 
   function isProviderConfigDirty(providerId: string) {

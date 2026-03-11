@@ -109,6 +109,11 @@ export function createVADStates(vad: BaseVAD, vadAudioWorkletUrl: string, option
       // Request microphone access
       mediaStream = stream
 
+      // Disconnect existing source if any to prevent audio stacking/crackling
+      if (sourceNode) {
+        sourceNode.disconnect()
+      }
+
       // Create source node and connect to worklet
       sourceNode = audioContext.createMediaStreamSource(mediaStream)
       sourceNode.connect(audioWorkletNode)
