@@ -10,11 +10,20 @@ export const authClient = createAuthClient({
   credentials: 'include',
 })
 
+let initialized = false
+
+export function initializeAuth() {
+  if (initialized)
+    return
+
+  fetchSession().catch(() => {})
+  initialized = true
+}
+
 export async function fetchSession() {
   const { data } = await authClient.getSession()
   if (data) {
     const authStore = useAuthStore()
-
     authStore.user = data.user
     authStore.session = data.session
     return true
