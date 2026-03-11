@@ -8,6 +8,7 @@
     "auth:generate": "pnpm run apply:env -- better-auth generate --config src/scripts/auth.ts --output src/schemas/accounts.ts -y",
     "dev": "pnpm run apply:env -- tsx --watch src/app.ts",
     "start": "tsx src/app.ts",
+    "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:push": "pnpm run apply:env -- drizzle-kit push"
   },
