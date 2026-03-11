@@ -66,6 +66,8 @@ const camera = shallowRef<PerspectiveCamera | null>(null)
 
 // Initialisation on onMounted
 function registerInfoFlow() {
+  let isProgrammatic = false
+
   /*
     * Downward info flow
     * - Pinia store value updated => command take effect
@@ -74,14 +76,17 @@ function registerInfoFlow() {
   watch(modelSize, (newSize) => {
     if (!controls.value)
       return
+    isProgrammatic = true
     controls.value.minDistance = newSize.z
     controls.value.maxDistance = newSize.z * 20
     controls.value.update()
+    isProgrammatic = false
   }, { immediate: true, deep: true })
   // Get camera position => update position
   watch(cameraPosition, (newPosition) => {
     if (!camera.value || !controls.value)
       return
+    isProgrammatic = true
     camera.value.position.set(
       newPosition.x,
       newPosition.y,
@@ -89,26 +94,32 @@ function registerInfoFlow() {
     )
     camera.value.updateProjectionMatrix()
     controls.value.update()
+    isProgrammatic = false
   }, { immediate: true, deep: true })
   // Get camera target => update target (actually the model center)
   watch(cameraTarget, (newTarget) => {
     if (!controls.value)
       return
+    isProgrammatic = true
     controls.value!.target.set(newTarget.x, newTarget.y, newTarget.z)
     controls.value!.update()
+    isProgrammatic = false
   }, { immediate: true, deep: true })
   // Get fov => update camera fov
   watch(cameraFOV, (newFOV) => {
     if (!camera.value || !controls.value)
       return
+    isProgrammatic = true
     camera!.value!.fov = newFOV
     camera!.value!.updateProjectionMatrix()
     controls.value!.update()
+    isProgrammatic = false
   }, { immediate: true })
   // Get camera distance => update camera distance
   watch(cameraDistance, (newDistance) => {
     if (!camera.value || !controls.value)
       return
+    isProgrammatic = true
     const newPosition = new Vector3()
     const target = controls.value!.target
     const direction = new Vector3().subVectors(camera.value.position, target).normalize()
@@ -120,6 +131,7 @@ function registerInfoFlow() {
     )
     camera.value.updateProjectionMatrix()
     controls.value.update()
+    isProgrammatic = false
   })
   watch(controlEnable, (newEnable) => {
     if (!camera.value || !controls.value)
@@ -134,6 +146,9 @@ function registerInfoFlow() {
   */
   // send camera update info
   const onChange = () => {
+    if (isProgrammatic)
+      return
+
     if (modelLoaded.value) {
       emit(
         'orbitControlsCameraChanged',
