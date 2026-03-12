@@ -284,7 +284,7 @@ pages:
           provider-model-selection:
             collapse: 折りたたむ
             custom_model_placeholder: カスタムモデル名を入力…
-            current_model_label: '現在選択中のモデル：'
+            current_model_label: 'Current model:'
             description: 意識に適したLLMプロバイダーを選択
             error: モデルの読み込みエラー
             health_check_failed: ヘルスチェックに失敗しました
@@ -859,7 +859,7 @@ pages:
                   マイクの音声をAliyun NLSにストリーミングし、リアルタイムの文字起こしを確認する
               performance-playground:
                 title: 機能実験場
-                description: 'VRM 表情 + TTS リップシンクのプレイグラウンド'
+                description: 'VRM expressions + TTS lip sync playground'
         theme-presets:
           presets:
             default:
