@@ -810,6 +810,38 @@ pages:
               label: Endpoint ID
               description: Optional. The inference endpoint ID for model routing.
               placeholder: ep-xxxxxx
+      fish-audio:
+        description: fish.audio - AI-powered text-to-speech with voice cloning
+        title: Fish Audio
+        fields:
+          field:
+            model:
+              label: Model
+              description: TTS model to use (s2-pro recommended)
+            reference-id:
+              label: Voice Reference ID
+              description: Voice model ID from Fish Audio library, or browse & select below
+              placeholder: Enter voice model ID...
+            format:
+              label: Audio Format
+              description: Output audio format (mp3, wav, pcm, opus)
+            temperature:
+              label: Temperature
+              description: Controls expressiveness (0-1, higher = more varied)
+            top-p:
+              label: Top P
+              description: Controls diversity via nucleus sampling (0-1)
+        voice-browser:
+          title: Voice Browser
+          search-placeholder: Search voices by name...
+          loading: Searching voices...
+          no-results: No voices found. Try a different search term.
+          api-key-required: Enter your API key above to browse voices.
+          total-voices: voices total
+          sort:
+            score: Popular
+            task-count: Most Used
+            created-at: Newest
       xai:
         description: x.ai
         title: xAI
