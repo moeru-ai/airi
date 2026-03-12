@@ -859,7 +859,7 @@ pages:
                   将麦克风音频流式传输到阿里云 NLS 并检查实时转写
               performance-playground:
                 title: 性能测试场地
-                description: '测试性能运行时：VRM 表情 + TTS 口型同步'
+                description: 'VRM 表情 + TTS 口型同步实验场'
         theme-presets:
           presets:
             default:

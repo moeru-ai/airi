@@ -4,6 +4,12 @@ import { clamp } from 'es-toolkit/math'
 import { Vector2, WebGLRenderTarget } from 'three'
 import { shallowRef } from 'vue'
 
+import {
+  getStageThreeRuntimeTraceContext,
+  isStageThreeRuntimeTraceEnabled,
+  stageThreeTraceHitTestReadEvent,
+} from '../trace'
+
 export interface RenderTargetRegionRead {
   data: Uint8Array
   readWidth: number
@@ -24,6 +30,7 @@ export function useRenderTargetRegionAtClientPoint(context: {
 }) {
   const renderTargetRef = shallowRef<WebGLRenderTarget>()
   const renderTargetSize = new Vector2()
+  const stageThreeRuntimeTraceContext = getStageThreeRuntimeTraceContext()
 
   function ensureRenderTarget(renderer: WebGLRenderer) {
     // Match the offscreen target to the current drawing buffer size (DPI + canvas resize).
@@ -42,6 +49,7 @@ export function useRenderTargetRegionAtClientPoint(context: {
   }
 
   function readRenderTargetRegionAtClientPoint(clientX: number, clientY: number, radius: number): RenderTargetRegionRead | null {
+    const traceStart = isStageThreeRuntimeTraceEnabled() ? performance.now() : 0
     const renderer = context.getRenderer()
     const scene = context.getScene()
     const camera = context.getCamera()
@@ -86,6 +94,16 @@ export function useRenderTargetRegionAtClientPoint(context: {
     renderer.readRenderTargetPixels(renderTarget, startX, startY, readWidth, readHeight, data)
     // Restore the original target so downstream renders keep working.
     renderer.setRenderTarget(prevTarget)
+
+    if (traceStart > 0) {
+      stageThreeRuntimeTraceContext.emit(stageThreeTraceHitTestReadEvent, {
+        durationMs: performance.now() - traceStart,
+        radius,
+        readHeight,
+        readWidth,
+        ts: traceStart,
+      })
+    }
 
     return {
       data,

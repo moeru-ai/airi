@@ -859,7 +859,7 @@ pages:
                   マイクの音声をAliyun NLSにストリーミングし、リアルタイムの文字起こしを確認する
               performance-playground:
                 title: 機能実験場
-                description: '実行時のパフォーマンステスト: VRM 表情 + TTS リップシンク'
+                description: 'VRM 表情 + TTS リップシンクのプレイグラウンド'
         theme-presets:
           presets:
             default:
