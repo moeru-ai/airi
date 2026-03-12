@@ -227,9 +227,7 @@ async function handleAppExit() {
       await fn()
     }
     catch (error) {
-      if (exitedNormally) {
-        exitedNormally = false
-      }
+      exitedNormally = false
       log.withError(error).error(`[app-exit] Failed to ${operation}:`)
     }
   }
