@@ -12,6 +12,18 @@ declare global {
 }
 
 export class OPFSCache {
+  static async clearAll(): Promise<void> {
+    try {
+      const root = await navigator.storage.getDirectory()
+      for await (const entry of root.values()) {
+        await root.removeEntry(entry.name, { recursive: true })
+      }
+    }
+    catch (e) {
+      console.error('[OPFS] Failed to clear cache:', e)
+    }
+  }
+
   static async readDirectoryRecursive(dir: FileSystemDirectoryHandle, pathPrefix: string): Promise<File[]> {
     const files: File[] = []
     for await (const entry of dir.values()) {
@@ -114,7 +126,7 @@ export class OPFSCache {
         writePromises.push(OPFSCache.writeFile(dirHandle, relativePath, file))
       }
 
-      const settingsFile = files.find(f => f.name.endsWith('model.json') || f.name.endsWith('model3.json'))
+      const settingsFile = files.find(f => f.name.endsWith('.model.json') || f.name.endsWith('.model3.json'))
 
       if (!settingsFile) {
         // reconstruct settings files from ModelSettings

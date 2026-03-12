@@ -32,4 +32,6 @@ export interface AuthenticatedPeer extends NamedPeer {
   authenticated: boolean
   identity?: MetadataEventSource
   lastHeartbeatAt?: number
+  healthy?: boolean
+  missedHeartbeats?: number
 }

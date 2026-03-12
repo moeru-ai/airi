@@ -208,10 +208,10 @@ pages:
       tooltip: 您確定嗎？
       'yes': '是'
     status:
-      exported: 對話階段已匯出
-      imported: 對話階段已匯入
-      import_error: 匯入對話階段失敗，請檢查檔案格式
-      chats_deleted: 對話階段已刪除
+      exported: 對話階段已匯出。
+      imported: 對話階段已匯入。
+      import_error: 匯入對話階段失敗，請檢查檔案格式。
+      chats_deleted: 對話階段已刪除。
       models_deleted: 模型已刪除
       modules_reset: 模組設定已重設
       providers_reset: 服務提供者設定已重設
@@ -284,6 +284,7 @@ pages:
           provider-model-selection:
             collapse: 摺疊
             custom_model_placeholder: 輸入自訂模型名稱
+            current_model_label: 'Current model:'
             description: 為意識選擇合適的 LLM 服務來源
             error: 取得發生錯誤
             health_check_failed: 健康度檢查失敗
@@ -366,7 +367,7 @@ pages:
               stop:
                 label: 停止
             select-voice:
-              loading: 載入模型中......
+              loading: 載入模型中……
               required: 請選擇聲線
           provider-voice-selection:
             custom_model_placeholder: 輸入指定模型名稱...
@@ -479,28 +480,28 @@ pages:
                     Controls Ollama thinking behavior. GPT-OSS only supports low/medium/high levels.
                   options:
                     auto: Auto (provider default)
-                    disable: Disable
-                    enable: Enable
-                    low: Low
-                    medium: Medium
-                    high: High
+                    disable: 停用
+                    enable: 啟用
+                    low: 低
+                    medium: 中
+                    high: 高
         validators:
           actions:
-            validate: Validate
+            validate: 驗證
           empty: No validation steps available.
           openai-compatible:
             check-config:
-              title: Configuration
+              title: 設定
             check-connectivity:
               title: Connectivity
             check-supports-model-listing:
-              title: List Models
+              title: 列出模型
             check-supports-chat-completion:
               title: Chat Completion
           status:
-            validating: Validating...
-            valid: Passed
-            invalid: Errored
+            validating: 驗證中...
+            valid: 已通過
+            invalid: 發生錯誤
           title: Checks
         providers:
           provider:
@@ -510,10 +511,10 @@ pages:
                   openai-compatible-check-connectivity:
                     label: Extra configuration needed for Ollama
                     content: >-
-                      Sorry to hear that Connectivity check failed for Ollama. Don't worry, for Ollama instances, extra configuration is needed for making it pass for Ollama. You need to set <code>OLLAMA_HOST</code> explicitly when start the Ollama application or Ollama CLI server, for detailed information, check <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama integration guide</a>.
+                      很抱歉，Ollama 連接檢查失敗。不要擔心，如果使用 Ollama，需要額外配置才能通過 Ollama。 您需要在啟動 Olama 應用程序或 Ollama CLI 伺服器時明確設置 <code>OLLAMA_HOST</code> 詳情，請檢查 <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama 集成指南</a>。
     common:
       continueAnyway: 仍然繼續
-      goToModelSelection: '選擇模型 →'
+      goToModelSelection: '選擇模型→'
       fields:
         field:
           api-key:
@@ -646,16 +647,16 @@ pages:
         fields:
           field:
             model:
-              label: Model Selection
+              label: 模型選擇
               description: Smaller models load faster but may have slightly lower quality.
         models:
           fp32-webgpu:
             description: >-
               Full precision model using WebGPU - Recommended for supported devices
           fp32:
-            description: Full precision model
+            description: 全精度模型
           fp16:
-            description: Half precision
+            description: 半精度
           q8:
             description: 8-bit quantized
           q4:
@@ -858,7 +859,7 @@ pages:
                   Stream microphone audio to Aliyun NLS and inspect live transcripts
               performance-playground:
                 title: Performance Playground
-                description: 'Test performance runtime: VRM expressions + TTS lip sync'
+                description: 'VRM expressions + TTS lip sync playground'
         theme-presets:
           presets:
             default:
@@ -989,6 +990,6 @@ websocket-secure-enabled:
   description: >-
     啟用 WSS（WebSocket Secure）以允許開發模式下行動裝置（pocket）的 HTTPS 連線。這將自動產生自簽名憑證。
 wip:
-  title: Work in Progress
+  title: 正在開發中
   description: >-
-    This feature is currently under development and not yet publicly available. Check back in future updates for this functionality.
+    此功能正在開發中，尚未公開發佈。請在未來的更新中再次查看此功能。

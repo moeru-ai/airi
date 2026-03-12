@@ -1,26 +1,30 @@
 <script setup lang="ts">
+import type { OnboardingStepNextHandler } from './types'
+
 import { Button } from '@proj-airi/ui'
-import { inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import onboardingLogo from '../../../../assets/onboarding.avif'
 
 import { useAuthStore } from '../../../../stores/auth'
 import { useOnboardingStore } from '../../../../stores/onboarding'
-import { OnboardingContextKey } from './utils'
 
+interface Props {
+  onNext: OnboardingStepNextHandler
+}
+
+const props = defineProps<Props>()
 const { t } = useI18n()
-const context = inject(OnboardingContextKey)!
 const authStore = useAuthStore()
 const onboardingStore = useOnboardingStore()
 
 function handleLogin() {
-  onboardingStore.shouldShowSetup = false
-  authStore.isLoginOpen = true
+  onboardingStore.showingSetup = false
+  authStore.isLoginDrawerOpen = true
 }
 
 function handleLocalSetup() {
-  context.handleNextStep()
+  props.onNext()
 }
 </script>
 
@@ -30,7 +34,7 @@ function handleLocalSetup() {
       <div
         v-motion
         :initial="{ opacity: 0, scale: 0.5 }"
-        :visible="{ opacity: 1, scale: 1 }"
+        :enter="{ opacity: 1, scale: 1 }"
         :duration="500"
         class="mb-1 flex justify-center md:mb-4 lg:pt-16 md:pt-8"
       >
@@ -39,7 +43,7 @@ function handleLocalSetup() {
       <h2
         v-motion
         :initial="{ opacity: 0, y: 10 }"
-        :visible="{ opacity: 1, y: 0 }"
+        :enter="{ opacity: 1, y: 0 }"
         :duration="500"
         class="mb-0 text-3xl text-neutral-800 font-bold md:mb-2 dark:text-neutral-100"
       >
@@ -48,7 +52,7 @@ function handleLocalSetup() {
       <p
         v-motion
         :initial="{ opacity: 0, y: 10 }"
-        :visible="{ opacity: 1, y: 0 }"
+        :enter="{ opacity: 1, y: 0 }"
         :duration="500"
         :delay="100"
         class="text-sm text-neutral-600 md:text-lg dark:text-neutral-400"
@@ -60,7 +64,7 @@ function handleLocalSetup() {
       <Button
         v-motion
         :initial="{ opacity: 0 }"
-        :visible="{ opacity: 1 }"
+        :enter="{ opacity: 1 }"
         :duration="500"
         :delay="200"
         :label="t('settings.dialogs.onboarding.loginAction')"
@@ -70,7 +74,7 @@ function handleLocalSetup() {
       <Button
         v-motion
         :initial="{ opacity: 0 }"
-        :visible="{ opacity: 1 }"
+        :enter="{ opacity: 1 }"
         :duration="500"
         :delay="250"
         variant="secondary"

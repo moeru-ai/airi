@@ -75,6 +75,7 @@ export default {
     '!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}',
     '!**/node_modules/**/{.turbo,test,src,__tests__,tests,example,examples}',
     '**/node_modules/debug/**/*',
+    '**/node_modules/superjson/**/*',
     '!electron.vite.config.{js,ts,mjs,cjs}',
     '!vite.config.{js,ts,mjs,cjs}',
     '!uno.config.{js,ts,mjs,cjs}',

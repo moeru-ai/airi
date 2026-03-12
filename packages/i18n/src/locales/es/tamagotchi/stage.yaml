@@ -19,6 +19,8 @@ docs:
   'drag-to-move-window': Arrastra para mover la ventana
   'switch-to-light-mode': Cambiar a modo claro
   'switch-to-dark-mode': Cambiar a modo oscuro
+  'pin-on-top': Pin on top
+  'unpin-from-top': Unpin from top
   'close': Close
   'expand': Expand
   'collapse': Collapse

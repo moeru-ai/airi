@@ -12,7 +12,6 @@ import { clearMcpToolBridge, setMcpToolBridge } from '@proj-airi/stage-ui/stores
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
@@ -42,7 +41,9 @@ import {
   pluginProtocolListProviders,
   pluginProtocolListProvidersEventName,
 } from '../shared/eventa'
+import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
+import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 
 const { isDark: dark } = useTheme()
 const i18n = useI18n()
@@ -51,7 +52,6 @@ const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settingsStore)
 const serverChannelSettingsStore = useServerChannelSettingsStore()
-const onboardingStore = useOnboardingStore()
 const router = useRouter()
 const route = useRoute()
 const cardStore = useAiriCardStore()
@@ -60,9 +60,11 @@ const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
 const analyticsStore = useSharedAnalyticsStore()
 const pluginHostInspectorStore = usePluginHostInspectorStore()
-usePerfTracerBridgeStore()
-
+const stageWindowLifecycleStore = useStageWindowLifecycleStore()
 const context = useElectronEventaContext()
+usePerfTracerBridgeStore()
+initializeStageThreeRuntimeTraceBridge()
+void stageWindowLifecycleStore.initializeWindowLifecycleBridge()
 const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
 const listPlugins = useElectronEventaInvoke(electronPluginList)
 const setPluginEnabled = useElectronEventaInvoke(electronPluginSetEnabled)
@@ -106,14 +108,13 @@ onMounted(() => updateThemeColor())
 onMounted(async () => {
   analyticsStore.initialize()
   cardStore.initialize()
-  onboardingStore.initializeSetupCheck()
 
   await chatSessionStore.initialize()
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
 
   const serverChannelConfig = await getServerChannelConfig()
-  serverChannelSettingsStore.websocketTlsConfig = serverChannelConfig.websocketTlsConfig
+  serverChannelSettingsStore.websocketTlsConfig = serverChannelConfig.tlsConfig
 
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   await contextBridgeStore.initialize()

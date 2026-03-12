@@ -33,6 +33,7 @@ import {
   merge,
 } from '@xsai-ext/providers/utils'
 import { listModels } from '@xsai/model'
+import { uniqBy } from 'es-toolkit'
 import { isWebGPUSupported } from 'gpuu/webgpu'
 import { defineStore } from 'pinia'
 import {
@@ -1964,14 +1965,15 @@ export const useProvidersStore = defineStore('providers', () => {
 
       // Transform and store the models
       if (runtimeState) {
-        runtimeState.models = models.map(model => ({
-          id: model.id,
-          name: model.name,
-          description: model.description,
-          contextLength: model.contextLength,
-          deprecated: model.deprecated,
-          provider: providerId,
-        }))
+        runtimeState.models = uniqBy(models.filter(model => !!model.id), m => m.id)
+          .map(model => ({
+            id: model.id,
+            name: model.name,
+            description: model.description,
+            contextLength: model.contextLength,
+            deprecated: model.deprecated,
+            provider: providerId,
+          }))
         return runtimeState.models
       }
       return []

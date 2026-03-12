@@ -5,11 +5,7 @@ import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useTheme } from '@proj-airi/ui'
 import { computed } from 'vue'
 
-import {
-  electronOnboardingClose,
-  electronOnboardingCompleted,
-  electronOnboardingSkipped,
-} from '../../shared/eventa'
+import { electronOnboardingClose } from '../../shared/eventa'
 
 const onboardingStore = useOnboardingStore()
 const { isDark } = useTheme()
@@ -17,18 +13,14 @@ const { isDark } = useTheme()
 const bgClass = computed(() => isDark.value ? 'bg-[#0f0f0f]' : 'bg-white')
 
 const closeWindow = useElectronEventaInvoke(electronOnboardingClose)
-const markCompleted = useElectronEventaInvoke(electronOnboardingCompleted)
-const markSkipped = useElectronEventaInvoke(electronOnboardingSkipped)
 
 async function handleSkipped() {
   onboardingStore.markSetupSkipped()
-  await markSkipped()
   await closeWindow()
 }
 
 async function handleConfigured() {
   onboardingStore.markSetupCompleted()
-  await markCompleted()
   await closeWindow()
 }
 </script>

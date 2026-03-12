@@ -25,30 +25,30 @@ pages:
       sections:
         section:
           use-window-mouse:
-            title: useWindowMouse Tool
-            description: Test the Electron window cursor position
+            title: Công cụ useWindowMouse
+            description: Kiểm tra vị trí con trỏ chuột trong cửa sổ Electron
 devtools:
-  title: Developer
+  title: Nhà phát triển
   pages:
     context-flow:
-      title: Context Flow
+      title: Luồng ngữ cảnh (Context Flow)
     lag-visualizer:
-      title: Lag Visualizer
+      title: Trình trực quan hóa độ trễ
     performance-visualizer:
-      title: Performance Visualizer
-      description: Toggle FPS/long task/memory overlay
+      title: Trình trực quan hóa hiệu năng
+      description: Bật/Tắt lớp phủ hiển thị FPS/tác vụ dài/bộ nhớ
     markdown-stress:
-      title: Markdown Stress
-      description: Stress markdown parsing and rendering with heavy chat payloads
+      title: Kiểm thử áp lực Markdown
+      description: Kiểm tra khả năng xử lý và hiển thị Markdown với dữ liệu hội thoại lớn
     widgets-calling:
-      title: Widget Calling
+      title: Gọi Widget
 screen-capture:
   permissions-prompt:
-    title: Screen Capture
-    description: To capture screens or windows, screen and system audio recording permissions are required.
-    open-preferences: Open System Preferences
-    dismiss: Dismiss
+    title: Chụp ảnh màn hình
+    description: Để chụp màn hình hoặc cửa sổ, bạn cần cấp quyền ghi âm hệ thống và ghi màn hình.
+    open-preferences: Mở Tùy chọn hệ thống
+    dismiss: Bỏ qua
     instructions:
-      step-1: Open "System Preferences", select "Privacy & Security" from the sidebar.
-      step-2: In the "Screen & System Audio Recording" and "System Audio Recording Only" sections, turn on the switches for AIRI.
-      step-2-note: If AIRI is not listed, please add it manually by clicking the "+" button and selecting AIRI from the Applications folder.
+      step-1: Mở "Tùy chọn hệ thống", chọn "Quyền riêng tư & Bảo mật" từ thanh bên.
+      step-2: Trong phần "Ghi màn hình & Âm thanh hệ thống" và "Chỉ ghi âm thanh hệ thống", hãy bật công tắc cho AIRI.
+      step-2-note: Nếu không thấy AIRI trong danh sách, vui lòng thêm thủ công bằng cách nhấn nút "+" và chọn AIRI từ thư mục Ứng dụng (Applications).

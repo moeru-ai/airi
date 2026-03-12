@@ -284,6 +284,7 @@ pages:
           provider-model-selection:
             collapse: 折りたたむ
             custom_model_placeholder: カスタムモデル名を入力…
+            current_model_label: 'Current model:'
             description: 意識に適したLLMプロバイダーを選択
             error: モデルの読み込みエラー
             health_check_failed: ヘルスチェックに失敗しました
@@ -513,7 +514,7 @@ pages:
                       残念ながら、Ollamaの接続チェックが失敗したようです。Ollamaインスタンスの場合、正常に動作させるためには追加の設定が必要です。OllamaアプリケーションまたはOllama CLIサーバーを起動する際には、<code>OLLAMA_HOST</code>環境変数を明示的に設定する必要があります。詳細な手順については、<a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama統合ガイド</a>をご参照ください。
     common:
       continueAnyway: 続行する
-      goToModelSelection: 'モデルを選択 →'
+      goToModelSelection: 'Select Model →'
       fields:
         field:
           api-key:
@@ -858,7 +859,7 @@ pages:
                   マイクの音声をAliyun NLSにストリーミングし、リアルタイムの文字起こしを確認する
               performance-playground:
                 title: 機能実験場
-                description: '実行時のパフォーマンステスト: VRM 表情 + TTS リップシンク'
+                description: 'VRM expressions + TTS lip sync playground'
         theme-presets:
           presets:
             default:
