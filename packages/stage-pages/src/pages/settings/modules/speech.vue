@@ -335,8 +335,9 @@ function handleDeleteProvider(providerId: string) {
                 <h2 class="text-lg md:text-2xl">
                   {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.title') }}
                 </h2>
-                <div text="neutral-400 dark:neutral-400">
+                <div class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-400">
                   <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}</span>
+                  <span v-if="activeSpeechModel" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.current_model_label') }} {{ activeSpeechModel }}</span>
                 </div>
               </div>
 
