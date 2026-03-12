@@ -162,14 +162,18 @@ export function buildOpenAICompatibleProvider(
             headers: additionalHeaders,
           })
             .then(models => models.filter((model) => {
+              const modelId = model.id.toLowerCase()
               if (resolvedCategory === 'speech') {
-                return model.id.toLowerCase().includes('tts')
+                return modelId.includes('tts') || modelId.includes('speech') || modelId.includes('audio') || modelId.includes('kokoro')
               }
               return [
                 'embed',
                 'tts',
+                'audio',
+                'speech',
+                'whisper',
                 'models/gemini-2.5-pro',
-              ].every(str => !model.id.includes(str))
+              ].every(str => !modelId.includes(str))
             },
             ))
           if (models.length > 0)

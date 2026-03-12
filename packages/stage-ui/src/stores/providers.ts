@@ -58,6 +58,17 @@ import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 import { createWebSpeechAPIProvider } from './providers/web-speech-api'
 
+function logWarn(...args: unknown[]) {
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('airi:debug') === '1') {
+      console.warn(...args)
+    }
+  }
+  catch {
+    // Ignore
+  }
+}
+
 const ALIYUN_NLS_REGIONS = [
   'cn-shanghai',
   'cn-shanghai-internal',
@@ -573,8 +584,49 @@ export const useProvidersStore = defineStore('providers', () => {
       category: 'speech',
       tasks: ['text-to-speech'],
       capabilities: {
-        listVoices: async () => {
-          return []
+        listVoices: async (config: Record<string, unknown>) => {
+          const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+          let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+
+          if (!baseUrl.endsWith('/'))
+            baseUrl += '/'
+
+          if (!baseUrl) {
+            return []
+          }
+
+          // Attempt to fetch voices from /v1/voices or /voices
+          // Try /v1/voices first
+          const tryFetchVoices = async (url: string) => {
+            try {
+              const response = await fetch(url, {
+                headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+              })
+              if (response.ok) {
+                const data = await response.json()
+                // Standard un-speech / openai-like voices response
+                const voices = data.voices || data.data || (Array.isArray(data) ? data : null)
+                if (Array.isArray(voices)) {
+                  return voices.map((v: any) => ({
+                    id: v.id || v.voice_id || v.name,
+                    name: v.name || v.id,
+                    provider: 'openai-compatible-audio-speech',
+                    previewURL: v.preview_url || v.preview_audio_url,
+                    languages: v.languages || [],
+                    gender: v.gender || v.labels?.gender,
+                  }))
+                }
+              }
+            }
+            catch (e) {
+              logWarn(`Failed to fetch voices from ${url}:`, e)
+            }
+            return null
+          }
+
+          const voices = await tryFetchVoices(`${baseUrl}voices`) || await tryFetchVoices(`${baseUrl.replace(/\/v1\/$/, '/')}/voices`)
+
+          return voices || []
         },
         listModels: async (config: Record<string, unknown>) => {
           // Filter models to only include TTS models
@@ -598,12 +650,12 @@ export const useProvidersStore = defineStore('providers', () => {
             baseURL: baseUrl,
           })
 
-          // Filter for TTS models - look for models with "tts" in the ID
+          // Filter for TTS/Speech/Audio models
           return models
             .filter((model: any) => {
               const modelId = model.id.toLowerCase()
-              // Include models that contain "tts" in their ID
-              return modelId.includes('tts')
+              // Include models that contain "tts", "speech", "audio", or "kokoro" in their ID
+              return modelId.includes('tts') || modelId.includes('speech') || modelId.includes('audio') || modelId.includes('kokoro')
             })
             .map((model: any) => {
               return {
@@ -709,11 +761,44 @@ export const useProvidersStore = defineStore('providers', () => {
       tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
       creator: createOpenAI,
       capabilities: {
-        // Override listModels to return empty array - transcription models cannot be fetched from /v1/models
-        // Users must manually enter transcription model names (e.g., whisper-1, gpt-4o-transcribe)
-        // The /v1/models endpoint only returns chat models, not transcription models
-        listModels: async () => {
-          return []
+        listModels: async (config: Record<string, unknown>) => {
+          const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+          let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+
+          if (!baseUrl.endsWith('/'))
+            baseUrl += '/'
+
+          if (!apiKey || !baseUrl) {
+            return []
+          }
+
+          try {
+            const models = await listModels({
+              apiKey,
+              baseURL: baseUrl,
+            })
+
+            // Filter for transcription models (whisper, stt, asr, transcription)
+            return models
+              .filter((model: any) => {
+                const modelId = model.id.toLowerCase()
+                return modelId.includes('whisper') || modelId.includes('stt') || modelId.includes('asr') || modelId.includes('transcription')
+              })
+              .map((model: any) => {
+                return {
+                  id: model.id,
+                  name: model.name || model.display_name || model.id,
+                  provider: 'openai-compatible-audio-transcription',
+                  description: model.description || '',
+                  contextLength: 0,
+                  deprecated: false,
+                } satisfies ModelInfo
+              })
+          }
+          catch (e) {
+            logWarn('Failed to list transcription models:', e)
+            return []
+          }
         },
       },
     }),
