@@ -177,7 +177,14 @@ export function setupTray(params: {
         { type: 'separator' },
         { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.open_inlay'), click: () => setupInlayWindow({ i18n: params.i18n, serverChannel: params.serverChannel }) },
         { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.open_widgets'), click: () => params.widgetsWindow.getWindow().then(window => toggleWindowShow(window)) },
-        { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.open_caption'), click: () => params.captionWindow.getWindow().then(window => toggleWindowShow(window)) },
+        {
+          label: params.i18n.t(params.captionWindow.isVisible()
+            ? 'tamagotchi.electron.tray.menu.labels.label.close_caption'
+            : 'tamagotchi.electron.tray.menu.labels.label.open_caption'),
+          click: () => {
+            void params.captionWindow.toggleVisibility().then(() => rebuildContextMenu())
+          },
+        },
         {
           type: 'submenu',
           label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.caption_overlay'),
@@ -202,6 +209,7 @@ export function setupTray(params: {
 
     params.mainWindow.on('resize', rebuildContextMenu)
     params.mainWindow.on('move', rebuildContextMenu)
+    params.captionWindow.onVisibilityChanged(rebuildContextMenu)
 
     rebuildContextMenu()
 
