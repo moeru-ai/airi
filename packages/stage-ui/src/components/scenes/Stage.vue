@@ -499,10 +499,6 @@ chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
   // await db.value?.execute(`INSERT INTO memory_test (vec) VALUES (${JSON.stringify(res.embedding)});`)
 }))
 
-onUnmounted(() => {
-  lipSyncStarted.value = false
-})
-
 // Resume audio context on first user interaction (browser requirement)
 let audioContextResumed = false
 function resumeAudioContextOnInteraction() {
@@ -589,21 +585,18 @@ defineExpose({
         :live2d-shadow-enabled="live2dShadowEnabled"
         :live2d-max-fps="live2dMaxFps"
       />
-      <div
+      <ThreeScene
         v-if="stageModelRenderer === 'vrm' && showStage"
-        absolute inset-0
-      >
-        <ThreeScene
-          ref="vrmViewerRef"
-          v-model:state="componentState"
-          :model-src="stageModelSelectedUrl"
-          :idle-animation="animations.idleLoop.toString()"
-          :paused="paused"
-          :show-axes="stageViewControlsEnabled"
-          :current-audio-source="currentAudioSource"
-          @error="console.error"
-        />
-      </div>
+        ref="vrmViewerRef"
+        v-model:state="componentState"
+        min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
+        :model-src="stageModelSelectedUrl"
+        :idle-animation="animations.idleLoop.toString()"
+        :paused="paused"
+        :show-axes="stageViewControlsEnabled"
+        :current-audio-source="currentAudioSource"
+        @error="console.error"
+      />
     </div>
   </div>
 </template>

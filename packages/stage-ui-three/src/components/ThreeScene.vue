@@ -66,6 +66,7 @@ const emit = defineEmits<{
 type ModelPhase = 'no-model' | 'loading' | 'ready' | 'error'
 type SceneTracePhaseCause
   = | 'binding:complete'
+    | 'binding:start'
     | 'component:unmount'
     | 'controls-ready'
     | 'controls-ref:detached'
@@ -140,7 +141,6 @@ const pendingSceneBootstrap = shallowRef<SceneBootstrap>()
 function emitThreeSceneTrace(label: string, event: any, payload: Record<string, unknown>) {
   if (isStageThreeRuntimeTraceEnabled())
     stageThreeRuntimeTraceContext.emit(event, payload)
-
   if (import.meta.env.DEV)
     console.info(`[stage-ui-three][trace][three-scene][${label}]`, payload)
 }
@@ -358,7 +358,7 @@ async function completeSceneBinding() {
   isCompletingBinding.value = true
 
   try {
-    setScenePhaseWithTrace('binding', 'binding:complete')
+    setScenePhaseWithTrace('binding', 'binding:start')
 
     if (pendingSceneBootstrap.value) {
       applySceneBootstrap(pendingSceneBootstrap.value)
@@ -617,7 +617,6 @@ function updateDirLightTarget(newRotation: { x: number, y: number, z: number }) 
   light.target.updateMatrixWorld()
 
   directionalLightTarget.value = { x: target.x, y: target.y, z: target.z }
-  // console.debug("directional Light target update!: ", directionalLightTarget.value)
 }
 
 watch(directionalLightRotation, (newRotation) => {

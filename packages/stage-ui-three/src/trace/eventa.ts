@@ -6,6 +6,7 @@ import type {
   ThreeSceneRenderInfoTracePayload,
   ThreeSceneSubtreeTracePayload,
   ThreeSceneTransactionTracePayload,
+  VrmCacheTracePayload,
   VrmDisposeEndTracePayload,
   VrmDisposeStartTracePayload,
   VrmLoadEndTracePayload,
@@ -29,3 +30,4 @@ export const stageThreeTraceVrmLoadEndEvent = defineEventa<VrmLoadEndTracePayloa
 export const stageThreeTraceVrmLoadErrorEvent = defineEventa<VrmLoadErrorTracePayload>('stage-ui-three:trace:vrm:load:error')
 export const stageThreeTraceVrmDisposeStartEvent = defineEventa<VrmDisposeStartTracePayload>('stage-ui-three:trace:vrm:dispose:start')
 export const stageThreeTraceVrmDisposeEndEvent = defineEventa<VrmDisposeEndTracePayload>('stage-ui-three:trace:vrm:dispose:end')
+export const stageThreeTraceVrmCacheEvent = defineEventa<VrmCacheTracePayload>('stage-ui-three:trace:vrm:cache')

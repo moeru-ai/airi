@@ -49,10 +49,6 @@ const {
 const currentSelectedDisplayModel = computed<DisplayModel | undefined>(() => stageModelSelectedDisplayModel.value)
 
 async function handleModelPick(selectedModel: DisplayModel | undefined) {
-  if (!modelSelectorOpen.value) {
-    return
-  }
-
   stageModelSelected.value = selectedModel?.id ?? ''
   await settingsStore.updateStageModel()
 

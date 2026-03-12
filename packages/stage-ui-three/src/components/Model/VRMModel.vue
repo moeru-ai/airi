@@ -608,6 +608,10 @@ async function loadModel() {
         if (!airiIblProbe && scene.value)
           airiIblProbe = createIblProbeController(scene.value)
 
+        if (loadReason === 'model-switch') {
+          componentCleanUp('model-switch', { invalidate: false })
+        }
+
         emit('sceneBootstrap', buildSceneBootstrap(reusableInstance.vrm, true))
         commitManagedVrmInstance(reusableInstance)
         didCommitLoad = true
@@ -689,7 +693,6 @@ async function loadModel() {
     }
     const isShaderMat = (m: any): m is ShaderMaterial => !!m?.isShaderMaterial
 
-    // refactoring
     // MToon material sky box lightProbe setting
     if (!airiIblProbe && scene.value)
       airiIblProbe = createIblProbeController(scene.value)
@@ -699,7 +702,6 @@ async function loadModel() {
       if (child instanceof Mesh && child.material) {
         const material = Array.isArray(child.material) ? child.material : [child.material]
         material.forEach((mat) => {
-          // console.debug("shader material: ", mat)
           if (mat instanceof MeshStandardMaterial || mat instanceof MeshPhysicalMaterial) {
             // Should read envMap intensity from outside props
             mat.envMapIntensity = 1.0
@@ -713,7 +715,6 @@ async function loadModel() {
           }
           else if (isShaderMat(mat)) {
             // --- Shader material, further IBL injection needed ---
-            // console.debug("Mat: ", mat)
             // TODO: stylised shader injection
             // Lilia: I plan to replace all injected shader code to be my own, so that it can always avoid double injection and unknown user upload VRM injected shader behaviour...
             if ('toneMapped' in mat)

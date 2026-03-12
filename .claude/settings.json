@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh pr list --repo moeru-ai/airi --state closed --limit 50 --json number,title,closedAt,body,files)",
+      "Bash(gh pr list --repo moeru-ai/airi --state closed --limit 50 --json number,title,closedAt)",
+      "WebFetch(domain:github.com)"
+    ]
+  }
+}

@@ -32,6 +32,39 @@ VRM runtime management is explicit in this package.
 
 This keeps ordinary remounts and HMR from immediately forcing deep VRM disposal, while still making model switches deterministic.
 
+## Scene Lifecycle
+
+`ThreeScene` coordinates two independent async readiness signals before the scene becomes interactive:
+
+- **VRM load**: `VRMModel` emits `sceneBootstrap` (geometry data) then `loaded` once the model is committed into the scene.
+- **Controls init**: `OrbitControls` emits `orbitControlsReady` once it has obtained the camera and renderer references.
+
+These two signals are coordinated through a binding transaction tracked in `useModelStore`:
+
+- `scenePhase`: the current phase of the scene — `pending` → `loading` → `binding` → `mounted` (or `error` / `no-model`).
+- `sceneTransactionDepth`: incremented at the start of a load or rebind cycle, decremented when binding completes. The scene is considered mid-flight whenever depth > 0.
+- `sceneMutationLocked`: computed from `scenePhase` and `sceneTransactionDepth`. True whenever the scene is not yet mounted or a transaction is in progress. Used to gate user interactions like orbit controls.
+
+When either signal arrives, `ThreeScene` calls `completeSceneBinding()`. That function:
+
+1. Sets `scenePhase` to `'binding'` immediately to block premature `mounted` resolution.
+2. Applies the pending `SceneBootstrap` payload (camera position, model origin, eye height, etc.) if one exists.
+3. Calls `controlsRef.update()` after a `nextTick` so OrbitControls reads the updated camera state.
+4. Resolves `scenePhase` to its final value based on current `modelPhase` and `canvasReady`.
+
+Whichever signal arrives second completes the binding. The first signal to arrive finds the other not yet ready and resolves back to `'loading'`.
+
+### Camera Preservation on Model Switch
+
+`SceneBootstrap` carries a `cacheHit` flag. `ThreeScene.applySceneBootstrap` uses the transaction reason to decide how to apply bootstrap data:
+
+- `initial-load` / `unknown`: camera position and target are reset to the model's computed defaults.
+- `model-switch`: the user's existing camera offset and look-at angle relative to the previous model origin are preserved and projected onto the new model origin.
+
+### Subtree Watch
+
+`ThreeScene` watches `modelRef` and `controlsRef` with `flush: 'sync'` to detect immediate detach events within the same tick. When `controlsRef` goes null (e.g. TresJS internal remount), `controlsReady` resets and a new binding transaction opens. When `modelRef` goes null, `scenePhase` reverts to `loading` without opening a new transaction, since the next `loadStart` event from `VRMModel` will open one.
+
 ## `trace` Submodule
 
 `@proj-airi/stage-ui-three/trace` provides:

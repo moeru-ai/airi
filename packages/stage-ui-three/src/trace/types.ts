@@ -52,6 +52,7 @@ export type ThreeSceneTraceModelPhase = 'no-model' | 'loading' | 'ready' | 'erro
 export type ThreeSceneTraceComponentState = 'pending' | 'loading' | 'mounted'
 export type ThreeSceneTracePhaseCause
   = | 'binding:complete'
+    | 'binding:start'
     | 'component:unmount'
     | 'controls-ready'
     | 'controls-ref:detached'
@@ -143,4 +144,14 @@ export type VrmDisposeEndTracePayload = VrmLifecycleTracePayload
 export interface VrmSceneSnapshotInput {
   mixer?: AnimationMixer
   vrm?: VRM
+}
+
+export type VrmCacheAction = 'clear' | 'stash' | 'take'
+export type VrmCacheResult = 'empty' | 'evicted' | 'hit' | 'miss' | 'stored'
+
+export interface VrmCacheTracePayload extends StageThreeRuntimeTraceBasePayload {
+  action: VrmCacheAction
+  modelSrc?: string
+  result: VrmCacheResult
+  scopeKey: string
 }

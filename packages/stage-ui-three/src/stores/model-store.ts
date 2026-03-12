@@ -98,10 +98,6 @@ export const useModelStore = defineStore('modelStore', () => {
       stack: new Error('[VRM shouldUpdateView]').stack,
     }
 
-    // if (import.meta.env.DEV) {
-    //   console.warn('[VRM shouldUpdateView][send]', event)
-    // }
-
     post(event)
     shouldUpdateViewHooks.value.forEach(hook => hook())
   }

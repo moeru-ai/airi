@@ -28,14 +28,6 @@ export async function loadVrmModelPreview(file: File) {
   const offscreenCanvas = document.createElement('canvas')
   offscreenCanvas.width = 1440
   offscreenCanvas.height = 2560
-  offscreenCanvas.style.position = 'absolute'
-  offscreenCanvas.style.top = '0'
-  offscreenCanvas.style.left = '0'
-  offscreenCanvas.style.objectFit = 'cover'
-  offscreenCanvas.style.display = 'block'
-  offscreenCanvas.style.zIndex = '10000000000'
-  offscreenCanvas.style.opacity = '0'
-  document.body.appendChild(offscreenCanvas)
 
   const renderer = new WebGLRenderer({
     canvas: offscreenCanvas,
@@ -97,8 +89,6 @@ export async function loadVrmModelPreview(file: File) {
     scene.clear()
     disposePreviewRenderer(renderer)
     URL.revokeObjectURL(objUrl)
-    if (offscreenCanvas.isConnected)
-      document.body.removeChild(offscreenCanvas)
     offscreenCanvas.width = 0
     offscreenCanvas.height = 0
   }
