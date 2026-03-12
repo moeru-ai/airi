@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { Button } from '@proj-airi/ui'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 interface Props {
   isCapturing?: boolean
@@ -22,10 +25,10 @@ const isDisabled = computed(() => props.disabled || props.isCapturing || props.c
 
 const buttonLabel = computed(() => {
   if (props.isCapturing)
-    return 'Capturing...'
+    return t('pages.modules.vision.capture.capturing')
   if (props.cooldownRemaining > 0)
-    return `Wait ${Math.ceil(props.cooldownRemaining / 1000)}s`
-  return 'Let AIRI see'
+    return t('pages.modules.vision.capture.wait', { seconds: Math.ceil(props.cooldownRemaining / 1000) })
+  return t('pages.modules.vision.capture.let-see')
 })
 </script>
 

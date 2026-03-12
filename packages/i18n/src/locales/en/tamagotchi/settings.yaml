@@ -19,6 +19,16 @@ pages:
       capture-interval: Capture interval (milliseconds)
       cooldown: Cooldown time (milliseconds)
       configured: Vision system configuration saved
+      analysis:
+        title: Screen Analysis
+        no-result: No analysis available
+        analyzing: Analyzing screen...
+        suggestions: Suggestions
+        ui-elements: UI Elements
+      capture:
+        capturing: Capturing...
+        wait: Wait {seconds}s
+        let-see: Let AIRI see
   system:
     sections:
       section:

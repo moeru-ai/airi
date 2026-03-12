@@ -2,6 +2,9 @@
 import type { AnalysisResult } from '@proj-airi/stage-ui/stores/vision'
 
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 interface Props {
   result?: AnalysisResult | null
@@ -30,7 +33,7 @@ const hasContent = computed(() => {
 <template>
   <div class="vision-analysis-result">
     <div class="result-header">
-      <span class="title">Screen Analysis</span>
+      <span class="title">{{ t('pages.modules.vision.analysis.title') }}</span>
       <button
         class="close-btn"
         @click="emit('close')"
@@ -40,7 +43,7 @@ const hasContent = computed(() => {
     </div>
 
     <div v-if="isAnalyzing" class="analyzing">
-      Analyzing screen...
+      {{ t('pages.modules.vision.analysis.analyzing') }}
     </div>
 
     <div
@@ -59,7 +62,7 @@ const hasContent = computed(() => {
         class="elements"
       >
         <div class="section-title">
-          UI Elements:
+          {{ t('pages.modules.vision.analysis.ui-elements') }}:
         </div>
         <div
           v-for="(el, idx) in result.elements"
@@ -76,7 +79,7 @@ const hasContent = computed(() => {
         class="suggestions"
       >
         <div class="section-title">
-          Suggestions:
+          {{ t('pages.modules.vision.analysis.suggestions') }}:
         </div>
         <button
           v-for="(suggestion, idx) in result.suggestions"
@@ -90,7 +93,7 @@ const hasContent = computed(() => {
     </div>
 
     <div v-else class="no-result">
-      No analysis available
+      {{ t('pages.modules.vision.analysis.no-result') }}
     </div>
   </div>
 </template>

@@ -19,6 +19,16 @@ pages:
       capture-interval: 截屏间隔（毫秒）
       cooldown: 冷却时间（毫秒）
       configured: 视觉系统配置已保存
+      analysis:
+        title: 屏幕分析
+        no-result: 暂无可用分析结果
+        analyzing: 正在分析屏幕...
+        suggestions: 建议操作
+        ui-elements: UI 元素
+      capture:
+        capturing: 捕获中...
+        wait: 等待 {seconds} 秒
+        let-see: 让 AIRI 看看
   system:
     sections:
       section:
