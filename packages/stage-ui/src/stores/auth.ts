@@ -21,6 +21,50 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isLoginOpen = ref(false)
 
+  // --- Lifecycle hooks ---
+  type AuthHook = () => void | Promise<void>
+  const authenticatedHooks: AuthHook[] = []
+  const logoutHooks: AuthHook[] = []
+
+  function onAuthenticated(hook: AuthHook) {
+    authenticatedHooks.push(hook)
+    // If already authenticated when hook is registered, fire immediately.
+    // This covers the case where auth resolves before the hook is registered.
+    if (isAuthenticated.value) {
+      hook()
+    }
+    return () => {
+      const idx = authenticatedHooks.indexOf(hook)
+      if (idx >= 0)
+        authenticatedHooks.splice(idx, 1)
+    }
+  }
+
+  function onLogout(hook: AuthHook) {
+    logoutHooks.push(hook)
+    return () => {
+      const idx = logoutHooks.indexOf(hook)
+      if (idx >= 0)
+        logoutHooks.splice(idx, 1)
+    }
+  }
+
+  // Dispatch hooks when auth state changes
+  watch(isAuthenticated, async (val, oldVal) => {
+    if (val && !oldVal) {
+      for (const hook of authenticatedHooks) {
+        try { await hook() }
+        catch (e) { console.error('auth hook error', e) }
+      }
+    }
+    if (!val && oldVal) {
+      for (const hook of logoutHooks) {
+        try { await hook() }
+        catch (e) { console.error('logout hook error', e) }
+      }
+    }
+  })
+
   const updateCredits = async () => {
     if (!isAuthenticated.value)
       return
@@ -47,6 +91,8 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     credits,
     updateCredits,
-    isLoginOpen,
+    isLoginDrawerOpen,
+    onAuthenticated,
+    onLogout,
   }
 })
