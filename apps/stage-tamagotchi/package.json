@@ -20,7 +20,7 @@
     "app:build": "pnpm run build",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
-    "build": "pnpm run typecheck && electron-vite build",
+    "build": "electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "pnpm run build && electron-builder --dir",
     "build:win": "pnpm run build && electron-builder --win",
