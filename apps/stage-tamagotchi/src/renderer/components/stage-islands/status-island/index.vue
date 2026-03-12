@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -13,33 +12,20 @@ import { electronOpenSettings } from '../../../../shared/eventa'
 
 const { t, te } = useI18n()
 const { connected } = storeToRefs(useModsServerChannelStore())
-const { controlsIslandIconSize } = storeToRefs(useSettings())
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const flickerDuration = ref('6.4s')
 const flickerDelay = ref('0s')
 
+const statusIslandSize = {
+  border: 'border-2',
+  icon: 'size-6',
+  padding: 'p-2.5',
+} as const
+
 const buttonStyle = computed(() => {
-  let isLarge: boolean
-
-  switch (controlsIslandIconSize.value) {
-    case 'large':
-      isLarge = true
-      break
-    case 'small':
-      isLarge = false
-      break
-    case 'auto':
-    default:
-      isLarge = true
-      break
-  }
-
-  const border = isLarge ? 'border-2' : 'border-0'
-  const padding = isLarge ? 'p-2' : 'p-0.5'
-
   return [
-    border,
-    padding,
+    statusIslandSize.border,
+    statusIslandSize.padding,
     'transition-all duration-300 ease-in-out',
     connected.value
       ? 'border-emerald-200/60 bg-white/85 hover:bg-emerald-50/90 dark:border-emerald-400/15 dark:bg-neutral-900/75 dark:hover:bg-neutral-900/88'
@@ -48,11 +34,9 @@ const buttonStyle = computed(() => {
 })
 
 const iconClasses = computed(() => {
-  const iconSize = controlsIslandIconSize.value === 'small' ? 'size-3' : 'size-5'
-
   return [
     connected.value ? 'i-ph:wifi-high' : 'i-ph:wifi-slash status-island-lamp-flicker',
-    iconSize,
+    statusIslandSize.icon,
     'shrink-0 transition-colors duration-300 ease-in-out',
     connected.value
       ? 'text-emerald-600 dark:text-emerald-300'
@@ -119,8 +103,8 @@ watch(connected, (isConnected) => {
 </script>
 
 <template>
-  <div fixed bottom-3 left-3 z-20>
-    <ControlButtonTooltip side="right">
+  <div fixed right-3 top-3 z-20>
+    <ControlButtonTooltip side="left">
       <ControlButton
         :button-style="buttonStyle.join(' ')"
         :aria-label="tooltipLabel"
