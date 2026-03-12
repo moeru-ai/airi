@@ -71,7 +71,7 @@ export function createVisionService(params: { context: ReturnType<typeof createC
   defineInvokeHandler(context, visionAnalyzeScreen, async (payload) => {
     const image = payload?.image ?? ''
     const prompt = payload?.prompt
-    console.log('[Vision] Analyze screen:', { imageLength: image.length, prompt })
+    console.info('[Vision] Analyze screen:', { imageLength: image.length, prompt })
     return {
       description: 'Screen analysis placeholder - AI integration required',
       elements: [],
@@ -84,7 +84,7 @@ export function createVisionService(params: { context: ReturnType<typeof createC
     const target = payload?.target
     const coordinates = payload?.coordinates
 
-    console.log('[Vision] Execute action:', { action, target, coordinates })
+    console.info('[Vision] Execute action:', { action, target, coordinates })
   })
 
   defineInvokeHandler(context, visionSetAutoCapture, async (payload) => {
