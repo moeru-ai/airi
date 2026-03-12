@@ -25,6 +25,10 @@ docs:
   'expand': 展开
   'collapse': 折叠
   'vision-see-screen': 让 AIRI 看屏幕
+'status-island':
+  connected: WebSocket 已连接
+  disconnected: WebSocket 已断开
+  'open-settings': 打开 WebSocket 设置
 notice:
   'fade-on-hover':
     title: 悬停淡出

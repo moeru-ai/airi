@@ -350,35 +350,45 @@ function createModuleIdentity(name: string, index: number): ModuleIdentity {
 }
 
 // TODO: Maybe support more complex version formats.
+function normalizeVersionList(versions: string[]) {
+  return [...new Set(versions.map(version => version.trim()).filter(Boolean))]
+}
+
 function resolveSupportedVersions(preferredVersion: string, supportedVersions?: string[]) {
-  const list = [preferredVersion, ...(supportedVersions ?? [])]
-  return [...new Set(list)]
+  return normalizeVersionList([preferredVersion, ...(supportedVersions ?? [])])
 }
 
 function resolveNegotiatedVersion(preferredVersion: string, hostSupportedVersions: string[], peerSupportedVersions?: string[]) {
-  if (!peerSupportedVersions?.length) {
-    if (hostSupportedVersions.includes(preferredVersion)) {
+  const normalizedPreferredVersion = preferredVersion.trim()
+  const normalizedHostSupportedVersions = normalizeVersionList(hostSupportedVersions)
+  const normalizedPeerSupportedVersions = peerSupportedVersions && peerSupportedVersions.length > 0
+    ? normalizeVersionList(peerSupportedVersions)
+    : undefined
+
+  if (!normalizedPeerSupportedVersions?.length) {
+    if (normalizedHostSupportedVersions.includes(normalizedPreferredVersion)) {
       return {
-        acceptedVersion: preferredVersion,
+        acceptedVersion: normalizedPreferredVersion,
         exact: true,
       }
     }
 
     return {
       exact: false,
-      reason: `Host does not support preferred version "${preferredVersion}".`,
+      reason: `Host does not support preferred version "${normalizedPreferredVersion}".`,
     }
   }
 
-  if (peerSupportedVersions.includes(preferredVersion) && hostSupportedVersions.includes(preferredVersion)) {
+  if (normalizedPeerSupportedVersions.includes(normalizedPreferredVersion)
+    && normalizedHostSupportedVersions.includes(normalizedPreferredVersion)) {
     return {
-      acceptedVersion: preferredVersion,
+      acceptedVersion: normalizedPreferredVersion,
       exact: true,
     }
   }
 
-  for (const version of hostSupportedVersions) {
-    if (peerSupportedVersions.includes(version)) {
+  for (const version of normalizedHostSupportedVersions) {
+    if (normalizedPeerSupportedVersions.includes(version)) {
       return {
         acceptedVersion: version,
         exact: false,
@@ -388,7 +398,7 @@ function resolveNegotiatedVersion(preferredVersion: string, hostSupportedVersion
 
   return {
     exact: false,
-    reason: `No overlapping supported versions. host=[${hostSupportedVersions.join(', ')}]; peer=[${peerSupportedVersions.join(', ')}].`,
+    reason: `No overlapping supported versions. host=[${normalizedHostSupportedVersions.join(', ')}]; peer=[${normalizedPeerSupportedVersions.join(', ')}].`,
   }
 }
 
