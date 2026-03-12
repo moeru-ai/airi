@@ -54,7 +54,6 @@ import { useAuthStore } from './auth'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { convertProviderDefinitionsToMetadata } from './providers/converters'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
-import { createOfficialProviders, OFFICIAL_PROVIDER_IDS } from './providers/official'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 import { createWebSpeechAPIProvider } from './providers/web-speech-api'
 
@@ -246,7 +245,6 @@ export const useProvidersStore = defineStore('providers', () => {
   // Centralized provider metadata with provider factory functions
   const authState = useAuthStore()
   const providerMetadata: Record<string, ProviderMetadata> = {
-    ...createOfficialProviders(() => authState.isAuthenticated),
     'speech-noop': {
       id: 'speech-noop',
       category: 'speech',
@@ -1725,8 +1723,7 @@ export const useProvidersStore = defineStore('providers', () => {
   // Keep only legacy ASR/TTS providers and official providers as hand-written metadata.
   // All other categories are sourced from unified definitions in libs/providers.
   for (const [providerId, existing] of Object.entries(providerMetadata)) {
-    if (existing.category !== 'speech' && existing.category !== 'transcription'
-      && !(OFFICIAL_PROVIDER_IDS as readonly string[]).includes(providerId)) {
+    if (existing.category !== 'speech' && existing.category !== 'transcription') {
       delete providerMetadata[providerId]
     }
   }
@@ -1800,7 +1797,7 @@ export const useProvidersStore = defineStore('providers', () => {
         providerRuntimeState.value[providerId].isConfigured = validationResult.valid
         providerRuntimeState.value[providerId].validatedCredentialHash = configString
         // Auto-mark Web Speech API as added if valid and available
-        if (validationResult.valid && ['browser-web-speech-api', 'player2', 'official-provider'].includes(providerId)) {
+        if (validationResult.valid && ['browser-web-speech-api', 'player2'].includes(providerId)) {
           markProviderAdded(providerId)
         }
       }
@@ -1841,13 +1838,6 @@ export const useProvidersStore = defineStore('providers', () => {
         models: [],
         isLoadingModels: false,
         modelLoadError: null,
-      }
-    }
-
-    // Must run AFTER runtime state is created so forceProviderConfigured can set isConfigured
-    if ((OFFICIAL_PROVIDER_IDS as readonly string[]).includes(providerId)) {
-      if (authState.isAuthenticated) {
-        forceProviderConfigured(providerId)
       }
     }
   }
