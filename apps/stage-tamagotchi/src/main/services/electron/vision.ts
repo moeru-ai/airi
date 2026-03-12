@@ -19,6 +19,8 @@ const VISION_ERRORS = {
   NO_SOURCES: 'no_sources',
 } as const
 
+const MIN_AUTO_CAPTURE_INTERVAL = 5000
+
 interface VisionConfig {
   autoCapture: {
     enabled: boolean
@@ -109,7 +111,7 @@ export function createVisionService(params: { context: ReturnType<typeof createC
     if (enabled) {
       config.autoCapture.enabled = true
       if (interval) {
-        config.autoCapture.interval = interval
+        config.autoCapture.interval = Math.max(interval, MIN_AUTO_CAPTURE_INTERVAL)
       }
       startAutoCapture()
     }
@@ -134,7 +136,7 @@ export function createVisionService(params: { context: ReturnType<typeof createC
       config.autoCapture.enabled = payload.autoCapture.enabled
     }
     if (payload?.autoCapture?.interval !== undefined) {
-      config.autoCapture.interval = payload.autoCapture.interval
+      config.autoCapture.interval = Math.max(payload.autoCapture.interval, MIN_AUTO_CAPTURE_INTERVAL)
       if (config.autoCapture.enabled) {
         startAutoCapture()
       }
