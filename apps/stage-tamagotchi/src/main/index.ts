@@ -83,6 +83,7 @@ electronApp.setAppUserModelId('ai.moeru.airi')
 initScreenCaptureForMain()
 
 let fileLogger: FileLoggerHandle = nullFileLoggerHandle
+let skipFileLogging = false
 
 app.whenReady().then(async () => {
   // Initialize file logger and register the hook
@@ -90,7 +91,7 @@ app.whenReady().then(async () => {
 
   // Register the global hook for file logging
   setGlobalHookPostLog((_, formatted) => {
-    if (fileLogger.logFileFd !== null) {
+    if (!skipFileLogging && fileLogger.logFileFd !== null) {
       void fileLogger.appendLog(formatted)
     }
   })
@@ -211,13 +212,38 @@ async function handleAppExit() {
 
   appExiting = true
 
+  let exitedNormally = true
+
+  /**
+   * Safely execute fn and log any errors that occur, marking the exit as abnormal
+   * if an error is caught.
+   *
+   * @param operation - A verb phrase describing the operation.
+   * @param fn - Any function to execute. It can be either sync or async.
+   * @returns A promise that resolves when the operation is complete.
+   */
+  async function logIfError(operation: string, fn: () => unknown): Promise<void> {
+    try {
+      await fn()
+    }
+    catch (error) {
+      if (exitedNormally) {
+        exitedNormally = false
+      }
+      log.withError(error).error(`[app-exit] Failed to ${operation}:`)
+    }
+  }
+
   await Promise.all([
-    emitAppBeforeQuit(),
-    injeca.stop(),
-    fileLogger.close(), // Ensure all logs are flushed
+    logIfError('execute onAppBeforeQuit hooks', () => emitAppBeforeQuit()),
+    logIfError('stop injeca', () => injeca.stop()),
   ])
 
-  app.exit(0)
+  // Ensure previous last-minute errors are also logged before we flush and close the file logger.
+  skipFileLogging = true // In case `fileLogger.close()` fails
+  await logIfError('flush file logs', () => fileLogger.close()) // Ensure all logs are flushed
+
+  app.exit(exitedNormally ? 0 : 1)
 }
 
 process.on('SIGINT', () => handleAppExit())
