@@ -754,6 +754,17 @@ pages:
               description: 可在控制台取得的 App ID
               label: App ID
         title: 火山引擎
+      volcengine-ark:
+        description: 火山方舟 - volcengine.com
+        title: 火山方舟
+        fields:
+          field:
+            api-key:
+              description: 火山方舟 API Key（從控制台取得）
+            endpoint-id:
+              label: Endpoint ID
+              description: 可選。模型路由的推理端點 ID。
+              placeholder: ep-xxxxxx
       xai:
         description: X.AI
         title: xAI

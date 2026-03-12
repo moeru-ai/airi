@@ -799,6 +799,17 @@ pages:
               description: App ID of the project where you can obtain in Console
               label: App ID
         title: Volcano Engine
+      volcengine-ark:
+        description: Volcengine Ark (火山方舟) - volcengine.com
+        title: Volcengine Ark
+        fields:
+          field:
+            api-key:
+              description: API Key for Volcengine Ark (obtain from Console)
+            endpoint-id:
+              label: Endpoint ID
+              description: Optional. The inference endpoint ID for model routing.
+              placeholder: ep-xxxxxx
       xai:
         description: x.ai
         title: xAI
