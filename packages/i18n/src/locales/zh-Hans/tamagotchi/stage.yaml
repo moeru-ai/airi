@@ -24,6 +24,10 @@ docs:
   'close': 关闭
   'expand': 展开
   'collapse': 折叠
+'status-island':
+  connected: WebSocket 已连接
+  disconnected: WebSocket 已断开
+  'open-settings': 打开 WebSocket 设置
 notice:
   'fade-on-hover':
     title: 悬停淡出
