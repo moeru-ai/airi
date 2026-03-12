@@ -27,13 +27,13 @@ Respond in JSON format:
   "suggestions": ["Click submit button", "Fill in the form"]
 }`
 
-let currentConfig: VisionModelConfig = {
+const defaultConfig: VisionModelConfig = {
   provider: 'openai',
   modelName: 'gpt-4o',
 }
 
-export async function analyzeScreenWithAI(imageBase64: string, prompt?: string): Promise<VisionAnalysisResult> {
-  const config = currentConfig
+export async function analyzeScreenWithAI(imageBase64: string, prompt?: string, config?: VisionModelConfig): Promise<VisionAnalysisResult> {
+  const effectiveConfig = config ?? defaultConfig
 
   const imageUrl = `data:image/png;base64,${imageBase64}`
 
@@ -48,13 +48,13 @@ export async function analyzeScreenWithAI(imageBase64: string, prompt?: string):
   ]
 
   try {
-    const apiKey = config.apiKey || ''
-    let baseUrl = config.baseUrl || ''
+    const apiKey = effectiveConfig.apiKey || ''
+    let baseUrl = effectiveConfig.baseUrl || ''
 
-    if (config.provider === 'openai') {
+    if (effectiveConfig.provider === 'openai') {
       baseUrl = baseUrl || 'https://api.openai.com/v1'
     }
-    else if (config.provider === 'ollama') {
+    else if (effectiveConfig.provider === 'ollama') {
       baseUrl = baseUrl || 'http://localhost:11434/v1'
     }
 
@@ -65,7 +65,7 @@ export async function analyzeScreenWithAI(imageBase64: string, prompt?: string):
         ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
       },
       body: JSON.stringify({
-        model: config.modelName,
+        model: effectiveConfig.modelName,
         messages,
         max_tokens: 1000,
         temperature: 0.7,
@@ -98,12 +98,4 @@ export async function analyzeScreenWithAI(imageBase64: string, prompt?: string):
       suggestions: [],
     }
   }
-}
-
-export function setVisionModelConfig(config: Partial<VisionModelConfig>): void {
-  currentConfig = { ...currentConfig, ...config }
-}
-
-export function getVisionModelConfig(): VisionModelConfig {
-  return { ...currentConfig }
 }

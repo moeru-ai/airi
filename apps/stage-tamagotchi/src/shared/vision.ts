@@ -35,4 +35,15 @@ export const visionExecuteAction = defineInvokeEventa<void, VisionExecuteActionP
 
 export const visionScreenChangeEvent = defineEventa('eventa:event:vision:screen-change')
 
-export const visionSetAutoCapture = defineInvokeEventa<void, { enabled: boolean, interval?: number } | undefined>('eventa:invoke:vision:set-auto-capture')
+export const visionSetAutoCapture = defineInvokeEventa<void, { enabled: boolean, interval?: number }>('eventa:invoke:vision:set-auto-capture')
+
+export interface VisionConfigPayload {
+  cooldown?: number
+  autoCapture?: {
+    enabled?: boolean
+    interval?: number
+  }
+}
+
+export const visionGetConfig = defineInvokeEventa<{ cooldown: number, autoCapture: { enabled: boolean, interval: number } }, void>('eventa:invoke:vision:get-config')
+export const visionUpdateConfig = defineInvokeEventa<void, VisionConfigPayload>('eventa:invoke:vision:update-config')

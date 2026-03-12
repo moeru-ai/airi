@@ -8,8 +8,10 @@ import {
   visionAnalyzeScreen,
   visionCaptureScreen,
   visionExecuteAction,
+  visionGetConfig,
   visionScreenChangeEvent,
   visionSetAutoCapture,
+  visionUpdateConfig,
 } from '../../../shared/vision'
 
 interface VisionConfig {
@@ -100,6 +102,28 @@ export function createVisionService(params: { context: ReturnType<typeof createC
     else {
       config.autoCapture.enabled = false
       stopAutoCapture()
+    }
+  })
+
+  defineInvokeHandler(context, visionGetConfig, async () => {
+    return {
+      cooldown: config.cooldown,
+      autoCapture: { ...config.autoCapture },
+    }
+  })
+
+  defineInvokeHandler(context, visionUpdateConfig, async (payload) => {
+    if (payload?.cooldown !== undefined) {
+      config.cooldown = payload.cooldown
+    }
+    if (payload?.autoCapture?.enabled !== undefined) {
+      config.autoCapture.enabled = payload.autoCapture.enabled
+    }
+    if (payload?.autoCapture?.interval !== undefined) {
+      config.autoCapture.interval = payload.autoCapture.interval
+      if (config.autoCapture.enabled) {
+        startAutoCapture()
+      }
     }
   })
 }

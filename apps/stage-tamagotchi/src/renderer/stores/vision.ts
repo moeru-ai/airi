@@ -89,21 +89,19 @@ export const useVisionStore = defineStore('tamagotchi-vision', () => {
     error.value = null
 
     try {
-      const { analyzeScreenWithAI, setVisionModelConfig } = await import('@proj-airi/stage-ui/services/vision-analyzer')
+      const { analyzeScreenWithAI } = await import('@proj-airi/stage-ui/services/vision-analyzer')
 
       const { useVisionModuleStore } = await import('@proj-airi/stage-ui/stores/modules/vision')
       const visionModuleStore = useVisionModuleStore()
 
-      if (visionModuleStore.enabled) {
-        setVisionModelConfig({
-          provider: visionModuleStore.model.provider,
-          modelName: visionModuleStore.model.modelName,
-          apiKey: visionModuleStore.model.apiKey || undefined,
-          baseUrl: visionModuleStore.model.baseUrl || undefined,
-        })
-      }
+      const modelConfig = visionModuleStore.enabled ? {
+        provider: visionModuleStore.model.provider,
+        modelName: visionModuleStore.model.modelName,
+        apiKey: visionModuleStore.model.apiKey || undefined,
+        baseUrl: visionModuleStore.model.baseUrl || undefined,
+      } : undefined
 
-      const result = await analyzeScreenWithAI(screenshot.value.image)
+      const result = await analyzeScreenWithAI(screenshot.value.image, undefined, modelConfig)
       analysisResult.value = result
 
       if (sendToAiri) {
