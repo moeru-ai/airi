@@ -7,6 +7,7 @@ import { useI18n } from 'vue-i18n'
 import ChatAssistantItem from './assistant-item.vue'
 import ChatErrorItem from './error-item.vue'
 import ChatUserItem from './user-item.vue'
+import { getChatHistoryItemKey } from './message-key'
 
 const props = withDefaults(defineProps<{
   messages: ChatHistoryItem[]
@@ -73,7 +74,7 @@ const renderMessages = computed<ChatHistoryItem[]>(() => {
 
 <template>
   <div ref="chatHistoryRef" v-auto-animate flex="~ col" relative h-full w-full overflow-y-auto rounded-xl px="<sm:2" py="<sm:2" :class="variant === 'mobile' ? 'gap-1' : 'gap-2'">
-    <template v-for="(message, index) in renderMessages" :key="message?.createdAt ?? index">
+    <template v-for="(message, index) in renderMessages" :key="getChatHistoryItemKey(message, index)">
       <div v-if="message.role === 'error'">
         <ChatErrorItem
           :message="message"
