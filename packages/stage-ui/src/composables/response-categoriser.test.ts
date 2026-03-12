@@ -88,18 +88,9 @@ describe('createStreamingCategorizer', () => {
     categorizer.consume(text)
     const result = categorizer.end()
 
-    // Both tags should be extracted
     expect(result.segments.length).toBeGreaterThan(0)
-    // Speech should exclude tag content
-    // Note: rehype handles nested tags by extracting both, but the speech extraction
-    // may include text between nested tags or closing tag text
-    // The important thing is that the main tag content (inner, outer text) is in reasoning
-    expect(result.speech).toContain('Start')
-    expect(result.speech).toContain('end')
-    // Tag content should be in reasoning, not speech
+    expect(result.speech).toBe('Start end')
     expect(result.reasoning).toContain('inner')
-    // The exact speech format may vary with nested tags, but should not contain the main tag content
-    expect(result.speech).not.toContain('inner')
   })
 
   it('should correctly identify speech positions with isSpeechAt', () => {
