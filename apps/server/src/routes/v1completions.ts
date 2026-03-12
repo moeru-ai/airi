@@ -1,3 +1,5 @@
+/* eslint-disable unused-imports/no-unused-vars */
+
 import type { Context } from 'hono'
 
 import type { initOtel } from '../libs/otel'
