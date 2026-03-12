@@ -13,6 +13,7 @@ import type { DirectionalLight, SphericalHarmonics3, Texture, WebGLRenderer, Web
 
 import type { SceneBootstrap, ScenePhase, Vec3 } from '../stores/model-store'
 
+import { Screen } from '@proj-airi/ui'
 import { TresCanvas } from '@tresjs/core'
 import { EffectComposerPmndrs, HueSaturationPmndrs } from '@tresjs/post-processing'
 import { formatHex } from 'culori'
@@ -642,8 +643,10 @@ defineExpose({
 </script>
 
 <template>
-  <div absolute inset-0>
+  <Screen v-slot="{ width, height }">
     <TresCanvas
+      :width="width"
+      :height="height"
       :camera="camera"
       :antialias="true"
       :dpr="renderScale"
@@ -721,5 +724,5 @@ defineExpose({
       />
       <TresAxesHelper v-if="props.showAxes" :size="1" />
     </TresCanvas>
-  </div>
+  </Screen>
 </template>
