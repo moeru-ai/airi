@@ -91,9 +91,9 @@ app.whenReady().then(async () => {
 
   // Register the global hook for file logging
   setGlobalHookPostLog((_, formatted) => {
-    if (!skipFileLogging && fileLogger.logFileFd !== null) {
-      void fileLogger.appendLog(formatted)
-    }
+    if (skipFileLogging || fileLogger.logFileFd === null)
+      return
+    void fileLogger.appendLog(formatted)
   })
 
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
@@ -237,8 +237,9 @@ async function handleAppExit() {
     logIfError('stop injeca', () => injeca.stop()),
   ])
 
-  // Ensure previous last-minute errors are also logged before we flush and close the file logger.
-  skipFileLogging = true // In case `fileLogger.close()` fails
+  // Prevent the global log hook from trying to write to the file after close() is called,
+  // which would cause a recursive failure if close() itself throws.
+  skipFileLogging = true
   await logIfError('flush file logs', () => fileLogger.close()) // Ensure all logs are flushed
 
   app.exit(exitedNormally ? 0 : 1)
