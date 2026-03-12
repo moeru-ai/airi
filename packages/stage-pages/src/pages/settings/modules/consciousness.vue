@@ -191,6 +191,18 @@ function handleDeleteProvider(providerId: string) {
           </template>
         </Alert>
 
+        <!-- Manual model input fallback when no models are available -->
+        <div v-if="providerModels.length === 0 && !isLoadingActiveProviderModels" class="mt-2">
+          <label class="mb-1 block text-sm font-medium">
+            {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_name') }}
+          </label>
+          <input
+            v-model="activeModel" type="text"
+            class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+            :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+          >
+        </div>
+
         <!-- Using the new RadioCardManySelect component -->
         <template v-else-if="providerModels.length > 0">
           <RadioCardManySelect
