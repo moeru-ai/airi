@@ -27,9 +27,29 @@ Respond in JSON format:
   "suggestions": ["Click submit button", "Fill in the form"]
 }`
 
+const DEFAULT_BASE_URLS: Record<string, string> = {
+  openai: 'https://api.openai.com/v1',
+  claude: 'https://api.anthropic.com/v1',
+  ollama: 'http://localhost:11434/v1',
+}
+
+const TRUSTED_BASE_URLS = [
+  'https://api.openai.com',
+  'https://api.anthropic.com',
+  'https://api.mistral.ai',
+  'https://api.cohere.ai',
+  'https://api.deepseek.com',
+  'http://localhost:11434',
+  'http://127.0.0.1:11434',
+]
+
 const defaultConfig: VisionModelConfig = {
   provider: 'openai',
   modelName: 'gpt-4o',
+}
+
+function isTrustedUrl(url: string): boolean {
+  return TRUSTED_BASE_URLS.some(trusted => url.startsWith(trusted))
 }
 
 export async function analyzeScreenWithAI(imageBase64: string, prompt?: string, config?: VisionModelConfig): Promise<VisionAnalysisResult> {
@@ -49,13 +69,12 @@ export async function analyzeScreenWithAI(imageBase64: string, prompt?: string, 
 
   try {
     const apiKey = effectiveConfig.apiKey || ''
-    let baseUrl = effectiveConfig.baseUrl || ''
+    const userBaseUrl = effectiveConfig.baseUrl || ''
+    const defaultBaseUrl = DEFAULT_BASE_URLS[effectiveConfig.provider] || ''
+    let baseUrl = userBaseUrl || defaultBaseUrl
 
-    if (effectiveConfig.provider === 'openai') {
-      baseUrl = baseUrl || 'https://api.openai.com/v1'
-    }
-    else if (effectiveConfig.provider === 'ollama') {
-      baseUrl = baseUrl || 'http://localhost:11434/v1'
+    if (userBaseUrl && !isTrustedUrl(userBaseUrl)) {
+      console.warn('[VisionAnalyzer] Warning: Using untrusted baseUrl. Consider using a trusted provider.')
     }
 
     const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -73,7 +92,12 @@ export async function analyzeScreenWithAI(imageBase64: string, prompt?: string, 
     })
 
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`)
+      console.error('[VisionAnalyzer] API request failed:', response.status, response.statusText)
+      return {
+        description: 'Failed to analyze screen',
+        elements: [],
+        suggestions: [],
+      }
     }
 
     const data = await response.json() as any

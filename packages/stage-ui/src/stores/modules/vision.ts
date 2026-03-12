@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { reactive, ref } from 'vue'
+import { computed, reactive } from 'vue'
 
 export interface VisionModuleState {
   enabled: boolean
@@ -32,10 +32,18 @@ export const useVisionModuleStore = defineStore('vision-module', () => {
     cooldown: 5000,
   })
 
-  const isConfigured = ref(false)
+  const isConfigured = computed(() => {
+    if (!state.enabled)
+      return true
+    if (!state.model.modelName)
+      return false
+    if (!state.model.apiKey && state.model.provider === 'openai')
+      return false
+    return true
+  })
 
   function saveSettings() {
-    isConfigured.value = true
+    // Settings saved, isConfigured will be recomputed
   }
 
   return {

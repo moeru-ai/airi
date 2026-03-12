@@ -57,7 +57,20 @@ export const useVisionStore = defineStore('tamagotchi-vision', () => {
 
     try {
       const result = await captureScreenshot(undefined)
-      if (result) {
+      if (result?.error) {
+        if (result.error === 'cooldown_active') {
+          error.value = 'Cooldown active'
+        }
+        else if (result.error === 'no_sources') {
+          error.value = 'No screen sources available'
+        }
+        else {
+          error.value = result.error
+        }
+        return
+      }
+
+      if (result?.image) {
         screenshot.value = {
           image: result.image,
           timestamp: result.timestamp,

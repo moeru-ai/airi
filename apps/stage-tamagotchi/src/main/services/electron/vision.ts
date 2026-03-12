@@ -14,6 +14,11 @@ import {
   visionUpdateConfig,
 } from '../../../shared/vision'
 
+const VISION_ERRORS = {
+  COOLDOWN_ACTIVE: 'cooldown_active',
+  NO_SOURCES: 'no_sources',
+} as const
+
 interface VisionConfig {
   autoCapture: {
     enabled: boolean
@@ -39,26 +44,35 @@ let autoCaptureInterval: ReturnType<typeof setInterval> | null = null
 let savedContext: ReturnType<typeof createContext>['context'] | null = null
 let savedWindow: BrowserWindow | null = null
 
+function checkCooldown(): boolean {
+  const now = Date.now()
+  return now - lastCaptureTime >= config.cooldown
+}
+
+async function getScreenSources() {
+  const sources = await desktopCapturer.getSources({
+    types: ['screen'],
+    thumbnailSize: { width: 1920, height: 1080 },
+  })
+  return sources
+}
+
 export function createVisionService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
   const { context, window } = params
   savedContext = context
   savedWindow = window
 
   defineInvokeHandler(context, visionCaptureScreen, async () => {
-    const now = Date.now()
-    if (now - lastCaptureTime < config.cooldown) {
-      throw new Error('Cooldown active, please wait before capturing again')
+    if (!checkCooldown()) {
+      return { error: VISION_ERRORS.COOLDOWN_ACTIVE, timestamp: Date.now() }
     }
 
-    lastCaptureTime = now
+    lastCaptureTime = Date.now()
 
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: { width: 1920, height: 1080 },
-    })
+    const sources = await getScreenSources()
 
     if (sources.length === 0) {
-      throw new Error('No screen sources available')
+      return { error: VISION_ERRORS.NO_SOURCES, timestamp: Date.now() }
     }
 
     const primarySource = sources[0]
@@ -66,7 +80,7 @@ export function createVisionService(params: { context: ReturnType<typeof createC
 
     return {
       image: thumbnail,
-      timestamp: now,
+      timestamp: lastCaptureTime,
     }
   })
 
@@ -129,20 +143,16 @@ export function createVisionService(params: { context: ReturnType<typeof createC
 }
 
 async function captureAndEmit() {
-  const now = Date.now()
   if (!savedContext || !savedWindow)
     return
-  if (now - lastCaptureTime < config.cooldown) {
+  if (!checkCooldown()) {
     return
   }
 
-  lastCaptureTime = now
+  lastCaptureTime = Date.now()
 
   try {
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: { width: 1920, height: 1080 },
-    })
+    const sources = await getScreenSources()
 
     if (sources.length === 0) {
       return
@@ -151,10 +161,10 @@ async function captureAndEmit() {
     const primarySource = sources[0]
     const thumbnail = primarySource.thumbnail.toPNG().toString('base64')
 
-    savedContext.emit(visionScreenChangeEvent, { timestamp: now })
+    savedContext.emit(visionScreenChangeEvent, { timestamp: lastCaptureTime })
     savedWindow.webContents.send('vision:screenshot', {
       image: thumbnail,
-      timestamp: now,
+      timestamp: lastCaptureTime,
     })
   }
   catch (error) {

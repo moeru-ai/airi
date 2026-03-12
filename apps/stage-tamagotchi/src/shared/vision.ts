@@ -1,8 +1,11 @@
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
+export type VisionErrorCode = 'cooldown_active' | 'no_sources'
+
 export interface VisionScreenshotPayload {
-  image: string
+  image?: string
   timestamp: number
+  error?: VisionErrorCode
 }
 
 export const visionCaptureScreen = defineInvokeEventa<VisionScreenshotPayload>('eventa:invoke:vision:capture-screen')

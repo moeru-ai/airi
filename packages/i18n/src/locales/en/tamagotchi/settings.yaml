@@ -29,6 +29,13 @@ pages:
         capturing: Capturing...
         wait: Wait {seconds}s
         let-see: Let AIRI see
+      error:
+        capture-failed: Screen capture failed
+        analysis-failed: Screen analysis failed
+        analysis-unavailable: Analysis unavailable
+        cooldown-active: Cooldown active
+        no-sources: No screen sources available
+        placeholder: Screen analysis placeholder - AI integration required
   system:
     sections:
       section:

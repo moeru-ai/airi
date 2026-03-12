@@ -29,6 +29,13 @@ pages:
         capturing: 捕获中...
         wait: 等待 {seconds} 秒
         let-see: 让 AIRI 看看
+      error:
+        capture-failed: 屏幕捕获失败
+        analysis-failed: 屏幕分析失败
+        analysis-unavailable: 分析不可用
+        cooldown-active: 冷却中
+        no-sources: 没有可用的屏幕源
+        placeholder: 屏幕分析占位符 - 需要AI集成
   system:
     sections:
       section:
