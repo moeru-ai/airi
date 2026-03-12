@@ -32,7 +32,9 @@ import ResourceStatusIsland from '../components/stage-islands/resource-status-is
 
 import { electronOpenOnboarding } from '../../shared/eventa'
 import { useControlsIslandStore } from '../stores/controls-island'
+import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
 import { useWindowStore } from '../stores/window'
+import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
@@ -68,9 +70,20 @@ const isTransparentByThree = useThreeSceneIsTransparentAtPoint(
 )
 
 const { stageModelRenderer } = storeToRefs(useSettings())
+const { stagePaused } = storeToRefs(useStageWindowLifecycleStore())
+const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
+const shouldUseThreeTransparencyHitTest = computed(() => shouldSampleStageTransparency({
+  componentState: componentStateStage.value,
+  fadeOnHoverEnabled: fadeOnHoverEnabled.value,
+  stageModelRenderer: stageModelRenderer.value,
+  stagePaused: stagePaused.value,
+}))
 const isTransparent = computed(() => {
+  if (stagePaused.value || componentStateStage.value !== 'mounted' || !fadeOnHoverEnabled.value)
+    return true
+
   if (stageModelRenderer.value === 'vrm')
-    return isTransparentByThree.value
+    return shouldUseThreeTransparencyHitTest.value ? isTransparentByThree.value : true
 
   if (stageModelRenderer.value === 'live2d')
     return isTransparentByPixels.value
@@ -86,7 +99,6 @@ const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMo
 const live2dStore = useLive2d()
 const { scale, positionInPercentageString } = storeToRefs(live2dStore)
 const { live2dLookAtX, live2dLookAtY } = storeToRefs(useWindowStore())
-const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
 
 watch(componentStateStage, () => isLoading.value = componentStateStage.value !== 'mounted', { immediate: true })
 
@@ -96,7 +108,15 @@ const { pause, resume } = watch(isTransparent, (transparent) => {
 
 const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
 
-watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled], () => {
+watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled, stagePaused], () => {
+  if (stagePaused.value) {
+    isIgnoringMouseEvents.value = false
+    shouldFadeOnCursorWithin.value = false
+    setIgnoreMouseEvents([false, { forward: true }])
+    pause()
+    return
+  }
+
   if (hearingDialogOpen.value) {
     // Hearing dialog/drawer is open; keep window interactive
     isIgnoringMouseEvents.value = false
@@ -302,14 +322,10 @@ watch(enabled, async (val) => {
   }
 }, { immediate: true })
 
-watch([() => onboardingStore.shouldShowSetup], ([shouldShowSetup]) => {
-  if (shouldShowSetup) {
+onMounted(() => {
+  if (onboardingStore.needsOnboarding) {
     openOnboarding()
   }
-}, { immediate: true })
-
-onMounted(() => {
-  onboardingStore.initializeSetupCheck()
 })
 
 onUnmounted(() => {
@@ -338,8 +354,8 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
     relative z-2 h-full overflow-hidden rounded-xl
     transition="opacity duration-500 ease-in-out"
   >
+    <!-- Stage is always in DOM so TresCanvas can measure dimensions -->
     <div
-      v-show="!isLoading"
       :class="[
         'relative h-full w-full items-end gap-2',
         'transition-opacity duration-250 ease-in-out',
@@ -361,6 +377,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
           v-model:state="componentStateStage"
           h-full w-full
           flex-1
+          :paused="stagePaused"
           :focus-at="{ x: live2dLookAtX, y: live2dLookAtY }"
           :scale="scale"
           :x-offset="positionInPercentageString.x"
@@ -372,28 +389,27 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
         />
       </div>
     </div>
-    <div v-show="isLoading" h-full w-full>
-      <div class="absolute left-0 top-0 z-99 h-full w-full flex cursor-grab items-center justify-center overflow-hidden">
+    <!-- Loading overlay sits on top, does not hide the stage -->
+    <div v-show="isLoading" class="absolute left-0 top-0 z-99 h-full w-full flex cursor-grab items-center justify-center overflow-hidden">
+      <div
+        :class="[
+          'absolute h-24 w-full overflow-hidden rounded-xl',
+          'flex items-center justify-center',
+          'bg-white/80 dark:bg-neutral-950/80',
+          'backdrop-blur-md',
+        ]"
+      >
         <div
           :class="[
-            'absolute h-24 w-full overflow-hidden rounded-xl',
-            'flex items-center justify-center',
-            'bg-white/80 dark:bg-neutral-950/80',
-            'backdrop-blur-md',
+            'drag-region',
+            'absolute left-0 top-0',
+            'h-full w-full flex items-center justify-center',
+            'text-1.5rem text-primary-600 dark:text-primary-400 font-normal',
+            'select-none',
+            'animate-flash animate-duration-5s animate-count-infinite',
           ]"
         >
-          <div
-            :class="[
-              'drag-region',
-              'absolute left-0 top-0',
-              'h-full w-full flex items-center justify-center',
-              'text-1.5rem text-primary-600 dark:text-primary-400 font-normal',
-              'select-none',
-              'animate-flash animate-duration-5s animate-count-infinite',
-            ]"
-          >
-            Loading...
-          </div>
+          Loading...
         </div>
       </div>
     </div>
