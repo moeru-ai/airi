@@ -1,7 +1,8 @@
 import type { FileLoggerHandle } from './app/file-logger'
 
+import process, { env, platform } from 'node:process'
+
 import { dirname } from 'node:path'
-import { env, platform } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import messages from '@proj-airi/i18n/locales'
@@ -201,9 +202,27 @@ app.on('window-all-closed', () => {
   }
 })
 
+let appExiting = false
+
 // Clean up server and intervals when app quits
-app.on('before-quit', async () => {
-  emitAppBeforeQuit()
-  injeca.stop()
-  await fileLogger.close() // Ensure all logs are flushed
+async function handleAppExit() {
+  if (appExiting)
+    return
+
+  appExiting = true
+
+  await Promise.all([
+    emitAppBeforeQuit(),
+    injeca.stop(),
+    fileLogger.close(), // Ensure all logs are flushed
+  ])
+
+  app.exit(0)
+}
+
+process.on('SIGINT', () => handleAppExit())
+
+app.on('before-quit', (event) => {
+  event.preventDefault()
+  handleAppExit()
 })
