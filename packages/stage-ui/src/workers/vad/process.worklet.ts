@@ -9,40 +9,33 @@ const MIN_CHUNK_SIZE = 512
 /**
  * Global state for audio buffer accumulation
  */
-let globalPointer = 0
-const globalBuffer = new Float32Array(MIN_CHUNK_SIZE)
-
-/**
- * VAD AudioWorklet Processor - processes audio chunks and sends them to the main thread
- */
 class VADProcessor extends AudioWorkletProcessor {
+  private globalPointer = 0
+  private globalBuffer = new Float32Array(MIN_CHUNK_SIZE)
+
   process(inputs: Float32Array[][], _outputs: Float32Array[][], _parameters: Record<string, Float32Array>) {
     const buffer = inputs[0][0]
     if (!buffer)
       return true // buffer is null when the stream ends
 
-    if (buffer.length > MIN_CHUNK_SIZE) {
-      // If the buffer is larger than the minimum chunk size, send the entire buffer
-      this.port.postMessage({ buffer })
-    }
-    else {
-      const remaining = MIN_CHUNK_SIZE - globalPointer
-      if (buffer.length >= remaining) {
-        // If the buffer is larger than (or equal to) the remaining space in the global buffer, copy the remaining space
-        globalBuffer.set(buffer.subarray(0, remaining), globalPointer)
+    if (buffer.length === 0)
+      return true
 
-        // Send the global buffer
-        this.port.postMessage({ buffer: globalBuffer })
+    // If we have a very large buffer, process it in chunks of MIN_CHUNK_SIZE
+    let sourceOffset = 0
+    while (sourceOffset < buffer.length) {
+      const remainingSpace = MIN_CHUNK_SIZE - this.globalPointer
+      const chunkToCopy = Math.min(buffer.length - sourceOffset, remainingSpace)
 
-        // Reset the global buffer and set the remaining buffer
-        globalBuffer.fill(0)
-        globalBuffer.set(buffer.subarray(remaining), 0)
-        globalPointer = buffer.length - remaining
-      }
-      else {
-        // If the buffer is smaller than the remaining space in the global buffer, copy the buffer to the global buffer
-        globalBuffer.set(buffer, globalPointer)
-        globalPointer += buffer.length
+      this.globalBuffer.set(buffer.subarray(sourceOffset, sourceOffset + chunkToCopy), this.globalPointer)
+      this.globalPointer += chunkToCopy
+      sourceOffset += chunkToCopy
+
+      if (this.globalPointer === MIN_CHUNK_SIZE) {
+        // Send a copy to avoid mutation issues in transfer
+        this.port.postMessage({ buffer: new Float32Array(this.globalBuffer) })
+        this.globalPointer = 0
+        this.globalBuffer.fill(0)
       }
     }
 

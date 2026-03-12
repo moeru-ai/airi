@@ -65,6 +65,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const transcriptionModelSearchQuery = refManualReset<string>('')
   const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false)
   const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000) // Default 2 seconds
+  const hearingDetectionMode = useLocalStorageManualReset<'vad' | 'manual'>('settings/hearing/detection-mode', 'vad')
 
   // Computed properties
   const availableProvidersMetadata = computed(() => allAudioTranscriptionProvidersMetadata.value)
@@ -210,6 +211,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     transcriptionModelSearchQuery,
     autoSendEnabled,
     autoSendDelay,
+    hearingDetectionMode,
 
     supportsModelListing,
     providerModels,
@@ -265,8 +267,9 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
   function float32ToInt16(buffer: Float32Array) {
     const output = new Int16Array(buffer.length)
     for (let i = 0; i < buffer.length; i++) {
-      const value = Math.max(-1, Math.min(1, buffer[i]))
-      output[i] = value < 0 ? value * 0x8000 : value * 0x7FFF
+      const s = Math.max(-1, Math.min(1, buffer[i]))
+      // Improved rounding for better precision
+      output[i] = s < 0 ? Math.round(s * 0x8000) : Math.round(s * 0x7FFF)
     }
 
     return output

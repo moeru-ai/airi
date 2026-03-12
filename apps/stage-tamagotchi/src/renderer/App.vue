@@ -117,6 +117,19 @@ onMounted(async () => {
   serverChannelSettingsStore.websocketTlsConfig = serverChannelConfig.tlsConfig
 
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
+  
+  // Explicitly push discord state on mount
+  discordStore.saveSettings()
+
+  // Listen for registry sync events. If discord bot joined, push config.
+  serverChannelStore.onEvent('registry:modules:sync', (event) => {
+    const hasDiscordBot = event.data.modules.some(m => m.name === 'discord')
+    if (hasDiscordBot) {
+      console.log('Discord bot detected in registry, pushing configuration...')
+      discordStore.saveSettings()
+    }
+  })
+
   await contextBridgeStore.initialize()
   characterOrchestratorStore.initialize()
   await startTrackingCursorPoint()
