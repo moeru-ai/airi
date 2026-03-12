@@ -24,6 +24,10 @@ docs:
   'close': Close
   'expand': Expand
   'collapse': Collapse
+'status-island':
+  connected: WebSocket connected
+  disconnected: WebSocket disconnected
+  'open-settings': Open WebSocket settings
 
 notice:
   'fade-on-hover':
