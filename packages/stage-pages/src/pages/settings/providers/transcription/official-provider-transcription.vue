@@ -7,7 +7,6 @@ import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { Callout } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -15,24 +14,19 @@ const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
 const providersStore = useProvidersStore()
-const { isAuthenticated, credits, isLoginOpen } = storeToRefs(authStore)
+const { isAuthenticated, credits, isLoginDrawerOpen } = storeToRefs(authStore)
 
 const providerId = 'official-provider-transcription'
 const providerMetadata = providersStore.getProviderMetadata(providerId)
 
-watch(isAuthenticated, (val) => {
-  if (val) {
-    providersStore.forceProviderConfigured(providerId)
-  }
-}, { immediate: true })
-
 function handleLogin() {
-  isLoginOpen.value = true
+  isLoginDrawerOpen.value = true
 }
 </script>
 
 <template>
   <ProviderSettingsLayout
+    v-if="providerMetadata"
     :provider-name="providerMetadata?.localizedName"
     :provider-icon-color="providerMetadata?.iconColor"
     :on-back="() => router.back()"
@@ -88,6 +82,9 @@ function handleLogin() {
       </div>
     </ProviderSettingsContainer>
   </ProviderSettingsLayout>
+  <div v-else class="p-8 text-center text-neutral-500">
+    Provider is not available.
+  </div>
 </template>
 
 <route lang="yaml">

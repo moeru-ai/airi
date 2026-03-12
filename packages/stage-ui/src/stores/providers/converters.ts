@@ -114,6 +114,7 @@ export function convertProviderDefinitionToMetadata(
     iconColor: definition.iconColor,
     iconImage: definition.iconImage,
     isAvailableBy: definition.isAvailableBy,
+    requiresCredentials: definition.requiresCredentials,
     defaultOptions: () => {
       if (Object.keys(schemaDefaults).length > 0) {
         return { ...schemaDefaults }
