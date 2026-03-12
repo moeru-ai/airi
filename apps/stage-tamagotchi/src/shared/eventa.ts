@@ -1,4 +1,5 @@
 import type { Locale } from '@intlify/core'
+import type { ServerOptions } from '@proj-airi/server-runtime/server'
 import type {
   ThreeHitTestReadTracePayload,
   ThreeSceneRenderInfoTracePayload,
@@ -9,7 +10,6 @@ import type {
   VrmLoadStartTracePayload,
   VrmUpdateFrameTracePayload,
 } from '@proj-airi/stage-ui-three/trace'
-import type { ServerOptions } from '@proj-airi/server-runtime/server'
 
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
