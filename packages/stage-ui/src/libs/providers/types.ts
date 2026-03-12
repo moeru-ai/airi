@@ -141,6 +141,12 @@ export interface ProviderDefinition<TConfig extends any = any> {
    */
   isAvailableBy?: () => Promise<boolean> | boolean
 
+  /**
+   * If false, the provider does not require user-provided credentials (e.g. API keys).
+   * Used for built-in providers that authenticate via session cookies.
+   */
+  requiresCredentials?: boolean
+
   createProviderConfig: (contextOptions: { t: ComposerTranslation }) => $ZodType<TConfig>
   createProvider: (config: TConfig) => ProviderInstance
   extraMethods?: ProviderExtraMethods<TConfig>
