@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { describe, it } from 'node:test'
+
+import { describe, it } from 'vitest'
 
 import { getChatHistoryItemKey } from './message-key.ts'
 
@@ -27,4 +28,3 @@ describe('getChatHistoryItemKey', () => {
     assert.equal(getChatHistoryItemKey({ role: 'assistant', content: 'hello' }, 1), 'assistant:1')
   })
 })
-

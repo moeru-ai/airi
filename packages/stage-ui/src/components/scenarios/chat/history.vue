@@ -7,6 +7,7 @@ import { useI18n } from 'vue-i18n'
 import ChatAssistantItem from './assistant-item.vue'
 import ChatErrorItem from './error-item.vue'
 import ChatUserItem from './user-item.vue'
+
 import { getChatHistoryItemKey } from './message-key'
 
 const props = withDefaults(defineProps<{
