@@ -13,7 +13,6 @@ import type { StreamEvent } from './llm'
 
 import { chat } from '@xsai/shared-chat'
 
-import { getCurrentMcpApprovalSessionId } from '../stores/mcp-approval-session'
 import { getMcpToolBridge, normalizeQualifiedMcpToolName } from '../stores/mcp-tool-bridge'
 import {
   formatMcpObservationUserContent,
@@ -25,6 +24,7 @@ import { extractWorkflowReroute } from '../tools/mcp-reroute'
 
 interface RunManualToolLoopOptions {
   abortSignal?: AbortSignal
+  approvalSessionId?: string
   chatProvider: ChatProvider
   headers?: Record<string, string>
   maxSteps: number
@@ -100,6 +100,7 @@ export async function runManualToolLoop(options: RunManualToolLoopOptions): Prom
       throwIfAborted(options.abortSignal)
 
       const executed = await executeToolCall({
+        approvalSessionId: options.approvalSessionId,
         abortSignal: options.abortSignal,
         messages,
         promptContentOptions,
@@ -126,6 +127,7 @@ export async function runManualToolLoop(options: RunManualToolLoopOptions): Prom
 }
 
 async function executeToolCall(params: {
+  approvalSessionId?: string
   abortSignal?: AbortSignal
   messages: Message[]
   promptContentOptions: ReturnType<typeof getMcpPromptContentOptions>
@@ -161,7 +163,7 @@ async function executeToolCall(params: {
         ? Object.fromEntries(parsedArgs.parameters.map((entry: any) => [entry.name, entry.value]))
         : undefined,
       requestId: params.toolCall.id,
-      ...(getCurrentMcpApprovalSessionId() ? { approvalSessionId: getCurrentMcpApprovalSessionId() } : {}),
+      ...(params.approvalSessionId ? { approvalSessionId: params.approvalSessionId } : {}),
     })
 
     // Dedicated reroute branch: workflow_reroute gets fixed-format observation
@@ -272,14 +274,14 @@ function extractLatestUserText(messages: Message[]) {
 }
 
 function looksLikeToolRequiredRequest(text: string) {
-  return /\b(workflow_[a-z_]+|mcp_call_tool|terminal_exec|secret_read_env_value|clipboard_(?:read|write)_text|desktop_(?:observe|screenshot|open|focus|click|type|press|scroll)|run(?:ning)?\s+(?:workflow|tests?|command|git|build)|execute\s+(?:command|tool|workflow)|open\s+(?:terminal|finder|cursor|chrome|vs\s*code|vscode|app)|focus\s+(?:window|app|terminal|finder|cursor|vs\s*code|vscode)|read\s+(?:a\s+)?(?:file|clipboard|secret|token|env)|write\s+(?:a\s+)?(?:file|clipboard)|copy\b|paste\b|create\s+(?:a\s+)?file|use\s+(?:the\s+)?(?:tool|workflow|terminal)|click\b|type\b|press\b|scroll\b|screenshot\b|observe\s+windows?)\b/i.test(text)
+  return /\b(?:workflow_[a-z_]+|mcp_call_tool|terminal_exec|secret_read_env_value|clipboard_(?:read|write)_text|desktop_(?:observe|screenshot|open|focus|click|type|press|scroll)|run(?:ning)?\s+(?:workflow|tests?|command|git|build)|execute\s+(?:command|tool|workflow)|open\s+(?:terminal|finder|cursor|chrome|vs\s*code|app)|focus\s+(?:window|app|terminal|finder|cursor|vs\s*code)|read\s+(?:a\s+)?(?:file|clipboard|secret|token|env)|write\s+(?:a\s+)?(?:file|clipboard)|copy|paste|create\s+(?:a\s+)?file|use\s+(?:the\s+)?(?:tool|workflow|terminal)|click|type|press|scroll|screenshot|observe\s+windows?)\b/i.test(text)
     || /\b[\w-]+::[\w-]+\b/.test(text)
     || /\/settings\/modules\/[a-z0-9-]+/i.test(text)
-    || /(?:打开|开启|配置|设置|切换|点击|输入|填写|键入|保存|运行|执行|启动|关闭|聚焦|滚动|截图|观察|读取|写入|复制|粘贴|创建|修改|检查|验证)[\s\S]{0,18}(?:工具|工作流|命令|终端|窗口|应用|页面|浏览器|finder|vs\s*code|vscode|cursor|discord|文件|目录|设置页|开关|按钮|输入框|token|令牌|剪贴板)/i.test(text)
+    || /(?:打开|开启|配置|设置|切换|点击|输入|填写|键入|保存|运行|执行|启动|关闭|聚焦|滚动|截图|观察|读取|写入|复制|粘贴|创建|修改|检查|验证)[\s\S]{0,18}(?:工具|工作流|命令|终端|窗口|应用|页面|浏览器|finder|vs\s*code|cursor|discord|文件|目录|设置页|开关|按钮|输入框|token|令牌|剪贴板)/i.test(text)
 }
 
 function looksLikeFabricatedToolStatus(text: string) {
-  return /\b(status\s*=|status:|executing|running|completed|done|finished|opened|clicked|typed|pressed|scrolled|tests?\s+(?:passed|failed)|workflow)\b/i.test(text)
+  return /\b(?:status\s*=|status:|executing|running|completed|done|finished|opened|clicked|typed|pressed|scrolled|tests?\s+(?:passed|failed)|workflow)\b/i.test(text)
     || /状态[:：=]|正在执行|执行中|已经?(?:打开|点击|输入|填写|保存|完成|运行|执行|切换|启用|禁用)|测试已?(?:通过|失败)|工作流|命令已?执行/.test(text)
 }
 

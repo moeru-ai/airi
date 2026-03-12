@@ -53,6 +53,7 @@ import {
   getSessionScopedApprovalGrantScope,
   patchComputerUseTerminalStateWithGrant,
 } from './modules/computer-use-approval'
+import { isComputerUseMcpCall } from './modules/computer-use-mcp-routing'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 
 const { isDark: dark } = useTheme()
@@ -136,7 +137,7 @@ function buildDesktopApprovalSummary(action: any) {
 
 async function callMcpTool(payload: any): Promise<any> {
   const result = await callMcpToolRaw(payload)
-  const isComputerUse = typeof payload?.name === 'string' && payload.name.startsWith('computer_use::')
+  const isComputerUse = isComputerUseMcpCall(payload, result)
 
   if (!isComputerUse)
     return result

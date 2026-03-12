@@ -18,6 +18,9 @@ export interface McpCallToolResult {
   structuredContent?: unknown
   toolResult?: unknown
   isError?: boolean
+  requestedServerName?: string
+  resolvedServerName?: string
+  resolvedToolName?: string
 }
 
 export function normalizeQualifiedMcpToolName(name: string): string {

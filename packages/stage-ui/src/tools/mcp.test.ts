@@ -169,6 +169,42 @@ describe('tools mcp schema', () => {
     ])
   })
 
+  it('binds the approval session id to mcp_call_tool dispatch without consulting shared global state', async () => {
+    const callTool = vi.fn().mockResolvedValue({
+      content: [{ type: 'text', text: 'ok' }],
+      isError: false,
+    })
+
+    setMcpToolBridge({
+      listTools: vi.fn().mockResolvedValue([]),
+      callTool,
+    })
+
+    const tools = await mcp({
+      approvalSessionId: 'approval-session-7',
+    })
+    const call = tools.find(entry => entry.function.name === 'mcp_call_tool')
+
+    await call!.execute({
+      name: 'computer_use::terminal_exec',
+      parameters: [
+        { name: 'command', value: 'pwd' },
+      ],
+    }, {
+      toolCallId: 'tool-call-7',
+      messages: [],
+    } as never)
+
+    expect(callTool).toHaveBeenCalledWith({
+      name: 'computer_use::terminal_exec',
+      arguments: {
+        command: 'pwd',
+      },
+      requestId: 'tool-call-7',
+      approvalSessionId: 'approval-session-7',
+    })
+  })
+
   it('normalizes dot-qualified MCP tool names before dispatching', async () => {
     const callTool = vi.fn().mockResolvedValue({
       content: [{ type: 'text', text: 'ok' }],

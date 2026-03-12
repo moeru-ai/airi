@@ -171,6 +171,11 @@ describe('createMcpStdioManager', () => {
       resolvedServerName: 'computer_use',
       toolName: 'terminal_exec',
     }))
+    expect(result).toEqual(expect.objectContaining({
+      requestedServerName: 'functions',
+      resolvedServerName: 'computer_use',
+      resolvedToolName: 'terminal_exec',
+    }))
   })
 
   it('fails clearly when fallback tool-name routing is ambiguous', async () => {

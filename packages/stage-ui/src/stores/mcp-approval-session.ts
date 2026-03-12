@@ -1,27 +1,32 @@
-let currentApprovalSessionId: string | undefined
+const activeApprovalSessionIds = new Set<string>()
 const listeners = new Set<(sessionId: string | undefined) => void>()
 
 export function beginMcpApprovalSession(sessionId: string) {
-  currentApprovalSessionId = sessionId
-  return currentApprovalSessionId
+  activeApprovalSessionIds.add(sessionId)
+  return sessionId
 }
 
 export function endMcpApprovalSession(sessionId?: string) {
-  if (sessionId && currentApprovalSessionId && sessionId !== currentApprovalSessionId)
+  if (!sessionId || !activeApprovalSessionIds.has(sessionId))
     return
 
-  const ended = currentApprovalSessionId
-  currentApprovalSessionId = undefined
+  activeApprovalSessionIds.delete(sessionId)
   for (const listener of listeners) {
-    listener(ended)
+    listener(sessionId)
   }
 }
 
-export function getCurrentMcpApprovalSessionId() {
-  return currentApprovalSessionId
+export function isMcpApprovalSessionActive(sessionId: string) {
+  return activeApprovalSessionIds.has(sessionId)
 }
 
 export function onMcpApprovalSessionEnded(listener: (sessionId: string | undefined) => void) {
   listeners.add(listener)
   return () => listeners.delete(listener)
+}
+
+/** Reset helper for tests. */
+export function resetMcpApprovalSessions() {
+  activeApprovalSessionIds.clear()
+  listeners.clear()
 }

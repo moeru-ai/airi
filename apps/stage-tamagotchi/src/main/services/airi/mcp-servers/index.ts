@@ -509,6 +509,9 @@ export function createMcpStdioManager(): McpStdioManager {
       if ('toolResult' in result) {
         normalized.toolResult = result.toolResult
       }
+      normalized.requestedServerName = serverName
+      normalized.resolvedServerName = resolvedServerName
+      normalized.resolvedToolName = toolName
 
       if (resolvedServerName !== serverName) {
         normalized.structuredContent = {

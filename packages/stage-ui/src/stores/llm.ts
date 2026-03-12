@@ -117,11 +117,15 @@ function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProv
 }
 
 export async function resolveBuiltinChatTools(params: {
+  approvalSessionId?: string
   promptContentMode: 'default' | 'tight' | 'tight-text-only'
   extraTools?: Tool[]
 }): Promise<Tool[]> {
   const tools: Tool[] = [
-    ...await mcp({ promptContentMode: params.promptContentMode }),
+    ...await mcp({
+      approvalSessionId: params.approvalSessionId,
+      promptContentMode: params.promptContentMode,
+    }),
   ]
 
   if (hasAiriSelfNavigationBridge()) {
@@ -159,6 +163,7 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
   const extraTools = await resolveTools()
   const tools = supportedTools
     ? await resolveBuiltinChatTools({
+        approvalSessionId,
         promptContentMode: mcpPromptContentMode,
         extraTools,
       })
@@ -200,6 +205,7 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
     try {
       if (tools && tools.length > 0 && shouldUseManualToolLoop(String(chatConfig.baseURL))) {
         void runManualToolLoop({
+          approvalSessionId,
           abortSignal: options?.abortSignal,
           chatProvider,
           headers,

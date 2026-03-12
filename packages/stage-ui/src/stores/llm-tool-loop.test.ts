@@ -417,6 +417,47 @@ describe('runManualToolLoop', () => {
     })
   })
 
+  it('passes the stream approval session id through the manual tool loop mcp bridge call', async () => {
+    const callTool = vi.fn().mockResolvedValue({
+      content: [{ type: 'text', text: 'tool ok' }],
+    })
+
+    clearMcpToolBridge()
+    setMcpToolBridge({
+      listTools: vi.fn().mockResolvedValue([]),
+      callTool,
+    })
+
+    const mockFetch = createMockFetch([
+      toolCallResponse('mcp_call_tool', {
+        name: 'computer_use::terminal_exec',
+        parameters: [
+          { name: 'command', value: 'pwd' },
+        ],
+      }),
+      textOnlyResponse('Done.'),
+    ])
+
+    await runManualToolLoop({
+      approvalSessionId: 'approval-session-9',
+      chatProvider: createChatProvider(mockFetch),
+      maxSteps: 5,
+      messages: [{ role: 'user', content: 'Run a terminal command.' }],
+      model: 'gpt-4.1',
+      tools: [createDummyTool('mcp_call_tool')],
+      promptContentMode: 'default',
+    })
+
+    expect(callTool).toHaveBeenCalledWith({
+      name: 'computer_use::terminal_exec',
+      arguments: {
+        command: 'pwd',
+      },
+      requestId: 'tc-1',
+      approvalSessionId: 'approval-session-9',
+    })
+  })
+
   it('treats [DONE] as a terminal SSE frame even when the transport stays open', async () => {
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {

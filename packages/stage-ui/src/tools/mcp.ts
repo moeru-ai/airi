@@ -5,7 +5,6 @@ import type { McpToolDescriptor } from '../stores/mcp-tool-bridge'
 import { tool } from '@xsai/tool'
 import { z } from 'zod'
 
-import { getCurrentMcpApprovalSessionId } from '../stores/mcp-approval-session'
 import { getMcpToolBridge, normalizeQualifiedMcpToolName, onMcpToolsChanged } from '../stores/mcp-tool-bridge'
 import {
   formatMcpToolListPromptContent,
@@ -23,6 +22,7 @@ const mcpParameterValueSchema = z.union([
 ])
 
 export interface McpToolOptions {
+  approvalSessionId?: string
   promptContentMode?: 'default' | 'tight' | 'tight-text-only'
 }
 
@@ -95,6 +95,7 @@ function buildCallToolDescription(toolList: McpToolDescriptor[] | null): string 
 }
 
 export async function mcp(options?: McpToolOptions) {
+  const approvalSessionId = options?.approvalSessionId
   const promptContentOptions = getMcpPromptContentOptions(options?.promptContentMode)
 
   // Eagerly refresh tool list cache for each stream call to ensure freshness
@@ -128,7 +129,7 @@ export async function mcp(options?: McpToolOptions) {
             name: normalizedToolName,
             arguments: parametersObject,
             ...(options?.toolCallId ? { requestId: options.toolCallId } : {}),
-            ...(getCurrentMcpApprovalSessionId() ? { approvalSessionId: getCurrentMcpApprovalSessionId() } : {}),
+            ...(approvalSessionId ? { approvalSessionId } : {}),
           })
 
           // Dedicated reroute branch: workflow_reroute gets fixed-format

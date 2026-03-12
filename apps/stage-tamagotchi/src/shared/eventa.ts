@@ -195,6 +195,9 @@ export interface ElectronMcpCallToolResult {
   structuredContent?: unknown
   toolResult?: unknown
   isError?: boolean
+  requestedServerName?: string
+  resolvedServerName?: string
+  resolvedToolName?: string
 }
 
 export const electronMcpOpenConfigFile = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:mcp:open-config-file')
