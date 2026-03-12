@@ -14,15 +14,17 @@ import type { StreamEvent } from './llm'
 import { chat } from '@xsai/shared-chat'
 
 import { getCurrentMcpApprovalSessionId } from '../stores/mcp-approval-session'
-import { getMcpToolBridge } from '../stores/mcp-tool-bridge'
+import { getMcpToolBridge, normalizeQualifiedMcpToolName } from '../stores/mcp-tool-bridge'
 import {
   formatMcpObservationUserContent,
   formatMcpToolResultPromptContent,
+  formatRerouteObservation,
   getMcpPromptContentOptions,
-
 } from '../tools/mcp-prompt-content'
+import { extractWorkflowReroute } from '../tools/mcp-reroute'
 
 interface RunManualToolLoopOptions {
+  abortSignal?: AbortSignal
   chatProvider: ChatProvider
   headers?: Record<string, string>
   maxSteps: number
@@ -51,7 +53,10 @@ export async function runManualToolLoop(options: RunManualToolLoopOptions): Prom
   const messages = structuredClone(options.messages)
 
   for (let stepIndex = 0; stepIndex < options.maxSteps; stepIndex++) {
+    throwIfAborted(options.abortSignal)
+
     const step = await streamAssistantStep({
+      abortSignal: options.abortSignal,
       baseURL: String(chatConfig.baseURL),
       apiKey: chatConfig.apiKey,
       fetch: chatConfig.fetch,
@@ -70,11 +75,12 @@ export async function runManualToolLoop(options: RunManualToolLoopOptions): Prom
       // making a tool call.  When this happens on the first step and tools
       // are available, inject a hard constraint and retry ONCE so the model
       // gets a second chance to use the tools properly.
-      if (
-        stepIndex === 0
-        && options.tools.length > 0
-        && step.text.length > 0
-      ) {
+      if (shouldRetryFirstStepWithoutToolCall({
+        stepIndex,
+        text: step.text,
+        tools: options.tools,
+        messages,
+      })) {
         messages.push({
           role: 'developer',
           content: 'Your previous response did not include any tool calls. If the user\'s request can be fulfilled by calling a tool, you MUST make the tool call NOW using mcp_call_tool. Do not describe or simulate the result — actually call the tool.' as any,
@@ -91,7 +97,10 @@ export async function runManualToolLoop(options: RunManualToolLoopOptions): Prom
     }
 
     for (const toolCall of step.toolCalls) {
+      throwIfAborted(options.abortSignal)
+
       const executed = await executeToolCall({
+        abortSignal: options.abortSignal,
         messages,
         promptContentOptions,
         toolCall,
@@ -117,6 +126,7 @@ export async function runManualToolLoop(options: RunManualToolLoopOptions): Prom
 }
 
 async function executeToolCall(params: {
+  abortSignal?: AbortSignal
   messages: Message[]
   promptContentOptions: ReturnType<typeof getMcpPromptContentOptions>
   toolCall: StreamedAssistantStep['toolCalls'][number]
@@ -138,13 +148,15 @@ async function executeToolCall(params: {
   }
 
   const parsedArgs = JSON.parse(params.toolCall.argsText || '{}') as Record<string, unknown>
+  throwIfAborted(params.abortSignal)
 
   let result: ToolMessage['content']
   let observationMessage: Message | undefined
 
   if (params.toolCall.name === 'mcp_call_tool') {
+    const normalizedToolName = normalizeQualifiedMcpToolName(String(parsedArgs.name || ''))
     const rawResult = await getMcpToolBridge().callTool({
-      name: String(parsedArgs.name),
+      name: normalizedToolName,
       arguments: Array.isArray(parsedArgs.parameters)
         ? Object.fromEntries(parsedArgs.parameters.map((entry: any) => [entry.name, entry.value]))
         : undefined,
@@ -152,21 +164,30 @@ async function executeToolCall(params: {
       ...(getCurrentMcpApprovalSessionId() ? { approvalSessionId: getCurrentMcpApprovalSessionId() } : {}),
     })
 
-    result = await formatMcpToolResultPromptContent(rawResult, params.promptContentOptions)
+    // Dedicated reroute branch: workflow_reroute gets fixed-format observation
+    // instead of generic tool-result formatting.
+    const rerouteInstruction = extractWorkflowReroute(rawResult)
+    if (rerouteInstruction) {
+      result = formatRerouteObservation(rerouteInstruction)
+    }
+    else {
+      result = await formatMcpToolResultPromptContent(rawResult, params.promptContentOptions)
 
-    const observationContent = await formatMcpObservationUserContent(rawResult, params.promptContentOptions, {
-      toolName: String(parsedArgs.name || 'mcp_tool'),
-    })
+      const observationContent = await formatMcpObservationUserContent(rawResult, params.promptContentOptions, {
+        toolName: normalizedToolName || 'mcp_tool',
+      })
 
-    if (observationContent.length > 0) {
-      observationMessage = {
-        role: 'user',
-        content: observationContent,
+      if (observationContent.length > 0) {
+        observationMessage = {
+          role: 'user',
+          content: observationContent,
+        }
       }
     }
   }
   else {
     result = wrapToolExecuteResult(await tool.execute(parsedArgs, {
+      abortSignal: params.abortSignal,
       messages: params.messages,
       toolCallId: params.toolCall.id,
     }))
@@ -194,6 +215,72 @@ async function executeToolCall(params: {
       content: result,
     },
   }
+}
+
+function shouldRetryFirstStepWithoutToolCall(params: {
+  stepIndex: number
+  text: string
+  tools: Tool[]
+  messages: Message[]
+}) {
+  if (params.stepIndex !== 0 || params.tools.length === 0 || params.text.trim().length === 0) {
+    return false
+  }
+
+  const latestUserText = extractLatestUserText(params.messages)
+  if (!latestUserText) {
+    return false
+  }
+
+  if (looksLikeFabricatedToolStatus(params.text)) {
+    return true
+  }
+
+  return looksLikeToolRequiredRequest(latestUserText)
+}
+
+function extractLatestUserText(messages: Message[]) {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index]
+    if (message?.role !== 'user') {
+      continue
+    }
+
+    if (typeof message.content === 'string') {
+      return message.content.trim()
+    }
+
+    if (Array.isArray(message.content)) {
+      return message.content
+        .map((part) => {
+          if (typeof part === 'string') {
+            return part
+          }
+
+          if (part && typeof part === 'object' && 'text' in part) {
+            return String(part.text ?? '')
+          }
+
+          return ''
+        })
+        .join(' ')
+        .trim()
+    }
+  }
+
+  return ''
+}
+
+function looksLikeToolRequiredRequest(text: string) {
+  return /\b(workflow_[a-z_]+|mcp_call_tool|terminal_exec|secret_read_env_value|clipboard_(?:read|write)_text|desktop_(?:observe|screenshot|open|focus|click|type|press|scroll)|run(?:ning)?\s+(?:workflow|tests?|command|git|build)|execute\s+(?:command|tool|workflow)|open\s+(?:terminal|finder|cursor|chrome|vs\s*code|vscode|app)|focus\s+(?:window|app|terminal|finder|cursor|vs\s*code|vscode)|read\s+(?:a\s+)?(?:file|clipboard|secret|token|env)|write\s+(?:a\s+)?(?:file|clipboard)|copy\b|paste\b|create\s+(?:a\s+)?file|use\s+(?:the\s+)?(?:tool|workflow|terminal)|click\b|type\b|press\b|scroll\b|screenshot\b|observe\s+windows?)\b/i.test(text)
+    || /\b[\w-]+::[\w-]+\b/.test(text)
+    || /\/settings\/modules\/[a-z0-9-]+/i.test(text)
+    || /(?:打开|开启|配置|设置|切换|点击|输入|填写|键入|保存|运行|执行|启动|关闭|聚焦|滚动|截图|观察|读取|写入|复制|粘贴|创建|修改|检查|验证)[\s\S]{0,18}(?:工具|工作流|命令|终端|窗口|应用|页面|浏览器|finder|vs\s*code|vscode|cursor|discord|文件|目录|设置页|开关|按钮|输入框|token|令牌|剪贴板)/i.test(text)
+}
+
+function looksLikeFabricatedToolStatus(text: string) {
+  return /\b(status\s*=|status:|executing|running|completed|done|finished|opened|clicked|typed|pressed|scrolled|tests?\s+(?:passed|failed)|workflow)\b/i.test(text)
+    || /状态[:：=]|正在执行|执行中|已经?(?:打开|点击|输入|填写|保存|完成|运行|执行|切换|启用|禁用)|测试已?(?:通过|失败)|工作流|命令已?执行/.test(text)
 }
 
 function wrapToolExecuteResult(result: unknown): ToolMessage['content'] {
@@ -225,6 +312,7 @@ function isCommonContentPart(value: unknown): value is CommonContentPart {
 
 async function streamAssistantStep(params: {
   apiKey?: string
+  abortSignal?: AbortSignal
   baseURL: string
   fetch?: Fetch | typeof globalThis.fetch
   headers?: Record<string, string>
@@ -235,6 +323,7 @@ async function streamAssistantStep(params: {
 }): Promise<StreamedAssistantStep> {
   const response = await chat({
     apiKey: params.apiKey,
+    abortSignal: params.abortSignal,
     baseURL: params.baseURL,
     fetch: params.fetch,
     headers: params.headers,
@@ -252,58 +341,69 @@ async function streamAssistantStep(params: {
   const textParts: string[] = []
   const toolCalls: StreamedAssistantStep['toolCalls'] = []
   let finishReason = 'other'
+  const transformed = stream.pipeThrough(createSseChunkTransform())
+  const reader = transformed.getReader()
 
-  await stream
-    .pipeThrough(createSseChunkTransform())
-    .pipeTo(new WritableStream({
-      async write(chunk) {
-        const choices = Array.isArray(chunk?.choices)
-          ? chunk.choices
-          : []
-        const choice = choices[0]
-        if (!choice) {
-          return
+  try {
+    while (true) {
+      throwIfAborted(params.abortSignal)
+
+      const { done, value: chunk } = await reader.read()
+      if (done) {
+        break
+      }
+
+      const choices = Array.isArray(chunk?.choices)
+        ? chunk.choices
+        : []
+      const choice = choices[0]
+      if (!choice) {
+        continue
+      }
+
+      if (choice.finish_reason != null) {
+        finishReason = String(choice.finish_reason)
+      }
+
+      const delta = choice.delta || {}
+      if (typeof delta.content === 'string') {
+        textParts.push(delta.content)
+        await params.onStreamEvent?.({ type: 'text-delta', text: delta.content })
+      }
+
+      const deltaToolCalls = Array.isArray(delta.tool_calls)
+        ? delta.tool_calls
+        : []
+
+      for (const partialToolCall of deltaToolCalls) {
+        const index = Number(partialToolCall.index || 0)
+        const existing = toolCalls[index]
+        if (!existing) {
+          toolCalls[index] = {
+            id: String(partialToolCall.id),
+            name: String(partialToolCall.function?.name || ''),
+            type: 'function',
+            argsText: String(partialToolCall.function?.arguments || ''),
+          }
+          continue
         }
 
-        if (choice.finish_reason != null) {
-          finishReason = String(choice.finish_reason)
+        if (partialToolCall.id) {
+          existing.id = String(partialToolCall.id)
         }
-
-        const delta = choice.delta || {}
-        if (typeof delta.content === 'string') {
-          textParts.push(delta.content)
-          await params.onStreamEvent?.({ type: 'text-delta', text: delta.content })
+        if (partialToolCall.function?.name) {
+          existing.name = String(partialToolCall.function.name)
         }
-
-        const deltaToolCalls = Array.isArray(delta.tool_calls)
-          ? delta.tool_calls
-          : []
-
-        for (const partialToolCall of deltaToolCalls) {
-          const index = Number(partialToolCall.index || 0)
-          const existing = toolCalls[index]
-          if (!existing) {
-            toolCalls[index] = {
-              id: String(partialToolCall.id),
-              name: String(partialToolCall.function?.name || ''),
-              type: 'function',
-              argsText: String(partialToolCall.function?.arguments || ''),
-            }
-            continue
-          }
-
-          if (partialToolCall.id) {
-            existing.id = String(partialToolCall.id)
-          }
-          if (partialToolCall.function?.name) {
-            existing.name = String(partialToolCall.function.name)
-          }
-          if (partialToolCall.function?.arguments) {
-            existing.argsText += String(partialToolCall.function.arguments)
-          }
+        if (partialToolCall.function?.arguments) {
+          existing.argsText += String(partialToolCall.function.arguments)
         }
-      },
-    }))
+      }
+    }
+  }
+  finally {
+    reader.releaseLock()
+    await stream.cancel().catch(() => undefined)
+  }
 
   return {
     finishReason,
@@ -326,7 +426,36 @@ async function streamAssistantStep(params: {
   }
 }
 
-function createSseChunkTransform() {
+function emitBufferedSseLines(buffer: string, controller: TransformStreamDefaultController<any>) {
+  const lines = buffer.split('\n')
+  const trailing = lines.pop() ?? ''
+
+  for (const line of lines) {
+    if (!line.startsWith('data:')) {
+      continue
+    }
+
+    const rawData = line.slice('data:'.length).trimStart()
+    if (!rawData) {
+      continue
+    }
+
+    if (rawData === '[DONE]') {
+      // NOTICE: GitHub Models may keep the HTTP response open briefly after
+      // sending the terminal `[DONE]` SSE frame. Treat that frame as the end of
+      // the stream so the manual tool loop can emit `finish` instead of hanging
+      // until the transport closes by itself.
+      controller.terminate()
+      return ''
+    }
+
+    controller.enqueue(JSON.parse(rawData))
+  }
+
+  return trailing
+}
+
+export function createSseChunkTransform() {
   const decoder = new TextDecoder()
   let buffer = ''
 
@@ -334,23 +463,30 @@ function createSseChunkTransform() {
     transform(chunk, controller) {
       const text = decoder.decode(chunk, { stream: true })
       buffer += text
-      const lines = buffer.split('\n')
-      buffer = lines.pop() ?? ''
+      buffer = emitBufferedSseLines(buffer, controller)
+    },
+    flush(controller) {
+      const remaining = buffer.trim()
+      if (!remaining) {
+        return
+      }
 
-      for (const line of lines) {
-        if (!line.startsWith('data:')) {
-          continue
+      if (remaining.startsWith('data:')) {
+        const rawData = remaining.slice('data:'.length).trimStart()
+        if (!rawData || rawData === '[DONE]') {
+          return
         }
 
-        const rawData = line.slice('data:'.length).trimStart()
-        if (rawData === '[DONE]') {
-          continue
-        }
-        if (!rawData) {
-          continue
-        }
         controller.enqueue(JSON.parse(rawData))
       }
     },
   })
+}
+
+function throwIfAborted(signal?: AbortSignal) {
+  if (!signal?.aborted) {
+    return
+  }
+
+  throw signal.reason ?? new DOMException('Aborted', 'AbortError')
 }

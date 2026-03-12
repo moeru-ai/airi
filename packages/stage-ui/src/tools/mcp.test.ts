@@ -2,9 +2,18 @@ import type { JsonSchema } from 'xsschema'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { clearMcpToolBridge, notifyMcpToolsChanged, onMcpToolsChanged, setMcpToolBridge } from '../stores/mcp-tool-bridge'
+import { clearMcpToolBridge, normalizeQualifiedMcpToolName, notifyMcpToolsChanged, onMcpToolsChanged, setMcpToolBridge } from '../stores/mcp-tool-bridge'
 import { getCachedMcpToolList, mcp, resetMcpToolListCache } from './mcp'
 import { formatMcpObservationUserContent, tightTextOnlyMcpPromptContentOptions } from './mcp-prompt-content'
+
+function requireTextParts(
+  result: unknown,
+  label: string,
+): Array<{ type: 'text', text: string }> {
+  expect(Array.isArray(result), `${label}: execute result must be an array`).toBe(true)
+
+  return result as Array<{ type: 'text', text: string }>
+}
 
 describe('tools mcp schema', () => {
   beforeEach(() => {
@@ -160,6 +169,41 @@ describe('tools mcp schema', () => {
     ])
   })
 
+  it('normalizes dot-qualified MCP tool names before dispatching', async () => {
+    const callTool = vi.fn().mockResolvedValue({
+      content: [{ type: 'text', text: 'ok' }],
+      isError: false,
+    })
+
+    setMcpToolBridge({
+      listTools: vi.fn().mockResolvedValue([]),
+      callTool,
+    })
+
+    const tools = await mcp()
+    const call = tools.find(entry => entry.function.name === 'mcp_call_tool')
+
+    await call!.execute({
+      name: 'computer_use.terminal_exec',
+      parameters: [
+        { name: 'command', value: 'pwd' },
+      ],
+    }, undefined as never)
+
+    expect(callTool).toHaveBeenCalledWith({
+      name: 'computer_use::terminal_exec',
+      arguments: {
+        command: 'pwd',
+      },
+    })
+  })
+
+  it('normalizes dot-qualified names in the shared helper', () => {
+    expect(normalizeQualifiedMcpToolName('computer_use.terminal_exec')).toBe('computer_use::terminal_exec')
+    expect(normalizeQualifiedMcpToolName('computer_use::terminal_exec')).toBe('computer_use::terminal_exec')
+    expect(normalizeQualifiedMcpToolName('computer.use.terminal_exec')).toBe('computer.use.terminal_exec')
+  })
+
   it('mcp_call_tool rewrites MCP image content to image_url content parts', async () => {
     const callTool = vi.fn().mockResolvedValue({
       content: [
@@ -311,6 +355,185 @@ describe('tools mcp schema', () => {
     })
 
     expect(content).toEqual([])
+  })
+
+  describe('reroute consumption in mcp_call_tool', () => {
+    it('returns fixed-format reroute observation when structuredContent is a workflow_reroute', async () => {
+      const rerouteResult = {
+        content: [{ type: 'text', text: 'ignored by reroute branch' }],
+        isError: false,
+        structuredContent: {
+          kind: 'workflow_reroute',
+          status: 'reroute_required',
+          workflow: 'workflow_browse_and_act',
+          reroute: {
+            recommendedSurface: 'browser',
+            suggestedTool: 'computer_use::browser_navigate',
+            strategyReason: 'Browser surface required for web task',
+            executionReason: 'Workspace has no running browser instance.',
+            explanation: 'Switch to browser surface.',
+            availableSurfaces: ['browser', 'desktop'],
+            preferredSurface: 'browser',
+          },
+        },
+      }
+
+      const callTool = vi.fn().mockResolvedValue(rerouteResult)
+      setMcpToolBridge({
+        listTools: vi.fn().mockResolvedValue([]),
+        callTool,
+      })
+
+      const tools = await mcp()
+      const call = tools.find(entry => entry.function.name === 'mcp_call_tool')
+      const result = await call!.execute({
+        name: 'computer_use::workflow_browse_and_act',
+        parameters: [{ name: 'task', value: 'open docs' }],
+      }, undefined as never)
+
+      const parts = requireTextParts(result, 'workflow_reroute result')
+      expect(parts).toHaveLength(1)
+      expect(parts[0]).toHaveProperty('type', 'text')
+      const text = parts[0].text
+      expect(text).toContain('Workflow reroute required')
+      expect(text).toContain('browser')
+      expect(text).toContain('computer_use::browser_navigate')
+      expect(text).toContain('Browser surface required for web task')
+      expect(text).toContain('Workspace has no running browser instance.')
+    })
+
+    it('renders terminal reroute details when PTY session metadata is present', async () => {
+      const rerouteResult = {
+        content: [{ type: 'text', text: 'ignored by reroute branch' }],
+        isError: false,
+        structuredContent: {
+          kind: 'workflow_reroute',
+          status: 'reroute_required',
+          workflow: 'workflow_validate_workspace',
+          reroute: {
+            recommendedSurface: 'pty',
+            suggestedTool: 'computer_use::pty_read_screen',
+            strategyReason: 'Interactive shell session is already bound to this workflow step.',
+            explanation: 'Switch to the bound PTY session before continuing.',
+            terminalSurface: 'pty',
+            ptySessionId: 'pty_7',
+          },
+        },
+      }
+
+      const callTool = vi.fn().mockResolvedValue(rerouteResult)
+      setMcpToolBridge({
+        listTools: vi.fn().mockResolvedValue([]),
+        callTool,
+      })
+
+      const tools = await mcp()
+      const call = tools.find(entry => entry.function.name === 'mcp_call_tool')
+      const result = await call!.execute({
+        name: 'computer_use::workflow_validate_workspace',
+        parameters: [{ name: 'projectPath', value: '/tmp/project' }],
+      }, undefined as never)
+
+      const parts = requireTextParts(result, 'terminal workflow_reroute result')
+      const text = parts[0].text
+      expect(text).toContain('Terminal surface: pty')
+      expect(text).toContain('PTY session id: pty_7')
+      expect(text).toContain('computer_use::pty_read_screen')
+    })
+
+    it('falls through to generic formatting when structuredContent is not a reroute', async () => {
+      const normalResult = {
+        content: [{ type: 'text', text: 'workflow completed' }],
+        isError: false,
+        structuredContent: {
+          kind: 'workflow_result',
+          status: 'completed',
+        },
+      }
+
+      const callTool = vi.fn().mockResolvedValue(normalResult)
+      setMcpToolBridge({
+        listTools: vi.fn().mockResolvedValue([]),
+        callTool,
+      })
+
+      const tools = await mcp()
+      const call = tools.find(entry => entry.function.name === 'mcp_call_tool')
+      const result = await call!.execute({
+        name: 'computer_use::workflow_run_tests',
+        parameters: [],
+      }, undefined as never)
+
+      const parts = requireTextParts(result, 'non-reroute mcp_call_tool result')
+      // Generic formatting should include the text content
+      expect(parts).toEqual(expect.arrayContaining([
+        expect.objectContaining({ type: 'text' }),
+      ]))
+      const text = parts[0].text
+      expect(text).not.toContain('Workflow reroute required')
+    })
+
+    it('returns reroute observation even when content array is empty', async () => {
+      const rerouteNoContent = {
+        content: [],
+        isError: false,
+        structuredContent: {
+          kind: 'workflow_reroute',
+          status: 'reroute_required',
+          workflow: 'workflow_browse_and_act',
+          reroute: {
+            recommendedSurface: 'desktop',
+            suggestedTool: 'computer_use::desktop_screenshot',
+            strategyReason: 'Needs desktop surface',
+            explanation: 'Redirect to desktop.',
+          },
+        },
+      }
+
+      const callTool = vi.fn().mockResolvedValue(rerouteNoContent)
+      setMcpToolBridge({
+        listTools: vi.fn().mockResolvedValue([]),
+        callTool,
+      })
+
+      const tools = await mcp()
+      const call = tools.find(entry => entry.function.name === 'mcp_call_tool')
+      const result = await call!.execute({
+        name: 'computer_use::workflow_browse_and_act',
+        parameters: [],
+      }, undefined as never)
+
+      const parts = requireTextParts(result, 'reroute without content result')
+      expect(parts).toHaveLength(1)
+      const text = parts[0].text
+      expect(text).toContain('Workflow reroute required')
+      expect(text).toContain('desktop')
+    })
+
+    it('does not treat structuredContent without reroute fields as a reroute', async () => {
+      const noReroute = {
+        content: [{ type: 'text', text: 'hello' }],
+        isError: false,
+        structuredContent: { random: 'data' },
+      }
+
+      const callTool = vi.fn().mockResolvedValue(noReroute)
+      setMcpToolBridge({
+        listTools: vi.fn().mockResolvedValue([]),
+        callTool,
+      })
+
+      const tools = await mcp()
+      const call = tools.find(entry => entry.function.name === 'mcp_call_tool')
+      const result = await call!.execute({
+        name: 'demo::tool',
+        parameters: [],
+      }, undefined as never)
+
+      const parts = requireTextParts(result, 'non-reroute structuredContent result')
+      const text = parts[0].text
+      expect(text).not.toContain('Workflow reroute required')
+    })
   })
 
   describe('tool list hot-refresh', () => {

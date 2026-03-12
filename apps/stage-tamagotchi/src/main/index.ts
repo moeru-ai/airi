@@ -75,6 +75,14 @@ if (isLinux) {
 app.dock?.setIcon(icon)
 electronApp.setAppUserModelId('ai.moeru.airi')
 
+const userDataPathOverride = env.APP_USER_DATA_PATH?.trim()
+if (userDataPathOverride) {
+  // NOTICE: E2E harnesses can point AIRI at an isolated userData directory so
+  // MCP config, chat state, and other persisted files do not leak into the
+  // developer's normal desktop profile.
+  app.setPath('userData', userDataPathOverride)
+}
+
 // NOTICE: Prevent multiple instances from running simultaneously, which could
 // cause port conflicts (Vite HMR, debug port 9222, server channels) and
 // resource contention. When a second instance launches, focus the existing

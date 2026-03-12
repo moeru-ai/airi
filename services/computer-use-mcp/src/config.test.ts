@@ -58,11 +58,25 @@ describe('resolveComputerUseConfig', () => {
     const config = resolveComputerUseConfig()
 
     expect(config.executor).toBe('macos-local')
-    expect(config.openableApps).toEqual(['Terminal', 'Cursor', 'Google Chrome'])
+    expect(config.openableApps).toEqual(['Finder', 'Terminal', 'Cursor', 'Visual Studio Code', 'Google Chrome'])
     expect(config.denyApps).toContain('airi')
     expect(config.terminalShell).toBeTruthy()
     expect(config.permissionChainHint).toContain('swift/quartz + open')
     expect(config.requireAllowedBoundsForMutatingActions).toBe(false)
     expect(config.requireCoordinateAlignmentForMutatingActions).toBe(false)
+    expect(config.binaries.pbcopy).toBe('pbcopy')
+    expect(config.binaries.pbpaste).toBe('pbpaste')
+  })
+
+  it('enables the browser dom bridge by default and respects overrides', () => {
+    process.env.COMPUTER_USE_BROWSER_DOM_BRIDGE_PORT = '8876'
+    process.env.COMPUTER_USE_BROWSER_DOM_BRIDGE_TIMEOUT_MS = '4500'
+
+    const config = resolveComputerUseConfig()
+
+    expect(config.browserDomBridge.enabled).toBe(true)
+    expect(config.browserDomBridge.host).toBe('127.0.0.1')
+    expect(config.browserDomBridge.port).toBe(8876)
+    expect(config.browserDomBridge.requestTimeoutMs).toBe(4500)
   })
 })

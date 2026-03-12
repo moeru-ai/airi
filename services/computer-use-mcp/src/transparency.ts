@@ -40,6 +40,12 @@ export function explainActionIntent(action: ActionInvocation, runState: RunState
       return `Opening "${action.input.app}" because the task requires this application${taskContext}.`
     case 'focus_app':
       return `Bringing "${action.input.app}" to the foreground so we can interact with it${taskContext}.`
+    case 'secret_read_env_value':
+      return `Reading specific secret keys from env file "${action.input.filePath}" so the task can reuse a configured value without dumping the whole file${taskContext}.`
+    case 'clipboard_read_text':
+      return `Reading the system clipboard so the task can reuse a copied value across apps${taskContext}.`
+    case 'clipboard_write_text':
+      return `Writing text into the system clipboard so it can be pasted into another app${taskContext}.`
     case 'click':
       return `Clicking at (${action.input.x}, ${action.input.y}) to interact with the UI element at that position${taskContext}.`
     case 'type_text':
@@ -88,6 +94,12 @@ export function explainApprovalReason(
   else if (action.kind === 'type_text' && action.input.text.length > 160) {
     parts.push(`because a large text payload (${action.input.text.length} chars) is being typed`)
   }
+  else if (action.kind === 'clipboard_read_text' || action.kind === 'clipboard_write_text') {
+    parts.push('because clipboard contents may contain secrets or other sensitive values')
+  }
+  else if (action.kind === 'secret_read_env_value') {
+    parts.push('because env files may contain secrets or other sensitive values')
+  }
 
   if (context.available && context.appName) {
     parts.push(`while "${context.appName}" is in the foreground`)
@@ -129,6 +141,12 @@ export function explainActionOutcome(params: {
       return `"${action.input.app}" has been opened. It should now be available for interaction.`
     case 'focus_app':
       return `"${action.input.app}" has been brought to the foreground.`
+    case 'secret_read_env_value':
+      return `Requested env keys were read successfully from "${action.input.filePath}".`
+    case 'clipboard_read_text':
+      return 'Clipboard text retrieved successfully.'
+    case 'clipboard_write_text':
+      return `Clipboard updated successfully (${action.input.text.length} characters).`
     case 'click':
       return `Clicked at (${action.input.x}, ${action.input.y}).${context.appName ? ` Target app: "${context.appName}".` : ''}`
     case 'type_text':
@@ -167,6 +185,9 @@ function buildFailureExplanation(
       break
     case 'terminal_exec':
       parts.push('Inspect the error output below before deciding whether to retry.')
+      break
+    case 'secret_read_env_value':
+      parts.push('Verify the env file path and requested key names, then try another source if the value is still missing or placeholder-like.')
       break
     case 'open_app':
     case 'focus_app': {
@@ -336,6 +357,23 @@ export function summarizeRunState(state: RunState): string {
   // Task
   if (state.activeTask) {
     parts.push(summarizeTaskProgress(state.activeTask))
+  }
+
+  // Task memory
+  if (state.taskMemory) {
+    const tm = state.taskMemory
+    const tmParts: string[] = [`Task memory [${tm.status}]:`]
+    if (tm.goal)
+      tmParts.push(`  Goal: ${tm.goal}`)
+    if (tm.currentStep)
+      tmParts.push(`  Current step: ${tm.currentStep}`)
+    if (tm.confirmedFacts.length > 0)
+      tmParts.push(`  Confirmed facts: ${tm.confirmedFacts.join('; ')}`)
+    if (tm.blockers.length > 0)
+      tmParts.push(`  Blockers: ${tm.blockers.join('; ')}`)
+    if (tm.nextStep)
+      tmParts.push(`  Next step: ${tm.nextStep}`)
+    parts.push(tmParts.join('\n'))
   }
 
   return parts.join('\n')

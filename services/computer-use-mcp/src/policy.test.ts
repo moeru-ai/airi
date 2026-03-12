@@ -88,6 +88,32 @@ describe('evaluateActionPolicy', () => {
     expect(decision.riskLevel).toBe('high')
   })
 
+  it('treats secret env reads as high-risk but non-mutating', () => {
+    const decision = evaluateActionPolicy({
+      action: {
+        kind: 'secret_read_env_value',
+        input: {
+          filePath: '/Users/liuziheng/airi/.env',
+          keys: ['DISCORD_BOT_TOKEN'],
+        },
+      },
+      config: {
+        ...baseConfig,
+        approvalMode: 'actions',
+      },
+      context: {
+        available: false,
+        platform: 'darwin',
+      },
+      operationsExecuted: 0,
+      operationUnitsConsumed: 0,
+    })
+
+    expect(decision.allowed).toBe(true)
+    expect(decision.requiresApproval).toBe(true)
+    expect(decision.riskLevel).toBe('high')
+  })
+
   it('denies sensitive foreground apps for ui actions', () => {
     const decision = evaluateActionPolicy({
       action: {
@@ -129,5 +155,25 @@ describe('evaluateActionPolicy', () => {
 
     expect(decision.allowed).toBe(false)
     expect(decision.reasons[0]).toContain('COMPUTER_USE_OPENABLE_APPS')
+  })
+
+  it('allows app aliases when the canonical app is configured', () => {
+    const decision = evaluateActionPolicy({
+      action: {
+        kind: 'open_app',
+        input: {
+          app: 'VS Code',
+        },
+      },
+      config: baseConfig,
+      context: {
+        available: false,
+        platform: 'darwin',
+      },
+      operationsExecuted: 0,
+      operationUnitsConsumed: 0,
+    })
+
+    expect(decision.allowed).toBe(true)
   })
 })

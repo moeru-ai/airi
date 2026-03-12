@@ -20,6 +20,24 @@ export interface McpCallToolResult {
   isError?: boolean
 }
 
+export function normalizeQualifiedMcpToolName(name: string): string {
+  const normalized = name.trim()
+  if (!normalized) {
+    return normalized
+  }
+
+  if (normalized.includes('::')) {
+    return normalized
+  }
+
+  const dotSegments = normalized.split('.')
+  if (dotSegments.length === 2 && dotSegments.every(segment => segment.trim().length > 0)) {
+    return `${dotSegments[0]}::${dotSegments[1]}`
+  }
+
+  return normalized
+}
+
 type ToolsChangedCallback = () => void
 
 interface McpToolBridge {

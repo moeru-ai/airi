@@ -1,37 +1,51 @@
-import { env } from 'node:process'
+import { afterEach, describe, expect, it } from 'vitest'
 
-import { createOpenRouter } from '@xsai-ext/providers/create'
-import { describe, expect, it } from 'vitest'
+import { clearAiriSelfNavigationBridge, setAiriSelfNavigationBridge } from '../tools/airi-self'
+import { resolveBuiltinChatTools, shouldUseManualToolLoop } from './llm'
+import { clearMcpToolBridge } from './mcp-tool-bridge'
 
-import { attemptForToolsCompatibilityDiscovery } from './llm'
+afterEach(() => {
+  clearAiriSelfNavigationBridge()
+  clearMcpToolBridge()
+})
 
-function doesHaveOpenRouterApiKey() {
-  const apiKey = env.LLM_API_OPENROUTER_API_KEY
-  if (!apiKey) {
-    console.warn('Skipping llm store tests, because LLM_API_OPENROUTER_API_KEY is not set')
-  }
-
-  return !!apiKey
-}
-
-const hasOpenRouterApiKey = doesHaveOpenRouterApiKey()
-
-describe.skipIf(!hasOpenRouterApiKey)('llm store', { timeout: 60000 }, async () => {
-  it('should be false for phi-4', async () => {
-    // TODO: base url should not be hardcoded, wait for https://github.com/moeru-ai/xsai/pull/194
-    const res1 = await attemptForToolsCompatibilityDiscovery('microsoft/phi-4', createOpenRouter(env.LLM_API_OPENROUTER_API_KEY!, 'https://openrouter.ai/api/v1/'), [])
-    expect(res1).toBe(false)
+describe('shouldUseManualToolLoop', () => {
+  it('enables the manual loop for GitHub Models', () => {
+    expect(shouldUseManualToolLoop('https://models.github.ai/inference')).toBe(true)
   })
 
-  it('should be false for gpt-4o-mini', async () => {
-    // TODO: base url should not be hardcoded, wait for https://github.com/moeru-ai/xsai/pull/194
-    const res1 = await attemptForToolsCompatibilityDiscovery('openai/gpt-4o-mini', createOpenRouter(env.LLM_API_OPENROUTER_API_KEY!, 'https://openrouter.ai/api/v1/'), [])
-    expect(res1).toBe(false)
+  it('enables the manual loop for Google Generative Language OpenAI compatibility endpoints', () => {
+    expect(shouldUseManualToolLoop('https://generativelanguage.googleapis.com/v1beta/openai/')).toBe(true)
   })
 
-  it('should be true for gpt-4o', async () => {
-    // TODO: base url should not be hardcoded, wait for https://github.com/moeru-ai/xsai/pull/194
-    const res2 = await attemptForToolsCompatibilityDiscovery('openai/gpt-4o', createOpenRouter(env.LLM_API_OPENROUTER_API_KEY!, 'https://openrouter.ai/api/v1/'), [])
-    expect(res2).toBe(true)
+  it('does not enable the manual loop for standard OpenAI endpoints', () => {
+    expect(shouldUseManualToolLoop('https://api.openai.com/v1/')).toBe(false)
+  })
+})
+
+describe('resolveBuiltinChatTools', () => {
+  it('does not expose AIRI self-tools when the host bridge is absent', async () => {
+    const tools = await resolveBuiltinChatTools({ promptContentMode: 'default' })
+    const names = tools.map(tool => tool.function.name)
+
+    expect(names).toContain('mcp_list_tools')
+    expect(names).toContain('mcp_call_tool')
+    expect(names).not.toContain('airi_open_settings')
+    expect(names).not.toContain('airi_open_settings_module')
+    expect(names).not.toContain('airi_return_to_chat')
+  })
+
+  it('exposes AIRI self-tools once the host bridge is installed', async () => {
+    setAiriSelfNavigationBridge({
+      navigateTo: async (path: string) => path,
+      getCurrentRoute: () => '/chat',
+    })
+
+    const tools = await resolveBuiltinChatTools({ promptContentMode: 'default' })
+    const names = tools.map(tool => tool.function.name)
+
+    expect(names).toContain('airi_open_settings')
+    expect(names).toContain('airi_open_settings_module')
+    expect(names).toContain('airi_return_to_chat')
   })
 })

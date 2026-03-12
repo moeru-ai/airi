@@ -70,8 +70,8 @@ describe('runStateManager', () => {
       workflowId: 'dev_run_tests',
       phase: 'executing' as const,
       steps: [
-        { index: 1, label: 'cd project' },
-        { index: 2, label: 'pnpm test' },
+        { index: 1, stepId: 'step_a', label: 'cd project' },
+        { index: 2, stepId: 'step_b', label: 'pnpm test' },
       ],
       currentStepIndex: 0,
       startedAt: new Date().toISOString(),
@@ -86,7 +86,7 @@ describe('runStateManager', () => {
     manager.completeCurrentStep('success')
     expect(manager.getState().activeTask?.steps[0].outcome).toBe('success')
 
-    manager.advanceTaskStep({ index: 2, label: 'pnpm test' })
+    manager.advanceTaskStep({ index: 2, stepId: 'step_b', label: 'pnpm test' })
     manager.completeCurrentStep('failure', 'Tests failed')
     expect(manager.getState().activeTask?.failureCount).toBe(1)
 
@@ -105,5 +105,32 @@ describe('runStateManager', () => {
 
     expect(manager.isAppInForeground('Chrome')).toBe(true)
     expect(manager.isAppInForeground('Terminal')).toBe(false)
+  })
+
+  it('should track browser surface availability', () => {
+    const manager = new RunStateManager()
+    manager.updateBrowserSurfaceAvailability({
+      executionMode: 'local-windowed',
+      suitable: true,
+      availableSurfaces: ['browser_dom'],
+      preferredSurface: 'browser_dom',
+      selectedToolName: 'browser_dom_read_page',
+      reason: 'Browser extension bridge is connected.',
+      extension: {
+        enabled: true,
+        connected: true,
+      },
+      cdp: {
+        endpoint: 'http://localhost:9222',
+        connected: false,
+        connectable: false,
+        lastError: 'connection refused',
+      },
+    })
+
+    expect(manager.getState().browserSurfaceAvailability).toMatchObject({
+      preferredSurface: 'browser_dom',
+      selectedToolName: 'browser_dom_read_page',
+    })
   })
 })

@@ -15,12 +15,16 @@
  *   pnpm -F @proj-airi/computer-use-mcp exec tsx ./src/bin/smoke-workflow.ts
  */
 
-import { dirname, resolve } from 'node:path'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
 import { env, exit } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
+
+import { appNamesMatch, findKnownAppMention } from '../app-aliases'
 
 const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -45,6 +49,12 @@ function assert(condition: boolean, message: string) {
   }
 }
 
+function createSmokeProjectDir() {
+  const projectPath = mkdtempSync(join(tmpdir(), 'computer-use-smoke-project-'))
+  writeFileSync(join(projectPath, 'README.md'), '# smoke project\n', 'utf8')
+  return projectPath
+}
+
 async function createClient(overrides: Record<string, string> = {}): Promise<Client> {
   const command = env.COMPUTER_USE_SMOKE_SERVER_COMMAND?.trim() || 'pnpm'
   const args = (env.COMPUTER_USE_SMOKE_SERVER_ARGS || 'start').split(/\s+/).filter(Boolean)
@@ -59,7 +69,7 @@ async function createClient(overrides: Record<string, string> = {}): Promise<Cli
       COMPUTER_USE_EXECUTOR: 'dry-run',
       COMPUTER_USE_SESSION_TAG: 'smoke-workflow',
       COMPUTER_USE_ALLOWED_BOUNDS: '0,0,1920,1080',
-      COMPUTER_USE_OPENABLE_APPS: 'Terminal,Cursor,Google Chrome',
+      COMPUTER_USE_OPENABLE_APPS: 'Finder,Terminal,Cursor,Visual Studio Code,Google Chrome',
       ...overrides,
     },
     stderr: 'pipe',
@@ -91,6 +101,8 @@ async function testWorkflowToolsRegistered(client: Client) {
   const toolNames = new Set(tools.tools.map(t => t.name))
 
   const requiredTools = [
+    'workflow_open_workspace',
+    'workflow_validate_workspace',
     'workflow_run_tests',
     'workflow_inspect_failure',
     'workflow_browse_and_act',
@@ -113,11 +125,12 @@ async function testWorkflowToolsRegistered(client: Client) {
 
 async function testWorkflowRunTestsAutoApprove(client: Client) {
   console.info('\n=== Test 2: workflow_run_tests with autoApprove=true ===')
+  const projectPath = createSmokeProjectDir()
 
   const result = await client.callTool({
     name: 'workflow_run_tests',
     arguments: {
-      projectPath: '/tmp/test-project',
+      projectPath,
       testCommand: 'echo "all tests passed"',
       autoApprove: true,
     },
@@ -142,6 +155,76 @@ async function testWorkflowRunTestsAutoApprove(client: Client) {
 
   console.info('  PASSED')
   return data
+}
+
+// ---------------------------------------------------------------------------
+// Test 2b: workflow_open_workspace with autoApprove (happy path)
+// ---------------------------------------------------------------------------
+
+async function testWorkflowOpenWorkspace(client: Client) {
+  console.info('\n=== Test 2b: workflow_open_workspace with autoApprove=true ===')
+  const projectPath = createSmokeProjectDir()
+
+  const result = await client.callTool({
+    name: 'workflow_open_workspace',
+    arguments: {
+      projectPath,
+      ideApp: 'VS Code',
+      autoApprove: true,
+    },
+  })
+
+  const data = requireStructuredContent(result, 'workflow_open_workspace')
+  console.info(`  Status: ${data.status}`)
+  console.info(`  Workflow: ${data.workflow}`)
+
+  const stepResults = data.stepResults as Array<{ label: string, succeeded: boolean }>
+  assert(stepResults.some(step => step.label.includes('Finder')), 'expected Finder step')
+  assert(
+    stepResults.some(step => appNamesMatch(findKnownAppMention(step.label), 'Visual Studio Code')),
+    'expected VS Code step',
+  )
+  assert(
+    data.status === 'completed' || data.status === 'failed',
+    `expected completed or failed, got ${data.status}`,
+  )
+
+  console.info('  PASSED')
+}
+
+// ---------------------------------------------------------------------------
+// Test 2c: workflow_validate_workspace with autoApprove (happy path)
+// ---------------------------------------------------------------------------
+
+async function testWorkflowValidateWorkspace(client: Client) {
+  console.info('\n=== Test 2c: workflow_validate_workspace with autoApprove=true ===')
+  const projectPath = createSmokeProjectDir()
+
+  const result = await client.callTool({
+    name: 'workflow_validate_workspace',
+    arguments: {
+      projectPath,
+      ideApp: 'VS Code',
+      changesCommand: 'printf " M smoke-workflow.ts\\n"',
+      checkCommand: 'echo "typecheck ok"',
+      autoApprove: true,
+    },
+  })
+
+  const data = requireStructuredContent(result, 'workflow_validate_workspace')
+  console.info(`  Status: ${data.status}`)
+  console.info(`  Workflow: ${data.workflow}`)
+
+  const stepResults = data.stepResults as Array<{ label: string, succeeded: boolean }>
+  assert(stepResults.some(step => step.label === 'Confirm project working directory'), 'expected pwd validation step')
+  assert(stepResults.some(step => step.label === 'Inspect local changes'), 'expected changes inspection step')
+  assert(stepResults.some(step => step.label === 'Run workspace validation'), 'expected workspace validation step')
+  assert(
+    data.status === 'completed' || data.status === 'failed',
+    `expected completed or failed, got ${data.status}`,
+  )
+
+  console.info('  PASSED')
 }
 
 // ---------------------------------------------------------------------------
@@ -316,10 +399,25 @@ async function testWorkflowBrowseAndAct(client: Client) {
   const data = requireStructuredContent(result, 'workflow_browse_and_act')
   console.info(`  Status: ${data.status}`)
 
-  const stepResults = data.stepResults as Array<{ label: string, succeeded: boolean }>
-  for (const step of stepResults) {
-    const icon = step.succeeded ? '✓' : '✗'
-    console.info(`  ${icon} ${step.label}`)
+  // Reroute contract shape check: when the strategy returns reroute_required
+  // the formatter must emit the stable workflow_reroute contract.
+  if (data.kind === 'workflow_reroute' && data.status === 'reroute_required') {
+    console.info('  → Reroute detected, verifying contract shape')
+    assert(typeof data.workflow === 'string', 'reroute must include workflow name')
+    const reroute = data.reroute as Record<string, unknown> | undefined
+    assert(reroute != null && typeof reroute === 'object', 'reroute must include reroute detail')
+    assert(typeof reroute.recommendedSurface === 'string', 'reroute.recommendedSurface must be string')
+    assert(typeof reroute.suggestedTool === 'string', 'reroute.suggestedTool must be string')
+    assert(typeof reroute.strategyReason === 'string', 'reroute.strategyReason must be string')
+    assert(typeof reroute.explanation === 'string', 'reroute.explanation must be string')
+    console.info(`  ✓ Reroute contract valid (recommended: ${reroute.recommendedSurface})`)
+  }
+  else {
+    const stepResults = data.stepResults as Array<{ label: string, succeeded: boolean }>
+    for (const step of stepResults) {
+      const icon = step.succeeded ? '✓' : '✗'
+      console.info(`  ${icon} ${step.label}`)
+    }
   }
 
   console.info('  PASSED')
@@ -334,15 +432,17 @@ async function main() {
   console.info('║   Computer Use MCP — Workflow E2E Smoke Test  ║')
   console.info('╚════════════════════════════════════════════════╝')
 
-  // Test with approval_mode=none (auto-approve all).
-  console.info('\n--- Phase 1: approval_mode=none ---')
+  // Test with approval_mode=never (auto-approve all).
+  console.info('\n--- Phase 1: approval_mode=never ---')
   const clientNoApproval = await createClient({
-    COMPUTER_USE_APPROVAL_MODE: 'none',
+    COMPUTER_USE_APPROVAL_MODE: 'never',
   })
 
   try {
     await testWorkflowToolsRegistered(clientNoApproval)
     await testWorkflowRunTestsAutoApprove(clientNoApproval)
+    await testWorkflowOpenWorkspace(clientNoApproval)
+    await testWorkflowValidateWorkspace(clientNoApproval)
     await testDesktopGetStateAfterWorkflow(clientNoApproval)
     await testResumeNoSuspendedWorkflow(clientNoApproval)
     await testWorkflowInspectFailure(clientNoApproval)

@@ -6,12 +6,14 @@ import { tool } from '@xsai/tool'
 import { z } from 'zod'
 
 import { getCurrentMcpApprovalSessionId } from '../stores/mcp-approval-session'
-import { getMcpToolBridge, onMcpToolsChanged } from '../stores/mcp-tool-bridge'
+import { getMcpToolBridge, normalizeQualifiedMcpToolName, onMcpToolsChanged } from '../stores/mcp-tool-bridge'
 import {
   formatMcpToolListPromptContent,
   formatMcpToolResultPromptContent,
+  formatRerouteObservation,
   getMcpPromptContentOptions,
 } from './mcp-prompt-content'
+import { extractWorkflowReroute } from './mcp-reroute'
 
 const mcpParameterPrimitiveSchema = z.union([z.string(), z.number(), z.boolean(), z.null()])
 const mcpParameterValueSchema = z.union([
@@ -86,7 +88,7 @@ function buildToolErrorPromptContent(message: string): CommonContentPart[] {
 function buildCallToolDescription(toolList: McpToolDescriptor[] | null): string {
   if (toolList && toolList.length > 0) {
     const names = toolList.map(t => t.name).join(', ')
-    return `Call a tool on the MCP server. Currently available tools: [${names}]. Pass the qualified name as "<serverName>::<toolName>". The result is a list of content and a boolean indicating whether the tool call is an error.`
+    return `Call a tool on the MCP server. Currently available tools: [${names}]. Pass the qualified name as "<serverName>::<toolName>". If a model accidentally emits "<serverName>.<toolName>", AIRI will normalize it automatically. The result is a list of content and a boolean indicating whether the tool call is an error.`
   }
 
   return 'Call a tool on the MCP server. Call mcp_list_tools first to discover available tools. The result is a list of content and a boolean indicating whether the tool call is an error.'
@@ -121,12 +123,21 @@ export async function mcp(options?: McpToolOptions) {
       execute: async ({ name, parameters }, options) => {
         try {
           const parametersObject = Object.fromEntries(parameters.map(({ name, value }) => [name, value]))
+          const normalizedToolName = normalizeQualifiedMcpToolName(name)
           const result = await getMcpToolBridge().callTool({
-            name,
+            name: normalizedToolName,
             arguments: parametersObject,
             ...(options?.toolCallId ? { requestId: options.toolCallId } : {}),
             ...(getCurrentMcpApprovalSessionId() ? { approvalSessionId: getCurrentMcpApprovalSessionId() } : {}),
           })
+
+          // Dedicated reroute branch: workflow_reroute gets fixed-format
+          // observation instead of generic tool-result formatting.
+          const rerouteInstruction = extractWorkflowReroute(result)
+          if (rerouteInstruction) {
+            return formatRerouteObservation(rerouteInstruction)
+          }
+
           return await formatMcpToolResultPromptContent(result, promptContentOptions)
         }
         catch (error) {
@@ -135,7 +146,7 @@ export async function mcp(options?: McpToolOptions) {
         }
       },
       parameters: z.object({
-        name: z.string().describe('The qualified tool name to call. Use format "<serverName>::<toolName>"'),
+        name: z.string().describe('The qualified tool name to call. Prefer format "<serverName>::<toolName>"; AIRI also normalizes accidental "<serverName>.<toolName>" output from some models.'),
         parameters: z.array(z.object({
           name: z.string().describe('The name of the parameter'),
           value: mcpParameterValueSchema.describe('The value of the parameter'),

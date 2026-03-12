@@ -63,6 +63,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
   const sending = ref(false)
   const pendingQueuedSends = ref<QueuedSend[]>([])
+  const activeStreamingSessionId = ref<string | null>(null)
   const hooks = createChatHooks()
 
   const sendQueue = createQueue<QueuedSend>({
@@ -125,6 +126,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       return
 
     sending.value = true
+    activeStreamingSessionId.value = sessionId
 
     const isForegroundSession = () => sessionId === activeSessionId.value
 
@@ -352,6 +354,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       throw error
     }
     finally {
+      if (activeStreamingSessionId.value === sessionId)
+        activeStreamingSessionId.value = null
       sending.value = false
     }
   }
@@ -407,6 +411,29 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       : []
   }
 
+  function abortActiveSend(sessionId = activeSessionId.value) {
+    if (!sessionId)
+      return false
+
+    const hadPending = pendingQueuedSends.value.some(queued => queued.sessionId === sessionId)
+    const hadActiveStream = sending.value && activeStreamingSessionId.value === sessionId
+
+    if (!hadPending && !hadActiveStream)
+      return false
+
+    cancelPendingSends(sessionId)
+
+    if (hadActiveStream) {
+      chatSession.bumpSessionGeneration(sessionId)
+      if (sessionId === activeSessionId.value)
+        chatStream.resetStream()
+      activeStreamingSessionId.value = null
+      sending.value = false
+    }
+
+    return true
+  }
+
   return {
     sending,
 
@@ -415,6 +442,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     ingest,
     ingestOnFork,
     cancelPendingSends,
+    abortActiveSend,
 
     clearHooks: hooks.clearHooks,
 

@@ -11,6 +11,7 @@ import type {
 } from '../types'
 import type { ComputerUseServerRuntime } from './runtime'
 
+import { normalizeConfiguredAppAction } from '../app-aliases'
 import { evaluateActionPolicy } from '../policy'
 import { getRuntimePreflight } from '../preflight'
 import { buildCoordinateSpaceInfo } from '../runtime-probes'
@@ -21,7 +22,17 @@ import {
   explainActionOutcome,
   explainApprovalReason,
 } from '../transparency'
+import {
+  maskClipboardPreview,
+  readClipboardText,
+  writeClipboardText,
+} from '../utils/clipboard'
+import {
+  maskEnvValuePreview,
+  readEnvValue,
+} from '../utils/env-file'
 import { describeExecutionTarget } from './formatters'
+import { refreshRuntimeRunState } from './refresh-run-state'
 import {
   buildApprovalResponse,
   buildDeniedResponse,
@@ -36,7 +47,7 @@ export interface ExecuteActionOptions {
 export type ExecuteAction = (action: ActionInvocation, toolName: string, options?: ExecuteActionOptions) => Promise<CallToolResult>
 
 function isMutatingAction(action: ActionInvocation) {
-  return !['screenshot', 'observe_windows', 'wait', 'terminal_reset'].includes(action.kind)
+  return !['screenshot', 'observe_windows', 'wait', 'terminal_reset', 'clipboard_read_text', 'secret_read_env_value'].includes(action.kind)
 }
 
 async function captureOptionalScreenshot(params: {
@@ -106,17 +117,8 @@ function toTerminalStateContent(state: TerminalState) {
 
 export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteAction {
   return async (action, toolName, options = {}) => {
-    const [executionTarget, context, displayInfo] = await Promise.all([
-      runtime.executor.getExecutionTarget(),
-      runtime.executor.getForegroundContext(),
-      runtime.executor.getDisplayInfo(),
-    ])
-
-    // Update run state with fresh context.
-    runtime.stateManager.updateForegroundContext(context)
-    runtime.stateManager.updateExecutionTarget(executionTarget)
-    runtime.stateManager.updateDisplayInfo(displayInfo)
-    runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
+    const normalizedAction = normalizeConfiguredAppAction(action, runtime.config.openableApps)
+    const { executionTarget, context, displayInfo } = await refreshRuntimeRunState(runtime)
 
     const budget = runtime.session.getBudgetState()
     const preflight = getRuntimePreflight({
@@ -126,7 +128,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       executionTarget,
     })
     const decision = evaluateActionPolicy({
-      action,
+      action: normalizedAction,
       config: runtime.config,
       context,
       operationsExecuted: budget.operationsExecuted,
@@ -136,19 +138,19 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
 
     // Evaluate strategy advisories.
     const advisories = evaluateStrategy({
-      proposedAction: action,
+      proposedAction: normalizedAction,
       state: runtime.stateManager.getState(),
       freshContext: context,
     })
     const advisorySummary = summarizeAdvisories(advisories)
 
     // Build transparency: explain what we're about to do and why.
-    const intent = explainActionIntent(action, runtime.stateManager.getState())
+    const intent = explainActionIntent(normalizedAction, runtime.stateManager.getState())
 
     await runtime.session.record({
       event: 'requested',
       toolName,
-      action,
+      action: normalizedAction,
       context,
       policy: decision,
       result: {
@@ -167,7 +169,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       await runtime.session.record({
         event: 'denied',
         toolName,
-        action,
+        action: normalizedAction,
         context,
         policy: deniedDecision,
         result: {
@@ -180,7 +182,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       return buildDeniedResponse(deniedDecision, context, executionTarget)
     }
 
-    if (isMutatingAction(action) && preflight.mutationReadinessIssues.length > 0) {
+    if (isMutatingAction(normalizedAction) && preflight.mutationReadinessIssues.length > 0) {
       const deniedDecision = buildDeniedDecision({
         decision,
         issues: preflight.mutationReadinessIssues,
@@ -189,7 +191,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       await runtime.session.record({
         event: 'denied',
         toolName,
-        action,
+        action: normalizedAction,
         context,
         policy: deniedDecision,
         result: {
@@ -206,7 +208,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       await runtime.session.record({
         event: 'denied',
         toolName,
-        action,
+        action: normalizedAction,
         context,
         policy: decision,
         result: {
@@ -220,7 +222,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
     if (decision.requiresApproval && !options.skipApprovalQueue) {
       const pending = runtime.session.createPendingAction({
         toolName,
-        action,
+        action: normalizedAction,
         context,
         policy: decision,
       })
@@ -229,7 +231,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       await runtime.session.record({
         event: 'approval_required',
         toolName,
-        action,
+        action: normalizedAction,
         context,
         policy: decision,
         result: {
@@ -239,7 +241,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       })
 
       // Transparency: explain why approval is needed.
-      const approvalExplanation = explainApprovalReason(action, decision, context)
+      const approvalExplanation = explainApprovalReason(normalizedAction, decision, context)
       return buildApprovalResponse(pending, decision, context, {
         intent,
         approvalReason: approvalExplanation,
@@ -249,10 +251,12 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
 
     try {
       let backendResult: Record<string, unknown> = {}
+      let clipboardStructuredContent: Record<string, unknown> | undefined
+      let secretStructuredContent: Record<string, unknown> | undefined
 
-      switch (action.kind) {
+      switch (normalizedAction.kind) {
         case 'screenshot': {
-          const screenshot = await runtime.executor.takeScreenshot(action.input)
+          const screenshot = await runtime.executor.takeScreenshot(normalizedAction.input)
           runtime.session.setLastScreenshot(screenshot)
           runtime.stateManager.updateLastScreenshot({
             path: screenshot.path,
@@ -271,7 +275,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           await runtime.session.record({
             event: 'executed',
             toolName,
-            action,
+            action: normalizedAction,
             context,
             policy: decision,
             result: {
@@ -288,7 +292,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
             screenshot,
             structuredContent: {
               status: 'executed',
-              action: action.kind,
+              action: normalizedAction.kind,
               context,
               policy: decision,
               launchContext: preflight.launchContext,
@@ -304,38 +308,38 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           })
         }
         case 'observe_windows': {
-          const observation = await runtime.executor.observeWindows(action.input)
+          const observation = await runtime.executor.observeWindows(normalizedAction.input)
           runtime.stateManager.updateWindowObservation(observation)
           backendResult = { observation }
           break
         }
         case 'open_app': {
-          const result = await runtime.executor.openApp(action.input)
+          const result = await runtime.executor.openApp(normalizedAction.input)
           backendResult = {
             ...result,
-            app: action.input.app,
+            app: normalizedAction.input.app,
           }
           break
         }
         case 'focus_app': {
-          const result = await runtime.executor.focusApp(action.input)
+          const result = await runtime.executor.focusApp(normalizedAction.input)
           backendResult = {
             ...result,
-            app: action.input.app,
+            app: normalizedAction.input.app,
           }
           break
         }
         case 'click': {
           const pointerTrace = buildPointerTrace({
             from: runtime.session.getPointerPosition(),
-            to: { x: action.input.x, y: action.input.y },
+            to: { x: normalizedAction.input.x, y: normalizedAction.input.y },
             bounds: runtime.config.allowedBounds,
           })
           const result = await runtime.executor.click({
-            ...action.input,
+            ...normalizedAction.input,
             pointerTrace,
           })
-          runtime.session.setPointerPosition({ x: action.input.x, y: action.input.y })
+          runtime.session.setPointerPosition({ x: normalizedAction.input.x, y: normalizedAction.input.y })
           backendResult = {
             ...result,
             pointerTrace,
@@ -343,31 +347,31 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           break
         }
         case 'type_text': {
-          if (typeof action.input.x === 'number' && typeof action.input.y === 'number') {
+          if (typeof normalizedAction.input.x === 'number' && typeof normalizedAction.input.y === 'number') {
             const pointerTrace = buildPointerTrace({
               from: runtime.session.getPointerPosition(),
-              to: { x: action.input.x, y: action.input.y },
+              to: { x: normalizedAction.input.x, y: normalizedAction.input.y },
               bounds: runtime.config.allowedBounds,
             })
             // NOTICE: The preparatory click must succeed before we type.
             // If focus fails the text would go to the wrong element.
             try {
               await runtime.executor.click({
-                x: action.input.x,
-                y: action.input.y,
+                x: normalizedAction.input.x,
+                y: normalizedAction.input.y,
                 button: 'left',
                 clickCount: 1,
                 pointerTrace,
               })
-              runtime.session.setPointerPosition({ x: action.input.x, y: action.input.y })
+              runtime.session.setPointerPosition({ x: normalizedAction.input.x, y: normalizedAction.input.y })
               backendResult.focusPointerTrace = pointerTrace
             }
             catch (clickError) {
               const msg = clickError instanceof Error ? clickError.message : String(clickError)
-              throw new Error(`Preparatory click at (${action.input.x}, ${action.input.y}) failed before typing: ${msg}`)
+              throw new Error(`Preparatory click at (${normalizedAction.input.x}, ${normalizedAction.input.y}) failed before typing: ${msg}`)
             }
           }
-          const result = await runtime.executor.typeText(action.input)
+          const result = await runtime.executor.typeText(normalizedAction.input)
           backendResult = {
             ...backendResult,
             ...result,
@@ -375,25 +379,25 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           break
         }
         case 'press_keys': {
-          const result = await runtime.executor.pressKeys(action.input)
+          const result = await runtime.executor.pressKeys(normalizedAction.input)
           backendResult = { ...result }
           break
         }
         case 'scroll': {
-          const result = await runtime.executor.scroll(action.input)
-          if (typeof action.input.x === 'number' && typeof action.input.y === 'number') {
-            runtime.session.setPointerPosition({ x: action.input.x, y: action.input.y })
+          const result = await runtime.executor.scroll(normalizedAction.input)
+          if (typeof normalizedAction.input.x === 'number' && typeof normalizedAction.input.y === 'number') {
+            runtime.session.setPointerPosition({ x: normalizedAction.input.x, y: normalizedAction.input.y })
           }
           backendResult = { ...result }
           break
         }
         case 'wait': {
-          const result = await runtime.executor.wait(action.input)
+          const result = await runtime.executor.wait(normalizedAction.input)
           backendResult = { ...result }
           break
         }
         case 'terminal_exec': {
-          const result = await runtime.terminalRunner.execute(action.input)
+          const result = await runtime.terminalRunner.execute(normalizedAction.input)
           runtime.session.setTerminalState(runtime.terminalRunner.getState())
           runtime.stateManager.updateTerminalResult(result)
           backendResult = {
@@ -403,10 +407,55 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           break
         }
         case 'terminal_reset': {
-          const state = runtime.terminalRunner.resetState(action.input.reason)
+          const state = runtime.terminalRunner.resetState(normalizedAction.input.reason)
           runtime.session.setTerminalState(state)
           backendResult = {
             terminalState: toTerminalStateContent(state),
+          }
+          break
+        }
+        case 'secret_read_env_value': {
+          const result = await readEnvValue(normalizedAction.input)
+          backendResult = {
+            filePath: result.filePath,
+            key: result.key,
+            valueLength: result.value.length,
+            preview: maskEnvValuePreview(result.value),
+          }
+          secretStructuredContent = {
+            filePath: result.filePath,
+            key: result.key,
+            value: result.value,
+            valueLength: result.value.length,
+          }
+          break
+        }
+        case 'clipboard_read_text': {
+          const result = await readClipboardText(runtime.config, normalizedAction.input)
+          backendResult = {
+            textLength: result.originalLength,
+            returnedLength: result.returnedLength,
+            trimmed: result.trimmed,
+            truncated: result.truncated,
+            preview: maskClipboardPreview(result.text),
+          }
+          clipboardStructuredContent = {
+            text: result.text,
+            textLength: result.originalLength,
+            returnedLength: result.returnedLength,
+            trimmed: result.trimmed,
+            truncated: result.truncated,
+          }
+          break
+        }
+        case 'clipboard_write_text': {
+          const result = await writeClipboardText(runtime.config, normalizedAction.input.text)
+          backendResult = {
+            textLength: result.textLength,
+            preview: maskClipboardPreview(normalizedAction.input.text),
+          }
+          clipboardStructuredContent = {
+            textLength: result.textLength,
           }
           break
         }
@@ -414,7 +463,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
 
       runtime.session.consumeOperation(decision.estimatedOperationUnits)
       const screenshot = await captureOptionalScreenshot({
-        action,
+        action: normalizedAction,
         executor: runtime.executor,
         config: runtime.config,
       })
@@ -436,16 +485,16 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
 
       // Transparency: explain what just happened.
       const outcome = explainActionOutcome({
-        action,
+        action: normalizedAction,
         succeeded: true,
-        terminalResult: action.kind === 'terminal_exec' ? (backendResult as unknown as TerminalCommandResult) : undefined,
+        terminalResult: normalizedAction.kind === 'terminal_exec' ? (backendResult as unknown as TerminalCommandResult) : undefined,
         context,
       })
 
       await runtime.session.record({
         event: 'executed',
         toolName,
-        action,
+        action: normalizedAction,
         context,
         policy: decision,
         result: {
@@ -461,7 +510,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         screenshot,
         structuredContent: {
           status: 'executed',
-          action: action.kind,
+          action: normalizedAction.kind,
           context,
           policy: decision,
           launchContext: preflight.launchContext,
@@ -473,7 +522,9 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
             displayInfo,
           }),
           backendResult,
-          terminalState: action.kind.startsWith('terminal_') ? toTerminalStateContent(runtime.session.getTerminalState()) : undefined,
+          secret: secretStructuredContent,
+          clipboard: clipboardStructuredContent,
+          terminalState: normalizedAction.kind.startsWith('terminal_') ? toTerminalStateContent(runtime.session.getTerminalState()) : undefined,
           screenshot: screenshot
             ? toScreenshotContent(screenshot)
             : undefined,
@@ -496,7 +547,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
 
       // Transparency: explain what failed.
       const failureExplanation = explainActionOutcome({
-        action,
+        action: normalizedAction,
         succeeded: false,
         errorMessage,
         context,
@@ -505,7 +556,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       await runtime.session.record({
         event: 'failed',
         toolName,
-        action,
+        action: normalizedAction,
         context,
         policy: decision,
         result: {
@@ -516,7 +567,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
 
       return buildExecutionErrorResponse({
         errorMessage: `${failureExplanation}${advisorySummary ? ` Strategy: ${advisorySummary}` : ''}`,
-        action,
+        action: normalizedAction,
         context,
         executionTarget,
         policy: decision,

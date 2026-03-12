@@ -9,6 +9,9 @@ export type ActionKind
     | 'observe_windows'
     | 'open_app'
     | 'focus_app'
+    | 'secret_read_env_value'
+    | 'clipboard_read_text'
+    | 'clipboard_write_text'
     | 'click'
     | 'type_text'
     | 'press_keys'
@@ -16,7 +19,74 @@ export type ActionKind
     | 'wait'
     | 'terminal_exec'
     | 'terminal_reset'
-export type ApprovalGrantScope = 'terminal_and_apps'
+export type ApprovalGrantScope = 'terminal_and_apps' | 'pty_session'
+
+// ---------------------------------------------------------------------------
+// Terminal lane — formal surface / transport split
+// ---------------------------------------------------------------------------
+
+/** Which terminal surface a step/tool targets. */
+export type TerminalSurface = 'exec' | 'pty' | 'vscode' | null
+
+/**
+ * How bytes actually reach the OS process.
+ * v1: `vscode` always uses `exec` transport — no vscode+pty combo.
+ */
+export type TerminalTransport = 'exec' | 'pty' | null
+
+/** Persisted decision for the most recent surface routing. */
+export interface SurfaceDecision {
+  surface: TerminalSurface
+  transport: TerminalTransport
+  /** Why this surface was chosen. */
+  reason: string
+  /** Where the decision originated (e.g. 'strategy', 'workflow_reroute'). */
+  source: string
+  /** ISO timestamp. */
+  at: string
+}
+
+/** Binds a workflow step to a terminal session. */
+export interface WorkflowStepTerminalBinding {
+  taskId: string
+  stepId: string
+  surface: TerminalSurface
+  ptySessionId?: string
+}
+
+/** Open Grant record for a PTY session. */
+export interface PtyApprovalGrant {
+  approvalSessionId: string
+  ptySessionId: string
+  /** ISO timestamp when the grant was created. */
+  grantedAt: string
+  /** Whether the grant is still active. */
+  active: boolean
+}
+
+/** Minimal audit record for a PTY operation. */
+export interface PtyAuditEntry {
+  taskId?: string
+  stepId?: string
+  ptySessionId: string
+  event: 'create' | 'send_input' | 'read_screen' | 'resize' | 'destroy'
+  /** ISO timestamp. */
+  at: string
+  // create
+  cwd?: string
+  rows?: number
+  cols?: number
+  pid?: number
+  // send_input
+  byteCount?: number
+  inputPreview?: string
+  // read_screen
+  returnedLineCount?: number
+  alive?: boolean
+  // destroy
+  actor?: string
+  outcome?: string
+}
 
 export interface Bounds {
   x: number
@@ -138,6 +208,21 @@ export interface FocusAppActionInput {
   app: string
 }
 
+export interface ClipboardReadTextActionInput {
+  maxLength?: number
+  trim?: boolean
+}
+
+export interface SecretReadEnvValueActionInput {
+  filePath: string
+  keys: string[]
+  allowPlaceholder?: boolean
+}
+
+export interface ClipboardWriteTextActionInput {
+  text: string
+}
+
 export interface ScreenshotRequest {
   label?: string
 }
@@ -150,6 +235,15 @@ export interface TerminalExecActionInput {
 
 export interface TerminalResetActionInput {
   reason?: string
+}
+
+export interface PtyCreateApprovalInput {
+  rows?: number
+  cols?: number
+  cwd?: string
+  stepId?: string
+  workflowStepLabel?: string
+  approvalSessionId?: string
 }
 
 export interface TerminalCommandResult {
@@ -170,6 +264,40 @@ export interface TerminalState {
   approvalGrantedScope?: ApprovalGrantScope
 }
 
+export interface VscodeProblem {
+  file: string
+  line: number
+  column: number
+  severity: string
+  code: string
+  message: string
+}
+
+export interface VscodeControllerState {
+  codeCli?: {
+    cli: string
+    path: string
+  }
+  workspacePath?: string
+  currentFile?: {
+    filePath: string
+    line?: number
+    column?: number
+  }
+  lastTask?: {
+    command: string
+    cwd: string
+    exitCode: number
+  }
+  lastProblems?: {
+    command: string
+    cwd: string
+    problemCount: number
+    problems: VscodeProblem[]
+  }
+  updatedAt: string
+}
+
 export interface TestTargetLaunchResult {
   launched: boolean
   appName: string
@@ -183,6 +311,9 @@ export type ActionInvocation
     | { kind: 'observe_windows', input: ObserveWindowsRequest }
     | { kind: 'open_app', input: OpenAppActionInput }
     | { kind: 'focus_app', input: FocusAppActionInput }
+    | { kind: 'secret_read_env_value', input: SecretReadEnvValueActionInput }
+    | { kind: 'clipboard_read_text', input: ClipboardReadTextActionInput }
+    | { kind: 'clipboard_write_text', input: ClipboardWriteTextActionInput }
     | { kind: 'click', input: ClickActionInput }
     | { kind: 'type_text', input: TypeTextActionInput }
     | { kind: 'press_keys', input: PressKeysActionInput }
@@ -190,6 +321,10 @@ export type ActionInvocation
     | { kind: 'wait', input: WaitActionInput }
     | { kind: 'terminal_exec', input: TerminalExecActionInput }
     | { kind: 'terminal_reset', input: TerminalResetActionInput }
+
+export type PendingExecutableAction
+  = | ActionInvocation
+    | { kind: 'pty_create', input: PtyCreateApprovalInput }
 
 export interface PolicyDecision {
   allowed: boolean
@@ -205,7 +340,7 @@ export interface SessionTraceEntry {
   at: string
   event: 'requested' | 'approval_required' | 'approved' | 'rejected' | 'executed' | 'denied' | 'failed'
   toolName: string
-  action: ActionInvocation
+  action: PendingExecutableAction
   context: ForegroundContext
   policy: PolicyDecision
   result?: Record<string, unknown>
@@ -215,7 +350,7 @@ export interface PendingActionRecord {
   id: string
   createdAt: string
   toolName: string
-  action: ActionInvocation
+  action: PendingExecutableAction
   policy: PolicyDecision
   context: ForegroundContext
 }
@@ -240,6 +375,19 @@ export interface DisplayInfo {
   pixelHeight?: number
   scaleFactor?: number
   isRetina?: boolean
+  displayCount?: number
+  displays?: Array<{
+    displayId: number
+    isMain: boolean
+    isBuiltIn: boolean
+    bounds: Bounds
+    visibleBounds: Bounds
+    scaleFactor: number
+    pixelWidth: number
+    pixelHeight: number
+  }>
+  combinedBounds?: Bounds
+  capturedAt?: string
   note?: string
 }
 
@@ -279,6 +427,88 @@ export interface CoordinateSpaceInfo {
   lastScreenshot?: LastScreenshotInfo
 }
 
+export interface BrowserDomBridgeConfig {
+  enabled: boolean
+  host: string
+  port: number
+  requestTimeoutMs: number
+}
+
+export interface BrowserDomBridgeHello {
+  source?: string
+  version?: string
+  connectedAt?: string
+}
+
+export interface BrowserDomBridgeStatus {
+  enabled: boolean
+  host: string
+  port: number
+  connected: boolean
+  pendingRequests: number
+  lastHello?: BrowserDomBridgeHello
+  lastError?: string
+}
+
+export type BrowserSurfaceKind = 'browser_dom' | 'browser_cdp'
+
+export interface BrowserSurfaceAvailability {
+  executionMode: ExecutionMode
+  suitable: boolean
+  availableSurfaces: BrowserSurfaceKind[]
+  preferredSurface?: BrowserSurfaceKind
+  selectedToolName?: 'browser_dom_read_page' | 'browser_cdp_collect_elements'
+  reason: string
+  extension: {
+    enabled: boolean
+    connected: boolean
+    lastError?: string
+  }
+  cdp: {
+    endpoint: string
+    connected: boolean
+    connectable: boolean
+    lastError?: string
+  }
+}
+
+export interface BrowserDomInteractiveElement {
+  tag?: string
+  id?: string
+  name?: string
+  type?: string
+  className?: string
+  text?: string
+  value?: string
+  href?: string
+  placeholder?: string
+  disabled?: boolean
+  checked?: boolean
+  visible?: boolean
+  rect?: {
+    x: number
+    y: number
+    w: number
+    h: number
+  }
+  center?: {
+    x: number
+    y: number
+  }
+}
+
+export interface BrowserDomFrameDom {
+  url?: string
+  title?: string
+  bodyText?: string
+  interactiveElements?: BrowserDomInteractiveElement[]
+}
+
+export interface BrowserDomFrameResult<T = unknown> {
+  frameId: number
+  result: T
+}
+
 export interface ComputerUseConfig {
   sessionRoot: string
   screenshotsDir: string
@@ -310,10 +540,13 @@ export interface ComputerUseConfig {
   remoteObservationBaseUrl?: string
   remoteObservationServePort?: number
   remoteObservationToken?: string
+  browserDomBridge: BrowserDomBridgeConfig
   binaries: {
     swift: string
     osascript: string
     screencapture: string
+    pbcopy: string
+    pbpaste: string
     ssh: string
     tar: string
     open: string

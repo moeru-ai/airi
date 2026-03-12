@@ -1,6 +1,7 @@
 import type { CommonContentPart } from '@xsai/shared-chat'
 
 import type { McpCallToolResult, McpToolDescriptor } from '../stores/mcp-tool-bridge'
+import type { WorkflowRerouteInstruction } from './mcp-reroute'
 
 export type McpPromptContentMode = 'default' | 'tight' | 'tight-text-only'
 
@@ -446,6 +447,37 @@ function truncateText(text: string, maxChars: number): string {
   return text.length > maxChars
     ? `${text.slice(0, Math.max(0, maxChars - 1)).trimEnd()}...`
     : text
+}
+
+// ---------------------------------------------------------------------------
+// Reroute observation template
+// ---------------------------------------------------------------------------
+
+/**
+ * Format a workflow reroute instruction into a fixed observation template.
+ *
+ * All providers share this exact template so models see a consistent
+ * signal regardless of which LLM is driving the conversation.
+ */
+export function formatRerouteObservation(instruction: WorkflowRerouteInstruction): CommonContentPart[] {
+  const r = instruction.reroute
+  const lines: string[] = [
+    'Workflow reroute required.',
+    'The workflow stopped safely before continuing on the wrong execution surface.',
+    `Reason: ${r.strategyReason}`,
+    ...(r.executionReason ? [`Execution detail: ${r.executionReason}`] : []),
+    `Recommended surface: ${r.recommendedSurface}`,
+    `Suggested next tool: ${r.suggestedTool}`,
+    ...(r.availableSurfaces && r.availableSurfaces.length > 0
+      ? [`Available surfaces: ${r.availableSurfaces.join(', ')}`]
+      : []),
+    ...(r.preferredSurface ? [`Preferred surface: ${r.preferredSurface}`] : []),
+    ...(r.terminalSurface ? [`Terminal surface: ${r.terminalSurface}`] : []),
+    ...(r.ptySessionId ? [`PTY session id: ${r.ptySessionId}`] : []),
+    'Decide the next tool call based on this reroute instruction.',
+  ]
+
+  return [{ type: 'text', text: lines.join('\n') }]
 }
 
 function isRecord(value: unknown): value is Record<string, any> {

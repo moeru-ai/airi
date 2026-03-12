@@ -1,5 +1,7 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 
+import type { AiriDebugSnapshotLike } from '../e2e/debug-targets'
+
 import { execFile, spawn } from 'node:child_process'
 import { createWriteStream } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
@@ -13,6 +15,14 @@ import WebSocket from 'ws'
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
+
+import { hasCompletedChatTurn } from '../e2e/chat-turn'
+import {
+
+  isChatSurfaceTarget,
+  prioritizeInspectableAiriTargets,
+} from '../e2e/debug-targets'
+import { getProviderBootstrapConfig } from '../e2e/provider-bootstrap'
 
 interface DebugTarget {
   id: string
@@ -63,12 +73,27 @@ interface ReportShape {
 const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const repoDir = resolve(packageDir, '../..')
 const preferredDebugPort = Number(env.AIRI_E2E_DEBUG_PORT || '9222')
-const promptText = env.AIRI_E2E_PROMPT?.trim() || '请用一句中文简短回复：你好，我正在做 AIRI 桌面端到端可观测测试。'
 const runId = new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-')
+const preferredProviderId = env.AIRI_E2E_PROVIDER?.trim() || 'github-models'
+const preferredModelCandidates = Array.from(new Set(
+  (env.AIRI_E2E_MODELS?.trim()
+    ? env.AIRI_E2E_MODELS.split(',')
+    : [env.AIRI_E2E_MODEL?.trim() || 'openai/gpt-4o-mini', 'openai/gpt-4.1-mini'])
+    .map(model => model?.trim())
+    .filter((model): model is string => Boolean(model)),
+))
+const promptMarker = `airi-e2e-${runId.slice(-8)}`
+// NOTICE: keep the default prompt ASCII-only. On macOS, injecting non-ASCII
+// text through Quartz events can interact with the active IME composition state,
+// which makes the follow-up Enter key commit composition instead of submitting
+// the AIRI chat textarea. The prompt remains overrideable via AIRI_E2E_PROMPT.
+const promptBaseText = env.AIRI_E2E_PROMPT?.trim() || 'Reply with one short sentence only: hello from AIRI desktop E2E.'
+const promptText = `${promptBaseText} [${promptMarker}]`
 const reportDir = resolve(packageDir, '.computer-use-mcp', 'reports', `airi-chat-observable-${runId}`)
 const reportPath = resolve(reportDir, 'report.json')
 const stageLogPath = resolve(reportDir, 'stage-tamagotchi.log')
 const mcpSessionRoot = resolve(reportDir, 'computer-use-session')
+const rootEnvPath = resolve(repoDir, '.env')
 
 const report: ReportShape = {
   startedAt: new Date().toISOString(),
@@ -121,6 +146,24 @@ function requireStructuredContent(result: unknown, label: string) {
 
 function sleep(ms: number) {
   return new Promise(resolvePromise => setTimeout(resolvePromise, ms))
+}
+
+async function withTimeout<T>(label: string, task: Promise<T>, timeoutMs: number) {
+  let timeoutHandle: NodeJS.Timeout | undefined
+
+  try {
+    return await Promise.race([
+      task,
+      new Promise<never>((_resolvePromise, rejectPromise) => {
+        timeoutHandle = setTimeout(() => rejectPromise(new Error(`Timed out waiting for ${label}`)), timeoutMs)
+      }),
+    ])
+  }
+  finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle)
+    }
+  }
 }
 
 async function writeReport() {
@@ -178,6 +221,39 @@ async function waitFor<T>(label: string, task: () => Promise<T | undefined>, tim
   }
 
   throw new Error(`Timed out waiting for ${label}`)
+}
+
+function parseDotEnv(text: string) {
+  const values: Record<string, string> = {}
+
+  for (const line of text.split(/\r?\n/u)) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) {
+      continue
+    }
+
+    const separatorIndex = trimmed.indexOf('=')
+    if (separatorIndex <= 0) {
+      continue
+    }
+
+    const key = trimmed.slice(0, separatorIndex).trim()
+    const rawValue = trimmed.slice(separatorIndex + 1).trim()
+    const unwrapped = rawValue.replace(/^['"]|['"]$/gu, '')
+    values[key] = unwrapped
+  }
+
+  return values
+}
+
+async function readRootEnvValues() {
+  try {
+    const raw = await readFile(rootEnvPath, 'utf-8')
+    return parseDotEnv(raw)
+  }
+  catch {
+    return {}
+  }
 }
 
 class CdpClient {
@@ -295,10 +371,83 @@ async function listDebugTargets(browserWsUrl: string) {
   }
 }
 
-async function waitForTarget(browserWsUrl: string, predicate: (target: DebugTarget) => boolean, label: string) {
+async function bringTargetToFront(client: CdpClient, label: string) {
+  await client.send('Page.bringToFront')
+  addTimeline('target-brought-to-front', { label })
+  await sleep(750)
+}
+
+async function getAiriDebugSnapshot(client: CdpClient) {
+  return await client.evaluate<AiriDebugSnapshotLike | undefined>(`(() => {
+    const bridge = window.__AIRI_DEBUG__
+    if (!bridge || typeof bridge.getSnapshot !== 'function') {
+      return undefined
+    }
+
+    return bridge.getSnapshot()
+  })()`)
+}
+
+async function waitForChatSurfaceReady(client: CdpClient, label: string) {
   return await waitFor(label, async () => {
-    const targets = await listDebugTargets(browserWsUrl).catch(() => [])
-    return targets.find(predicate)
+    try {
+      const snapshot = await client.evaluate<Record<string, any>>('window.__AIRI_DEBUG__.getSnapshot()')
+      if (snapshot.dom?.hasTextarea) {
+        return snapshot
+      }
+
+      return undefined
+    }
+    catch {
+      return undefined
+    }
+  }, 30_000, 250)
+}
+
+async function findTargetWithAiriDebugBridge(
+  browserWsUrl: string,
+  label: string,
+  predicate?: (target: DebugTarget, snapshot: AiriDebugSnapshotLike) => boolean,
+) {
+  return await waitFor(label, async () => {
+    const targets = prioritizeInspectableAiriTargets(await listDebugTargets(browserWsUrl).catch(() => []))
+
+    for (const target of targets) {
+      let client: CdpClient | undefined
+
+      try {
+        client = await withTimeout(
+          `${label} connect ${target.title || target.url || target.id}`,
+          CdpClient.connect(target),
+          2_500,
+        )
+        const snapshot = await withTimeout(
+          `${label} snapshot ${target.title || target.url || target.id}`,
+          getAiriDebugSnapshot(client),
+          2_500,
+        )
+        if (!snapshot) {
+          continue
+        }
+
+        if (predicate && !predicate(target, snapshot)) {
+          continue
+        }
+
+        return {
+          target,
+          snapshot,
+        }
+      }
+      catch {
+        continue
+      }
+      finally {
+        await client?.close().catch(() => {})
+      }
+    }
+
+    return undefined
   }, 90_000, 750)
 }
 
@@ -311,6 +460,8 @@ function summarizeMessageText(value: unknown) {
   return normalized.length > 240 ? `${normalized.slice(0, 237)}...` : normalized
 }
 
+let exitCode = 0
+
 async function main() {
   let stageProcess: ChildProcessWithoutNullStreams | undefined
   let mcpClient: Client | undefined
@@ -320,6 +471,12 @@ async function main() {
   let chatSurfaceMode: 'separate-window' | 'same-window-route' = 'separate-window'
   let browserWsUrl: string | undefined
   const debugPort = await findAvailablePort(preferredDebugPort)
+  const rootEnvValues = await readRootEnvValues()
+  const providerBootstrapConfig = getProviderBootstrapConfig({
+    providerId: preferredProviderId,
+    processEnv: env,
+    dotenvValues: rootEnvValues,
+  })
 
   try {
     await mkdir(reportDir, { recursive: true })
@@ -370,36 +527,21 @@ async function main() {
     }, 120_000, 500)
     addTimeline('remote-debug-browser-ready', { browserWsUrl: activeBrowserWsUrl, debugPort })
 
-    const mainTarget = await waitForTarget(
+    const mainTargetMatch = await findTargetWithAiriDebugBridge(
       activeBrowserWsUrl,
-      (target) => {
-        if (target.type !== 'page') {
-          return false
-        }
-
-        if (!target.url.startsWith('http://localhost:5173/')) {
-          return false
-        }
-
-        return !target.url.includes('/__inspect__')
-          && !target.url.includes('/__devtools__')
-          && !target.url.includes('/__unocss')
-      },
       'AIRI main target',
+      (_target, snapshot) => !String(snapshot.route || '').includes('/chat'),
     )
-    addTimeline('main-target-ready', { title: mainTarget.title, url: mainTarget.url })
+    const mainTarget = mainTargetMatch.target
+    addTimeline('main-target-ready', {
+      title: mainTarget.title,
+      url: mainTarget.url,
+      route: mainTargetMatch.snapshot.route,
+      documentTitle: mainTargetMatch.snapshot.documentTitle,
+    })
 
     mainTargetClient = await CdpClient.connect(mainTarget)
-
-    await waitFor('AIRI debug bridge (main window)', async () => {
-      try {
-        const exists = await mainTargetClient!.evaluate<boolean>('Boolean(window.__AIRI_DEBUG__ && typeof window.__AIRI_DEBUG__.getSnapshot === "function")')
-        return exists ? true : undefined
-      }
-      catch {
-        return undefined
-      }
-    }, 60_000, 750)
+    await bringTargetToFront(mainTargetClient, 'main')
 
     const command = env.COMPUTER_USE_SMOKE_SERVER_COMMAND?.trim() || 'pnpm'
     const args = parseCommandArgs(env.COMPUTER_USE_SMOKE_SERVER_ARGS, ['start'])
@@ -413,7 +555,8 @@ async function main() {
         ...env,
         COMPUTER_USE_EXECUTOR: 'macos-local',
         COMPUTER_USE_APPROVAL_MODE: 'never',
-        COMPUTER_USE_OPENABLE_APPS: 'Terminal,Cursor,Google Chrome,AIRI,Chat',
+        COMPUTER_USE_OPENABLE_APPS: 'Terminal,Cursor,Google Chrome,Electron',
+        COMPUTER_USE_DENY_APPS: '1Password,Keychain,System Settings,Activity Monitor',
         COMPUTER_USE_SESSION_TAG: `airi-e2e-${runId}`,
         COMPUTER_USE_ALLOWED_BOUNDS: env.COMPUTER_USE_ALLOWED_BOUNDS || '0,0,2560,1600',
         COMPUTER_USE_SESSION_ROOT: mcpSessionRoot,
@@ -457,28 +600,35 @@ async function main() {
     addTimeline('screenshot-captured', { label: 'before-open-chat' })
 
     try {
-      await mainTargetClient.evaluate('window.__AIRI_DEBUG__.openChat()')
+      await withTimeout(
+        'AIRI debug bridge openChat',
+        mainTargetClient.evaluate('window.__AIRI_DEBUG__.openChat()'),
+        8_000,
+      )
       addTimeline('chat-open-requested', { mode: 'separate-window' })
 
-      const chatTarget = await waitForTarget(
+      const chatTargetMatch = await findTargetWithAiriDebugBridge(
         activeBrowserWsUrl,
-        target => target.type === 'page' && (target.title === 'Chat' || target.url.includes('#/chat')),
         'Chat target',
+        (target, snapshot) => isChatSurfaceTarget(target, snapshot),
       )
-      addTimeline('chat-target-ready', { title: chatTarget.title, url: chatTarget.url, mode: 'separate-window' })
+      const chatTarget = chatTargetMatch.target
+      addTimeline('chat-target-ready', {
+        title: chatTarget.title,
+        url: chatTarget.url,
+        route: chatTargetMatch.snapshot.route,
+        documentTitle: chatTargetMatch.snapshot.documentTitle,
+        mode: 'separate-window',
+      })
 
       chatTargetClient = await CdpClient.connect(chatTarget)
-      await chatTargetClient.send('Page.bringToFront')
-
-      await waitFor('AIRI debug bridge (chat window)', async () => {
-        try {
-          const exists = await chatTargetClient!.evaluate<boolean>('Boolean(window.__AIRI_DEBUG__ && typeof window.__AIRI_DEBUG__.getSnapshot === "function")')
-          return exists ? true : undefined
-        }
-        catch {
-          return undefined
-        }
-      }, 60_000, 750)
+      await bringTargetToFront(chatTargetClient, 'chat')
+      const readyChatSnapshot = await waitForChatSurfaceReady(chatTargetClient, 'chat surface ready')
+      report.debugSnapshots.push(readyChatSnapshot)
+      addTimeline('chat-surface-ready', {
+        route: String(readyChatSnapshot.route || ''),
+        hasTextarea: Boolean(readyChatSnapshot.dom?.hasTextarea),
+      })
     }
     catch (error) {
       chatSurfaceMode = 'same-window-route'
@@ -502,6 +652,14 @@ async function main() {
       }, 30_000, 750)
 
       chatTargetClient = mainTargetClient
+      await bringTargetToFront(chatTargetClient, 'main-chat-fallback')
+      const readyChatSnapshot = await waitForChatSurfaceReady(chatTargetClient, 'fallback chat surface ready')
+      report.debugSnapshots.push(readyChatSnapshot)
+      addTimeline('chat-surface-ready', {
+        route: String(readyChatSnapshot.route || ''),
+        hasTextarea: Boolean(readyChatSnapshot.dom?.hasTextarea),
+        mode: 'same-window-route',
+      })
       chatClientSharesMainTarget = true
       addTimeline('chat-target-ready', {
         title: 'AIRI',
@@ -509,6 +667,16 @@ async function main() {
         mode: 'same-window-route',
       })
     }
+
+    const focusedDesktop = await mcpClient.callTool({
+      name: 'desktop_focus_app',
+      arguments: { app: 'Electron' },
+    })
+    const focusedDesktopData = requireStructuredContent(focusedDesktop, 'desktop_focus_app')
+    addTimeline('desktop-focus-app', {
+      app: 'Electron',
+      status: focusedDesktopData.status,
+    })
 
     const observation = await waitFor('Chat window observation', async () => {
       const result = await mcpClient!.callTool({
@@ -519,8 +687,11 @@ async function main() {
       const observationPayload = ((data.backendResult as Record<string, unknown> | undefined)?.observation
         || data.observation) as Record<string, unknown> | undefined
       const windows = Array.isArray(observationPayload?.windows) ? observationPayload.windows as Array<Record<string, unknown>> : []
-      const expectedWindowTitle = chatSurfaceMode === 'same-window-route' ? 'AIRI' : 'Chat'
-      const chatWindow = windows.find(window => String(window.title || '').includes(expectedWindowTitle))
+      const frontmostAppName = String(observationPayload?.frontmostAppName || '')
+      const chatWindow = windows.find(window => String(window.title || '').includes('AIRI'))
+      if (!frontmostAppName.includes('Electron')) {
+        return undefined
+      }
       if (!chatWindow) {
         return undefined
       }
@@ -535,29 +706,74 @@ async function main() {
       mode: chatSurfaceMode,
     })
 
-    const initialSnapshot = await chatTargetClient.evaluate<Record<string, any>>('window.__AIRI_DEBUG__.getSnapshot()')
-    report.debugSnapshots.push(initialSnapshot)
-    addTimeline('initial-chat-snapshot', {
-      providerConfigured: Boolean(initialSnapshot.provider?.configured),
-      providerId: String(initialSnapshot.provider?.activeProvider || ''),
-      modelId: String(initialSnapshot.provider?.activeModel || ''),
-      messageCount: Number(initialSnapshot.chat?.messageCount || 0),
+    await chatTargetClient.evaluate('window.__AIRI_DEBUG__.clearEvents()')
+    const selectionSnapshot = await chatTargetClient.evaluate<Record<string, any>>(`window.__AIRI_DEBUG__.ensureConsciousnessSelection(${JSON.stringify({
+      provider: preferredProviderId,
+      preferredModels: preferredModelCandidates,
+      providerConfig: providerBootstrapConfig,
+    })})`)
+    report.debugSnapshots.push(selectionSnapshot)
+    addTimeline('consciousness-selection-ready', {
+      providerId: String(selectionSnapshot.provider?.activeProvider || ''),
+      modelId: String(selectionSnapshot.provider?.activeModel || ''),
+      preferredProviderId,
+      preferredModelCandidates,
+      providerAvailable: Boolean(selectionSnapshot.provider?.providerAvailable),
+      providerBootstrapped: Boolean(providerBootstrapConfig),
     })
 
-    await chatTargetClient.evaluate(`(() => {
-      window.focus()
-      const textarea = document.querySelector('textarea.ph-no-capture')
-      if (!textarea) {
-        return { ok: false, reason: 'textarea-not-found' }
-      }
-      textarea.focus()
-      return {
-        ok: document.activeElement === textarea,
-        placeholder: textarea.getAttribute('placeholder'),
-        valueLength: textarea.value.length,
-      }
-    })()`)
-    addTimeline('textarea-focused')
+    if (preferredProviderId === 'github-models' && !selectionSnapshot.provider?.providerAvailable) {
+      throw new Error(`GitHub Models provider is unavailable before chat send. Checked .env at ${rootEnvPath} for bootstrap credentials, but AIRI still did not validate github-models.`)
+    }
+
+    await chatTargetClient.evaluate('window.__AIRI_DEBUG__.clearEvents()')
+    const resetSnapshot = await chatTargetClient.evaluate<Record<string, any>>('window.__AIRI_DEBUG__.resetChatSession()')
+    report.debugSnapshots.push(resetSnapshot)
+    addTimeline('chat-session-reset', {
+      providerConfigured: Boolean(resetSnapshot.provider?.configured),
+      providerId: String(resetSnapshot.provider?.activeProvider || ''),
+      modelId: String(resetSnapshot.provider?.activeModel || ''),
+      messageCount: Number(resetSnapshot.chat?.messageCount || 0),
+      activeSessionId: String(resetSnapshot.chat?.activeSessionId || ''),
+    })
+
+    const focusState = await waitFor('chat textarea focus', async () => {
+      const state = await chatTargetClient!.evaluate<Record<string, any>>(`(() => {
+        window.focus()
+        const textarea = document.querySelector('textarea.ph-no-capture')
+        if (!(textarea instanceof HTMLTextAreaElement)) {
+          return {
+            ok: false,
+            reason: 'textarea-not-found',
+          }
+        }
+
+        textarea.click()
+        textarea.focus()
+
+        return {
+          ok: document.activeElement === textarea,
+          placeholder: textarea.getAttribute('placeholder'),
+          valueLength: textarea.value.length,
+          disabled: textarea.disabled,
+          readOnly: textarea.readOnly,
+          focusedTagName: document.activeElement?.tagName || '',
+        }
+      })()`)
+
+      addTimeline('textarea-focus-poll', {
+        ok: Boolean(state.ok),
+        disabled: Boolean(state.disabled),
+        readOnly: Boolean(state.readOnly),
+        focusedTagName: String(state.focusedTagName || ''),
+      })
+
+      return state.ok ? state : undefined
+    }, 15_000, 250)
+    addTimeline('textarea-focused', {
+      placeholder: String(focusState.placeholder || ''),
+      valueLength: Number(focusState.valueLength || 0),
+    })
 
     await mcpClient.callTool({
       name: 'desktop_screenshot',
@@ -565,13 +781,13 @@ async function main() {
     })
     addTimeline('screenshot-captured', { label: 'chat-before-type' })
 
-    const baselineMessageCount = Number(initialSnapshot.chat?.messageCount || 0)
+    const baselineMessageCount = Number(resetSnapshot.chat?.messageCount || 0)
 
     const typed = await mcpClient.callTool({
       name: 'desktop_type_text',
       arguments: {
         text: promptText,
-        pressEnter: true,
+        pressEnter: false,
         captureAfter: true,
       },
     })
@@ -579,6 +795,80 @@ async function main() {
     addTimeline('desktop-type-text', {
       status: typedData.status,
       screenshotPath: (typedData.screenshot as Record<string, unknown> | undefined)?.path,
+    })
+
+    const typedSnapshot = await waitFor('typed prompt to settle in textarea', async () => {
+      const typedState = await chatTargetClient!.evaluate<Record<string, any>>(`(() => {
+        const textarea = document.querySelector('textarea.ph-no-capture')
+        const value = textarea instanceof HTMLTextAreaElement ? textarea.value : ''
+        return {
+          value,
+          valueLength: value.length,
+          containsPromptMarker: value.includes(${JSON.stringify(promptMarker)}),
+        }
+      })()`)
+
+      addTimeline('textarea-poll', {
+        valueLength: Number(typedState.valueLength || 0),
+        containsPromptMarker: Boolean(typedState.containsPromptMarker),
+      })
+
+      if (typedState.containsPromptMarker === true) {
+        return typedState
+      }
+
+      return undefined
+    }, 10_000, 250)
+    addTimeline('textarea-filled', {
+      valueLength: Number(typedSnapshot.valueLength || 0),
+    })
+
+    const submit = await mcpClient.callTool({
+      name: 'desktop_press_keys',
+      arguments: {
+        keys: ['enter'],
+        captureAfter: true,
+      },
+    })
+    const submitData = requireStructuredContent(submit, 'desktop_press_keys')
+    addTimeline('desktop-press-keys', {
+      status: submitData.status,
+      screenshotPath: (submitData.screenshot as Record<string, unknown> | undefined)?.path,
+    })
+
+    const submittedSnapshot = await waitFor('chat submit', async () => {
+      const snapshot = await chatTargetClient!.evaluate<Record<string, any>>('window.__AIRI_DEBUG__.getSnapshot()')
+      report.debugSnapshots.push(snapshot)
+
+      const messageCount = Number(snapshot.chat?.messageCount || 0)
+      const sending = Boolean(snapshot.chat?.sending)
+      const lastMessageRole = String(snapshot.chat?.lastMessage?.role || '')
+      const lastMessageText = String(snapshot.chat?.lastMessage?.text || '')
+      const recentEvents = Array.isArray(snapshot.chat?.recentEvents) ? snapshot.chat.recentEvents as Array<Record<string, any>> : []
+      const sawBeforeSend = recentEvents.some(event => String(event?.type || '') === 'before-send')
+
+      addTimeline('chat-submit-poll', {
+        sending,
+        messageCount,
+        lastMessageRole,
+        sawBeforeSend,
+        textareaValueLength: Number(snapshot.dom?.textareaValueLength || 0),
+      })
+
+      if (sending || sawBeforeSend) {
+        return snapshot
+      }
+
+      if (messageCount > baselineMessageCount && lastMessageRole === 'user' && lastMessageText.includes(promptMarker)) {
+        return snapshot
+      }
+
+      return undefined
+    }, 15_000, 500)
+    addTimeline('chat-submit-observed', {
+      sending: Boolean(submittedSnapshot.chat?.sending),
+      messageCount: Number(submittedSnapshot.chat?.messageCount || 0),
+      lastMessageRole: String(submittedSnapshot.chat?.lastMessage?.role || ''),
     })
 
     let capturedStreamingScreenshot = false
@@ -601,20 +891,32 @@ async function main() {
       const messageCount = Number(snapshot.chat?.messageCount || 0)
       const sending = Boolean(snapshot.chat?.sending)
       const lastMessageRole = String(snapshot.chat?.lastMessage?.role || '')
-      const hasTurnOutput = Boolean(snapshot.chat?.lastTurnComplete?.outputText)
+      const hasTurnCompletion = hasCompletedChatTurn(snapshot)
+      const recentEvents = Array.isArray(snapshot.chat?.recentEvents)
+        ? snapshot.chat.recentEvents as Array<Record<string, unknown>>
+        : []
+      const abortedByUser = recentEvents.some(event => String(event?.type || '') === 'chat-abort-requested')
 
-      addTimeline('chat-poll', {
+      addTimeline('chat-completion-poll', {
         sending,
         messageCount,
         streamingLength: Number(snapshot.chat?.streamingText?.length || 0),
         lastMessageRole,
+        turnCompleted: hasTurnCompletion,
+        toolCallCount: Number(snapshot.chat?.lastTurnComplete?.toolCallCount || 0),
+        toolResultCount: Number(snapshot.chat?.lastTurnComplete?.toolResultCount || 0),
+        abortedByUser,
       })
 
-      if (hasTurnOutput) {
+      if (!sending && messageCount > baselineMessageCount && hasTurnCompletion) {
         return snapshot
       }
 
-      if (!sending && (messageCount > baselineMessageCount || lastMessageRole === 'error')) {
+      if (!sending && lastMessageRole === 'error') {
+        return snapshot
+      }
+
+      if (!sending && abortedByUser) {
         return snapshot
       }
 
@@ -647,6 +949,10 @@ async function main() {
       lastMessageRole: String(finalSnapshot.chat?.lastMessage?.role || ''),
       lastMessageText: summarizeMessageText(finalSnapshot.chat?.lastMessage?.text),
       lastTurnOutput: summarizeMessageText(finalSnapshot.chat?.lastTurnComplete?.outputText),
+    }
+
+    if (report.final.lastMessageRole === 'error') {
+      throw new Error(`AIRI chat failed on ${report.final.providerId}/${report.final.modelId}: ${report.final.lastMessageText || 'unknown error'}`)
     }
 
     if (report.paths.auditLogPath) {
@@ -698,8 +1004,6 @@ async function main() {
     await writeReport().catch(() => {})
   }
 }
-
-let exitCode = 0
 
 main().finally(() => {
   exit(exitCode)

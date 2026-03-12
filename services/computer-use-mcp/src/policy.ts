@@ -1,5 +1,7 @@
 import type { ActionInvocation, ComputerUseConfig, ForegroundContext, PolicyDecision } from './types'
 
+import { resolveConfiguredOpenableApp } from './app-aliases'
+
 function includesPattern(value: string | undefined, patterns: string[]) {
   const normalizedValue = value?.trim().toLowerCase()
   if (!normalizedValue)
@@ -9,7 +11,7 @@ function includesPattern(value: string | undefined, patterns: string[]) {
 }
 
 function isMutatingAction(action: ActionInvocation) {
-  return !['screenshot', 'observe_windows', 'wait', 'terminal_reset'].includes(action.kind)
+  return !['screenshot', 'observe_windows', 'wait', 'terminal_reset', 'clipboard_read_text', 'secret_read_env_value'].includes(action.kind)
 }
 
 function isUiInteractionAction(action: ActionInvocation) {
@@ -44,6 +46,11 @@ function estimateOperationUnits(action: ActionInvocation) {
     case 'open_app':
     case 'focus_app':
       return 2
+    case 'clipboard_read_text':
+    case 'secret_read_env_value':
+      return 1
+    case 'clipboard_write_text':
+      return Math.max(2, Math.ceil(action.input.text.length / 64))
     case 'click':
       return 1
     case 'type_text':
@@ -145,12 +152,13 @@ export function evaluateActionPolicy(params: {
   }
 
   if (params.action.kind === 'open_app' || params.action.kind === 'focus_app') {
-    if (!params.config.openableApps.includes(params.action.input.app)) {
+    const resolvedApp = resolveConfiguredOpenableApp(params.action.input.app, params.config.openableApps)
+    if (!resolvedApp) {
       reasons.push(`app is not in COMPUTER_USE_OPENABLE_APPS: ${params.action.input.app}`)
       allowed = false
     }
-    if (includesPattern(params.action.input.app, params.config.denyApps)) {
-      reasons.push(`app denied by policy: ${params.action.input.app}`)
+    if (includesPattern(resolvedApp || params.action.input.app, params.config.denyApps)) {
+      reasons.push(`app denied by policy: ${resolvedApp || params.action.input.app}`)
       allowed = false
     }
     requiresApproval = true
@@ -172,6 +180,11 @@ export function evaluateActionPolicy(params: {
   }
 
   if (params.action.kind === 'terminal_exec') {
+    requiresApproval = true
+    riskLevel = 'high'
+  }
+
+  if (params.action.kind === 'clipboard_read_text' || params.action.kind === 'clipboard_write_text' || params.action.kind === 'secret_read_env_value') {
     requiresApproval = true
     riskLevel = 'high'
   }

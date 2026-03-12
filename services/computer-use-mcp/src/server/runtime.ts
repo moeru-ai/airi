@@ -1,12 +1,16 @@
 import type { ComputerUseConfig, DesktopExecutor, TerminalRunner } from '../types'
+import type { CdpBridgeManager } from './cdp-manager'
 
+import { BrowserDomExtensionBridge } from '../browser-dom/extension-bridge'
 import { resolveComputerUseConfig } from '../config'
 import { createDryRunExecutor } from '../executors/dry-run'
 import { createLinuxX11Executor } from '../executors/linux-x11'
 import { createMacOSLocalExecutor } from '../executors/macos-local'
 import { ComputerUseSession } from '../session'
 import { RunStateManager } from '../state'
+import { TaskMemoryManager } from '../task-memory/manager'
 import { createLocalShellRunner } from '../terminal/runner'
+import { createCdpBridgeManager } from './cdp-manager'
 
 export interface ComputerUseServerOptions {
   executorFactory?: (config: ComputerUseConfig) => DesktopExecutor
@@ -18,8 +22,12 @@ export interface ComputerUseServerRuntime {
   session: ComputerUseSession
   executor: DesktopExecutor
   terminalRunner: TerminalRunner
+  browserDomBridge: BrowserDomExtensionBridge
+  cdpBridgeManager: CdpBridgeManager
   /** Unified run-level state manager. */
   stateManager: RunStateManager
+  /** High-level task memory for the current session. */
+  taskMemory: TaskMemoryManager
 }
 
 function createExecutor(config: ComputerUseConfig, options: ComputerUseServerOptions = {}): DesktopExecutor {
@@ -46,7 +54,11 @@ export async function createRuntime(config = resolveComputerUseConfig(), options
   await session.init()
   const executor = createExecutor(config, options)
   const terminalRunner = createTerminal(config, options)
+  const browserDomBridge = new BrowserDomExtensionBridge(config.browserDomBridge)
+  const cdpBridgeManager = createCdpBridgeManager(config)
+  await browserDomBridge.start()
   const stateManager = new RunStateManager()
+  const taskMemory = new TaskMemoryManager()
   session.setTerminalState(terminalRunner.getState())
   stateManager.updateTerminalState(terminalRunner.getState())
 
@@ -55,6 +67,9 @@ export async function createRuntime(config = resolveComputerUseConfig(), options
     session,
     executor,
     terminalRunner,
+    browserDomBridge,
+    cdpBridgeManager,
     stateManager,
+    taskMemory,
   } satisfies ComputerUseServerRuntime
 }

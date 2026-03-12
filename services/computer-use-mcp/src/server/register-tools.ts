@@ -1,9 +1,11 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 
 import type {
+  BrowserDomFrameResult,
   ClickActionInput,
   FocusAppActionInput,
   OpenAppActionInput,
+  SecretReadEnvValueActionInput,
   TerminalExecActionInput,
   TypeTextActionInput,
 } from '../types'
@@ -18,16 +20,23 @@ import { summarizeRunState } from '../transparency'
 import {
   createAppBrowseAndActWorkflow,
   createDevInspectFailureWorkflow,
+  createDevOpenWorkspaceWorkflow,
   createDevRunTestsWorkflow,
+  createDevValidateWorkspaceWorkflow,
   executeWorkflow,
   resumeWorkflow,
 } from '../workflows'
+import { getBrowserAgentLaunchContext, runBrowserAgentTask } from './browser-agent'
 import { textContent } from './content'
 import {
   describeExecutionTarget,
   describeForegroundContext,
   summarizeCoordinateSpace,
 } from './formatters'
+import { refreshRuntimeRunState } from './refresh-run-state'
+import { createAcquirePtyCallback, executeApprovedPtyCreate } from './register-pty'
+import { formatWorkflowStructuredContent } from './workflow-formatter'
+import { createWorkflowPrepToolExecutor } from './workflow-prep-tools'
 
 export interface RegisterComputerUseToolsOptions {
   server: McpServer
@@ -36,8 +45,65 @@ export interface RegisterComputerUseToolsOptions {
   enableTestTools: boolean
 }
 
+const optionalTabIdSchema = z.number().int().min(0).optional().describe('Optional browser tab id override; defaults to the active tab')
+const optionalFrameIdsSchema = z.array(z.number().int().min(0)).min(1).optional().describe('Optional frame ids to target; omit to let the bridge inspect all frames')
+
+function toBrowserDomRecord(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    return undefined
+
+  return value as Record<string, unknown>
+}
+
+function unwrapBrowserDomResult(value: unknown) {
+  const record = toBrowserDomRecord(value)
+  if (!record)
+    return value
+
+  if ('data' in record)
+    return record.data
+
+  return value
+}
+
+function didBrowserDomFrameSucceed(frame: BrowserDomFrameResult<unknown>) {
+  const record = toBrowserDomRecord(frame.result)
+  if (!record)
+    return Boolean(frame.result)
+
+  if ('success' in record)
+    return Boolean(record.success)
+
+  return true
+}
+
+function summarizeBrowserDomFrameResults(label: string, results: Array<BrowserDomFrameResult<unknown>>) {
+  const successfulFrames = results.filter(didBrowserDomFrameSucceed)
+  return `${label}: ${successfulFrames.length}/${results.length} frame(s) succeeded.`
+}
+
+function buildBrowserDomUnavailableResponse(runtime: ComputerUseServerRuntime) {
+  const status = runtime.browserDomBridge.getStatus()
+  return {
+    isError: true,
+    content: [
+      textContent(`Browser DOM bridge is unavailable: ${status.lastError || 'the browser extension is not connected yet'}.`),
+    ],
+    structuredContent: {
+      status: 'unavailable',
+      bridge: status,
+    },
+  }
+}
+
 export function registerComputerUseTools(params: RegisterComputerUseToolsOptions) {
   const { server, runtime, executeAction, enableTestTools } = params
+  const executePrepTool = createWorkflowPrepToolExecutor(runtime)
+  const acquirePty = createAcquirePtyCallback(runtime)
+
+  async function refreshWorkflowRunState() {
+    await refreshRuntimeRunState(runtime)
+  }
 
   // Workflow suspension state — stored in this closure so that
   // workflow_resume and the approve handler can access it.
@@ -47,10 +113,8 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     'desktop_get_capabilities',
     {},
     async () => {
-      const [executionTarget, context, displayInfo, permissionInfo] = await Promise.all([
-        runtime.executor.getExecutionTarget(),
-        runtime.executor.getForegroundContext(),
-        runtime.executor.getDisplayInfo(),
+      const [{ executionTarget, context, displayInfo, browserSurfaceAvailability }, permissionInfo] = await Promise.all([
+        refreshRuntimeRunState(runtime),
         runtime.executor.getPermissionInfo(),
       ])
       const snapshot = runtime.session.getSnapshot()
@@ -105,6 +169,9 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
           coordScope: 'global-screen',
           appPolicy: 'deny-only',
           terminalBackend: runtime.terminalRunner.describe().kind,
+          browserAgent: getBrowserAgentLaunchContext(),
+          browserDomBridge: runtime.browserDomBridge.getStatus(),
+          browserSurfaceAvailability,
         },
       }
     },
@@ -256,6 +323,540 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
   )
 
   server.tool(
+    'secret_read_env_value',
+    {
+      filePath: z.string().min(1).describe('Absolute or explicit env file path to inspect, for example /Users/liuziheng/airi/.env'),
+      keys: z.array(z.string().min(1)).min(1).max(16).describe('Candidate env variable names to try in order, e.g. ["AIRI_E2E_DISCORD_TOKEN", "DISCORD_BOT_TOKEN"]'),
+      allowPlaceholder: z.boolean().optional().describe('Whether to allow obvious placeholder/template values such as replace-with-your-token'),
+    },
+    async (input: SecretReadEnvValueActionInput) => executeAction({ kind: 'secret_read_env_value', input }, 'secret_read_env_value'),
+  )
+
+  server.tool(
+    'clipboard_read_text',
+    {
+      maxLength: z.number().int().min(1).max(32_768).optional().describe('Optional maximum number of characters to return from the clipboard'),
+      trim: z.boolean().optional().describe('Whether to trim leading/trailing whitespace before returning the text (default: true)'),
+    },
+    async input => executeAction({ kind: 'clipboard_read_text', input }, 'clipboard_read_text'),
+  )
+
+  server.tool(
+    'clipboard_write_text',
+    {
+      text: z.string().describe('Text to place into the system clipboard'),
+    },
+    async input => executeAction({ kind: 'clipboard_write_text', input }, 'clipboard_write_text'),
+  )
+
+  server.tool(
+    'browser_dom_get_bridge_status',
+    {},
+    async () => {
+      const bridge = runtime.browserDomBridge.getStatus()
+      return {
+        content: [
+          textContent(`Browser DOM bridge ${bridge.connected ? 'connected' : 'disconnected'} on ws://${bridge.host}:${bridge.port}.`),
+        ],
+        structuredContent: {
+          status: 'ok',
+          bridge,
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'browser_agent_get_status',
+    {},
+    async () => {
+      const launchContext = getBrowserAgentLaunchContext()
+      return {
+        content: [
+          textContent(`Browser agent root ${launchContext.rootExists ? 'ready' : 'missing'} at ${launchContext.cliCwd}; python=${launchContext.pythonCommand}; cdp=${launchContext.cdpUrl}.`),
+        ],
+        structuredContent: {
+          status: launchContext.rootExists ? 'ok' : 'missing',
+          browserAgent: launchContext,
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'browser_agent_run',
+    {
+      instruction: z.string().min(1).describe('Goal-driven browser instruction for the autonomous browser agent.'),
+      agent: z.enum(['google', 'kimi']).optional().describe('Browser agent backend to use (default: google).'),
+      cdpUrl: z.string().optional().describe('Optional Chrome CDP endpoint override, e.g. http://localhost:9222'),
+      maxTurns: z.number().int().min(1).max(80).optional().describe('Maximum browser-agent reasoning turns (default: 30).'),
+      timeoutMs: z.number().int().min(1_000).max(900_000).optional().describe('End-to-end timeout for the delegated browser task (default: 180000).'),
+    },
+    async ({ instruction, agent, cdpUrl, maxTurns, timeoutMs }) => {
+      const launchContext = getBrowserAgentLaunchContext({ cdpUrl })
+
+      if (!launchContext.rootExists) {
+        return {
+          isError: true,
+          content: [
+            textContent(`Browser agent root is missing: ${launchContext.cliCwd}.`),
+          ],
+          structuredContent: {
+            status: 'missing',
+            browserAgent: launchContext,
+          },
+        }
+      }
+
+      try {
+        const result = await runBrowserAgentTask({
+          instruction,
+          agent,
+          cdpUrl,
+          maxTurns,
+          timeoutMs,
+        })
+
+        return {
+          content: [
+            textContent(`Browser agent ${result.success ? 'completed' : 'stopped'} on ${result.payload?.url || result.cdpUrl}.`),
+          ],
+          structuredContent: {
+            status: result.success ? 'completed' : 'failed',
+            browserAgent: {
+              instruction: result.instruction,
+              agent: result.agent,
+              cdpUrl: result.cdpUrl,
+              cliCwd: result.cliCwd,
+              cliModule: result.cliModule,
+              pythonCommand: result.pythonCommand,
+              exitCode: result.exitCode,
+              timedOut: result.timedOut,
+              stderrLines: result.stderrLines,
+            },
+            payload: result.payload,
+          },
+        }
+      }
+      catch (error) {
+        return {
+          isError: true,
+          content: [
+            textContent(`Browser agent failed: ${error instanceof Error ? error.message : String(error)}`),
+          ],
+          structuredContent: {
+            status: 'error',
+            browserAgent: launchContext,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        }
+      }
+    },
+  )
+
+  server.tool(
+    'browser_dom_get_active_tab',
+    {},
+    async () => {
+      if (!runtime.browserDomBridge.getStatus().connected)
+        return buildBrowserDomUnavailableResponse(runtime)
+
+      const activeTab = await runtime.browserDomBridge.getActiveTab()
+      return {
+        content: [
+          textContent(`Active browser tab: ${String(activeTab?.title || activeTab?.url || 'unknown')}.`),
+        ],
+        structuredContent: {
+          status: 'ok',
+          activeTab,
+          bridge: runtime.browserDomBridge.getStatus(),
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'browser_dom_read_page',
+    {
+      includeText: z.boolean().optional().describe('Whether to include truncated body text for each frame'),
+      maxElements: z.number().int().min(1).max(500).optional().describe('Maximum interactive elements per frame to collect'),
+      tabId: optionalTabIdSchema,
+      frameIds: optionalFrameIdsSchema,
+    },
+    async ({ includeText, maxElements, tabId, frameIds }) => {
+      if (!runtime.browserDomBridge.getStatus().connected)
+        return buildBrowserDomUnavailableResponse(runtime)
+
+      const frames = await runtime.browserDomBridge.readAllFramesDom({
+        includeText,
+        maxElements,
+        tabId,
+        frameIds,
+      })
+      const interactiveElementCount = frames.reduce((count, frame) => {
+        const payload = unwrapBrowserDomResult(frame.result)
+        const record = toBrowserDomRecord(payload)
+        const elements = Array.isArray(record?.interactiveElements) ? record.interactiveElements : []
+        return count + elements.length
+      }, 0)
+
+      return {
+        content: [
+          textContent(`Read DOM from ${frames.length} frame(s); collected ${interactiveElementCount} interactive element(s).`),
+        ],
+        structuredContent: {
+          status: 'ok',
+          frames,
+          bridge: runtime.browserDomBridge.getStatus(),
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'browser_dom_find_elements',
+    {
+      selector: z.string().min(1).describe('CSS selector to query in the active tab frames'),
+      maxResults: z.number().int().min(1).max(50).optional().describe('Maximum matched elements to include per frame'),
+      tabId: optionalTabIdSchema,
+      frameIds: optionalFrameIdsSchema,
+    },
+    async ({ selector, maxResults, tabId, frameIds }) => {
+      if (!runtime.browserDomBridge.getStatus().connected)
+        return buildBrowserDomUnavailableResponse(runtime)
+
+      const results = await runtime.browserDomBridge.findElements({
+        selector,
+        maxResults,
+        tabId,
+        frameIds,
+      })
+      return {
+        content: [
+          textContent(summarizeBrowserDomFrameResults(`find_elements for "${selector}"`, results)),
+        ],
+        structuredContent: {
+          status: 'ok',
+          selector,
+          results,
+          bridge: runtime.browserDomBridge.getStatus(),
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'browser_dom_click',
+    {
+      selector: z.string().min(1).describe('CSS selector to click via the browser extension bridge'),
+      tabId: optionalTabIdSchema,
+      frameIds: optionalFrameIdsSchema,
+    },
+    async ({ selector, tabId, frameIds }) => {
+      if (!runtime.browserDomBridge.getStatus().connected)
+        return buildBrowserDomUnavailableResponse(runtime)
+
+      const result = await runtime.browserDomBridge.clickSelector({
+        selector,
+        tabId,
+        frameIds,
+      })
+      return {
+        content: [
+          textContent(`Clicked selector "${selector}" in frame ${result.targetFrameId} at (${result.targetPoint.x}, ${result.targetPoint.y}).`),
+        ],
+        structuredContent: {
+          status: 'ok',
+          selector,
+          ...result,
+          bridge: runtime.browserDomBridge.getStatus(),
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'browser_dom_read_input_value',
+    {
+      selector: z.string().min(1).describe('CSS selector for the input/select/textarea element'),
+      tabId: optionalTabIdSchema,
+      frameIds: optionalFrameIdsSchema,
+    },
+    async ({ selector, tabId, frameIds }) => {
+      if (!runtime.browserDomBridge.getStatus().connected)
+        return buildBrowserDomUnavailableResponse(runtime)
+
+      const results = await runtime.browserDomBridge.readInputValue({
+        selector,
+        tabId,
+        frameIds,
+      })
+      return {
+        content: [
+          textContent(summarizeBrowserDomFrameResults(`read_input_value for "${selector}"`, results)),
+        ],
+        structuredContent: {
+          status: 'ok',
+          selector,
+          results,
+          bridge: runtime.browserDomBridge.getStatus(),
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'browser_dom_set_input_value',
+    {
+      selector: z.string().min(1).describe('CSS selector for the input/select/textarea element'),
+      value: z.string().describe('Value to assign to the matched element'),
+      simulateKeystrokes: z.boolean().optional().describe('Whether to emit a per-character key/input chain'),
+      blur: z.boolean().optional().describe('Whether to blur the element after setting the value'),
+      tabId: optionalTabIdSchema,
+      frameIds: optionalFrameIdsSchema,
+    },
+    async ({ selector, value, simulateKeystrokes, blur, tabId, frameIds }) => {
+      if (!runtime.browserDomBridge.getStatus().connected)
+        return buildBrowserDomUnavailableResponse(runtime)
+
+      const results = await runtime.browserDomBridge.setInputValue({
+        selector,
+        value,
+        simulateKeystrokes,
+        blur,
+        tabId,
+        frameIds,
+      })
+      return {
+        content: [
+          textContent(summarizeBrowserDomFrameResults(`set_input_value for "${selector}"`, results)),
+        ],
+        structuredContent: {
+          status: 'ok',
+          selector,
+          valueLength: value.length,
+          results,
+          bridge: runtime.browserDomBridge.getStatus(),
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'browser_dom_check_checkbox',
+    {
+      selector: z.string().min(1).describe('CSS selector for the checkbox or radio-like element'),
+      checked: z.boolean().optional().describe('Target checked state; omit to toggle'),
+      tabId: optionalTabIdSchema,
+      frameIds: optionalFrameIdsSchema,
+    },
+    async ({ selector, checked, tabId, frameIds }) => {
+      if (!runtime.browserDomBridge.getStatus().connected)
+        return buildBrowserDomUnavailableResponse(runtime)
+
+      const results = await runtime.browserDomBridge.checkCheckbox({
+        selector,
+        checked,
+        tabId,
+        frameIds,
+      })
+      return {
+        content: [
+          textContent(summarizeBrowserDomFrameResults(`check_checkbox for "${selector}"`, results)),
+        ],
+        structuredContent: {
+          status: 'ok',
+          selector,
+          checked,
+          results,
+          bridge: runtime.browserDomBridge.getStatus(),
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'browser_dom_select_option',
+    {
+      selector: z.string().min(1).describe('CSS selector for the <select> element'),
+      value: z.string().min(1).describe('Option value or visible text to select'),
+      tabId: optionalTabIdSchema,
+      frameIds: optionalFrameIdsSchema,
+    },
+    async ({ selector, value, tabId, frameIds }) => {
+      if (!runtime.browserDomBridge.getStatus().connected)
+        return buildBrowserDomUnavailableResponse(runtime)
+
+      const results = await runtime.browserDomBridge.selectOption({
+        selector,
+        value,
+        tabId,
+        frameIds,
+      })
+      return {
+        content: [
+          textContent(summarizeBrowserDomFrameResults(`select_option for "${selector}"`, results)),
+        ],
+        structuredContent: {
+          status: 'ok',
+          selector,
+          value,
+          results,
+          bridge: runtime.browserDomBridge.getStatus(),
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'browser_dom_wait_for_element',
+    {
+      selector: z.string().min(1).describe('CSS selector to wait for'),
+      timeoutMs: z.number().int().min(1).max(30_000).optional().describe('How long to wait before timing out'),
+      tabId: optionalTabIdSchema,
+      frameIds: optionalFrameIdsSchema,
+    },
+    async ({ selector, timeoutMs, tabId, frameIds }) => {
+      if (!runtime.browserDomBridge.getStatus().connected)
+        return buildBrowserDomUnavailableResponse(runtime)
+
+      const results = await runtime.browserDomBridge.waitForElement({
+        selector,
+        timeoutMs,
+        tabId,
+        frameIds,
+      })
+      return {
+        content: [
+          textContent(summarizeBrowserDomFrameResults(`wait_for_element for "${selector}"`, results)),
+        ],
+        structuredContent: {
+          status: 'ok',
+          selector,
+          timeoutMs: timeoutMs ?? runtime.config.browserDomBridge.requestTimeoutMs,
+          results,
+          bridge: runtime.browserDomBridge.getStatus(),
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'browser_dom_get_element_attributes',
+    {
+      selector: z.string().min(1).describe('CSS selector for the target element'),
+      tabId: optionalTabIdSchema,
+      frameIds: optionalFrameIdsSchema,
+    },
+    async ({ selector, tabId, frameIds }) => {
+      if (!runtime.browserDomBridge.getStatus().connected)
+        return buildBrowserDomUnavailableResponse(runtime)
+
+      const results = await runtime.browserDomBridge.getElementAttributes({
+        selector,
+        tabId,
+        frameIds,
+      })
+      return {
+        content: [
+          textContent(summarizeBrowserDomFrameResults(`get_element_attributes for "${selector}"`, results)),
+        ],
+        structuredContent: {
+          status: 'ok',
+          selector,
+          results,
+          bridge: runtime.browserDomBridge.getStatus(),
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'browser_dom_get_computed_styles',
+    {
+      selector: z.string().min(1).describe('CSS selector for the target element'),
+      properties: z.array(z.string()).min(1).max(32).optional().describe('Optional subset of CSS properties to return'),
+      tabId: optionalTabIdSchema,
+      frameIds: optionalFrameIdsSchema,
+    },
+    async ({ selector, properties, tabId, frameIds }) => {
+      if (!runtime.browserDomBridge.getStatus().connected)
+        return buildBrowserDomUnavailableResponse(runtime)
+
+      const results = await runtime.browserDomBridge.getComputedStyles({
+        selector,
+        properties,
+        tabId,
+        frameIds,
+      })
+      return {
+        content: [
+          textContent(summarizeBrowserDomFrameResults(`get_computed_styles for "${selector}"`, results)),
+        ],
+        structuredContent: {
+          status: 'ok',
+          selector,
+          results,
+          bridge: runtime.browserDomBridge.getStatus(),
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'browser_dom_trigger_event',
+    {
+      selector: z.string().min(1).describe('CSS selector for the target element'),
+      eventName: z.string().min(1).describe('Event name to dispatch, e.g. click, input, change'),
+      eventType: z.enum(['Event', 'MouseEvent', 'KeyboardEvent', 'InputEvent', 'FocusEvent']).optional().describe('DOM event constructor to use'),
+      optsJson: z.string().optional().describe('Optional JSON object merged into the dispatched event init'),
+      tabId: optionalTabIdSchema,
+      frameIds: optionalFrameIdsSchema,
+    },
+    async ({ selector, eventName, eventType, optsJson, tabId, frameIds }) => {
+      if (!runtime.browserDomBridge.getStatus().connected)
+        return buildBrowserDomUnavailableResponse(runtime)
+
+      let opts: Record<string, unknown> | undefined
+      if (optsJson?.trim()) {
+        const parsed = JSON.parse(optsJson) as unknown
+        const record = toBrowserDomRecord(parsed)
+        if (!record) {
+          return {
+            isError: true,
+            content: [
+              textContent('browser_dom_trigger_event expected optsJson to parse into a JSON object.'),
+            ],
+          }
+        }
+        opts = record
+      }
+
+      const results = await runtime.browserDomBridge.triggerEvent({
+        selector,
+        eventName,
+        eventType,
+        opts,
+        tabId,
+        frameIds,
+      })
+      return {
+        content: [
+          textContent(summarizeBrowserDomFrameResults(`trigger_event ${eventName} for "${selector}"`, results)),
+        ],
+        structuredContent: {
+          status: 'ok',
+          selector,
+          eventName,
+          eventType,
+          results,
+          bridge: runtime.browserDomBridge.getStatus(),
+        },
+      }
+    },
+  )
+
+  server.tool(
     'desktop_list_pending_actions',
     {},
     async () => {
@@ -302,6 +903,26 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
           pendingActionId: id,
         },
       })
+
+      if (pending.action.kind === 'pty_create') {
+        const result = await executeApprovedPtyCreate(runtime, pending.action.input)
+
+        await runtime.session.record({
+          event: result.isError === true ? 'failed' : 'executed',
+          toolName: pending.toolName,
+          action: pending.action,
+          context: pending.context,
+          policy: pending.policy,
+          result: {
+            pendingActionId: id,
+            ...(typeof result.structuredContent === 'object' && result.structuredContent !== null
+              ? result.structuredContent as Record<string, unknown>
+              : {}),
+          },
+        })
+
+        return result
+      }
 
       return await executeAction(pending.action, pending.toolName, {
         skipApprovalQueue: true,
@@ -381,22 +1002,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     'desktop_get_state',
     {},
     async () => {
-      // Refresh foreground context before returning state.
-      const [context, executionTarget, displayInfo] = await Promise.all([
-        runtime.executor.getForegroundContext(),
-        runtime.executor.getExecutionTarget(),
-        runtime.executor.getDisplayInfo(),
-      ])
-      runtime.stateManager.updateForegroundContext(context)
-      runtime.stateManager.updateExecutionTarget(executionTarget)
-      runtime.stateManager.updateDisplayInfo(displayInfo)
-      runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
-      runtime.stateManager.updateTerminalState(runtime.terminalRunner.getState())
-
-      const lastScreenshot = runtime.session.getLastScreenshot()
-      if (lastScreenshot) {
-        runtime.stateManager.updateLastScreenshot(lastScreenshot)
-      }
+      await refreshWorkflowRunState()
 
       const state = runtime.stateManager.getState()
       const summary = summarizeRunState(state)
@@ -412,8 +1018,84 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
   )
 
   // ---------------------------------------------------------------------------
-  // Workflow tools
+  // Workflow tools — unified outward formatter
   // ---------------------------------------------------------------------------
+
+  function formatWorkflowResult(
+    workflowId: string,
+    result: import('../workflows').WorkflowExecutionResult,
+  ) {
+    return {
+      content: [textContent(result.summary)],
+      structuredContent: formatWorkflowStructuredContent({
+        workflowId,
+        result,
+        runState: runtime.stateManager.getState(),
+      }),
+    }
+  }
+
+  server.tool(
+    'workflow_open_workspace',
+    {
+      projectPath: z.string().min(1).describe('Absolute path to the project directory'),
+      ideApp: z.string().optional().describe('IDE application to open the workspace with (default: Cursor)'),
+      fileManagerApp: z.string().optional().describe('File manager to reveal the workspace in (default: Finder)'),
+      autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
+    },
+    async ({ projectPath, ideApp, fileManagerApp, autoApprove }) => {
+      const workflow = createDevOpenWorkspaceWorkflow({ projectPath, ideApp, fileManagerApp })
+      const result = await executeWorkflow({
+        workflow,
+        executeAction,
+        executePrepTool,
+        acquirePty,
+        stateManager: runtime.stateManager,
+        refreshState: refreshWorkflowRunState,
+        overrides: { projectPath },
+        autoApproveSteps: autoApprove ?? true,
+      })
+
+      suspendedWorkflow = result.suspension
+
+      return formatWorkflowResult(workflow.id, result)
+    },
+  )
+
+  server.tool(
+    'workflow_validate_workspace',
+    {
+      projectPath: z.string().min(1).describe('Absolute path to the project directory'),
+      ideApp: z.string().optional().describe('IDE application to open the workspace with (default: Cursor)'),
+      fileManagerApp: z.string().optional().describe('File manager to reveal the workspace in (default: Finder)'),
+      changesCommand: z.string().optional().describe('Command to inspect local changes (default: git diff --stat)'),
+      checkCommand: z.string().optional().describe('Validation command to run from the workspace root (default: pnpm typecheck)'),
+      autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
+    },
+    async ({ projectPath, ideApp, fileManagerApp, changesCommand, checkCommand, autoApprove }) => {
+      const workflow = createDevValidateWorkspaceWorkflow({
+        projectPath,
+        ideApp,
+        fileManagerApp,
+        changesCommand,
+        checkCommand,
+      })
+      const result = await executeWorkflow({
+        workflow,
+        executeAction,
+        executePrepTool,
+        acquirePty,
+        stateManager: runtime.stateManager,
+        refreshState: refreshWorkflowRunState,
+        overrides: { projectPath },
+        autoApproveSteps: autoApprove ?? true,
+      })
+
+      suspendedWorkflow = result.suspension
+
+      return formatWorkflowResult(workflow.id, result)
+    },
+  )
 
   server.tool(
     'workflow_run_tests',
@@ -427,7 +1109,10 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       const result = await executeWorkflow({
         workflow,
         executeAction,
+        executePrepTool,
+        acquirePty,
         stateManager: runtime.stateManager,
+        refreshState: refreshWorkflowRunState,
         overrides: { projectPath },
         autoApproveSteps: autoApprove ?? true,
       })
@@ -435,25 +1120,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       // Store suspension for resume capability.
       suspendedWorkflow = result.suspension
 
-      return {
-        content: [textContent(result.summary)],
-        structuredContent: {
-          status: result.suspension ? 'paused' : result.success ? 'completed' : 'failed',
-          workflow: workflow.id,
-          task: result.task,
-          stepResults: result.stepResults.map(r => ({
-            label: r.step.label,
-            succeeded: r.succeeded,
-            explanation: r.explanation,
-          })),
-          ...(result.suspension
-            ? {
-                resumeHint: 'Call workflow_resume after approving the pending action to continue.',
-                pausedAtStep: result.suspension.pausedAtStepIndex,
-              }
-            : {}),
-        },
-      }
+      return formatWorkflowResult(workflow.id, result)
     },
   )
 
@@ -469,31 +1136,16 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       const result = await executeWorkflow({
         workflow,
         executeAction,
+        executePrepTool,
+        acquirePty,
         stateManager: runtime.stateManager,
+        refreshState: refreshWorkflowRunState,
         autoApproveSteps: autoApprove ?? true,
       })
 
       suspendedWorkflow = result.suspension
 
-      return {
-        content: [textContent(result.summary)],
-        structuredContent: {
-          status: result.suspension ? 'paused' : result.success ? 'completed' : 'failed',
-          workflow: workflow.id,
-          task: result.task,
-          stepResults: result.stepResults.map(r => ({
-            label: r.step.label,
-            succeeded: r.succeeded,
-            explanation: r.explanation,
-          })),
-          ...(result.suspension
-            ? {
-                resumeHint: 'Call workflow_resume after approving the pending action to continue.',
-                pausedAtStep: result.suspension.pausedAtStepIndex,
-              }
-            : {}),
-        },
-      }
+      return formatWorkflowResult(workflow.id, result)
     },
   )
 
@@ -510,31 +1162,16 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       const result = await executeWorkflow({
         workflow,
         executeAction,
+        executePrepTool,
+        acquirePty,
         stateManager: runtime.stateManager,
+        refreshState: refreshWorkflowRunState,
         autoApproveSteps: autoApprove ?? true,
       })
 
       suspendedWorkflow = result.suspension
 
-      return {
-        content: [textContent(result.summary)],
-        structuredContent: {
-          status: result.suspension ? 'paused' : result.success ? 'completed' : 'failed',
-          workflow: workflow.id,
-          task: result.task,
-          stepResults: result.stepResults.map(r => ({
-            label: r.step.label,
-            succeeded: r.succeeded,
-            explanation: r.explanation,
-          })),
-          ...(result.suspension
-            ? {
-                resumeHint: 'Call workflow_resume after approving the pending action to continue.',
-                pausedAtStep: result.suspension.pausedAtStepIndex,
-              }
-            : {}),
-        },
-      }
+      return formatWorkflowResult(workflow.id, result)
     },
   )
 
@@ -559,7 +1196,10 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       const result = await resumeWorkflow({
         suspension,
         executeAction,
+        executePrepTool,
+        acquirePty,
         stateManager: runtime.stateManager,
+        refreshState: refreshWorkflowRunState,
         approved: approved ?? true,
         autoApproveSteps: autoApprove ?? true,
       })
@@ -567,25 +1207,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       // Store new suspension if workflow pauses again.
       suspendedWorkflow = result.suspension
 
-      return {
-        content: [textContent(result.summary)],
-        structuredContent: {
-          status: result.suspension ? 'paused' : result.success ? 'completed' : 'failed',
-          workflow: suspension.workflow.id,
-          task: result.task,
-          stepResults: result.stepResults.map(r => ({
-            label: r.step.label,
-            succeeded: r.succeeded,
-            explanation: r.explanation,
-          })),
-          ...(result.suspension
-            ? {
-                resumeHint: 'Call workflow_resume after approving the pending action to continue.',
-                pausedAtStep: result.suspension.pausedAtStepIndex,
-              }
-            : {}),
-        },
-      }
+      return formatWorkflowResult(suspension.workflow.id, result)
     },
   )
 }

@@ -12,8 +12,10 @@ const defaultDeniedApps = [
 ]
 
 const defaultOpenableApps = [
+  'Finder',
   'Terminal',
   'Cursor',
+  'Visual Studio Code',
   'Google Chrome',
 ]
 
@@ -181,10 +183,18 @@ export function resolveComputerUseConfig(): ComputerUseConfig {
     remoteObservationBaseUrl,
     remoteObservationServePort,
     remoteObservationToken: env.COMPUTER_USE_REMOTE_OBSERVATION_TOKEN?.trim() || undefined,
+    browserDomBridge: {
+      enabled: parseBoolean(env.COMPUTER_USE_BROWSER_DOM_BRIDGE_ENABLED, true),
+      host: env.COMPUTER_USE_BROWSER_DOM_BRIDGE_HOST?.trim() || '127.0.0.1',
+      port: parseInteger(env.COMPUTER_USE_BROWSER_DOM_BRIDGE_PORT, 8765),
+      requestTimeoutMs: parseInteger(env.COMPUTER_USE_BROWSER_DOM_BRIDGE_TIMEOUT_MS, 10_000),
+    },
     binaries: {
       swift: env.COMPUTER_USE_SWIFT_BINARY?.trim() || 'swift',
       osascript: env.COMPUTER_USE_OSASCRIPT_BINARY?.trim() || 'osascript',
       screencapture: env.COMPUTER_USE_SCREENSHOT_BINARY?.trim() || 'screencapture',
+      pbcopy: env.COMPUTER_USE_PBCOPY_BINARY?.trim() || 'pbcopy',
+      pbpaste: env.COMPUTER_USE_PBPASTE_BINARY?.trim() || 'pbpaste',
       ssh: env.COMPUTER_USE_SSH_BINARY?.trim() || 'ssh',
       tar: env.COMPUTER_USE_TAR_BINARY?.trim() || 'tar',
       open: env.COMPUTER_USE_OPEN_BINARY?.trim() || 'open',

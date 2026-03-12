@@ -8,6 +8,7 @@ import type {
 } from '../types'
 
 import { spawn } from 'node:child_process'
+import { env, cwd as processCwd } from 'node:process'
 
 function summarizeCommand(command: string) {
   const compact = command.replace(/\s+/g, ' ').trim()
@@ -16,7 +17,7 @@ function summarizeCommand(command: string) {
 
 export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunner {
   const state: TerminalState = {
-    effectiveCwd: process.cwd(),
+    effectiveCwd: processCwd(),
   }
 
   return {
@@ -30,7 +31,7 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
     }),
     getState: () => ({ ...state }),
     resetState: (_reason?: string) => {
-      state.effectiveCwd = process.cwd()
+      state.effectiveCwd = processCwd()
       delete state.lastExitCode
       delete state.lastCommandSummary
       delete state.approvalGrantedScope
@@ -38,14 +39,14 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
       return { ...state }
     },
     execute: async (input: TerminalExecActionInput) => {
-      const effectiveCwd = input.cwd?.trim() || state.effectiveCwd || process.cwd()
+      const effectiveCwd = input.cwd?.trim() || state.effectiveCwd || processCwd()
       const timeoutMs = Math.max(1, input.timeoutMs ?? config.timeoutMs)
 
       const startedAt = Date.now()
       const result = await new Promise<TerminalCommandResult>((resolve, reject) => {
         const child = spawn(config.terminalShell, ['-lc', input.command], {
           cwd: effectiveCwd,
-          env: process.env,
+          env,
           stdio: ['ignore', 'pipe', 'pipe'],
         })
 

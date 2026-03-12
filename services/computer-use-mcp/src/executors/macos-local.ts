@@ -16,9 +16,12 @@ import type {
   WindowObservation,
 } from '../types'
 
+import { existsSync, readdirSync } from 'node:fs'
 import { hostname } from 'node:os'
+import { join } from 'node:path'
 import { platform } from 'node:process'
 
+import { appNamesMatch, getKnownAppLaunchNames } from '../app-aliases'
 import { probeDisplayInfo, probePermissionInfo } from '../runtime-probes'
 import { runProcess } from '../utils/process'
 import { captureScreenshotArtifact } from '../utils/screenshot'
@@ -285,6 +288,8 @@ let inputData = rawInput.data(using: .utf8) ?? Data()
 let input = (try? JSONSerialization.jsonObject(with: inputData)) as? [String: Any] ?? [:]
 let text = input["text"] as? String ?? ""
 let pressEnter = input["pressEnter"] as? Bool ?? false
+let characterDelayMicros: useconds_t = 12_000
+let settleDelayMicros: useconds_t = 80_000
 
 func postText(_ chunk: String) {
   let chars = Array(chunk.utf16)
@@ -299,10 +304,20 @@ func postText(_ chunk: String) {
       keyUp.post(tap: .cghidEventTap)
     }
   }
+
+  // NOTICE: Electron/Vue textareas can drop tail characters when a burst of
+  // Quartz keyboard events is posted back-to-back with no pacing. A short
+  // delay between Unicode events keeps the renderer input queue stable enough
+  // for end-to-end desktop automation.
+  usleep(characterDelayMicros)
 }
 
 for character in text {
   postText(String(character))
+}
+
+if !text.isEmpty {
+  usleep(settleDelayMicros)
 }
 
 if pressEnter {
@@ -388,16 +403,45 @@ async function ensureMacOS() {
   }
 }
 
+function resolveInstalledMacAppName(app: string) {
+  const searchRoots = [
+    '/Applications',
+    join(process.env.HOME || '', 'Applications'),
+  ].filter(Boolean)
+
+  for (const root of searchRoots) {
+    if (!existsSync(root)) {
+      continue
+    }
+
+    const appBundle = readdirSync(root).find((entry) => {
+      if (!entry.endsWith('.app')) {
+        return false
+      }
+
+      const bundleName = entry.replace(/\.app$/u, '')
+      return getKnownAppLaunchNames(app).some(candidate => appNamesMatch(bundleName, candidate))
+    })
+
+    if (appBundle) {
+      return appBundle.replace(/\.app$/u, '')
+    }
+  }
+
+  return app
+}
+
 async function runOpenCommand(config: ComputerUseConfig, app: string) {
-  await runProcess(config.binaries.open, ['-a', app], {
+  await runProcess(config.binaries.open, ['-a', resolveInstalledMacAppName(app)], {
     timeoutMs: config.timeoutMs,
   })
 }
 
 async function activateApp(config: ComputerUseConfig, app: string) {
+  const resolvedApp = resolveInstalledMacAppName(app)
   await runProcess(config.binaries.osascript, [
     '-e',
-    `tell application ${JSON.stringify(app)} to activate`,
+    `tell application ${JSON.stringify(resolvedApp)} to activate`,
   ], {
     timeoutMs: config.timeoutMs,
   })

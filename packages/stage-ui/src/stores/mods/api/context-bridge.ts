@@ -218,8 +218,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             data: {
               ...context.input?.data,
               'message': chat.output,
-              // TODO: tool calls should be captured properly
-              'toolCalls': [],
+              'toolCalls': chat.toolCalls,
               'stage-web': isStageWeb(),
               'stage-tamagotchi': isStageTamagotchi(),
               // TODO: Properly calculate usage data

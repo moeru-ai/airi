@@ -67,8 +67,15 @@ const defaultMcpConfig: ElectronMcpStdioConfigFile = {
 }
 const toolNameSeparator = '::'
 const mcpServerConnectTimeoutMsec = 10_000
-const mcpRequestTimeoutMsec = 10_000
-const mcpRequestMaxTotalTimeoutMsec = 15_000
+const mcpListRequestTimeoutMsec = 10_000
+const mcpListRequestMaxTotalTimeoutMsec = 15_000
+// NOTICE: Agentic MCP tool calls may legitimately take longer than simple
+// `tools/list` requests, especially when AIRI delegates to terminal workflows,
+// browser agents, or multi-step browser/desktop tasks. A short 10-15s timeout
+// causes false failures like `MCP error -32001: Request timed out` even though
+// the tool is still progressing normally.
+const mcpToolCallRequestTimeoutMsec = 60_000
+const mcpToolCallMaxTotalTimeoutMsec = 180_000
 const mcpToolRequestIdCacheTtlMsec = 30_000
 const mcpToolRequestIdCacheMaxSize = 512
 
@@ -85,15 +92,74 @@ function getConfigPath() {
 }
 
 function parseQualifiedToolName(name: string) {
-  const separatorIndex = name.indexOf(toolNameSeparator)
-  if (separatorIndex <= 0 || separatorIndex === name.length - toolNameSeparator.length) {
+  const normalizedName = (() => {
+    const trimmed = name.trim()
+    if (trimmed.includes(toolNameSeparator)) {
+      return trimmed
+    }
+
+    const dotSegments = trimmed.split('.')
+    if (dotSegments.length === 2 && dotSegments.every(segment => segment.trim().length > 0)) {
+      return `${dotSegments[0]}${toolNameSeparator}${dotSegments[1]}`
+    }
+
+    return trimmed
+  })()
+
+  const separatorIndex = normalizedName.indexOf(toolNameSeparator)
+  if (separatorIndex <= 0 || separatorIndex === normalizedName.length - toolNameSeparator.length) {
     throw new Error(`invalid qualified tool name: ${name}`)
   }
 
   return {
-    serverName: name.slice(0, separatorIndex),
-    toolName: name.slice(separatorIndex + toolNameSeparator.length),
+    serverName: normalizedName.slice(0, separatorIndex),
+    toolName: normalizedName.slice(separatorIndex + toolNameSeparator.length),
   }
+}
+
+async function findUniqueRunningServerForTool(params: {
+  log: ReturnType<ReturnType<typeof useLogg>['useGlobalConfig']>
+  requestedServerName: string
+  sessions: Map<string, McpServerSession>
+  toolName: string
+}) {
+  const matches: Array<{ serverName: string, session: McpServerSession }> = []
+  const entries = [...params.sessions.entries()].sort(([left], [right]) => left.localeCompare(right))
+
+  for (const [serverName, session] of entries) {
+    try {
+      const response = await session.client.listTools(undefined, {
+        timeout: mcpListRequestTimeoutMsec,
+        maxTotalTimeout: mcpListRequestMaxTotalTimeoutMsec,
+      })
+
+      if (response.tools.some(tool => tool.name === params.toolName)) {
+        matches.push({ serverName, session })
+      }
+    }
+    catch (error) {
+      params.log.withFields({ serverName, requestedServerName: params.requestedServerName, toolName: params.toolName }).withError(error).warn('failed to inspect mcp server tools while resolving fallback tool call target')
+    }
+  }
+
+  if (matches.length === 1) {
+    // NOTICE: Some models occasionally invent placeholder namespaces like
+    // `functions::terminal_exec` instead of the actual MCP server name.
+    // When the requested server is missing but the tool exists on exactly one
+    // running server, resolve it by tool name so the workflow can continue.
+    params.log.withFields({
+      requestedServerName: params.requestedServerName,
+      resolvedServerName: matches[0].serverName,
+      toolName: params.toolName,
+    }).warn('resolved mcp tool call through fallback tool-name routing')
+    return matches[0]
+  }
+
+  if (matches.length > 1) {
+    throw new Error(`mcp server is not running: ${params.requestedServerName}; tool "${params.toolName}" exists on multiple running servers: ${matches.map(match => match.serverName).join(', ')}`)
+  }
+
+  return null
 }
 
 async function withTimeout<T>(task: Promise<T>, timeoutMsec: number, timeoutMessage: string): Promise<T> {
@@ -114,7 +180,25 @@ async function withTimeout<T>(task: Promise<T>, timeoutMsec: number, timeoutMess
 }
 
 function createSpawnEnv(overrides?: Record<string, string>): Record<string, string> {
-  const baseEnv = Object.fromEntries(Object.entries(env).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
+  // NOTICE: MCP stdio servers are plain Node/CLI children, not nested Electron
+  // processes. Forwarding Electron runtime env vars such as
+  // `ELECTRON_RUN_AS_NODE` can subtly break native-module loading inside the
+  // child process (for example `node-pty` in computer-use-mcp). Strip the
+  // Electron-specific keys first, then layer explicit overrides back on top.
+  const electronRuntimeEnvKeys = new Set([
+    'APP_REMOTE_DEBUG',
+    'APP_REMOTE_DEBUG_NO_OPEN',
+    'APP_REMOTE_DEBUG_PORT',
+    'ELECTRON_ENABLE_LOGGING',
+    'ELECTRON_ENABLE_STACK_DUMPING',
+    'ELECTRON_NO_ATTACH_CONSOLE',
+    'ELECTRON_RUN_AS_NODE',
+  ])
+  const baseEnv = Object.fromEntries(
+    Object.entries(env).filter((entry): entry is [string, string] => {
+      return typeof entry[1] === 'string' && !electronRuntimeEnvKeys.has(entry[0])
+    }),
+  )
   if (!overrides) {
     return baseEnv
   }
@@ -336,8 +420,8 @@ export function createMcpStdioManager(): McpStdioManager {
     const listResult = await Promise.all(entries.map(async ([serverName, session]) => {
       try {
         const response = await session.client.listTools(undefined, {
-          timeout: mcpRequestTimeoutMsec,
-          maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
+          timeout: mcpListRequestTimeoutMsec,
+          maxTotalTimeout: mcpListRequestMaxTotalTimeoutMsec,
         })
         return response.tools.map<ElectronMcpToolDescriptor>(item => ({
           serverName,
@@ -374,17 +458,42 @@ export function createMcpStdioManager(): McpStdioManager {
 
     const executeCall = async (): Promise<ElectronMcpCallToolResult> => {
       const { serverName, toolName } = parseQualifiedToolName(payload.name)
-      const session = sessions.get(serverName)
+      let resolvedServerName = serverName
+      let session = sessions.get(serverName)
       if (!session) {
-        throw new Error(`mcp server is not running: ${serverName}`)
+        const fallback = await findUniqueRunningServerForTool({
+          log,
+          requestedServerName: serverName,
+          sessions,
+          toolName,
+        })
+
+        if (!fallback) {
+          throw new Error(`mcp server is not running: ${serverName}`)
+        }
+
+        resolvedServerName = fallback.serverName
+        session = fallback.session
+      }
+
+      const forwardedArguments = {
+        ...payload.arguments,
+      }
+      if (
+        payload.approvalSessionId
+        && resolvedServerName === 'computer_use'
+        && toolName.startsWith('pty_')
+        && typeof forwardedArguments.approvalSessionId !== 'string'
+      ) {
+        forwardedArguments.approvalSessionId = payload.approvalSessionId
       }
 
       const result = await session.client.callTool({
         name: toolName,
-        arguments: payload.arguments ?? {},
+        arguments: forwardedArguments,
       }, undefined, {
-        timeout: mcpRequestTimeoutMsec,
-        maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
+        timeout: mcpToolCallRequestTimeoutMsec,
+        maxTotalTimeout: mcpToolCallMaxTotalTimeoutMsec,
       })
 
       const normalized: ElectronMcpCallToolResult = {}
@@ -399,6 +508,17 @@ export function createMcpStdioManager(): McpStdioManager {
       }
       if ('toolResult' in result) {
         normalized.toolResult = result.toolResult
+      }
+
+      if (resolvedServerName !== serverName) {
+        normalized.structuredContent = {
+          ...(typeof normalized.structuredContent === 'object' && normalized.structuredContent !== null
+            ? normalized.structuredContent as Record<string, unknown>
+            : {}),
+          resolvedServerName,
+          requestedServerName: serverName,
+          toolName,
+        }
       }
 
       return normalized
