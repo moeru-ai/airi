@@ -29,11 +29,10 @@ async function fetchPackages() {
 }
 
 onMounted(async () => {
-  await fetchPackages()
+  Promise.allSettled([fetchPackages(), authStore.updateCredits()])
 
   if (route.query.success === 'true') {
     message.value = { type: 'success', text: t('settings.pages.flux.checkout.success') }
-    await authStore.updateCredits()
     router.replace({ query: {} })
   }
   else if (route.query.canceled === 'true') {
