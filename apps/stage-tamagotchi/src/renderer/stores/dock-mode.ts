@@ -6,14 +6,14 @@ import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 
-import { electron } from '../../../shared/eventa'
+import { electron } from '../../shared/eventa'
 
 export const useDockModeStore = defineStore('tamagotchi-dock-mode', () => {
   const context = useElectronEventaContext()
-  const listWindowsInvoke = useElectronEventaInvoke(electron.dockMode.listWindows)
-  const startDockInvoke = useElectronEventaInvoke(electron.dockMode.start)
-  const stopDockInvoke = useElectronEventaInvoke(electron.dockMode.stop)
-  const getStatusInvoke = useElectronEventaInvoke(electron.dockMode.getStatus)
+  const listWindowsInvoke = useElectronEventaInvoke<DesktopWindowInfo[]>(electron.dockMode.listWindows)
+  const startDockInvoke = useElectronEventaInvoke<DockModeStatus, DockModeConfig>(electron.dockMode.start)
+  const stopDockInvoke = useElectronEventaInvoke<DockModeStatus>(electron.dockMode.stop)
+  const getStatusInvoke = useElectronEventaInvoke<DockModeStatus>(electron.dockMode.getStatus)
 
   const status = ref<DockModeStatus>({ active: false })
   const availableWindows = ref<DesktopWindowInfo[]>([])
@@ -26,15 +26,15 @@ export const useDockModeStore = defineStore('tamagotchi-dock-mode', () => {
 
   // Listen for status changes from main process
   if (context.value) {
-    context.value.on(dockModeStatusChanged, (newStatus: DockModeStatus) => {
-      status.value = newStatus
+    context.value.on(dockModeStatusChanged, (event) => {
+      status.value = event.body!
     })
   }
 
   watch(context, (ctx: typeof context.value) => {
     if (ctx) {
-      ctx.on(dockModeStatusChanged, (newStatus: DockModeStatus) => {
-        status.value = newStatus
+      ctx.on(dockModeStatusChanged, (event) => {
+        status.value = event.body!
       })
     }
   })

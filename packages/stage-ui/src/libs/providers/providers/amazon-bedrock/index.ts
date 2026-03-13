@@ -85,7 +85,7 @@ function createBedrockConverseProvider(config: {
       apiKey: 'bedrock-sigv4',
       baseURL,
       model,
-      fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+      fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
         // Parse incoming OpenAI format request
         const body = JSON.parse((init?.body as string) || '{}') as any
         const messages: any[] = body.messages || []
@@ -405,6 +405,7 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
               reasonKey: '',
               errors: [],
             }
+
           }
           catch (error) {
             return {
