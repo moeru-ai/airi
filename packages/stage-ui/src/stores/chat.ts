@@ -28,6 +28,11 @@ interface SendOptions {
   attachments?: { type: 'image', data: string, mimeType: string }[]
   tools?: StreamOptions['tools']
   input?: WebSocketEventInputs
+  /**
+   * If true, the orchestrator will only ingest the user message into the session
+   * and skip triggering the assistant's response.
+   */
+  skipAssistant?: boolean
 }
 
 interface ForkOptions {
@@ -170,12 +175,12 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       if (shouldAbort())
         return
 
-      const sessionMessagesForSend = chatSession.sessionMessages[sessionId]
-      if (!sessionMessagesForSend) {
-        throw new Error('Session messages not found')
-      }
       sessionMessagesForSend.push({ role: 'user', content: finalContent, createdAt: sendingCreatedAt, id: nanoid() })
       chatSession.persistSessionMessages(sessionId)
+
+      if (options.skipAssistant) {
+        return
+      }
 
       const categorizer = createStreamingCategorizer(activeProvider.value)
       let streamPosition = 0

@@ -299,7 +299,40 @@ async function startListening() {
             }
           }
         },
-        // Omit onSpeechEnd to avoid re-adding user-deleted text; use sentence deltas only.
+        onSpeechEnd: (text) => {
+          console.info('[ChatArea] Speech ended, final text:', text)
+          if (!text || !text.trim()) {
+            return
+          }
+
+          // Cancel any pending debounced auto-sends since we are handling the final text here
+          clearPendingAutoSend()
+
+          // We ALWAYS "inscribe" the final text into the chat history so it's not lost.
+          // The auto-send setting now ONLY controls whether the AI assistant triggers a reply.
+          void (async () => {
+            try {
+              const provider = await providersStore.getProviderInstance(activeProvider.value)
+              if (!provider || !activeModel.value)
+                return
+
+              console.info('[ChatArea] Inscribing message:', { text, autoSend: autoSendEnabled.value })
+              await ingest(text, {
+                chatProvider: provider as ChatProvider,
+                model: activeModel.value,
+                skipAssistant: !autoSendEnabled.value,
+              })
+
+              // Clear the message input if it matches the transcribed text (standard behavior)
+              if (messageInput.value.trim() === text.trim()) {
+                messageInput.value = ''
+              }
+            }
+            catch (err) {
+              console.error('[ChatArea] Inscription error:', err)
+            }
+          })()
+        },
       })
 
       // Only set listening to true if transcription started successfully

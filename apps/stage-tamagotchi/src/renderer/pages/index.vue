@@ -208,7 +208,8 @@ const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionCh
 async function handleSpeechStart() {
   console.info('[Main Page] Speech Start detected')
   if (shouldUseStreamInput.value) {
-    console.info('Speech detected - transcription session should already be active')
+    // For streaming providers, ChatArea component handles transcription manually via transcription pipeline.
+    // The main page should not start automatic transcription to avoid duplicate sessions when ChatArea is active.
     return
   }
 
@@ -259,12 +260,19 @@ async function startAudioInteraction() {
       await transcribeForMediaStream(stream.value, {
         onSentenceEnd: (delta) => {
           console.info('[Main Page] Received transcription delta:', delta)
-          const finalText = delta
-          if (!finalText || !finalText.trim()) {
+          if (!delta || !delta.trim()) {
             return
           }
 
-          postCaption({ type: 'caption-speaker', text: finalText })
+          postCaption({ type: 'caption-speaker', text: delta })
+        },
+        onSpeechEnd: (text) => {
+          console.info('[Main Page] Speech ended, final text:', text)
+          if (!text || !text.trim()) {
+            return
+          }
+
+          postCaption({ type: 'caption-speaker', text })
 
           void (async () => {
             try {
@@ -273,31 +281,26 @@ async function startAudioInteraction() {
                 console.warn('[Main Page] No provider or model available, skipping chat send')
                 return
               }
-              if (finalText) {
-                toast.info(`🎤 You said: ${finalText}`, { id: 'transcription-feedback' })
-                console.info('[Main Page] Sending transcription to chat:', finalText)
-                console.log('[Main Page] Ingesting with tools:', {
-                  model: activeChatModel.value,
-                  hasTools: !!widgetsTools,
-                })
-                void chatStore.ingest(finalText, {
-                  model: activeChatModel.value!,
-                  chatProvider: provider as ChatProvider,
-                  tools: widgetsTools,
-                })
-              }
-              else {
-                toast.error('STT: No speech detected', { id: 'transcription-feedback' })
-              }
+
+              toast.info(`🎤 You said: ${text}`, { id: 'transcription-feedback' })
+              console.info('[Main Page] Sending transcription to chat:', text)
+              console.log('[Main Page] Ingesting with tools:', {
+                model: activeChatModel.value,
+                hasTools: !!widgetsTools,
+              })
+
+              const { autoSendEnabled } = storeToRefs(hearingStore)
+              await chatStore.ingest(text, {
+                model: activeChatModel.value,
+                chatProvider: provider as ChatProvider,
+                tools: widgetsTools,
+                skipAssistant: !autoSendEnabled.value,
+              })
             }
             catch (err) {
               console.error('[Main Page] Failed to send chat from voice:', err)
             }
           })()
-        },
-        onSpeechEnd: (text) => {
-          console.info('[Main Page] Speech ended, final text:', text)
-          postCaption({ type: 'caption-speaker', text })
         },
       })
 
@@ -345,10 +348,13 @@ async function startAudioInteraction() {
           model: activeChatModel.value,
           hasTools: !!widgetsTools,
         })
+
+        const { autoSendEnabled } = storeToRefs(hearingStore)
         await chatStore.ingest(text, {
           model: activeChatModel.value,
           chatProvider: provider as ChatProvider,
           tools: widgetsTools,
+          skipAssistant: !autoSendEnabled.value,
         })
       }
       catch (err) {
