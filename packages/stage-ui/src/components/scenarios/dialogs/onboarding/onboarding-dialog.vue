@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import type { OnboardingStep } from './types'
 
-import { useMediaQuery, useResizeObserver, useScreenSafeArea } from '@vueuse/core'
+import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, VisuallyHidden } from 'reka-ui'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot } from 'vaul-vue'
 import { onMounted } from 'vue'
 
 import Onboarding from './onboarding.vue'
+
+import { useBreakpoints } from '../../../../composables/use-breakpoints'
 
 const props = defineProps<{
   extraSteps?: OnboardingStep[]
@@ -19,7 +21,7 @@ const emit = defineEmits<{
 
 const showDialog = defineModel({ type: Boolean, default: false, required: false })
 
-const isDesktop = useMediaQuery('(min-width: 768px)')
+const { isDesktop } = useBreakpoints()
 const screenSafeArea = useScreenSafeArea()
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())

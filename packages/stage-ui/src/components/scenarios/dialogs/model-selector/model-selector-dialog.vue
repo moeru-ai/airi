@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import type { DisplayModel } from '../../../../stores/display-models'
 
-import { useMediaQuery, useResizeObserver, useScreenSafeArea } from '@vueuse/core'
+import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, DialogTrigger, VisuallyHidden } from 'reka-ui'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTrigger } from 'vaul-vue'
 import { onMounted } from 'vue'
 
 import ModelManager from './model-selector.vue'
+
+import { useBreakpoints } from '../../../../composables/use-breakpoints'
 
 const props = defineProps<{
   selectedModel?: DisplayModel
@@ -15,7 +17,7 @@ const emits = defineEmits<{
   (e: 'pick', value: DisplayModel | undefined): void
 }>()
 const showDialog = defineModel('show', { type: Boolean, default: false, required: false })
-const isDesktop = useMediaQuery('(min-width: 768px)')
+const { isDesktop } = useBreakpoints()
 const screenSafeArea = useScreenSafeArea()
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
