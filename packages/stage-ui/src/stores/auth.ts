@@ -1,10 +1,11 @@
 import type { Session, User } from 'better-auth'
 
-import { StorageSerializers, useLocalStorage, useMediaQuery, whenever } from '@vueuse/core'
+import { StorageSerializers, useLocalStorage, whenever } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import { client } from '../composables/api'
+import { useBreakpoints } from '../composables/use-breakpoints'
 
 /**
  * Auth store — holds identity state and credits.
@@ -25,7 +26,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   // For controlling the login drawer on mobile
   const needsLogin = ref(false)
-  const isMobile = useMediaQuery('(max-width: 768px)')
+  const { isMobile } = useBreakpoints()
 
   whenever(needsLogin, () => {
     if (isMobile.value) {
