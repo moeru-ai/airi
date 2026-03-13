@@ -6,8 +6,6 @@ export { buildRecoveryPlan, evaluateStrategy, summarizeAdvisories } from './stra
 export type { AdvisoryKind, StrategyAdvisory } from './strategy'
 export type * from './types'
 export {
-  createAppBrowseAndActWorkflow,
-  createDevInspectFailureWorkflow,
   createDevRunTestsWorkflow,
   executeWorkflow,
   resumeWorkflow,

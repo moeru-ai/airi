@@ -17,7 +17,7 @@ export function setupDebugger() {
 }
 
 export function openDebugger() {
-  if (/^true$/i.test(env.APP_REMOTE_DEBUG || '') && !/^true$/i.test(env.APP_REMOTE_DEBUG_NO_OPEN || '')) {
+  if (/^true$/i.test(env.APP_REMOTE_DEBUG || '')) {
     const remoteDebugEndpoint = `http://localhost:${env.APP_REMOTE_DEBUG_PORT || '9222'}`
 
     http.get(`${remoteDebugEndpoint}/json`, (res) => {

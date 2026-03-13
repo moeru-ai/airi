@@ -116,7 +116,7 @@ describe('createMcpStdioManager', () => {
     shellMock.openPath.mockResolvedValue('')
     mcpMockState.callToolCalls = []
     mcpMockState.toolsByServer = {
-      airi_self_devtools: ['get_status'],
+      auxiliary_tools: ['get_status'],
       computer_use: ['terminal_exec'],
     }
 
@@ -126,9 +126,9 @@ describe('createMcpStdioManager', () => {
           command: 'pnpm',
           args: ['-F', '@proj-airi/computer-use-mcp', 'start'],
         },
-        airi_self_devtools: {
+        auxiliary_tools: {
           command: 'pnpm',
-          args: ['dev:setup-self-devtools-mcp'],
+          args: ['-F', '@proj-airi/computer-use-mcp', 'start'],
         },
       },
     }, null, 2))
@@ -180,7 +180,7 @@ describe('createMcpStdioManager', () => {
 
   it('fails clearly when fallback tool-name routing is ambiguous', async () => {
     mcpMockState.toolsByServer = {
-      airi_self_devtools: ['shared_tool'],
+      auxiliary_tools: ['shared_tool'],
       computer_use: ['shared_tool'],
     }
 
@@ -191,6 +191,6 @@ describe('createMcpStdioManager', () => {
     await expect(manager.callTool({
       name: 'functions::shared_tool',
       arguments: {},
-    })).rejects.toThrow('tool "shared_tool" exists on multiple running servers: airi_self_devtools, computer_use')
+    })).rejects.toThrow('tool "shared_tool" exists on multiple running servers: auxiliary_tools, computer_use')
   })
 })

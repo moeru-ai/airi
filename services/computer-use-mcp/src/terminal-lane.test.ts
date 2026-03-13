@@ -344,13 +344,6 @@ describe('support matrix: terminal lane', () => {
     expect(entry!.lane).toBe('terminal')
   })
 
-  it('has terminal_vscode_controller as covered', () => {
-    const entry = supportMatrix.find(e => e.id === 'terminal_vscode_controller')
-    expect(entry).toBeDefined()
-    expect(entry!.level).toBe('covered')
-    expect(entry!.lane).toBe('terminal')
-  })
-
   it('has terminal_step_binding as covered', () => {
     const entry = supportMatrix.find(e => e.id === 'terminal_step_binding')
     expect(entry).toBeDefined()

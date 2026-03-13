@@ -10,9 +10,8 @@
  *   5. State is consistent (bindings, audit, surface decisions)
  *
  * Scenario:
- *   - Call workflow_validate_workspace with `vim --version` as checkCommand
- *   - Early steps (pwd, git diff) succeed via terminal_exec (auto_default_exec)
- *   - "Run workspace validation" step surface-resolves to auto_interactive_command
+ *   - Call workflow_run_tests with `vim --version` as testCommand
+ *   - "Run test suite" step surface-resolves to auto_interactive_command
  *   - Engine self-acquires a real PTY, sends the command, reads screen output
  *   - Step succeeds — no reroute
  *   - Verify state consistency (bindings, audit, surface decisions, PTY session)
@@ -101,22 +100,20 @@ async function createClient(): Promise<Client> {
 // ---------------------------------------------------------------------------
 
 async function phase1_selfAcquirePty(client: Client, projectPath: string) {
-  console.info('\n── Phase 1: workflow_validate_workspace with interactive checkCommand ──')
+  console.info('\n── Phase 1: workflow_run_tests with interactive testCommand ──')
   console.info('  No pre-created PTY. The engine self-acquires.')
 
   const result = await client.callTool({
-    name: 'workflow_validate_workspace',
+    name: 'workflow_run_tests',
     arguments: {
       projectPath,
-      ideApp: 'Visual Studio Code',
-      changesCommand: 'echo "M index.ts"',
       // `vim --version` matches `^vim\b` → auto_interactive_command → PTY self-acquire
-      checkCommand: 'vim --version',
+      testCommand: 'vim --version',
       autoApprove: true,
     },
   })
 
-  const data = requireStructuredContent(result, 'workflow_validate_workspace')
+  const data = requireStructuredContent(result, 'workflow_run_tests')
   console.info(`  Kind: ${data.kind}`)
   console.info(`  Status: ${data.status}`)
 
@@ -131,18 +128,11 @@ async function phase1_selfAcquirePty(client: Client, projectPath: string) {
     console.info(`  ${s.succeeded ? '✓' : '✗'} ${s.label} (${s.status})`)
   }
 
-  // Early steps should succeed via exec
-  const pwdStep = steps.find(s => s.label === 'Confirm project working directory')
-  assert(pwdStep?.succeeded === true, 'pwd step must have succeeded via exec')
-
-  const changesStep = steps.find(s => s.label === 'Inspect local changes')
-  assert(changesStep?.succeeded === true, 'changes step must have succeeded via exec')
-
-  // The validation step should succeed via PTY self-acquire
-  const validationStep = steps.find(s => s.label === 'Run workspace validation')
+  // The test-suite step should succeed via PTY self-acquire
+  const validationStep = steps.find(s => s.label === 'Run test suite')
   assert(
     validationStep?.succeeded === true,
-    `validation step must have succeeded via PTY self-acquire, got status=${validationStep?.status}`,
+    `test-suite step must have succeeded via PTY self-acquire, got status=${validationStep?.status}`,
   )
   assert(
     validationStep?.explanation?.includes('PTY') === true,
@@ -259,7 +249,7 @@ async function main() {
     const { tools } = await client.listTools()
     const names = new Set(tools.map(t => t.name))
     for (const t of [
-      'workflow_validate_workspace',
+      'workflow_run_tests',
       'pty_get_status',
       'pty_destroy',
       'desktop_get_state',
