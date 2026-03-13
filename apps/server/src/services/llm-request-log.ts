@@ -12,7 +12,7 @@ export interface RequestLogEntry {
   completionTokens?: number
 }
 
-export function createRequestLogService(db: Database) {
+export function createLLMRequestLogService(db: Database) {
   return {
     async logRequest(entry: RequestLogEntry) {
       await db.insert(schema.llmRequestLog).values(entry)
@@ -20,4 +20,4 @@ export function createRequestLogService(db: Database) {
   }
 }
 
-export type RequestLogService = ReturnType<typeof createRequestLogService>
+export type RequestLogService = ReturnType<typeof createLLMRequestLogService>

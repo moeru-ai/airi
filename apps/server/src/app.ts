@@ -30,8 +30,8 @@ import { createConfigKVService } from './services/config-kv'
 import { createFluxService } from './services/flux'
 import { createFluxAuditService } from './services/flux-audit'
 import { createFluxWriteBack } from './services/flux-write-back'
+import { createLLMRequestLogService } from './services/llm-request-log'
 import { createProviderService } from './services/providers'
-import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
 import { ApiError, createInternalError } from './utils/error'
 import { getTrustedOrigin } from './utils/origin'
@@ -42,7 +42,7 @@ type ChatService = ReturnType<typeof createChatService>
 type ProviderService = ReturnType<typeof createProviderService>
 type FluxService = ReturnType<typeof createFluxService>
 type ConfigKVService = ReturnType<typeof createConfigKVService>
-type RequestLogService = ReturnType<typeof createRequestLogService>
+type LLMRequestLogService = ReturnType<typeof createLLMRequestLogService>
 type StripeDBService = ReturnType<typeof createStripeService>
 type FluxAuditService = ReturnType<typeof createFluxAuditService>
 
@@ -55,7 +55,7 @@ interface AppDeps {
   providerService: ProviderService
   fluxService: FluxService
   fluxAuditService: FluxAuditService
-  requestLogService: RequestLogService
+  requestLogService: LLMRequestLogService
   stripeService: StripeDBService
   configKV: ConfigKVService
   env: Env
@@ -240,7 +240,7 @@ async function createApp() {
 
   const requestLogService = injeca.provide('services:requestLog', {
     dependsOn: { db },
-    build: ({ dependsOn }) => createRequestLogService(dependsOn.db),
+    build: ({ dependsOn }) => createLLMRequestLogService(dependsOn.db),
   })
 
   const fluxWriteBack = injeca.provide('services:fluxWriteBack', {
