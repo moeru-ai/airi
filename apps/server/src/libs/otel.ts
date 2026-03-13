@@ -1,5 +1,7 @@
 import type { IncomingMessage } from 'node:http'
 
+import type { Counter, Histogram, UpDownCounter } from '@opentelemetry/api'
+
 import type { Env } from './env'
 
 import { env as processEnv } from 'node:process'
@@ -22,7 +24,61 @@ import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic
 
 const logger = useLogger('otel')
 
-export function initOtel(env: Env) {
+export interface HttpMetrics {
+  requestDuration: Histogram
+  activeRequests: UpDownCounter
+}
+
+export interface AuthMetrics {
+  attempts: Counter
+  failures: Counter
+  userRegistered: Counter
+  userLogin: Counter
+  activeSessions: UpDownCounter
+}
+
+export interface EngagementMetrics {
+  chatSync: Counter
+  chatMessages: Counter
+  characterCreated: Counter
+  characterDeleted: Counter
+  characterEngagement: Counter
+}
+
+export interface RevenueMetrics {
+  stripeCheckoutCreated: Counter
+  stripeCheckoutCompleted: Counter
+  stripePaymentFailed: Counter
+  stripeSubscriptionEvent: Counter
+  stripeEvents: Counter
+  fluxInsufficientBalance: Counter
+}
+
+export interface LlmMetrics {
+  requestDuration: Histogram
+  requestCount: Counter
+  tokensPrompt: Counter
+  tokensCompletion: Counter
+  fluxConsumed: Counter
+}
+
+export interface DbMetrics {
+  queryDuration: Histogram
+  redisCommandDuration: Histogram
+}
+
+export interface OtelInstance {
+  sdk: NodeSDK
+  http: HttpMetrics
+  auth: AuthMetrics
+  engagement: EngagementMetrics
+  revenue: RevenueMetrics
+  llm: LlmMetrics
+  db: DbMetrics
+  shutdown: () => Promise<void>
+}
+
+export function initOtel(env: Env): OtelInstance | undefined {
   const otlpEndpoint = env.OTEL_EXPORTER_OTLP_ENDPOINT
   const serviceName = env.OTEL_SERVICE_NAME
 
@@ -109,59 +165,108 @@ export function initOtel(env: Env) {
 
   const meter = metrics.getMeter(serviceName)
 
-  // Custom application metrics
-  const httpRequestDuration = meter.createHistogram('http.server.request.duration', {
-    description: 'HTTP server request duration in milliseconds',
-    unit: 'ms',
-  })
+  // HTTP metrics
+  const http: HttpMetrics = {
+    requestDuration: meter.createHistogram('http.server.request.duration', {
+      description: 'HTTP server request duration in milliseconds',
+      unit: 'ms',
+    }),
+    activeRequests: meter.createUpDownCounter('http.server.active_requests', {
+      description: 'Number of active HTTP requests',
+    }),
+  }
 
-  const httpActiveRequests = meter.createUpDownCounter('http.server.active_requests', {
-    description: 'Number of active HTTP requests',
-  })
+  // Auth & User metrics
+  const auth: AuthMetrics = {
+    attempts: meter.createCounter('auth.attempts', {
+      description: 'Number of authentication attempts',
+    }),
+    failures: meter.createCounter('auth.failures', {
+      description: 'Number of failed authentication attempts',
+    }),
+    userRegistered: meter.createCounter('user.registered', {
+      description: 'Number of new user registrations',
+    }),
+    userLogin: meter.createCounter('user.login', {
+      description: 'Number of user logins',
+    }),
+    activeSessions: meter.createUpDownCounter('user.active_sessions', {
+      description: 'Number of active user sessions',
+    }),
+  }
 
-  const dbQueryDuration = meter.createHistogram('db.client.operation.duration', {
-    description: 'Database operation duration in milliseconds',
-    unit: 'ms',
-  })
+  // Engagement metrics
+  const engagement: EngagementMetrics = {
+    chatSync: meter.createCounter('chat.sync', {
+      description: 'Number of chat sync operations',
+    }),
+    chatMessages: meter.createCounter('chat.messages', {
+      description: 'Number of chat messages synced',
+    }),
+    characterCreated: meter.createCounter('character.created', {
+      description: 'Number of characters created',
+    }),
+    characterDeleted: meter.createCounter('character.deleted', {
+      description: 'Number of characters deleted',
+    }),
+    characterEngagement: meter.createCounter('character.engagement', {
+      description: 'Number of character engagement actions (like/bookmark)',
+    }),
+  }
 
-  const redisCommandDuration = meter.createHistogram('redis.client.command.duration', {
-    description: 'Redis command duration in milliseconds',
-    unit: 'ms',
-  })
-
-  const authAttempts = meter.createCounter('auth.attempts', {
-    description: 'Number of authentication attempts',
-  })
-
-  const authFailures = meter.createCounter('auth.failures', {
-    description: 'Number of failed authentication attempts',
-  })
-
-  const stripeEvents = meter.createCounter('stripe.events', {
-    description: 'Number of Stripe webhook events processed',
-  })
+  // Revenue metrics
+  const revenue: RevenueMetrics = {
+    stripeCheckoutCreated: meter.createCounter('stripe.checkout.created', {
+      description: 'Number of Stripe checkout sessions created',
+    }),
+    stripeCheckoutCompleted: meter.createCounter('stripe.checkout.completed', {
+      description: 'Number of Stripe checkout sessions completed',
+    }),
+    stripePaymentFailed: meter.createCounter('stripe.payment.failed', {
+      description: 'Number of failed Stripe payments',
+    }),
+    stripeSubscriptionEvent: meter.createCounter('stripe.subscription.event', {
+      description: 'Number of Stripe subscription lifecycle events',
+    }),
+    stripeEvents: meter.createCounter('stripe.events', {
+      description: 'Number of Stripe webhook events processed',
+    }),
+    fluxInsufficientBalance: meter.createCounter('flux.insufficient_balance', {
+      description: 'Number of insufficient flux balance errors',
+    }),
+  }
 
   // LLM / Gateway metrics
-  const llmRequestDuration = meter.createHistogram('llm.request.duration', {
-    description: 'LLM gateway request duration in milliseconds',
-    unit: 'ms',
-  })
+  const llm: LlmMetrics = {
+    requestDuration: meter.createHistogram('llm.request.duration', {
+      description: 'LLM gateway request duration in milliseconds',
+      unit: 'ms',
+    }),
+    requestCount: meter.createCounter('llm.request.count', {
+      description: 'Number of LLM gateway requests',
+    }),
+    tokensPrompt: meter.createCounter('llm.tokens.prompt', {
+      description: 'Total prompt tokens consumed',
+    }),
+    tokensCompletion: meter.createCounter('llm.tokens.completion', {
+      description: 'Total completion tokens consumed',
+    }),
+    fluxConsumed: meter.createCounter('flux.consumed', {
+      description: 'Total flux consumed',
+    }),
+  }
 
-  const llmRequestCount = meter.createCounter('llm.request.count', {
-    description: 'Number of LLM gateway requests',
-  })
-
-  const llmTokensPrompt = meter.createCounter('llm.tokens.prompt', {
-    description: 'Total prompt tokens consumed',
-  })
-
-  const llmTokensCompletion = meter.createCounter('llm.tokens.completion', {
-    description: 'Total completion tokens consumed',
-  })
-
-  const fluxConsumed = meter.createCounter('flux.consumed', {
-    description: 'Total flux consumed',
-  })
+  // Database metrics
+  const db: DbMetrics = {
+    queryDuration: meter.createHistogram('db.client.operation.duration', {
+      description: 'Database operation duration in milliseconds',
+      unit: 'ms',
+    }),
+    redisCommandDuration: meter.createHistogram('redis.client.command.duration', {
+      description: 'Redis command duration in milliseconds',
+      unit: 'ms',
+    }),
+  }
 
   // Graceful shutdown
   const shutdown = async () => {
@@ -176,20 +281,12 @@ export function initOtel(env: Env) {
 
   return {
     sdk,
-    meter,
-    httpRequestDuration,
-    httpActiveRequests,
-    dbQueryDuration,
-    redisCommandDuration,
-    authAttempts,
-    authFailures,
-    stripeEvents,
-    llmRequestDuration,
-    llmRequestCount,
-    llmTokensPrompt,
-    llmTokensCompletion,
-    fluxConsumed,
-
+    http,
+    auth,
+    engagement,
+    revenue,
+    llm,
+    db,
     shutdown,
   }
 }

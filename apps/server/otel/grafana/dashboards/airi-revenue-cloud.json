@@ -1,0 +1,319 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Stripe",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 10 },
+              { "color": "red", "value": 50 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 1 },
+      "id": 1,
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "title": "Checkouts Created (24h)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(increase(stripe_checkout_created_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[24h]))",
+          "legendFormat": "created"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 30 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 1 },
+      "id": 2,
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "title": "Checkouts Completed (24h)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(increase(stripe_checkout_completed_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[24h]))",
+          "legendFormat": "completed"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 1 },
+      "id": 3,
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "title": "Payment Failures (24h)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(increase(stripe_payment_failed_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[24h]))",
+          "legendFormat": "failures"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.5 },
+              { "color": "green", "value": 0.8 }
+            ]
+          },
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 1 },
+      "id": 4,
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "title": "Conversion Rate",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(increase(stripe_checkout_completed_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[24h])) / sum(increase(stripe_checkout_created_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[24h]))",
+          "legendFormat": "conversion"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20,
+            "stacking": { "mode": "none" }
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "id": 5,
+      "title": "Checkout Funnel Over Time",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(stripe_checkout_created_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "legendFormat": "created/s"
+        },
+        {
+          "expr": "sum(rate(stripe_checkout_completed_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "legendFormat": "completed/s"
+        },
+        {
+          "expr": "sum(rate(stripe_payment_failed_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "legendFormat": "failed/s"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "stacking": { "mode": "normal" }
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "id": 6,
+      "title": "Subscription Events",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (event_type) (rate(stripe_subscription_event_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "legendFormat": "{{event_type}}"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20,
+            "stacking": { "mode": "none" }
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 17 },
+      "id": 7,
+      "title": "Stripe Events by Type",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (event_type) (rate(stripe_events_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "legendFormat": "{{event_type}}"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
+      "id": 101,
+      "title": "Flux",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 20 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 26 },
+      "id": 8,
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "title": "Insufficient Balance (1h)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(increase(flux_insufficient_balance_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[1h]))",
+          "legendFormat": "insufficient"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20,
+            "stacking": { "mode": "none" }
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 26 },
+      "id": 9,
+      "title": "Insufficient Balance Over Time",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(flux_insufficient_balance_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "legendFormat": "insufficient/s"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["airi", "revenue", "stripe", "grafana-cloud"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": false, "text": "production", "value": "production" },
+        "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
+        "definition": "label_values(http_server_request_duration_milliseconds_count, deployment_environment)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": false,
+        "name": "env",
+        "query": "label_values(http_server_request_duration_milliseconds_count, deployment_environment)",
+        "refresh": 2,
+        "type": "query"
+      },
+      {
+        "current": { "selected": false, "text": "server", "value": "server" },
+        "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
+        "definition": "label_values(http_server_request_duration_milliseconds_count{deployment_environment=~\"$env\"}, service_name)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "service",
+        "query": "label_values(http_server_request_duration_milliseconds_count{deployment_environment=~\"$env\"}, service_name)",
+        "refresh": 2,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-7d", "to": "now" },
+  "title": "AIRI Revenue (Cloud)",
+  "uid": "airi-revenue-cloud"
+}

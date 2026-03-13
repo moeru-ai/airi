@@ -1,11 +1,12 @@
 import type { Database } from '../libs/db'
+import type { EngagementMetrics } from '../libs/otel'
 
 import { and, eq, isNull, sql } from 'drizzle-orm'
 
 import * as schema from '../schemas/characters'
 import * as userCharacterSchema from '../schemas/user-character'
 
-export function createCharacterService(db: Database) {
+export function createCharacterService(db: Database, metrics?: EngagementMetrics | null) {
   return {
     async findById(id: string) {
       return await db.query.character.findFirst({
@@ -55,7 +56,7 @@ export function createCharacterService(db: Database) {
     },
 
     async like(userId: string, characterId: string) {
-      return await db.transaction(async (tx) => {
+      const result = await db.transaction(async (tx) => {
         const existing = await tx.query.characterLikes.findFirst({
           where: and(
             eq(userCharacterSchema.characterLikes.userId, userId),
@@ -90,10 +91,13 @@ export function createCharacterService(db: Database) {
           return { liked: true }
         }
       })
+
+      metrics?.characterEngagement.add(1, { action: result.liked ? 'like' : 'unlike' })
+      return result
     },
 
     async bookmark(userId: string, characterId: string) {
-      return await db.transaction(async (tx) => {
+      const result = await db.transaction(async (tx) => {
         const existing = await tx.query.characterBookmarks.findFirst({
           where: and(
             eq(userCharacterSchema.characterBookmarks.userId, userId),
@@ -128,6 +132,9 @@ export function createCharacterService(db: Database) {
           return { bookmarked: true }
         }
       })
+
+      metrics?.characterEngagement.add(1, { action: result.bookmarked ? 'bookmark' : 'unbookmark' })
+      return result
     },
 
     async create(data: {
@@ -138,7 +145,7 @@ export function createCharacterService(db: Database) {
       i18n?: Omit<schema.NewCharacterI18n, 'characterId'>[]
       prompts?: Omit<schema.NewCharacterPrompt, 'characterId'>[]
     }) {
-      return await db.transaction(async (tx) => {
+      const inserted = await db.transaction(async (tx) => {
         const [inserted] = await tx.insert(schema.character).values(data.character).returning()
 
         if (data.cover) {
@@ -174,6 +181,9 @@ export function createCharacterService(db: Database) {
 
         return inserted
       })
+
+      metrics?.characterCreated.add(1)
+      return inserted
     },
 
     async update(id: string, data: Partial<schema.NewCharacter>) {
@@ -187,13 +197,19 @@ export function createCharacterService(db: Database) {
     },
 
     async delete(id: string) {
-      return await db.update(schema.character)
+      const result = await db.update(schema.character)
         .set({ deletedAt: new Date() })
         .where(and(
           eq(schema.character.id, id),
           isNull(schema.character.deletedAt),
         ))
         .returning()
+
+      if (result.length > 0) {
+        metrics?.characterDeleted.add(1)
+      }
+
+      return result
     },
   }
 }
