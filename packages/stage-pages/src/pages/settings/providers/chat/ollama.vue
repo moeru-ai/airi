@@ -209,7 +209,7 @@ onMounted(() => {
               <button
                 type="button"
                 :disabled="isManualTesting"
-                :class="['rounded px-2 py-0.5 text-xs font-medium transition-colors', isManualTesting ? 'opacity-50 cursor-not-allowed' : '', 'bg-blue-100 text-blue-600 hover:bg-blue-200', 'dark:bg-blue-800/30 dark:text-blue-300 dark:hover:bg-blue-700/40']"
+                :class="['ml-2 rounded px-2 py-0.5 text-xs font-medium transition-colors', isManualTesting ? 'opacity-50 cursor-not-allowed' : '', 'bg-blue-100 text-blue-600 hover:bg-blue-200', 'dark:bg-blue-800/30 dark:text-blue-300 dark:hover:bg-blue-700/40']"
                 @click="runManualTest"
               >
                 {{ isManualTesting ? t('settings.dialogs.onboarding.testGenerationRunning') : t('settings.dialogs.onboarding.testGeneration') }}
