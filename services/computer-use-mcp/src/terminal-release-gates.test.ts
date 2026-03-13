@@ -17,7 +17,6 @@ import {
   writeToPty,
 } from './terminal/pty-runner'
 import { createTestConfig } from './test-fixtures'
-import { createDevValidateWorkspaceWorkflow } from './workflows/dev-validate-workspace'
 import { executeWorkflow } from './workflows/engine'
 
 vi.mock('./terminal/pty-runner', () => ({
@@ -73,6 +72,51 @@ function createRuntime(stateManager: RunStateManager, approvalMode: 'never' | 'a
   } as unknown as ComputerUseServerRuntime
 }
 
+function createExecHappyPathWorkflow(projectPath: string): WorkflowDefinition {
+  return {
+    id: 'terminal_exec_happy_path',
+    name: 'terminal exec happy path',
+    description: 'Open the workspace context, run checks, and summarize via terminal exec.',
+    maxRetries: 2,
+    steps: [
+      {
+        label: 'Focus IDE workspace',
+        kind: 'ensure_app',
+        description: 'Focus the IDE before running terminal checks.',
+        params: { app: 'Cursor' },
+        critical: true,
+      },
+      {
+        label: 'Print working directory',
+        kind: 'run_command',
+        description: 'Confirm the current project directory.',
+        params: { command: 'pwd', cwd: projectPath },
+        critical: true,
+      },
+      {
+        label: 'Inspect workspace diff',
+        kind: 'run_command',
+        description: 'Inspect current workspace changes.',
+        params: { command: 'git diff --stat', cwd: projectPath },
+        critical: true,
+      },
+      {
+        label: 'Run workspace tests',
+        kind: 'run_command',
+        description: 'Run the terminal test command.',
+        params: { command: 'pnpm test', cwd: projectPath },
+        critical: true,
+      },
+      {
+        label: 'Summarize result',
+        kind: 'summarize',
+        description: 'Summarize the terminal validation result.',
+        params: {},
+      },
+    ],
+  }
+}
+
 function makeSingleStepTask(params: {
   id: string
   workflowId: string
@@ -105,13 +149,7 @@ describe('terminal release gates', () => {
 
   it('exec happy path: opens workspace, runs checks/tests, writes back state, and continues', async () => {
     const projectPath = '/Users/liuziheng/airi'
-    const workflow = createDevValidateWorkspaceWorkflow({
-      projectPath,
-      ideApp: 'Cursor',
-      fileManagerApp: 'Finder',
-      changesCommand: 'git diff --stat',
-      checkCommand: 'pnpm test',
-    })
+    const workflow = createExecHappyPathWorkflow(projectPath)
     const stateManager = new RunStateManager()
 
     const executeAction: ExecuteAction = vi.fn().mockImplementation(async (action) => {
