@@ -49,18 +49,18 @@ async function handleSignIn(provider: OAuthProvider) {
           <div class="flex flex-col gap-4">
             <Button
               :class="['w-full', 'py-4', 'flex', 'items-center', 'justify-center', 'gap-3', 'text-lg', 'rounded-2xl']"
+              icon="i-simple-icons-google"
               :loading="loading.google"
               @click="handleSignIn('google')"
             >
-              <div v-if="!loading.google" class="i-simple-icons-google text-xl" />
               <span>Sign in with Google</span>
             </Button>
             <Button
               :class="['w-full', 'py-4', 'flex', 'items-center', 'justify-center', 'gap-3', 'text-lg', 'rounded-2xl']"
+              icon="i-simple-icons-github"
               :loading="loading.github"
               @click="handleSignIn('github')"
             >
-              <div v-if="!loading.github" class="i-simple-icons-github text-xl" />
               <span>Sign in with GitHub</span>
             </Button>
           </div>
