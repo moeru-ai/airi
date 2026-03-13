@@ -16,6 +16,7 @@ import { interpretSticker } from '../../llm/sticker'
 import { findStickerByFileId, findStickersByFileIds, recordMessage } from '../../models'
 import { listJoinedChats, recordJoinedChat } from '../../models/chats'
 import { listStickerPacks, recordStickerPack } from '../../models/sticker-packs'
+import { endFlow, formatFlow, formatFlowList, getFlow, getFlowCount, startFlow } from '../../utils/debug-tracker'
 import { readMessage } from './agent/actions/read-message'
 import { sendMessage } from './agent/actions/send-message'
 // import { shouldInterruptProcessing } from './agent/interruption'
@@ -173,6 +174,7 @@ async function dispatchAction(ctx: BotContext, action: Action, abortController: 
 
 async function handleLoopStep(ctx: BotContext, chatCtx: ChatContext, incomingMessage?: Message): Promise<() => Promise<any> | undefined> {
   ctx.currentProcessingStartTime = Date.now()
+  startFlow(chatCtx?.chatId || 'unknown')
 
   if (chatCtx?.currentAbortController) {
     chatCtx.currentAbortController.abort()
@@ -269,15 +271,19 @@ async function handleLoopStep(ctx: BotContext, chatCtx: ChatContext, incomingMes
     }
 
     const action = await imagineAnAction(ctx.bot.botInfo.id.toString(), currentController, chatCtx?.messages || [], chatCtx?.actions || [], { unreadMessages: ctx.unreadMessages, incomingMessages: [incomingMessage] })
-    return await dispatchAction(ctx, action, currentController, chatCtx)
+    const result = await dispatchAction(ctx, action, currentController, chatCtx)
+    endFlow()
+    return result
   }
   catch (err) {
     if (err.name === 'AbortError') {
       ctx.logger.log('Operation was aborted due to interruption')
+      endFlow()
       return
     }
 
     ctx.logger.withError(err).log('Error occurred')
+    endFlow()
   }
   finally {
     // Clean up timing when done
@@ -464,6 +470,43 @@ export async function startTelegramBot() {
   telegramBot.errorHandler = async err => log.withError(err).log('Error occurred')
 
   const botCtx = createBotContext(telegramBot, log)
+
+  telegramBot.command('debug', async (ctx) => {
+    if (!(await isChatIdBotAdmin(ctx.message.from.id))) {
+      return
+    }
+
+    const chatId = ctx.message.chat.id.toString()
+    const arg = ctx.message.text.replace(/^\/debug\s*/, '').trim()
+    const index = arg ? Number.parseInt(arg) : undefined
+
+    // /debug → show list; /debug <n> → show detail
+    if (index == null || Number.isNaN(index)) {
+      const text = formatFlowList(chatId)
+      await ctx.reply(text)
+      return
+    }
+
+    const count = getFlowCount(chatId)
+    if (index < 0 || index >= count) {
+      await ctx.reply(`Index out of range. Valid: 0 ~ ${count - 1}`)
+      return
+    }
+
+    const flow = getFlow(chatId, index)
+    if (!flow) {
+      await ctx.reply('Flow not found.')
+      return
+    }
+
+    const text = formatFlow(flow)
+    if (text.length > 4000) {
+      await ctx.reply(`${text.slice(0, 4000)}\n... (truncated)`)
+    }
+    else {
+      await ctx.reply(text)
+    }
+  })
 
   telegramBot.command('add_sticker_pack', async (ctx) => {
     if (!(await isChatIdBotAdmin(ctx.message.from.id))) {

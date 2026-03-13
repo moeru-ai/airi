@@ -14,6 +14,7 @@ import { parse } from 'best-effort-json-parser'
 
 import { personality, systemTicking } from '../prompts'
 import { div, span, vif } from '../prompts/utils'
+import { addStep } from '../utils/debug-tracker'
 
 export async function imagineAnAction(
   botId: string,
@@ -63,6 +64,14 @@ export async function imagineAnAction(
       { role: 'user' as const, content: userContent },
     )
 
+    addStep('imagineAnAction:prompt', {
+      systemContentLength: systemContent.length,
+      userContentLength: userContent.length,
+      historyMessages: messages.length,
+      historyActions: actions.length,
+      unreadCounts: Object.fromEntries(Object.entries(globalStates.unreadMessages).map(([k, v]) => [k, v.length])),
+    })
+
     try {
       const res = await tracer.startActiveSpan('llm.chat.generate_text', async (s) => {
         s.setAttribute('llm.chat.model', env.LLM_MODEL!)
@@ -93,6 +102,13 @@ export async function imagineAnAction(
 
         s.end()
         return res
+      })
+
+      addStep('imagineAnAction:llmResponse', {
+        responseText: res.text.slice(0, 300),
+        totalTokens: res.usage.total_tokens,
+        promptTokens: res.usage.prompt_tokens,
+        completionTokens: res.usage.completion_tokens,
       })
 
       logger.withFields({
@@ -164,6 +180,13 @@ export async function imagineAnAction(
         }
 
         const action = raw as unknown as Action
+
+        addStep('imagineAnAction:parsedAction', {
+          action: action.action,
+          chatId: (action as any).chatId || 'none',
+          hasContent: !!(action as any).content,
+        })
+
         s.setAttribute('telegram.bot.id', botId)
         s.setAttribute('telegram.module.generate_agent_action.parsed_action', JSON.stringify(action))
 
