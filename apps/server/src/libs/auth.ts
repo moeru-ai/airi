@@ -2,6 +2,7 @@ import type { Database } from './db'
 import type { Env } from './env'
 import type { AuthMetrics } from './otel'
 
+import { useLogger } from '@guiiai/logg'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { bearer } from 'better-auth/plugins'
@@ -9,6 +10,30 @@ import { bearer } from 'better-auth/plugins'
 import * as authSchema from '../schemas/accounts'
 
 export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null) {
+  const logger = useLogger('auth').useGlobalConfig()
+
+  const socialProviders: Record<string, any> = {}
+
+  if (env.AUTH_GOOGLE_CLIENT_ID && env.AUTH_GOOGLE_CLIENT_SECRET) {
+    socialProviders.google = {
+      clientId: env.AUTH_GOOGLE_CLIENT_ID,
+      clientSecret: env.AUTH_GOOGLE_CLIENT_SECRET,
+    }
+  }
+  else {
+    logger.warn('Google OAuth not configured — provider disabled')
+  }
+
+  if (env.AUTH_GITHUB_CLIENT_ID && env.AUTH_GITHUB_CLIENT_SECRET) {
+    socialProviders.github = {
+      clientId: env.AUTH_GITHUB_CLIENT_ID,
+      clientSecret: env.AUTH_GITHUB_CLIENT_SECRET,
+    }
+  }
+  else {
+    logger.warn('GitHub OAuth not configured — provider disabled')
+  }
+
   return betterAuth({
     database: drizzleAdapter(db, {
       provider: 'pg',
@@ -37,16 +62,7 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
       },
     },
 
-    socialProviders: {
-      google: {
-        clientId: env.AUTH_GOOGLE_CLIENT_ID,
-        clientSecret: env.AUTH_GOOGLE_CLIENT_SECRET,
-      },
-      github: {
-        clientId: env.AUTH_GITHUB_CLIENT_ID,
-        clientSecret: env.AUTH_GITHUB_CLIENT_SECRET,
-      },
-    },
+    ...(Object.keys(socialProviders).length > 0 ? { socialProviders } : {}),
 
     databaseHooks: {
       user: {

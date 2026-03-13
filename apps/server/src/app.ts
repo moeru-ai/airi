@@ -19,6 +19,7 @@ import { initOtel } from './libs/otel'
 import { createRedis } from './libs/redis'
 import { sessionMiddleware } from './middlewares/auth'
 import { otelMiddleware } from './middlewares/otel'
+import { createAuthProvidersRoute } from './routes/auth-providers'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
@@ -112,6 +113,11 @@ function buildApp({
      * Health check route.
      */
     .on('GET', '/health', c => c.json({ status: 'ok' }))
+
+    /**
+     * Auth providers availability route — must come before the better-auth catch-all.
+     */
+    .route('/api/auth/providers', createAuthProvidersRoute(env))
 
     /**
      * Auth routes are handled by the auth instance directly,
