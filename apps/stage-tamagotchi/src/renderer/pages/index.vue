@@ -18,27 +18,25 @@ import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composab
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
+import { useLLM } from '@proj-airi/stage-ui/stores/llm'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
+import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { refDebounced, useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, provide, ref, toRef, watch } from 'vue'
+import { toast } from 'vue-sonner'
 
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
-import StatusIsland from '../components/stage-islands/status-island/index.vue'
 
-import { electronOpenOnboarding } from '../../shared/eventa'
+import { electronGetMainWindowConfig } from '../../shared/eventa'
 import { useControlsIslandStore } from '../stores/controls-island'
-import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
+import { widgetsTools } from '../stores/tools/builtin/widgets'
 import { useWindowStore } from '../stores/window'
-import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
-const statusIslandRef = ref<InstanceType<typeof StatusIsland>>()
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
 const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
@@ -48,14 +46,9 @@ const isLoading = ref(true)
 const isIgnoringMouseEvents = ref(false)
 const shouldFadeOnCursorWithin = ref(false)
 
-const onboardingStore = useOnboardingStore()
-const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
-
 const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
 const { isOutside } = useElectronMouseInElement(controlsIslandRef)
-const { isOutside: isOutsideStatusIsland } = useElectronMouseInElement(statusIslandRef)
 const isOutsideFor250Ms = refDebounced(isOutside, 250)
-const isOutsideStatusIslandFor250Ms = refDebounced(isOutsideStatusIsland, 250)
 const { x: relativeMouseX, y: relativeMouseY } = useElectronRelativeMouse()
 // NOTICE: In real-world use cases of Fade on Hover feature, the cursor may move around the edge of the
 // model rapidly, causing flickering effects when checking pixel transparency strictly.
@@ -74,20 +67,24 @@ const isTransparentByThree = useThreeSceneIsTransparentAtPoint(
 )
 
 const { stageModelRenderer } = storeToRefs(useSettings())
-const { stagePaused } = storeToRefs(useStageWindowLifecycleStore())
-const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
-const shouldUseThreeTransparencyHitTest = computed(() => shouldSampleStageTransparency({
-  componentState: componentStateStage.value,
-  fadeOnHoverEnabled: fadeOnHoverEnabled.value,
-  stageModelRenderer: stageModelRenderer.value,
-  stagePaused: stagePaused.value,
-}))
-const isTransparent = computed(() => {
-  if (stagePaused.value || componentStateStage.value !== 'mounted' || !fadeOnHoverEnabled.value)
-    return true
 
+const llmStore = useLLM()
+const providersStore = useProvidersStore()
+const consciousnessStore = useConsciousnessStore()
+const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
+
+watch([activeChatProvider, activeChatModel], async () => {
+  if (activeChatProvider.value && activeChatModel.value) {
+    console.log('[Main Page] Discovering tools compatibility for:', activeChatModel.value)
+    const provider = await providersStore.getProviderInstance<ChatProvider>(activeChatProvider.value)
+    if (provider) {
+      await llmStore.discoverToolsCompatibility(activeChatModel.value, provider, [])
+    }
+  }
+}, { immediate: true })
+const isTransparent = computed(() => {
   if (stageModelRenderer.value === 'vrm')
-    return shouldUseThreeTransparencyHitTest.value ? isTransparentByThree.value : true
+    return isTransparentByThree.value
 
   if (stageModelRenderer.value === 'live2d')
     return isTransparentByPixels.value
@@ -100,9 +97,9 @@ const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
 
-const live2dStore = useLive2d()
-const { scale, positionInPercentageString } = storeToRefs(live2dStore)
+const { scale, positionInPercentageString } = storeToRefs(useLive2d())
 const { live2dLookAtX, live2dLookAtY } = storeToRefs(useWindowStore())
+const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
 
 watch(componentStateStage, () => isLoading.value = componentStateStage.value !== 'mounted', { immediate: true })
 
@@ -110,17 +107,29 @@ const { pause, resume } = watch(isTransparent, (transparent) => {
   shouldFadeOnCursorWithin.value = fadeOnHoverEnabled.value && !transparent
 }, { immediate: true })
 
-const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
+const isLocked = ref(false)
+provide('isLocked', isLocked)
 
-watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled, stagePaused], () => {
-  if (stagePaused.value) {
-    isIgnoringMouseEvents.value = false
-    shouldFadeOnCursorWithin.value = false
-    setIgnoreMouseEvents([false, { forward: true }])
-    pause()
-    return
+const getMainWindowConfig = useElectronEventaInvoke(electronGetMainWindowConfig)
+
+onMounted(async () => {
+  const config = await getMainWindowConfig() as any
+  if (config) {
+    isLocked.value = !!config.locked
   }
 
+  if (window.electron?.ipcRenderer) {
+    window.electron.ipcRenderer.on('eventa:event:electron:windows:main:config-changed', (_event, config: any) => {
+      if (config) {
+        isLocked.value = !!config.locked
+      }
+    })
+  }
+})
+
+const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
+
+watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled], () => {
   if (hearingDialogOpen.value) {
     // Hearing dialog/drawer is open; keep window interactive
     isIgnoringMouseEvents.value = false
@@ -130,7 +139,7 @@ watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor
     return
   }
 
-  const insideControls = !isOutsideFor250Ms.value || !isOutsideStatusIslandFor250Ms.value
+  const insideControls = !isOutsideFor250Ms.value
   const nearBorder = isAroundWindowBorderFor250Ms.value
 
   if (insideControls || nearBorder) {
@@ -154,8 +163,8 @@ watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor
 })
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
-const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
-const { askPermission } = settingsAudioDeviceStore
+const { stream, enabled, selectedAudioInputLabel } = storeToRefs(settingsAudioDeviceStore)
+const { askPermission, startStream } = settingsAudioDeviceStore
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
 const {
@@ -164,24 +173,27 @@ const {
   stopStreamingTranscription,
 } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
-const providersStore = useProvidersStore()
-const consciousnessStore = useConsciousnessStore()
-const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
 const chatStore = useChatOrchestratorStore()
+const hearingStore = useHearingStore()
+const { hearingDetectionMode } = storeToRefs(hearingStore)
+
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
 const {
   init: initVAD,
-  dispose: disposeVAD,
   start: startVAD,
+  stop: stopVAD,
+  dispose: disposeVAD,
   loaded: vadLoaded,
 } = useVAD(workletUrl, {
   threshold: ref(0.6),
   onSpeechStart: () => {
-    void handleSpeechStart()
+    if (hearingDetectionMode.value === 'vad')
+      void handleSpeechStart()
   },
   onSpeechEnd: () => {
-    void handleSpeechEnd()
+    if (hearingDetectionMode.value === 'vad')
+      void handleSpeechEnd()
   },
 })
 
@@ -194,8 +206,10 @@ type CaptionChannelEvent
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
 
 async function handleSpeechStart() {
+  console.info('[Main Page] Speech Start detected')
   if (shouldUseStreamInput.value) {
-    console.info('Speech detected - transcription session should already be active')
+    // For streaming providers, ChatArea component handles transcription manually via transcription pipeline.
+    // The main page should not start automatic transcription to avoid duplicate sessions when ChatArea is active.
     return
   }
 
@@ -203,6 +217,7 @@ async function handleSpeechStart() {
 }
 
 async function handleSpeechEnd() {
+  console.info('[Main Page] Speech End detected')
   if (shouldUseStreamInput.value) {
     // Keep streaming session alive; idle timer in pipeline will handle teardown.
     return
@@ -213,14 +228,22 @@ async function handleSpeechEnd() {
 
 async function startAudioInteraction() {
   try {
-    console.info('[Main Page] Starting audio interaction...')
+    console.info('[Main Page] Starting audio interaction with device:', selectedAudioInputLabel.value)
 
-    initVAD().then(() => {
-      if (stream.value)
-        return startVAD(stream.value)
-    }).catch((err) => {
-      console.warn('[Main Page] VAD initialization failed (non-critical for Web Speech API):', err)
-    })
+    if (stream.value) {
+      if (hearingDetectionMode.value === 'vad') {
+        // Ensure VAD is initialized and then start it
+        await initVAD()
+        await startVAD(stream.value)
+      }
+      else {
+        // Manual mode: start recording immediately if not streaming
+        if (!shouldUseStreamInput.value) {
+          console.info('[Main Page] Manual mode enabled, starting recording immediately')
+          startRecord()
+        }
+      }
+    }
 
     if (shouldUseStreamInput.value) {
       console.info('[Main Page] Starting streaming transcription...', {
@@ -237,12 +260,19 @@ async function startAudioInteraction() {
       await transcribeForMediaStream(stream.value, {
         onSentenceEnd: (delta) => {
           console.info('[Main Page] Received transcription delta:', delta)
-          const finalText = delta
-          if (!finalText || !finalText.trim()) {
+          if (!delta || !delta.trim()) {
             return
           }
 
-          postCaption({ type: 'caption-speaker', text: finalText })
+          postCaption({ type: 'caption-speaker', text: delta })
+        },
+        onSpeechEnd: (text) => {
+          console.info('[Main Page] Speech ended, final text:', text)
+          if (!text || !text.trim()) {
+            return
+          }
+
+          postCaption({ type: 'caption-speaker', text })
 
           void (async () => {
             try {
@@ -252,17 +282,25 @@ async function startAudioInteraction() {
                 return
               }
 
-              console.info('[Main Page] Sending transcription to chat:', finalText)
-              await chatStore.ingest(finalText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+              toast.info(`🎤 You said: ${text}`, { id: 'transcription-feedback' })
+              console.info('[Main Page] Sending transcription to chat:', text)
+              console.log('[Main Page] Ingesting with tools:', {
+                model: activeChatModel.value,
+                hasTools: !!widgetsTools,
+              })
+
+              const { autoSendEnabled } = storeToRefs(hearingStore)
+              await chatStore.ingest(text, {
+                model: activeChatModel.value,
+                chatProvider: provider as ChatProvider,
+                tools: widgetsTools,
+                skipAssistant: !autoSendEnabled.value,
+              })
             }
             catch (err) {
               console.error('[Main Page] Failed to send chat from voice:', err)
             }
           })()
-        },
-        onSpeechEnd: (text) => {
-          console.info('[Main Page] Speech ended, final text:', text)
-          postCaption({ type: 'caption-speaker', text })
         },
       })
 
@@ -276,14 +314,27 @@ async function startAudioInteraction() {
       })
     }
 
+    if (stopOnStopRecord)
+      stopOnStopRecord()
+
     // Hook once
     stopOnStopRecord = onStopRecord(async (recording) => {
+      console.info('[Main Page] Voice recording stopped, size:', recording?.size, 'bytes')
+      if (!recording || recording.size === 0) {
+        console.warn('[Main Page] Recording is empty, skipping transcription')
+        return
+      }
+
       if (shouldUseStreamInput.value)
         return
 
       const text = await transcribeForRecording(recording)
-      if (!text || !text.trim())
+      if (!text || !text.trim()) {
+        toast.error('STT: No speech detected', { id: 'transcription-feedback' })
         return
+      }
+
+      toast.info(`🎤 You said: ${text}`, { id: 'transcription-feedback' })
 
       // Update caption overlay speaker text via BroadcastChannel
       postCaption({ type: 'caption-speaker', text })
@@ -293,7 +344,18 @@ async function startAudioInteraction() {
         if (!provider || !activeChatModel.value)
           return
 
-        await chatStore.ingest(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+        console.log('[Main Page] Ingesting (Manual) with tools:', {
+          model: activeChatModel.value,
+          hasTools: !!widgetsTools,
+        })
+
+        const { autoSendEnabled } = storeToRefs(hearingStore)
+        await chatStore.ingest(text, {
+          model: activeChatModel.value,
+          chatProvider: provider as ChatProvider,
+          tools: widgetsTools,
+          skipAssistant: !autoSendEnabled.value,
+        })
       }
       catch (err) {
         console.error('Failed to send chat from voice:', err)
@@ -305,35 +367,74 @@ async function startAudioInteraction() {
   }
 }
 
-function stopAudioInteraction() {
+async function stopAudioInteraction() {
   try {
+    // Await the final recording chunk to ensure full transcription
+    await stopRecord()
+
     stopOnStopRecord?.()
     stopOnStopRecord = undefined
-    void stopStreamingTranscription(true)
-    disposeVAD()
+
+    // Gracefully stop transcription without abrupt abort
+    await stopStreamingTranscription(false)
+
+    // Stop VAD processing loop without disposing the model
+    stopVAD()
   }
-  catch {}
+  catch (e) {
+    console.warn('[Main Page] Error during audio interaction stop:', e)
+  }
 }
 
 watch(enabled, async (val) => {
+  if (window.electron?.ipcRenderer) {
+    window.electron.ipcRenderer.send('mic-state-changed', val, selectedAudioInputLabel.value)
+  }
+
   console.info('[Main Page] Audio enabled changed:', val, 'stream available:', !!stream.value)
   if (val) {
     await askPermission()
+    // Force a fresh stream acquisition on every enable
+    await startStream()
     await startAudioInteraction()
   }
   else {
-    stopAudioInteraction()
+    await stopAudioInteraction()
   }
 }, { immediate: true })
 
-onMounted(() => {
-  if (onboardingStore.needsOnboarding) {
-    openOnboarding()
+watch(stream, (newStream) => {
+  if (enabled.value && newStream) {
+    console.info('[Main Page] Stream changed while enabled, restarting audio interaction')
+    void startAudioInteraction()
   }
 })
 
-onUnmounted(() => {
-  stopAudioInteraction()
+onMounted(() => {
+  // Initialize VAD model immediately to avoid startup lag
+  initVAD().catch((err) => {
+    console.error('[Main Page] VAD initialization failed:', err)
+  })
+
+  if (window.electron?.ipcRenderer) {
+    window.electron.ipcRenderer.on('toggle-mic-from-shortcut', () => {
+      console.info('[Main Page] Toggling mic from shortcut')
+      settingsAudioDeviceStore.enabled = !settingsAudioDeviceStore.enabled
+    })
+  }
+})
+
+watch(hearingDetectionMode, async (val) => {
+  if (enabled.value) {
+    console.info('[Main Page] Detection Mode changed to:', val, 'restarting audio interaction')
+    await stopAudioInteraction()
+    await startAudioInteraction()
+  }
+})
+
+onUnmounted(async () => {
+  await stopAudioInteraction()
+  disposeVAD()
 })
 
 watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
@@ -358,11 +459,11 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
     relative z-2 h-full overflow-hidden rounded-xl
     transition="opacity duration-500 ease-in-out"
   >
-    <!-- Stage is always in DOM so TresCanvas can measure dimensions -->
     <div
       :class="[
         'relative h-full w-full items-end gap-2',
         'transition-opacity duration-250 ease-in-out',
+        isLoading ? 'opacity-0 pointer-events-none' : 'opacity-100',
       ]"
     >
       <div
@@ -375,14 +476,12 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
           'transition-opacity duration-250 ease-in-out',
         ]"
       >
-        <StatusIsland ref="statusIslandRef" />
         <ResourceStatusIsland />
         <WidgetStage
           ref="widgetStageRef"
           v-model:state="componentStateStage"
           h-full w-full
           flex-1
-          :paused="stagePaused"
           :focus-at="{ x: live2dLookAtX, y: live2dLookAtY }"
           :scale="scale"
           :x-offset="positionInPercentageString.x"
@@ -391,30 +490,32 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
         />
         <ControlsIsland
           ref="controlsIslandRef"
+          :is-locked="isLocked"
         />
       </div>
     </div>
-    <!-- Loading overlay sits on top, does not hide the stage -->
-    <div v-show="isLoading" class="absolute left-0 top-0 z-99 h-full w-full flex cursor-grab items-center justify-center overflow-hidden">
-      <div
-        :class="[
-          'absolute h-24 w-full overflow-hidden rounded-xl',
-          'flex items-center justify-center',
-          'bg-white/80 dark:bg-neutral-950/80',
-          'backdrop-blur-md',
-        ]"
-      >
+    <div v-if="isLoading" class="pointer-events-none absolute left-0 top-0 z-100 h-full w-full">
+      <div class="absolute left-0 top-0 z-99 h-full w-full flex cursor-grab items-center justify-center overflow-hidden">
         <div
           :class="[
-            'drag-region',
-            'absolute left-0 top-0',
-            'h-full w-full flex items-center justify-center',
-            'text-1.5rem text-primary-600 dark:text-primary-400 font-normal',
-            'select-none',
-            'animate-flash animate-duration-5s animate-count-infinite',
+            'absolute h-24 w-full overflow-hidden rounded-xl',
+            'flex items-center justify-center',
+            'bg-white/80 dark:bg-neutral-950/80',
+            'backdrop-blur-md',
           ]"
         >
-          Loading...
+          <div
+            :class="[
+              'drag-region',
+              'absolute left-0 top-0',
+              'h-full w-full flex items-center justify-center',
+              'text-1.5rem text-primary-600 dark:text-primary-400 font-normal',
+              'select-none',
+              'animate-flash animate-duration-5s animate-count-infinite',
+            ]"
+          >
+            Loading...
+          </div>
         </div>
       </div>
     </div>

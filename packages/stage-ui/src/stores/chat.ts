@@ -28,6 +28,11 @@ interface SendOptions {
   attachments?: { type: 'image', data: string, mimeType: string }[]
   tools?: StreamOptions['tools']
   input?: WebSocketEventInputs
+  /**
+   * If true, the orchestrator will only ingest the user message into the session
+   * and skip triggering the assistant's response.
+   */
+  skipAssistant?: boolean
 }
 
 interface ForkOptions {
@@ -170,12 +175,12 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       if (shouldAbort())
         return
 
-      const sessionMessagesForSend = chatSession.sessionMessages[sessionId]
-      if (!sessionMessagesForSend) {
-        throw new Error('Session messages not found')
-      }
       sessionMessagesForSend.push({ role: 'user', content: finalContent, createdAt: sendingCreatedAt, id: nanoid() })
       chatSession.persistSessionMessages(sessionId)
+
+      if (options.skipAssistant) {
+        return
+      }
 
       const categorizer = createStreamingCategorizer(activeProvider.value)
       let streamPosition = 0
@@ -318,9 +323,21 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
               break
             case 'text-delta':
               fullText += event.text
+              // Log raw delta to main process
+              ;(window as any).electron.ipcRenderer.send('llm-raw-output', {
+                type: 'delta',
+                text: event.text,
+                sessionId,
+              })
               await parser.consume(event.text)
               break
             case 'finish':
+              // Log final full text to main process
+              ;(window as any).electron.ipcRenderer.send('llm-raw-output', {
+                type: 'full',
+                text: fullText,
+                sessionId,
+              })
               break
             case 'error':
               throw event.error ?? new Error('Stream error')
@@ -412,8 +429,6 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
   return {
     sending,
-
-    discoverToolsCompatibility: llmStore.discoverToolsCompatibility,
 
     ingest,
     ingestOnFork,
