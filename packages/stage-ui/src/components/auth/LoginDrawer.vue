@@ -4,9 +4,10 @@ import type { OAuthProvider } from '../../libs/auth'
 import { Button } from '@proj-airi/ui'
 import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot } from 'vaul-vue'
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 
+import { client } from '../../composables/api'
 import { signIn } from '../../libs/auth'
 
 const open = defineModel<boolean>('open', { required: true })
@@ -19,7 +20,30 @@ const loading = ref<Record<OAuthProvider, boolean>>({
   github: false,
 })
 
+const providerAvailability = ref<Record<OAuthProvider, boolean>>({
+  google: true,
+  github: true,
+})
+
+onMounted(async () => {
+  try {
+    const res = await client.api.auth.providers.$get()
+    if (res.ok) {
+      const providers = await res.json() as Array<{ id: OAuthProvider, available: boolean }>
+      for (const provider of providers) {
+        providerAvailability.value[provider.id] = provider.available
+      }
+    }
+  }
+  catch {
+    // Default to true (assume available) if the API call fails
+  }
+})
+
 async function handleSignIn(provider: OAuthProvider) {
+  if (!providerAvailability.value[provider]) {
+    return
+  }
   loading.value[provider] = true
   try {
     await signIn(provider)
@@ -48,20 +72,22 @@ async function handleSignIn(provider: OAuthProvider) {
           </div>
           <div class="flex flex-col gap-4">
             <Button
-              :class="['w-full', 'py-4', 'flex', 'items-center', 'justify-center', 'gap-3', 'text-lg', 'rounded-2xl']"
+              :class="['w-full', 'py-4', 'flex', 'items-center', 'justify-center', 'gap-3', 'text-lg', 'rounded-2xl', !providerAvailability.google && 'opacity-50']"
               icon="i-simple-icons-google"
               :loading="loading.google"
+              :disabled="!providerAvailability.google"
               @click="handleSignIn('google')"
             >
-              <span>Sign in with Google</span>
+              <span>{{ providerAvailability.google ? 'Sign in with Google' : 'Google (temporarily unavailable)' }}</span>
             </Button>
             <Button
-              :class="['w-full', 'py-4', 'flex', 'items-center', 'justify-center', 'gap-3', 'text-lg', 'rounded-2xl']"
+              :class="['w-full', 'py-4', 'flex', 'items-center', 'justify-center', 'gap-3', 'text-lg', 'rounded-2xl', !providerAvailability.github && 'opacity-50']"
               icon="i-simple-icons-github"
               :loading="loading.github"
+              :disabled="!providerAvailability.github"
               @click="handleSignIn('github')"
             >
-              <span>Sign in with GitHub</span>
+              <span>{{ providerAvailability.github ? 'Sign in with GitHub' : 'GitHub (temporarily unavailable)' }}</span>
             </Button>
           </div>
           <div class="mt-10 pb-2 text-center text-xs text-gray-400">
