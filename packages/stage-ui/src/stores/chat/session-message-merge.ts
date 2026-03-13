@@ -30,7 +30,7 @@ export function mergeLoadedSessionMessages(storedMessages: ChatHistoryItem[], cu
   if (currentMessages.length === 0)
     return storedMessages
 
-  const currentNonSystemMessages = currentMessages.filter((message, index) => !(index === 0 && message.role === 'system'))
+  const currentNonSystemMessages = currentMessages.filter((message, index) => index !== 0 || message.role !== 'system')
   if (currentNonSystemMessages.length === 0)
     return storedMessages
 

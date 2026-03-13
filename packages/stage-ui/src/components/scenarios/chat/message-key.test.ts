@@ -1,6 +1,6 @@
-import assert from 'node:assert/strict'
-
 import type { ChatHistoryItem } from '../../../types/chat'
+
+import assert from 'node:assert/strict'
 
 import { describe, it } from 'vitest'
 
