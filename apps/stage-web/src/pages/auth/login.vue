@@ -72,7 +72,7 @@ watch(isDesktop, (val) => {
       </Button>
     </div>
     <div class="mt-8 text-xs text-gray-400">
-      By continuing, you agree to our <a href="#" class="underline">Terms</a> and <a href="#" class="underline">Privacy Policy</a>.
+      By continuing, you agree to our <a href="https://airi.moeru.ai/docs/en/about/terms" class="underline">Terms</a> and <a href="https://airi.moeru.ai/docs/en/about/privacy" class="underline">Privacy Policy</a>.
     </div>
   </div>
 
