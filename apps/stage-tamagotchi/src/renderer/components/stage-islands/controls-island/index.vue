@@ -12,6 +12,7 @@ import ControlButtonTooltip from './control-button-tooltip.vue'
 import ControlButton from './control-button.vue'
 import ControlsIslandFadeOnHover from './controls-island-fade-on-hover.vue'
 import ControlsIslandHearingConfig from './controls-island-hearing-config.vue'
+import ControlsIslandProfilePicker from './controls-island-profile-picker.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
 import {
@@ -125,6 +126,19 @@ function refreshWindow() {
               </ControlButton>
               <template #tooltip>
                 {{ t('tamagotchi.stage.controls-island.open-settings') }}
+              </template>
+            </ControlButtonTooltip>
+
+            <ControlButtonTooltip disable-hoverable-content>
+              <ControlsIslandProfilePicker>
+                <template #default="{ toggle }">
+                  <ControlButton :button-style="adjustStyleClasses.button" @click="toggle">
+                    <div i-solar:emoji-funny-square-broken :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                  </ControlButton>
+                </template>
+              </ControlsIslandProfilePicker>
+              <template #tooltip>
+                {{ t('tamagotchi.stage.controls-island.switch-profile') }}
               </template>
             </ControlButtonTooltip>
 
