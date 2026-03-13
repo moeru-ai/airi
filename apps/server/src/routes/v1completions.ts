@@ -112,6 +112,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
       const writer = writable.getWriter()
       // Buffer last 2KB to handle chunk boundary splits for usage extraction
       let tailBuffer = ''
+      const streamDisplayName = await configKV.getOptional('MODEL_DISPLAY_NAME')
 
       // Process stream in background
       ;(async () => {
@@ -120,9 +121,15 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
             const { done, value } = await reader.read()
             if (done)
               break
-            await writer.write(value)
             const text = new TextDecoder().decode(value)
             tailBuffer = (tailBuffer + text).slice(-2048)
+            if (streamDisplayName) {
+              const replaced = text.replace(/"model"\s*:\s*"[^"]*"/g, `"model":"${streamDisplayName}"`)
+              await writer.write(new TextEncoder().encode(replaced))
+            }
+            else {
+              await writer.write(value)
+            }
           }
         }
         finally {
@@ -176,6 +183,10 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
 
     // Non-streaming: parse response, bill, then return
     const responseBody = await response.json()
+    const displayName = await configKV.getOptional('MODEL_DISPLAY_NAME')
+    if (displayName && responseBody.model) {
+      responseBody.model = displayName
+    }
     const usage = extractUsageFromBody(responseBody)
     const fluxConsumed = calculateFluxFromUsage(usage, fluxPer1kTokens, fallbackRate)
 
