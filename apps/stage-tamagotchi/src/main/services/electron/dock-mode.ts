@@ -3,10 +3,9 @@ import type { DockModeConfig, DockModeStatus, DockPosition, TargetWindowBounds }
 import type { BrowserWindow, DesktopCapturerSource } from 'electron'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { dockModeStatusChanged, dockModeTargetBounds } from '@proj-airi/electron-eventa'
+import { dockModeStatusChanged, dockModeTargetBounds, electron } from '@proj-airi/electron-eventa'
 import { desktopCapturer } from 'electron'
 
-import { electron } from '../../../shared/eventa'
 import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecycle'
 import { createWindowBoundsPoller } from './window-bounds-provider'
 
@@ -59,8 +58,8 @@ export function createDockModeService(params: {
     return currentStatus
   }
 
-  onAppWindowAllClosed(() => stopDocking())
-  onAppBeforeQuit(() => stopDocking())
+  onAppWindowAllClosed(() => { stopDocking() })
+  onAppBeforeQuit(() => { stopDocking() })
 
   // List desktop windows via desktopCapturer
   defineInvokeHandler(params.context, electron.dockMode.listWindows, async () => {
