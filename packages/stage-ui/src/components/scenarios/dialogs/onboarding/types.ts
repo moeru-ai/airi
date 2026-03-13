@@ -7,6 +7,10 @@ export interface ProviderConfigData {
   apiKey: string
   baseUrl: string
   accountId: string
+  // Amazon Bedrock SigV4
+  accessKeyId: string
+  secretAccessKey: string
+  region: string
 }
 
 export type OnboardingStepNextHandler = (configData?: ProviderConfigData) => Promise<void> | void

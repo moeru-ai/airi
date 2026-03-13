@@ -615,18 +615,18 @@ pages:
         title: Amazon Bedrock
         description: aws.amazon.com/bedrock
         config:
+          access-key-id:
+            label: AWS Access Key ID
+            description: Your AWS IAM Access Key ID
+          secret-access-key:
+            label: AWS Secret Access Key
+            description: Your AWS IAM Secret Access Key
+          session-token:
+            label: Session Token (optional)
+            description: AWS temporary session token (for STS/assumed roles)
           region:
             label: AWS Region
-            description: AWS region for Bedrock (e.g. us-east-1, ap-northeast-1)
-          access-key-id:
-            label: Access Key ID
-            description: AWS Access Key ID with Bedrock permissions
-          secret-access-key:
-            label: Secret Access Key
-            description: AWS Secret Access Key
-          session-token:
-            label: Session Token
-            description: Optional session token (for temporary credentials / IAM roles)
+            description: AWS region where Bedrock is enabled (e.g. us-east-1, us-west-2)
       anthropic:
         description: anthropic.com
         title: Anthropic | Claude

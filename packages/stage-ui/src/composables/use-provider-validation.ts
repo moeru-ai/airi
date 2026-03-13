@@ -98,11 +98,11 @@ export function useProviderValidation(providerId: string) {
 
   const debouncedValidateConfiguration = useDebounceFn(() => {
     const config = credentials.value
-    const hasApiKey = 'apiKey' in config && !!config.apiKey?.trim()
-    const hasBaseUrl = 'baseUrl' in config && !!config.baseUrl?.trim()
-    const hasAccountId = 'accountId' in config && !!config.accountId?.trim()
-
-    if (!hasApiKey && !hasBaseUrl && !hasAccountId) {
+    // Check if any credential field has a value (generic — works for all providers)
+    const hasAnyCredential = Object.values(config).some(
+      v => v !== null && v !== undefined && String(v).trim() !== '',
+    )
+    if (!hasAnyCredential) {
       isValid.value = false
       validationMessage.value = ''
       isValidating.value = 0
