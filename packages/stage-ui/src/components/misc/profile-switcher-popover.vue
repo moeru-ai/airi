@@ -116,7 +116,7 @@ function handleManage() {
                 'size-4 shrink-0',
                 card.id === activeCardId
                   ? 'i-solar:check-circle-bold-duotone text-primary-500'
-                  : 'i-solar:emoji-funny-square-line-duotone text-neutral-400',
+                  : 'i-solar:emoji-funny-square-broken text-neutral-400',
               ]"
             />
             <span class="truncate">{{ card.name }}</span>

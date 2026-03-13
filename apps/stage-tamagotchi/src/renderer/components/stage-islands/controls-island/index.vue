@@ -133,7 +133,7 @@ function refreshWindow() {
               <ControlsIslandProfilePicker>
                 <template #default="{ toggle }">
                   <ControlButton :button-style="adjustStyleClasses.button" @click="toggle">
-                    <div i-solar:emoji-funny-square-bold-duotone :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                    <div i-solar:emoji-funny-square-broken :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
                   </ControlButton>
                 </template>
               </ControlsIslandProfilePicker>
