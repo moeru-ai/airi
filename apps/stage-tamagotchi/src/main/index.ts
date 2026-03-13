@@ -1,5 +1,5 @@
 import { dirname } from 'node:path'
-import { env, platform } from 'node:process'
+import { env, platform, stderr, stdout } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import messages from '@proj-airi/i18n/locales'
@@ -35,11 +35,28 @@ import { setupOnboardingWindowManager } from './windows/onboarding'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
 import { setupWidgetsWindowManager } from './windows/widgets'
 
+function installStreamErrorGuards() {
+  const guard = (error: NodeJS.ErrnoException) => {
+    // Ignore broken pipe style errors from detached/closed console streams.
+    if (error?.code === 'EPIPE' || error?.code === 'ERR_STREAM_DESTROYED') {
+      return
+    }
+
+    // NOTICE: Attaching an 'error' listener marks the error as handled.
+    // Re-throw unexpected stream errors so they still surface during development and crash reporting.
+    throw error
+  }
+
+  stdout?.on('error', guard)
+  stderr?.on('error', guard)
+}
+
 // TODO: once we refactored eventa to support window-namespaced contexts,
 // we can remove the setMaxListeners call below since eventa will be able to dispatch and
 // manage events within eventa's context system.
 ipcMain.setMaxListeners(100)
 
+installStreamErrorGuards()
 setElectronMainDirname(dirname(fileURLToPath(import.meta.url)))
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)

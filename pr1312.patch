@@ -1,0 +1,423 @@
+﻿From ab689cd497848697d15a5bf67350ec8dbf492d4a Mon Sep 17 00:00:00 2001
+From: Stable Genius <259448942+stablegenius49@users.noreply.github.com>
+Date: Thu, 12 Mar 2026 03:52:48 -0700
+Subject: [PATCH 1/5] fix: use stable chat history keys
+
+---
+ .../src/components/scenarios/chat/history.vue |  3 ++-
+ .../scenarios/chat/message-key.test.ts        | 20 +++++++++++++++++++
+ .../components/scenarios/chat/message-key.ts  | 14 +++++++++++++
+ 3 files changed, 36 insertions(+), 1 deletion(-)
+ create mode 100644 packages/stage-ui/src/components/scenarios/chat/message-key.test.ts
+ create mode 100644 packages/stage-ui/src/components/scenarios/chat/message-key.ts
+
+diff --git a/packages/stage-ui/src/components/scenarios/chat/history.vue b/packages/stage-ui/src/components/scenarios/chat/history.vue
+index 074c40c6c4..bb055b1447 100644
+--- a/packages/stage-ui/src/components/scenarios/chat/history.vue
++++ b/packages/stage-ui/src/components/scenarios/chat/history.vue
+@@ -7,6 +7,7 @@ import { useI18n } from 'vue-i18n'
+ import ChatAssistantItem from './assistant-item.vue'
+ import ChatErrorItem from './error-item.vue'
+ import ChatUserItem from './user-item.vue'
++import { getChatHistoryItemKey } from './message-key'
+ 
+ const props = withDefaults(defineProps<{
+   messages: ChatHistoryItem[]
+@@ -73,7 +74,7 @@ const renderMessages = computed<ChatHistoryItem[]>(() => {
+ 
+ <template>
+   <div ref="chatHistoryRef" v-auto-animate flex="~ col" relative h-full w-full overflow-y-auto rounded-xl px="<sm:2" py="<sm:2" :class="variant === 'mobile' ? 'gap-1' : 'gap-2'">
+-    <template v-for="(message, index) in renderMessages" :key="message?.createdAt ?? index">
++    <template v-for="(message, index) in renderMessages" :key="getChatHistoryItemKey(message, index)">
+       <div v-if="message.role === 'error'">
+         <ChatErrorItem
+           :message="message"
+diff --git a/packages/stage-ui/src/components/scenarios/chat/message-key.test.ts b/packages/stage-ui/src/components/scenarios/chat/message-key.test.ts
+new file mode 100644
+index 0000000000..22747245c1
+--- /dev/null
++++ b/packages/stage-ui/src/components/scenarios/chat/message-key.test.ts
+@@ -0,0 +1,20 @@
++import assert from 'node:assert/strict'
++import { describe, it } from 'node:test'
++
++import { getChatHistoryItemKey } from './message-key.ts'
++
++describe('getChatHistoryItemKey', () => {
++  it('prefers stable message ids when available', () => {
++    const createdAt = 1700000000000
++
++    assert.equal(getChatHistoryItemKey({ role: 'user', content: 'hi', createdAt, id: 'user-1' }, 0), 'user-1')
++    assert.equal(getChatHistoryItemKey({ role: 'assistant', content: 'hello', createdAt, id: 'assistant-1' }, 1), 'assistant-1')
++  })
++
++  it('falls back to a role + timestamp + index composite when ids are missing', () => {
++    const createdAt = 1700000000000
++
++    assert.equal(getChatHistoryItemKey({ role: 'user', content: 'hi', createdAt }, 0), 'user:1700000000000:0')
++    assert.equal(getChatHistoryItemKey({ role: 'assistant', content: 'hello', createdAt }, 1), 'assistant:1700000000000:1')
++  })
++})
+diff --git a/packages/stage-ui/src/components/scenarios/chat/message-key.ts b/packages/stage-ui/src/components/scenarios/chat/message-key.ts
+new file mode 100644
+index 0000000000..65cd233135
+--- /dev/null
++++ b/packages/stage-ui/src/components/scenarios/chat/message-key.ts
+@@ -0,0 +1,14 @@
++import type { ChatHistoryItem } from '../../../types/chat'
++
++export function getChatHistoryItemKey(message: ChatHistoryItem | undefined, index: number): string | number {
++  if (!message)
++    return index
++
++  if (message.id)
++    return message.id
++
++  if (message.createdAt != null)
++    return `${message.role}:${message.createdAt}:${index}`
++
++  return `${message.role}:${index}`
++}
+
+From 551a0bb9582f6254ef2bf404e205921d79b9d3a8 Mon Sep 17 00:00:00 2001
+From: Garfield Lee <Garfield550@users.noreply.github.com>
+Date: Thu, 12 Mar 2026 19:54:11 +0800
+Subject: [PATCH 2/5] test: add falls back to index when message is missing
+ test
+
+Co-authored-by: gemini-code-assist[bot] <176961590+gemini-code-assist[bot]@users.noreply.github.com>
+---
+ .../src/components/scenarios/chat/message-key.test.ts  | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/packages/stage-ui/src/components/scenarios/chat/message-key.test.ts b/packages/stage-ui/src/components/scenarios/chat/message-key.test.ts
+index 22747245c1..2f709a648d 100644
+--- a/packages/stage-ui/src/components/scenarios/chat/message-key.test.ts
++++ b/packages/stage-ui/src/components/scenarios/chat/message-key.test.ts
+@@ -17,4 +17,14 @@ describe('getChatHistoryItemKey', () => {
+     assert.equal(getChatHistoryItemKey({ role: 'user', content: 'hi', createdAt }, 0), 'user:1700000000000:0')
+     assert.equal(getChatHistoryItemKey({ role: 'assistant', content: 'hello', createdAt }, 1), 'assistant:1700000000000:1')
+   })
++  it('falls back to index when message is missing', () => {
++    assert.equal(getChatHistoryItemKey(undefined, 0), 0)
++    assert.equal(getChatHistoryItemKey(undefined, 1), 1)
++  })
++
++  it('falls back to a role + index composite when ids and timestamps are missing', () => {
++    assert.equal(getChatHistoryItemKey({ role: 'user', content: 'hi' }, 0), 'user:0')
++    assert.equal(getChatHistoryItemKey({ role: 'assistant', content: 'hello' }, 1), 'assistant:1')
++  })
+ })
++
+
+From 5714541181d7b9dd182f33c9c4619cd7b8fe97a5 Mon Sep 17 00:00:00 2001
+From: "autofix-ci[bot]" <114827586+autofix-ci[bot]@users.noreply.github.com>
+Date: Thu, 12 Mar 2026 11:57:08 +0000
+Subject: [PATCH 3/5] [autofix.ci] apply automated fixes
+
+---
+ packages/stage-ui/src/components/scenarios/chat/history.vue   | 1 +
+ .../src/components/scenarios/chat/message-key.test.ts         | 4 ++--
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/packages/stage-ui/src/components/scenarios/chat/history.vue b/packages/stage-ui/src/components/scenarios/chat/history.vue
+index bb055b1447..1b4c23bc7c 100644
+--- a/packages/stage-ui/src/components/scenarios/chat/history.vue
++++ b/packages/stage-ui/src/components/scenarios/chat/history.vue
+@@ -7,6 +7,7 @@ import { useI18n } from 'vue-i18n'
+ import ChatAssistantItem from './assistant-item.vue'
+ import ChatErrorItem from './error-item.vue'
+ import ChatUserItem from './user-item.vue'
++
+ import { getChatHistoryItemKey } from './message-key'
+ 
+ const props = withDefaults(defineProps<{
+diff --git a/packages/stage-ui/src/components/scenarios/chat/message-key.test.ts b/packages/stage-ui/src/components/scenarios/chat/message-key.test.ts
+index 2f709a648d..fa9620d39e 100644
+--- a/packages/stage-ui/src/components/scenarios/chat/message-key.test.ts
++++ b/packages/stage-ui/src/components/scenarios/chat/message-key.test.ts
+@@ -1,5 +1,6 @@
+ import assert from 'node:assert/strict'
+-import { describe, it } from 'node:test'
++
++import { describe, it } from 'vitest'
+ 
+ import { getChatHistoryItemKey } from './message-key.ts'
+ 
+@@ -27,4 +28,3 @@ describe('getChatHistoryItemKey', () => {
+     assert.equal(getChatHistoryItemKey({ role: 'assistant', content: 'hello' }, 1), 'assistant:1')
+   })
+ })
+-
+
+From 0dbc07bc430eb1ec5111864633d180f443190e47 Mon Sep 17 00:00:00 2001
+From: Stable Genius <259448942+stablegenius49@users.noreply.github.com>
+Date: Thu, 12 Mar 2026 17:53:12 -0700
+Subject: [PATCH 4/5] fix: preserve in-flight chat messages during session load
+
+---
+ .../scenarios/chat/message-key.test.ts        | 26 +++++---
+ .../stores/chat/session-message-merge.test.ts | 50 ++++++++++++++++
+ .../src/stores/chat/session-message-merge.ts  | 59 +++++++++++++++++++
+ .../stage-ui/src/stores/chat/session-store.ts |  9 ++-
+ 4 files changed, 136 insertions(+), 8 deletions(-)
+ create mode 100644 packages/stage-ui/src/stores/chat/session-message-merge.test.ts
+ create mode 100644 packages/stage-ui/src/stores/chat/session-message-merge.ts
+
+diff --git a/packages/stage-ui/src/components/scenarios/chat/message-key.test.ts b/packages/stage-ui/src/components/scenarios/chat/message-key.test.ts
+index fa9620d39e..d75eb01967 100644
+--- a/packages/stage-ui/src/components/scenarios/chat/message-key.test.ts
++++ b/packages/stage-ui/src/components/scenarios/chat/message-key.test.ts
+@@ -1,30 +1,42 @@
+ import assert from 'node:assert/strict'
+ 
++import type { ChatHistoryItem } from '../../../types/chat'
++
+ import { describe, it } from 'vitest'
+ 
+-import { getChatHistoryItemKey } from './message-key.ts'
++import { getChatHistoryItemKey } from './message-key'
+ 
+ describe('getChatHistoryItemKey', () => {
+   it('prefers stable message ids when available', () => {
+     const createdAt = 1700000000000
+ 
+-    assert.equal(getChatHistoryItemKey({ role: 'user', content: 'hi', createdAt, id: 'user-1' }, 0), 'user-1')
+-    assert.equal(getChatHistoryItemKey({ role: 'assistant', content: 'hello', createdAt, id: 'assistant-1' }, 1), 'assistant-1')
++    const userMessage: ChatHistoryItem = { role: 'user', content: 'hi', createdAt, id: 'user-1' }
++    const assistantMessage: ChatHistoryItem = { role: 'assistant', content: 'hello', createdAt, id: 'assistant-1', slices: [], tool_results: [] }
++
++    assert.equal(getChatHistoryItemKey(userMessage, 0), 'user-1')
++    assert.equal(getChatHistoryItemKey(assistantMessage, 1), 'assistant-1')
+   })
+ 
+   it('falls back to a role + timestamp + index composite when ids are missing', () => {
+     const createdAt = 1700000000000
+ 
+-    assert.equal(getChatHistoryItemKey({ role: 'user', content: 'hi', createdAt }, 0), 'user:1700000000000:0')
+-    assert.equal(getChatHistoryItemKey({ role: 'assistant', content: 'hello', createdAt }, 1), 'assistant:1700000000000:1')
++    const userMessage: ChatHistoryItem = { role: 'user', content: 'hi', createdAt }
++    const assistantMessage: ChatHistoryItem = { role: 'assistant', content: 'hello', createdAt, slices: [], tool_results: [] }
++
++    assert.equal(getChatHistoryItemKey(userMessage, 0), 'user:1700000000000:0')
++    assert.equal(getChatHistoryItemKey(assistantMessage, 1), 'assistant:1700000000000:1')
+   })
++
+   it('falls back to index when message is missing', () => {
+     assert.equal(getChatHistoryItemKey(undefined, 0), 0)
+     assert.equal(getChatHistoryItemKey(undefined, 1), 1)
+   })
+ 
+   it('falls back to a role + index composite when ids and timestamps are missing', () => {
+-    assert.equal(getChatHistoryItemKey({ role: 'user', content: 'hi' }, 0), 'user:0')
+-    assert.equal(getChatHistoryItemKey({ role: 'assistant', content: 'hello' }, 1), 'assistant:1')
++    const userMessage: ChatHistoryItem = { role: 'user', content: 'hi' }
++    const assistantMessage: ChatHistoryItem = { role: 'assistant', content: 'hello', slices: [], tool_results: [] }
++
++    assert.equal(getChatHistoryItemKey(userMessage, 0), 'user:0')
++    assert.equal(getChatHistoryItemKey(assistantMessage, 1), 'assistant:1')
+   })
+ })
+diff --git a/packages/stage-ui/src/stores/chat/session-message-merge.test.ts b/packages/stage-ui/src/stores/chat/session-message-merge.test.ts
+new file mode 100644
+index 0000000000..b39dac8155
+--- /dev/null
++++ b/packages/stage-ui/src/stores/chat/session-message-merge.test.ts
+@@ -0,0 +1,50 @@
++import assert from 'node:assert/strict'
++
++import type { ChatHistoryItem } from '../../types/chat'
++
++import { describe, it } from 'vitest'
++
++import { mergeLoadedSessionMessages } from './session-message-merge'
++
++describe('mergeLoadedSessionMessages', () => {
++  it('keeps stored history when the in-memory session only has the placeholder system message', () => {
++    const storedMessages: ChatHistoryItem[] = [
++      { role: 'system', content: 'system', createdAt: 1, id: 'system-stored' },
++      { role: 'assistant', content: 'saved reply', createdAt: 2, id: 'assistant-1', slices: [], tool_results: [] },
++    ]
++    const currentMessages: ChatHistoryItem[] = [
++      { role: 'system', content: 'system', createdAt: 3, id: 'system-current' },
++    ]
++
++    assert.equal(mergeLoadedSessionMessages(storedMessages, currentMessages), storedMessages)
++  })
++
++  it('appends in-flight messages when IndexedDB finishes loading after a new send starts', () => {
++    const storedMessages: ChatHistoryItem[] = [
++      { role: 'system', content: 'system', createdAt: 1, id: 'system-stored' },
++      { role: 'assistant', content: 'older reply', createdAt: 2, id: 'assistant-1', slices: [], tool_results: [] },
++    ]
++    const currentMessages: ChatHistoryItem[] = [
++      { role: 'system', content: 'system', createdAt: 3, id: 'system-current' },
++      { role: 'user', content: 'latest prompt', createdAt: 4, id: 'user-2' },
++    ]
++
++    assert.deepEqual(mergeLoadedSessionMessages(storedMessages, currentMessages), [
++      ...storedMessages,
++      currentMessages[1],
++    ])
++  })
++
++  it('does not duplicate messages that are already present in storage', () => {
++    const storedMessages: ChatHistoryItem[] = [
++      { role: 'system', content: 'system', createdAt: 1, id: 'system-stored' },
++      { role: 'user', content: 'latest prompt', createdAt: 4 },
++    ]
++    const currentMessages: ChatHistoryItem[] = [
++      { role: 'system', content: 'system', createdAt: 3, id: 'system-current' },
++      { role: 'user', content: 'latest prompt', createdAt: 4 },
++    ]
++
++    assert.equal(mergeLoadedSessionMessages(storedMessages, currentMessages), storedMessages)
++  })
++})
+diff --git a/packages/stage-ui/src/stores/chat/session-message-merge.ts b/packages/stage-ui/src/stores/chat/session-message-merge.ts
+new file mode 100644
+index 0000000000..0539d4ccc5
+--- /dev/null
++++ b/packages/stage-ui/src/stores/chat/session-message-merge.ts
+@@ -0,0 +1,59 @@
++import type { ChatHistoryItem } from '../../types/chat'
++
++function extractMessageContent(message: ChatHistoryItem) {
++  if (typeof message.content === 'string')
++    return message.content
++
++  if (Array.isArray(message.content)) {
++    return message.content.map((part) => {
++      if (typeof part === 'string')
++        return part
++      if (part && typeof part === 'object' && 'text' in part)
++        return String(part.text ?? '')
++      return ''
++    }).join('')
++  }
++
++  return ''
++}
++
++function getMessageFingerprint(message: ChatHistoryItem) {
++  return [
++    message.id ?? '',
++    message.role,
++    message.createdAt ?? '',
++    extractMessageContent(message),
++  ].join('\u001F')
++}
++
++export function mergeLoadedSessionMessages(storedMessages: ChatHistoryItem[], currentMessages: ChatHistoryItem[]) {
++  if (currentMessages.length === 0)
++    return storedMessages
++
++  const currentNonSystemMessages = currentMessages.filter((message, index) => !(index === 0 && message.role === 'system'))
++  if (currentNonSystemMessages.length === 0)
++    return storedMessages
++
++  const seen = new Set(storedMessages.map(getMessageFingerprint))
++  const extraMessages = currentNonSystemMessages.filter((message) => {
++    const fingerprint = getMessageFingerprint(message)
++    if (seen.has(fingerprint))
++      return false
++    seen.add(fingerprint)
++    return true
++  })
++
++  if (extraMessages.length === 0)
++    return storedMessages
++
++  const systemMessage = storedMessages[0]?.role === 'system'
++    ? storedMessages[0]
++    : currentMessages[0]?.role === 'system'
++      ? currentMessages[0]
++      : undefined
++
++  if (storedMessages.length === 0 && systemMessage)
++    return [systemMessage, ...extraMessages]
++
++  return [...storedMessages, ...extraMessages]
++}
+diff --git a/packages/stage-ui/src/stores/chat/session-store.ts b/packages/stage-ui/src/stores/chat/session-store.ts
+index 4bba61dea9..bfa0b38ae4 100644
+--- a/packages/stage-ui/src/stores/chat/session-store.ts
++++ b/packages/stage-ui/src/stores/chat/session-store.ts
+@@ -10,6 +10,7 @@ import { useLocalFirstRequest } from '../../composables/use-local-first'
+ import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
+ import { useAuthStore } from '../auth'
+ import { useAiriCardStore } from '../modules/airi-card'
++import { mergeLoadedSessionMessages } from './session-message-merge'
+ 
+ export const useChatSessionStore = defineStore('chat-session', () => {
+   const { userId, isAuthenticated } = storeToRefs(useAuthStore())
+@@ -259,9 +260,15 @@ export const useChatSessionStore = defineStore('chat-session', () => {
+     const loadPromise = (async () => {
+       const stored = await chatSessionsRepo.getSession(sessionId)
+       if (stored) {
++        const currentMessages = sessionMessages.value[sessionId] ?? []
++        const mergedMessages = mergeLoadedSessionMessages(stored.messages, currentMessages)
++
+         sessionMetas.value[sessionId] = stored.meta
+-        sessionMessages.value[sessionId] = stored.messages
++        sessionMessages.value[sessionId] = mergedMessages
+         ensureGeneration(sessionId)
++
++        if (mergedMessages !== stored.messages)
++          await persistSession(sessionId)
+       }
+       loadedSessions.add(sessionId)
+     })()
+
+From 442302ade73e4b5cb39a781c88ac76ac63469590 Mon Sep 17 00:00:00 2001
+From: "autofix-ci[bot]" <114827586+autofix-ci[bot]@users.noreply.github.com>
+Date: Fri, 13 Mar 2026 00:57:11 +0000
+Subject: [PATCH 5/5] [autofix.ci] apply automated fixes
+
+---
+ .../src/components/scenarios/chat/message-key.test.ts         | 4 ++--
+ .../stage-ui/src/stores/chat/session-message-merge.test.ts    | 4 ++--
+ packages/stage-ui/src/stores/chat/session-message-merge.ts    | 2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/packages/stage-ui/src/components/scenarios/chat/message-key.test.ts b/packages/stage-ui/src/components/scenarios/chat/message-key.test.ts
+index d75eb01967..f73712ff65 100644
+--- a/packages/stage-ui/src/components/scenarios/chat/message-key.test.ts
++++ b/packages/stage-ui/src/components/scenarios/chat/message-key.test.ts
+@@ -1,7 +1,7 @@
+-import assert from 'node:assert/strict'
+-
+ import type { ChatHistoryItem } from '../../../types/chat'
+ 
++import assert from 'node:assert/strict'
++
+ import { describe, it } from 'vitest'
+ 
+ import { getChatHistoryItemKey } from './message-key'
+diff --git a/packages/stage-ui/src/stores/chat/session-message-merge.test.ts b/packages/stage-ui/src/stores/chat/session-message-merge.test.ts
+index b39dac8155..15ef2bfaeb 100644
+--- a/packages/stage-ui/src/stores/chat/session-message-merge.test.ts
++++ b/packages/stage-ui/src/stores/chat/session-message-merge.test.ts
+@@ -1,7 +1,7 @@
+-import assert from 'node:assert/strict'
+-
+ import type { ChatHistoryItem } from '../../types/chat'
+ 
++import assert from 'node:assert/strict'
++
+ import { describe, it } from 'vitest'
+ 
+ import { mergeLoadedSessionMessages } from './session-message-merge'
+diff --git a/packages/stage-ui/src/stores/chat/session-message-merge.ts b/packages/stage-ui/src/stores/chat/session-message-merge.ts
+index 0539d4ccc5..cce28fab3b 100644
+--- a/packages/stage-ui/src/stores/chat/session-message-merge.ts
++++ b/packages/stage-ui/src/stores/chat/session-message-merge.ts
+@@ -30,7 +30,7 @@ export function mergeLoadedSessionMessages(storedMessages: ChatHistoryItem[], cu
+   if (currentMessages.length === 0)
+     return storedMessages
+ 
+-  const currentNonSystemMessages = currentMessages.filter((message, index) => !(index === 0 && message.role === 'system'))
++  const currentNonSystemMessages = currentMessages.filter((message, index) => index !== 0 || message.role !== 'system')
+   if (currentNonSystemMessages.length === 0)
+     return storedMessages
+ 

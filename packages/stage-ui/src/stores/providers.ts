@@ -39,7 +39,6 @@ import { defineStore } from 'pinia'
 import {
   createUnAlibabaCloud,
   createUnDeepgram,
-  createUnElevenLabs,
   createUnMicrosoft,
   createUnVolcengine,
   listVoices,
@@ -55,6 +54,7 @@ import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '.
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { convertProviderDefinitionsToMetadata } from './providers/converters'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
+import { createNativeElevenLabsProvider } from './providers/elevenlabs/native'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 import { createWebSpeechAPIProvider } from './providers/web-speech-api'
 
@@ -977,13 +977,23 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'elevenlabs.io',
       icon: 'i-simple-icons:elevenlabs',
       defaultOptions: () => ({
-        baseUrl: 'https://unspeech.hyp3r.link/v1/',
+        baseUrl: 'https://api.elevenlabs.io/v1/',
         voiceSettings: {
           similarityBoost: 0.75,
           stability: 0.5,
         },
       }),
-      createProvider: async config => createUnElevenLabs((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>,
+      createProvider: async (config) => {
+        const apiKey = (config.apiKey as string).trim()
+        const baseUrl = (config.baseUrl as string).trim().replace(/\/$/, '')
+        const voiceSettings = (config as any).voiceSettings ?? { similarityBoost: 0.75, stability: 0.5 }
+
+        // We bypass the unspeech proxy and call ElevenLabs' native API directly across
+        // all platforms. Previously this was Desktop-only due to CORS issues, but
+        // ElevenLabs now returns 'Access-Control-Allow-Origin: *'. This avoids the
+        // HTTP 401 errors caused by many users sharing the public unspeech proxy IP.
+        return createNativeElevenLabsProvider(apiKey, baseUrl, voiceSettings) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
+      },
       capabilities: {
         listModels: async () => {
           return elevenLabsModels.map((model) => {
@@ -998,42 +1008,34 @@ export const useProvidersStore = defineStore('providers', () => {
           })
         },
         listVoices: async (config) => {
-          const provider = createUnElevenLabs((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnElevenLabsOptions>
+          const apiKey = (config.apiKey as string).trim()
+          const baseUrl = (config.baseUrl as string).trim().replace(/\/$/, '')
 
-          const voices = await listVoices({
-            ...provider.voice(),
-          })
+          // Fetch ElevenLabs native GET /v1/voices directly.
+          // The unspeech SDK's listVoices() constructs {baseURL}/api/voices?provider=elevenlabs
+          // which does not exist on api.elevenlabs.io. We bypass it and call the real endpoint.
+          const res = await fetch(`${baseUrl}/voices`, { headers: { 'xi-api-key': apiKey } })
+          if (!res.ok)
+            throw new Error(`ElevenLabs voices: ${res.status} ${res.statusText}`)
+
+          const { voices: raw } = await res.json() as { voices: { voice_id: string, name: string, preview_url?: string, labels?: Record<string, string>, fine_tuning?: { language?: string } }[] }
+          const voices = (raw ?? []).map(v => ({
+            id: v.voice_id,
+            name: v.name,
+            provider: 'elevenlabs' as const,
+            previewURL: v.preview_url,
+            languages: v.fine_tuning?.language ? [{ code: v.fine_tuning.language, title: v.fine_tuning.language }] : [],
+            gender: v.labels?.gender,
+          }))
 
           if (!voices || !Array.isArray(voices)) {
             return []
           }
 
-          // Find indices of Aria and Bill
-          const ariaIndex = voices.findIndex(voice => voice.name.includes('Aria'))
-          const billIndex = voices.findIndex(voice => voice.name.includes('Bill'))
-
-          // Determine the range to move (ensure valid indices and proper order)
-          const startIndex = ariaIndex !== -1 ? ariaIndex : 0
-          const endIndex = billIndex !== -1 ? billIndex : voices.length - 1
-          const lowerIndex = Math.min(startIndex, endIndex)
-          const higherIndex = Math.max(startIndex, endIndex)
-
-          // Rearrange voices: voices outside the range first, then voices within the range
-          const rearrangedVoices = [
-            ...voices.slice(0, lowerIndex),
-            ...voices.slice(higherIndex + 1),
-            ...voices.slice(lowerIndex, higherIndex + 1),
-          ]
-
-          return rearrangedVoices.map((voice) => {
-            return {
-              id: voice.id,
-              name: voice.name,
-              provider: 'elevenlabs',
-              previewURL: voice.preview_audio_url,
-              languages: voice.languages,
-            }
-          })
+          // Rearrange — move Aria & Bill range to the end
+          const lo = Math.min(...['Aria', 'Bill'].map((n) => { const i = voices.findIndex(v => v.name.includes(n)); return i !== -1 ? i : voices.length - 1 }))
+          const hi = Math.max(...['Aria', 'Bill'].map((n) => { const i = voices.findIndex(v => v.name.includes(n)); return i !== -1 ? i : 0 }))
+          return [...voices.slice(0, lo), ...voices.slice(hi + 1), ...voices.slice(lo, hi + 1)]
         },
       },
       validators: {
