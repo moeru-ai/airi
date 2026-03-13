@@ -27,8 +27,15 @@ const baseUrl = ref('')
 const accountId = ref('')
 const enableChatCheck = ref(true)
 
+// Amazon Bedrock SigV4 fields
+const accessKeyId = ref('')
+const secretAccessKey = ref('')
+const region = ref('us-east-1')
+
 const validation = ref<'unchecked' | 'pending' | 'succeed' | 'failed'>('unchecked')
 const validationError = ref<any>()
+
+const isAmazonBedrock = computed(() => props.selectedProvider?.id === 'amazon-bedrock')
 
 // Initialize form with default values when provider changes
 function initializeForm() {
@@ -40,6 +47,9 @@ function initializeForm() {
   baseUrl.value = ('baseUrl' in defaultOptions ? String(defaultOptions.baseUrl) : '') || ''
   apiKey.value = ''
   accountId.value = ''
+  accessKeyId.value = ''
+  secretAccessKey.value = ''
+  region.value = 'us-east-1'
 
   // Reset validation and chat check
   validation.value = 'unchecked'
@@ -50,7 +60,7 @@ function initializeForm() {
 // Watch for provider changes
 watch(() => props.selectedProvider?.id, initializeForm)
 
-watch([apiKey, baseUrl, accountId], () => {
+watch([apiKey, baseUrl, accountId, accessKeyId, secretAccessKey, region], () => {
   if (validation.value === 'failed' || validation.value === 'succeed') {
     validation.value = 'unchecked'
     validationError.value = undefined
@@ -61,11 +71,17 @@ watch([apiKey, baseUrl, accountId], () => {
 const needsApiKey = computed(() => {
   if (!props.selectedProvider)
     return false
+  // Amazon Bedrock uses its own fields (Access Key ID + Secret Access Key)
+  if (isAmazonBedrock.value)
+    return false
   return props.selectedProvider.id !== 'ollama' && props.selectedProvider.id !== 'player2'
 })
 
 const needsBaseUrl = computed(() => {
   if (!props.selectedProvider)
+    return false
+  // Amazon Bedrock doesn't need a base URL (it's derived from region)
+  if (isAmazonBedrock.value)
     return false
   return props.selectedProvider.id !== 'cloudflare-workers-ai'
 })
@@ -78,8 +94,13 @@ const canProceed = computed(() => {
   if (!props.selectedProviderId)
     return false
 
-  if (needsApiKey.value && !apiKey.value.trim())
+  if (isAmazonBedrock.value) {
+    if (!accessKeyId.value.trim() || !secretAccessKey.value.trim())
+      return false
+  }
+  else if (needsApiKey.value && !apiKey.value.trim()) {
     return false
+  }
 
   return validation.value !== 'pending'
 })
@@ -101,12 +122,19 @@ async function validateConfiguration() {
     // Prepare config object
     const config: Record<string, unknown> = {}
 
-    if (needsApiKey.value)
-      config.apiKey = apiKey.value.trim()
-    if (needsBaseUrl.value)
-      config.baseUrl = baseUrl.value.trim()
-    if (props.selectedProvider.id === 'cloudflare-workers-ai')
-      config.accountId = accountId.value.trim()
+    if (isAmazonBedrock.value) {
+      config.accessKeyId = accessKeyId.value.trim()
+      config.secretAccessKey = secretAccessKey.value.trim()
+      config.region = region.value.trim() || 'us-east-1'
+    }
+    else {
+      if (needsApiKey.value)
+        config.apiKey = apiKey.value.trim()
+      if (needsBaseUrl.value)
+        config.baseUrl = baseUrl.value.trim()
+      if (props.selectedProvider.id === 'cloudflare-workers-ai')
+        config.accountId = accountId.value.trim()
+    }
 
     // Validate using provider's validator
     const metadata = providersStore.getProviderMetadata(props.selectedProvider.id)
@@ -132,6 +160,9 @@ async function handleNext() {
       apiKey: apiKey.value,
       baseUrl: baseUrl.value,
       accountId: accountId.value,
+      accessKeyId: accessKeyId.value,
+      secretAccessKey: secretAccessKey.value,
+      region: region.value || 'us-east-1',
     })
   }
 }
@@ -144,6 +175,9 @@ async function handleContinueAnyway() {
     apiKey: apiKey.value,
     baseUrl: baseUrl.value,
     accountId: accountId.value,
+    accessKeyId: accessKeyId.value,
+    secretAccessKey: secretAccessKey.value,
+    region: region.value || 'us-east-1',
   })
   providersStore.forceProviderConfigured(props.selectedProvider.id)
 }
@@ -209,33 +243,63 @@ initializeForm()
         </div>
       </Callout>
       <div class="space-y-4">
-        <!-- API Key Input -->
-        <div v-if="needsApiKey">
+        <!-- Amazon Bedrock SigV4 fields -->
+        <template v-if="isAmazonBedrock">
           <FieldInput
-            v-model="apiKey"
-            :placeholder="getApiKeyPlaceholder(props.selectedProvider.id)"
-            type="password"
-            label="API Key"
-            description="Enter your API key for the selected provider."
+            v-model="accessKeyId"
+            placeholder="AKIAIOSFODNN7EXAMPLE"
+            type="text"
+            :label="t('settings.pages.providers.provider.amazon-bedrock.config.access-key-id.label')"
+            :description="t('settings.pages.providers.provider.amazon-bedrock.config.access-key-id.description')"
             required
           />
-        </div>
-
-        <!-- Base URL Input -->
-        <div v-if="needsBaseUrl">
           <FieldInput
-            v-model="baseUrl"
-            :placeholder="getBaseUrlPlaceholder(props.selectedProvider.id)"
-            type="text"
-            label="Base URL"
-            description="Enter the base URL for the provider's API."
+            v-model="secretAccessKey"
+            placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+            type="password"
+            :label="t('settings.pages.providers.provider.amazon-bedrock.config.secret-access-key.label')"
+            :description="t('settings.pages.providers.provider.amazon-bedrock.config.secret-access-key.description')"
+            required
           />
-        </div>
+          <FieldInput
+            v-model="region"
+            placeholder="us-east-1"
+            type="text"
+            :label="t('settings.pages.providers.provider.amazon-bedrock.config.region.label')"
+            :description="t('settings.pages.providers.provider.amazon-bedrock.config.region.description')"
+          />
+        </template>
 
-        <!-- Account ID for Cloudflare -->
-        <div v-if="props.selectedProvider.id === 'cloudflare-workers-ai'">
-          <ProviderAccountIdInput v-model="accountId" />
-        </div>
+        <!-- Standard fields for other providers -->
+        <template v-else>
+          <!-- API Key Input -->
+          <div v-if="needsApiKey">
+            <FieldInput
+              v-model="apiKey"
+              :placeholder="getApiKeyPlaceholder(props.selectedProvider.id)"
+              type="password"
+              label="API Key"
+              description="Enter your API key for the selected provider."
+              required
+            />
+          </div>
+
+          <!-- Base URL Input -->
+          <div v-if="needsBaseUrl">
+            <FieldInput
+              v-model="baseUrl"
+              :placeholder="getBaseUrlPlaceholder(props.selectedProvider.id)"
+              type="text"
+              label="Base URL"
+              description="Enter the base URL for the provider's API."
+            />
+          </div>
+
+          <!-- Account ID for Cloudflare -->
+          <div v-if="props.selectedProvider.id === 'cloudflare-workers-ai'">
+            <ProviderAccountIdInput v-model="accountId" />
+          </div>
+        </template>
       </div>
 
       <!-- Chat Ping Check Option -->
