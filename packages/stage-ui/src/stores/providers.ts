@@ -1690,6 +1690,7 @@ export const useProvidersStore = defineStore('providers', () => {
       ),
       validation: ['model_list'],
     }),
+
     'cerebras-ai': buildOpenAICompatibleProvider({
       id: 'cerebras-ai',
       name: 'Cerebras',
@@ -2209,6 +2210,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+
     'player2-speech': {
       id: 'player2-speech',
       category: 'speech',
