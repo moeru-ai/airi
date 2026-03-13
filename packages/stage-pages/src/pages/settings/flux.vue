@@ -156,7 +156,7 @@ async function handleBuy(amount: number) {
 
     <!-- Audit History -->
     <div flex="~ col gap-3">
-      <div flex="~ items-center gap-2">
+      <div flex="~ col sm:flex-row sm:items-center gap-1 sm:gap-2">
         <h3 text-lg font-semibold>
           {{ t('settings.pages.flux.audit.title') }}
         </h3>
@@ -173,7 +173,8 @@ async function handleBuy(amount: number) {
         {{ t('settings.pages.flux.audit.empty') }}
       </div>
 
-      <div v-else border="1 neutral-200 dark:neutral-800" overflow-x-auto rounded-xl>
+      <!-- Desktop: table -->
+      <div v-else border="1 neutral-200 dark:neutral-800" overflow-x-auto rounded-xl hidden sm:block>
         <table w-full text-sm>
           <thead border="b neutral-200 dark:neutral-800">
             <tr>
@@ -231,6 +232,45 @@ async function handleBuy(amount: number) {
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Mobile: card list -->
+      <div v-if="auditRecords.length > 0" flex="~ col gap-2" sm:hidden>
+        <div
+          v-for="record in auditRecords"
+          :key="record.id"
+          border="1 neutral-200 dark:neutral-800" flex="~ col gap-1.5" rounded-lg px-3 py-2.5
+        >
+          <div flex="~ items-center justify-between">
+            <span
+              inline-block rounded-full px-2 py-0.5 text-xs font-medium
+              :class="record.type === 'consumption'
+                ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                : 'bg-green-500/10 text-green-600 dark:text-green-400'"
+            >
+              {{ record.type === 'consumption'
+                ? t('settings.pages.flux.audit.typeConsumption')
+                : record.type === 'addition'
+                  ? t('settings.pages.flux.audit.typeAddition')
+                  : t('settings.pages.flux.audit.typeInitial') }}
+            </span>
+            <span text-sm font-semibold font-mono :class="record.amount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'">
+              {{ record.amount >= 0 ? `+${record.amount}` : record.amount }}
+            </span>
+          </div>
+          <div text="sm neutral-600 dark:neutral-300" truncate>
+            {{ record.description }}
+            <span
+              v-if="record.metadata?.promptTokens != null"
+              ml-1 text="xs neutral-400"
+            >
+              ({{ record.metadata.promptTokens }}+{{ record.metadata.completionTokens }} tokens)
+            </span>
+          </div>
+          <div text="xs neutral-400">
+            {{ formatDate(record.createdAt) }}
+          </div>
+        </div>
       </div>
 
       <div v-if="auditHasMore" text-center>
