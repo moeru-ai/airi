@@ -50,7 +50,7 @@ import {
   getSessionScopedApprovalGrantScope,
   patchComputerUseTerminalStateWithGrant,
 } from './modules/computer-use-approval'
-import { isComputerUseMcpCall } from './modules/computer-use-mcp-routing'
+import { isComputerUseMcpCall, resolveMcpCallToolName } from './modules/computer-use-mcp-routing'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 
 const { isDark: dark } = useTheme()
@@ -123,14 +123,15 @@ function buildDesktopApprovalSummary(action: any) {
 async function callMcpTool(payload: any): Promise<any> {
   const result = await callMcpToolRaw(payload)
   const isComputerUse = isComputerUseMcpCall(payload, result)
+  const resolvedToolName = isComputerUse ? resolveMcpCallToolName(payload, result) : undefined
 
   if (!isComputerUse)
     return result
 
-  if (payload?.approvalSessionId && payload.name === 'computer_use::terminal_reset_state')
+  if (payload?.approvalSessionId && resolvedToolName === 'terminal_reset_state')
     computerUseApprovalGrants.delete(payload.approvalSessionId)
 
-  if (payload?.approvalSessionId && payload.name === 'computer_use::pty_destroy') {
+  if (payload?.approvalSessionId && resolvedToolName === 'pty_destroy') {
     const grant = computerUseApprovalGrants.get(payload.approvalSessionId)
     if (grant?.scope === 'pty_session')
       computerUseApprovalGrants.delete(payload.approvalSessionId)
