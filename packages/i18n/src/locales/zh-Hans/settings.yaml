@@ -177,6 +177,7 @@ pages:
     scenario: 场景
     search: 搜索角色卡...
     sort_by: 排序方式
+    body-model: 形体 / 显示模型
     speech:
       provider: 语音 / 提供商
       model: 声音 / 模型
