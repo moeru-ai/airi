@@ -56,18 +56,18 @@ watch(isDesktop, (val) => {
     <div class="max-w-xs w-full flex flex-col gap-3">
       <Button
         :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
+        icon="i-simple-icons-google"
         :loading="loading.google"
         @click="handleSignIn('google')"
       >
-        <div v-if="!loading.google" class="i-simple-icons-google" />
         <span>Google</span>
       </Button>
       <Button
         :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
+        icon="i-simple-icons-github"
         :loading="loading.github"
         @click="handleSignIn('github')"
       >
-        <div v-if="!loading.github" class="i-simple-icons-github" />
         <span>GitHub</span>
       </Button>
     </div>
