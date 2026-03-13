@@ -8,11 +8,13 @@ import onboardingLogo from '../../../../assets/onboarding.avif'
 
 import { useAuthStore } from '../../../../stores/auth'
 import { useOnboardingStore } from '../../../../stores/onboarding'
-import { OnboardingContextKey } from './utils'
+
+interface Props {
+  onNext: OnboardingStepNextHandler
+}
 
 const props = defineProps<Props>()
 const { t } = useI18n()
-const context = inject(OnboardingContextKey)!
 const authStore = useAuthStore()
 const onboardingStore = useOnboardingStore()
 
@@ -22,7 +24,7 @@ function handleLogin() {
 }
 
 function handleLocalSetup() {
-  context.handleNextStep()
+  props.onNext()
 }
 </script>
 
@@ -62,7 +64,7 @@ function handleLocalSetup() {
       <Button
         v-motion
         :initial="{ opacity: 0 }"
-        :visible="{ opacity: 1 }"
+        :enter="{ opacity: 1 }"
         :duration="500"
         :delay="200"
         :label="t('settings.dialogs.onboarding.loginAction')"
@@ -72,7 +74,7 @@ function handleLocalSetup() {
       <Button
         v-motion
         :initial="{ opacity: 0 }"
-        :visible="{ opacity: 1 }"
+        :enter="{ opacity: 1 }"
         :duration="500"
         :delay="250"
         variant="secondary"
