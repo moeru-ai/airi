@@ -1,9 +1,9 @@
-name: Cloudflare Workers (serverlize)
+name: Cloudflare Workers (server-dev)
 
 on:
   push:
     branches:
-      - 'serverlize'
+      - 'server-dev'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -11,14 +11,14 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy - stage-web (serverlize)
+    name: Deploy - stage-web (server-dev)
     runs-on: ubuntu-latest
     permissions:
       contents: read
       deployments: write
 
     environment:
-      name: Serverlize
+      name: ServerDev
       url: ${{ steps.preview-urls.outputs.preview_url }}
 
     steps:
@@ -63,7 +63,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: versions upload -c ./apps/stage-web/wrangler.toml --preview-alias serverlize --message "GitHub Actions uploaded serverlize branch preview" --tag v0.0.1-serverlize
+          command: versions upload -c ./apps/stage-web/wrangler.toml --preview-alias server-dev --message "GitHub Actions uploaded server-dev branch preview" --tag v0.0.1-server-dev
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Prepare preview URL
@@ -77,7 +77,7 @@ jobs:
 
           host_without_scheme="${deployment_url#https://}"
           host_without_scheme="${host_without_scheme#http://}"
-          preview_url="https://serverlize-${host_without_scheme#*-}"
+          preview_url="https://server-dev-${host_without_scheme#*-}"
 
           echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
           echo "Preview URL: $preview_url"
