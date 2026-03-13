@@ -1,5 +1,6 @@
 import type { Session, User } from 'better-auth'
 
+import { StorageSerializers, useLocalStorage, useMediaQuery, whenever } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
@@ -12,14 +13,31 @@ import { client } from '../composables/api'
  * `providers` to safely depend on it without creating a circular import.
  */
 export const useAuthStore = defineStore('auth', () => {
-  const user = ref<User>()
-  const session = ref<Session>()
+  const user = useLocalStorage<User | null>('auth/v1/user', null, {
+    // Why: https://github.com/vueuse/vueuse/pull/614#issuecomment-875450160
+    serializer: StorageSerializers.object,
+  })
+  const session = useLocalStorage<Session | null>('auth/v1/session', null, { serializer: StorageSerializers.object })
   const isAuthenticated = computed(() => !!user.value && !!session.value)
   const userId = computed(() => user.value?.id ?? 'local')
 
-  const credits = ref<number>(0)
+  const credits = useLocalStorage<number>('user/v1/flux', 0)
 
-  const isLoginOpen = ref(false)
+  // For controlling the login drawer on mobile
+  const needsLogin = ref(false)
+  const isMobile = useMediaQuery('(max-width: 768px)')
+
+  whenever(needsLogin, () => {
+    if (isMobile.value) {
+      return
+    }
+
+    // TODO: type safe, import `useRouter` from router.ts
+    window.location.href = '/auth/login'
+  })
+
+  // Reset status when changing the window viewport
+  watch(isMobile, () => needsLogin.value = false)
 
   // --- Lifecycle hooks ---
   type AuthHook = () => void | Promise<void>
@@ -78,6 +96,8 @@ export const useAuthStore = defineStore('auth', () => {
   watch(isAuthenticated, async (val) => {
     if (val) {
       updateCredits()
+
+      needsLogin.value = false
     }
     else {
       credits.value = 0
@@ -91,7 +111,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     credits,
     updateCredits,
-    isLoginDrawerOpen,
+    needsLogin,
     onAuthenticated,
     onLogout,
   }
