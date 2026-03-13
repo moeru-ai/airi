@@ -8,11 +8,7 @@ import ActionAbout from './InteractiveArea/Actions/About.vue'
 
 const router = useRouter()
 
-function handleCreate() {
-  router.push('/settings/airi-card')
-}
-
-function handleManage() {
+function handleNavigation() {
   router.push('/settings/airi-card')
 }
 </script>
@@ -21,7 +17,7 @@ function handleManage() {
   <header mb-1 w-full flex items-center justify-between gap-2>
     <HeaderLink />
     <div flex items-center gap-2>
-      <ProfileSwitcherPopover @create="handleCreate" @manage="handleManage" />
+      <ProfileSwitcherPopover @create="handleNavigation" @manage="handleNavigation" />
       <ActionAbout />
       <HeaderAvatar />
     </div>
