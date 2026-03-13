@@ -70,4 +70,10 @@ export function useAuthProviderSync() {
       console.error('error loading models for official providers', err)
     }
   })
+
+  authStore.onLogout(() => {
+    for (const { id } of AUTH_ACTIVATED_PROVIDERS) {
+      providersStore.setProviderUnconfigured(id)
+    }
+  })
 }
