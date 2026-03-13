@@ -174,10 +174,22 @@ export class Client<C = undefined> {
 
       const ws = new WebSocket(this.opts.url)
       this.websocket = ws
+      const isCurrentSocket = () => this.websocket === ws
 
-      ws.onmessage = this.handleMessageBound
+      ws.onmessage = (event: MessageEvent) => {
+        if (!isCurrentSocket()) {
+          return
+        }
+
+        this.handleMessageBound(event)
+      }
       ws.onerror = (event: any) => {
+        if (!isCurrentSocket()) {
+          return
+        }
+
         settle(() => {
+          this.websocket = undefined
           this.connected = false
 
           this.opts.onError?.(event)
@@ -185,6 +197,12 @@ export class Client<C = undefined> {
         })
       }
       ws.onclose = () => {
+        if (!isCurrentSocket()) {
+          return
+        }
+
+        this.websocket = undefined
+
         if (!settled && !this.connected) {
           settle(() => {
             reject(new Error('WebSocket closed before open'))
@@ -202,6 +220,10 @@ export class Client<C = undefined> {
         }
       }
       ws.onopen = () => {
+        if (!isCurrentSocket()) {
+          return
+        }
+
         settle(() => {
           this.connected = true
 
@@ -355,8 +377,10 @@ export class Client<C = undefined> {
   close(): void {
     this.shouldClose = true
     this.stopHeartbeat()
-    if (this.websocket) {
-      this.websocket.close()
+    const websocket = this.websocket
+    this.websocket = undefined
+    if (websocket) {
+      websocket.close()
       this.connected = false
     }
   }
@@ -425,6 +449,7 @@ export class Client<C = undefined> {
 
     const ws = this.websocket
     this.connected = false
+    this.websocket = undefined
     if (ws && ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
       ws.close()
     }

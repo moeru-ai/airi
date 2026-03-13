@@ -28,7 +28,6 @@ import { onMounted, onUnmounted, shallowRef, toRefs, watch } from 'vue'
 */
 const props = defineProps<{
   controlEnable: boolean
-  modelLoaded: boolean
   modelSize: Vec3
   cameraPosition: Vec3
   cameraTarget: Vec3
@@ -50,7 +49,6 @@ const emit = defineEmits<{
 
 const {
   controlEnable,
-  modelLoaded,
   modelSize,
   cameraPosition,
   cameraTarget,
@@ -63,6 +61,7 @@ extend({ OrbitControls })
 const { camera: cameraTres, renderer } = useTres()
 const controls = shallowRef<OrbitControls>()
 const camera = shallowRef<PerspectiveCamera | null>(null)
+let disposeControlsChange: (() => void) | undefined
 
 // Initialisation on onMounted
 function registerInfoFlow() {
@@ -94,23 +93,23 @@ function registerInfoFlow() {
   watch(cameraTarget, (newTarget) => {
     if (!controls.value)
       return
-    controls.value!.target.set(newTarget.x, newTarget.y, newTarget.z)
-    controls.value!.update()
+    controls.value.target.set(newTarget.x, newTarget.y, newTarget.z)
+    controls.value.update()
   }, { immediate: true, deep: true })
   // Get fov => update camera fov
   watch(cameraFOV, (newFOV) => {
     if (!camera.value || !controls.value)
       return
-    camera!.value!.fov = newFOV
-    camera!.value!.updateProjectionMatrix()
-    controls.value!.update()
+    camera.value.fov = newFOV
+    camera.value.updateProjectionMatrix()
+    controls.value.update()
   }, { immediate: true })
   // Get camera distance => update camera distance
   watch(cameraDistance, (newDistance) => {
     if (!camera.value || !controls.value)
       return
     const newPosition = new Vector3()
-    const target = controls.value!.target
+    const target = controls.value.target
     const direction = new Vector3().subVectors(camera.value.position, target).normalize()
     newPosition.copy(target).addScaledVector(direction, newDistance)
     camera.value.position.set(
@@ -134,28 +133,30 @@ function registerInfoFlow() {
   */
   // send camera update info
   const onChange = () => {
-    if (modelLoaded.value) {
-      emit(
-        'orbitControlsCameraChanged',
-        {
-          newCameraPosition: {
-            x: camera!.value!.position.x,
-            y: camera!.value!.position.y,
-            z: camera!.value!.position.z,
-          },
-          newCameraDistance: controls.value!.getDistance(),
+    if (!controlEnable.value || !camera.value || !controls.value)
+      return
+
+    emit(
+      'orbitControlsCameraChanged',
+      {
+        newCameraPosition: {
+          x: camera.value.position.x,
+          y: camera.value.position.y,
+          z: camera.value.position.z,
         },
-      )
-    }
+        newCameraDistance: controls.value.getDistance(),
+      },
+    )
   }
+
+  disposeControlsChange?.()
   controls.value?.addEventListener('change', onChange)
+  disposeControlsChange = () => controls.value?.removeEventListener('change', onChange)
 }
 
 onMounted(async () => {
   // wait until camera is not undefined
   await until(() => cameraTres.value && renderer.domElement).toBeTruthy()
-  // Prevent the data value fluctuation, camera setting should take effective after model loading
-  await until(() => props.modelLoaded).toBeTruthy()
   if (!cameraTres.value || !renderer.domElement) {
     console.warn('Camera or Renderer initialisation failure!')
     return
@@ -190,6 +191,11 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  disposeControlsChange?.()
+  disposeControlsChange = undefined
+  controls.value?.dispose()
+  controls.value = undefined
+  camera.value = null
 })
 
 defineExpose({

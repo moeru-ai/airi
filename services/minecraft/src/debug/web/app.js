@@ -1148,7 +1148,7 @@ class ToolsPanel {
           }
 
           value = Number.parseFloat(value)
-          if (isNaN(value)) {
+          if (Number.isNaN(value)) {
             this.showResult(tool.name, { error: `Invalid number for ${paramName}` }, true)
             return
           }
@@ -1191,7 +1191,7 @@ class ToolsPanel {
   }
 
   handleResult(data) {
-    const { toolName, result, error } = data
+    const { toolName, error } = data
 
     this.executingTools.delete(toolName)
     this.updateCardState(toolName, error ? 'error' : 'success')
