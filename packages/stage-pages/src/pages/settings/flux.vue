@@ -156,7 +156,7 @@ async function handleBuy(amount: number) {
 
     <!-- Audit History -->
     <div flex="~ col gap-3">
-      <div flex="~ col sm:flex-row sm:items-center gap-1 sm:gap-2">
+      <div flex="~ col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
         <h3 text-lg font-semibold>
           {{ t('settings.pages.flux.audit.title') }}
         </h3>
