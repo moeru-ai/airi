@@ -12,11 +12,14 @@ AIRI mobile app for Android, built with [Capacitor](https://capacitorjs.com/).
 - Android SDK Platform 36 (install via Android Studio → SDK Manager)
 - Android SDK Build-Tools (install via Android Studio → SDK Manager)
 
-Set the `ANDROID_HOME` environment variable to your SDK path, e.g.:
+Set the following environment variables:
 
 ```
 ANDROID_HOME=C:/Users/<you>/AppData/Local/Android/Sdk
+JAVA_HOME=C:/Program Files/Android/Android Studio/jbr
 ```
+
+> Gradle requires Java 21. The JBR bundled with Android Studio works. Without `JAVA_HOME` set, Gradle may fall back to an older system Java and fail with `invalid source release: 21`.
 
 ## Development
 
@@ -50,7 +53,7 @@ Or build and install directly via ADB:
 
 ```bash
 cd android
-./gradlew assembleDebug
+JAVA_HOME="C:/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
