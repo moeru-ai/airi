@@ -12,9 +12,11 @@ import { message } from '@xsai/utils-chat'
 import { parse } from 'best-effort-json-parser'
 import { randomInt } from 'es-toolkit'
 
-import { recordMessage } from '../../../../models'
+import { embedContent, findLastNMessages, mergeOrCreateLongTermMemory, recordMessage } from '../../../../models'
 import { listJoinedChats } from '../../../../models/chats'
-import { messageSplit } from '../../../../prompts'
+import { chatMessageToOneLine } from '../../../../models/common'
+import { extractLongTermMemories, messageSplit } from '../../../../prompts'
+import { addStep } from '../../../../utils/debug-tracker'
 import { cancellable } from '../../../../utils/promise'
 
 export function parseMayStructuredMessage(responseText: string) {
@@ -69,20 +71,18 @@ export async function sendMessage(
     chatContext.currentTask = null
   }
 
-  // Check if we should abort due to new messages since processing began
-  if (botContext.unreadMessages[chatId] && botContext.unreadMessages[chatId].length > 0) {
-    botContext.logger.log(`Not sending message to ${chatId} - new messages arrived`)
-    return // Don't send the message, let the next processing loop handle it
-  }
+  // Note: removed "new messages arrived" check — it was preventing the bot
+  // from ever responding in fast-paced chats. The agent loop handles new messages naturally.
 
+  const systemContent = String(await messageSplit())
   const req = {
     apiKey: env.LLM_API_KEY!,
     baseURL: env.LLM_API_BASE_URL!,
     model: env.LLM_MODEL!,
     messages: message.messages(
-      message.system(await messageSplit()),
-      message.user('This is the input message:'),
-      message.user(responseText),
+      { role: 'system' as const, content: systemContent },
+      { role: 'user' as const, content: 'This is the input message:' },
+      { role: 'user' as const, content: String(responseText) },
     ),
     abortSignal: abortController.signal,
   } satisfies GenerateTextOptions
@@ -102,6 +102,14 @@ export async function sendMessage(
     throw new Error('No response text')
   }
 
+  addStep('sendMessage:messageSplit', {
+    inputLength: responseText.length,
+    outputLength: res.text.length,
+    totalTokens: res.usage.total_tokens,
+    promptTokens: res.usage.prompt_tokens,
+    completionTokens: res.usage.completion_tokens,
+  })
+
   logger.withFields({
     messages: responseText,
     response: res.text,
@@ -116,6 +124,12 @@ export async function sendMessage(
     botContext.logger.log(`Not sending message to ${chatId} - no messages to send`)
     return
   }
+
+  addStep('sendMessage:structured', {
+    messageCount: structuredMessage.messages.length,
+    hasReplyTo: !!structuredMessage.reply_to_message_id,
+    messages: structuredMessage.messages.map(m => m.slice(0, 100)),
+  })
 
   botContext.logger.withField('texts', structuredMessage).log('Sending messages')
 
@@ -162,4 +176,98 @@ export async function sendMessage(
   }
 
   chatContext.currentTask = null
+
+  // Async: extract long-term memories from this conversation turn (non-blocking)
+  const botId = botContext.bot.botInfo.id.toString()
+  extractAndStoreMemories(botContext, botId, groupId).catch((err) => {
+    botContext.logger.withError(err).log('Failed to extract long-term memories (async)')
+  })
+}
+
+async function extractAndStoreMemories(
+  botContext: BotContext,
+  botId: string,
+  chatId: string,
+): Promise<void> {
+  const logger = useLogg('extractAndStoreMemories').useGlobalConfig()
+
+  // Fetch recent conversation from DB (includes both user messages and bot replies)
+  const recentMessages = await findLastNMessages(chatId, 15)
+  if (recentMessages.length === 0) {
+    logger.log('No recent messages to extract memories from')
+    return
+  }
+
+  const conversationContext = recentMessages
+    .map(msg => chatMessageToOneLine(botId, msg))
+    .join('\n')
+
+  const promptResult = await extractLongTermMemories({ conversationContext })
+  const systemContent = String(promptResult)
+
+  const res = await generateText({
+    apiKey: env.LLM_API_KEY!,
+    baseURL: env.LLM_API_BASE_URL!,
+    model: env.LLM_MODEL!,
+    messages: [
+      { role: 'system' as const, content: systemContent },
+      { role: 'user' as const, content: 'Extract memories from the conversation above. Respond with JSON array only.' },
+    ],
+  })
+
+  const text = res.text
+    .replace(/<think>[\s\S]*?<\/think>/, '')
+    .replace(/^```json\s*\n/, '')
+    .replace(/\n```$/, '')
+    .trim()
+
+  if (!text || text === '[]') {
+    logger.log('No memories to extract')
+    return
+  }
+
+  let memories: { content: string, category: string, importance: number }[]
+  try {
+    memories = parse(text) as { content: string, category: string, importance: number }[]
+    if (!Array.isArray(memories)) {
+      logger.log('Extracted memories is not an array, skipping')
+      return
+    }
+  }
+  catch {
+    logger.withField('text', text).log('Failed to parse extracted memories')
+    return
+  }
+
+  addStep('extractMemories:parsed', {
+    memoriesFound: memories.length,
+    categories: memories.map(m => m.category),
+  })
+
+  for (const mem of memories) {
+    if (!mem.content || !mem.category)
+      continue
+
+    try {
+      const embedding = await embedContent(mem.content)
+      const result = await mergeOrCreateLongTermMemory({
+        content: mem.content,
+        category: mem.category,
+        importance: mem.importance || 5,
+        embedding,
+        metadata: {
+          platform: 'telegram',
+          botId: botContext.bot.botInfo.id.toString(),
+          chatId,
+          sourceMessageIds: [],
+          sourceType: 'conversation',
+          extractedAt: Date.now(),
+        },
+      })
+      logger.withFields({ action: result.action, id: result.id, content: mem.content }).log('Stored memory')
+    }
+    catch (err) {
+      logger.withError(err).withField('content', mem.content).log('Failed to store memory')
+    }
+  }
 }

@@ -3,6 +3,7 @@ const props = defineProps<{
   lastMessages?: string
   unreadHistoryMessages?: string
   relevantChatMessages?: string
+  relevantLongTermMemories?: string
 }>()
 </script>
 
@@ -17,6 +18,11 @@ All the messages you requested to read:
 
 Relevant chat messages may help you recall the memories:
 {{ props.relevantChatMessages || 'No relevant messages' }}
+
+<div v-if="props.relevantLongTermMemories">
+Things you remember about the people and conversations (use as reference, not mandatory):
+{{ props.relevantLongTermMemories }}
+</div>
 
 Feel free to ignore by just sending an empty array within a object with key "messages" (i.e.
 { "messages": [] }).

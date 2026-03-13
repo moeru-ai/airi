@@ -1,4 +1,5 @@
 export * from './chat-message'
 export * from './common'
+export * from './memory-fragments'
 export * from './photos'
 export * from './stickers'

@@ -9,9 +9,10 @@ import { withRetry } from '@moeru/std'
 import { trace } from '@opentelemetry/api'
 import { embed } from '@xsai/embed'
 
-import { findLastNMessages, findRelevantMessages } from '../../../../models'
+import { findLastNMessages, findRelevantLongTermMemories, findRelevantMessages, touchMemory } from '../../../../models'
 import { chatMessageToOneLine, telegramMessageToOneLine } from '../../../../models/common'
 import { actionReadMessages } from '../../../../prompts'
+import { addStep } from '../../../../utils/debug-tracker'
 
 export async function readMessage(
   state: BotContext,
@@ -38,6 +39,12 @@ export async function readMessage(
     })
     const lastNMessagesOneliner = lastNMessages.map(msg => chatMessageToOneLine(botId, msg)).join('\n')
     logger.withField('number_of_last_n_messages', lastNMessages.length).log('Successfully found last N messages')
+
+    addStep('readMessage:context', {
+      lastNMessages: lastNMessages.length,
+      unreadMessages: unreadMessages.length,
+      chatId,
+    })
 
     const unreadMessagesEmbeddingPromises = unreadMessages
       .filter(msg => !!msg.text || !!msg.caption)
@@ -86,6 +93,43 @@ export async function readMessage(
     const relevantChatMessagesOneliner = relevantChatMessages.map(msgs => msgs.join('\n')).join('\n')
     logger.withField('number_of_relevant_chat_messages', relevantChatMessages.length).log('Successfully composed relevant chat messages')
 
+    addStep('readMessage:embedding+retrieval', {
+      embeddedMessages: unreadMessagesEmbeddingPromises.length,
+      relevantChatMessages: relevantChatMessages.length,
+    })
+
+    // Retrieve relevant long-term memories
+    let relevantLongTermMemoriesOneliner = ''
+    try {
+      const allMemories = await Promise.all(
+        unreadHistoryMessagesEmbedding.map(async (emb) => {
+          return findRelevantLongTermMemories({ embedding: emb.embedding, limit: 3 })
+        }),
+      )
+      const uniqueMemories = new Map<string, { content: string, category: string, importance: number }>()
+      for (const memories of allMemories) {
+        for (const mem of memories) {
+          if (!uniqueMemories.has(mem.id)) {
+            uniqueMemories.set(mem.id, { content: mem.content, category: mem.category, importance: mem.importance })
+            touchMemory(mem.id).catch(() => {})
+          }
+        }
+      }
+      if (uniqueMemories.size > 0) {
+        relevantLongTermMemoriesOneliner = Array.from(uniqueMemories.values())
+          .map(m => `[${m.category}] ${m.content}`)
+          .join('\n')
+        logger.withField('count', uniqueMemories.size).log('Retrieved long-term memories')
+      }
+    }
+    catch (err) {
+      logger.withError(err).log('Failed to retrieve long-term memories, continuing without them')
+    }
+
+    addStep('readMessage:longTermMemories', {
+      memoriesRetrieved: relevantLongTermMemoriesOneliner ? relevantLongTermMemoriesOneliner.split('\n').length : 0,
+    })
+
     state.unreadMessages[action.chatId] = []
 
     span.end()
@@ -95,6 +139,7 @@ export async function readMessage(
         lastMessages: lastNMessagesOneliner,
         unreadHistoryMessages: unreadHistoryMessageOneliner,
         relevantChatMessages: relevantChatMessagesOneliner,
+        relevantLongTermMemories: relevantLongTermMemoriesOneliner || undefined,
       }),
     }
   })

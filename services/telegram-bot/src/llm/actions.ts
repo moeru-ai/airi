@@ -14,6 +14,7 @@ import { parse } from 'best-effort-json-parser'
 
 import { personality, systemTicking } from '../prompts'
 import { div, span, vif } from '../prompts/utils'
+import { addStep } from '../utils/debug-tracker'
 
 export async function imagineAnAction(
   botId: string,
@@ -33,37 +34,43 @@ export async function imagineAnAction(
 
     let responseText = ''
 
+    const systemContent = String(div(
+      await systemTicking(),
+      await personality(),
+    ))
+    const userContent = String(div(
+      vif(
+        globalStates?.incomingMessages?.length > 0,
+        div(
+          'Incoming messages:',
+          globalStates?.incomingMessages?.filter(Boolean).map(msg => `- ${msg?.text}`).join('\n'),
+        ),
+      ),
+      'History actions:',
+      actions.map(a => `- Action: ${JSON.stringify(a.action)}, Result: ${JSON.stringify(a.result)}`).join('\n'),
+      span(`
+        Currently, it's ${new Date()} on the server that hosts you.
+        The others in the group may live in a different timezone, so please be aware of the time difference.
+      `),
+      `You have total ${Object.values(globalStates.unreadMessages).reduce((acc, cur) => acc + cur.length, 0)} unread messages.`,
+      'Unread messages count are:',
+      Object.entries(globalStates.unreadMessages).map(([key, value]) => `ID:${key}, Unread message count:${value.length}`).join('\n'),
+      'Based on the context, What do you want to do? Choose a right action from the listing of the tools you want to take next.',
+      'Respond with the action and parameters you choose in JSON only, without any explanation and markups.',
+    ))
     const requestMessages = message.messages(
-      message.system(
-        div(
-          await systemTicking(),
-          await personality(),
-        ),
-      ),
+      { role: 'system' as const, content: systemContent },
       ...messages,
-      message.user(
-        div(
-          vif(
-            globalStates?.incomingMessages?.length > 0,
-            div(
-              'Incoming messages:',
-              globalStates?.incomingMessages?.filter(Boolean).map(msg => `- ${msg?.text}`).join('\n'),
-            ),
-          ),
-          'History actions:',
-          actions.map(a => `- Action: ${JSON.stringify(a.action)}, Result: ${JSON.stringify(a.result)}`).join('\n'),
-          span(`
-            Currently, it's ${new Date()} on the server that hosts you.
-            The others in the group may live in a different timezone, so please be aware of the time difference.
-          `),
-          `You have total ${Object.values(globalStates.unreadMessages).reduce((acc, cur) => acc + cur.length, 0)} unread messages.`,
-          'Unread messages count are:',
-          Object.entries(globalStates.unreadMessages).map(([key, value]) => `ID:${key}, Unread message count:${value.length}`).join('\n'),
-          'Based on the context, What do you want to do? Choose a right action from the listing of the tools you want to take next.',
-          'Respond with the action and parameters you choose in JSON only, without any explanation and markups.',
-        ),
-      ),
+      { role: 'user' as const, content: userContent },
     )
+
+    addStep('imagineAnAction:prompt', {
+      systemContentLength: systemContent.length,
+      userContentLength: userContent.length,
+      historyMessages: messages.length,
+      historyActions: actions.length,
+      unreadCounts: Object.fromEntries(Object.entries(globalStates.unreadMessages).map(([k, v]) => [k, v.length])),
+    })
 
     try {
       const res = await tracer.startActiveSpan('llm.chat.generate_text', async (s) => {
@@ -97,6 +104,13 @@ export async function imagineAnAction(
         return res
       })
 
+      addStep('imagineAnAction:llmResponse', {
+        responseText: res.text.slice(0, 300),
+        totalTokens: res.usage.total_tokens,
+        promptTokens: res.usage.prompt_tokens,
+        completionTokens: res.usage.completion_tokens,
+      })
+
       logger.withFields({
         response: res.text,
         unreadMessages: Object.fromEntries(Object.entries(globalStates.unreadMessages).map(([key, value]) => [key, value.length])),
@@ -114,7 +128,65 @@ export async function imagineAnAction(
           .replace(/\n```$/, '')
           .trim()
 
-        const action = parse(responseText) as Action
+        const raw = parse(responseText) as Record<string, unknown>
+
+        // Normalize: some models wrap fields inside "parameters", flatten to top level
+        if (raw.parameters && typeof raw.parameters === 'object') {
+          const params = raw.parameters as Record<string, unknown>
+          for (const [key, value] of Object.entries(params)) {
+            if (!(key in raw))
+              raw[key] = value
+          }
+          delete raw.parameters
+        }
+
+        // Normalize action name aliases
+        const actionAliases: Record<string, string> = {
+          read_messages: 'read_unread_messages',
+          get_unread_messages: 'read_unread_messages',
+          check_messages: 'read_unread_messages',
+          reply_to_a_message_from_a_chat: 'send_message',
+          reply_message: 'send_message',
+          get_messages_from_chat: 'read_unread_messages',
+          Read_unread_messages: 'read_unread_messages',
+        }
+        if (typeof raw.action === 'string' && actionAliases[raw.action])
+          raw.action = actionAliases[raw.action]
+
+        // Normalize field name aliases
+        if (!raw.chatId) {
+          raw.chatId = raw.recipient_id ?? raw.group_id ?? raw.chat_id ?? raw.user_id ?? raw.conversation_id ?? raw.unread_message_id ?? raw.id
+          delete raw.recipient_id
+          delete raw.group_id
+          delete raw.chat_id
+          delete raw.user_id
+          delete raw.conversation_id
+          delete raw.unread_message_id
+        }
+        if (!raw.content) {
+          raw.content = raw.message ?? raw.text ?? raw.chat_message
+          delete raw.message
+          delete raw.text
+          delete raw.chat_message
+        }
+
+        // Fallback: infer chatId from unreadMessages if only one chat has unread
+        if (!raw.chatId) {
+          const unreadChatIds = Object.keys(globalStates.unreadMessages).filter(
+            k => globalStates.unreadMessages[k]?.length > 0,
+          )
+          if (unreadChatIds.length >= 1)
+            raw.chatId = unreadChatIds[0]
+        }
+
+        const action = raw as unknown as Action
+
+        addStep('imagineAnAction:parsedAction', {
+          action: action.action,
+          chatId: (action as any).chatId || 'none',
+          hasContent: !!(action as any).content,
+        })
+
         s.setAttribute('telegram.bot.id', botId)
         s.setAttribute('telegram.module.generate_agent_action.parsed_action', JSON.stringify(action))
 
