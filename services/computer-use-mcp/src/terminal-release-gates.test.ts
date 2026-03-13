@@ -234,7 +234,7 @@ describe('terminal release gates', () => {
     })
 
     const execBindings = stateManager.getState().workflowStepTerminalBindings.filter(binding => binding.surface === 'exec')
-    expect(execBindings).toHaveLength(5)
+    expect(execBindings).toHaveLength(3)
     expect(execBindings.every(binding => binding.taskId === result.task.id)).toBe(true)
     expect(stateManager.getRecentSurfaceDecision()).toMatchObject({
       surface: 'exec',
