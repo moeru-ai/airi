@@ -548,7 +548,7 @@ importers:
         version: 4.11.3
       injeca:
         specifier: 'catalog:'
-        version: 0.1.7(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6)
+        version: 0.1.8(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6)
       ioredis:
         specifier: ^5.10.0
         version: 5.10.0
@@ -1001,15 +1001,6 @@ importers:
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
         version: 0.4.29(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))
-      '@proj-airi/electron-eventa':
-        specifier: workspace:^
-        version: link:../../packages/electron-eventa
-      '@proj-airi/electron-screen-capture':
-        specifier: workspace:^
-        version: link:../../packages/electron-screen-capture
-      '@proj-airi/electron-vueuse':
-        specifier: workspace:^
-        version: link:../../packages/electron-vueuse
       '@proj-airi/font-cjkfonts-allseto':
         specifier: workspace:^
         version: link:../../packages/font-cjkfonts-allseto
@@ -1124,9 +1115,6 @@ importers:
       dompurify:
         specifier: ^3.3.1
         version: 3.3.1
-      drizzle-orm:
-        specifier: ^0.45.1
-        version: 0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)
       electron-click-drag-plugin:
         specifier: ^2.0.2
         version: 2.0.2
@@ -3241,7 +3229,7 @@ importers:
         version: 14.1.0(vue@3.5.29(typescript@5.9.3))
       '@wxt-dev/module-vue':
         specifier: ^1.0.3
-        version: 1.0.3(vite@7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))(wxt@0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+        version: 1.0.3(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))(wxt@0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
       nanoid:
         specifier: ^5.1.6
         version: 5.1.6
@@ -7750,8 +7738,8 @@ packages:
       web-worker:
         optional: true
 
-  '@proj-airi/drizzle-orm-browser-migrator@0.1.6':
-    resolution: {integrity: sha512-7A7Ay5vSLBer2P+Ydbrl9AktE7geIlh396zB/3a9odwI/1GT89Pljzvjz5SVxG0e17+wMOPLRKnTnCzukL1B9Q==}
+  '@proj-airi/drizzle-orm-browser-migrator@0.1.4':
+    resolution: {integrity: sha512-xglys6t2+h62aLwAvIN7L4V/lUB3FkVSbm7nj8dCHQ+OxCSQtEPyjgiwqahlFBRg6n9/L/ASvD78ASk/2VT/RQ==}
     peerDependencies:
       drizzle-orm: '>=0.44.0'
 
@@ -23916,9 +23904,9 @@ snapshots:
       '@types/filesystem': 0.0.36
       '@types/har-format': 1.2.16
 
-  '@wxt-dev/module-vue@1.0.3(vite@7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))(wxt@0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))':
+  '@wxt-dev/module-vue@1.0.3(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))(wxt@0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
-      '@vitejs/plugin-vue': 6.0.4(vite@7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))
+      '@vitejs/plugin-vue': 6.0.4(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))
       wxt: 0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - vite
