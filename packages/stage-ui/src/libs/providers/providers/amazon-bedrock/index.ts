@@ -23,7 +23,7 @@ const amazonBedrockConfigSchema = z.object({
     .default('us-east-1'),
 })
 
-type AmazonBedrockConfig = z.input<typeof amazonBedrockConfigSchema>
+type AmazonBedrockConfig = z.infer<typeof amazonBedrockConfigSchema>
 
 // Helper: merge consecutive messages with the same role (Converse API requires alternating)
 function mergeConsecutiveRoles(messages: Array<{ role: string, content: any[] }>) {
@@ -246,12 +246,12 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
 
   extraMethods: {
     listModels: async (config, _provider) => {
-      const region = (config as AmazonBedrockConfig).region || 'us-east-1'
+      const region = config.region
 
       const aws = new AwsClient({
-        accessKeyId: (config as AmazonBedrockConfig).accessKeyId,
-        secretAccessKey: (config as AmazonBedrockConfig).secretAccessKey,
-        sessionToken: (config as AmazonBedrockConfig).sessionToken,
+        accessKeyId: config.accessKeyId,
+        secretAccessKey: config.secretAccessKey,
+        sessionToken: config.sessionToken,
         region,
         service: 'bedrock',
       })
