@@ -16,12 +16,20 @@ export function initializeAuth() {
   if (initialized)
     return
 
-  fetchSession().catch(() => {})
+  fetchSession().catch((err) => {
+    console.error('[auth] Failed to fetch session during initialization', err)
+  })
   initialized = true
 }
 
 export async function fetchSession() {
-  const { data } = await authClient.getSession()
+  const { data, error } = await authClient.getSession()
+
+  if (error) {
+    console.error('[auth] Session fetch error', error)
+    return false
+  }
+
   if (data) {
     const authStore = useAuthStore()
     authStore.user = data.user
@@ -37,7 +45,12 @@ export async function listSessions() {
 }
 
 export async function signOut() {
-  await authClient.signOut()
+  try {
+    await authClient.signOut()
+  }
+  catch (err) {
+    console.error('[auth] Sign out error', err)
+  }
 
   const authStore = useAuthStore()
   authStore.user = null

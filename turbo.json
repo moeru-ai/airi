@@ -2,7 +2,18 @@
   "$schema": "https://turborepo.com/schema.json",
   "tasks": {
     "build": {
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**"],
+      "inputs": [
+        "src/**",
+        "package.json",
+        "tsconfig.json",
+        "tsconfig.*.json",
+        "vite.config.*",
+        "tsdown.config.*",
+        "*.config.ts",
+        "*.config.js",
+        "!drizzle/**"
+      ]
     },
     "@proj-airi/electron-vueuse#build": {
       "dependsOn": ["@proj-airi/electron-eventa#build"],
