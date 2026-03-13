@@ -214,7 +214,8 @@ async function handleCheckoutSessionCompleted(
   // Add flux for one-time payments
   if (session.mode === 'payment' && session.amount_total) {
     const fluxPerCent = await configKV.getOrThrow('FLUX_PER_CENT')
-    await fluxService.addFlux(userId, session.amount_total * fluxPerCent)
+    const fluxAmount = session.amount_total * fluxPerCent
+    await fluxService.addFlux(userId, fluxAmount, `Stripe payment ${session.currency?.toUpperCase()} ${(session.amount_total / 100).toFixed(2)}`)
   }
 }
 
@@ -304,6 +305,7 @@ async function handleInvoiceEvent(
   // Add flux when a subscription invoice is paid
   if (invoice.status === 'paid' && invoice.amount_paid && subscriptionId) {
     const fluxPerCent = await configKV.getOrThrow('FLUX_PER_CENT')
-    await fluxService.addFlux(customer.userId, invoice.amount_paid * fluxPerCent)
+    const fluxAmount = invoice.amount_paid * fluxPerCent
+    await fluxService.addFlux(customer.userId, fluxAmount, `Subscription invoice ${invoice.currency?.toUpperCase()} ${(invoice.amount_paid / 100).toFixed(2)}`)
   }
 }

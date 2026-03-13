@@ -2,6 +2,7 @@ import type Redis from 'ioredis'
 
 import type { Database } from '../libs/db'
 import type { ConfigKVService } from './config-kv'
+import type { FluxAuditService } from './flux-audit'
 
 import { eq, sql } from 'drizzle-orm'
 
@@ -13,7 +14,7 @@ function redisKey(userId: string): string {
   return `flux:${userId}`
 }
 
-export function createFluxService(db: Database, redis: Redis, configKV: ConfigKVService) {
+export function createFluxService(db: Database, redis: Redis, configKV: ConfigKVService, fluxAuditService: FluxAuditService) {
   return {
     async getFlux(userId: string) {
       // 1. Try Redis cache
@@ -33,6 +34,14 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
           userId,
           flux: initialFlux,
         }).returning()
+
+        // Audit: initial grant
+        await fluxAuditService.log({
+          userId,
+          type: 'initial',
+          amount: initialFlux,
+          description: 'Initial grant',
+        })
       }
 
       // 3. Populate Redis cache
@@ -61,7 +70,7 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
       return { userId, flux: newBalance }
     },
 
-    async addFlux(userId: string, amount: number) {
+    async addFlux(userId: string, amount: number, description = 'Top-up') {
       // Ensure user record exists in DB
       await this.getFlux(userId)
 
@@ -75,6 +84,14 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
 
       // Sync Redis cache
       const newBalance = await redis.incrby(redisKey(userId), amount)
+
+      // Audit: addition
+      await fluxAuditService.log({
+        userId,
+        type: 'addition',
+        amount,
+        description,
+      })
 
       return { userId, flux: newBalance }
     },
