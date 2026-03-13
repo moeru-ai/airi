@@ -180,6 +180,7 @@ pages:
     scenario: Scenario
     search: Search cards...
     sort_by: Sort by
+    body-model: Body / Display Model
     speech:
       provider: Speech / Provider
       model: Speech / Model
