@@ -67,6 +67,14 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false)
   const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000) // Default 2 seconds
   const hearingDetectionMode = useLocalStorageManualReset<'vad' | 'manual'>('settings/hearing/detection-mode', 'vad')
+  const speechProviderSettings = useLocalStorageManualReset<Record<string, { deviceId: string, sampleRate: number }>>('settings/hearing/speech-provider-settings', {
+    'app-local-audio-speech': { deviceId: 'default', sampleRate: 16000 },
+    'browser-local-audio-speech': { deviceId: 'default', sampleRate: 16000 },
+  })
+  const transcriptionProviderSettings = useLocalStorageManualReset<Record<string, { deviceId: string, sampleRate: number }>>('settings/hearing/transcription-provider-settings', {
+    'app-local-audio-transcription': { deviceId: 'default', sampleRate: 16000 },
+    'browser-local-audio-transcription': { deviceId: 'default', sampleRate: 16000 },
+  })
 
   // Computed properties
   const availableProvidersMetadata = computed(() => allAudioTranscriptionProvidersMetadata.value)
@@ -236,6 +244,9 @@ export const useHearingStore = defineStore('hearing-store', () => {
     loadModelsForProvider,
     getModelsForProvider,
     resetState,
+
+    speechProviderSettings,
+    transcriptionProviderSettings,
   }
 })
 

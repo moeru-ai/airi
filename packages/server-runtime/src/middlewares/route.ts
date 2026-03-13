@@ -79,7 +79,7 @@ export function createPolicyMiddleware(policy: RoutingPolicy): RouteMiddleware {
 }
 
 export function collectDestinations(event: WebSocketEvent | (Omit<WebSocketEvent, 'metadata'> & Partial<Pick<WebSocketEvent, 'metadata'>>)) {
-  if (event.route?.destinations !== undefined) {
+  if (event.route && 'destinations' in event.route) {
     return event.route.destinations
   }
 

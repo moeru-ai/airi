@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import type { Live2DValidationReport } from '@proj-airi/stage-ui-live2d'
 
 import type { DisplayModel } from '../../../../stores/display-models'
@@ -522,7 +522,7 @@ vrmDialog.onChange(handleAddVRMModel)
               </div>
               <div class="flex gap-1">
                 <span v-for="lang in site.languages" :key="lang" class="text-xs">
-                  {{ lang === 'jp' ? 'â‰¡Æ’Ã§Â»â‰¡Æ’Ã§â•¡' : 'â‰¡Æ’Ã§â•‘â‰¡Æ’Ã§â••' }}
+                  {{ lang === 'jp' ? '日本語' : 'English' }}
                 </span>
               </div>
             </div>

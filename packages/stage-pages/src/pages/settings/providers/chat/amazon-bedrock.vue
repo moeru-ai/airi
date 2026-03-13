@@ -22,7 +22,7 @@ const consciousnessStore = useConsciousnessStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 const { activeProvider } = storeToRefs(consciousnessStore)
 
-const accessKeyId = computed({
+const accessKeyId = computed<string>({
   get: () => providers.value[providerId]?.accessKeyId || '',
   set: (value) => {
     if (!providers.value[providerId])
@@ -31,7 +31,7 @@ const accessKeyId = computed({
   },
 })
 
-const secretAccessKey = computed({
+const secretAccessKey = computed<string>({
   get: () => providers.value[providerId]?.secretAccessKey || '',
   set: (value) => {
     if (!providers.value[providerId])
@@ -40,7 +40,7 @@ const secretAccessKey = computed({
   },
 })
 
-const sessionToken = computed({
+const sessionToken = computed<string>({
   get: () => providers.value[providerId]?.sessionToken || '',
   set: (value) => {
     if (!providers.value[providerId])
@@ -49,7 +49,7 @@ const sessionToken = computed({
   },
 })
 
-const region = computed({
+const region = computed<string>({
   get: () => providers.value[providerId]?.region || 'us-east-1',
   set: (value) => {
     if (!providers.value[providerId])
@@ -96,6 +96,7 @@ function goToModelSelection() {
         />
         <ProviderApiKeyInput
           v-model="secretAccessKey"
+          :provider-name="providerMetadata?.localizedName || ''"
           :label="t('settings.pages.providers.provider.amazon-bedrock.config.secret-access-key.label')"
           :description="t('settings.pages.providers.provider.amazon-bedrock.config.secret-access-key.description')"
           placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
@@ -111,6 +112,7 @@ function goToModelSelection() {
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderApiKeyInput
           v-model="sessionToken"
+          :provider-name="providerMetadata?.localizedName || ''"
           :label="t('settings.pages.providers.provider.amazon-bedrock.config.session-token.label')"
           :description="t('settings.pages.providers.provider.amazon-bedrock.config.session-token.description')"
           placeholder=""
