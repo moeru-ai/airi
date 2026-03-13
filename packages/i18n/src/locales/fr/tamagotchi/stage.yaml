@@ -24,6 +24,10 @@ docs:
   'close': Fermer
   'expand': Développer
   'collapse': Réduire
+'status-island':
+  connected: WebSocket connected
+  disconnected: WebSocket disconnected
+  'open-settings': Open WebSocket settings
 notice:
   'fade-on-hover':
     title: Disparaître au survol
