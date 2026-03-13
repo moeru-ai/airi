@@ -9,6 +9,7 @@ import { createQueue } from '@proj-airi/stream-kit'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw } from 'vue'
+import { toast } from 'vue-sonner'
 
 import { useAnalytics } from '../composables'
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
@@ -352,6 +353,9 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     }
     catch (error) {
       console.error('Error sending message:', error)
+      toast.error('Failed to get AI response', {
+        description: 'The AI service is temporarily unavailable. Please try again.',
+      })
       throw error
     }
     finally {
