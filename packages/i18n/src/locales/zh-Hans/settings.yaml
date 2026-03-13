@@ -458,6 +458,18 @@ pages:
       success: 支付成功！Flux 已充值。
       canceled: 支付已取消。
       error: 出了点问题，请稍后再试。
+    audit:
+      title: 交易记录
+      time: 时间
+      type: 类型
+      detail: 详情
+      amount: 数量
+      typeAddition: 充值
+      typeConsumption: 消耗
+      typeInitial: 初始赠送
+      loading: 加载中...
+      empty: 暂无交易记录
+      loadMore: 加载更多
     packages:
       amount_500:
         label: 500 Flux
