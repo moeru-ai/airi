@@ -10,6 +10,7 @@ import { useLocalFirstRequest } from '../../composables/use-local-first'
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
+import { mergeLoadedSessionMessages } from './session-message-merge'
 
 export const useChatSessionStore = defineStore('chat-session', () => {
   const { userId, isAuthenticated } = storeToRefs(useAuthStore())
@@ -259,9 +260,15 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const loadPromise = (async () => {
       const stored = await chatSessionsRepo.getSession(sessionId)
       if (stored) {
+        const currentMessages = sessionMessages.value[sessionId] ?? []
+        const mergedMessages = mergeLoadedSessionMessages(stored.messages, currentMessages)
+
         sessionMetas.value[sessionId] = stored.meta
-        sessionMessages.value[sessionId] = stored.messages
+        sessionMessages.value[sessionId] = mergedMessages
         ensureGeneration(sessionId)
+
+        if (mergedMessages !== stored.messages)
+          await persistSession(sessionId)
       }
       loadedSessions.add(sessionId)
     })()
