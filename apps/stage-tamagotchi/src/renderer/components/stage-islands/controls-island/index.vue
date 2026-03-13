@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
+import { useModelStore } from '@proj-airi/stage-ui-three'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
-import { refDebounced, useIntervalFn } from '@vueuse/core'
+import { useTimeoutFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -15,7 +17,6 @@ import ControlsIslandHearingConfig from './controls-island-hearing-config.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
 import {
-  electron,
   electronOpenChat,
   electronOpenSettings,
   electronStartDraggingWindow,
@@ -28,36 +29,50 @@ const { t } = useI18n()
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const settingsStore = useSettings()
+const modelStore = useModelStore()
 const context = useElectronEventaContext()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
 const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
+const { favoriteExpression, activeExpressions } = storeToRefs(modelStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const openChat = useElectronEventaInvoke(electronOpenChat)
-const isLinux = useElectronEventaInvoke(electron.app.isLinux)
+const isLinux = ref(false)
 const closeWindow = useElectronEventaInvoke(electronWindowClose)
 const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 
 const expanded = ref(false)
 const islandRef = ref<HTMLElement>()
 
+// === Sub-menu state ===
+const view = ref<'main' | 'emotions'>('main')
+
 // Expose whether hearing dialog is open so parent can disable click-through
 const hearingDialogOpen = ref(false)
 defineExpose({ hearingDialogOpen })
 
 const { isOutside } = useElectronMouseInElement(islandRef)
-const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
-watch(isOutsideAfter2seconds, (outside) => {
-  if (outside && expanded.value && !hearingDialogOpen.value) {
+const { start: startCollapseTimer, stop: stopCollapseTimer } = useTimeoutFn(() => {
+  if (expanded.value && !hearingDialogOpen.value) {
     expanded.value = false
+    view.value = 'main' // Reset sub-menu on collapse
+  }
+}, 1500)
+
+watch(isOutside, (outside) => {
+  if (outside) {
+    startCollapseTimer()
+  }
+  else {
+    stopCollapseTimer()
   }
 })
 
-useIntervalFn(() => {
-  if (expanded.value && isOutside.value && !hearingDialogOpen.value) {
-    expanded.value = false
+watch(expanded, (isExp) => {
+  if (!isExp) {
+    view.value = 'main' // Reset sub-menu when collapsing
   }
-}, 1500)
+})
 
 // Apply alwaysOnTop on mount and when it changes
 watch(alwaysOnTop, (val) => {
@@ -100,10 +115,54 @@ const adjustStyleClasses = computed(() => {
  *
  * See `apps/stage-tamagotchi/src/main/windows/main/index.ts` for handler definition
  */
-const startDraggingWindow = !isLinux() ? defineInvoke(context.value, electronStartDraggingWindow) : undefined
+const startDraggingWindowInvoke = defineInvoke(context.value, electronStartDraggingWindow)
+function startDraggingWindow() {
+  if (!isLinux.value) {
+    startDraggingWindowInvoke()
+  }
+}
 
 function refreshWindow() {
   window.location.reload()
+}
+
+// === Emotions ===
+const ACT_EMOTIONS = [
+  { key: 'happy', emoji: '😊' },
+  { key: 'sad', emoji: '😢' },
+  { key: 'angry', emoji: '😠' },
+  { key: 'surprised', emoji: '😲' },
+  { key: 'neutral', emoji: '😐' },
+  { key: 'think', emoji: '🤔' },
+  { key: 'cool', emoji: '😎' },
+] as const
+
+function triggerEmotion(emotion: string) {
+  if (typeof (window as any).testEmotion === 'function') {
+    ;(window as any).testEmotion(emotion)
+  }
+}
+
+function triggerRandomEmotion() {
+  const random = ACT_EMOTIONS[Math.floor(Math.random() * ACT_EMOTIONS.length)]
+  triggerEmotion(random.key)
+}
+
+// === Favorite ===
+const hasFavorite = computed(() => !!favoriteExpression.value)
+const isFavoriteActive = computed(() => {
+  if (!favoriteExpression.value)
+    return false
+  return (activeExpressions.value[favoriteExpression.value] || 0) > 0
+})
+
+function toggleFavorite() {
+  if (!favoriteExpression.value)
+    return
+  const name = favoriteExpression.value
+  const current = activeExpressions.value[name] || 0
+  const next = current > 0 ? 0 : 1
+  activeExpressions.value = { ...activeExpressions.value, [name]: next }
 }
 </script>
 
@@ -118,83 +177,160 @@ function refreshWindow() {
         leave-to-class="opacity-0 translate-y-8 scale-90 blur-sm"
       >
         <div v-if="expanded" border="1 neutral-200 dark:neutral-800" mb-2 flex flex-col gap-1 rounded-2xl p-2 backdrop-blur-xl class="bg-neutral-100/80 shadow-2xl shadow-black/20 dark:bg-neutral-900/80">
-          <div grid grid-cols-3 gap-2>
-            <ControlButtonTooltip disable-hoverable-content>
-              <ControlButton :button-style="adjustStyleClasses.button" @click="openSettings({ route: '/settings' })">
-                <div i-solar:settings-minimalistic-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-              </ControlButton>
-              <template #tooltip>
-                {{ t('tamagotchi.stage.controls-island.open-settings') }}
-              </template>
-            </ControlButtonTooltip>
+          <!-- Main View -->
+          <Transition
+            enter-active-class="transition-all duration-300 cubic-bezier(0.32, 0.72, 0, 1)"
+            leave-active-class="transition-all duration-200 cubic-bezier(0.32, 0.72, 0, 1)"
+            enter-from-class="opacity-0 scale-95"
+            leave-to-class="opacity-0 scale-95"
+            mode="out-in"
+          >
+            <div v-if="view === 'main'" key="main" grid grid-cols-3 gap-2>
+              <ControlButtonTooltip>
+                <ControlButton :button-style="adjustStyleClasses.button" @click="openSettings">
+                  <div i-solar:settings-minimalistic-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                </ControlButton>
+                <template #tooltip>
+                  {{ t('tamagotchi.stage.controls-island.open-settings') }}
+                </template>
+              </ControlButtonTooltip>
 
-            <ControlButtonTooltip disable-hoverable-content>
-              <ControlButton :button-style="adjustStyleClasses.button" @click="openChat">
-                <div i-solar:chat-line-line-duotone :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-              </ControlButton>
-              <template #tooltip>
-                {{ t('tamagotchi.stage.controls-island.open-chat') }}
-              </template>
-            </ControlButtonTooltip>
+              <ControlButtonTooltip>
+                <ControlButton :button-style="adjustStyleClasses.button" @click="openChat">
+                  <div i-solar:chat-line-line-duotone :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                </ControlButton>
+                <template #tooltip>
+                  {{ t('tamagotchi.stage.controls-island.open-chat') }}
+                </template>
+              </ControlButtonTooltip>
 
-            <ControlButtonTooltip disable-hoverable-content>
-              <ControlButton :button-style="adjustStyleClasses.button" @click="refreshWindow">
-                <div i-solar:refresh-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-              </ControlButton>
-              <template #tooltip>
-                {{ t('tamagotchi.stage.controls-island.refresh') }}
-              </template>
-            </ControlButtonTooltip>
+              <ControlButtonTooltip>
+                <ControlButton :button-style="adjustStyleClasses.button" @click="refreshWindow">
+                  <div i-solar:refresh-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                </ControlButton>
+                <template #tooltip>
+                  {{ t('tamagotchi.stage.controls-island.refresh') }}
+                </template>
+              </ControlButtonTooltip>
 
-            <ControlButtonTooltip disable-hoverable-content>
-              <ControlButton :button-style="adjustStyleClasses.button" @click="toggleDark()">
-                <Transition name="fade" mode="out-in">
-                  <div v-if="isDark" i-solar:moon-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-                  <div v-else i-solar:sun-2-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-                </Transition>
-              </ControlButton>
-              <template #tooltip>
-                {{ isDark ? t('tamagotchi.stage.controls-island.switch-to-light-mode') : t('tamagotchi.stage.controls-island.switch-to-dark-mode') }}
-              </template>
-            </ControlButtonTooltip>
+              <ControlButtonTooltip>
+                <ControlButton :button-style="adjustStyleClasses.button" @click="toggleDark()">
+                  <Transition name="fade" mode="out-in">
+                    <div v-if="isDark" i-solar:moon-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                    <div v-else i-solar:sun-2-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                  </Transition>
+                </ControlButton>
+                <template #tooltip>
+                  {{ isDark ? t('tamagotchi.stage.controls-island.switch-to-light-mode') : t('tamagotchi.stage.controls-island.switch-to-dark-mode') }}
+                </template>
+              </ControlButtonTooltip>
 
-            <ControlButtonTooltip disable-hoverable-content>
-              <ControlsIslandHearingConfig v-model:show="hearingDialogOpen">
-                <div class="relative">
-                  <ControlButton :button-style="adjustStyleClasses.button">
-                    <Transition name="fade" mode="out-in">
-                      <IndicatorMicVolume v-if="enabled" :class="adjustStyleClasses.icon" />
-                      <div v-else i-ph:microphone-slash :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-                    </Transition>
-                  </ControlButton>
-                </div>
-              </ControlsIslandHearingConfig>
-              <template #tooltip>
-                {{ t('tamagotchi.stage.controls-island.open-hearing-controls') }}
-              </template>
-            </ControlButtonTooltip>
+              <ControlButtonTooltip>
+                <ControlsIslandHearingConfig v-model:show="hearingDialogOpen">
+                  <div class="relative">
+                    <ControlButton :button-style="adjustStyleClasses.button">
+                      <Transition name="fade" mode="out-in">
+                        <IndicatorMicVolume v-if="enabled" :class="adjustStyleClasses.icon" />
+                        <div v-else i-ph:microphone-slash :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                      </Transition>
+                    </ControlButton>
+                  </div>
+                </ControlsIslandHearingConfig>
+                <template #tooltip>
+                  {{ t('tamagotchi.stage.controls-island.open-hearing-controls') }}
+                </template>
+              </ControlButtonTooltip>
 
-            <ControlButtonTooltip disable-hoverable-content>
-              <ControlButton :button-style="adjustStyleClasses.button" @click="toggleAlwaysOnTop()">
-                <div v-if="alwaysOnTop" i-solar:pin-bold :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-                <div v-else i-solar:pin-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300 opacity-50" />
-              </ControlButton>
-              <template #tooltip>
-                {{ alwaysOnTop ? t('tamagotchi.stage.controls-island.unpin-from-top') : t('tamagotchi.stage.controls-island.pin-on-top') }}
-              </template>
-            </ControlButtonTooltip>
+              <ControlButtonTooltip>
+                <ControlButton :button-style="adjustStyleClasses.button" @click="toggleAlwaysOnTop()">
+                  <div v-if="alwaysOnTop" i-solar:pin-bold :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                  <div v-else i-solar:pin-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300 opacity-50" />
+                </ControlButton>
+                <template #tooltip>
+                  {{ alwaysOnTop ? t('tamagotchi.stage.controls-island.unpin-from-top') : t('tamagotchi.stage.controls-island.pin-on-top') }}
+                </template>
+              </ControlButtonTooltip>
 
-            <ControlsIslandFadeOnHover :icon-class="adjustStyleClasses.icon" :button-style="adjustStyleClasses.button" />
+              <ControlsIslandFadeOnHover :icon-class="adjustStyleClasses.icon" :button-style="adjustStyleClasses.button" />
 
-            <ControlButtonTooltip disable-hoverable-content>
-              <ControlButton :button-style="adjustStyleClasses.button" hover:bg-red-500 hover:text-white @click="closeWindow()">
-                <div i-solar:close-circle-outline :class="adjustStyleClasses.icon" />
-              </ControlButton>
-              <template #tooltip>
-                {{ t('tamagotchi.stage.controls-island.close') }}
-              </template>
-            </ControlButtonTooltip>
-          </div>
+              <!-- Emotions Button -->
+              <ControlButtonTooltip>
+                <ControlButton :button-style="adjustStyleClasses.button" @click="view = 'emotions'">
+                  <div :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" class="flex items-center justify-center text-base leading-none">
+                    😊
+                  </div>
+                </ControlButton>
+                <template #tooltip>
+                  Emotions
+                </template>
+              </ControlButtonTooltip>
+
+              <!-- Favorite Button -->
+              <ControlButtonTooltip>
+                <ControlButton
+                  :button-style="adjustStyleClasses.button"
+                  :class="isFavoriteActive ? 'ring-2 ring-amber-400/60' : ''"
+                  @click="toggleFavorite"
+                >
+                  <div
+                    :class="[
+                      adjustStyleClasses.icon,
+                      hasFavorite ? 'text-amber-500' : 'text-neutral-400 dark:text-neutral-600',
+                    ]"
+                    class="flex items-center justify-center text-base leading-none"
+                  >
+                    ⭐
+                  </div>
+                </ControlButton>
+                <template #tooltip>
+                  {{ hasFavorite ? `Favorite: ${favoriteExpression}` : 'No favorite set' }}
+                </template>
+              </ControlButtonTooltip>
+
+              <ControlButtonTooltip>
+                <ControlButton :button-style="adjustStyleClasses.button" hover:bg-red-500 hover:text-white @click="closeWindow()">
+                  <div i-solar:close-circle-outline :class="adjustStyleClasses.icon" />
+                </ControlButton>
+                <template #tooltip>
+                  {{ t('tamagotchi.stage.controls-island.close') }}
+                </template>
+              </ControlButtonTooltip>
+            </div>
+
+            <!-- Emotions Sub-menu -->
+            <div v-else key="emotions" grid grid-cols-3 gap-2>
+              <ControlButtonTooltip v-for="emotion in ACT_EMOTIONS" :key="emotion.key">
+                <ControlButton :button-style="adjustStyleClasses.button" @click="triggerEmotion(emotion.key)">
+                  <div :class="adjustStyleClasses.icon" class="flex items-center justify-center text-base leading-none">
+                    {{ emotion.emoji }}
+                  </div>
+                </ControlButton>
+                <template #tooltip>
+                  {{ emotion.key }}
+                </template>
+              </ControlButtonTooltip>
+
+              <!-- Random -->
+              <ControlButtonTooltip>
+                <ControlButton :button-style="adjustStyleClasses.button" @click="triggerRandomEmotion">
+                  <div i-solar:shuffle-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                </ControlButton>
+                <template #tooltip>
+                  Random Emotion
+                </template>
+              </ControlButtonTooltip>
+
+              <!-- Back -->
+              <ControlButtonTooltip>
+                <ControlButton :button-style="adjustStyleClasses.button" @click="view = 'main'">
+                  <div i-solar:arrow-left-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                </ControlButton>
+                <template #tooltip>
+                  Back
+                </template>
+              </ControlButtonTooltip>
+            </div>
+          </Transition>
         </div>
       </Transition>
 
@@ -203,9 +339,7 @@ function refreshWindow() {
         <ControlButtonTooltip side="left">
           <ControlButton :button-style="adjustStyleClasses.button" @click="expanded = !expanded">
             <div
-
               :class="[adjustStyleClasses.icon, expanded ? 'rotate-180' : 'rotate-0']"
-
               i-solar:alt-arrow-up-line-duotone scale-110 transition-all duration-300
               text="neutral-800 dark:neutral-300"
             />
@@ -216,11 +350,22 @@ function refreshWindow() {
         </ControlButtonTooltip>
 
         <ControlButtonTooltip side="left">
-          <ControlButton :button-style="adjustStyleClasses.button" cursor-move :class="{ 'drag-region': isLinux }" @mousedown="startDraggingWindow?.()">
-            <div i-ph:arrows-out-cardinal :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+          <ControlButton
+            :button-style="adjustStyleClasses.button"
+            cursor-move
+            class="drag-region"
+            @mousedown="startDraggingWindow()"
+          >
+            <div
+              i-ph:arrows-out-cardinal
+              :class="[
+                adjustStyleClasses.icon,
+                useHearingStore().isTranscribing ? 'text-red-500 animate-pulse' : 'text-neutral-800 dark:text-neutral-300',
+              ]"
+            />
           </ControlButton>
           <template #tooltip>
-            {{ t('tamagotchi.stage.controls-island.drag-to-move-window') }}
+            {{ useHearingStore().isTranscribing ? 'STT Processing...' : t('tamagotchi.stage.controls-island.drag-to-move-window') }}
           </template>
         </ControlButtonTooltip>
       </div>
