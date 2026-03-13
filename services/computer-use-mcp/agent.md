@@ -16,12 +16,15 @@
 ## Follow-up PR Chunks
 
 1. **PR 1 — Core Skeleton / Orchestration**
+   Branch: `codex/pr1307-core-skeleton`
    先合 `#1307`。只留：MCP routing / bridge / approval session、workflow / reroute contract、terminal lane 主线、AIRI chat 对 computer-use 的主消费链、必要的 desktop approval glue。
 
 2. **PR 2 — Terminal Lane Implementation**
+   Branch: `codex/pr1307-terminal-lane`
    如果 PR 1 仍然太大，就把 terminal 再单拎一条。只放：`exec`、`pty`、`self-acquire`、terminal workflow/state/gates/evidence。不混 VS Code、browser devtools、provider proxy。
 
 3. **PR 3 — Per-Adapter Implementations**
+   Branch: `codex/pr1307-adapters`
    adapter 按面慢慢合，不再继续塞进骨架 PR。至少包括：
    - self-devtools / browser-devtools adapter
    - airi-self / self-navigation adapter
@@ -29,6 +32,7 @@
    - 其他 app-specific adapter
 
 4. **PR 4 — Provider / Proxy Leftovers**
+   Branch: `codex/pr1307-provider-proxy`
    GitHub Models provider、`github-models-openai-proxy.ts`、provider-side tests、以及任何和 provider 特性强绑定的 glue。
 
 ## Deferred Review Items
