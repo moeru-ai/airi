@@ -26,8 +26,12 @@ export interface ProviderValidationPlan {
   definition: ProviderDefinition
   configValidators: ProviderConfigValidator<Record<string, unknown>>[]
   providerValidators: ProviderRuntimeValidator<Record<string, unknown>>[]
+  /** Provider validators that require explicit user action (e.g. "Test Generation" button). */
+  manualProviderValidators: ProviderRuntimeValidator<Record<string, unknown>>[]
   providerExtra: ProviderExtraMethods<Record<string, unknown>> | undefined
   shouldValidate: boolean
+  /** Whether this provider has any manual-only validators available. */
+  hasManualValidators: boolean
 }
 
 export interface ProviderValidationCallbacks {
@@ -83,7 +87,12 @@ export function getValidatorsOfProvider(options: {
   const { definition } = options
 
   const configValidators = (definition.validators?.validateConfig || []).map(creator => creator(options.contextOptions))
-  const providerValidators = (definition.validators?.validateProvider || []).map(creator => creator(options.contextOptions))
+  const allProviderValidators = (definition.validators?.validateProvider || []).map(creator => creator(options.contextOptions))
+
+  // Separate automatic validators from manual-only ones (e.g. chat completion probes)
+  const providerValidators = allProviderValidators.filter(v => !v.manualOnly)
+  const manualProviderValidators = allProviderValidators.filter(v => v.manualOnly)
+
   const steps: ProviderValidationStep[] = [
     ...createConfigValidationSteps(configValidators),
     ...createProviderValidationSteps(providerValidators),
@@ -99,8 +108,10 @@ export function getValidatorsOfProvider(options: {
     definition,
     configValidators: configValidators as ProviderValidationPlan['configValidators'],
     providerValidators: providerValidators as ProviderValidationPlan['providerValidators'],
+    manualProviderValidators: manualProviderValidators as ProviderValidationPlan['manualProviderValidators'],
     providerExtra: definition.extraMethods as ProviderValidationPlan['providerExtra'],
     shouldValidate,
+    hasManualValidators: manualProviderValidators.length > 0,
   }
 }
 
@@ -163,6 +174,69 @@ export async function validateProvider(
 
   await Promise.all(providerValidators.map(async (validatorDefinition, index) => {
     const step = steps[providerStepOffset + index]
+    step.status = 'validating'
+    step.reason = ''
+    onValidatorStart?.({ kind: 'provider', index, step })
+    try {
+      const result = await validatorDefinition.validator(config, providerInstance as any, providerExtra as any, runContext)
+      step.status = result.valid ? 'valid' : 'invalid'
+      step.reason = result.valid ? '' : result.reason
+      onValidatorSuccess?.({ kind: 'provider', index, step, result })
+    }
+    catch (error) {
+      step.status = 'invalid'
+      step.reason = error instanceof Error ? error.message : String(error)
+      onValidatorError?.({ kind: 'provider', index, step, error })
+    }
+  }))
+
+  return steps
+}
+
+/**
+ * Run only the manual-only validators (e.g. chat completion probes).
+ * These are excluded from automatic validation to avoid costly API calls.
+ * Must be triggered explicitly by the user.
+ */
+export async function validateProviderManual(
+  plan: ProviderValidationPlan,
+  contextOptions: { t: ComposerTranslation },
+  callbacks: ProviderValidationCallbacks = {},
+) {
+  const { manualProviderValidators, config, definition, providerExtra } = plan
+  if (manualProviderValidators.length === 0)
+    return []
+
+  const runContext = {
+    ...contextOptions,
+    validationCache: new Map<string, unknown>(),
+  }
+  const { onValidatorError, onValidatorStart, onValidatorSuccess } = callbacks
+
+  let providerInstance: ProviderInstance
+  try {
+    providerInstance = await definition.createProvider(config as any)
+  }
+  catch (error) {
+    return manualProviderValidators.map(v => ({
+      id: v.id,
+      label: v.name,
+      status: 'invalid' as ProviderValidationStepStatus,
+      reason: error instanceof Error ? error.message : String(error),
+      kind: 'provider' as ProviderValidationStepKind,
+    }))
+  }
+
+  const steps: ProviderValidationStep[] = manualProviderValidators.map(v => ({
+    id: v.id,
+    label: v.name,
+    status: 'idle' as ProviderValidationStepStatus,
+    reason: '',
+    kind: 'provider' as ProviderValidationStepKind,
+  }))
+
+  await Promise.all(manualProviderValidators.map(async (validatorDefinition, index) => {
+    const step = steps[index]
     step.status = 'validating'
     step.reason = ''
     onValidatorStart?.({ kind: 'provider', index, step })

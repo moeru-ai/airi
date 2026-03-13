@@ -7,7 +7,7 @@ import type { ProviderMetadata } from '../providers'
 import { listModels } from '@xsai/model'
 
 import { isModelProvider } from '../../libs/providers/types'
-import { getValidatorsOfProvider, validateProvider } from '../../libs/providers/validators/run'
+import { getValidatorsOfProvider, validateProvider, validateProviderManual } from '../../libs/providers/validators/run'
 
 function getCategoryFromTasks(tasks: string[]): ProviderMetadata['category'] {
   if (tasks.some(task => ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'].includes(task.toLowerCase()))) {
@@ -88,6 +88,11 @@ function appendUniqueReason(reasons: string[], next: string) {
     return
   if (!reasons.includes(next))
     reasons.push(next)
+}
+
+function hasManualValidatorsForDefinition(definition: ProviderDefinition<any>, t: ComposerTranslation): boolean {
+  const allValidators = (definition.validators?.validateProvider || []).map(creator => creator({ t }))
+  return allValidators.some(v => v.manualOnly)
 }
 
 export function convertProviderDefinitionToMetadata(
@@ -194,6 +199,8 @@ export function convertProviderDefinitionToMetadata(
 
         // Run full validation pipeline (config + provider validators) only when required.
         // This preserves strict config checks while avoiding unnecessary network checks.
+        // NOTICE: manualOnly validators (e.g. chat completion probes) are already excluded
+        // from the plan's providerValidators by getValidatorsOfProvider.
         if (plan.shouldValidate) {
           await validateProvider(plan, { t })
           const invalidSteps = plan.steps.filter(step => step.status === 'invalid')
@@ -230,6 +237,27 @@ export function convertProviderDefinitionToMetadata(
         await validateProvider(plan, { t })
         return buildConfigValidationResult(plan)
       },
+      hasManualValidators: hasManualValidatorsForDefinition(definition, t),
+      runManualValidation: hasManualValidatorsForDefinition(definition, t)
+        ? async (config) => {
+          const plan = getValidatorsOfProvider({
+            definition,
+            config,
+            schemaDefaults,
+            contextOptions: { t },
+          })
+          const steps = await validateProviderManual(plan, { t })
+          const invalidSteps = steps.filter(step => step.status === 'invalid')
+          if (invalidSteps.length === 0) {
+            return { errors: [], reason: '', valid: true }
+          }
+          return {
+            errors: invalidSteps.map(step => new Error(step.reason || `${step.id} is invalid`)),
+            reason: invalidSteps.map(step => step.reason).filter(Boolean).join('; '),
+            valid: false,
+          }
+        }
+        : undefined,
     },
     transcriptionFeatures: definition.capabilities?.transcription
       ? {
