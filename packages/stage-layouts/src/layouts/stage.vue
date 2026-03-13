@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { LoginDrawer } from '@proj-airi/stage-ui/components/auth/index'
+import { useBreakpoints } from '@proj-airi/stage-ui/composables'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { useMediaQuery } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { RouterView } from 'vue-router'
 
-const isMobile = useMediaQuery('(max-width: 768px)')
+const { isMobile } = useBreakpoints()
 const { needsLogin } = storeToRefs(useAuthStore())
 </script>
 

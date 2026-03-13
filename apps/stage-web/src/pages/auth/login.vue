@@ -2,16 +2,16 @@
 import type { OAuthProvider } from '@proj-airi/stage-ui/libs/auth'
 
 import { LoginDrawer } from '@proj-airi/stage-ui/components/auth'
+import { useBreakpoints } from '@proj-airi/stage-ui/composables'
 import { fetchSession, signIn } from '@proj-airi/stage-ui/libs/auth'
 import { Button } from '@proj-airi/ui'
-import { useMediaQuery } from '@vueuse/core'
 import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
 const router = useRouter()
 
-const isDesktop = useMediaQuery('(min-width: 768px)')
+const { isDesktop } = useBreakpoints()
 
 const loading = ref<Record<OAuthProvider, boolean>>({
   google: false,
