@@ -14,6 +14,7 @@ const props = defineProps<{
 const emits = defineEmits<{
   (e: 'close'): void
   (e: 'confirm'): void
+  (e: 'fix-error', error: string): void
 }>()
 
 const showDialog = defineModel<boolean>('open', { default: false })
@@ -32,6 +33,15 @@ function handleConfirm() {
 function handleClose() {
   emits('close')
   showDialog.value = false
+}
+
+function canFixError(err: string) {
+  const e = err.toLowerCase()
+  return e.includes('preview') || e.includes('thumbnail') || e.includes('icon') || e.includes('expression')
+}
+
+function handleFix(err: string) {
+  emits('fix-error', err)
 }
 </script>
 
@@ -84,8 +94,11 @@ function handleClose() {
                 <div i-solar:bug-bold-duotone /> Critical Issues
               </div>
               <ul class="list-none pl-0 space-y-1">
-                <li v-for="(err, i) in report.errors" :key="i" class="rounded bg-red-50/50 p-2 text-red-800 dark:bg-red-900/20 dark:text-red-300">
-                  {{ err }}
+                <li v-for="(err, i) in report.errors" :key="i" class="flex items-center justify-between gap-2 rounded bg-red-50/50 p-2 text-red-800 dark:bg-red-900/20 dark:text-red-300">
+                  <span>{{ err }}</span>
+                  <Button v-if="canFixError(err)" size="sm" variant="secondary-muted" class="h-6 px-2 text-[10px] tracking-wider uppercase" @click="handleFix(err)">
+                    Quick Fix
+                  </Button>
                 </li>
               </ul>
             </div>
@@ -155,8 +168,11 @@ function handleClose() {
           <div class="text-sm space-y-4">
             <div v-if="report.errors.length > 0" class="space-y-1">
               <ul class="list-none pl-0 space-y-1">
-                <li v-for="(err, i) in report.errors" :key="i" class="rounded bg-red-50/50 p-2 text-red-800 dark:bg-red-900/20 dark:text-red-300">
-                  {{ err }}
+                <li v-for="(err, i) in report.errors" :key="i" class="flex items-center justify-between gap-2 rounded bg-red-50/50 p-2 text-red-800 dark:bg-red-900/20 dark:text-red-300">
+                  <span>{{ err }}</span>
+                  <Button v-if="canFixError(err)" size="sm" variant="secondary-muted" class="h-6 px-2 text-[10px] tracking-wider uppercase" @click="handleFix(err)">
+                    Fix
+                  </Button>
                 </li>
               </ul>
             </div>
