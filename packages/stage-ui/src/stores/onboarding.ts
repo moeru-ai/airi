@@ -5,7 +5,7 @@ import { computed, ref, watch } from 'vue'
 import { useAuthStore } from './auth'
 import { useProvidersStore } from './providers'
 
-const essentialProviderIds = ['openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'ollama', 'deepseek', 'openai-compatible'] as const
+const essentialProviderIds = ['openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'ollama', 'deepseek', 'openai-compatible', 'official-provider'] as const
 const credentialBasedEssentialProviderIds = ['openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'deepseek'] as const
 
 function hasNonEmptyText(value: unknown): boolean {
@@ -25,17 +25,21 @@ export const useOnboardingStore = defineStore('onboarding', () => {
 
   // Check if any essential provider is configured
   const hasEssentialProviderConfigured = computed(() => {
-    const essentialProviders = [
-      'openai',
-      'anthropic',
-      'google-generative-ai',
-      'openrouter-ai',
-      'ollama',
-      'deepseek',
-      'openai-compatible',
-      'official-provider',
-    ]
-    return essentialProviders.some(providerId => providersStore.configuredProviders[providerId])
+    return essentialProviderIds.some(providerId => providersStore.configuredProviders[providerId])
+  })
+
+  // Fallback for app startup timing:
+  // If configured state has not been revalidated yet, infer "configured"
+  // from persisted essential credentials.
+  const hasEssentialProviderCredentialConfigured = computed(() => {
+    return credentialBasedEssentialProviderIds.some((providerId) => {
+      const providerConfig = providersStore.providers[providerId] as Record<string, unknown> | undefined
+      if (!providerConfig) {
+        return false
+      }
+
+      return hasNonEmptyText(providerConfig.apiKey)
+    })
   })
 
   // Check if first-time setup should be shown

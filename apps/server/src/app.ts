@@ -171,7 +171,7 @@ async function createApp() {
   })
 
   const db = injeca.provide('datastore:db', {
-    dependsOn: { env: parsedEnv },
+    dependsOn: { env: parsedEnv, lifecycle },
     build: async ({ dependsOn }) => {
       const { db: dbInstance, pool } = createDrizzle(dependsOn.env.DATABASE_URL)
       await dbInstance.execute('SELECT 1')
