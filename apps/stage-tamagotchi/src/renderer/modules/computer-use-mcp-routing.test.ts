@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { isComputerUseMcpCall, resolveMcpCallServerName } from './computer-use-mcp-routing'
+import { isComputerUseMcpCall, resolveMcpCallServerName, resolveMcpCallToolName } from './computer-use-mcp-routing'
 
 describe('computer-use mcp routing', () => {
   it('recognizes direct computer_use calls', () => {
@@ -32,6 +32,21 @@ describe('computer-use mcp routing', () => {
         resolvedServerName: 'computer_use',
       },
     })).toBe('computer_use')
+  })
+
+  it('prefers resolved tool metadata for fallback-routed calls', () => {
+    expect(resolveMcpCallToolName({
+      name: 'functions::terminal_reset_state',
+    }, {
+      resolvedServerName: 'computer_use',
+      resolvedToolName: 'terminal_reset_state',
+    })).toBe('terminal_reset_state')
+  })
+
+  it('falls back to the requested tool segment when no resolved tool metadata exists', () => {
+    expect(resolveMcpCallToolName({
+      name: 'computer_use::pty_destroy',
+    })).toBe('pty_destroy')
   })
 
   it('does not treat unrelated MCP servers as computer_use', () => {
