@@ -3,6 +3,8 @@ import type { MiddlewareHandler } from 'hono'
 import type { createAuth } from '../libs/auth'
 import type { HonoEnv } from '../types/hono'
 
+import { useLogger } from '@guiiai/logg'
+
 import { createUnauthorizedError } from '../utils/error'
 
 type AuthInstance = ReturnType<typeof createAuth>
@@ -12,17 +14,27 @@ type AuthInstance = ReturnType<typeof createAuth>
  * It does not block unauthorized requests.
  */
 export function sessionMiddleware(auth: AuthInstance): MiddlewareHandler<HonoEnv> {
-  return async (c, next) => {
-    const session = await auth.api.getSession({ headers: c.req.raw.headers })
+  const logger = useLogger('auth').useGlobalConfig()
 
-    if (!session) {
+  return async (c, next) => {
+    try {
+      const session = await auth.api.getSession({ headers: c.req.raw.headers })
+
+      if (!session) {
+        c.set('user', null)
+        c.set('session', null)
+        return await next()
+      }
+
+      c.set('user', session.user)
+      c.set('session', session.session)
+    }
+    catch (err) {
+      logger.withError(err).warn('Failed to resolve session')
       c.set('user', null)
       c.set('session', null)
-      return await next()
     }
 
-    c.set('user', session.user)
-    c.set('session', session.session)
     await next()
   }
 }
