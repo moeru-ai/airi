@@ -2,6 +2,7 @@ import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
+import { useAuthStore } from './auth'
 import { useProvidersStore } from './providers'
 
 const essentialProviderIds = ['openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'ollama', 'deepseek', 'openai-compatible'] as const
@@ -13,6 +14,7 @@ function hasNonEmptyText(value: unknown): boolean {
 
 export const useOnboardingStore = defineStore('onboarding', () => {
   const providersStore = useProvidersStore()
+  const authStore = useAuthStore()
 
   // Track if first-time setup has been completed or skipped
   const hasCompletedSetup = useLocalStorage('onboarding/completed', false)
@@ -37,7 +39,13 @@ export const useOnboardingStore = defineStore('onboarding', () => {
   })
 
   // Check if first-time setup should be shown
-  const needsOnboarding = computed(() => !hasSkippedSetup.value && !hasCompletedSetup.value)
+  const skipOnboardingPath = ['/auth/login']
+  const needsOnboarding = computed(() =>
+    !authStore.isAuthenticated
+    && !hasSkippedSetup.value
+    && !hasCompletedSetup.value
+    && !skipOnboardingPath.includes(document.location.pathname),
+  )
 
   // Keep in-memory display flag aligned with persisted onboarding status
   // when setup is completed/skipped from another window (desktop multi-window case).

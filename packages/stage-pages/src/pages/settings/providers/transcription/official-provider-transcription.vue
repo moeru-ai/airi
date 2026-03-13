@@ -14,13 +14,13 @@ const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
 const providersStore = useProvidersStore()
-const { isAuthenticated, credits, isLoginDrawerOpen } = storeToRefs(authStore)
+const { isAuthenticated, credits, needsLogin } = storeToRefs(authStore)
 
 const providerId = 'official-provider-transcription'
 const providerMetadata = providersStore.getProviderMetadata(providerId)
 
 function handleLogin() {
-  isLoginDrawerOpen.value = true
+  needsLogin.value = true
 }
 </script>
 

@@ -40,8 +40,8 @@ export async function signOut() {
   await authClient.signOut()
 
   const authStore = useAuthStore()
-  authStore.user = undefined
-  authStore.session = undefined
+  authStore.user = null
+  authStore.session = null
 }
 
 export async function signIn(provider: OAuthProvider) {
