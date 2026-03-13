@@ -1,0 +1,4 @@
+## 2024-11-20 - [Attribute-based XSS via .innerHTML]
+**Vulnerability:** The `escapeHtml` function relied on setting `.textContent` on a temporary `div` and then reading `.innerHTML` to escape HTML strings. While this prevents basic tag injection, it fails to escape quotes (`"` and `'`), making it completely vulnerable when the result is injected into HTML attributes (e.g. `placeholder="${escapeHtml(value)}"`).
+**Learning:** Browser native parsing `.textContent` to `.innerHTML` only guarantees safety for text nodes (escaping `<`, `>`, and `&`), but leaves quotes untouched. When used universally in template literals across a web app, particularly in attributes, this creates an attribute breakout XSS vector.
+**Prevention:** Always use regex-based string replacement that explicitly handles `&`, `<`, `>`, `"`, and `'` or utilize specialized libraries like DOMPurify correctly to ensure proper sanitization across all contexts, including attribute values.
