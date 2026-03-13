@@ -470,6 +470,7 @@ pages:
       loading: 加载中...
       empty: 暂无交易记录
       loadMore: 加载更多
+      delayHint: 消耗记录可能有最多 1 分钟的延迟
     packages:
       amount_500:
         label: 500 Flux

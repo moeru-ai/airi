@@ -485,6 +485,7 @@ pages:
       loading: Loading history...
       empty: No transaction records yet.
       loadMore: Load More
+      delayHint: Usage records may be delayed by up to 1 minute
     packages:
       title: Flux Packages
       buy: Charge

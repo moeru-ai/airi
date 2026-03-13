@@ -156,9 +156,14 @@ async function handleBuy(amount: number) {
 
     <!-- Audit History -->
     <div flex="~ col gap-3">
-      <h3 text-lg font-semibold>
-        {{ t('settings.pages.flux.audit.title') }}
-      </h3>
+      <div flex="~ items-center gap-2">
+        <h3 text-lg font-semibold>
+          {{ t('settings.pages.flux.audit.title') }}
+        </h3>
+        <span text="xs neutral-400">
+          {{ t('settings.pages.flux.audit.delayHint') }}
+        </span>
+      </div>
 
       <div v-if="auditLoading && auditRecords.length === 0" text="sm neutral-500" py-4 text-center>
         {{ t('settings.pages.flux.audit.loading') }}
