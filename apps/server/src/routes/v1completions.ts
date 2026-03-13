@@ -104,6 +104,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
     // Post-billing: parse usage and charge after successful response
     const fallbackRate = await configKV.getOrThrow('FLUX_PER_REQUEST')
     const fluxPer1kTokens = (await configKV.getOptional('FLUX_PER_1K_TOKENS')) ?? 1
+    const displayName = await configKV.getOptional('MODEL_DISPLAY_NAME')
 
     if (body.stream) {
       // Streaming: return response immediately, bill after stream ends
@@ -112,7 +113,6 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
       const writer = writable.getWriter()
       // Buffer last 2KB to handle chunk boundary splits for usage extraction
       let tailBuffer = ''
-      const streamDisplayName = await configKV.getOptional('MODEL_DISPLAY_NAME')
 
       // Process stream in background
       ;(async () => {
@@ -123,8 +123,9 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
               break
             const text = new TextDecoder().decode(value)
             tailBuffer = (tailBuffer + text).slice(-2048)
-            if (streamDisplayName) {
-              const replaced = text.replace(/"model"\s*:\s*"[^"]*"/g, `"model":"${streamDisplayName}"`)
+            if (displayName) {
+              const safeDisplayName = displayName.replace(/[\\"]/g, '')
+              const replaced = text.replace(/"model"\s*:\s*"[^"]*"/g, `"model":"${safeDisplayName}"`)
               await writer.write(new TextEncoder().encode(replaced))
             }
             else {
@@ -183,7 +184,6 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
 
     // Non-streaming: parse response, bill, then return
     const responseBody = await response.json()
-    const displayName = await configKV.getOptional('MODEL_DISPLAY_NAME')
     if (displayName && responseBody.model) {
       responseBody.model = displayName
     }
