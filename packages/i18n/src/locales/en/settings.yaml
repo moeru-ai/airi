@@ -20,8 +20,13 @@ dialogs:
     baseUrlHelp: API endpoint URL (use default if unsure)
     accountId: Account ID
     validationSuccess: Configuration validation success
+    validationPartial: Configuration partially validated
     validationFailed: Configuration validation failed
     validationError: 'Validation error: {error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationSuccess: Generation test passed
+    testGenerationFailed: Generation test failed
     skipForNow: Skip for now
     saveAndContinue: Save and Continue
     next: Next

@@ -19,8 +19,13 @@ dialogs:
     baseUrlHelp: Địa chỉ API đầu cuối (dùng mặc định nếu không chắc)
     accountId: ID tài khoản
     validationSuccess: Xác thực cấu hình thành công
+    validationPartial: Cấu hình được xác thực một phần
     validationFailed: Xác thực cấu hình thất bại
     validationError: 'Lỗi xác thực: {error}'
+    testGeneration: Kiểm tra tạo
+    testGenerationRunning: Đang kiểm tra...
+    testGenerationSuccess: Kiểm tra tạo thành công
+    testGenerationFailed: Kiểm tra tạo thất bại
     skipForNow: Bỏ qua
     saveAndContinue: Lưu và tiếp tục
     next: Tiếp
