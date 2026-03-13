@@ -20,7 +20,7 @@ const onboardingStore = useOnboardingStore()
 
 function handleLogin() {
   onboardingStore.showingSetup = false
-  authStore.isLoginDrawerOpen = true
+  authStore.needsLogin = true
 }
 
 function handleLocalSetup() {
@@ -60,7 +60,7 @@ function handleLocalSetup() {
         {{ t('settings.dialogs.onboarding.description') }}
       </p>
     </div>
-    <div flex="~ row gap-3">
+    <div flex="~ gap-3" class="flex-col md:flex-row">
       <Button
         v-motion
         :initial="{ opacity: 0 }"
