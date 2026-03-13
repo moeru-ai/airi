@@ -30,8 +30,6 @@ export interface ProviderValidationPlan {
   manualProviderValidators: ProviderRuntimeValidator<Record<string, unknown>>[]
   providerExtra: ProviderExtraMethods<Record<string, unknown>> | undefined
   shouldValidate: boolean
-  /** Whether this provider has any manual-only validators available. */
-  hasManualValidators: boolean
 }
 
 export interface ProviderValidationCallbacks {
@@ -111,7 +109,6 @@ export function getValidatorsOfProvider(options: {
     manualProviderValidators: manualProviderValidators as ProviderValidationPlan['manualProviderValidators'],
     providerExtra: definition.extraMethods as ProviderValidationPlan['providerExtra'],
     shouldValidate,
-    hasManualValidators: manualProviderValidators.length > 0,
   }
 }
 

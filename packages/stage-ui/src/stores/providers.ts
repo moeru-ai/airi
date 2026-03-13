@@ -148,13 +148,8 @@ export interface ProviderMetadata {
       valid: boolean
     }
     /**
-     * Whether this provider has manual-only validators (e.g. chat completion probes)
-     * that are excluded from automatic validation and require user action.
-     */
-    hasManualValidators?: boolean
-    /**
      * Run only the manual-only validators. Returns validation result.
-     * Only available when `hasManualValidators` is true.
+     * Only available when the provider has manual validators.
      */
     runManualValidation?: (config: Record<string, unknown>) => Promise<{
       errors: unknown[]

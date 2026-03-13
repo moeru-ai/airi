@@ -90,11 +90,6 @@ function appendUniqueReason(reasons: string[], next: string) {
     reasons.push(next)
 }
 
-function hasManualValidatorsForDefinition(definition: ProviderDefinition<any>, t: ComposerTranslation): boolean {
-  const allValidators = (definition.validators?.validateProvider || []).map(creator => creator({ t }))
-  return allValidators.some(v => v.manualOnly)
-}
-
 export function convertProviderDefinitionToMetadata(
   definition: ProviderDefinition<any>,
   t: ComposerTranslation,
@@ -105,6 +100,8 @@ export function convertProviderDefinitionToMetadata(
   const keyExtractor = (input: string): string => input
   const category = getCategoryFromTasks(definition.tasks)
   const schemaDefaults = extractSchemaDefaults(definition, t)
+  const allValidators = (definition.validators?.validateProvider || []).map(creator => creator({ t }))
+  const hasManualValidators = allValidators.some(v => v.manualOnly)
 
   return {
     id: definition.id,
@@ -237,8 +234,7 @@ export function convertProviderDefinitionToMetadata(
         await validateProvider(plan, { t })
         return buildConfigValidationResult(plan)
       },
-      hasManualValidators: hasManualValidatorsForDefinition(definition, t),
-      runManualValidation: hasManualValidatorsForDefinition(definition, t)
+      runManualValidation: hasManualValidators
         ? async (config) => {
           const plan = getValidatorsOfProvider({
             definition,
