@@ -1,10 +1,13 @@
 import type { Database } from '../libs/db'
 
+import { useLogger } from '@guiiai/logg'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 
 import { createConflictError, createForbiddenError } from '../utils/error'
 
 import * as schema from '../schemas/chats'
+
+const logger = useLogger('chats')
 
 type ChatType = 'private' | 'bot' | 'group' | 'channel'
 type MessageRole = 'system' | 'user' | 'assistant' | 'tool' | 'error'
@@ -67,8 +70,10 @@ export function createChatService(db: Database) {
             ),
           })
 
-          if (!member)
+          if (!member) {
+            logger.withFields({ userId, chatId }).warn('User not a member of chat, sync forbidden')
             throw createForbiddenError()
+          }
         }
 
         if (!existingChat) {
@@ -134,8 +139,10 @@ export function createChatService(db: Database) {
             .where(inArray(schema.messages.id, messageIds))
 
           const conflicting = existingMessages.find(m => m.chatId !== chatId)
-          if (conflicting)
+          if (conflicting) {
+            logger.withFields({ messageId: conflicting.id, expectedChatId: chatId, actualChatId: conflicting.chatId }).warn('Message conflict detected')
             throw createConflictError('Message already belongs to another chat')
+          }
 
           await tx.insert(schema.messages)
             .values(payload.messages.map(message => ({
@@ -160,6 +167,7 @@ export function createChatService(db: Database) {
             })
         }
 
+        logger.withFields({ userId, chatId, messageCount: payload.messages.length, isNew: !existingChat }).log('Synced chat')
         return { chatId }
       })
     },
