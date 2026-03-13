@@ -147,7 +147,7 @@ function buildApp({
     /**
      * Flux routes.
      */
-    .route('/api/flux', createFluxRoutes(fluxService))
+    .route('/api/flux', createFluxRoutes(fluxService, fluxAuditService))
 
     /**
      * Stripe routes.
