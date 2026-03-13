@@ -20,12 +20,13 @@ import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
 import { useLLM } from '@proj-airi/stage-ui/stores/llm'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { refDebounced, useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, provide, ref, toRef, watch } from 'vue'
+import { toast } from 'vue-sonner'
 
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
@@ -173,6 +174,8 @@ const {
 } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const chatStore = useChatOrchestratorStore()
+const hearingStore = useHearingStore()
+const { hearingDetectionMode } = storeToRefs(hearingStore)
 
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
@@ -185,10 +188,12 @@ const {
 } = useVAD(workletUrl, {
   threshold: ref(0.6),
   onSpeechStart: () => {
-    void handleSpeechStart()
+    if (hearingDetectionMode.value === 'vad')
+      void handleSpeechStart()
   },
   onSpeechEnd: () => {
-    void handleSpeechEnd()
+    if (hearingDetectionMode.value === 'vad')
+      void handleSpeechEnd()
   },
 })
 
@@ -225,9 +230,18 @@ async function startAudioInteraction() {
     console.info('[Main Page] Starting audio interaction with device:', selectedAudioInputLabel.value)
 
     if (stream.value) {
-      // Ensure VAD is initialized and then start it
-      await initVAD()
-      await startVAD(stream.value)
+      if (hearingDetectionMode.value === 'vad') {
+        // Ensure VAD is initialized and then start it
+        await initVAD()
+        await startVAD(stream.value)
+      }
+      else {
+        // Manual mode: start recording immediately if not streaming
+        if (!shouldUseStreamInput.value) {
+          console.info('[Main Page] Manual mode enabled, starting recording immediately')
+          startRecord()
+        }
+      }
     }
 
     if (shouldUseStreamInput.value) {
@@ -259,17 +273,22 @@ async function startAudioInteraction() {
                 console.warn('[Main Page] No provider or model available, skipping chat send')
                 return
               }
-
-              console.info('[Main Page] Sending transcription to chat:', finalText)
-              console.log('[Main Page] Ingesting with tools:', {
-                model: activeChatModel.value,
-                hasTools: !!widgetsTools,
-              })
-              await chatStore.ingest(finalText, {
-                model: activeChatModel.value,
-                chatProvider: provider as ChatProvider,
-                tools: widgetsTools,
-              })
+              if (finalText) {
+                toast.info(`🎤 You said: ${finalText}`, { id: 'transcription-feedback' })
+                console.info('[Main Page] Sending transcription to chat:', finalText)
+                console.log('[Main Page] Ingesting with tools:', {
+                  model: activeChatModel.value,
+                  hasTools: !!widgetsTools,
+                })
+                void chatStore.ingest(finalText, {
+                  model: activeChatModel.value!,
+                  chatProvider: provider as ChatProvider,
+                  tools: widgetsTools,
+                })
+              }
+              else {
+                toast.error('STT: No speech detected', { id: 'transcription-feedback' })
+              }
             }
             catch (err) {
               console.error('[Main Page] Failed to send chat from voice:', err)
@@ -307,8 +326,12 @@ async function startAudioInteraction() {
         return
 
       const text = await transcribeForRecording(recording)
-      if (!text || !text.trim())
+      if (!text || !text.trim()) {
+        toast.error('STT: No speech detected', { id: 'transcription-feedback' })
         return
+      }
+
+      toast.info(`🎤 You said: ${text}`, { id: 'transcription-feedback' })
 
       // Update caption overlay speaker text via BroadcastChannel
       postCaption({ type: 'caption-speaker', text })
@@ -394,6 +417,15 @@ onMounted(() => {
     })
   }
 })
+
+watch(hearingDetectionMode, async (val) => {
+  if (enabled.value) {
+    console.info('[Main Page] Detection Mode changed to:', val, 'restarting audio interaction')
+    await stopAudioInteraction()
+    await startAudioInteraction()
+  }
+})
+
 onUnmounted(async () => {
   await stopAudioInteraction()
   disposeVAD()

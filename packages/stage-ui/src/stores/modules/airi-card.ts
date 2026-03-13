@@ -8,7 +8,11 @@ import { useI18n } from 'vue-i18n'
 
 import SystemPromptV2 from '../../constants/prompts/system-v2'
 
+<<<<<<< HEAD
 import { useSettingsStageModel } from '../settings/stage-model'
+=======
+import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '../../constants/prompts/artistry-instruction'
+>>>>>>> 1d252c81 (feat: proactivity engine, discord stabilization, and improved model selector defaults)
 import { useConsciousnessStore } from './consciousness'
 import { useSpeechStore } from './speech'
 
@@ -63,6 +67,7 @@ export interface AiriExtension {
     provider?: string
     model?: string
     promptPrefix?: string
+    widgetInstruction?: string
     options?: Record<string, any>
   }
 
@@ -168,12 +173,17 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       },
     }
 
+    const defaultArtistry = {
+      widgetInstruction: DEFAULT_ARTISTRY_WIDGET_INSTRUCTION,
+    }
+
     // Return default if no extension exists
     if (!existingExtension) {
       return {
         modules: defaultModules,
         agents: {},
         heartbeats: defaultHeartbeats,
+        artistry: defaultArtistry,
       }
     }
 
@@ -197,7 +207,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         live2d: existingExtension.modules?.live2d,
         displayModelId: existingExtension.modules?.displayModelId ?? defaultModules.displayModelId,
       },
-      artistry: existingExtension.artistry,
+      artistry: {
+        ...existingExtension.artistry,
+        widgetInstruction: existingExtension.artistry?.widgetInstruction ?? defaultArtistry.widgetInstruction,
+      },
       agents: existingExtension.agents ?? {},
       heartbeats: {
         enabled: existingExtension.heartbeats?.enabled ?? defaultHeartbeats.enabled,
@@ -341,6 +354,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         card.description,
         card.personality,
       ].filter(Boolean)
+
+      if (card.extensions?.airi?.artistry?.provider && card.extensions?.airi?.artistry?.widgetInstruction) {
+        components.push(card.extensions.airi.artistry.widgetInstruction)
+      }
 
       return components.join('\n')
     }),

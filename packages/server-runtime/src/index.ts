@@ -299,7 +299,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         peerAuthenticated: authenticatedPeer?.authenticated,
         peerModule: authenticatedPeer?.name,
         peerModuleIndex: authenticatedPeer?.index,
-      }).debug('received event')
+      }).log('received event', { type: event.type })
 
       if (authenticatedPeer) {
         authenticatedPeer.lastHeartbeatAt = Date.now()
@@ -486,7 +486,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       const targetIds = decision?.type === 'targets' ? decision.targetIds : undefined
       const shouldBroadcast = decision?.type === 'broadcast' || !targetIds
 
-      logger.withFields({ peer: peer.id, peerName: p.name, event }).debug('broadcasting event to peers')
+      logger.withFields({ peer: peer.id, peerName: p.name, event }).log('broadcasting event to peers')
 
       for (const [id, other] of peers.entries()) {
         if (id === peer.id) {

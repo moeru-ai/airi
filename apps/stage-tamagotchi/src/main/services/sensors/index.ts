@@ -6,7 +6,7 @@ import { promisify } from 'node:util'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
-import { sensorsGetActiveWindow, sensorsGetIdleTime } from '@proj-airi/stage-shared'
+import { sensorsGetActiveWindow, sensorsGetIdleTime, sensorsGetLocalTime } from '@proj-airi/stage-shared'
 import { ipcMain, powerMonitor } from 'electron'
 
 const execAsync = promisify(exec)
@@ -82,6 +82,18 @@ export function setupSensorsService() {
       }
 
       return null
+    },
+  )
+
+  defineInvokeHandler(
+    context,
+    sensorsGetLocalTime,
+    async () => {
+      const now = new Date()
+      const localTime = now.toLocaleString()
+      // eslint-disable-next-line no-console
+      console.log(`[Sensors Service] get-local-time requested. Result: ${localTime}`)
+      return localTime
     },
   )
 

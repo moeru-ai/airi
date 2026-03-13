@@ -255,6 +255,11 @@ pages:
     artistry:
       description: Generate images and visual content during conversations
       title: Artistry
+      widget-instructions:
+        label: Widget Spawning Instructions
+        description: >-
+          The instructions provided to the AI LLM to teach it how to use the
+          artistry widget system. If empty, the system default will be used.
     beat_sync:
       description: Vibe with beats from the audio source
       title: Beat Sync

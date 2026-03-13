@@ -28,6 +28,7 @@ const {
   activeCustomModelName,
   autoSendEnabled,
   autoSendDelay,
+  hearingDetectionMode,
 } = storeToRefs(hearingStore)
 const providersStore = useProvidersStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
@@ -683,6 +684,39 @@ onUnmounted(() => {
               :max="10000"
               :step="100"
               :format-value="value => value === 0 ? 'Immediate' : `${(value / 1000).toFixed(1)}s`"
+            />
+          </div>
+        </div>
+
+        <!-- Detection Mode -->
+        <div class="border-t border-neutral-200 pt-4 dark:border-neutral-700">
+          <div class="mb-4">
+            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
+              Detection Mode
+            </h2>
+            <div text="neutral-400 dark:neutral-400">
+              Choose how to detect speech and trigger recordings
+            </div>
+          </div>
+
+          <div flex="~ row gap-4">
+            <RadioCardSimple
+              id="detection-mode-vad"
+              v-slot="{ active }"
+              v-model="hearingDetectionMode"
+              name="detection-mode"
+              value="vad"
+              title="VAD (Default)"
+              description="AI-powered speech detection to automatically start and stop recordings."
+            />
+            <RadioCardSimple
+              id="detection-mode-manual"
+              v-slot="{ active }"
+              v-model="hearingDetectionMode"
+              name="detection-mode"
+              value="manual"
+              title="Manual (Pure Mic)"
+              description="No automatic detection. Toggle the microphone manually to record."
             />
           </div>
         </div>

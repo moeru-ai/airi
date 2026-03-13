@@ -12,6 +12,7 @@ import { clearMcpToolBridge, setMcpToolBridge } from '@proj-airi/stage-ui/stores
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useDiscordStore } from '@proj-airi/stage-ui/stores/modules/discord'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
@@ -62,6 +63,7 @@ const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
 const analyticsStore = useSharedAnalyticsStore()
 const pluginHostInspectorStore = usePluginHostInspectorStore()
+const discordStore = useDiscordStore()
 usePerfTracerBridgeStore()
 
 const proactivityStore = useProactivityStore()
@@ -139,6 +141,20 @@ onMounted(async () => {
       },
     })
   }
+
+  // Broadcast Discord configuration if enabled
+  if (discordStore.enabled) {
+    discordStore.saveSettings()
+  }
+
+  // Listen for new modules joining and push config to Discord bot if it joins
+  serverChannelStore.onEvent('registry:modules:sync', (event) => {
+    const hasDiscord = event.data.modules.some(m => m.name === 'discord')
+    if (hasDiscord && discordStore.enabled) {
+      console.log('[App] Discord bot detected in registry, pushing configuration...')
+      discordStore.saveSettings()
+    }
+  })
 
   // Listen for open-settings IPC message from main process
   defineInvokeHandler(context.value, electronOpenSettings, () => router.push('/settings'))

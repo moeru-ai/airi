@@ -1,7 +1,7 @@
 import type { ChatStreamEventContext, StreamingAssistantMessage } from '../types/chat'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { sensorsGetActiveWindow, sensorsGetIdleTime } from '@proj-airi/stage-shared'
+import { sensorsGetActiveWindow, sensorsGetIdleTime, sensorsGetLocalTime } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw } from 'vue'
@@ -36,6 +36,7 @@ export const useProactivityStore = defineStore('proactivity', () => {
   const isElectron = typeof window !== 'undefined' && !!(window as any).electron
   const getIdleTimeInvoke = isElectron ? useElectronEventaInvoke(sensorsGetIdleTime) : null
   const getActiveWindowInvoke = isElectron ? useElectronEventaInvoke(sensorsGetActiveWindow) : null
+  const getLocalTimeInvoke = isElectron ? useElectronEventaInvoke(sensorsGetLocalTime) : null
 
   async function evaluateHeartbeat(options?: { force?: boolean }) {
     if (isHeartbeatEvaluating.value && !options?.force) {
@@ -122,6 +123,13 @@ export const useProactivityStore = defineStore('proactivity', () => {
             idleData = `\n[Sensor Data]\nUser Idle Time: ${idleTime !== undefined ? Math.floor(idleTime / 1000) : 'unknown'} seconds\n`
             if (activeWin?.title) {
               idleData += `Active Window: ${activeWin.title} (${activeWin.processName})\n`
+            }
+
+            if (getLocalTimeInvoke) {
+              const localTime = await getLocalTimeInvoke()
+              // eslint-disable-next-line no-console
+              console.log(`[Proactivity] OS Sensor -> Local Time: ${localTime}`)
+              idleData += `Current Local Time: ${localTime}\n`
             }
           }
         }

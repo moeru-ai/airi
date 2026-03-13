@@ -166,17 +166,22 @@ export const useSpeechStore = defineStore('speech', () => {
 
   watch([activeSpeechVoiceId, availableVoices], ([voiceId, voices]) => {
     if (voiceId) {
-      // For OpenAI Compatible, create a custom voice object (no voices available from API)
+      // For OpenAI Compatible, create a custom voice object if no voices were discovered
       if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
-        // Always update to match voiceId (in case it changed)
-        activeSpeechVoice.value = {
-          id: voiceId,
-          name: voiceId,
-          description: voiceId,
-          previewURL: '',
-          languages: [{ code: 'en', title: 'English' }],
-          provider: activeSpeechProvider.value,
-          gender: 'neutral',
+        const foundVoice = voices[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
+        if (foundVoice) {
+          activeSpeechVoice.value = foundVoice
+        }
+        else {
+          activeSpeechVoice.value = {
+            id: voiceId,
+            name: voiceId,
+            description: voiceId,
+            previewURL: '',
+            languages: [{ code: 'en', title: 'English' }],
+            provider: activeSpeechProvider.value,
+            gender: 'neutral',
+          }
         }
       }
       else {

@@ -13,9 +13,13 @@ function getMediaStreamTrack(stream: MediaStream) {
 
 export function useAudioRecorder(
   media: MaybeRefOrGetter<MediaStream | undefined>,
+  options: { sampleRate?: number } = {},
 ) {
+  const { sampleRate = 16000 } = options
   const mediaRef = toRef(media)
   const recording = shallowRef<Blob>()
+
+  const recordingAudioContext = shallowRef<AudioContext>()
 
   const mediaOutput = ref<Output>()
   const mediaFormat = ref<string>()
@@ -33,10 +37,25 @@ export function useAudioRecorder(
   async function startRecord() {
     await until(mediaRef).toBeTruthy()
 
-    const track = await getMediaStreamTrack(mediaRef.value!)
+    const stream = mediaRef.value!
+    const track = await getMediaStreamTrack(stream)
+
+    let recordStream = stream
+    // Handle resampling if requested sample rate differs from native track rate
+    if (sampleRate && track.getSettings().sampleRate !== sampleRate) {
+      console.info(`[Audio Recorder] Resampling record stream to ${sampleRate}Hz`)
+      const ctx = new AudioContext({ sampleRate })
+      recordingAudioContext.value = ctx
+      const source = ctx.createMediaStreamSource(stream)
+      const destination = ctx.createMediaStreamDestination()
+      source.connect(destination)
+      recordStream = destination.stream
+    }
+
+    const recordTrack = await getMediaStreamTrack(recordStream)
     mediaOutput.value = new Output({ format: new WavOutputFormat(), target: new BufferTarget() })
 
-    const audioSource = new MediaStreamAudioTrackSource(track, { codec: 'pcm-f32', bitrate: QUALITY_MEDIUM })
+    const audioSource = new MediaStreamAudioTrackSource(recordTrack, { codec: 'pcm-s16', bitrate: QUALITY_MEDIUM })
     audioSource.errorPromise.catch(console.error)
     mediaOutput.value.addAudioTrack(audioSource)
 
@@ -71,6 +90,12 @@ export function useAudioRecorder(
       }
 
       mediaOutput.value = undefined
+
+      if (recordingAudioContext.value) {
+        await recordingAudioContext.value.close()
+        recordingAudioContext.value = undefined
+      }
+
       return audioBlob
     }
     finally {

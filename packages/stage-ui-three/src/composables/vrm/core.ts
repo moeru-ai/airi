@@ -123,7 +123,19 @@ export async function loadVrm(model: string, options?: {
   const modelCenter = new Vector3()
   box.getSize(modelSize)
   box.getCenter(modelCenter)
-  modelCenter.y += modelSize.y / 5 // Adjust pivot to align chest with the origin
+
+  // CRITICAL: Try to find the head bone for precise centering.
+  // Bounding boxes can be skewed by invisible scene objects or large accessories.
+  const headBone = _vrm.humanoid?.getRawBoneNode('head')
+  if (headBone) {
+    headBone.getWorldPosition(modelCenter)
+    // Adjust focus slightly down to include the upper chest in the "headshot"
+    modelCenter.y -= modelSize.y / 20
+  }
+  else {
+    // Fallback to bounding box pivot if no humanoid head is found
+    modelCenter.y += modelSize.y / 5
+  }
 
   // Compute the initial camera position (once per loaded model)
   // In order to see the up-2/3 part fo the model, z = (y/3) / tan(fov/2)

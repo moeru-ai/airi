@@ -54,6 +54,9 @@ interface HeartbeatConfig {
       injectIntoPrompt: boolean // Phase 4: Pass last N messages to the LLM
       maxMessages: number
     }
+    time: {
+      injectIntoPrompt: boolean // Phase 1: Send local time and timezone to the LLM
+    }
   }
 }
 ```
@@ -86,7 +89,7 @@ If the user is active, we construct a hidden, specialized system prompt that inj
 > This is a proactive heartbeat event. The user did not speak to you, you are deciding whether to speak to them based on their current activity.
 >
 > `[CURRENT CONTEXT]`
-> Current Time: 14:30
+> Current Time: 14:30 (EDT)
 > Keyboard Active: 2 minutes ago
 > Mouse Active: 30 seconds ago
 > Active Window: "Brave Browser (Discord)"
