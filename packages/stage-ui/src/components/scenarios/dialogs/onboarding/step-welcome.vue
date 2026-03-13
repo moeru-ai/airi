@@ -24,8 +24,8 @@ const languages = computed(() => {
 })
 
 function handleLogin() {
-  onboardingStore.shouldShowSetup = false
-  authStore.isLoginOpen = true
+  onboardingStore.showingSetup = false
+  authStore.needsLogin = true
 }
 
 function handleLocalSetup() {
@@ -82,7 +82,7 @@ function handleLocalSetup() {
         />
       </div>
     </div>
-    <div flex="~ row gap-3">
+    <div flex="~ gap-3" class="flex-col md:flex-row">
       <Button
         v-motion
         :initial="{ opacity: 0 }"

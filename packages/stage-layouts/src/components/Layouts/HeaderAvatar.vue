@@ -1,16 +1,13 @@
 <script setup lang="ts">
-import { listSessions, signOut } from '@proj-airi/stage-ui/libs/auth'
+import { signOut } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { onClickOutside, useMediaQuery } from '@vueuse/core'
+import { onClickOutside } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { toast } from 'vue-sonner'
 
 const authStore = useAuthStore()
 const { isAuthenticated, user, credits } = storeToRefs(authStore)
-
-const isMobile = useMediaQuery('(max-width: 768px)')
 
 const userName = computed(() => user.value?.name)
 const userAvatar = computed(() => user.value?.image)
@@ -20,22 +17,6 @@ const dropdownRef = ref(null)
 onClickOutside(dropdownRef, () => {
   showDropdown.value = false
 })
-
-function handleLogout() {
-  signOut()
-}
-
-async function handleListSessions() {
-  try {
-    const { data: sessions } = await listSessions()
-    if (sessions) {
-      toast.success(`You have ${sessions.length} active sessions.`)
-    }
-  }
-  catch (error) {
-    toast.error(error instanceof Error ? error.message : 'An unknown error occurred')
-  }
-}
 </script>
 
 <template>
@@ -53,29 +34,16 @@ async function handleListSessions() {
         <div i-solar:settings-minimalistic-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
       </RouterLink>
 
-      <template v-if="isMobile">
-        <button
-          border="2 solid neutral-100/60 dark:neutral-800/30"
-          bg="neutral-50/70 dark:neutral-800/70"
-          w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
-          title="Login"
-          type="button"
-          @click="authStore.isLoginDrawerOpen = true"
-        >
-          <div i-solar:user-bold-duotone />
-        </button>
-      </template>
-      <template v-else>
-        <RouterLink
-          border="2 solid neutral-100/60 dark:neutral-800/30"
-          bg="neutral-50/70 dark:neutral-800/70"
-          w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
-          :title="isAuthenticated ? `Logged in as ${userName}` : 'Login'"
-          to="/auth/login"
-        >
-          <div i-solar:user-bold-duotone />
-        </RouterLink>
-      </template>
+      <button
+        border="2 solid neutral-100/60 dark:neutral-800/30"
+        bg="neutral-50/70 dark:neutral-800/70"
+        w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
+        title="Login"
+        type="button"
+        @click="authStore.needsLogin = true"
+      >
+        <div i-solar:user-bold-duotone />
+      </button>
     </template>
 
     <!-- Authenticated: Avatar Dropdown -->
@@ -135,14 +103,6 @@ async function handleListSessions() {
           </div>
 
           <div class="py-1">
-            <button
-              class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-700 transition hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
-              @click="handleListSessions"
-            >
-              <div class="i-solar:devices-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
-              Active Sessions
-            </button>
-
             <RouterLink
               to="/settings/flux"
               class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-700 transition hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
@@ -165,7 +125,7 @@ async function handleListSessions() {
           <div class="py-1">
             <button
               class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-              @click="handleLogout"
+              @click="signOut"
             >
               <div class="i-solar:logout-3-bold-duotone text-lg transition group-hover:text-red-600 dark:group-hover:text-red-400" />
               Logout
