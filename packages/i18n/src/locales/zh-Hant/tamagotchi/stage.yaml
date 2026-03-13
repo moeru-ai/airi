@@ -24,6 +24,10 @@ docs:
   'close': 關閉
   'expand': 展開
   'collapse': 摺疊
+'status-island':
+  connected: WebSocket connected
+  disconnected: WebSocket disconnected
+  'open-settings': Open WebSocket settings
 notice:
   'fade-on-hover':
     title: 懸停淡出

@@ -30,6 +30,19 @@ dialogs:
     no-models: 找不到可用的模型
     no-models-help: >-
       請返回上一步並檢查您的 API Key，或檢查網路連線。
+    permissions:
+      title: Notifications
+      description: You can allow notifications now or continue and set it up later.
+      notificationsTitle: Notifications
+      notificationsDescription: Allow reminders and important status updates.
+      notificationsAction: Request notification permission
+      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
+      openSettings: Open iOS Settings
+      optionalHint: You can continue even if notification permission is not granted.
+      stateUnknown: Not requested
+      stateRequesting: Requesting...
+      stateGranted: Granted
+      stateNotGranted: Not granted
 language:
   title: 語言
   description: >
@@ -284,7 +297,7 @@ pages:
           provider-model-selection:
             collapse: 摺疊
             custom_model_placeholder: 輸入自訂模型名稱
-            current_model_label: 'Current model:'
+            current_model_label: '當前模型：'
             description: 為意識選擇合適的 LLM 服務來源
             error: 取得發生錯誤
             health_check_failed: 健康度檢查失敗
@@ -469,17 +482,17 @@ pages:
                   placeholder: 基礎 url...
                 headers:
                   label: 自訂 HTTP 標頭
-                  description: Add custom HTTP headers
+                  description: 新增自訂 HTTP 標頭
                   key:
-                    placeholder: Key
+                    placeholder: 參數名稱
                   value:
-                    placeholder: Value
+                    placeholder: 值
                 thinking-mode:
-                  label: Thinking Mode
+                  label: 思考模式
                   description: >
-                    Controls Ollama thinking behavior. GPT-OSS only supports low/medium/high levels.
+                    控制 Ollama 思考行為。GPT-OSS 僅支持 low/medium/high 等級。
                   options:
-                    auto: Auto (provider default)
+                    auto: 自動（提供者預設）
                     disable: 停用
                     enable: 啟用
                     low: 低
@@ -488,28 +501,28 @@ pages:
         validators:
           actions:
             validate: 驗證
-          empty: No validation steps available.
+          empty: 沒有可用的驗證步驟。
           openai-compatible:
             check-config:
               title: 設定
             check-connectivity:
-              title: Connectivity
+              title: 連線
             check-supports-model-listing:
               title: 列出模型
             check-supports-chat-completion:
-              title: Chat Completion
+              title: 聊天補全
           status:
             validating: 驗證中...
             valid: 已通過
             invalid: 發生錯誤
-          title: Checks
+          title: 檢查
         providers:
           provider:
             ollama:
               troubleshooting:
                 validators:
                   openai-compatible-check-connectivity:
-                    label: Extra configuration needed for Ollama
+                    label: 需要為 Ollama 進行額外配置
                     content: >-
                       很抱歉，Ollama 連接檢查失敗。不要擔心，如果使用 Ollama，需要額外配置才能通過 Ollama。 您需要在啟動 Olama 應用程序或 Ollama CLI 伺服器時明確設置 <code>OLLAMA_HOST</code> 詳情，請檢查 <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama 集成指南</a>。
     common:
@@ -598,8 +611,8 @@ pages:
         description: deepgram.com
         title: Deepgram
       speech-noop:
-        title: None
-        description: No speech output.
+        title: 無
+        description: 無語音輸出。
       deepseek:
         description: DeepSeek.com
         title: 深度求索 DeepSeek
@@ -643,30 +656,30 @@ pages:
             error-missing-api-key: 需要填寫 API Key 才能使用喔！
         title: ElevenLabs (11labs)
       kokoro-local:
-        description: Local text-to-speech using Kokoro-82M.
+        description: 基於 Kokoro-82M 的本地文字轉語音。
         fields:
           field:
             model:
               label: 模型選擇
-              description: Smaller models load faster but may have slightly lower quality.
+              description: 較小的模型載入速度更快，但品質可能略低。
         models:
           fp32-webgpu:
             description: >-
-              Full precision model using WebGPU - Recommended for supported devices
+              使用 WebGPU 的全精度模型 - 建議在支援的裝置上使用
           fp32:
             description: 全精度模型
           fp16:
             description: 半精度
           q8:
-            description: 8-bit quantized
+            description: 8-bit 量化
           q4:
-            description: 4-bit quantized
+            description: 4-bit 量化
           q4f16:
-            description: 4-bit with FP16
+            description: 4-bit 搭配 FP16
         playground:
-          default-text: Hello! This is a test of the Kokoro text-to-speech system.
-          title: Voice Playground
-        title: Kokoro TTS (Local)
+          default-text: 您好！這是 Kokoro 文字轉語音系統的測試。
+          title: 語音測試場
+        title: Kokoro TTS (本地)
       fireworks:
         description: Fireworks.ai
         title: Fireworks.ai
@@ -681,8 +694,8 @@ pages:
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili / IndexTTS
-        callout_indextts2_unavailable_title: Limited Support
-        callout_indextts2_unavailable: Support for IndexTTS2 is currently unavailable. Please use IndexTTS.
+        callout_indextts2_unavailable_title: 有限支援
+        callout_indextts2_unavailable: IndexTTS2 目前尚未支援，請改用 IndexTTS。
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry
@@ -712,12 +725,12 @@ pages:
         title: OpenAI
       openai-compatible:
         description: OpenAI 相容
-        title: OpenAI Compatible
+        title: OpenAI 兼容性
       nvidia:
         description: build.nvidia.com
         title: NVIDIA NIM
       n1n:
-        description: n1n.ai - High-performance AI API provider.
+        description: n1n.ai - 高效能AI API供應商
         title: n1n
       openrouter:
         description: OpenRouter.ai
@@ -752,7 +765,7 @@ pages:
           field:
             appId:
               description: 可在控制台取得的 App ID
-              label: App ID
+              label: 應用程式 ID
         title: 火山引擎
       xai:
         description: X.AI
@@ -767,24 +780,24 @@ pages:
         description: cerebras.ai
         title: Cerebras
       aliyun-nls:
-        description: Aliyun NLS
-        title: Aliyun NLS
+        description: 阿里雲 NLS
+        title: 阿里雲 NLS
       browser-web-speech-api:
-        description: Browser-native STT (requires Chrome/Edge/Safari)
-        title: Web Speech API
+        description: 瀏覽器原生 STT（需要 Chrome/Edge/Safari）
+        title: 網頁語音 API
       transcriptions:
         playground:
           title: 實驗平台
       aihubmix:
         title: AIHubMix
-        description: https://aihubmix.com (10% off)
+        description: https://aihubmix.com (10% 優惠)
     title: 服務來源
   connection:
-    description: Configure WebSocket server connection
-    title: Connection
+    description: 配置 WebSocket 伺服器連接
+    title: 連線
     websocket-url:
-      description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
-      label: WebSocket Server Address
+      description: WebSocket 伺服器的完整位址（例如：ws://localhost:6121/ws）
+      label: WebSocket 伺服器位址
       placeholder: ws://localhost:6121/ws
   scene:
     description: 設定角色所在環境
@@ -815,126 +828,126 @@ pages:
           sections:
             section:
               performance-visualizer:
-                title: Performance Visualizer
-                description: Toggle FPS/long task/memory overlay
+                title: 效能檢視器
+                description: 切換 FPS/長時間任務/記憶疊加層
               markdown-stress:
-                title: Markdown Stress
-                description: Stress markdown parsing and rendering with heavy chat payloads
+                title: Markdown 壓力測試
+                description: 使用大量聊天內容進行 Markdown 解析與渲染的壓力測試
               use-magic-keys:
-                title: useMagicKeys Tool
+                title: useMagicKeys 工具
                 description: 測試快捷鍵
               audio-record:
-                title: Audio Record
-                description: Test Audio related composables
+                title: 錄音
+                description: 測試音訊相關的組合式函式
               background-gradient-blending:
-                title: Background Theme color blending
-                description: Test blending & theme
+                title: 背景主題色彩混合
+                description: 測試混合效果與主題
               background-removal:
-                title: Background removal (WebGPU required)
-                description: Utility for background removal
+                title: 移除背景（需要 WebGPU）
+                description: 背景移除工具
               chat:
-                title: Chat
-                description: Chat
+                title: 聊天
+                description: 聊天
               gesture-circle:
-                title: Gesture Circle (Desktop only)
-                description: Test gesture recognition
+                title: 手勢圈選（僅限桌面）
+                description: 測試手勢辨識
               image:
-                title: Image
-                description: Image
+                title: 圖片
+                description: 圖片
               polaroid:
                 title: Polaroid
-                description: Utility for taking shots of models
+                description: 模型快照工具
               context-flow:
                 description: >-
-                  Inspect incoming context updates and outgoing chat stream events
+                  檢查傳入的上下文更新與傳出的聊天串流事件
               websocket-inspector:
-                title: WebSocket Inspector
-                description: Inspect raw WebSocket traffic
+                title: WebSocket 檢查器
+                description: 檢查原始 WebSocket 流量
               vibrant:
-                title: Color extract
-                description: Test color extraction
+                title: 色彩擷取
+                description: 測試色彩擷取
               providers-transcription-realtime-aliyun-nls:
-                title: Aliyun Real-time Transcriber
+                title: 阿里雲即時轉錄器
                 description: >-
-                  Stream microphone audio to Aliyun NLS and inspect live transcripts
+                  將麥克風音訊串流至阿里雲 NLS 並檢查即時轉錄文字
               performance-playground:
-                title: Performance Playground
-                description: 'VRM expressions + TTS lip sync playground'
+                title: 效能實驗場
+                description: 'VRM 表情 + TTS 嘴型同步實驗場'
         theme-presets:
           presets:
             default:
               colors:
-                color-1: AIRI Green
-              description: The default greenish theme color, brought by AIRI to you!
-              title: Default Color
+                color-1: AIRI 綠
+              description: AIRI 為您帶來的預設綠色系主題色彩！
+              title: 預設色彩
             morandi:
               colors:
-                color-1: Taupe
-                color-2: Beige
-                color-3: Ash Grey
-                color-4: Light Taupe
-                color-5: Ivory
-                color-6: Olive Grey
-                color-7: Sand
-                color-8: Warm Grey
-              description: Soft, muted tones inspired by Giorgio Morandi's paintings
-              title: Morandi Colors
+                color-1: 灰褐色
+                color-2: 米色
+                color-3: 灰白色
+                color-4: 淺褐色
+                color-5: 象牙色
+                color-6: 橄欖灰
+                color-7: 砂色
+                color-8: 暖灰色
+              description: 受喬治·莫蘭迪畫作啟發的柔和低飽和色調
+              title: Morandi 顏色
             monet:
               colors:
-                color-1: Sky Blue
-                color-2: Mist
-                color-3: Sand
-                color-4: Moss Green
-                color-5: Water Lily
-                color-6: Wheat
-                color-7: Slate Blue
-                color-8: Sage
-              description: Impressionist palette inspired by Claude Monet's works
-              title: Monet Colors
+                color-1: 天藍色
+                color-2: 薄霧色
+                color-3: 砂色
+                color-4: 苔綠色
+                color-5: 睡蓮色
+                color-6: 小麥色
+                color-7: 板岩藍
+                color-8: 鼠尾草綠
+              description: 受克勞德·莫內作品啟發的印象派色調
+              title: 莫內(Monet) 色系
             japanese:
               colors:
-                color-1: Tan
-                color-2: Warm Taupe
-                color-3: Umber
-                color-4: Coffee
-                color-5: Bronze
-                color-6: Gold
-                color-7: Mustard
-                color-8: Amber
-              description: Traditional Japanese color palette
-              title: Japanese Colors
+                color-1: 棕褐色
+                color-2: 暖灰褐色
+                color-3: 深棕褐
+                color-4: 咖啡色
+                color-5: 古銅色
+                color-6: 金色
+                color-7: 芥末黃
+                color-8: 琥珀色
+              description: 傳統日本色彩調色盤
+              title: 日本顏色
             nordic:
               colors:
-                color-1: Nordic Blue
-                color-2: Ice
-                color-3: Fjord
-                color-4: Steel
-                color-5: Glacier
-                color-6: Slate
-                color-7: Cloud
-                color-8: Stone
-              description: Scandinavian minimalist color scheme
-              title: Nordic Colors
+                color-1: 北歐藍
+                color-2: 冰色
+                color-3: 峽灣色
+                color-4: 鋼灰
+                color-5: 冰川藍
+                color-6: 石板灰
+                color-7: 雲霧灰
+                color-8: 石頭色
+              description: 北歐極簡主義配色方案
+              title: 北歐顏色
             chinese:
               colors:
-                color-1: Rosy Dawn
-                color-2: Chinese Red
-                color-3: Smoky Brown
-                color-4: Bamboo Green
-                color-5: Dark Purple
-                color-6: Golden Yellow
-                color-7: Azure Blue
-                color-8: Ochre
+                color-1: 霞光紅
+                color-2: 棗紅
+                color-3: 黃櫨
+                color-4: 竹青
+                color-5: 烏梅紫
+                color-6: 緗色
+                color-7: 青冥
+                color-8: 赭石色
               description: >-
-                Traditional Chinese colors, derived from ancient textiles, porcelain and paintings
-              title: Chinese Traditional Colors
+                源自古代紡織品、瓷器和畫作的傳統中國色彩
+              title: 中國傳統色彩
           title: 預設
     title: 外觀
   page:
     developers:
       open-devtools:
-        title: Open Developer Tools
-        button: Open
+        title: 開放開發者工具
+        button: 開放
 sections:
   section:
     general:
