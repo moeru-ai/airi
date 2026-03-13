@@ -18,6 +18,7 @@ const amazonBedrockConfigSchema = z.object({
     .optional(),
   region: z
     .string('AWS Region')
+    .regex(/^[a-z]{2,3}-[a-z]+-\d+$/, 'Must be a valid AWS region (e.g. us-east-1, ap-southeast-1)')
     .optional()
     .default('us-east-1'),
 })
@@ -229,7 +230,7 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
   }),
 
   createProvider(config) {
-    const region = config.region || 'us-east-1'
+    const region = config.region
     const baseURL = `https://bedrock-runtime.${region}.amazonaws.com/v1/`
     const chatProvider = createBedrockConverseProvider({
       accessKeyId: config.accessKeyId,
@@ -244,7 +245,7 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
   },
 
   extraMethods: {
-    listModels: async (config) => {
+    listModels: async (config, _provider) => {
       const region = (config as AmazonBedrockConfig).region || 'us-east-1'
 
       const aws = new AwsClient({
@@ -370,6 +371,35 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
 
   validators: {
     validateConfig: [],
-    validateProvider: [],
+    validateProvider: [
+      () => ({
+        id: 'amazon-bedrock:check-credentials',
+        validate: async (config: Record<string, any>) => {
+          const region = config.region || 'us-east-1'
+          const aws = new AwsClient({
+            accessKeyId: config.accessKeyId,
+            secretAccessKey: config.secretAccessKey,
+            sessionToken: config.sessionToken,
+            region,
+            service: 'bedrock',
+          })
+          try {
+            const res = await fetch(
+              await aws.sign(
+                `https://bedrock.${region}.amazonaws.com/foundation-models?byInferenceType=ON_DEMAND&byOutputModality=TEXT&byProvider=Amazon&maxResults=1`,
+                { method: 'GET' },
+              ),
+            )
+            if (res.status === 403 || res.status === 401) {
+              return { valid: false, reason: 'Invalid AWS credentials or insufficient permissions for Amazon Bedrock.' }
+            }
+            return { valid: true }
+          }
+          catch {
+            return { valid: false, reason: 'Failed to connect to Amazon Bedrock. Check your region and network.' }
+          }
+        },
+      }),
+    ],
   },
 })
