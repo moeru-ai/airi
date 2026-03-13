@@ -8,16 +8,16 @@
 
 ## 👤 My Pending Commits (`dasilva333`)
 
-| PR # | Title | Last Feedback | Link |
-| :--- | :--- | :--- | :--- |
-| #1327 | feat: implement universal STT chat inscription and fix duplicate sessions | **gemini-code-assist[bot]** (2026-03-13): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1327](https://github.com/moeru-ai/airi/pull/1327) |
-| #1320 | feat: discord bot stabilization, channel routing, and auto-discovery | **gemini-code-assist[bot]** (2026-03-12): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1320](https://github.com/moeru-ai/airi/pull/1320) |
-| #1300 | feat: implement stt feedback toasts and refined llm logging | **gemini-code-assist[bot]** (2026-03-11): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1300](https://github.com/moeru-ai/airi/pull/1300) |
-| #1299 | feat: port VAD and speech pipeline stability improvements | **gemini-code-assist[bot]** (2026-03-11): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1299](https://github.com/moeru-ai/airi/pull/1299) |
-| #1298 | feat: port scrolllock microphone toggle service | **gemini-code-assist[bot]** (2026-03-11): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1298](https://github.com/moeru-ai/airi/pull/1298) |
-| #1297 | feat: port model selector redesign and live2d validation | **gemini-code-assist[bot]** (2026-03-11): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1297](https://github.com/moeru-ai/airi/pull/1297) |
-| #1295 | feat(speech): pipeline stability and audio quality fixes | **gemini-code-assist[bot]** (2026-03-11): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1295](https://github.com/moeru-ai/airi/pull/1295) |
-| #1289 | fix(tray): auto-restore window position from snapshot on startup | **gemini-code-assist[bot]** (2026-03-11): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1289](https://github.com/moeru-ai/airi/pull/1289) |
+| PR # | Title | Status | Last Feedback | Link |
+| :--- | :--- | :--- | :--- | :--- |
+| #1327 | feat: implement universal STT chat inscription and fix duplicate sessions | ✅ | **gemini-code-assist[bot]** (2026-03-13): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1327](https://github.com/moeru-ai/airi/pull/1327) |
+| #1320 | feat: discord bot stabilization, channel routing, and auto-discovery | ⏳ | **gemini-code-assist[bot]** (2026-03-12): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1320](https://github.com/moeru-ai/airi/pull/1320) |
+| #1300 | feat: implement stt feedback toasts and refined llm logging | ⏳ | **gemini-code-assist[bot]** (2026-03-11): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1300](https://github.com/moeru-ai/airi/pull/1300) |
+| #1299 | feat: port VAD and speech pipeline stability improvements | ⏳ | **gemini-code-assist[bot]** (2026-03-11): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1299](https://github.com/moeru-ai/airi/pull/1299) |
+| #1298 | feat: port scrolllock microphone toggle service | ⏳ | **gemini-code-assist[bot]** (2026-03-11): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1298](https://github.com/moeru-ai/airi/pull/1298) |
+| #1297 | feat: port model selector redesign and live2d validation | ✅ | **gemini-code-assist[bot]** (2026-03-11): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1297](https://github.com/moeru-ai/airi/pull/1297) |
+| #1295 | feat(speech): pipeline stability and audio quality fixes | ⏳ | **shinohara-rin** (2026-03-13): We'd like to see some demos if that's possible | [1295](https://github.com/moeru-ai/airi/pull/1295) |
+| #1289 | fix(tray): auto-restore window position from snapshot on startup | ⏳ | **gemini-code-assist[bot]** (2026-03-11): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1289](https://github.com/moeru-ai/airi/pull/1289) |
 
 ---
 
