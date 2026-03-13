@@ -2,9 +2,7 @@
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { FieldInput, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { useI18n } from 'vue-i18n'
 
-const { t } = useI18n()
 const artistryStore = useArtistryStore()
 
 const {

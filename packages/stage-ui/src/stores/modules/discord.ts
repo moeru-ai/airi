@@ -1,6 +1,6 @@
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
-import { computed, onMounted } from 'vue'
+import { computed } from 'vue'
 
 import { useConfiguratorByModsChannelServer } from '../configurator'
 

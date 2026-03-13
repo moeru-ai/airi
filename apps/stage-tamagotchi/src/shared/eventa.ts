@@ -6,7 +6,8 @@ export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke
 export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
 
 export const electronOpenMainDevtools = defineInvokeEventa('eventa:invoke:electron:windows:main:devtools:open')
-export const electronOpenSettings = defineInvokeEventa('eventa:invoke:electron:windows:settings:open')
+export const electronOpenSettings = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:settings:open')
+export const electronSettingsNavigate = defineEventa<{ route: string }>('eventa:event:electron:windows:settings:navigate')
 export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windows:chat:open')
 export const electronOpenSettingsDevtools = defineInvokeEventa('eventa:invoke:electron:windows:settings:devtools:open')
 export const electronOpenDevtoolsWindow = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:devtools:open')
@@ -200,6 +201,40 @@ export const widgetsHideWindow = defineInvokeEventa<void, { id?: string }>('even
 export const electronWindowClose = defineInvokeEventa<void>('eventa:invoke:electron:window:close')
 export const electronWindowSetAlwaysOnTop = defineInvokeEventa<void, boolean>('eventa:invoke:electron:window:set-always-on-top')
 export const electronAppQuit = defineInvokeEventa<void>('eventa:invoke:electron:app:quit')
+
+export interface ElectronWindowLifecycleState {
+  focused: boolean
+  minimized: boolean
+  reason: string
+  updatedAt: number
+  visible: boolean
+}
+
+export const electronGetWindowLifecycleState = defineInvokeEventa<ElectronWindowLifecycleState>('eventa:invoke:electron:windows:lifecycle:get')
+export const electronWindowLifecycleChanged = defineEventa<ElectronWindowLifecycleState>('eventa:event:electron:windows:lifecycle:changed')
+
+export type StageThreeRuntimeTraceEnvelope
+  = | { type: 'three-render-info', payload: any }
+    | { type: 'three-hit-test-read', payload: any }
+    | { type: 'vrm-update-frame', payload: any }
+    | { type: 'vrm-load-start', payload: any }
+    | { type: 'vrm-load-end', payload: any }
+    | { type: 'vrm-load-error', payload: any }
+    | { type: 'vrm-dispose-start', payload: any }
+    | { type: 'vrm-dispose-end', payload: any }
+
+export interface StageThreeRuntimeTraceForwardedPayload {
+  envelope: StageThreeRuntimeTraceEnvelope
+  origin: string
+}
+
+export interface StageThreeRuntimeTraceRemoteControlPayload {
+  origin: string
+}
+
+export const stageThreeRuntimeTraceForwardedEvent = defineEventa<StageThreeRuntimeTraceForwardedPayload>('eventa:event:stage-three-runtime-trace:forwarded')
+export const stageThreeRuntimeTraceRemoteEnableEvent = defineEventa<StageThreeRuntimeTraceRemoteControlPayload>('eventa:event:stage-three-runtime-trace:remote-enable')
+export const stageThreeRuntimeTraceRemoteDisableEvent = defineEventa<StageThreeRuntimeTraceRemoteControlPayload>('eventa:event:stage-three-runtime-trace:remote-disable')
 
 export const electronGetMainWindowConfig = defineInvokeEventa<any>('eventa:invoke:electron:windows:main:get-config')
 export const electronMainWindowConfigChanged = defineEventa<any>('eventa:event:electron:windows:main:config-changed')

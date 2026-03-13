@@ -11,11 +11,11 @@ const props = defineProps<{
 }>()
 
 const { stageModelRenderer, stageViewControlsEnabled } = storeToRefs(useSettings())
-const { modelOffset: vrmPosition, modelSize: vrmModelSize, cameraDistance: vrmCameraDistance, sceneMutationLocked: vrmSceneMutationLocked } = storeToRefs(useModelStore())
+const { modelOffset: vrmPosition, modelSize: vrmModelSize, cameraDistance: vrmCameraDistance } = storeToRefs(useModelStore())
 const { scale: live2dScale, position: live2dPosition } = storeToRefs(useLive2d())
 
 const vrmControlsDisabled = computed(() => {
-  return stageModelRenderer.value === 'vrm' && vrmSceneMutationLocked.value
+  return stageModelRenderer.value === 'vrm' && false // vrmSceneMutationLocked was removed upstream
 })
 
 const viewControlsValueX = computed({

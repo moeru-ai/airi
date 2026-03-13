@@ -702,7 +702,6 @@ onUnmounted(() => {
           <div flex="~ row gap-4">
             <RadioCardSimple
               id="detection-mode-vad"
-              v-slot="{ active }"
               v-model="hearingDetectionMode"
               name="detection-mode"
               value="vad"
@@ -711,7 +710,6 @@ onUnmounted(() => {
             />
             <RadioCardSimple
               id="detection-mode-manual"
-              v-slot="{ active }"
               v-model="hearingDetectionMode"
               name="detection-mode"
               value="manual"

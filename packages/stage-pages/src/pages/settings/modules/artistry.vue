@@ -2,10 +2,8 @@
 import { RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { storeToRefs } from 'pinia'
-import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-const { t } = useI18n()
 const router = useRouter()
 const artistryStore = useArtistryStore()
 const { activeProvider } = storeToRefs(artistryStore)

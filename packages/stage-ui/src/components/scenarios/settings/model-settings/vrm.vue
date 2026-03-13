@@ -22,7 +22,6 @@ const { t } = useI18n()
 
 const modelStore = useModelStore()
 const {
-  sceneMutationLocked,
   modelSize,
   modelOffset,
   cameraFOV,
@@ -44,6 +43,9 @@ const {
   envSelect,
   skyBoxIntensity,
 } = storeToRefs(modelStore)
+
+// NOTICE: sceneMutationLocked was removed upstream; hardcoded to false.
+const sceneMutationLocked = computed(() => false)
 const trackingOptions = computed<{
   value: 'camera' | 'mouse' | 'none'
   label: string

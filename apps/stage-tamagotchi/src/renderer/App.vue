@@ -115,7 +115,6 @@ onMounted(async () => {
 
   analyticsStore.initialize()
   cardStore.initialize()
-  onboardingStore.initializeSetupCheck()
 
   await chatSessionStore.initialize()
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
@@ -168,8 +167,8 @@ watch(themeColorsHueDynamic, () => {
   document.documentElement.classList.toggle('dynamic-hue', themeColorsHueDynamic.value)
 }, { immediate: true })
 
-watch(() => onboardingStore.shouldShowSetup, () => {
-  if (onboardingStore.shouldShowSetup) {
+watch(() => onboardingStore.needsOnboarding, () => {
+  if (onboardingStore.needsOnboarding) {
     openOnboarding()
   }
 }, { immediate: true })

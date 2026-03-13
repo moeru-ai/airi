@@ -294,13 +294,14 @@ export async function createServerChannelService(params: { serverChannel: Server
   const { context } = createContext(ipcMain)
 
   defineInvokeHandler(context, electronGetServerChannelConfig, async () => {
-    return await getChannelServerConfig()
+    const config = await getChannelServerConfig()
+    return { websocketTlsConfig: config.tlsConfig || null }
   })
 
   defineInvokeHandler(context, electronApplyServerChannelConfig, async (req) => {
     try {
       const current = await getChannelServerConfig()
-      const next = await normalizeChannelServerOptions(req, current)
+      const next = await normalizeChannelServerOptions({ tlsConfig: req?.websocketTlsConfig }, current)
       const changed = JSON.stringify(next.tlsConfig) !== JSON.stringify(current.tlsConfig)
 
       channelServerConfigStore.update(next)
@@ -318,7 +319,7 @@ export async function createServerChannelService(params: { serverChannel: Server
         await params.serverChannel.start()
       }
 
-      return next
+      return { websocketTlsConfig: next.tlsConfig || null }
     }
     catch (error) {
       useLogg('main/server-runtime').withError(error).error('Failed to apply server channel configuration')

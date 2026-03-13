@@ -15,11 +15,11 @@ export const useServerChannelSettingsStore = defineStore('tamagotchi-server-chan
 
   watch(websocketTlsConfig, async (newValue) => {
     websocketTlsConfig.value = newValue
-    await applyServerChannelConfig({ tlsConfig: newValue ? {} : null })
+    await applyServerChannelConfig({ websocketTlsConfig: newValue ? {} : null })
   })
 
   watch(serverChannelConfig.state, (newConfig) => {
-    websocketTlsConfig.value = newConfig?.tlsConfig
+    websocketTlsConfig.value = newConfig?.websocketTlsConfig
   })
 
   return {
