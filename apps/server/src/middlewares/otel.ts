@@ -1,5 +1,6 @@
 import type { MiddlewareHandler } from 'hono'
 
+import type { HttpMetrics } from '../libs/otel'
 import type { HonoEnv } from '../types/hono'
 
 import { context, SpanStatusCode, trace } from '@opentelemetry/api'
@@ -10,16 +11,13 @@ const tracer = trace.getTracer('airi-server-hono')
  * Hono middleware that creates spans for each request and records
  * custom HTTP metrics (duration, active requests, status codes).
  */
-export function otelMiddleware(otelMetrics: {
-  httpRequestDuration: { record: (value: number, attributes?: Record<string, string | number>) => void }
-  httpActiveRequests: { add: (value: number, attributes?: Record<string, string>) => void }
-}): MiddlewareHandler<HonoEnv> {
+export function otelMiddleware(http: HttpMetrics): MiddlewareHandler<HonoEnv> {
   return async (c, next) => {
     const startTime = performance.now()
     const method = c.req.method
     const path = c.req.path
 
-    otelMetrics.httpActiveRequests.add(1, { 'http.request.method': method, 'http.route': path })
+    http.activeRequests.add(1, { 'http.request.method': method, 'http.route': path })
 
     const span = tracer.startSpan(`${method} ${path}`, {
       attributes: {
@@ -39,7 +37,7 @@ export function otelMiddleware(otelMetrics: {
         span.setStatus({ code: SpanStatusCode.ERROR, message: `HTTP ${status}` })
       }
 
-      otelMetrics.httpRequestDuration.record(performance.now() - startTime, {
+      http.requestDuration.record(performance.now() - startTime, {
         'http.request.method': method,
         'http.route': path,
         'http.response.status_code': status,
@@ -51,7 +49,7 @@ export function otelMiddleware(otelMetrics: {
       throw err
     }
     finally {
-      otelMetrics.httpActiveRequests.add(-1, { 'http.request.method': method, 'http.route': path })
+      http.activeRequests.add(-1, { 'http.request.method': method, 'http.route': path })
       span.end()
     }
   }

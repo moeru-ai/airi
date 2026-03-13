@@ -2,7 +2,7 @@
 
 import type { Context } from 'hono'
 
-import type { initOtel } from '../libs/otel'
+import type { LlmMetrics } from '../libs/otel'
 import type { ConfigKVService } from '../services/config-kv'
 import type { FluxService } from '../services/flux'
 import type { RequestLogService } from '../services/request-log'
@@ -16,7 +16,6 @@ import { authGuard } from '../middlewares/auth'
 import { configGuard } from '../middlewares/config-guard'
 import { createPaymentRequiredError } from '../utils/error'
 
-type OtelMetrics = ReturnType<typeof initOtel>
 const tracer = trace.getTracer('v1-completions')
 
 const SAFE_RESPONSE_HEADERS = new Set([
@@ -63,20 +62,20 @@ function calculateFluxFromUsage(usage: UsageInfo, fluxPer1kTokens: number, fallb
   return fallbackRate
 }
 
-export function createV1CompletionsRoutes(fluxService: FluxService, configKV: ConfigKVService, requestLogService: RequestLogService, otel: OtelMetrics | null) {
+export function createV1CompletionsRoutes(fluxService: FluxService, configKV: ConfigKVService, requestLogService: RequestLogService, llm: LlmMetrics | null) {
   const logger = useLogger('v1-completions').useGlobalConfig()
 
   function recordMetrics(opts: { model: string, status: number, type: string, durationMs: number, fluxConsumed: number, promptTokens?: number, completionTokens?: number }) {
-    if (!otel)
+    if (!llm)
       return
     const attrs = { model: opts.model, type: opts.type, status: opts.status }
-    otel.llmRequestCount.add(1, attrs)
-    otel.llmRequestDuration.record(opts.durationMs, attrs)
-    otel.fluxConsumed.add(opts.fluxConsumed, { model: opts.model, type: opts.type })
+    llm.requestCount.add(1, attrs)
+    llm.requestDuration.record(opts.durationMs, attrs)
+    llm.fluxConsumed.add(opts.fluxConsumed, { model: opts.model, type: opts.type })
     if (opts.promptTokens != null)
-      otel.llmTokensPrompt.add(opts.promptTokens, { model: opts.model })
+      llm.tokensPrompt.add(opts.promptTokens, { model: opts.model })
     if (opts.completionTokens != null)
-      otel.llmTokensCompletion.add(opts.completionTokens, { model: opts.model })
+      llm.tokensCompletion.add(opts.completionTokens, { model: opts.model })
   }
 
   async function handleCompletion(c: Context<HonoEnv>) {

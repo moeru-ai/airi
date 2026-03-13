@@ -1,4 +1,5 @@
 import type { Database } from '../libs/db'
+import type { EngagementMetrics } from '../libs/otel'
 
 import { and, eq, inArray, sql } from 'drizzle-orm'
 
@@ -45,10 +46,10 @@ function pickCharacterId(members: SyncChatMemberPayload[] | undefined) {
   return members?.find(member => member.type === 'character' && member.characterId)?.characterId
 }
 
-export function createChatService(db: Database) {
+export function createChatService(db: Database, metrics?: EngagementMetrics | null) {
   return {
     async syncChat(userId: string, payload: SyncChatPayload) {
-      return await db.transaction(async (tx) => {
+      const result = await db.transaction(async (tx) => {
         const now = new Date()
         const chatId = payload.chat.id
         const members = payload.members ?? []
@@ -160,8 +161,15 @@ export function createChatService(db: Database) {
             })
         }
 
-        return { chatId }
+        return { chatId, chatType: payload.chat.type ?? 'group', messageCount: payload.messages.length }
       })
+
+      metrics?.chatSync.add(1, { chat_type: result.chatType })
+      if (result.messageCount > 0) {
+        metrics?.chatMessages.add(result.messageCount)
+      }
+
+      return { chatId: result.chatId }
     },
   }
 }

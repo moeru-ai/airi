@@ -1,4 +1,5 @@
 import type { Env } from '../libs/env'
+import type { RevenueMetrics } from '../libs/otel'
 import type { ConfigKVService } from '../services/config-kv'
 import type { FluxService } from '../services/flux'
 import type { StripeService } from '../services/stripe'
@@ -17,7 +18,7 @@ const CheckoutBodySchema = object({
   amount: pipe(number(), integer(), minValue(1)),
 })
 
-export function createStripeRoutes(fluxService: FluxService, stripeService: StripeService, configKV: ConfigKVService, env: Env) {
+export function createStripeRoutes(fluxService: FluxService, stripeService: StripeService, configKV: ConfigKVService, env: Env, metrics?: RevenueMetrics | null) {
   const stripe = env.STRIPE_SECRET_KEY ? new Stripe(env.STRIPE_SECRET_KEY) : null
 
   const fluxConfigGuard = configGuard(configKV, ['FLUX_PER_CENT'], 'Top-up is not available yet')
@@ -86,6 +87,8 @@ export function createStripeRoutes(fluxService: FluxService, stripeService: Stri
         expiresAt: session.expires_at ? new Date(session.expires_at * 1000) : null,
       })
 
+      metrics?.stripeCheckoutCreated.add(1)
+
       return c.json({ url: session.url })
     })
 
@@ -140,9 +143,12 @@ export function createStripeRoutes(fluxService: FluxService, stripeService: Stri
         throw createBadRequestError(`Webhook Error: ${message}`, 'WEBHOOK_ERROR')
       }
 
+      metrics?.stripeEvents.add(1, { event_type: event.type })
+
       switch (event.type) {
         case 'checkout.session.completed': {
           await handleCheckoutSessionCompleted(event.data.object, fluxService, stripeService, configKV)
+          metrics?.stripeCheckoutCompleted.add(1)
           break
         }
         case 'customer.created':
@@ -154,6 +160,7 @@ export function createStripeRoutes(fluxService: FluxService, stripeService: Stri
         case 'customer.subscription.updated':
         case 'customer.subscription.deleted': {
           await handleSubscriptionEvent(event.data.object, stripeService)
+          metrics?.stripeSubscriptionEvent.add(1, { event_type: event.type.replace('customer.subscription.', '') })
           break
         }
         case 'invoice.created':
@@ -161,6 +168,9 @@ export function createStripeRoutes(fluxService: FluxService, stripeService: Stri
         case 'invoice.paid':
         case 'invoice.payment_failed': {
           await handleInvoiceEvent(event.data.object, fluxService, stripeService, configKV)
+          if (event.type === 'invoice.payment_failed') {
+            metrics?.stripePaymentFailed.add(1)
+          }
           break
         }
       }

@@ -1,4 +1,5 @@
 import type { Env } from './libs/env'
+import type { OtelInstance } from './libs/otel'
 import type { HonoEnv } from './types/hono'
 
 import process from 'node:process'
@@ -44,8 +45,6 @@ type ConfigKVService = ReturnType<typeof createConfigKVService>
 type RequestLogService = ReturnType<typeof createRequestLogService>
 type StripeDBService = ReturnType<typeof createStripeService>
 
-type OtelMetrics = ReturnType<typeof initOtel>
-
 interface AppDeps {
   auth: AuthService
   characterService: CharacterService
@@ -56,7 +55,7 @@ interface AppDeps {
   stripeService: StripeDBService
   configKV: ConfigKVService
   env: Env
-  otel: OtelMetrics | null
+  otel: OtelInstance | null
 }
 
 function buildApp({
@@ -84,7 +83,7 @@ function buildApp({
     .use(honoLogger())
 
   if (otel) {
-    app.use('*', otelMiddleware(otel))
+    app.use('*', otelMiddleware(otel.http))
   }
 
   return app
@@ -138,7 +137,7 @@ function buildApp({
     /**
      * V1 routes for official provider.
      */
-    .route('/api/v1', createV1CompletionsRoutes(fluxService, configKV, requestLogService, otel))
+    .route('/api/v1', createV1CompletionsRoutes(fluxService, configKV, requestLogService, otel?.llm ?? null))
 
     /**
      * Flux routes.
@@ -148,7 +147,7 @@ function buildApp({
     /**
      * Stripe routes.
      */
-    .route('/api/stripe', createStripeRoutes(fluxService, stripeService, configKV, env))
+    .route('/api/stripe', createStripeRoutes(fluxService, stripeService, configKV, env, otel?.revenue))
 }
 
 export type AppType = ReturnType<typeof buildApp>
@@ -200,13 +199,13 @@ async function createApp() {
   })
 
   const auth = injeca.provide('services:auth', {
-    dependsOn: { db, env: parsedEnv },
-    build: ({ dependsOn }) => createAuth(dependsOn.db, dependsOn.env),
+    dependsOn: { db, env: parsedEnv, otel },
+    build: ({ dependsOn }) => createAuth(dependsOn.db, dependsOn.env, dependsOn.otel?.auth),
   })
 
   const characterService = injeca.provide('services:characters', {
-    dependsOn: { db },
-    build: ({ dependsOn }) => createCharacterService(dependsOn.db),
+    dependsOn: { db, otel },
+    build: ({ dependsOn }) => createCharacterService(dependsOn.db, dependsOn.otel?.engagement),
   })
 
   const providerService = injeca.provide('services:providers', {
@@ -215,8 +214,8 @@ async function createApp() {
   })
 
   const chatService = injeca.provide('services:chats', {
-    dependsOn: { db },
-    build: ({ dependsOn }) => createChatService(dependsOn.db),
+    dependsOn: { db, otel },
+    build: ({ dependsOn }) => createChatService(dependsOn.db, dependsOn.otel?.engagement),
   })
 
   const stripeService = injeca.provide('services:stripe', {
@@ -225,8 +224,8 @@ async function createApp() {
   })
 
   const fluxService = injeca.provide('services:flux', {
-    dependsOn: { db, redis, configKV },
-    build: ({ dependsOn }) => createFluxService(dependsOn.db, dependsOn.redis, dependsOn.configKV),
+    dependsOn: { db, redis, configKV, otel },
+    build: ({ dependsOn }) => createFluxService(dependsOn.db, dependsOn.redis, dependsOn.configKV, dependsOn.otel?.revenue),
   })
 
   const requestLogService = injeca.provide('services:requestLog', {

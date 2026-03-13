@@ -1,6 +1,7 @@
 import type Redis from 'ioredis'
 
 import type { Database } from '../libs/db'
+import type { RevenueMetrics } from '../libs/otel'
 import type { ConfigKVService } from './config-kv'
 
 import { eq, sql } from 'drizzle-orm'
@@ -13,7 +14,7 @@ function redisKey(userId: string): string {
   return `flux:${userId}`
 }
 
-export function createFluxService(db: Database, redis: Redis, configKV: ConfigKVService) {
+export function createFluxService(db: Database, redis: Redis, configKV: ConfigKVService, metrics?: RevenueMetrics | null) {
   return {
     async getFlux(userId: string) {
       // 1. Try Redis cache
@@ -55,6 +56,7 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
       const newBalance = await redis.decrby(redisKey(userId), amount)
       if (newBalance < 0) {
         await redis.incrby(redisKey(userId), amount)
+        metrics?.fluxInsufficientBalance.add(1)
         throw createPaymentRequiredError('Insufficient flux')
       }
 
