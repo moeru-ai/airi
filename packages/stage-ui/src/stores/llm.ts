@@ -7,7 +7,7 @@ import { streamText } from '@xsai/stream-text'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-import { mcp } from '../tools'
+import { airiSelf, hasAiriSelfNavigationBridge, mcp } from '../tools'
 import { runManualToolLoop } from './llm-tool-loop'
 import { beginMcpApprovalSession, endMcpApprovalSession } from './mcp-approval-session'
 
@@ -129,6 +129,10 @@ export async function resolveBuiltinChatTools(params: {
       promptContentMode: params.promptContentMode,
     }),
   ]
+
+  if (hasAiriSelfNavigationBridge()) {
+    tools.push(...await airiSelf())
+  }
 
   if (params.extraTools?.length) {
     tools.push(...params.extraTools)

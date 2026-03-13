@@ -1,32 +1,16 @@
-import type {
-  BrowserDomBridgeStatus,
-  ComputerUseConfig,
-  DesktopExecutor,
-  TerminalRunner,
-} from '../types'
+import type { ComputerUseConfig, DesktopExecutor, TerminalRunner } from '../types'
+import type { CdpBridgeManager } from './cdp-manager'
 
+import { BrowserDomExtensionBridge } from '../browser-dom/extension-bridge'
 import { resolveComputerUseConfig } from '../config'
 import { createDryRunExecutor } from '../executors/dry-run'
+import { createLinuxX11Executor } from '../executors/linux-x11'
 import { createMacOSLocalExecutor } from '../executors/macos-local'
 import { ComputerUseSession } from '../session'
 import { RunStateManager } from '../state'
 import { TaskMemoryManager } from '../task-memory/manager'
 import { createLocalShellRunner } from '../terminal/runner'
-
-interface RuntimeBrowserDomBridge {
-  getStatus: () => BrowserDomBridgeStatus
-  close: () => Promise<void>
-}
-
-interface CdpBridgeManager {
-  probeAvailability: () => Promise<{
-    endpoint: string
-    connected: boolean
-    connectable: boolean
-    lastError?: string
-  }>
-  close: () => Promise<void>
-}
+import { createCdpBridgeManager } from './cdp-manager'
 
 export interface ComputerUseServerOptions {
   executorFactory?: (config: ComputerUseConfig) => DesktopExecutor
@@ -38,7 +22,7 @@ export interface ComputerUseServerRuntime {
   session: ComputerUseSession
   executor: DesktopExecutor
   terminalRunner: TerminalRunner
-  browserDomBridge: RuntimeBrowserDomBridge
+  browserDomBridge: BrowserDomExtensionBridge
   cdpBridgeManager: CdpBridgeManager
   /** Unified run-level state manager. */
   stateManager: RunStateManager
@@ -46,38 +30,12 @@ export interface ComputerUseServerRuntime {
   taskMemory: TaskMemoryManager
 }
 
-function createNoopBrowserDomBridge(config: ComputerUseConfig): RuntimeBrowserDomBridge {
-  return {
-    getStatus: () => ({
-      enabled: config.browserDomBridge.enabled,
-      host: config.browserDomBridge.host,
-      port: config.browserDomBridge.port,
-      connected: false,
-      pendingRequests: 0,
-      lastError: 'Browser surface is deferred to Chunk 3 (browser/devtools/demo).',
-    }),
-    close: async () => {},
-  }
-}
-
-function createNoopCdpBridgeManager(): CdpBridgeManager {
-  return {
-    probeAvailability: async () => ({
-      endpoint: 'http://127.0.0.1:9222',
-      connected: false,
-      connectable: false,
-      lastError: 'Browser surface is deferred to Chunk 3 (browser/devtools/demo).',
-    }),
-    close: async () => {},
-  }
-}
-
 function createExecutor(config: ComputerUseConfig, options: ComputerUseServerOptions = {}): DesktopExecutor {
   if (options.executorFactory)
     return options.executorFactory(config)
 
   if (config.executor === 'linux-x11')
-    return createDryRunExecutor(config)
+    return createLinuxX11Executor(config)
   if (config.executor === 'macos-local')
     return createMacOSLocalExecutor(config)
 
@@ -96,8 +54,9 @@ export async function createRuntime(config = resolveComputerUseConfig(), options
   await session.init()
   const executor = createExecutor(config, options)
   const terminalRunner = createTerminal(config, options)
-  const browserDomBridge = createNoopBrowserDomBridge(config)
-  const cdpBridgeManager = createNoopCdpBridgeManager()
+  const browserDomBridge = new BrowserDomExtensionBridge(config.browserDomBridge)
+  const cdpBridgeManager = createCdpBridgeManager(config)
+  await browserDomBridge.start()
   const stateManager = new RunStateManager()
   const taskMemory = new TaskMemoryManager()
   session.setTerminalState(terminalRunner.getState())

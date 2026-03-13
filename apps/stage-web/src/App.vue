@@ -9,12 +9,13 @@ import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/conte
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { clearAiriSelfNavigationBridge, setAiriSelfNavigationBridge } from '@proj-airi/stage-ui/tools/airi-self'
 import { useTheme } from '@proj-airi/ui'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterView } from 'vue-router'
+import { RouterView, useRouter } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
 import PerformanceOverlay from './components/Devtools/PerformanceOverlay.vue'
@@ -32,10 +33,21 @@ const onboardingStore = useOnboardingStore()
 const chatSessionStore = useChatSessionStore()
 const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
+const router = useRouter()
 const { shouldShowSetup } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
 const analyticsStore = useSharedAnalyticsStore()
+
+// TODO: implement a wider set of tools for self navigation, configuration, and
+// related self-management actions instead of keeping this as a minimal bridge.
+setAiriSelfNavigationBridge({
+  navigateTo: async (path: string) => {
+    await router.push(path)
+    return router.currentRoute.value.fullPath
+  },
+  getCurrentRoute: () => router.currentRoute.value.fullPath,
+})
 
 const primaryColor = computed(() => {
   return isDark.value
@@ -88,6 +100,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  clearAiriSelfNavigationBridge()
   contextBridgeStore.dispose()
 })
 
@@ -112,7 +125,9 @@ function handleSetupSkipped() {
     :use-page-specific-transitions="settings.usePageSpecificTransitions.value"
   >
     <RouterView v-slot="{ Component }">
-      <component :is="Component" />
+      <KeepAlive :include="['IndexScenePage', 'StageScenePage']">
+        <component :is="Component" />
+      </KeepAlive>
     </RouterView>
   </StageTransitionGroup>
 

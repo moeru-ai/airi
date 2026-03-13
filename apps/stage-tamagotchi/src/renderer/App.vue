@@ -17,6 +17,7 @@ import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { clearAiriSelfNavigationBridge, setAiriSelfNavigationBridge } from '@proj-airi/stage-ui/tools/airi-self'
 import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, watch } from 'vue'
@@ -31,6 +32,7 @@ import {
   electronMcpCallTool,
   electronMcpListTools,
   electronMcpToolsChangedEvent,
+  electronOpenChat,
   electronOpenSettings,
   electronPluginInspect,
   electronPluginList,
@@ -45,6 +47,7 @@ import {
   pluginProtocolListProviders,
   pluginProtocolListProvidersEventName,
 } from '../shared/eventa'
+import { installAiriDebugBridge } from './modules/airi-debug-bridge'
 import {
   canAutoApproveComputerUseAction,
   getSessionScopedApprovalGrantScope,
@@ -84,9 +87,22 @@ const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapab
 const listMcpTools = useElectronEventaInvoke(electronMcpListTools)
 const callMcpToolRaw = useElectronEventaInvoke(electronMcpCallTool)
 const promptDesktopAutomationApproval = useElectronEventaInvoke(electronPromptDesktopAutomationApproval)
+const openChatWindow = useElectronEventaInvoke(electronOpenChat)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
 
 const computerUseApprovalGrants = new Map<string, { scope: 'terminal_and_apps' | 'pty_session' }>()
+const disposeAiriDebugBridge = installAiriDebugBridge({
+  openChat: () => openChatWindow(),
+  navigateTo: (path: string) => router.push(path),
+})
+
+setAiriSelfNavigationBridge({
+  navigateTo: async (path: string) => {
+    await router.push(path)
+    return router.currentRoute.value.fullPath
+  },
+  getCurrentRoute: () => router.currentRoute.value.fullPath,
+})
 
 function patchComputerUseTerminalState(result: any, approvalSessionId?: string) {
   const grant = approvalSessionId ? computerUseApprovalGrants.get(approvalSessionId) : undefined
@@ -285,6 +301,8 @@ watch(themeColorsHueDynamic, () => {
 }, { immediate: true })
 
 onUnmounted(() => {
+  disposeAiriDebugBridge()
+  clearAiriSelfNavigationBridge()
   stopMcpApprovalSessionListener()
   contextBridgeStore.dispose()
   clearMcpToolBridge()
