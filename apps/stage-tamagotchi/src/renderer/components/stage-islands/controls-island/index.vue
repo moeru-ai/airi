@@ -2,6 +2,7 @@
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { useModelStore } from '@proj-airi/stage-ui-three'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { useTimeoutFn } from '@vueuse/core'
@@ -371,11 +372,14 @@ function toggleFavorite() {
           >
             <div
               i-ph:arrows-out-cardinal
-              :class="[adjustStyleClasses.icon, 'text-neutral-800 dark:text-neutral-300']"
+              :class="[
+                adjustStyleClasses.icon,
+                useHearingStore().isTranscribing ? 'text-red-500 animate-pulse' : 'text-neutral-800 dark:text-neutral-300',
+              ]"
             />
           </ControlButton>
           <template #tooltip>
-            {{ t('tamagotchi.stage.controls-island.drag-to-move-window') }}
+            {{ useHearingStore().isTranscribing ? 'STT Processing...' : t('tamagotchi.stage.controls-island.drag-to-move-window') }}
           </template>
         </ControlButtonTooltip>
       </div>

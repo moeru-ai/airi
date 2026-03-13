@@ -3,19 +3,21 @@
 > [!IMPORTANT]
 > **Major Stable Build Marker**: `b1588ffe41a9825b98cf5bfae219836549a37ff2`
 > This hash represents the last vetted stable point in `airi-rebase-scratch` before the March 13 rebase.
+>
+> **Maintenance**: Use `node scripts/github/pr-comment-tracker.mjs` to refresh the feedback data.
 
 ## 👤 My Pending Commits (`dasilva333`)
 
 | PR # | Title | Last Feedback | Link |
 | :--- | :--- | :--- | :--- |
-| #1327 | feat: implement universal STT chat inscription and fix duplicate sessions | **gemini-code-assist** (2026-03-13T06:25Z): Summarized universal STT chat inscription and duplicate session fixes. | [1327](https://github.com/moeru-ai/airi/pull/1327) |
-| #1320 | feat: discord bot stabilization, channel routing, and auto-discovery | **gemini-code-assist** (2026-03-12T15:20Z): Summarized Discord bot stabilization, routing fixes, and auto-discovery. | [1320](https://github.com/moeru-ai/airi/pull/1320) |
-| #1300 | feat: implement stt feedback toasts and refined llm logging | **gemini-code-assist** (2026-03-11T23:09Z): Summarized STT feedback toasts and refined logging. | [1300](https://github.com/moeru-ai/airi/pull/1300) |
-| #1299 | feat: port VAD and speech pipeline stability improvements | **gemini-code-assist** (2026-03-11T21:21Z): Highlighted audio recorder stability and VAD reliability enhancements. | [1299](https://github.com/moeru-ai/airi/pull/1299) |
-| #1298 | feat: port scrolllock microphone toggle service | **gemini-code-assist** (2026-03-11T21:19Z): Summarized hardware-based mic toggling via Scroll Lock. | [1298](https://github.com/moeru-ai/airi/pull/1298) |
-| #1297 | feat: port model selector redesign and live2d validation | **gemini-code-assist** (2026-03-11T21:14Z): Detailed Live2D model validation and UI redesign. | [1297](https://github.com/moeru-ai/airi/pull/1297) |
-| #1295 | feat(speech): pipeline stability and audio quality fixes | **gemini-code-assist** (2026-03-11T18:49Z): Summarized VAD crackling and transcription hang fixes. | [1295](https://github.com/moeru-ai/airi/pull/1295) |
-| #1289 | fix(tray): auto-restore window position from snapshot on startup | **gemini-code-assist** (2026-03-11T15:39Z): Highlighted window position restoration from configuration. | [1289](https://github.com/moeru-ai/airi/pull/1289) |
+| #1327 | feat: implement universal STT chat inscription and fix duplicate sessions | **gemini-code-assist[bot]** (2026-03-13): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1327](https://github.com/moeru-ai/airi/pull/1327) |
+| #1320 | feat: discord bot stabilization, channel routing, and auto-discovery | **gemini-code-assist[bot]** (2026-03-12): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1320](https://github.com/moeru-ai/airi/pull/1320) |
+| #1300 | feat: implement stt feedback toasts and refined llm logging | **gemini-code-assist[bot]** (2026-03-11): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1300](https://github.com/moeru-ai/airi/pull/1300) |
+| #1299 | feat: port VAD and speech pipeline stability improvements | **gemini-code-assist[bot]** (2026-03-11): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1299](https://github.com/moeru-ai/airi/pull/1299) |
+| #1298 | feat: port scrolllock microphone toggle service | **gemini-code-assist[bot]** (2026-03-11): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1298](https://github.com/moeru-ai/airi/pull/1298) |
+| #1297 | feat: port model selector redesign and live2d validation | **gemini-code-assist[bot]** (2026-03-11): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1297](https://github.com/moeru-ai/airi/pull/1297) |
+| #1295 | feat(speech): pipeline stability and audio quality fixes | **gemini-code-assist[bot]** (2026-03-11): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1295](https://github.com/moeru-ai/airi/pull/1295) |
+| #1289 | fix(tray): auto-restore window position from snapshot on startup | **gemini-code-assist[bot]** (2026-03-11): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | [1289](https://github.com/moeru-ai/airi/pull/1289) |
 
 ---
 
@@ -23,20 +25,20 @@
 
 | PR # | Title | Author | Status | Link |
 | :--- | :--- | :--- | :--- | :--- |
-| #1324 | fix(server-runtime): preserve explicit empty route destinations | Gujiassh | ✅ | [1324](https://github.com/moeru-ai/airi/pull/1324) |
-| #1323 | fix(plugin-sdk): preserve absolute plugin entrypoints | Gujiassh | ✅ | [1323](https://github.com/moeru-ai/airi/pull/1323) |
-| #1322 | fix(stage-ui): keep nested reasoning out of speech | Gujiassh | ✅ | [1322](https://github.com/moeru-ai/airi/pull/1322) |
-| #1312 | fix(stage-ui): use stable chat history keys in the stage UI | stablegenius49 | ✅ | [1312](https://github.com/moeru-ai/airi/pull/1312) |
-| #1280 | fix(stage-ui): keep onboarding save button visible | Ver-zhzh | ✅ | [1280](https://github.com/moeru-ai/airi/pull/1280) |
-| #1222 | fix(llm): flatten content array for OpenAI-compatible providers | Reisenbug | ✅ | [1222](https://github.com/moeru-ai/airi/pull/1222) |
-| #1190 | fix(stage-pages): add missing local provider settings routes | Sakuranda | ✅ | [1190](https://github.com/moeru-ai/airi/pull/1190) |
-| #1151 | fix: enable TTS audio playback on iOS when silent mode is on | NJX-njx | ✅ | [1151](https://github.com/moeru-ai/airi/pull/1151) |
-| #1124 | fix(stage-tamagotchi): guard stdout/stderr against EPIPE | cat1949 | ✅ | [1124](https://github.com/moeru-ai/airi/pull/1124) |
-| #1107 | fix(providers): use native ElevenLabs API on desktop to avoid unspeech proxy 401 | Hanfeng-Lin | ✅ | [1107](https://github.com/moeru-ai/airi/pull/1107) |
-| #1065 | fix(onboarding): allow manual model entry when list is empty | liuxiaopai-ai | ✅ | [1065](https://github.com/moeru-ai/airi/pull/1065) |
-| #1064 | fix(hearing): allow manual model fallback on load errors | liuxiaopai-ai | ✅ | [1064](https://github.com/moeru-ai/airi/pull/1064) |
-| #1062 | fix(consciousness): allow manual model fallback for OpenAI-compatible | liuxiaopai-ai | ✅ | [1062](https://github.com/moeru-ai/airi/pull/1062) |
-| #1061 | fix(providers): add Deepgram TTS model list | liuxiaopai-ai | ✅ | [1061](https://github.com/moeru-ai/airi/pull/1061) |
+| #1324 | fix(server-runtime): preserve explicit empty route destinations | **github-actions[bot]** (2026-03-13): ## ⏳ Approval required for deploying to Cloudflare Workers (Preview) for *stage-web*.  | Name       ... | ✅ | [1324](https://github.com/moeru-ai/airi/pull/1324) |
+| #1323 | fix(plugin-sdk): preserve absolute plugin entrypoints | **github-actions[bot]** (2026-03-12): ## ⏳ Approval required for deploying to Cloudflare Workers (Preview) for *stage-web*.  | Name       ... | ✅ | [1323](https://github.com/moeru-ai/airi/pull/1323) |
+| #1322 | fix(stage-ui): keep nested reasoning out of speech | **github-actions[bot]** (2026-03-12): ## ⏳ Approval required for deploying to Cloudflare Workers (Preview) for *stage-web*.  | Name       ... | ✅ | [1322](https://github.com/moeru-ai/airi/pull/1322) |
+| #1312 | fix(stage-ui): use stable chat history keys in the stage UI | **stablegenius49** (2026-03-13): Thanks — you were right, the keying change alone did not fix the underlying loss.  I pushed a follow-up that preserves in-flight local messages if Ind... | ✅ | [1312](https://github.com/moeru-ai/airi/pull/1312) |
+| #1280 | fix(stage-ui): keep onboarding save button visible | **github-actions[bot]** (2026-03-11): ## ⏳ Approval required for deploying to Cloudflare Workers (Preview) for *stage-web*.  | Name       ... | ✅ | [1280](https://github.com/moeru-ai/airi/pull/1280) |
+| #1222 | fix(llm): flatten content array for OpenAI-compatible providers | **Reisenbug** (2026-03-10): > Did you installed VSCode plugin? Or experimenting WebSocket? How can I reproduce this bug? No VSCode plugin or WebSocket involved The issue occu... | ✅ | [1222](https://github.com/moeru-ai/airi/pull/1222) |
+| #1190 | fix(stage-pages): add missing local provider settings routes | **AdventuringTime** (2026-03-13): I hope too 我也希望 | ✅ | [1190](https://github.com/moeru-ai/airi/pull/1190) |
+| #1151 | fix: enable TTS audio playback on iOS when silent mode is on | **chatgpt-codex-connector[bot]** (2026-03-05): You have reached your Codex usage limits for code reviews. You can see your limits in the [Codex usage dashboard](https://chatgpt.com/codex/settings/u... | Name                    | Link... | ✅ | [1151](https://github.com/moeru-ai/airi/pull/1151) |
+| #1124 | fix(stage-tamagotchi): guard stdout/stderr against EPIPE | **nekomeowww** (2026-03-13): Root cause wasn't this, it should be fixed. | ✅ | [1124](https://github.com/moeru-ai/airi/pull/1124) |
+| #1107 | fix(providers): use native ElevenLabs API on desktop to avoid unspeech proxy 401 | **Hanfeng-Lin** (2026-03-07): If we're sticking with the native ElevenLabs API (because this solves the 401 redirect issue caused by shared IPs once and for all), I can extract the... | Name       ... | ✅ | [1107](https://github.com/moeru-ai/airi/pull/1107) |
+| #1065 | fix(onboarding): allow manual model entry when list is empty | **github-actions[bot]** (2026-03-01): ## ⏳ Approval required for deploying to Cloudflare Workers (Preview) for *stage-web*.  | Name       ... | ✅ | [1065](https://github.com/moeru-ai/airi/pull/1065) |
+| #1064 | fix(hearing): allow manual model fallback on load errors | **github-actions[bot]** (2026-03-01): ## ⏳ Approval required for deploying to Cloudflare Workers (Preview) for *stage-web*.  | Name       ... | ✅ | [1064](https://github.com/moeru-ai/airi/pull/1064) |
+| #1062 | fix(consciousness): allow manual model fallback for OpenAI-compatible | **hxnan** (2026-03-13): I met this issue，hope merge soon,thanks | ✅ | [1062](https://github.com/moeru-ai/airi/pull/1062) |
+| #1061 | fix(providers): add Deepgram TTS model list | **github-actions[bot]** (2026-03-01): ## ⏳ Approval required for deploying to Cloudflare Workers (Preview) for *stage-web*.  | Name       ... | ✅ | [1061](https://github.com/moeru-ai/airi/pull/1061) |
 
 ---
 
@@ -44,36 +46,36 @@
 
 | PR # | Title | Author | Status | Link |
 | :--- | :--- | :--- | :--- | :--- |
-| #1328 | feat(profile): add profile switcher to controls island and web header | lietblue | ❌ | [1328](https://github.com/moeru-ai/airi/pull/1328) |
-| #1326 | feat(stage-pocket): add Android target | lietblue | ❌ | [1326](https://github.com/moeru-ai/airi/pull/1326) |
-| #1314 | feat(provider): add Volcengine Ark and Fish Audio providers, improve consciousness model input | DanZai233 | ❌ | [1314](https://github.com/moeru-ai/airi/pull/1314) |
-| #1302 | feat: add OpenRouter as a speech (TTS) provider | monolithic827 | ✅ | [1302](https://github.com/moeru-ai/airi/pull/1302) |
-| #1287 | feat(vision): add AIRI vision system - screen capture and AI analysis | awaxiaoyu | ❌ | [1287](https://github.com/moeru-ai/airi/pull/1287) |
-| #1264 | feat: add mem9.ai long-term memory integration | YangKeao | ❌ | [1264](https://github.com/moeru-ai/airi/pull/1264) |
-| #1256 | feat(providers): add Amazon Bedrock provider | chaosreload | ✅ | [1256](https://github.com/moeru-ai/airi/pull/1256) |
-| #1237 | feat(stage-ui): add chat settings with stream idle timeout | Minnzen | ❌ | [1237](https://github.com/moeru-ai/airi/pull/1237) |
-| #1221 | feat(providers): add IndexTTS-2 Text-to-Speech (TTS) provider | AnyaCoder | ❌ | [1221](https://github.com/moeru-ai/airi/pull/1221) |
-| #1216 | feat(alaya): lay the groundwork for standalone short-term memory planner/query | freezinlove | ❌ | [1216](https://github.com/moeru-ai/airi/pull/1216) |
-| #1185 | feat(tamagotchi): Add model selection and custom Voice ID support for Alibaba Bailian | liteshade | ❌ | [1185](https://github.com/moeru-ai/airi/pull/1185) |
-| #1174 | feat(providers): add MegaNova AI as a chat provider | bq1024 | ❌ | [1174](https://github.com/moeru-ai/airi/pull/1174) |
-| #1171 | feat(services/matrix-bot): add matrix_bot | donjuanplatinum | ❌ | [1171](https://github.com/moeru-ai/airi/pull/1171) |
-| #1153 | feat: add window dock mode for Tamagotchi (Electron) | NJX-njx | ✅ | [1153](https://github.com/moeru-ai/airi/pull/1153) |
-| #1148 | feat(ui,stage-ui,stage-pages,i18n): transcription confidence filter | Reisenbug | ❌ | [1148](https://github.com/moeru-ai/airi/pull/1148) |
-| #1146 | feat: add provider configuration export/import | NJX-njx | ❌ | [1146](https://github.com/moeru-ai/airi/pull/1146) |
-| #1139 | feat: Add export/import config buttons, integrated into the Airi first-time setup page and DevTools page | Decolv | ❌ | [1139](https://github.com/moeru-ai/airi/pull/1139) |
-| #1125 | feat(providers): manual model ping and selective validation checks | cat1949 | ❌ | [1125](https://github.com/moeru-ai/airi/pull/1125) |
-| #1057 | feat(providers): add Azure OpenAI support | breezy89757 | ❌ | [1057](https://github.com/moeru-ai/airi/pull/1057) |
-| #1040 | feat(openclaw): add OpenClaw bridge and Stage integration | botBehavior | ❌ | [1040](https://github.com/moeru-ai/airi/pull/1040) |
-| #1033 | feat(stage-ui-live2d): exp3 expression system + auto-blink rework | youetube | ❌ | [1033](https://github.com/moeru-ai/airi/pull/1033) |
-| #1026 | feat(providers): add xAI Grok voice providers (TTS/STT) | olsenbudanur | ✅ | [1026](https://github.com/moeru-ai/airi/pull/1026) |
-| #1016 | feat(stage-pocket): push notifications | LemonNekoGH | ❌ | [1016](https://github.com/moeru-ai/airi/pull/1016) |
-| #979 | Feat/dock mode | s3d-i | ❌ | [979](https://github.com/moeru-ai/airi/pull/979) |
-| #961 | feat(stage-ui): add abstract base interfaces for transcription and spΓÇª | lockrush-dev | ❌ | [961](https://github.com/moeru-ai/airi/pull/961) |
-| #917 | feat(stage-tamagotchi): vision | nekomeowww | ❌ | [917](https://github.com/moeru-ai/airi/pull/917) |
-| #851 | feat(stage-tamagotchi): add option for chat area send key | cheesemori | ❌ | [851](https://github.com/moeru-ai/airi/pull/851) |
-| #801 | feat: add memory system frontend components and settings UI | inoribea | ❌ | [801](https://github.com/moeru-ai/airi/pull/801) |
-| #800 | feat: add serverless memory API functions and memory system package | inoribea | ❌ | [800](https://github.com/moeru-ai/airi/pull/800) |
-| #780 | feat(pinia-broadcast): use BroadcastChannel & SharedWorker for syncing states across windows & tabs | nekomeowww | ❌ | [780](https://github.com/moeru-ai/airi/pull/780) |
+| #1328 | feat(profile): add profile switcher to controls island and web header | **gemini-code-assist[bot]** (2026-03-13): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | ❌ | [1328](https://github.com/moeru-ai/airi/pull/1328) |
+| #1326 | feat(stage-pocket): add Android target | **gemini-code-assist[bot]** (2026-03-13): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | ❌ | [1326](https://github.com/moeru-ai/airi/pull/1326) |
+| #1314 | feat(provider): add Volcengine Ark and Fish Audio providers, improve consciousness model input | **Garfield550** (2026-03-12): Can you provide a demo video of this PR? | ❌ | [1314](https://github.com/moeru-ai/airi/pull/1314) |
+| #1302 | feat: add OpenRouter as a speech (TTS) provider | **shinohara-rin** (2026-03-13): /gemini review | ✅ | [1302](https://github.com/moeru-ai/airi/pull/1302) |
+| #1287 | feat(vision): add AIRI vision system - screen capture and AI analysis | **gemini-code-assist[bot]** (2026-03-11): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | ❌ | [1287](https://github.com/moeru-ai/airi/pull/1287) |
+| #1264 | feat: add mem9.ai long-term memory integration | **YangKeao** (2026-03-11): I might want to remove the `memory_search` tool call tips in chat. It's a little bit embarrassing to see her searching in her mind so hard to find out... | ❌ | [1264](https://github.com/moeru-ai/airi/pull/1264) |
+| #1256 | feat(providers): add Amazon Bedrock provider | **gemini-code-assist[bot]** (2026-03-11): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | ✅ | [1256](https://github.com/moeru-ai/airi/pull/1256) |
+| #1237 | feat(stage-ui): add chat settings with stream idle timeout | **gemini-code-assist[bot]** (2026-03-10): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | ❌ | [1237](https://github.com/moeru-ai/airi/pull/1237) |
+| #1221 | feat(providers): add IndexTTS-2 Text-to-Speech (TTS) provider | **gemini-code-assist[bot]** (2026-03-09): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | ❌ | [1221](https://github.com/moeru-ai/airi/pull/1221) |
+| #1216 | feat(alaya): lay the groundwork for standalone short-term memory planner/query | **NashChennc** (2026-03-10): However, I must say: We might not be ready to start implementing it yet. The context composer & plugin system need to be organized better. Worki... | ❌ | [1216](https://github.com/moeru-ai/airi/pull/1216) |
+| #1185 | feat(tamagotchi): Add model selection and custom Voice ID support for Alibaba Bailian | **github-actions[bot]** (2026-03-10): ## ⏳ Approval required for deploying to Cloudflare Workers (Preview) for *stage-web*.  | Name       ... | ❌ | [1185](https://github.com/moeru-ai/airi/pull/1185) |
+| #1174 | feat(providers): add MegaNova AI as a chat provider | **gemini-code-assist[bot]** (2026-03-06): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | ❌ | [1174](https://github.com/moeru-ai/airi/pull/1174) |
+| #1171 | feat(services/matrix-bot): add matrix_bot | **gemini-code-assist[bot]** (2026-03-06): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | ❌ | [1171](https://github.com/moeru-ai/airi/pull/1171) |
+| #1153 | feat: add window dock mode for Tamagotchi (Electron) | **NJX-njx** (2026-03-10): > Never thought this could be implemented like this... I will try this today and decide to merge or not. thank you hh | ✅ | [1153](https://github.com/moeru-ai/airi/pull/1153) |
+| #1148 | feat(ui,stage-ui,stage-pages,i18n): transcription confidence filter | **nekomeowww** (2026-03-10): /gemini review  | ❌ | [1148](https://github.com/moeru-ai/airi/pull/1148) |
+| #1146 | feat: add provider configuration export/import | **chatgpt-codex-connector[bot]** (2026-03-05): You have reached your Codex usage limits for code reviews. You can see your limits in the [Codex usage dashboard](https://chatgpt.com/codex/settings/u... | ❌ | [1146](https://github.com/moeru-ai/airi/pull/1146) |
+| #1139 | feat: Add export/import config buttons, integrated into the Airi first-time setup page and DevTools page | **gemini-code-assist[bot]** (2026-03-05): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | ❌ | [1139](https://github.com/moeru-ai/airi/pull/1139) |
+| #1125 | feat(providers): manual model ping and selective validation checks | **cat1949** (2026-03-07): Addressed in `3d6f5a95`.  Changes made: - guard provider access with provider metadata checks so invalid route keys like `__proto__` are not used to r... | ❌ | [1125](https://github.com/moeru-ai/airi/pull/1125) |
+| #1057 | feat(providers): add Azure OpenAI support | **breezy89757** (2026-03-03): @shinohara-rin I have synced with the upstream main and resolved all conflicts. The commit history is clean and the PR is ready for review. Could... | ❌ | [1057](https://github.com/moeru-ai/airi/pull/1057) |
+| #1040 | feat(openclaw): add OpenClaw bridge and Stage integration | **github-actions[bot]** (2026-02-23): ## ⏳ Approval required for deploying to Cloudflare Workers (Preview) for *stage-web*.  | Name       ... | ❌ | [1040](https://github.com/moeru-ai/airi/pull/1040) |
+| #1033 | feat(stage-ui-live2d): exp3 expression system + auto-blink rework | **youetube** (2026-03-10): Rebased onto latest main (`v0.9.0-alpha.10`) and resolved conflicts: - `package.json`: merged dependency version bumps + expression deps (`@xsai/tool`... | ❌ | [1033](https://github.com/moeru-ai/airi/pull/1033) |
+| #1026 | feat(providers): add xAI Grok voice providers (TTS/STT) | **github-actions[bot]** (2026-02-07): ## ⏳ Approval required for deploying to Cloudflare Workers (Preview) for *stage-web*.  | Name       ... | ✅ | [1026](https://github.com/moeru-ai/airi/pull/1026) |
+| #1016 | feat(stage-pocket): push notifications | **github-actions[bot]** (2026-02-01): ## ⏳ Approval required for deploying to Cloudflare Workers (Preview) for *stage-web*.  | Name       ... | ❌ | [1016](https://github.com/moeru-ai/airi/pull/1016) |
+| #979 | Feat/dock mode | **nekomeowww** (2026-01-21): cc @sumimakito would you mind merge your WIP code first? It seems this PR is more focused on Windows but not macOS. And the handling of Three.js is no... | ❌ | [979](https://github.com/moeru-ai/airi/pull/979) |
+| #961 | feat(stage-ui): add abstract base interfaces for transcription and spΓÇª | **lockrush-dev** (2026-01-21): @gemini-code-assist review | ❌ | [961](https://github.com/moeru-ai/airi/pull/961) |
+| #917 | feat(stage-tamagotchi): vision | **sumimakito** (2026-01-09): Update: Currently working on bringing the screen capturing features to our repo with some code from electron-audio-loopback. | ❌ | [917](https://github.com/moeru-ai/airi/pull/917) |
+| #851 | feat(stage-tamagotchi): add option for chat area send key | **cheesemori** (2026-01-13): Just a quick bump to prevent this from getting stale since I saw lots of updates recently. Let me know if any changes are needed! 🍵 | ❌ | [851](https://github.com/moeru-ai/airi/pull/851) |
+| #801 | feat: add memory system frontend components and settings UI | **gemini-code-assist[bot]** (2025-12-16): ## Summary of Changes  Hello @inoribea, I'm Gemini Code Assist[^1]! I'm currently reviewing this pul... | ❌ | [801](https://github.com/moeru-ai/airi/pull/801) |
+| #800 | feat: add serverless memory API functions and memory system package | **shinohara-rin** (2025-12-17): As a heads-up there're plans to implement the memory system as plugins, please refer to #255 and #520 | Name       ... | ❌ | [800](https://github.com/moeru-ai/airi/pull/800) |
+| #780 | feat(pinia-broadcast): use BroadcastChannel & SharedWorker for syncing states across windows & tabs | **github-actions[bot]** (2025-11-30): ## ✅ Deploy to Cloudflare Workers (Preview) for *stage-web* ready!  | Name                    | Link... | ❌ | [780](https://github.com/moeru-ai/airi/pull/780) |
 
 ---
 
@@ -81,9 +83,9 @@
 
 | PR # | Title | Author | Status | Link |
 | :--- | :--- | :--- | :--- | :--- |
-| #1307 | land computer-use terminal lane for internal testing | 3361559784 | ❌ | [1307](https://github.com/moeru-ai/airi/pull/1307) |
-| #1306 | Sanxincao/refactor/fix contributing doc | freemanGFW | ❌ | [1306](https://github.com/moeru-ai/airi/pull/1306) |
-| #1262 | chore(ci): added Scoop bucket manifest | stablegenius49 | ❌ | [1262](https://github.com/moeru-ai/airi/pull/1262) |
-| #1227 | Codex/feat GitHub | 3361559784 | ❌ | [1227](https://github.com/moeru-ai/airi/pull/1227) |
-| #1076 | refactor: replace unsafe any types with unknown | fvngs | ❌ | [1076](https://github.com/moeru-ai/airi/pull/1076) |
-| #1048 | Upgrade GitHub Actions to latest versions | salmanmkc | ❌ | [1048](https://github.com/moeru-ai/airi/pull/1048) |
+| #1307 | land computer-use terminal lane for internal testing | **chatgpt-codex-connector[bot]** (2026-03-13):  ### 💡 Codex Review  https://github.com/moeru-ai/airi/blob/ba7004d2d5f11fb7903ba0136044eab3cffcad97/packages/stage-ui/src/stores/llm-tool-loop.ts#L37... | ❌ | [1307](https://github.com/moeru-ai/airi/pull/1307) |
+| #1306 | Sanxincao/refactor/fix contributing doc | **freemanGFW** (2026-03-12): ## nix/assets-hash.txt 移除了一个 SHA256 哈希值。这个是github action bot的更改。 | ❌ | [1306](https://github.com/moeru-ai/airi/pull/1306) |
+| #1262 | chore(ci): added Scoop bucket manifest | **gemini-code-assist[bot]** (2026-03-11): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | ❌ | [1262](https://github.com/moeru-ai/airi/pull/1262) |
+| #1227 | Codex/feat GitHub | **gemini-code-assist[bot]** (2026-03-10): ## Summary of Changes  Hello, I'm Gemini Code Assist[^1]! I'm currently reviewing this pull request ... | ❌ | [1227](https://github.com/moeru-ai/airi/pull/1227) |
+| #1076 | refactor: replace unsafe any types with unknown | **github-actions[bot]** (2026-03-02): ## ⏳ Approval required for deploying to Cloudflare Workers (Preview) for *stage-web*.  | Name       ... | ❌ | [1076](https://github.com/moeru-ai/airi/pull/1076) |
+| #1048 | Upgrade GitHub Actions to latest versions | **nekomeowww** (2026-03-01): Rebase is needed. | ❌ | [1048](https://github.com/moeru-ai/airi/pull/1048) |
