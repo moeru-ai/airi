@@ -72,6 +72,8 @@ function createApprovalSessionId() {
   return `mcp-approval-${Date.now()}`
 }
 
+// TODO: injected strict tool-use guidance should become configurable or
+// removable once provider behavior is stable enough across the matrix.
 function injectStrictToolUseGuidance(messages: Message[]): Message[] {
   // NOTICE: This guidance is used on providers that have shown a tendency to
   // narrate or fabricate progress instead of actually calling tools inside

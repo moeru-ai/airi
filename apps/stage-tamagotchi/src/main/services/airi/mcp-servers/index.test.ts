@@ -128,7 +128,7 @@ describe('createMcpStdioManager', () => {
         },
         airi_self_devtools: {
           command: 'pnpm',
-          args: ['demo:setup-self-devtools-mcp'],
+          args: ['dev:setup-self-devtools-mcp'],
         },
       },
     }, null, 2))

@@ -1,3 +1,4 @@
+import type { Logg } from '@guiiai/logg'
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 
 import type {
@@ -118,7 +119,7 @@ function parseQualifiedToolName(name: string) {
 }
 
 async function findUniqueRunningServerForTool(params: {
-  log: ReturnType<ReturnType<typeof useLogg>['useGlobalConfig']>
+  log: Logg
   requestedServerName: string
   sessions: Map<string, McpServerSession>
   toolName: string

@@ -2,9 +2,12 @@ import process from 'node:process'
 
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { useLogg } from '@guiiai/logg'
+import { errorMessageFrom } from '@moeru/std'
 
 interface McpServerConfig {
   command: string
@@ -59,6 +62,8 @@ function normalizeConfigFile(value: unknown): McpConfigFile {
   }
 }
 
+const log = useLogg('scripts/setup-self-devtools-mcp').useGlobalConfig()
+
 async function main() {
   const workspaceDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
   const configPaths = process.env.AIRI_MCP_CONFIG_PATH
@@ -70,6 +75,8 @@ async function main() {
   const browserDomBridgeTimeout = process.env.AIRI_BROWSER_DOM_BRIDGE_TIMEOUT_MS || '10000'
   const mcpServerName = process.env.AIRI_SELF_DEVTOOLS_SERVER_NAME || 'airi_self_devtools'
   const computerUseServerName = process.env.AIRI_COMPUTER_USE_SERVER_NAME || 'computer_use'
+  const computerUseSessionRoot = process.env.COMPUTER_USE_SESSION_ROOT
+    || join(tmpdir(), 'proj-airi', 'mcp-servers', 'computer-use')
   const mcpDir = resolve(process.env.AIRI_SELF_DEVTOOLS_MCP_DIR || join(homedir(), 'computer_use', 'chrome-devtools-mcp'))
   const entryPoint = join(mcpDir, 'build', 'src', 'index.js')
 
@@ -85,7 +92,11 @@ async function main() {
       const raw = await readFile(configPath, 'utf-8')
       currentConfig = normalizeConfigFile(JSON.parse(raw))
     }
-    catch {
+    catch (error) {
+      const nodeError = error as NodeJS.ErrnoException | undefined
+      if (nodeError?.code !== 'ENOENT') {
+        log.withFields({ configPath }).withError(error).warn('failed to parse existing mcp config, overwriting with normalized config')
+      }
       currentConfig = { mcpServers: {} }
     }
 
@@ -116,14 +127,15 @@ async function main() {
       env: {
         COMPUTER_USE_EXECUTOR: 'macos-local',
         COMPUTER_USE_APPROVAL_MODE: 'never',
-        COMPUTER_USE_SESSION_TAG: 'airi-macos-ghmodels-e2e',
+        COMPUTER_USE_SESSION_TAG: 'airi-macos-self-devtools-e2e',
         COMPUTER_USE_ENABLE_TEST_TOOLS: 'true',
-        COMPUTER_USE_SESSION_ROOT: '/tmp/airi-computer-use-macos-e2e',
+        COMPUTER_USE_SESSION_ROOT: computerUseSessionRoot,
         ...existingComputerUse?.env,
         COMPUTER_USE_BROWSER_DOM_BRIDGE_ENABLED: 'true',
         COMPUTER_USE_BROWSER_DOM_BRIDGE_HOST: browserDomBridgeHost,
         COMPUTER_USE_BROWSER_DOM_BRIDGE_PORT: browserDomBridgePort,
         COMPUTER_USE_BROWSER_DOM_BRIDGE_TIMEOUT_MS: browserDomBridgeTimeout,
+        // TODO: currently macOS only, and the applications are all hard coded.
         COMPUTER_USE_OPENABLE_APPS: mergeCsvList(existingComputerUse?.env?.COMPUTER_USE_OPENABLE_APPS, [
           'Finder',
           'Terminal',
@@ -136,23 +148,22 @@ async function main() {
     }
 
     await writeFile(configPath, `${JSON.stringify(currentConfig, null, 2)}\n`, 'utf-8')
-    console.info(`Seeded AIRI MCP config: ${configPath}`)
+    log.withFields({ configPath }).log('seeded airi mcp config')
   }
 
-  console.info(`Server name: ${mcpServerName}`)
-  console.info(`Chrome DevTools MCP dir: ${mcpDir}`)
-  console.info(`Browser URL: ${browserUrl}`)
-  console.info(`Browser DOM bridge: ws://${browserDomBridgeHost}:${browserDomBridgePort}`)
-  console.info('')
-  console.info('Next steps:')
-  console.info('1. Start AIRI with remote debugging enabled:')
-  console.info('   pnpm -F @proj-airi/stage-tamagotchi dev:remote-debug')
-  console.info('2. In AIRI Settings -> MCP Server, click "Apply and Restart" if the server is not already running.')
-  console.info('3. Make sure the Chrome extension bridge is connected to ws://127.0.0.1:8765.')
-  console.info('4. Prompt AIRI normally. It can stay on desktop/Electron tools and switch to browser_dom_* only when the task actually moves into a browser page.')
+  log.withFields({ mcpServerName }).log('server name')
+  log.withFields({ mcpDir }).log('chrome devtools mcp dir')
+  log.withFields({ browserUrl }).log('browser url')
+  log.withFields({ browserDomBridge: `ws://${browserDomBridgeHost}:${browserDomBridgePort}` }).log('browser dom bridge')
+  log.log('next steps')
+  log.log('1. Start AIRI with remote debugging enabled:')
+  log.log('   pnpm -F @proj-airi/stage-tamagotchi dev:remote-debug')
+  log.log('2. In AIRI Settings -> MCP Server, click "Apply and Restart" if the server is not already running.')
+  log.log('3. Make sure the Chrome extension bridge is connected to ws://127.0.0.1:8765.')
+  log.log('4. Prompt AIRI normally. It can stay on desktop/Electron tools and switch to browser_dom_* only when the task actually moves into a browser page.')
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error))
+  log.withError(error).error(errorMessageFrom(error) || 'failed to seed self devtools mcp config')
   process.exit(1)
 })

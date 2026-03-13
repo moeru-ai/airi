@@ -109,6 +109,7 @@ function patchComputerUseTerminalState(result: any, approvalSessionId?: string) 
   return patchComputerUseTerminalStateWithGrant(result, grant)
 }
 
+// TODO: we should i18n localize these things.
 function buildDesktopApprovalSummary(action: any) {
   const kind = action?.kind
   const input = action?.input || {}

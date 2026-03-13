@@ -82,6 +82,9 @@ export async function runManualToolLoop(options: RunManualToolLoopOptions): Prom
         messages,
       })) {
         messages.push({
+          // TODO: prefer a more widely supported role once the provider matrix
+          // is normalized; some inference servers do not render `developer`
+          // messages consistently.
           role: 'developer',
           content: 'Your previous response did not include any tool calls. If the user\'s request can be fulfilled by calling a tool, you MUST make the tool call NOW using mcp_call_tool. Do not describe or simulate the result — actually call the tool.' as any,
         })
@@ -285,6 +288,8 @@ function looksLikeFabricatedToolStatus(text: string) {
     || /状态[:：=]|正在执行|执行中|已经?(?:打开|点击|输入|填写|保存|完成|运行|执行|切换|启用|禁用)|测试已?(?:通过|失败)|工作流|命令已?执行/.test(text)
 }
 
+// TODO: commonly used tool-result and message-shaping utilities should move to
+// a shared chat util package instead of accumulating inside this adapter layer.
 function wrapToolExecuteResult(result: unknown): ToolMessage['content'] {
   if (typeof result === 'string') {
     return result
@@ -458,6 +463,8 @@ function emitBufferedSseLines(buffer: string, controller: TransformStreamDefault
 }
 
 export function createSseChunkTransform() {
+  // TODO: move this into upstream xsai/native stream helpers once the SSE
+  // chunk handling can be supported there directly.
   const decoder = new TextDecoder()
   let buffer = ''
 

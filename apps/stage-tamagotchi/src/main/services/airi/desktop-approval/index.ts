@@ -8,6 +8,7 @@ import { electronPromptDesktopAutomationApproval } from '../../../../shared/even
 
 export function createDesktopAutomationApprovalService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
   defineInvokeHandler(params.context, electronPromptDesktopAutomationApproval, async (payload) => {
+    // TODO: ask frontend side to localize this with i18n locales.
     const scopeNote = payload?.sessionScoped
       ? 'Approving this also covers terminal/app-open actions for the current AIRI run.'
       : 'This approval applies to this action only.'
@@ -20,8 +21,10 @@ export function createDesktopAutomationApprovalService(params: { context: Return
       scopeNote,
     ].filter(Boolean)
 
+    // TODO: we should use our `notice` window to implement such thing.
     const { response } = await dialog.showMessageBox(params.window, {
       type: 'warning',
+      // TODO: ask frontend side to localize this with i18n locales.
       buttons: ['Approve', 'Reject'],
       defaultId: 0,
       cancelId: 1,

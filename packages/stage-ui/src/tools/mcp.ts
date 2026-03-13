@@ -98,8 +98,15 @@ export async function mcp(options?: McpToolOptions) {
   const approvalSessionId = options?.approvalSessionId
   const promptContentOptions = getMcpPromptContentOptions(options?.promptContentMode)
 
-  // Eagerly refresh tool list cache for each stream call to ensure freshness
-  await refreshToolListCache()
+  // NOTICE: Bootstrap the cache synchronously once so the first tool-call
+  // description is not empty. After that, refresh in the background so every
+  // turn does not block on MCP tool discovery.
+  if (cachedToolList === null) {
+    await refreshToolListCache()
+  }
+  else {
+    void refreshToolListCache()
+  }
 
   return Promise.all([
     tool({

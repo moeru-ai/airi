@@ -39,6 +39,9 @@ export interface WorkflowRerouteInstruction {
 /**
  * Extract a workflow reroute instruction from an MCP tool result.
  * Returns `undefined` if the result is not a reroute.
+ *
+ * TODO: replace the manual runtime assertions with schema parsing
+ * (Zod/Valibot) once the reroute contract is stabilized.
  */
 export function extractWorkflowReroute(result: McpCallToolResult): WorkflowRerouteInstruction | undefined {
   const sc = result.structuredContent

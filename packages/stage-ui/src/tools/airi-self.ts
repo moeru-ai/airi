@@ -104,6 +104,8 @@ function resolveSettingsNavigationTarget(module: string): string {
 // Tools
 // ---------------------------------------------------------------------------
 
+// TODO: scale this beyond route pushes once AIRI self-tools grow into a fuller
+// self-management surface with stronger route/schema integration.
 export async function airiSelf() {
   return Promise.all([
     tool({

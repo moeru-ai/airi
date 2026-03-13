@@ -39,6 +39,8 @@ const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
 const analyticsStore = useSharedAnalyticsStore()
 
+// TODO: implement a wider set of tools for self navigation, configuration, and
+// related self-management actions instead of keeping this as a minimal bridge.
 setAiriSelfNavigationBridge({
   navigateTo: async (path: string) => {
     await router.push(path)
