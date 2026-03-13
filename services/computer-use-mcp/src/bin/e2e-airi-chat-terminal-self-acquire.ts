@@ -74,18 +74,21 @@ const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const repoDir = resolve(packageDir, '../..')
 const preferredDebugPort = Number(env.AIRI_E2E_DEBUG_PORT || '9222')
 const runId = new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-')
+const repoChangesCommand = 'git diff --stat -- services/computer-use-mcp packages/stage-ui apps/stage-tamagotchi'
 const summaryMarker = 'Terminal self-acquire demo complete.'
 const promptText = [
   `Use MCP tools to validate the AIRI repository at ${repoDir}.`,
   'Call the real workflow, do not narrate or simulate tool results.',
-  '1. Call computer_use::workflow_run_tests with these exact arguments:',
+  '1. Call computer_use::workflow_validate_workspace with these exact arguments:',
   `   - projectPath: ${repoDir}`,
-  '   - testCommand: vim --version',
+  '   - ideApp: Visual Studio Code',
+  `   - changesCommand: ${repoChangesCommand}`,
+  '   - checkCommand: vim --version',
   '   - autoApprove: true',
   '2. Do not call pty_create manually. The workflow should acquire PTY by itself if needed.',
   '3. Do not call any more tools after the workflow returns.',
   '4. Reply in plain text with 3 short bullet points for a management audience.',
-  '5. Mention that workflow_run_tests self-acquired PTY for the interactive terminal command and completed successfully.',
+  '5. Mention that validation started on exec, the workflow self-acquired PTY for the interactive validation command, and the workflow completed successfully.',
 ].join('\n')
 const reportDir = resolve(packageDir, '.computer-use-mcp', 'reports', `airi-chat-terminal-self-acquire-${runId}`)
 const reportPath = resolve(reportDir, 'report.json')
@@ -416,9 +419,9 @@ async function writeDemoSummary(params: {
     `PTY session: ${params.ptySessionId}`,
     '',
     '## What This Demonstrates',
-    '- AIRI executed workflow_run_tests through the normal terminal workflow path.',
-    '- The workflow recognized the interactive terminal command and self-acquired PTY inside the workflow.',
-    `- The interactive command executed on PTY session \`${params.ptySessionId}\` without an outward reroute.`,
+    '- AIRI started on the normal workflow terminal path (`exec`).',
+    '- The workflow recognized that the validation step needed an interactive terminal and self-acquired PTY inside the workflow.',
+    `- The validation step executed on PTY session \`${params.ptySessionId}\` without an outward reroute.`,
     `- Verification evidence included ${params.auditDeltaCount} PTY audit entries and ${params.newTraceCount} new trace entries.`,
     '',
     '## Surface Decision',
@@ -847,7 +850,7 @@ async function main() {
         const tools = await callAiriDebugBridge<Array<Record<string, unknown>>>(chatTargetClient!, 'listMcpTools')
         const names = new Set(tools.map(tool => String(tool.name || '')))
         const requiredTools = [
-          'computer_use::workflow_run_tests',
+          'computer_use::workflow_validate_workspace',
           'computer_use::pty_get_status',
           'computer_use::pty_read_screen',
           'computer_use::pty_destroy',
@@ -1018,6 +1021,14 @@ async function main() {
       'workflowStepTerminalBindings must contain a PTY binding from workflow self-acquire',
     )
     assert(
+      traceHasTerminalExecCommand(newTraceEntries, 'pwd'),
+      'session trace must show terminal_exec for pwd before PTY self-acquire',
+    )
+    assert(
+      traceHasTerminalExecCommand(newTraceEntries, repoChangesCommand),
+      'session trace must show terminal_exec for git diff before PTY self-acquire',
+    )
+    assert(
       !traceHasTerminalExecCommand(newTraceEntries, 'vim --version'),
       'session trace must not show terminal_exec for vim --version once workflow self-acquires PTY',
     )
@@ -1063,7 +1074,7 @@ async function main() {
       'Do not call any more tools.',
       'Reply in plain text only.',
       'Summarize this demo in exactly 4 short bullet points for a management audience.',
-      'Mention that workflow_run_tests self-acquired PTY for the interactive terminal command and then completed successfully.',
+      'Mention that the workflow started on exec, self-acquired PTY for the interactive validation command, and then completed successfully.',
       `Mention the PTY session id ${ptySessionId}.`,
       'Mention that the PTY session remained readable after the workflow completed.',
       `End with EXACTLY: ${summaryMarker}`,

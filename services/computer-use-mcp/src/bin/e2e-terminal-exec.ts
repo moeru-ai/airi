@@ -94,19 +94,21 @@ async function createClient(): Promise<Client> {
 // Test phases
 // ---------------------------------------------------------------------------
 
-async function phase1_runChecks(client: Client, projectPath: string) {
-  console.info('\n── Phase 1: workflow_run_tests with real command chain ──')
+async function phase1_validateWorkspace(client: Client, projectPath: string) {
+  console.info('\n── Phase 1: workflow_validate_workspace with real commands ──')
 
   const result = await client.callTool({
-    name: 'workflow_run_tests',
+    name: 'workflow_validate_workspace',
     arguments: {
       projectPath,
-      testCommand: 'pwd && echo "M index.ts" && echo "all checks passed"',
+      ideApp: 'Visual Studio Code',
+      changesCommand: 'echo "M index.ts"',
+      checkCommand: 'echo "all checks passed"',
       autoApprove: true,
     },
   })
 
-  const data = requireStructuredContent(result, 'workflow_run_tests')
+  const data = requireStructuredContent(result, 'workflow_validate_workspace')
   console.info(`  Status: ${data.status}`)
   assert(
     data.status === 'completed',
@@ -119,11 +121,14 @@ async function phase1_runChecks(client: Client, projectPath: string) {
   }
 
   // Verify the terminal exec steps ran real commands
-  const pwdStep = steps.find(s => s.label === 'Change directory to project root')
+  const pwdStep = steps.find(s => s.label === 'Confirm project working directory')
   assert(pwdStep?.succeeded === true, 'pwd step must succeed')
 
-  const changesStep = steps.find(s => s.label === 'Run test suite')
+  const changesStep = steps.find(s => s.label === 'Inspect local changes')
   assert(changesStep?.succeeded === true, 'changes step must succeed')
+
+  const checkStep = steps.find(s => s.label === 'Run workspace validation')
+  assert(checkStep?.succeeded === true, 'check step must succeed')
 
   return data
 }
@@ -229,12 +234,12 @@ async function main() {
   try {
     const { tools } = await client.listTools()
     const names = new Set(tools.map(t => t.name))
-    for (const t of ['workflow_run_tests', 'desktop_get_state']) {
+    for (const t of ['workflow_validate_workspace', 'workflow_run_tests', 'desktop_get_state']) {
       assert(names.has(t), `missing required tool: ${t}`)
     }
     console.info(`  ${tools.length} tools available`)
 
-    await phase1_runChecks(client, projectPath)
+    await phase1_validateWorkspace(client, projectPath)
     await phase2_verifyTerminalState(client, projectPath)
     await phase3_runTests(client, projectPath)
     await phase4_finalState(client, projectPath)

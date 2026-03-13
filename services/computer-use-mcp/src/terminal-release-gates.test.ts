@@ -17,6 +17,7 @@ import {
   writeToPty,
 } from './terminal/pty-runner'
 import { createTestConfig } from './test-fixtures'
+import { createDevValidateWorkspaceWorkflow } from './workflows/dev-validate-workspace'
 import { executeWorkflow } from './workflows/engine'
 
 vi.mock('./terminal/pty-runner', () => ({
@@ -97,47 +98,6 @@ function makeSingleStepTask(params: {
   }
 }
 
-function makeExecGateWorkflow(projectPath: string): WorkflowDefinition {
-  return {
-    id: 'terminal_exec_gate',
-    name: 'terminal exec release gate',
-    description: 'Terminal orchestration skeleton gate.',
-    maxRetries: 2,
-    steps: [
-      {
-        label: 'Ensure Terminal is available',
-        kind: 'ensure_app',
-        description: 'Ensure terminal app is focused.',
-        params: { app: 'Terminal' },
-      },
-      {
-        label: 'Change directory to project root',
-        kind: 'change_directory',
-        description: 'cd into project root',
-        params: { path: projectPath },
-      },
-      {
-        label: 'Confirm project working directory',
-        kind: 'run_command',
-        description: 'Verify cwd with pwd',
-        params: { command: 'pwd', cwd: projectPath },
-      },
-      {
-        label: 'Inspect local changes',
-        kind: 'run_command',
-        description: 'Inspect local changes',
-        params: { command: 'git diff --stat', cwd: projectPath },
-      },
-      {
-        label: 'Run workspace validation',
-        kind: 'run_command',
-        description: 'Run validation command',
-        params: { command: 'pnpm test', cwd: projectPath },
-      },
-    ],
-  }
-}
-
 describe('terminal release gates', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -145,7 +105,13 @@ describe('terminal release gates', () => {
 
   it('exec happy path: opens workspace, runs checks/tests, writes back state, and continues', async () => {
     const projectPath = '/Users/liuziheng/airi'
-    const workflow = makeExecGateWorkflow(projectPath)
+    const workflow = createDevValidateWorkspaceWorkflow({
+      projectPath,
+      ideApp: 'Cursor',
+      fileManagerApp: 'Finder',
+      changesCommand: 'git diff --stat',
+      checkCommand: 'pnpm test',
+    })
     const stateManager = new RunStateManager()
 
     const executeAction: ExecuteAction = vi.fn().mockImplementation(async (action) => {
@@ -157,6 +123,9 @@ describe('terminal release gates', () => {
           windowTitle: `${app} workspace`,
           platform: 'darwin',
         })
+        if (app === 'Cursor') {
+          stateManager.updateVscodeWorkspace(projectPath)
+        }
         return makeSuccessResult(`focused ${app}`)
       }
 
@@ -214,6 +183,7 @@ describe('terminal release gates', () => {
     expect(result.success).toBe(true)
     expect(result.status).toBe('completed')
     expect(result.stepResults.every(step => step.status === 'success')).toBe(true)
+    expect(stateManager.getState().vscode?.workspacePath).toBe(projectPath)
     expect(stateManager.getState().terminalState).toMatchObject({
       effectiveCwd: projectPath,
       lastExitCode: 0,
@@ -226,7 +196,7 @@ describe('terminal release gates', () => {
     })
 
     const execBindings = stateManager.getState().workflowStepTerminalBindings.filter(binding => binding.surface === 'exec')
-    expect(execBindings).toHaveLength(3)
+    expect(execBindings).toHaveLength(5)
     expect(execBindings.every(binding => binding.taskId === result.task.id)).toBe(true)
     expect(stateManager.getRecentSurfaceDecision()).toMatchObject({
       surface: 'exec',

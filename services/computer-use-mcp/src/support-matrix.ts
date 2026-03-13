@@ -37,6 +37,7 @@ export interface SupportMatrixEntry {
 }
 
 export const strictReleaseGateCommands = [
+  'pnpm -F @proj-airi/computer-use-mcp e2e:developer-workflow',
   'pnpm -F @proj-airi/computer-use-mcp e2e:terminal-exec',
   'pnpm -F @proj-airi/computer-use-mcp e2e:terminal-pty',
   'pnpm -F @proj-airi/computer-use-mcp e2e:terminal-self-acquire',
@@ -51,6 +52,30 @@ export const supportMatrix: SupportMatrixEntry[] = [
   // ── Workflow lane ──────────────────────────────────────────────────────
   {
     lane: 'workflow',
+    id: 'workflow_open_workspace',
+    label: 'Open workspace in IDE via Finder + app launch',
+    level: 'product-supported',
+    unitTests: [
+      'src/workflows/engine.test.ts',
+      'src/server/workflow-formatter.test.ts',
+    ],
+    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp e2e:developer-workflow',
+    happyPath: 'open_workspace → validate_workspace → run_tests (e2e:developer-workflow, dry-run)',
+  },
+  {
+    lane: 'workflow',
+    id: 'workflow_validate_workspace',
+    label: 'Confirm pwd + inspect changes + run validation command',
+    level: 'product-supported',
+    unitTests: [
+      'src/workflows/engine.test.ts',
+      'src/server/workflow-formatter.test.ts',
+    ],
+    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp e2e:developer-workflow',
+    happyPath: 'open_workspace → validate_workspace → run_tests (e2e:developer-workflow, dry-run)',
+  },
+  {
+    lane: 'workflow',
     id: 'workflow_run_tests',
     label: 'Run test command in terminal via workflow engine',
     level: 'product-supported',
@@ -58,8 +83,16 @@ export const supportMatrix: SupportMatrixEntry[] = [
       'src/workflows/engine.test.ts',
       'src/server/workflow-formatter.test.ts',
     ],
-    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp e2e:terminal-exec',
-    happyPath: 'run_tests workflow executes terminal steps, updates run-state, and returns a deterministic summary',
+    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp e2e:developer-workflow',
+    happyPath: 'open_workspace → validate_workspace → run_tests (e2e:developer-workflow, dry-run)',
+  },
+  {
+    lane: 'workflow',
+    id: 'workflow_inspect_failure',
+    label: 'Inspect IDE failure panel via accessibility',
+    level: 'covered',
+    unitTests: ['src/workflows/engine.test.ts'],
+    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp smoke:workflow',
   },
   {
     lane: 'workflow',
@@ -70,12 +103,48 @@ export const supportMatrix: SupportMatrixEntry[] = [
     smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp smoke:workflow',
   },
   {
+    lane: 'workflow',
+    id: 'workflow_reroute_contract',
+    label: 'Stable outward reroute contract (structuredContent)',
+    level: 'covered',
+    unitTests: [
+      'src/server/workflow-formatter.test.ts',
+    ],
+    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp e2e:browser-reroute',
+    happyPath: 'workflow_browse_and_act → reroute detected → suggestedTool succeeds (secondary regression)',
+  },
+
+  // ── Browser lane ───────────────────────────────────────────────────────
+  {
     lane: 'browser',
-    id: 'browser_lane_deferred',
-    label: 'Browser surface moved to Chunk 3 (deferred in skeleton PR)',
-    level: 'implemented',
+    id: 'browser_reroute_dual_stack',
+    label: 'Browser DOM/CDP dual-stack reroute with surface selection',
+    level: 'covered',
+    unitTests: [
+      'src/strategy.test.ts',
+      'src/server/workflow-formatter.test.ts',
+    ],
+    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp e2e:browser-reroute',
+    happyPath: 'Dual-stack browser selection is covered by strategy/formatter tests; secondary reroute regression remains surface-agnostic under dry-run.',
+  },
+  {
+    lane: 'browser',
+    id: 'browser_surface_availability',
+    label: 'Browser surface availability model (availableSurfaces/preferredSurface)',
+    level: 'covered',
+    unitTests: [
+      'src/strategy.test.ts',
+      'src/server/workflow-formatter.test.ts',
+    ],
     smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp smoke:workflow',
-    happyPath: 'Deferred to Chunk 3 browser/devtools/demo split PR.',
+  },
+  {
+    lane: 'browser',
+    id: 'workflow_browse_and_act',
+    label: 'Browser workflow orchestration',
+    level: 'covered',
+    unitTests: ['src/workflows/engine.test.ts'],
+    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp smoke:workflow',
   },
 
   // ── Desktop/native lane ────────────────────────────────────────────────
@@ -139,6 +208,7 @@ export const supportMatrix: SupportMatrixEntry[] = [
       'src/server/register-pty.test.ts',
       'src/server/register-pty-terminal-lane.test.ts',
       'src/workflows/engine.test.ts',
+      'src/server/workflow-prep-tools.test.ts',
       'src/terminal-release-gates.test.ts',
     ],
     smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp e2e:airi-chat-terminal-self-acquire',
@@ -174,10 +244,10 @@ export const supportMatrix: SupportMatrixEntry[] = [
     level: 'product-supported',
     unitTests: [
       'src/workflows/engine.test.ts',
-      'src/terminal-release-gates.test.ts',
+      'src/server/workflow-prep-tools.test.ts',
     ],
     smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp e2e:airi-chat-terminal-self-acquire',
-    happyPath: 'workflow_run_tests starts on exec, self-acquires PTY for an interactive terminal command, and completes without harness-side pty_create',
+    happyPath: 'workflow_validate_workspace starts on exec, self-acquires PTY for the interactive validation step, and completes without harness-side pty_create',
   },
   {
     lane: 'terminal',
@@ -206,6 +276,16 @@ export const supportMatrix: SupportMatrixEntry[] = [
     unitTests: [
       'src/server/register-pty.test.ts',
     ],
+  },
+  {
+    lane: 'terminal',
+    id: 'terminal_vscode_controller',
+    label: 'VS Code CLI controller (open/file/task/problems)',
+    level: 'covered',
+    unitTests: [
+      'src/server/register-vscode.test.ts',
+    ],
+    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp smoke:stdio',
   },
   {
     lane: 'terminal',
