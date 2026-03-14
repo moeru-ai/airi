@@ -36,13 +36,18 @@ function createEmptySamples(): Record<LagMetric, Sample[]> {
 }
 
 function pruneSamples(buffer: Sample[], cutoffTs: number) {
-  while (buffer.length && buffer[0].ts < cutoffTs)
-    buffer.shift()
+  const idx = buffer.findIndex(item => item.ts >= cutoffTs)
+  if (idx === -1) {
+    buffer.length = 0
+    return
+  }
+  if (idx > 0)
+    buffer.splice(0, idx)
 }
 
 function calcStats(values: number[]) {
   if (!values.length)
-    return { avg: 0, p95: 0, latest: 0 }
+    return { avg: 0, p95: 0, latest: 0, count: 0 }
 
   const total = values.reduce((acc, n) => acc + n, 0)
   const avg = total / values.length
@@ -51,7 +56,7 @@ function calcStats(values: number[]) {
   const p95 = sorted[idx]
   const latest = values[values.length - 1]
 
-  return { avg, p95, latest }
+  return { avg, p95, latest, count: values.length }
 }
 
 function buildHistogram(values: number[], bins = 20): HistogramBin[] {
@@ -96,6 +101,19 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
 
   const windowMs = 10000
   const buffers = reactive(createEmptySamples())
+  const bufferVersion = reactive<Record<LagMetric, number>>({
+    fps: 0,
+    frameDuration: 0,
+    longtask: 0,
+    memory: 0,
+  })
+
+  const statsCache = reactive<Record<LagMetric, { version: number; stats: ReturnType<typeof calcStats> }>>({
+    fps: { version: -1, stats: { avg: 0, p95: 0, latest: 0, count: 0 } },
+    frameDuration: { version: -1, stats: { avg: 0, p95: 0, latest: 0, count: 0 } },
+    longtask: { version: -1, stats: { avg: 0, p95: 0, latest: 0, count: 0 } },
+    memory: { version: -1, stats: { avg: 0, p95: 0, latest: 0, count: 0 } },
+  })
 
   const recording = ref(false)
   const recordingStartedAt = ref<number | null>(null)
@@ -118,12 +136,24 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
 
     const buffer = buffers[metric]
     buffer.push({ ts, value, meta })
+    bufferVersion[metric] += 1
     pruneSamples(buffer, cutoff)
 
     if (recording.value) {
       const sampleBuffer = recordingSamples[metric]
       sampleBuffer.push({ ts, value, meta })
     }
+  }
+
+  function getMetricStats(metric: LagMetric) {
+    const version = bufferVersion[metric]
+    if (statsCache[metric].version === version)
+      return statsCache[metric].stats
+
+    const values = buffers[metric].map((sample: Sample) => sample.value)
+    const stats = calcStats(values)
+    statsCache[metric] = { version, stats }
+    return stats
   }
 
   function startRecording() {
@@ -269,5 +299,7 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
     toggleAll,
     calcStats,
     buildHistogram,
+    getMetricStats,
+    bufferVersion,
   }
 })
