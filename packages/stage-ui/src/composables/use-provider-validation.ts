@@ -52,7 +52,6 @@ export function useProviderValidation(providerId: string) {
   const isValid = ref(false)
   const validationMessage = ref('')
 
-  // --- Manual Test Generation State ---
   const hasManualValidators = computed(() => !!providerMetadata.value?.validators.runManualValidation)
   const isManualTesting = ref(false)
   const manualTestPassed = ref(false)
