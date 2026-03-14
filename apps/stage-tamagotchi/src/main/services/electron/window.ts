@@ -5,8 +5,7 @@ import type { ElectronWindowLifecycleState } from '../../../shared/eventa'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { bounds, startLoopGetBounds } from '@proj-airi/electron-eventa'
-import { createRendererLoop } from '@proj-airi/electron-vueuse/main'
-import { app } from 'electron'
+import { createRendererLoop, safeClose } from '@proj-airi/electron-vueuse/main'
 
 import {
   electron,
@@ -118,7 +117,7 @@ export function createWindowService(params: { context: ReturnType<typeof createC
 
   defineInvokeHandler(params.context, electronWindowClose, (_, options) => {
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
-      app.quit()
+      safeClose(params.window)
     }
   })
 }
