@@ -32,6 +32,17 @@ export function explainActionIntent(action: ActionInvocation, runState: RunState
     : ''
 
   switch (action.kind) {
+    case 'coding_review_workspace':
+      return `Review coding workspace: ${action.input.workspacePath}`
+    case 'coding_read_file':
+      return `Read file ${action.input.filePath}`
+    case 'coding_apply_patch':
+      return `Patch file ${action.input.filePath}`
+    case 'coding_compress_context':
+      return `Compress context for goal: ${action.input.goal}`
+    case 'coding_report_status':
+      return `Report status: ${action.input.status}`
+
     case 'screenshot':
       return `Taking a screenshot to observe the current state of the desktop${taskContext}.`
     case 'observe_windows':
@@ -133,6 +144,17 @@ export function explainActionOutcome(params: {
   }
 
   switch (action.kind) {
+    case 'coding_review_workspace':
+      return 'Workspace reviewed successfully. Code structure and recent changes have been provided.'
+    case 'coding_read_file':
+      return 'File read successfully. File content has been provided.'
+    case 'coding_apply_patch':
+      return 'Patch applied successfully. The file has been updated.'
+    case 'coding_compress_context':
+      return 'Context compressed successfully. The semantic understanding has been summarized.'
+    case 'coding_report_status':
+      return 'Status reported successfully.'
+
     case 'screenshot':
       return 'Screenshot captured successfully. The model can now analyze the current desktop state.'
     case 'observe_windows':
@@ -177,6 +199,13 @@ function buildFailureExplanation(
 
   // Provide targeted advice based on action type.
   switch (action.kind) {
+    case 'coding_review_workspace':
+    case 'coding_read_file':
+    case 'coding_apply_patch':
+    case 'coding_compress_context':
+    case 'coding_report_status':
+      parts.push('Ensure the file path and workspace boundaries are perfectly aligned and readable.')
+      break
     case 'click':
     case 'type_text':
     case 'press_keys':

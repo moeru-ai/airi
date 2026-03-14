@@ -195,6 +195,12 @@ async function findAvailablePort(preferredPort: number, attempts = 20) {
 }
 
 async function terminateExistingStageTamagotchiInstances() {
+  // TODO: Replace this whole observable harness with an actual Electron E2E
+  // testing utility so process lifecycle and interaction orchestration happen
+  // through supported test hooks instead of ad-hoc process discovery.
+  // TODO: Replace this forced process cleanup with an app-provided shutdown command
+  // (prefer RPC/Eventa or a dedicated MCP/debug command) so AIRI can exit
+  // gracefully and clean up state, sockets, and child processes.
   const patterns = [
     resolve(repoDir, 'apps', 'stage-tamagotchi'),
     '@proj-airi/stage-tamagotchi',

@@ -35,6 +35,7 @@
     "e2e:airi-discord-agentic": "tsx ./src/bin/e2e-airi-discord-agentic.ts",
     "e2e:developer-workflow": "tsx ./src/bin/e2e-developer-workflow.ts",
     "e2e:browser-reroute": "tsx ./src/bin/e2e-browser-reroute.ts",
+    "e2e:coding-workflow": "tsx ./src/bin/e2e-coding-workflow.ts",
     "e2e:terminal-exec": "tsx ./src/bin/e2e-terminal-exec.ts",
     "e2e:terminal-pty": "tsx ./src/bin/e2e-terminal-pty.ts",
     "e2e:terminal-self-acquire": "tsx ./src/bin/e2e-terminal-self-acquire.ts",
@@ -50,8 +51,13 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "catalog:",
+    "@moeru/std": "catalog:",
     "node-pty": "catalog:",
     "ws": "^8.19.0",
     "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:"
   }
 }

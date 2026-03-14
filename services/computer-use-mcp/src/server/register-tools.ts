@@ -19,6 +19,7 @@ import { getRuntimePreflight } from '../preflight'
 import { summarizeRunState } from '../transparency'
 import {
   createAppBrowseAndActWorkflow,
+  createCodingExecutionLoopWorkflow,
   createDevInspectFailureWorkflow,
   createDevOpenWorkspaceWorkflow,
   createDevRunTestsWorkflow,
@@ -26,7 +27,6 @@ import {
   executeWorkflow,
   resumeWorkflow,
 } from '../workflows'
-import { getBrowserAgentLaunchContext, runBrowserAgentTask } from './browser-agent'
 import { textContent } from './content'
 import {
   describeExecutionTarget,
@@ -34,6 +34,7 @@ import {
   summarizeCoordinateSpace,
 } from './formatters'
 import { refreshRuntimeRunState } from './refresh-run-state'
+import { registerCodingTools } from './register-coding'
 import { createAcquirePtyCallback, executeApprovedPtyCreate } from './register-pty'
 import { formatWorkflowStructuredContent } from './workflow-formatter'
 import { createWorkflowPrepToolExecutor } from './workflow-prep-tools'
@@ -99,6 +100,7 @@ function buildBrowserDomUnavailableResponse(runtime: ComputerUseServerRuntime) {
 export function registerComputerUseTools(params: RegisterComputerUseToolsOptions) {
   const { server, runtime, executeAction, enableTestTools } = params
   const executePrepTool = createWorkflowPrepToolExecutor(runtime)
+  registerCodingTools(params)
   const acquirePty = createAcquirePtyCallback(runtime)
 
   async function refreshWorkflowRunState() {
@@ -169,7 +171,6 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
           coordScope: 'global-screen',
           appPolicy: 'deny-only',
           terminalBackend: runtime.terminalRunner.describe().kind,
-          browserAgent: getBrowserAgentLaunchContext(),
           browserDomBridge: runtime.browserDomBridge.getStatus(),
           browserSurfaceAvailability,
         },
@@ -362,94 +363,6 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
           status: 'ok',
           bridge,
         },
-      }
-    },
-  )
-
-  server.tool(
-    'browser_agent_get_status',
-    {},
-    async () => {
-      const launchContext = getBrowserAgentLaunchContext()
-      return {
-        content: [
-          textContent(`Browser agent root ${launchContext.rootExists ? 'ready' : 'missing'} at ${launchContext.cliCwd}; python=${launchContext.pythonCommand}; cdp=${launchContext.cdpUrl}.`),
-        ],
-        structuredContent: {
-          status: launchContext.rootExists ? 'ok' : 'missing',
-          browserAgent: launchContext,
-        },
-      }
-    },
-  )
-
-  server.tool(
-    'browser_agent_run',
-    {
-      instruction: z.string().min(1).describe('Goal-driven browser instruction for the autonomous browser agent.'),
-      agent: z.enum(['google', 'kimi']).optional().describe('Browser agent backend to use (default: google).'),
-      cdpUrl: z.string().optional().describe('Optional Chrome CDP endpoint override, e.g. http://localhost:9222'),
-      maxTurns: z.number().int().min(1).max(80).optional().describe('Maximum browser-agent reasoning turns (default: 30).'),
-      timeoutMs: z.number().int().min(1_000).max(900_000).optional().describe('End-to-end timeout for the delegated browser task (default: 180000).'),
-    },
-    async ({ instruction, agent, cdpUrl, maxTurns, timeoutMs }) => {
-      const launchContext = getBrowserAgentLaunchContext({ cdpUrl })
-
-      if (!launchContext.rootExists) {
-        return {
-          isError: true,
-          content: [
-            textContent(`Browser agent root is missing: ${launchContext.cliCwd}.`),
-          ],
-          structuredContent: {
-            status: 'missing',
-            browserAgent: launchContext,
-          },
-        }
-      }
-
-      try {
-        const result = await runBrowserAgentTask({
-          instruction,
-          agent,
-          cdpUrl,
-          maxTurns,
-          timeoutMs,
-        })
-
-        return {
-          content: [
-            textContent(`Browser agent ${result.success ? 'completed' : 'stopped'} on ${result.payload?.url || result.cdpUrl}.`),
-          ],
-          structuredContent: {
-            status: result.success ? 'completed' : 'failed',
-            browserAgent: {
-              instruction: result.instruction,
-              agent: result.agent,
-              cdpUrl: result.cdpUrl,
-              cliCwd: result.cliCwd,
-              cliModule: result.cliModule,
-              pythonCommand: result.pythonCommand,
-              exitCode: result.exitCode,
-              timedOut: result.timedOut,
-              stderrLines: result.stderrLines,
-            },
-            payload: result.payload,
-          },
-        }
-      }
-      catch (error) {
-        return {
-          isError: true,
-          content: [
-            textContent(`Browser agent failed: ${error instanceof Error ? error.message : String(error)}`),
-          ],
-          structuredContent: {
-            status: 'error',
-            browserAgent: launchContext,
-            error: error instanceof Error ? error.message : String(error),
-          },
-        }
       }
     },
   )
@@ -1159,6 +1072,42 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     },
     async ({ app, goal, url, autoApprove }) => {
       const workflow = createAppBrowseAndActWorkflow({ app, goal, url })
+      const result = await executeWorkflow({
+        workflow,
+        executeAction,
+        executePrepTool,
+        acquirePty,
+        stateManager: runtime.stateManager,
+        refreshState: refreshWorkflowRunState,
+        autoApproveSteps: autoApprove ?? true,
+      })
+
+      suspendedWorkflow = result.suspension
+
+      return formatWorkflowResult(workflow.id, result)
+    },
+  )
+
+  server.tool(
+    'workflow_coding_loop',
+    {
+      workspacePath: z.string().min(1).describe('Absolute path to the workspace root.'),
+      taskGoal: z.string().min(1).describe('High-level description of the coding task to accomplish.'),
+      targetFile: z.string().min(1).describe('Workspace-relative file path to inspect and patch.'),
+      patchOld: z.string().min(1).describe('Exact string to replace inside the target file.'),
+      patchNew: z.string().describe('Replacement string for the target file patch.'),
+      testCommand: z.string().optional().describe('Optional validation command to run after patching (default: pnpm test:run).'),
+      autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
+    },
+    async ({ workspacePath, taskGoal, targetFile, patchOld, patchNew, testCommand, autoApprove }) => {
+      const workflow = createCodingExecutionLoopWorkflow({
+        workspacePath,
+        taskGoal,
+        targetFile,
+        patchOld,
+        patchNew,
+        testCommand: testCommand ?? 'pnpm test:run',
+      })
       const result = await executeWorkflow({
         workflow,
         executeAction,

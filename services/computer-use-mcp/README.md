@@ -114,8 +114,6 @@ Clipboard bridge:
 
 Browser DOM bridge:
 
-- `browser_agent_get_status`
-- `browser_agent_run`
 - `browser_dom_get_bridge_status`
 - `browser_dom_get_active_tab`
 - `browser_dom_read_page`
@@ -204,13 +202,6 @@ Browser DOM bridge:
 - `COMPUTER_USE_BROWSER_DOM_BRIDGE_TIMEOUT_MS`
   - default `10000`
 
-Autonomous browser agent:
-
-- `COMPUTER_USE_BROWSER_AGENT_ROOT`
-  - optional override for the embedded browser-agent workspace under `src/bin/computer_use`
-- `COMPUTER_USE_PYTHON`
-  - optional python executable override for `browser_agent_run`; defaults to the embedded `.venv/bin/python` when present, otherwise `python3`
-
 Legacy remote runner:
 
 - `COMPUTER_USE_REMOTE_SSH_HOST`
@@ -275,7 +266,6 @@ Use the two surfaces differently:
 
 - `desktop_*` for AIRI itself, native macOS apps, Electron windows, Finder, Terminal, VS Code
 - `browser_dom_*` for real browser pages, cross-frame DOM reads, form filling, selector-based interaction, and iframe-heavy flows
-- `browser_agent_run` for goal-driven browser tasks where AIRI should delegate the web exploration loop instead of manually hard-coding each browser step
 
 ## Validation Commands
 
@@ -290,6 +280,11 @@ Legacy remote validation remains available:
 
 - `pnpm -F @proj-airi/computer-use-mcp bootstrap:remote`
 - `pnpm -F @proj-airi/computer-use-mcp smoke:remote`
+
+`bootstrap:remote` now defaults to dependency validation only. If the remote host
+is missing required X11/desktop runner packages, install them manually or rerun
+with `COMPUTER_USE_REMOTE_ALLOW_PACKAGE_INSTALL=1` to explicitly allow
+`apt-get` installation via passwordless sudo.
 
 ## Demo Story To Record
 

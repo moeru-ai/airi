@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
+import { errorMessageFrom } from '@moeru/std'
 
 const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -152,6 +153,6 @@ function printResult(label: string, result: unknown) {
 }
 
 main().catch((err) => {
-  console.error('❌ Fatal:', err instanceof Error ? err.message : String(err))
+  console.error('❌ Fatal:', errorMessageFrom(err) || String(err))
   exit(1)
 })

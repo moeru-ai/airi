@@ -12,6 +12,11 @@ import type {
 import type { ComputerUseServerRuntime } from './runtime'
 
 import { normalizeConfiguredAppAction } from '../app-aliases'
+import { CodingPrimitives } from '../coding/primitives'
+import {
+  buildCodingApplyPatchBackendResult,
+  buildCodingReadFileBackendResult,
+} from '../coding/result-shape'
 import { evaluateActionPolicy } from '../policy'
 import { getRuntimePreflight } from '../preflight'
 import { buildCoordinateSpaceInfo } from '../runtime-probes'
@@ -255,6 +260,47 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       let secretStructuredContent: Record<string, unknown> | undefined
 
       switch (normalizedAction.kind) {
+        // Coding Execution Core actions
+        case 'coding_review_workspace': {
+          const primitives = new CodingPrimitives(runtime)
+          const result = await primitives.reviewWorkspace(normalizedAction.input.workspacePath)
+          backendResult = result
+          break
+        }
+
+        case 'coding_read_file': {
+          const primitives = new CodingPrimitives(runtime)
+          const result = await primitives.readFile(normalizedAction.input.filePath, normalizedAction.input.startLine, normalizedAction.input.endLine)
+          backendResult = buildCodingReadFileBackendResult({
+            filePath: normalizedAction.input.filePath,
+            content: result,
+            startLine: normalizedAction.input.startLine,
+            endLine: normalizedAction.input.endLine,
+          })
+          break
+        }
+        case 'coding_apply_patch': {
+          const primitives = new CodingPrimitives(runtime)
+          const result = await primitives.applyPatch(normalizedAction.input.filePath, normalizedAction.input.oldString, normalizedAction.input.newString)
+          backendResult = buildCodingApplyPatchBackendResult({
+            filePath: normalizedAction.input.filePath,
+            summary: result,
+          })
+          break
+        }
+        case 'coding_compress_context': {
+          const primitives = new CodingPrimitives(runtime)
+          const result = await primitives.compressContext(normalizedAction.input.goal, normalizedAction.input.filesSummary, normalizedAction.input.recentResultSummary, normalizedAction.input.unresolvedIssues, normalizedAction.input.nextStepRecommendation)
+          backendResult = result
+          break
+        }
+        case 'coding_report_status': {
+          const primitives = new CodingPrimitives(runtime)
+          const result = await primitives.reportStatus(normalizedAction.input.status, normalizedAction.input.summary, normalizedAction.input.filesTouched, normalizedAction.input.commandsRun, normalizedAction.input.checks, normalizedAction.input.nextStep)
+          backendResult = result
+          break
+        }
+
         case 'screenshot': {
           const screenshot = await runtime.executor.takeScreenshot(normalizedAction.input)
           runtime.session.setLastScreenshot(screenshot)
