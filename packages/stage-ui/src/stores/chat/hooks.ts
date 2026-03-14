@@ -2,31 +2,12 @@ import type { ToolMessage } from '@xsai/shared-chat'
 
 import type { ChatStreamEventContext, StreamingAssistantMessage } from '../../types/chat'
 
-export interface ChatHookRegistry {
-  onBeforeMessageComposed: (cb: (message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) => Promise<void>) => () => void
-  onAfterMessageComposed: (cb: (message: string, context: ChatStreamEventContext) => Promise<void>) => () => void
-  onBeforeSend: (cb: (message: string, context: ChatStreamEventContext) => Promise<void>) => () => void
-  onAfterSend: (cb: (message: string, context: ChatStreamEventContext) => Promise<void>) => () => void
-  onTokenLiteral: (cb: (literal: string, context: ChatStreamEventContext) => Promise<void>) => () => void
-  onTokenSpecial: (cb: (special: string, context: ChatStreamEventContext) => Promise<void>) => () => void
-  onStreamEnd: (cb: (context: ChatStreamEventContext) => Promise<void>) => () => void
-  onAssistantResponseEnd: (cb: (message: string, context: ChatStreamEventContext) => Promise<void>) => () => void
-  onAssistantMessage: (cb: (message: StreamingAssistantMessage, messageText: string, context: ChatStreamEventContext) => Promise<void>) => () => void
-  onChatTurnComplete: (cb: (chat: { output: StreamingAssistantMessage, outputText: string, toolCalls: ToolMessage[] }, context: ChatStreamEventContext) => Promise<void>) => () => void
-  emitBeforeMessageComposedHooks: (message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) => Promise<void>
-  emitAfterMessageComposedHooks: (message: string, context: ChatStreamEventContext) => Promise<void>
-  emitBeforeSendHooks: (message: string, context: ChatStreamEventContext) => Promise<void>
-  emitAfterSendHooks: (message: string, context: ChatStreamEventContext) => Promise<void>
-  emitTokenLiteralHooks: (literal: string, context: ChatStreamEventContext) => Promise<void>
-  emitTokenSpecialHooks: (special: string, context: ChatStreamEventContext) => Promise<void>
-  emitStreamEndHooks: (context: ChatStreamEventContext) => Promise<void>
-  emitAssistantResponseEndHooks: (message: string, context: ChatStreamEventContext) => Promise<void>
-  emitAssistantMessageHooks: (message: StreamingAssistantMessage, messageText: string, context: ChatStreamEventContext) => Promise<void>
-  emitChatTurnCompleteHooks: (chat: { output: StreamingAssistantMessage, outputText: string, toolCalls: ToolMessage[] }, context: ChatStreamEventContext) => Promise<void>
-  clearHooks: () => void
-}
+let hooksIdCounter = 0
 
-export function createChatHooks(): ChatHookRegistry {
+export function createChatHooks() {
+  const id = ++hooksIdCounter
+  console.log(`[Chat Hooks] Created instance ${id}`)
+
   const onBeforeMessageComposedHooks: Array<(message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) => Promise<void>> = []
   const onAfterMessageComposedHooks: Array<(message: string, context: ChatStreamEventContext) => Promise<void>> = []
   const onBeforeSendHooks: Array<(message: string, context: ChatStreamEventContext) => Promise<void>> = []
@@ -39,6 +20,7 @@ export function createChatHooks(): ChatHookRegistry {
   const onChatTurnCompleteHooks: Array<(chat: { output: StreamingAssistantMessage, outputText: string, toolCalls: ToolMessage[] }, context: ChatStreamEventContext) => Promise<void>> = []
 
   function onBeforeMessageComposed(cb: (message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) => Promise<void>) {
+    console.log(`[Chat Hooks] #${id} onBeforeMessageComposed registered`)
     onBeforeMessageComposedHooks.push(cb)
     return () => {
       const index = onBeforeMessageComposedHooks.indexOf(cb)
@@ -48,6 +30,7 @@ export function createChatHooks(): ChatHookRegistry {
   }
 
   function onAfterMessageComposed(cb: (message: string, context: ChatStreamEventContext) => Promise<void>) {
+    console.log(`[Chat Hooks] #${id} onAfterMessageComposed registered`)
     onAfterMessageComposedHooks.push(cb)
     return () => {
       const index = onAfterMessageComposedHooks.indexOf(cb)
@@ -57,6 +40,7 @@ export function createChatHooks(): ChatHookRegistry {
   }
 
   function onBeforeSend(cb: (message: string, context: ChatStreamEventContext) => Promise<void>) {
+    console.log(`[Chat Hooks] #${id} onBeforeSend registered`)
     onBeforeSendHooks.push(cb)
     return () => {
       const index = onBeforeSendHooks.indexOf(cb)
@@ -66,6 +50,7 @@ export function createChatHooks(): ChatHookRegistry {
   }
 
   function onAfterSend(cb: (message: string, context: ChatStreamEventContext) => Promise<void>) {
+    console.log(`[Chat Hooks] #${id} onAfterSend registered`)
     onAfterSendHooks.push(cb)
     return () => {
       const index = onAfterSendHooks.indexOf(cb)
@@ -75,6 +60,7 @@ export function createChatHooks(): ChatHookRegistry {
   }
 
   function onTokenLiteral(cb: (literal: string, context: ChatStreamEventContext) => Promise<void>) {
+    console.log(`[Chat Hooks] #${id} onTokenLiteral registered`)
     onTokenLiteralHooks.push(cb)
     return () => {
       const index = onTokenLiteralHooks.indexOf(cb)
@@ -84,6 +70,7 @@ export function createChatHooks(): ChatHookRegistry {
   }
 
   function onTokenSpecial(cb: (special: string, context: ChatStreamEventContext) => Promise<void>) {
+    console.log(`[Chat Hooks] #${id} onTokenSpecial registered`)
     onTokenSpecialHooks.push(cb)
     return () => {
       const index = onTokenSpecialHooks.indexOf(cb)
@@ -93,6 +80,7 @@ export function createChatHooks(): ChatHookRegistry {
   }
 
   function onStreamEnd(cb: (context: ChatStreamEventContext) => Promise<void>) {
+    console.log(`[Chat Hooks] #${id} onStreamEnd registered`)
     onStreamEndHooks.push(cb)
     return () => {
       const index = onStreamEndHooks.indexOf(cb)
@@ -102,6 +90,7 @@ export function createChatHooks(): ChatHookRegistry {
   }
 
   function onAssistantResponseEnd(cb: (message: string, context: ChatStreamEventContext) => Promise<void>) {
+    console.log(`[Chat Hooks] #${id} onAssistantResponseEnd registered`)
     onAssistantResponseEndHooks.push(cb)
     return () => {
       const index = onAssistantResponseEndHooks.indexOf(cb)
@@ -111,6 +100,7 @@ export function createChatHooks(): ChatHookRegistry {
   }
 
   function onAssistantMessage(cb: (message: StreamingAssistantMessage, messageText: string, context: ChatStreamEventContext) => Promise<void>) {
+    console.log(`[Chat Hooks] #${id} onAssistantMessage registered`)
     onAssistantMessageHooks.push(cb)
     return () => {
       const index = onAssistantMessageHooks.indexOf(cb)
@@ -120,6 +110,7 @@ export function createChatHooks(): ChatHookRegistry {
   }
 
   function onChatTurnComplete(cb: (chat: { output: StreamingAssistantMessage, outputText: string, toolCalls: ToolMessage[] }, context: ChatStreamEventContext) => Promise<void>) {
+    console.log(`[Chat Hooks] #${id} onChatTurnComplete registered`)
     onChatTurnCompleteHooks.push(cb)
     return () => {
       const index = onChatTurnCompleteHooks.indexOf(cb)
@@ -162,6 +153,7 @@ export function createChatHooks(): ChatHookRegistry {
   }
 
   async function emitTokenLiteralHooks(literal: string, context: ChatStreamEventContext) {
+    console.log(`[Chat Hooks] #${id} Emitting token literal. Listeners: ${onTokenLiteralHooks.length}`)
     for (const hook of onTokenLiteralHooks)
       await hook(literal, context)
   }

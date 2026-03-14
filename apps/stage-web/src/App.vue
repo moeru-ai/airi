@@ -75,8 +75,10 @@ watch(settings.themeColorsHueDynamic, () => {
 
 // Initialize first-time setup check when app mounts
 onMounted(async () => {
+  console.log('[App] onMounted start')
   proactivityStore.startHeartbeatLoop()
 
+  console.log('[App] Initializing Analytics & Card stores...')
   analyticsStore.initialize()
   cardStore.initialize()
 
@@ -84,13 +86,19 @@ onMounted(async () => {
     onboardingStore.showingSetup = true
   }
 
+  console.log('[App] Initializing Chat Session...')
   await chatSessionStore.initialize()
+  console.log('[App] Initializing Server Channel...')
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
+  console.log('[App] Initializing Context Bridge...')
   await contextBridgeStore.initialize()
+  console.log('[App] Initializing Character Orchestrator...')
   characterOrchestratorStore.initialize()
 
+  console.log('[App] Loading models...')
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
+  console.log('[App] onMounted complete')
 })
 
 onUnmounted(() => {

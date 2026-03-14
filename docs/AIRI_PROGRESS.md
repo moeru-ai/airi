@@ -1,3 +1,16 @@
+### 2026-03-14 - TTS Routing Fixed & Core IPC Restored
+
+- **Status**: ✅ TTS Audio Routing Operational
+- **What worked**:
+  - Found that `await getServerChannelConfig()` was hanging in `App.vue` `onMounted`.
+  - Root cause was missing IPC service registrations in `main/index.ts` (Channel Server, MCP, I18n).
+  - Hoisting issue with `mainWindow` in `index.ts` resolved by moving registrations into `injeca.invoke` callback.
+  - Build errors (missing exports/unused vars) resolved.
+- **Pending/Next Bug**:
+  - Profile Switcher fails to update the active model.
+  - Integration should follow the "AIRI Card Display" pattern (Settings > AIRI Card > Play Button) to lookup VRM/Model associated with the card and set it as active.
+  - Nuclear diagnostic logs kept for investigating hook propagation in the model switching flow.
+
 # AIRI Progress Overview
 
 This document tracks the current development state of the AIRI project, specifically within the `airi-rebase-scratch` workspace.
@@ -40,3 +53,7 @@ This document tracks the current development state of the AIRI project, specific
 - **STT/TTS Chat Inscription**: Ensure that transcribed text from voice input is automatically inscribed in the chat history. Currently, these messages "get lost in the ether"; they should appear in the history as if they were manually typed by the user to maintain a complete conversation record even when using voice interaction.
 - **Model Centering & Preview Cache**: Investigation into the image preview cache algorithm for when model files load. Some models are currently displayed way off-center (e.g., only head and neck visible at the bottom edge) during the initial load/render.
 - **Configurable Global Hotkey**: Allow users to configure the global microphone toggle key from the settings panel. This would replace the current hardcoded ScrollLock logic (or make it optional), while potentially maintaining LED sync for toggle keys like CapsLock/NumLock. (Out of scope for current feature branch).
+- **Privacy: Disable Cloud Sync / Remote Opt-out**: Investigation into disabling the automatic chat session synchronization to `airi-api.moeru.ai`. Users should have a clear opt-out or toggle to prevent local private chat logs from being synced to the project owner's remote service. (Critical for privacy).
+- **Proactivity & Metrics Restoration**: Re-implement the `proactivity.ts` store and integrate `chatCount`/`ttsCount` metrics into the speech/chat stores once the core TTS routing bug is resolved.
+- **Heartbeat Config Extensions**: Restore `contextOptions` (windowHistory, systemLoad, usageMetrics) to the `AiriExtension` and `HeartbeatConfig` interfaces in `airi-card.ts`.
+- **Profile Switcher Model-Switching**: The new profile switcher (PR #1328) fails to change the active model. It should look at how it was implemented in the AIRI card display (Settings > AIRI Card), where each card item has a play button that looks up the associated VRM/model and sets it as the active model. Selection of a profile should trigger this same active model update.

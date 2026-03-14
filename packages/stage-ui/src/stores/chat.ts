@@ -382,6 +382,10 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     options: SendOptions,
     targetSessionId?: string,
   ) {
+    console.log('[Chat Orchestrator] Ingesting message:', { text: sendingMessage.slice(0, 50), sessionId: targetSessionId || activeSessionId.value })
+    if (sending.value)
+      return
+
     const sessionId = targetSessionId || activeSessionId.value
     const generation = chatSession.getSessionGeneration(sessionId)
 

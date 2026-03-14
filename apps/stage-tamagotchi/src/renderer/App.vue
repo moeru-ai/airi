@@ -111,22 +111,32 @@ watch(route, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
 
 onMounted(async () => {
+  console.log('[App] onMounted start')
   proactivityStore.startHeartbeatLoop()
 
+  console.log('[App] Initializing Analytics & Card stores...')
   analyticsStore.initialize()
   cardStore.initialize()
 
+  console.log('[App] Initializing Chat Session & Model loading...')
   await chatSessionStore.initialize()
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
 
+  console.log('[App] Getting Server Channel config...')
   const serverChannelConfig = await getServerChannelConfig()
   serverChannelSettingsStore.websocketTlsConfig = serverChannelConfig.websocketTlsConfig
 
+  console.log('[App] Initializing Server Channel...')
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
+  console.log('[App] Initializing Context Bridge...')
   await contextBridgeStore.initialize()
+  console.log('[App] Initializing Character Orchestrator...')
   characterOrchestratorStore.initialize()
+  console.log('[App] Starting cursor tracking...')
   await startTrackingCursorPoint()
+
+  console.log('[App] onMounted complete')
 
   // Expose stage provider definitions to plugin host APIs.
   defineInvokeHandler(context.value, pluginProtocolListProviders, async () => listProvidersForPluginHost())

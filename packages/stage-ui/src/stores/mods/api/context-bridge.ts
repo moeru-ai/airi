@@ -36,9 +36,17 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
   const disposeHookFns = ref<Array<() => void>>([])
   let remoteStreamGuard: { sessionId: string, generation: number } | null = null
+  const isInitialized = ref(false)
 
   async function initialize() {
+    console.log('[Context Bridge] Initializing...')
+    if (isInitialized.value) {
+      console.log('[Context Bridge] Already initialized, skipping.')
+      return
+    }
+    console.log('[Context Bridge] Acquiring mutex...')
     await mutex.acquire()
+    console.log('[Context Bridge] Mutex acquired.')
 
     try {
       let isProcessingRemoteStream = false
@@ -156,6 +164,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           if (isProcessingRemoteStream)
             return
 
+          console.log('[Context Bridge] Broadcasting before-compose', { message })
           broadcastStreamEvent({ type: 'before-compose', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onAfterMessageComposed(async (message, context) => {
@@ -180,6 +189,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           if (isProcessingRemoteStream)
             return
 
+          console.log('[Context Bridge] Broadcasting token-literal', { literal })
           broadcastStreamEvent({ type: 'token-literal', literal, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onTokenSpecial(async (special, context) => {
@@ -251,6 +261,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         if (!event)
           return
 
+        console.log('[Context Bridge] Received remote stream event:', event.type)
         isProcessingRemoteStream = true
 
         try {
@@ -318,6 +329,13 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }
       })
       disposeHookFns.value.push(stopIncomingStreamWatch)
+
+      console.log('[Context Bridge] Initialization complete. Registered hooks:', disposeHookFns.value.length)
+      isInitialized.value = true
+    }
+    catch (e) {
+      console.error('[Context Bridge] Initialization failed:', e)
+      isInitialized.value = false
     }
     finally {
       mutex.release()

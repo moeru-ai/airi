@@ -6,6 +6,7 @@ import messages from '@proj-airi/i18n/locales'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
+import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
 import { app, ipcMain } from 'electron'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
@@ -18,8 +19,9 @@ import { createGlobalAppConfig } from './configs/global'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
-import { setupServerChannel } from './services/airi/channel-server'
-import { setupMcpStdioManager } from './services/airi/mcp-servers'
+import { createServerChannelService, setupServerChannel } from './services/airi/channel-server'
+import { createI18nService } from './services/airi/i18n'
+import { createMcpServersService, setupMcpStdioManager } from './services/airi/mcp-servers'
 import { setupPluginHost } from './services/airi/plugins'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupSensorsService } from './services/sensors'
@@ -169,8 +171,13 @@ app.whenReady().then(async () => {
   })
 
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, appConfig },
+    dependsOn: { mainWindow, tray, serverChannel, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, appConfig, i18n },
     callback: (deps) => {
+      const context = createContext(ipcMain).context
+      createServerChannelService({ serverChannel: deps.serverChannel })
+      createMcpServersService({ context, manager: deps.mcpStdioManager })
+      createI18nService({ context, window: deps.mainWindow, i18n: deps.i18n })
+
       import('./libs/bootkit/lifecycle').then((m) => {
         m.onAppBeforeQuit(() => {
           deps.appConfig.flush()
