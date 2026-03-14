@@ -8,11 +8,8 @@ import { useI18n } from 'vue-i18n'
 
 import SystemPromptV2 from '../../constants/prompts/system-v2'
 
-<<<<<<< HEAD
-import { useSettingsStageModel } from '../settings/stage-model'
-=======
 import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '../../constants/prompts/artistry-instruction'
->>>>>>> 1d252c81 (feat: proactivity engine, discord stabilization, and improved model selector defaults)
+import { useSettingsStageModel } from '../settings/stage-model'
 import { useConsciousnessStore } from './consciousness'
 import { useSpeechStore } from './speech'
 

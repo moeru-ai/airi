@@ -3013,6 +3013,15 @@ importers:
         specifier: ^3.1.8
         version: 3.2.5(typescript@5.9.3)
 
+  packages/stage-ui-three-performance-runtime:
+    dependencies:
+      pinia:
+        specifier: ^3.0.4
+        version: 3.0.4(typescript@5.9.3)(vue@3.5.29(typescript@5.9.3))
+      vue:
+        specifier: 'catalog:'
+        version: 3.5.29(typescript@5.9.3)
+
   packages/stream-kit: {}
 
   packages/tauri-plugin-mcp:

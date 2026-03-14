@@ -1,4 +1,3 @@
-```yaml
 operations:
   load-models: モデルの読み込み
   load-models-status:
