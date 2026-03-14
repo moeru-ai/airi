@@ -35,6 +35,16 @@ export function isModelProvider(providerInstance: ProviderInstance): providerIns
   return false
 }
 
+export interface ProviderOnboardingField {
+  key: string
+  type: 'text' | 'password'
+  label: string
+  description?: string
+  placeholder?: string
+  required?: boolean
+  defaultValue?: string
+}
+
 export interface ProviderExtraMethods<TConfig> {
   listModels?: (config: TConfig, provider: ProviderInstance) => Promise<ModelInfo[]>
   listVoices?: (config: TConfig, provider: ProviderInstance) => Promise<VoiceInfo[]>

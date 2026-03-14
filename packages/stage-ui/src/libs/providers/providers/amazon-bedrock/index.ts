@@ -229,6 +229,33 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
     }),
   }),
 
+  onboardingFields: ({ t }) => [
+    {
+      key: 'accessKeyId',
+      type: 'text' as const,
+      label: t('settings.pages.providers.provider.amazon-bedrock.config.access-key-id.label'),
+      description: t('settings.pages.providers.provider.amazon-bedrock.config.access-key-id.description'),
+      placeholder: 'AKIAIOSFODNN7EXAMPLE',
+      required: true,
+    },
+    {
+      key: 'secretAccessKey',
+      type: 'password' as const,
+      label: t('settings.pages.providers.provider.amazon-bedrock.config.secret-access-key.label'),
+      description: t('settings.pages.providers.provider.amazon-bedrock.config.secret-access-key.description'),
+      placeholder: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+      required: true,
+    },
+    {
+      key: 'region',
+      type: 'text' as const,
+      label: t('settings.pages.providers.provider.amazon-bedrock.config.region.label'),
+      description: t('settings.pages.providers.provider.amazon-bedrock.config.region.description'),
+      placeholder: 'us-east-1',
+      defaultValue: 'us-east-1',
+    },
+  ],
+
   createProvider(config) {
     const region = config.region
     const baseURL = `https://bedrock-runtime.${region}.amazonaws.com/v1/`

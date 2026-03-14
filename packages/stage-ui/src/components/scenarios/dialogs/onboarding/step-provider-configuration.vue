@@ -26,16 +26,12 @@ const apiKey = ref('')
 const baseUrl = ref('')
 const accountId = ref('')
 const enableChatCheck = ref(true)
-
-// Amazon Bedrock SigV4 fields
-const accessKeyId = ref('')
-const secretAccessKey = ref('')
-const region = ref('us-east-1')
+const customFieldValues = ref<Record<string, string>>({})
 
 const validation = ref<'unchecked' | 'pending' | 'succeed' | 'failed'>('unchecked')
 const validationError = ref<any>()
 
-const isAmazonBedrock = computed(() => props.selectedProvider?.id === 'amazon-bedrock')
+const hasOnboardingFields = computed(() => (props.selectedProvider?.onboardingFields?.length ?? 0) > 0)
 
 // Initialize form with default values when provider changes
 function initializeForm() {
@@ -47,9 +43,13 @@ function initializeForm() {
   baseUrl.value = ('baseUrl' in defaultOptions ? String(defaultOptions.baseUrl) : '') || ''
   apiKey.value = ''
   accountId.value = ''
-  accessKeyId.value = ''
-  secretAccessKey.value = ''
-  region.value = 'us-east-1'
+
+  // Initialize custom fields with their default values
+  const fields: Record<string, string> = {}
+  for (const field of provider.onboardingFields ?? []) {
+    fields[field.key] = field.defaultValue ?? ''
+  }
+  customFieldValues.value = fields
 
   // Reset validation and chat check
   validation.value = 'unchecked'
@@ -60,19 +60,19 @@ function initializeForm() {
 // Watch for provider changes
 watch(() => props.selectedProvider?.id, initializeForm)
 
-watch([apiKey, baseUrl, accountId, accessKeyId, secretAccessKey, region], () => {
+watch([apiKey, baseUrl, accountId, customFieldValues], () => {
   if (validation.value === 'failed' || validation.value === 'succeed') {
     validation.value = 'unchecked'
     validationError.value = undefined
   }
-})
+}, { deep: true })
 
 // Computed properties
 const needsApiKey = computed(() => {
   if (!props.selectedProvider)
     return false
-  // Amazon Bedrock uses its own fields (Access Key ID + Secret Access Key)
-  if (isAmazonBedrock.value)
+  // Providers with custom onboarding fields handle their own auth
+  if (hasOnboardingFields.value)
     return false
   return props.selectedProvider.id !== 'ollama' && props.selectedProvider.id !== 'player2'
 })
@@ -80,8 +80,8 @@ const needsApiKey = computed(() => {
 const needsBaseUrl = computed(() => {
   if (!props.selectedProvider)
     return false
-  // Amazon Bedrock doesn't need a base URL (it's derived from region)
-  if (isAmazonBedrock.value)
+  // Providers with custom onboarding fields handle their own endpoints
+  if (hasOnboardingFields.value)
     return false
   return props.selectedProvider.id !== 'cloudflare-workers-ai'
 })
@@ -94,9 +94,12 @@ const canProceed = computed(() => {
   if (!props.selectedProviderId)
     return false
 
-  if (isAmazonBedrock.value) {
-    if (!accessKeyId.value.trim() || !secretAccessKey.value.trim())
-      return false
+  if (hasOnboardingFields.value) {
+    const fields = props.selectedProvider?.onboardingFields ?? []
+    for (const field of fields) {
+      if (field.required && !customFieldValues.value[field.key]?.trim())
+        return false
+    }
   }
   else if (needsApiKey.value && !apiKey.value.trim()) {
     return false
@@ -122,10 +125,11 @@ async function validateConfiguration() {
     // Prepare config object
     const config: Record<string, unknown> = {}
 
-    if (isAmazonBedrock.value) {
-      config.accessKeyId = accessKeyId.value.trim()
-      config.secretAccessKey = secretAccessKey.value.trim()
-      config.region = region.value.trim() || 'us-east-1'
+    if (hasOnboardingFields.value) {
+      for (const [key, value] of Object.entries(customFieldValues.value)) {
+        if (value)
+          config[key] = value.trim()
+      }
     }
     else {
       if (needsApiKey.value)
@@ -160,9 +164,7 @@ async function handleNext() {
       apiKey: apiKey.value,
       baseUrl: baseUrl.value,
       accountId: accountId.value,
-      accessKeyId: accessKeyId.value,
-      secretAccessKey: secretAccessKey.value,
-      region: region.value || 'us-east-1',
+      customFields: hasOnboardingFields.value ? { ...customFieldValues.value } : undefined,
     })
   }
 }
@@ -175,9 +177,7 @@ async function handleContinueAnyway() {
     apiKey: apiKey.value,
     baseUrl: baseUrl.value,
     accountId: accountId.value,
-    accessKeyId: accessKeyId.value,
-    secretAccessKey: secretAccessKey.value,
-    region: region.value || 'us-east-1',
+    customFields: hasOnboardingFields.value ? { ...customFieldValues.value } : undefined,
   })
   providersStore.forceProviderConfigured(props.selectedProvider.id)
 }
@@ -243,30 +243,17 @@ initializeForm()
         </div>
       </Callout>
       <div class="space-y-4">
-        <!-- Amazon Bedrock SigV4 fields -->
-        <template v-if="isAmazonBedrock">
+        <!-- Custom onboarding fields (provider-specific, e.g. Amazon Bedrock SigV4) -->
+        <template v-if="hasOnboardingFields">
           <FieldInput
-            v-model="accessKeyId"
-            placeholder="AKIAIOSFODNN7EXAMPLE"
-            type="text"
-            :label="t('settings.pages.providers.provider.amazon-bedrock.config.access-key-id.label')"
-            :description="t('settings.pages.providers.provider.amazon-bedrock.config.access-key-id.description')"
-            required
-          />
-          <FieldInput
-            v-model="secretAccessKey"
-            placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-            type="password"
-            :label="t('settings.pages.providers.provider.amazon-bedrock.config.secret-access-key.label')"
-            :description="t('settings.pages.providers.provider.amazon-bedrock.config.secret-access-key.description')"
-            required
-          />
-          <FieldInput
-            v-model="region"
-            placeholder="us-east-1"
-            type="text"
-            :label="t('settings.pages.providers.provider.amazon-bedrock.config.region.label')"
-            :description="t('settings.pages.providers.provider.amazon-bedrock.config.region.description')"
+            v-for="field in props.selectedProvider.onboardingFields"
+            :key="field.key"
+            v-model="customFieldValues[field.key]"
+            :type="field.type"
+            :label="field.label"
+            :description="field.description"
+            :placeholder="field.placeholder || ''"
+            :required="field.required"
           />
         </template>
 

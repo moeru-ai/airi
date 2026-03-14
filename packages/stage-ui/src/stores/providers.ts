@@ -114,6 +114,7 @@ export interface ProviderMetadata {
    */
   iconImage?: string
   defaultOptions?: () => Record<string, unknown>
+  onboardingFields?: ProviderOnboardingField[]
   createProvider: (
     config: Record<string, unknown>,
   ) =>
