@@ -670,15 +670,10 @@ pages:
         title: Amazon Bedrock
         description: aws.amazon.com/bedrock
         config:
-          access-key-id:
-            label: AWS Access Key ID
-            description: Your AWS IAM Access Key ID
-          secret-access-key:
-            label: AWS Secret Access Key
-            description: Your AWS IAM Secret Access Key
-          session-token:
-            label: Session Token (optional)
-            description: AWS temporary session token (for STS/assumed roles)
+          api-key:
+            label: Bedrock API Key
+            description: Amazon Bedrock API key (generate in AWS Console → Bedrock → API Keys)
+            placeholder: bedrock-...
           region:
             label: AWS Region
             description: AWS region where Bedrock is enabled (e.g. us-east-1, us-west-2)

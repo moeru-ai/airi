@@ -1,21 +1,14 @@
 import type { ModelInfo } from '../../types'
 
 import { createModelProvider, merge } from '@xsai-ext/providers/utils'
-import { AwsClient } from 'aws4fetch'
 import { z } from 'zod'
 
 import { defineProvider } from '../registry'
 
 const amazonBedrockConfigSchema = z.object({
-  accessKeyId: z
-    .string('AWS Access Key ID')
+  apiKey: z
+    .string('Amazon Bedrock API Key')
     .min(1),
-  secretAccessKey: z
-    .string('AWS Secret Access Key')
-    .min(1),
-  sessionToken: z
-    .string('AWS Session Token (optional)')
-    .optional(),
   region: z
     .string('AWS Region')
     .regex(/^[a-z]{2,3}-[a-z]+-\d+$/, 'Must be a valid AWS region (e.g. us-east-1, ap-southeast-1)')
@@ -40,7 +33,7 @@ function mergeConsecutiveRoles(messages: Array<{ role: string, content: any[] }>
   return merged
 }
 
-// Helper: convert OpenAI message content to Converse content blocks
+// Helper: convert xsai message content to Converse content blocks
 function toConverseContent(content: any): Array<{ text: string }> {
   if (typeof content === 'string') {
     return [{ text: content }]
@@ -65,24 +58,21 @@ function fallbackModels(): ModelInfo[] {
 }
 
 function createBedrockConverseProvider(config: {
-  accessKeyId: string
-  secretAccessKey: string
-  sessionToken?: string
+  apiKey: string
   region: string
 }) {
-  const aws = new AwsClient({
-    accessKeyId: config.accessKeyId,
-    secretAccessKey: config.secretAccessKey,
-    sessionToken: config.sessionToken,
-    region: config.region,
-    service: 'bedrock',
-  })
+  const { apiKey, region } = config
+  // baseURL is a placeholder; all actual requests go through the custom fetch interceptor below
+  const baseURL = `https://bedrock-runtime.${region}.amazonaws.com/v1/`
 
-  const baseURL = `https://bedrock-runtime.${config.region}.amazonaws.com/v1/`
+  const bedrockHeaders = () => ({
+    'authorization': `Bearer ${apiKey}`,
+    'content-type': 'application/json',
+  })
 
   return {
     chat: (model: string) => ({
-      apiKey: 'bedrock-sigv4',
+      apiKey,
       baseURL,
       model,
       fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -123,16 +113,14 @@ function createBedrockConverseProvider(config: {
         if (system)
           converseBody.system = system
 
-        // Call Converse API (non-streaming for simplicity/reliability)
-        const converseUrl = `https://bedrock-runtime.${config.region}.amazonaws.com/model/${encodeURIComponent(modelId)}/converse`
+        // Call Bedrock Converse API with Bearer token auth
+        const converseUrl = `https://bedrock-runtime.${region}.amazonaws.com/model/${encodeURIComponent(modelId)}/converse`
 
-        const signedRequest = await aws.sign(converseUrl, {
+        const response = await fetch(converseUrl, {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: bedrockHeaders(),
           body: JSON.stringify(converseBody),
         })
-
-        const response = await fetch(signedRequest)
 
         if (!response.ok) {
           // Return error as-is for debugging
@@ -205,21 +193,10 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
   iconColor: 'i-lobe-icons:aws-color',
 
   createProviderConfig: ({ t }) => amazonBedrockConfigSchema.extend({
-    accessKeyId: amazonBedrockConfigSchema.shape.accessKeyId.meta({
-      labelLocalized: t('settings.pages.providers.provider.amazon-bedrock.config.access-key-id.label'),
-      descriptionLocalized: t('settings.pages.providers.provider.amazon-bedrock.config.access-key-id.description'),
-      placeholderLocalized: 'AKIAIOSFODNN7EXAMPLE',
-    }),
-    secretAccessKey: amazonBedrockConfigSchema.shape.secretAccessKey.meta({
-      labelLocalized: t('settings.pages.providers.provider.amazon-bedrock.config.secret-access-key.label'),
-      descriptionLocalized: t('settings.pages.providers.provider.amazon-bedrock.config.secret-access-key.description'),
-      placeholderLocalized: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-      type: 'password',
-    }),
-    sessionToken: amazonBedrockConfigSchema.shape.sessionToken.meta({
-      labelLocalized: t('settings.pages.providers.provider.amazon-bedrock.config.session-token.label'),
-      descriptionLocalized: t('settings.pages.providers.provider.amazon-bedrock.config.session-token.description'),
-      placeholderLocalized: '',
+    apiKey: amazonBedrockConfigSchema.shape.apiKey.meta({
+      labelLocalized: t('settings.pages.providers.provider.amazon-bedrock.config.api-key.label'),
+      descriptionLocalized: t('settings.pages.providers.provider.amazon-bedrock.config.api-key.description'),
+      placeholderLocalized: t('settings.pages.providers.provider.amazon-bedrock.config.api-key.placeholder'),
       type: 'password',
     }),
     region: amazonBedrockConfigSchema.shape.region.meta({
@@ -231,19 +208,11 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
 
   onboardingFields: ({ t }) => [
     {
-      key: 'accessKeyId',
-      type: 'text' as const,
-      label: t('settings.pages.providers.provider.amazon-bedrock.config.access-key-id.label'),
-      description: t('settings.pages.providers.provider.amazon-bedrock.config.access-key-id.description'),
-      placeholder: 'AKIAIOSFODNN7EXAMPLE',
-      required: true,
-    },
-    {
-      key: 'secretAccessKey',
+      key: 'apiKey',
       type: 'password' as const,
-      label: t('settings.pages.providers.provider.amazon-bedrock.config.secret-access-key.label'),
-      description: t('settings.pages.providers.provider.amazon-bedrock.config.secret-access-key.description'),
-      placeholder: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+      label: t('settings.pages.providers.provider.amazon-bedrock.config.api-key.label'),
+      description: t('settings.pages.providers.provider.amazon-bedrock.config.api-key.description'),
+      placeholder: t('settings.pages.providers.provider.amazon-bedrock.config.api-key.placeholder'),
       required: true,
     },
     {
@@ -260,30 +229,23 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
     const region = config.region
     const baseURL = `https://bedrock-runtime.${region}.amazonaws.com/v1/`
     const chatProvider = createBedrockConverseProvider({
-      accessKeyId: config.accessKeyId,
-      secretAccessKey: config.secretAccessKey,
-      sessionToken: config.sessionToken,
+      apiKey: config.apiKey,
       region,
     })
     return merge(
       chatProvider,
-      createModelProvider({ apiKey: 'bedrock-sigv4', baseURL }),
+      createModelProvider({ apiKey: config.apiKey, baseURL }),
     )
   },
 
   extraMethods: {
     listModels: async (config, _provider) => {
-      const region = config.region
-
-      const aws = new AwsClient({
-        accessKeyId: config.accessKeyId,
-        secretAccessKey: config.secretAccessKey,
-        sessionToken: config.sessionToken,
-        region,
-        service: 'bedrock',
-      })
+      const { apiKey, region } = config
 
       const base = `https://bedrock.${region}.amazonaws.com`
+      const headers = {
+        'authorization': `Bearer ${apiKey}`,
+      }
 
       try {
         // 1. Fetch foundation models for each target provider in parallel
@@ -291,7 +253,7 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
         const foundationResults = await Promise.all(
           targetProviders.map(async (provider) => {
             const url = `${base}/foundation-models?byInferenceType=ON_DEMAND&byOutputModality=TEXT&byProvider=${encodeURIComponent(provider)}`
-            const res = await fetch(await aws.sign(url, { method: 'GET' }))
+            const res = await fetch(url, { method: 'GET', headers })
             if (!res.ok)
               return { modelSummaries: [] as any[] }
             return res.json() as Promise<{ modelSummaries: any[] }>
@@ -301,7 +263,8 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
 
         // 2. Fetch system-defined inference profiles (cross-region, global/us prefixed)
         const profilesRes = await fetch(
-          await aws.sign(`${base}/inference-profiles?type=SYSTEM_DEFINED&maxResults=1000`, { method: 'GET' }),
+          `${base}/inference-profiles?type=SYSTEM_DEFINED&maxResults=1000`,
+          { method: 'GET', headers },
         )
         const profilesData = profilesRes.ok
           ? await profilesRes.json() as { inferenceProfileSummaries: any[] }
@@ -358,7 +321,6 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
           const prefix = id.slice(0, dotIdx) // 'us' or 'global'
           const baseId = id.slice(dotIdx + 1) // e.g. 'anthropic.claude-sonnet-4-6:0'
 
-          // Only include if: it's a global/us profile, base model not already covered, and matches target providers
           if (prefix !== 'global' && prefix !== 'us')
             continue
           if (seenBaseIds.has(baseId))
@@ -366,14 +328,12 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
           if (!targetPrefixes.some(pfx => baseId.startsWith(pfx)))
             continue
 
-          // Prefer global over us — skip us if global version exists
           const existing = profileMap.get(baseId)
           if (prefix === 'us' && existing?.global)
             continue
 
           seenBaseIds.add(baseId)
 
-          // Use the profile's name if available, else derive from ID
           const name = p.inferenceProfileName || baseId
           const providerName = baseId.split('.')[0]
           results.push({
@@ -393,7 +353,7 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
   },
 
   validationRequiredWhen(config) {
-    return !!config.accessKeyId?.trim() && !!config.secretAccessKey?.trim()
+    return !!config.apiKey?.trim()
   },
 
   validators: {
@@ -403,22 +363,19 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
         id: 'amazon-bedrock:check-credentials',
         validate: async (config: Record<string, any>) => {
           const region = config.region || 'us-east-1'
-          const aws = new AwsClient({
-            accessKeyId: config.accessKeyId,
-            secretAccessKey: config.secretAccessKey,
-            sessionToken: config.sessionToken,
-            region,
-            service: 'bedrock',
-          })
+          const apiKey = config.apiKey
           try {
             const res = await fetch(
-              await aws.sign(
-                `https://bedrock.${region}.amazonaws.com/foundation-models?byInferenceType=ON_DEMAND&byOutputModality=TEXT&byProvider=Amazon&maxResults=1`,
-                { method: 'GET' },
-              ),
+              `https://bedrock.${region}.amazonaws.com/foundation-models?byInferenceType=ON_DEMAND&byOutputModality=TEXT&byProvider=Amazon&maxResults=1`,
+              {
+                method: 'GET',
+                headers: {
+                  'authorization': `Bearer ${apiKey}`,
+                },
+              },
             )
             if (res.status === 403 || res.status === 401) {
-              return { valid: false, reason: 'Invalid AWS credentials or insufficient permissions for Amazon Bedrock.' }
+              return { valid: false, reason: 'Invalid Amazon Bedrock API key or insufficient permissions.' }
             }
             return { valid: true }
           }
