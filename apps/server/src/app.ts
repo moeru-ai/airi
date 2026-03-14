@@ -6,6 +6,7 @@ import process from 'node:process'
 
 import { initLogger, LoggerFormat, LoggerLevel, useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
+import { createNodeWebSocket } from '@hono/node-ws'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
@@ -20,6 +21,7 @@ import { createRedis } from './libs/redis'
 import { sessionMiddleware } from './middlewares/auth'
 import { otelMiddleware } from './middlewares/otel'
 import { createCharacterRoutes } from './routes/characters'
+import { createChatWsHandlers } from './routes/chat-ws'
 import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
 import { createProviderRoutes } from './routes/providers'
@@ -33,7 +35,7 @@ import { createFluxWriteBack } from './services/flux-write-back'
 import { createProviderService } from './services/providers'
 import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
-import { ApiError, createInternalError } from './utils/error'
+import { ApiError, createInternalError, createUnauthorizedError } from './utils/error'
 import { getTrustedOrigin } from './utils/origin'
 
 type AuthService = ReturnType<typeof createAuth>
@@ -86,7 +88,25 @@ function buildApp({
     app.use('*', otelMiddleware(otel.http))
   }
 
-  return app
+  // WebSocket setup — must be registered BEFORE bodyLimit middleware
+  const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app })
+  const chatWsSetup = createChatWsHandlers(chatService, otel?.engagement)
+
+  app.get('/ws/chat', upgradeWebSocket(async (c) => {
+    const token = c.req.query('token')
+    if (!token) {
+      throw createUnauthorizedError('Missing token')
+    }
+    const session = await auth.api.getSession({
+      headers: new Headers({ Authorization: `Bearer ${token}` }),
+    })
+    if (!session?.user) {
+      throw createUnauthorizedError('Invalid token')
+    }
+    return chatWsSetup(session.user.id)
+  }))
+
+  const builtApp = app
     .use('*', sessionMiddleware(auth))
     .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
     .onError((err, c) => {
@@ -148,9 +168,11 @@ function buildApp({
      * Stripe routes.
      */
     .route('/api/stripe', createStripeRoutes(fluxService, stripeService, configKV, env, otel?.revenue))
+
+  return { app: builtApp, injectWebSocket }
 }
 
-export type AppType = ReturnType<typeof buildApp>
+export type AppType = ReturnType<typeof buildApp>['app']
 
 async function createApp() {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
@@ -260,7 +282,7 @@ async function createApp() {
     otel,
     fluxWriteBack,
   })
-  const app = buildApp({
+  const { app, injectWebSocket } = buildApp({
     auth: resolved.auth,
     characterService: resolved.characterService,
     chatService: resolved.chatService,
@@ -276,14 +298,17 @@ async function createApp() {
   logger.withFields({ hostname: resolved.env.HOST, port: resolved.env.PORT }).log('Server started')
 
   return {
-    ...app,
+    app,
+    injectWebSocket,
     port: Number(resolved.env.PORT),
     hostname: resolved.env.HOST,
-  } satisfies Parameters<typeof serve>[0]
+  }
 }
 
 // eslint-disable-next-line antfu/no-top-level-await
-serve(await createApp())
+const { app: honoApp, injectWebSocket, port, hostname } = await createApp()
+const server = serve({ fetch: honoApp.fetch, port, hostname })
+injectWebSocket(server)
 
 function handleError(error: unknown, type: string) {
   useLogger().withError(error).error(type)
