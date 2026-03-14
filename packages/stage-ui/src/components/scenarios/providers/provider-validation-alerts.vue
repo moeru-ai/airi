@@ -41,7 +41,7 @@ const { t } = useI18n()
     </template>
   </Alert>
   <!-- Partial Validation: manual validators exist, no test attempted yet -->
-  <Alert v-if="isValid && isValidating === 0 && hasManualValidators && !manualTestPassed && !manualTestMessage" type="info">
+  <Alert v-else-if="isValid && isValidating === 0 && hasManualValidators && !manualTestPassed && !manualTestMessage" type="info">
     <template #title>
       <div class="w-full flex items-center justify-between">
         <span>{{ t('settings.dialogs.onboarding.validationPartial') }}</span>
@@ -66,7 +66,7 @@ const { t } = useI18n()
     </template>
   </Alert>
   <!-- Full Validation Success -->
-  <Alert v-if="isValid && isValidating === 0 && (!hasManualValidators || manualTestPassed)" type="success">
+  <Alert v-else-if="isValid && isValidating === 0 && (!hasManualValidators || manualTestPassed)" type="success">
     <template #title>
       <div class="w-full flex items-center justify-between">
         <span>{{ t('settings.dialogs.onboarding.validationSuccess') }}</span>
@@ -81,7 +81,7 @@ const { t } = useI18n()
     </template>
   </Alert>
   <!-- Manual Test Failed -->
-  <Alert v-if="hasManualValidators && !manualTestPassed && manualTestMessage && !isManualTesting" type="error">
+  <Alert v-else-if="hasManualValidators && !manualTestPassed && manualTestMessage && !isManualTesting" type="error">
     <template #title>
       <span>{{ t('settings.dialogs.onboarding.testGenerationFailed') }}</span>
     </template>
