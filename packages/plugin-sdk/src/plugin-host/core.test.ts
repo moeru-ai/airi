@@ -116,6 +116,22 @@ describe('for FileSystemPluginHost', () => {
     })).toBe('/tmp/plugin/electron-entry.ts')
   })
 
+  it('should preserve absolute runtime entrypoints', () => {
+    const host = new FileSystemLoader()
+
+    expect(host.resolveEntrypointFor({
+      apiVersion: 'v1',
+      kind: 'manifest.plugin.airi.moeru.ai',
+      name: 'test-plugin',
+      entrypoints: {
+        node: '/opt/plugins/entry.ts',
+      },
+    }, {
+      cwd: '/tmp/plugin',
+      runtime: 'node',
+    })).toBe('/opt/plugins/entry.ts')
+  })
+
   it('should throw deterministic error when no runtime entrypoint exists', () => {
     const host = new FileSystemLoader()
 
