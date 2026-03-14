@@ -21,7 +21,7 @@ menu:
       close_caption: Close Caption...
       caption_overlay: Lớp phủ phụ đề
       follow_window: Theo cửa sổ
-      reset_position: Đặt lại vị trí
+      reset_position: Đặt lại vị trí 
       devtools: Công cụ phát triển
       troubleshoot_beatsync: Sửa lỗi BeatSync...
       quit: Thoát ra
