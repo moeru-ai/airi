@@ -20,18 +20,17 @@ const metrics: Array<{ key: LagMetric, label: string, enabled: () => boolean }> 
 
 const visibleMetrics = computed(() => metrics.filter(metric => metric.enabled()))
 const hasAnyEnabled = computed(() => visibleMetrics.value.length > 0)
-const metricStatsMap = computed<Record<LagMetric, ReturnType<typeof store.calcStats>>>(() => {
-  const result = {} as Record<LagMetric, ReturnType<typeof store.calcStats>>
-  for (const metric of metrics) {
-    const values = buffers.value[metric.key].map(sample => sample.value)
-    result[metric.key] = store.calcStats(values)
-  }
-  return result
-})
 const metricsWithStats = computed(() => visibleMetrics.value.map(metric => ({
   ...metric,
-  stats: metricStatsMap.value[metric.key],
+  stats: store.getMetricStats(metric.key),
 })))
+
+const histogramCache = {
+  fps: { version: -1, bars: [] as Array<{ width: string, height: string }> },
+  frameDuration: { version: -1, bars: [] as Array<{ width: string, height: string }> },
+  longtask: { version: -1, bars: [] as Array<{ width: string, height: string }> },
+  memory: { version: -1, bars: [] as Array<{ width: string, height: string }> },
+}
 
 function formatValue(metric: string, value: number) {
   if (!Number.isFinite(value))
@@ -47,13 +46,22 @@ function formatValue(metric: string, value: number) {
 }
 
 function barSeries(metric: LagMetric) {
+  const version = store.bufferVersion[metric]
+  const cache = histogramCache[metric]
+  if (cache.version === version)
+    return cache.bars
+
   const values = buffers.value[metric].map(sample => sample.value)
   const histogram = store.buildHistogram(values, 20)
   const max = Math.max(1, ...histogram.map(bin => bin.count))
-  return histogram.map(bin => ({
+  const bars = histogram.map(bin => ({
     width: `${100 / (histogram.length || 1)}%`,
     height: `${(bin.count / max) * 100}%`,
   }))
+
+  cache.version = version
+  cache.bars = bars
+  return bars
 }
 
 function toggleRecording() {
@@ -104,7 +112,7 @@ function toggleRecording() {
       <div flex="~ row items-center justify-between">
         <span text="xs neutral-100">{{ metric.label }}</span>
         <span text="xs neutral-300">
-          <template v-if="metric.stats.latest">
+          <template v-if="metric.stats.count > 0">
             avg {{ formatValue(metric.key, metric.stats.avg) }}
             /
             p95 {{ formatValue(metric.key, metric.stats.p95) }}
