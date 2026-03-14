@@ -1,6 +1,7 @@
 import type { MineflayerPlugin } from '../libs/mineflayer'
 import type { CognitiveEngineOptions, MineflayerWithAgents } from './types'
 
+import { config } from '../composables/config'
 import { DebugService } from '../debug'
 import { McpReplServer } from '../debug/mcp-repl-server'
 import { ChatMessageHandler } from '../libs/mineflayer'
@@ -25,8 +26,11 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
       const reflexManager = container.resolve('reflexManager')
       const taskExecutor = container.resolve('taskExecutor')
       const debugService = DebugService.getInstance()
-      mcpReplServer = new McpReplServer(brain)
-      mcpReplServer.start()
+
+      if (config.debug.mcp) {
+        mcpReplServer = new McpReplServer(brain)
+        mcpReplServer.start()
+      }
 
       debugService.onCommand('request_repl_state', () => {
         debugService.emit('debug:repl_state', brain.getReplState())
@@ -81,11 +85,8 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
         // Initialize perception pipeline (raw events + detectors)
         perceptionPipeline.init(botWithAgents)
 
-        let tickCount = 0
         bot.onTick('tick', () => {
-          tickCount++
-          if (tickCount % 5 !== 0)
-            return
+          // Empty listener
         })
 
         // Resolve EventBus for message handling

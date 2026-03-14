@@ -7,9 +7,6 @@ const logger = useLogger()
 
 // --- ETA Calibration Constants ---
 const SPRINT_SPEED = 5.6 // blocks/s
-// NOTICE: WALK_SPEED kept as reference for non-sprinting ETA calculations
-
-const _WALK_SPEED = 4.3 // blocks/s
 const JUMP_TIME = 0.6 // seconds per jump move
 const PARKOUR_TIME = 1.0 // seconds per parkour move
 const PLACE_TIME = 0.5 // seconds per block placement
@@ -22,6 +19,7 @@ const MAX_TIMEOUT_MS = 300_000 // absolute ceiling 5min
 const PROGRESS_INTERVAL_MS = 5_000 // check progress every 5s
 const STAGNATION_THRESHOLD = 1.5 // blocks — less than this = stagnant
 const MAX_STAGNANT_TICKS = 3 // 3 stagnant ticks (~15s) → cancel
+const DISTANCE_IMPROVEMENT_THRESHOLD = 0.75 // blocks — enough target-distance improvement to count as progress
 
 export interface PathfindResult {
   ok: boolean
@@ -60,6 +58,23 @@ interface PathUpdateResult {
   status: string
   cost: number
   path: MoveNode[]
+}
+
+export interface PathfindProgressSnapshot {
+  movedSinceLastTick: number
+  previousDistanceToTarget: number
+  distanceToTarget: number
+  isMining: boolean
+  isBuilding: boolean
+}
+
+export function hasMeaningfulPathfindingProgress(snapshot: PathfindProgressSnapshot): boolean {
+  const distanceImprovement = snapshot.previousDistanceToTarget - snapshot.distanceToTarget
+
+  return snapshot.movedSinceLastTick >= STAGNATION_THRESHOLD
+    || distanceImprovement >= DISTANCE_IMPROVEMENT_THRESHOLD
+    || snapshot.isMining
+    || snapshot.isBuilding
 }
 
 function vecToCoord(v: Vec3): { x: number, y: number, z: number } {
@@ -145,6 +160,7 @@ export function patchedGoto(
     let currentEstimatedMs = 0
     let currentTimeoutMs = MIN_TIMEOUT_MS
     let currentPathCost = 0
+    let lastDistanceToTarget = getDistanceToTarget()
     let timeoutTimer: ReturnType<typeof setTimeout> | null = null
     let progressTimer: ReturnType<typeof setInterval> | null = null
     let settled = false
@@ -260,20 +276,29 @@ export function patchedGoto(
 
       const currentPos = bot.entity.position.clone()
       const movedSinceLastTick = currentPos.distanceTo(lastProgressPos)
+      const distanceToTarget = getDistanceToTarget()
+      const madeMeaningfulProgress = hasMeaningfulPathfindingProgress({
+        movedSinceLastTick,
+        previousDistanceToTarget: lastDistanceToTarget,
+        distanceToTarget,
+        isMining: bot.pathfinder.isMining() || bot.targetDigBlock != null,
+        isBuilding: bot.pathfinder.isBuilding(),
+      })
 
-      if (movedSinceLastTick < STAGNATION_THRESHOLD) {
-        stagnantTicks++
-      }
-      else {
+      if (madeMeaningfulProgress) {
         stagnantTicks = 0
       }
+      else {
+        stagnantTicks++
+      }
       lastProgressPos = currentPos
+      lastDistanceToTarget = distanceToTarget
 
       const progressInfo: PathfindProgressInfo = {
         elapsedMs: Date.now() - startTime,
         estimatedTimeMs: currentEstimatedMs,
         distanceTraveled: startPos.distanceTo(currentPos),
-        distanceToTarget: getDistanceToTarget(),
+        distanceToTarget,
         currentPos: vecToCoord(currentPos),
         stagnantTicks,
         pathCost: currentPathCost,

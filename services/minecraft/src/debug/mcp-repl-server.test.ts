@@ -34,7 +34,6 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
 
 describe('mcpReplServer', () => {
   let brain: Brain
-  let server: McpReplServer
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -75,7 +74,7 @@ describe('mcpReplServer', () => {
       }]),
     } as unknown as Brain
 
-    server = new McpReplServer(brain)
+    void new McpReplServer(brain)
   })
 
   it('registers resources on initialization', () => {
@@ -90,6 +89,7 @@ describe('mcpReplServer', () => {
   it('registers tools on initialization', () => {
     expect(mocks.tool).toHaveBeenCalledWith('execute_repl', expect.anything(), expect.any(Function))
     expect(mocks.tool).toHaveBeenCalledWith('inject_chat', expect.anything(), expect.any(Function))
+    expect(mocks.tool).toHaveBeenCalledWith('inject_event', expect.anything(), expect.any(Function))
     expect(mocks.tool).toHaveBeenCalledWith('get_state', expect.anything(), expect.any(Function))
     expect(mocks.tool).toHaveBeenCalledWith('get_last_prompt', expect.anything(), expect.any(Function))
     expect(mocks.tool).toHaveBeenCalledWith('get_logs', expect.anything(), expect.any(Function))
@@ -119,6 +119,65 @@ describe('mcpReplServer', () => {
         metadata: { username: 'steve', message: 'hi' },
       }),
     }))
+  })
+
+  it('injects validated events via tool handler', async () => {
+    const injectEventCall = mocks.tool.mock.calls.find(call => call[0] === 'inject_event')!
+    const handler = injectEventCall[2]
+
+    await handler({
+      type: 'perception',
+      payload: {
+        type: 'chat_message',
+        description: 'Chat from steve: "hi"',
+        sourceId: 'steve',
+        confidence: 1,
+        timestamp: 123,
+        metadata: {
+          username: 'steve',
+          message: 'hi',
+        },
+      },
+      source: {
+        type: 'minecraft',
+        id: 'steve',
+      },
+    })
+
+    expect(brain.injectDebugEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'perception',
+      payload: expect.objectContaining({
+        type: 'chat_message',
+        metadata: {
+          username: 'steve',
+          message: 'hi',
+        },
+      }),
+      source: {
+        type: 'minecraft',
+        id: 'steve',
+      },
+    }))
+  })
+
+  it('rejects invalid inject_event payloads', async () => {
+    const injectEventCall = mocks.tool.mock.calls.find(call => call[0] === 'inject_event')!
+    const handler = injectEventCall[2]
+
+    await expect(handler({
+      type: 'perception',
+      payload: {
+        type: 'chat_message',
+        description: 'Chat from steve: "hi"',
+        confidence: 2,
+        timestamp: 123,
+        metadata: {},
+      },
+      source: {
+        type: 'minecraft',
+        id: 'steve',
+      },
+    })).rejects.toThrow()
   })
 
   it('gets repl state via tool handler (skips builtins by default)', async () => {

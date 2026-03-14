@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/twitter-services",
   "type": "module",
-  "version": "0.9.0-alpha.2",
+  "version": "0.9.0-alpha.15",
   "private": true,
   "description": "Twitter Services for MCP",
   "author": "RainbowBird <rbxin2003@outlook.com>",
@@ -18,7 +18,6 @@
     "@moeru/std": "catalog:",
     "@proj-airi/server-sdk": "^0.8.4",
     "h3": "^2.0.1-rc.14",
-    "listhen": "^1.9.0",
     "ofetch": "^1.5.1",
     "playwright": "^1.58.2",
     "zod": "^4.3.6"

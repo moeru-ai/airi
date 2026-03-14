@@ -33,6 +33,7 @@ import {
   merge,
 } from '@xsai-ext/providers/utils'
 import { listModels } from '@xsai/model'
+import { uniqBy } from 'es-toolkit'
 import { isWebGPUSupported } from 'gpuu/webgpu'
 import { defineStore } from 'pinia'
 import {
@@ -1129,13 +1130,14 @@ export const useProvidersStore = defineStore('providers', () => {
       iconColor: 'i-lobe-icons:bilibiliindex',
       defaultOptions: () => ({
         baseUrl: 'http://localhost:11996/tts/',
+        model: 'IndexTTS-1.5',
       }),
       createProvider: async (config) => {
         const provider: SpeechProvider = {
           speech: () => {
             const req = {
               baseURL: config.baseUrl as string,
-              model: 'IndexTTS-1.5',
+              model: (config.model as string) || 'IndexTTS-1.5',
             }
             return req
           },
@@ -1143,6 +1145,18 @@ export const useProvidersStore = defineStore('providers', () => {
         return provider
       },
       capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'IndexTTS-1.5',
+              name: 'IndexTTS-1.5',
+              provider: 'index-tts-vllm',
+              description: 'Default model for Index-TTS vLLM deployment',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
         listVoices: async (config) => {
           const voicesUrl = config.baseUrl as string
           const response = await fetch(`${voicesUrl}audio/voices`)
@@ -1942,14 +1956,15 @@ export const useProvidersStore = defineStore('providers', () => {
 
       // Transform and store the models
       if (runtimeState) {
-        runtimeState.models = models.map(model => ({
-          id: model.id,
-          name: model.name,
-          description: model.description,
-          contextLength: model.contextLength,
-          deprecated: model.deprecated,
-          provider: providerId,
-        }))
+        runtimeState.models = uniqBy(models.filter(model => !!model.id), m => m.id)
+          .map(model => ({
+            id: model.id,
+            name: model.name,
+            description: model.description,
+            contextLength: model.contextLength,
+            deprecated: model.deprecated,
+            provider: providerId,
+          }))
         return runtimeState.models
       }
       return []

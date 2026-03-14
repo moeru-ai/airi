@@ -11,9 +11,12 @@ import process from 'node:process'
 
 import { fileURLToPath } from 'node:url'
 
+import { clamp } from 'es-toolkit/math'
+import { nanoid } from 'nanoid'
 import { WebSocketServer } from 'ws'
 
 import { useLogger } from '../utils/logger'
+import { debugClientMessageSchema, formatDebugValidationError } from './types'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -268,39 +271,52 @@ export class DebugServer {
   }
 
   private handleMessage(client: ClientInfo, data: string): void {
+    let rawMessage: unknown
+
     try {
-      const message = JSON.parse(data) as DebugMessage<ClientCommand>
-      const command = message.data
-
-      // Handle ping internally
-      if (command.type === 'ping') {
-        client.lastPing = Date.now()
-        const pong: ServerEvent = { type: 'pong', payload: { timestamp: Date.now() } }
-        client.ws.send(JSON.stringify(this.createMessage(pong)))
-        return
-      }
-
-      // Handle history request
-      if (command.type === 'request_history') {
-        this.sendHistory(client)
-        return
-      }
-
-      // Dispatch to registered handlers
-      const handlers = this.commandHandlers.get(command.type)
-      if (handlers) {
-        for (const handler of handlers) {
-          try {
-            handler(command, client)
-          }
-          catch (err) {
-            console.error(`Command handler error for ${command.type}:`, err)
-          }
-        }
-      }
+      rawMessage = JSON.parse(data)
     }
     catch (err) {
       console.error('Failed to parse WebSocket message:', err)
+      this.sendClientError(client, 'Invalid debug message JSON')
+      return
+    }
+
+    const parsedMessage = debugClientMessageSchema.safeParse(rawMessage)
+    if (!parsedMessage.success) {
+      const message = formatDebugValidationError(parsedMessage.error)
+      console.error(`Failed to validate WebSocket message: ${message}`)
+      this.sendClientError(client, 'Invalid debug message', { validation: message })
+      return
+    }
+
+    const command = parsedMessage.data.data
+
+    // Handle ping internally
+    if (command.type === 'ping') {
+      client.lastPing = Date.now()
+      const pong: ServerEvent = { type: 'pong', payload: { timestamp: Date.now() } }
+      client.ws.send(JSON.stringify(this.createMessage(pong)))
+      return
+    }
+
+    // Handle history request
+    if (command.type === 'request_history') {
+      this.sendHistory(client)
+      return
+    }
+
+    // Dispatch to registered handlers
+    const handlers = this.commandHandlers.get(command.type)
+    if (handlers) {
+      for (const handler of handlers) {
+        try {
+          handler(command, client)
+        }
+        catch (err) {
+          console.error(`Command handler error for ${command.type}:`, err)
+        }
+      }
     }
   }
 
@@ -359,6 +375,24 @@ export class DebugServer {
     }
   }
 
+  private sendClientError(client: ClientInfo, message: string, fields?: Record<string, unknown>): void {
+    if (client.ws.readyState !== 1) {
+      return
+    }
+
+    const event: ServerEvent = {
+      type: 'log',
+      payload: {
+        level: 'ERROR',
+        message,
+        fields,
+        timestamp: Date.now(),
+      },
+    }
+
+    client.ws.send(JSON.stringify(this.createMessage(event)))
+  }
+
   private createMessage(event: ServerEvent): DebugMessage<ServerEvent> {
     return {
       id: `${++this.messageIdCounter}`,
@@ -368,7 +402,7 @@ export class DebugServer {
   }
 
   private generateClientId(): string {
-    return `client-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+    return `client-${Date.now()}-${nanoid(10)}`
   }
 
   private handleLogsApi(req: IncomingMessage, res: http.ServerResponse): void {
@@ -392,7 +426,7 @@ export class DebugServer {
     const fileParam = url.searchParams.get('file') || ''
     const safeName = path.basename(fileParam)
     const limit = Number.parseInt(url.searchParams.get('limit') || '500', 10)
-    const lineLimit = Number.isFinite(limit) ? Math.max(1, Math.min(limit, 5000)) : 500
+    const lineLimit = Number.isFinite(limit) ? clamp(limit, 1, 5000) : 500
     const targetPath = path.join(logsDir, safeName)
 
     if (!fs.existsSync(targetPath)) {
@@ -420,7 +454,10 @@ export class DebugServer {
     }
     catch (err) {
       res.writeHead(500, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ error: 'failed to read log file', message: (err as Error).message }))
+      res.end(JSON.stringify({
+        error: 'failed to read log file',
+        message: err instanceof Error ? err.message : String(err),
+      }))
     }
   }
 }

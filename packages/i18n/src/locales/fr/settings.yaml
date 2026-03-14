@@ -30,6 +30,19 @@ dialogs:
     no-models: Pas de modèle disponible
     no-models-help: >-
       Veuillez revenir à l’étape précédente et vérifier votre clé API, ou bien vérifier la connexion réseau.
+    permissions:
+      title: Notifications
+      description: You can allow notifications now or continue and set it up later.
+      notificationsTitle: Notifications
+      notificationsDescription: Allow reminders and important status updates.
+      notificationsAction: Request notification permission
+      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
+      openSettings: Open iOS Settings
+      optionalHint: You can continue even if notification permission is not granted.
+      stateUnknown: Not requested
+      stateRequesting: Requesting...
+      stateGranted: Granted
+      stateNotGranted: Not granted
 language:
   title: Langage
   description: >
@@ -159,6 +172,7 @@ pages:
     scenario: Scénario
     search: Rechercher des cartes...
     sort_by: Trier par
+    body-model: Body / Display Model
     speech:
       provider: Parole / Fournisseur
       model: Parole / Modèle
@@ -275,8 +289,8 @@ pages:
               description: Activer ou non la détection d'attaque (onset) basée sur le flux spectral.
               label: Flux spectral
             warmup:
-              description: Whether to warm up before detecting beats for better accuracy.
-              label: Warmup
+              description: Si vous voulez un échauffement pour une détection de rythme plus précise.
+              label: Échauffement
     consciousness:
       description: Personnalité, modèle désiré, etc.
       sections:
@@ -284,11 +298,12 @@ pages:
           provider-model-selection:
             collapse: Réduire
             custom_model_placeholder: Entrez le nom du modèle personnalisé...
+            current_model_label: 'Modèle actuel :'
             description: Sélectionnez le fournisseur LLM approprié pour la conscience
             error: Erreur lors du chargement des modèles
-            health_check_failed: Health check failed
-            no_providers_configured_title: No Providers Configured
-            no_providers_configured_description: Click here to set up your LLM providers
+            health_check_failed: Échec de la vérification de l'état de santé
+            no_providers_configured_title: Aucun fournisseur configuré
+            no_providers_configured_description: Cliquez ici pour configurer vos fournisseurs de LLM
             expand: Développer
             loading: Chargement des modèles disponibles...
             manual_model_name: Nom du modèle
@@ -303,7 +318,7 @@ pages:
             search_results: '{count} modèles trouvés sur {total}'
             show_less: Afficher moins
             show_more: Afficher plus
-            subtitle: Select a default model from the provider
+            subtitle: Sélectionnez un modèle par défaut auprès du fournisseur
             title: Modèle
       title: Conscience
     description: Synthèse, vision, parole, jeux, etc.
@@ -341,7 +356,7 @@ pages:
       sections:
         section:
           provider-selection:
-            description: Select the suitable speech recognition provider
+            description: Sélectionnez le fournisseur de reconnaissance vocale approprié
     memory-long-term:
       description: Paramètres et gestion de la mémoire à long terme
       title: Mémoire à long terme
@@ -366,7 +381,7 @@ pages:
               stop:
                 label: Arrêter
             select-voice:
-              loading: Loading model...
+              loading: Chargement du modèle...
               required: Veuillez sélectionner une voix
           provider-voice-selection:
             custom_model_placeholder: Entrez le nom du modèle personnalisé...
@@ -383,9 +398,9 @@ pages:
             search_models_results: '{count} modèles trouvés sur {total}'
             search_voices_placeholder: Rechercher des voix...
             search_voices_results: '{count} voix trouvées sur {total}'
-            unsupported_voice_warning_title: No supported voices
+            unsupported_voice_warning_title: Aucune voix prise en charge
             unsupported_voice_warning_content: >-
-              Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub at https://github.com/moeru-ai/airi/issues.
+              Essayez un autre modèle ou fournisseur. Nous travaillons à prendre en charge toutes les voix pour ce modèle dès que possible. En cas d'urgence, n'hésitez pas à nous le signaler sur GitHub : https://github.com/moeru-ai/airi/issues.
             show_less: Afficher moins
             show_more: Afficher plus
             title: Fournisseur
@@ -421,15 +436,15 @@ pages:
     mcp-server:
       description: Connecter et gérer le serveur MCP et ses outils
       title: Serveur MCP
-      config-path: Config file path
-      runtime-title: Runtime status
+      config-path: Chemin du fichier de configuration
+      runtime-title: État de l'exécution
       actions:
-        open-config: Open mcp.json
-        apply-and-restart: Save and restart stdio MCP
+        open-config: Ouvrir mcp.json
+        apply-and-restart: Enregistrer et redémarrer stdio MCP
       messages:
-        opened: Config file opened at {path}
+        opened: 'Fichier de configuration ouvert à : {path}'
         restarted: >-
-          MCP servers restarted. Started {started}, failed {failed}, skipped {skipped}
+          Serveurs MCP redémarrés. Lancés : {started}, en échec : {failed}, ignorés : {skipped}
   providers:
     explained:
       chat: Fournisseurs de modèles de génération de texte, par ex. OpenRouter, OpenAI, Ollama.
@@ -442,77 +457,78 @@ pages:
         AIRI nécessite qu’au moins un fournisseur {chat} soit configuré pour penser et se comporter correctement. On peut le considérer comme le cerveau des personnages vivant dans le système AIRI.
     catalog:
       edit:
-        config-id-not-found: Provider configuration not found.
-        definition-id-not-found: Provider definition not found.
+        config-id-not-found: Configuration du fournisseur introuvable.
+        definition-id-not-found: Définition du fournisseur introuvable.
         actions:
-          more-options: More options
-          delete: Delete
+          more-options: Plus d'options
+          delete: Supprimer
         validation:
           failed:
-            title: Please check your provider settings, validation failed.
+            title: Veuillez vérifier les paramètres du fournisseur, la validation a échoué.
             description: >-
-              You can still save the current configuration if you want to proceed.
-            action: Save anyway
+              Vous pouvez enregistrer la configuration actuelle si vous souhaitez continuer.
+            action: Enregistrer quand même
         config:
           common:
             fields:
               field:
                 api-key:
                   label: Clé API
-                  description: API Key used to authorize requests to this provider
+                  description: Clé API utilisée pour autoriser les requêtes auprès de ce fournisseur
                   placeholder: sk-...
                 base-url:
-                  label: Base URL
+                  label: URL de base
                   description: >-
-                    The base url used to connect to remote service. Often looks like http://localhost:11434/v1 or https://example.com/v1.
-                  placeholder: Base url...
+                    L'URL de base utilisée pour se connecter au service distant. Ressemble souvent à http://localhost:11434/v1 ou https://exemple.com/v1.
+                  placeholder: URL de base...
                 headers:
-                  label: Custom HTTP Headers
-                  description: Add custom HTTP headers
+                  label: En-têtes HTTP personnalisés
+                  description: Ajouter des en-têtes HTTP personnalisés
                   key:
-                    placeholder: Key
+                    placeholder: Clé
                   value:
-                    placeholder: Value
+                    placeholder: Valeur
                 thinking-mode:
-                  label: Thinking Mode
+                  label: Mode de réflexion
                   description: >
-                    Controls Ollama thinking behavior. GPT-OSS only supports low/medium/high levels.
+                    Contrôle le comportement de réflexion d'Ollama. GPT-OSS ne prend en charge que les niveaux bas/moyen/haut (low/medium/high).
                   options:
-                    auto: Auto (provider default)
-                    disable: Disable
-                    enable: Enable
-                    low: Low
-                    medium: Medium
-                    high: High
+                    auto: Auto (par défaut du fournisseur)
+                    disable: Désactiver
+                    enable: Activer
+                    low: Bas
+                    medium: Moyen
+                    high: Haut
         validators:
           actions:
-            validate: Validate
-          empty: No validation steps available.
+            validate: Valider
+          empty: Aucune étape de validation disponible.
           openai-compatible:
             check-config:
               title: Configuration
             check-connectivity:
-              title: Connectivity
+              title: Connectivité
             check-supports-model-listing:
-              title: List Models
+              title: Lister les Modèles
             check-supports-chat-completion:
-              title: Chat Completion
+              title: Complétion de chat
           status:
-            validating: Validating...
-            valid: Passed
-            invalid: Errored
-          title: Checks
+            validating: Validation en cours...
+            valid: Réussi
+            invalid: Erreur détectée
+          title: Vérifications
         providers:
           provider:
             ollama:
               troubleshooting:
                 validators:
                   openai-compatible-check-connectivity:
-                    label: Extra configuration needed for Ollama
+                    label: Configuration supplémentaire requise pour Ollama
                     content: >-
-                      Sorry to hear that Connectivity check failed for Ollama. Don't worry, for Ollama instances, extra configuration is needed for making it pass for Ollama. You need to set <code>OLLAMA_HOST</code> explicitly when start the Ollama application or Ollama CLI server, for detailed information, check <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama integration guide</a>.
+                      Nous sommes désolés que le test de connectivité pour Ollama ait échoué. Ne vous inquiétez pas, une configuration supplémentaire est nécessaire pour les instances Ollama. Vous devez définir explicitement <code>OLLAMA_HOST</code> lors du lancement de l'application ou du serveur CLI Ollama. Pour plus d'informations, consultez le <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">guide d'intégration Ollama</a>.
     common:
       continueAnyway: Continuer quand même
+      goToModelSelection: 'Sélectionnez un Modèle'
       fields:
         field:
           api-key:
@@ -596,8 +612,8 @@ pages:
         description: deepgram.com
         title: Deepgram
       speech-noop:
-        title: None
-        description: No speech output.
+        title: Aucun
+        description: Aucune sortie vocale.
       deepseek:
         description: deepseek.com
         title: DeepSeek
@@ -641,29 +657,29 @@ pages:
             error-missing-api-key: Veuillez entrer une clé API pour tester la voix.
         title: ElevenLabs
       kokoro-local:
-        description: Local text-to-speech using Kokoro-82M.
+        description: Synthèse vocale locale utilisant Kokoro-82M.
         fields:
           field:
             model:
-              label: Model Selection
-              description: Smaller models load faster but may have slightly lower quality.
+              label: Choix du modèle
+              description: Les modèles plus petits se chargent plus rapidement mais peuvent avoir une qualité légèrement inférieure.
         models:
           fp32-webgpu:
             description: >-
-              Full precision model using WebGPU - Recommended for supported devices
+              Modèle en pleine précision utilisant WebGPU - Recommandé pour les appareils compatibles
           fp32:
-            description: Full precision model
+            description: Modèle en pleine précision
           fp16:
-            description: Half precision
+            description: Demi-précision
           q8:
-            description: 8-bit quantized
+            description: Quantifié en 8-bit
           q4:
-            description: 4-bit quantized
+            description: Quantifié en 4-bit
           q4f16:
-            description: 4-bit with FP16
+            description: 4-bit avec FP16
         playground:
-          default-text: Hello! This is a test of the Kokoro text-to-speech system.
-          title: Voice Playground
+          default-text: Bonjour ! Ceci est un test du système de synthèse vocale Kokoro.
+          title: Zone d'essai vocale
         title: Kokoro TTS (Local)
       fireworks:
         description: fireworks.ai
@@ -673,14 +689,14 @@ pages:
         fields:
           field:
             region:
-              description: Speech Service region
+              description: Région du service vocal
               label: Région
         title: Microsoft / Azure Speech
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili / IndexTTS
-        callout_indextts2_unavailable_title: Limited Support
-        callout_indextts2_unavailable: Support for IndexTTS2 is currently unavailable. Please use IndexTTS.
+        callout_indextts2_unavailable_title: Support limité
+        callout_indextts2_unavailable: Le support pour IndexTTS2 est actuellement indisponible. Veuillez utiliser IndexTTS.
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry
@@ -709,10 +725,13 @@ pages:
         description: openai.com
         title: OpenAI
       openai-compatible:
-        description: OpenAI Compatible
-        title: OpenAI Compatible
+        description: Compatible avec OpenAI
+        title: Compatible avec OpenAI
+      nvidia:
+        description: build.nvidia.com
+        title: NVIDIA NIM
       n1n:
-        description: n1n.ai - High-performance AI API provider.
+        description: n1n.ai - Fournisseur d'API d'IA haute performance.
         title: n1n
       meganova:
         description: meganova.ai
@@ -768,21 +787,21 @@ pages:
         description: Aliyun NLS
         title: Aliyun NLS
       browser-web-speech-api:
-        description: Browser-native STT (requires Chrome/Edge/Safari)
+        description: STT natif du navigateur (requiert Chrome/Edge/Safari)
         title: Web Speech API
       transcriptions:
         playground:
           title: Terrain de test de transcription
       aihubmix:
         title: AIHubMix
-        description: https://aihubmix.com (10% off)
+        description: https://aihubmix.com (10 % de réduction)
     title: Fournisseurs
   connection:
-    description: Configure WebSocket server connection
-    title: Connection
+    description: Configurer la connexion au serveur WebSocket
+    title: Connexion
     websocket-url:
-      description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
-      label: WebSocket Server Address
+      description: 'Adresse complète du serveur WebSocket (ex: ws://localhost:6121/ws)'
+      label: Adresse du serveur WebSocket
       placeholder: ws://localhost:6121/ws
   scene:
     description: Configurer l’environnement où vit le personnage
@@ -813,126 +832,126 @@ pages:
           sections:
             section:
               performance-visualizer:
-                title: Performance Visualizer
-                description: Toggle FPS/long task/memory overlay
+                title: Visualiseur de performance
+                description: Afficher/masquer l'incrustation FPS / tâches longues / mémoire
               markdown-stress:
-                title: Markdown Stress
-                description: Stress markdown parsing and rendering with heavy chat payloads
+                title: Test de stress Markdown
+                description: Tester l'analyse et le rendu Markdown avec des charges de chat lourdes
               use-magic-keys:
-                title: useMagicKeys Tool
-                description: Test shortcuts
+                title: Outil useMagicKeys
+                description: Tester les raccourcis
               audio-record:
-                title: Audio Record
-                description: Test Audio related composables
+                title: Enregistrement Audio
+                description: Tester les composants ("composables") liés à l'audio
               background-gradient-blending:
-                title: Background Theme color blending
-                description: Test blending & theme
+                title: Mélange des couleurs du thème d'arrière-plan
+                description: Tester le mélange et le thème
               background-removal:
-                title: Background removal (WebGPU required)
-                description: Utility for background removal
+                title: Suppression de l'arrière-plan (WebGPU requis)
+                description: Utilitaire pour la suppression de l'arrière-plan
               chat:
                 title: Chat
                 description: Chat
               gesture-circle:
-                title: Gesture Circle (Desktop only)
-                description: Test gesture recognition
+                title: Cercle de geste (Bureau uniquement)
+                description: Tester la reconnaissance de gestes
               image:
                 title: Image
                 description: Image
               polaroid:
                 title: Polaroid
-                description: Utility for taking shots of models
+                description: Utilitaire pour prendre des clichés de modèles
               context-flow:
                 description: >-
-                  Inspect incoming context updates and outgoing chat stream events
+                  Inspecter les mises à jour de contexte entrantes et les événements de flux de chat sortants
               websocket-inspector:
-                title: WebSocket Inspector
-                description: Inspect raw WebSocket traffic
+                title: Inspecteur WebSocket
+                description: Inspecter le trafic WebSocket brut
               vibrant:
-                title: Color extract
-                description: Test color extraction
+                title: Extraction de couleur
+                description: Tester l'extraction de couleurs
               providers-transcription-realtime-aliyun-nls:
-                title: Aliyun Real-time Transcriber
+                title: Transcripteur temps réel Aliyun
                 description: >-
-                  Stream microphone audio to Aliyun NLS and inspect live transcripts
+                  Diffuser l'audio du microphone vers Aliyun NLS et inspecter les transcriptions en direct
               performance-playground:
-                title: Performance Playground
-                description: 'Test performance runtime: VRM expressions + TTS lip sync'
+                title: Zone d'essai de performance
+                description: 'Expressions VRM + synchro labiale TTS'
         theme-presets:
           presets:
             default:
               colors:
-                color-1: AIRI Green
-              description: The default greenish theme color, brought by AIRI to you!
-              title: Default Color
+                color-1: Vert AIRI
+              description: La couleur de thème verdâtre par défaut, offerte par AIRI !
+              title: Couleur par défaut
             morandi:
               colors:
                 color-1: Taupe
                 color-2: Beige
-                color-3: Ash Grey
-                color-4: Light Taupe
-                color-5: Ivory
-                color-6: Olive Grey
-                color-7: Sand
-                color-8: Warm Grey
-              description: Soft, muted tones inspired by Giorgio Morandi's paintings
-              title: Morandi Colors
+                color-3: Gris cendré
+                color-4: Taupe clair
+                color-5: Ivoire
+                color-6: Gris olive
+                color-7: Sable
+                color-8: Gris chaud
+              description: Tons doux et feutrés inspirés des peintures de Giorgio Morandi
+              title: Couleurs Morandi
             monet:
               colors:
-                color-1: Sky Blue
-                color-2: Mist
-                color-3: Sand
-                color-4: Moss Green
-                color-5: Water Lily
-                color-6: Wheat
-                color-7: Slate Blue
-                color-8: Sage
-              description: Impressionist palette inspired by Claude Monet's works
-              title: Monet Colors
+                color-1: Bleu ciel
+                color-2: Brume
+                color-3: Sable
+                color-4: Vert mousse
+                color-5: Nénuphar
+                color-6: Blé
+                color-7: Bleu ardoise
+                color-8: Sauge
+              description: Palette impressionniste inspirée des œuvres de Claude Monet
+              title: Couleurs Monet
             japanese:
               colors:
-                color-1: Tan
-                color-2: Warm Taupe
-                color-3: Umber
-                color-4: Coffee
+                color-1: Tanné
+                color-2: Taupe chaud
+                color-3: Terre d'ombre
+                color-4: Café
                 color-5: Bronze
-                color-6: Gold
-                color-7: Mustard
-                color-8: Amber
-              description: Traditional Japanese color palette
-              title: Japanese Colors
+                color-6: Or
+                color-7: Moutarde
+                color-8: Ambre
+              description: Palette de couleurs traditionnelles japonaises
+              title: Couleurs Japonaises
             nordic:
               colors:
-                color-1: Nordic Blue
-                color-2: Ice
+                color-1: Bleu nordique
+                color-2: Glace
                 color-3: Fjord
-                color-4: Steel
+                color-4: Acier
                 color-5: Glacier
-                color-6: Slate
-                color-7: Cloud
-                color-8: Stone
-              description: Scandinavian minimalist color scheme
-              title: Nordic Colors
+                color-6: Ardoise
+                color-7: Nuage
+                color-8: Pierre
+              description: Palette de couleurs minimaliste scandinave
+              title: Couleurs Nordiques
             chinese:
               colors:
-                color-1: Rosy Dawn
-                color-2: Chinese Red
-                color-3: Smoky Brown
-                color-4: Bamboo Green
-                color-5: Dark Purple
-                color-6: Golden Yellow
-                color-7: Azure Blue
-                color-8: Ochre
+                color-1: Aube rosée
+                color-2: Rouge de Chine
+                color-3: Brun fumé
+                color-4: Vert bambou
+                color-5: Violet foncé
+                color-6: Jaune d'or
+                color-7: Bleu azur
+                color-8: Ocre
               description: >-
-                Traditional Chinese colors, derived from ancient textiles, porcelain and paintings
-              title: Chinese Traditional Colors
+                Couleurs traditionnelles chinoises, issues des textiles anciens, de la porcelaine et des peintures
+              title: Couleurs traditionnelles chinoises
           title: Préréglages de couleurs
     title: Apparence
   page:
     developers:
       open-devtools:
-        title: Open Developer Tools
-        button: Open
+        title: Ouvrir les Outils de Développement
+        button: Ouvrir
 sections:
   section:
     general:
@@ -988,6 +1007,6 @@ websocket-secure-enabled:
   description: >-
     Activez WSS (WebSocket Secure) pour permettre les connexions HTTPS pour mobile (pocket) en mode développement. Cela générera automatiquement un certificat auto-signé.
 wip:
-  title: Work in Progress
+  title: Travail en cours
   description: >-
-    This feature is currently under development and not yet publicly available. Check back in future updates for this functionality.
+    Cette fonctionnalité est actuellement en cours de développement et n'est pas disponible publiquement. Revenez ultérieurement pour les mises-à-jour futures.
