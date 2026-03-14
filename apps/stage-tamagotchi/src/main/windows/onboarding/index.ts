@@ -7,6 +7,7 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { safeClose } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow, ipcMain, shell } from 'electron'
+import { isMacOS } from 'std-env'
 
 import icon from '../../../../resources/icon.png?asset'
 
@@ -42,8 +43,8 @@ export function setupOnboardingWindowManager(params: {
       show: false,
       icon,
       resizable: true,
-      frame: false,
-      titleBarStyle: 'hidden',
+      frame: !isMacOS,
+      titleBarStyle: isMacOS ? 'hidden' : undefined,
       transparent: false,
       backgroundColor: '#0f0f0f',
       webPreferences: {

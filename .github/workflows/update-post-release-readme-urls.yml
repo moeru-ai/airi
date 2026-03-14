@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: main
 
       - uses: pnpm/action-setup@v4
         with:
@@ -33,7 +35,7 @@ jobs:
         run: pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/update-readme-download-links.ts ${{ github.event.release.tag_name || inputs.tag }}
 
       - name: Pull with rebase
-        run: git pull --rebase --autostash
+        run: git pull origin main --rebase --autostash
 
       - uses: stefanzweifel/git-auto-commit-action@v6
         with:

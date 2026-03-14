@@ -94,7 +94,7 @@ onMounted(() => updateThemeColor())
         :subtitle="routeHeaderMetadata?.subtitle"
         :disable-back-button="route.path === '/settings'"
       />
-      <div relative min-h-0 flex-1 overflow-y-auto scrollbar-none>
+      <div id="settings-scroll-container" relative min-h-0 flex-1 overflow-y-auto scrollbar-none>
         <RouterView />
       </div>
     </div>

@@ -30,6 +30,19 @@ dialogs:
     no-models: 找不到可用模型
     no-models-help: >-
       请返回上一步并检查您的 API Key，或检查网络连接。
+    permissions:
+      title: Notifications
+      description: You can allow notifications now or continue and set it up later.
+      notificationsTitle: Notifications
+      notificationsDescription: Allow reminders and important status updates.
+      notificationsAction: Request notification permission
+      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
+      openSettings: Open iOS Settings
+      optionalHint: You can continue even if notification permission is not granted.
+      stateUnknown: Not requested
+      stateRequesting: Requesting...
+      stateGranted: Granted
+      stateNotGranted: Not granted
 language:
   title: 语言
   description: >
@@ -159,6 +172,7 @@ pages:
     scenario: 场景
     search: 搜索角色卡...
     sort_by: 排序方式
+    body-model: Body / Display Model
     speech:
       provider: 语音 / 提供商
       model: 声音 / 模型
@@ -284,6 +298,7 @@ pages:
           provider-model-selection:
             collapse: 折叠
             custom_model_placeholder: 输入自订模型名称
+            current_model_label: 'Current model:'
             description: 为意识选择合适的 LLM 服务来源
             error: 获取出错啦
             health_check_failed: 健康检查失败
@@ -474,16 +489,16 @@ pages:
                   value:
                     placeholder: 请求头数值
                 thinking-mode:
-                  label:
+                  label: 思考模式
                   description: >
                     Controls Ollama thinking behavior. GPT-OSS only supports low/medium/high levels.
                   options:
-                    auto: Auto (provider default)
-                    disable: Disable
-                    enable: Enable
-                    low: Low
-                    medium: Medium
-                    high: High
+                    auto: 自动（默认服务来源）
+                    disable: 禁用
+                    enable: 启用
+                    low: 低
+                    medium: 中
+                    high: 高
         validators:
           actions:
             validate: 验证
@@ -513,7 +528,7 @@ pages:
                       很抱歉，Ollama 连接检查失败。不要担心，如果是 Ollama，需要额外配置才能通过 Ollama。 您需要在启动 Olama 应用程序或 Ollama CLI 服务器时明确设置 <code>OLLAMA_HOST</code> 详情，请检查 <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama 集成指南</a>。
     common:
       continueAnyway: 仍然继续
-      goToModelSelection: 'Select Model →'
+      goToModelSelection: '选择模型→'
       fields:
         field:
           api-key:
@@ -597,8 +612,8 @@ pages:
         description: deepgram.com
         title: Deepgram
       speech-noop:
-        title: None
-        description: No speech output.
+        title: 无
+        description: 不使用语音合成
       deepseek:
         description: DeepSeek.com
         title: 深度求索 DeepSeek
@@ -655,7 +670,7 @@ pages:
           fp32:
             description: 全精度模型
           fp16:
-            description: 半精度
+            description: 半精度量化
           q8:
             description: 8-bit 量化
           q4:
@@ -820,7 +835,7 @@ pages:
                 title: Markdown Stress
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
               use-magic-keys:
-                title: useMagicKeys Tool
+                title: 使用MagicKeys工具
                 description: 测试快捷键
               audio-record:
                 title: 音频录制
@@ -858,7 +873,7 @@ pages:
                   将麦克风音频流式传输到阿里云 NLS 并检查实时转写
               performance-playground:
                 title: 性能测试场地
-                description: '测试性能运行时：VRM 表情 + TTS 口型同步'
+                description: 'VRM expressions + TTS lip sync playground'
         theme-presets:
           presets:
             default:

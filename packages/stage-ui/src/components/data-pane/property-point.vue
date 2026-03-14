@@ -12,6 +12,7 @@ interface AxisConfig {
 
 const props = defineProps<{
   label?: string
+  disabled?: boolean
   xConfig?: AxisConfig
   yConfig?: AxisConfig
   zConfig?: AxisConfig
@@ -47,6 +48,9 @@ watch(y, () => yNormalized.value = postProcessValue(y.value, props.yConfig))
 watch(z, () => zNormalized.value = postProcessValue(z.value, props.zConfig))
 
 function handleChange(axis: 'x' | 'y' | 'z', event: Event) {
+  if (props.disabled)
+    return
+
   const input = event.target as HTMLInputElement
   const value = Number.parseFloat(input.value)
 
@@ -82,6 +86,9 @@ function updateValue(axis: 'x' | 'y' | 'z', value: number) {
 }
 
 function startDrag(axis: 'x' | 'y' | 'z', event: MouseEvent) {
+  if (props.disabled)
+    return
+
   event.preventDefault()
   isDragging.value = axis
   dragStartX.value = event.clientX
@@ -130,7 +137,7 @@ function stopDrag() {
   <div />
   <label
     h-fit w-full inline-flex items-center rounded-md px="1.5" py="0.5"
-    :class="[isDragging === 'x' ? 'bg-red-100/50 dark:bg-red-900/50' : 'bg-neutral-100 dark:bg-neutral-900']"
+    :class="[isDragging === 'x' ? 'bg-red-100/50 dark:bg-red-900/50' : 'bg-neutral-100 dark:bg-neutral-900', props.disabled ? 'opacity-60' : '']"
     transition="colors duration-200 ease-in-out"
   >
     <span h-fit inline-flex items-center text="[12px]" gap-1>
@@ -141,6 +148,7 @@ function stopDrag() {
       <input
         :value="xNormalized"
         type="number"
+        :disabled="props.disabled"
         :min="props.xConfig?.min"
         :max="props.xConfig?.max"
         :step="0.0001"
@@ -152,7 +160,7 @@ function stopDrag() {
   </label>
   <label
     h-fit inline-flex items-center rounded-md px="1.5" py="0.5"
-    :class="[isDragging === 'y' ? 'bg-blue-100/50 dark:bg-blue-900/50' : 'bg-neutral-100 dark:bg-neutral-900']"
+    :class="[isDragging === 'y' ? 'bg-blue-100/50 dark:bg-blue-900/50' : 'bg-neutral-100 dark:bg-neutral-900', props.disabled ? 'opacity-60' : '']"
     transition="colors duration-200 ease-in-out"
   >
     <span h-fit inline-flex items-center text="[12px]" gap-1>
@@ -163,6 +171,7 @@ function stopDrag() {
       <input
         :value="yNormalized"
         type="number"
+        :disabled="props.disabled"
         :min="props.yConfig?.min"
         :max="props.yConfig?.max"
         :step="0.0001"
@@ -174,7 +183,7 @@ function stopDrag() {
   </label>
   <label
     h-fit inline-flex items-center rounded-md px="1.5" py="0.5"
-    :class="[isDragging === 'z' ? 'bg-green-100/50 dark:bg-green-900/50' : 'bg-neutral-100 dark:bg-neutral-900']"
+    :class="[isDragging === 'z' ? 'bg-green-100/50 dark:bg-green-900/50' : 'bg-neutral-100 dark:bg-neutral-900', props.disabled ? 'opacity-60' : '']"
     transition="colors duration-200 ease-in-out"
   >
     <span h-fit inline-flex items-center text="[12px]" gap-1>
@@ -185,6 +194,7 @@ function stopDrag() {
       <input
         :value="zNormalized"
         type="number"
+        :disabled="props.disabled"
         :min="props.zConfig?.min"
         :max="props.zConfig?.max"
         :step="0.0001"

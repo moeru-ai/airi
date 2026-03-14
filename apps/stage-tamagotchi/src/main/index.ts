@@ -1,20 +1,24 @@
+import type { FileLoggerHandle } from './app/file-logger'
+
+import process, { env, platform } from 'node:process'
+
 import { dirname } from 'node:path'
-import { env, platform } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import messages from '@proj-airi/i18n/locales'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
-import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
+import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
 import { app, ipcMain } from 'electron'
 import { noop } from 'es-toolkit'
-import { createLoggLogger, injeca } from 'injeca'
+import { createLoggLogger, injeca, lifecycle } from 'injeca'
 import { isLinux } from 'std-env'
 
 import icon from '../../resources/icon.png?asset'
 
 import { openDebugger, setupDebugger } from './app/debugger'
+import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
 import { createGlobalAppConfig } from './configs/global'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
@@ -78,7 +82,20 @@ electronApp.setAppUserModelId('ai.moeru.airi')
 
 initScreenCaptureForMain()
 
+let fileLogger: FileLoggerHandle = nullFileLoggerHandle
+let skipFileLogging = false
+
 app.whenReady().then(async () => {
+  // Initialize file logger and register the hook
+  fileLogger = await setupFileLogger()
+
+  // Register the global hook for file logging
+  setGlobalHookPostLog((_, formatted) => {
+    if (skipFileLogging || fileLogger.logFileFd === null)
+      return
+    void fileLogger.appendLog(formatted)
+  })
+
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
 
   const appConfig = injeca.provide('configs:app', () => createGlobalAppConfig())
@@ -91,8 +108,8 @@ app.whenReady().then(async () => {
   })
 
   const serverChannel = injeca.provide('modules:channel-server', {
-    dependsOn: { app: electronApp },
-    build: async () => setupServerChannel(),
+    dependsOn: { app: electronApp, lifecycle },
+    build: async ({ dependsOn }) => setupServerChannel(dependsOn),
   })
 
   const mcpStdioManager = injeca.provide('modules:mcp-stdio-manager', {
@@ -186,8 +203,51 @@ app.on('window-all-closed', () => {
   }
 })
 
+let appExiting = false
+
 // Clean up server and intervals when app quits
-app.on('before-quit', async () => {
-  emitAppBeforeQuit()
-  injeca.stop()
+async function handleAppExit() {
+  if (appExiting)
+    return
+
+  appExiting = true
+
+  let exitedNormally = true
+
+  /**
+   * Safely execute fn and log any errors that occur, marking the exit as abnormal
+   * if an error is caught.
+   *
+   * @param operation - A verb phrase describing the operation.
+   * @param fn - Any function to execute. It can be either sync or async.
+   * @returns A promise that resolves when the operation is complete.
+   */
+  async function logIfError(operation: string, fn: () => unknown): Promise<void> {
+    try {
+      await fn()
+    }
+    catch (error) {
+      exitedNormally = false
+      log.withError(error).error(`[app-exit] Failed to ${operation}:`)
+    }
+  }
+
+  await Promise.all([
+    logIfError('execute onAppBeforeQuit hooks', () => emitAppBeforeQuit()),
+    logIfError('stop injeca', () => injeca.stop()),
+  ])
+
+  // Prevent the global log hook from trying to write to the file after close() is called,
+  // which would cause a recursive failure if close() itself throws.
+  skipFileLogging = true
+  await logIfError('flush file logs', () => fileLogger.close()) // Ensure all logs are flushed
+
+  app.exit(exitedNormally ? 0 : 1)
+}
+
+process.on('SIGINT', () => handleAppExit())
+
+app.on('before-quit', (event) => {
+  event.preventDefault()
+  handleAppExit()
 })

@@ -1,15 +1,24 @@
 #!/usr/bin/env tsx
 
-import { env } from 'node:process'
+import { env, exit } from 'node:process'
 
-import { plugin as ws } from 'crossws/server'
-import { serve } from 'h3'
+import { createServer } from '../server'
 
-import { app } from '..'
-
-serve(app, {
-  // TODO: fix types
-  // @ts-expect-error - the .crossws property wasn't extended in types
-  plugins: [ws({ resolve: async req => (await app.fetch(req)).crossws })],
-  port: env.PORT ? Number(env.PORT) : 6121,
+const server = createServer({
+  port: env.PORT ? Number.parseInt(env.PORT) : 6121,
 })
+
+let stopping = false
+
+async function shutdown() {
+  if (stopping)
+    return
+  stopping = true
+  await server.stop()
+  exit(0)
+}
+
+process.on('SIGINT', shutdown)
+process.on('SIGTERM', shutdown)
+
+server.start()

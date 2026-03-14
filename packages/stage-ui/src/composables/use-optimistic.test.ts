@@ -120,4 +120,31 @@ describe('useOptimistic', () => {
     await execute()
     expect(error.value).toBeDefined()
   })
+
+  it('should skip without applying optimistic state', async () => {
+    const state = ref('initial')
+    const apply = vi.fn(() => {
+      state.value = 'optimistic'
+      return () => {
+        state.value = 'initial'
+      }
+    })
+    const action = vi.fn(async () => 'should-not-run')
+    const skipActionIf = vi.fn(() => true)
+
+    const { execute, state: resultState } = useOptimisticMutation({
+      apply,
+      action,
+      skipActionIf,
+      lazy: true,
+    })
+
+    await execute()
+
+    expect(skipActionIf).toHaveBeenCalled()
+    expect(apply).not.toHaveBeenCalled()
+    expect(action).not.toHaveBeenCalled()
+    expect(state.value).toBe('initial')
+    expect(resultState.value).toBeUndefined()
+  })
 })

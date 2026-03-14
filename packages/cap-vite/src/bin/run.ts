@@ -3,15 +3,19 @@
 import process from 'node:process'
 
 import { runCapVite } from '..'
-import { parseCapViteCliArgs } from '../cli'
+import { getCapViteCliHelpText, parseCapViteCliArgs } from '../cli'
 
 async function main() {
   const parsed = parseCapViteCliArgs(process.argv.slice(2))
   if (!parsed) {
+    process.stdout.write(`${getCapViteCliHelpText()}\n`)
     return
   }
 
-  await runCapVite(parsed.platform, parsed.target, { capArgs: parsed.capArgs })
+  const result = await runCapVite(parsed.viteArgs, parsed.capArgs)
+  if (typeof result.exitCode === 'number') {
+    process.exitCode = result.exitCode
+  }
 }
 
 void main().catch((error) => {

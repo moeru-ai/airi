@@ -1,9 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { resolve } from 'node:path'
 
-import { runCapVite } from './index'
+import { describe, expect, it, vi } from 'vitest'
 
-const { createServer, x } = vi.hoisted(() => ({
-  createServer: vi.fn(),
+const { x } = vi.hoisted(() => ({
   x: vi.fn(),
 }))
 
@@ -11,68 +10,70 @@ vi.mock('tinyexec', () => ({
   x,
 }))
 
-vi.mock('vite', () => ({
-  createServer,
-}))
+describe('prepareCapViteLaunch', () => {
+  it('captures the user config while forwarding the remaining vite args', async () => {
+    const { prepareCapViteLaunch } = await import('./index')
+
+    expect(prepareCapViteLaunch(['--host', '0.0.0.0', '--config', 'vite.mobile.ts', '--configLoader', 'runner'])).toEqual({
+      baseConfigFile: resolve(process.cwd(), 'vite.mobile.ts'),
+      configLoader: 'runner',
+      projectRoot: process.cwd(),
+      viteArgs: ['--host', '0.0.0.0', '--configLoader', 'runner'],
+      wrapperConfigFile: expect.stringMatching(/packages\/cap-vite\/(src|dist)\/vite-wrapper-config\.(ts|mjs)$/),
+    })
+  })
+
+  it('uses the leading positional vite root as the wrapper root', async () => {
+    const { prepareCapViteLaunch } = await import('./index')
+
+    expect(prepareCapViteLaunch(['apps/stage-pocket', '--host', '0.0.0.0'])).toEqual({
+      baseConfigFile: undefined,
+      configLoader: undefined,
+      projectRoot: resolve(process.cwd(), 'apps/stage-pocket'),
+      viteArgs: ['apps/stage-pocket', '--host', '0.0.0.0'],
+      wrapperConfigFile: expect.stringMatching(/packages\/cap-vite\/(src|dist)\/vite-wrapper-config\.(ts|mjs)$/),
+    })
+  })
+
+  it('throws when --config is missing its value', async () => {
+    const { prepareCapViteLaunch } = await import('./index')
+
+    expect(() => prepareCapViteLaunch(['--config'])).toThrow('Missing value for `--config`.')
+  })
+})
 
 describe('runCapVite', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
-
-  it('forwards cap args into cap run', async () => {
-    const processOnce = vi.spyOn(process, 'once').mockImplementation(() => process)
-
-    createServer.mockResolvedValue({
-      close: vi.fn().mockResolvedValue(undefined),
-      config: {
-        logger: {
-          info: vi.fn(),
-        },
-      },
-      listen: vi.fn().mockResolvedValue(undefined),
-      printUrls: vi.fn(),
-      resolvedUrls: {
-        local: ['http://127.0.0.1:5173/'],
-      },
-      watcher: {
-        add: vi.fn(),
-        off: vi.fn(),
-        on: vi.fn(),
-        unwatch: vi.fn().mockResolvedValue(undefined),
-      },
+  it('launches vite with the wrapper config and cap-vite env vars', async () => {
+    const { runCapVite } = await import('./index')
+    x.mockResolvedValue({
+      exitCode: 0,
+      stderr: '',
+      stdout: '',
     })
 
-    x.mockReturnValue({
-      kill: vi.fn(),
-    })
+    await runCapVite(
+      ['--host', '0.0.0.0', '--config', 'vite.mobile.ts', '--configLoader=runner'],
+      ['ios', '--target', 'iPhone 16 Pro', '--scheme', 'AIRI'],
+    )
 
-    await runCapVite('android', 'emulator-5554', {
-      capArgs: ['--flavor', 'release'],
-    })
-
-    expect(createServer).toHaveBeenCalledWith({
-      clearScreen: false,
-      root: process.cwd(),
-    })
-
-    expect(x).toHaveBeenCalledWith('cap', ['run', 'android', '--target', 'emulator-5554', '--flavor', 'release'], {
+    expect(x).toHaveBeenCalledWith('vite', [
+      '--config',
+      expect.stringMatching(/packages\/cap-vite\/(src|dist)\/vite-wrapper-config\.(ts|mjs)$/),
+      '--host',
+      '0.0.0.0',
+      '--configLoader=runner',
+    ], {
       nodeOptions: {
         cwd: process.cwd(),
         env: {
-          CAPACITOR_DEV_SERVER_URL: 'http://127.0.0.1:5173/',
+          CAP_VITE_BASE_CONFIG: resolve(process.cwd(), 'vite.mobile.ts'),
+          CAP_VITE_CAP_ARGS_JSON: JSON.stringify(['ios', '--target', 'iPhone 16 Pro', '--scheme', 'AIRI']),
+          CAP_VITE_CONFIG_LOADER: 'runner',
+          CAP_VITE_ROOT: process.cwd(),
         },
         stdio: 'inherit',
       },
-      persist: true,
       throwOnError: false,
     })
-
-    expect(processOnce).toHaveBeenCalledWith('SIGINT', expect.any(Function))
-    expect(processOnce).toHaveBeenCalledWith('SIGTERM', expect.any(Function))
   })
 })
