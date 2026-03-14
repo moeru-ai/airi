@@ -32,6 +32,19 @@ dialogs:
     no-models-help: >-
       Please return to the previous step and check your API key, or check the
       network connection.
+    permissions:
+      title: Notifications
+      description: You can allow notifications now or continue and set it up later.
+      notificationsTitle: Notifications
+      notificationsDescription: Allow reminders and important status updates.
+      notificationsAction: Request notification permission
+      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
+      openSettings: Open iOS Settings
+      optionalHint: You can continue even if notification permission is not granted.
+      stateUnknown: Not requested
+      stateRequesting: Requesting...
+      stateGranted: Granted
+      stateNotGranted: Not granted
 language:
   title: Language
   description: >
@@ -167,6 +180,7 @@ pages:
     scenario: Scenario
     search: Search cards...
     sort_by: Sort by
+    body-model: Body / Display Model
     speech:
       provider: Speech / Provider
       model: Speech / Model
@@ -896,7 +910,7 @@ pages:
                   transcripts
               performance-playground:
                 title: Performance Playground
-                description: 'Test performance runtime: VRM expressions + TTS lip sync'
+                description: 'VRM expressions + TTS lip sync playground'
         theme-presets:
           presets:
             default:

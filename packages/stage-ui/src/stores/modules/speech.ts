@@ -141,6 +141,12 @@ export const useSpeechStore = defineStore('speech', () => {
       if (runtimeState && runtimeState.validatedCredentialHash === undefined)
         return
 
+      // NOTICE: clear stale selection when the currently selected speech provider
+      // is no longer configured to avoid implicit fallback behavior from persisted state.
+      // NOTE: Do NOT use { immediate: true } here — providers.ts validates credentials
+      // asynchronously on startup, so firing immediately would see an empty
+      // configuredSpeechProvidersMetadata and incorrectly reset activeSpeechProvider
+      // to 'speech-noop', permanently wiping the persisted selection from localStorage.
       if (!configuredProviderIds.includes(activeSpeechProvider.value)) {
         activeSpeechProvider.value = 'speech-noop'
         activeSpeechModel.value = ''
@@ -148,8 +154,6 @@ export const useSpeechStore = defineStore('speech', () => {
         activeSpeechVoice.value = undefined
       }
     },
-
-    { immediate: true },
   )
 
   onMounted(() => {

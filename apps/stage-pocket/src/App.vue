@@ -16,6 +16,8 @@ import { useI18n } from 'vue-i18n'
 import { RouterView } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
+import OnboardingPermissionsStep from './components/onboarding/step-permissions.vue'
+
 const contextBridgeStore = useContextBridgeStore()
 const i18n = useI18n()
 const displayModelsStore = useDisplayModelsStore()
@@ -24,7 +26,7 @@ const settings = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
 const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
-const { shouldShowSetup } = storeToRefs(onboardingStore)
+const { showingSetup } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
 const analyticsStore = useSharedAnalyticsStore()
@@ -68,7 +70,9 @@ onMounted(async () => {
   analyticsStore.initialize()
   cardStore.initialize()
 
-  onboardingStore.initializeSetupCheck()
+  if (onboardingStore.needsOnboarding) {
+    onboardingStore.showingSetup = true
+  }
 
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   await contextBridgeStore.initialize()
@@ -90,6 +94,13 @@ function handleSetupConfigured() {
 function handleSetupSkipped() {
   onboardingStore.markSetupSkipped()
 }
+
+const extraSteps = computed(() => [
+  {
+    id: 'step-permissions',
+    component: OnboardingPermissionsStep,
+  },
+])
 </script>
 
 <template>
@@ -115,7 +126,8 @@ function handleSetupSkipped() {
 
   <!-- First Time Setup Dialog -->
   <OnboardingDialog
-    v-model="shouldShowSetup"
+    v-model="showingSetup"
+    :extra-steps="extraSteps"
     @configured="handleSetupConfigured"
     @skipped="handleSetupSkipped"
   />
