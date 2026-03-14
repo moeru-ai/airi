@@ -9,7 +9,7 @@ import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { Callout, Select } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted } from 'vue'
 
 const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
@@ -54,11 +54,6 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
     voiceId,
   )
 }
-
-watch(model, async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  providerConfig.model = model.value
-})
 </script>
 
 <template>

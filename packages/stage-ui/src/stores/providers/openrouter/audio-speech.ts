@@ -6,6 +6,10 @@ const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1/'
 const DEFAULT_MODEL = 'openai/gpt-audio-mini'
 const PROVIDER_ID = 'openrouter-audio-speech'
 
+function TTS_PROMPT_TEMPLATE(input: string) {
+  return `Read this text aloud exactly as written, without any commentary or extra words:\n\n${input}`
+}
+
 const OPENAI_VOICES = [
   'alloy',
   'ash',
@@ -142,7 +146,7 @@ function createAudioFetch(apiKey: string, baseUrl: string, model: string) {
       body: JSON.stringify({
         model,
         messages: [
-          { role: 'user', content: `Read this text aloud exactly as written, without any commentary or extra words:\n\n${body.input}` },
+          { role: 'user', content: TTS_PROMPT_TEMPLATE(body.input) },
         ],
         modalities: ['text', 'audio'],
         audio: { voice: body.voice, format: 'pcm16' },
@@ -186,7 +190,7 @@ async function listModels(baseUrl: string): Promise<ModelInfo[]> {
 
   const json = await res.json()
   const models = json.data || []
-  return models.map((m: any) => ({
+  return models.map((m: { id: string, name?: string, description?: string, context_length?: number }) => ({
     id: m.id,
     name: m.name || m.id,
     provider: PROVIDER_ID,
