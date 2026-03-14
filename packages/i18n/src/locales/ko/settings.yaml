@@ -172,6 +172,7 @@ pages:
     scenario: 시나리오
     search: 카드 검색...
     sort_by: 정렬
+    body-model: Body / Display Model
     speech:
       provider: 음성 합성 / 제공자
       model: 음성 합성 / 모델
