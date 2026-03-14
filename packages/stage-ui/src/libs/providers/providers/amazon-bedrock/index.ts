@@ -86,7 +86,7 @@ function createBedrockConverseProvider(config: {
       baseURL,
       model,
       fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
-        // Parse incoming OpenAI format request
+        // Parse xsai chat request body (messages array + model)
         const body = JSON.parse((init?.body as string) || '{}') as any
         const messages: any[] = body.messages || []
         const modelId: string = body.model || model
@@ -148,7 +148,7 @@ function createBedrockConverseProvider(config: {
           .join('')
         const stopReason = data?.stopReason || 'end_turn'
 
-        // Convert to OpenAI SSE stream format
+        // Wrap Converse response into xsai-compatible SSE stream (chat.completion.chunk format)
         const encoder = new TextEncoder()
         const stream = new ReadableStream({
           start(controller) {
