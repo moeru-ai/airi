@@ -32,8 +32,14 @@ const model = computed({
 
 const providerModels = computed(() => providersStore.getModelsForProvider(providerId))
 const isLoadingModels = computed(() => providersStore.isLoadingModels[providerId] || false)
+const baseUrl = computed(() => (providers.value[providerId]?.baseUrl as string | undefined)?.trim() || '')
+const isProviderConfigured = computed(() => !!baseUrl.value)
 
 async function handleGenerateTranscription(file: File) {
+  if (!baseUrl.value) {
+    throw new Error('Base URL is required. Configure your local endpoint in Advanced settings first.')
+  }
+
   const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
   if (!provider)
     throw new Error('Failed to initialize transcription provider')
@@ -51,7 +57,9 @@ async function handleGenerateTranscription(file: File) {
 }
 
 onMounted(async () => {
-  await providersStore.fetchModelsForProvider(providerId)
+  if (baseUrl.value) {
+    await providersStore.fetchModelsForProvider(providerId)
+  }
 })
 </script>
 
@@ -83,7 +91,7 @@ onMounted(async () => {
     <template #playground>
       <TranscriptionPlayground
         :generate-transcription="handleGenerateTranscription"
-        :api-key-configured="true"
+        :api-key-configured="isProviderConfigured"
       />
     </template>
   </TranscriptionProviderSettings>

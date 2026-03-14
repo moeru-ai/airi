@@ -48,8 +48,14 @@ const voice = computed({
 
 const providerModels = computed(() => providersStore.getModelsForProvider(providerId))
 const isLoadingModels = computed(() => providersStore.isLoadingModels[providerId] || false)
+const baseUrl = computed(() => (providers.value[providerId]?.baseUrl as string | undefined)?.trim() || '')
+const isProviderConfigured = computed(() => !!baseUrl.value)
 
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean, modelId?: string) {
+  if (!baseUrl.value) {
+    throw new Error('Base URL is required. Configure your local endpoint in Advanced settings first.')
+  }
+
   const provider = await providersStore.getProviderInstance<SpeechProvider<string>>(providerId)
   if (!provider)
     throw new Error('Failed to initialize speech provider')
@@ -70,7 +76,9 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 }
 
 onMounted(async () => {
-  await providersStore.fetchModelsForProvider(providerId)
+  if (baseUrl.value) {
+    await providersStore.fetchModelsForProvider(providerId)
+  }
 })
 
 watch(speed, () => {
@@ -117,7 +125,7 @@ watch(speed, () => {
         v-model:model-value="model"
         v-model:voice="voice as any"
         :generate-speech="handleGenerateSpeech"
-        :api-key-configured="true"
+        :api-key-configured="isProviderConfigured"
         default-text="Hello! This is a test of the local speech provider."
       />
     </template>
