@@ -177,6 +177,7 @@ pages:
     scenario: Scénario
     search: Rechercher des cartes...
     sort_by: Trier par
+    body-model: Body / Display Model
     speech:
       provider: Parole / Fournisseur
       model: Parole / Modèle

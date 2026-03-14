@@ -177,6 +177,7 @@ pages:
     scenario: 情境
     search: 搜尋角色卡...
     sort_by: 排序方式
+    body-model: Body / Display Model
     speech:
       provider: 聲音 / 聲線
       model: 聲音 / 模型

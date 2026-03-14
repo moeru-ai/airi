@@ -177,6 +177,7 @@ pages:
     scenario: Kịch bản
     search: Tìm thẻ...
     sort_by: Sắp xếp theo
+    body-model: Body / Display Model
     speech:
       provider: Giọng nói / Nhà cung cấp
       model: Giọng nói / Mô hình

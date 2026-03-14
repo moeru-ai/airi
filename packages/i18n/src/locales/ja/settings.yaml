@@ -177,6 +177,7 @@ pages:
     scenario: 背景
     search: カードを検索…
     sort_by: 並び替え
+    body-model: Body / Display Model
     speech:
       provider: 音声/プロバイダー
       model: 発話/モデル

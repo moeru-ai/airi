@@ -177,6 +177,7 @@ pages:
     scenario: Сценарий
     search: Искать карточки...
     sort_by: Сортировать по
+    body-model: Body / Display Model
     speech:
       provider: Speech / Provider
       model: Речь / Модель
