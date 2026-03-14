@@ -37,6 +37,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@moeru/eventa": "catalog:",
     "@proj-airi/server-shared": "workspace:^",
     "crossws": "^0.4.4",
     "superjson": "catalog:"
