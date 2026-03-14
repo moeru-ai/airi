@@ -139,9 +139,9 @@ export function useProviderValidation(providerId: string) {
 
     try {
       const config = { ...credentials.value }
-      if (config.apiKey)
+      if (config?.apiKey)
         config.apiKey = config.apiKey.trim()
-      if (config.baseUrl)
+      if (config?.baseUrl)
         config.baseUrl = config.baseUrl.trim()
 
       const result = await providerMetadata.value.validators.runManualValidation(config)
