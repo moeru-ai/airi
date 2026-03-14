@@ -164,7 +164,7 @@ export async function validateProvider(
     for (let i = 0; i < providerValidators.length; i++) {
       const step = steps[providerStepOffset + i]
       step.status = 'invalid'
-      step.reason = errorMessageFrom(error) || 'Unknown error'
+      step.reason = errorMessageFrom(error)
     }
     return steps
   }
@@ -182,7 +182,7 @@ export async function validateProvider(
     }
     catch (error) {
       step.status = 'invalid'
-      step.reason = errorMessageFrom(error) || 'Unknown error'
+      step.reason = errorMessageFrom(error)
       onValidatorError?.({ kind: 'provider', index, step, error })
     }
   }))
@@ -219,7 +219,7 @@ export async function validateProviderManual(
       id: v.id,
       label: v.name,
       status: 'invalid' as ProviderValidationStepStatus,
-      reason: errorMessageFrom(error) || 'Unknown error',
+      reason: errorMessageFrom(error),
       kind: 'provider' as ProviderValidationStepKind,
     }))
   }
@@ -245,7 +245,7 @@ export async function validateProviderManual(
     }
     catch (error) {
       step.status = 'invalid'
-      step.reason = errorMessageFrom(error) || 'Unknown error'
+      step.reason = errorMessageFrom(error)
       onValidatorError?.({ kind: 'provider', index, step, error })
     }
   }))
