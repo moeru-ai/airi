@@ -18,6 +18,8 @@
     "@electric-sql/pglite": "catalog:",
     "@guiiai/logg": "catalog:",
     "@hono/node-server": "^1.19.11",
+    "@hono/node-ws": "catalog:",
+    "@moeru/eventa": "catalog:",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/exporter-logs-otlp-proto": "^0.213.0",
     "@opentelemetry/exporter-metrics-otlp-proto": "^0.213.0",
