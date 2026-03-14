@@ -17,10 +17,10 @@ import IndicatorMicVolume from './indicator-mic-volume.vue'
 
 import {
   electron,
+  electronAppQuit,
   electronOpenChat,
   electronOpenSettings,
   electronStartDraggingWindow,
-  electronWindowClose,
   electronWindowSetAlwaysOnTop,
 } from '../../../../shared/eventa'
 
@@ -35,7 +35,7 @@ const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const openChat = useElectronEventaInvoke(electronOpenChat)
 const isLinux = useElectronEventaInvoke(electron.app.isLinux)
-const closeWindow = useElectronEventaInvoke(electronWindowClose)
+const closeWindow = useElectronEventaInvoke(electronAppQuit)
 const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 
 const expanded = ref(false)
