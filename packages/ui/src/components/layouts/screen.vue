@@ -5,7 +5,7 @@ import { computed, onMounted, ref } from 'vue'
 const containerRef = ref<HTMLDivElement>()
 
 const breakpoints = useBreakpoints(breakpointsTailwind)
-const { width, height } = useWindowSize()
+const { width } = useWindowSize()
 const containerElementBounding = useElementBounding(containerRef, { immediate: true, windowResize: true, reset: true })
 
 const canvasWidth = computed(() => {
