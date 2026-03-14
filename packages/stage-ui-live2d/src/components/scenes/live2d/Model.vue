@@ -120,9 +120,9 @@ function setScaleAndPosition() {
   if (!model.value)
     return
 
-  let offsetFactor = 2.2
+  let offsetFactor = 1.0
   if (isMobile.value) {
-    offsetFactor = 2.2
+    offsetFactor = 1.0
   }
 
   const heightScale = (props.height * 0.95 / initialModelHeight.value * offsetFactor)
@@ -137,7 +137,7 @@ function setScaleAndPosition() {
   model.value.scale.set(scale * props.scale, scale * props.scale)
 
   model.value.x = (props.width / 2) + offset.value.xOffset
-  model.value.y = props.height + offset.value.yOffset
+  model.value.y = (props.height / 2) + offset.value.yOffset
 }
 
 const live2dStore = useLive2d()
@@ -418,6 +418,7 @@ function updateDropShadowFilter() {
   model.value.filters = [dropShadowFilter.value]
 }
 
+watch([() => props.width, () => props.height], setScaleAndPosition)
 watch(modelSrcRef, async () => await loadModel(), { immediate: true })
 watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)
