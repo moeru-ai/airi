@@ -175,7 +175,7 @@ export function createServer(opts?: ServerOptions): Server {
   }
 
   async function stop() {
-    await closeServer()
+    await closeServer(true)
   }
 
   async function restart() {
