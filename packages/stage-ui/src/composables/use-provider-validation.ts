@@ -1,5 +1,6 @@
 import type { RemovableRef } from '@vueuse/core'
 
+import { errorMessageFrom } from '@moeru/std'
 import { useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -90,7 +91,7 @@ export function useProviderValidation(providerId: string) {
     catch (error) {
       isValid.value = false
       finalValidationMessage = t('settings.dialogs.onboarding.validationError', {
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessageFrom(error),
       })
     }
     finally {
@@ -151,7 +152,7 @@ export function useProviderValidation(providerId: string) {
     }
     catch (error) {
       manualTestPassed.value = false
-      manualTestMessage.value = error instanceof Error ? error.message : String(error)
+      manualTestMessage.value = errorMessageFrom(error)
     }
     finally {
       isManualTesting.value = false
