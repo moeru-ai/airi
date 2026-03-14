@@ -172,6 +172,8 @@ export function useProviderValidation(providerId: string) {
   function forceValid() {
     isValid.value = true
     validationMessage.value = ''
+    manualTestPassed.value = true
+    manualTestMessage.value = ''
     providersStore.forceProviderConfigured(providerId)
   }
 

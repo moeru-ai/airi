@@ -83,7 +83,16 @@ const { t } = useI18n()
   <!-- Manual Test Failed -->
   <Alert v-else-if="hasManualValidators && !manualTestPassed && manualTestMessage && !isManualTesting" type="error">
     <template #title>
-      <span>{{ t('settings.dialogs.onboarding.testGenerationFailed') }}</span>
+      <div class="w-full flex items-center justify-between">
+        <span>{{ t('settings.dialogs.onboarding.testGenerationFailed') }}</span>
+        <button
+          type="button"
+          class="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs text-red-600 font-medium transition-colors dark:bg-red-800/30 hover:bg-red-200 dark:text-red-300 dark:hover:bg-red-700/40"
+          @click="props.onForceValid"
+        >
+          {{ t('settings.pages.providers.common.continueAnyway') }}
+        </button>
+      </div>
     </template>
     <template #content>
       <div class="whitespace-pre-wrap break-all">
