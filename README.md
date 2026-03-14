@@ -115,15 +115,15 @@
     <picture>
       <source
         width="33%"
-        srcset="./docs/content/public/assets/download-buttons/download-buttons.browser.dark.en-US.avif"
+        srcset="./docs/content/public/assets/download-buttons/download-buttons.browser.dark.en-US.png"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./docs/content/public/assets/download-buttons/download-buttons.browser.light.en-US.avif"
+        srcset="./docs/content/public/assets/download-buttons/download-buttons.browser.light.en-US.png"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.browser.light.en-US.avif" />
+      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.browser.light.en-US.png" />
     </picture>
   </a>
 </p>
