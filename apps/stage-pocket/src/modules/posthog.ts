@@ -5,6 +5,5 @@ import { DEFAULT_POSTHOG_CONFIG, POSTHOG_PROJECT_KEY_POCKET } from '../../../../
 if (!import.meta.env.DEV) {
   posthog.init(POSTHOG_PROJECT_KEY_POCKET, {
     ...DEFAULT_POSTHOG_CONFIG,
-    // Project-specific config...
   })
 }
