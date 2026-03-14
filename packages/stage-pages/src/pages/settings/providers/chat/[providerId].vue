@@ -2,13 +2,13 @@
 import type { RemovableRef } from '@vueuse/core'
 
 import {
-  Alert,
   ProviderAdvancedSettings,
   ProviderApiKeyInput,
   ProviderBaseUrlInput,
   ProviderBasicSettings,
   ProviderSettingsContainer,
   ProviderSettingsLayout,
+  ProviderValidationAlerts,
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
@@ -93,76 +93,18 @@ function goToModelSelection() {
       </ProviderAdvancedSettings>
 
       <!-- Validation Status -->
-      <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
-        <template #title>
-          <div class="w-full flex items-center justify-between">
-            <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
-            <button
-              type="button"
-              class="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs text-red-600 font-medium transition-colors dark:bg-red-800/30 hover:bg-red-200 dark:text-red-300 dark:hover:bg-red-700/40"
-              @click="forceValid"
-            >
-              {{ t('settings.pages.providers.common.continueAnyway') }}
-            </button>
-          </div>
-        </template>
-        <template v-if="validationMessage" #content>
-          <div class="whitespace-pre-wrap break-all">
-            {{ validationMessage }}
-          </div>
-        </template>
-      </Alert>
-      <!-- Partial Validation (when manual validators exist but haven't been run yet) -->
-      <Alert v-if="isValid && isValidating === 0 && hasManualValidators && !manualTestPassed" type="info">
-        <template #title>
-          <div class="w-full flex items-center justify-between">
-            <span>{{ t('settings.dialogs.onboarding.validationPartial') }}</span>
-            <div :class="['flex items-center gap-2']">
-              <button
-                type="button"
-                :disabled="isManualTesting"
-                :class="['ml-2 rounded px-2 py-0.5 text-xs font-medium transition-colors', isManualTesting ? 'opacity-50 cursor-not-allowed' : '', 'bg-blue-100 text-blue-600 hover:bg-blue-200', 'dark:bg-blue-800/30 dark:text-blue-300 dark:hover:bg-blue-700/40']"
-                @click="runManualTest"
-              >
-                {{ isManualTesting ? t('settings.dialogs.onboarding.testGenerationRunning') : t('settings.dialogs.onboarding.testGeneration') }}
-              </button>
-              <button
-                type="button"
-                :class="['rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-blue-100 text-blue-600 hover:bg-blue-200', 'dark:bg-blue-800/30 dark:text-blue-300 dark:hover:bg-blue-700/40']"
-                @click="goToModelSelection"
-              >
-                {{ t('settings.pages.providers.common.goToModelSelection') }}
-              </button>
-            </div>
-          </div>
-        </template>
-      </Alert>
-      <!-- Full Validation Success (either no manual validators, or manual test passed) -->
-      <Alert v-if="isValid && isValidating === 0 && (!hasManualValidators || manualTestPassed)" type="success">
-        <template #title>
-          <div class="w-full flex items-center justify-between">
-            <span>{{ t('settings.dialogs.onboarding.validationSuccess') }}</span>
-            <button
-              type="button"
-              :class="['ml-2 rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-green-100 text-green-600 hover:bg-green-200', 'dark:bg-green-800/30 dark:text-green-300 dark:hover:bg-green-700/40']"
-              @click="goToModelSelection"
-            >
-              {{ t('settings.pages.providers.common.goToModelSelection') }}
-            </button>
-          </div>
-        </template>
-      </Alert>
-      <!-- Manual Test Failed -->
-      <Alert v-if="hasManualValidators && !manualTestPassed && manualTestMessage && !isManualTesting" type="error">
-        <template #title>
-          <span>{{ t('settings.dialogs.onboarding.testGenerationFailed') }}</span>
-        </template>
-        <template #content>
-          <div class="whitespace-pre-wrap break-all">
-            {{ manualTestMessage }}
-          </div>
-        </template>
-      </Alert>
+      <ProviderValidationAlerts
+        :is-valid="isValid"
+        :is-validating="isValidating"
+        :validation-message="validationMessage"
+        :has-manual-validators="hasManualValidators"
+        :is-manual-testing="isManualTesting"
+        :manual-test-passed="manualTestPassed"
+        :manual-test-message="manualTestMessage"
+        :on-run-test="runManualTest"
+        :on-force-valid="forceValid"
+        :on-go-to-model-selection="goToModelSelection"
+      />
     </ProviderSettingsContainer>
   </ProviderSettingsLayout>
 </template>

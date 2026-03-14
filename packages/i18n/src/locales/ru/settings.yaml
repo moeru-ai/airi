@@ -24,7 +24,6 @@ dialogs:
     validationError: 'Ошибка проверки: {error}'
     testGeneration: Тест генерации
     testGenerationRunning: Тестирование...
-    testGenerationSuccess: Тест генерации пройден
     testGenerationFailed: Тест генерации не удался
     skipForNow: Пропустить на сейчас
     saveAndContinue: Сохранить и продолжить

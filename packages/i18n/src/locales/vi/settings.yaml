@@ -24,7 +24,6 @@ dialogs:
     validationError: 'Lỗi xác thực: {error}'
     testGeneration: Kiểm tra tạo
     testGenerationRunning: Đang kiểm tra...
-    testGenerationSuccess: Kiểm tra tạo thành công
     testGenerationFailed: Kiểm tra tạo thất bại
     skipForNow: Bỏ qua
     saveAndContinue: Lưu và tiếp tục

@@ -24,7 +24,6 @@ dialogs:
     validationError: '検証エラー: {error}'
     testGeneration: 生成テスト
     testGenerationRunning: テスト中...
-    testGenerationSuccess: 生成テストに合格
     testGenerationFailed: 生成テストに失敗
     skipForNow: 今はスキップ
     saveAndContinue: 保存して続行

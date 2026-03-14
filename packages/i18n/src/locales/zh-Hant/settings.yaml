@@ -24,7 +24,6 @@ dialogs:
     validationError: '驗證錯誤：{error}'
     testGeneration: 測試生成
     testGenerationRunning: 測試中...
-    testGenerationSuccess: 生成測試通過
     testGenerationFailed: 生成測試失敗
     skipForNow: 先略過
     saveAndContinue: 儲存並繼續

@@ -24,7 +24,6 @@ dialogs:
     validationError: '검증 오류: {error}'
     testGeneration: 생성 테스트
     testGenerationRunning: 테스트 중...
-    testGenerationSuccess: 생성 테스트 통과
     testGenerationFailed: 생성 테스트 실패
     skipForNow: 지금은 건너뛰기
     saveAndContinue: 저장 및 계속

@@ -25,7 +25,6 @@ dialogs:
     validationError: 'Validation error: {error}'
     testGeneration: Test Generation
     testGenerationRunning: Testing...
-    testGenerationSuccess: Generation test passed
     testGenerationFailed: Generation test failed
     skipForNow: Skip for now
     saveAndContinue: Save and Continue
