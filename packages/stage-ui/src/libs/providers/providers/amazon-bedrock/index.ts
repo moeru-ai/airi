@@ -361,9 +361,11 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
     validateProvider: [
       () => ({
         id: 'amazon-bedrock:check-credentials',
-        validate: async (config: Record<string, any>) => {
+        name: 'Verify Amazon Bedrock API key',
+        validator: async (config: Record<string, any>) => {
           const region = config.region || 'us-east-1'
           const apiKey = config.apiKey
+          const errors: Array<{ error: unknown }> = []
           try {
             const res = await fetch(
               `https://bedrock.${region}.amazonaws.com/foundation-models?byInferenceType=ON_DEMAND&byOutputModality=TEXT&byProvider=Amazon&maxResults=1`,
@@ -375,12 +377,17 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
               },
             )
             if (res.status === 403 || res.status === 401) {
-              return { valid: false, reason: 'Invalid Amazon Bedrock API key or insufficient permissions.' }
+              errors.push({ error: new Error('Invalid Amazon Bedrock API key or insufficient permissions.') })
             }
-            return { valid: true }
           }
           catch {
-            return { valid: false, reason: 'Failed to connect to Amazon Bedrock. Check your region and network.' }
+            errors.push({ error: new Error('Failed to connect to Amazon Bedrock. Check your region and network.') })
+          }
+          return {
+            errors,
+            reason: errors.length > 0 ? (errors[0].error as Error).message : '',
+            reasonKey: '',
+            valid: errors.length === 0,
           }
         },
       }),
