@@ -190,7 +190,7 @@ export class DiscordAdapter {
         if (message?.content && discordContext?.channelId) {
           log.log(`Forwarding response to Discord channel ${discordContext.channelId}: "${message.content.slice(0, 100)}${message.content.length > 100 ? '...' : ''}"`)
           const channel = await this.discordClient.channels.fetch(discordContext.channelId)
-          if (channel?.isTextBased() && 'send' in channel && typeof (channel as any).send === 'function') {
+          if (channel?.isTextBased()) {
             const content = message.content
             if (content.length <= 2000) {
               await channel.send(content)
