@@ -172,6 +172,7 @@ pages:
     scenario: Escenario
     search: Buscar tarjetas...
     sort_by: Ordenar por
+    body-model: Body / Display Model
     speech:
       provider: Voz / Proveedor
       model: Habla / Modelo

@@ -31,8 +31,8 @@ viewers:
       model:
         title: 模型
 profile-switcher:
-  no-profile: 无配置
-  no-profiles: 暂无配置，点击上方按钮创建
-  save-as-new: 保存为新配置
-  manage: 管理配置
+  no-profile: No Profile
+  no-profiles: No profiles yet
+  save-as-new: Save as New Profile
+  manage: Manage Profiles
 waiting: 等待中

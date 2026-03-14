@@ -21,6 +21,7 @@ docs:
   'switch-to-dark-mode': Switch to dark mode
   'pin-on-top': Pin on top
   'unpin-from-top': Unpin from top
+  'switch-profile': Switch Profile
   'close': Close
   'expand': Expand
   'collapse': Collapse
