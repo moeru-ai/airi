@@ -76,14 +76,14 @@ function formatCount(value?: number) {
           Three render
         </div>
         <div :class="['grid gap-1 text-sm text-neutral-100']">
-          <div>renderCount: {{ threeRender.renderCount }}</div>
-          <div>drawCalls: {{ threeRender.drawCalls }}</div>
-          <div>triangles: {{ threeRender.triangles }}</div>
-          <div>points: {{ threeRender.points }}</div>
-          <div>lines: {{ threeRender.lines }}</div>
-          <div>textures: {{ threeRender.textures }}</div>
-          <div>geometries: {{ threeRender.geometries }}</div>
-          <div>lastTimestampMs: {{ threeRender.lastTimestampMs.toFixed(2) }}</div>
+          <div>renderCount: {{ formatCount(threeRender.renderCount) }}</div>
+          <div>drawCalls: {{ formatCount(threeRender.drawCalls) }}</div>
+          <div>triangles: {{ formatCount(threeRender.triangles) }}</div>
+          <div>points: {{ formatCount(threeRender.points) }}</div>
+          <div>lines: {{ formatCount(threeRender.lines) }}</div>
+          <div>textures: {{ formatCount(threeRender.textures) }}</div>
+          <div>geometries: {{ formatCount(threeRender.geometries) }}</div>
+          <div>lastTimestampMs: {{ formatFloat(threeRender.lastTimestampMs, 2) }}</div>
         </div>
       </section>
 
@@ -92,18 +92,18 @@ function formatCount(value?: number) {
           VRM update frame
         </div>
         <div :class="['grid gap-1 text-sm text-neutral-100']">
-          <div>frameCount: {{ vrmUpdate.frameCount }}</div>
-          <div>totalMs: {{ vrmUpdate.totalMs.toFixed(3) }}</div>
-          <div>deltaMs: {{ vrmUpdate.deltaMs.toFixed(3) }}</div>
-          <div>animationMixerMs: {{ vrmUpdate.animationMixerMs.toFixed(3) }}</div>
-          <div>humanoidMs: {{ vrmUpdate.humanoidMs.toFixed(3) }}</div>
-          <div>lookAtMs: {{ vrmUpdate.lookAtMs.toFixed(3) }}</div>
-          <div>blinkAndSaccadeMs: {{ vrmUpdate.blinkAndSaccadeMs.toFixed(3) }}</div>
-          <div>emoteMs: {{ vrmUpdate.emoteMs.toFixed(3) }}</div>
-          <div>lipSyncMs: {{ vrmUpdate.lipSyncMs.toFixed(3) }}</div>
-          <div>expressionMs: {{ vrmUpdate.expressionMs.toFixed(3) }}</div>
-          <div>springBoneMs: {{ vrmUpdate.springBoneMs.toFixed(3) }}</div>
-          <div>vrmFrameHookMs: {{ vrmUpdate.vrmFrameHookMs.toFixed(3) }}</div>
+          <div>frameCount: {{ formatCount(vrmUpdate.frameCount) }}</div>
+          <div>totalMs: {{ formatFloat(vrmUpdate.totalMs, 3) }}</div>
+          <div>deltaMs: {{ formatFloat(vrmUpdate.deltaMs, 3) }}</div>
+          <div>animationMixerMs: {{ formatFloat(vrmUpdate.animationMixerMs, 3) }}</div>
+          <div>humanoidMs: {{ formatFloat(vrmUpdate.humanoidMs, 3) }}</div>
+          <div>lookAtMs: {{ formatFloat(vrmUpdate.lookAtMs, 3) }}</div>
+          <div>blinkAndSaccadeMs: {{ formatFloat(vrmUpdate.blinkAndSaccadeMs, 3) }}</div>
+          <div>emoteMs: {{ formatFloat(vrmUpdate.emoteMs, 3) }}</div>
+          <div>lipSyncMs: {{ formatFloat(vrmUpdate.lipSyncMs, 3) }}</div>
+          <div>expressionMs: {{ formatFloat(vrmUpdate.expressionMs, 3) }}</div>
+          <div>springBoneMs: {{ formatFloat(vrmUpdate.springBoneMs, 3) }}</div>
+          <div>vrmFrameHookMs: {{ formatFloat(vrmUpdate.vrmFrameHookMs, 3) }}</div>
         </div>
       </section>
 
@@ -112,12 +112,12 @@ function formatCount(value?: number) {
           Fade-on-hover hit test
         </div>
         <div :class="['grid gap-1 text-sm text-neutral-100']">
-          <div>readCount: {{ hitTest.readCount }}</div>
-          <div>lastDurationMs: {{ hitTest.lastDurationMs.toFixed(3) }}</div>
-          <div>totalDurationMs: {{ hitTest.totalDurationMs.toFixed(3) }}</div>
-          <div>lastReadWidth: {{ hitTest.lastReadWidth }}</div>
-          <div>lastReadHeight: {{ hitTest.lastReadHeight }}</div>
-          <div>lastTimestampMs: {{ hitTest.lastTimestampMs.toFixed(2) }}</div>
+          <div>readCount: {{ formatCount(hitTest.readCount) }}</div>
+          <div>lastDurationMs: {{ formatFloat(hitTest.lastDurationMs, 3) }}</div>
+          <div>totalDurationMs: {{ formatFloat(hitTest.totalDurationMs, 3) }}</div>
+          <div>lastReadWidth: {{ formatCount(hitTest.lastReadWidth) }}</div>
+          <div>lastReadHeight: {{ formatCount(hitTest.lastReadHeight) }}</div>
+          <div>lastTimestampMs: {{ formatFloat(hitTest.lastTimestampMs, 2) }}</div>
         </div>
       </section>
 
@@ -128,12 +128,12 @@ function formatCount(value?: number) {
         <div :class="['grid gap-1 text-sm text-neutral-100']">
           <div>lastModelSrc: {{ vrmLifecycle.lastModelSrc || 'n/a' }}</div>
           <div>lastReason: {{ vrmLifecycle.lastReason || 'n/a' }}</div>
-          <div>lastLoadStartAt: {{ vrmLifecycle.lastLoadStartAt.toFixed(2) }}</div>
-          <div>lastLoadEndAt: {{ vrmLifecycle.lastLoadEndAt.toFixed(2) }}</div>
-          <div>lastLoadDurationMs: {{ vrmLifecycle.lastLoadDurationMs.toFixed(3) }}</div>
-          <div>lastDisposeStartAt: {{ vrmLifecycle.lastDisposeStartAt.toFixed(2) }}</div>
-          <div>lastDisposeEndAt: {{ vrmLifecycle.lastDisposeEndAt.toFixed(2) }}</div>
-          <div>lastDisposeDurationMs: {{ vrmLifecycle.lastDisposeDurationMs.toFixed(3) }}</div>
+          <div>lastLoadStartAt: {{ formatFloat(vrmLifecycle.lastLoadStartAt, 2) }}</div>
+          <div>lastLoadEndAt: {{ formatFloat(vrmLifecycle.lastLoadEndAt, 2) }}</div>
+          <div>lastLoadDurationMs: {{ formatFloat(vrmLifecycle.lastLoadDurationMs, 3) }}</div>
+          <div>lastDisposeStartAt: {{ formatFloat(vrmLifecycle.lastDisposeStartAt, 2) }}</div>
+          <div>lastDisposeEndAt: {{ formatFloat(vrmLifecycle.lastDisposeEndAt, 2) }}</div>
+          <div>lastDisposeDurationMs: {{ formatFloat(vrmLifecycle.lastDisposeDurationMs, 3) }}</div>
           <div>lastErrorMessage: {{ vrmLifecycle.lastErrorMessage || 'n/a' }}</div>
         </div>
       </section>
