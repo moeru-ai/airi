@@ -1,4 +1,5 @@
 import type { EventContext } from '@moeru/eventa'
+import type Redis from 'ioredis'
 
 import type { EngagementMetrics } from '../libs/otel'
 import type { ChatService } from '../services/chats'
@@ -11,7 +12,12 @@ import { createPeerHooks, wsDisconnectedEvent } from '../libs/eventa-hono-adapte
 
 const log = useLogger('chat-ws').useGlobalConfig()
 
-// Active connections per user (single-process only)
+const CHANNEL_PREFIX = 'chat:broadcast:'
+
+// ---------------------------------------------------------------------------
+// Local connection registry (per-process)
+// ---------------------------------------------------------------------------
+
 const userConnections = new Map<string, Set<EventContext>>()
 
 function addConnection(userId: string, ctx: EventContext) {
@@ -32,50 +38,122 @@ function removeConnection(userId: string, ctx: EventContext) {
   }
 }
 
-function broadcastToOtherDevices(userId: string, senderCtx: EventContext, event: any, payload: any) {
+function broadcastToLocalDevices(userId: string, excludeCtx: EventContext | null, event: any, payload: any) {
   const conns = userConnections.get(userId)
   if (!conns)
     return
   for (const ctx of conns) {
-    if (ctx !== senderCtx) {
+    if (ctx !== excludeCtx) {
       ctx.emit(event, payload)
     }
   }
 }
 
-export function createChatWsHandlers(chatService: ChatService, metrics?: EngagementMetrics | null) {
+// ---------------------------------------------------------------------------
+// Redis pub/sub for cross-instance broadcast
+// ---------------------------------------------------------------------------
+
+interface BroadcastMessage {
+  userId: string
+  payload: {
+    chatId: string
+    messages: any[]
+    fromSeq: number
+    toSeq: number
+  }
+}
+
+export function createChatWsHandlers(
+  chatService: ChatService,
+  redis: Redis,
+  metrics?: EngagementMetrics | null,
+) {
+  // Dedicated subscriber connection (ioredis requires a separate connection for subscribe mode)
+  const sub = redis.duplicate()
+
+  sub.on('message', (channel: string, message: string) => {
+    if (!channel.startsWith(CHANNEL_PREFIX))
+      return
+
+    try {
+      const data: BroadcastMessage = JSON.parse(message)
+      // Deliver to all local connections of this user (no excludeCtx since the
+      // sender is on a different instance)
+      broadcastToLocalDevices(data.userId, null, newMessages, data.payload)
+    }
+    catch (err) {
+      log.withError(err).error('Failed to parse broadcast message')
+    }
+  })
+
+  /** Subscribe to a user's broadcast channel when they first connect on this instance. */
+  function ensureSubscribed(userId: string) {
+    const channel = `${CHANNEL_PREFIX}${userId}`
+    sub.subscribe(channel).catch((err) => {
+      log.withError(err).error('Failed to subscribe to broadcast channel')
+    })
+  }
+
+  /** Unsubscribe when the user has no more connections on this instance. */
+  function maybeUnsubscribe(userId: string) {
+    if (!userConnections.has(userId)) {
+      const channel = `${CHANNEL_PREFIX}${userId}`
+      sub.unsubscribe(channel).catch((err) => {
+        log.withError(err).error('Failed to unsubscribe from broadcast channel')
+      })
+    }
+  }
+
+  /** Publish a broadcast message so other instances can deliver it. */
+  function publishBroadcast(userId: string, payload: BroadcastMessage['payload']) {
+    const channel = `${CHANNEL_PREFIX}${userId}`
+    const message: BroadcastMessage = { userId, payload }
+    redis.publish(channel, JSON.stringify(message)).catch((err) => {
+      log.withError(err).error('Failed to publish broadcast message')
+    })
+  }
+
   return function setupPeer(userId: string) {
     const { hooks } = createPeerHooks({
       onContext: (ctx) => {
         addConnection(userId, ctx)
+        ensureSubscribed(userId)
         log.withFields({ userId }).log('WS connected')
         metrics?.wsConnectionsActive.add(1)
 
         ctx.on(wsDisconnectedEvent, () => {
           removeConnection(userId, ctx)
+          maybeUnsubscribe(userId)
           log.withFields({ userId }).log('WS disconnected')
           metrics?.wsConnectionsActive.add(-1)
         })
 
         // RPC: send messages
-        defineInvokeHandler(ctx as any, sendMessages, async (req) => {
+        defineInvokeHandler(ctx, sendMessages, async (req) => {
           log.withFields({ userId, chatId: req!.chatId, count: req!.messages.length }).log('sendMessages')
           const result = await chatService.pushMessages(userId, req!.chatId, req!.messages)
 
-          // Broadcast to other devices
+          // Fetch the wire messages for broadcast
           const wireMessages = await chatService.pullMessages(userId, req!.chatId, result.fromSeq - 1, result.toSeq - result.fromSeq + 1)
-          broadcastToOtherDevices(userId, ctx, newMessages, {
+          const broadcastPayload = {
             chatId: req!.chatId,
             messages: wireMessages.messages,
             fromSeq: result.fromSeq,
             toSeq: result.toSeq,
-          })
+          }
+
+          // Local broadcast (other connections on this instance, exclude sender)
+          broadcastToLocalDevices(userId, ctx, newMessages, broadcastPayload)
+
+          // Cross-instance broadcast via Redis pub/sub
+          publishBroadcast(userId, broadcastPayload)
+
           metrics?.wsMessagesSent.add(wireMessages.messages.length)
           return { seq: result.seq }
         })
 
         // RPC: pull messages
-        defineInvokeHandler(ctx as any, pullMessages, async (req) => {
+        defineInvokeHandler(ctx, pullMessages, async (req) => {
           log.withFields({ userId, chatId: req!.chatId, afterSeq: req!.afterSeq }).log('pullMessages')
           return chatService.pullMessages(userId, req!.chatId, req!.afterSeq, req!.limit)
         })

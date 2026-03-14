@@ -1,3 +1,5 @@
+import type Redis from 'ioredis'
+
 import type { Env } from './libs/env'
 import type { OtelInstance } from './libs/otel'
 import type { HonoEnv } from './types/hono'
@@ -56,6 +58,7 @@ interface AppDeps {
   requestLogService: RequestLogService
   stripeService: StripeDBService
   configKV: ConfigKVService
+  redis: Redis
   env: Env
   otel: OtelInstance | null
 }
@@ -69,6 +72,7 @@ function buildApp({
   requestLogService,
   stripeService,
   configKV,
+  redis,
   env,
   otel,
 }: AppDeps) {
@@ -90,7 +94,7 @@ function buildApp({
 
   // WebSocket setup — must be registered BEFORE bodyLimit middleware
   const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app })
-  const chatWsSetup = createChatWsHandlers(chatService, otel?.engagement)
+  const chatWsSetup = createChatWsHandlers(chatService, redis, otel?.engagement ?? null)
 
   app.get('/ws/chat', upgradeWebSocket(async (c) => {
     const token = c.req.query('token')
@@ -278,6 +282,7 @@ async function createApp() {
     requestLogService,
     stripeService,
     configKV,
+    redis,
     env: parsedEnv,
     otel,
     fluxWriteBack,
@@ -291,6 +296,7 @@ async function createApp() {
     requestLogService: resolved.requestLogService,
     stripeService: resolved.stripeService,
     configKV: resolved.configKV,
+    redis: resolved.redis,
     env: resolved.env,
     otel: resolved.otel,
   })
