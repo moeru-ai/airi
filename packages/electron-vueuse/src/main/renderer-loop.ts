@@ -6,8 +6,20 @@ import { useLoop } from './loop'
 
 const rendererDisposedMessage = 'Render frame was disposed before WebFrameMain could be accessed'
 
+export function safeClose(window?: BrowserWindow | null): boolean {
+  if (!window) {
+    return false
+  }
+  if (isRendererUnavailable(window)) {
+    return false
+  }
+
+  window.close()
+  return true
+}
+
 export function isRendererUnavailable(window: BrowserWindow) {
-  return window.isDestroyed() || window.webContents.isDestroyed() || window.webContents.isCrashed()
+  return window.isDestroyed() || window?.webContents?.isDestroyed() || window?.webContents?.isCrashed()
 }
 
 export function shouldStopForRendererError(error: unknown) {

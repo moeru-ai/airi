@@ -5,12 +5,17 @@ import { Button } from '@proj-airi/ui'
 import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger, EditableArea, EditableEditTrigger, EditableInput, EditablePreview, EditableRoot, EditableSubmitTrigger } from 'reka-ui'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
 
-const emits = defineEmits<{ (e: 'close', value: void): void }>()
-const selectedModel = defineModel<DisplayModel | undefined>({ type: Object, required: false })
+const props = defineProps<{
+  selectedModel?: DisplayModel
+}>()
+const emits = defineEmits<{
+  (e: 'close', value: void): void
+  (e: 'pick', value: DisplayModel | undefined): void
+}>()
 
 const displayModelStore = useDisplayModelsStore()
 const { displayModelsFromIndexedDBLoading, displayModels } = storeToRefs(displayModelStore)
@@ -19,7 +24,11 @@ function handleRemoveModel(model: DisplayModel) {
   displayModelStore.removeDisplayModel(model.id)
 }
 
-const highlightDisplayModelCard = ref<string | undefined>(selectedModel.value?.id)
+const highlightDisplayModelCard = ref<string | undefined>(props.selectedModel?.id)
+
+watch(() => props.selectedModel?.id, (modelId) => {
+  highlightDisplayModelCard.value = modelId
+}, { immediate: true })
 
 function handleAddLive2DModel(file: FileList | null) {
   if (file === null || file.length === 0)
@@ -31,12 +40,13 @@ function handleAddLive2DModel(file: FileList | null) {
 }
 
 function handlePick(m: DisplayModel) {
-  selectedModel.value = m
+  highlightDisplayModelCard.value = m.id
+  emits('pick', m)
   emits('close', undefined)
 }
 
 function handleMobilePick() {
-  selectedModel.value = displayModels.value.find(model => model.id === highlightDisplayModelCard.value)
+  emits('pick', displayModels.value.find(model => model.id === highlightDisplayModelCard.value))
   emits('close', undefined)
 }
 

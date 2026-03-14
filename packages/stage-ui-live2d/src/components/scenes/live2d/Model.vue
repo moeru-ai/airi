@@ -61,6 +61,7 @@ const props = withDefaults(defineProps<{
 
 const emits = defineEmits<{
   (e: 'modelLoaded'): void
+  (e: 'error', error: Error): void
 }>()
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
@@ -368,6 +369,10 @@ async function loadModel() {
     coreModel.setParameterValueById('ParamBreath', modelParameters.value.breath)
 
     emits('modelLoaded')
+  }
+  catch (error) {
+    console.error('[Live2D] Failed to load model:', error)
+    emits('error', error instanceof Error ? error : new Error(String(error)))
   }
   finally {
     modelLoading.value = false
