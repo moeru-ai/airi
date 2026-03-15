@@ -83,6 +83,17 @@ function resolveNumber(
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
+function resolvePort(
+  key: string,
+  savedValue: number | undefined,
+  envValue: string | undefined,
+  localEnvValue: string | undefined,
+  fallback: number,
+) {
+  const resolved = resolveNumber(key, savedValue, envValue, localEnvValue, fallback)
+  return Number.isInteger(resolved) && resolved >= 1 && resolved <= 65535 ? resolved : fallback
+}
+
 export class MinecraftRuntimeConfigManager {
   private readonly cwd: string
   private readonly configFilePath: string
@@ -100,7 +111,7 @@ export class MinecraftRuntimeConfigManager {
     const editableConfig = editableConfigSchema.parse({
       enabled: savedConfig.enabled ?? true,
       host: savedConfig.host ?? envConfig.BOT_HOSTNAME ?? process.env.BOT_HOSTNAME ?? 'localhost',
-      port: savedConfig.port ?? Number(envConfig.BOT_PORT ?? process.env.BOT_PORT ?? 25565),
+      port: resolvePort('BOT_PORT', savedConfig.port, envConfig.BOT_PORT, undefined, 25565),
       username: savedConfig.username ?? envConfig.BOT_USERNAME ?? process.env.BOT_USERNAME ?? 'airi-bot',
     })
 
@@ -108,7 +119,7 @@ export class MinecraftRuntimeConfigManager {
       editableConfig,
       effectiveBotConfig: {
         host: resolveString('BOT_HOSTNAME', savedConfig.host, envConfig.BOT_HOSTNAME, localEnvConfig.BOT_HOSTNAME, 'localhost'),
-        port: resolveNumber('BOT_PORT', savedConfig.port, envConfig.BOT_PORT, localEnvConfig.BOT_PORT, 25565),
+        port: resolvePort('BOT_PORT', savedConfig.port, envConfig.BOT_PORT, localEnvConfig.BOT_PORT, 25565),
         username: resolveString('BOT_USERNAME', savedConfig.username, envConfig.BOT_USERNAME, localEnvConfig.BOT_USERNAME, 'airi-bot'),
         version: localEnvConfig.BOT_VERSION ?? envConfig.BOT_VERSION ?? process.env.BOT_VERSION ?? '1.20',
         auth: (localEnvConfig.BOT_AUTH ?? envConfig.BOT_AUTH ?? process.env.BOT_AUTH ?? undefined) as Config['bot']['auth'],

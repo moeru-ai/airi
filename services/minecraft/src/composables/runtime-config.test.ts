@@ -99,4 +99,26 @@ describe('minecraftRuntimeConfigManager', () => {
       username: 'saved-bot',
     })
   })
+
+  it('falls back to the default port when env config contains an empty port value', () => {
+    const cwd = createTempDir()
+    tempDirs.push(cwd)
+
+    writeFileSync(path.join(cwd, '.env'), [
+      'BOT_HOSTNAME=env.example.com',
+      'BOT_PORT=',
+      'BOT_USERNAME=env-bot',
+    ].join('\n'))
+
+    const manager = new MinecraftRuntimeConfigManager({ cwd })
+    const snapshot = manager.load()
+
+    expect(snapshot.editableConfig).toEqual({
+      enabled: true,
+      host: 'env.example.com',
+      port: 25565,
+      username: 'env-bot',
+    })
+    expect(snapshot.effectiveBotConfig.port).toBe(25565)
+  })
 })
