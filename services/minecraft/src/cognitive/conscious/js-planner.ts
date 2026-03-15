@@ -348,14 +348,32 @@ export class JavaScriptPlanner {
     })
     this.defineGlobalTool('expectMoved', (minBlocks?: unknown, message?: unknown) => {
       const threshold = typeof minBlocks === 'number' ? minBlocks : 0.5
+      const lastAction = this.sandbox.lastAction
+      
+      // 检查上一个动作是否存在
+      if (!isRecord(lastAction)) {
+        return true
+      }
+      
+      // 非移动动作列表
+      const nonMovingActions = [
+        'chat', 'giveUp', 'skip', 'stop', 'followPlayer', 'clearFollowTarget',
+        'givePlayer', 'consume', 'equip', 'putInChest', 'takeFromChest', 'discard',
+        'collectBlocks', 'mineBlockAt', 'craftRecipe', 'smeltItem', 'clearFurnace',
+        'placeHere', 'attack', 'attackPlayer', 'activate', 'recipePlan'
+      ]
+      
+      // 检查上一个动作是否是非移动动作
+      const actionName = lastAction.action?.tool
+      if (typeof actionName === 'string' && nonMovingActions.includes(actionName)) {
+        return true
+      }
+      
+      // 对于移动动作，检查移动距离
       const telemetry = this.getLastActionResultRecord()
       const movedDistance = typeof telemetry?.movedDistance === 'number'
         ? telemetry.movedDistance
-        : null
-
-      if (movedDistance === null) {
-        throw new Error('Expectation failed: expectMoved() requires last action result with movedDistance telemetry')
-      }
+        : 0
 
       if (movedDistance >= threshold)
         return true
@@ -556,6 +574,12 @@ export class JavaScriptPlanner {
 
     try {
       const result = await this.activeRun.executeAction(action)
+      
+      // Check if activeRun is still available after async operation
+      if (!this.activeRun) {
+        throw new Error('Tool calls are only allowed during REPL evaluation')
+      }
+      
       const runtimeResult: ActionRuntimeResult = {
         action,
         ok: true,
@@ -566,6 +590,11 @@ export class JavaScriptPlanner {
       return runtimeResult
     }
     catch (error) {
+      // Check if activeRun is still available after async operation
+      if (!this.activeRun) {
+        throw new Error('Tool calls are only allowed during REPL evaluation')
+      }
+      
       const runtimeResult: ActionRuntimeResult = {
         action,
         ok: false,
