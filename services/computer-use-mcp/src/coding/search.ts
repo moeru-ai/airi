@@ -8,6 +8,10 @@ import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js'
 
 const execAsync = promisify(exec)
 
+function isWithinWorkspaceRoot(workspacePath: string, candidatePath: string) {
+  return candidatePath === workspacePath || candidatePath.startsWith(`${workspacePath}${path.sep}`)
+}
+
 export async function searchText(workspacePath: string, query: string, glob?: string, limit?: number) {
   try {
     let cmd = `rg -n "${query.replace(/"/g, '\\"')}"`
@@ -120,8 +124,9 @@ export async function findReferences(workspacePath: string, filePath: string, li
   // We will setup a minimal one-off program around the specific file, but
   // realistically scanning references needs a full project. We will try a lazy project.
 
-  const absPath = path.resolve(workspacePath, filePath)
-  if (!absPath.startsWith(workspacePath)) {
+  const rootPath = path.resolve(workspacePath)
+  const absPath = path.resolve(rootPath, filePath)
+  if (!isWithinWorkspaceRoot(rootPath, absPath)) {
     throw new McpError(ErrorCode.InvalidParams, `Access denied.`)
   }
 
@@ -131,10 +136,20 @@ export async function findReferences(workspacePath: string, filePath: string, li
     configPath = ts.findConfigFile(path.dirname(absPath), ts.sys.fileExists, 'tsconfig.json')
 
   let compilerOptions: any = { allowJs: true, checkJs: true }
+  let projectFileNames = [absPath]
   if (configPath) {
     const configFile = ts.readConfigFile(configPath, ts.sys.readFile)
     const parsedCommandLine = ts.parseJsonConfigFileContent(configFile.config, ts.sys, path.dirname(configPath))
     compilerOptions = parsedCommandLine.options
+    const tsconfigFiles = parsedCommandLine.fileNames
+      .map(fileName => path.resolve(fileName))
+      .filter(fileName => isWithinWorkspaceRoot(rootPath, fileName))
+    if (tsconfigFiles.length > 0) {
+      projectFileNames = tsconfigFiles
+    }
+  }
+  if (!projectFileNames.includes(absPath)) {
+    projectFileNames = [absPath, ...projectFileNames]
   }
 
   // We should create a language service for this project which is heavily cached, but since we
@@ -143,7 +158,7 @@ export async function findReferences(workspacePath: string, filePath: string, li
   // We'll create a fast Program matching the target file.
 
   // Since building a full program every request might take 2-5 seconds for big, we can just do it.
-  const program = ts.createProgram([absPath], compilerOptions)
+  const program = ts.createProgram(projectFileNames, compilerOptions)
 
   // Find the node at the position.
   const sourceFile = program.getSourceFile(absPath)
@@ -156,7 +171,7 @@ export async function findReferences(workspacePath: string, filePath: string, li
   // Finding references using `ts.LanguageService` is the standard way.
   // So we must use a LanguageService instead of just Program.
   const host: any = {
-    getScriptFileNames: () => [absPath],
+    getScriptFileNames: () => projectFileNames,
     getScriptVersion: () => '0',
     getScriptSnapshot: (fileName) => {
       if (!ts.sys.fileExists(fileName)) {
@@ -164,7 +179,7 @@ export async function findReferences(workspacePath: string, filePath: string, li
       }
       return ts.ScriptSnapshot.fromString(ts.sys.readFile(fileName)!)
     },
-    getCurrentDirectory: () => workspacePath,
+    getCurrentDirectory: () => configPath ? path.dirname(configPath) : rootPath,
     getCompilationSettings: () => compilerOptions,
     getDefaultLibFileName: options => ts.getDefaultLibFilePath(options),
     fileExists: ts.sys.fileExists,

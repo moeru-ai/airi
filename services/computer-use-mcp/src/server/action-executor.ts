@@ -52,7 +52,7 @@ export interface ExecuteActionOptions {
 export type ExecuteAction = (action: ActionInvocation, toolName: string, options?: ExecuteActionOptions) => Promise<CallToolResult>
 
 function isMutatingAction(action: ActionInvocation) {
-  return !['screenshot', 'observe_windows', 'wait', 'terminal_reset', 'clipboard_read_text', 'secret_read_env_value'].includes(action.kind)
+  return !['screenshot', 'observe_windows', 'wait', 'terminal_reset', 'clipboard_read_text', 'secret_read_env_value', 'coding_review_workspace', 'coding_read_file', 'coding_compress_context', 'coding_report_status'].includes(action.kind)
 }
 
 async function captureOptionalScreenshot(params: {
