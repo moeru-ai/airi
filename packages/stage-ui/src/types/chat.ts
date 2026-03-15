@@ -38,7 +38,7 @@ export interface ErrorMessage {
   content: string
 }
 
-export interface ContextMessage extends ContextUpdate<Record<string, unknown>, string | CommonContentPart[]> {
+export interface ContextMessage extends ContextUpdate<Record<string, unknown>, unknown> {
   metadata?: {
     source: MetadataEventSource
   }

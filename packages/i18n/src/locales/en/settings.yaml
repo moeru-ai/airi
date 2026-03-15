@@ -356,16 +356,35 @@ pages:
       description: Playing Minecraft!
       title: Minecraft
       enable: Enable Minecraft Integration
-      enable-description: Allow AIRI to interact with Minecraft game
+      enable-description: Allow AIRI to oversee and coordinate with the connected Minecraft bot
       server-address: Server Address
-      server-address-description: The IP address or hostname of the Minecraft server
+      server-address-description: The IP address or hostname the Minecraft bot should connect to
       server-address-placeholder: Enter server address (e.g., localhost or play.example.com)
       server-port: Server Port
-      server-port-description: The port number of the Minecraft server (default 25565)
-      username: Username
-      username-description: Your username in the Minecraft server
-      username-placeholder: Enter your Minecraft username
+      server-port-description: The port number the Minecraft bot should connect to (default 25565)
+      username: Bot Username
+      username-description: The Minecraft bot username AIRI should run with
+      username-placeholder: Enter the Minecraft bot username
       configured: Minecraft is properly configured!
+      offline:
+        title: Minecraft Service Not Connected
+        description: Start the Minecraft service so Stage can receive live status heartbeats and configure it through AIRI.
+        note: This page is intentionally a shell around the connected bot service, so editing stays disabled until the service is online.
+      status:
+        service-offline: Service offline
+        bot-connecting: Bot connecting
+        bot-connected: Bot connected
+        bot-disconnected: Bot disconnected
+        bot-error: Bot error
+        service-name: 'Service: {service}'
+        target: 'Target: {target}'
+        username: 'Bot username: {username}'
+        last-updated: 'Last heartbeat: {value}'
+        last-error: 'Last error: {value}'
+      actions:
+        save: Save & Apply
+        synced: Stage is in sync with the connected Minecraft service.
+        unsaved: You have local changes that have not been applied to the Minecraft service yet.
     hearing:
       description: Configure how speech recognition works
       title: Hearing
