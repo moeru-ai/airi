@@ -6,6 +6,7 @@ import type { ComputerUseServerRuntime } from './runtime'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CodingPrimitives } from '../coding/primitives'
+import { buildCodingApplyPatchBackendResult } from '../coding/result-shape'
 import { RunStateManager } from '../state'
 import { createTestConfig } from '../test-fixtures'
 import { registerCodingTools } from './register-coding'
@@ -120,6 +121,85 @@ describe('registerCodingTools', () => {
       backendResult: {
         status: 'completed',
         summary: 'Applied edits and validated.',
+      },
+    })
+  })
+
+  it('routes coding_apply_patch through executeAction so approval policy is preserved', async () => {
+    const executeAction = vi.fn().mockResolvedValue({
+      content: [{ type: 'text', text: 'Approval required for coding_apply_patch.' }],
+      structuredContent: {
+        status: 'approval_required',
+        pendingActionId: 'pending_1',
+      },
+    } satisfies CallToolResult)
+    const applyPatchSpy = vi.spyOn(CodingPrimitives.prototype, 'applyPatch')
+    const { server, invoke } = createMockServer()
+
+    registerCodingTools({
+      server,
+      runtime,
+      executeAction: executeAction as any,
+      enableTestTools: false,
+    })
+
+    const result = await invoke('coding_apply_patch', {
+      filePath: 'src/example.ts',
+      oldString: 'before',
+      newString: 'after',
+    })
+
+    expect(executeAction).toHaveBeenCalledWith({
+      kind: 'coding_apply_patch',
+      input: {
+        filePath: 'src/example.ts',
+        oldString: 'before',
+        newString: 'after',
+      },
+    }, 'coding_apply_patch')
+    expect(applyPatchSpy).not.toHaveBeenCalled()
+    expect(result.structuredContent).toMatchObject({
+      status: 'approval_required',
+      pendingActionId: 'pending_1',
+    })
+  })
+
+  it('re-wraps executed coding_apply_patch results into the coding result shape', async () => {
+    const executeAction = vi.fn().mockResolvedValue({
+      content: [{ type: 'text', text: 'Action executed.' }],
+      structuredContent: {
+        status: 'executed',
+        backendResult: buildCodingApplyPatchBackendResult({
+          filePath: 'src/example.ts',
+          summary: 'Replaced 1 occurrence in src/example.ts',
+        }),
+      },
+    } satisfies CallToolResult)
+    const { server, invoke } = createMockServer()
+
+    registerCodingTools({
+      server,
+      runtime,
+      executeAction: executeAction as any,
+      enableTestTools: false,
+    })
+
+    const result = await invoke('coding_apply_patch', {
+      filePath: 'src/example.ts',
+      oldString: 'before',
+      newString: 'after',
+    })
+
+    expect(result.content[0]).toMatchObject({
+      type: 'text',
+      text: 'Patched src/example.ts.',
+    })
+    expect(result.structuredContent).toMatchObject({
+      status: 'ok',
+      kind: 'coding_result',
+      toolName: 'coding_apply_patch',
+      backendResult: {
+        file: 'src/example.ts',
       },
     })
   })

@@ -4,7 +4,6 @@ import { z } from 'zod'
 
 import { CodingPrimitives } from '../coding/primitives'
 import {
-  buildCodingApplyPatchBackendResult,
   buildCodingReadFileBackendResult,
   buildCodingToolStructuredContent,
   summarizeCodingToolResult,
@@ -12,7 +11,7 @@ import {
 import { textContent } from './content'
 
 export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
-  const { server, runtime } = options
+  const { server, runtime, executeAction } = options
   const primitives = new CodingPrimitives(runtime)
 
   server.tool(
@@ -360,11 +359,20 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
       newString: z.string().describe('String to replace it with.'),
     },
     async ({ filePath, oldString, newString }) => {
-      const output = await primitives.applyPatch(filePath, oldString, newString)
-      const backendResult = buildCodingApplyPatchBackendResult({
-        filePath,
-        summary: output,
-      })
+      const actionResult = await executeAction({
+        kind: 'coding_apply_patch',
+        input: {
+          filePath,
+          oldString,
+          newString,
+        },
+      }, 'coding_apply_patch')
+      const structured = actionResult.structuredContent as Record<string, unknown> | undefined
+      const backendResult = structured?.backendResult as Record<string, unknown> | undefined
+
+      if (structured?.status !== 'executed' || !backendResult) {
+        return actionResult
+      }
 
       return {
         content: [textContent(summarizeCodingToolResult({

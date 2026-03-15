@@ -1598,7 +1598,7 @@ export class CodingPrimitives {
   }
 
   private resolveWorkspacePath(relativePath: string): string {
-    const root = this.getWorkspaceRoot()
+    const root = path.resolve(this.getWorkspaceRoot())
     const absPath = path.resolve(root, relativePath)
     if (absPath !== root && !absPath.startsWith(root + path.sep)) {
       throw new McpError(ErrorCode.InvalidParams, `Access denied. Path ${relativePath} is outside of workspace ${root}`)
