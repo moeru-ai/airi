@@ -93,4 +93,30 @@ describe('createWorkflowPrepToolExecutor', () => {
       alive: true,
     })
   })
+
+  it('requires an active PTY approval grant when approvals are enabled', async () => {
+    runtime.config = createTestConfig({ approvalMode: 'actions' })
+    const executePrepTool = createWorkflowPrepToolExecutor(runtime)
+
+    const result = await executePrepTool('pty_send_input:pty_1:vim --version')
+
+    expect(result.isError).toBe(true)
+    expect(result.structuredContent).toMatchObject({
+      status: 'pty_grant_required',
+      operation: 'pty_send_input',
+      sessionId: 'pty_1',
+    })
+    expect(writeToPty).not.toHaveBeenCalled()
+  })
+
+  it('allows PTY prep operations when a grant is active', async () => {
+    runtime.config = createTestConfig({ approvalMode: 'actions' })
+    stateManager.grantPtyApproval('approval_1', 'pty_1')
+    const executePrepTool = createWorkflowPrepToolExecutor(runtime)
+
+    const result = await executePrepTool('pty_send_input:pty_1:vim --version')
+
+    expect(result.isError).not.toBe(true)
+    expect(writeToPty).toHaveBeenCalledWith('pty_1', { data: 'vim --version' })
+  })
 })

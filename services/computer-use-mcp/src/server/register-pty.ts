@@ -593,6 +593,8 @@ export function createAcquirePtyCallback(
     // When approvals are active AND the caller did not opt into auto-approve,
     // we must go through the pending-action → user-approval flow.
     if (requiresPtyApproval(runtime) && !autoApprove) {
+      const { randomUUID } = await import('node:crypto')
+      const approvalSessionId = randomUUID()
       const decision = buildPtyApprovalDecision()
       const context = getApprovalContext(runtime)
 
@@ -600,7 +602,7 @@ export function createAcquirePtyCallback(
         toolName: 'pty_create',
         action: {
           kind: 'pty_create',
-          input: { rows, cols, cwd, stepId } satisfies PtyCreateApprovalInput,
+          input: { rows, cols, cwd, stepId, approvalSessionId } satisfies PtyCreateApprovalInput,
         },
         policy: decision,
         context,
