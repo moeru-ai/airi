@@ -913,8 +913,28 @@ export function insertMissedDependencyNode(params: {
   reason: string
 } {
   const next = cloneGraph(params.graph)
+  const currentNode = params.currentFilePath
+    ? next.nodes.find(node => node.filePath === params.currentFilePath)
+    : undefined
+  const existingDependencyNode = next.nodes.find(node => node.filePath === params.dependencyFilePath)
 
-  if (next.nodes.some(node => node.filePath === params.dependencyFilePath)) {
+  if (existingDependencyNode) {
+    if (currentNode && existingDependencyNode.id !== currentNode.id) {
+      existingDependencyNode.dependsOn = Array.from(new Set([
+        ...existingDependencyNode.dependsOn,
+        currentNode.id,
+      ]))
+
+      for (const node of next.nodes) {
+        if (node.id === existingDependencyNode.id || !node.dependsOn.includes(currentNode.id)) {
+          continue
+        }
+
+        node.dependsOn = Array.from(new Set(node.dependsOn.map(depId => depId === currentNode.id ? existingDependencyNode.id : depId)))
+      }
+    }
+
+    next.edges = buildGraphEdges(next)
     return {
       ok: true,
       graph: refreshNodeStatuses(next),
@@ -927,10 +947,6 @@ export function insertMissedDependencyNode(params: {
       reason: `max_nodes_exhausted:${next.nodes.length}/${next.maxNodes}`,
     }
   }
-
-  const currentNode = params.currentFilePath
-    ? next.nodes.find(node => node.filePath === params.currentFilePath)
-    : undefined
 
   const dependencyNode: CodingPlanNode = {
     id: nodeIdForFilePath(params.dependencyFilePath),
