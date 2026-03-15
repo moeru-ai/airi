@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: API 엔드포인트 URL(확실하지 않은 경우 기본값 사용)
     accountId: 계정 ID
     validationSuccess: 구성 검증 성공
+    validationPartial: Configuration partially validated
     validationFailed: 구성 검증 실패
     validationError: '검증 오류: {error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: 지금은 건너뛰기
     saveAndContinue: 저장 및 계속
     next: 다음
@@ -30,6 +34,19 @@ dialogs:
     no-models: 사용 가능한 모델 없음
     no-models-help: >-
       이전 단계로 돌아가서 API 키를 확인하거나 네트워크 연결을 확인해 주세요.
+    permissions:
+      title: Notifications
+      description: You can allow notifications now or continue and set it up later.
+      notificationsTitle: Notifications
+      notificationsDescription: Allow reminders and important status updates.
+      notificationsAction: Request notification permission
+      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
+      openSettings: Open iOS Settings
+      optionalHint: You can continue even if notification permission is not granted.
+      stateUnknown: Not requested
+      stateRequesting: Requesting...
+      stateGranted: Granted
+      stateNotGranted: Not granted
 language:
   title: 언어
   description: >
@@ -159,6 +176,7 @@ pages:
     scenario: 시나리오
     search: 카드 검색...
     sort_by: 정렬
+    body-model: Body / Display Model
     speech:
       provider: 음성 합성 / 제공자
       model: 음성 합성 / 모델

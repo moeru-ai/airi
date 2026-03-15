@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: API 端点 URL（如果不确定请使用默认值）
     accountId: 账户 ID
     validationSuccess: 配置验证成功
+    validationPartial: Configuration partially validated
     validationFailed: 配置验证失败
     validationError: '验证错误：{error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: 暂时跳过
     saveAndContinue: 保存并继续
     next: 下一步
@@ -30,6 +34,19 @@ dialogs:
     no-models: 找不到可用模型
     no-models-help: >-
       请返回上一步并检查您的 API Key，或检查网络连接。
+    permissions:
+      title: Notifications
+      description: You can allow notifications now or continue and set it up later.
+      notificationsTitle: Notifications
+      notificationsDescription: Allow reminders and important status updates.
+      notificationsAction: Request notification permission
+      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
+      openSettings: Open iOS Settings
+      optionalHint: You can continue even if notification permission is not granted.
+      stateUnknown: Not requested
+      stateRequesting: Requesting...
+      stateGranted: Granted
+      stateNotGranted: Not granted
 language:
   title: 语言
   description: >
@@ -159,6 +176,7 @@ pages:
     scenario: 场景
     search: 搜索角色卡...
     sort_by: 排序方式
+    body-model: Body / Display Model
     speech:
       provider: 语音 / 提供商
       model: 声音 / 模型

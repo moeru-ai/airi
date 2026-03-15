@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stream-kit",
   "type": "module",
-  "version": "0.9.0-alpha.14",
+  "version": "0.9.0-alpha.16",
   "private": true,
   "description": "Stream utilities for AIRI (queues, streams)",
   "author": {
