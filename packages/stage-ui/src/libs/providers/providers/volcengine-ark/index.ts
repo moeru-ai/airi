@@ -10,7 +10,7 @@ const volcengineArkConfigSchema = z.object({
   baseUrl: z
     .string('Base URL')
     .optional()
-    .default('http://localhost:5174/api/volcengine-ark/'),
+    .default(`${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173'}/api/volcengine-ark/`),
 })
 
 type VolcengineArkConfig = z.input<typeof volcengineArkConfigSchema>

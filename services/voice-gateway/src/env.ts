@@ -22,6 +22,7 @@ export const env = {
   get TTS_SPEAKER_ID() { return getEnv('TTS_SPEAKER_ID') },
   // Server
   get PORT() { return Number(process.env.PORT) || 8765 },
-  // SOUL persona
-  get SOUL_MD_PATH() { return getEnv('SOUL_MD_PATH') },
+  // Dialog persona (configurable via env or browser client)
+  get VOLC_BOT_NAME() { return getEnv('VOLC_BOT_NAME') },
+  get VOLC_SYSTEM_MESSAGE() { return getEnv('VOLC_SYSTEM_MESSAGE') },
 }

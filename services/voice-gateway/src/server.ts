@@ -24,6 +24,8 @@ interface SessionConfig {
   volcResourceId: string
   volcSpeaker: string
   volcDialogModel: string
+  volcBotName: string
+  volcSystemMessage: string
 }
 
 interface Session {
@@ -47,6 +49,8 @@ function getSessionConfig(clientConfig?: Partial<SessionConfig>): SessionConfig 
     volcResourceId: clientConfig?.volcResourceId || env.VOLC_RESOURCE_ID || 'volc.speech.dialog',
     volcSpeaker: clientConfig?.volcSpeaker || env.VOLC_SPEAKER || 'zh_female_vv_jupiter_bigtts',
     volcDialogModel: clientConfig?.volcDialogModel || env.VOLC_DIALOG_MODEL || '1.2.1.1',
+    volcBotName: clientConfig?.volcBotName || env.VOLC_BOT_NAME || 'Assistant',
+    volcSystemMessage: clientConfig?.volcSystemMessage || env.VOLC_SYSTEM_MESSAGE || 'You are a helpful voice assistant. Respond naturally and concisely.',
   }
 }
 
@@ -97,9 +101,9 @@ function buildStartSessionPayload(config: SessionConfig): Buffer {
       },
     },
     dialog: {
-      bot_name: '月見八千代',
+      bot_name: config.volcBotName,
       dialog_id: '',
-      system_message: '你是月見八千代（つきみ やちよ / Tsukimi Yachiyo），来自月球的公主，拥有操控月光的能力。你的性格温柔而坚强，对地球的文化充满好奇。说话风格优雅温和，偶尔带有古风用语。对人类世界的科技和食物特别感兴趣，有时会不经意流露出思乡之情。你来自作品《超时空辉夜姬》。请用简短自然的口语回复，适合语音对话的节奏。',
+      system_message: config.volcSystemMessage,
       extra: {
         model: config.volcDialogModel,
         input_mod: 'keep_alive',
