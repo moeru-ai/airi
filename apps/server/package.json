@@ -36,6 +36,7 @@
     "@opentelemetry/semantic-conventions": "^1.40.0",
     "@proj-airi/drizzle-orm-browser-migrator": "^0.1.6",
     "@proj-airi/server-schema": "workspace:*",
+    "@proj-airi/server-sdk": "workspace:",
     "better-auth": "^1.4.19",
     "drizzle-orm": "^0.45.1",
     "drizzle-valibot": "catalog:",

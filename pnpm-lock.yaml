@@ -543,6 +543,9 @@ importers:
       '@proj-airi/server-schema':
         specifier: workspace:*
         version: link:../../packages/server-schema
+      '@proj-airi/server-sdk':
+        specifier: 'workspace:'
+        version: link:../../packages/server-sdk
       better-auth:
         specifier: ^1.4.19
         version: 1.5.3(@better-auth/drizzle-adapter@1.5.3(@better-auth/core@1.5.3(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(better-call@1.1.8(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.1))(@better-auth/utils@0.3.1)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)))(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.9)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))(pg@8.19.0)(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3))
