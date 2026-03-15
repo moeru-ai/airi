@@ -16,12 +16,14 @@ export function createMinecraftContext(): ContextMessage | null {
   const minecraftStore = useMinecraftStore()
   minecraftStore.initialize()
 
-  if (!minecraftStore.enabled)
+  const appliedConfig = minecraftStore.appliedConfig
+
+  if (!appliedConfig?.enabled)
     return null
 
   const status = minecraftStore.botState || 'disconnected'
-  const target = minecraftStore.serverAddress
-    ? `${minecraftStore.serverAddress}:${minecraftStore.serverPort}`
+  const target = appliedConfig.host
+    ? `${appliedConfig.host}:${appliedConfig.port}`
     : 'unknown server'
 
   return {

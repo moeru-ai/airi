@@ -74,6 +74,7 @@ export const useMinecraftStore = defineStore('minecraft', () => {
     port: serverPort.value,
     username: username.value,
   }))
+  const appliedConfig = computed(() => remoteConfig.value)
 
   const dirty = computed(() => {
     if (!remoteConfig.value)
@@ -210,6 +211,7 @@ export const useMinecraftStore = defineStore('minecraft', () => {
     serviceConnected,
     canEdit,
     dirty,
+    appliedConfig,
 
     initialize,
     loadRemoteConfig,

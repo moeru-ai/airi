@@ -115,6 +115,9 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       chatContext.ingestContextMessage(minecraftContext)
 
     const sendingCreatedAt = Date.now()
+    // TODO: Expire or prune stale runtime contexts from disconnected services before composing.
+    // The Minecraft page already times out service liveness locally, but the shared chat context
+    // snapshot can still retain the last runtime context:update until we add cross-store expiry.
     const streamingMessageContext: ChatStreamEventContext = {
       message: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt, id: nanoid() },
       contexts: chatContext.getContextsSnapshot(),

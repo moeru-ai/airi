@@ -12,7 +12,7 @@ vi.mock('../../mods/api/channel-server', () => ({
 }))
 
 describe('createMinecraftContext', () => {
-  it('returns null when the minecraft integration is disabled', () => {
+  it('returns null when there is no applied minecraft config yet', () => {
     setActivePinia(createPinia())
 
     const store = useMinecraftStore()
@@ -21,16 +21,39 @@ describe('createMinecraftContext', () => {
     expect(createMinecraftContext()).toBeNull()
   })
 
-  it('describes the lightweight AIRI shell and current runtime status when enabled', () => {
+  it('describes the lightweight AIRI shell from the last applied remote config', () => {
     setActivePinia(createPinia())
 
     const store = useMinecraftStore()
-    store.enabled = true
-    store.serverAddress = 'mc.example.com'
-    store.serverPort = 25565
-    store.username = 'airi-bot'
+    store._handleStatusUpdate({
+      data: {
+        lane: 'minecraft:status',
+        content: {
+          serviceName: 'minecraft-bot',
+          botState: 'connected',
+          editableConfig: {
+            enabled: true,
+            host: 'mc.example.com',
+            port: 25565,
+            username: 'airi-bot',
+          },
+          updatedAt: 1,
+        },
+      },
+      metadata: {
+        source: {
+          plugin: { id: 'minecraft-bot' },
+          id: 'minecraft-bot-instance',
+        },
+      },
+    } as any)
+
+    // Local draft edits should not change the self-knowledge context until saved.
+    store.enabled = false
+    store.serverAddress = 'draft.example.com'
+    store.serverPort = 24444
+    store.username = 'draft-bot'
     store.botState = 'connected'
-    store.serviceName = 'minecraft-bot'
 
     const context = createMinecraftContext()
 
@@ -40,5 +63,6 @@ describe('createMinecraftContext', () => {
     expect(context?.text).toContain('AIRI can oversee a connected Minecraft bot')
     expect(context?.text).toContain('Current bot status: connected')
     expect(context?.text).toContain('mc.example.com:25565')
+    expect(context?.text).not.toContain('draft.example.com:24444')
   })
 })
