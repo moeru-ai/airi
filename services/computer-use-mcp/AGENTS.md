@@ -25,6 +25,111 @@ The important truth is:
 
 Do not rely on compressed chat summaries to resume this work. Use this file as the handoff source of truth and update it when terminal-lane behavior changes materially.
 
+## Coding Surface v1.1: What Is Already Landed
+
+`coding surface` is now a real capability layer inside `computer-use-mcp`, but it is **not** a second executor.
+
+### Release posture
+
+The current coding layer should be described honestly as:
+
+- a **minimal but real** coding capability layer
+- release-worthy for initial AIRI integration
+- intentionally bounded in scope
+- expected to keep evolving after launch
+
+Do not describe the current coding layer as a Codex-equivalent system.
+The correct framing for release notes and PRs is:
+
+- the coding layer is now usable and testable
+- the current release lands the minimum integrated kernel
+- deeper planner / diagnosis / benchmark / dirty-world hardening remains follow-up work after launch
+
+The current intended model is:
+
+- coding tools own workspace review, file read/patch, search, context compression, and structured reporting
+- terminal lane still owns command execution, PTY/exec surface choice, approval, and audit
+- coding workflows must consume terminal state and command results instead of spawning a second command path
+
+### 1. First-class coding tools exist
+
+The current coding tools are:
+
+- `coding_review_workspace`
+- `coding_read_file`
+- `coding_apply_patch`
+- `coding_search_text`
+- `coding_search_symbol`
+- `coding_find_references`
+- `coding_compress_context`
+- `coding_report_status`
+
+These are exposed both as MCP tools and as workflow action kinds. Do not fork them into separate "internal" and "external" implementations.
+
+### 2. `workflow_coding_loop` is now search-assisted
+
+`workflow_coding_loop` is no longer hard-wired to an explicit file-only path.
+
+The current behavior is:
+
+- `targetFile` may be omitted
+- search hints (`searchQuery` and/or `targetSymbol`) may drive target discovery
+- downstream `coding_read_file` / `coding_apply_patch` may consume `filePath: 'auto'`
+- auto target resolution succeeds only when the latest search resolves to a single candidate
+- ambiguous search results must fail explicitly instead of guessing a target file
+
+This is intentionally still conservative: search helps resolve the target, but the workflow is not yet a fully autonomous multi-candidate planner.
+
+### 3. Search path semantics are fixed to workspace-relative output
+
+Search may run under a scoped `targetPath`, but returned file paths must remain **workspace-relative**.
+
+This is important because:
+
+- `coding_read_file`
+- `coding_apply_patch`
+- `coding_find_references`
+
+all expect workspace-relative paths. Do not regress this by returning paths relative to a subdirectory search root.
+
+### 4. TS/JS semantic navigation exists, but only as a v1.1 local capability
+
+The current semantic navigation story is:
+
+- `coding_search_text` works as general local text search
+- `coding_search_symbol` and `coding_find_references` are local TypeScript-based capabilities
+- the implementation is intentionally local to `computer-use-mcp`
+- this is **not** a VS Code adapter, not an LSP bridge, and not a plugin platform
+
+If you extend semantic navigation, keep the boundary clear:
+
+- improve the local capability first
+- do not drag VS Code, browser, GitHub, or provider-specific integration into this workstream
+
+#### TODO: non-JS/TS semantic navigation roadmap (not in current release scope)
+
+- Python: symbol definition + references via Python AST/indexing, deterministic unsupported fallback while incomplete.
+- Rust: item/symbol navigation backed by rust-analyzer-compatible local indexing, deterministic unsupported fallback while incomplete.
+- Go: package-aware symbol/references navigation with local module graph, deterministic unsupported fallback while incomplete.
+- Other languages: only after Python/Rust/Go parity baseline; keep unsupported contract explicit and route users to `coding_search_text` until semantic support lands.
+
+### 5. Current boundary reminder for coding work
+
+Do:
+
+- strengthen workspace review
+- strengthen deterministic self-review/reporting
+- improve local search/navigation
+- improve patch/edit stability
+- improve the coding loop while reusing terminal lane
+
+Do not:
+
+- invent another command executor
+- bypass terminal state when summarizing validation
+- turn coding surface into a generic plugin or MCP marketplace
+- expand this lane into VS Code/browser/native adapter productization
+
 ## Terminal Lane v2: What Is Already Landed
 
 ### 1. Terminal surface model exists
