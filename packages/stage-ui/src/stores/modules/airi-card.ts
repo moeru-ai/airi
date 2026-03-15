@@ -110,6 +110,8 @@ export interface AiriCard extends Card {
 
 export const useAiriCardStore = defineStore('airi-card', () => {
   const { t } = useI18n()
+  const defaultSystemPrompt = t('settings.pages.card.creation.defaults.systemprompt')
+  const defaultPostHistoryInstructions = t('settings.pages.card.creation.defaults.posthistoryinstructions')
 
   const cards = useLocalStorageManualReset<Map<string, AiriCard>>('airi-cards', new Map())
   const activeCardId = useLocalStorageManualReset<string>('airi-card-active-id', 'default')
@@ -344,12 +346,21 @@ Use provider-supported speech mannerisms only when they help communicate tone or
   }
 
   function newAiriCard(card: Card | ccv3.CharacterCardV3): AiriCard {
+    const normalizeVersion = (version?: string | null) => {
+      const normalized = version?.trim()
+      return normalized || '1.0.0'
+    }
+    const normalizeRequiredText = (value: string | null | undefined, fallback: string) => {
+      const normalized = value?.trim()
+      return normalized || fallback
+    }
+
     // Handle ccv3 format if needed
     if ('data' in card) {
       const ccv3Card = card as ccv3.CharacterCardV3
       return {
         name: ccv3Card.data.name,
-        version: ccv3Card.data.character_version ?? '1.0.0',
+        version: normalizeVersion(ccv3Card.data.character_version),
         description: ccv3Card.data.description ?? '',
         creator: ccv3Card.data.creator ?? '',
         notes: ccv3Card.data.creator_notes ?? '',
@@ -361,8 +372,8 @@ Use provider-supported speech mannerisms only when they help communicate tone or
           ...(ccv3Card.data.alternate_greetings ?? []),
         ],
         greetingsGroupOnly: ccv3Card.data.group_only_greetings ?? [],
-        systemPrompt: ccv3Card.data.system_prompt ?? '',
-        postHistoryInstructions: ccv3Card.data.post_history_instructions ?? '',
+        systemPrompt: normalizeRequiredText(ccv3Card.data.system_prompt, defaultSystemPrompt),
+        postHistoryInstructions: normalizeRequiredText(ccv3Card.data.post_history_instructions, defaultPostHistoryInstructions),
         messageExample: ccv3Card.data.mes_example
           ? ccv3Card.data.mes_example
               .split('<START>\n')
@@ -384,6 +395,9 @@ Use provider-supported speech mannerisms only when they help communicate tone or
 
     return {
       ...card,
+      version: normalizeVersion(card.version),
+      systemPrompt: normalizeRequiredText(card.systemPrompt, defaultSystemPrompt),
+      postHistoryInstructions: normalizeRequiredText(card.postHistoryInstructions, defaultPostHistoryInstructions),
       extensions: {
         airi: resolveAiriExtension(card),
         ...card.extensions,
