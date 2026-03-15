@@ -52,6 +52,7 @@
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@vueuse/core": "^14.2.1",
+    "animejs": "^4.3.6",
     "culori": "^4.0.2",
     "es-toolkit": "catalog:",
     "jszip": "^3.10.1",
