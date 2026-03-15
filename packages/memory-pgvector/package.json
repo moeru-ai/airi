@@ -17,13 +17,15 @@
   },
   "keywords": [],
   "scripts": {
-    "dev": "tsx src/index.ts"
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "smoke": "tsc --outDir node_modules/.cache/memory-pgvector-smoke --module NodeNext --moduleResolution NodeNext --target ES2022 --esModuleInterop --skipLibCheck src/smoke.ts && node node_modules/.cache/memory-pgvector-smoke/smoke.js"
   },
   "dependencies": {
     "@guiiai/logg": "catalog:",
     "@proj-airi/server-sdk": "workspace:^",
-    "drizzle-orm": "^0.45.1",
-    "postgres": "^3.4.8"
+    "@xsai/embed": "catalog:",
+    "nanoid": "catalog:"
   },
   "devDependencies": {
     "tsx": "^4.21.0"

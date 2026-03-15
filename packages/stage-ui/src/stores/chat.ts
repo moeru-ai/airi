@@ -19,6 +19,7 @@ import { createChatHooks } from './chat/hooks'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useLLM } from './llm'
+import { useMemoryStore } from './memory'
 import { useConsciousnessStore } from './modules/consciousness'
 
 interface SendOptions {
@@ -58,12 +59,26 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const chatSession = useChatSessionStore()
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
-  const { activeSessionId } = storeToRefs(chatSession)
+  const memoryStore = useMemoryStore()
+  const { activeSessionId, sessionMetas } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
 
   const sending = ref(false)
   const pendingQueuedSends = ref<QueuedSend[]>([])
   const hooks = createChatHooks()
+
+  function getMemoryScope(sessionId: string) {
+    const meta = sessionMetas.value[sessionId]
+
+    return {
+      userId: meta?.userId,
+      characterId: meta?.characterId,
+      sessionId,
+      chatId: meta?.sessionId || sessionId,
+      module: 'stage-ui',
+      namespace: 'chat',
+    }
+  }
 
   const sendQueue = createQueue<QueuedSend>({
     handlers: [
@@ -107,6 +122,18 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       return
 
     chatSession.ensureSession(sessionId)
+
+    const memoryScope = getMemoryScope(sessionId)
+    if (sendingMessage.trim()) {
+      await memoryStore.recallIntoContext({
+        query: sendingMessage,
+        scope: memoryScope,
+        lane: 'memory',
+      })
+    }
+    else {
+      memoryStore.clearRecallContext()
+    }
 
     // Inject current datetime context before composing the message
     chatContext.ingestContextMessage(createDatetimeContext())
@@ -345,6 +372,25 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         outputText: fullText,
         toolCalls: sessionMessagesForSend.filter(msg => msg.role === 'tool') as ToolMessage[],
       }, streamingMessageContext)
+
+      void memoryStore.rememberChatTurn({
+        scope: memoryScope,
+        userMessage: sendingMessage,
+        assistantMessage: fullText,
+        tags: [
+          'chat',
+          options.attachments?.length ? 'multimodal' : '',
+          options.tools ? 'tool-use' : '',
+        ].filter(Boolean),
+        metadata: {
+          sessionId,
+          provider: activeProvider.value,
+          model: options.model,
+          attachments: options.attachments?.length ?? 0,
+          hasTools: Boolean(options.tools),
+          toolCount: Array.isArray(options.tools) ? options.tools.length : undefined,
+        },
+      })
 
       if (isForegroundSession()) {
         streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }

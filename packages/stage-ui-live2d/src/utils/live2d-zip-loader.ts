@@ -2,20 +2,7 @@ import type { ModelSettings } from 'pixi-live2d-display/cubism4'
 
 import JSZip from 'jszip'
 
-import { Cubism4ModelSettings, ZipLoader } from 'pixi-live2d-display/cubism4'
-
-ZipLoader.zipReader = (data: Blob, _url: string) => JSZip.loadAsync(data)
-
-const defaultCreateSettings = ZipLoader.createSettings
-ZipLoader.createSettings = async (reader: JSZip) => {
-  const filePaths = Object.keys(reader.files)
-
-  if (!filePaths.find(file => isSettingsFile(file))) {
-    return createFakeSettings(filePaths)
-  }
-
-  return defaultCreateSettings(reader)
-}
+let registrationPromise: Promise<void> | null = null
 
 export function isSettingsFile(file: string) {
   return file.endsWith('.model3.json') || file.endsWith('.model.json')
@@ -31,7 +18,10 @@ export function basename(path: string): string {
 }
 
 // copy and modified from https://github.com/guansss/live2d-viewer-web/blob/f6060b2ce52c2e26b6b61fa903c837fe343f72d1/src/app/upload.ts#L81-L142
-function createFakeSettings(files: string[]): ModelSettings {
+function createFakeSettings(
+  files: string[],
+  Cubism4ModelSettings: typeof import('pixi-live2d-display/cubism4').Cubism4ModelSettings,
+): ModelSettings {
   const mocFiles = files.filter(file => isMocFile(file))
 
   if (mocFiles.length !== 1) {
@@ -77,31 +67,64 @@ function createFakeSettings(files: string[]): ModelSettings {
   return settings
 }
 
-ZipLoader.readText = (jsZip: JSZip, path: string) => {
-  const file = jsZip.file(path)
-
-  if (!file) {
-    throw new Error(`Cannot find file: ${path}`)
+export async function ensureLive2DZipLoaderRegistered() {
+  if (typeof window === 'undefined') {
+    return
   }
 
-  return file.async('text')
+  if (registrationPromise) {
+    return await registrationPromise
+  }
+
+  registrationPromise = (async () => {
+    const { Cubism4ModelSettings, ZipLoader } = await import('pixi-live2d-display/cubism4')
+
+    ZipLoader.zipReader = (data: Blob, _url: string) => JSZip.loadAsync(data)
+
+    const defaultCreateSettings = ZipLoader.createSettings
+    ZipLoader.createSettings = async (reader: JSZip) => {
+      const filePaths = Object.keys(reader.files)
+
+      if (!filePaths.find(file => isSettingsFile(file))) {
+        return createFakeSettings(filePaths, Cubism4ModelSettings)
+      }
+
+      return defaultCreateSettings(reader)
+    }
+
+    ZipLoader.readText = (jsZip: JSZip, path: string) => {
+      const file = jsZip.file(path)
+
+      if (!file) {
+        throw new Error(`Cannot find file: ${path}`)
+      }
+
+      return file.async('text')
+    }
+
+    ZipLoader.getFilePaths = (jsZip: JSZip) => {
+      const paths: string[] = []
+
+      jsZip.forEach(relativePath => paths.push(relativePath))
+
+      return Promise.resolve(paths)
+    }
+
+    ZipLoader.getFiles = (jsZip: JSZip, paths: string[]) =>
+      Promise.all(paths.map(
+        async (path) => {
+          const fileName = path.slice(path.lastIndexOf('/') + 1)
+
+          const blob = await jsZip.file(path)!.async('blob')
+
+          return new File([blob], fileName)
+        },
+      ))
+  })()
+
+  await registrationPromise
 }
 
-ZipLoader.getFilePaths = (jsZip: JSZip) => {
-  const paths: string[] = []
-
-  jsZip.forEach(relativePath => paths.push(relativePath))
-
-  return Promise.resolve(paths)
+if (typeof window !== 'undefined') {
+  void ensureLive2DZipLoaderRegistered()
 }
-
-ZipLoader.getFiles = (jsZip: JSZip, paths: string[]) =>
-  Promise.all(paths.map(
-    async (path) => {
-      const fileName = path.slice(path.lastIndexOf('/') + 1)
-
-      const blob = await jsZip.file(path)!.async('blob')
-
-      return new File([blob], fileName)
-    },
-  ))

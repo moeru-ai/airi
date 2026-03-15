@@ -1,14 +1,75 @@
-import cropImg from '@lemonneko/crop-empty-pixels'
+function cropCanvasTransparentBounds(origin: HTMLCanvasElement) {
+  const toCrop = document.createElement('canvas')
+  toCrop.width = origin.width
+  toCrop.height = origin.height
 
-import { Application } from '@pixi/app'
-import { extensions } from '@pixi/extensions'
-import { Ticker, TickerPlugin } from '@pixi/ticker'
-import { Live2DFactory, Live2DModel } from 'pixi-live2d-display/cubism4'
+  const toCropCtx = toCrop.getContext('2d')!
+  toCropCtx.drawImage(origin, 0, 0)
+
+  const pixels = toCropCtx.getImageData(0, 0, toCrop.width, toCrop.height).data
+  let left = toCrop.width
+  let top = toCrop.height
+  let right = 0
+  let bottom = 0
+
+  for (let y = 0; y < toCrop.height; y += 1) {
+    for (let x = 0; x < toCrop.width; x += 1) {
+      const index = (y * toCrop.width + x) * 4
+      if (
+        pixels[index] > 0
+        || pixels[index + 1] > 0
+        || pixels[index + 2] > 0
+        || pixels[index + 3] > 0
+      ) {
+        if (x < left) {
+          left = x
+        }
+        if (x > right) {
+          right = x
+        }
+        if (y < top) {
+          top = y
+        }
+        if (y > bottom) {
+          bottom = y
+        }
+      }
+    }
+  }
+
+  const croppedWidth = Math.max(1, right - left)
+  const croppedHeight = Math.max(1, bottom - top)
+  const croppedCanvas = document.createElement('canvas')
+  croppedCanvas.width = croppedWidth
+  croppedCanvas.height = croppedHeight
+
+  const croppedCanvasCtx = croppedCanvas.getContext('2d')!
+  croppedCanvasCtx.drawImage(
+    toCrop,
+    left,
+    top,
+    croppedWidth,
+    croppedHeight,
+    0,
+    0,
+    croppedWidth,
+    croppedHeight,
+  )
+
+  return croppedCanvas
+}
 
 /**
  * Render a Live2D zip/file to an offscreen canvas and return a padded preview data URL.
  */
 export async function loadLive2DModelPreview(file: File) {
+  const [{ Application }, { extensions }, { Ticker, TickerPlugin }, { Live2DFactory, Live2DModel }] = await Promise.all([
+    import('@pixi/app'),
+    import('@pixi/extensions'),
+    import('@pixi/ticker'),
+    import('pixi-live2d-display/cubism4'),
+  ])
+
   Live2DModel.registerTicker(Ticker)
   extensions.add(TickerPlugin)
 
@@ -68,7 +129,7 @@ export async function loadLive2DModelPreview(file: File) {
     await new Promise(resolve => setTimeout(resolve, 500))
     app.renderer.render(app.stage)
 
-    const croppedCanvas = cropImg(offscreenCanvas)
+    const croppedCanvas = cropCanvasTransparentBounds(offscreenCanvas)
 
     // padding to 12:16
     const paddingCanvas = document.createElement('canvas')
