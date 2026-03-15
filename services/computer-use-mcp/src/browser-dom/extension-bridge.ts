@@ -9,19 +9,13 @@ import type {
 
 import { randomUUID } from 'node:crypto'
 
+import { errorMessageFrom } from '@moeru/std'
 import { WebSocket, WebSocketServer } from 'ws'
 
 interface PendingBridgeRequest {
   reject: (error: Error) => void
   resolve: (value: unknown) => void
   timeoutId: NodeJS.Timeout
-}
-
-function asError(error: unknown, fallback: string) {
-  if (error instanceof Error)
-    return error
-
-  return new Error(typeof error === 'string' && error.trim() ? error : fallback)
 }
 
 function toRecord(value: unknown): Record<string, unknown> | undefined {
@@ -115,16 +109,16 @@ export class BrowserDomExtensionBridge {
           }
         })
         socket.on('error', (error) => {
-          this.status.lastError = asError(error, 'browser dom bridge socket error').message
+          this.status.lastError = errorMessageFrom(error) || 'browser dom bridge socket error'
         })
       })
 
       server.on('error', (error) => {
-        this.status.lastError = asError(error, 'browser dom bridge server error').message
+        this.status.lastError = errorMessageFrom(error) || 'browser dom bridge server error'
       })
     }
     catch (error) {
-      this.status.lastError = asError(error, 'failed to start browser dom bridge').message
+      this.status.lastError = errorMessageFrom(error) || 'failed to start browser dom bridge'
     }
   }
 
@@ -199,7 +193,7 @@ export class BrowserDomExtensionBridge {
         clearTimeout(pending.timeoutId)
         this.pending.delete(id)
         this.status.pendingRequests = this.pending.size
-        pending.reject(asError(error, `failed to send ${action} to browser dom bridge`))
+        pending.reject(new Error(errorMessageFrom(error) || `failed to send ${action} to browser dom bridge`))
       })
     })
 

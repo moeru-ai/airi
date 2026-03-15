@@ -16,11 +16,10 @@ import type {
   WindowObservation,
 } from '../types'
 
-import process, { platform } from 'node:process'
-
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { hostname } from 'node:os'
 import { join } from 'node:path'
+import process, { env, platform } from 'node:process'
 
 import { appNamesMatch, getKnownAppLaunchNames } from '../app-aliases'
 import { probeDisplayInfo, probePermissionInfo } from '../runtime-probes'
@@ -97,6 +96,11 @@ const modifierFlags: Record<string, string> = {
   alt: '.maskAlternate',
 }
 
+// NOTICE: computer-use-mcp runs these executor modules directly under Node/tsx.
+// Keep Swift helpers as sibling files, but load them with `readFileSync(...)`
+// instead of `?raw` so the runtime path stays compatible outside Vite bundling.
+const observeWindowsScript = readFileSync(new URL('./observe-windows.swift', import.meta.url), 'utf8')
+
 function createExecutionTarget(config: ComputerUseConfig): ExecutionTarget {
   return {
     mode: 'local-windowed',
@@ -135,79 +139,6 @@ async function runMacOsJsonScript<T>(config: ComputerUseConfig, source: string, 
   })
 
   return JSON.parse(stdout.trim()) as T
-}
-
-function observeWindowsScript() {
-  return String.raw`
-import AppKit
-import CoreGraphics
-import Foundation
-
-func boundsDict(_ value: NSDictionary?) -> [String: Int]? {
-  guard let value else { return nil }
-  var rect = CGRect.zero
-  guard CGRectMakeWithDictionaryRepresentation(value, &rect) else { return nil }
-  return [
-    "x": Int(rect.origin.x.rounded()),
-    "y": Int(rect.origin.y.rounded()),
-    "width": Int(rect.size.width.rounded()),
-    "height": Int(rect.size.height.rounded())
-  ]
-}
-
-let environment = ProcessInfo.processInfo.environment
-let rawInput = environment["COMPUTER_USE_SWIFT_STDIN"] ?? "{}"
-let inputData = rawInput.data(using: .utf8) ?? Data()
-let input = (try? JSONSerialization.jsonObject(with: inputData)) as? [String: Any] ?? [:]
-let limit = (input["limit"] as? Int) ?? 12
-let appFilter = ((input["app"] as? String) ?? "").lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-let frontmostAppName = NSWorkspace.shared.frontmostApplication?.localizedName
-
-let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
-let rawWindowInfo = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] ?? []
-var windows: [[String: Any]] = []
-for window in rawWindowInfo {
-  let ownerName = (window[kCGWindowOwnerName as String] as? String) ?? "Unknown"
-  if !appFilter.isEmpty && !ownerName.lowercased().contains(appFilter) {
-    continue
-  }
-
-  let alpha = window[kCGWindowAlpha as String] as? Double ?? 1.0
-  let layer = window[kCGWindowLayer as String] as? Int ?? 0
-  let bounds = boundsDict(window[kCGWindowBounds as String] as? NSDictionary)
-  let title = (window[kCGWindowName as String] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-  let ownerPid = window[kCGWindowOwnerPID as String] as? Int ?? 0
-
-  if alpha <= 0 || (bounds?["width"] ?? 0) <= 1 || (bounds?["height"] ?? 0) <= 1 {
-    continue
-  }
-
-  windows.append([
-    "id": "\(ownerPid):\(layer):\(title ?? ownerName)",
-    "appName": ownerName,
-    "title": title as Any,
-    "bounds": bounds as Any,
-    "ownerPid": ownerPid,
-    "layer": layer,
-    "isOnScreen": true,
-  ])
-
-  if windows.count >= limit {
-    break
-  }
-}
-
-let frontmostWindowTitle = windows.first(where: { ($0["appName"] as? String) == frontmostAppName })?["title"]
-let payload: [String: Any] = [
-  "frontmostAppName": frontmostAppName as Any,
-  "frontmostWindowTitle": frontmostWindowTitle as Any,
-  "windows": windows,
-  "observedAt": ISO8601DateFormatter().string(from: Date()),
-]
-
-let data = try JSONSerialization.data(withJSONObject: payload, options: [])
-print(String(data: data, encoding: .utf8)!)
-`
 }
 
 function moveAndClickScript() {
@@ -385,7 +316,7 @@ print("{}")
 }
 
 async function observeWindows(config: ComputerUseConfig, request: ObserveWindowsRequest): Promise<WindowObservation> {
-  return await runMacOsJsonScript<WindowObservation>(config, observeWindowsScript(), request)
+  return await runMacOsJsonScript<WindowObservation>(config, observeWindowsScript, request)
 }
 
 function observationToForegroundContext(observation: WindowObservation): ForegroundContext {
@@ -409,7 +340,7 @@ async function ensureMacOS() {
 function resolveInstalledMacAppName(app: string) {
   const searchRoots = [
     '/Applications',
-    join(process.env.HOME || '', 'Applications'),
+    join(env.HOME || '', 'Applications'),
   ].filter(Boolean)
 
   for (const root of searchRoots) {

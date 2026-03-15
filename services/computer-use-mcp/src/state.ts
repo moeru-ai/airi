@@ -110,6 +110,72 @@ export interface ActiveTask {
   maxConsecutiveFailures: number
 }
 
+// ---------------------------------------------------------------------------
+// Coding Core Types
+// ---------------------------------------------------------------------------
+
+export interface CodingWorkspaceReview {
+  workspacePath: string
+  gitSummary: string
+  terminalSurface: 'exec' | 'pty' | 'unknown'
+  terminalStateSummary: {
+    effectiveCwd?: string
+    lastExitCode?: number
+    lastCommandSummary?: string
+  }
+  recentReads: Array<{ path: string, range?: string }>
+  recentEdits: Array<{ path: string, summary?: string }>
+  recentCommandResults: string[]
+  pendingIssues: string[]
+}
+
+export interface CodingWorkspaceReview {
+  workspacePath: string
+  gitSummary: string
+  terminalSurface: 'exec' | 'pty' | 'unknown'
+  terminalStateSummary: {
+    effectiveCwd?: string
+    lastExitCode?: number
+    lastCommandSummary?: string
+  }
+  recentReads: Array<{ path: string, range?: string }>
+  recentEdits: Array<{ path: string, summary?: string }>
+  recentCommandResults: string[]
+  recentSearches: string[]
+  pendingIssues: string[]
+}
+
+export interface CodingContextSnapshot {
+  goal: string
+  filesSummary: string
+  recentResultSummary: string
+  unresolvedIssues: string
+  nextStepRecommendation: string
+}
+
+export interface CodingExecutionReport {
+  status: 'completed' | 'in_progress' | 'blocked' | 'failed'
+  summary: string
+  filesTouched: string[]
+  commandsRun: string[]
+  checks: string[]
+  nextStep: string
+}
+
+export interface CodingRunState {
+  workspacePath: string
+  gitSummary: string
+  recentReads: Array<{ path: string, range?: string }>
+  recentEdits: Array<{ path: string, summary?: string }>
+  recentCommandResults: string[]
+  recentSearches: string[]
+  pendingIssues: string[]
+  lastWorkspaceReview?: CodingWorkspaceReview
+  lastCompressedContext?: CodingContextSnapshot
+  lastCodingReport?: CodingExecutionReport
+  lastValidationSummary?: string
+}
+
 export interface RunState {
   // --- Desktop context --------------------------------------------------
   /** Most recently observed foreground app name. */
@@ -176,6 +242,11 @@ export interface RunState {
   // --- Task memory ------------------------------------------------------
   /** High-level task execution state (goal, facts, blockers, next step). */
   taskMemory?: TaskMemory
+
+  // --- Coding core context ----------------------------------------------
+  // --- Coding core context ----------------------------------------------
+  /** State specific to the AIRI Coding Surface v1. */
+  coding?: CodingRunState
 
   // --- Meta -------------------------------------------------------------
   /** ISO timestamp of the last state update. */
@@ -307,6 +378,28 @@ export class RunStateManager {
         ? `${result.command.slice(0, 157)}...`
         : result.command,
     }
+
+    // Feature extension: maintain recentCommandResults in coding surface state
+    if (!this.state.coding) {
+      this.state.coding = {
+        workspacePath: '',
+        gitSummary: 'Not inspected',
+        recentReads: [],
+        recentEdits: [],
+        recentCommandResults: [],
+        recentSearches: [],
+        pendingIssues: [],
+      }
+    }
+    const truncatedStderr = result.stderr.length > 1000 ? `${result.stderr.slice(0, 1000)}... (truncated)` : result.stderr
+    const truncatedStdout = result.stdout.length > 1000 ? `${result.stdout.slice(0, 1000)}... (truncated)` : result.stdout
+    this.state.coding.recentCommandResults.push(
+      `Command: ${result.command}\nExit Code: ${result.exitCode}\nStdout: ${truncatedStdout}\nStderr: ${truncatedStderr}`,
+    )
+    if (this.state.coding.recentCommandResults.length > 5) {
+      this.state.coding.recentCommandResults.shift()
+    }
+
     this.touch()
   }
 
@@ -397,6 +490,21 @@ export class RunStateManager {
 
   updateTaskMemory(tm: TaskMemory) {
     this.state.taskMemory = tm
+    this.touch()
+  }
+
+  // -- Coding context updates --------------------------------------------
+  updateCodingState(update: Partial<CodingRunState>) {
+    const current: CodingRunState = this.state.coding || {
+      workspacePath: '',
+      gitSummary: 'Not inspected',
+      recentReads: [],
+      recentEdits: [],
+      recentCommandResults: [],
+      recentSearches: [],
+      pendingIssues: [],
+    }
+    this.state.coding = { ...current, ...update }
     this.touch()
   }
 

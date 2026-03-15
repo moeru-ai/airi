@@ -79,6 +79,14 @@ export function createSshRunnerTransportFactory(config: ComputerUseConfig): Runn
   })
 }
 
+/**
+ * JSON-RPC-like stdio client for the legacy remote runner process.
+ *
+ * This is not a generic "remote device exec" wrapper. Its sole purpose is to
+ * talk to AIRI's remote linux-x11 runner protocol over a spawned transport
+ * (currently SSH -> remote runner command), then expose typed desktop actions
+ * such as screenshot, click, scroll, and keyboard input to the executor layer.
+ */
 export class RemoteRunnerClient {
   private readonly pending = new Map<string, PendingRequest>()
   private readonly transportFactory: RunnerTransportFactory
