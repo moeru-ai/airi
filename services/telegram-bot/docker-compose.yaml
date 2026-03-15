@@ -1,0 +1,89 @@
+services:
+  pgvector:
+    image: ghcr.io/tensorchord/pgvecto-rs:pg17-v0.4.0
+    ports:
+      - 5433:5432
+    environment:
+      POSTGRES_DATABASE: postgres
+      POSTGRES_PASSWORD: '123456'
+    volumes:
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./.postgres/data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -d $$POSTGRES_DB -U $$POSTGRES_USER]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  grafana:
+    image: grafana/grafana
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
+    ports:
+      - '3000:3000'
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./deploy/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./deploy/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - tempo
+      - prometheus
+
+  tempo:
+    image: grafana/tempo:latest
+    ports:
+      # - "14268:14268" # jaeger ingest
+      # - "9411:9411" # zipkin
+      - '3200:3200' # tempo
+      - '9095:9095' # tempo grpc
+    volumes:
+      - ./deploy/tempo/tempo.yaml:/etc/tempo.yaml
+      - tempo-data:/var/tempo
+    command: ['-config.file=/etc/tempo.yaml']
+
+  prometheus:
+    image: prom/prometheus
+    restart: always
+    ports:
+      - 9090:9090
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.enable-otlp-receiver'
+      - '--enable-feature=exemplar-storage'
+
+  otel-collector:
+    image: otel/opentelemetry-collector
+    restart: always
+    ports:
+      - 4317:4317
+      - 4318:4318
+    volumes:
+      - ./deploy/otel-collector/collector-config.yaml:/etc/otelcol/config.yaml
+    command: ['--config', '/etc/otelcol/config.yaml']
+    depends_on:
+      - tempo
+      - prometheus
+
+  otel-tracing-test:
+    profiles:
+      - test
+    image: ghcr.io/grafana/xk6-client-tracing:v0.0.7
+    environment:
+      - ENDPOINT=otel-collector:4317
+    restart: always
+    depends_on:
+      - otel-collector
+
+volumes:
+  grafana-data:
+    driver: local
+  tempo-data:
+    driver: local
+  prometheus-data:
+    driver: local

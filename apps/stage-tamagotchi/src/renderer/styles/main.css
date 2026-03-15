@@ -1,0 +1,47 @@
+@import './transitions.css';
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overscroll-behavior: none;
+}
+
+html {
+  transition: all 0.3s ease-in-out;
+}
+
+html {
+  --bg-color-light: rgb(255 255 255);
+  --bg-color-dark: rgb(18 18 18);
+  --progress-bar-color: rgb(244 114 182);
+  --bg-color: var(--bg-color-light);
+}
+
+html.dark {
+  --bg-color-light: rgb(255 255 255);
+  --bg-color-dark: rgb(18 18 18);
+  --progress-bar-color: rgb(244 114 182);
+  --bg-color: var(--bg-color-dark);
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+#nprogress {
+  pointer-events: none;
+}
+
+#nprogress .bar {
+  background: var(--progress-bar-color);
+  opacity: 0.75;
+  position: fixed;
+  z-index: 1031;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+}

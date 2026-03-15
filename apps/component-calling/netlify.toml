@@ -1,0 +1,14 @@
+[build]
+base = "/"
+command = "pnpm -F @proj-airi/stream-vue-components... run build"
+publish = "/apps/stream-vue-components/dist"
+
+[build.environment]
+NODE_VERSION = "24"
+NODE_OPTIONS = "--max-old-space-size=4096"
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
+force = false

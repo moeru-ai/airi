@@ -1,0 +1,175 @@
+<script setup lang="ts">
+/*
+  * - Sky box component for NPR IBL
+  * - Load HDRI texture and compute environmental lighting
+  * - Display sky box as background
+*/
+
+import type {
+  CanvasTexture,
+  DataTexture,
+  LightProbe,
+  Scene,
+  SphericalHarmonics3,
+  Texture,
+  WebGLRenderer,
+  WebGLRenderTarget,
+} from 'three'
+
+import { useTres } from '@tresjs/core'
+import { until } from '@vueuse/core'
+import {
+  ACESFilmicToneMapping,
+  EquirectangularReflectionMapping,
+  LinearFilter,
+  LinearMipmapLinearFilter,
+  LinearSRGBColorSpace,
+  PMREMGenerator,
+  SRGBColorSpace,
+  WebGLCubeRenderTarget,
+} from 'three'
+import { LightProbeGenerator } from 'three/examples/jsm/lights/LightProbeGenerator.js'
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
+
+import skyBoxSrc from './assets/sky_linekotsi_23_HDRI.hdr?url'
+
+/**
+ * Props
+ * - src: HDRI url
+ * - asBackground: whether to also use as scene.background.
+ * - backgroundBlurriness / backgroundIntensity: r152+ background controls.
+ */
+const props = withDefaults(defineProps<{
+  skyBoxSrc?: string
+  asBackground?: boolean
+  backgroundBlurriness?: number
+  backgroundIntensity?: number
+}>(), {
+  skyBoxSrc,
+  asBackground: true,
+  backgroundBlurriness: 0,
+  backgroundIntensity: 1,
+})
+
+// emit equirect HDRI for NPR shader use
+const emit = defineEmits<{
+  (e: 'skyBoxReady', value: EnvPayload): void
+}>()
+
+interface EnvPayload {
+  hdri?: Texture | null
+  pmrem?: WebGLRenderTarget | null
+  irrSH: SphericalHarmonics3 | null
+}
+
+// Add these reactive variables to your setup
+const environment = ref<DataTexture | CanvasTexture>()
+let _pmrem: PMREMGenerator | null = null
+let _envRT: WebGLRenderTarget | null = null // WebGLRenderTarget from PMREM
+
+const { scene, renderer } = useTres()
+
+// Remove the sky box
+function clearEnvironment() {
+  const scn = scene.value as Scene | null
+  if (!scn)
+    return
+  scn.environment = null
+  scn.background = null
+  // Do not forcibly clear background; caller/prop controls that intent.
+  // scn.background = null
+  // Lilia: background must be cleared when switching to hemisphere light
+  _envRT?.dispose?.()
+  _pmrem?.dispose?.()
+  _envRT = null
+  _pmrem = null
+}
+
+// load HDRI environment from sky box
+async function loadEnvironment(skyBoxSrc: string) {
+  // Wait until renderer is ready
+  await until(() => !!renderer && !!renderer.domElement).toBeTruthy()
+  // Always dispose previous env when switching
+  clearEnvironment()
+
+  // Recommended renderer configuration for HDR + PBR
+  renderer.outputColorSpace = SRGBColorSpace
+  // This tone mapping is only for BPR parts, for NPR parts, this mapping will be disabled when loading model (as per parts)
+  renderer.toneMapping = ACESFilmicToneMapping
+
+  try {
+    // Resources
+    // - polyhaven.com
+    // - hdrihaven.com
+    const hdrTex = await new RGBELoader().loadAsync(skyBoxSrc)
+    hdrTex.mapping = EquirectangularReflectionMapping
+
+    // IBL requires mipmaps
+    hdrTex.generateMipmaps = true
+    hdrTex.minFilter = LinearMipmapLinearFilter
+    hdrTex.magFilter = LinearFilter
+    hdrTex.colorSpace = LinearSRGBColorSpace
+
+    // PMREM prefiltering for physically correct IBL
+    _pmrem = new PMREMGenerator(renderer as WebGLRenderer)
+    const rt = _pmrem.fromEquirectangular(hdrTex)
+    _envRT = rt
+
+    // Convert equirectangular to cube render target
+    const cubeRT = new WebGLCubeRenderTarget(256)
+    cubeRT.fromEquirectangularTexture(renderer as WebGLRenderer, hdrTex)
+
+    // Generate SH from cube render target
+    const probe: LightProbe = await LightProbeGenerator.fromCubeRenderTarget(
+      renderer as WebGLRenderer,
+      cubeRT,
+    )
+
+    // PBR IBL
+    environment.value = hdrTex
+    const scn = scene.value as Scene
+    scn.environment = rt.texture // drives PBR materials (Standard/Physical)
+    if (props.asBackground)
+      scn.background = rt.texture // optional: also show as background
+    // r152+: background controls (no-ops on older versions)
+    scn.backgroundBlurriness = props.backgroundBlurriness
+    scn.backgroundIntensity = props.backgroundIntensity
+
+    // emit irrSH for NPR IBL
+    emit('skyBoxReady', { irrSH: probe.sh })
+  }
+  catch (error) {
+    console.warn('Failed to load HDRI environment:', error)
+  }
+}
+
+// Usage in your component
+onMounted(async () => {
+  // load environment from sky box (default or user input)
+  await loadEnvironment(props.skyBoxSrc)
+
+  // hot switch: react to sky box change
+  watch(
+    // Actually we can also let user set background blurriness or intensity
+    // TODO: maybe we can open more options for users regarding to the settings of the background in the future
+    () => [props.skyBoxSrc],
+    ([skyBoxSrc]) => {
+      loadEnvironment(skyBoxSrc as string)
+    },
+    { deep: false },
+  )
+})
+
+defineExpose({
+  reload: async (skyBoxSrc: string) => await loadEnvironment(skyBoxSrc),
+})
+
+onUnmounted(async () => {
+  await clearEnvironment()
+})
+</script>
+
+<template>
+  <slot />
+</template>

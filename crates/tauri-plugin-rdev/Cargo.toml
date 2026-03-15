@@ -1,0 +1,36 @@
+[package]
+name = "tauri-plugin-rdev"
+version.workspace = true
+description = "Integration of github.com/Narsil/rdev for Tauri"
+authors = [ "Neko Ayaka <neko@ayaka.moe>" ]
+license = "MIT"
+repository = "https://github.com/moeru-ai/airi"
+edition = "2024"
+rust-version = "1.85.0"
+links = "tauri-plugin-rdev"
+publish = false
+
+[lib]
+name = "tauri_plugin_rdev"
+crate-type = [
+  "staticlib",
+  "cdylib",
+  "rlib"
+]
+
+[dependencies]
+tauri = "2.3.1"
+tokio = { version = "1", features = [ "full" ] }
+anyhow = "1"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.142"
+log = "0.4.27"
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+rdev = { git = "https://github.com/Narsil/rdev", version = "0.6.0", features = ["serialize"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+rdev = { git = "https://github.com/Narsil/rdev", version = "0.6.0", features = ["serialize", "wayland", "x11"] }
+
+[build-dependencies]
+tauri-plugin = { version = "2.2", features = [ "build" ] }

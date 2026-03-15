@@ -1,0 +1,1013 @@
+common:
+  save: 儲存
+animations:
+  stage-transitions:
+    title: 是否開啟舞台動畫
+  use-page-specific-transitions:
+    description: >-
+      某些頁面會有自己的過場動畫，這將會覆蓋舞台過場動畫
+    title: 是否使用頁面特定過場動畫
+dialogs:
+  onboarding:
+    title: 歡迎來到 AIRI！
+    description: 讓我們先設定您的第一個服務來源來開始使用。
+    selectProvider: 選擇服務來源
+    configureProvider: 設定 {provider}
+    apiKey: API 金鑰
+    apiKeyHelp: 從 {provider} 取得您的 API 金鑰並貼到這裡
+    baseUrl: 基礎 URL
+    baseUrlHelp: API 端點 URL（如果不確定請使用預設值）
+    accountId: 帳號 ID
+    validationSuccess: 設定驗證成功
+    validationPartial: Configuration partially validated
+    validationFailed: 設定驗證失敗
+    validationError: '驗證錯誤：{error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
+    skipForNow: 先略過
+    saveAndContinue: 儲存並繼續
+    next: 下一步
+    retry: 重試
+    start: 開始吧！
+    select-model: 選擇模型
+    no-models: 找不到可用的模型
+    no-models-help: >-
+      請返回上一步並檢查您的 API Key，或檢查網路連線。
+    permissions:
+      title: Notifications
+      description: You can allow notifications now or continue and set it up later.
+      notificationsTitle: Notifications
+      notificationsDescription: Allow reminders and important status updates.
+      notificationsAction: Request notification permission
+      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
+      openSettings: Open iOS Settings
+      optionalHint: You can continue even if notification permission is not granted.
+      stateUnknown: Not requested
+      stateRequesting: Requesting...
+      stateGranted: Granted
+      stateNotGranted: Not granted
+language:
+  title: 語言
+  description: >
+    切換顯示介面的語言
+controls-island:
+  icon-size:
+    title: 控制島嶼圖示大小
+    description: 調整控制島圖示的大小
+    auto: 自動（回應式）
+    large: 大(默認)
+    small: 小
+live2d:
+  change-model:
+    from-file: 從檔案載入
+    from-file-select: 選擇
+    from-url: 從 URL 載入
+    from-url-confirm: 載入
+    from-url-placeholder: 輸入 Live2D 模型 URL
+    title: 更換模型
+  edit-motion-map:
+    title: 編輯動作映射
+  map-motions:
+    play: 播放動作
+    title: 映射動作
+  title: Live2D 設定
+  scale-and-position:
+    title: 縮放與位置
+    scale: 縮放
+    x: X
+    'y': 'Y'
+  switch-to-vrm:
+    title: 想切換至 3D 虛擬角色嗎？
+    change-to-vrm: 切換至 3D 虛擬角色設定頁面（VRM）
+  theme-color-from-model:
+    title: 從模型中提取顏色
+    button-extract:
+      title: 提取
+  focus:
+    title: 停用模型滑鼠追蹤
+    button-disable:
+      title: 停用
+  fps:
+    title: FPS
+    description: 限制渲染幀率
+    options:
+      unlimited: 無限制
+microphone: 麥克風
+models: 模型
+pages:
+  card:
+    activate: 啟用
+    active: 已啟用
+    active_badge: 目前使用中
+    cancel: 取消操作
+    save: 儲存變更
+    card_not_found: 找不到角色卡
+    character: 角色設定
+    close: 關閉
+    chat:
+      provider: 聊天 / 供應商
+    consciousness:
+      model: 意識 / 模型
+    created_by: 建立者
+    creator_notes: 建立者筆記
+    delete: 刪除
+    delete_card: 刪除角色卡
+    delete_confirmation: 確定要刪除此角色卡嗎？
+    description: 使用 AIRI 角色卡預設
+    description_label: 描述
+    drop_here: 放開以上傳檔案
+    create_card: 建立新角色卡
+    edit_card: 編輯卡片
+    creation:
+      identity: 身分
+      name: 名字
+      nickname: 暱稱
+      description: 描述
+      behavior: 行為
+      greetings: 問候語（每行一個）
+      settings: 設定
+      version: 版本
+      create: 建立
+      defaults:
+        name: 名字
+        personality: 你是一個普通人，對一切都充滿好奇。
+        scenario: 你最近醒來，忘記了之前的所有生活。
+        systemprompt: 你將會收到訊息，請像真實人類一樣回覆。
+        posthistoryinstructions: 記得模仿人類的行為。
+      modules_info: >-
+        為這個角色卡設定模組。如果沒有設定，將會使用預設模組。
+      use_default: 使用預設
+      use_default_not_configured: 使用預設(尚未設定)
+      fields_info:
+        subtitle: >-
+          您可以在這裡填寫有關您正在建立的角色的一些詳細資訊，解釋他的背景與情境，以及應該如何回應您的互動。
+        name: 是該角色的正式名稱。
+        nickname: 您也可以提供一個暱稱，它將會被優先使用。
+        description: 該角色的描述。
+        notes: 如果您想加入一些個人備註。
+        personality: >-
+          在這裡描述您的角色的個性。例如：害羞？好奇？其他？
+        scenario: 周遭環境是怎樣的？當前的情境是什麼？
+        greetings_field: 問候語
+        greetings: 您的角色應該如何說「你好」？
+        systemprompt: 在這裡向 AI LLM 解釋當被提示時應該如何回應。
+        posthistoryinstructions: 在訊息歷史之後，放入 AI LLM 應該閱讀的內容。
+        version: >-
+          卡片版本，如果您從先前的卡片做了更改，應當增加此版本號。
+        consciousness_model: 請為該角色選擇意識模型（人工智能模型）。
+        speech_model: 請為此角色選用語音合成模型與聲線。
+      errors:
+        name: 錯誤：你必須提供一個有效的名稱！
+        version: '錯誤：版本號無效！'
+        description: '錯誤：你必須為此卡片提供描述。'
+        personality: '錯誤：必須為該角色提供個性描述。'
+        scenario: '錯誤：必須提供一個情境。'
+        systemprompt: '錯誤：請提供系統提示。'
+        posthistoryinstructions: '錯誤：必須提供訊息歷史後的提示。'
+    modules: 模組
+    name_asc: 名稱 (A-Z)
+    name_desc: 名稱 (Z-A)
+    no_cards: 還沒有任何角色卡，點擊上方按鈕上傳一個吧！
+    no_results: 沒有找到符合的角色卡
+    personality: 個性
+    posthistoryinstructions: 歷史提示指令
+    recent: 最近新增
+    scenario: 情境
+    search: 搜尋角色卡...
+    sort_by: 排序方式
+    body-model: Body / Display Model
+    speech:
+      provider: 聲音 / 聲線
+      model: 聲音 / 模型
+      voice: 聲音 / 聲線
+    systemprompt: 系統提示詞
+    title: AIRI 角色卡
+    try_different_search: 嘗試使用其他關鍵字搜尋
+    upload: 上傳
+    upload_desc: 點擊或拖曳檔案到此處上傳
+  memory:
+    description: 存放記憶的地方，以及策略
+    title: 記憶體
+  data:
+    title: 資料
+    description: 管理已儲存的 AIRI 資料、匯出與重置作業
+    sections:
+      chats:
+        title: 對話紀錄
+        description: 匯出或匯入已儲存的對話紀錄。
+        export: 匯出聊天記錄
+        import: 匯入聊天記錄
+        delete: 刪除所有聊天記錄
+      models:
+        title: 模型
+        description: 移除匯入的 Live2D/VRM 模型
+        delete: 刪除所有模型
+      modules:
+        title: 模組
+        description: 重設模組偏好設定與驗證資訊
+        reset: 重設模組設定
+      providers:
+        title: 服務提供者
+        description: 重設所有服務提供者的設定與驗證資訊
+        reset: 重設服務提供者的設定
+      danger:
+        title: 危險區域
+        description: 此操作無法還原。繼續前請先匯出所需資料。
+      all:
+        title: 刪除所有資料
+        description: 清除所有本機設定、服務提供者設定與模型。
+        delete: 刪除所有資料
+      desktop:
+        title: 重設桌面設定與狀態
+        description: 清除 AIRI 桌面設定與執行階段狀態
+        reset: 重設桌面資料
+    confirmations:
+      tooltip: 您確定嗎？
+      'yes': '是'
+    status:
+      exported: 對話階段已匯出。
+      imported: 對話階段已匯入。
+      import_error: 匯入對話階段失敗，請檢查檔案格式。
+      chats_deleted: 對話階段已刪除。
+      models_deleted: 模型已刪除
+      modules_reset: 模組設定已重設
+      providers_reset: 服務提供者設定已重設
+      all_deleted: 所有本機資料已刪除
+      desktop_reset: 桌面資料已重設
+  models:
+    description: 切換角色的 Live2D、VRM 模型
+    title: 角色模型
+    sections:
+      section:
+        live2d:
+          title: Live2D
+          description: 設定 Live2D 模型與相關選項
+        vrm:
+          title: VRM
+          description: 設定 3D VRM 模型與相關選項
+        scene: 場景
+  modules:
+    beat_sync:
+      description: 依據音訊來源的節奏同步互動
+      title: 節拍同步
+      sections:
+        audio_source:
+          actions:
+            start_screen_capture: 開始畫面擷取
+            stop: 停止
+          description: 請選取要偵測節拍的音訊來源
+          title: 音訊來源
+        beat_visualizer:
+          title: 節拍視覺化工具
+        parameters:
+          advanced_parameters: 進階參數
+          description: 調整節拍檢測參數。
+          title: 參數
+          parameters:
+            adaptive_threshold:
+              description: >-
+                是否根據訊號隨時間的變異性套用自適應閾值。
+              label: 自適應閾值
+            buffer_duration:
+              description: 內部分析緩衝區的時長。
+              label: 緩衝時長
+            envelope_filter_frequency:
+              description: >-
+                用於平滑能量變化的包絡濾波器頻率
+              label: 包絡濾波器頻率
+            highpass_filter_frequency:
+              description: >-
+                用於抑制次低音等低頻雜訊的高通濾波器頻率。
+              label: 高通濾波器頻率
+            lowpass_filter_frequency:
+              description: >-
+                低通濾波器的頻率是用來降低像人聲等高頻成分。
+              label: 低通濾波器
+            min_beat_interval:
+              description: 已偵測節拍之間的最大分鐘節拍數(BPM)或最小間隔。
+              label: 最大分鐘節拍數(BPM)/最小節拍間隔
+            sensitivity:
+              label: 靈敏度
+            spectral_flux:
+              description: 是否啟用基於頻譜通量的起始點偵測。
+              label: 頻譜通量
+            warmup:
+              description: 是否在偵測節拍前進行預熱以提高準確度。
+              label: 預熱
+    consciousness:
+      description: 人格設定、使用的模型等設定
+      sections:
+        section:
+          provider-model-selection:
+            collapse: 摺疊
+            custom_model_placeholder: 輸入自訂模型名稱
+            current_model_label: '當前模型：'
+            description: 為意識選擇合適的 LLM 服務來源
+            error: 取得發生錯誤
+            health_check_failed: 健康度檢查失敗
+            no_providers_configured_title: 未設定任何供應商
+            no_providers_configured_description: 點此設定你的 LLM 提供者
+            expand: 展開
+            loading: 載入模型中...
+            manual_model_name: 模型名稱
+            manual_model_placeholder: 輸入與該服務來源一起使用的模型名稱
+            no_models: 沒有任何可用的模型
+            no_models_description: 該服務來源的模型清單沒有回傳任何資料
+            no_search_results: 沒有符合的模型
+            no_search_results_description: 沒有模型符合「{query}」關鍵字，請嘗試別的關鍵字
+            not_supported: 無法列出模型
+            not_supported_description: 此服務來源不支援列出模型的功能
+            search_placeholder: 搜尋模型...
+            search_results: 找到 {count} / {total} 個模型
+            show_less: 顯示更少
+            show_more: 顯示更多
+            subtitle: 從該提供者中選擇預設模型
+            title: 模型
+      title: 意識
+    description: 思維、視覺、語音綜合、遊戲等
+    gaming-factorio:
+      description: 一起玩 Factorio！
+      title: 異星工廠 Factorio
+      enable: 啟用異星工廠集成
+      enable-description: 允許 AIRI 與異星工廠遊戲互動
+      server-address: 伺服器地址
+      server-address-description: 異星工廠伺服器的 IP 地址或主機名稱
+      server-address-placeholder: 輸入伺服器地址（例如：localhost 或 192.168.1.100）
+      server-port: 伺服器端口
+      server-port-description: 異星工廠伺服器的端口號（預設 34197）
+      username: 使用者名稱
+      username-description: 您在異星工廠伺服器中的使用者名稱
+      username-placeholder: 輸入您的異星工廠使用者名稱
+      configured: 異星工廠已正確設定！
+    gaming-minecraft:
+      description: 一起玩 Minecraft！
+      title: 我的世界 Minecraft
+      enable: 啟用我的世界集成
+      enable-description: 允許 AIRI 與我的世界遊戲互動
+      server-address: 伺服器地址
+      server-address-description: 我的世界伺服器的 IP 地址或主機名稱
+      server-address-placeholder: 輸入伺服器地址（例如：localhost 或 play.example.com）
+      server-port: 伺服器端口
+      server-port-description: 我的世界伺服器的端口號（預設 25565）
+      username: 使用者名稱
+      username-description: 您在我的世界伺服器中的使用者名稱
+      username-placeholder: 輸入您的我的世界使用者名稱
+      configured: 我的世界已正確設定！
+    hearing:
+      description: 語音辨識
+      title: 聽覺
+      sections:
+        section:
+          provider-selection:
+            description: 選擇合適的語音辨識提供者
+    memory-long-term:
+      description: 長期記憶
+      title: 長期記憶
+    memory-short-term:
+      description: 短期記憶
+      title: 短期記憶
+    messaging-discord:
+      description: Discord 訊息與語音聊天
+      title: Discord
+      enable: 啟用 Discord 集成
+      enable-description: 允許 AIRI 透過 Discord 進行互動
+      token: 機器人權杖
+      token-description: 您的 Discord 機器人权杖
+      token-placeholder: 輸入您的 Discord 機器人权杖
+      configured: Discord 已正確設定！
+    speech:
+      description: 語音合成
+      sections:
+        section:
+          playground:
+            buttons:
+              stop:
+                label: 停止
+            select-voice:
+              loading: 載入模型中……
+              required: 請選擇聲線
+          provider-voice-selection:
+            custom_model_placeholder: 輸入指定模型名稱...
+            custom_voice_placeholder: 輸入指定聲線 ID...
+            description: 選擇合適的語音服務來源
+            no_models: 沒有任何可用的模型
+            no_models_description: 該服務來源的模型清單沒有回傳任何資料
+            no_voices: 沒有任何可用的聲線
+            no_voices_description: 該服務來源的聲線清單沒有回傳任何資料
+            no_voices_hint: 您可以在下方輸入自訂語音名稱。
+            pause: 暫停
+            play_sample: Play
+            search_models_placeholder: 搜尋模型...
+            search_models_results: 找到 {count} / {total} 個模型
+            search_voices_placeholder: 搜尋聲線...
+            search_voices_results: 找到 {count} / {total} 條聲線
+            unsupported_voice_warning_title: 未支援的語音
+            unsupported_voice_warning_content: >-
+              嘗試使用不同的模型或提供者。我們正努力盡快支援此模型的所有語音；若你急需此功能，請在 GitHub 回報：https://github.com/moeru-ai/airi/issues。
+            show_less: 顯示更少
+            show_more: 顯示更多
+            title: 選擇語音合成服務來源
+          voice-settings:
+            input-ssml:
+              placeholder: 請輸入 SSML 文字
+            use-ssml:
+              description: 啟用後可以輸入原始 SSML 而不是純文字
+              label: 使用自訂 SSML
+      title: 發聲
+    title: 機體模組
+    vision:
+      description: 視覺
+      title: 視覺
+    x:
+      description: X / Twitter 的瀏覽與使用
+      title: X / Twitter
+      enable: 啟用 X / Twitter 集成
+      enable-description: 允許 AIRI 與 X / Twitter 互動
+      api-key: API 金鑰
+      api-key-description: 您的 X / Twitter API 金鑰
+      api-key-placeholder: 輸入您的 X / Twitter API 金鑰
+      api-secret: API 金鑰密文
+      api-secret-description: 您的 X / Twitter API 金鑰密文
+      api-secret-placeholder: 輸入您的 X / Twitter API 金鑰密文
+      access-token: 存取權杖
+      access-token-description: 您的 X / Twitter 存取權杖
+      access-token-placeholder: 輸入您的 X / Twitter 存取權杖
+      access-token-secret: 存取權杖密文
+      access-token-secret-description: 您的 X / Twitter 存取權杖密文
+      access-token-secret-placeholder: 輸入您的 X / Twitter 存取權杖密文
+      configured: X / Twitter 已正確設定！
+    mcp-server:
+      description: 連線與管理 MCP 伺服器及工具
+      title: MCP 伺服器
+      config-path: 設定檔路徑
+      runtime-title: 執行狀態
+      actions:
+        open-config: 開啟 mcp.json
+        apply-and-restart: 儲存並重新啟動 stdio MCP
+      messages:
+        opened: 已於 {path} 開啟設定檔
+        restarted: >-
+          MCP 伺服器已重新啟動。已啟動：{started}，已失敗：{failed}，已略過：{skipped}
+  providers:
+    explained:
+      chat: 文字生成模型服務來源，例如 OpenRouter、OpenAI、Ollama
+      Speech: 語音（文字轉語音）模型服務來源，例如 ElevenLabs、Azure Speech
+      Transcription: >-
+        轉錄（語音轉文字）模型服務來源，例如 Whisper.cpp、OpenAI、Azure Speech
+    helpinfo:
+      title: 第一次使用？
+      description: >
+        AIRI 需要設定至少一個 {chat} 服務來源，才能正常思考與運作。你可以把它看作是 AIRI 系統中角色的大腦。
+    catalog:
+      edit:
+        config-id-not-found: 找不到提供者設定。
+        definition-id-not-found: 找不到提供者定義。
+        actions:
+          more-options: 更多選項
+          delete: 刪除
+        validation:
+          failed:
+            title: 請檢查您的提供者設定，驗證失敗。
+            description: >-
+              如果您想繼續，之後仍可儲存目前的設定。
+            action: 仍然儲存
+        config:
+          common:
+            fields:
+              field:
+                api-key:
+                  label: API 金鑰
+                  description: 用於授權向此提供者發送請求的 API 金鑰
+                  placeholder: sk-...
+                base-url:
+                  label: 基礎 URL
+                  description: >-
+                    用於連接遠端服務的基礎 URL。通常看起來像 http://localhost:11434/v1 或 https://example.com/v1
+                  placeholder: 基礎 url...
+                headers:
+                  label: 自訂 HTTP 標頭
+                  description: 新增自訂 HTTP 標頭
+                  key:
+                    placeholder: 參數名稱
+                  value:
+                    placeholder: 值
+                thinking-mode:
+                  label: 思考模式
+                  description: >
+                    控制 Ollama 思考行為。GPT-OSS 僅支持 low/medium/high 等級。
+                  options:
+                    auto: 自動（提供者預設）
+                    disable: 停用
+                    enable: 啟用
+                    low: 低
+                    medium: 中
+                    high: 高
+        validators:
+          actions:
+            validate: 驗證
+          empty: 沒有可用的驗證步驟。
+          openai-compatible:
+            check-config:
+              title: 設定
+            check-connectivity:
+              title: 連線
+            check-supports-model-listing:
+              title: 列出模型
+            check-supports-chat-completion:
+              title: 聊天補全
+          status:
+            validating: 驗證中...
+            valid: 已通過
+            invalid: 發生錯誤
+          title: 檢查
+        providers:
+          provider:
+            ollama:
+              troubleshooting:
+                validators:
+                  openai-compatible-check-connectivity:
+                    label: 需要為 Ollama 進行額外配置
+                    content: >-
+                      很抱歉，Ollama 連接檢查失敗。不要擔心，如果使用 Ollama，需要額外配置才能通過 Ollama。 您需要在啟動 Olama 應用程序或 Ollama CLI 伺服器時明確設置 <code>OLLAMA_HOST</code> 詳情，請檢查 <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama 集成指南</a>。
+    common:
+      continueAnyway: 仍然繼續
+      goToModelSelection: '選擇模型→'
+      fields:
+        field:
+          api-key:
+            label: API 金鑰
+      section:
+        advanced:
+          fields:
+            field:
+              headers:
+                description: 新增自訂 HTTP 標頭
+                key:
+                  placeholder: 請輸入標頭名稱
+                label: HTTP 請求標頭
+                value:
+                  placeholder: 請輸入標頭數值
+          title: 進階設定
+        basic:
+          description: 基礎設定
+          title: 基礎設定
+        voice:
+          title: 聲音設定
+    description: LLM、語音合成、語音辨識服務來源等
+    provider:
+      app-local-audio-transcription:
+        title: 應用程式內（本機）
+        description: https://github.com/moeru-ai/xsai-transformers
+      app-local-audio-speech:
+        title: 應用程式內（本機）
+        description: https://github.com/moeru-ai/xsai-transformers
+      browser-local-audio-transcription:
+        title: 瀏覽器內（本機）
+        description: https://github.com/moeru-ai/xsai-transformers
+      browser-local-audio-speech:
+        title: 瀏覽器內（本機）
+        description: https://github.com/moeru-ai/xsai-transformers
+      alibaba-cloud-model-studio:
+        description: bailian.console.aliyun.com
+        title: 阿里百煉
+      anthropic:
+        description: anthropic.com
+        title: Anthropic | Claude
+        helpinfo:
+          title: 開始之前
+          description:
+            part1: >-
+              雖然 Anthropic 最近宣布他們正在提供對 OpenAI SDK 相容性的 Beta 版支援
+            part2: '（您可以在此處閱讀更多資訊）'
+            part3: 但由於實作細節附帶
+            part4: >-
+              與 OpenAI SDK 不一致，目前無法在瀏覽器中使用此提供者。
+            part5: >-
+              如果您確實需要使用此提供者，則需要一個專用的代理後端，例如在
+            part6: 上運行的 Serverless Function，或者一些繞過 CORS 的服務，以繞過 CORS 限制。
+      cloudflare-workers-ai:
+        description: Cloudflare.com
+        fields:
+          field:
+            account-id:
+              description: Cloudflare 帳戶 ID
+              label: Cloudflare Account ID
+              placeholder: 請輸入 Cloudflare Account ID
+            api-key:
+              placeholder: 請輸入 Cloudflare Workers AI 的 API Key
+        title: Workers AI
+      common:
+        status:
+          validating: 正在驗證設定
+          valid: 設定看起來有效。
+        fields:
+          field:
+            pitch:
+              description: 調整合成語音的音高（例如更尖銳或更渾厚）
+              label: 音高
+            speed:
+              description: 調整說話的語速
+              label: 語速
+            volume:
+              description: 調整語音的響度
+              label: 響度
+      deepgram-tts:
+        description: deepgram.com
+        title: Deepgram
+      speech-noop:
+        title: 無
+        description: 無語音輸出。
+      deepseek:
+        description: DeepSeek.com
+        title: 深度求索 DeepSeek
+      elevenlabs:
+        description: Elevenlabs.io
+        fields:
+          field:
+            simularity-boost:
+              description: 聲音相似性與依從性
+              label: 相似度修正
+            speaker-boost:
+              description: 增強說話者的相似性
+              label: 說話者增強
+            speed:
+              description: 語音生成速度
+              label: 語速
+            stability:
+              description: 語音穩定性與隨機性
+              label: 穩定性
+            style:
+              description: 誇張的語音風格
+              label: 風格
+        playground:
+          buttons:
+            button:
+              test-voice:
+                generating: 產生中...
+                label: 測試聲音
+          fields:
+            field:
+              input:
+                placeholder: 請輸入用於測試發音的文字
+              language:
+                description: 選擇語音語言
+                label: 語言
+              voice:
+                description: 選擇偏好的語音
+                label: 聲線
+          title: 實驗平台
+          validation:
+            error-missing-api-key: 需要填寫 API Key 才能使用喔！
+        title: ElevenLabs (11labs)
+      kokoro-local:
+        description: 基於 Kokoro-82M 的本地文字轉語音。
+        fields:
+          field:
+            model:
+              label: 模型選擇
+              description: 較小的模型載入速度更快，但品質可能略低。
+        models:
+          fp32-webgpu:
+            description: >-
+              使用 WebGPU 的全精度模型 - 建議在支援的裝置上使用
+          fp32:
+            description: 全精度模型
+          fp16:
+            description: 半精度
+          q8:
+            description: 8-bit 量化
+          q4:
+            description: 4-bit 量化
+          q4f16:
+            description: 4-bit 搭配 FP16
+        playground:
+          default-text: 您好！這是 Kokoro 文字轉語音系統的測試。
+          title: 語音測試場
+        title: Kokoro TTS (本地)
+      fireworks:
+        description: Fireworks.ai
+        title: Fireworks.ai
+      microsoft-speech:
+        description: speech.microsoft.com
+        fields:
+          field:
+            region:
+              description: 服務 Endpoint 地區（例如亞太 eastasia 區域）
+              label: Endpoint 地區
+        title: Microsoft / Azure 語音服務
+      index-tts-vllm:
+        description: https://index-tts.github.io/
+        title: Bilibili / IndexTTS
+        callout_indextts2_unavailable_title: 有限支援
+        callout_indextts2_unavailable: IndexTTS2 目前尚未支援，請改用 IndexTTS。
+      azure-ai-foundry:
+        description: Azure AI Foundry
+        title: Azure AI Foundry
+      minimax:
+        description: minimaxi.com
+        title: MiniMax
+      minimax-global:
+        description: minimax.io
+        title: MiniMax Global
+      mistral:
+        description: mistral.ai
+        title: Mistral
+      moonshot:
+        description: Moonshot.ai
+        title: 月之暗面
+      modelscope:
+        description: modelscope.cn
+        title: 魔搭社群 ModelScope
+      novita:
+        description: novita.ai
+        title: Novita
+      ollama:
+        description: ollama.ai
+        title: Ollama
+      openai:
+        description: OpenAi.com
+        title: OpenAI
+      openai-compatible:
+        description: OpenAI 相容
+        title: OpenAI 兼容性
+      nvidia:
+        description: build.nvidia.com
+        title: NVIDIA NIM
+      n1n:
+        description: n1n.ai - 高效能AI API供應商
+        title: n1n
+      openrouter:
+        description: OpenRouter.ai
+        title: OpenRouter
+      perplexity:
+        description: perplexity.ai
+        title: Perplexity
+      player2:
+        description: player2.game
+        title: Player2
+      together:
+        description: together.ai
+        title: Together.ai
+      google-generative-ai:
+        description: gemini.google.com
+        title: Google Gemini
+      groq:
+        description: groq.com
+        title: Groq
+      featherless:
+        description: featherless.ai
+        title: Featherless AI
+      lm-studio:
+        description: lmstudio.ai
+        title: LM Studio
+      vllm:
+        description: vllm.ai
+        title: vLLM
+      volcengine:
+        description: volcengine.com
+        fields:
+          field:
+            appId:
+              description: 可在控制台取得的 App ID
+              label: 應用程式 ID
+        title: 火山引擎
+      xai:
+        description: X.AI
+        title: xAI
+      302-ai:
+        description: 302.AI
+        title: 302.AI
+      comet-api:
+        description: CometAPI.com
+        title: Comet API
+      cerebras:
+        description: cerebras.ai
+        title: Cerebras
+      aliyun-nls:
+        description: 阿里雲 NLS
+        title: 阿里雲 NLS
+      browser-web-speech-api:
+        description: 瀏覽器原生 STT（需要 Chrome/Edge/Safari）
+        title: 網頁語音 API
+      transcriptions:
+        playground:
+          title: 實驗平台
+      aihubmix:
+        title: AIHubMix
+        description: https://aihubmix.com (10% 優惠)
+    title: 服務來源
+  connection:
+    description: 配置 WebSocket 伺服器連接
+    title: 連線
+    websocket-url:
+      description: WebSocket 伺服器的完整位址（例如：ws://localhost:6121/ws）
+      label: WebSocket 伺服器位址
+      placeholder: ws://localhost:6121/ws
+  scene:
+    description: 設定角色所在環境
+    title: 場景
+  system:
+    color-scheme:
+      description: 更改舞台的配色方案
+      title: 配色方案
+    developer:
+      description: 為開發者提供的選項
+      title: 開發者
+    general:
+      description: 深色主題、語言等選項
+      title: 通用
+    description: 自訂你的舞台外觀！
+    sections:
+      section:
+        custom-color:
+          fields:
+            field:
+              primary-color:
+                label: 強調色
+                rgb-on:
+                  title: RGB ON!
+          title: 配色
+        developer:
+          title: 開發者
+          sections:
+            section:
+              performance-visualizer:
+                title: 效能檢視器
+                description: 切換 FPS/長時間任務/記憶疊加層
+              markdown-stress:
+                title: Markdown 壓力測試
+                description: 使用大量聊天內容進行 Markdown 解析與渲染的壓力測試
+              use-magic-keys:
+                title: useMagicKeys 工具
+                description: 測試快捷鍵
+              audio-record:
+                title: 錄音
+                description: 測試音訊相關的組合式函式
+              background-gradient-blending:
+                title: 背景主題色彩混合
+                description: 測試混合效果與主題
+              background-removal:
+                title: 移除背景（需要 WebGPU）
+                description: 背景移除工具
+              chat:
+                title: 聊天
+                description: 聊天
+              gesture-circle:
+                title: 手勢圈選（僅限桌面）
+                description: 測試手勢辨識
+              image:
+                title: 圖片
+                description: 圖片
+              polaroid:
+                title: Polaroid
+                description: 模型快照工具
+              context-flow:
+                description: >-
+                  檢查傳入的上下文更新與傳出的聊天串流事件
+              websocket-inspector:
+                title: WebSocket 檢查器
+                description: 檢查原始 WebSocket 流量
+              vibrant:
+                title: 色彩擷取
+                description: 測試色彩擷取
+              providers-transcription-realtime-aliyun-nls:
+                title: 阿里雲即時轉錄器
+                description: >-
+                  將麥克風音訊串流至阿里雲 NLS 並檢查即時轉錄文字
+              performance-playground:
+                title: 效能實驗場
+                description: 'VRM 表情 + TTS 嘴型同步實驗場'
+        theme-presets:
+          presets:
+            default:
+              colors:
+                color-1: AIRI 綠
+              description: AIRI 為您帶來的預設綠色系主題色彩！
+              title: 預設色彩
+            morandi:
+              colors:
+                color-1: 灰褐色
+                color-2: 米色
+                color-3: 灰白色
+                color-4: 淺褐色
+                color-5: 象牙色
+                color-6: 橄欖灰
+                color-7: 砂色
+                color-8: 暖灰色
+              description: 受喬治·莫蘭迪畫作啟發的柔和低飽和色調
+              title: Morandi 顏色
+            monet:
+              colors:
+                color-1: 天藍色
+                color-2: 薄霧色
+                color-3: 砂色
+                color-4: 苔綠色
+                color-5: 睡蓮色
+                color-6: 小麥色
+                color-7: 板岩藍
+                color-8: 鼠尾草綠
+              description: 受克勞德·莫內作品啟發的印象派色調
+              title: 莫內(Monet) 色系
+            japanese:
+              colors:
+                color-1: 棕褐色
+                color-2: 暖灰褐色
+                color-3: 深棕褐
+                color-4: 咖啡色
+                color-5: 古銅色
+                color-6: 金色
+                color-7: 芥末黃
+                color-8: 琥珀色
+              description: 傳統日本色彩調色盤
+              title: 日本顏色
+            nordic:
+              colors:
+                color-1: 北歐藍
+                color-2: 冰色
+                color-3: 峽灣色
+                color-4: 鋼灰
+                color-5: 冰川藍
+                color-6: 石板灰
+                color-7: 雲霧灰
+                color-8: 石頭色
+              description: 北歐極簡主義配色方案
+              title: 北歐顏色
+            chinese:
+              colors:
+                color-1: 霞光紅
+                color-2: 棗紅
+                color-3: 黃櫨
+                color-4: 竹青
+                color-5: 烏梅紫
+                color-6: 緗色
+                color-7: 青冥
+                color-8: 赭石色
+              description: >-
+                源自古代紡織品、瓷器和畫作的傳統中國色彩
+              title: 中國傳統色彩
+          title: 預設
+    title: 外觀
+  page:
+    developers:
+      open-devtools:
+        title: 開放開發者工具
+        button: 開放
+sections:
+  section:
+    general:
+      title: 通用
+theme:
+  title: 主題
+  description: |
+    切換 AIRI 的基礎主題，亮色模式或暗色模式。
+title: 設定
+voices: 聲線
+vrm:
+  change-model:
+    from-file: 從檔案載入
+    from-file-select: 選擇
+    from-url: 從 URL 載入
+    from-url-confirm: 載入
+    from-url-placeholder: 輸入 VRM 模型 URL
+    title: 更換模型
+  title: VRM 設定
+  scale-and-position:
+    model-info-title: 模型尺寸資訊
+    model-info-x: 寬度（X 軸）
+    model-info-y: 高度（Y 軸）
+    model-info-z: 深度（Z 軸）
+    tips: |
+      設定模型放置的空間座標。
+      座標軸已視覺化。
+    scale: 縮放
+    x: X 軸位移
+    'y': Y 軸位移
+    z: Z 軸位移
+    fov: 視角調整（度）
+    rotation-y: 模型朝向（Y 軸旋轉）
+    camera-distance: 相機距離（畫面縮放）
+    eye-tracking-mode:
+      title: 模型注視方向
+      options:
+        option:
+          camera: 相機
+          mouse: 滑鼠
+          disabled: 停用
+  switch-to-vrm:
+    title: 想切換至 Live2D 虛擬角色嗎？
+    change-to-vrm: 切換至 Live2D 虛擬角色設定頁面
+  theme-color-from-model:
+    button-extract:
+      title: 提取
+  skybox:
+    skybox-intensity: 天空盒光照強度
+    skybox-specular-mix: 漫反射／鏡面反射混合係數
+websocket-secure-enabled:
+  title: 啟用安全 WebSocket (WSS)
+  description: >-
+    啟用 WSS（WebSocket Secure）以允許開發模式下行動裝置（pocket）的 HTTPS 連線。這將自動產生自簽名憑證。
+wip:
+  title: 正在開發中
+  description: >-
+    此功能正在開發中，尚未公開發佈。請在未來的更新中再次查看此功能。

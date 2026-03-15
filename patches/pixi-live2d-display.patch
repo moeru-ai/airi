@@ -1,0 +1,144 @@
+diff --git a/core/README.md b/core/README.md
+deleted file mode 100644
+index ad383747237ee1a22ce39d01fbc7e77ac94b8e47..0000000000000000000000000000000000000000
+diff --git a/core/live2d.d.ts b/core/live2d.d.ts
+deleted file mode 100644
+index 0283512ed1c9ea01d7dd1b67b76d660237b453e8..0000000000000000000000000000000000000000
+diff --git a/cubism/.vscode/extensions.json b/cubism/.vscode/extensions.json
+deleted file mode 100644
+index fda5ad57b9567b939382ba15fb1d3b9f1fecf77e..0000000000000000000000000000000000000000
+diff --git a/cubism/.vscode/tasks.json b/cubism/.vscode/tasks.json
+deleted file mode 100644
+index 7cd3fffed85da69d5af154f63480bce8766a038f..0000000000000000000000000000000000000000
+diff --git a/dist/cubism2.es.js b/dist/cubism2.es.js
+index 0d40d5d40533881d154e3c2cdda9b360c57eaaa6..8dbdb1b36e2da42da264dc3533523e61745102f7 100644
+--- a/dist/cubism2.es.js
++++ b/dist/cubism2.es.js
+@@ -1373,7 +1373,7 @@ const _FileLoader = class {
+   }
+   static createSettings(files) {
+     return __async(this, null, function* () {
+-      const settingsFile = files.find((file) => file.name.endsWith("model.json") || file.name.endsWith("model3.json"));
++      const settingsFile = files.find((file) => !file.name.endsWith("items_pinned_to_model.json") && (file.name.endsWith("model.json") || file.name.endsWith("model3.json")));
+       if (!settingsFile) {
+         throw new TypeError("Settings file not found");
+       }
+@@ -1458,7 +1458,7 @@ const _ZipLoader = class {
+   static createSettings(reader) {
+     return __async(this, null, function* () {
+       const filePaths = yield _ZipLoader.getFilePaths(reader);
+-      const settingsFilePath = filePaths.find((path) => path.endsWith("model.json") || path.endsWith("model3.json"));
++      const settingsFilePath = filePaths.find((path) => !path.endsWith("items_pinned_to_model.json") && (path.endsWith("model.json") || path.endsWith("model3.json")));
+       if (!settingsFilePath) {
+         throw new Error("Settings file not found");
+       }
+diff --git a/dist/cubism2.js b/dist/cubism2.js
+index c3db490f8dbfdd63ad40648fe0e0325604f22e95..4b452db0b109ba7deaddf397ef351ae7bcfe145c 100644
+--- a/dist/cubism2.js
++++ b/dist/cubism2.js
+@@ -1373,7 +1373,7 @@ var __async = (__this, __arguments, generator) => {
+     }
+     static createSettings(files) {
+       return __async(this, null, function* () {
+-        const settingsFile = files.find((file) => file.name.endsWith("model.json") || file.name.endsWith("model3.json"));
++        const settingsFile = files.find((file) => !file.name.endsWith("items_pinned_to_model.json") && (file.name.endsWith("model.json") || file.name.endsWith("model3.json")));
+         if (!settingsFile) {
+           throw new TypeError("Settings file not found");
+         }
+@@ -1458,7 +1458,7 @@ var __async = (__this, __arguments, generator) => {
+     static createSettings(reader) {
+       return __async(this, null, function* () {
+         const filePaths = yield _ZipLoader.getFilePaths(reader);
+-        const settingsFilePath = filePaths.find((path) => path.endsWith("model.json") || path.endsWith("model3.json"));
++        const settingsFilePath = filePaths.find((path) => !path.endsWith("items_pinned_to_model.json") && (path.endsWith("model.json") || path.endsWith("model3.json")));
+         if (!settingsFilePath) {
+           throw new Error("Settings file not found");
+         }
+diff --git a/dist/cubism4.es.js b/dist/cubism4.es.js
+index f21619f5794c00542bb2a9df340e50d4453a0367..38bd069a5d1ec37380c376c2ff2d7fed9c0042b2 100644
+--- a/dist/cubism4.es.js
++++ b/dist/cubism4.es.js
+@@ -5012,7 +5012,7 @@ const _FileLoader = class {
+   }
+   static createSettings(files) {
+     return __async(this, null, function* () {
+-      const settingsFile = files.find((file) => file.name.endsWith("model.json") || file.name.endsWith("model3.json"));
++      const settingsFile = files.find((file) => !file.name.endsWith("items_pinned_to_model.json") && (file.name.endsWith("model.json") || file.name.endsWith("model3.json")));
+       if (!settingsFile) {
+         throw new TypeError("Settings file not found");
+       }
+@@ -5097,7 +5097,7 @@ const _ZipLoader = class {
+   static createSettings(reader) {
+     return __async(this, null, function* () {
+       const filePaths = yield _ZipLoader.getFilePaths(reader);
+-      const settingsFilePath = filePaths.find((path) => path.endsWith("model.json") || path.endsWith("model3.json"));
++      const settingsFilePath = filePaths.find((path) => !path.endsWith("items_pinned_to_model.json") && (path.endsWith("model.json") || path.endsWith("model3.json")));
+       if (!settingsFilePath) {
+         throw new Error("Settings file not found");
+       }
+diff --git a/dist/cubism4.js b/dist/cubism4.js
+index 03c1fb2b32b3b908a8b0e604aa3ee50aa9130169..99fc587e3ca7e6f433099e13f33e0e480a10c25a 100644
+--- a/dist/cubism4.js
++++ b/dist/cubism4.js
+@@ -5012,7 +5012,7 @@ var __async = (__this, __arguments, generator) => {
+     }
+     static createSettings(files) {
+       return __async(this, null, function* () {
+-        const settingsFile = files.find((file) => file.name.endsWith("model.json") || file.name.endsWith("model3.json"));
++        const settingsFile = files.find((file) => !file.name.endsWith("items_pinned_to_model.json") && (file.name.endsWith("model.json") || file.name.endsWith("model3.json")));
+         if (!settingsFile) {
+           throw new TypeError("Settings file not found");
+         }
+@@ -5097,7 +5097,7 @@ var __async = (__this, __arguments, generator) => {
+     static createSettings(reader) {
+       return __async(this, null, function* () {
+         const filePaths = yield _ZipLoader.getFilePaths(reader);
+-        const settingsFilePath = filePaths.find((path) => path.endsWith("model.json") || path.endsWith("model3.json"));
++        const settingsFilePath = filePaths.find((path) => !path.endsWith("items_pinned_to_model.json") && (path.endsWith("model.json") || path.endsWith("model3.json")));
+         if (!settingsFilePath) {
+           throw new Error("Settings file not found");
+         }
+diff --git a/dist/index.es.js b/dist/index.es.js
+index f969d304f346c4e420b6798dbd4dec81b902a5e4..7e6b4d3ef53f1ea0648030899de9debd291fc551 100644
+--- a/dist/index.es.js
++++ b/dist/index.es.js
+@@ -1373,7 +1373,7 @@ const _FileLoader = class {
+   }
+   static createSettings(files) {
+     return __async(this, null, function* () {
+-      const settingsFile = files.find((file) => file.name.endsWith("model.json") || file.name.endsWith("model3.json"));
++      const settingsFile = files.find((file) => !file.name.endsWith("items_pinned_to_model.json") && (file.name.endsWith("model.json") || file.name.endsWith("model3.json")));
+       if (!settingsFile) {
+         throw new TypeError("Settings file not found");
+       }
+@@ -1458,7 +1458,7 @@ const _ZipLoader = class {
+   static createSettings(reader) {
+     return __async(this, null, function* () {
+       const filePaths = yield _ZipLoader.getFilePaths(reader);
+-      const settingsFilePath = filePaths.find((path) => path.endsWith("model.json") || path.endsWith("model3.json"));
++      const settingsFilePath = filePaths.find((path) => !path.endsWith("items_pinned_to_model.json") && (path.endsWith("model.json") || path.endsWith("model3.json")));
+       if (!settingsFilePath) {
+         throw new Error("Settings file not found");
+       }
+diff --git a/dist/index.js b/dist/index.js
+index bc3d800c45889979190175cc88cdd8251feb9b5e..d1a660708ff81e1379f173709a32c6f4aa16696a 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -1373,7 +1373,7 @@ var __async = (__this, __arguments, generator) => {
+     }
+     static createSettings(files) {
+       return __async(this, null, function* () {
+-        const settingsFile = files.find((file) => file.name.endsWith("model.json") || file.name.endsWith("model3.json"));
++        const settingsFile = files.find((file) => !file.name.endsWith("items_pinned_to_model.json") && (file.name.endsWith("model.json") || file.name.endsWith("model3.json")));
+         if (!settingsFile) {
+           throw new TypeError("Settings file not found");
+         }
+@@ -1458,7 +1458,7 @@ var __async = (__this, __arguments, generator) => {
+     static createSettings(reader) {
+       return __async(this, null, function* () {
+         const filePaths = yield _ZipLoader.getFilePaths(reader);
+-        const settingsFilePath = filePaths.find((path) => path.endsWith("model.json") || path.endsWith("model3.json"));
++        const settingsFilePath = filePaths.find((path) => !path.endsWith("items_pinned_to_model.json") && (path.endsWith("model.json") || path.endsWith("model3.json")));
+         if (!settingsFilePath) {
+           throw new Error("Settings file not found");
+         }

@@ -1,0 +1,9 @@
+project_id: "816610"
+api_token_env: CROWDIN_PERSONAL_TOKEN
+preserve_hierarchy: true
+
+files:
+  - source: packages/i18n/src/locales/en/**/*
+    ignore:
+      - '**/*.ts'
+    translation: /packages/i18n/src/locales/%locale%/**/%original_file_name%

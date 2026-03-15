@@ -1,0 +1,45 @@
+name: Update Nix pnpmDeps Hash
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'pnpm-lock.yaml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nix-update
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      # Why?
+      #
+      # failed to
+      # $ nix build .#airi-pnpm-deps
+      # > airi-pnpm-deps> Running phase: fixupPhase
+      # > error: writing to file: No space left on device
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+
+      - uses: actions/checkout@v6
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: experimental-features = nix-command flakes
+
+      - name: Update Hash
+        run: nix/update-pnpm-deps-hash.sh
+
+      - name: Pull with rebase
+        run: git pull --rebase --autostash
+
+      - uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: 'chore(nix): update pnpmDeps hash'
+          commit_author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>

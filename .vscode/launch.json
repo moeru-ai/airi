@@ -1,0 +1,69 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Electron",
+      "type": "node",
+      "request": "launch",
+      // Where to run the command
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["-F", "@proj-airi/stage-tamagotchi", "exec", "electron-vite", "--sourcemap"],
+      // Open terminal when debugging starts (Optional)
+      // Useful to see console.logs
+      // "console": "integratedTerminal",
+      // "internalConsoleOptions": "neverOpen",
+      "env": {
+        "REMOTE_DEBUGGING_PORT": "9222"
+      }
+    },
+    {
+      "name": "Debug Minecraft Service",
+      "type": "node",
+      "request": "launch",
+      // Where to run the command
+      // Where to run the command
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["-F", "@proj-airi/minecraft-bot", "exec", "tsx"],
+      "args": ["--env-file=.env", "--env-file-if-exists=.env.local", "src/main.ts"],
+      "envFile": "${workspaceFolder}/services/minecraft/.env",
+      // Open terminal when debugging starts (Optional)
+      // Useful to see console.logs
+      // "console": "integratedTerminal",
+      // "internalConsoleOptions": "neverOpen",
+      "skipFiles": [
+        "<node_internals>/**"
+      ]
+    },
+    {
+      "name": "Debug Renderer Process",
+      "port": 9222,
+      "request": "attach",
+      "type": "chrome",
+      "webRoot": "${workspaceFolder}/src/renderer",
+      "timeout": 60000,
+      "presentation": {
+        "hidden": true
+      }
+    },
+    {
+      "name": "Debug VSCode Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/plugins/airi-plugin-vscode"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/plugins/airi-plugin-vscode/dist/**/*.cjs"
+      ]
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Debug All",
+      "configurations": ["Debug Electron", "Debug Renderer Process"],
+      "presentation": {
+        "order": 1
+      }
+    }
+  ]
+}

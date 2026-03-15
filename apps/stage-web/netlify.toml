@@ -1,0 +1,37 @@
+[build]
+base = "/"
+command = "pnpm -F @proj-airi/stage-web run build && pnpm -F @proj-airi/docs run build:base && mv ./docs/.vitepress/dist ./apps/stage-web/dist/docs && cp ./apps/stage-web/dist/docs/sitemap.xml ./apps/stage-web/dist/sitemap.xml  && pnpm -F @proj-airi/stage-ui run story:build && mv ./packages/stage-ui/.histoire/dist ./apps/stage-web/dist/ui"
+publish = "/apps/stage-web/dist"
+
+[build.environment]
+NODE_VERSION = "24"
+NODE_OPTIONS = "--max-old-space-size=4096"
+
+# Plausible.io analytics
+#
+# Proxying Plausible through Netlify | Plausible docs
+# https://plausible.io/docs/proxy/guides/netlify
+
+[[redirects]]
+from = "/remote-assets/page-external-data/js/script.js"
+to = "https://plausible.io/js/script.js"
+status = 200
+force = true
+
+[[redirects]]
+from = "/api/v1/page-external-data/submit"
+to = "https://plausible.io/api/event"
+status = 200
+force = true
+
+[[redirects]]
+from = "/assets/*"
+to = "/assets/:splat"
+status = 200
+force = true
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
+force = false

@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-stop-pass-through"
+description = "Enables the stop_pass_through command without any pre-configured scope."
+commands.allow = ["stop_pass_through"]
+
+[[permission]]
+identifier = "deny-stop-pass-through"
+description = "Denies the stop_pass_through command without any pre-configured scope."
+commands.deny = ["stop_pass_through"]

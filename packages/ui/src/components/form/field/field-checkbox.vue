@@ -1,0 +1,30 @@
+<script setup lang="ts">
+import { Checkbox } from '../checkbox'
+
+const props = defineProps<{
+  label?: string
+  description?: string
+}>()
+
+const modelValue = defineModel<boolean>({ required: true })
+</script>
+
+<template>
+  <label class="flex flex-col gap-4">
+    <div class="flex flex-row items-center gap-2">
+      <div class="flex-1">
+        <div class="flex items-center gap-1 text-sm font-medium">
+          <slot name="label">
+            {{ props.label }}
+          </slot>
+        </div>
+        <div class="text-xs text-neutral-500 dark:text-neutral-400">
+          <slot name="description">
+            {{ props.description }}
+          </slot>
+        </div>
+      </div>
+      <Checkbox v-model="modelValue" />
+    </div>
+  </label>
+</template>

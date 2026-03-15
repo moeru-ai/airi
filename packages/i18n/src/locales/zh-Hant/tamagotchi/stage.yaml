@@ -1,0 +1,46 @@
+operations:
+  load-models: 載入推理模型
+  load-models-status:
+    loading: 載入中
+    ready: 已就緒
+docs:
+  theme:
+    navbar:
+      appearance:
+        title: 外貌
+'controls-island':
+  'fade-on-hover':
+    enable: 懸停時隱藏
+    disable: 總是顯示
+  'open-settings': 開啟設定
+  'open-chat': 打開聊天
+  'refresh': 重新整理
+  'open-hearing-controls': 開啟聽力控制
+  'drag-to-move-window': 長按以移動視窗
+  'switch-to-light-mode': 切換至亮色模式
+  'switch-to-dark-mode': 切換至深色模式
+  'pin-on-top': 置頂
+  'unpin-from-top': 取消置頂
+  'switch-profile': Switch Profile
+  'close': 關閉
+  'expand': 展開
+  'collapse': 摺疊
+'status-island':
+  connected: WebSocket connected
+  disconnected: WebSocket disconnected
+  'open-settings': Open WebSocket settings
+notice:
+  'fade-on-hover':
+    title: 懸停淡出
+    intro: 當游標靠近時自動讓角色變淡，減少干擾同時保持可見。
+    opacity: 開啟後，當游標靠近時， {targets} 的不透明度會降到 {value}。
+    toggle: 要關閉時，將游標移到 {controls} 區域，再次點擊 {icon}。
+    controls-label: 控制島
+    icon-label: 隱藏圖示
+    value: '0'
+    targets: 角色與介面
+    confirm: 知道了
+    dont-show-again: 不再提示
+    preparing: 準備中…
+    read-more: 閱讀更多
+    preview-title: 這是什麼？

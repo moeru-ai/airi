@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-go"
+description = "Enables the go command without any pre-configured scope."
+commands.allow = ["go"]
+
+[[permission]]
+identifier = "deny-go"
+description = "Denies the go command without any pre-configured scope."
+commands.deny = ["go"]

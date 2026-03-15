@@ -1,0 +1,25 @@
+name: Crowdin upload translations to remote
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  upload-translations-to-crowdin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      # NOTICE: Uploading local translations to Crowdin can overwrite remote changes and discard pending sync work. Run only when intentionally pushing the repo state upstream. See https://github.com/moeru-ai/airi/pull/813#issuecomment-3669328994 and https://support.crowdin.com/enterprise/github-integration/ (explained by @typed-sigterm); Mastodon follows a similar flow.
+      - uses: crowdin/github-action@v2
+        with:
+          upload_sources: false
+          upload_translations: true
+          download_translations: false
+          localization_branch_name: crowdin
+          create_pull_request: false
+          commit_message: 'chore(i18n): push translations to crowdin'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}

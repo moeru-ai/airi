@@ -1,0 +1,317 @@
+import type { Block } from 'prismarine-block'
+import type { Entity } from 'prismarine-entity'
+
+import type { Mineflayer } from '../libs/mineflayer'
+import type { PathfindProgressInfo, PathfindResult } from './patched-goto'
+
+import pathfinder from 'mineflayer-pathfinder'
+
+import { sleep } from '@moeru/std'
+import { randomInt } from 'es-toolkit'
+import { Vec3 } from 'vec3'
+
+import { useLogger } from '../utils/logger'
+import { log } from './base'
+import { patchedGoto } from './patched-goto'
+import { getNearestBlock, getNearestEntityWhere } from './world'
+
+export type { PathfindProgressInfo, PathfindResult } from './patched-goto'
+
+const logger = useLogger()
+const { goals, Movements } = pathfinder
+
+function resetNavigationMovements(mineflayer: Mineflayer): void {
+  mineflayer.bot.pathfinder.setMovements(new Movements(mineflayer.bot))
+}
+
+export async function goToPosition(
+  mineflayer: Mineflayer,
+  x: number,
+  y: number,
+  z: number,
+  minDistance = 2,
+  options: { onProgress?: (info: PathfindProgressInfo) => void } = {},
+): Promise<PathfindResult> {
+  if (x == null || y == null || z == null) {
+    log(mineflayer, `Missing coordinates, given x:${x} y:${y} z:${z}`)
+    return {
+      ok: false,
+      reason: 'error',
+      message: `Missing coordinates, given x:${x} y:${y} z:${z}`,
+      startPos: { x: 0, y: 0, z: 0 },
+      endPos: { x: 0, y: 0, z: 0 },
+      distanceTraveled: 0,
+      distanceToTarget: 0,
+      elapsedMs: 0,
+      estimatedTimeMs: 0,
+      pathCost: 0,
+    }
+  }
+
+  if (mineflayer.allowCheats) {
+    mineflayer.bot.chat(`/tp @s ${x} ${y} ${z}`)
+    log(mineflayer, `Teleported to ${x}, ${y}, ${z}.`)
+    return {
+      ok: true,
+      reason: 'success',
+      message: `Teleported to ${x}, ${y}, ${z}.`,
+      startPos: { x: 0, y: 0, z: 0 },
+      endPos: { x, y, z },
+      distanceTraveled: 0,
+      distanceToTarget: 0,
+      elapsedMs: 0,
+      estimatedTimeMs: 0,
+      pathCost: 0,
+    }
+  }
+  const targetBlock = mineflayer.bot.blockAt(new Vec3(Math.floor(x), Math.floor(y), Math.floor(z)))
+  const blockAbove1 = mineflayer.bot.blockAt(new Vec3(Math.floor(x), Math.floor(y) + 1, Math.floor(z)))
+  const blockAbove2 = mineflayer.bot.blockAt(new Vec3(Math.floor(x), Math.floor(y) + 2, Math.floor(z)))
+
+  if (targetBlock?.name !== 'air' && blockAbove1?.name === 'air' && blockAbove2?.name === 'air') {
+    // Nudge one block up so we don't dig a silly hole in the ground when using the ground block as reference
+    y += 1
+  }
+
+  resetNavigationMovements(mineflayer)
+  const result = await patchedGoto(mineflayer.bot, new goals.GoalNear(x, y, z, minDistance), {
+    onProgress: options.onProgress,
+  })
+
+  if (result.ok) {
+    log(mineflayer, `You have reached ${x}, ${y}, ${z}.`)
+  }
+  else {
+    log(mineflayer, `Navigation to ${x}, ${y}, ${z} ended: ${result.reason} — ${result.message}`)
+  }
+
+  return result
+}
+
+export async function goToNearestBlock(
+  mineflayer: Mineflayer,
+  blockType: string,
+  minDistance = 2,
+  range = 64,
+): Promise<Block> {
+  const MAX_RANGE = 512
+  if (range > MAX_RANGE) {
+    log(mineflayer, `Maximum search range capped at ${MAX_RANGE}.`)
+    range = MAX_RANGE
+  }
+
+  const block = getNearestBlock(mineflayer, blockType, range)
+  if (!block) {
+    throw new Error(`Could not find any ${blockType} in ${range} blocks.`)
+  }
+
+  log(mineflayer, `Found ${blockType} at ${block.position}.`)
+  const result = await goToPosition(mineflayer, block.position.x, block.position.y, block.position.z, minDistance)
+  if (!result.ok) {
+    throw new Error(`Failed to reach ${blockType}: ${result.reason} — ${result.message}`)
+  }
+  return block
+}
+
+export async function goToNearestEntity(
+  mineflayer: Mineflayer,
+  entityType: string,
+  minDistance = 2,
+  range = 64,
+): Promise<boolean> {
+  const entity = getNearestEntityWhere(
+    mineflayer,
+    entity => entity.name === entityType,
+    range,
+  )
+
+  if (!entity) {
+    log(mineflayer, `Could not find any ${entityType} in ${range} blocks.`)
+    return false
+  }
+
+  const distance = mineflayer.bot.entity.position.distanceTo(entity.position)
+  log(mineflayer, `Found ${entityType} ${distance} blocks away.`)
+  const result = await goToPosition(
+    mineflayer,
+    entity.position.x,
+    entity.position.y,
+    entity.position.z,
+    minDistance,
+  )
+  return result.ok
+}
+
+export async function goToPlayer(
+  mineflayer: Mineflayer,
+  username: string,
+  distance = 3,
+  options: { onProgress?: (info: PathfindProgressInfo) => void } = {},
+): Promise<PathfindResult> {
+  if (mineflayer.allowCheats) {
+    mineflayer.bot.chat(`/tp @s ${username}`)
+    log(mineflayer, `Teleported to ${username}.`)
+    return {
+      ok: true,
+      reason: 'success',
+      message: `Teleported to ${username}.`,
+      startPos: { x: 0, y: 0, z: 0 },
+      endPos: { x: 0, y: 0, z: 0 },
+      distanceTraveled: 0,
+      distanceToTarget: 0,
+      elapsedMs: 0,
+      estimatedTimeMs: 0,
+      pathCost: 0,
+    }
+  }
+
+  const player = mineflayer.bot.players[username]?.entity
+  if (!player) {
+    log(mineflayer, `Could not find ${username}.`)
+    return {
+      ok: false,
+      reason: 'error',
+      message: `Could not find ${username}.`,
+      startPos: { x: 0, y: 0, z: 0 },
+      endPos: { x: 0, y: 0, z: 0 },
+      distanceTraveled: 0,
+      distanceToTarget: 0,
+      elapsedMs: 0,
+      estimatedTimeMs: 0,
+      pathCost: 0,
+    }
+  }
+
+  resetNavigationMovements(mineflayer)
+  const result = await patchedGoto(mineflayer.bot, new goals.GoalFollow(player, distance), {
+    onProgress: options.onProgress,
+  })
+
+  if (result.ok) {
+    log(mineflayer, `You have reached ${username}.`)
+  }
+  else {
+    log(mineflayer, `Navigation to ${username} ended: ${result.reason} — ${result.message}`)
+  }
+
+  return result
+}
+
+export async function followPlayer(
+  mineflayer: Mineflayer,
+  username: string,
+  distance = 4,
+): Promise<boolean> {
+  const player = mineflayer.bot.players[username]?.entity
+  if (!player) {
+    return false
+  }
+
+  log(mineflayer, `I am now actively following player ${username}.`)
+
+  const movements = new Movements(mineflayer.bot)
+  mineflayer.bot.pathfinder.setMovements(movements)
+  mineflayer.bot.pathfinder.setGoal(new goals.GoalFollow(player, distance), true)
+
+  mineflayer.once('interrupt', () => {
+    mineflayer.bot.pathfinder.stop()
+  })
+
+  return true
+}
+
+export async function moveAway(mineflayer: Mineflayer, distance: number): Promise<boolean> {
+  try {
+    const pos = mineflayer.bot.entity.position
+    let newX: number = 0
+    let newZ: number = 0
+    let suitableGoal = false
+
+    while (!suitableGoal) {
+      const rand1 = randomInt(0, 2)
+      const rand2 = randomInt(0, 2)
+      const bigRand1 = randomInt(0, 101)
+      const bigRand2 = randomInt(0, 101)
+
+      newX = Math.floor(
+        pos.x + ((distance * bigRand1) / 100) * (rand1 ? 1 : -1),
+      )
+      newZ = Math.floor(
+        pos.z + ((distance * bigRand2) / 100) * (rand2 ? 1 : -1),
+      )
+
+      const block = mineflayer.bot.blockAt(new Vec3(newX, pos.y - 1, newZ))
+
+      if (block?.name !== 'water' && block?.name !== 'lava') {
+        suitableGoal = true
+      }
+    }
+
+    const farGoal = new pathfinder.goals.GoalXZ(newX, newZ)
+
+    const result = await patchedGoto(mineflayer.bot, farGoal)
+    const newPos = mineflayer.bot.entity.position
+    logger.log(`I moved away from nearest entity to ${newPos}.`)
+    await sleep(500)
+    return result.ok
+  }
+  catch (err) {
+    logger.log(`I failed to move away: ${(err as Error).message}`)
+    return false
+  }
+}
+
+export async function moveAwayFromEntity(
+  mineflayer: Mineflayer,
+  entity: Entity,
+  distance = 16,
+): Promise<boolean> {
+  const goal = new goals.GoalFollow(entity, distance)
+  const invertedGoal = new goals.GoalInvert(goal)
+  const result = await patchedGoto(mineflayer.bot, invertedGoal)
+  return result.ok
+}
+
+export async function stay(mineflayer: Mineflayer, seconds = 30): Promise<boolean> {
+  const start = Date.now()
+  const targetTime = seconds === -1 ? Infinity : start + seconds * 1000
+
+  while (Date.now() < targetTime) {
+    await sleep(500)
+  }
+
+  log(mineflayer, `I stayed for ${(Date.now() - start) / 1000} seconds.`)
+  return true
+}
+
+export async function goToBed(mineflayer: Mineflayer): Promise<boolean> {
+  const beds = mineflayer.bot.findBlocks({
+    matching: block => block.name.includes('bed'),
+    maxDistance: 32,
+    count: 1,
+  })
+
+  if (beds.length === 0) {
+    log(mineflayer, 'I could not find a bed to sleep in.')
+    return false
+  }
+
+  const loc = beds[0]
+  await goToPosition(mineflayer, loc.x, loc.y, loc.z)
+
+  const bed = mineflayer.bot.blockAt(loc)
+  if (!bed) {
+    log(mineflayer, 'I could not find a bed to sleep in.')
+    return false
+  }
+
+  await mineflayer.bot.sleep(bed)
+  log(mineflayer, 'I am in bed.')
+
+  while (mineflayer.bot.isSleeping) {
+    await sleep(500)
+  }
+
+  log(mineflayer, 'I have woken up.')
+  return true
+}

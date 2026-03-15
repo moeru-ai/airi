@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-load-ort-model-silero-vad"
+description = "Enables the load_ort_model_silero_vad command without any pre-configured scope."
+commands.allow = ["load_ort_model_silero_vad"]
+
+[[permission]]
+identifier = "deny-load-ort-model-silero-vad"
+description = "Denies the load_ort_model_silero_vad command without any pre-configured scope."
+commands.deny = ["load_ort_model_silero_vad"]

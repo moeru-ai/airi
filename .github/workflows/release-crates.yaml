@@ -1,0 +1,42 @@
+name: Release Crates
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  STORE_PATH: ''
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
+  packages: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y libwebkit2gtk-4.1-dev
+
+      - name: Login to crates.io
+        run: |
+          echo ${{ secrets.CRATES_IO_API_TOKEN }} | cargo login
+
+      # TODO: cargo publish --workspace is still experimental
+      - name: Crates publish
+        run: |
+          cargo publish -p tauri-plugin-mcp

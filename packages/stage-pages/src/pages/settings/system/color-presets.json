@@ -1,0 +1,55 @@
+{
+  "default": {
+    "color-1": null
+  },
+  "morandi": {
+    "color-1": "#A5978B",
+    "color-2": "#D8CAAF",
+    "color-3": "#B8B4A7",
+    "color-4": "#C4BCB1",
+    "color-5": "#E5DED8",
+    "color-6": "#9A8F7D",
+    "color-7": "#BEB5A7",
+    "color-8": "#C9C0B6"
+  },
+  "monet": {
+    "color-1": "#7A9EAF",
+    "color-2": "#B8C7CC",
+    "color-3": "#D4B79C",
+    "color-4": "#8B9D77",
+    "color-5": "#C7D5CB",
+    "color-6": "#E6D0B1",
+    "color-7": "#94A7B1",
+    "color-8": "#B4C8C3"
+  },
+  "japanese": {
+    "color-1": "#D9B48F",
+    "color-2": "#B5917A",
+    "color-3": "#8C7A6B",
+    "color-4": "#A17F5F",
+    "color-5": "#B98C46",
+    "color-6": "#C7A252",
+    "color-7": "#DAB300",
+    "color-8": "#D19826"
+  },
+  "nordic": {
+    "color-1": "#9BA7B0",
+    "color-2": "#C1CBD4",
+    "color-3": "#A5ADB6",
+    "color-4": "#8B959E",
+    "color-5": "#D4DCE4",
+    "color-6": "#7F8A94",
+    "color-7": "#B3BCC6",
+    "color-8": "#98A4AE"
+  },
+  "chinese": {
+    "color-1": "#E4C6D0",
+    "color-2": "#A61B29",
+    "color-3": "#5D513C",
+    "color-4": "#789262",
+    "color-5": "#1C0D1A",
+    "color-6": "#F7C242",
+    "color-7": "#62A9DD",
+    "color-8": "#8C4B3C"
+  }
+}

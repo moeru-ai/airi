@@ -1,0 +1,47 @@
+{
+  "name": "@proj-airi/component-calling",
+  "type": "module",
+  "private": true,
+  "description": "Realtime audio",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "apps/component-calling"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@proj-airi/ui": "workspace:^",
+    "@valibot/to-json-schema": "1.0.0-rc.0",
+    "@vueuse/core": "^14.2.1",
+    "@xsai/generate-text": "catalog:",
+    "@xsai/shared-chat": "catalog:",
+    "@xsai/stream-text": "catalog:",
+    "es-toolkit": "^1.44.0",
+    "valibot": "^1.2.0",
+    "vue": "catalog:",
+    "xsschema": "catalog:"
+  },
+  "devDependencies": {
+    "@iconify-json/solar": "^1.2.5",
+    "@iconify-json/svg-spinners": "^1.2.4",
+    "@types/xast": "^2.0.4",
+    "@unocss/reset": "^66.6.2",
+    "@vitejs/plugin-vue": "^6.0.4",
+    "superjson": "^2.2.6",
+    "unplugin-vue-router": "^0.19.2",
+    "vite": "catalog:",
+    "vue-router": "^4.6.4",
+    "vue-tsc": "^3.1.8"
+  }
+}

@@ -1,0 +1,37 @@
+root = true
+
+[*.toml]
+indent_size = 4
+indent_style = space
+max_line_length = 100
+trim_trailing_whitespace = true
+
+[*.rs]
+indent_size = 2
+indent_style = space
+max_line_length = 100
+trim_trailing_whitespace = true
+
+[*.md]
+# double whitespace at end of line
+# denotes a line break in Markdown
+trim_trailing_whitespace = false
+
+[*.{js,ts,vue,tsx,jsx,html,css,json,yaml,yml}]
+indent_size = 2
+indent_style = space
+trim_trailing_whitespace = true
+
+[*.go]
+indent_size = 4
+indent_style = tab
+trim_trailing_whitespace = true
+
+[*.proto]
+indent_size = 2
+indent_style = space
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true

@@ -1,0 +1,35 @@
+:root {
+  --bg-color-light: rgb(255 255 255);
+  --bg-color-dark: rgb(18 18 18);
+  --bg-color: var(--bg-color-light);
+
+  color-scheme: light dark;
+  background-color: var(--bg-color-dark);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 420px;
+  min-height: 100vh;
+}
+
+#app {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    background-color: var(--bg-color-light);
+  }
+}

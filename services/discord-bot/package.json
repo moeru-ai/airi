@@ -1,0 +1,40 @@
+{
+  "name": "@proj-airi/discord-bot",
+  "type": "module",
+  "private": true,
+  "description": "Discord bot for AIRI",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "services/discord-bot"
+  },
+  "scripts": {
+    "start": "tsx --env-file=.env --env-file-if-exists=.env.local src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@discordjs/voice": "^0.19.0",
+    "@guiiai/logg": "catalog:",
+    "@huggingface/transformers": "^3.8.1",
+    "@proj-airi/audio": "workspace:^",
+    "@proj-airi/server-sdk": "workspace:^",
+    "@proj-airi/server-shared": "workspace:^",
+    "@snazzah/davey": "^0.1.9",
+    "@xsai-ext/providers": "catalog:",
+    "@xsai/generate-speech": "catalog:",
+    "@xsai/generate-text": "catalog:",
+    "@xsai/generate-transcription": "catalog:",
+    "@xsai/shared-chat": "catalog:",
+    "discord.js": "^14.25.1",
+    "libsodium-wrappers": "^0.8.2",
+    "opusscript": "^0.1.1",
+    "tsx": "^4.21.0",
+    "wavefile": "^11.0.0"
+  }
+}

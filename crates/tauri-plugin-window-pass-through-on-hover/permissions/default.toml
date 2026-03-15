@@ -1,0 +1,17 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = """
+This permission set configures what kind of
+operations are available from the mcp plugin.
+
+#### Granted Permissions
+
+All operations are enabled by default.
+"""
+permissions = [
+  "allow-start-tracing-cursor",
+  "allow-stop-tracing-cursor",
+  "allow-start-pass-through",
+  "allow-stop-pass-through"
+]

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "tasks": {
+    "build": {
+      "outputs": ["dist/**"]
+    },
+    "@proj-airi/electron-vueuse#build": {
+      "dependsOn": ["@proj-airi/electron-eventa#build"],
+      "outputs": ["dist/**"]
+    }
+  }
+}

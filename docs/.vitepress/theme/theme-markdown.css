@@ -1,0 +1,8 @@
+ul.task-list-container {
+  list-style-type: none;
+}
+
+ul.task-list-container li input.task-list-item-checkbox {
+  display: inline-block;
+  margin: 0 0.25rem 0 0;
+}

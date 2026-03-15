@@ -1,0 +1,19 @@
+{
+  "recommendations": [
+    "antfu.goto-alias",
+    "antfu.iconify",
+    "antfu.pnpm-catalog-lens",
+    "antfu.unocss",
+    "dbaeumer.vscode-eslint",
+    "EditorConfig.EditorConfig",
+    "lokalise.i18n-ally",
+    "mikestead.dotenv",
+    "redhat.vscode-yaml",
+    "rust-lang.rust-analyzer",
+    "streetsidesoftware.code-spell-checker",
+    "usernamehw.errorlens",
+    "Vue.volar",
+    "vitest.explorer",
+    "yzhang.markdown-all-in-one"
+  ]
+}

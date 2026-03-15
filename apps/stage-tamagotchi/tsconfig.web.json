@@ -1,0 +1,55 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "target": "ESNext",
+    "jsx": "preserve",
+    "lib": [
+      "DOM",
+      "ESNext",
+      "DOM.Iterable",
+      "DOM.AsyncIterable"
+    ],
+    "useDefineForClassFields": true,
+    "baseUrl": "./src/renderer",
+    "paths": {
+      "@proj-airi/stage-ui/*": [
+        "../../packages/stage-ui/src/*"
+      ],
+      "@proj-airi/stage-layouts/*": [
+        "../../packages/stage-layouts/src/*"
+      ]
+    },
+    "resolveJsonModule": true,
+    "types": [
+      "vitest",
+      "vite/client",
+      "vite-plugin-vue-layouts/client",
+      "vue-macros/macros-global",
+      "unplugin-vue-router/client",
+      "@types/audioworklet",
+      "unplugin-info/client",
+      "@proj-airi/stage-shared/electron-renderer"
+    ],
+    "allowJs": true,
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "vueCompilerOptions": {
+    "plugins": [
+      "@vue-macros/volar/define-models",
+      "@vue-macros/volar/define-slots"
+    ]
+  },
+  "include": [
+    "src/renderer/**/*.ts",
+    "src/renderer/**/*.d.ts",
+    "src/renderer/**/*.tsx",
+    "src/renderer/**/*.vue",
+
+    "src/shared/**/*.ts",
+    "src/shared/**/*.d.ts",
+    "src/shared/**/*.tsx",
+    "src/shared/**/*.vue"
+  ]
+}

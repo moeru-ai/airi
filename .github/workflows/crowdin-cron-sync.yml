@@ -1,0 +1,30 @@
+name: Crowdin sync translations from remote
+
+on:
+  schedule:
+    - cron: '2 1 * * *' # random time every day
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync-transitions-from-crowdin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: crowdin/github-action@v2
+        with:
+          upload_sources: true
+          upload_translations: false
+          download_translations: true
+          localization_branch_name: crowdin
+          create_pull_request: true
+          commit_message: 'chore(i18n): update translations'
+          pull_request_title: 'chore(i18n): update translations'
+          pull_request_body: 'This PR contains updated translations from Crowdin. Created from [GitHub Actions](https://github.com/moeru-ai/airi/blob/main/.github/workflows/crowdin-cron-sync.yml).\n\n You can review the source of translations [here](https://crowdin.com/project/proj-airi)'
+          pull_request_base_branch_name: main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}

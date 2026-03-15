@@ -1,0 +1,5 @@
+export { default as Container } from './container.vue'
+export { default as Pane } from './pane.vue'
+export { default as PropertyColor } from './property-color.vue'
+export { default as PropertyNumber } from './property-number.vue'
+export { default as PropertyPoint } from './property-point.vue'

@@ -1,0 +1,27 @@
+{
+  "name": "@proj-airi/font-cjkfonts-allseto",
+  "type": "module",
+  "version": "0.9.0-alpha.16",
+  "description": "Essential CSS for font, cjkfonts 全瀨體, used by Project AIRI",
+  "author": {
+    "name": "Creators of cjkFonts",
+    "url": "https://cjkfonts.io/"
+  },
+  "license": "SIL Open Font License",
+  "homepage": "https://cjkfonts.io/blog/cjkfonts_allseto",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/font-cjkfonts-allseto"
+  },
+  "exports": {
+    ".": { "default": "./dist/index.css" },
+    "./index.css": { "default": "./dist/index.css" },
+    "./files/*": { "default": "./dist/files/*" },
+    "./files/*.ttf": { "default": "./dist/files/*.ttf" }
+  },
+  "scripts": {
+    "dev": "pnpm run build",
+    "build": "tsdown"
+  }
+}

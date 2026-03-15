@@ -1,0 +1,15 @@
+{
+  "name": "@proj-airi/ccc",
+  "type": "module",
+  "private": true,
+  "exports": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix ."
+  },
+  "dependencies": {
+    "meta-png": "^1.0.6"
+  }
+}

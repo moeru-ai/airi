@@ -1,0 +1,49 @@
+doc:
+  outline:
+    title: このページについて
+  community:
+    title: コミュニティ
+    edit:
+      title: このページを編集
+    star-github:
+      title: GitHubでスターを付ける
+    discord:
+      title: Discordでチャット
+    support:
+      title: プロジェクトを支援
+  next-page:
+    title: 次のページ
+  previous-page:
+    title: 前のページ
+home:
+  subtitle: >-
+    Neuro-samaを再構築し、AIの推しやバーチャルキャラクターを現実の世界へと招く。
+  download:
+    title: ダウンロード
+  get-started:
+    title: はじめに
+  try-live:
+    title: ライブ版を試す
+search:
+  title: 検索
+  placeholder: ドキュメントを検索…
+navbar:
+  appearance:
+    title: 外観
+  language:
+    title: 言語
+pages:
+  characters:
+    title: キャラクター
+blog:
+  title: ブログ & 開発ログ
+  subtitle: 私たちの歩みを追い、開発チームからの最新情報を受け取ろう。
+  card:
+    post:
+      read-more:
+        title: 続きを読む
+  no-posts: このカテゴリには投稿がありません。
+  categories:
+    all: すべて
+    devlog: 開発ログ
+    dreamlog: ドリームログ

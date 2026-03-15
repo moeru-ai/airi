@@ -1,0 +1,44 @@
+@import './transitions.css';
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overscroll-behavior: none;
+}
+
+html {
+  background: #fff;
+  transition: all 0.3s ease-in-out;
+}
+
+html.dark {
+  background: #121212;
+  color-scheme: dark;
+}
+
+html.htw-dark {
+  background: #27272a;
+  color: #e9e9ed;
+}
+
+#nprogress {
+  pointer-events: none;
+}
+
+#nprogress .bar {
+  background: #f472b6;
+  opacity: 0.75;
+  position: fixed;
+  z-index: 1031;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+}
+
+.primary-color-bar {
+  --at-apply: w-full h-full flex-1 flex items-center justify-center;
+}

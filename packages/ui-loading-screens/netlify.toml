@@ -1,0 +1,14 @@
+[build]
+base = "/"
+command = "pnpm -F @proj-airi/ui-loading-screens run build && pnpm -F @proj-airi/ui-loading-screens run play:build"
+publish = "/packages/ui-loading-screens/playground/dist"
+
+[build.environment]
+NODE_VERSION = "24"
+NODE_OPTIONS = "--max-old-space-size=4096"
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
+force = false

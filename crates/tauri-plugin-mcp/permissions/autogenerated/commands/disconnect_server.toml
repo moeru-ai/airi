@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-disconnect-server"
+description = "Enables the disconnect_server command without any pre-configured scope."
+commands.allow = ["disconnect_server"]
+
+[[permission]]
+identifier = "deny-disconnect-server"
+description = "Denies the disconnect_server command without any pre-configured scope."
+commands.deny = ["disconnect_server"]

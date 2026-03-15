@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-load-candle-model-whisper"
+description = "Enables the load_candle_model_whisper command without any pre-configured scope."
+commands.allow = ["load_candle_model_whisper"]
+
+[[permission]]
+identifier = "deny-load-candle-model-whisper"
+description = "Denies the load_candle_model_whisper command without any pre-configured scope."
+commands.deny = ["load_candle_model_whisper"]

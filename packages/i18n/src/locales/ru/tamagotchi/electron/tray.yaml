@@ -1,0 +1,27 @@
+menu:
+  labels:
+    label:
+      show: Показать
+      adjust_sizes: Отрегулировать размеры
+      recommended_size: Рекомендуется (450x600)
+      full_height:
+      half_height: Half Height
+      full_screen: Во весь экран
+      align_to: Align to
+      center: Center
+      top_left: Top Left
+      top_right: Top Right
+      bottom_left: Bottom Left
+      bottom_right: Bottom Right
+      settings: Settings...
+      about: About...
+      open_inlay: Open Inlay...
+      open_widgets: Open Widgets...
+      open_caption: Open Caption...
+      close_caption: Close Caption...
+      caption_overlay: Caption Overlay
+      follow_window: Follow window
+      reset_position: Reset position
+      devtools: DevTools
+      troubleshoot_beatsync: Troubleshoot BeatSync...
+      quit: Quit

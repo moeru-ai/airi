@@ -1,0 +1,46 @@
+operations:
+  load-models: Cargar Modelos
+  load-models-status:
+    loading: Cargando
+    ready: Listo
+docs:
+  theme:
+    navbar:
+      appearance:
+        title: Apariencia
+'controls-island':
+  'fade-on-hover':
+    enable: Ocultar al pasar el cursor
+    disable: Mostrar siempre
+  'open-settings': Abrir configuración
+  'open-chat': Abrir Chat
+  'refresh': Actualizar
+  'open-hearing-controls': Abrir controles de audición
+  'drag-to-move-window': Arrastra para mover la ventana
+  'switch-to-light-mode': Cambiar a modo claro
+  'switch-to-dark-mode': Cambiar a modo oscuro
+  'pin-on-top': Pin on top
+  'unpin-from-top': Unpin from top
+  'switch-profile': Switch Profile
+  'close': Close
+  'expand': Expand
+  'collapse': Collapse
+'status-island':
+  connected: WebSocket connected
+  disconnected: WebSocket disconnected
+  'open-settings': Open WebSocket settings
+notice:
+  'fade-on-hover':
+    title: Desvanecer al pasar el cursor
+    intro: Difumina el personaje automáticamente cuando el cursor está cerca. Reduce distracciones sin perder visibilidad.
+    opacity: Al activarlo, la opacidad baja a {value} para {targets} cuando el cursor está cerca.
+    toggle: Puedes desactivarlo pasando el cursor por {controls} y tocando de nuevo el {icon}.
+    controls-label: Isla de controles
+    icon-label: ícono de ojo tachado
+    value: '0'
+    targets: Personaje y UI
+    confirm: Entendido
+    dont-show-again: No volver a mostrar
+    preparing: Preparando…
+    read-more: Leer más
+    preview-title: '¿Qué es esto?'

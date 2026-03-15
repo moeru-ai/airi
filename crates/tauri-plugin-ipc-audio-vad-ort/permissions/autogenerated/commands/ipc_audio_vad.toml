@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-ipc-audio-vad"
+description = "Enables the ipc_audio_vad command without any pre-configured scope."
+commands.allow = ["ipc_audio_vad"]
+
+[[permission]]
+identifier = "deny-ipc-audio-vad"
+description = "Denies the ipc_audio_vad command without any pre-configured scope."
+commands.deny = ["ipc_audio_vad"]

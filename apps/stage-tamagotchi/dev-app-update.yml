@@ -1,0 +1,6 @@
+provider: github
+owner: moeru-ai
+repo: airi
+updaterCacheDirName: electron-app-updater
+allowPrerelease: true
+channel: nightly

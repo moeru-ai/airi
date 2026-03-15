@@ -1,0 +1,51 @@
+{
+  "name": "@proj-airi/server-runtime",
+  "type": "module",
+  "version": "0.9.0-alpha.16",
+  "description": "Server runtime implementation for AIRI running in different environments",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/server-runtime"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./server": {
+      "types": "./dist/server.d.mts",
+      "default": "./dist/server.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "bin": "./dist/bin/run.mjs",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "dev": "tsx ./src/bin/run.js",
+    "start": "tsx ./src/bin/run.js",
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "@moeru/std": "catalog:",
+    "@proj-airi/server-shared": "workspace:^",
+    "crossws": "^0.4.4",
+    "h3": "^2.0.1-rc.14",
+    "nanoid": "catalog:",
+    "srvx": "^0.11.8",
+    "superjson": "catalog:"
+  }
+}

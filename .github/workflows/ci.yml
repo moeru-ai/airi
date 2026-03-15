@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v3
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
+      - run: docker run -v `pwd`:`pwd` -w `pwd` ghcr.io/realm/swiftlint:latest
+        working-directory: ./apps/stage-pocket
+
+  build-test:
+    name: Build Test (${{ matrix.app_name }})
+    if: ${{ !(github.event_name == 'pull_request' && startsWith(github.event.pull_request.head.label, 'moeru-ai:i18n/')) }}
+    strategy:
+      matrix:
+        include:
+          - app_name: stage-web
+            command: pnpm -F @proj-airi/stage-web run build && pnpm -F @proj-airi/docs run build:base && mv ./docs/.vitepress/dist ./apps/stage-web/dist/docs && pnpm -F @proj-airi/stage-ui run story:build && mv ./packages/stage-ui/.histoire/dist ./apps/stage-web/dist/ui
+
+          - app_name: stage-tamagotchi
+            command: pnpm -F @proj-airi/stage-tamagotchi run build
+
+          - app_name: ui-transitions
+            command: pnpm -F @proj-airi/ui-transitions run play:build
+
+          - app_name: ui-loading-screens
+            command: pnpm -F @proj-airi/ui-loading-screens run play:build
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # Turborepo
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:packages
+
+      - name: Build App
+        run: ${{ matrix.command }}
+
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    if: ${{ !(github.event_name == 'pull_request' && startsWith(github.event.pull_request.head.label, 'moeru-ai:i18n/')) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      # Node.js
+      - uses: pnpm/action-setup@v3
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+
+  check-provenance:
+    name: Check Provenance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: danielroe/provenance-action@main
+        id: check
+        with:
+          fail-on-provenance-change: true # optional, default: false
+        #   lockfile: pnpm-lock.yaml      # optional
+        #   base-ref: origin/main         # optional, default: origin/main
+        #   fail-on-downgrade: true       # optional, default: true
+      - name: Print result
+        run: "echo 'Downgraded: ${{ steps.check.outputs.downgraded }}'"

@@ -1,0 +1,184 @@
+:root {
+  --background: 0 0% 100%;
+  --foreground: 207 10% 3.9%;
+
+  --card: 207 4% 100%;
+  --card-foreground: 0 10% 3.9%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 207 10% 3.9%;
+
+  --primary: 207 62% 59%;
+  --primary-foreground: 355.7 100% 97.3%;
+
+  --secondary: 207 4.8% 95.9%;
+  --secondary-foreground: 207 5.9% 10%;
+
+  --muted: 207 0% 91%;
+  --muted-foreground: 207 3.8% 46.1%;
+
+  --accent: 240 4.8% 95.9%;
+  --accent-foreground: 240 5.9% 10%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+
+  --code: 24 9.8% 10%; /*  0 0% 4%; */
+  --border: 240 5.9% 90%;
+  --input: 240 5.9% 90%;
+  --ring: 142.1 76.2% 36.3%;
+  --radius: 0.5rem;
+}
+
+[data-reka-popper-content-wrapper=""] {
+  z-index: 9999 !important;
+}
+
+.dark {
+  --background: 207 15% 5%;
+  --foreground: 0 0% 95%;
+
+  --card: 207 9.8% 10%;
+  --card-foreground: 0 0% 95%;
+
+  --popover: 0 0% 9%;
+  --popover-foreground: 207 0% 95%;
+
+  --primary: 207 62% 59%;
+  --primary-foreground: 144.9 80.4% 10%;
+
+  --secondary: 207 3.7% 15.9%;
+  --secondary-foreground: 0 0% 98%;
+
+  --muted: 207 0% 15%;
+  --muted-foreground: 207 2.6% 62.9%;
+
+  --accent: 12 6.5% 15.1%;
+  --accent-foreground: 0 0% 98%;
+
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 85.7% 97.3%;
+
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --ring: 142.4 71.8% 29.2%;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  font-variation-settings: normal;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-background text-foreground min-h-screen antialiased transition-colors duration-200 ease-in-out;
+  /* font-feature-settings: "rlig" 1, "calt" 1; */
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
+  transition: background-color 0.2s ease-in-out;
+}
+
+/* Mobile tap highlight */
+/* https://developer.mozilla.org/en-US/docs/Web/CSS/-webkit-tap-highlight-color */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+*:focus-visible {
+  @apply outline-primary;
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.3);
+}
+
+.step {
+		counter-increment: step;
+	}
+
+	.step:before {
+		@apply absolute w-9 h-9 bg-muted rounded-full font-mono font-medium text-center text-base inline-flex items-center justify-center -indent-px border-4 border-background;
+		@apply -ml-[50px] -mt-1;
+		content: counter(step);
+	}
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+@media (max-width: 640px) {
+	.container {
+		@apply px-4;
+	}
+}
+
+input {
+  @apply bg-foreground;
+}
+
+mark {
+  @apply bg-transparent text-foreground font-semibold;
+}
+
+[class*="language"] {
+  @apply relative mb-4;
+
+  & .lang {
+    @apply hidden;
+  }
+
+  /* Better impl for custom copy button */
+  & .copy {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='rgba(128,128,128,1)' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' viewBox='0 0 24 24'%3E%3Crect width='8' height='4' x='8' y='2' rx='1' ry='1'/%3E%3Cpath d='M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2'/%3E%3C/svg%3E");
+    background-size: 16px;
+    background-position: 50% center;
+    background-repeat: no-repeat;
+    transition: border-color 0.25s ease 0s, background-color 0.25s ease 0s, opacity 0.25s ease 0s;
+    @apply absolute top-2 right-2 w-9 h-9 rounded-lg;
+  }
+
+  & .copied {
+    background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxZW0iIGhlaWdodD0iMWVtIiB2aWV3Qm94PSIwIDAgMjQgMjQiPjxwYXRoIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzg4ODg4OCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2Utd2lkdGg9IjIiIGQ9Ik0yMCA2TDkgMTdsLTUtNSIvPjwvc3ZnPg==");
+  }
+}
+
+.step {
+	counter-increment: step;
+}
+
+.step:before {
+  @apply absolute w-9 h-9 bg-muted rounded-lg font-mono font-medium text-center text-base inline-flex items-center justify-center -indent-px border-4 border-background;
+  @apply -ml-[50px] -mt-1;
+  content: counter(step);
+}
+
+main .prose :where(details):not(:where(.not-prose,.not-prose *)) {
+  border-radius: 12px;
+}
+
+pre.shiki {
+  border-radius: 12px;
+  background-color: var(--shiki-light-bg);
+}
+
+.dark pre.shiki {
+  background-color: var(--shiki-dark-bg);
+}
+
+pre.shiki code span {
+  color: var(--shiki-light);
+}
+
+.dark pre.shiki code span {
+  color: var(--shiki-dark);
+}
