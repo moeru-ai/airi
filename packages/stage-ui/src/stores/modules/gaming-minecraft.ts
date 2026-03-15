@@ -127,7 +127,11 @@ export const useMinecraftStore = defineStore('minecraft', () => {
     lastError.value = payload.lastError ?? ''
     remoteConfig.value = payload.editableConfig
 
-    if (!hadRemoteConfig || !dirty.value || applying.value) {
+    const shouldSyncDraft = !hadRemoteConfig
+      || !dirty.value
+      || (applying.value && equalConfig(payload.editableConfig, draftConfig.value))
+
+    if (shouldSyncDraft) {
       loadRemoteConfig()
     }
 

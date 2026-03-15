@@ -160,4 +160,74 @@ describe('useMinecraftStore', () => {
 
     vi.useRealTimers()
   })
+
+  it('does not clobber the local draft when a stale heartbeat arrives during apply', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(1))
+
+    const { useMinecraftStore } = await import('./gaming-minecraft')
+    const store = useMinecraftStore()
+
+    let handler: ((event: any) => void) | undefined
+    onContextUpdate.mockImplementation((callback: (event: any) => void) => {
+      handler = callback
+      return () => {}
+    })
+
+    store.initialize()
+
+    handler?.({
+      data: {
+        lane: 'minecraft:status',
+        content: {
+          serviceName: 'minecraft-bot',
+          botState: 'connected',
+          editableConfig: {
+            enabled: true,
+            host: 'mc.example.com',
+            port: 25565,
+            username: 'airi-bot',
+          },
+          updatedAt: 1,
+        },
+      },
+      metadata: {
+        source: {
+          plugin: { id: 'minecraft-bot' },
+          id: 'minecraft-bot-instance',
+        },
+      },
+    })
+
+    store.username = 'saved-bot'
+    await store.saveAndApply()
+
+    handler?.({
+      data: {
+        lane: 'minecraft:status',
+        content: {
+          serviceName: 'minecraft-bot',
+          botState: 'connected',
+          editableConfig: {
+            enabled: true,
+            host: 'mc.example.com',
+            port: 25565,
+            username: 'airi-bot',
+          },
+          updatedAt: 2,
+        },
+      },
+      metadata: {
+        source: {
+          plugin: { id: 'minecraft-bot' },
+          id: 'minecraft-bot-instance',
+        },
+      },
+    })
+
+    expect(store.username).toBe('saved-bot')
+    expect(store.applying).toBe(true)
+
+    vi.useRealTimers()
+  })
 })
