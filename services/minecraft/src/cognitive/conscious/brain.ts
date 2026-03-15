@@ -414,6 +414,24 @@ export class Brain {
     this.deps.taskExecutor.on('action:failed', this.onActionFailed)
 
     this.deps.logger.log('INFO', 'Brain: Online.')
+
+    // Report bot startup state to AIRI
+    const pos = bot.bot.entity?.position
+    const posStr = pos ? `x: ${pos.x.toFixed(1)}, y: ${pos.y.toFixed(1)}, z: ${pos.z.toFixed(1)}` : 'unknown'
+    const health = bot.bot.health ?? 20
+    const gameMode = bot.bot.game?.gameMode ?? 'unknown'
+    const otherPlayers = Object.keys(bot.bot.players ?? {}).filter(n => n !== bot.username)
+    const playersStr = otherPlayers.length > 0 ? otherPlayers.join(', ') : 'none'
+    this.deps.airiBridge.sendContextUpdate(
+      [
+        `Bot online: ${bot.username}`,
+        `Server: ${config.bot.host}:${config.bot.port}`,
+        `Position: ${posStr}`,
+        `Health: ${health}/20, Mode: ${gameMode}`,
+        `Other players online: ${playersStr}`,
+      ].join('\n'),
+      ['startup', bot.username],
+    )
   }
 
   public destroy(): void {
