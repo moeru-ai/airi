@@ -83,6 +83,26 @@ function logWarn(...args: unknown[]) {
   }
 }
 
+function normalizeProviderBaseUrl(value: unknown): string {
+  const trimmed = typeof value === 'string' ? value.trim() : ''
+  if (!trimmed)
+    return ''
+
+  return trimmed.endsWith('/') ? trimmed : `${trimmed}/`
+}
+
+function toV1SpeechBaseUrl(value: unknown): string {
+  const normalized = normalizeProviderBaseUrl(value)
+  if (!normalized)
+    return ''
+
+  return normalized.endsWith('/v1/') ? normalized : `${normalized}v1/`
+}
+
+function toProviderRootBaseUrl(value: unknown): string {
+  return toV1SpeechBaseUrl(value).replace(/\/v1\/$/, '/')
+}
+
 const ALIYUN_NLS_REGIONS = [
   'cn-shanghai',
   'cn-shanghai-internal',
@@ -685,6 +705,143 @@ export const useProvidersStore = defineStore('providers', () => {
       },
       creator: createOpenAI,
     }),
+    'chatterbox': buildOpenAICompatibleProvider({
+      id: 'chatterbox',
+      name: 'Chatterbox',
+      nameKey: 'settings.pages.providers.provider.chatterbox.title',
+      descriptionKey: 'settings.pages.providers.provider.chatterbox.description',
+      icon: 'i-solar:microphone-3-bold-duotone',
+      description: 'Local Chatterbox TTS server with preset-aware voice management.',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      defaultBaseUrl: 'http://127.0.0.1:8090/v1/',
+      capabilities: {
+        listVoices: async (config: Record<string, unknown>) => {
+          const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+          const apiBaseUrl = toV1SpeechBaseUrl(config.baseUrl)
+          if (!apiBaseUrl)
+            return []
+
+          try {
+            const response = await fetch(`${apiBaseUrl}voices`, {
+              headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+            })
+            if (!response.ok)
+              return []
+
+            const data = await response.json()
+            const voices = Array.isArray(data?.voices) ? data.voices : []
+            return voices.map((voice: any) => ({
+              id: voice.voice_id || voice.id || voice.name,
+              name: voice.name || voice.voice_id || voice.id,
+              provider: 'chatterbox',
+              description: voice.type === 'virtual' ? 'Preset voice' : 'Native voice',
+              previewURL: voice.preview_url || voice.preview_audio_url,
+              languages: [{ code: 'en', title: 'English' }],
+              gender: voice.gender || voice.labels?.gender,
+            }) satisfies VoiceInfo)
+          }
+          catch (error) {
+            logWarn('Failed to fetch Chatterbox voices:', error)
+            return []
+          }
+        },
+        listModels: async (config: Record<string, unknown>) => {
+          const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+          const apiBaseUrl = toV1SpeechBaseUrl(config.baseUrl)
+          if (!apiBaseUrl) {
+            return [{
+              id: 'chatterbox',
+              name: 'Chatterbox',
+              provider: 'chatterbox',
+              description: 'Chatterbox speech generation',
+              contextLength: 0,
+              deprecated: false,
+            }]
+          }
+
+          try {
+            const response = await fetch(`${apiBaseUrl}models`, {
+              headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+            })
+            if (!response.ok)
+              throw new Error(`HTTP ${response.status}`)
+
+            const data = await response.json()
+            const models = Array.isArray(data?.data) ? data.data : []
+            if (models.length > 0) {
+              return models.map((model: any) => ({
+                id: model.id,
+                name: model.name || model.display_name || model.id,
+                provider: 'chatterbox',
+                description: model.description || 'Chatterbox speech generation',
+                contextLength: model.context_length || 0,
+                deprecated: false,
+              }) satisfies ModelInfo)
+            }
+          }
+          catch (error) {
+            logWarn('Failed to fetch Chatterbox models:', error)
+          }
+
+          return [{
+            id: 'chatterbox',
+            name: 'Chatterbox',
+            provider: 'chatterbox',
+            description: 'Chatterbox speech generation',
+            contextLength: 0,
+            deprecated: false,
+          }]
+        },
+      },
+      validators: {
+        validateProviderConfig: async (config: Record<string, unknown>) => {
+          const errors: Error[] = []
+          const baseUrl = toV1SpeechBaseUrl(config.baseUrl)
+          const rootBaseUrl = toProviderRootBaseUrl(config.baseUrl)
+          const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+
+          if (!baseUrl) {
+            errors.push(new Error('Base URL is required'))
+          }
+          else if (!isUrl(baseUrl)) {
+            errors.push(new Error('Base URL is invalid. It must be an absolute URL.'))
+          }
+
+          if (errors.length > 0) {
+            return {
+              errors,
+              reason: errors.map(error => error.message).join(', '),
+              valid: false,
+            }
+          }
+
+          try {
+            const response = await fetch(`${rootBaseUrl}chatterbox/capabilities`, {
+              headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+            })
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}`)
+            }
+          }
+          catch (error) {
+            const connectivityError = new Error(`Capabilities check failed: ${(error as Error).message}`)
+            return {
+              errors: [connectivityError],
+              reason: connectivityError.message,
+              valid: false,
+            }
+          }
+
+          return {
+            errors: [],
+            reason: '',
+            valid: true,
+          }
+        },
+      },
+      creator: createOpenAI,
+    }),
     'openai-audio-transcription': buildOpenAICompatibleProvider({
       id: 'openai-audio-transcription',
       name: 'OpenAI',
@@ -1047,8 +1204,14 @@ export const useProvidersStore = defineStore('providers', () => {
           }
 
           // Rearrange — move Aria & Bill range to the end
-          const lo = Math.min(...['Aria', 'Bill'].map((n) => { const i = voices.findIndex(v => v.name.includes(n)); return i !== -1 ? i : voices.length - 1 }))
-          const hi = Math.max(...['Aria', 'Bill'].map((n) => { const i = voices.findIndex(v => v.name.includes(n)); return i !== -1 ? i : 0 }))
+          const lo = Math.min(...['Aria', 'Bill'].map((n) => {
+            const i = voices.findIndex(v => v.name.includes(n))
+            return i !== -1 ? i : voices.length - 1
+          }))
+          const hi = Math.max(...['Aria', 'Bill'].map((n) => {
+            const i = voices.findIndex(v => v.name.includes(n))
+            return i !== -1 ? i : 0
+          }))
           return [...voices.slice(0, lo), ...voices.slice(hi + 1), ...voices.slice(lo, hi + 1)]
         },
       },

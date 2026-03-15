@@ -791,6 +791,9 @@ pages:
       openai-compatible:
         description: OpenAI Compatible
         title: OpenAI Compatible
+      chatterbox:
+        description: Local Chatterbox TTS server
+        title: Chatterbox
       nvidia:
         description: build.nvidia.com
         title: NVIDIA NIM
