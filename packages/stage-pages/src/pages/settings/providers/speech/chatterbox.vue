@@ -20,6 +20,25 @@ interface ChatterboxCapabilities {
   voices: string[]
   profiles: string[]
   modes: string[]
+  speech?: {
+    supportsPresets?: boolean
+    supportsExpressionTags?: boolean
+    supportsMannerisms?: boolean
+    expressionTags?: ChatterboxExpressionTag[]
+    mannerisms?: ChatterboxMannerism[]
+  }
+}
+
+interface ChatterboxExpressionTag {
+  category: string
+  tag: string
+  description?: string
+}
+
+interface ChatterboxMannerism {
+  id: string
+  label: string
+  description?: string
 }
 
 interface ChatterboxEmoticonRule {
@@ -43,39 +62,6 @@ interface ChatterboxProfileDraft {
   tilde: string[]
   emoticonRules: ChatterboxEmoticonRule[]
 }
-
-const allSupportedTags = [
-  '[laughter]',
-  '[giggle]',
-  '[guffaw]',
-  '[sigh]',
-  '[gasp]',
-  '[groan]',
-  '[cry]',
-  '[mumble]',
-  '[whisper]',
-  '[meow]',
-  '[bark]',
-  '[howl]',
-  '[sneeze]',
-  '[cough]',
-  '[clear_throat]',
-  '[sniff]',
-  '[snore]',
-  '[chew]',
-  '[sip]',
-  '[kiss]',
-  '[shhh]',
-  '[humming]',
-  '[singing]',
-  '[music]',
-  '[whistle]',
-  '[exhale]',
-  '[inhale]',
-  '[gibberish]',
-]
-
-const allMannerismKeys = ['tilde', 'eyes', 'hmph']
 
 const providerId = 'chatterbox'
 const defaultModel = 'chatterbox'
@@ -148,6 +134,23 @@ const modeOptions = computed(() =>
     label: item,
   })),
 )
+
+const expressionTags = computed(() => capabilities.value?.speech?.expressionTags || [])
+const groupedExpressionTags = computed(() => {
+  const groups = new Map<string, ChatterboxExpressionTag[]>()
+  for (const tag of expressionTags.value) {
+    const category = tag.category || 'other'
+    const existing = groups.get(category) || []
+    existing.push(tag)
+    groups.set(category, existing)
+  }
+  return Array.from(groups.entries()).map(([category, tags]) => ({
+    category,
+    tags,
+  }))
+})
+
+const mannerismCapabilities = computed(() => capabilities.value?.speech?.mannerisms || [])
 
 const profileOptions = computed(() =>
   (capabilities.value?.profiles || []).map(item => ({
@@ -255,11 +258,11 @@ function applyProfileDraft(seed?: Partial<ChatterboxProfileDraft>) {
 }
 
 function applyAllTags() {
-  draft.value.ui_expressions = [...allSupportedTags]
+  draft.value.ui_expressions = expressionTags.value.map(tag => `[${tag.tag}]`)
 }
 
 function applyAllMannerisms() {
-  draft.value.ui_mannerisms = [...allMannerismKeys]
+  draft.value.ui_mannerisms = mannerismCapabilities.value.map(item => item.id)
 }
 
 function buildStudioHeaders(): Record<string, string> {
@@ -363,6 +366,13 @@ async function refreshStudioData() {
       voices: capabilitiesResult.value.voices || [],
       profiles: capabilitiesResult.value.profiles || [],
       modes: capabilitiesResult.value.modes || [],
+      speech: {
+        supportsPresets: capabilitiesResult.value.speech?.supportsPresets ?? true,
+        supportsExpressionTags: capabilitiesResult.value.speech?.supportsExpressionTags ?? false,
+        supportsMannerisms: capabilitiesResult.value.speech?.supportsMannerisms ?? false,
+        expressionTags: capabilitiesResult.value.speech?.expressionTags || [],
+        mannerisms: capabilitiesResult.value.speech?.mannerisms || [],
+      },
     }
   }
   else {
@@ -788,6 +798,49 @@ const {
                     </span>
                   </div>
                 </div>
+
+                <div v-if="groupedExpressionTags.length > 0">
+                  <div class="mb-1 text-xs font-semibold uppercase opacity-60">
+                    Expression Tags
+                  </div>
+                  <div class="flex flex-col gap-2">
+                    <div
+                      v-for="group in groupedExpressionTags"
+                      :key="group.category"
+                      class="rounded-xl bg-neutral-50 p-2 dark:bg-neutral-950"
+                    >
+                      <div class="mb-2 text-[11px] font-semibold uppercase opacity-60">
+                        {{ group.category }}
+                      </div>
+                      <div class="flex flex-wrap gap-1.5">
+                        <span
+                          v-for="item in group.tags"
+                          :key="`${group.category}:${item.tag}`"
+                          class="rounded-full bg-neutral-100 px-2 py-1 text-xs dark:bg-neutral-800"
+                          :title="item.description || ''"
+                        >
+                          [{{ item.tag }}]
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="mannerismCapabilities.length > 0">
+                  <div class="mb-1 text-xs font-semibold uppercase opacity-60">
+                    Mannerisms
+                  </div>
+                  <div class="flex flex-wrap gap-1.5">
+                    <span
+                      v-for="item in mannerismCapabilities"
+                      :key="item.id"
+                      class="rounded-full bg-neutral-100 px-2 py-1 text-xs dark:bg-neutral-800"
+                      :title="item.description || ''"
+                    >
+                      {{ item.label }}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -910,7 +963,7 @@ const {
                     class="w-full border border-neutral-200 rounded-xl bg-neutral-50 px-3 py-2 text-sm outline-none dark:border-neutral-800 dark:bg-neutral-950"
                     placeholder="[whisper], [sigh], [gasp]"
                   />
-                  <span class="text-xs opacity-70">Use square-bracket sound tags like <code>[whisper]</code> or <code>[gasp]</code>. These tags tell Chatterbox how the line should sound when spoken.</span>
+                  <span class="text-xs opacity-70">Use square-bracket sound tags like <code>[whisper]</code> or <code>[gasp]</code>. These tags now come from the server capabilities contract and are grouped by category in the runtime overview.</span>
                 </label>
 
                 <label class="flex flex-col gap-2">
@@ -926,7 +979,7 @@ const {
                     class="w-full border border-neutral-200 rounded-xl bg-neutral-50 px-3 py-2 text-sm outline-none dark:border-neutral-800 dark:bg-neutral-950"
                     placeholder="~, 0_0"
                   />
-                  <span class="text-xs opacity-70">These are the trigger families a profile can react to. For example, a profile might replace <code>~</code>, emoticons, or hmph-like interjections with a character-specific sound or phrase.</span>
+                  <span class="text-xs opacity-70">These are normalized trigger families the runtime exposes to AIRI. For example, a profile might react to <code>tilde</code>, emoticon replacements, or hmph-style interjections.</span>
                 </label>
               </div>
 
