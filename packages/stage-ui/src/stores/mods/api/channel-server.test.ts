@@ -35,6 +35,11 @@ class FakeClient {
   }
 
   emit(event: string, payload: any) {
+    this.options.onAnyMessage?.({
+      type: event,
+      ...payload,
+    })
+
     for (const listener of this.listeners.get(event) ?? []) {
       listener(payload)
     }
@@ -131,6 +136,43 @@ describe('useModsServerChannelStore', () => {
     })
 
     expect(handler).toHaveBeenCalledTimes(2)
+  })
+
+  it('replays the latest registry sync to listeners that register after authentication', async () => {
+    const { useModsServerChannelStore } = await import('./channel-server')
+    const store = useModsServerChannelStore()
+    const initializePromise = store.initialize()
+
+    const client = createdClients.at(-1)
+    expect(client).toBeDefined()
+
+    client!.emit('module:authenticated', {
+      data: { authenticated: true },
+    })
+    await initializePromise
+    client!.emit('registry:modules:sync', {
+      data: {
+        modules: [{
+          name: 'minecraft-bot',
+          identity: { kind: 'plugin', plugin: { id: 'minecraft-bot' } },
+        }],
+      },
+      metadata: {
+        source: { kind: 'server' },
+      },
+    })
+
+    const handler = vi.fn()
+    store.onEvent('registry:modules:sync', handler as any)
+
+    expect(handler).toHaveBeenCalledTimes(1)
+    expect(handler).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        modules: expect.arrayContaining([
+          expect.objectContaining({ name: 'minecraft-bot' }),
+        ]),
+      }),
+    }))
   })
 
   it('does not bind disposed listeners on a later connection', async () => {

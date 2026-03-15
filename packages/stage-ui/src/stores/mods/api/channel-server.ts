@@ -15,6 +15,14 @@ interface ChannelListenerEntry {
   boundClient?: Client
 }
 
+const REPLAYABLE_EVENT_TYPES = new Set<keyof WebSocketEvents>([
+  'module:announced',
+  'module:de-announced',
+  'registry:modules:health:healthy',
+  'registry:modules:health:unhealthy',
+  'registry:modules:sync',
+])
+
 export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:server', () => {
   const connected = ref(false)
   const client = ref<Client>()
@@ -24,6 +32,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   const defaultWebSocketUrl = import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws'
   const websocketUrl = useLocalStorage('settings/connection/websocket-url', defaultWebSocketUrl)
   const registeredListeners: ChannelListenerEntry[] = []
+  const replayableEvents = new Map<keyof WebSocketEvents, WebSocketBaseEvent<any, any>>()
 
   const basePossibleEvents: Array<keyof WebSocketEvents> = [
     'context:update',
@@ -65,6 +74,9 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
         token: options?.token,
         possibleEvents,
         onAnyMessage: (event) => {
+          if (REPLAYABLE_EVENT_TYPES.has(event.type as keyof WebSocketEvents))
+            replayableEvents.set(event.type as keyof WebSocketEvents, event as WebSocketBaseEvent<any, any>)
+
           useWebSocketInspectorStore().add('incoming', event)
         },
         onAnySend: (event) => {
@@ -74,6 +86,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           connected.value = false
           initializing.value = null
           clearListeners()
+          replayableEvents.clear()
 
           console.warn('WebSocket server connection error:', error)
         },
@@ -81,6 +94,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           connected.value = false
           initializing.value = null
           clearListeners()
+          replayableEvents.clear()
 
           console.warn('WebSocket server connection closed')
         },
@@ -148,6 +162,10 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     registeredListeners.push(entry)
     initializeListeners()
 
+    const replayableEvent = replayableEvents.get(type)
+    if (replayableEvent)
+      void Promise.resolve(callback(replayableEvent as WebSocketBaseEvent<E, WebSocketEvents[E]>))
+
     return () => {
       const index = registeredListeners.indexOf(entry)
       if (index >= 0)
@@ -199,6 +217,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   function dispose() {
     flush()
     clearListeners()
+    replayableEvents.clear()
 
     if (client.value) {
       client.value.close()
