@@ -22,6 +22,21 @@ export type ActionKind
     | 'wait'
     | 'terminal_exec'
     | 'terminal_reset'
+    | 'coding_review_workspace'
+    | 'coding_read_file'
+    | 'coding_apply_patch'
+    | 'coding_compress_context'
+    | 'coding_report_status'
+    | 'coding_search_text'
+    | 'coding_search_symbol'
+    | 'coding_find_references'
+    | 'coding_analyze_impact'
+    | 'coding_validate_hypothesis'
+    | 'coding_select_target'
+    | 'coding_plan_changes'
+    | 'coding_review_changes'
+    | 'coding_diagnose_changes'
+    | 'coding_capture_validation_baseline'
 export type ApprovalGrantScope = 'terminal_and_apps' | 'pty_session'
 
 // ---------------------------------------------------------------------------
@@ -240,6 +255,73 @@ export interface TerminalResetActionInput {
   reason?: string
 }
 
+export interface CodingSearchTextActionInput {
+  query: string
+  targetPath?: string
+  glob?: string
+  limit?: number
+}
+
+export interface CodingSearchSymbolActionInput {
+  symbolName: string
+  targetPath?: string
+  glob?: string
+  limit?: number
+}
+
+export interface CodingFindReferencesActionInput {
+  filePath: string
+  targetLine: number
+  targetColumn: number
+  limit?: number
+}
+
+export interface CodingSelectTargetActionInput {
+  targetFile?: string
+  targetPath?: string
+  targetSymbol?: string
+  searchQuery?: string
+  changeIntent?: 'behavior_fix' | 'refactor' | 'api_change' | 'config_change' | 'test_fix'
+}
+
+export interface CodingPlanChangesActionInput {
+  intent: string
+  allowMultiFile?: boolean
+  maxPlannedFiles?: number
+  changeIntent?: 'behavior_fix' | 'refactor' | 'api_change' | 'config_change' | 'test_fix'
+  sessionAware?: boolean
+}
+
+export interface CodingReviewChangesActionInput {
+  currentFilePath?: string
+}
+
+export interface CodingAnalyzeImpactActionInput {
+  targetFile?: string
+  targetPath?: string
+  targetSymbol?: string
+  searchQuery?: string
+  maxDepth?: number
+}
+
+export interface CodingValidateHypothesisActionInput {
+  targetFile?: string
+  targetPath?: string
+  targetSymbol?: string
+  searchQuery?: string
+  changeIntent: 'behavior_fix' | 'refactor' | 'api_change' | 'config_change' | 'test_fix'
+}
+
+export interface CodingDiagnoseChangesActionInput {
+  currentFilePath?: string
+  validationOutput?: string
+}
+
+export interface CodingCaptureValidationBaselineActionInput {
+  workspacePath?: string
+  createTemporaryWorktree?: boolean
+}
+
 export interface PtyCreateApprovalInput {
   rows?: number
   cols?: number
@@ -326,6 +408,16 @@ export type ActionInvocation
     | { kind: 'coding_apply_patch', input: { filePath: string, oldString: string, newString: string } }
     | { kind: 'coding_compress_context', input: { goal: string, filesSummary: string, recentResultSummary: string, unresolvedIssues: string, nextStepRecommendation: string } }
     | { kind: 'coding_report_status', input: { status: 'completed' | 'in_progress' | 'blocked' | 'failed' | 'auto', summary: string, filesTouched: string[], commandsRun: string[], checks: string[], nextStep: string } }
+    | { kind: 'coding_search_text', input: CodingSearchTextActionInput }
+    | { kind: 'coding_search_symbol', input: CodingSearchSymbolActionInput }
+    | { kind: 'coding_find_references', input: CodingFindReferencesActionInput }
+    | { kind: 'coding_analyze_impact', input: CodingAnalyzeImpactActionInput }
+    | { kind: 'coding_validate_hypothesis', input: CodingValidateHypothesisActionInput }
+    | { kind: 'coding_select_target', input: CodingSelectTargetActionInput }
+    | { kind: 'coding_plan_changes', input: CodingPlanChangesActionInput }
+    | { kind: 'coding_review_changes', input: CodingReviewChangesActionInput }
+    | { kind: 'coding_diagnose_changes', input: CodingDiagnoseChangesActionInput }
+    | { kind: 'coding_capture_validation_baseline', input: CodingCaptureValidationBaselineActionInput }
     | { kind: 'scroll', input: ScrollActionInput }
     | { kind: 'wait', input: WaitActionInput }
     | { kind: 'terminal_exec', input: TerminalExecActionInput }
