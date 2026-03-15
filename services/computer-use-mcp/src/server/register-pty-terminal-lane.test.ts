@@ -368,6 +368,21 @@ describe('register-pty: terminal lane', () => {
       expect(writeToPty).toHaveBeenCalledWith('pty_1', { data: 'ls\r' })
       expect((result.structuredContent as Record<string, any>).status).toBe('ok')
     })
+
+    it('pty_write reports its own operation name in grant errors', async () => {
+      runtime.config = createTestConfig({ approvalMode: 'actions' })
+      const { server, invoke } = createMockServer()
+      registerPtyTools({ server, runtime })
+
+      const result = await invoke('pty_write', {
+        sessionId: 'pty_missing',
+        data: 'ls\r',
+        approvalSessionId: 'approval_1',
+      })
+
+      expect(result.isError).toBe(true)
+      expect((result.structuredContent as Record<string, any>).operation).toBe('pty_write')
+    })
   })
 
   // -----------------------------------------------------------------------

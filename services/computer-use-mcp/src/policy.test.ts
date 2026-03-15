@@ -176,4 +176,28 @@ describe('evaluateActionPolicy', () => {
 
     expect(decision.allowed).toBe(true)
   })
+
+  it('denies app actions on the legacy linux-x11 executor', () => {
+    const decision = evaluateActionPolicy({
+      action: {
+        kind: 'focus_app',
+        input: {
+          app: 'Terminal',
+        },
+      },
+      config: {
+        ...baseConfig,
+        executor: 'linux-x11',
+      },
+      context: {
+        available: false,
+        platform: 'linux',
+      },
+      operationsExecuted: 0,
+      operationUnitsConsumed: 0,
+    })
+
+    expect(decision.allowed).toBe(false)
+    expect(decision.reasons[0]).toContain('linux-x11 executor does not support app open/focus actions')
+  })
 })

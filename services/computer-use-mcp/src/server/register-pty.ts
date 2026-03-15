@@ -339,11 +339,10 @@ export function registerPtyTools({ server, runtime }: RegisterPtyToolsOptions) {
     },
   )
 
-  // pty_send_input — primary name for writing to PTY
-  const sendInputHandler = async ({ sessionId, data, approvalSessionId }: { sessionId: string, data: string, approvalSessionId?: string }) => {
+  const createSendInputHandler = (toolName: 'pty_send_input' | 'pty_write') => async ({ sessionId, data, approvalSessionId }: { sessionId: string, data: string, approvalSessionId?: string }) => {
     const grantError = requirePtyGrant({
       runtime,
-      operation: 'pty_send_input',
+      operation: toolName,
       sessionId,
       approvalSessionId,
     })
@@ -393,9 +392,9 @@ export function registerPtyTools({ server, runtime }: RegisterPtyToolsOptions) {
   }
 
   // Primary name
-  server.tool('pty_send_input', sendInputSchema, sendInputHandler)
+  server.tool('pty_send_input', sendInputSchema, createSendInputHandler('pty_send_input'))
   // Compat alias — kept for backward compatibility, not the canonical name
-  server.tool('pty_write', sendInputSchema, sendInputHandler)
+  server.tool('pty_write', sendInputSchema, createSendInputHandler('pty_write'))
 
   server.tool(
     'pty_read_screen',

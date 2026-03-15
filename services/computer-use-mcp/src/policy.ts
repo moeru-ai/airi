@@ -152,6 +152,11 @@ export function evaluateActionPolicy(params: {
   }
 
   if (params.action.kind === 'open_app' || params.action.kind === 'focus_app') {
+    if (params.config.executor === 'linux-x11') {
+      reasons.push('linux-x11 executor does not support app open/focus actions in this legacy path')
+      allowed = false
+    }
+
     const resolvedApp = resolveConfiguredOpenableApp(params.action.input.app, params.config.openableApps)
     if (!resolvedApp) {
       reasons.push(`app is not in COMPUTER_USE_OPENABLE_APPS: ${params.action.input.app}`)
