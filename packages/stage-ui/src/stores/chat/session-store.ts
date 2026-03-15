@@ -10,11 +10,13 @@ import { useLocalFirstRequest } from '../../composables/use-local-first'
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
+import { useSettingsGeneral } from '../settings'
 import { mergeLoadedSessionMessages } from './session-message-merge'
 
 export const useChatSessionStore = defineStore('chat-session', () => {
   const { userId, isAuthenticated } = storeToRefs(useAuthStore())
   const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
+  const { remoteSyncEnabled } = storeToRefs(useSettingsGeneral())
 
   const activeSessionId = ref<string>('')
   const sessionMessages = ref<Record<string, ChatHistoryItem[]>>({})
@@ -155,7 +157,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           throw new Error('Failed to sync chat session')
         return cachedRecord
       },
-      allowRemote: () => isAuthenticated.value,
+      allowRemote: () => remoteSyncEnabled.value && isAuthenticated.value,
       lazy: true,
     })
 
@@ -163,6 +165,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   function scheduleSync(sessionId: string) {
+    if (!remoteSyncEnabled.value)
+      return
+
     void enqueueSync(async () => {
       try {
         await syncSessionToRemote(sessionId)

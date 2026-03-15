@@ -50,6 +50,12 @@ language:
   description: >
     Change the language of the AIRI interface. This will not affect the language
     of the character's responses.
+privacy:
+  remote-sync:
+    title: Enable Cloud Sync
+    description: >-
+      Off by default. When disabled, AIRI stays local-only and will not fetch a
+      remote session or sync chat history to airi-api.moeru.ai.
 controls-island:
   icon-size:
     title: Controls Island Icon Size

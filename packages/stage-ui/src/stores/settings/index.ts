@@ -50,6 +50,7 @@ export const useSettings = defineStore('settings', () => {
     disableTransitions: generalRefs.disableTransitions,
     usePageSpecificTransitions: generalRefs.usePageSpecificTransitions,
     language: generalRefs.language,
+    remoteSyncEnabled: generalRefs.remoteSyncEnabled,
     websocketSecureEnabled: generalRefs.websocketSecureEnabled,
 
     // Stage model settings

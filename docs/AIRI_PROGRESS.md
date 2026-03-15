@@ -1,15 +1,11 @@
 ### 2026-03-14 - TTS Routing Fixed & Core IPC Restored
 
-- **Status**: ✅ TTS Audio Routing Operational
+- **Status**: ✅ TTS audio routing operational
 - **What worked**:
   - Found that `await getServerChannelConfig()` was hanging in `App.vue` `onMounted`.
-  - Root cause was missing IPC service registrations in `main/index.ts` (Channel Server, MCP, I18n).
-  - Hoisting issue with `mainWindow` in `index.ts` resolved by moving registrations into `injeca.invoke` callback.
-  - Build errors (missing exports/unused vars) resolved.
-- **Pending/Next Bug**:
-  - Profile Switcher fails to update the active model.
-  - Integration should follow the "AIRI Card Display" pattern (Settings > AIRI Card > Play Button) to lookup VRM/Model associated with the card and set it as active.
-  - Nuclear diagnostic logs kept for investigating hook propagation in the model switching flow.
+  - Root cause was missing IPC service registrations in `main/index.ts` for Channel Server, MCP, and I18n.
+  - Hoisting issue with `mainWindow` in `index.ts` was resolved by moving registrations into the `injeca.invoke` callback.
+  - Build errors caused by missing exports and unused variables were resolved.
 
 # AIRI Progress Overview
 
@@ -35,25 +31,24 @@ This document tracks the current development state of the AIRI project, specific
 - **Transcription Feedback Toast**: Added a visual notification (toast) that shows "🎤 You said: <text>" after speech is transcribed. If no speech is detected, an error toast "STT: No speech detected" is shown to provide clear feedback.
 - **Artistry System Refactor**: Moved Artistry configuration to a dedicated tab in the character card settings. Added a configurable "Widget Spawning Instruction" field that defaults to an optimized prompt for image generation. The system now automatically injects these instructions into the AI's system prompt when an Artistry provider is selected, ensuring the model knows how to use the widget system without manual prompt engineering.
 - **Manual (Pure Mic) Mode**: Introduced a new "Detection Mode" setting in the Hearing module. Users can now choose between **VAD (Default)** and **Manual (Pure Mic)**. In Manual mode, automatic voice activity detection is bypassed, and recordings are triggered purely by manual microphone toggles (ScrollLock or UI), preventing premature cutoffs or VAD-related noise heuristics.
-- **Heartbeats System (Proactivity)**: Initial implementation of the proactivity engine is in progress. This system allows AIRI to initiate conversations based on user activity and schedule. Current status: Core timing and basic gates are being refined.
+- **Heartbeats System (Proactivity)**: Restored the richer proactivity UI, sensor-backed sample payload preview, and supporting metrics/context plumbing.
 - **Local Time Sensor**: Integrated localized time/timezone as a critical sensor metric for the Heartbeats system. This allows the AI to be aware of the user's current time (e.g., "It's 9 PM, maybe I should wrap up") when deciding to trigger a heartbeat.
 - **LLM Log Cleanup**: Silenced verbose `[LLM Delta]` console logs and fixed a bug causing duplicate `[LLM Final Output]` logs in the terminal.
-- **Workaround Documentation**: Added `// NOTICE:` comments throughout the codebase to explain critical hacks, OS-specific workarounds (like Electron main process logic), and upstream dependency fixes.
+- **AIRI Card / Profile Switching Restoration**: Restored flip cards, card model previews, profile-switcher model switching, modules/proactivity tab layout regressions, and VRM zoom persistence across restarts.
+- **Chatterbox Provider Studio**: Shipped a first-class Chatterbox provider UI plus preset/profile CRUD, with a dedicated AIRI management studio and matching server-side endpoints in the Chatterbox fork.
+- **Privacy / Local-Only Mode**: Remote auth bootstrap and cloud chat sync are now disabled by default. AIRI only contacts `airi-api.moeru.ai` after the user explicitly enables cloud sync in settings.
+- **Workaround Documentation**: Added `// NOTICE:` comments throughout the codebase to explain critical hacks, OS-specific workarounds, and upstream dependency fixes.
 
 ## Project Structure
 
 - **Primary Workspace**: `airi-rebase-scratch`
-    - A fork of the main project with rolled-in changes.
-    - Connected to `dasilva333/airi` (main branch).
+  - A fork of the main project with rolled-in changes.
+  - Connected to `dasilva333/airi` (`main` branch).
 - **Staging/Clean Room**: `airi-clean-pr`
-    - Used for isolating and preparing individual features into clean PR branches.
+  - Used for isolating and preparing individual features into clean PR branches.
 
 ## Roadmap / Future Ideas
 
-- **STT/TTS Chat Inscription**: Ensure that transcribed text from voice input is automatically inscribed in the chat history. Currently, these messages "get lost in the ether"; they should appear in the history as if they were manually typed by the user to maintain a complete conversation record even when using voice interaction.
 - **Model Centering & Preview Cache**: Investigation into the image preview cache algorithm for when model files load. Some models are currently displayed way off-center (e.g., only head and neck visible at the bottom edge) during the initial load/render.
-- **Configurable Global Hotkey**: Allow users to configure the global microphone toggle key from the settings panel. This would replace the current hardcoded ScrollLock logic (or make it optional), while potentially maintaining LED sync for toggle keys like CapsLock/NumLock. (Out of scope for current feature branch).
-- **Privacy: Disable Cloud Sync / Remote Opt-out**: Investigation into disabling the automatic chat session synchronization to `airi-api.moeru.ai`. Users should have a clear opt-out or toggle to prevent local private chat logs from being synced to the project owner's remote service. (Critical for privacy).
-- **Proactivity & Metrics Restoration**: Re-implement the `proactivity.ts` store and integrate `chatCount`/`ttsCount` metrics into the speech/chat stores once the core TTS routing bug is resolved.
-- **Heartbeat Config Extensions**: Restore `contextOptions` (windowHistory, systemLoad, usageMetrics) to the `AiriExtension` and `HeartbeatConfig` interfaces in `airi-card.ts`.
-- **Profile Switcher Model-Switching**: The new profile switcher (PR #1328) fails to change the active model. It should look at how it was implemented in the AIRI card display (Settings > AIRI Card), where each card item has a play button that looks up the associated VRM/model and sets it as the active model. Selection of a profile should trigger this same active model update.
+- **Live2D ZIP Repackaging / WASM Memory Limits**: Oversized Live2D ZIP imports need a pre-flight check plus optional Electron-side "repackage" flow to downscale atlases before the renderer hits browser/WASM memory limits. See `docs/Live2D-WASM-Resource-Optimization.md`.
+- **Configurable Global Hotkey**: Allow users to configure the global microphone toggle key from the settings panel. This would replace the current hardcoded ScrollLock logic (or make it optional), while potentially maintaining LED sync for toggle keys like CapsLock/NumLock.
