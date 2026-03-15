@@ -3,12 +3,15 @@ import type { MessageRole, WireMessage } from '@proj-airi/server-sdk'
 import type { Database } from '../libs/db'
 import type { EngagementMetrics } from '../libs/otel'
 
+import { useLogger } from '@guiiai/logg'
 import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
 
 import { createForbiddenError, createNotFoundError } from '../utils/error'
 import { nanoid } from '../utils/id'
 
 import * as schema from '../schemas/chats'
+
+const logger = useLogger('chats')
 
 type ChatType = 'private' | 'bot' | 'group' | 'channel'
 type ChatMemberType = 'user' | 'character' | 'bot'
@@ -63,8 +66,10 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
         eq(schema.chatMembers.userId, userId),
       ),
     })
-    if (!member)
+    if (!member) {
+      logger.withFields({ userId, chatId }).warn('User not a member of chat, forbidden')
       throw createForbiddenError()
+    }
 
     return chat
   }

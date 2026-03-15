@@ -29,6 +29,13 @@
       "when": 1773229668722,
       "tag": "0003_old_titania",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1773421458174,
+      "tag": "0004_bouncy_devos",
+      "breakpoints": true
     }
   ]
 }

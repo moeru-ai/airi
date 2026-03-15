@@ -17,6 +17,52 @@ const loadingAmount = ref<number | null>(null)
 const message = ref<{ type: 'success' | 'error', text: string } | null>(null)
 const packages = ref<{ amount: number, label: string, price: string }[]>([])
 
+interface AuditRecord {
+  id: string
+  type: 'consumption' | 'addition' | 'initial'
+  amount: number
+  description: string
+  metadata: { promptTokens?: number, completionTokens?: number } | null
+  createdAt: string
+}
+
+const auditRecords = ref<AuditRecord[]>([])
+const auditLoading = ref(false)
+const auditHasMore = ref(false)
+const auditOffset = ref(0)
+const AUDIT_PAGE_SIZE = 20
+
+async function fetchAuditHistory(loadMore = false) {
+  auditLoading.value = true
+  try {
+    const offset = loadMore ? auditOffset.value : 0
+    const res = await client.api.flux.history.$get({
+      query: { limit: String(AUDIT_PAGE_SIZE), offset: String(offset) },
+    })
+    if (res.ok) {
+      const data = await res.json() as { records: AuditRecord[], hasMore: boolean }
+      if (loadMore) {
+        auditRecords.value.push(...data.records)
+      }
+      else {
+        auditRecords.value = data.records
+      }
+      auditHasMore.value = data.hasMore
+      auditOffset.value = offset + data.records.length
+    }
+  }
+  catch {
+    // silently fail
+  }
+  finally {
+    auditLoading.value = false
+  }
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleString()
+}
+
 async function fetchPackages() {
   try {
     const res = await client.api.stripe.packages.$get()
@@ -29,7 +75,7 @@ async function fetchPackages() {
 }
 
 onMounted(async () => {
-  Promise.allSettled([fetchPackages(), authStore.updateCredits()])
+  Promise.allSettled([fetchPackages(), authStore.updateCredits(), fetchAuditHistory()])
 
   if (route.query.success === 'true') {
     message.value = { type: 'success', text: t('settings.pages.flux.checkout.success') }
@@ -104,6 +150,134 @@ async function handleBuy(amount: number) {
           :loading="loadingAmount === pkg.amount"
           :disabled="loadingAmount !== null && loadingAmount !== pkg.amount"
           @click="handleBuy(pkg.amount)"
+        />
+      </div>
+    </div>
+
+    <!-- Audit History -->
+    <div flex="~ col gap-3">
+      <div flex="~ col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
+        <h3 text-lg font-semibold>
+          {{ t('settings.pages.flux.audit.title') }}
+        </h3>
+        <span text="xs neutral-400">
+          {{ t('settings.pages.flux.audit.delayHint') }}
+        </span>
+      </div>
+
+      <div v-if="auditLoading && auditRecords.length === 0" text="sm neutral-500" py-4 text-center>
+        {{ t('settings.pages.flux.audit.loading') }}
+      </div>
+
+      <div v-else-if="auditRecords.length === 0" text="sm neutral-500" py-4 text-center>
+        {{ t('settings.pages.flux.audit.empty') }}
+      </div>
+
+      <!-- Desktop: table -->
+      <div v-else border="1 neutral-200 dark:neutral-800" overflow-x-auto rounded-xl hidden sm:block>
+        <table w-full text-sm>
+          <thead border="b neutral-200 dark:neutral-800">
+            <tr>
+              <th px-4 py-3 text-left font-medium>
+                {{ t('settings.pages.flux.audit.time') }}
+              </th>
+              <th px-4 py-3 text-left font-medium>
+                {{ t('settings.pages.flux.audit.type') }}
+              </th>
+              <th px-4 py-3 text-left font-medium>
+                {{ t('settings.pages.flux.audit.detail') }}
+              </th>
+              <th px-4 py-3 text-right font-medium>
+                {{ t('settings.pages.flux.audit.amount') }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="record in auditRecords"
+              :key="record.id"
+              border="b neutral-100 dark:neutral-800/50 last:none"
+            >
+              <td whitespace-nowrap px-4 py-3 text="neutral-500">
+                {{ formatDate(record.createdAt) }}
+              </td>
+              <td px-4 py-3>
+                <span
+                  inline-block rounded-full px-2 py-0.5 text-xs font-medium
+                  :class="record.type === 'consumption'
+                    ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                    : 'bg-green-500/10 text-green-600 dark:text-green-400'"
+                >
+                  {{ record.type === 'consumption'
+                    ? t('settings.pages.flux.audit.typeConsumption')
+                    : record.type === 'addition'
+                      ? t('settings.pages.flux.audit.typeAddition')
+                      : t('settings.pages.flux.audit.typeInitial') }}
+                </span>
+              </td>
+              <td px-4 py-3>
+                <span>{{ record.description }}</span>
+                <span
+                  v-if="record.metadata?.promptTokens != null"
+                  ml-1 text="xs neutral-400"
+                >
+                  ({{ record.metadata.promptTokens }}+{{ record.metadata.completionTokens }} tokens)
+                </span>
+              </td>
+              <td px-4 py-3 text-right font-mono>
+                <span :class="record.amount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'">
+                  {{ record.amount >= 0 ? `+${record.amount}` : record.amount }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Mobile: card list -->
+      <div v-if="auditRecords.length > 0" flex="~ col gap-2" sm:hidden>
+        <div
+          v-for="record in auditRecords"
+          :key="record.id"
+          border="1 neutral-200 dark:neutral-800" flex="~ col gap-1.5" rounded-lg px-3 py-2.5
+        >
+          <div flex="~ items-center justify-between">
+            <span
+              inline-block rounded-full px-2 py-0.5 text-xs font-medium
+              :class="record.type === 'consumption'
+                ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                : 'bg-green-500/10 text-green-600 dark:text-green-400'"
+            >
+              {{ record.type === 'consumption'
+                ? t('settings.pages.flux.audit.typeConsumption')
+                : record.type === 'addition'
+                  ? t('settings.pages.flux.audit.typeAddition')
+                  : t('settings.pages.flux.audit.typeInitial') }}
+            </span>
+            <span text-sm font-semibold font-mono :class="record.amount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'">
+              {{ record.amount >= 0 ? `+${record.amount}` : record.amount }}
+            </span>
+          </div>
+          <div text="sm neutral-600 dark:neutral-300" truncate>
+            {{ record.description }}
+            <span
+              v-if="record.metadata?.promptTokens != null"
+              ml-1 text="xs neutral-400"
+            >
+              ({{ record.metadata.promptTokens }}+{{ record.metadata.completionTokens }} tokens)
+            </span>
+          </div>
+          <div text="xs neutral-400">
+            {{ formatDate(record.createdAt) }}
+          </div>
+        </div>
+      </div>
+
+      <div v-if="auditHasMore" text-center>
+        <Button
+          :label="t('settings.pages.flux.audit.loadMore')"
+          :loading="auditLoading"
+          @click="fetchAuditHistory(true)"
         />
       </div>
     </div>

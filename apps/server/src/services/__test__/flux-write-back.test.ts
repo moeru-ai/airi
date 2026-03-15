@@ -47,6 +47,13 @@ describe('fluxWriteBack', () => {
       where: eq(schema.llmRequestLog.settled, false),
     })
     expect(unsettled).toHaveLength(0)
+
+    // Verify audit entries were created
+    const auditRecords = await db.query.fluxAuditLog.findMany({
+      where: eq(schema.fluxAuditLog.userId, testUser.id),
+    })
+    expect(auditRecords).toHaveLength(3) // one per unsettled log
+    expect(auditRecords.every((r: any) => r.type === 'consumption')).toBe(true)
   })
 
   it('should not re-settle already settled logs', async () => {

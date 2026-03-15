@@ -4,6 +4,7 @@ import { useLogger } from '@guiiai/logg'
 import { and, eq, lte, sql } from 'drizzle-orm'
 
 import * as fluxSchema from '../schemas/flux'
+import * as auditSchema from '../schemas/flux-audit-log'
 import * as logSchema from '../schemas/llm-request-log'
 
 /**
@@ -32,6 +33,19 @@ export function createFluxWriteBack(db: Database) {
     if (totals.length === 0)
       return
 
+    // Fetch individual entries for audit detail
+    const unsettledLogs = await db
+      .select({
+        userId: logSchema.llmRequestLog.userId,
+        model: logSchema.llmRequestLog.model,
+        fluxConsumed: logSchema.llmRequestLog.fluxConsumed,
+        promptTokens: logSchema.llmRequestLog.promptTokens,
+        completionTokens: logSchema.llmRequestLog.completionTokens,
+        createdAt: logSchema.llmRequestLog.createdAt,
+      })
+      .from(logSchema.llmRequestLog)
+      .where(and(eq(logSchema.llmRequestLog.settled, false), lte(logSchema.llmRequestLog.createdAt, snapshotTime)))
+
     // 2. Batch update in transaction
     await db.transaction(async (tx) => {
       for (const { userId, total } of totals) {
@@ -46,6 +60,23 @@ export function createFluxWriteBack(db: Database) {
       await tx.update(logSchema.llmRequestLog)
         .set({ settled: true })
         .where(and(eq(logSchema.llmRequestLog.settled, false), lte(logSchema.llmRequestLog.createdAt, snapshotTime)))
+
+      // Batch-insert audit entries for each consumption
+      const auditEntries = unsettledLogs.map(log => ({
+        userId: log.userId,
+        type: 'consumption' as const,
+        amount: -log.fluxConsumed,
+        description: log.model,
+        metadata: {
+          promptTokens: log.promptTokens,
+          completionTokens: log.completionTokens,
+        },
+        createdAt: log.createdAt,
+      }))
+
+      if (auditEntries.length > 0) {
+        await tx.insert(auditSchema.fluxAuditLog).values(auditEntries)
+      }
     })
 
     logger.withFields({ userCount: totals.length }).log('Write-back completed')

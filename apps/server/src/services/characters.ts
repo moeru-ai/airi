@@ -1,10 +1,13 @@
 import type { Database } from '../libs/db'
 import type { EngagementMetrics } from '../libs/otel'
 
+import { useLogger } from '@guiiai/logg'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 
 import * as schema from '../schemas/characters'
 import * as userCharacterSchema from '../schemas/user-character'
+
+const logger = useLogger('characters')
 
 export function createCharacterService(db: Database, metrics?: EngagementMetrics | null) {
   return {
@@ -147,6 +150,7 @@ export function createCharacterService(db: Database, metrics?: EngagementMetrics
     }) {
       const inserted = await db.transaction(async (tx) => {
         const [inserted] = await tx.insert(schema.character).values(data.character).returning()
+        logger.withFields({ id: inserted.id, ownerId: data.character.ownerId }).log('Created character')
 
         if (data.cover) {
           await tx.insert(schema.characterCovers).values({
@@ -187,13 +191,15 @@ export function createCharacterService(db: Database, metrics?: EngagementMetrics
     },
 
     async update(id: string, data: Partial<schema.NewCharacter>) {
-      return await db.update(schema.character)
+      const result = await db.update(schema.character)
         .set({ ...data, updatedAt: new Date() })
         .where(and(
           eq(schema.character.id, id),
           isNull(schema.character.deletedAt),
         ))
         .returning()
+      logger.withFields({ id }).log('Updated character')
+      return result
     },
 
     async delete(id: string) {
@@ -206,6 +212,7 @@ export function createCharacterService(db: Database, metrics?: EngagementMetrics
         .returning()
 
       if (result.length > 0) {
+        logger.withFields({ id }).log('Deleted character')
         metrics?.characterDeleted.add(1)
       }
 

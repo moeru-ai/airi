@@ -7,12 +7,15 @@ import type { HonoEnv } from '../types/hono'
 
 import Stripe from 'stripe'
 
+import { useLogger } from '@guiiai/logg'
 import { Hono } from 'hono'
 import { integer, minValue, number, object, pipe, safeParse } from 'valibot'
 
 import { authGuard } from '../middlewares/auth'
 import { configGuard } from '../middlewares/config-guard'
 import { createBadRequestError, createServiceUnavailableError } from '../utils/error'
+
+const logger = useLogger('stripe')
 
 const CheckoutBodySchema = object({
   amount: pipe(number(), integer(), minValue(1)),
@@ -143,6 +146,7 @@ export function createStripeRoutes(fluxService: FluxService, stripeService: Stri
         throw createBadRequestError(`Webhook Error: ${message}`, 'WEBHOOK_ERROR')
       }
 
+      logger.withFields({ type: event.type, id: event.id }).log('Webhook event received')
       metrics?.stripeEvents.add(1, { event_type: event.type })
 
       switch (event.type) {
@@ -188,8 +192,12 @@ async function handleCheckoutSessionCompleted(
   configKV: ConfigKVService,
 ) {
   const userId = session.metadata?.userId
-  if (!userId)
+  if (!userId) {
+    logger.withFields({ sessionId: session.id }).warn('Checkout session missing userId in metadata')
     return
+  }
+
+  logger.withFields({ userId, sessionId: session.id, mode: session.mode, amount: session.amount_total, currency: session.currency }).log('Processing checkout session')
 
   // Upsert customer record if we got a customer back
   if (session.customer) {
@@ -224,7 +232,9 @@ async function handleCheckoutSessionCompleted(
   // Add flux for one-time payments
   if (session.mode === 'payment' && session.amount_total) {
     const fluxPerCent = await configKV.getOrThrow('FLUX_PER_CENT')
-    await fluxService.addFlux(userId, session.amount_total * fluxPerCent)
+    const fluxAmount = session.amount_total * fluxPerCent
+    logger.withFields({ userId, fluxAmount, fluxPerCent, amountTotal: session.amount_total }).log('Adding flux for one-time payment')
+    await fluxService.addFlux(userId, fluxAmount, `Stripe payment ${session.currency?.toUpperCase()} ${(session.amount_total / 100).toFixed(2)}`)
   }
 }
 
@@ -314,6 +324,8 @@ async function handleInvoiceEvent(
   // Add flux when a subscription invoice is paid
   if (invoice.status === 'paid' && invoice.amount_paid && subscriptionId) {
     const fluxPerCent = await configKV.getOrThrow('FLUX_PER_CENT')
-    await fluxService.addFlux(customer.userId, invoice.amount_paid * fluxPerCent)
+    const fluxAmount = invoice.amount_paid * fluxPerCent
+    logger.withFields({ userId: customer.userId, fluxAmount, invoiceId: invoice.id }).log('Adding flux for subscription invoice')
+    await fluxService.addFlux(customer.userId, fluxAmount, `Subscription invoice ${invoice.currency?.toUpperCase()} ${(invoice.amount_paid / 100).toFixed(2)}`)
   }
 }

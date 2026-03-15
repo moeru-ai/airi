@@ -6,6 +6,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
 import { createFluxService } from '../flux'
+import { createFluxAuditService } from '../flux-audit'
 
 import * as schema from '../../schemas'
 
@@ -43,10 +44,12 @@ describe('fluxService (Redis-backed)', () => {
   let db: any
   let redis: Redis
   let service: ReturnType<typeof createFluxService>
+  let fluxAuditService: ReturnType<typeof createFluxAuditService>
   let testUser: any
 
   beforeAll(async () => {
     db = await mockDB(schema)
+    fluxAuditService = createFluxAuditService(db)
 
     const [user] = await db.insert(schema.user).values({
       id: 'user-1',
@@ -58,7 +61,7 @@ describe('fluxService (Redis-backed)', () => {
 
   beforeEach(() => {
     redis = createMockRedis()
-    service = createFluxService(db, redis, createMockConfigKV())
+    service = createFluxService(db, redis, createMockConfigKV(), fluxAuditService)
   })
 
   it('getFlux should load from DB on cache miss and populate Redis', async () => {

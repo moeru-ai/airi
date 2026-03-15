@@ -1944,6 +1944,14 @@ export const useProvidersStore = defineStore('providers', () => {
     markProviderAdded(providerId)
   }
 
+  function setProviderUnconfigured(providerId: string) {
+    if (providerRuntimeState.value[providerId]) {
+      providerRuntimeState.value[providerId].isConfigured = false
+      providerRuntimeState.value[providerId].validatedCredentialHash = undefined
+    }
+    unmarkProviderAdded(providerId)
+  }
+
   async function resetProviderSettings() {
     providerCredentials.value = {}
     addedProviders.value = {}
@@ -2234,6 +2242,7 @@ export const useProvidersStore = defineStore('providers', () => {
     disposeProviderInstance,
     resetProviderSettings,
     forceProviderConfigured,
+    setProviderUnconfigured,
     availableProvidersMetadata,
     allChatProvidersMetadata,
     allAudioSpeechProvidersMetadata,
