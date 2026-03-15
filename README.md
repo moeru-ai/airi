@@ -152,6 +152,7 @@ Therefore, this project, AIRI, offers another possibility here: **let you own yo
 
 ## DevLogs We Posted & Recent Updates
 
+- [DevLog @ 2026.03.14](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.14/) on March 14, 2026
 - [DevLog @ 2026.02.16](https://airi.moeru.ai/docs/en/blog/DevLog-2026.02.16/) on February 16, 2026
 - [DevLog @ 2026.01.01](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) on January 1, 2026
 - [DevLog @ 2025.10.20](https://airi.moeru.ai/docs/en/blog/DevLog-2025.10.20/) on October 20, 2025
