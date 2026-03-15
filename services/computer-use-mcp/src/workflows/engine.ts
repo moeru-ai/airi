@@ -238,6 +238,12 @@ export async function executeWorkflow(params: {
       }
     }
 
+    if ((stepTemplate.kind === 'run_command' || stepTemplate.kind === 'run_command_read_result') && resolvedParams.cwd === 'auto') {
+      const codingState = stateManager.getState().coding
+      resolvedParams.cwd = codingState?.validationBaseline?.workspacePath
+        ?? codingState?.workspacePath
+    }
+
     const resolvedStep = { ...stepTemplate, params: resolvedParams }
     const action = resolveStepAction(resolvedStep)
 
