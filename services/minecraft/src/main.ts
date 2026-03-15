@@ -9,12 +9,14 @@ import { pathfinder as MineflayerPathfinder } from 'mineflayer-pathfinder'
 import { plugin as MineflayerPVP } from 'mineflayer-pvp'
 import { plugin as MineflayerTool } from 'mineflayer-tool'
 
+import { MinecraftServiceShell } from './airi/service-shell'
 import { CognitiveEngine } from './cognitive'
-import { initBot } from './composables/bot'
 import { config, initEnv } from './composables/config'
+import { MinecraftRuntimeConfigManager } from './composables/runtime-config'
 import { DebugService } from './debug'
 import { setupMineflayerViewer } from './debug/mineflayer-viewer'
-import { wrapPlugin } from './libs/mineflayer'
+import { Mineflayer, wrapPlugin } from './libs/mineflayer'
+import { MinecraftBotRuntime } from './minecraft-bot-runtime'
 import { initLogger, useLogger } from './utils/logger'
 
 // ...
@@ -22,6 +24,28 @@ import { initLogger, useLogger } from './utils/logger'
 async function main() {
   initLogger() // todo: save logs to file
   initEnv()
+
+  const runtimeConfigManager = new MinecraftRuntimeConfigManager()
+  const configManager = {
+    load: () => {
+      const snapshot = runtimeConfigManager.load()
+      config.bot = {
+        ...config.bot,
+        ...snapshot.effectiveBotConfig,
+      }
+      return snapshot
+    },
+    save: (editableConfig: Parameters<MinecraftRuntimeConfigManager['save']>[0]) => {
+      const snapshot = runtimeConfigManager.save(editableConfig)
+      config.bot = {
+        ...config.bot,
+        ...snapshot.effectiveBotConfig,
+      }
+      return snapshot
+    },
+  }
+
+  configManager.load()
 
   if (config.debug.server || config.debug.viewer || config.debug.mcp) {
     useLogger().warn(
@@ -44,42 +68,79 @@ async function main() {
     DebugService.getInstance().start()
   }
 
-  const { bot } = await initBot({
-    botConfig: config.bot,
-    plugins: [
-      wrapPlugin(MineflayerArmorManager),
-      wrapPlugin(MineflayerAutoEat),
-      wrapPlugin(MineflayerCollectBlock),
-      wrapPlugin(MineflayerPathfinder),
-      wrapPlugin(MineflayerPVP),
-      wrapPlugin(MineflayerTool),
-    ],
-    reconnect: {
-      enabled: true,
-      maxRetries: 5,
-    },
-  })
-
-  if (config.debug.viewer) {
-    setupMineflayerViewer(bot, { port: 3007, firstPerson: true })
-  }
-
   // Connect airi server
   const airiClient = new Client({
     name: config.airi.clientName,
     url: config.airi.wsBaseUrl,
+    possibleEvents: ['module:configure', 'spark:command', 'context:update'],
   })
+  await airiClient.connect()
 
-  // Load CognitiveEngine (LLM config is read from config internally)
-  await bot.loadPlugin(CognitiveEngine({ airiClient }))
+  let activeRuntime: MinecraftBotRuntime | null = null
+  let viewerInitialized = false
 
-  // Setup Tool Executor for Debug Dashboard
-  const { setupToolExecutor } = await import('./debug/tool-executor')
-  setupToolExecutor(bot)
+  async function createManagedBot(botConfig: typeof config.bot) {
+    activeRuntime = new MinecraftBotRuntime({
+      initialConfig: botConfig,
+      createBot: async (nextBotConfig) => {
+        config.bot = {
+          ...config.bot,
+          ...nextBotConfig,
+        }
+
+        const bot = await Mineflayer.asyncBuild({
+          botConfig: nextBotConfig,
+          plugins: [
+            wrapPlugin(MineflayerArmorManager),
+            wrapPlugin(MineflayerAutoEat),
+            wrapPlugin(MineflayerCollectBlock),
+            wrapPlugin(MineflayerPathfinder),
+            wrapPlugin(MineflayerPVP),
+            wrapPlugin(MineflayerTool),
+          ],
+          reconnect: {
+            enabled: true,
+            maxRetries: 5,
+          },
+        })
+
+        if (config.debug.viewer && !viewerInitialized) {
+          setupMineflayerViewer(bot, { port: 3007, firstPerson: true })
+          viewerInitialized = true
+        }
+
+        await bot.loadPlugin(CognitiveEngine({ airiClient }))
+
+        // Setup Tool Executor for Debug Dashboard
+        const { setupToolExecutor } = await import('./debug/tool-executor')
+        setupToolExecutor(bot)
+
+        return bot
+      },
+    })
+
+    await activeRuntime.initialize()
+
+    return activeRuntime
+  }
+
+  const shell = new MinecraftServiceShell({
+    airiClient,
+    configManager,
+    createBot: createManagedBot,
+    serviceName: config.airi.clientName,
+  })
+  await shell.initialize()
 
   process.on('SIGINT', () => {
-    bot.stop()
-    exit(0)
+    Promise.resolve(activeRuntime?.stop())
+      .catch((err: Error) => {
+        useLogger().errorWithError('Failed to stop Minecraft runtime cleanly', err)
+      })
+      .finally(() => {
+        airiClient.close()
+        exit(0)
+      })
   })
 }
 
