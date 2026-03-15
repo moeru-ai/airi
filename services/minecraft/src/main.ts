@@ -138,6 +138,9 @@ async function main() {
         useLogger().errorWithError('Failed to stop Minecraft runtime cleanly', err)
       })
       .finally(() => {
+        // TODO: Add an explicit AIRI-side deregistration path on shutdown instead of relying on
+        // websocket close / heartbeat expiry. Right now the Minecraft page can briefly sit in a
+        // stale state after the bot exits, which is annoying and easy to misread as still online.
         airiClient.close()
         exit(0)
       })
