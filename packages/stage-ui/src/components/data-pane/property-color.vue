@@ -5,8 +5,10 @@ import ColorPicker from './color-picker.vue'
 
 const props = withDefaults(defineProps<{
   label?: string
+  disabled?: boolean
 }>(), {
   label: 'Color Picker',
+  disabled: false,
 })
 
 const modelValue = defineModel<Globals | DataType.Color>({ required: false })
@@ -19,5 +21,5 @@ const modelValue = defineModel<Globals | DataType.Color>({ required: false })
     </slot>
   </div>
   <div />
-  <ColorPicker v-model="modelValue" />
+  <ColorPicker v-model="modelValue" :disabled="props.disabled" />
 </template>

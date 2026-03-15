@@ -32,7 +32,7 @@
 
 <p float="left" align="center">
   <!-- readme-section:release-binary-windows -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.12/AIRI-0.9.0-alpha.12-windows-x64-setup.exe">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.14/AIRI-0.9.0-alpha.14-windows-x64-setup.exe">
     <picture>
       <source
         width="33%"
@@ -48,7 +48,7 @@
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.12/AIRI-0.9.0-alpha.12-darwin-arm64.dmg">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.14/AIRI-0.9.0-alpha.14-darwin-arm64.dmg">
     <picture>
       <source
         width="33%"
@@ -118,6 +118,14 @@
 </p>
 
 > Heavily inspired by [Neuro-sama](https://www.youtube.com/@Neurosama)
+
+> [!TIP]
+> On Windows, you can also install AIRI with [Scoop](https://scoop.sh/):
+>
+> ```powershell
+> scoop bucket add airi https://github.com/moeru-ai/airi
+> scoop install airi/airi
+> ```
 
 > [!WARNING]
 > **Attention:** We **do not** have any officially minted cryptocurrency or token associated with this project. Please check the information and proceed with caution.

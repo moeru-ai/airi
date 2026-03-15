@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: URL конечной точки API (оставьте по умолчанию, если не уверены)
     accountId: ID аккаунта
     validationSuccess: Configuration validation success
+    validationPartial: Configuration partially validated
     validationFailed: Проверка конфигурации не удалась
     validationError: 'Ошибка проверки: {error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: Пропустить на сейчас
     saveAndContinue: Сохранить и продолжить
     next: Далее
@@ -30,6 +34,19 @@ dialogs:
     no-models: Нет доступных моделей
     no-models-help: >-
       Вернитесь на предыдущий шаг и проверьте API-ключ или подключение к сети.
+    permissions:
+      title: Notifications
+      description: You can allow notifications now or continue and set it up later.
+      notificationsTitle: Notifications
+      notificationsDescription: Allow reminders and important status updates.
+      notificationsAction: Request notification permission
+      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
+      openSettings: Open iOS Settings
+      optionalHint: You can continue even if notification permission is not granted.
+      stateUnknown: Not requested
+      stateRequesting: Requesting...
+      stateGranted: Granted
+      stateNotGranted: Not granted
 language:
   title: Language
   description: >
@@ -159,6 +176,7 @@ pages:
     scenario: Сценарий
     search: Искать карточки...
     sort_by: Сортировать по
+    body-model: Body / Display Model
     speech:
       provider: Speech / Provider
       model: Речь / Модель
@@ -284,6 +302,7 @@ pages:
           provider-model-selection:
             collapse: Свернуть
             custom_model_placeholder: Введите название кастомной модели...
+            current_model_label: 'Current model:'
             description: Выберите подходящего LLM-провайдера для сознания
             error: Ошибка загрузки моделей
             health_check_failed: Health check failed
@@ -858,7 +877,7 @@ pages:
                   Stream microphone audio to Aliyun NLS and inspect live transcripts
               performance-playground:
                 title: Performance Playground
-                description: 'Test performance runtime: VRM expressions + TTS lip sync'
+                description: 'VRM expressions + TTS lip sync playground'
         theme-presets:
           presets:
             default:

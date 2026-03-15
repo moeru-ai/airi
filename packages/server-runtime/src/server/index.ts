@@ -99,9 +99,7 @@ export function createServer(opts?: ServerOptions): Server {
         return
       }
 
-      if (!closeActiveConnections) {
-        log.withError(error).error('Error closing WebSocket server')
-      }
+      log.withError(error).error('Error closing WebSocket server')
     }
     finally {
       serverInstance = null
@@ -175,7 +173,7 @@ export function createServer(opts?: ServerOptions): Server {
   }
 
   async function stop() {
-    await closeServer()
+    await closeServer(true)
   }
 
   async function restart() {

@@ -264,6 +264,18 @@ export function setupCaptionWindowManager(params: {
   }
 
   let eventaContext: ReturnType<typeof createContext>['context'] | undefined
+  let currentWindow: BrowserWindow | undefined
+  const visibilityListeners = new Set<() => void>()
+
+  const emitVisibilityChanged = () => {
+    for (const listener of visibilityListeners) {
+      try {
+        listener()
+      }
+      catch {
+      }
+    }
+  }
 
   const reusable = createReusableWindow(async () => {
     // TODO: once we refactored eventa to support window-namespaced contexts,
@@ -272,6 +284,7 @@ export function setupCaptionWindowManager(params: {
     ipcMain.setMaxListeners(0)
 
     const window = createCaptionWindow()
+    currentWindow = window
     const { context } = createContext(ipcMain, window)
     eventaContext = context
 
@@ -304,6 +317,8 @@ export function setupCaptionWindowManager(params: {
 
     window.on('resize', persistBounds)
     window.on('move', persistBounds)
+    window.on('show', emitVisibilityChanged)
+    window.on('hide', emitVisibilityChanged)
 
     await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/caption'))
 
@@ -327,7 +342,11 @@ export function setupCaptionWindowManager(params: {
       catch {
       }
 
+      if (currentWindow === window) {
+        currentWindow = undefined
+      }
       eventaContext = undefined
+      emitVisibilityChanged()
     })
 
     return window
@@ -396,11 +415,39 @@ export function setupCaptionWindowManager(params: {
     updateConfig(config)
   }
 
+  function isVisible(): boolean {
+    return Boolean(currentWindow && !currentWindow.isDestroyed() && currentWindow.isVisible())
+  }
+
+  async function toggleVisibility() {
+    if (isVisible()) {
+      currentWindow?.hide()
+      return
+    }
+
+    const window = await reusable.getWindow()
+    if (window.isMinimized()) {
+      window.restore()
+    }
+    window.show()
+    window.focus()
+  }
+
+  function onVisibilityChanged(listener: () => void): () => void {
+    visibilityListeners.add(listener)
+    return () => {
+      visibilityListeners.delete(listener)
+    }
+  }
+
   return {
     getWindow,
     setFollowWindow,
     toggleFollowWindow,
     getIsFollowingWindow,
     resetToSide,
+    isVisible,
+    toggleVisibility,
+    onVisibilityChanged,
   }
 }

@@ -28,7 +28,6 @@ import {
   electronGetServerChannelConfig,
   electronMcpCallTool,
   electronMcpListTools,
-  electronOpenSettings,
   electronPluginInspect,
   electronPluginList,
   electronPluginLoad,
@@ -36,12 +35,15 @@ import {
   electronPluginSetEnabled,
   electronPluginUnload,
   electronPluginUpdateCapability,
+  electronSettingsNavigate,
   electronStartTrackMousePosition,
   i18nSetLocale,
   pluginProtocolListProviders,
   pluginProtocolListProvidersEventName,
 } from '../shared/eventa'
+import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
+import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 
 const { isDark: dark } = useTheme()
 const i18n = useI18n()
@@ -58,9 +60,11 @@ const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
 const analyticsStore = useSharedAnalyticsStore()
 const pluginHostInspectorStore = usePluginHostInspectorStore()
-usePerfTracerBridgeStore()
-
+const stageWindowLifecycleStore = useStageWindowLifecycleStore()
 const context = useElectronEventaContext()
+usePerfTracerBridgeStore()
+initializeStageThreeRuntimeTraceBridge()
+void stageWindowLifecycleStore.initializeWindowLifecycleBridge()
 const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
 const listPlugins = useElectronEventaInvoke(electronPluginList)
 const setPluginEnabled = useElectronEventaInvoke(electronPluginSetEnabled)
@@ -101,6 +105,17 @@ watch(dark, () => updateThemeColor(), { immediate: true })
 watch(route, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
 
+context.value.on(electronSettingsNavigate, (event) => {
+  const targetRoute = event?.body?.route
+  if (!targetRoute || route.fullPath === targetRoute) {
+    return
+  }
+
+  void router.push(targetRoute).catch((error) => {
+    console.warn('Failed to navigate settings window:', error)
+  })
+})
+
 onMounted(async () => {
   analyticsStore.initialize()
   cardStore.initialize()
@@ -129,9 +144,6 @@ onMounted(async () => {
       },
     })
   }
-
-  // Listen for open-settings IPC message from main process
-  defineInvokeHandler(context.value, electronOpenSettings, () => router.push('/settings'))
 })
 
 watch(themeColorsHue, () => {

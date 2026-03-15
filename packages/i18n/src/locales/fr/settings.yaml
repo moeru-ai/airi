@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: URL de l'endpoint API (utilisez la valeur par défaut si vous n’êtes pas sûr)
     accountId: ID du compte
     validationSuccess: Validation de la configuration réussie
+    validationPartial: Configuration partially validated
     validationFailed: La validation de la configuration a échouée.
     validationError: 'Erreur de validation: {error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: Passer pour l'instant
     saveAndContinue: Sauvegarder et Continuer
     next: Suivant
@@ -30,6 +34,19 @@ dialogs:
     no-models: Pas de modèle disponible
     no-models-help: >-
       Veuillez revenir à l’étape précédente et vérifier votre clé API, ou bien vérifier la connexion réseau.
+    permissions:
+      title: Notifications
+      description: Vous pouvez autoriser les notifications maintenant ou continuer et les configurer plus tard.
+      notificationsTitle: Notifications
+      notificationsDescription: Autorisez les rappels et les mises à jour de statut importantes.
+      notificationsAction: Demander l'autorisation de notification
+      notificationsNotGrantedHint: En cas de refus, vous pourrez activer les notifications plus tard dans les Réglages iOS.
+      openSettings: Ouvrir les Réglages iOS
+      optionalHint: Vous pouvez continuer même si l'autorisation de notification n'est pas accordée.
+      stateUnknown: Non demandé
+      stateRequesting: Demande en cours...
+      stateGranted: Accordée
+      stateNotGranted: Non accordée
 language:
   title: Langage
   description: >
@@ -159,6 +176,7 @@ pages:
     scenario: Scénario
     search: Rechercher des cartes...
     sort_by: Trier par
+    body-model: Corps / Modèle d'affichage
     speech:
       provider: Parole / Fournisseur
       model: Parole / Modèle
@@ -284,6 +302,7 @@ pages:
           provider-model-selection:
             collapse: Réduire
             custom_model_placeholder: Entrez le nom du modèle personnalisé...
+            current_model_label: 'Modèle actuel :'
             description: Sélectionnez le fournisseur LLM approprié pour la conscience
             error: Erreur lors du chargement des modèles
             health_check_failed: Échec de la vérification de l'état de santé
@@ -858,7 +877,7 @@ pages:
                   Diffuser l'audio du microphone vers Aliyun NLS et inspecter les transcriptions en direct
               performance-playground:
                 title: Zone d'essai de performance
-                description: 'Tester l''exécution des performances : expressions VRM + synchronisation labiale TTS'
+                description: 'Expressions VRM + synchro labiale TTS'
         theme-presets:
           presets:
             default:
