@@ -292,9 +292,13 @@ export async function setupServerChannel(params: { lifecycle: Lifecycle }): Prom
 
 export async function createServerChannelService(params: { serverChannel: Server }) {
   const { context } = createContext(ipcMain)
+  console.log('[Main/ServerChannel] Registering Eventa invoke handlers')
 
   defineInvokeHandler(context, electronGetServerChannelConfig, async () => {
+    const startedAt = Date.now()
+    console.log('[Main/ServerChannel] getServerChannelConfig invoked')
     const config = await getChannelServerConfig()
+    console.log(`[Main/ServerChannel] getServerChannelConfig resolved in ${Date.now() - startedAt}ms`)
     return { websocketTlsConfig: config.tlsConfig || null }
   })
 

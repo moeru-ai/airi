@@ -186,15 +186,15 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       const categorizer = createStreamingCategorizer(activeProvider.value)
       let streamPosition = 0
 
-      const parser = useLlmmarkerParser({
-        onLiteral: async (literal) => {
+      const literalInterceptor = createLlmJsonInterceptor({
+        onText: async (text) => {
           if (shouldAbort())
             return
 
-          categorizer.consume(literal)
+          categorizer.consume(text)
 
-          const speechOnly = categorizer.filterToSpeech(literal, streamPosition)
-          streamPosition += literal.length
+          const speechOnly = categorizer.filterToSpeech(text, streamPosition)
+          streamPosition += text.length
 
           if (speechOnly.trim()) {
             buildingMessage.content += speechOnly
@@ -213,6 +213,21 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
             }
             updateUI()
           }
+        },
+        onJson: async (json) => {
+          if (shouldAbort())
+            return
+
+          await hooks.emitWidgetHooks(json, streamingMessageContext)
+        },
+      })
+
+      const parser = useLlmmarkerParser({
+        onLiteral: async (literal) => {
+          if (shouldAbort())
+            return
+
+          await literalInterceptor.consume(literal)
         },
         onSpecial: async (special) => {
           if (shouldAbort())
@@ -462,5 +477,9 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     onAssistantResponseEnd: hooks.onAssistantResponseEnd,
     onAssistantMessage: hooks.onAssistantMessage,
     onChatTurnComplete: hooks.onChatTurnComplete,
+<<<<<<< HEAD
+=======
+    onWidget: hooks.onWidget,
+>>>>>>> 25c2c14d (fix(stage-ui): repair chat startup hooks and add hang tracing)
   }
 })

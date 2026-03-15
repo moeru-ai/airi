@@ -111,32 +111,39 @@ watch(route, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
 
 onMounted(async () => {
-  console.log('[App] onMounted start')
+  const startupAt = performance.now()
+  const logStep = (label: string) => {
+    console.log(`[App] ${label} (+${Math.round(performance.now() - startupAt)}ms)`)
+  }
+
+  logStep('onMounted start')
   proactivityStore.startHeartbeatLoop()
 
-  console.log('[App] Initializing Analytics & Card stores...')
+  logStep('Initializing Analytics & Card stores')
   analyticsStore.initialize()
   cardStore.initialize()
 
-  console.log('[App] Initializing Chat Session & Model loading...')
+  logStep('Initializing chat session')
   await chatSessionStore.initialize()
+  logStep('Loading display models')
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
+  logStep('Initializing stage model')
   await settingsStore.initializeStageModel()
 
-  console.log('[App] Getting Server Channel config...')
+  logStep('Requesting server channel config')
   const serverChannelConfig = await getServerChannelConfig()
+  logStep('Received server channel config')
   serverChannelSettingsStore.websocketTlsConfig = serverChannelConfig.websocketTlsConfig
 
-  console.log('[App] Initializing Server Channel...')
+  logStep('Initializing server channel store')
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
-  console.log('[App] Initializing Context Bridge...')
+  logStep('Initializing context bridge')
   await contextBridgeStore.initialize()
-  console.log('[App] Initializing Character Orchestrator...')
+  logStep('Initializing character orchestrator')
   characterOrchestratorStore.initialize()
-  console.log('[App] Starting cursor tracking...')
+  logStep('Starting cursor tracking')
   await startTrackingCursorPoint()
-
-  console.log('[App] onMounted complete')
+  logStep('Startup initialization complete')
 
   // Expose stage provider definitions to plugin host APIs.
   defineInvokeHandler(context.value, pluginProtocolListProviders, async () => listProvidersForPluginHost())

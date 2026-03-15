@@ -363,15 +363,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     await applyCardState(newCard)
   })
 
-  watch(cards, (currentCards) => {
-    for (const [id, card] of currentCards.entries()) {
-      const modules = card.extensions?.airi?.modules
-      if (modules?.selectedModelId && !modules.displayModelId) {
-        currentCards.set(id, newAiriCard(card))
-      }
-    }
-  }, { deep: true })
-
   function resetState() {
     activeCardId.reset()
     cards.reset()
