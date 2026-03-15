@@ -306,7 +306,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
                 break
               await chatOrchestrator.emitStreamEndHooks(event.context)
-              chatStream.finalizeStream()
+              chatStream.finalizeStream(remoteStreamGuard.sessionId)
               chatOrchestrator.sending = false
               remoteStreamGuard = null
               break
@@ -318,7 +318,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
                 break
               await chatOrchestrator.emitAssistantResponseEndHooks(event.message, event.context)
-              chatStream.finalizeStream(event.message)
+              chatStream.finalizeStream(remoteStreamGuard.sessionId, event.message)
               chatOrchestrator.sending = false
               remoteStreamGuard = null
               break

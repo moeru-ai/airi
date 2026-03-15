@@ -80,22 +80,7 @@ const chatHookCleanups: Array<() => void> = []
 const providersStore = useProvidersStore()
 const live2dStore = useLive2d()
 const vrmStore = useModelStore()
-
-const showStage = ref(true)
-const showStageTimeout = ref<ReturnType<typeof setTimeout>>()
 const viewUpdateCleanups: Array<() => void> = []
-
-function reloadStage() {
-  if (showStageTimeout.value) {
-    clearTimeout(showStageTimeout.value)
-  }
-  showStage.value = false
-  showStageTimeout.value = setTimeout(async () => {
-    await settingsStore.updateStageModel()
-    showStage.value = true
-    showStageTimeout.value = undefined
-  }, 100)
-}
 
 // Caption + Presentation broadcast channels
 type CaptionChannelEvent
@@ -109,12 +94,12 @@ type PresentEvent
     | { type: 'assistant-append', text: string }
 const { post: postPresent } = useBroadcastChannel<PresentEvent, PresentEvent>({ name: 'airi-chat-present' })
 
-viewUpdateCleanups.push(live2dStore.onShouldUpdateView(async () => {
-  reloadStage()
+viewUpdateCleanups.push(live2dStore.onShouldUpdateView(() => {
+  // Live2D models already handle their own reload path inside the scene package.
 }))
 
-viewUpdateCleanups.push(vrmStore.onShouldUpdateView(async () => {
-  reloadStage()
+viewUpdateCleanups.push(vrmStore.onShouldUpdateView(() => {
+  // VRM reloads are driven by modelSrc changes after updateStageModel().
 }))
 
 const audioAnalyser = ref<AnalyserNode>()
@@ -646,9 +631,6 @@ onUnmounted(() => {
     lipSyncLoopId.value = undefined
   }
 
-  if (showStageTimeout.value) {
-    clearTimeout(showStageTimeout.value)
-  }
   chatHookCleanups.forEach(dispose => dispose?.())
   viewUpdateCleanups.forEach(dispose => dispose?.())
 })
@@ -663,7 +645,7 @@ defineExpose({
   <div relative>
     <div h-full w-full>
       <Live2DScene
-        v-if="stageModelRenderer === 'live2d' && showStage"
+        v-if="stageModelRenderer === 'live2d'"
         ref="live2dSceneRef"
         v-model:state="componentState"
         min-w="50% <lg:full" min-h="100 sm:100"
@@ -686,7 +668,7 @@ defineExpose({
         :live2d-max-fps="live2dMaxFps"
       />
       <ThreeScene
-        v-if="stageModelRenderer === 'vrm' && showStage"
+        v-if="stageModelRenderer === 'vrm'"
         ref="vrmViewerRef"
         v-model:state="componentState"
         :model-src="stageModelSelectedUrl"
