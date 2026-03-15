@@ -45,12 +45,24 @@ function parseEnvFile(filepath: string): Record<string, string> {
         return acc
 
       const key = line.slice(0, separatorIndex).trim()
-      const value = line.slice(separatorIndex + 1).trim()
+      const value = normalizeEnvValue(line.slice(separatorIndex + 1).trim())
       if (key)
         acc[key] = value
 
       return acc
     }, {})
+}
+
+function normalizeEnvValue(value: string) {
+  if (value.length >= 2) {
+    const first = value[0]
+    const last = value.at(-1)
+    if ((first === '\'' || first === '"') && first === last) {
+      return value.slice(1, -1)
+    }
+  }
+
+  return value
 }
 
 function readSavedConfig(filepath: string): Partial<MinecraftEditableConfig> {

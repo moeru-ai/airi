@@ -121,4 +121,26 @@ describe('minecraftRuntimeConfigManager', () => {
     })
     expect(snapshot.effectiveBotConfig.port).toBe(25565)
   })
+
+  it('strips matching quotes from env values like dotenv does', () => {
+    const cwd = createTempDir()
+    tempDirs.push(cwd)
+
+    writeFileSync(path.join(cwd, '.env.local'), [
+      'BOT_HOSTNAME=\'127.0.0.1\'',
+      'BOT_PORT=\'25565\'',
+      'BOT_USERNAME=\'quoted-bot\'',
+      'BOT_VERSION=\'1.21.8\'',
+    ].join('\n'))
+
+    const manager = new MinecraftRuntimeConfigManager({ cwd })
+    const snapshot = manager.load()
+
+    expect(snapshot.effectiveBotConfig).toMatchObject({
+      host: '127.0.0.1',
+      port: 25565,
+      username: 'quoted-bot',
+      version: '1.21.8',
+    })
+  })
 })
