@@ -22,6 +22,11 @@ interface ChatterboxCapabilities {
   modes: string[]
 }
 
+interface ChatterboxEmoticonRule {
+  pattern: string
+  replacement: string
+}
+
 interface ChatterboxPreset {
   id: string
   voice_file: string
@@ -32,19 +37,11 @@ interface ChatterboxPreset {
   ui_mannerisms: string[]
 }
 
-interface ChatterboxVoiceRecord {
-  voice_id?: string
-  id?: string
-  name?: string
-  type?: string
-  metadata?: Partial<Omit<ChatterboxPreset, 'id'>>
-}
-
 interface ChatterboxProfileDraft {
   id: string
   hmph: string
   tilde: string[]
-  emoticonRules: Array<{ pattern: string, replacement: string }>
+  emoticonRules: ChatterboxEmoticonRule[]
 }
 
 const allSupportedTags = [
@@ -122,7 +119,10 @@ const capabilities = ref<ChatterboxCapabilities | null>(null)
 const presets = ref<ChatterboxPreset[]>([])
 const profileDrafts = ref<ChatterboxProfileDraft[]>([])
 const studioLoading = ref(false)
+const presetSaving = ref(false)
+const profileSaving = ref(false)
 const studioError = ref('')
+const studioNotice = ref('')
 const selectedPresetId = ref('')
 const selectedProfileId = ref('')
 const draft = ref<ChatterboxPreset>(createDraft())
@@ -262,13 +262,17 @@ function applyAllMannerisms() {
   draft.value.ui_mannerisms = [...allMannerismKeys]
 }
 
-async function fetchJson<T>(url: string): Promise<T> {
+function buildStudioHeaders(): Record<string, string> {
   const apiKey = typeof providers.value[providerId]?.apiKey === 'string'
     ? providers.value[providerId]?.apiKey.trim()
     : ''
 
+  return apiKey ? { Authorization: `Bearer ${apiKey}` } : {}
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url, {
-    headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+    headers: buildStudioHeaders(),
   })
 
   if (!response.ok)
@@ -277,13 +281,65 @@ async function fetchJson<T>(url: string): Promise<T> {
   return await response.json() as T
 }
 
+async function sendJson<T>(url: string, method: 'POST' | 'PUT' | 'DELETE', body?: unknown): Promise<T> {
+  const response = await fetch(url, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...buildStudioHeaders(),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+
+  if (!response.ok) {
+    let detail = `${response.status} ${response.statusText}`
+    try {
+      const errorBody = await response.json() as { detail?: string }
+      if (errorBody?.detail)
+        detail = String(errorBody.detail)
+    }
+    catch {
+    }
+    throw new Error(detail)
+  }
+
+  return await response.json() as T
+}
+
+function presetPayloadFromDraft() {
+  return {
+    id: draft.value.id.trim(),
+    voice_file: draft.value.voice_file.trim(),
+    tts_model: draft.value.tts_model.trim(),
+    exaggeration: Number(draft.value.exaggeration ?? 0),
+    mannerism_profile: draft.value.mannerism_profile.trim(),
+    ui_expressions: [...draft.value.ui_expressions],
+    ui_mannerisms: [...draft.value.ui_mannerisms],
+  }
+}
+
+function profilePayloadFromDraft() {
+  return {
+    id: profileDraft.value.id.trim(),
+    hmph: profileDraft.value.hmph.trim(),
+    tilde: [...profileDraft.value.tilde],
+    emoticons: profileDraft.value.emoticonRules.map(rule => ({
+      pattern: rule.pattern.trim(),
+      replacement: rule.replacement.trim(),
+    })),
+  }
+}
+
 async function refreshStudioData() {
   const apiBaseUrl = normalizeApiBaseUrl(baseUrl.value)
   if (!apiBaseUrl) {
     capabilities.value = null
     presets.value = []
+    profileDrafts.value = []
     studioError.value = ''
+    studioNotice.value = ''
     applyDraft()
+    applyProfileDraft()
     return
   }
 
@@ -291,9 +347,15 @@ async function refreshStudioData() {
   studioError.value = ''
 
   const rootBaseUrl = toStudioRootUrl(apiBaseUrl)
-  const [capabilitiesResult, voicesResult] = await Promise.allSettled([
+  const [capabilitiesResult, presetsResult, profilesResult] = await Promise.allSettled([
     fetchJson<ChatterboxCapabilities>(`${rootBaseUrl}chatterbox/capabilities`),
-    fetchJson<{ voices?: ChatterboxVoiceRecord[] }>(`${apiBaseUrl}voices`),
+    fetchJson<{ presets?: ChatterboxPreset[] }>(`${rootBaseUrl}chatterbox/presets`),
+    fetchJson<{ profiles?: Array<{
+      id: string
+      hmph?: string
+      tilde?: string[]
+      emoticons?: ChatterboxEmoticonRule[]
+    }> }>(`${rootBaseUrl}chatterbox/profiles`),
   ])
 
   if (capabilitiesResult.status === 'fulfilled') {
@@ -302,38 +364,34 @@ async function refreshStudioData() {
       profiles: capabilitiesResult.value.profiles || [],
       modes: capabilitiesResult.value.modes || [],
     }
-    profileDrafts.value = capabilities.value.profiles.map(profileId => createProfileDraft({ id: profileId }))
   }
   else {
     capabilities.value = null
-    profileDrafts.value = []
   }
 
-  if (voicesResult.status === 'fulfilled') {
-    const nextPresets = (voicesResult.value.voices || [])
-      .filter(voice => voice.type === 'virtual')
-      .map((voice) => {
-        const metadata = voice.metadata || {}
-        return createDraft({
-          id: String(voice.voice_id || voice.id || voice.name || ''),
-          voice_file: metadata.voice_file || '',
-          tts_model: metadata.tts_model || 'full',
-          exaggeration: Number(metadata.exaggeration ?? 0),
-          mannerism_profile: metadata.mannerism_profile || '',
-          ui_expressions: metadata.ui_expressions || [],
-          ui_mannerisms: metadata.ui_mannerisms || [],
-        })
-      })
-
-    presets.value = nextPresets
+  if (presetsResult.status === 'fulfilled') {
+    presets.value = (presetsResult.value.presets || []).map(preset => createDraft(preset))
   }
   else {
     presets.value = []
   }
 
+  if (profilesResult.status === 'fulfilled') {
+    profileDrafts.value = (profilesResult.value.profiles || []).map(profile => createProfileDraft({
+      id: profile.id,
+      hmph: profile.hmph || '',
+      tilde: profile.tilde || [],
+      emoticonRules: profile.emoticons || [],
+    }))
+  }
+  else {
+    profileDrafts.value = []
+  }
+
   const errors = [
     capabilitiesResult.status === 'rejected' ? `Capabilities: ${capabilitiesResult.reason}` : '',
-    voicesResult.status === 'rejected' ? `Voices: ${voicesResult.reason}` : '',
+    presetsResult.status === 'rejected' ? `Presets: ${presetsResult.reason}` : '',
+    profilesResult.status === 'rejected' ? `Profiles: ${profilesResult.reason}` : '',
   ].filter(Boolean)
   studioError.value = errors.join(' | ')
 
@@ -411,6 +469,136 @@ function handleCloneDraft() {
 function handleCreateProfileDraft() {
   selectedProfileId.value = ''
   applyProfileDraft()
+}
+
+async function handleSavePreset() {
+  const apiBaseUrl = normalizeApiBaseUrl(baseUrl.value)
+  if (!apiBaseUrl) {
+    studioError.value = 'Configure a Chatterbox base URL before saving presets.'
+    return
+  }
+
+  const payload = presetPayloadFromDraft()
+  if (!payload.id) {
+    studioError.value = 'Preset ID is required.'
+    return
+  }
+
+  presetSaving.value = true
+  studioError.value = ''
+  studioNotice.value = ''
+
+  try {
+    const rootBaseUrl = toStudioRootUrl(apiBaseUrl)
+    const existingId = selectedPresetId.value.trim()
+    if (existingId) {
+      await sendJson(`${rootBaseUrl}chatterbox/presets/${encodeURIComponent(existingId)}`, 'PUT', payload)
+    }
+    else {
+      await sendJson(`${rootBaseUrl}chatterbox/presets`, 'POST', payload)
+    }
+
+    selectedPresetId.value = payload.id
+    studioNotice.value = `Saved preset "${payload.id}".`
+    await refreshStudioData()
+  }
+  catch (error) {
+    studioError.value = error instanceof Error ? error.message : String(error)
+  }
+  finally {
+    presetSaving.value = false
+  }
+}
+
+async function handleDeletePreset() {
+  const apiBaseUrl = normalizeApiBaseUrl(baseUrl.value)
+  const presetId = selectedPresetId.value.trim() || draft.value.id.trim()
+  if (!apiBaseUrl || !presetId)
+    return
+
+  presetSaving.value = true
+  studioError.value = ''
+  studioNotice.value = ''
+
+  try {
+    const rootBaseUrl = toStudioRootUrl(apiBaseUrl)
+    await sendJson(`${rootBaseUrl}chatterbox/presets/${encodeURIComponent(presetId)}`, 'DELETE')
+    selectedPresetId.value = ''
+    studioNotice.value = `Deleted preset "${presetId}".`
+    await refreshStudioData()
+  }
+  catch (error) {
+    studioError.value = error instanceof Error ? error.message : String(error)
+  }
+  finally {
+    presetSaving.value = false
+  }
+}
+
+async function handleSaveProfile() {
+  const apiBaseUrl = normalizeApiBaseUrl(baseUrl.value)
+  if (!apiBaseUrl) {
+    studioError.value = 'Configure a Chatterbox base URL before saving profiles.'
+    return
+  }
+
+  const payload = profilePayloadFromDraft()
+  if (!payload.id) {
+    studioError.value = 'Profile ID is required.'
+    return
+  }
+
+  profileSaving.value = true
+  studioError.value = ''
+  studioNotice.value = ''
+
+  try {
+    const rootBaseUrl = toStudioRootUrl(apiBaseUrl)
+    const existingId = selectedProfileId.value.trim()
+    if (existingId) {
+      await sendJson(`${rootBaseUrl}chatterbox/profiles/${encodeURIComponent(existingId)}`, 'PUT', payload)
+    }
+    else {
+      await sendJson(`${rootBaseUrl}chatterbox/profiles`, 'POST', payload)
+    }
+
+    selectedProfileId.value = payload.id
+    studioNotice.value = `Saved profile "${payload.id}".`
+    await refreshStudioData()
+  }
+  catch (error) {
+    studioError.value = error instanceof Error ? error.message : String(error)
+  }
+  finally {
+    profileSaving.value = false
+  }
+}
+
+async function handleDeleteProfile() {
+  const apiBaseUrl = normalizeApiBaseUrl(baseUrl.value)
+  const profileId = selectedProfileId.value.trim() || profileDraft.value.id.trim()
+  if (!apiBaseUrl || !profileId)
+    return
+
+  profileSaving.value = true
+  studioError.value = ''
+  studioNotice.value = ''
+
+  try {
+    const rootBaseUrl = toStudioRootUrl(apiBaseUrl)
+    await sendJson(`${rootBaseUrl}chatterbox/profiles/${encodeURIComponent(profileId)}`, 'DELETE')
+    if (draft.value.mannerism_profile === profileId)
+      draft.value.mannerism_profile = ''
+    selectedProfileId.value = ''
+    studioNotice.value = `Deleted profile "${profileId}".`
+    await refreshStudioData()
+  }
+  catch (error) {
+    studioError.value = error instanceof Error ? error.message : String(error)
+  }
+  finally {
+    profileSaving.value = false
+  }
 }
 
 watch(
@@ -505,8 +693,7 @@ const {
   >
     <template #basic-settings>
       <Callout label="Chatterbox Management Studio">
-        First-class provider shell for local Chatterbox. This pass focuses on the UI and read-only preset inspection.
-        Save and delete actions are intentionally stubbed until the preset CRUD design is finalized.
+        Build reusable voice presets and text-style profiles for Chatterbox in one place. Presets choose the base voice and synthesis mode, while profiles define how text gets rewritten into character-specific sounds and habits.
       </Callout>
     </template>
 
@@ -663,7 +850,7 @@ const {
                   </div>
                 </div>
                 <div class="text-xs opacity-60">
-                  Preview only
+                  Ready to save
                 </div>
               </div>
 
@@ -744,14 +931,18 @@ const {
               </div>
 
               <div class="mt-4 flex flex-wrap gap-2">
-                <Button disabled>
+                <Button :disabled="presetSaving" @click="handleSavePreset">
                   Save Preset
                 </Button>
-                <Button variant="secondary" disabled>
+                <Button
+                  variant="secondary"
+                  :disabled="presetSaving || (!selectedPresetId && !draft.id)"
+                  @click="handleDeletePreset"
+                >
                   Delete Preset
                 </Button>
                 <div class="flex items-center text-xs opacity-60">
-                  Save and delete are the last step. This pass is focused on getting the preset design and workflow right first.
+                  Save writes directly to the Chatterbox preset library used by the runtime.
                 </div>
               </div>
             </div>
@@ -767,7 +958,7 @@ const {
                   </div>
                 </div>
                 <div class="text-xs opacity-60">
-                  Draft only
+                  Ready to save
                 </div>
               </div>
 
@@ -807,7 +998,7 @@ const {
 
               <div class="grid mt-4 gap-4 md:grid-cols-2">
                 <label class="flex flex-col gap-2">
-                  <span class="text-sm font-semibold">Tilde Fillers</span>
+                  <span class="text-sm font-semibold">Tilde Replacements</span>
                   <textarea
                     v-model="profileTildeText"
                     rows="5"
@@ -830,14 +1021,18 @@ const {
               </div>
 
               <div class="mt-4 flex flex-wrap gap-2">
-                <Button disabled>
+                <Button :disabled="profileSaving" @click="handleSaveProfile">
                   Save Profile
                 </Button>
-                <Button variant="secondary" disabled>
+                <Button
+                  variant="secondary"
+                  :disabled="profileSaving || (!selectedProfileId && !profileDraft.id)"
+                  @click="handleDeleteProfile"
+                >
                   Delete Profile
                 </Button>
                 <div class="flex items-center text-xs opacity-60">
-                  This profile editor is here to make style design understandable before the save flow is wired up.
+                  Profiles are reusable text transformation recipes that presets can point to.
                 </div>
               </div>
             </div>
@@ -850,6 +1045,15 @@ const {
                 <div class="whitespace-pre-wrap break-all">
                   {{ studioError }}
                 </div>
+              </template>
+            </Alert>
+
+            <Alert v-if="studioNotice" type="success">
+              <template #title>
+                Studio updated
+              </template>
+              <template #content>
+                {{ studioNotice }}
               </template>
             </Alert>
 
