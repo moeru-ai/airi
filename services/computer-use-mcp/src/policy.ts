@@ -11,7 +11,28 @@ function includesPattern(value: string | undefined, patterns: string[]) {
 }
 
 function isMutatingAction(action: ActionInvocation) {
-  return !['screenshot', 'observe_windows', 'wait', 'terminal_reset', 'clipboard_read_text', 'secret_read_env_value', 'coding_review_workspace', 'coding_read_file', 'coding_compress_context', 'coding_report_status'].includes(action.kind)
+  return ![
+    'screenshot',
+    'observe_windows',
+    'wait',
+    'terminal_reset',
+    'clipboard_read_text',
+    'secret_read_env_value',
+    'coding_review_workspace',
+    'coding_read_file',
+    'coding_compress_context',
+    'coding_report_status',
+    'coding_search_text',
+    'coding_search_symbol',
+    'coding_find_references',
+    'coding_analyze_impact',
+    'coding_validate_hypothesis',
+    'coding_select_target',
+    'coding_plan_changes',
+    'coding_review_changes',
+    'coding_diagnose_changes',
+    'coding_capture_validation_baseline',
+  ].includes(action.kind)
 }
 
 function isUiInteractionAction(action: ActionInvocation) {
@@ -45,6 +66,16 @@ function estimateOperationUnits(action: ActionInvocation) {
     case 'coding_read_file':
     case 'coding_compress_context':
     case 'coding_report_status':
+    case 'coding_search_text':
+    case 'coding_search_symbol':
+    case 'coding_find_references':
+    case 'coding_analyze_impact':
+    case 'coding_validate_hypothesis':
+    case 'coding_select_target':
+    case 'coding_plan_changes':
+    case 'coding_review_changes':
+    case 'coding_diagnose_changes':
+    case 'coding_capture_validation_baseline':
       return 1
 
     case 'screenshot':

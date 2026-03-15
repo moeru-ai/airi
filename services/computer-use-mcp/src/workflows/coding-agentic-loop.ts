@@ -1,6 +1,7 @@
+import type { CodingChangeIntent } from '../state'
 import type { WorkflowDefinition } from './types'
 
-export function createCodingExecutionLoopWorkflow(params?: {
+export function createCodingAgenticLoopWorkflow(params?: {
   workspacePath?: string
   taskGoal?: string
   targetFile?: string
@@ -10,11 +11,13 @@ export function createCodingExecutionLoopWorkflow(params?: {
   targetColumn?: number
   allowMultiFile?: boolean
   maxPlannedFiles?: number
+  changeIntent?: CodingChangeIntent
   patchOld?: string
   patchNew?: string
   testCommand?: string
 }): WorkflowDefinition {
   const workspacePath = params?.workspacePath ?? '{workspacePath}'
+  const isolatedWorkspacePath = `${workspacePath}/.airi-agentic-worktree`
   const taskGoal = params?.taskGoal ?? '{taskGoal}'
   const targetFile = params?.targetFile ?? 'auto'
   const targetSymbol = params?.targetSymbol
@@ -23,21 +26,32 @@ export function createCodingExecutionLoopWorkflow(params?: {
   const targetColumn = params?.targetColumn
   const allowMultiFile = params?.allowMultiFile ?? true
   const maxPlannedFiles = Math.min(Math.max(params?.maxPlannedFiles ?? 2, 1), 3)
+  const changeIntent = params?.changeIntent ?? 'behavior_fix'
   const patchOld = params?.patchOld ?? '{patchOld}'
   const patchNew = params?.patchNew ?? '{patchNew}'
   const testCommand = params?.testCommand ?? 'auto'
 
   return {
-    id: 'coding_execution_loop',
-    name: `Executes a full standard coding loop with optional search-driven target resolution`,
-    description: `Reviews workspace, optionally searches symbols/text, resolves target file (explicit or auto), applies a patch, validates, and reports deterministically.`,
+    id: 'coding_agentic_loop',
+    name: 'Executes an agentic coding loop with bounded DAG planning and judge-assisted causal diagnosis',
+    description: 'Runs workspace review, captures baseline/worktree, impact analysis, hypothesis-driven target selection, bounded DAG-style session planning, patching, validation, deterministic review, judge-assisted diagnosis with schema fallback, and status report.',
     maxRetries: 2,
     steps: [
       {
         label: 'Review Workspace',
         kind: 'coding_review_workspace',
-        description: 'Review the current workspace state and git status.',
+        description: 'Review workspace state and git summary before agentic execution.',
         params: { workspacePath },
+        critical: true,
+      },
+      {
+        label: 'Capture Validation Baseline',
+        kind: 'coding_capture_validation_baseline',
+        description: 'Capture baseline dirty tree/failing checks and switch to temporary worktree when possible.',
+        params: {
+          workspacePath,
+          createTemporaryWorktree: true,
+        },
         critical: true,
       },
       ...(searchQuery
@@ -68,38 +82,74 @@ export function createCodingExecutionLoopWorkflow(params?: {
           }]
         : []),
       {
-        label: 'Select deterministic target',
-        kind: 'coding_select_target',
-        description: 'Select a deterministic target file from explicit/search candidates.',
+        label: 'Analyze Local Impact Graph',
+        kind: 'coding_analyze_impact',
+        description: 'Construct bounded local impact graph from symbol/search candidates.',
         params: {
           targetFile: params?.targetFile,
           searchQuery,
           targetSymbol,
+          maxDepth: 1,
         },
         critical: true,
       },
       {
-        label: 'Plan limited changes',
+        label: 'Validate Target Hypothesis',
+        kind: 'coding_validate_hypothesis',
+        description: 'Validate target hypothesis against impact analysis evidence.',
+        params: {
+          targetFile: params?.targetFile,
+          searchQuery,
+          targetSymbol,
+          changeIntent,
+        },
+        critical: true,
+      },
+      {
+        label: 'Select intent-driven target',
+        kind: 'coding_select_target',
+        description: 'Select target file using deterministic tie-break and hypothesis evidence.',
+        params: {
+          targetFile: params?.targetFile,
+          searchQuery,
+          targetSymbol,
+          changeIntent,
+        },
+        critical: true,
+      },
+      {
+        label: 'Create session-aware plan',
         kind: 'coding_plan_changes',
-        description: 'Build a deterministic limited plan (max 3 files) with dependsOn/checkpoint and capture diff baseline.',
+        description: 'Create bounded plan session (max 3 files) with dependsOn/checkpoint and investigation/amend/abort transitions.',
         params: {
           intent: taskGoal,
           allowMultiFile,
           maxPlannedFiles,
+          changeIntent,
+          sessionAware: true,
+        },
+        critical: true,
+      },
+      {
+        label: 'Select next executable session step',
+        kind: 'coding_select_target',
+        description: 'Re-evaluate session DAG state and pick the next executable step for this round.',
+        params: {
+          changeIntent,
         },
         critical: true,
       },
       {
         label: 'Read target file',
         kind: 'coding_read_file',
-        description: 'Read the selected target file.',
+        description: 'Read selected target file from current coding workspace.',
         params: { filePath: 'auto' },
         critical: true,
       },
       {
         label: 'Compress Context',
         kind: 'coding_compress_context',
-        description: 'Summarize current goal and file state before applying changes.',
+        description: 'Summarize context before mutation.',
         params: {
           goal: taskGoal,
           filesSummary: 'auto',
@@ -112,35 +162,42 @@ export function createCodingExecutionLoopWorkflow(params?: {
       {
         label: 'Apply Patch',
         kind: 'coding_apply_patch',
-        description: 'Patch the selected target file.',
+        description: 'Patch selected target file.',
         params: { filePath: 'auto', oldString: patchOld, newString: patchNew },
         critical: true,
       },
       {
         label: 'Verify file changes',
         kind: 'coding_read_file',
-        description: 'Re-read selected file to ensure patch applied properly.',
+        description: 'Re-read selected file to verify patch application.',
         params: { filePath: 'auto' },
         critical: true,
       },
       {
-        label: 'Run Validation/Tests',
+        label: 'Run scoped validation',
         kind: 'run_command',
-        description: 'Run scoped validation command (auto resolves to file-level checks when possible).',
-        params: { command: testCommand, cwd: workspacePath, timeoutMs: 60_000 },
+        description: 'Run scoped validation command in isolated workspace (auto resolves to minimal file-level checks when possible).',
+        params: { command: testCommand, cwd: isolatedWorkspacePath, timeoutMs: 60_000 },
         critical: false,
       },
       {
         label: 'Review deterministic changes',
         kind: 'coding_review_changes',
-        description: 'Run deterministic diff-aware review against planned/baseline files.',
+        description: 'Run deterministic guard-rail review against current plan/session.',
         params: {},
         critical: false,
       },
       {
-        label: 'Self-review and Report',
+        label: 'Diagnose change failure',
+        kind: 'coding_diagnose_changes',
+        description: 'Generate structured root cause for amend/abort decisions.',
+        params: {},
+        critical: false,
+      },
+      {
+        label: 'Report final status',
         kind: 'coding_report_status',
-        description: 'Report the structured execution status for the loop.',
+        description: 'Report structured status with deterministic fields.',
         params: {
           status: 'auto',
           summary: 'auto',

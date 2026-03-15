@@ -1,0 +1,191 @@
+{
+  "generatedAt": "2026-03-15T14:44:15.079Z",
+  "harness": "benchmark-coding-agentic-v2",
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "byCluster": {
+      "baseline_noise": {
+        "total": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "new_red": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "wrong_target": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "missed_dependency": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "unsupported_fallback": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      }
+    },
+    "scoreProtocol": {
+      "version": 2,
+      "dimensions": {
+        "autonomousSuccessRate": {
+          "value": 1,
+          "numerator": 6,
+          "denominator": 6
+        },
+        "firstTargetHitRate": {
+          "value": 1,
+          "numerator": 5,
+          "denominator": 5
+        },
+        "rootCauseMisjudgeRate": {
+          "value": 0,
+          "numerator": 0,
+          "denominator": 4
+        },
+        "turnsToResolution": {
+          "value": 1.3333,
+          "samples": 6
+        },
+        "humanHandoffRate": {
+          "value": 0,
+          "numerator": 0,
+          "denominator": 6
+        },
+        "dirtyWorkspaceRegressionRate": {
+          "value": 0.1667,
+          "numerator": 1,
+          "denominator": 6
+        }
+      },
+      "compositeScore": 98.3332,
+      "notes": [
+        "weights: success=35%, firstTargetHit=20%, rootCause=20%, turns=10%, handoff=10%, dirtyRegression=5%",
+        "rootCauseMisjudgeRate only counts cases with explicit expected root-cause labels"
+      ]
+    }
+  },
+  "records": [
+    {
+      "caseId": "case_ts_baseline_noise",
+      "scenarioKey": "ts-baseline-noise",
+      "workspaceType": "ts",
+      "cluster": "baseline_noise",
+      "pass": true,
+      "baselineComparison": "baseline_noise",
+      "rootCauseType": "baseline_noise",
+      "rootCauseExpected": "baseline_noise",
+      "rootCauseMatched": true,
+      "traceId": "trace_mmrv7qqx_wnjdnj",
+      "firstTargetHit": true,
+      "turnsToResolution": 1,
+      "humanHandoffNeeded": false,
+      "dirtyWorkspaceRegression": false,
+      "notes": [
+        "expectedComparison=baseline_noise",
+        "workflowStatus=completed",
+        "firstTargetHit=true"
+      ]
+    },
+    {
+      "caseId": "case_ts_new_red_diff_escape",
+      "scenarioKey": "ts-new-red-diff-escape",
+      "workspaceType": "ts",
+      "cluster": "new_red",
+      "pass": true,
+      "baselineComparison": "new_red",
+      "rootCauseType": "missed_dependency",
+      "traceId": "trace_mmrv7wua_ab5n1o",
+      "firstTargetHit": true,
+      "turnsToResolution": 1,
+      "humanHandoffNeeded": false,
+      "dirtyWorkspaceRegression": true,
+      "notes": [
+        "expectedComparison=new_red",
+        "workflowStatus=completed",
+        "firstTargetHit=true"
+      ]
+    },
+    {
+      "caseId": "case_ts_wrong_target",
+      "scenarioKey": "wrong-target-direct",
+      "workspaceType": "ts",
+      "cluster": "wrong_target",
+      "pass": true,
+      "rootCauseType": "wrong_target",
+      "rootCauseExpected": "wrong_target",
+      "rootCauseMatched": true,
+      "traceId": "trace_mmrv7xpb_c3s5l6",
+      "firstTargetHit": true,
+      "turnsToResolution": 2,
+      "humanHandoffNeeded": false,
+      "dirtyWorkspaceRegression": false,
+      "notes": [
+        "expectedRootCause=wrong_target",
+        "observedRootCause=wrong_target"
+      ]
+    },
+    {
+      "caseId": "case_ts_missed_dependency",
+      "scenarioKey": "missed-dependency-direct",
+      "workspaceType": "ts",
+      "cluster": "missed_dependency",
+      "pass": true,
+      "rootCauseType": "missed_dependency",
+      "rootCauseExpected": "missed_dependency",
+      "rootCauseMatched": true,
+      "traceId": "trace_mmrv7y5w_xduvz8",
+      "firstTargetHit": true,
+      "turnsToResolution": 2,
+      "humanHandoffNeeded": false,
+      "dirtyWorkspaceRegression": false,
+      "notes": [
+        "expectedRootCause=missed_dependency",
+        "observedRootCause=missed_dependency"
+      ]
+    },
+    {
+      "caseId": "case_py_unsupported_fallback",
+      "scenarioKey": "python-unsupported-impact",
+      "workspaceType": "python",
+      "cluster": "unsupported_fallback",
+      "pass": true,
+      "traceId": null,
+      "turnsToResolution": 1,
+      "humanHandoffNeeded": false,
+      "dirtyWorkspaceRegression": false,
+      "notes": [
+        "status=unsupported",
+        "languageSupport=unsupported"
+      ]
+    },
+    {
+      "caseId": "case_ts_dirty_tree_baseline_noise",
+      "scenarioKey": "ts-dirty-tree-baseline-noise",
+      "workspaceType": "ts",
+      "cluster": "baseline_noise",
+      "pass": true,
+      "baselineComparison": "baseline_noise",
+      "rootCauseType": "baseline_noise",
+      "rootCauseExpected": "baseline_noise",
+      "rootCauseMatched": true,
+      "traceId": "trace_mmrv83oy_boy1w1",
+      "firstTargetHit": true,
+      "turnsToResolution": 1,
+      "humanHandoffNeeded": false,
+      "dirtyWorkspaceRegression": false,
+      "notes": [
+        "expectedComparison=baseline_noise",
+        "workflowStatus=completed",
+        "firstTargetHit=true"
+      ]
+    }
+  ]
+}

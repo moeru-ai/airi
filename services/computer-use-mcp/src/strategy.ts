@@ -634,7 +634,7 @@ const TERMINAL_APPS = new Set([
 ])
 
 /** Check if the foreground app is a known terminal emulator. */
-function isTerminalApp(appName: string | undefined): boolean {
+function _isTerminalApp(appName: string | undefined): boolean {
   if (!appName)
     return false
   return TERMINAL_APPS.has(appName.trim().toLowerCase().replace(/\.app$/u, ''))

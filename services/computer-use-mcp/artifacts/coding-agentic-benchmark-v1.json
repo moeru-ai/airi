@@ -1,0 +1,118 @@
+{
+  "generatedAt": "2026-03-15T13:57:24.937Z",
+  "harness": "benchmark-coding-agentic-v1",
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "byCluster": {
+      "baseline_noise": {
+        "total": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "new_red": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "wrong_target": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "missed_dependency": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "unsupported_fallback": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      }
+    }
+  },
+  "records": [
+    {
+      "caseId": "case_ts_baseline_noise",
+      "scenarioKey": "ts-baseline-noise",
+      "workspaceType": "ts",
+      "cluster": "baseline_noise",
+      "pass": true,
+      "baselineComparison": "baseline_noise",
+      "rootCauseType": "baseline_noise",
+      "traceId": "trace_mmrtjfja_d2qdi6",
+      "notes": [
+        "expectedComparison=baseline_noise",
+        "workflowStatus=completed"
+      ]
+    },
+    {
+      "caseId": "case_ts_new_red_diff_escape",
+      "scenarioKey": "ts-new-red-diff-escape",
+      "workspaceType": "ts",
+      "cluster": "new_red",
+      "pass": true,
+      "baselineComparison": "new_red",
+      "rootCauseType": "missed_dependency",
+      "traceId": "trace_mmrtjmea_unb248",
+      "notes": [
+        "expectedComparison=new_red",
+        "workflowStatus=completed"
+      ]
+    },
+    {
+      "caseId": "case_ts_wrong_target",
+      "scenarioKey": "wrong-target-direct",
+      "workspaceType": "ts",
+      "cluster": "wrong_target",
+      "pass": true,
+      "rootCauseType": "wrong_target",
+      "traceId": "trace_mmrtjnba_j63gqr",
+      "notes": [
+        "expectedRootCause=wrong_target",
+        "observedRootCause=wrong_target"
+      ]
+    },
+    {
+      "caseId": "case_ts_missed_dependency",
+      "scenarioKey": "missed-dependency-direct",
+      "workspaceType": "ts",
+      "cluster": "missed_dependency",
+      "pass": true,
+      "rootCauseType": "missed_dependency",
+      "traceId": "trace_mmrtjnsl_113bab",
+      "notes": [
+        "expectedRootCause=missed_dependency",
+        "observedRootCause=missed_dependency"
+      ]
+    },
+    {
+      "caseId": "case_py_unsupported_fallback",
+      "scenarioKey": "python-unsupported-impact",
+      "workspaceType": "python",
+      "cluster": "unsupported_fallback",
+      "pass": true,
+      "traceId": null,
+      "notes": [
+        "status=unsupported",
+        "languageSupport=unsupported"
+      ]
+    },
+    {
+      "caseId": "case_ts_dirty_tree_baseline_noise",
+      "scenarioKey": "ts-dirty-tree-baseline-noise",
+      "workspaceType": "ts",
+      "cluster": "baseline_noise",
+      "pass": true,
+      "baselineComparison": "baseline_noise",
+      "rootCauseType": "baseline_noise",
+      "traceId": "trace_mmrtjv3m_6z7vk9",
+      "notes": [
+        "expectedComparison=baseline_noise",
+        "workflowStatus=completed"
+      ]
+    }
+  ]
+}
