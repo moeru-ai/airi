@@ -8,24 +8,26 @@ excerpt: |
 
 Hi, this is [@Lilia-Chen](https://github.com/Lilia-Chen).
 
-Lately I have been working on AIRI's VRM / Three.js runtime, the VRM stage used across web, desktop and mobile apps. The DevLog for today is about [#1194](https://github.com/moeru-ai/airi/pull/1194), which I opened on March 8, 2026 and merged on March 12, 2026.
+Lately I have been working on AIRI's VRM / Three.js runtime, the 3D stage shared across AIRI's web, desktop, and mobile apps. The DevLog for today is about [#1194](https://github.com/moeru-ai/airi/pull/1194), which I opened on March 8, 2026 and merged on March 12, 2026.
 
 The story is simple: the VRM stage had reached the point where it was too easy for lifecycle mistakes to disguise themselves as rendering bugs, performance bugs, or random "loading forever" bugs.
 
 So this became a clean-up, a redesign, and a debugging diary all at once.
 
-I really appreciate the review and help offered by [@neko](https://github.com/nekomeowww) and [@Makito](https://github.com/sumimakito) for all the work within.
+I also want to thank [@neko](https://github.com/nekomeowww) and [@Makito](https://github.com/sumimakito) for their reviews and help throughout this work.
+
+This was also my first serious pass through the `stage-tamagotchi` runtime. I ended up learning far more about Eventa and `injeca` than I expected, because debugging the stage quickly stopped being a single-component problem.
 
 ## Why Touch This Code at All?
 
-There are many reported bugs:
+By the time I started this work, there was already a cluster of bugs around the VRM stage:
 
 - VRM instances could overlap or behave as if old models were not really gone.
 - The stage could get stuck in `loading`.
 - Repeatedly loading different VRM models could push GPU and memory usage into unhealthy territory.
 - Deep disposal and resource ownership were inconsistent enough that it was hard to tell which scene actually "owned" the current model.
 
-Once I started debugging, the failure mode got even stranger: in development, even the first click on certain buttons could remount part of the scene and send the stage back into `loading` and stuck forever.
+Once I started debugging, the failure mode got even stranger: in development, even the first click on certain buttons could remount part of the scene, send it back into `loading`, and leave it stuck there.
 
 ## First Diagnosis: We Needed Better Lifecycle Management
 
@@ -137,13 +139,13 @@ Cache hits follow the same rule. Reusing a detached instance is only allowed aft
 
 After that, the bigger work began: `ThreeScene` itself needed a lifecycle model.
 
-Before this refactor, the dependencies between `ThreeScene`, `TresCanvas`, `OrbitControls`, camera state, and `VRMModel` were real, but too implicit. Once there is any remount of the component, such as due to HMR, it breaks...
+Before this refactor, the dependencies between `ThreeScene`, `TresCanvas`, `OrbitControls`, camera state, and `VRMModel` were real, but too implicit. Once the subtree remounted, whether because of HMR or some other update path, that loose coordination could fall apart.
 
-This was how messy it was before:
+This was how messy it looked before:
 
 ![ThreeScene lifecycle before](./assets/ThreeScene-before.png)
 
-And this is the how everything moves phase by phase now:
+And this is how it moves phase by phase now:
 
 ![ThreeScene lifecycle after](./assets/ThreeScene-after.png)
 
@@ -191,7 +193,9 @@ There were two separate problems there.
 
 ### Preview Scene Cleanup
 
-The preview renderer path was creating an offscreen `WebGLRenderer` for VRM previews, but its cleanup path was not strong enough. That was fixed by making preview teardown explicit:
+The preview renderer path was creating an offscreen `WebGLRenderer` for VRM previews, but its cleanup path was not strong enough.
+
+That was fixed by making preview teardown explicit:
 
 - stop animation actions,
 - deep-dispose the preview VRM,
@@ -205,7 +209,9 @@ The preview renderer path was creating an offscreen `WebGLRenderer` for VRM prev
 
 The stage model URL logic also turned out to be more fragile than it should have been.
 
-Previously, the selected URL could briefly become `undefined` during updates, which was enough to trigger an unnecessary teardown-and-reload cycle in the renderer. The fix there was to make URL replacement and revocation more disciplined:
+Previously, the selected URL could briefly become `undefined` during updates, which was enough to trigger an unnecessary teardown-and-reload cycle in the renderer.
+
+The fix there was to make URL replacement and revocation more disciplined:
 
 - treat the selected model as stable state,
 - replace the URL only when the next URL is actually ready,
@@ -276,14 +282,15 @@ The fix there was simply to remove that `KeepAlive` wrapper. Once the hidden sce
 
 One part of this PR that I especially wanted was tracing.
 
-The current tracing work is still fairly basic, but it is already much better than having to debug the VRM stage entirely from intuition and `console.log`. The trace layer now lives inside `@proj-airi/stage-ui-three` and uses Eventa as the local event contract. Some of the traces are performance-oriented, and some are lifecycle-oriented.
+The current tracing work is still fairly basic, but it is already much better than having to debug the VRM stage entirely from intuition and `console.log`.
+
+The trace layer now lives inside `@proj-airi/stage-ui-three`, with Eventa as its event contract. On the performance side, it records things like renderer info snapshots, hit-test readback timing, and per-frame VRM update breakdowns. On the lifecycle side, it traces load and dispose, cache `take` / `stash` / `clear`, scene phase changes, and transaction begin / end / reset. On desktop, those events are forwarded through Eventa into a simple diagnostics view.
 
 The future TODO here is to build a proper observability tool for `ThreeScene`:
 
 - better lifecycle introspection,
 - better performance timelines,
-- better resource accounting,
-- better correlation across windows and scenes,
+- better resource accounting and scene correlation,
 - and a much more complete O11y surface for the 3D runtime.
 
 ## Closing
@@ -296,10 +303,10 @@ So, what did `#1194` really do?
 - It gave `ThreeScene` a more explicit lifecycle model.
 - It fixed the `TresCanvas size=0` loading deadlock.
 - It exposed the `KeepAlive` regression on web.
-- And it established the first usable tracing path for this runtime.
+- It established the first usable tracing path for this runtime.
 
 Most importantly, it turned a pile of loosely coupled behaviors into something I can now explain, reason about, and debug.
 
 There is still plenty left to improve, especially around tracing and the future O11y tooling for `ThreeScene`, but at least now the runtime feels like it has an owner again.
 
-If you want to read the code directly, the best entry points are [#1194](https://github.com/moeru-ai/airi/pull/1194), and I will continue to trace VRM model related issues in [#1173](https://github.com/moeru-ai/airi/issues/1173).
+If you want to read the code directly, start with [#1194](https://github.com/moeru-ai/airi/pull/1194). I am also continuing to track VRM-related issues in [#1173](https://github.com/moeru-ai/airi/issues/1173).
