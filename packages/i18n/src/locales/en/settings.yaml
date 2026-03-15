@@ -356,20 +356,27 @@ pages:
       description: Playing Minecraft!
       title: Minecraft
       enable: Enable Minecraft Integration
-      enable-description: Allow AIRI to oversee and coordinate with the connected Minecraft bot
-      server-address: Server Address
-      server-address-description: The IP address or hostname the Minecraft bot should connect to
-      server-address-placeholder: Enter server address (e.g., localhost or play.example.com)
-      server-port: Server Port
-      server-port-description: The port number the Minecraft bot should connect to (default 25565)
-      username: Bot Username
-      username-description: The Minecraft bot username AIRI should run with
-      username-placeholder: Enter the Minecraft bot username
+      enable-description: Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
       configured: Minecraft is properly configured!
-      offline:
-        title: Minecraft Service Not Connected
-        description: Start the Minecraft service so Stage can receive live status heartbeats and configure it through AIRI.
-        note: This page is intentionally a shell around the connected bot service, so editing stays disabled until the service is online.
+      read-only:
+        title: Read-only shell
+        description: Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
+      setup:
+        title: Setup
+        step-1: Configure the Minecraft service in `services/minecraft/data/minecraft-config.json` for the normal editable layer.
+        step-2: Use `services/minecraft/.env.local` only for operator overrides. Values there take precedence over the saved config file.
+        step-3: Start `pnpm dev` in `services/minecraft`, then return here to confirm the service heartbeat and passive Minecraft traffic.
+      runtime:
+        title: Observed runtime
+        service: Service
+        bot-state: Bot state
+        target: Target server
+        username: Bot username
+        unknown: Unknown
+      debug:
+        title: Minecraft traffic
+        empty: No Minecraft traffic observed yet.
+        source: 'Source: {source}'
       status:
         service-offline: Service offline
         bot-connecting: Bot connecting
@@ -379,12 +386,9 @@ pages:
         service-name: 'Service: {service}'
         target: 'Target: {target}'
         username: 'Bot username: {username}'
-        last-updated: 'Last heartbeat: {value}'
+        last-heartbeat-seconds: 'Last heartbeat: {seconds}s ago'
+        last-heartbeat-stale: 'Last heartbeat: Stale'
         last-error: 'Last error: {value}'
-      actions:
-        save: Save & Apply
-        synced: Stage is in sync with the connected Minecraft service.
-        unsaved: You have local changes that have not been applied to the Minecraft service yet.
     hearing:
       description: Configure how speech recognition works
       title: Hearing

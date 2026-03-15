@@ -1,41 +1,47 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const send = vi.fn()
 const onContextUpdate = vi.fn()
+const onEvent = vi.fn()
+const send = vi.fn()
 
 vi.mock('../mods/api/channel-server', () => ({
   useModsServerChannelStore: () => ({
-    send,
     onContextUpdate,
+    onEvent,
+    send,
   }),
 }))
 
 describe('useMinecraftStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    send.mockReset()
     onContextUpdate.mockReset()
+    onEvent.mockReset()
+    send.mockReset()
   })
 
-  it('tracks heartbeat-backed service status and syncs draft config from minecraft:status', async () => {
+  it('uses a local integration toggle and passive minecraft status heartbeats', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(1))
 
     const { useMinecraftStore } = await import('./gaming-minecraft')
     const store = useMinecraftStore()
 
-    let handler: ((event: any) => void) | undefined
+    let contextHandler: ((event: any) => void) | undefined
     onContextUpdate.mockImplementation((callback: (event: any) => void) => {
-      handler = callback
+      contextHandler = callback
       return () => {}
     })
+    onEvent.mockImplementation(() => () => {})
 
     store.initialize()
+    store.integrationEnabled = true
 
-    handler?.({
+    contextHandler?.({
       data: {
         lane: 'minecraft:status',
+        text: 'Bot connected',
         content: {
           serviceName: 'minecraft-bot',
           botState: 'connected',
@@ -56,42 +62,43 @@ describe('useMinecraftStore', () => {
       },
     })
 
+    expect(store.integrationEnabled).toBe(true)
+    expect(store.configured).toBe(true)
     expect(store.serviceConnected).toBe(true)
     expect(store.botState).toBe('connected')
-    expect(store.serviceName).toBe('minecraft-bot')
-    expect(store.enabled).toBe(true)
-    expect(store.serverAddress).toBe('mc.example.com')
-    expect(store.serverPort).toBe(25565)
-    expect(store.username).toBe('airi-bot')
-    expect(store.canEdit).toBe(true)
+    expect(store.statusSnapshot?.editableConfig?.username).toBe('airi-bot')
+    expect(send).not.toHaveBeenCalled()
 
     vi.setSystemTime(new Date(30_000))
     vi.advanceTimersByTime(30_000)
 
     expect(store.serviceConnected).toBe(false)
-    expect(store.canEdit).toBe(false)
 
     vi.useRealTimers()
   })
 
-  it('sends live config updates to the connected minecraft service and clears applying on matching heartbeat', async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date(1))
-
+  it('captures minecraft-only traffic for the debug view', async () => {
     const { useMinecraftStore } = await import('./gaming-minecraft')
     const store = useMinecraftStore()
 
-    let handler: ((event: any) => void) | undefined
+    let contextHandler: ((event: any) => void) | undefined
+    let sparkCommandHandler: ((event: any) => void) | undefined
     onContextUpdate.mockImplementation((callback: (event: any) => void) => {
-      handler = callback
+      contextHandler = callback
+      return () => {}
+    })
+    onEvent.mockImplementation((type: string, callback: (event: any) => void) => {
+      if (type === 'spark:command')
+        sparkCommandHandler = callback
       return () => {}
     })
 
     store.initialize()
 
-    handler?.({
+    contextHandler?.({
       data: {
         lane: 'minecraft:status',
+        text: 'Bot connected',
         content: {
           serviceName: 'minecraft-bot',
           botState: 'connected',
@@ -112,40 +119,10 @@ describe('useMinecraftStore', () => {
       },
     })
 
-    store.serverAddress = 'saved.example.com'
-    store.serverPort = 24444
-    store.username = 'saved-bot'
-
-    await store.saveAndApply()
-
-    expect(send).toHaveBeenCalledWith({
-      type: 'ui:configure',
+    contextHandler?.({
       data: {
-        moduleName: 'minecraft-bot',
-        config: {
-          enabled: true,
-          host: 'saved.example.com',
-          port: 24444,
-          username: 'saved-bot',
-        },
-      },
-    })
-    expect(store.applying).toBe(true)
-
-    handler?.({
-      data: {
-        lane: 'minecraft:status',
-        content: {
-          serviceName: 'minecraft-bot',
-          botState: 'connecting',
-          editableConfig: {
-            enabled: true,
-            host: 'saved.example.com',
-            port: 24444,
-            username: 'saved-bot',
-          },
-          updatedAt: 1_000,
-        },
+        lane: 'game',
+        text: 'Bot online in world',
       },
       metadata: {
         source: {
@@ -155,79 +132,59 @@ describe('useMinecraftStore', () => {
       },
     })
 
-    expect(store.applying).toBe(false)
-    expect(store.lastError).toBe('')
-
-    vi.useRealTimers()
-  })
-
-  it('does not clobber the local draft when a stale heartbeat arrives during apply', async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date(1))
-
-    const { useMinecraftStore } = await import('./gaming-minecraft')
-    const store = useMinecraftStore()
-
-    let handler: ((event: any) => void) | undefined
-    onContextUpdate.mockImplementation((callback: (event: any) => void) => {
-      handler = callback
-      return () => {}
-    })
-
-    store.initialize()
-
-    handler?.({
+    contextHandler?.({
       data: {
-        lane: 'minecraft:status',
-        content: {
-          serviceName: 'minecraft-bot',
-          botState: 'connected',
-          editableConfig: {
-            enabled: true,
-            host: 'mc.example.com',
-            port: 25565,
-            username: 'airi-bot',
-          },
-          updatedAt: 1,
-        },
+        lane: 'general',
+        text: 'Discord update',
       },
       metadata: {
         source: {
-          plugin: { id: 'minecraft-bot' },
-          id: 'minecraft-bot-instance',
+          plugin: { id: 'discord' },
+          id: 'discord-instance',
         },
       },
     })
 
-    store.username = 'saved-bot'
-    await store.saveAndApply()
-
-    handler?.({
+    sparkCommandHandler?.({
       data: {
-        lane: 'minecraft:status',
-        content: {
-          serviceName: 'minecraft-bot',
-          botState: 'connected',
-          editableConfig: {
-            enabled: true,
-            host: 'mc.example.com',
-            port: 25565,
-            username: 'airi-bot',
-          },
-          updatedAt: 2,
-        },
+        commandId: 'cmd-1',
+        intent: 'action',
+        interrupt: false,
+        priority: 'normal',
+        destinations: ['minecraft-bot'],
       },
       metadata: {
         source: {
-          plugin: { id: 'minecraft-bot' },
-          id: 'minecraft-bot-instance',
+          plugin: { id: 'stage-web' },
+          id: 'stage-web-instance',
         },
       },
     })
 
-    expect(store.username).toBe('saved-bot')
-    expect(store.applying).toBe(true)
+    sparkCommandHandler?.({
+      data: {
+        commandId: 'cmd-2',
+        intent: 'action',
+        interrupt: false,
+        priority: 'normal',
+        destinations: ['discord'],
+      },
+      metadata: {
+        source: {
+          plugin: { id: 'stage-web' },
+          id: 'stage-web-instance',
+        },
+      },
+    })
 
-    vi.useRealTimers()
+    expect(store.trafficEntries).toHaveLength(3)
+    expect(store.trafficEntries.map(entry => entry.type)).toEqual([
+      'context:update',
+      'context:update',
+      'spark:command',
+    ])
+    expect(store.trafficEntries[0]?.summary).toContain('minecraft:status')
+    expect(store.trafficEntries[1]?.summary).toContain('game')
+    expect(store.trafficEntries[2]?.summary).toContain('action')
   })
 })

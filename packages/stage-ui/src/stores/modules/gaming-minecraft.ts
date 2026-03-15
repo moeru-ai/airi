@@ -1,7 +1,6 @@
-import type { WebSocketBaseEvent } from '@proj-airi/server-sdk'
+import type { WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-sdk'
 
-import type { ContextMessage } from '../../types/chat'
-
+import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
@@ -16,72 +15,82 @@ export interface MinecraftEditableConfig {
 
 type MinecraftBotState = 'connecting' | 'connected' | 'disconnected' | 'error'
 
-interface MinecraftStatusPayload {
+export interface MinecraftStatusPayload {
   serviceName?: string
   botState?: MinecraftBotState
   editableConfig?: MinecraftEditableConfig
+  host?: string
+  port?: number
+  botUsername?: string
   lastError?: string
   updatedAt?: number
 }
 
-const HEARTBEAT_TIMEOUT_MS = 20_000
-const HEARTBEAT_TICK_MS = 1_000
-
-function isMinecraftStatusPayload(value: unknown): value is MinecraftStatusPayload {
-  if (!value || typeof value !== 'object')
-    return false
-
-  const payload = value as Record<string, unknown>
-  if (payload.editableConfig && typeof payload.editableConfig !== 'object')
-    return false
-
-  return true
+export interface MinecraftTrafficEntry {
+  id: string
+  type: 'context:update' | 'spark:command'
+  summary: string
+  source: string
+  receivedAt: number
+  payload: unknown
 }
 
-function equalConfig(a: MinecraftEditableConfig | null, b: MinecraftEditableConfig | null) {
-  if (!a || !b)
-    return false
+const HEARTBEAT_TIMEOUT_MS = 20_000
+const HEARTBEAT_TICK_MS = 1_000
+const MAX_TRAFFIC_ENTRIES = 50
+const DEFAULT_SERVICE_NAME = 'minecraft-bot'
 
-  return a.enabled === b.enabled
-    && a.host === b.host
-    && a.port === b.port
-    && a.username === b.username
+function isMinecraftStatusPayload(value: unknown): value is MinecraftStatusPayload {
+  return !!value && typeof value === 'object'
+}
+
+function getEventSourceLabel(event: { metadata?: { source?: { plugin?: { id?: string }, id?: string } } }) {
+  return event.metadata?.source?.plugin?.id
+    ?? event.metadata?.source?.id
+    ?? 'unknown'
+}
+
+function isMinecraftSource(event: { metadata?: { source?: { plugin?: { id?: string }, id?: string } } }, serviceName?: string) {
+  const sourcePluginId = event.metadata?.source?.plugin?.id
+  const sourceId = event.metadata?.source?.id
+  const knownServiceNames = [DEFAULT_SERVICE_NAME, serviceName].filter(Boolean)
+
+  return knownServiceNames.some(name => name === sourcePluginId || name === sourceId)
+}
+
+function summarizeContextUpdate(event: WebSocketBaseEvent<'context:update', WebSocketEvents['context:update']>) {
+  const lane = event.data.lane ?? 'general'
+  const text = typeof event.data.text === 'string' ? event.data.text.trim() : ''
+  const preview = text ? `: ${text.slice(0, 120)}` : ''
+  return `${lane}${preview}`
+}
+
+function summarizeSparkCommand(event: WebSocketBaseEvent<'spark:command', WebSocketEvents['spark:command']>) {
+  const destinations = Array.isArray(event.data.destinations) && event.data.destinations.length > 0
+    ? event.data.destinations.join(', ')
+    : 'broadcast'
+
+  return `${event.data.intent} -> ${destinations}`
 }
 
 export const useMinecraftStore = defineStore('minecraft', () => {
   const serverChannelStore = useModsServerChannelStore()
 
-  const enabled = ref(false)
-  const serverAddress = ref('')
-  const serverPort = ref(25565)
-  const username = ref('')
+  const integrationEnabled = useLocalStorageManualReset<boolean>('settings/minecraft/integration-enabled', false)
 
   const serviceName = ref('')
   const botState = ref<MinecraftBotState>('disconnected')
   const lastStatusAt = ref(0)
   const lastError = ref('')
-  const applying = ref(false)
+  const statusSnapshot = ref<MinecraftStatusPayload | null>(null)
+  const trafficEntries = ref<MinecraftTrafficEntry[]>([])
   const initialized = ref(false)
   const now = ref(Date.now())
-  const remoteConfig = ref<MinecraftEditableConfig | null>(null)
 
   let disposeContextUpdate: (() => void) | null = null
+  let disposeSparkCommand: (() => void) | null = null
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null
-
-  const draftConfig = computed<MinecraftEditableConfig>(() => ({
-    enabled: enabled.value,
-    host: serverAddress.value,
-    port: serverPort.value,
-    username: username.value,
-  }))
-  const appliedConfig = computed(() => remoteConfig.value)
-
-  const dirty = computed(() => {
-    if (!remoteConfig.value)
-      return false
-
-    return !equalConfig(draftConfig.value, remoteConfig.value)
-  })
+  let trafficSequence = 0
 
   const serviceConnected = computed(() => {
     if (!lastStatusAt.value)
@@ -89,6 +98,7 @@ export const useMinecraftStore = defineStore('minecraft', () => {
 
     return now.value - lastStatusAt.value <= HEARTBEAT_TIMEOUT_MS
   })
+
   const heartbeatAgeMs = computed(() => {
     if (!lastStatusAt.value)
       return 0
@@ -96,58 +106,72 @@ export const useMinecraftStore = defineStore('minecraft', () => {
     return Math.max(0, now.value - lastStatusAt.value)
   })
 
-  const canEdit = computed(() => serviceConnected.value && !!serviceName.value)
+  const configured = computed(() => integrationEnabled.value)
 
-  const configured = computed(() => {
-    return enabled.value && !!(serverAddress.value.trim() && username.value.trim() && serverPort.value > 0)
-  })
+  function pushTrafficEntry(entry: Omit<MinecraftTrafficEntry, 'id'>) {
+    trafficSequence += 1
+    trafficEntries.value.push({
+      id: String(trafficSequence),
+      ...entry,
+    })
 
-  function loadRemoteConfig() {
-    if (!remoteConfig.value)
-      return
-
-    enabled.value = remoteConfig.value.enabled
-    serverAddress.value = remoteConfig.value.host
-    serverPort.value = remoteConfig.value.port
-    username.value = remoteConfig.value.username
+    if (trafficEntries.value.length > MAX_TRAFFIC_ENTRIES) {
+      trafficEntries.value.splice(0, trafficEntries.value.length - MAX_TRAFFIC_ENTRIES)
+    }
   }
 
-  function handleStatusUpdate(event: WebSocketBaseEvent<'context:update', ContextMessage>) {
+  function handleStatusUpdate(event: WebSocketBaseEvent<'context:update', WebSocketEvents['context:update']>) {
     if (event.data.lane !== 'minecraft:status')
       return
 
     if (!isMinecraftStatusPayload(event.data.content))
       return
 
-    const payload = event.data.content
-    if (!payload.editableConfig)
-      return
-
-    const hadRemoteConfig = !!remoteConfig.value
+    const payload = event.data.content as MinecraftStatusPayload
     serviceName.value = payload.serviceName
       ?? event.metadata?.source?.plugin?.id
       ?? serviceName.value
-      ?? 'minecraft-bot'
+      ?? DEFAULT_SERVICE_NAME
     botState.value = payload.botState ?? 'disconnected'
     lastStatusAt.value = typeof payload.updatedAt === 'number' ? payload.updatedAt : Date.now()
     lastError.value = payload.lastError ?? ''
-    remoteConfig.value = payload.editableConfig
+    statusSnapshot.value = payload
+  }
 
-    const shouldSyncDraft = !hadRemoteConfig
-      || !dirty.value
-      || (applying.value && equalConfig(payload.editableConfig, draftConfig.value))
+  function handleContextUpdate(event: WebSocketBaseEvent<'context:update', WebSocketEvents['context:update']>) {
+    handleStatusUpdate(event)
 
-    if (shouldSyncDraft) {
-      loadRemoteConfig()
-    }
+    const lane = event.data.lane ?? 'general'
+    const isMinecraftTraffic = lane === 'minecraft:status'
+      || (lane === 'game' && isMinecraftSource(event, serviceName.value))
 
-    if (applying.value && equalConfig(remoteConfig.value, draftConfig.value)) {
-      applying.value = false
-    }
+    if (!isMinecraftTraffic)
+      return
 
-    if (payload.botState === 'error' && payload.lastError) {
-      applying.value = false
-    }
+    pushTrafficEntry({
+      type: 'context:update',
+      summary: summarizeContextUpdate(event),
+      source: getEventSourceLabel(event),
+      receivedAt: Date.now(),
+      payload: event.data,
+    })
+  }
+
+  function handleSparkCommand(event: WebSocketBaseEvent<'spark:command', WebSocketEvents['spark:command']>) {
+    const destinations = Array.isArray(event.data.destinations) ? event.data.destinations : []
+    const knownServiceNames = new Set([DEFAULT_SERVICE_NAME, serviceName.value].filter(Boolean))
+    const isMinecraftTraffic = destinations.some(destination => knownServiceNames.has(destination))
+
+    if (!isMinecraftTraffic)
+      return
+
+    pushTrafficEntry({
+      type: 'spark:command',
+      summary: summarizeSparkCommand(event),
+      source: getEventSourceLabel(event),
+      receivedAt: Date.now(),
+      payload: event.data,
+    })
   }
 
   function initialize() {
@@ -155,7 +179,8 @@ export const useMinecraftStore = defineStore('minecraft', () => {
       return
 
     initialized.value = true
-    disposeContextUpdate = serverChannelStore.onContextUpdate(handleStatusUpdate as any)
+    disposeContextUpdate = serverChannelStore.onContextUpdate(handleContextUpdate as any)
+    disposeSparkCommand = serverChannelStore.onEvent('spark:command', handleSparkCommand as any)
     heartbeatTimer = setInterval(() => {
       now.value = Date.now()
     }, HEARTBEAT_TICK_MS)
@@ -163,7 +188,9 @@ export const useMinecraftStore = defineStore('minecraft', () => {
 
   function dispose() {
     disposeContextUpdate?.()
+    disposeSparkCommand?.()
     disposeContextUpdate = null
+    disposeSparkCommand = null
 
     if (heartbeatTimer) {
       clearInterval(heartbeatTimer)
@@ -173,60 +200,34 @@ export const useMinecraftStore = defineStore('minecraft', () => {
     initialized.value = false
   }
 
-  async function saveAndApply() {
-    if (!canEdit.value)
-      return
-
-    applying.value = true
-    lastError.value = ''
-
-    serverChannelStore.send({
-      type: 'ui:configure',
-      data: {
-        moduleName: serviceName.value,
-        config: {
-          enabled: enabled.value,
-          host: serverAddress.value,
-          port: serverPort.value,
-          username: username.value,
-        },
-      },
-    })
-  }
-
-  function resetState() {
-    enabled.value = false
-    serverAddress.value = ''
-    serverPort.value = 25565
-    username.value = ''
+  function clearRuntimeState() {
     serviceName.value = ''
     botState.value = 'disconnected'
     lastStatusAt.value = 0
     lastError.value = ''
-    applying.value = false
-    remoteConfig.value = null
+    statusSnapshot.value = null
+    trafficEntries.value = []
+    trafficSequence = 0
+  }
+
+  function resetState() {
+    integrationEnabled.reset()
+    clearRuntimeState()
   }
 
   return {
-    enabled,
-    serverAddress,
-    serverPort,
-    username,
+    integrationEnabled,
     serviceName,
     botState,
     lastStatusAt,
     lastError,
-    applying,
+    statusSnapshot,
+    trafficEntries,
     configured,
     serviceConnected,
     heartbeatAgeMs,
-    canEdit,
-    dirty,
-    appliedConfig,
 
     initialize,
-    loadRemoteConfig,
-    saveAndApply,
     dispose,
     resetState,
 

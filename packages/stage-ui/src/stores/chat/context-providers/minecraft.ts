@@ -16,14 +16,17 @@ export function createMinecraftContext(): ContextMessage | null {
   const minecraftStore = useMinecraftStore()
   minecraftStore.initialize()
 
-  const appliedConfig = minecraftStore.appliedConfig
-
-  if (!appliedConfig?.enabled)
+  if (!minecraftStore.integrationEnabled)
     return null
 
+  const statusSnapshot = minecraftStore.statusSnapshot
   const status = minecraftStore.botState || 'disconnected'
-  const target = appliedConfig.host
-    ? `${appliedConfig.host}:${appliedConfig.port}`
+  // TODO: Trim stale runtime target details once we have a first-class freshness policy
+  // for passive Minecraft context snapshots.
+  const targetHost = statusSnapshot?.editableConfig?.host ?? statusSnapshot?.host
+  const targetPort = statusSnapshot?.editableConfig?.port ?? statusSnapshot?.port
+  const target = targetHost
+    ? `${targetHost}:${targetPort ?? 'unknown'}`
     : 'unknown server'
 
   return {

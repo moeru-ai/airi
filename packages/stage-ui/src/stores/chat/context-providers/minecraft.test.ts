@@ -7,24 +7,26 @@ import { createMinecraftContext } from './minecraft'
 vi.mock('../../mods/api/channel-server', () => ({
   useModsServerChannelStore: () => ({
     onContextUpdate: () => () => {},
+    onEvent: () => () => {},
     send: () => {},
   }),
 }))
 
 describe('createMinecraftContext', () => {
-  it('returns null when there is no applied minecraft config yet', () => {
+  it('returns null when the local minecraft integration toggle is disabled', () => {
     setActivePinia(createPinia())
 
     const store = useMinecraftStore()
-    store.enabled = false
+    store.integrationEnabled = false
 
     expect(createMinecraftContext()).toBeNull()
   })
 
-  it('describes the lightweight AIRI shell from the last applied remote config', () => {
+  it('describes the passive minecraft shell from the last observed runtime status', () => {
     setActivePinia(createPinia())
 
     const store = useMinecraftStore()
+    store.integrationEnabled = true
     store._handleStatusUpdate({
       data: {
         lane: 'minecraft:status',
@@ -48,13 +50,6 @@ describe('createMinecraftContext', () => {
       },
     } as any)
 
-    // Local draft edits should not change the self-knowledge context until saved.
-    store.enabled = false
-    store.serverAddress = 'draft.example.com'
-    store.serverPort = 24444
-    store.username = 'draft-bot'
-    store.botState = 'connected'
-
     const context = createMinecraftContext()
 
     expect(context).not.toBeNull()
@@ -63,6 +58,5 @@ describe('createMinecraftContext', () => {
     expect(context?.text).toContain('AIRI can oversee a connected Minecraft bot')
     expect(context?.text).toContain('Current bot status: connected')
     expect(context?.text).toContain('mc.example.com:25565')
-    expect(context?.text).not.toContain('draft.example.com:24444')
   })
 })
