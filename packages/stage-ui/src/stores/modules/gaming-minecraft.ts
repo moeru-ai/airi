@@ -35,7 +35,6 @@ export interface MinecraftTrafficEntry {
   payload: unknown
 }
 
-const HEARTBEAT_TIMEOUT_MS = 20_000
 const HEARTBEAT_TICK_MS = 1_000
 const MAX_TRAFFIC_ENTRIES = 50
 const DEFAULT_SERVICE_NAME = 'minecraft-bot'
@@ -73,6 +72,11 @@ function summarizeSparkCommand(event: WebSocketBaseEvent<'spark:command', WebSoc
   return `${event.data.intent} -> ${destinations}`
 }
 
+function isMinecraftModuleIdentity(value: { name?: string, identity?: { plugin?: { id?: string } } }, serviceName?: string) {
+  const knownServiceNames = new Set([DEFAULT_SERVICE_NAME, serviceName].filter(Boolean))
+  return knownServiceNames.has(value.name ?? '') || knownServiceNames.has(value.identity?.plugin?.id ?? '')
+}
+
 export const useMinecraftStore = defineStore('minecraft', () => {
   const serverChannelStore = useModsServerChannelStore()
 
@@ -86,18 +90,19 @@ export const useMinecraftStore = defineStore('minecraft', () => {
   const trafficEntries = ref<MinecraftTrafficEntry[]>([])
   const initialized = ref(false)
   const now = ref(Date.now())
+  const servicePresent = ref(false)
+  const serviceHealthy = ref(false)
 
   let disposeContextUpdate: (() => void) | null = null
   let disposeSparkCommand: (() => void) | null = null
+  let disposeRegistrySync: (() => void) | null = null
+  let disposeRegistryHealthy: (() => void) | null = null
+  let disposeRegistryUnhealthy: (() => void) | null = null
+  let disposeModuleDeAnnounced: (() => void) | null = null
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null
   let trafficSequence = 0
 
-  const serviceConnected = computed(() => {
-    if (!lastStatusAt.value)
-      return false
-
-    return now.value - lastStatusAt.value <= HEARTBEAT_TIMEOUT_MS
-  })
+  const serviceConnected = computed(() => servicePresent.value && serviceHealthy.value)
 
   const heartbeatAgeMs = computed(() => {
     if (!lastStatusAt.value)
@@ -136,6 +141,50 @@ export const useMinecraftStore = defineStore('minecraft', () => {
     lastStatusAt.value = typeof payload.updatedAt === 'number' ? payload.updatedAt : Date.now()
     lastError.value = payload.lastError ?? ''
     statusSnapshot.value = payload
+  }
+
+  function handleRegistrySync(event: WebSocketBaseEvent<'registry:modules:sync', WebSocketEvents['registry:modules:sync']>) {
+    const moduleEntry = event.data.modules.find(module => isMinecraftModuleIdentity(module, serviceName.value))
+    const wasPresent = servicePresent.value
+    servicePresent.value = !!moduleEntry
+
+    if (!moduleEntry) {
+      serviceHealthy.value = false
+      return
+    }
+
+    if (moduleEntry.name)
+      serviceName.value = moduleEntry.name
+
+    if (!wasPresent)
+      serviceHealthy.value = true
+  }
+
+  function handleRegistryHealthy(event: WebSocketBaseEvent<'registry:modules:health:healthy', WebSocketEvents['registry:modules:health:healthy']>) {
+    if (!isMinecraftModuleIdentity(event.data, serviceName.value))
+      return
+
+    servicePresent.value = true
+    serviceHealthy.value = true
+    serviceName.value = event.data.name ?? serviceName.value ?? DEFAULT_SERVICE_NAME
+  }
+
+  function handleRegistryUnhealthy(event: WebSocketBaseEvent<'registry:modules:health:unhealthy', WebSocketEvents['registry:modules:health:unhealthy']>) {
+    if (!isMinecraftModuleIdentity(event.data, serviceName.value))
+      return
+
+    servicePresent.value = true
+    serviceHealthy.value = false
+    serviceName.value = event.data.name ?? serviceName.value ?? DEFAULT_SERVICE_NAME
+  }
+
+  function handleModuleDeAnnounced(event: WebSocketBaseEvent<'module:de-announced', WebSocketEvents['module:de-announced']>) {
+    if (!isMinecraftModuleIdentity(event.data, serviceName.value))
+      return
+
+    servicePresent.value = false
+    serviceHealthy.value = false
+    serviceName.value = event.data.name ?? serviceName.value ?? DEFAULT_SERVICE_NAME
   }
 
   function handleContextUpdate(event: WebSocketBaseEvent<'context:update', WebSocketEvents['context:update']>) {
@@ -181,6 +230,10 @@ export const useMinecraftStore = defineStore('minecraft', () => {
     initialized.value = true
     disposeContextUpdate = serverChannelStore.onContextUpdate(handleContextUpdate as any)
     disposeSparkCommand = serverChannelStore.onEvent('spark:command', handleSparkCommand as any)
+    disposeRegistrySync = serverChannelStore.onEvent('registry:modules:sync', handleRegistrySync as any)
+    disposeRegistryHealthy = serverChannelStore.onEvent('registry:modules:health:healthy', handleRegistryHealthy as any)
+    disposeRegistryUnhealthy = serverChannelStore.onEvent('registry:modules:health:unhealthy', handleRegistryUnhealthy as any)
+    disposeModuleDeAnnounced = serverChannelStore.onEvent('module:de-announced', handleModuleDeAnnounced as any)
     heartbeatTimer = setInterval(() => {
       now.value = Date.now()
     }, HEARTBEAT_TICK_MS)
@@ -189,8 +242,16 @@ export const useMinecraftStore = defineStore('minecraft', () => {
   function dispose() {
     disposeContextUpdate?.()
     disposeSparkCommand?.()
+    disposeRegistrySync?.()
+    disposeRegistryHealthy?.()
+    disposeRegistryUnhealthy?.()
+    disposeModuleDeAnnounced?.()
     disposeContextUpdate = null
     disposeSparkCommand = null
+    disposeRegistrySync = null
+    disposeRegistryHealthy = null
+    disposeRegistryUnhealthy = null
+    disposeModuleDeAnnounced = null
 
     if (heartbeatTimer) {
       clearInterval(heartbeatTimer)
@@ -206,6 +267,8 @@ export const useMinecraftStore = defineStore('minecraft', () => {
     lastStatusAt.value = 0
     lastError.value = ''
     statusSnapshot.value = null
+    servicePresent.value = false
+    serviceHealthy.value = false
     trafficEntries.value = []
     trafficSequence = 0
   }

@@ -21,7 +21,7 @@ describe('useMinecraftStore', () => {
     send.mockReset()
   })
 
-  it('uses a local integration toggle and passive minecraft status heartbeats', async () => {
+  it('uses registry events for minecraft service liveness and keeps status updates passive', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(1))
 
@@ -29,11 +29,15 @@ describe('useMinecraftStore', () => {
     const store = useMinecraftStore()
 
     let contextHandler: ((event: any) => void) | undefined
+    const eventHandlers = new Map<string, (event: any) => void>()
     onContextUpdate.mockImplementation((callback: (event: any) => void) => {
       contextHandler = callback
       return () => {}
     })
-    onEvent.mockImplementation(() => () => {})
+    onEvent.mockImplementation((type: string, callback: (event: any) => void) => {
+      eventHandlers.set(type, callback)
+      return () => {}
+    })
 
     store.initialize()
     store.integrationEnabled = true
@@ -64,13 +68,104 @@ describe('useMinecraftStore', () => {
 
     expect(store.integrationEnabled).toBe(true)
     expect(store.configured).toBe(true)
-    expect(store.serviceConnected).toBe(true)
+    expect(store.serviceConnected).toBe(false)
     expect(store.botState).toBe('connected')
     expect(store.statusSnapshot?.editableConfig?.username).toBe('airi-bot')
     expect(send).not.toHaveBeenCalled()
 
+    eventHandlers.get('registry:modules:sync')?.({
+      data: {
+        modules: [{
+          name: 'minecraft-bot',
+          identity: {
+            kind: 'plugin',
+            plugin: { id: 'minecraft-bot' },
+          },
+        }],
+      },
+      metadata: {
+        source: {
+          kind: 'server',
+        },
+      },
+    })
+
+    expect(store.serviceConnected).toBe(true)
+
     vi.setSystemTime(new Date(30_000))
     vi.advanceTimersByTime(30_000)
+
+    expect(store.serviceConnected).toBe(true)
+
+    eventHandlers.get('registry:modules:health:unhealthy')?.({
+      data: {
+        name: 'minecraft-bot',
+        identity: {
+          kind: 'plugin',
+          plugin: { id: 'minecraft-bot' },
+        },
+        reason: 'heartbeat late',
+      },
+      metadata: {
+        source: {
+          kind: 'server',
+        },
+      },
+    })
+
+    expect(store.serviceConnected).toBe(false)
+
+    eventHandlers.get('registry:modules:sync')?.({
+      data: {
+        modules: [{
+          name: 'minecraft-bot',
+          identity: {
+            kind: 'plugin',
+            plugin: { id: 'minecraft-bot' },
+          },
+        }],
+      },
+      metadata: {
+        source: {
+          kind: 'server',
+        },
+      },
+    })
+
+    expect(store.serviceConnected).toBe(false)
+
+    eventHandlers.get('registry:modules:health:healthy')?.({
+      data: {
+        name: 'minecraft-bot',
+        identity: {
+          kind: 'plugin',
+          plugin: { id: 'minecraft-bot' },
+        },
+      },
+      metadata: {
+        source: {
+          kind: 'server',
+        },
+      },
+    })
+
+    expect(store.serviceConnected).toBe(true)
+
+    eventHandlers.get('module:de-announced')?.({
+      data: {
+        name: 'minecraft-bot',
+        identity: {
+          kind: 'plugin',
+          plugin: { id: 'minecraft-bot' },
+        },
+        reason: 'disconnect',
+      },
+      metadata: {
+        source: {
+          kind: 'server',
+        },
+      },
+    })
 
     expect(store.serviceConnected).toBe(false)
 

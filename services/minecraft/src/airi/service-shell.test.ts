@@ -55,7 +55,7 @@ describe('minecraftServiceShell', () => {
     vi.useRealTimers()
   })
 
-  it('publishes status heartbeats that include the editable config snapshot', async () => {
+  it('publishes status changes without periodic heartbeat spam', async () => {
     const bot = new FakeBot()
     const configManager = {
       load: vi.fn(() => createSnapshot()),
@@ -99,17 +99,9 @@ describe('minecraftServiceShell', () => {
       },
     })
 
+    const emittedEvents = sentEvents.length
     vi.advanceTimersByTime(5_000)
-    expect(sentEvents.at(-1)).toMatchObject({
-      data: {
-        content: expect.objectContaining({
-          botState: 'connected',
-          editableConfig: expect.objectContaining({
-            username: 'airi-bot',
-          }),
-        }),
-      },
-    })
+    expect(sentEvents).toHaveLength(emittedEvents)
   })
 
   it('persists and hot-applies valid config updates to the active bot', async () => {

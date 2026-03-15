@@ -21,7 +21,6 @@ export class MinecraftServiceShell {
   private snapshot!: MinecraftRuntimeConfigSnapshot
   private botState: BotState = 'disconnected'
   private lastError?: string
-  private heartbeatTimer: ReturnType<typeof setInterval> | null = null
 
   private readonly onBotConnected = () => {
     this.botState = 'connected'
@@ -64,8 +63,6 @@ export class MinecraftServiceShell {
       this.botState = 'disconnected'
       this.emitStatus()
     }
-
-    this.startHeartbeat()
   }
 
   private async applyConfig(nextConfig: unknown) {
@@ -112,16 +109,6 @@ export class MinecraftServiceShell {
 
     this.botState = 'connecting'
     this.emitStatus()
-  }
-
-  private startHeartbeat() {
-    const heartbeatMs = this.deps.heartbeatMs ?? 15_000
-    if (this.heartbeatTimer)
-      clearInterval(this.heartbeatTimer)
-
-    this.heartbeatTimer = setInterval(() => {
-      this.emitStatus()
-    }, heartbeatMs)
   }
 
   private emitStatus() {
