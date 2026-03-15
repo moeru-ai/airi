@@ -94,7 +94,7 @@ async function saveProviderConfiguration(data: ProviderConfigData) {
 
   const firstManualModel = (data.manualModels || '')
     .split(',')
-    .map(item => item.trim())
+    .map((item: string) => item.trim())
     .find(Boolean)
   if (firstManualModel) {
     activeModel.value = firstManualModel
