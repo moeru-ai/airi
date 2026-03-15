@@ -181,7 +181,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       stageModelStore.stageModelSelected = extension.modules.displayModelId
       await stageModelStore.updateStageModel()
 
-      const selectedModel = displayModelsStore.displayModels.find(model => model.id === extension.modules.displayModelId)
+      const selectedModel = await displayModelsStore.getDisplayModel(extension.modules.displayModelId)
       if (selectedModel?.format === DisplayModelFormat.Live2dZip)
         live2dStore.shouldUpdateView()
       else if (selectedModel?.format === DisplayModelFormat.VRM)

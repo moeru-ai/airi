@@ -15,7 +15,10 @@ import Live2DReportModal from './Live2DReportModal.vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
 
-const emits = defineEmits<{ (e: 'close', value: void): void }>()
+const emits = defineEmits<{
+  (e: 'close', value: void): void
+  (e: 'pick', value: DisplayModel | undefined): void
+}>()
 const selectedModel = defineModel<DisplayModel | undefined>({ type: Object, required: false })
 
 const displayModelStore = useDisplayModelsStore()
@@ -129,6 +132,7 @@ function confirmImport() {
 
 function handlePick(m: DisplayModel) {
   selectedModel.value = m
+  emits('pick', m)
   emits('close', undefined)
 }
 
@@ -136,6 +140,7 @@ function handleMobilePick() {
   const model = displayModels.value.find(model => model.id === highlightDisplayModelCard.value)
   if (model) {
     selectedModel.value = model
+    emits('pick', model)
     emits('close', undefined)
   }
 }

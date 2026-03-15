@@ -2,7 +2,7 @@
 import type { DisplayModel } from '../../../../stores/display-models'
 
 import { Live2DScene, useLive2d } from '@proj-airi/stage-ui-live2d'
-import { ThreeScene } from '@proj-airi/stage-ui-three'
+import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
 import { Button, Callout } from '@proj-airi/ui'
 import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -54,6 +54,8 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
 
   if (selectedModel?.format === DisplayModelFormat.Live2dZip)
     useLive2d().shouldUpdateView()
+  else if (selectedModel?.format === DisplayModelFormat.VRM)
+    useModelStore().shouldUpdateView()
 }
 </script>
 
