@@ -1,4 +1,4 @@
-import { exec } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 
 import * as fs from 'node:fs/promises'
@@ -6,163 +6,562 @@ import * as path from 'node:path'
 
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js'
 
-const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
+const defaultCodeGlobs = ['*.ts', '*.tsx', '*.js', '*.jsx', '*.mts', '*.cts']
 
-export async function searchText(workspacePath: string, query: string, glob?: string, limit?: number) {
-  try {
-    let cmd = `rg -n "${query.replace(/"/g, '\\"')}"`
-    if (glob) {
-      cmd += ` -g "${glob.replace(/"/g, '\\"')}"`
-    }
-    if (limit) {
-      cmd += ` -m ${limit}`
-    }
-    const { stdout } = await execAsync(cmd, { cwd: workspacePath })
-    return stdout
+export const SEARCH_RESULT_DEFAULT_LIMIT = 10
+export const SEARCH_RESULT_MAX_LIMIT = 20
+export const SEARCH_SNIPPET_MAX_LENGTH = 160
+export const SEMANTIC_FALLBACK_TOOL = 'coding_search_text'
+
+export type SemanticCapability = 'definition' | 'reference' | 'impact'
+
+export type SemanticUnsupportedReasonCode
+  = | 'unsupported_glob'
+    | 'unsupported_file_extension'
+    | 'capability_not_supported'
+    | 'engine_unavailable'
+
+export interface SemanticCapabilityFlags {
+  definition: boolean
+  reference: boolean
+  impact: boolean
+}
+
+export interface SemanticEngineDescriptor {
+  id: string
+  capabilities: SemanticCapabilityFlags
+  supportedExtensions: string[]
+}
+
+export interface SemanticUnsupportedReason {
+  code: SemanticUnsupportedReasonCode
+  requestedCapability: SemanticCapability
+  fallbackTool: typeof SEMANTIC_FALLBACK_TOOL
+  fallbackEntrypoint: 'text_search'
+  message: string
+}
+
+export interface PluggableSemanticEngine {
+  id: string
+  supportedExtensions: string[]
+  capabilityFlags: SemanticCapabilityFlags
+}
+
+const typescriptSemanticEngine: PluggableSemanticEngine = {
+  id: 'typescript',
+  supportedExtensions: ['.ts', '.tsx', '.js', '.jsx', '.mts', '.cts'],
+  capabilityFlags: {
+    definition: true,
+    reference: true,
+    impact: false,
+  },
+}
+
+const semanticEngineRegistry: PluggableSemanticEngine[] = [
+  typescriptSemanticEngine,
+]
+
+const semanticExtensions = new Set(typescriptSemanticEngine.supportedExtensions)
+
+export function getPluggableSemanticEngineRegistry() {
+  return semanticEngineRegistry.map(engine => ({
+    ...engine,
+    capabilityFlags: { ...engine.capabilityFlags },
+    capabilities: { ...engine.capabilityFlags },
+    supportedExtensions: [...engine.supportedExtensions],
+  }))
+}
+
+export function clampSearchLimit(limit?: number, defaultLimit = SEARCH_RESULT_DEFAULT_LIMIT) {
+  if (!Number.isFinite(limit) || (limit as number) <= 0) {
+    return defaultLimit
   }
-  catch (err: any) {
-    if (err.code === 1) {
-      // no matches
-      return ''
-    }
-    throw new McpError(ErrorCode.InternalError, `Search failed: ${err.message}`)
+
+  return Math.min(Math.floor(limit as number), SEARCH_RESULT_MAX_LIMIT)
+}
+
+export function toSingleLineSnippet(raw: string, maxLength = SEARCH_SNIPPET_MAX_LENGTH) {
+  const singleLine = raw.replace(/[\r\n]+/g, ' ').trim()
+  if (singleLine.length <= maxLength) {
+    return singleLine
+  }
+
+  return `${singleLine.slice(0, Math.max(0, maxLength - 1))}…`
+}
+
+export interface SearchMatch {
+  file: string
+  line: number
+  column: number
+  snippet: string
+}
+
+export interface ReferenceMatch {
+  file: string
+  line: number
+  column: number
+  isWriteAccess: boolean
+}
+
+interface SearchOptions {
+  searchRoot?: string
+  glob?: string
+  limit?: number
+}
+
+export interface UnsupportedSemanticResult {
+  status: 'unsupported'
+  explanation: string
+  reasonCode: SemanticUnsupportedReasonCode
+  requestedCapability: SemanticCapability
+  fallbackTool: typeof SEMANTIC_FALLBACK_TOOL
+  fallbackEntrypoint: 'text_search'
+  semanticEngine?: string
+  engine?: SemanticEngineDescriptor
+  capabilities?: SemanticCapabilityFlags
+  unsupportedReason: SemanticUnsupportedReason
+  total: number
+  matches: Array<SearchMatch | ReferenceMatch>
+}
+
+function toSemanticEngineDescriptor(engine: PluggableSemanticEngine): SemanticEngineDescriptor {
+  return {
+    id: engine.id,
+    capabilities: { ...engine.capabilityFlags },
+    supportedExtensions: [...engine.supportedExtensions],
   }
 }
 
-export async function searchSymbol(workspacePath: string, symbolName: string, glob?: string, limit?: number) {
-  let ts: typeof import('typescript')
+function ensureWithinWorkspace(root: string, candidate: string) {
+  const normalizedRoot = path.resolve(root)
+  const normalizedCandidate = path.resolve(candidate)
+  if (normalizedCandidate !== normalizedRoot && !normalizedCandidate.startsWith(`${normalizedRoot}${path.sep}`)) {
+    throw new McpError(ErrorCode.InvalidParams, `Access denied: ${candidate} is outside workspace ${root}`)
+  }
+}
+
+async function runRipgrep(args: string[], cwd: string) {
   try {
-    ts = (await import('typescript')).default || await import('typescript')
+    const { stdout } = await execFileAsync('rg', args, { cwd })
+    return stdout
   }
-  catch {
-    return {
-      status: 'unsupported',
-      message: 'TypeScript compiler not available. Cannot perform semantic symbol search.',
+  catch (error: any) {
+    // ripgrep exit code 1 means "no match"
+    if (typeof error?.code === 'number' && error.code === 1) {
+      return ''
     }
+
+    throw new McpError(ErrorCode.InternalError, `Search failed: ${error?.message || String(error)}`)
+  }
+}
+
+async function getRipgrepTotalMatches(params: {
+  query: string
+  cwd: string
+  glob?: string
+}) {
+  const args = ['--count-matches', '--no-heading', '--color', 'never']
+
+  if (params.glob) {
+    args.push('-g', params.glob)
   }
 
-  // Find all candidate files
-  let findCmd = `rg -l "${symbolName.replace(/"/g, '\\"')}"`
-  if (glob) {
-    findCmd += ` -g "${glob.replace(/"/g, '\\"')}"`
-  }
-  else {
-    findCmd += ` -g "*.ts" -g "*.tsx" -g "*.js" -g "*.jsx"`
+  args.push(params.query, '.')
+  const output = await runRipgrep(args, params.cwd)
+  if (!output.trim()) {
+    return 0
   }
 
-  let filePaths: string[] = []
-  try {
-    const { stdout } = await execAsync(findCmd, { cwd: workspacePath })
-    filePaths = stdout.split('\n').filter(Boolean)
-  }
-  catch (err: any) {
-    if (err.code === 1) {
-      return { matches: [] }
-    }
-    throw new McpError(ErrorCode.InternalError, `Symbol search failed: ${err.message}`)
-  }
-
-  const results: any[] = []
-  for (const relativePath of filePaths) {
-    if (limit && results.length >= limit)
-      break
-
-    const absPath = path.resolve(workspacePath, relativePath)
-    if (!absPath.startsWith(workspacePath))
-      continue
-
-    const sourceCode = await fs.readFile(absPath, 'utf8')
-    const sourceFile = ts.createSourceFile(absPath, sourceCode, ts.ScriptTarget.Latest, true)
-
-    ts.forEachChild(sourceFile, function visit(node) {
-      if (node.kind === ts.SyntaxKind.ClassDeclaration
-        || node.kind === ts.SyntaxKind.FunctionDeclaration
-        || node.kind === ts.SyntaxKind.InterfaceDeclaration
-        || node.kind === ts.SyntaxKind.TypeAliasDeclaration
-        || node.kind === ts.SyntaxKind.MethodDeclaration
-        || node.kind === ts.SyntaxKind.PropertyDeclaration
-        || node.kind === ts.SyntaxKind.VariableDeclaration) {
-        const namedNode = node as any
-        if (namedNode.name && namedNode.name.text === symbolName) {
-          const { line, character } = ts.getLineAndCharacterOfPosition(sourceFile, node.getStart())
-          results.push({
-            file: relativePath,
-            line: line + 1,
-            column: character + 1,
-            // Snippet of actual text
-            snippet: sourceCode.slice(node.getStart(), Math.min(node.getStart() + 100, sourceCode.length)).replace(/\n/g, '\\n'),
-          })
-        }
+  return output
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const idx = line.lastIndexOf(':')
+      if (idx < 0) {
+        return 0
       }
-      ts.forEachChild(node, visit)
+
+      const count = Number(line.slice(idx + 1))
+      return Number.isFinite(count) ? count : 0
+    })
+    .reduce((sum, count) => sum + count, 0)
+}
+
+function buildSemanticUnsupportedResult(params: {
+  semanticEngine?: PluggableSemanticEngine
+  requestedCapability: SemanticCapability
+  reasonCode: SemanticUnsupportedReasonCode
+  explanation?: string
+}): UnsupportedSemanticResult {
+  const baseExplanation = '当前仅支持 JS/TS 语义导航（JS/TS/JSX/TSX/MTS/CTS）。请改用 coding_search_text。'
+  const explanation = params.explanation || baseExplanation
+  const engine = params.semanticEngine ? toSemanticEngineDescriptor(params.semanticEngine) : undefined
+  const unsupportedReason: SemanticUnsupportedReason = {
+    code: params.reasonCode,
+    requestedCapability: params.requestedCapability,
+    fallbackTool: SEMANTIC_FALLBACK_TOOL,
+    fallbackEntrypoint: 'text_search',
+    message: explanation,
+  }
+
+  return {
+    status: 'unsupported',
+    explanation,
+    reasonCode: params.reasonCode,
+    requestedCapability: params.requestedCapability,
+    fallbackTool: SEMANTIC_FALLBACK_TOOL,
+    fallbackEntrypoint: 'text_search',
+    semanticEngine: engine?.id,
+    engine,
+    capabilities: engine?.capabilities,
+    unsupportedReason,
+    total: 0,
+    matches: [],
+  }
+}
+
+function isJsTsSemanticFile(filePath: string) {
+  return semanticExtensions.has(path.extname(filePath).toLowerCase())
+}
+
+function resolveSemanticEngineForFile(filePath: string) {
+  const extension = path.extname(filePath).toLowerCase()
+  return semanticEngineRegistry.find(engine => engine.supportedExtensions.includes(extension))
+}
+
+function resolveSemanticEngineForGlob(glob?: string) {
+  if (maybeSemanticUnsupportedByGlob(glob)) {
+    return undefined
+  }
+
+  return semanticEngineRegistry[0]
+}
+
+function maybeSemanticUnsupportedByGlob(glob?: string) {
+  if (!glob) {
+    return false
+  }
+
+  const normalized = glob.toLowerCase()
+  return !Array.from(semanticExtensions).some(ext => normalized.includes(ext))
+}
+
+function resolveReportedPath(params: {
+  workspacePath: string
+  searchRoot: string
+  reportedPath: string
+}) {
+  const absolutePath = path.resolve(params.searchRoot, params.reportedPath)
+  ensureWithinWorkspace(params.workspacePath, absolutePath)
+
+  return {
+    absolutePath,
+    workspaceRelativePath: path.relative(params.workspacePath, absolutePath),
+  }
+}
+
+function parseRipgrepMatches(params: {
+  output: string
+  workspacePath: string
+  searchRoot: string
+}): SearchMatch[] {
+  const { output, workspacePath, searchRoot } = params
+
+  if (!output.trim()) {
+    return []
+  }
+
+  const matches: SearchMatch[] = []
+  const lines = output.split('\n').filter(Boolean)
+
+  for (const line of lines) {
+    // `rg --line-number --column --no-heading`: file:line:column:text
+    const parsed = line.match(/^(.+?):(\d+):(\d+):(.*)$/)
+    if (!parsed) {
+      continue
+    }
+
+    const { workspaceRelativePath } = resolveReportedPath({
+      workspacePath,
+      searchRoot,
+      reportedPath: parsed[1],
+    })
+
+    matches.push({
+      file: workspaceRelativePath,
+      line: Number(parsed[2]),
+      column: Number(parsed[3]),
+      snippet: toSingleLineSnippet(parsed[4]),
     })
   }
 
-  return { matches: results }
+  return matches
 }
 
-export async function findReferences(workspacePath: string, filePath: string, line: number, column: number, limit?: number) {
+export async function searchText(workspacePath: string, query: string, options: SearchOptions = {}) {
+  const { searchRoot = workspacePath, glob, limit } = options
+
+  ensureWithinWorkspace(workspacePath, searchRoot)
+
+  const normalizedQuery = query.trim()
+  if (!normalizedQuery) {
+    throw new McpError(ErrorCode.InvalidParams, 'query cannot be empty')
+  }
+
+  const effectiveLimit = clampSearchLimit(limit)
+  const total = await getRipgrepTotalMatches({
+    query: normalizedQuery,
+    cwd: searchRoot,
+    glob,
+  })
+
+  const args = ['--line-number', '--column', '--no-heading', '--color', 'never']
+
+  if (glob) {
+    args.push('-g', glob)
+  }
+
+  if (effectiveLimit > 0) {
+    args.push('--max-count', String(effectiveLimit))
+  }
+
+  args.push(normalizedQuery, '.')
+  const output = await runRipgrep(args, searchRoot)
+  const matches = parseRipgrepMatches({
+    output,
+    workspacePath,
+    searchRoot,
+  }).slice(0, effectiveLimit)
+
+  return {
+    total,
+    matches,
+  }
+}
+
+export async function searchSymbol(workspacePath: string, symbolName: string, options: SearchOptions = {}) {
+  const { searchRoot = workspacePath, glob, limit } = options
+
+  ensureWithinWorkspace(workspacePath, searchRoot)
+
+  const normalizedSymbolName = symbolName.trim()
+  if (!normalizedSymbolName) {
+    throw new McpError(ErrorCode.InvalidParams, 'symbolName cannot be empty')
+  }
+
+  const semanticEngine = resolveSemanticEngineForGlob(glob)
+  if (!semanticEngine) {
+    return buildSemanticUnsupportedResult({
+      semanticEngine: undefined,
+      requestedCapability: 'definition',
+      reasonCode: 'unsupported_glob',
+    })
+  }
+
+  if (!semanticEngine.capabilityFlags.definition || semanticEngine.id !== 'typescript') {
+    return buildSemanticUnsupportedResult({
+      semanticEngine,
+      requestedCapability: 'definition',
+      reasonCode: 'capability_not_supported',
+    })
+  }
+
   let ts: typeof import('typescript')
   try {
     ts = (await import('typescript')).default || await import('typescript')
   }
   catch {
-    return {
-      status: 'unsupported',
-      message: 'TypeScript compiler not available. Cannot perform reference finding.',
+    return buildSemanticUnsupportedResult({
+      semanticEngine,
+      requestedCapability: 'definition',
+      reasonCode: 'engine_unavailable',
+    })
+  }
+
+  const effectiveLimit = clampSearchLimit(limit)
+
+  const args = ['-l', '--no-heading', '--color', 'never']
+
+  if (glob) {
+    args.push('-g', glob)
+  }
+  else {
+    for (const codeGlob of defaultCodeGlobs) {
+      args.push('-g', codeGlob)
     }
   }
 
-  // To properly find references across exactly workspace using compiler APIs, one usually
-  // needs to instantiate a whole ts.Program.
-  // Given constraints, this may be too heavy for instant results if tsconfig is large.
-  // The goal says "第一阶段对 TS/JS 提供真正 references lookup".
-  // We will setup a minimal one-off program around the specific file, but
-  // realistically scanning references needs a full project. We will try a lazy project.
+  args.push(normalizedSymbolName, '.')
 
-  const absPath = path.resolve(workspacePath, filePath)
-  if (!absPath.startsWith(workspacePath)) {
-    throw new McpError(ErrorCode.InvalidParams, `Access denied.`)
+  const output = await runRipgrep(args, searchRoot)
+  const files = output.split('\n').filter(Boolean)
+
+  const allMatches: SearchMatch[] = []
+
+  for (const relativeFilePath of files) {
+    const { absolutePath: absoluteFilePath, workspaceRelativePath } = resolveReportedPath({
+      workspacePath,
+      searchRoot,
+      reportedPath: relativeFilePath,
+    })
+
+    if (!isJsTsSemanticFile(absoluteFilePath)) {
+      continue
+    }
+
+    const sourceCode = await fs.readFile(absoluteFilePath, 'utf8')
+    const sourceFile = ts.createSourceFile(absoluteFilePath, sourceCode, ts.ScriptTarget.Latest, true)
+
+    const pushMatch = (node: import('typescript').Node) => {
+      const start = node.getStart(sourceFile)
+      const { line, character } = ts.getLineAndCharacterOfPosition(sourceFile, start)
+      const snippet = sourceCode.split('\n')[line] || ''
+      allMatches.push({
+        file: workspaceRelativePath,
+        line: line + 1,
+        column: character + 1,
+        snippet: toSingleLineSnippet(snippet),
+      })
+    }
+
+    const visit = (node: import('typescript').Node) => {
+      if (
+        ts.isClassDeclaration(node)
+        || ts.isFunctionDeclaration(node)
+        || ts.isInterfaceDeclaration(node)
+        || ts.isTypeAliasDeclaration(node)
+        || ts.isMethodDeclaration(node)
+        || ts.isPropertyDeclaration(node)
+        || ts.isVariableDeclaration(node)
+        || ts.isEnumDeclaration(node)
+      ) {
+        const namedNode = node as import('typescript').NamedDeclaration
+        if (namedNode.name && ts.isIdentifier(namedNode.name) && namedNode.name.text === normalizedSymbolName) {
+          pushMatch(node)
+        }
+      }
+
+      ts.forEachChild(node, visit)
+    }
+
+    ts.forEachChild(sourceFile, visit)
   }
 
-  // Read tsconfig.json?
+  const matches = allMatches.slice(0, effectiveLimit)
+
+  return {
+    engine: 'typescript' as const,
+    engineDescriptor: toSemanticEngineDescriptor(semanticEngine),
+    capabilities: { ...semanticEngine.capabilityFlags },
+    unsupportedReason: null,
+    requestedCapability: 'definition' as const,
+    matchKind: 'definition' as const,
+    symbolName: normalizedSymbolName,
+    searchRoot: path.relative(workspacePath, searchRoot) || '.',
+    total: allMatches.length,
+    limit: effectiveLimit,
+    matches,
+  }
+}
+
+async function collectProjectFiles(ts: typeof import('typescript'), workspacePath: string, entryAbsPath: string) {
   let configPath = ts.findConfigFile(workspacePath, ts.sys.fileExists, 'tsconfig.json')
-  if (!configPath)
-    configPath = ts.findConfigFile(path.dirname(absPath), ts.sys.fileExists, 'tsconfig.json')
+  if (!configPath) {
+    configPath = ts.findConfigFile(path.dirname(entryAbsPath), ts.sys.fileExists, 'tsconfig.json')
+  }
 
-  let compilerOptions: any = { allowJs: true, checkJs: true }
+  const defaultCompilerOptions: import('typescript').CompilerOptions = {
+    allowJs: true,
+    checkJs: false,
+  }
+
   if (configPath) {
-    const configFile = ts.readConfigFile(configPath, ts.sys.readFile)
-    const parsedCommandLine = ts.parseJsonConfigFileContent(configFile.config, ts.sys, path.dirname(configPath))
-    compilerOptions = parsedCommandLine.options
+    const config = ts.readConfigFile(configPath, ts.sys.readFile)
+    if (config.error) {
+      throw new McpError(ErrorCode.InternalError, `Failed to read tsconfig: ${config.error.messageText}`)
+    }
+
+    const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, path.dirname(configPath))
+    const fileNames = Array.from(new Set(parsed.fileNames.map(file => path.resolve(file))))
+    if (!fileNames.includes(entryAbsPath)) {
+      fileNames.push(entryAbsPath)
+    }
+
+    return {
+      compilerOptions: { ...defaultCompilerOptions, ...parsed.options },
+      fileNames,
+    }
   }
 
-  // We should create a language service for this project which is heavily cached, but since we
-  // run iteratively, doing so every time might be slow. Wait, the process stays alive.
-  // For safety and correctness, we will just use a naive program approach, but wait LSP is better.
-  // We'll create a fast Program matching the target file.
+  const fallbackArgs = ['-l', '--no-heading', '--color', 'never']
+  for (const codeGlob of defaultCodeGlobs) {
+    fallbackArgs.push('-g', codeGlob)
+  }
+  fallbackArgs.push('.', '.')
 
-  // Since building a full program every request might take 2-5 seconds for big, we can just do it.
-  const program = ts.createProgram([absPath], compilerOptions)
+  const output = await runRipgrep(fallbackArgs, workspacePath)
+  const discoveredFiles = output
+    .split('\n')
+    .filter(Boolean)
+    .map(file => path.resolve(workspacePath, file))
 
-  // Find the node at the position.
-  const sourceFile = program.getSourceFile(absPath)
-  if (!sourceFile) {
-    return { matches: [] }
+  const fileNames = Array.from(new Set([...discoveredFiles, entryAbsPath]))
+  return { compilerOptions: defaultCompilerOptions, fileNames }
+}
+
+export async function findReferences(workspacePath: string, filePath: string, line: number, column: number, limit?: number) {
+  const semanticEngine = resolveSemanticEngineForFile(filePath)
+  if (!semanticEngine) {
+    return buildSemanticUnsupportedResult({
+      semanticEngine: undefined,
+      requestedCapability: 'reference',
+      reasonCode: 'unsupported_file_extension',
+    })
   }
 
-  const pos = ts.getPositionOfLineAndCharacter(sourceFile, line - 1, column - 1)
+  if (!semanticEngine.capabilityFlags.reference || semanticEngine.id !== 'typescript') {
+    return buildSemanticUnsupportedResult({
+      semanticEngine,
+      requestedCapability: 'reference',
+      reasonCode: 'capability_not_supported',
+    })
+  }
 
-  // Finding references using `ts.LanguageService` is the standard way.
-  // So we must use a LanguageService instead of just Program.
-  const host: any = {
-    getScriptFileNames: () => [absPath],
-    getScriptVersion: () => '0',
+  let ts: typeof import('typescript')
+  try {
+    ts = (await import('typescript')).default || await import('typescript')
+  }
+  catch {
+    return buildSemanticUnsupportedResult({
+      semanticEngine,
+      requestedCapability: 'reference',
+      reasonCode: 'engine_unavailable',
+    })
+  }
+
+  const effectiveLimit = clampSearchLimit(limit)
+
+  const absoluteFilePath = path.resolve(workspacePath, filePath)
+  ensureWithinWorkspace(workspacePath, absoluteFilePath)
+
+  const { compilerOptions, fileNames } = await collectProjectFiles(ts, workspacePath, absoluteFilePath)
+  const versions = new Map(fileNames.map(fileName => [fileName, '0']))
+
+  const host: import('typescript').LanguageServiceHost = {
+    getScriptFileNames: () => fileNames,
+    getScriptVersion: fileName => versions.get(fileName) || '0',
     getScriptSnapshot: (fileName) => {
       if (!ts.sys.fileExists(fileName)) {
         return undefined
       }
-      return ts.ScriptSnapshot.fromString(ts.sys.readFile(fileName)!)
+
+      const content = ts.sys.readFile(fileName)
+      if (content === undefined) {
+        return undefined
+      }
+
+      return ts.ScriptSnapshot.fromString(content)
     },
     getCurrentDirectory: () => workspacePath,
     getCompilationSettings: () => compilerOptions,
@@ -175,27 +574,71 @@ export async function findReferences(workspacePath: string, filePath: string, li
   }
 
   const languageService = ts.createLanguageService(host, ts.createDocumentRegistry())
-  const refs = languageService.getReferencesAtPosition(absPath, pos)
+  const program = languageService.getProgram()
+  const targetSourceFile = program?.getSourceFile(absoluteFilePath)
 
-  if (!refs) {
-    return { matches: [] }
+  if (!targetSourceFile) {
+    return {
+      engine: 'typescript' as const,
+      engineDescriptor: toSemanticEngineDescriptor(semanticEngine),
+      capabilities: { ...semanticEngine.capabilityFlags },
+      unsupportedReason: null,
+      requestedCapability: 'reference' as const,
+      filePath,
+      targetLine: line,
+      targetColumn: column,
+      total: 0,
+      limit: effectiveLimit,
+      matches: [] as ReferenceMatch[],
+    }
   }
 
-  let matches = refs.map((ref) => {
-    // Map ref to result
-    const refSource = languageService.getProgram()!.getSourceFile(ref.fileName)
-    if (!refSource)
-      return null
-    const { line: startLine, character: startCol } = ts.getLineAndCharacterOfPosition(refSource, ref.textSpan.start)
-    return {
-      file: path.relative(workspacePath, ref.fileName),
-      line: startLine + 1,
-      column: startCol + 1,
-      isWriteAccess: ref.isWriteAccess,
-    }
-  }).filter(Boolean)
+  const position = ts.getPositionOfLineAndCharacter(targetSourceFile, line - 1, column - 1)
+  const references = languageService.getReferencesAtPosition(absoluteFilePath, position) || []
 
-  if (limit)
-    matches = matches.slice(0, limit)
-  return { matches }
+  const dedupe = new Set<string>()
+  const matches: ReferenceMatch[] = []
+
+  for (const reference of references) {
+    ensureWithinWorkspace(workspacePath, reference.fileName)
+
+    const sourceFile = languageService.getProgram()?.getSourceFile(reference.fileName)
+    if (!sourceFile) {
+      continue
+    }
+
+    const loc = ts.getLineAndCharacterOfPosition(sourceFile, reference.textSpan.start)
+    const file = path.relative(workspacePath, reference.fileName)
+    const lineNo = loc.line + 1
+    const columnNo = loc.character + 1
+    const key = `${file}:${lineNo}:${columnNo}:${reference.isWriteAccess ? 'w' : 'r'}`
+
+    if (dedupe.has(key)) {
+      continue
+    }
+    dedupe.add(key)
+
+    matches.push({
+      file,
+      line: lineNo,
+      column: columnNo,
+      isWriteAccess: reference.isWriteAccess,
+    })
+  }
+
+  const limitedMatches = matches.slice(0, effectiveLimit)
+
+  return {
+    engine: 'typescript' as const,
+    engineDescriptor: toSemanticEngineDescriptor(semanticEngine),
+    capabilities: { ...semanticEngine.capabilityFlags },
+    unsupportedReason: null,
+    requestedCapability: 'reference' as const,
+    filePath,
+    targetLine: line,
+    targetColumn: column,
+    total: matches.length,
+    limit: effectiveLimit,
+    matches: limitedMatches,
+  }
 }

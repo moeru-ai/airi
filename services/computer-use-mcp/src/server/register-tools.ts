@@ -19,6 +19,7 @@ import { getRuntimePreflight } from '../preflight'
 import { summarizeRunState } from '../transparency'
 import {
   createAppBrowseAndActWorkflow,
+  createCodingAgenticLoopWorkflow,
   createCodingExecutionLoopWorkflow,
   createDevInspectFailureWorkflow,
   createDevOpenWorkspaceWorkflow,
@@ -1093,20 +1094,104 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     {
       workspacePath: z.string().min(1).describe('Absolute path to the workspace root.'),
       taskGoal: z.string().min(1).describe('High-level description of the coding task to accomplish.'),
-      targetFile: z.string().min(1).describe('Workspace-relative file path to inspect and patch.'),
+      targetFile: z.string().min(1).optional().describe('Optional workspace-relative file path to inspect and patch. If omitted, workflow attempts auto-resolution from search output.'),
+      searchQuery: z.string().optional().describe('Optional text query to run before patching.'),
+      targetSymbol: z.string().optional().describe('Optional symbol name to semantically locate before patching.'),
+      targetLine: z.number().int().min(1).optional().describe('Optional 1-based line for reference lookup anchor.'),
+      targetColumn: z.number().int().min(1).optional().describe('Optional 1-based column for reference lookup anchor.'),
+      allowMultiFile: z.boolean().optional().describe('Allow limited multi-file plan (default: true).'),
+      maxPlannedFiles: z.number().int().min(1).max(3).optional().describe('Maximum planned files per cycle (default: 2, max: 3).'),
       patchOld: z.string().min(1).describe('Exact string to replace inside the target file.'),
       patchNew: z.string().describe('Replacement string for the target file patch.'),
-      testCommand: z.string().optional().describe('Optional validation command to run after patching (default: pnpm test:run).'),
+      testCommand: z.string().optional().describe('Optional validation command to run after patching (default: auto scoped validation).'),
       autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
     },
-    async ({ workspacePath, taskGoal, targetFile, patchOld, patchNew, testCommand, autoApprove }) => {
+    async ({ workspacePath, taskGoal, targetFile, searchQuery, targetSymbol, targetLine, targetColumn, allowMultiFile, maxPlannedFiles, patchOld, patchNew, testCommand, autoApprove }) => {
+      if (!targetFile && !searchQuery && !targetSymbol) {
+        return {
+          isError: true,
+          content: [textContent('workflow_coding_loop requires either targetFile or searchQuery/targetSymbol for auto target resolution.')],
+          structuredContent: {
+            status: 'error',
+            reason: 'missing_target_file_and_search_hints',
+          },
+        }
+      }
+
       const workflow = createCodingExecutionLoopWorkflow({
         workspacePath,
         taskGoal,
         targetFile,
+        searchQuery,
+        targetSymbol,
+        targetLine,
+        targetColumn,
+        allowMultiFile,
+        maxPlannedFiles,
         patchOld,
         patchNew,
-        testCommand: testCommand ?? 'pnpm test:run',
+        testCommand: testCommand ?? 'auto',
+      })
+      const result = await executeWorkflow({
+        workflow,
+        executeAction,
+        executePrepTool,
+        acquirePty,
+        stateManager: runtime.stateManager,
+        refreshState: refreshWorkflowRunState,
+        autoApproveSteps: autoApprove ?? true,
+      })
+
+      suspendedWorkflow = result.suspension
+
+      return formatWorkflowResult(workflow.id, result)
+    },
+  )
+
+  server.tool(
+    'workflow_coding_agentic_loop',
+    {
+      workspacePath: z.string().min(1).describe('Absolute path to the workspace root.'),
+      taskGoal: z.string().min(1).describe('High-level description of the coding task to accomplish.'),
+      targetFile: z.string().min(1).optional().describe('Optional workspace-relative file path to inspect and patch. If omitted, workflow attempts auto-resolution from search output.'),
+      searchQuery: z.string().optional().describe('Optional text query to run before patching.'),
+      targetSymbol: z.string().optional().describe('Optional symbol name to semantically locate before patching.'),
+      targetLine: z.number().int().min(1).optional().describe('Optional 1-based line for reference lookup anchor.'),
+      targetColumn: z.number().int().min(1).optional().describe('Optional 1-based column for reference lookup anchor.'),
+      allowMultiFile: z.boolean().optional().describe('Allow limited multi-file plan (default: true).'),
+      maxPlannedFiles: z.number().int().min(1).max(3).optional().describe('Maximum planned files per cycle (default: 2, max: 3).'),
+      changeIntent: z.enum(['behavior_fix', 'refactor', 'api_change', 'config_change', 'test_fix']).optional().describe('Agentic change intent classification.'),
+      patchOld: z.string().min(1).describe('Exact string to replace inside the target file.'),
+      patchNew: z.string().describe('Replacement string for the target file patch.'),
+      testCommand: z.string().optional().describe('Optional validation command to run after patching (default: auto scoped validation).'),
+      autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
+    },
+    async ({ workspacePath, taskGoal, targetFile, searchQuery, targetSymbol, targetLine, targetColumn, allowMultiFile, maxPlannedFiles, changeIntent, patchOld, patchNew, testCommand, autoApprove }) => {
+      if (!targetFile && !searchQuery && !targetSymbol) {
+        return {
+          isError: true,
+          content: [textContent('workflow_coding_agentic_loop requires either targetFile or searchQuery/targetSymbol for auto target resolution.')],
+          structuredContent: {
+            status: 'error',
+            reason: 'missing_target_file_and_search_hints',
+          },
+        }
+      }
+
+      const workflow = createCodingAgenticLoopWorkflow({
+        workspacePath,
+        taskGoal,
+        targetFile,
+        searchQuery,
+        targetSymbol,
+        targetLine,
+        targetColumn,
+        allowMultiFile,
+        maxPlannedFiles,
+        changeIntent,
+        patchOld,
+        patchNew,
+        testCommand: testCommand ?? 'auto',
       })
       const result = await executeWorkflow({
         workflow,

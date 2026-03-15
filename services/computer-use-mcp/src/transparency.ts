@@ -42,6 +42,26 @@ export function explainActionIntent(action: ActionInvocation, runState: RunState
       return `Compress context for goal: ${action.input.goal}`
     case 'coding_report_status':
       return `Report status: ${action.input.status}`
+    case 'coding_search_text':
+      return `Search text "${action.input.query}" in workspace`
+    case 'coding_search_symbol':
+      return `Search symbol "${action.input.symbolName}" in workspace`
+    case 'coding_find_references':
+      return `Find references from ${action.input.filePath}:${action.input.targetLine}:${action.input.targetColumn}`
+    case 'coding_analyze_impact':
+      return `Analyze local impact graph for${action.input.targetSymbol ? ` symbol "${action.input.targetSymbol}"` : ' target candidates'}`
+    case 'coding_validate_hypothesis':
+      return `Validate target hypothesis for ${action.input.changeIntent}`
+    case 'coding_select_target':
+      return `Select deterministic target file${action.input.targetFile ? ` (explicit: ${action.input.targetFile})` : ''}`
+    case 'coding_plan_changes':
+      return `Create limited coding plan for intent: ${action.input.intent}`
+    case 'coding_review_changes':
+      return `Run deterministic coding change review`
+    case 'coding_diagnose_changes':
+      return 'Diagnose change failure causes using diff, validation and impact evidence'
+    case 'coding_capture_validation_baseline':
+      return 'Capture baseline dirty tree and validation state for noise isolation'
 
     case 'screenshot':
       return `Taking a screenshot to observe the current state of the desktop${taskContext}.`
@@ -154,6 +174,26 @@ export function explainActionOutcome(params: {
       return 'Context compressed successfully. The semantic understanding has been summarized.'
     case 'coding_report_status':
       return 'Status reported successfully.'
+    case 'coding_search_text':
+      return `Text search completed for query "${action.input.query}".`
+    case 'coding_search_symbol':
+      return `Symbol search completed for "${action.input.symbolName}".`
+    case 'coding_find_references':
+      return `Reference lookup completed for ${action.input.filePath}:${action.input.targetLine}:${action.input.targetColumn}.`
+    case 'coding_analyze_impact':
+      return 'Impact analysis completed with bounded local graph output.'
+    case 'coding_validate_hypothesis':
+      return 'Target hypothesis validation completed.'
+    case 'coding_select_target':
+      return 'Target selection completed deterministically.'
+    case 'coding_plan_changes':
+      return 'Change plan generated deterministically.'
+    case 'coding_review_changes':
+      return 'Change review completed deterministically.'
+    case 'coding_diagnose_changes':
+      return 'Change diagnosis completed with root-cause classification.'
+    case 'coding_capture_validation_baseline':
+      return 'Validation baseline captured for current workspace.'
 
     case 'screenshot':
       return 'Screenshot captured successfully. The model can now analyze the current desktop state.'
@@ -204,6 +244,16 @@ function buildFailureExplanation(
     case 'coding_apply_patch':
     case 'coding_compress_context':
     case 'coding_report_status':
+    case 'coding_search_text':
+    case 'coding_search_symbol':
+    case 'coding_find_references':
+    case 'coding_analyze_impact':
+    case 'coding_validate_hypothesis':
+    case 'coding_select_target':
+    case 'coding_plan_changes':
+    case 'coding_review_changes':
+    case 'coding_diagnose_changes':
+    case 'coding_capture_validation_baseline':
       parts.push('Ensure the file path and workspace boundaries are perfectly aligned and readable.')
       break
     case 'click':
