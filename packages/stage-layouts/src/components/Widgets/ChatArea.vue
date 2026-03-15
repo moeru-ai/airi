@@ -9,7 +9,7 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useSettings, useSettingsAudioDevice, useSettingsChat } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea, FieldSelect } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -27,6 +27,7 @@ const isListening = ref(false) // Transcription listening state (separate from m
 const providersStore = useProvidersStore()
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
+const settingsChat = useSettingsChat()
 
 const { askPermission, startStream } = useSettingsAudioDevice()
 const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(useSettingsAudioDevice())
@@ -435,6 +436,7 @@ watch(autoSendEnabled, (enabled) => {
     >
       <BasicTextarea
         v-model="messageInput"
+        :send-mode="settingsChat.sendMode"
         :placeholder="t('stage.message')"
         text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
         bg="transparent"

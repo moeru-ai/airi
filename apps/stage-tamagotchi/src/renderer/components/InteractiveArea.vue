@@ -9,6 +9,7 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useSettingsChat } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
@@ -30,6 +31,7 @@ const { sending } = storeToRefs(chatOrchestrator)
 const { t } = useI18n()
 const providersStore = useProvidersStore()
 const { activeModel, activeProvider } = storeToRefs(useConsciousnessStore())
+const settingsChat = useSettingsChat()
 const isComposing = ref(false)
 
 async function handleSend() {
@@ -144,6 +146,7 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
     </div>
     <BasicTextarea
       v-model="messageInput"
+      :send-mode="settingsChat.sendMode"
       :placeholder="t('stage.message')"
       class="ph-no-capture"
       text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
@@ -152,9 +155,9 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
       max-h="[10lh]" min-h="[1lh]"
       w-full shrink-0 resize-none overflow-y-scroll rounded-xl p-2 font-medium outline-none
       transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
+      @submit="handleSend"
       @compositionstart="isComposing = true"
       @compositionend="isComposing = false"
-      @keydown.enter.exact.prevent="handleSend"
       @paste-file="handleFilePaste"
     />
   </div>

@@ -23,6 +23,7 @@ export interface StreamOptions {
   supportsTools?: boolean
   waitForTools?: boolean // when true,won't resolve on finishReason=='tool_calls';
   tools?: Tool[] | (() => Promise<Tool[] | undefined>)
+  abortSignal?: AbortSignal
 }
 
 // TODO: proper format for other error messages.
@@ -110,6 +111,7 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
         // TODO: we need Automatic tools discovery
         tools,
         onEvent,
+        abortSignal: options?.abortSignal,
       })
     }
     catch (err) {

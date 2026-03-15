@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 
 const props = defineProps<{
   defaultHeight?: string
+  sendMode?: 'enter' | 'ctrl-enter' | 'double-enter'
 }>()
 
 const events = defineEmits<{
@@ -16,11 +17,45 @@ const input = defineModel<string>({
 
 const textareaRef = ref<HTMLTextAreaElement>()
 const textareaHeight = ref('auto')
+const lastEnterAt = ref(0)
+
+function emitSubmit() {
+  events('submit', input.value.replace(/[\r\n]+$/, ''))
+}
 
 function onKeyDown(e: KeyboardEvent) {
-  if (e.code === 'Enter' && !e.shiftKey) { // just block Enter is enough, Shift+Enter by default generates a newline
-    e.preventDefault()
-    events('submit', input.value)
+  if (e.isComposing || e.code !== 'Enter')
+    return
+
+  const sendMode = props.sendMode || 'enter'
+  const hasPrimaryModifier = e.ctrlKey || e.metaKey
+
+  if (sendMode === 'enter') {
+    if (!e.shiftKey && !hasPrimaryModifier) {
+      e.preventDefault()
+      emitSubmit()
+    }
+    return
+  }
+
+  if (sendMode === 'ctrl-enter') {
+    if (hasPrimaryModifier) {
+      e.preventDefault()
+      emitSubmit()
+    }
+    return
+  }
+
+  if (!e.shiftKey && !hasPrimaryModifier) {
+    const now = Date.now()
+    if (now - lastEnterAt.value <= 350) {
+      e.preventDefault()
+      lastEnterAt.value = 0
+      emitSubmit()
+      return
+    }
+
+    lastEnterAt.value = now
   }
 }
 

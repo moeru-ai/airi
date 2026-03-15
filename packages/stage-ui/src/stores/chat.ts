@@ -22,6 +22,7 @@ import { useChatStreamStore } from './chat/stream-store'
 import { useLLM } from './llm'
 import { useConsciousnessStore } from './modules/consciousness'
 import { useProactivityStore } from './proactivity'
+import { useSettingsChat } from './settings/chat'
 
 interface SendOptions {
   model: string
@@ -59,6 +60,7 @@ interface QueuedSend {
 export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const llmStore = useLLM()
   const consciousnessStore = useConsciousnessStore()
+  const settingsChat = useSettingsChat()
   const { activeProvider } = storeToRefs(consciousnessStore)
   const { trackFirstMessage } = useAnalytics()
 
@@ -148,6 +150,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
     const proactivityStore = useProactivityStore()
     proactivityStore.incrementMetric('chat')
+    let streamIdleTimeout: ReturnType<typeof setTimeout> | undefined
 
     try {
       await hooks.emitBeforeMessageComposedHooks(sendingMessage, streamingMessageContext)
@@ -315,17 +318,34 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
       let fullText = ''
       const headers = (options.providerConfig?.headers || {}) as Record<string, string>
+      const abortController = new AbortController()
+
+      const clearStreamIdleTimeout = () => {
+        if (streamIdleTimeout)
+          clearTimeout(streamIdleTimeout)
+      }
+
+      const resetStreamIdleTimeout = () => {
+        clearStreamIdleTimeout()
+        streamIdleTimeout = setTimeout(() => {
+          abortController.abort(new Error('Stream idle timeout exceeded'))
+        }, settingsChat.streamIdleTimeoutMs)
+      }
 
       if (shouldAbort())
         return
 
+      resetStreamIdleTimeout()
+
       await llmStore.stream(options.model, options.chatProvider, newMessages as Message[], {
         headers,
         tools: options.tools,
+        abortSignal: abortController.signal,
         // NOTICE: xsai stream may emit `finish` before tool steps continue, so keep waiting until
         // the final non-tool finish to avoid ending the chat turn with no assistant reply.
         waitForTools: true,
         onStreamEvent: async (event: StreamEvent) => {
+          resetStreamIdleTimeout()
           switch (event.type) {
             case 'tool-call':
               toolCallQueue.enqueue({
@@ -366,6 +386,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         },
       })
 
+      clearStreamIdleTimeout()
+
       await parser.end()
 
       if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
@@ -393,6 +415,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       throw error
     }
     finally {
+      if (streamIdleTimeout)
+        clearTimeout(streamIdleTimeout)
       sending.value = false
     }
   }

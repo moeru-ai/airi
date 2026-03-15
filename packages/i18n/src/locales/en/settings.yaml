@@ -101,6 +101,9 @@ live2d:
 microphone: Microphone
 models: Model
 pages:
+  chat:
+    title: Chat
+    description: Tune how chat messages are sent and how long streaming can stay idle before it is cancelled.
   card:
     activate: Activate
     active: Active
@@ -1095,3 +1098,21 @@ wip:
   description: >-
     This feature is currently under development and not yet publicly available.
     Check back in future updates for this functionality.
+chat:
+  send-mode:
+    title: Send Key
+    description: Choose how you want the chat input to send a message.
+    options:
+      enter: Enter to send
+      ctrl-enter: Ctrl+Enter to send
+      double-enter: Double Enter to send
+  stream-idle-timeout:
+    title: Stream Idle Timeout
+    description: Cancel a response if the model stream stops producing events for too long.
+    options:
+      10s: 10 seconds
+      15s: 15 seconds
+      30s: 30 seconds
+      45s: 45 seconds
+      60s: 60 seconds
+      120s: 2 minutes
