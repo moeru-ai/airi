@@ -19,12 +19,12 @@ dialogs:
     baseUrlHelp: URL de l'endpoint API (utilisez la valeur par défaut si vous n’êtes pas sûr)
     accountId: ID du compte
     validationSuccess: Validation de la configuration réussie
-    validationPartial: Configuration partiellement validée
+    validationPartial: Configuration partially validated
     validationFailed: La validation de la configuration a échouée.
     validationError: 'Erreur de validation: {error}'
-    testGeneration: Test de génération
-    testGenerationRunning: Test en cours...
-    testGenerationFailed: Test de génération échoué
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: Passer pour l'instant
     saveAndContinue: Sauvegarder et Continuer
     next: Suivant
@@ -36,17 +36,17 @@ dialogs:
       Veuillez revenir à l’étape précédente et vérifier votre clé API, ou bien vérifier la connexion réseau.
     permissions:
       title: Notifications
-      description: You can allow notifications now or continue and set it up later.
+      description: Vous pouvez autoriser les notifications maintenant ou continuer et les configurer plus tard.
       notificationsTitle: Notifications
-      notificationsDescription: Allow reminders and important status updates.
-      notificationsAction: Request notification permission
-      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
-      openSettings: Open iOS Settings
-      optionalHint: You can continue even if notification permission is not granted.
-      stateUnknown: Not requested
-      stateRequesting: Requesting...
-      stateGranted: Granted
-      stateNotGranted: Not granted
+      notificationsDescription: Autorisez les rappels et les mises à jour de statut importantes.
+      notificationsAction: Demander l'autorisation de notification
+      notificationsNotGrantedHint: En cas de refus, vous pourrez activer les notifications plus tard dans les Réglages iOS.
+      openSettings: Ouvrir les Réglages iOS
+      optionalHint: Vous pouvez continuer même si l'autorisation de notification n'est pas accordée.
+      stateUnknown: Non demandé
+      stateRequesting: Demande en cours...
+      stateGranted: Accordée
+      stateNotGranted: Non accordée
 language:
   title: Langage
   description: >
@@ -176,7 +176,7 @@ pages:
     scenario: Scénario
     search: Rechercher des cartes...
     sort_by: Trier par
-    body-model: Body / Display Model
+    body-model: Corps / Modèle d'affichage
     speech:
       provider: Parole / Fournisseur
       model: Parole / Modèle
