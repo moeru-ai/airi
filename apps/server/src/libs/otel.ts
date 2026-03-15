@@ -43,6 +43,9 @@ export interface EngagementMetrics {
   characterCreated: Counter
   characterDeleted: Counter
   characterEngagement: Counter
+  wsConnectionsActive: UpDownCounter
+  wsMessagesSent: Counter
+  wsMessagesReceived: Counter
 }
 
 export interface RevenueMetrics {
@@ -211,6 +214,15 @@ export function initOtel(env: Env): OtelInstance | undefined {
     }),
     characterEngagement: meter.createCounter('character.engagement', {
       description: 'Number of character engagement actions (like/bookmark)',
+    }),
+    wsConnectionsActive: meter.createUpDownCounter('ws.connections.active', {
+      description: 'Active WebSocket connections',
+    }),
+    wsMessagesSent: meter.createCounter('ws.messages.sent', {
+      description: 'Messages sent via WebSocket',
+    }),
+    wsMessagesReceived: meter.createCounter('ws.messages.received', {
+      description: 'Messages received via WebSocket',
     }),
   }
 

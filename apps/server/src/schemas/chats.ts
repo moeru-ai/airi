@@ -74,8 +74,9 @@ export const messages = pgTable(
     id: text('id').primaryKey().$defaultFn(() => nanoid()),
 
     chatId: text('chat_id').notNull().references(() => chats.id, { onDelete: 'cascade' }),
-    senderId: text('sender_id').notNull(),
+    senderId: text('sender_id'),
     role: text('role').notNull(),
+    seq: integer('seq'),
 
     content: text('content').notNull(),
     mediaIds: text('media_ids').array().notNull(),

@@ -1,4 +1,4 @@
-import { array, literal, number, object, optional, string, union } from 'valibot'
+import { array, literal, maxLength, minLength, object, optional, pipe, string, union } from 'valibot'
 
 const ChatTypeSchema = union([
   literal('private'),
@@ -13,33 +13,23 @@ const ChatMemberTypeSchema = union([
   literal('bot'),
 ])
 
-const ChatMessageRoleSchema = union([
-  literal('system'),
-  literal('user'),
-  literal('assistant'),
-  literal('tool'),
-  literal('error'),
-])
-
-export const ChatSyncMessageSchema = object({
-  id: string(),
-  role: ChatMessageRoleSchema,
-  content: string(),
-  createdAt: optional(number()),
-})
-
-export const ChatSyncSchema = object({
-  chat: object({
-    id: string(),
-    type: optional(ChatTypeSchema),
-    title: optional(string()),
-    createdAt: optional(number()),
-    updatedAt: optional(number()),
-  }),
+export const CreateChatSchema = object({
+  id: optional(pipe(string(), minLength(1), maxLength(30))),
+  type: optional(ChatTypeSchema),
+  title: optional(string()),
   members: optional(array(object({
     type: ChatMemberTypeSchema,
     userId: optional(string()),
     characterId: optional(string()),
   }))),
-  messages: array(ChatSyncMessageSchema),
+})
+
+export const UpdateChatSchema = object({
+  title: optional(string()),
+})
+
+export const AddMemberSchema = object({
+  type: ChatMemberTypeSchema,
+  userId: optional(string()),
+  characterId: optional(string()),
 })
