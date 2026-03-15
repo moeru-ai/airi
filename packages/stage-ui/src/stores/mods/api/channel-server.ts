@@ -5,7 +5,7 @@ import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { useWebSocketInspectorStore } from '../../devtools/websocket-inspector'
 
@@ -28,6 +28,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   const client = ref<Client>()
   const initializing = ref<Promise<void> | null>(null)
   const pendingSend = ref<Array<WebSocketEvent>>([])
+  const pendingSendCount = computed(() => pendingSend.value.length)
 
   const defaultWebSocketUrl = import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws'
   const websocketUrl = useLocalStorage('settings/connection/websocket-url', defaultWebSocketUrl)
@@ -239,6 +240,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
   return {
     connected,
+    pendingSendCount,
     ensureConnected,
 
     initialize,
@@ -246,6 +248,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     sendContextUpdate,
     onContextUpdate,
     onEvent,
+    getPendingSendSnapshot: () => [...pendingSend.value],
     dispose,
   }
 })

@@ -6,19 +6,29 @@ import type { FlowDirection, FlowEntry, SparkNotifyEntryState } from './context-
 
 import { errorMessageFrom } from '@moeru/std'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
+import { Section } from '@proj-airi/stage-ui/components'
 import { useCharacterOrchestratorStore, useCharacterStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME } from '@proj-airi/stage-ui/stores/chat/constants'
+import { formatContextPromptText } from '@proj-airi/stage-ui/stores/chat/context-prompt'
+import { useChatContextStore } from '@proj-airi/stage-ui/stores/chat/context-store'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
+import { useContextObservabilityStore } from '@proj-airi/stage-ui/stores/devtools/context-observability'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { getEventSourceKey } from '@proj-airi/stage-ui/utils'
 import { Callout } from '@proj-airi/ui'
 import { useBroadcastChannel } from '@vueuse/core'
 import { nanoid } from 'nanoid'
+import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
 import ContextFlowActions from './components/context-flow-actions.vue'
+import ContextFlowActiveContexts from './components/context-flow-active-contexts.vue'
 import ContextFlowFilters from './components/context-flow-filters.vue'
+import ContextFlowLifecycle from './components/context-flow-lifecycle.vue'
+import ContextFlowPromptProjection from './components/context-flow-prompt-projection.vue'
+import ContextFlowRuntime from './components/context-flow-runtime.vue'
 import ContextFlowStream from './components/context-flow-stream.vue'
 
 import { useContextFlowFormatters } from './composables/use-context-flow-formatters'
@@ -33,9 +43,15 @@ const {
 } = useContextFlowFormatters()
 
 const chatStore = useChatOrchestratorStore()
+const chatContextStore = useChatContextStore()
+const chatSessionStore = useChatSessionStore()
 const characterStore = useCharacterStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
+const contextObservabilityStore = useContextObservabilityStore()
 const serverChannelStore = useModsServerChannelStore()
+const { activeSessionId } = storeToRefs(chatSessionStore)
+const { connected, pendingSendCount } = storeToRefs(serverChannelStore)
+const { lastPromptProjection, lastBroadcastPostedAt, lastBroadcastReceivedAt } = storeToRefs(contextObservabilityStore)
 
 const entries = ref<FlowEntry[]>([])
 const showIncoming = ref(true)
@@ -64,6 +80,8 @@ const testSparkNotifyPayload = ref(JSON.stringify({
 const directionFilter = ref<DirectionFilter>('all')
 
 const sparkNotifyStates = ref<Map<string, SparkNotifyEntryState>>(new Map())
+const now = ref(Date.now())
+let nowTimer: ReturnType<typeof setInterval> | null = null
 
 const maxEntriesValue = computed(() => {
   const parsed = Number.parseInt(maxEntries.value, 10)
@@ -95,6 +113,10 @@ const filteredEntries = computed(() => {
   })
   return filtered.slice().reverse()
 })
+
+const activeContextBuckets = computed(() => chatContextStore.getContextBucketsSnapshot())
+const currentPromptText = computed(() => formatContextPromptText(chatContextStore.getContextsSnapshot()))
+const pendingQueuedSends = computed(() => chatStore.getPendingQueuedSendSnapshot())
 
 function normalizePayload(payload: unknown) {
   try {
@@ -205,6 +227,7 @@ function pushEntry(entry: Omit<FlowEntry, 'id' | 'timestamp' | 'searchText'>) {
 
 function clearEntries() {
   entries.value = []
+  contextObservabilityStore.clearHistory()
 }
 
 function sendTestContextUpdate() {
@@ -327,6 +350,10 @@ const { data: incomingStreamEvent } = useBroadcastChannel<ChatStreamEvent, ChatS
 const cleanupFns: Array<() => void> = []
 
 onMounted(() => {
+  nowTimer = setInterval(() => {
+    now.value = Date.now()
+  }, 1000)
+
   cleanupFns.push(serverChannelStore.onContextUpdate((event) => {
     pushEntry({
       direction: 'incoming',
@@ -537,14 +564,19 @@ watch(maxEntriesValue, () => {
 onUnmounted(() => {
   for (const cleanup of cleanupFns)
     cleanup()
+
+  if (nowTimer) {
+    clearInterval(nowTimer)
+    nowTimer = null
+  }
 })
 </script>
 
 <template>
   <div :class="['flex', 'flex-col', 'gap-6']">
     <Callout label="Context Flow">
-      Inspect incoming context updates (server + broadcast) and outgoing chat hooks in real time. Use this to verify
-      how plugin context (e.g. VSCode coding context) travels into the chat pipeline and out to server events.
+      Inspect retained context state, lifecycle transitions, prompt injection, and raw events in one place. This is
+      meant to answer what the client has received, what it kept, and what will be injected into the next chat turn.
     </Callout>
 
     <div :class="['grid', 'gap-6', 'lg:grid-cols-[360px_1fr]']">
@@ -573,11 +605,41 @@ onUnmounted(() => {
           @send-spark-notify="sendTestSparkNotify"
         />
 
-        <ContextFlowStream
-          v-model:filter-text="filterText"
-          :entries="filteredEntries"
-          :get-spark-notify-state="getSparkNotifyEntryState"
+        <ContextFlowRuntime
+          :connected="connected"
+          :pending-send-count="pendingSendCount"
+          :pending-queued-send-count="chatStore.pendingQueuedSendCount"
+          :pending-queued-sends="pendingQueuedSends"
+          :active-session-id="activeSessionId"
+          :last-broadcast-posted-at="lastBroadcastPostedAt"
+          :last-broadcast-received-at="lastBroadcastReceivedAt"
+          :now="now"
         />
+
+        <div :class="['grid', 'gap-2', 'xl:grid-cols-2']">
+          <ContextFlowActiveContexts
+            :buckets="activeContextBuckets"
+            :filter-text="filterText"
+            :now="now"
+          />
+          <ContextFlowPromptProjection
+            :current-prompt-text="currentPromptText"
+            :last-projection="lastPromptProjection"
+          />
+        </div>
+
+        <ContextFlowLifecycle
+          :records="contextObservabilityStore.history"
+          :filter-text="filterText"
+        />
+
+        <Section title="Raw Event Stream" icon="i-solar:inbox-line-bold-duotone" inner-class="gap-3" :expand="false">
+          <ContextFlowStream
+            v-model:filter-text="filterText"
+            :entries="filteredEntries"
+            :get-spark-notify-state="getSparkNotifyEntryState"
+          />
+        </Section>
       </div>
     </div>
   </div>
