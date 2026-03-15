@@ -43,4 +43,6 @@ export async function setupSettingsWindowInvokes(params: {
   defineInvokeHandler(context, electronOpenDevtoolsWindow, async (payload) => {
     await params.devtoolsMarkdownStressWindow.openWindow(payload?.route)
   })
+
+  return context
 }
