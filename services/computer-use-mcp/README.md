@@ -26,6 +26,24 @@ In short:
 - `computer-use-mcp` is the local execution and workflow substrate
 - the value is in orchestration, not in cursor movement by itself
 
+## Coding Layer Release Posture
+
+The coding layer inside `computer-use-mcp` should currently be understood as a
+**minimal integrated implementation**, not as a Codex-equivalent coding agent.
+
+What that means in practice:
+
+- it is already real enough to ship behind AIRI and support real workflows
+- it has planner / diagnosis / benchmark / smoke coverage, not just demos
+- it is still intentionally bounded and conservative
+- post-launch hardening and capability polish are expected, not accidental
+
+The current release goal is:
+
+- ship a usable coding kernel
+- prove it with tests, E2E, smoke, and benchmark gates
+- continue iterative polishing after the first integration lands
+
 ## What It Is
 
 This package is no longer positioned as a generic remote computer-use experiment.

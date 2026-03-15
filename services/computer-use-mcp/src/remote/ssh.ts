@@ -1,5 +1,7 @@
 import type { ComputerUseConfig } from '../types'
 
+import process from 'node:process'
+
 import { spawn } from 'node:child_process'
 
 import { runProcess } from '../utils/process'
@@ -17,7 +19,7 @@ function buildSshTarget(config: ComputerUseConfig) {
 }
 
 export function normalizeRemoteShellPath(value: string) {
-  return value.replace(/^~(?=\/|$)/, '${HOME}')
+  return value.replace(/^~(?=\/|$)/, () => '$' + '{HOME}')
 }
 
 // TODO: Replace this hand-rolled SSH CLI argument builder with a maintained SSH

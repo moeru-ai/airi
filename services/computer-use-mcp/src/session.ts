@@ -7,6 +7,8 @@ import type {
   TerminalState,
 } from './types'
 
+import process from 'node:process'
+
 import { randomUUID } from 'node:crypto'
 import { appendFile, mkdir } from 'node:fs/promises'
 

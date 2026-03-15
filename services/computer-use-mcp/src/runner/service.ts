@@ -21,6 +21,8 @@ import type {
   RunnerScreenshotResult,
 } from './protocol'
 
+import process, { platform } from 'node:process'
+
 import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { createReadStream } from 'node:fs'
@@ -28,7 +30,6 @@ import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { homedir, tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
-import { platform } from 'node:process'
 
 import { runProcess, sanitizeFileSegment } from '../utils/process'
 
