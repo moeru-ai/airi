@@ -4,7 +4,6 @@ import type { RemovableRef } from '@vueuse/core'
 import {
   Alert,
   ProviderAccountIdInput,
-  ProviderAdvancedSettings,
   ProviderApiKeyInput,
   ProviderBasicSettings,
   ProviderSettingsContainer,
@@ -22,30 +21,12 @@ const consciousnessStore = useConsciousnessStore()
 const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 const { activeProvider } = storeToRefs(consciousnessStore)
 
-const accessKeyId = computed({
-  get: () => providers.value[providerId]?.accessKeyId || '',
+const apiKey = computed({
+  get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-    providers.value[providerId].accessKeyId = value
-  },
-})
-
-const secretAccessKey = computed({
-  get: () => providers.value[providerId]?.secretAccessKey || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].secretAccessKey = value
-  },
-})
-
-const sessionToken = computed({
-  get: () => providers.value[providerId]?.sessionToken || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].sessionToken = value
+    providers.value[providerId].apiKey = value
   },
 })
 
@@ -87,18 +68,12 @@ function goToModelSelection() {
         :description="t('settings.pages.providers.common.section.basic.description')"
         :on-reset="handleResetSettings"
       >
-        <ProviderAccountIdInput
-          v-model="accessKeyId"
-          :label="t('settings.pages.providers.provider.amazon-bedrock.config.access-key-id.label')"
-          :description="t('settings.pages.providers.provider.amazon-bedrock.config.access-key-id.description')"
-          placeholder="AKIAIOSFODNN7EXAMPLE"
-          required
-        />
         <ProviderApiKeyInput
-          v-model="secretAccessKey"
-          :label="t('settings.pages.providers.provider.amazon-bedrock.config.secret-access-key.label')"
-          :description="t('settings.pages.providers.provider.amazon-bedrock.config.secret-access-key.description')"
-          placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+          v-model="apiKey"
+          :label="t('settings.pages.providers.provider.amazon-bedrock.config.api-key.label')"
+          :description="t('settings.pages.providers.provider.amazon-bedrock.config.api-key.description')"
+          :placeholder="t('settings.pages.providers.provider.amazon-bedrock.config.api-key.placeholder')"
+          required
         />
         <ProviderAccountIdInput
           v-model="region"
@@ -107,15 +82,6 @@ function goToModelSelection() {
           placeholder="us-east-1"
         />
       </ProviderBasicSettings>
-
-      <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
-        <ProviderApiKeyInput
-          v-model="sessionToken"
-          :label="t('settings.pages.providers.provider.amazon-bedrock.config.session-token.label')"
-          :description="t('settings.pages.providers.provider.amazon-bedrock.config.session-token.description')"
-          placeholder=""
-        />
-      </ProviderAdvancedSettings>
 
       <!-- Validation Status -->
       <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
