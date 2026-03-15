@@ -8,22 +8,20 @@ import { runProcess } from '../utils/process'
 
 const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const distDir = resolve(packageDir, 'dist')
-const remoteInstallDir = normalizeRemoteShellPath(env.COMPUTER_USE_REMOTE_INSTALL_DIR?.trim() || '${HOME}/.local/share/airi-desktop-runner')
-const remoteRunnerPath = normalizeRemoteShellPath(env.COMPUTER_USE_REMOTE_RUNNER_COMMAND?.trim() || '${HOME}/.local/bin/airi-desktop-runner')
+const remoteInstallDir = normalizeRemoteShellPath(env.COMPUTER_USE_REMOTE_INSTALL_DIR?.trim() || '$HOME/.local/share/airi-desktop-runner')
+const remoteRunnerPath = normalizeRemoteShellPath(env.COMPUTER_USE_REMOTE_RUNNER_COMMAND?.trim() || '$HOME/.local/bin/airi-desktop-runner')
+const allowRemotePackageInstall = env.COMPUTER_USE_REMOTE_ALLOW_PACKAGE_INSTALL === '1'
 
 async function buildLocalBundle() {
   await runProcess('pnpm', ['build'], {
     cwd: packageDir,
     timeoutMs: 180_000,
-    env: process.env,
+    env,
   })
 }
 
-async function installRemoteDependencies() {
+async function ensureRemoteDependencies() {
   const config = resolveComputerUseConfig()
-  if (env.COMPUTER_USE_REMOTE_SKIP_PACKAGE_INSTALL === '1') {
-    return
-  }
 
   const packages = [
     'nodejs',
@@ -39,14 +37,46 @@ async function installRemoteDependencies() {
     'xdg-utils',
   ].join(' ')
 
+  const requiredCommands = [
+    'node',
+    'Xvfb',
+    'xauth',
+    'xdotool',
+    'wmctrl',
+    'scrot',
+    'openbox',
+    'xdpyinfo',
+    'xprop',
+    'mousepad',
+    'xdg-open',
+  ].join(' ')
+
   await runRemoteCommand(config, `
+missing=""
+for cmd in ${requiredCommands}; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    missing="$missing $cmd"
+  fi
+done
+
+if [ -z "$missing" ]; then
+  exit 0
+fi
+
+echo "missing remote runner dependencies:$missing" >&2
+
+if [ "${allowRemotePackageInstall ? '1' : '0'}" != "1" ]; then
+  echo "install the missing dependencies manually, or rerun with COMPUTER_USE_REMOTE_ALLOW_PACKAGE_INSTALL=1 to allow apt-get installation" >&2
+  exit 19
+fi
+
 if ! command -v apt-get >/dev/null 2>&1; then
-  echo "apt-get is required to bootstrap the remote runner" >&2
+  echo "apt-get is required when COMPUTER_USE_REMOTE_ALLOW_PACKAGE_INSTALL=1" >&2
   exit 18
 fi
 
 if ! sudo -n true >/dev/null 2>&1; then
-  echo "passwordless sudo is required for bootstrap:remote, or rerun with COMPUTER_USE_REMOTE_SKIP_PACKAGE_INSTALL=1 after installing dependencies manually" >&2
+  echo "passwordless sudo is required when COMPUTER_USE_REMOTE_ALLOW_PACKAGE_INSTALL=1" >&2
   exit 17
 fi
 
@@ -98,7 +128,7 @@ async function main() {
   }
 
   await buildLocalBundle()
-  await installRemoteDependencies()
+  await ensureRemoteDependencies()
   await installRemoteRunner()
 
   console.info(JSON.stringify({

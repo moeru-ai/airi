@@ -11,7 +11,7 @@ function includesPattern(value: string | undefined, patterns: string[]) {
 }
 
 function isMutatingAction(action: ActionInvocation) {
-  return !['screenshot', 'observe_windows', 'wait', 'terminal_reset', 'clipboard_read_text', 'secret_read_env_value'].includes(action.kind)
+  return !['screenshot', 'observe_windows', 'wait', 'terminal_reset', 'clipboard_read_text', 'secret_read_env_value', 'coding_review_workspace', 'coding_read_file', 'coding_compress_context', 'coding_report_status'].includes(action.kind)
 }
 
 function isUiInteractionAction(action: ActionInvocation) {
@@ -39,6 +39,14 @@ function getCoordinate(action: ActionInvocation) {
 
 function estimateOperationUnits(action: ActionInvocation) {
   switch (action.kind) {
+    case 'coding_apply_patch':
+      return 5
+    case 'coding_review_workspace':
+    case 'coding_read_file':
+    case 'coding_compress_context':
+    case 'coding_report_status':
+      return 1
+
     case 'screenshot':
       return 3
     case 'observe_windows':
@@ -180,6 +188,11 @@ export function evaluateActionPolicy(params: {
   }
 
   if (params.action.kind === 'terminal_exec') {
+    requiresApproval = true
+    riskLevel = 'high'
+  }
+
+  if (params.action.kind === 'coding_apply_patch') {
     requiresApproval = true
     riskLevel = 'high'
   }

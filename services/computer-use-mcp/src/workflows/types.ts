@@ -27,6 +27,13 @@ export type WorkflowStepKind
     | 'pty_read_screen' // Read the current PTY screen buffer
     | 'pty_wait_for_output' // Wait until a marker appears in PTY output
     | 'pty_destroy_session' // Explicitly destroy a PTY session (optional cleanup)
+    // Coding Execution Core v1 step family
+    | 'coding_review_workspace'
+    | 'coding_read_file'
+    | 'coding_apply_patch'
+    | 'coding_compress_context'
+    | 'coding_report_status'
+    // Coding Execution Core v1 step family
 
 // ---------------------------------------------------------------------------
 // Terminal step configuration
@@ -114,6 +121,12 @@ export interface WorkflowDefinition {
  */
 export function resolveStepAction(step: WorkflowStepTemplate): ActionInvocation | undefined {
   switch (step.kind) {
+    case 'coding_review_workspace':
+    case 'coding_read_file':
+    case 'coding_apply_patch':
+    case 'coding_compress_context':
+    case 'coding_report_status':
+      return { kind: step.kind, input: step.params as any }
     case 'ensure_app':
       return { kind: 'focus_app', input: { app: step.params.app as string } }
     case 'change_directory':
