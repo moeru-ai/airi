@@ -277,7 +277,7 @@ pnpm dev:tamagotchi
 Start the development server for the capacitor:
 
 ```shell
-pnpm dev:pocket:ios <DEVICE_ID_OR_SIMULATOR_NAME>
+pnpm dev:pocket:ios --target <DEVICE_ID_OR_SIMULATOR_NAME>
 # Or
 CAPACITOR_DEVICE_ID=<DEVICE_ID_OR_SIMULATOR_NAME> pnpm dev:pocket:ios
 ```
@@ -290,7 +290,7 @@ If you need to connect server channel on pocket in wireless mode, you need to st
 sudo pnpm dev:tamagotchi
 ```
 
-Then enable secure websocket in tamagotchi `settings/system/general`.
+Then enable secure websocket in tamagotchi `settings/connections`.
 
 ### Documentation Site
 

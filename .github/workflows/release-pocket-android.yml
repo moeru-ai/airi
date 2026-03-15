@@ -20,7 +20,8 @@ on:
 
 jobs:
   build:
-    name: Build Android APK
+    # TODO: build release APK
+    name: Build Debuggable Android APK
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6

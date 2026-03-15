@@ -31,40 +31,16 @@ Install dependencies from the repo root:
 pnpm install
 ```
 
-### Build and sync
-
-Build the web assets and sync to Android:
-
-```bash
-# from apps/stage-pocket/
-pnpm build
-npx cap sync android
-```
-
 ### Run on a device / emulator
 
 Open the project in Android Studio:
 
 ```bash
-npx cap open android
+pnpm dev:android -- target <CAPACITOR_DEVICE_ID>
+# Or
+CAPACITOR_DEVICE_ID=<CAPACITOR_DEVICE_ID> pnpm dev:android
 ```
 
-Or build and install directly via ADB:
-
-```bash
-cd android
-JAVA_HOME="C:/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-```
-
-### Live reload during development
-
-```bash
-# from apps/stage-pocket/
-CAPACITOR_DEV_SERVER_URL=https://<your-local-ip>:5173 npx cap run android
-```
-
-> The dev server must be HTTPS. Use `vite-plugin-mkcert` (already configured) and make sure your device trusts the certificate.
 
 ## Updating app icons and splash screens
 
