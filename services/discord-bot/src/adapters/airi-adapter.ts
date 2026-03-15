@@ -361,7 +361,7 @@ export class DiscordAdapter {
         log.log('Discord adapter started successfully')
       }
       else {
-        log.warn('Discord token not provided. Waiting for configuration from UI.')
+        log.warn('Discord token not provided. Waiting for AIRI UI configuration. Open Settings -> Discord in AIRI and click Save to push the token to this bot process.')
       }
     }
     catch (error) {

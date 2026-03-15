@@ -37,6 +37,7 @@ This document tracks the current development state of the AIRI project, specific
 - **AIRI Card / Profile Switching Restoration**: Restored flip cards, card model previews, profile-switcher model switching, modules/proactivity tab layout regressions, and VRM zoom persistence across restarts.
 - **Chatterbox Provider Studio**: Shipped a first-class Chatterbox provider UI plus preset/profile CRUD, with a dedicated AIRI management studio and matching server-side endpoints in the Chatterbox fork.
 - **Privacy / Local-Only Mode**: Remote auth bootstrap and cloud chat sync are now disabled by default. AIRI only contacts `airi-api.moeru.ai` after the user explicitly enables cloud sync in settings.
+- **Discord Bot Bring-up Stabilization**: Fixed a local dev regression where the standalone Discord bot could not connect because the AIRI channel server was incorrectly inheriting the renderer dev port. The channel server now keeps its own port and the duplicate-reply issue did not reproduce after the fix.
 - **Workaround Documentation**: Added `// NOTICE:` comments throughout the codebase to explain critical hacks, OS-specific workarounds, and upstream dependency fixes.
 
 ## Project Structure
@@ -55,4 +56,3 @@ This document tracks the current development state of the AIRI project, specific
 - **Live2D ZIP Repackaging / WASM Memory Limits**: Oversized Live2D ZIP imports need a pre-flight check plus optional Electron-side "repackage" flow to downscale atlases before the renderer hits browser/WASM memory limits. See `docs/Live2D-WASM-Resource-Optimization.md`.
 - **Configurable Global Hotkey**: Allow users to configure the global microphone toggle key from the settings panel. This would replace the current hardcoded ScrollLock logic (or make it optional), while potentially maintaining LED sync for toggle keys like CapsLock/NumLock.
 - **Microphone Quality / Crackly Audio Investigation**: Re-open investigation around the unresolved local crackly-audio issue that blocked PR `#1299` (`feat/speech-pipeline-stability`). The pipeline fixes themselves look promising, but they still need validation on the affected hardware/setup before that work is ready to upstream cleanly.
-- **Discord Duplicate Replies Regression**: Re-test the Discord bot integration against the current build. A user reported that the bot still produces duplicate replies in Discord after `/summon`, both for typed input and voice-channel speech, so the stabilization work in PR `#1320` still needs another runtime pass.
