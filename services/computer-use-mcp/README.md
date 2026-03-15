@@ -255,7 +255,7 @@ Example local macOS entry:
         "@proj-airi/computer-use-mcp",
         "start"
       ],
-      "cwd": "/Users/liuziheng/airi",
+      "cwd": "/path/to/your/airi/repo",
       "env": {
         "COMPUTER_USE_EXECUTOR": "macos-local",
         "COMPUTER_USE_APPROVAL_MODE": "actions",

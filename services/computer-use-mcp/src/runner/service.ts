@@ -26,7 +26,7 @@ import process, { platform } from 'node:process'
 import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { createReadStream } from 'node:fs'
-import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { homedir, tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
@@ -76,7 +76,6 @@ function normalizeKey(key: string) {
     case 'command':
       return 'Super_L'
     case 'ctrl':
-      return 'ctrl'
     case 'control':
       return 'Control_L'
     case 'alt':
@@ -582,7 +581,7 @@ export class LinuxX11RunnerService {
     const basePath = this.getObservationBasePath()
     const routePrefix = `${basePath}/${this.observationToken}`.replace(/\/{2,}/g, '/')
 
-    this.observationServer = createServer((request, response) => {
+    this.observationServer = createServer(async (request, response) => {
       const pathname = (request.url || '/').split('?')[0] || '/'
       if (!pathname.startsWith(`${routePrefix}/`)) {
         response.writeHead(404)
@@ -598,10 +597,24 @@ export class LinuxX11RunnerService {
       }
 
       const filePath = join(this.observationPublicDir!, requestedName)
-      const stream = createReadStream(filePath)
-      stream.on('error', () => {
+      try {
+        await access(filePath)
+      }
+      catch {
         response.writeHead(404)
         response.end('not found')
+        return
+      }
+
+      const stream = createReadStream(filePath)
+      stream.on('error', () => {
+        if (!response.headersSent) {
+          response.writeHead(404)
+          response.end('not found')
+          return
+        }
+
+        response.destroy()
       })
 
       response.writeHead(200, {
