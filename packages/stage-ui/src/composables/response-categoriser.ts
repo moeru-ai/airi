@@ -179,7 +179,7 @@ export function categorizeResponse(
         speechParts.push(text)
       }
     }
-    lastEnd = segment.endIndex
+    lastEnd = Math.max(lastEnd, segment.endIndex)
   }
 
   // Add remaining text after last segment

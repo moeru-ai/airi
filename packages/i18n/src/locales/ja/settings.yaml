@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: APIエンドポイントURL（不明な場合はデフォルトを使用）
     accountId: アカウントID
     validationSuccess: 設定検証に成功
+    validationPartial: 設定が部分的に検証されました
     validationFailed: 設定検証に失敗
     validationError: '検証エラー: {error}'
+    testGeneration: 生成テスト
+    testGenerationRunning: テスト中...
+    testGenerationFailed: 生成テストに失敗
     skipForNow: 今はスキップ
     saveAndContinue: 保存して続行
     next: 次へ
