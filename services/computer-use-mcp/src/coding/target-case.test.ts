@@ -78,4 +78,25 @@ describe('target-case', () => {
     expect(resolved.judgement.intentDecomposition).toBe('bugfix')
     expect(resolved.judgement.architectureLayer).toBe('unknown')
   })
+
+  it('returns a schema-valid deterministic fallback when candidates are empty', () => {
+    const targetCase = buildTargetDecisionCase({
+      changeIntent: 'behavior_fix',
+      candidates: [],
+      missingInformationHints: ['need a concrete file candidate'],
+    })
+
+    const resolved = resolveTargetJudgement({ targetCase })
+
+    expect(resolved.usedFallback).toBe(false)
+    expect(resolved.judgement.mode).toBe('fallback_deterministic')
+    expect(resolved.judgement.winner).toBe('__no_target__')
+    expect(resolved.judgement.candidateScores).toEqual([
+      expect.objectContaining({
+        filePath: '__no_target__',
+        score: 0,
+      }),
+    ])
+    expect(resolved.judgement.missingInformation).toContain('need a concrete file candidate')
+  })
 })

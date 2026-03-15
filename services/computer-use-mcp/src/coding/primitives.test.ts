@@ -107,21 +107,10 @@ describe('codingPrimitives', () => {
   })
 
   it('normalizes trailing-slash workspace roots before boundary checks', async () => {
-    const primitives = new CodingPrimitives({
-      config: mockConfig,
-      stateManager: {
-        updateCodingState: mockRuntime.stateManager.updateCodingState,
-        getWorkspaceRoot: mockRuntime.stateManager.getWorkspaceRoot,
-        getState: () => ({
-          coding: {
-            workspacePath: '/mock/workspace/root/',
-            recentReads: [],
-            recentEdits: [],
-            recentCommandResults: [],
-          },
-        }),
-      },
-    } as any)
+    const { runtime } = createRuntime({
+      workspacePath: '/mock/workspace/root/',
+    })
+    const primitives = new CodingPrimitives(runtime as any)
 
     vi.mocked(fs.readFile).mockResolvedValue('file content')
 

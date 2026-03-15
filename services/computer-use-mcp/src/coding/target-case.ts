@@ -12,6 +12,8 @@ import type {
 
 import { validateTargetJudgement } from './judgement-schema'
 
+const emptyTargetWinner = '__no_target__'
+
 function inferTargetKindFromPath(filePath: string): CodingTargetKind {
   const normalized = filePath.toLowerCase()
   if (normalized.includes('__tests__') || normalized.endsWith('.test.ts') || normalized.endsWith('.spec.ts')) {
@@ -128,9 +130,14 @@ export function draftDeterministicTargetJudgement(targetCase: TargetDecisionCase
   const runnerUp = sorted[1]
   if (!winner) {
     return {
-      winner: '',
-      candidateScores: [],
+      winner: emptyTargetWinner,
+      candidateScores: [{
+        filePath: emptyTargetWinner,
+        score: 0,
+        reason: 'no_candidate_available',
+      }],
       winnerReason: 'No candidate available.',
+      whyNotRunnerUp: 'No runner-up candidate exists.',
       missingInformation: targetCase.missingInformationHints,
       targetKind: 'definition',
       architectureLayer: 'unknown',

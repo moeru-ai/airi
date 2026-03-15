@@ -122,6 +122,39 @@ describe('planner-graph', () => {
     expect(projectedDownstream?.dependsOn).toEqual(['src/b.ts'])
   })
 
+  it('rewires existing dependency nodes instead of returning early', () => {
+    const session = createSession() as any
+    session.steps.splice(1, 0, {
+      filePath: 'src/b.ts',
+      intent: 'behavior_fix',
+      source: 'search',
+      status: 'ready',
+      dependsOn: [],
+      checkpoint: 'validation_required_before_next',
+    })
+    const graph = buildPlanGraphFromSession(session)
+
+    const insertion = insertMissedDependencyNode({
+      graph,
+      currentFilePath: 'src/a.ts',
+      dependencyFilePath: 'src/b.ts',
+      intent: 'behavior_fix',
+      source: 'search',
+    })
+
+    expect(insertion.ok).toBe(true)
+    if (!insertion.ok) {
+      return
+    }
+
+    const dependencyNode = insertion.graph.nodes.find(node => node.filePath === 'src/b.ts')
+    const downstreamNode = insertion.graph.nodes.find(node => node.filePath === 'src/c.ts')
+
+    expect(dependencyNode?.dependsOn).toContain('node:src/a.ts')
+    expect(downstreamNode?.dependsOn).toContain('node:src/b.ts')
+    expect(downstreamNode?.dependsOn).not.toContain('node:src/a.ts')
+  })
+
   it('marks node as needs_replan when checkpoint fails', () => {
     const base = buildPlanGraphFromSession(createSession())
     const withRunning = promoteNodeRunning({ graph: base, filePath: 'src/a.ts' })
