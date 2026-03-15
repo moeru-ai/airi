@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: Địa chỉ API đầu cuối (dùng mặc định nếu không chắc)
     accountId: ID tài khoản
     validationSuccess: Xác thực cấu hình thành công
+    validationPartial: Configuration partially validated
     validationFailed: Xác thực cấu hình thất bại
     validationError: 'Lỗi xác thực: {error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: Bỏ qua
     saveAndContinue: Lưu và tiếp tục
     next: Tiếp
@@ -172,6 +176,7 @@ pages:
     scenario: Kịch bản
     search: Tìm thẻ...
     sort_by: Sắp xếp theo
+    body-model: Body / Display Model
     speech:
       provider: Giọng nói / Nhà cung cấp
       model: Giọng nói / Mô hình

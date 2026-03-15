@@ -66,7 +66,14 @@ const ignoredPathPrefixesByPlatform: Record<CapacitorPlatform, string[][]> = {
   ios: [
     ['App', 'CapApp-SPM'],
   ],
-  android: [],
+  android: [
+    ['app', 'src', 'main', 'assets', 'public'],
+    ['app', 'src', 'main', 'assets', 'capacitor.plugins.json'],
+    ['app', 'src', 'main', 'res', 'xml', 'config.xml'],
+    ['app', 'capacitor.build.gradle'],
+    ['capacitor-cordova-android-plugins'],
+    ['capacitor.settings.gradle'],
+  ],
 }
 
 export function parseCapacitorPlatform(value: string | undefined): CapacitorPlatform | null {
@@ -128,7 +135,8 @@ export function shouldRestartForNativeChange(file: string, platform: CapacitorPl
     prefix.every((segment, index) => relativeSegments[index] === segment),
   )) {
     // NOTICE: Capacitor regenerates ios/App/CapApp-SPM/Package.swift during `cap run`.
-    // Treating that generated tree as a native source change causes an infinite restart loop.
+    // It also rewrites several generated Android files and plugin trees during `cap update`.
+    // Treating those generated outputs as native source changes causes an infinite restart loop.
     return false
   }
 

@@ -69,20 +69,18 @@ export async function sendMessage(
     chatContext.currentTask = null
   }
 
-  // Check if we should abort due to new messages since processing began
-  if (botContext.unreadMessages[chatId] && botContext.unreadMessages[chatId].length > 0) {
-    botContext.logger.log(`Not sending message to ${chatId} - new messages arrived`)
-    return // Don't send the message, let the next processing loop handle it
-  }
+  // Note: removed "new messages arrived" check — it was preventing the bot
+  // from ever responding in fast-paced chats. The agent loop handles new messages naturally.
 
+  const systemContent = String(await messageSplit())
   const req = {
     apiKey: env.LLM_API_KEY!,
     baseURL: env.LLM_API_BASE_URL!,
     model: env.LLM_MODEL!,
     messages: message.messages(
-      message.system(await messageSplit()),
-      message.user('This is the input message:'),
-      message.user(responseText),
+      { role: 'system' as const, content: systemContent },
+      { role: 'user' as const, content: 'This is the input message:' },
+      { role: 'user' as const, content: String(responseText) },
     ),
     abortSignal: abortController.signal,
   } satisfies GenerateTextOptions

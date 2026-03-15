@@ -21,13 +21,14 @@ docs:
   'switch-to-dark-mode': Passer au mode sombre
   'pin-on-top': Épingler en haut
   'unpin-from-top': Désépingler du haut
+  'switch-profile': Changer de Profil
   'close': Fermer
   'expand': Développer
   'collapse': Réduire
 'status-island':
-  connected: WebSocket connected
-  disconnected: WebSocket disconnected
-  'open-settings': Open WebSocket settings
+  connected: WebSocket connecté
+  disconnected: WebSocket déconnecté
+  'open-settings': Ouvrir les paramètres WebSocket
 notice:
   'fade-on-hover':
     title: Disparaître au survol
