@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@capacitor/android':
+      specifier: ^8.1.0
+      version: 8.2.0
     '@capacitor/cli':
       specifier: ^8.1.0
       version: 8.1.0
@@ -571,6 +574,9 @@ importers:
 
   apps/stage-pocket:
     dependencies:
+      '@capacitor/android':
+        specifier: 'catalog:'
+        version: 8.2.0(@capacitor/core@8.1.0)
       '@capacitor/core':
         specifier: 'catalog:'
         version: 8.1.0
@@ -4557,6 +4563,11 @@ packages:
 
   '@bufbuild/protobuf@2.10.2':
     resolution: {integrity: sha512-uFsRXwIGyu+r6AMdz+XijIIZJYpoWeYzILt5yZ2d3mCjQrWUTVpVD9WL/jZAbvp+Ed04rOhrsk7FiTcEDseB5A==}
+
+  '@capacitor/android@8.2.0':
+    resolution: {integrity: sha512-XLm5OsWLPfXQxDxzFS7SOdMEgGvW+2c7TGLXkTR2cSKdkWK5Abns4imlT5qghKYhjM9r74IrDkBWg/9ALUGNKQ==}
+    peerDependencies:
+      '@capacitor/core': ^8.2.0
 
   '@capacitor/cli@8.1.0':
     resolution: {integrity: sha512-JAzA/ckPgTCjZz6YumBLV2dNCFEVXAuR1oOKLD7AJ4LAI5pF5RtRZrf5FoaxvJVb0S4CouZT5cD+7NwsNJX/nw==}
@@ -18400,6 +18411,10 @@ snapshots:
       - utf-8-validate
 
   '@bufbuild/protobuf@2.10.2': {}
+
+  '@capacitor/android@8.2.0(@capacitor/core@8.1.0)':
+    dependencies:
+      '@capacitor/core': 8.1.0
 
   '@capacitor/cli@8.1.0':
     dependencies:
