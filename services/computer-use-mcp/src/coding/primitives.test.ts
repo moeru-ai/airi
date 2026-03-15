@@ -106,6 +106,29 @@ describe('codingPrimitives', () => {
     expect(result).toBe('file content')
   })
 
+  it('normalizes trailing-slash workspace roots before boundary checks', async () => {
+    const primitives = new CodingPrimitives({
+      config: mockConfig,
+      stateManager: {
+        updateCodingState: mockRuntime.stateManager.updateCodingState,
+        getWorkspaceRoot: mockRuntime.stateManager.getWorkspaceRoot,
+        getState: () => ({
+          coding: {
+            workspacePath: '/mock/workspace/root/',
+            recentReads: [],
+            recentEdits: [],
+            recentCommandResults: [],
+          },
+        }),
+      },
+    } as any)
+
+    vi.mocked(fs.readFile).mockResolvedValue('file content')
+
+    const result = await primitives.readFile('/mock/workspace/root/src/example.ts')
+    expect(result).toBe('file content')
+  })
+
   it('provides compressContext deterministically', async () => {
     const { runtime } = createRuntime()
     // @ts-expect-error mock runtime
