@@ -55,7 +55,7 @@ describe('minecraftServiceShell', () => {
     vi.useRealTimers()
   })
 
-  it('publishes status changes without periodic heartbeat spam', async () => {
+  it('does not emit automated context updates during bot lifecycle changes', async () => {
     const bot = new FakeBot()
     const configManager = {
       load: vi.fn(() => createSnapshot()),
@@ -71,37 +71,14 @@ describe('minecraftServiceShell', () => {
     })
 
     await shell.initialize()
-
-    expect(sentEvents.at(-1)).toMatchObject({
-      type: 'context:update',
-      data: {
-        lane: 'minecraft:status',
-        strategy: 'replace-self',
-        content: expect.objectContaining({
-          botState: 'connecting',
-          editableConfig: {
-            enabled: true,
-            host: 'mc.example.com',
-            port: 25565,
-            username: 'airi-bot',
-          },
-        }),
-      },
-    })
+    expect(sentEvents).toHaveLength(0)
 
     bot.emit('bot:connected')
-    expect(sentEvents.at(-1)).toMatchObject({
-      data: {
-        content: expect.objectContaining({
-          botState: 'connected',
-          updatedAt: 123,
-        }),
-      },
-    })
+    bot.emit('bot:error', new Error('boot failed'))
+    bot.emit('bot:disconnected', 'closed')
 
-    const emittedEvents = sentEvents.length
     vi.advanceTimersByTime(5_000)
-    expect(sentEvents).toHaveLength(emittedEvents)
+    expect(sentEvents).toHaveLength(0)
   })
 
   it('persists and hot-applies valid config updates to the active bot', async () => {
@@ -158,15 +135,7 @@ describe('minecraftServiceShell', () => {
       username: 'saved-bot',
     })
     expect(bot.updateBotConfig).toHaveBeenCalledWith(savedSnapshot.effectiveBotConfig)
-    expect(sentEvents.at(-1)).toMatchObject({
-      data: {
-        content: expect.objectContaining({
-          botState: 'connecting',
-          editableConfig: savedSnapshot.editableConfig,
-          updatedAt: 456,
-        }),
-      },
-    })
+    expect(sentEvents).toHaveLength(0)
   })
 
   it('reports invalid config updates without dropping the healthy bot', async () => {
@@ -204,14 +173,6 @@ describe('minecraftServiceShell', () => {
 
     expect(bot.updateBotConfig).not.toHaveBeenCalled()
     expect(bot.stop).not.toHaveBeenCalled()
-    expect(sentEvents.at(-1)).toMatchObject({
-      data: {
-        content: expect.objectContaining({
-          botState: 'error',
-          lastError: 'invalid username',
-          updatedAt: 789,
-        }),
-      },
-    })
+    expect(sentEvents).toHaveLength(0)
   })
 })

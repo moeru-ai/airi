@@ -22,33 +22,12 @@ describe('createMinecraftContext', () => {
     expect(createMinecraftContext()).toBeNull()
   })
 
-  it('describes the passive minecraft shell from the last observed runtime status', () => {
+  it('uses live runtime context text when the bot has pushed context', () => {
     setActivePinia(createPinia())
 
     const store = useMinecraftStore()
     store.integrationEnabled = true
-    store._handleStatusUpdate({
-      data: {
-        lane: 'minecraft:status',
-        content: {
-          serviceName: 'minecraft-bot',
-          botState: 'connected',
-          editableConfig: {
-            enabled: true,
-            host: 'mc.example.com',
-            port: 25565,
-            username: 'airi-bot',
-          },
-          updatedAt: 1,
-        },
-      },
-      metadata: {
-        source: {
-          plugin: { id: 'minecraft-bot' },
-          id: 'minecraft-bot-instance',
-        },
-      },
-    } as any)
+    store.latestRuntimeContextText = 'Bot online: airi-bot\nServer: mc.example.com:25565' as any
 
     const context = createMinecraftContext()
 
@@ -56,7 +35,6 @@ describe('createMinecraftContext', () => {
     expect(context?.strategy).toBe('replace-self')
     expect(context?.text).toContain('Minecraft integration is enabled')
     expect(context?.text).toContain('AIRI can oversee a connected Minecraft bot')
-    expect(context?.text).toContain('Current bot status: connected')
-    expect(context?.text).toContain('mc.example.com:25565')
+    expect(context?.text).toContain('Bot online: airi-bot')
   })
 })

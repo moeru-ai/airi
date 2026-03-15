@@ -6,26 +6,6 @@ import { computed, ref } from 'vue'
 
 import { useModsServerChannelStore } from '../mods/api/channel-server'
 
-export interface MinecraftEditableConfig {
-  enabled: boolean
-  host: string
-  port: number
-  username: string
-}
-
-type MinecraftBotState = 'connecting' | 'connected' | 'disconnected' | 'error'
-
-export interface MinecraftStatusPayload {
-  serviceName?: string
-  botState?: MinecraftBotState
-  editableConfig?: MinecraftEditableConfig
-  host?: string
-  port?: number
-  botUsername?: string
-  lastError?: string
-  updatedAt?: number
-}
-
 export interface MinecraftTrafficEntry {
   id: string
   type: 'context:update' | 'spark:command'
@@ -35,13 +15,9 @@ export interface MinecraftTrafficEntry {
   payload: unknown
 }
 
-const HEARTBEAT_TICK_MS = 1_000
+const RUNTIME_CONTEXT_TICK_MS = 1_000
 const MAX_TRAFFIC_ENTRIES = 50
 const DEFAULT_SERVICE_NAME = 'minecraft-bot'
-
-function isMinecraftStatusPayload(value: unknown): value is MinecraftStatusPayload {
-  return !!value && typeof value === 'object'
-}
 
 function getEventSourceLabel(event: { metadata?: { source?: { plugin?: { id?: string }, id?: string } } }) {
   return event.metadata?.source?.plugin?.id
@@ -83,10 +59,8 @@ export const useMinecraftStore = defineStore('minecraft', () => {
   const integrationEnabled = useLocalStorageManualReset<boolean>('settings/minecraft/integration-enabled', false)
 
   const serviceName = ref('')
-  const botState = ref<MinecraftBotState>('disconnected')
-  const lastStatusAt = ref(0)
-  const lastError = ref('')
-  const statusSnapshot = ref<MinecraftStatusPayload | null>(null)
+  const latestRuntimeContextText = ref('')
+  const lastRuntimeContextAt = ref(0)
   const trafficEntries = ref<MinecraftTrafficEntry[]>([])
   const initialized = ref(false)
   const now = ref(Date.now())
@@ -99,18 +73,16 @@ export const useMinecraftStore = defineStore('minecraft', () => {
   let disposeRegistryHealthy: (() => void) | null = null
   let disposeRegistryUnhealthy: (() => void) | null = null
   let disposeModuleDeAnnounced: (() => void) | null = null
-  let heartbeatTimer: ReturnType<typeof setInterval> | null = null
+  let runtimeTickTimer: ReturnType<typeof setInterval> | null = null
   let trafficSequence = 0
 
   const serviceConnected = computed(() => servicePresent.value && serviceHealthy.value)
-
-  const heartbeatAgeMs = computed(() => {
-    if (!lastStatusAt.value)
+  const runtimeContextAgeMs = computed(() => {
+    if (!lastRuntimeContextAt.value)
       return 0
 
-    return Math.max(0, now.value - lastStatusAt.value)
+    return Math.max(0, now.value - lastRuntimeContextAt.value)
   })
-
   const configured = computed(() => integrationEnabled.value)
 
   function pushTrafficEntry(entry: Omit<MinecraftTrafficEntry, 'id'>) {
@@ -125,22 +97,26 @@ export const useMinecraftStore = defineStore('minecraft', () => {
     }
   }
 
-  function handleStatusUpdate(event: WebSocketBaseEvent<'context:update', WebSocketEvents['context:update']>) {
-    if (event.data.lane !== 'minecraft:status')
+  function handleRuntimeContextUpdate(event: WebSocketBaseEvent<'context:update', WebSocketEvents['context:update']>) {
+    if (!isMinecraftSource(event, serviceName.value))
       return
 
-    if (!isMinecraftStatusPayload(event.data.content))
+    if (event.data.lane === 'minecraft:status')
       return
 
-    const payload = event.data.content as MinecraftStatusPayload
-    serviceName.value = payload.serviceName
-      ?? event.metadata?.source?.plugin?.id
+    serviceName.value = event.metadata?.source?.plugin?.id
       ?? serviceName.value
       ?? DEFAULT_SERVICE_NAME
-    botState.value = payload.botState ?? 'disconnected'
-    lastStatusAt.value = typeof payload.updatedAt === 'number' ? payload.updatedAt : Date.now()
-    lastError.value = payload.lastError ?? ''
-    statusSnapshot.value = payload
+    latestRuntimeContextText.value = event.data.text ?? ''
+    lastRuntimeContextAt.value = Date.now()
+
+    pushTrafficEntry({
+      type: 'context:update',
+      summary: summarizeContextUpdate(event),
+      source: getEventSourceLabel(event),
+      receivedAt: Date.now(),
+      payload: event.data,
+    })
   }
 
   function handleRegistrySync(event: WebSocketBaseEvent<'registry:modules:sync', WebSocketEvents['registry:modules:sync']>) {
@@ -187,25 +163,6 @@ export const useMinecraftStore = defineStore('minecraft', () => {
     serviceName.value = event.data.name ?? serviceName.value ?? DEFAULT_SERVICE_NAME
   }
 
-  function handleContextUpdate(event: WebSocketBaseEvent<'context:update', WebSocketEvents['context:update']>) {
-    handleStatusUpdate(event)
-
-    const lane = event.data.lane ?? 'general'
-    const isMinecraftTraffic = lane === 'minecraft:status'
-      || (lane === 'game' && isMinecraftSource(event, serviceName.value))
-
-    if (!isMinecraftTraffic)
-      return
-
-    pushTrafficEntry({
-      type: 'context:update',
-      summary: summarizeContextUpdate(event),
-      source: getEventSourceLabel(event),
-      receivedAt: Date.now(),
-      payload: event.data,
-    })
-  }
-
   function handleSparkCommand(event: WebSocketBaseEvent<'spark:command', WebSocketEvents['spark:command']>) {
     const destinations = Array.isArray(event.data.destinations) ? event.data.destinations : []
     const knownServiceNames = new Set([DEFAULT_SERVICE_NAME, serviceName.value].filter(Boolean))
@@ -228,15 +185,15 @@ export const useMinecraftStore = defineStore('minecraft', () => {
       return
 
     initialized.value = true
-    disposeContextUpdate = serverChannelStore.onContextUpdate(handleContextUpdate as any)
+    disposeContextUpdate = serverChannelStore.onContextUpdate(handleRuntimeContextUpdate as any)
     disposeSparkCommand = serverChannelStore.onEvent('spark:command', handleSparkCommand as any)
     disposeRegistrySync = serverChannelStore.onEvent('registry:modules:sync', handleRegistrySync as any)
     disposeRegistryHealthy = serverChannelStore.onEvent('registry:modules:health:healthy', handleRegistryHealthy as any)
     disposeRegistryUnhealthy = serverChannelStore.onEvent('registry:modules:health:unhealthy', handleRegistryUnhealthy as any)
     disposeModuleDeAnnounced = serverChannelStore.onEvent('module:de-announced', handleModuleDeAnnounced as any)
-    heartbeatTimer = setInterval(() => {
+    runtimeTickTimer = setInterval(() => {
       now.value = Date.now()
-    }, HEARTBEAT_TICK_MS)
+    }, RUNTIME_CONTEXT_TICK_MS)
   }
 
   function dispose() {
@@ -253,9 +210,9 @@ export const useMinecraftStore = defineStore('minecraft', () => {
     disposeRegistryUnhealthy = null
     disposeModuleDeAnnounced = null
 
-    if (heartbeatTimer) {
-      clearInterval(heartbeatTimer)
-      heartbeatTimer = null
+    if (runtimeTickTimer) {
+      clearInterval(runtimeTickTimer)
+      runtimeTickTimer = null
     }
 
     initialized.value = false
@@ -263,10 +220,8 @@ export const useMinecraftStore = defineStore('minecraft', () => {
 
   function clearRuntimeState() {
     serviceName.value = ''
-    botState.value = 'disconnected'
-    lastStatusAt.value = 0
-    lastError.value = ''
-    statusSnapshot.value = null
+    latestRuntimeContextText.value = ''
+    lastRuntimeContextAt.value = 0
     servicePresent.value = false
     serviceHealthy.value = false
     trafficEntries.value = []
@@ -281,19 +236,17 @@ export const useMinecraftStore = defineStore('minecraft', () => {
   return {
     integrationEnabled,
     serviceName,
-    botState,
-    lastStatusAt,
-    lastError,
-    statusSnapshot,
+    latestRuntimeContextText,
+    lastRuntimeContextAt,
     trafficEntries,
     configured,
     serviceConnected,
-    heartbeatAgeMs,
+    runtimeContextAgeMs,
 
     initialize,
     dispose,
     resetState,
 
-    _handleStatusUpdate: handleStatusUpdate,
+    _handleRuntimeContextUpdate: handleRuntimeContextUpdate,
   }
 })

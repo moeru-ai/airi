@@ -12,63 +12,30 @@ const { t } = useI18n()
 const {
   integrationEnabled,
   serviceName,
-  botState,
-  lastStatusAt,
-  heartbeatAgeMs,
-  lastError,
   serviceConnected,
-  statusSnapshot,
+  latestRuntimeContextText,
+  lastRuntimeContextAt,
+  runtimeContextAgeMs,
   trafficEntries,
 } = storeToRefs(minecraftStore)
 
-const statusTheme = computed(() => {
-  if (!serviceConnected.value)
-    return 'orange'
-  if (botState.value === 'connected')
-    return 'lime'
-  if (botState.value === 'error')
-    return 'orange'
-  return 'primary'
-})
+const statusTheme = computed(() => serviceConnected.value ? 'lime' : 'orange')
 
 const statusLabel = computed(() => {
-  if (!serviceConnected.value)
-    return t('settings.pages.modules.gaming-minecraft.status.service-offline')
-
-  switch (botState.value) {
-    case 'connected':
-      return t('settings.pages.modules.gaming-minecraft.status.bot-connected')
-    case 'connecting':
-      return t('settings.pages.modules.gaming-minecraft.status.bot-connecting')
-    case 'error':
-      return t('settings.pages.modules.gaming-minecraft.status.bot-error')
-    default:
-      return t('settings.pages.modules.gaming-minecraft.status.bot-disconnected')
-  }
+  return serviceConnected.value
+    ? t('settings.pages.modules.gaming-minecraft.status.service-online')
+    : t('settings.pages.modules.gaming-minecraft.status.service-offline')
 })
 
-const observedTarget = computed(() => {
-  const host = statusSnapshot.value?.editableConfig?.host ?? statusSnapshot.value?.host
-  const port = statusSnapshot.value?.editableConfig?.port ?? statusSnapshot.value?.port
+const lastRuntimeUpdate = computed(() => {
+  if (!lastRuntimeContextAt.value)
+    return t('settings.pages.modules.gaming-minecraft.status.no-runtime-context')
 
-  return host ? `${host}:${port ?? 'unknown'}` : t('settings.pages.modules.gaming-minecraft.runtime.unknown')
-})
-
-const observedUsername = computed(() => {
-  return statusSnapshot.value?.editableConfig?.username
-    ?? statusSnapshot.value?.botUsername
-    ?? t('settings.pages.modules.gaming-minecraft.runtime.unknown')
-})
-
-const lastHeartbeat = computed(() => {
-  if (!lastStatusAt.value)
-    return ''
-
-  const seconds = Math.floor(heartbeatAgeMs.value / 1000)
+  const seconds = Math.floor(runtimeContextAgeMs.value / 1000)
   if (seconds > 60)
-    return t('settings.pages.modules.gaming-minecraft.status.last-heartbeat-stale')
+    return t('settings.pages.modules.gaming-minecraft.status.last-context-stale')
 
-  return t('settings.pages.modules.gaming-minecraft.status.last-heartbeat-seconds', { seconds })
+  return t('settings.pages.modules.gaming-minecraft.status.last-context-seconds', { seconds })
 })
 
 function formatTrafficTime(timestamp: number) {
@@ -100,16 +67,7 @@ onUnmounted(() => {
           {{ t('settings.pages.modules.gaming-minecraft.status.service-name', { service: serviceName || 'minecraft-bot' }) }}
         </div>
         <div>
-          {{ t('settings.pages.modules.gaming-minecraft.status.target', { target: observedTarget }) }}
-        </div>
-        <div>
-          {{ t('settings.pages.modules.gaming-minecraft.status.username', { username: observedUsername }) }}
-        </div>
-        <div v-if="lastHeartbeat">
-          {{ lastHeartbeat }}
-        </div>
-        <div v-if="lastError">
-          {{ t('settings.pages.modules.gaming-minecraft.status.last-error', { value: lastError }) }}
+          {{ lastRuntimeUpdate }}
         </div>
       </div>
     </Callout>
@@ -137,7 +95,7 @@ onUnmounted(() => {
       <div :class="['mb-3 text-sm font-medium text-neutral-900 dark:text-neutral-100']">
         {{ t('settings.pages.modules.gaming-minecraft.runtime.title') }}
       </div>
-      <div :class="['grid gap-3 text-sm text-neutral-600 dark:text-neutral-300 sm:grid-cols-2']">
+      <div :class="['grid gap-3 text-sm text-neutral-600 dark:text-neutral-300']">
         <div>
           <div :class="['text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400']">
             {{ t('settings.pages.modules.gaming-minecraft.runtime.service') }}
@@ -146,21 +104,19 @@ onUnmounted(() => {
         </div>
         <div>
           <div :class="['text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400']">
-            {{ t('settings.pages.modules.gaming-minecraft.runtime.bot-state') }}
+            {{ t('settings.pages.modules.gaming-minecraft.runtime.connection') }}
           </div>
           <div>{{ statusLabel }}</div>
         </div>
         <div>
           <div :class="['text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400']">
-            {{ t('settings.pages.modules.gaming-minecraft.runtime.target') }}
+            {{ t('settings.pages.modules.gaming-minecraft.runtime.latest-context') }}
           </div>
-          <div>{{ observedTarget }}</div>
-        </div>
-        <div>
-          <div :class="['text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400']">
-            {{ t('settings.pages.modules.gaming-minecraft.runtime.username') }}
-          </div>
-          <div>{{ observedUsername }}</div>
+          <pre
+            :class="[
+              'mt-2 whitespace-pre-wrap rounded-lg bg-neutral-950/90 p-3 text-xs text-neutral-100',
+            ]"
+          >{{ latestRuntimeContextText || t('settings.pages.modules.gaming-minecraft.runtime.waiting') }}</pre>
         </div>
       </div>
     </div>

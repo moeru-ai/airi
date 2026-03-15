@@ -9,16 +9,21 @@ import { ref, watch } from 'vue'
 
 import { useWebSocketInspectorStore } from '../../devtools/websocket-inspector'
 
+interface ChannelListenerEntry {
+  type: keyof WebSocketEvents
+  callback: (event: WebSocketBaseEvent<any, any>) => void | Promise<void>
+  boundClient?: Client
+}
+
 export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:server', () => {
   const connected = ref(false)
   const client = ref<Client>()
   const initializing = ref<Promise<void> | null>(null)
   const pendingSend = ref<Array<WebSocketEvent>>([])
-  const listenersInitialized = ref(false)
-  const listenerDisposers = ref<Array<() => void>>([])
 
   const defaultWebSocketUrl = import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws'
   const websocketUrl = useLocalStorage('settings/connection/websocket-url', defaultWebSocketUrl)
+  const registeredListeners: ChannelListenerEntry[] = []
 
   const basePossibleEvents: Array<keyof WebSocketEvents> = [
     'context:update',
@@ -107,23 +112,50 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   }
 
   function clearListeners() {
-    for (const disposer of listenerDisposers.value) {
-      try {
-        disposer()
-      }
-      catch (error) {
-        console.warn('Failed to dispose channel listener:', error)
+    for (const listener of registeredListeners) {
+      if (listener.boundClient) {
+        listener.boundClient.offEvent(listener.type, listener.callback as any)
+        listener.boundClient = undefined
       }
     }
-    listenerDisposers.value = []
-    listenersInitialized.value = false
   }
 
   function initializeListeners() {
     if (!client.value)
-      // No-op for now; keep placeholder for future shared listeners.
-      // eslint-disable-next-line no-useless-return
       return
+
+    for (const listener of registeredListeners) {
+      if (listener.boundClient === client.value)
+        continue
+
+      listener.boundClient?.offEvent(listener.type, listener.callback as any)
+      client.value.onEvent(listener.type, listener.callback as any)
+      listener.boundClient = client.value
+    }
+  }
+
+  function registerListener<E extends keyof WebSocketEvents>(
+    type: E,
+    callback: (event: WebSocketBaseEvent<E, WebSocketEvents[E]>) => void | Promise<void>,
+  ) {
+    if (!client.value && !initializing.value)
+      void initialize()
+
+    const entry: ChannelListenerEntry = {
+      type,
+      callback: callback as any,
+    }
+    registeredListeners.push(entry)
+    initializeListeners()
+
+    return () => {
+      const index = registeredListeners.indexOf(entry)
+      if (index >= 0)
+        registeredListeners.splice(index, 1)
+
+      entry.boundClient?.offEvent(type, callback as any)
+      entry.boundClient = undefined
+    }
   }
 
   function send<C = undefined>(data: WebSocketEventOptionalSource<C>) {
@@ -149,28 +181,14 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   }
 
   function onContextUpdate(callback: (event: WebSocketBaseEvent<'context:update', ContextUpdate>) => void | Promise<void>) {
-    if (!client.value && !initializing.value)
-      void initialize()
-
-    client.value?.onEvent('context:update', callback as any)
-
-    return () => {
-      client.value?.offEvent('context:update', callback as any)
-    }
+    return registerListener('context:update', callback)
   }
 
   function onEvent<E extends keyof WebSocketEvents>(
     type: E,
     callback: (event: WebSocketBaseEvent<E, WebSocketEvents[E]>) => void | Promise<void>,
   ) {
-    if (!client.value && !initializing.value)
-      void initialize()
-
-    client.value?.onEvent(type, callback as any)
-
-    return () => {
-      client.value?.offEvent(type, callback as any)
-    }
+    return registerListener(type, callback)
   }
 
   function sendContextUpdate(message: Omit<ContextUpdate, 'id' | 'contextId'> & Partial<Pick<ContextUpdate, 'id' | 'contextId'>>) {

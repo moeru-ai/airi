@@ -365,30 +365,25 @@ pages:
         title: Setup
         step-1: Configure the Minecraft service in `services/minecraft/data/minecraft-config.json` for the normal editable layer.
         step-2: Use `services/minecraft/.env.local` only for operator overrides. Values there take precedence over the saved config file.
-        step-3: Start `pnpm dev` in `services/minecraft`, then return here to confirm the service heartbeat and passive Minecraft traffic.
+        step-3: Start `pnpm dev` in `services/minecraft`, then return here to confirm service registry connectivity and passive Minecraft traffic.
       runtime:
         title: Observed runtime
         service: Service
-        bot-state: Bot state
-        target: Target server
-        username: Bot username
+        connection: Connection
+        latest-context: Latest bot context
+        waiting: Waiting for a fresh bot-originated context push.
         unknown: Unknown
       debug:
         title: Minecraft traffic
         empty: No Minecraft traffic observed yet.
         source: 'Source: {source}'
       status:
+        service-online: Service online
         service-offline: Service offline
-        bot-connecting: Bot connecting
-        bot-connected: Bot connected
-        bot-disconnected: Bot disconnected
-        bot-error: Bot error
         service-name: 'Service: {service}'
-        target: 'Target: {target}'
-        username: 'Bot username: {username}'
-        last-heartbeat-seconds: 'Last heartbeat: {seconds}s ago'
-        last-heartbeat-stale: 'Last heartbeat: Stale'
-        last-error: 'Last error: {value}'
+        no-runtime-context: 'No bot context observed yet'
+        last-context-seconds: 'Last bot context: {seconds}s ago'
+        last-context-stale: 'Last bot context: Stale'
     hearing:
       description: Configure how speech recognition works
       title: Hearing
