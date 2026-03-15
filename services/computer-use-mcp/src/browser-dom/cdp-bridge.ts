@@ -10,6 +10,9 @@
  * This complements the extension-based bridge by not requiring a Chrome
  * extension to be installed — only that Chrome is launched with
  * --remote-debugging-port.
+ *
+ * TODO: In the browser adapter follow-up PR, replace this custom CDP transport
+ * with chrome-remote-interface and keep only AIRI-specific DOM/AX behavior here.
  */
 
 import { WebSocket } from 'ws'

@@ -1,6 +1,10 @@
 import type { RunnerRequest, RunnerResponse } from '../runner/protocol'
 
+import process from 'node:process'
+
 import { createInterface } from 'node:readline'
+
+import { errorMessageFrom } from '@moeru/std'
 
 import { LinuxX11RunnerService } from '../runner/service'
 
@@ -118,7 +122,7 @@ async function handleRequest(request: RunnerRequest) {
       id: request.id,
       ok: false,
       error: {
-        message: error instanceof Error ? error.message : String(error),
+        message: errorMessageFrom(error) || String(error),
       },
     })
   }
@@ -132,7 +136,7 @@ function enqueueRequest(request: RunnerRequest) {
       id: request.id,
       ok: false,
       error: {
-        message: error instanceof Error ? error.message : String(error),
+        message: errorMessageFrom(error) || String(error),
       },
     })
   })
@@ -148,7 +152,7 @@ rl.on('line', (line) => {
     enqueueRequest(request)
   }
   catch (error) {
-    process.stderr.write(`invalid runner request: ${error instanceof Error ? error.message : String(error)}\n`)
+    process.stderr.write(`invalid runner request: ${errorMessageFrom(error) || String(error)}\n`)
   }
 })
 

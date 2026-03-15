@@ -3,6 +3,7 @@
  */
 
 export { createAppBrowseAndActWorkflow } from './app-browse-and-act'
+export { createCodingExecutionLoopWorkflow } from './coding-loop'
 export { createDevInspectFailureWorkflow } from './dev-inspect-failure'
 export { createDevOpenWorkspaceWorkflow } from './dev-open-workspace'
 export { createDevRunTestsWorkflow } from './dev-run-tests'

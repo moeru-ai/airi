@@ -15,6 +15,10 @@ import type {
 import { RemoteRunnerClient } from '../runner/client'
 import { writeScreenshotArtifact } from '../utils/screenshot'
 
+// NOTICE: `linux-x11` is a legacy remote desktop executor kept for compatibility
+// with the old SSH-bound X11 runner flow. The current product mainline is
+// `macos-local` plus terminal/browser/IDE surfaces. Avoid expanding this path
+// with new capabilities; prefer migrating follow-up work to the newer surfaces.
 export interface LinuxX11ExecutorOptions extends RemoteRunnerClientOptions {
   client?: RemoteRunnerClient
 }
@@ -27,6 +31,10 @@ function unavailableContext(reason: string): ForegroundContext {
   }
 }
 
+/**
+ * @deprecated Legacy SSH/X11 executor. Keep only for compatibility with the
+ * remote runner path; do not treat it as a first-class surface for new work.
+ */
 export function createLinuxX11Executor(config: ComputerUseConfig, options: LinuxX11ExecutorOptions = {}): DesktopExecutor {
   const client = options.client || new RemoteRunnerClient(config, options)
 
@@ -35,6 +43,7 @@ export function createLinuxX11Executor(config: ComputerUseConfig, options: Linux
     describe: () => ({
       kind: 'linux-x11',
       notes: [
+        'deprecated legacy remote executor',
         'approval, trace and audit stay on the host',
         'all desktop actions execute through a remote SSH-bound X11 runner',
       ],

@@ -1,208 +1,124 @@
 /**
  * macOS Accessibility tree capture via Swift + AXUIElement API.
  *
- * Runs an inline Swift script that walks the AXTree of the frontmost (or
- * specified) application and returns a JSON tree. The tree is then parsed
- * into the `AXSnapshot` structure used by the MCP tool layer.
+ * This module provides tools to inspect the accessibility hierarchy (AXTree) of macOS applications.
+ * It works by:
+ *
+ * 1. **Swift Script Execution**: Runs a native Swift script (`ax-tree.swift`) that directly calls
+ *    the macOS Accessibility API (ApplicationServices/AXUIElement).
+ *    - The Swift script walks the accessibility tree recursively from the root application element.
+ *    - It captures attributes like role, title, value, bounds, focus state, and enabled status.
+ *    - It terminates early if depth or node limits are exceeded.
+ *
+ * 2. **IPC via Environment Variable**: The TypeScript code passes query parameters to the Swift script
+ *    through the `COMPUTER_USE_SWIFT_STDIN` environment variable as JSON.
+ *
+ * 3. **Tree Structure**: The Swift script returns a JSON tree with:
+ *    - `pid`: Process ID of the target app
+ *    - `appName`: Human-readable application name
+ *    - `root`: The accessibility tree root node
+ *    - `truncated`: Whether the tree was truncated (hit depth or node limit)
+ *
+ * 4. **UID Assignment**: Each node in the tree is assigned a stable unique ID (`uid`) for quick lookup.
+ *    A flat map (`uidToNode`) is built to enable O(1) node retrieval by UID.
+ *
+ * 5. **Formatting**: The tree can be formatted as a readable text representation for LLM context,
+ *    including optional role, value, bounds, and focus state annotations.
+ *
+ * ## Usage Example
+ *
+ * ```typescript
+ * import { captureAXTree, formatAXSnapshotAsText, findAXNodeByUid } from './ax-tree'
+ *
+ * // Capture the frontmost app's accessibility tree
+ * const snapshot = await captureAXTree(config)
+ * console.log(`Captured ${Object.keys(snapshot.uidToNode).length} nodes from ${snapshot.appName}`)
+ *
+ * // Format as text for display/logging
+ * const textTree = formatAXSnapshotAsText(snapshot, { includeBounds: true })
+ * console.log(textTree)
+ *
+ * // Find a specific node by UID
+ * const node = findAXNodeByUid(snapshot, 'snapshot123_45')
+ * if (node?.focused) console.log('Found focused node:', node.title)
+ * ```
+ *
+ * ## Platform Support
+ *
+ * Only available on **macOS**. Throws an error if called on other platforms.
+ * Requires `/usr/bin/swift` to be present and the app to grant Accessibility permission.
+ *
+ * @see ax-tree.swift - The native Swift script that performs the actual tree walk.
  */
 
 import type { ComputerUseConfig } from '../types'
 import type { AXNode, AXSnapshot, AXSnapshotRequest, AXSnapshotTextOptions } from './types'
 
+import { readFileSync } from 'node:fs'
 import { platform } from 'node:process'
 
 import { runSwiftScript } from '../utils/swift'
 
 let nextSnapshotId = 1
 
+// NOTICE: This package runs under Node/tsx in development, not Vite browser bundling.
+// Loading the Swift source via `?raw` breaks `tsx` with `ERR_UNKNOWN_FILE_EXTENSION`.
+// Read the sibling file directly so the script still lives in its own file while
+// remaining compatible with the actual runtime path used by computer-use-mcp.
+const axTreeScript = readFileSync(new URL('./ax-tree.swift', import.meta.url), 'utf8')
+
 /**
- * Swift source that uses ApplicationServices / AXUIElement to walk the
- * accessibility tree of a target process. Input is passed via the
- * COMPUTER_USE_SWIFT_STDIN environment variable as JSON.
+ * Raw node structure returned by the Swift script.
  *
- * Output format:
- * ```json
- * {
- *   "pid": 1234,
- *   "appName": "Finder",
- *   "root": { "role": "AXApplication", "title": "Finder", ... },
- *   "truncated": false
- * }
- * ```
+ * Represents a single accessibility element in the tree.
+ *
+ * @internal
  */
-function axTreeScript(): string {
-  return String.raw`
-import ApplicationServices
-import AppKit
-import Foundation
-
-struct AXNodeJSON: Encodable {
-  let role: String
-  let title: String?
-  let value: String?
-  let description: String?
-  let enabled: Bool?
-  let focused: Bool?
-  let bounds: BoundsJSON?
-  let children: [AXNodeJSON]
-}
-
-struct BoundsJSON: Encodable {
-  let x: Int
-  let y: Int
-  let width: Int
-  let height: Int
-}
-
-struct OutputJSON: Encodable {
-  let pid: Int32
-  let appName: String
-  let root: AXNodeJSON?
-  let truncated: Bool
-}
-
-func getStringAttr(_ element: AXUIElement, _ attr: String) -> String? {
-  var value: AnyObject?
-  guard AXUIElementCopyAttributeValue(element, attr as CFString, &value) == .success else { return nil }
-  return value as? String
-}
-
-func getBoolAttr(_ element: AXUIElement, _ attr: String) -> Bool? {
-  var value: AnyObject?
-  guard AXUIElementCopyAttributeValue(element, attr as CFString, &value) == .success else { return nil }
-  if let num = value as? NSNumber { return num.boolValue }
-  return nil
-}
-
-func getBounds(_ element: AXUIElement) -> BoundsJSON? {
-  var posValue: AnyObject?
-  var sizeValue: AnyObject?
-  guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as String as CFString, &posValue) == .success,
-        AXUIElementCopyAttributeValue(element, kAXSizeAttribute as String as CFString, &sizeValue) == .success
-  else { return nil }
-
-  let posType = AXValueGetType(posValue as! AXValue)
-  let sizeType = AXValueGetType(sizeValue as! AXValue)
-  guard posType == .cgPoint, sizeType == .cgSize else { return nil }
-
-  var point = CGPoint.zero
-  var size = CGSize.zero
-  AXValueGetValue(posValue as! AXValue, .cgPoint, &point)
-  AXValueGetValue(sizeValue as! AXValue, .cgSize, &size)
-
-  return BoundsJSON(
-    x: Int(point.x.rounded()),
-    y: Int(point.y.rounded()),
-    width: Int(size.width.rounded()),
-    height: Int(size.height.rounded())
-  )
-}
-
-func walkTree(_ element: AXUIElement, depth: Int, maxDepth: Int, nodeCount: inout Int, maxNodes: Int, verbose: Bool) -> AXNodeJSON? {
-  if depth > maxDepth || nodeCount >= maxNodes { return nil }
-  nodeCount += 1
-
-  let role = getStringAttr(element, kAXRoleAttribute as String) ?? ""
-  let title = getStringAttr(element, kAXTitleAttribute as String)
-  let valueStr: String? = {
-    var raw: AnyObject?
-    guard AXUIElementCopyAttributeValue(element, kAXValueAttribute as String as CFString, &raw) == .success else { return nil }
-    if let s = raw as? String { return s.count > 500 ? String(s.prefix(500)) : s }
-    if let n = raw as? NSNumber { return n.stringValue }
-    return nil
-  }()
-  let desc = getStringAttr(element, kAXDescriptionAttribute as String)
-
-  if !verbose && role.isEmpty && title == nil && desc == nil && valueStr == nil {
-    return nil
-  }
-
-  let enabled = getBoolAttr(element, kAXEnabledAttribute as String)
-  let focused = getBoolAttr(element, kAXFocusedAttribute as String)
-  let bounds = getBounds(element)
-
-  var childNodes: [AXNodeJSON] = []
-  var childrenRef: AnyObject?
-  if AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as String as CFString, &childrenRef) == .success,
-     let children = childrenRef as? [AXUIElement] {
-    for child in children {
-      if let childNode = walkTree(child, depth: depth + 1, maxDepth: maxDepth, nodeCount: &nodeCount, maxNodes: maxNodes, verbose: verbose) {
-        childNodes.append(childNode)
-      }
-    }
-  }
-
-  return AXNodeJSON(
-    role: role,
-    title: title,
-    value: valueStr,
-    description: desc,
-    enabled: enabled,
-    focused: focused,
-    bounds: bounds,
-    children: childNodes
-  )
-}
-
-let environment = ProcessInfo.processInfo.environment
-let rawInput = environment["COMPUTER_USE_SWIFT_STDIN"] ?? "{}"
-let inputData = rawInput.data(using: .utf8) ?? Data()
-let input = (try? JSONSerialization.jsonObject(with: inputData)) as? [String: Any] ?? [:]
-
-let maxDepth = (input["maxDepth"] as? Int) ?? 15
-let maxNodes = (input["maxNodes"] as? Int) ?? 2000
-let verbose = (input["verbose"] as? Bool) ?? false
-let targetPid: Int32? = (input["pid"] as? Int).map { Int32($0) }
-
-let pid: Int32
-let appName: String
-
-if let targetPid {
-  pid = targetPid
-  let app = NSRunningApplication(processIdentifier: targetPid)
-  appName = app?.localizedName ?? "pid:\(targetPid)"
-} else {
-  guard let frontApp = NSWorkspace.shared.frontmostApplication else {
-    let output = OutputJSON(pid: 0, appName: "unknown", root: nil, truncated: false)
-    let data = try JSONEncoder().encode(output)
-    print(String(data: data, encoding: .utf8)!)
-    exit(0)
-  }
-  pid = frontApp.processIdentifier
-  appName = frontApp.localizedName ?? "unknown"
-}
-
-let appElement = AXUIElementCreateApplication(pid)
-var nodeCount = 0
-let root = walkTree(appElement, depth: 0, maxDepth: maxDepth, nodeCount: &nodeCount, maxNodes: maxNodes, verbose: verbose)
-
-let output = OutputJSON(pid: pid, appName: appName, root: root, truncated: nodeCount >= maxNodes)
-let encoder = JSONEncoder()
-let data = try encoder.encode(output)
-print(String(data: data, encoding: .utf8)!)
-`
-}
-
 interface RawAXNode {
+  /** Role of the element (e.g., "AXWindow", "AXButton", "AXTextField") */
   role: string
+  /** Title/label of the element */
   title?: string
+  /** Current value (text input content, slider position, etc.) */
   value?: string
+  /** Description attribute */
   description?: string
+  /** Whether the element is enabled/disabled */
   enabled?: boolean
+  /** Whether the element has keyboard focus */
   focused?: boolean
+  /** Screen coordinates: { x, y, width, height } in pixels */
   bounds?: { x: number, y: number, width: number, height: number }
+  /** Child accessibility elements */
   children?: RawAXNode[]
 }
 
+/**
+ * Raw output structure from the Swift script.
+ *
+ * @internal
+ */
 interface RawAXOutput {
+  /** Process ID of the application */
   pid: number
+  /** Human-readable application name */
   appName: string
+  /** Root node of the accessibility tree (undefined if app has no accessibility support) */
   root?: RawAXNode
+  /** Whether the tree was truncated (hit depth or node limits) */
   truncated: boolean
 }
 
 /**
- * Assign stable uids to each node and build a flat lookup table.
+ * Assign stable, unique identifiers to each node in the tree and build a flat lookup table.
+ *
+ * Each UID is formatted as `{snapshotId}_{counter}` for quick identification and retrieval.
+ *
+ * @param raw - The raw node tree from Swift
+ * @param snapshotId - Unique snapshot identifier (e.g., "1", "234")
+ * @param uidToNode - Map to populate with uid -> node mappings for O(1) lookup
+ * @returns The transformed node with UIDs assigned recursively to all children
+ * @internal
  */
 function assignUids(
   raw: RawAXNode,
@@ -232,7 +148,41 @@ function assignUids(
 }
 
 /**
- * Capture the accessibility tree of the frontmost (or specified) macOS app.
+ * Capture the accessibility tree of the frontmost (or specified) macOS application.
+ *
+ * Executes the native Swift script to walk the accessibility hierarchy (AX tree) of a target app.
+ * The tree structure is then transformed with stable UIDs and packed into an `AXSnapshot`.
+ *
+ * ## How it Works
+ *
+ * 1. Validates that the current platform is macOS (throws error otherwise).
+ * 2. Constructs input parameters (max depth, node limits, target PID).
+ * 3. Calls `runSwiftScript()` to invoke the Swift script with the parameters via environment variable.
+ * 4. Parses the JSON output from Swift.
+ * 5. Assigns stable UIDs to each node and builds a flat lookup table.
+ * 6. Returns a complete `AXSnapshot` with tree and metadata.
+ *
+ * ## Performance Considerations
+ *
+ * - Large trees can be expensive to walk. Use `request.maxDepth` and `request.maxNodes` to limit.
+ * - The tree is fully materialized in memory. Truncated trees have `snapshot.truncated === true`.
+ * - UID assignment traverses the entire tree once; subsequent lookups via `findAXNodeByUid()` are O(1).
+ *
+ * @param config - Computer use configuration (Swift binary path, timeouts, etc.)
+ * @param request - Optional capture request with target PID, depth/node limits, and verbosity.
+ *   - `pid`: Process ID to target (if unset, uses frontmost app)
+ *   - `maxDepth`: Maximum tree depth (default: 15)
+ *   - `maxNodes`: Maximum number of nodes to capture (default: 2000)
+ *   - `verbose`: Include all nodes even if empty (default: false)
+ * @returns A complete `AXSnapshot` with tree, flat lookup map, and metadata.
+ * @throws Error if not running on macOS.
+ *
+ * @example
+ * ```typescript
+ * const snapshot = await captureAXTree(config)
+ * console.log(`Root app: ${snapshot.appName} (${snapshot.root.children.length} top-level children)`)
+ * console.log(`Total nodes: ${snapshot.uidToNode.size}`)
+ * ```
  */
 export async function captureAXTree(
   config: ComputerUseConfig,
@@ -245,7 +195,7 @@ export async function captureAXTree(
   const { stdout } = await runSwiftScript({
     swiftBinary: config.binaries.swift,
     timeoutMs: config.timeoutMs,
-    source: axTreeScript(),
+    source: axTreeScript,
     stdinPayload: {
       pid: request.pid,
       maxDepth: request.maxDepth ?? 15,
@@ -279,7 +229,41 @@ export async function captureAXTree(
 }
 
 /**
- * Format an AXSnapshot as an indented text tree suitable for LLM context.
+ * Format an `AXSnapshot` as a human-readable indented text tree.
+ *
+ * Useful for:
+ * - Displaying the tree structure in logs or debug output
+ * - Preparing tree data for LLM context (passing to an AI model)
+ * - Inspecting the accessibility hierarchy in a compact format
+ *
+ * Each line shows:
+ * - `[uid]`: Optional unique identifier (if `includeUids: true`)
+ * - Role (e.g., "AXButton", "AXTextField")
+ * - Title/label text
+ * - Value (e.g., text input content) with truncation to 80 chars
+ * - Description (if present)
+ * - `[focused]`: If the element has keyboard focus
+ * - `[disabled]`: If the element is disabled
+ * - `@(x,y widthxheight)`: Screen bounds in pixels (if `includeBounds: true`)
+ *
+ * @param snapshot - The accessibility tree snapshot to format
+ * @param options - Formatting options:
+ *   - `indent`: String to use for each indentation level (default: "  ")
+ *   - `includeBounds`: Include element screen coordinates (default: false)
+ *   - `includeUids`: Include element UIDs in brackets (default: true)
+ * @returns Multi-line string representation of the tree
+ *
+ * @example
+ * ```typescript
+ * const text = formatAXSnapshotAsText(snapshot, { includeBounds: true })
+ * console.log(text)
+ *
+ * // Output:
+ * // [AXTree] Finder (pid 1234)
+ * //   [snapshot0_0] AXApplication "Finder"
+ * //     [snapshot0_1] AXWindow "Desktop" @(0,0 1920x1080)
+ * //       [snapshot0_2] AXButton "New Folder" [enabled]
+ * ```
  */
 export function formatAXSnapshotAsText(
   snapshot: AXSnapshot,
@@ -335,7 +319,24 @@ export function formatAXSnapshotAsText(
 }
 
 /**
- * Find a node by uid in the snapshot.
+ * Look up a node in the snapshot by its unique identifier (UID).
+ *
+ * This is an O(1) operation because nodes are indexed in a flat map.
+ *
+ * @param snapshot - The accessibility tree snapshot
+ * @param uid - The unique identifier of the node (format: `{snapshotId}_{counter}`)
+ * @returns The node if found, undefined otherwise
+ *
+ * @example
+ * ```typescript
+ * const node = findAXNodeByUid(snapshot, 'snapshot0_5')
+ * if (node) {
+ *   console.log(`Found: ${node.title} (role: ${node.role})`)
+ *   if (node.children.length > 0) {
+ *     console.log(`Has ${node.children.length} children`)
+ *   }
+ * }
+ * ```
  */
 export function findAXNodeByUid(snapshot: AXSnapshot, uid: string): AXNode | undefined {
   return snapshot.uidToNode.get(uid)

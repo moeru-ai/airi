@@ -67,6 +67,9 @@ function parseBounds(value: string | undefined): Bounds | undefined {
 }
 
 function parseExecutor(value: string | undefined): ExecutorKind {
+  // NOTICE: `linux-x11` remains parseable for backward compatibility with the
+  // legacy remote runner flow, but it is deprecated and should not be expanded
+  // as a new first-class execution path.
   if (value === 'linux-x11' || value === 'macos-local')
     return value
   return 'dry-run'

@@ -20,6 +20,8 @@ export function normalizeRemoteShellPath(value: string) {
   return value.replace(/^~(?=\/|$)/, '${HOME}')
 }
 
+// TODO: Replace this hand-rolled SSH CLI argument builder with a maintained SSH
+// client library (for example `ssh2`) when we do the remote adapter follow-up.
 export function buildRemoteShellCommandArgs(config: ComputerUseConfig, command: string) {
   return [
     '-T',

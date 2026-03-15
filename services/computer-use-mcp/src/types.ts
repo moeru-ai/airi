@@ -1,4 +1,7 @@
 export type ApprovalMode = 'never' | 'actions' | 'all'
+// NOTICE: `linux-x11` is a deprecated legacy remote executor kept only for the
+// old SSH/X11 runner path. New work should target `macos-local` and the newer
+// terminal/browser/IDE surfaces instead of extending this executor.
 export type ExecutorKind = 'dry-run' | 'macos-local' | 'linux-x11'
 export type ExecutionMode = 'dry-run' | 'local-windowed' | 'remote'
 export type ExecutionTransport = 'local' | 'ssh-stdio'
@@ -317,6 +320,12 @@ export type ActionInvocation
     | { kind: 'click', input: ClickActionInput }
     | { kind: 'type_text', input: TypeTextActionInput }
     | { kind: 'press_keys', input: PressKeysActionInput }
+    // Coding Action Invocation Types
+    | { kind: 'coding_review_workspace', input: { workspacePath: string } }
+    | { kind: 'coding_read_file', input: { filePath: string, startLine?: number, endLine?: number } }
+    | { kind: 'coding_apply_patch', input: { filePath: string, oldString: string, newString: string } }
+    | { kind: 'coding_compress_context', input: { goal: string, filesSummary: string, recentResultSummary: string, unresolvedIssues: string, nextStepRecommendation: string } }
+    | { kind: 'coding_report_status', input: { status: 'completed' | 'in_progress' | 'blocked' | 'failed' | 'auto', summary: string, filesTouched: string[], commandsRun: string[], checks: string[], nextStep: string } }
     | { kind: 'scroll', input: ScrollActionInput }
     | { kind: 'wait', input: WaitActionInput }
     | { kind: 'terminal_exec', input: TerminalExecActionInput }

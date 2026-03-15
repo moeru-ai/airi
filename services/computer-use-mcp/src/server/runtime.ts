@@ -34,6 +34,9 @@ function createExecutor(config: ComputerUseConfig, options: ComputerUseServerOpt
   if (options.executorFactory)
     return options.executorFactory(config)
 
+  // NOTICE: `linux-x11` is a deprecated compatibility path for the legacy
+  // remote runner. Keep wiring intact for existing remote workflows, but do not
+  // use it as the preferred execution surface for new features.
   if (config.executor === 'linux-x11')
     return createLinuxX11Executor(config)
   if (config.executor === 'macos-local')
