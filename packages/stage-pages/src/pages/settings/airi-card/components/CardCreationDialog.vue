@@ -1,16 +1,16 @@
-```
 <script setup lang="ts">
 import type { Card } from '@proj-airi/ccc'
 import type { AiriExtension } from '@proj-airi/stage-ui/stores/modules/airi-card'
 
 import kebabcase from '@stdlib/string-base-kebabcase'
 
-import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '@proj-airi/stage-ui/constants/prompts/artistry-instruction'
+import { DisplayModelFormat, useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
+import { useProactivityStore } from '@proj-airi/stage-ui/stores/proactivity'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { Button, FieldInput, FieldValues } from '@proj-airi/ui'
@@ -22,8 +22,13 @@ import {
   DialogPortal,
   DialogRoot,
   DialogTitle,
+  TooltipArrow,
+  TooltipContent,
+  TooltipProvider,
+  TooltipRoot,
+  TooltipTrigger,
 } from 'reka-ui'
-import { computed, ref, toRaw, watch } from 'vue'
+import { computed, onMounted, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 interface Props {
@@ -43,13 +48,14 @@ const cardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
 const speechStore = useSpeechStore()
 const artistryStore = useArtistryStore()
+const proactivityStore = useProactivityStore()
 const providersStore = useProvidersStore()
 const displayModelsStore = useDisplayModelsStore()
 const stageModelStore = useSettingsStageModel()
 
+const { sensorPayload } = storeToRefs(proactivityStore)
 const { activeProvider: consciousnessProvider, activeModel: defaultConsciousnessModel } = storeToRefs(consciousnessStore)
 const { activeSpeechProvider: speechProvider, activeSpeechModel: defaultSpeechModel, activeSpeechVoiceId: defaultSpeechVoiceId } = storeToRefs(speechStore)
-const { displayModels } = storeToRefs(displayModelsStore)
 const { stageModelSelected: defaultDisplayModelId } = storeToRefs(stageModelStore)
 const { activeProvider: defaultArtistryProvider } = storeToRefs(artistryStore)
 
@@ -63,14 +69,6 @@ const selectedSpeechProvider = ref<string>('')
 const selectedSpeechModel = ref<string>('')
 const selectedSpeechVoiceId = ref<string>('')
 const selectedDisplayModelId = ref<string>('')
-
-// Computed: available display model options
-const displayModelOptions = computed(() =>
-  displayModels.value.map(model => ({
-    value: model.id,
-    label: model.name,
-  })),
-)
 const selectedArtistryProvider = ref<string>('')
 const selectedArtistryModel = ref<string>('')
 const selectedArtistryPromptPrefix = ref<string>('')
@@ -85,6 +83,23 @@ const heartbeatsInjectIntoPrompt = ref<boolean>(true)
 const heartbeatsUseAsLocalGate = ref<boolean>(true)
 const heartbeatsScheduleStart = ref<string>('09:00')
 const heartbeatsScheduleEnd = ref<string>('22:00')
+const heartbeatsContextWindowHistory = ref<boolean>(true)
+const heartbeatsContextSystemLoad = ref<boolean>(true)
+const heartbeatsContextUsageMetrics = ref<boolean>(true)
+
+const staticSamplePayload = `[Sensor Data]
+User Idle: 15s
+[ VS Code ] [ 15m ] [ 10:45 - 11:00 ]
+[ Spotify ] [ 3m ] [ 11:00 - 11:03 ]
+CPU Load (1/5/15): 0.5 | 0.72 | 0.61
+GPU Load (Avg): 0.45
+Current Local Time: 14:20
+
+[Usage Metrics (Last Hr)]
+TTS (Last Hr): 5
+STT (Last Hr): 0
+Chat (Last Hr): 2
+Turn Count: 498 (Next Target: 500)`
 
 const consciousnessProviderOptions = computed(() => {
   return providersStore.configuredChatProvidersMetadata.map(provider => ({
@@ -142,6 +157,21 @@ const speechVoiceOptions = computed(() => {
     value: voice.id,
     label: voice.name || voice.id,
   }))
+})
+
+const displayModelOptions = computed(() => {
+  return displayModelsStore.displayModels.map((model) => {
+    const isLive2D = model.format === DisplayModelFormat.Live2dZip || model.format === DisplayModelFormat.Live2dDirectory
+    const prefix = isLive2D ? '[Live2D]' : '[VRM]'
+    return {
+      value: model.id,
+      label: `${prefix} ${model.name}`,
+    }
+  })
+})
+
+onMounted(() => {
+  displayModelsStore.loadDisplayModelsFromIndexedDB()
 })
 
 // Load models for current providers on init
@@ -305,6 +335,11 @@ function saveCard(card: Card): boolean {
           prompt: heartbeatsPrompt.value,
           injectIntoPrompt: heartbeatsInjectIntoPrompt.value,
           useAsLocalGate: heartbeatsUseAsLocalGate.value,
+          contextOptions: {
+            windowHistory: heartbeatsContextWindowHistory.value,
+            systemLoad: heartbeatsContextSystemLoad.value,
+            usageMetrics: heartbeatsContextUsageMetrics.value,
+          },
           schedule: {
             start: heartbeatsScheduleStart.value,
             end: heartbeatsScheduleEnd.value,
@@ -376,6 +411,9 @@ function initializeCard(): Card {
   heartbeatsUseAsLocalGate.value = airiExt?.heartbeats?.useAsLocalGate ?? true
   heartbeatsScheduleStart.value = airiExt?.heartbeats?.schedule?.start ?? '09:00'
   heartbeatsScheduleEnd.value = airiExt?.heartbeats?.schedule?.end ?? '22:00'
+  heartbeatsContextWindowHistory.value = airiExt?.heartbeats?.contextOptions?.windowHistory ?? true
+  heartbeatsContextSystemLoad.value = airiExt?.heartbeats?.contextOptions?.systemLoad ?? true
+  heartbeatsContextUsageMetrics.value = airiExt?.heartbeats?.contextOptions?.usageMetrics ?? true
 
   // Return existing card data or defaults
   if (existingCard) {
@@ -594,6 +632,20 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   class="w-full"
                 />
               </div>
+
+              <!-- Models / Avatar -->
+              <div :class="['flex', 'flex-col', 'gap-2', 'sm:col-span-2']">
+                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
+                  <div i-solar:user-circle-bold-duotone />
+                  Models / Avatar
+                </label>
+                <Select
+                  v-model="selectedDisplayModelId"
+                  :options="displayModelOptions"
+                  :placeholder="getDefaultPlaceholder(defaultDisplayModelId)"
+                  class="w-full"
+                />
+              </div>
             </div>
           </div>
           <!-- Artistry -->
@@ -603,19 +655,6 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
             </p>
 
             <div :class="['grid', 'grid-cols-1', 'gap-4', 'ml-auto', 'mr-auto', 'w-90%']">
-              <!-- Display Model (Body) -->
-              <div :class="['flex', 'flex-col', 'gap-2', 'sm:col-span-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-solar:ghost-bold-duotone />
-                  {{ t('settings.pages.card.body-model') }}
-                </label>
-                <Select
-                  v-model="selectedDisplayModelId"
-                  :options="displayModelOptions"
-                  :placeholder="getDefaultPlaceholder(defaultDisplayModelId)"
-                  class="w-full"
-                />
-              </div>
               <!-- Artistry Provider -->
               <div :class="['flex', 'flex-col', 'gap-2']">
                 <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
@@ -687,12 +726,47 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   <span class="mt-1 text-xs text-neutral-500">Only trigger heartbeats between these hours.</span>
                 </div>
 
-                <div class="col-span-1 mt-4 flex flex-col gap-2 sm:col-span-2">
-                  <div class="flex items-center gap-2">
-                    <input id="heartbeats-injectContext" v-model="heartbeatsInjectIntoPrompt" type="checkbox" class="h-4 w-4">
-                    <label for="heartbeats-injectContext" class="text-sm text-neutral-700 font-medium dark:text-neutral-300">Inject Event Context into Prompt</label>
+                <div class="col-span-1 mt-4 flex flex-col gap-4 sm:col-span-2">
+                  <div class="flex flex-col gap-2 border-l-2 border-neutral-100 pl-4 dark:border-neutral-700">
+                    <div class="flex items-center gap-2">
+                      <input id="heartbeats-injectContext" v-model="heartbeatsInjectIntoPrompt" type="checkbox" class="h-4 w-4">
+                      <label for="heartbeats-injectContext" class="group relative flex items-center gap-1 text-sm font-semibold dark:text-neutral-200">
+                        Inject Rich Context into heartbeats
+                        <TooltipProvider :delay-duration="0">
+                          <TooltipRoot>
+                            <TooltipTrigger as-child>
+                              <div i-lucide:info class="h-4 w-4 cursor-help text-neutral-400" />
+                            </TooltipTrigger>
+                            <TooltipContent
+                              class="z-110 max-w-sm animate-fadeIn animate-duration-200 rounded-lg bg-neutral-900 p-3 text-xs text-white shadow-xl"
+                              :side-offset="8"
+                              side="right"
+                            >
+                              <p class="mb-2 border-b border-white/20 pb-1 text-primary-400 font-bold">Sample Prompt Payload:</p>
+                              <pre class="max-h-60 overflow-y-auto whitespace-pre-wrap font-mono opacity-90">{{ sensorPayload || staticSamplePayload }}</pre>
+                              <TooltipArrow class="fill-neutral-900" />
+                            </TooltipContent>
+                          </TooltipRoot>
+                        </TooltipProvider>
+                      </label>
+                    </div>
+                    <span class="text-xs text-neutral-500">Inject real-time sensor and usage data into the proactivity prompt.</span>
+
+                    <div v-if="heartbeatsInjectIntoPrompt" class="grid grid-cols-1 ml-6 mt-2 gap-2 sm:grid-cols-3">
+                      <div class="flex items-center gap-2">
+                        <input id="ctx-window" v-model="heartbeatsContextWindowHistory" type="checkbox" class="h-3.5 w-3.5">
+                        <label for="ctx-window" class="text-xs text-neutral-600 dark:text-neutral-400">Window History</label>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <input id="ctx-load" v-model="heartbeatsContextSystemLoad" type="checkbox" class="h-3.5 w-3.5">
+                        <label for="ctx-load" class="text-xs text-neutral-600 dark:text-neutral-400">System Load</label>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <input id="ctx-metrics" v-model="heartbeatsContextUsageMetrics" type="checkbox" class="h-3.5 w-3.5">
+                        <label for="ctx-metrics" class="text-xs text-neutral-600 dark:text-neutral-400">Usage Metrics</label>
+                      </div>
+                    </div>
                   </div>
-                  <span class="pl-6 text-xs text-neutral-500">Provides sensor payload context to Heartbeat LLM completions.</span>
 
                   <div class="mt-2 flex items-center gap-2">
                     <input id="heartbeats-localGate" v-model="heartbeatsUseAsLocalGate" type="checkbox" class="h-4 w-4">

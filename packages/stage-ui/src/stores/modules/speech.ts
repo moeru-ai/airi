@@ -10,6 +10,7 @@ import { computed, onMounted, watch } from 'vue'
 import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
 
+import { useProactivityStore } from '../proactivity'
 import { useProvidersStore } from '../providers'
 
 export function toSignedPercent(value: number): string {
@@ -216,6 +217,9 @@ export const useSpeechStore = defineStore('speech', () => {
       input,
       voice,
     })
+
+    const proactivityStore = useProactivityStore()
+    proactivityStore.incrementMetric('tts')
 
     return response
   }

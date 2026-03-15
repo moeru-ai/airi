@@ -324,16 +324,24 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const currentUserId = getCurrentUserId()
     const characterId = getCurrentCharacterId()
 
+    console.info('[ChatSession] ensureActiveSessionForCharacter:start', {
+      currentUserId,
+      characterId,
+      activeSessionId: activeSessionId.value,
+    })
+
     if (!index.value || index.value.userId !== currentUserId)
       await loadIndexForUser(currentUserId)
 
     const characterIndex = getCharacterIndex(characterId)
     if (!characterIndex) {
+      console.info('[ChatSession] no character index, creating session', { characterId })
       await createSession(characterId)
       return
     }
 
     if (!characterIndex.activeSessionId) {
+      console.info('[ChatSession] character has no active session, creating session', { characterId })
       await createSession(characterId)
       return
     }
@@ -341,6 +349,12 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     activeSessionId.value = characterIndex.activeSessionId
     await loadSession(characterIndex.activeSessionId)
     ensureSession(characterIndex.activeSessionId)
+
+    console.info('[ChatSession] ensureActiveSessionForCharacter:resolved', {
+      characterId,
+      activeSessionId: activeSessionId.value,
+      messageCount: sessionMessages.value[activeSessionId.value]?.length ?? 0,
+    })
   }
 
   async function initialize() {
@@ -389,6 +403,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   })
 
   function setActiveSession(sessionId: string) {
+    console.info('[ChatSession] setActiveSession', {
+      from: activeSessionId.value,
+      to: sessionId,
+      characterId: getCurrentCharacterId(),
+    })
     activeSessionId.value = sessionId
     ensureSession(sessionId)
 
@@ -530,9 +549,16 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     await ensureActiveSessionForCharacter()
   }
 
-  watch([userId, activeCardId], () => {
+  watch([userId, activeCardId], ([nextUserId, nextCardId], [prevUserId, prevCardId]) => {
     if (!ready.value)
       return
+    console.info('[ChatSession] watcher:userId+activeCardId', {
+      prevUserId,
+      nextUserId,
+      prevCardId,
+      nextCardId,
+      activeSessionId: activeSessionId.value,
+    })
     void ensureActiveSessionForCharacter()
   })
 

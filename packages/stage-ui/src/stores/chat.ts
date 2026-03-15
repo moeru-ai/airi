@@ -20,6 +20,7 @@ import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useLLM } from './llm'
 import { useConsciousnessStore } from './modules/consciousness'
+import { useProactivityStore } from './proactivity'
 
 interface SendOptions {
   model: string
@@ -143,6 +144,9 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
     updateUI()
     trackFirstMessage()
+
+    const proactivityStore = useProactivityStore()
+    proactivityStore.incrementMetric('chat')
 
     try {
       await hooks.emitBeforeMessageComposedHooks(sendingMessage, streamingMessageContext)

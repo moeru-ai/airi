@@ -86,6 +86,12 @@ export interface AiriExtension {
   }
 
   heartbeats?: HeartbeatConfig
+  proactivity_metrics?: {
+    ttsCount: number
+    sttCount: number
+    chatCount: number
+    totalTurns: number
+  }
 }
 
 export interface AiriCard extends Card {
@@ -286,6 +292,12 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           start: existingExtension.heartbeats?.schedule?.start ?? defaultHeartbeats.schedule.start,
           end: existingExtension.heartbeats?.schedule?.end ?? defaultHeartbeats.schedule.end,
         },
+      },
+      proactivity_metrics: {
+        ttsCount: existingExtension.proactivity_metrics?.ttsCount ?? 0,
+        sttCount: existingExtension.proactivity_metrics?.sttCount ?? 0,
+        chatCount: existingExtension.proactivity_metrics?.chatCount ?? 0,
+        totalTurns: existingExtension.proactivity_metrics?.totalTurns ?? 0,
       },
     }
   }

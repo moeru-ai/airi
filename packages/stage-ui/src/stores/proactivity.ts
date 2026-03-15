@@ -1,10 +1,13 @@
+import type { ActiveWindowEntry, SystemLoadAverages } from '@proj-airi/stage-shared'
+
 import type { ChatStreamEventContext, StreamingAssistantMessage } from '../types/chat'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { sensorsGetActiveWindow, sensorsGetIdleTime, sensorsGetLocalTime } from '@proj-airi/stage-shared'
+import { sensorsGetActiveWindow, sensorsGetActiveWindowHistory, sensorsGetIdleTime, sensorsGetLocalTime, sensorsGetSystemLoad } from '@proj-airi/stage-shared'
+import { useIntervalFn } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { ref, toRaw } from 'vue'
+import { computed, onUnmounted, ref, toRaw, watch } from 'vue'
 
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
@@ -36,7 +39,165 @@ export const useProactivityStore = defineStore('proactivity', () => {
   const isElectron = typeof window !== 'undefined' && !!(window as any).electron
   const getIdleTimeInvoke = isElectron ? useElectronEventaInvoke(sensorsGetIdleTime) : null
   const getActiveWindowInvoke = isElectron ? useElectronEventaInvoke(sensorsGetActiveWindow) : null
+  const getActiveWindowHistoryInvoke = isElectron ? useElectronEventaInvoke(sensorsGetActiveWindowHistory) : null
+  const getSystemLoadInvoke = isElectron ? useElectronEventaInvoke(sensorsGetSystemLoad) : null
   const getLocalTimeInvoke = isElectron ? useElectronEventaInvoke(sensorsGetLocalTime) : null
+
+  const idleTimeSec = ref<number | undefined>(undefined)
+  const activeWinStr = ref('')
+  const winHistory = ref<ActiveWindowEntry[]>([])
+  const sysLoad = ref<SystemLoadAverages | null>(null)
+  const locTime = ref('')
+
+  const sessionMetrics = ref({
+    ttsCount: 0,
+    sttCount: 0,
+    chatCount: 0,
+  })
+  const totalTurns = ref(0)
+  const nextMilestone = ref(100)
+
+  watch(activeCard, (card) => {
+    const metrics = card?.extensions?.airi?.proactivity_metrics
+    sessionMetrics.value = {
+      ttsCount: metrics?.ttsCount ?? 0,
+      sttCount: metrics?.sttCount ?? 0,
+      chatCount: metrics?.chatCount ?? 0,
+    }
+    totalTurns.value = metrics?.totalTurns ?? 0
+    nextMilestone.value = Math.ceil(Math.max(1, totalTurns.value + 1) / 100) * 100
+  }, { immediate: true })
+
+  function incrementMetric(type: 'tts' | 'stt' | 'chat') {
+    const cardId = airiCardStore.activeCardId
+    const card = activeCard.value
+    if (!cardId || !card)
+      return
+
+    const metrics = {
+      ttsCount: card.extensions?.airi?.proactivity_metrics?.ttsCount ?? 0,
+      sttCount: card.extensions?.airi?.proactivity_metrics?.sttCount ?? 0,
+      chatCount: card.extensions?.airi?.proactivity_metrics?.chatCount ?? 0,
+      totalTurns: card.extensions?.airi?.proactivity_metrics?.totalTurns ?? 0,
+    }
+
+    if (type === 'chat') {
+      metrics.chatCount += 1
+      metrics.totalTurns += 1
+    }
+    else if (type === 'tts') {
+      metrics.ttsCount += 1
+    }
+    else {
+      metrics.sttCount += 1
+    }
+
+    sessionMetrics.value = {
+      ttsCount: metrics.ttsCount,
+      sttCount: metrics.sttCount,
+      chatCount: metrics.chatCount,
+    }
+    totalTurns.value = metrics.totalTurns
+    nextMilestone.value = Math.ceil(Math.max(1, totalTurns.value + 1) / 100) * 100
+
+    airiCardStore.updateCard(cardId, {
+      ...card,
+      extensions: {
+        ...card.extensions,
+        airi: {
+          ...card.extensions.airi,
+          proactivity_metrics: metrics,
+        },
+      },
+    })
+  }
+
+  async function updateSensors() {
+    if (!isElectron)
+      return
+
+    try {
+      if (getIdleTimeInvoke) {
+        const idleMs = await getIdleTimeInvoke()
+        idleTimeSec.value = idleMs !== undefined ? Math.floor(idleMs / 1000) : undefined
+      }
+
+      if (getActiveWindowInvoke) {
+        const activeWin = await getActiveWindowInvoke()
+        activeWinStr.value = activeWin?.title || ''
+      }
+
+      if (getActiveWindowHistoryInvoke) {
+        winHistory.value = await getActiveWindowHistoryInvoke() || []
+      }
+
+      if (getSystemLoadInvoke) {
+        sysLoad.value = await getSystemLoadInvoke()
+      }
+
+      if (getLocalTimeInvoke) {
+        locTime.value = await getLocalTimeInvoke()
+      }
+    }
+    catch (err) {
+      console.warn('[Proactivity] Failed to poll sensors for preview:', err)
+    }
+  }
+
+  const { pause } = useIntervalFn(updateSensors, 10000, { immediate: true })
+
+  onUnmounted(() => {
+    pause()
+  })
+
+  const sensorPayload = computed(() => {
+    const config = activeCard.value?.extensions?.airi?.heartbeats
+    const metrics = activeCard.value?.extensions?.airi?.proactivity_metrics
+    let payload = '[Sensor Data]\n'
+
+    payload += `User Idle: ${idleTimeSec.value !== undefined ? `${idleTimeSec.value}s` : 'unknown'}\n`
+
+    if (config?.contextOptions?.windowHistory !== false) {
+      if (winHistory.value.length > 0) {
+        winHistory.value.slice(-3).forEach((entry) => {
+          const start = new Date(entry.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+          const end = new Date(entry.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+          payload += `[ ${entry.window.processName} ] [ ${Math.floor(entry.durationMs / 60000)}m ] [ ${start} - ${end} ]\n`
+        })
+      }
+      else {
+        payload += '[ Window History Empty ]\n'
+      }
+    }
+    else {
+      payload += 'Window History: [DISABLED]\n'
+    }
+
+    if (config?.contextOptions?.systemLoad !== false) {
+      if (sysLoad.value) {
+        payload += `CPU Load (1/5/15): ${sysLoad.value.cpu[0].toFixed(2)} | ${sysLoad.value.cpu[1].toFixed(2)} | ${sysLoad.value.cpu[2].toFixed(2)}\n`
+        payload += `GPU Load (Avg): ${sysLoad.value.gpuAvg.toFixed(2)}\n`
+      }
+    }
+    else {
+      payload += 'System Load: [DISABLED]\n'
+    }
+
+    payload += `Current Local Time: ${locTime.value || 'unknown'}\n`
+
+    if (config?.contextOptions?.usageMetrics !== false) {
+      payload += '\n[Usage Metrics (Last Hr)]\n'
+      payload += `TTS (Last Hr): ${metrics?.ttsCount ?? 0}\n`
+      payload += `STT (Last Hr): ${metrics?.sttCount ?? 0}\n`
+      payload += `Chat (Last Hr): ${metrics?.chatCount ?? 0}\n`
+      payload += `Turn Count: ${totalTurns.value} (Next Target: ${nextMilestone.value})\n`
+    }
+    else {
+      payload += '\n[Metrics]: [DISABLED]\n'
+    }
+
+    return payload
+  })
 
   async function evaluateHeartbeat(options?: { force?: boolean }) {
     if (isHeartbeatEvaluating.value && !options?.force) {
@@ -116,21 +277,9 @@ export const useProactivityStore = defineStore('proactivity', () => {
             return
           }
 
-          if (config.injectIntoPrompt && getActiveWindowInvoke) {
-            const activeWin = await getActiveWindowInvoke()
-            // eslint-disable-next-line no-console
-            console.log(`[Proactivity] OS Sensor -> Active Window: ${activeWin?.title} (${activeWin?.processName})`)
-            idleData = `\n[Sensor Data]\nUser Idle Time: ${idleTime !== undefined ? Math.floor(idleTime / 1000) : 'unknown'} seconds\n`
-            if (activeWin?.title) {
-              idleData += `Active Window: ${activeWin.title} (${activeWin.processName})\n`
-            }
-
-            if (getLocalTimeInvoke) {
-              const localTime = await getLocalTimeInvoke()
-              // eslint-disable-next-line no-console
-              console.log(`[Proactivity] OS Sensor -> Local Time: ${localTime}`)
-              idleData += `Current Local Time: ${localTime}\n`
-            }
+          if (config.injectIntoPrompt) {
+            await updateSensors()
+            idleData = `\n${sensorPayload.value}`
           }
         }
         catch (err) {
@@ -346,6 +495,16 @@ export const useProactivityStore = defineStore('proactivity', () => {
   }
 
   return {
+    sessionMetrics,
+    totalTurns,
+    nextMilestone,
+    incrementMetric,
+    sensorPayload,
+    idleTimeSec,
+    activeWinStr,
+    winHistory,
+    sysLoad,
+    locTime,
     lastHeartbeatTime,
     isHeartbeatEvaluating,
     evaluateHeartbeat,
