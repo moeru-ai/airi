@@ -672,6 +672,7 @@ defineExpose({
         ref="vrmViewerRef"
         v-model:state="componentState"
         :model-src="stageModelSelectedUrl"
+        :model-identity="stageModelSelected"
         :idle-animation="animations.idleLoop.toString()"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :paused="paused"

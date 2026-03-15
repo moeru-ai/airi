@@ -83,6 +83,7 @@ export const useModelStore = defineStore('modelStore', () => {
 
   const scale = useLocalStorage('settings/stage-ui-three/scale', 1)
   const lastModelSrc = useLocalStorage('settings/stage-ui-three/lastModelSrc', '')
+  const lastModelIdentity = useLocalStorage('settings/stage-ui-three/lastModelIdentity', '')
 
   const modelSize = useLocalStorage('settings/stage-ui-three/modelSize', { x: 0, y: 0, z: 0 })
   const modelOrigin = useLocalStorage('settings/stage-ui-three/modelOrigin', { x: 0, y: 0, z: 0 })
@@ -163,6 +164,7 @@ export const useModelStore = defineStore('modelStore', () => {
   return {
     scale,
     lastModelSrc,
+    lastModelIdentity,
 
     modelSize,
     modelOrigin,

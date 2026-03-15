@@ -116,7 +116,7 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
   <!-- VRM component for 3D stage view -->
   <template v-if="stageModelRenderer === 'vrm'">
     <div :class="[...(props.vrmSceneClass ? (typeof props.vrmSceneClass === 'string' ? [props.vrmSceneClass] : props.vrmSceneClass) : [])]">
-      <ThreeScene :model-src="stageModelSelectedUrl" />
+      <ThreeScene :model-src="stageModelSelectedUrl" :model-identity="stageModelSelected" />
     </div>
   </template>
 </template>

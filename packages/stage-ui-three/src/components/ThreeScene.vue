@@ -38,6 +38,7 @@ import { VRMModel } from './Model'
 const props = withDefaults(defineProps<{
   currentAudioSource?: AudioBufferSourceNode
   modelSrc?: string
+  modelIdentity?: string
   skyBoxSrc?: string
   showAxes?: boolean
   idleAnimation?: string
@@ -60,6 +61,7 @@ const { width, height } = useElementBounding(sceneContainerRef)
 const modelStore = useModelStore()
 const {
   lastModelSrc,
+  lastModelIdentity,
 
   modelSize,
   modelOrigin,
@@ -172,8 +174,9 @@ function onVRMModelLookAtTarget(value: Vec3) {
   lookAtTarget.value.y = value.y
   lookAtTarget.value.z = value.z
 }
-function onVRMModelLoaded(value: string) {
-  lastModelSrc.value = value
+function onVRMModelLoaded(value: { modelIdentity?: string, modelSrc: string }) {
+  lastModelSrc.value = value.modelSrc
+  lastModelIdentity.value = value.modelIdentity ?? value.modelSrc
   modelLoaded.value = true
   controlEnable.value = true
 }
@@ -378,7 +381,9 @@ defineExpose({
 
           :current-audio-source="props.currentAudioSource"
           :model-src="props.modelSrc"
+          :model-identity="props.modelIdentity"
           :last-model-src="lastModelSrc"
+          :last-model-identity="lastModelIdentity"
           :idle-animation="props.idleAnimation"
           :paused="props.paused"
           :env-select="envSelect"

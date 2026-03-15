@@ -70,7 +70,9 @@ import { useModelStore } from '../../stores/model-store'
 const props = withDefaults(defineProps<{
   currentAudioSource?: AudioBufferSourceNode
   modelSrc?: string
+  modelIdentity?: string
   lastModelSrc?: string
+  lastModelIdentity?: string
   idleAnimation: string
   // loadAnimations?: string[]
   paused?: boolean
@@ -108,13 +110,15 @@ const emit = defineEmits<{
   (e: 'lookAtTarget', value: Vec3): void
 
   (e: 'error', value: unknown): void
-  (e: 'loaded', value: string): void
+  (e: 'loaded', value: { modelIdentity?: string, modelSrc: string }): void
 }>()
 
 const {
   currentAudioSource,
   modelSrc,
+  modelIdentity,
   lastModelSrc,
+  lastModelIdentity,
   idleAnimation,
   // loadAnimations, // TBC
   paused,
@@ -265,8 +269,11 @@ async function loadModel() {
       console.warn('NO model src, cannot load VRM model.')
       return
     }
-    // First load or not? if yes then reset the pinia store
-    const isFirstLoad = modelSrc.value !== lastModelSrc.value
+    // Local file models are loaded through blob URLs, so a stable model identity
+    // is required to avoid resetting the camera on every app restart.
+    const currentModelIdentity = modelIdentity.value || modelSrc.value
+    const previousModelIdentity = lastModelIdentity.value || lastModelSrc.value
+    const isFirstLoad = currentModelIdentity !== previousModelIdentity
 
     try {
       emit('loadStart')
@@ -468,7 +475,10 @@ async function loadModel() {
       }
 
       // update the 'last model src'
-      emit('loaded', modelSrc.value)
+      emit('loaded', {
+        modelIdentity: modelIdentity.value,
+        modelSrc: modelSrc.value,
+      })
       modelLoaded.value = true
     }
     catch (err) {
