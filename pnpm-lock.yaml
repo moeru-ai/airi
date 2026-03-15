@@ -3306,8 +3306,8 @@ importers:
         specifier: 'catalog:'
         version: 0.1.0-beta.17
       '@proj-airi/server-sdk':
-        specifier: ^0.8.4
-        version: 0.8.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))
+        specifier: workspace:^
+        version: link:../../packages/server-sdk
       '@xsai/generate-text':
         specifier: 'catalog:'
         version: 0.4.3
