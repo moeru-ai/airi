@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CursorFloating } from '@proj-airi/stage-ui/components'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
+import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed } from 'vue'
 
 interface Props {
@@ -21,7 +22,8 @@ const emit = defineEmits<{
   (e: 'activate'): void
   (e: 'delete'): void
   (e: 'edit'): void
-  (e: 'export'): void
+  (e: 'exportJson'): void
+  (e: 'exportPng'): void
 }>()
 
 const displayModelsStore = useDisplayModelsStore()
@@ -128,13 +130,36 @@ const portrait = computed(() => {
         <div i-solar:pen-2-bold-duotone text-sm />
       </button>
 
-      <button
-        rounded-lg p-1.5 text-neutral-500 transition-colors dark:text-neutral-400 hover="bg-neutral-200 dark:bg-neutral-700/50"
-        title="Export card"
-        @click.stop="emit('export')"
-      >
-        <div i-solar:export-bold-duotone text-sm />
-      </button>
+      <DropdownMenuRoot>
+        <DropdownMenuTrigger
+          rounded-lg p-1.5 text-neutral-500 transition-colors dark:text-neutral-400 hover="bg-neutral-200 dark:bg-neutral-700/50"
+          title="Export card"
+          @click.stop
+        >
+          <div i-solar:export-bold-duotone text-sm />
+        </DropdownMenuTrigger>
+        <DropdownMenuPortal>
+          <DropdownMenuContent
+            class="z-10000 min-w-28 border border-neutral-200 rounded-lg bg-white p-1 text-sm text-neutral-800 shadow-xl outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+            align="end"
+            side="bottom"
+            :side-offset="6"
+          >
+            <DropdownMenuItem
+              class="cursor-pointer rounded-md px-3 py-2 outline-none data-[highlighted]:bg-neutral-100 dark:data-[highlighted]:bg-neutral-800"
+              @click.stop="emit('exportJson')"
+            >
+              Export JSON
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              class="cursor-pointer rounded-md px-3 py-2 outline-none data-[highlighted]:bg-neutral-100 dark:data-[highlighted]:bg-neutral-800"
+              @click.stop="emit('exportPng')"
+            >
+              Export PNG
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenuPortal>
+      </DropdownMenuRoot>
 
       <button
         rounded-lg p-1.5 transition-colors hover="bg-neutral-200 dark:bg-neutral-700/50"

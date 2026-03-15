@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { Card, ccv3 } from '@proj-airi/ccc'
+import type { AiriCard } from '@proj-airi/stage-ui/stores/modules/airi-card'
 
 import { Alert } from '@proj-airi/stage-ui/components'
+import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { InputFile } from '@proj-airi/ui'
 import { Select } from '@proj-airi/ui/components/form'
@@ -17,6 +19,7 @@ import DeleteCardDialog from './components/DeleteCardDialog.vue'
 
 const { t } = useI18n()
 const cardStore = useAiriCardStore()
+const displayModelsStore = useDisplayModelsStore()
 const { addCard, removeCard } = cardStore
 const { cards, activeCardId } = storeToRefs(cardStore)
 
@@ -46,6 +49,50 @@ interface CardItem {
 }
 
 type ImportedCardPayload = Card | ccv3.CharacterCardV3
+
+function base64ToUtf8(input: string) {
+  return decodeURIComponent(escape(atob(input)))
+}
+
+function parsePngCharaPayload(buffer: ArrayBuffer): ImportedCardPayload {
+  const bytes = new Uint8Array(buffer)
+
+  for (let offset = 8; offset < bytes.length - 8;) {
+    const length = (
+      (bytes[offset] << 24)
+      | (bytes[offset + 1] << 16)
+      | (bytes[offset + 2] << 8)
+      | bytes[offset + 3]
+    ) >>> 0
+
+    const type = String.fromCharCode(
+      bytes[offset + 4],
+      bytes[offset + 5],
+      bytes[offset + 6],
+      bytes[offset + 7],
+    )
+
+    if (type === 'tEXt') {
+      const dataStart = offset + 8
+      const dataEnd = dataStart + length
+      const data = bytes.slice(dataStart, dataEnd)
+      const separator = data.indexOf(0)
+
+      if (separator > 0) {
+        const keyword = new TextDecoder().decode(data.slice(0, separator))
+        if (keyword === 'chara') {
+          const text = new TextDecoder().decode(data.slice(separator + 1))
+          const decoded = JSON.parse(base64ToUtf8(text)) as any
+          return decoded as ImportedCardPayload
+        }
+      }
+    }
+
+    offset += 12 + length
+  }
+
+  throw new Error('PNG does not contain a supported chara payload')
+}
 
 function getImportedCardName(card: ImportedCardPayload): string {
   if ('data' in card)
@@ -103,8 +150,16 @@ watch(inputFiles, async (newFiles) => {
     return
 
   try {
-    const content = await file.text()
-    const importedCard = parseImportedCard(content)
+    let importedCard: ImportedCardPayload
+
+    if (file.name.toLowerCase().endsWith('.png')) {
+      importedCard = parsePngCharaPayload(await file.arrayBuffer())
+    }
+    else {
+      const content = await file.text()
+      importedCard = parseImportedCard(content)
+    }
+
     const uniqueName = getUniqueImportedCardName(getImportedCardName(importedCard))
     const renamedCard = withImportedCardName(importedCard, uniqueName)
 
@@ -225,6 +280,166 @@ function exportCard(cardId: string) {
   URL.revokeObjectURL(url)
 }
 
+function buildCharaCardV2(card: AiriCard) {
+  return {
+    spec: 'chara_card_v2',
+    spec_version: '2.0',
+    data: {
+      name: card.name || '',
+      description: card.description || '',
+      personality: card.personality || '',
+      scenario: card.scenario || '',
+      first_mes: card.greetings?.[0] || '',
+      mes_example: Array.isArray(card.messageExample)
+        ? card.messageExample.map(example => example.join('\n')).join('\n<START>\n')
+        : '',
+      creator_notes: card.notes || '',
+      system_prompt: card.systemPrompt || '',
+      post_history_instructions: card.postHistoryInstructions || '',
+      alternate_greetings: card.greetings?.slice(1) || [],
+      tags: card.tags || [],
+      creator: card.creator || '',
+      character_version: card.version || '',
+      extensions: card.extensions || {},
+    },
+  }
+}
+
+function utf8ToBase64(input: string) {
+  return btoa(unescape(encodeURIComponent(input)))
+}
+
+function createCrc32Table() {
+  const table = new Uint32Array(256)
+  for (let i = 0; i < 256; i += 1) {
+    let c = i
+    for (let j = 0; j < 8; j += 1) {
+      c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1)
+    }
+    table[i] = c >>> 0
+  }
+  return table
+}
+
+const crc32Table = createCrc32Table()
+
+function crc32(data: Uint8Array) {
+  let crc = 0xFFFFFFFF
+  for (let i = 0; i < data.length; i += 1) {
+    crc = crc32Table[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8)
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0
+}
+
+function concatUint8Arrays(parts: Uint8Array[]) {
+  const total = parts.reduce((sum, part) => sum + part.length, 0)
+  const output = new Uint8Array(total)
+  let offset = 0
+  for (const part of parts) {
+    output.set(part, offset)
+    offset += part.length
+  }
+  return output
+}
+
+function uint32ToBytes(value: number) {
+  return new Uint8Array([
+    (value >>> 24) & 0xFF,
+    (value >>> 16) & 0xFF,
+    (value >>> 8) & 0xFF,
+    value & 0xFF,
+  ])
+}
+
+function createPngTextChunk(keyword: string, text: string) {
+  const typeBytes = new TextEncoder().encode('tEXt')
+  const dataBytes = new TextEncoder().encode(`${keyword}\0${text}`)
+  const crcBytes = uint32ToBytes(crc32(concatUint8Arrays([typeBytes, dataBytes])))
+
+  return concatUint8Arrays([
+    uint32ToBytes(dataBytes.length),
+    typeBytes,
+    dataBytes,
+    crcBytes,
+  ])
+}
+
+function injectPngTextChunk(pngBytes: Uint8Array, keyword: string, text: string) {
+  const iendOffset = pngBytes.lastIndexOf(73) // 'I'
+  if (iendOffset < 12)
+    throw new Error('Invalid PNG payload')
+
+  let insertOffset = -1
+  for (let offset = 8; offset < pngBytes.length - 8;) {
+    const length = (
+      (pngBytes[offset] << 24)
+      | (pngBytes[offset + 1] << 16)
+      | (pngBytes[offset + 2] << 8)
+      | pngBytes[offset + 3]
+    ) >>> 0
+    const type = String.fromCharCode(
+      pngBytes[offset + 4],
+      pngBytes[offset + 5],
+      pngBytes[offset + 6],
+      pngBytes[offset + 7],
+    )
+    if (type === 'IEND') {
+      insertOffset = offset
+      break
+    }
+    offset += 12 + length
+  }
+
+  if (insertOffset === -1)
+    throw new Error('PNG is missing IEND chunk')
+
+  const chunk = createPngTextChunk(keyword, text)
+  return concatUint8Arrays([
+    pngBytes.slice(0, insertOffset),
+    chunk,
+    pngBytes.slice(insertOffset),
+  ])
+}
+
+async function exportCardPng(cardId: string) {
+  const card = cardStore.getCard(cardId)
+  if (!card) {
+    console.error(`Card with id ${cardId} not found`)
+    return
+  }
+
+  const displayModelId = cardStore.getCardDisplayModelId(cardId)
+  await displayModelsStore.loadDisplayModelsFromIndexedDB()
+  const previewModel = displayModelId ? await displayModelsStore.getDisplayModel(displayModelId) : null
+
+  const previewImage = previewModel?.previewImage
+  if (!previewImage) {
+    console.error('No preview image available for card PNG export')
+    return
+  }
+
+  const response = await fetch(previewImage)
+  const pngArrayBuffer = await response.arrayBuffer()
+  const pngBytes = new Uint8Array(pngArrayBuffer)
+  const metadata = utf8ToBase64(JSON.stringify(buildCharaCardV2(card)))
+  const encodedPng = injectPngTextChunk(pngBytes, 'chara', metadata)
+
+  const blob = new Blob([encodedPng], { type: 'image/png' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  const safeName = (card.name || 'airi-card')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  anchor.href = url
+  anchor.download = `${safeName || 'airi-card'}.png`
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+  URL.revokeObjectURL(url)
+}
+
 // Card activation
 async function activateCard(id: string) {
   activeCardId.value = id
@@ -311,16 +526,16 @@ function getDisplayModelId(id: string) {
       :class="{ 'grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 grid-auto-rows-[minmax(min-content,max-content)] grid-auto-flow-dense sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-5 md:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]': cards.size > 0 }"
     >
       <!-- Upload card -->
-      <InputFile v-model="inputFiles" accept="*.json">
+      <InputFile v-model="inputFiles" accept="*.json,*.png">
         <template #default="{ isDragging }">
           <template v-if="!isDragging">
             <div flex flex-col items-center>
               <div i-solar:upload-square-line-duotone mb-4 text-5xl text="neutral-400 dark:neutral-500" />
               <p font-medium text="neutral-600 dark:neutral-300">
-                {{ t('settings.pages.card.upload') }}
+                Import Card
               </p>
               <p text="neutral-500 dark:neutral-400" mt-2 text-sm>
-                {{ t('settings.pages.card.upload_desc') }}
+                Import AIRI JSON or SillyTavern / chara_card_v2 PNG cards
               </p>
             </div>
           </template>
@@ -356,7 +571,8 @@ function getDisplayModelId(id: string) {
           @activate="activateCard(item.id)"
           @delete="confirmDelete(item.id)"
           @edit="handleEditCard(item.id)"
-          @export="exportCard(item.id)"
+          @export-json="exportCard(item.id)"
+          @export-png="exportCardPng(item.id)"
         />
       </template>
 

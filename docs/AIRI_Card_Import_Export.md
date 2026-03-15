@@ -8,7 +8,7 @@ Users need a durable copy of their cards that can be:
 - backed up
 - versioned in git
 - shared with other AIRI users
-- eventually shared with broader character-card ecosystems
+- imported from broader character-card ecosystems
 
 The current AIRI card editor is too valuable to leave trapped in local storage.
 
@@ -16,60 +16,37 @@ The current AIRI card editor is too valuable to leave trapped in local storage.
 
 ## Product Direction
 
-The feature should be built in phases.
+The feature is intentionally split into two layers:
 
-### Phase 1: JSON Import / Export
+### 1. AIRI JSON
 
-This is the minimum viable durable format.
+This is the full-fidelity house format.
 
-Goals:
-- export any AIRI card as JSON
-- import that JSON back into AIRI
-- preserve AIRI-specific extensions cleanly
-- make the file easy to diff and maintain manually
+Use it for:
+- backup
+- restore
+- version control
+- preserving AIRI-specific extensions without loss
 
-Why JSON first:
-- lowest implementation risk
-- easiest to debug
-- easiest to version control
-- no image/metadata encoding work required
+### 2. Compatibility PNG
 
-### Phase 2: PNG Character Card Import / Export
+This is the shareable ecosystem format.
 
-This is the shareable character-card format.
+Use it for:
+- importing existing community cards
+- exporting AIRI cards into the broader card ecosystem
+- cross-tool sharing
 
-Goals:
-- export an AIRI card as a PNG
-- use the card preview image as the exported PNG image
-- embed card JSON in the PNG metadata
-- import compatible PNG cards back into AIRI
-
-Why PNG second:
-- much better for sharing
-- familiar to SillyTavern and similar ecosystems
-- lets users treat a card as both image and data
-
----
-
-## Core Requirement
-
-The AIRI card format must be both:
-- AIRI-native
-- mappable to common card schemas
-
-That means AIRI should preserve its own richer extension model without being forced into a lowest-common-denominator format.
-
-So the design should distinguish between:
-- **AIRI-native full fidelity export**
-- **cross-ecosystem compatibility export**
+The compatibility target is currently:
+- SillyTavern-style `chara_card_v2` PNG cards
 
 ---
 
 ## AIRI-Native JSON Format
 
-Phase 1 should export the full AIRI card object in JSON.
+The AIRI JSON export is the canonical backup/export format.
 
-That includes:
+It preserves:
 - base card fields
 - greetings
 - system prompt
@@ -81,13 +58,7 @@ That includes:
   - heartbeats / proactivity config
   - future AIRI-specific fields
 
-### Principle
-
-Do not throw away AIRI-specific information just to imitate external formats.
-
-The JSON export should be the canonical backup format.
-
-### Likely Shape
+### Current JSON Wrapper
 
 ```json
 {
@@ -99,188 +70,180 @@ The JSON export should be the canonical backup format.
 }
 ```
 
-This wrapper gives room for:
-- future schema evolution
+Why this wrapper exists:
+- schema evolution
 - migration/versioning
 - import validation
 
----
+### Current JSON Import Behavior
 
-## PNG Import / Export Direction
+When AIRI imports JSON:
+- if it sees the AIRI wrapper, it loads `card`
+- otherwise it still accepts the older raw-card JSON path
+- duplicate names are auto-renamed on import
 
-Phase 2 should support image-based cards similar to SillyTavern character cards.
-
-The high-level idea:
-- choose the card preview image as the PNG
-- embed card JSON into PNG metadata
-- export one portable image file
-- allow users to import that image back into AIRI
-
-This is especially attractive because the AIRI card system already has:
-- display model preview images
-- rich card metadata
-
-So a PNG export becomes a natural “share card” artifact.
+Example:
+- `Lain`
+- `Lain (2)`
+- `Lain (3)`
 
 ---
 
-## Compatibility With Existing Character Card Ecosystems
+## Compatibility PNG Direction
 
-SillyTavern-style cards typically expose a simpler schema with fields like:
-- `name`
-- `description`
-- `first_mes`
+PNG export/import is the compatibility layer, not the AIRI source of truth.
 
-and related character-card content.
+The current implementation uses:
+- the cached model `previewImage`
+- a `chara_card_v2` payload
+- PNG text metadata
 
-That means compatibility should be treated as a mapping layer, not the source of truth.
+This keeps the implementation simple while maximizing compatibility.
 
-### Mapping Direction
+### Why This Is The Right MVP
 
-Common portable fields can map from AIRI like:
+- no new render pipeline required
+- immediate interoperability with existing card communities
+- AIRI JSON remains the durable house format
+
+---
+
+## Current PNG Compatibility Contract
+
+The current compatibility target is:
+- PNG metadata key: `chara`
+- metadata chunk type: `tEXt`
+- metadata value: base64-encoded UTF-8 JSON
+- JSON payload type: `chara_card_v2`
+
+### Example Top-Level Payload
+
+```json
+{
+  "spec": "chara_card_v2",
+  "spec_version": "2.0",
+  "data": {
+    "name": "Character Name",
+    "description": "Character description",
+    "personality": "",
+    "scenario": "",
+    "first_mes": "First greeting",
+    "mes_example": "",
+    "creator_notes": "",
+    "system_prompt": "",
+    "post_history_instructions": "",
+    "alternate_greetings": [],
+    "tags": [],
+    "creator": "",
+    "character_version": "",
+    "extensions": {}
+  }
+}
+```
+
+---
+
+## AIRI Field Mapping To `chara_card_v2`
+
+Current AIRI PNG export maps:
 - `name` <- card name
-- `description` <- AIRI description / core descriptive text
+- `description` <- card description
+- `personality` <- card personality
+- `scenario` <- card scenario
 - `first_mes` <- first greeting
-- `personality` <- AIRI personality
-- `scenario` <- AIRI scenario
-- `mes_example` <- AIRI example messages if present
-- `system_prompt` <- AIRI system prompt when target format supports it
+- `alternate_greetings` <- remaining greetings
+- `mes_example` <- flattened example messages
+- `creator_notes` <- card notes
+- `system_prompt` <- AIRI system prompt
+- `post_history_instructions` <- AIRI post-history instructions
+- `character_version` <- AIRI card version
+- `tags` <- AIRI tags
+- `creator` <- AIRI creator
+- `extensions` <- AIRI extensions object as-is
 
-### Important Rule
-
-Do not assume external card formats can represent:
-- AIRI modules
-- acting helper prompts
-- Chatterbox-specific speech setup
-- artistry
-- proactivity
-
-Those richer fields should remain in AIRI-native payloads.
-
-For PNG export, there are two viable strategies:
-
-1. **AIRI-in-PNG**
-- embed AIRI-native full JSON
-- best for AIRI-to-AIRI portability
-
-2. **Compatibility PNG**
-- embed a mapped common character-card payload
-- best for outside-tool compatibility
-
-The likely best long-term answer is to support both:
-- `Export as AIRI PNG`
-- `Export as Compatibility PNG`
-
-But Phase 2 can start with AIRI-native PNG first if that is simpler.
+Important:
+- AIRI-specific fields are preserved only opportunistically in `extensions`
+- true full fidelity still belongs to AIRI JSON
 
 ---
 
-## Import Behavior
+## Current PNG Import Behavior
 
-Import should be explicit about what kind of card is being loaded.
+When AIRI imports PNG:
+- it reads PNG `tEXt` metadata chunks
+- looks for the `chara` key
+- base64-decodes the payload
+- parses the embedded JSON
+- imports the compatibility card into AIRI as a new card
+- auto-renames duplicates on import
 
-### JSON Import
-
-Should accept:
-- AIRI-native JSON card export
-
-Later, optionally:
-- mapped compatibility JSON if desired
-
-### PNG Import
-
-Should detect:
-- AIRI-native embedded payload
-- compatibility payload if supported later
-
-If the imported payload is compatibility-only, AIRI should:
-- fill the basic character fields
-- leave AIRI-specific sections blank/defaulted
+If the payload is compatibility-only, AIRI should:
+- fill the standard character fields
+- keep AIRI-specific fields defaulted if they are missing
 - let the user enhance the card afterward
 
 ---
 
 ## UI Direction
 
-This should eventually exist in two places:
+Current direction:
 
-### 1. AIRI Card Settings Page
+### AIRI Cards Page
 
-Actions per card:
-- Export JSON
-- Export PNG
-- Duplicate
-- Import card
+- one global import surface
+- per-card export action
 
-This is the natural home for card lifecycle management.
+This is the current intended split:
+- `Import` is page-level because it creates a new card
+- `Export` is per-card because it targets one specific card
 
-### 2. Maybe System / Data Management
+### Current UI Behavior
 
-Optional later:
-- bulk export
-- bulk import
-- migration tools
+- Import tile supports:
+  - AIRI JSON
+  - `chara_card_v2` / SillyTavern-style PNG
+- Export menu supports:
+  - JSON
+  - PNG
 
-But phase 1 should stay focused on per-card import/export.
+### Later UI Possibilities
+
+- bulk export/import under `Settings -> Data`
+- export-all AIRI cards
+- backup bundles
+
+But those are later-phase lifecycle features, not current scope.
 
 ---
 
 ## Preview Image Behavior
 
-For PNG export, the exported image should use the card preview image when available.
+Current PNG export uses the card's selected display model cached `previewImage`.
 
-That is the best UX because:
-- the card looks shareable
-- the image visually represents the character
-- no extra asset-picking step is needed in the common path
+That is the correct MVP because:
+- the selector/model library already generates good previews
+- the image is already cached
+- no extra render path is needed
 
-Fallbacks, if no preview exists:
-- use a default AIRI card template image
-- or prompt the user to choose an image later
+### Important Note
 
----
+This is good enough for now, but not the final quality target.
 
-## Phase 1 Scope
+The cached preview does not necessarily reflect:
+- customized outfit state
+- active expressions
+- the card's intended personality framing
 
-Phase 1 should include:
-- export a selected AIRI card as JSON
-- import AIRI JSON into the card library
-- schema/version wrapper
-- validation and safe error messages
-- preserve full AIRI extension fidelity
-
-Phase 1 should not require:
-- PNG metadata support
-- compatibility mappings
-- image pipeline changes
-
----
-
-## Phase 2 Scope
-
-Phase 2 should include:
-- export card as PNG with embedded metadata
-- import PNG cards
-- use card preview image for export
-
-Phase 2 open question:
-- embed AIRI-native payload only
-- or support a compatibility export mode too
+That is a later renderer/composition problem, not a blocker for current compatibility export.
 
 ---
 
 ## Future Visual Export Polish
 
-This is explicitly not part of phase 1.
-
 Once PNG export exists, AIRI can polish the shareable artifact further because AIRI controls:
 - the preview render
 - the export image dimensions
 - the final composition pipeline
-
-### Direction
-
-Support a more card-like visual export style instead of only dumping the raw preview image.
 
 Possible later export modes:
 - `Raw Preview PNG`
@@ -294,48 +257,44 @@ Possible later export modes:
 - title/name plate
 - optional subtle metadata overlay
 
-This would make exported cards feel:
-- more intentional
-- more collectible
-- more obviously AIRI-native
+### Future Render Quality Direction
 
-### Important Rule
-
-Do not block the initial PNG metadata export on this polish work.
+Longer-term, AIRI may want a dedicated export render path that can reflect more of the card's actual presentation state, such as:
+- active outfit / customized model variant
+- configured expressions
+- more character-specific framing
+- export-specific composition tuned for sharing
 
 The correct order is:
-1. make PNG import/export functionally correct
-2. then refine the presentation and branding
+1. make import/export functionally correct
+2. then refine presentation and branding
 
 ---
 
 ## Open Design Questions
 
-1. Should AIRI JSON export be a wrapped schema or just the raw card object?
-   Current recommendation: wrapped schema with `format` and `version`.
+1. Should AIRI later support an AIRI-native PNG mode?
+   Current recommendation: probably unnecessary unless compatibility limits become painful.
 
-2. Should PNG export embed full AIRI-native JSON, compatibility JSON, or both?
-   Current recommendation: AIRI-native first, compatibility mode later.
+2. Can `chara_card_v2` safely carry richer arbitrary AIRI fields without breaking external parsers?
+   Current recommendation: investigate later, do not assume.
 
-3. Should import create a new card always, or allow overwrite/update?
-   Current recommendation: create new by default, with duplicate-name handling.
+3. Should import always create a new card, or support overwrite/update?
+   Current recommendation: create new by default.
 
 4. Should preview images be exported separately in JSON mode?
-   Current recommendation: no for phase 1. Keep JSON textual and durable first.
+   Current recommendation: no. Keep JSON textual and durable first.
 
-5. Should compatibility import/export be part of the same UI action set or a separate advanced menu?
-   Current recommendation: separate explicit actions to avoid confusion.
+5. Should compatibility import/export stay in the same UI action set or move into an advanced menu later?
+   Current recommendation: current simple menu is fine.
 
 ---
 
-## Recommended Next Step
+## Recommended Near-Term Next Steps
 
-Build **Phase 1 JSON import/export** first.
-
-That gives:
-- durable backups
-- easy manual editing
-- no ambiguity about schema
-- a stable card portability foundation
-
-After that, PNG import/export can build on the same serialized payload.
+1. Keep AIRI JSON as the canonical backup format.
+2. Keep compatibility PNG focused on strict `chara_card_v2` interoperability.
+3. Improve import UI copy so users know AIRI supports:
+   - AIRI JSON
+   - `chara_card_v2` / SillyTavern-compatible PNG
+4. Later, improve the PNG render/composition quality without changing the compatibility contract.
