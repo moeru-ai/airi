@@ -21,6 +21,7 @@ const emit = defineEmits<{
   (e: 'activate'): void
   (e: 'delete'): void
   (e: 'edit'): void
+  (e: 'export'): void
 }>()
 
 const displayModelsStore = useDisplayModelsStore()
@@ -125,6 +126,14 @@ const portrait = computed(() => {
         @click.stop="emit('edit')"
       >
         <div i-solar:pen-2-bold-duotone text-sm />
+      </button>
+
+      <button
+        rounded-lg p-1.5 text-neutral-500 transition-colors dark:text-neutral-400 hover="bg-neutral-200 dark:bg-neutral-700/50"
+        title="Export card"
+        @click.stop="emit('export')"
+      >
+        <div i-solar:export-bold-duotone text-sm />
       </button>
 
       <button

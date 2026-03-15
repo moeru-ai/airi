@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import type { Card } from '@proj-airi/ccc'
 import type { AiriExtension } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import type { SpeechCapabilitiesInfo } from '@proj-airi/stage-ui/stores/providers'
 
 import kebabcase from '@stdlib/string-base-kebabcase'
 
+import { useModelStore } from '@proj-airi/stage-ui-three'
 import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '@proj-airi/stage-ui/constants/prompts/artistry-instruction'
 import { DisplayModelFormat, useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -52,12 +54,14 @@ const proactivityStore = useProactivityStore()
 const providersStore = useProvidersStore()
 const displayModelsStore = useDisplayModelsStore()
 const stageModelStore = useSettingsStageModel()
+const modelStore = useModelStore()
 
 const { sensorPayload } = storeToRefs(proactivityStore)
 const { activeProvider: consciousnessProvider, activeModel: defaultConsciousnessModel } = storeToRefs(consciousnessStore)
 const { activeSpeechProvider: speechProvider, activeSpeechModel: defaultSpeechModel, activeSpeechVoiceId: defaultSpeechVoiceId } = storeToRefs(speechStore)
 const { stageModelSelected: defaultDisplayModelId } = storeToRefs(stageModelStore)
 const { activeProvider: defaultArtistryProvider } = storeToRefs(artistryStore)
+const { availableExpressions } = storeToRefs(modelStore)
 
 // Determine if we're in edit mode
 const isEditMode = computed(() => !!props.cardId)
@@ -74,6 +78,59 @@ const selectedArtistryModel = ref<string>('')
 const selectedArtistryPromptPrefix = ref<string>('')
 const selectedArtistryWidgetInstruction = ref<string>('')
 const selectedArtistryConfigStr = ref<string>('{\n  \n}')
+const selectedActingModelExpressionPrompt = ref<string>('')
+const selectedActingSpeechExpressionPrompt = ref<string>('')
+const selectedActingSpeechMannerismPrompt = ref<string>('')
+const actingSpeechCapabilities = ref<SpeechCapabilitiesInfo | null>(null)
+const actingSpeechCapabilitiesLoading = ref<boolean>(false)
+
+const DEFAULT_ACTING_MODEL_PROMPT = `## Instruction: ACT Tokens
+Start every reply with an ACT token to indicate your initial mood or action. If your synchronization or focus changes, insert a new ACT token. One token lasts until you use a new one.
+
+**ACT JSON format (all fields optional):**
+\`<|ACT:"emotion":{"name": expression_name, "intensity": 1},"motion":"action cue"|>\`
+
+## Available Expressions (Keys)
+Use these EXACT names in your ACT tokens:
+`
+
+const DEFAULT_ACTING_SPEECH_EXPRESSION_PROMPT = `## Instruction: Speech Tags
+When the active voice provider supports expressive speech tags, you may use them inline to shape delivery.
+
+Use square-bracket tags like \`[whisper]\` or \`[gasp]\` only when they improve the line.
+- Keep them sparse and readable.
+- Prefer one strong tag over many weak ones.
+- Match the tag to the emotional beat of the sentence.
+`
+
+const DEFAULT_ACTING_SPEECH_MANNERISM_PROMPT = `## Instruction: Speech Mannerisms
+Use provider-supported speech mannerisms only when they help communicate tone or attitude.
+
+- Keep them occasional and intentional.
+- Use them to reinforce personality, not every line.
+- Favor clarity first, style second.
+`
+
+const MANNERISM_HELPER_SNIPPETS: Record<string, string> = {
+  tilde: `## Tilde Replacements
+Use occasional \`~\` when sounding playful, sing-song, teasing, or gently affectionate.
+- Keep it light and sparse.
+- Avoid using it on every sentence.
+- Prefer it when the line should feel airy or mischievous.
+`,
+  eyes: `## Emoticon Replacements
+Use short emoticon-style reactions when a strong expression would land better as a quick face than as plain words.
+- Keep them readable and emotionally obvious.
+- Use them for spikes of embarrassment, excitement, confusion, or stress.
+- Do not overuse them in serious or dense exposition.
+`,
+  hmph: `## Hmph Variants
+Use brief pouty or dismissive mannerisms when sounding stubborn, embarrassed, bratty, or mildly annoyed.
+- Keep them occasional.
+- Let them color the line instead of replacing the content.
+- Use them when attitude matters more than pure politeness.
+`,
+}
 
 // Heartbeats configuration
 const heartbeatsEnabled = ref<boolean>(false)
@@ -170,6 +227,74 @@ const displayModelOptions = computed(() => {
   })
 })
 
+const actingModelExpressionOptions = computed(() => {
+  return [...availableExpressions.value].sort((a, b) => a.localeCompare(b))
+})
+
+const actingExpressionTags = computed(() => actingSpeechCapabilities.value?.expressionTags || [])
+
+const actingGroupedExpressionTags = computed(() => {
+  const groups = new Map<string, { tag: string, description?: string }[]>()
+  for (const tag of actingExpressionTags.value) {
+    const key = tag.category || 'other'
+    if (!groups.has(key))
+      groups.set(key, [])
+    groups.get(key)!.push({ tag: tag.tag, description: tag.description })
+  }
+
+  return [...groups.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([category, tags]) => ({
+      category,
+      tags: tags.sort((a, b) => a.tag.localeCompare(b.tag)),
+    }))
+})
+
+const actingMannerismOptions = computed(() => actingSpeechCapabilities.value?.mannerisms || [])
+
+async function loadActingSpeechCapabilities(providerId: string) {
+  actingSpeechCapabilitiesLoading.value = true
+  try {
+    const metadata = providersStore.getProviderMetadata(providerId)
+    const capabilities = await metadata.capabilities.getSpeechCapabilities?.(providersStore.getProviderConfig(providerId))
+    actingSpeechCapabilities.value = capabilities ?? null
+  }
+  catch {
+    actingSpeechCapabilities.value = null
+  }
+  finally {
+    actingSpeechCapabilitiesLoading.value = false
+  }
+}
+
+function appendUniqueLine(target: typeof selectedActingModelExpressionPrompt, line: string) {
+  if (target.value.includes(line))
+    return
+
+  const suffix = target.value.endsWith('\n') || !target.value ? '' : '\n'
+  target.value = `${target.value}${suffix}${line}\n`
+}
+
+function insertModelExpression(name: string) {
+  appendUniqueLine(selectedActingModelExpressionPrompt, `- \`${name}\``)
+}
+
+function insertSpeechTag(tag: string, description?: string) {
+  const line = description
+    ? `- \`[${tag}]\` - ${description}`
+    : `- \`[${tag}]\``
+  appendUniqueLine(selectedActingSpeechExpressionPrompt, line)
+}
+
+function insertSpeechMannerism(id: string) {
+  const snippet = MANNERISM_HELPER_SNIPPETS[id]
+  if (!snippet || selectedActingSpeechMannerismPrompt.value.includes(snippet.trim()))
+    return
+
+  const suffix = selectedActingSpeechMannerismPrompt.value.endsWith('\n') || !selectedActingSpeechMannerismPrompt.value ? '' : '\n\n'
+  selectedActingSpeechMannerismPrompt.value = `${selectedActingSpeechMannerismPrompt.value}${suffix}${snippet}`
+}
+
 onMounted(() => {
   displayModelsStore.loadDisplayModelsFromIndexedDB()
 })
@@ -205,6 +330,7 @@ watch(selectedSpeechProvider, async (newProvider, oldProvider) => {
     if (metadata?.capabilities.listModels) {
       await providersStore.fetchModelsForProvider(newProvider)
     }
+    await loadActingSpeechCapabilities(newProvider)
     // Reset model and voice selection
     selectedSpeechModel.value = ''
     selectedSpeechVoiceId.value = ''
@@ -238,6 +364,7 @@ const activeTabId = ref('')
 const tabs: Tab[] = [
   { id: 'identity', label: t('settings.pages.card.creation.identity'), icon: 'i-solar:emoji-funny-square-bold-duotone' },
   { id: 'behavior', label: t('settings.pages.card.creation.behavior'), icon: 'i-solar:chat-round-line-bold-duotone' },
+  { id: 'acting', label: 'Acting', icon: 'i-solar:mask-happly-bold-duotone' },
   { id: 'modules', label: t('settings.pages.card.modules'), icon: 'i-solar:widget-4-bold-duotone' },
   { id: 'artistry', label: t('settings.pages.modules.artistry.title'), icon: 'i-solar:gallery-bold-duotone' },
   { id: 'proactivity', label: t('settings.pages.card.creation.proactivity', 'Proactivity'), icon: 'i-solar:heart-pulse-bold-duotone' },
@@ -345,6 +472,11 @@ function saveCard(card: Card): boolean {
             end: heartbeatsScheduleEnd.value,
           },
         },
+        acting: {
+          modelExpressionPrompt: selectedActingModelExpressionPrompt.value,
+          speechExpressionPrompt: selectedActingSpeechExpressionPrompt.value,
+          speechMannerismPrompt: selectedActingSpeechMannerismPrompt.value,
+        },
       } as AiriExtension,
     },
   }
@@ -397,6 +529,9 @@ function initializeCard(): Card {
   selectedArtistryModel.value = airiExt?.artistry?.model || ''
   selectedArtistryPromptPrefix.value = airiExt?.artistry?.promptPrefix || ''
   selectedArtistryWidgetInstruction.value = airiExt?.artistry?.widgetInstruction || DEFAULT_ARTISTRY_WIDGET_INSTRUCTION
+  selectedActingModelExpressionPrompt.value = airiExt?.acting?.modelExpressionPrompt || DEFAULT_ACTING_MODEL_PROMPT
+  selectedActingSpeechExpressionPrompt.value = airiExt?.acting?.speechExpressionPrompt || DEFAULT_ACTING_SPEECH_EXPRESSION_PROMPT
+  selectedActingSpeechMannerismPrompt.value = airiExt?.acting?.speechMannerismPrompt || DEFAULT_ACTING_SPEECH_MANNERISM_PROMPT
   try {
     selectedArtistryConfigStr.value = airiExt?.artistry?.options ? JSON.stringify(airiExt.artistry.options, null, 2) : '{\n  \n}'
   }
@@ -414,6 +549,8 @@ function initializeCard(): Card {
   heartbeatsContextWindowHistory.value = airiExt?.heartbeats?.contextOptions?.windowHistory ?? true
   heartbeatsContextSystemLoad.value = airiExt?.heartbeats?.contextOptions?.systemLoad ?? true
   heartbeatsContextUsageMetrics.value = airiExt?.heartbeats?.contextOptions?.usageMetrics ?? true
+
+  loadActingSpeechCapabilities(selectedSpeechProvider.value || speechProvider.value)
 
   // Return existing card data or defaults
   if (existingCard) {
@@ -551,6 +688,109 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
               <FieldInput v-model="cardPersonality" :label="t('settings.pages.card.personality')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.personality')" />
               <FieldInput v-model="cardScenario" :label="t('settings.pages.card.scenario')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.scenario')" />
               <FieldValues v-model="cardGreetings" :label="t('settings.pages.card.creation.greetings')" :description="t('settings.pages.card.creation.fields_info.greetings')" />
+            </div>
+          </div>
+          <!-- Acting -->
+          <div v-else-if="activeTab === 'acting'" class="tab-content ml-auto mr-auto w-95%">
+            <p class="mb-3 text-sm text-neutral-500">
+              Author helper-backed prompt instructions for model expressions, speech tags, and speech mannerisms. These fields are injected into AIRI's prompt builder, while the helpers below reflect the currently loaded model and selected speech provider.
+            </p>
+
+            <div class="input-list ml-auto mr-auto w-90% flex flex-col gap-8">
+              <div class="border border-neutral-200 rounded-xl p-4 dark:border-neutral-700">
+                <FieldInput
+                  v-model="selectedActingModelExpressionPrompt"
+                  label="ACT / Model Expressions"
+                  description="Teach AIRI how to emit ACT tokens for avatar expressions and motion cues."
+                  :single-line="false"
+                />
+                <div class="mt-3 flex flex-col gap-2">
+                  <div class="text-xs text-neutral-500">
+                    Available model expressions
+                    <span v-if="actingModelExpressionOptions.length">({{ actingModelExpressionOptions.length }})</span>
+                  </div>
+                  <div v-if="actingModelExpressionOptions.length" class="flex flex-wrap gap-2">
+                    <button
+                      v-for="name in actingModelExpressionOptions"
+                      :key="name"
+                      class="border border-neutral-200 rounded-full px-3 py-1 text-xs text-neutral-600 transition-colors dark:border-neutral-700 hover:border-primary-400 dark:text-neutral-300 hover:text-primary-500"
+                      @click="insertModelExpression(name)"
+                    >
+                      {{ name }}
+                    </button>
+                  </div>
+                  <div v-else class="text-xs text-neutral-400">
+                    No VRM expression list is currently available. Load a VRM model on stage to surface expression helpers here.
+                  </div>
+                </div>
+              </div>
+
+              <div class="border border-neutral-200 rounded-xl p-4 dark:border-neutral-700">
+                <FieldInput
+                  v-model="selectedActingSpeechExpressionPrompt"
+                  label="Speech Tags / Audio Expressions"
+                  description="Teach AIRI how to use provider-side vocal tags when the selected speech provider supports them."
+                  :single-line="false"
+                />
+                <div class="mt-3 flex flex-col gap-3">
+                  <div class="text-xs text-neutral-500">
+                    Speech tag helpers for provider
+                    <span class="text-neutral-700 font-medium dark:text-neutral-200">{{ selectedSpeechProvider || speechProvider || 'none' }}</span>
+                  </div>
+                  <div v-if="actingSpeechCapabilitiesLoading" class="text-xs text-neutral-400">
+                    Loading speech capability helpers...
+                  </div>
+                  <div v-else-if="actingGroupedExpressionTags.length" class="flex flex-col gap-3">
+                    <div v-for="group in actingGroupedExpressionTags" :key="group.category" class="flex flex-col gap-2">
+                      <div class="text-xs text-neutral-500 tracking-wide uppercase">
+                        {{ group.category }}
+                      </div>
+                      <div class="flex flex-wrap gap-2">
+                        <button
+                          v-for="tag in group.tags"
+                          :key="`${group.category}:${tag.tag}`"
+                          class="border border-neutral-200 rounded-full px-3 py-1 text-xs text-neutral-600 transition-colors dark:border-neutral-700 hover:border-primary-400 dark:text-neutral-300 hover:text-primary-500"
+                          :title="tag.description || tag.tag"
+                          @click="insertSpeechTag(tag.tag, tag.description)"
+                        >
+                          [{{ tag.tag }}]
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else class="text-xs text-neutral-400">
+                    The selected speech provider does not currently expose expression-tag helpers.
+                  </div>
+                </div>
+              </div>
+
+              <div class="border border-neutral-200 rounded-xl p-4 dark:border-neutral-700">
+                <FieldInput
+                  v-model="selectedActingSpeechMannerismPrompt"
+                  label="Speech Mannerisms"
+                  description="Teach AIRI when to use provider-supported speech mannerisms without exposing the raw transformation internals."
+                  :single-line="false"
+                />
+                <div class="mt-3 flex flex-col gap-3">
+                  <div class="text-xs text-neutral-500">
+                    Insert helper blurbs from the current speech provider
+                  </div>
+                  <div v-if="actingMannerismOptions.length" class="flex flex-wrap gap-2">
+                    <button
+                      v-for="item in actingMannerismOptions"
+                      :key="item.id"
+                      class="border border-neutral-200 rounded-full px-3 py-1 text-xs text-neutral-600 transition-colors dark:border-neutral-700 hover:border-primary-400 dark:text-neutral-300 hover:text-primary-500"
+                      :title="item.description || item.label"
+                      @click="insertSpeechMannerism(item.id)"
+                    >
+                      {{ item.label }}
+                    </button>
+                  </div>
+                  <div v-else class="text-xs text-neutral-400">
+                    No provider-side mannerism helpers are currently available for this speech provider.
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <!-- Modules -->

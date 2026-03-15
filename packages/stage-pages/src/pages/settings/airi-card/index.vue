@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ccv3 } from '@proj-airi/ccc'
+import type { Card, ccv3 } from '@proj-airi/ccc'
 
 import { Alert } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -45,6 +45,58 @@ interface CardItem {
   customizable?: boolean
 }
 
+type ImportedCardPayload = Card | ccv3.CharacterCardV3
+
+function getImportedCardName(card: ImportedCardPayload): string {
+  if ('data' in card)
+    return card.data?.name || 'Imported Card'
+
+  return card.name || 'Imported Card'
+}
+
+function withImportedCardName(card: ImportedCardPayload, name: string): ImportedCardPayload {
+  if ('data' in card) {
+    return {
+      ...card,
+      data: {
+        ...card.data,
+        name,
+      },
+    }
+  }
+
+  return {
+    ...card,
+    name,
+  }
+}
+
+function getUniqueImportedCardName(baseName: string): string {
+  const existingNames = new Set(
+    Array.from(cards.value.values()).map(card => (card.name || '').trim().toLowerCase()).filter(Boolean),
+  )
+
+  const trimmedBase = baseName.trim() || 'Imported Card'
+  if (!existingNames.has(trimmedBase.toLowerCase()))
+    return trimmedBase
+
+  let counter = 2
+  while (existingNames.has(`${trimmedBase} (${counter})`.toLowerCase()))
+    counter += 1
+
+  return `${trimmedBase} (${counter})`
+}
+
+function parseImportedCard(content: string): ImportedCardPayload {
+  const parsed = JSON.parse(content) as any
+
+  if (parsed?.format === 'airi-card' && parsed?.version === 1 && parsed?.card) {
+    return parsed.card as Card
+  }
+
+  return parsed as ImportedCardPayload
+}
+
 watch(inputFiles, async (newFiles) => {
   const file = newFiles[0]
   if (!file)
@@ -52,10 +104,12 @@ watch(inputFiles, async (newFiles) => {
 
   try {
     const content = await file.text()
-    const cardJSON = JSON.parse(content) as ccv3.CharacterCardV3
+    const importedCard = parseImportedCard(content)
+    const uniqueName = getUniqueImportedCardName(getImportedCardName(importedCard))
+    const renamedCard = withImportedCardName(importedCard, uniqueName)
 
     // Add card and select it
-    selectedCardId.value = addCard(cardJSON)
+    selectedCardId.value = addCard(renamedCard)
     isCardDialogOpen.value = true
   }
   catch (error) {
@@ -140,6 +194,35 @@ function handleEditCard(cardId: string) {
 function handleCardCreationDialog() {
   editingCardId.value = '' // Clear editing state for new card creation
   isCardCreationDialogOpen.value = true
+}
+
+function exportCard(cardId: string) {
+  const card = cardStore.getCard(cardId)
+  if (!card) {
+    console.error(`Card with id ${cardId} not found`)
+    return
+  }
+
+  const payload = {
+    format: 'airi-card',
+    version: 1,
+    card,
+  }
+
+  const blob = new Blob([`${JSON.stringify(payload, null, 2)}\n`], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  const safeName = (card.name || 'airi-card')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  anchor.href = url
+  anchor.download = `${safeName || 'airi-card'}.json`
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+  URL.revokeObjectURL(url)
 }
 
 // Card activation
@@ -273,6 +356,7 @@ function getDisplayModelId(id: string) {
           @activate="activateCard(item.id)"
           @delete="confirmDelete(item.id)"
           @edit="handleEditCard(item.id)"
+          @export="exportCard(item.id)"
         />
       </template>
 

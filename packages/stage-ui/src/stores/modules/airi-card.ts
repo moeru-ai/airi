@@ -33,6 +33,12 @@ export interface HeartbeatConfig {
   }
 }
 
+export interface ActingConfig {
+  modelExpressionPrompt: string
+  speechExpressionPrompt: string
+  speechMannerismPrompt: string
+}
+
 export interface AiriExtension {
   modules: {
     consciousness: {
@@ -77,6 +83,8 @@ export interface AiriExtension {
     widgetInstruction?: string
     options?: Record<string, any>
   }
+
+  acting?: ActingConfig
 
   agents: {
     [key: string]: { // example: minecraft
@@ -238,10 +246,38 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       widgetInstruction: DEFAULT_ARTISTRY_WIDGET_INSTRUCTION,
     }
 
+    const defaultActing: ActingConfig = {
+      modelExpressionPrompt: `## Instruction: ACT Tokens
+Start every reply with an ACT token to indicate your initial mood or action. If your synchronization or focus changes, insert a new ACT token. One token lasts until you use a new one.
+
+**ACT JSON format (all fields optional):**
+\`<|ACT:"emotion":{"name": expression_name, "intensity": 1},"motion":"action cue"|>\`
+
+## Available Expressions (Keys)
+Use these EXACT names in your ACT tokens:
+`,
+      speechExpressionPrompt: `## Instruction: Speech Tags
+When the active voice provider supports expressive speech tags, you may use them inline to shape delivery.
+
+Use square-bracket tags like \`[whisper]\` or \`[gasp]\` only when they improve the line.
+- Keep them sparse and readable.
+- Prefer one strong tag over many weak ones.
+- Match the tag to the emotional beat of the sentence.
+`,
+      speechMannerismPrompt: `## Instruction: Speech Mannerisms
+Use provider-supported speech mannerisms only when they help communicate tone or attitude.
+
+- Keep them occasional and intentional.
+- Use them to reinforce personality, not every line.
+- Favor clarity first, style second.
+`,
+    }
+
     // Return default if no extension exists
     if (!existingExtension) {
       return {
         modules: defaultModules,
+        acting: defaultActing,
         agents: {},
         heartbeats: defaultHeartbeats,
         artistry: defaultArtistry,
@@ -275,6 +311,11 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       artistry: {
         ...existingExtension.artistry,
         widgetInstruction: existingExtension.artistry?.widgetInstruction ?? defaultArtistry.widgetInstruction,
+      },
+      acting: {
+        modelExpressionPrompt: existingExtension.acting?.modelExpressionPrompt ?? defaultActing.modelExpressionPrompt,
+        speechExpressionPrompt: existingExtension.acting?.speechExpressionPrompt ?? defaultActing.speechExpressionPrompt,
+        speechMannerismPrompt: existingExtension.acting?.speechMannerismPrompt ?? defaultActing.speechMannerismPrompt,
       },
       agents: existingExtension.agents ?? {},
       heartbeats: {
@@ -418,6 +459,15 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         card.description,
         card.personality,
       ].filter(Boolean)
+
+      const acting = card.extensions?.airi?.acting
+      if (acting) {
+        components.push(
+          acting.modelExpressionPrompt,
+          acting.speechExpressionPrompt,
+          acting.speechMannerismPrompt,
+        )
+      }
 
       if (card.extensions?.airi?.artistry?.provider && card.extensions?.airi?.artistry?.widgetInstruction) {
         components.push(card.extensions.airi.artistry.widgetInstruction)

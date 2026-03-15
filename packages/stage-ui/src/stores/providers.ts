@@ -181,6 +181,7 @@ export interface ProviderMetadata {
   capabilities: {
     listModels?: (config: Record<string, unknown>) => Promise<ModelInfo[]>
     listVoices?: (config: Record<string, unknown>) => Promise<VoiceInfo[]>
+    getSpeechCapabilities?: (config: Record<string, unknown>) => Promise<SpeechCapabilitiesInfo | null>
     loadModel?: (config: Record<string, unknown>, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
   }
   validators: {
@@ -224,6 +225,26 @@ export interface VoiceInfo {
     code: string
     title: string
   }[]
+}
+
+export interface SpeechExpressionTagInfo {
+  category: string
+  tag: string
+  description?: string
+}
+
+export interface SpeechMannerismInfo {
+  id: string
+  label: string
+  description?: string
+}
+
+export interface SpeechCapabilitiesInfo {
+  supportsPresets?: boolean
+  supportsExpressionTags?: boolean
+  supportsMannerisms?: boolean
+  expressionTags?: SpeechExpressionTagInfo[]
+  mannerisms?: SpeechMannerismInfo[]
 }
 
 export interface ProviderRuntimeState {
@@ -792,6 +813,37 @@ export const useProvidersStore = defineStore('providers', () => {
             contextLength: 0,
             deprecated: false,
           }]
+        },
+        getSpeechCapabilities: async (config: Record<string, unknown>) => {
+          const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+          const rootBaseUrl = toProviderRootBaseUrl(config.baseUrl)
+          if (!rootBaseUrl)
+            return null
+
+          try {
+            const response = await fetch(`${rootBaseUrl}chatterbox/capabilities`, {
+              headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+            })
+            if (!response.ok)
+              return null
+
+            const data = await response.json()
+            const speech = data?.speech
+            if (!speech)
+              return null
+
+            return {
+              supportsPresets: speech.supportsPresets ?? true,
+              supportsExpressionTags: speech.supportsExpressionTags ?? false,
+              supportsMannerisms: speech.supportsMannerisms ?? false,
+              expressionTags: Array.isArray(speech.expressionTags) ? speech.expressionTags : [],
+              mannerisms: Array.isArray(speech.mannerisms) ? speech.mannerisms : [],
+            } satisfies SpeechCapabilitiesInfo
+          }
+          catch (error) {
+            logWarn('Failed to fetch Chatterbox speech capabilities:', error)
+            return null
+          }
         },
       },
       validators: {
@@ -3196,7 +3248,13 @@ export const useProvidersStore = defineStore('providers', () => {
   })
 
   function getProviderConfig(providerId: string) {
-    return providerCredentials.value[providerId]
+    const metadata = providerMetadata[providerId]
+    const defaults = metadata?.defaultOptions?.() || {}
+    const persisted = providerCredentials.value[providerId] || {}
+    return {
+      ...defaults,
+      ...persisted,
+    }
   }
 
   return {
