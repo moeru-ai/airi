@@ -333,10 +333,20 @@ export class Brain {
 
     // Perception Handler
     this.unsubscribeEventBus = this.deps.eventBus.subscribe<PerceptionSignal>('conscious:signal:*', (event: TracedEvent<PerceptionSignal>) => {
+      // AIRI context updates are injected into conversation history without triggering a full cognitive cycle
+      if (event.payload.type === 'airi_context') {
+        this.conversationHistory.push({
+          role: 'user',
+          content: `[AIRI_CONTEXT] ${event.payload.description}`,
+        })
+        this.deps.logger.log('INFO', `Brain: Injected AIRI context: ${event.payload.description.slice(0, 80)}`)
+        return
+      }
+
       this.enqueueEvent(bot, {
         type: 'perception',
         payload: event.payload,
-        source: { type: 'minecraft', id: event.payload.sourceId ?? 'perception' },
+        source: { type: event.payload.sourceId === 'airi' ? 'airi' : 'minecraft', id: event.payload.sourceId ?? 'perception' },
         timestamp: Date.now(),
       }).catch(err => this.deps.logger.withError(err).error('Brain: Failed to process perception event'))
     })
@@ -608,6 +618,9 @@ export class Brain {
       text: `Entered context: "${normalizedLabel}"`,
     })
 
+    // Notify AIRI that a new task context has started
+    this.deps.airiBridge.sendContextUpdate(`Started task: ${normalizedLabel}`, [normalizedLabel])
+
     return { ok: true, label: normalizedLabel, turnId: this.turnCounter }
   }
 
@@ -688,6 +701,12 @@ export class Brain {
         endTurnId,
       },
     })
+
+    // Notify AIRI about the completed task context
+    this.deps.airiBridge.sendContextUpdate(
+      `Completed task "${label}": ${summaryText}`,
+      [label],
+    )
 
     return {
       ok: true,
@@ -985,6 +1004,13 @@ export class Brain {
     return signal.type === 'chat_message'
   }
 
+  private isAiriCommandEvent(event: BotEvent): boolean {
+    if (event.type !== 'perception')
+      return false
+    const signal = event.payload as PerceptionSignal
+    return signal.type === 'airi_command'
+  }
+
   private getNoActionBudgetState(): NoActionBudgetState {
     return {
       remaining: this.noActionFollowupBudgetRemaining,
@@ -993,7 +1019,7 @@ export class Brain {
     }
   }
 
-  private resetNoActionFollowupBudget(reason: 'player_chat' | 'manual'): NoActionBudgetState {
+  private resetNoActionFollowupBudget(reason: 'player_chat' | 'manual' | 'airi_command'): NoActionBudgetState {
     this.noActionFollowupBudgetRemaining = NO_ACTION_FOLLOWUP_BUDGET_DEFAULT
     this.noActionFollowupLastSignature = null
     this.noActionFollowupStagnationCount = 0
@@ -1983,6 +2009,8 @@ export class Brain {
       return
     if (this.isPlayerChatEvent(event))
       this.resetNoActionFollowupBudget('player_chat')
+    if (this.isAiriCommandEvent(event))
+      this.resetNoActionFollowupBudget('airi_command')
 
     const turnId = ++this.turnCounter
     this.maybeActivateErrorBurstGuard(bot, event, turnId)
