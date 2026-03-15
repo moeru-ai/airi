@@ -1,0 +1,57 @@
+{
+  "name": "@proj-airi/computer-use-mcp",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AIRI-specific macOS desktop orchestration MCP service",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "bin": "./dist/bin/run.mjs",
+  "files": [
+    "README.md",
+    "dist",
+    "fixtures",
+    "package.json"
+  ],
+  "scripts": {
+    "dev": "tsx ./src/bin/run.ts",
+    "start": "tsx ./src/bin/run.ts",
+    "e2e:airi-chat": "tsx ./src/bin/e2e-airi-chat-observable.ts",
+    "e2e:airi-chat-terminal-self-acquire": "tsx ./src/bin/e2e-airi-chat-terminal-self-acquire.ts",
+    "demo:terminal-self-acquire": "tsx ./src/bin/e2e-airi-chat-terminal-self-acquire.ts",
+    "e2e:airi-discord": "tsx ./src/bin/e2e-airi-discord-observable.ts",
+    "e2e:airi-discord-agentic": "tsx ./src/bin/e2e-airi-discord-agentic.ts",
+    "e2e:developer-workflow": "tsx ./src/bin/e2e-developer-workflow.ts",
+    "e2e:browser-reroute": "tsx ./src/bin/e2e-browser-reroute.ts",
+    "e2e:terminal-exec": "tsx ./src/bin/e2e-terminal-exec.ts",
+    "e2e:terminal-pty": "tsx ./src/bin/e2e-terminal-pty.ts",
+    "e2e:terminal-self-acquire": "tsx ./src/bin/e2e-terminal-self-acquire.ts",
+    "bootstrap:remote": "tsx ./src/bin/bootstrap-remote.ts",
+    "smoke:remote": "tsx ./src/bin/smoke-remote.ts",
+    "smoke:stdio": "tsx ./src/bin/smoke-stdio.ts",
+    "smoke:macos": "tsx ./src/bin/smoke-macos.ts",
+    "smoke:workflow": "tsx ./src/bin/smoke-workflow.ts",
+    "mcp:inspector": "pnpx @modelcontextprotocol/inspector pnpm -F @proj-airi/computer-use-mcp start",
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config ./vitest.config.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "catalog:",
+    "node-pty": "catalog:",
+    "ws": "^8.19.0",
+    "zod": "^4.3.6"
+  }
+}
