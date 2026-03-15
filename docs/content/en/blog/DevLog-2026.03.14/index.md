@@ -228,7 +228,7 @@ At that point I went back to tracing and started tearing apart the render path m
 
 This took a while to isolate.
 
-One important clue was that in development, `@tresjs/core` registers an HMR path that reacts to `vite:afterUpdate`. That does not only happen on `.vue` or `.ts` changes. UnoCSS regenerating `__uno.css` can also trigger a subtree remount. That explained why even the first click on certain buttons could destabilize the stage in dev: new classes could produce a CSS update, which in turn remounted parts of the Three scene.
+One important clue was that in development, `@tresjs/core` registers an HMR path that reacts to `vite:afterUpdate`. This isn't limited to `.vue` or `.ts` changes. UnoCSS regenerating `__uno.css` can also trigger a subtree remount. That explained why even the first click on certain buttons could destabilize the stage in dev: new classes could produce a CSS update, which in turn remounted parts of the Three scene.
 
 But that was not yet the real deadlock.
 
