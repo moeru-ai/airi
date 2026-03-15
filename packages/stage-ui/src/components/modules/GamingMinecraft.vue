@@ -5,6 +5,7 @@ import { computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useMinecraftStore } from '../../stores/modules/gaming-minecraft'
+import { formatRelativeTime } from '../../utils/relative-time'
 
 const minecraftStore = useMinecraftStore()
 const { t } = useI18n()
@@ -17,6 +18,7 @@ const {
   serviceName,
   botState,
   lastStatusAt,
+  heartbeatAgeMs,
   lastError,
   applying,
   serviceConnected,
@@ -70,7 +72,7 @@ const lastUpdated = computed(() => {
   if (!lastStatusAt.value)
     return ''
 
-  return new Date(lastStatusAt.value).toLocaleString()
+  return formatRelativeTime(lastStatusAt.value, lastStatusAt.value + heartbeatAgeMs.value)
 })
 
 onMounted(() => {

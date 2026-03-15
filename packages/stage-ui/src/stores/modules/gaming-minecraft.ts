@@ -89,6 +89,12 @@ export const useMinecraftStore = defineStore('minecraft', () => {
 
     return now.value - lastStatusAt.value <= HEARTBEAT_TIMEOUT_MS
   })
+  const heartbeatAgeMs = computed(() => {
+    if (!lastStatusAt.value)
+      return 0
+
+    return Math.max(0, now.value - lastStatusAt.value)
+  })
 
   const canEdit = computed(() => serviceConnected.value && !!serviceName.value)
 
@@ -213,6 +219,7 @@ export const useMinecraftStore = defineStore('minecraft', () => {
     applying,
     configured,
     serviceConnected,
+    heartbeatAgeMs,
     canEdit,
     dirty,
     appliedConfig,
