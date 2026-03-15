@@ -220,10 +220,37 @@ But those are later-phase lifecycle features, not current scope.
 
 Current PNG export uses the card's selected display model cached `previewImage`.
 
-That is the correct MVP because:
+That is still the correct MVP because:
 - the selector/model library already generates good previews
 - the image is already cached
-- no extra render path is needed
+- no extra model render path is needed
+
+### Current Framed Composition
+
+The current shareable PNG export composes three layers:
+
+1. cached model `previewImage`
+2. rectangular clip to the portrait window
+3. exported frame overlay
+
+Current frame asset:
+- `packages/stage-pages/src/pages/settings/airi-card/card-export-frame.png`
+
+Current frame canvas:
+- `925 x 1436`
+
+Current inner portrait box:
+- `x = 65`
+- `y = 79`
+- `width = 831`
+- `height = 1295`
+
+Current preview placement rule:
+- fit preview to the inner-box width
+- align to the top edge of the inner box
+- crop any bottom overflow
+
+This keeps the first framed export deterministic and simple.
 
 ### Important Note
 

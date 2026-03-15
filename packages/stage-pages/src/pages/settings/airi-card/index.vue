@@ -11,6 +11,7 @@ import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import cardExportFrameUrl from './card-export-frame.png?url'
 import CardCreate from './components/CardCreate.vue'
 import CardCreationDialog from './components/CardCreationDialog.vue'
 import CardDetailDialog from './components/CardDetailDialog.vue'
@@ -49,6 +50,14 @@ interface CardItem {
 }
 
 type ImportedCardPayload = Card | ccv3.CharacterCardV3
+const CARD_EXPORT_FRAME = {
+  width: 925,
+  height: 1436,
+  innerX: 65,
+  innerY: 79,
+  innerWidth: 831,
+  innerHeight: 1295,
+} as const
 
 function base64ToUtf8(input: string) {
   return decodeURIComponent(escape(atob(input)))
@@ -401,6 +410,66 @@ function injectPngTextChunk(pngBytes: Uint8Array, keyword: string, text: string)
   ])
 }
 
+function loadImageElement(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error(`Failed to load image: ${src}`))
+    image.src = src
+  })
+}
+
+async function composeCardExportPng(previewImage: string) {
+  const [preview, frame] = await Promise.all([
+    loadImageElement(previewImage),
+    loadImageElement(cardExportFrameUrl),
+  ])
+
+  const canvas = document.createElement('canvas')
+  canvas.width = CARD_EXPORT_FRAME.width
+  canvas.height = CARD_EXPORT_FRAME.height
+
+  const context = canvas.getContext('2d')
+  if (!context)
+    throw new Error('Failed to create export canvas')
+
+  // Fit the preview to the portrait window width, anchor to the top, and crop any bottom overflow.
+  const scale = CARD_EXPORT_FRAME.innerWidth / preview.naturalWidth
+  const drawWidth = CARD_EXPORT_FRAME.innerWidth
+  const drawHeight = preview.naturalHeight * scale
+
+  context.save()
+  context.beginPath()
+  context.rect(
+    CARD_EXPORT_FRAME.innerX,
+    CARD_EXPORT_FRAME.innerY,
+    CARD_EXPORT_FRAME.innerWidth,
+    CARD_EXPORT_FRAME.innerHeight,
+  )
+  context.clip()
+  context.drawImage(
+    preview,
+    CARD_EXPORT_FRAME.innerX,
+    CARD_EXPORT_FRAME.innerY,
+    drawWidth,
+    drawHeight,
+  )
+  context.restore()
+
+  context.drawImage(frame, 0, 0, CARD_EXPORT_FRAME.width, CARD_EXPORT_FRAME.height)
+
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((value) => {
+      if (value)
+        resolve(value)
+      else
+        reject(new Error('Failed to encode composed PNG'))
+    }, 'image/png')
+  })
+
+  return new Uint8Array(await blob.arrayBuffer())
+}
+
 async function exportCardPng(cardId: string) {
   const card = cardStore.getCard(cardId)
   if (!card) {
@@ -418,9 +487,7 @@ async function exportCardPng(cardId: string) {
     return
   }
 
-  const response = await fetch(previewImage)
-  const pngArrayBuffer = await response.arrayBuffer()
-  const pngBytes = new Uint8Array(pngArrayBuffer)
+  const pngBytes = await composeCardExportPng(previewImage)
   const metadata = utf8ToBase64(JSON.stringify(buildCharaCardV2(card)))
   const encodedPng = injectPngTextChunk(pngBytes, 'chara', metadata)
 
