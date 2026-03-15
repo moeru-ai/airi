@@ -3,6 +3,7 @@ import type { Lifecycle } from 'injeca'
 
 import { X509Certificate } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { Socket } from 'node:net'
 import { join } from 'node:path'
 import { env, platform } from 'node:process'
 
@@ -41,6 +42,10 @@ const channelServerConfigStore = createConfig('server-channel', 'config.json', c
   },
   autoHeal: true,
 })
+
+function getServerChannelPort() {
+  return env.SERVER_CHANNEL_PORT ? Number.parseInt(env.SERVER_CHANNEL_PORT) : 6121
+}
 
 async function getChannelServerConfig(): Promise<ServerOptions> {
   return channelServerConfigStore.get() || { tlsConfig: null }
@@ -203,12 +208,70 @@ export async function setupServerChannel(params: { lifecycle: Lifecycle }): Prom
 
   const serverChannel = createServer({
     ...storedConfig,
-    port: env.PORT ? Number.parseInt(env.PORT) : 6121,
+    port: getServerChannelPort(),
     hostname: env.SERVER_RUNTIME_HOSTNAME || '0.0.0.0',
     tlsConfig: storedConfig.tlsConfig ? await getOrCreateCertificate() : null,
   })
 
   const mutex = new Mutex()
+  let startLoopTask: Promise<void> | null = null
+  let healthCheckTimer: NodeJS.Timeout | null = null
+
+  function getRuntimePort() {
+    return getServerChannelPort()
+  }
+
+  function isPortListening(port: number) {
+    return new Promise<boolean>((resolve) => {
+      const socket = new Socket()
+      let settled = false
+
+      const settle = (value: boolean) => {
+        if (settled)
+          return
+        settled = true
+        socket.destroy()
+        resolve(value)
+      }
+
+      socket.once('connect', () => settle(true))
+      socket.once('error', () => settle(false))
+      socket.setTimeout(1500, () => settle(false))
+      socket.connect(port, '127.0.0.1')
+    })
+  }
+
+  async function ensureServerRunning(reason: string) {
+    if (startLoopTask)
+      return startLoopTask
+
+    const log = useLogg('main/server-runtime').useGlobalConfig()
+    startLoopTask = (async () => {
+      let attempt = 0
+
+      while (true) {
+        attempt += 1
+        try {
+          await serverChannel.start()
+          if (await isPortListening(getRuntimePort())) {
+            log.withFields({ reason, attempt, port: getRuntimePort() }).log('WebSocket server confirmed ready')
+            return
+          }
+
+          throw new Error(`WebSocket server was not listening on port ${getRuntimePort()} after start`)
+        }
+        catch (error) {
+          const delayMs = Math.min(1000 * 2 ** (attempt - 1), 10000)
+          log.withFields({ reason, attempt, delayMs, port: getRuntimePort() }).withError(error as Error).error('WebSocket server start failed, retrying')
+          await new Promise(resolve => setTimeout(resolve, delayMs))
+        }
+      }
+    })().finally(() => {
+      startLoopTask = null
+    })
+
+    return startLoopTask
+  }
 
   params.lifecycle.appHooks.onStart(async () => {
     const release = await mutex.acquire()
@@ -216,7 +279,13 @@ export async function setupServerChannel(params: { lifecycle: Lifecycle }): Prom
     const log = useLogg('main/server-runtime').useGlobalConfig()
 
     try {
-      await serverChannel.start()
+      await ensureServerRunning('app startup')
+      healthCheckTimer = setInterval(async () => {
+        if (!(await isPortListening(getRuntimePort()))) {
+          log.withFields({ port: getRuntimePort() }).warn('WebSocket server is down while app is running, restarting')
+          await ensureServerRunning('health check')
+        }
+      }, 5000)
       log.log('WebSocket server started')
     }
     catch (error) {
@@ -235,6 +304,10 @@ export async function setupServerChannel(params: { lifecycle: Lifecycle }): Prom
     }
 
     try {
+      if (healthCheckTimer) {
+        clearInterval(healthCheckTimer)
+        healthCheckTimer = null
+      }
       await serverChannel.stop()
       log.log('WebSocket server closed')
     }
@@ -313,7 +386,7 @@ export async function createServerChannelService(params: { serverChannel: Server
       if (changed) {
         await params.serverChannel.stop()
         await params.serverChannel.updateConfig({
-          port: env.PORT ? Number.parseInt(env.PORT) : 6121,
+          port: getServerChannelPort(),
           hostname: env.SERVER_RUNTIME_HOSTNAME || '0.0.0.0',
           tlsConfig: next.tlsConfig ? await getOrCreateCertificate() : null,
         })

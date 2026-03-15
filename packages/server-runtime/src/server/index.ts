@@ -1,6 +1,6 @@
 import type { AppOptions } from '..'
 
-import { isIP } from 'node:net'
+import { isIP, Socket } from 'node:net'
 import { networkInterfaces } from 'node:os'
 
 import { useLogg } from '@guiiai/logg'
@@ -76,6 +76,7 @@ export function createServer(opts?: ServerOptions): Server {
   const { appLogFormat, appLogLevel } = normalizeLoggerConfig(options)
   const log = useLogg('@proj-airi/server-runtime/server').withLogLevelString(appLogLevel).withFormat(appLogFormat)
   let serverInstance: ServerInstance | null = null
+  let startTask: Promise<void> | null = null
 
   log.withFields({ hasTlsConfig: !!options?.tlsConfig }).log('creating server channel')
 
@@ -110,10 +111,12 @@ export function createServer(opts?: ServerOptions): Server {
     if (serverInstance) {
       return
     }
+    if (startTask) {
+      return startTask
+    }
 
-    const secureEnabled = options?.tlsConfig != null
-
-    try {
+    startTask = (async () => {
+      const secureEnabled = options?.tlsConfig != null
       const h3App = setupApp()
 
       const port = options.port
@@ -147,15 +150,12 @@ export function createServer(opts?: ServerOptions): Server {
       const servePromise = instance.serve()
       if (servePromise instanceof Promise) {
         servePromise.catch((error) => {
-          const nodejsError = error as NodeJS.ErrnoException
-          if ('code' in nodejsError && nodejsError.code === 'EADDRINUSE') {
-            log.withError(error).warn('Port already in use, assuming server is already running')
-            return
-          }
-
+          serverInstance = null
           log.withError(error).error('Error serving WebSocket server')
         })
       }
+
+      await waitForPortReady(port!, hostname)
 
       const protocol = secureEnabled ? 'wss' : 'ws'
       if (hostname === '0.0.0.0') {
@@ -166,10 +166,54 @@ export function createServer(opts?: ServerOptions): Server {
       else {
         log.log(`@proj-airi/server-runtime started on ${protocol}://${hostname}:${port}`)
       }
-    }
-    catch (error) {
+    })().catch((error) => {
+      serverInstance = null
       log.withError(error).error('failed to start WebSocket server')
-    }
+      throw error
+    }).finally(() => {
+      startTask = null
+    })
+
+    return startTask
+  }
+
+  function waitForPortReady(port: number, hostname?: string) {
+    const targets = hostname && hostname !== '0.0.0.0'
+      ? [hostname]
+      : ['127.0.0.1', '::1']
+
+    return new Promise<void>((resolve, reject) => {
+      let settled = false
+      let pending = targets.length
+
+      const settle = (callback: () => void) => {
+        if (settled)
+          return
+        settled = true
+        callback()
+      }
+
+      for (const target of targets) {
+        const socket = new Socket()
+        socket.once('connect', () => {
+          socket.destroy()
+          settle(resolve)
+        })
+        socket.once('error', (error) => {
+          socket.destroy()
+          pending -= 1
+          if (pending === 0)
+            settle(() => reject(error))
+        })
+        socket.setTimeout(1500, () => {
+          socket.destroy()
+          pending -= 1
+          if (pending === 0)
+            settle(() => reject(new Error(`Timed out waiting for ${target}:${port}`)))
+        })
+        socket.connect(port, target)
+      }
+    })
   }
 
   async function stop() {
