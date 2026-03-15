@@ -16,7 +16,6 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useContextObservabilityStore } from '@proj-airi/stage-ui/stores/devtools/context-observability'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { getEventSourceKey } from '@proj-airi/stage-ui/utils'
-import { Callout } from '@proj-airi/ui'
 import { useBroadcastChannel } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { storeToRefs } from 'pinia'
@@ -574,11 +573,6 @@ onUnmounted(() => {
 
 <template>
   <div :class="['flex', 'flex-col', 'gap-6']">
-    <Callout label="Context Flow">
-      Inspect retained context state, lifecycle transitions, prompt injection, and raw events in one place. This is
-      meant to answer what the client has received, what it kept, and what will be injected into the next chat turn.
-    </Callout>
-
     <div :class="['grid', 'gap-6', 'lg:grid-cols-[360px_1fr]']">
       <ContextFlowFilters
         v-model:direction-filter="directionFilter"
