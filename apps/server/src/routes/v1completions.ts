@@ -3,6 +3,7 @@
 import type { Context } from 'hono'
 
 import type { LlmMetrics } from '../libs/otel'
+import type { UsageInfo } from '../services/billing'
 import type { ConfigKVService } from '../services/config-kv'
 import type { FluxService } from '../services/flux'
 import type { RequestLogService } from '../services/request-log'
@@ -14,6 +15,7 @@ import { Hono } from 'hono'
 
 import { authGuard } from '../middlewares/auth'
 import { configGuard } from '../middlewares/config-guard'
+import { calculateFluxFromUsage, extractUsageFromBody } from '../services/billing'
 import { createPaymentRequiredError } from '../utils/error'
 
 const tracer = trace.getTracer('v1-completions')
@@ -36,30 +38,6 @@ function buildSafeResponseHeaders(response: Response): Headers {
 
 function normalizeBaseUrl(gatewayBaseUrl: string): string {
   return gatewayBaseUrl.endsWith('/') ? gatewayBaseUrl : `${gatewayBaseUrl}/`
-}
-
-interface UsageInfo {
-  promptTokens?: number
-  completionTokens?: number
-}
-
-function extractUsageFromBody(body: any): UsageInfo {
-  const usage = body?.usage
-  if (!usage)
-    return {}
-  return {
-    promptTokens: usage.prompt_tokens ?? undefined,
-    completionTokens: usage.completion_tokens ?? undefined,
-  }
-}
-
-function calculateFluxFromUsage(usage: UsageInfo, fluxPer1kTokens: number, fallbackRate: number): number {
-  const { promptTokens, completionTokens } = usage
-  if (promptTokens != null && completionTokens != null) {
-    const totalTokens = promptTokens + completionTokens
-    return Math.max(1, Math.ceil(totalTokens / 1000 * fluxPer1kTokens))
-  }
-  return fallbackRate
 }
 
 export function createV1CompletionsRoutes(fluxService: FluxService, configKV: ConfigKVService, requestLogService: RequestLogService, llm: LlmMetrics | null) {
