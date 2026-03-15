@@ -11,6 +11,7 @@ import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw } from 'vue'
 
 import { useAnalytics } from '../composables'
+import { createLlmJsonInterceptor } from '../composables/llm-json-interceptor'
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
 import { createDatetimeContext } from './chat/context-providers'
@@ -401,7 +402,6 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     options: SendOptions,
     targetSessionId?: string,
   ) {
-    console.log('[Chat Orchestrator] Ingesting message:', { text: sendingMessage.slice(0, 50), sessionId: targetSessionId || activeSessionId.value })
     if (sending.value)
       return
 
@@ -481,9 +481,6 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     onAssistantResponseEnd: hooks.onAssistantResponseEnd,
     onAssistantMessage: hooks.onAssistantMessage,
     onChatTurnComplete: hooks.onChatTurnComplete,
-<<<<<<< HEAD
-=======
     onWidget: hooks.onWidget,
->>>>>>> 25c2c14d (fix(stage-ui): repair chat startup hooks and add hang tracing)
   }
 })
