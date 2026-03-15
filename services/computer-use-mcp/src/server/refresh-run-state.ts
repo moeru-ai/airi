@@ -22,6 +22,7 @@ export async function refreshRuntimeRunState(runtime: ComputerUseServerRuntime) 
     cdp: cdpAvailability,
   })
   runtime.stateManager.updateBrowserSurfaceAvailability(browserSurfaceAvailability)
+  runtime.stateManager.refreshCodingRoundContext()
 
   const lastScreenshot = runtime.session.getLastScreenshot()
   if (lastScreenshot) {

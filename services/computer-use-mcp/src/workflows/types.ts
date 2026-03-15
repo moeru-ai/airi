@@ -33,6 +33,16 @@ export type WorkflowStepKind
     | 'coding_apply_patch'
     | 'coding_compress_context'
     | 'coding_report_status'
+    | 'coding_search_text'
+    | 'coding_search_symbol'
+    | 'coding_find_references'
+    | 'coding_analyze_impact'
+    | 'coding_validate_hypothesis'
+    | 'coding_select_target'
+    | 'coding_plan_changes'
+    | 'coding_review_changes'
+    | 'coding_diagnose_changes'
+    | 'coding_capture_validation_baseline'
     // Coding Execution Core v1 step family
 
 // ---------------------------------------------------------------------------
@@ -126,6 +136,16 @@ export function resolveStepAction(step: WorkflowStepTemplate): ActionInvocation 
     case 'coding_apply_patch':
     case 'coding_compress_context':
     case 'coding_report_status':
+    case 'coding_search_text':
+    case 'coding_search_symbol':
+    case 'coding_find_references':
+    case 'coding_analyze_impact':
+    case 'coding_validate_hypothesis':
+    case 'coding_select_target':
+    case 'coding_plan_changes':
+    case 'coding_review_changes':
+    case 'coding_diagnose_changes':
+    case 'coding_capture_validation_baseline':
       return { kind: step.kind, input: step.params as any }
     case 'ensure_app':
       return { kind: 'focus_app', input: { app: step.params.app as string } }
@@ -168,11 +188,14 @@ export function resolveStepAction(step: WorkflowStepTemplate): ActionInvocation 
       return { kind: 'wait', input: { durationMs: step.params.durationMs as number, captureAfter: true } }
     case 'evaluate':
     case 'summarize':
+      return undefined
     // PTY step family — handled by the engine's PTY execution path, not resolveStepAction
     case 'pty_send_input':
     case 'pty_read_screen':
     case 'pty_wait_for_output':
     case 'pty_destroy_session':
+      return undefined
+    default:
       return undefined
   }
 }

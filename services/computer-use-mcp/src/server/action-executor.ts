@@ -52,7 +52,28 @@ export interface ExecuteActionOptions {
 export type ExecuteAction = (action: ActionInvocation, toolName: string, options?: ExecuteActionOptions) => Promise<CallToolResult>
 
 function isMutatingAction(action: ActionInvocation) {
-  return !['screenshot', 'observe_windows', 'wait', 'terminal_reset', 'clipboard_read_text', 'secret_read_env_value'].includes(action.kind)
+  return ![
+    'screenshot',
+    'observe_windows',
+    'wait',
+    'terminal_reset',
+    'clipboard_read_text',
+    'secret_read_env_value',
+    'coding_review_workspace',
+    'coding_read_file',
+    'coding_compress_context',
+    'coding_report_status',
+    'coding_search_text',
+    'coding_search_symbol',
+    'coding_find_references',
+    'coding_analyze_impact',
+    'coding_validate_hypothesis',
+    'coding_select_target',
+    'coding_plan_changes',
+    'coding_review_changes',
+    'coding_diagnose_changes',
+    'coding_capture_validation_baseline',
+  ].includes(action.kind)
 }
 
 async function captureOptionalScreenshot(params: {
@@ -300,6 +321,113 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           backendResult = result
           break
         }
+        case 'coding_search_text': {
+          const primitives = new CodingPrimitives(runtime)
+          const result = await primitives.searchText(
+            normalizedAction.input.query,
+            normalizedAction.input.targetPath,
+            normalizedAction.input.glob,
+            normalizedAction.input.limit,
+          )
+          backendResult = result as Record<string, unknown>
+          break
+        }
+        case 'coding_search_symbol': {
+          const primitives = new CodingPrimitives(runtime)
+          const result = await primitives.searchSymbol(
+            normalizedAction.input.symbolName,
+            normalizedAction.input.targetPath,
+            normalizedAction.input.glob,
+            normalizedAction.input.limit,
+          )
+          backendResult = result as Record<string, unknown>
+          break
+        }
+        case 'coding_find_references': {
+          const primitives = new CodingPrimitives(runtime)
+          const result = await primitives.findReferences(
+            normalizedAction.input.filePath,
+            normalizedAction.input.targetLine,
+            normalizedAction.input.targetColumn,
+            normalizedAction.input.limit,
+          )
+          backendResult = result as Record<string, unknown>
+          break
+        }
+        case 'coding_analyze_impact': {
+          const primitives = new CodingPrimitives(runtime)
+          const result = await primitives.analyzeImpact({
+            targetFile: normalizedAction.input.targetFile,
+            targetPath: normalizedAction.input.targetPath,
+            targetSymbol: normalizedAction.input.targetSymbol,
+            searchQuery: normalizedAction.input.searchQuery,
+            maxDepth: normalizedAction.input.maxDepth,
+          })
+          backendResult = result as unknown as Record<string, unknown>
+          break
+        }
+        case 'coding_validate_hypothesis': {
+          const primitives = new CodingPrimitives(runtime)
+          const result = await primitives.validateHypothesis({
+            targetFile: normalizedAction.input.targetFile,
+            targetPath: normalizedAction.input.targetPath,
+            targetSymbol: normalizedAction.input.targetSymbol,
+            searchQuery: normalizedAction.input.searchQuery,
+            changeIntent: normalizedAction.input.changeIntent,
+          })
+          backendResult = result as unknown as Record<string, unknown>
+          break
+        }
+        case 'coding_select_target': {
+          const primitives = new CodingPrimitives(runtime)
+          const result = await primitives.selectTarget({
+            targetFile: normalizedAction.input.targetFile,
+            targetPath: normalizedAction.input.targetPath,
+            targetSymbol: normalizedAction.input.targetSymbol,
+            searchQuery: normalizedAction.input.searchQuery,
+            changeIntent: normalizedAction.input.changeIntent,
+          })
+          backendResult = result as unknown as Record<string, unknown>
+          break
+        }
+        case 'coding_plan_changes': {
+          const primitives = new CodingPrimitives(runtime)
+          const result = await primitives.planChanges({
+            intent: normalizedAction.input.intent,
+            allowMultiFile: normalizedAction.input.allowMultiFile,
+            maxPlannedFiles: normalizedAction.input.maxPlannedFiles,
+            changeIntent: normalizedAction.input.changeIntent,
+            sessionAware: normalizedAction.input.sessionAware,
+          })
+          backendResult = result as unknown as Record<string, unknown>
+          break
+        }
+        case 'coding_review_changes': {
+          const primitives = new CodingPrimitives(runtime)
+          const result = await primitives.reviewChanges({
+            currentFilePath: normalizedAction.input.currentFilePath,
+          })
+          backendResult = result as unknown as Record<string, unknown>
+          break
+        }
+        case 'coding_diagnose_changes': {
+          const primitives = new CodingPrimitives(runtime)
+          const result = await primitives.diagnoseChanges({
+            currentFilePath: normalizedAction.input.currentFilePath,
+            validationOutput: normalizedAction.input.validationOutput,
+          })
+          backendResult = result as unknown as Record<string, unknown>
+          break
+        }
+        case 'coding_capture_validation_baseline': {
+          const primitives = new CodingPrimitives(runtime)
+          const result = await primitives.captureValidationBaseline({
+            workspacePath: normalizedAction.input.workspacePath,
+            createTemporaryWorktree: normalizedAction.input.createTemporaryWorktree,
+          })
+          backendResult = result as unknown as Record<string, unknown>
+          break
+        }
 
         case 'screenshot': {
           const screenshot = await runtime.executor.takeScreenshot(normalizedAction.input)
@@ -443,11 +571,25 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           break
         }
         case 'terminal_exec': {
-          const result = await runtime.terminalRunner.execute(normalizedAction.input)
+          const primitives = new CodingPrimitives(runtime)
+          let resolvedScopedValidation: Record<string, unknown> | undefined
+          let terminalExecInput = normalizedAction.input
+
+          if (normalizedAction.input.command.trim().toLowerCase() === 'auto') {
+            const scopedValidation = await primitives.resolveScopedValidationCommand()
+            terminalExecInput = {
+              ...normalizedAction.input,
+              command: scopedValidation.command,
+            }
+            resolvedScopedValidation = scopedValidation as unknown as Record<string, unknown>
+          }
+
+          const result = await runtime.terminalRunner.execute(terminalExecInput)
           runtime.session.setTerminalState(runtime.terminalRunner.getState())
           runtime.stateManager.updateTerminalResult(result)
           backendResult = {
             ...result,
+            ...(resolvedScopedValidation ? { resolvedScopedValidation } : {}),
             terminalState: toTerminalStateContent(runtime.session.getTerminalState()),
           }
           break

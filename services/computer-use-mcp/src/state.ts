@@ -126,23 +126,637 @@ export interface CodingWorkspaceReview {
   recentReads: Array<{ path: string, range?: string }>
   recentEdits: Array<{ path: string, summary?: string }>
   recentCommandResults: string[]
+  recentSearches: string[]
   pendingIssues: string[]
 }
 
-export interface CodingWorkspaceReview {
-  workspacePath: string
-  gitSummary: string
-  terminalSurface: 'exec' | 'pty' | 'unknown'
-  terminalStateSummary: {
-    effectiveCwd?: string
-    lastExitCode?: number
-    lastCommandSummary?: string
+export type CodingTargetSourceKind = 'explicit' | 'symbol' | 'text' | 'references'
+
+export interface CodingTargetCandidate {
+  filePath: string
+  sourceKind: CodingTargetSourceKind
+  sourceLabel: string
+  score: number
+  matchCount: number
+  inScopedPath: boolean
+  recentlyEdited: boolean
+  recentlyRead: boolean
+  reasons: string[]
+}
+
+export interface CodingTargetCompetitionItem {
+  filePath: string
+  score: number
+  targetKind: CodingTargetKind
+  evidenceChain: string[]
+}
+
+export interface CodingTargetCompetition {
+  winner?: CodingTargetCompetitionItem
+  runnerUp?: CodingTargetCompetitionItem
+  whyNotRunnerUp?: string
+}
+
+export interface CodingTargetSelection {
+  status: 'selected' | 'ambiguous' | 'no_match'
+  selectedFile?: string
+  targetKind?: CodingTargetKind
+  architectureLayer?: CodingArchitectureLayer
+  intentDecomposition?: CodingIntentDecomposition
+  candidates: CodingTargetCandidate[]
+  reason: string
+  recommendedNextAction: string
+  missingInformation?: string[]
+  changeIntent?: CodingChangeIntent
+  selectedHypothesisId?: string
+  hypotheses?: CodingTargetHypothesis[]
+  ambiguityReason?: string
+  evidenceChain?: string[]
+  competition?: CodingTargetCompetition
+}
+
+export type CodingChangeIntent
+  = | 'behavior_fix'
+    | 'refactor'
+    | 'api_change'
+    | 'config_change'
+    | 'test_fix'
+
+export type CodingArchitectureLayer
+  = | 'ui'
+    | 'store'
+    | 'protocol'
+    | 'validation'
+    | 'test'
+    | 'unknown'
+
+export type CodingIntentDecomposition
+  = | 'bugfix'
+    | 'refactor'
+    | 'api_change'
+    | 'wiring'
+    | 'test_only'
+
+export type CodingTargetKind = 'definition' | 'callsite' | 'config' | 'test' | 'wiring'
+
+export interface CodingImpactGraphNode {
+  id: string
+  filePath: string
+  kind: 'symbol_owner' | 'reference' | 'import_neighbor' | 'test_candidate' | 'companion_file'
+  symbolName?: string
+  distance: 0 | 1
+}
+
+export interface CodingImpactGraphEdge {
+  from: string
+  to: string
+  relation: 'owns_symbol' | 'references' | 'imports' | 'tests' | 'companions'
+}
+
+export interface CodingImpactGraphSnapshot {
+  maxDepth: 1
+  truncated: boolean
+  nodes: CodingImpactGraphNode[]
+  edges: CodingImpactGraphEdge[]
+}
+
+export interface CodingImpactAnalysis {
+  status: 'ok' | 'unsupported' | 'no_match'
+  targetFile?: string
+  targetSymbol?: string
+  searchQuery?: string
+  languageSupport: 'js_ts' | 'unsupported'
+  explanation: string
+  targetCandidates: CodingTargetCandidate[]
+  symbolOwner?: {
+    symbolName: string
+    definitionFile: string
   }
-  recentReads: Array<{ path: string, range?: string }>
-  recentEdits: Array<{ path: string, summary?: string }>
-  recentCommandResults: string[]
-  recentSearches: string[]
-  pendingIssues: string[]
+  importExportNeighbors: string[]
+  directReferences: Array<{
+    file: string
+    line: number
+    column: number
+    isWriteAccess?: boolean
+  }>
+  likelyImpactedTests: string[]
+  likelyCompanionFiles: string[]
+  graphSnapshot: CodingImpactGraphSnapshot
+}
+
+export interface CodingTargetHypothesis {
+  id: string
+  filePath: string
+  targetKind: CodingTargetKind
+  changeIntent: CodingChangeIntent
+  score: number
+  confidence: number
+  evidence: string[]
+}
+
+export interface CodingInvestigation {
+  at: string
+  trigger:
+    | 'target_ambiguity'
+    | 'patch_verification_mismatch'
+    | 'validation_failed'
+    | 'validation_timed_out'
+    | 'unexpected_impacted_file_discovered'
+  summary: string
+  evidence: string[]
+  recommendedAction: string
+}
+
+export type CodingPlanSessionStatus = 'draft' | 'active' | 'investigating' | 'amended' | 'completed' | 'aborted'
+
+export interface CodingPlanSessionStep {
+  filePath: string
+  intent: CodingChangeIntent
+  source: 'target_selection' | 'search' | 'explicit'
+  status:
+    | 'blocked_by_dependency'
+    | 'awaiting_checkpoint'
+    | 'ready'
+    | 'in_progress'
+    | 'validated'
+    | 'needs_replan'
+    | 'abandoned'
+  dependsOn?: string[]
+  checkpoint?: 'none' | 'validation_required_before_next'
+}
+
+export interface CodingPlanSessionTransition {
+  at: string
+  filePath: string
+  from: CodingPlanSessionStep['status']
+  to: CodingPlanSessionStep['status']
+  reason: string
+}
+
+export interface CodingPlannerCandidateScore {
+  filePath: string
+  status: 'ready' | 'in_progress'
+  score: number
+  reasons: string[]
+}
+
+export interface CodingPlannerDecision {
+  selectedFile: string
+  candidateScores: CodingPlannerCandidateScore[]
+  decisionReason: string
+  selectionMode: 'resume_current' | 'dependency_ready' | 'recovery_retry' | 'follow_dependency_chain'
+  whyNotRunnerUp?: {
+    winner: {
+      filePath: string
+      score: number
+      reasons: string[]
+    }
+    runnerUp?: {
+      filePath: string
+      score: number
+      reasons: string[]
+    }
+    explanation: string
+  }
+}
+
+export type CodingPlanNodeStatus
+  = | 'blocked'
+    | 'ready'
+    | 'running'
+    | 'awaiting_checkpoint'
+    | 'validated'
+    | 'needs_replan'
+    | 'aborted'
+
+export type CodingPlanHierarchyLayer = 'task' | 'subtask' | 'file'
+
+export interface CodingPlanTaskNode {
+  id: string
+  layer: 'task'
+  sessionId: string
+  title: string
+  changeIntent: CodingChangeIntent
+  maxFiles: 1 | 2 | 3
+  status: 'active' | 'completed' | 'aborted'
+}
+
+export interface CodingPlanSubtaskNode {
+  id: string
+  layer: 'subtask'
+  parentTaskId: string
+  fileNodeId: string
+  filePath: string
+  title: string
+  intent: CodingChangeIntent
+  status: CodingPlanNodeStatus
+  order: number
+}
+
+export interface CodingPlanNode {
+  id: string
+  filePath: string
+  intent: CodingChangeIntent
+  source: 'target_selection' | 'search' | 'explicit'
+  status: CodingPlanNodeStatus
+  checkpoint: 'none' | 'validation_required_before_next'
+  dependsOn: string[]
+  order: number
+}
+
+export interface CodingPlanEdge {
+  from: string
+  to: string
+  relation: 'depends_on' | 'task_contains_subtask' | 'subtask_targets_file'
+}
+
+export interface CodingPlanGraph {
+  version: 1
+  sessionId: string
+  generatedAt: string
+  maxNodes: number
+  maxNodesHardLimit: 5
+  amendBudget: {
+    limit: number
+    used: number
+  }
+  backtrackBudget: {
+    limit: number
+    used: number
+  }
+  taskNodes: CodingPlanTaskNode[]
+  subtaskNodes: CodingPlanSubtaskNode[]
+  nodes: CodingPlanNode[]
+  edges: CodingPlanEdge[]
+}
+
+export interface CodingPlanFrontier {
+  generatedAt: string
+  activeTaskNodeId?: string
+  readySubtaskIds: string[]
+  blockedSubtaskIds: string[]
+  readyNodeIds: string[]
+  blockedNodeIds: string[]
+  blockedReasons: Array<{
+    nodeId: string
+    reason: 'dependency_not_validated' | 'checkpoint_pending' | 'node_not_ready'
+    details: string[]
+  }>
+}
+
+export interface CodingPlanDraftNode {
+  filePath: string
+  dependsOn: string[]
+  checkpoint: 'none' | 'validation_required_before_next'
+  reason: string
+}
+
+export interface CodingPlanDraft {
+  generatedAt: string
+  mode: 'initial' | 'replan'
+  nodes: CodingPlanDraftNode[]
+  rationale: string
+}
+
+export interface TargetDecisionCaseCandidate {
+  filePath: string
+  targetKind: CodingTargetKind
+  sourceKind: CodingTargetSourceKind
+  roleHints: Array<'definition' | 'reference' | 'test' | 'config' | 'wiring'>
+  impactNeighbors: string[]
+  recentlyEdited: boolean
+  recentlyRead: boolean
+  failingTestHit: boolean
+  score: number
+  evidence: string[]
+}
+
+export interface TargetDecisionCase {
+  preparedAt: string
+  changeIntent: CodingChangeIntent
+  candidates: TargetDecisionCaseCandidate[]
+  currentPlannerFrontier: string[]
+  missingInformationHints: string[]
+}
+
+export interface TargetJudgementScore {
+  filePath: string
+  score: number
+  reason: string
+}
+
+export interface TargetJudgement {
+  winner: string
+  runnerUp?: string
+  candidateScores: TargetJudgementScore[]
+  winnerReason: string
+  runnerUpReason?: string
+  whyNotRunnerUp?: string
+  missingInformation: string[]
+  targetKind: CodingTargetKind
+  architectureLayer: CodingArchitectureLayer
+  intentDecomposition: CodingIntentDecomposition
+  mode: 'judge' | 'fallback_deterministic'
+}
+
+export type CodingJudgeRootCauseType
+  = | 'wrong_target'
+    | 'missed_dependency'
+    | 'incomplete_change'
+    | 'baseline_noise'
+    | 'validation_command_mismatch'
+    | 'test_only_breakage'
+
+export interface CodingCounterfactualCheck {
+  id: string
+  hypothesis: CodingJudgeRootCauseType
+  expectedObservation: string
+  observedEvidence: string[]
+  passed: boolean
+  rationale: string
+}
+
+export interface DiagnosisCase {
+  preparedAt: string
+  taskGoal: string
+  changeIntent: CodingChangeIntent
+  currentNode?: string
+  changedFiles: string[]
+  touchedSymbols: string[]
+  impactCompanions: string[]
+  failingTests: string[]
+  stderrSignature?: string
+  baselineComparison: 'new_red' | 'baseline_noise' | 'unknown'
+  scopedValidationCommand?: string
+  unresolvedIssues: string[]
+  candidateRootCauses: CodingDiagnosisCandidateScore[]
+}
+
+export interface DiagnosisJudgement {
+  winner: CodingJudgeRootCauseType
+  runnerUp?: CodingJudgeRootCauseType
+  candidateScores: Array<{
+    rootCauseType: CodingJudgeRootCauseType
+    score: number
+    reason: string
+  }>
+  winnerReason: string
+  runnerUpReason?: string
+  disambiguationSignals: string[]
+  conflictingEvidence: string[]
+  counterfactualChecks: CodingCounterfactualCheck[]
+  recommendedNextAction: 'amend' | 'abort' | 'continue'
+  recommendedRepairWindow: {
+    scope: 'current_file' | 'dependency_slice' | 'plan_window' | 'workspace'
+    files: string[]
+    reason: string
+  }
+  mode: 'judge' | 'fallback_deterministic'
+}
+
+export interface CodingPlanSession {
+  id: string
+  createdAt: string
+  updatedAt: string
+  status: CodingPlanSessionStatus
+  amendCount: number
+  backtrackCount: number
+  maxAmendCount: 2
+  maxBacktrackCount: 1
+  maxFiles: 1 | 2 | 3
+  changeIntent: CodingChangeIntent
+  steps: CodingPlanSessionStep[]
+  recentTransitions?: CodingPlanSessionTransition[]
+  reason: string
+}
+
+export type CodingChangeRootCauseType
+  = | 'wrong_target'
+    | 'incomplete_change'
+    | 'missed_dependency'
+    | 'test_only_breakage'
+    | 'baseline_noise'
+    | 'validation_command_mismatch'
+    | 'validation_environment_issue'
+    | 'unknown'
+
+export interface DiagnosisEvidence {
+  changedFiles: string[]
+  touchedSymbols: string[]
+  impactCompanions: string[]
+  failingTests: string[]
+  stderrSignature?: string
+  baselineComparison: 'new_red' | 'baseline_noise' | 'unknown'
+  scopedValidationCommand?: string
+  strongestSignals: string[]
+}
+
+export interface CausalLink {
+  from: string
+  to: CodingChangeRootCauseType
+  reason: string
+  strength: number
+}
+
+export interface CodingDiagnosisConfidenceBreakdown {
+  candidateScores: CodingDiagnosisCandidateScore[]
+  winnerMargin: number
+  competition: CodingDiagnosisCompetition
+}
+
+export interface CodingDiagnosisCandidateScore {
+  rootCauseType: CodingChangeRootCauseType
+  score: number
+  signals: string[]
+}
+
+export interface CodingDiagnosisConflict {
+  signal: string
+  winnerSupports: boolean
+  runnerUpSupports: boolean
+  resolution: 'favor_winner' | 'favor_runner_up' | 'tie'
+  reason: string
+}
+
+export interface CodingDiagnosisCompetition {
+  winner: CodingDiagnosisCandidateScore
+  runnerUp: CodingDiagnosisCandidateScore
+  winnerReason: string
+  runnerUpReason: string
+  whyNotRunnerUpReason: string
+  disambiguationSignals: string[]
+  contestedSignals: string[]
+  conflicts: CodingDiagnosisConflict[]
+}
+
+export interface CodingChangeDiagnosis {
+  rootCauseType: CodingChangeRootCauseType
+  confidence: number
+  evidence: string[]
+  affectedFiles: string[]
+  evidenceMatrix?: DiagnosisEvidence
+  causalHints?: string[]
+  causalLinks?: CausalLink[]
+  confidenceBreakdown?: CodingDiagnosisConfidenceBreakdown
+  contestedSignals?: string[]
+  conflictingEvidence?: string[]
+  counterfactualChecks?: CodingCounterfactualCheck[]
+  recommendedRepairWindow?: {
+    scope: 'current_file' | 'dependency_slice' | 'plan_window' | 'workspace'
+    files: string[]
+    reason: string
+  }
+  nextAction: 'amend' | 'abort' | 'continue'
+  recommendedAction: string
+  shouldAmendPlan: boolean
+  shouldAbortPlan: boolean
+}
+
+export interface CodingDiagnosisJudgeInput {
+  preparedAt: string
+  taskIntent: CodingChangeIntent
+  currentFilePath?: string
+  currentPlanStep?: {
+    filePath: string
+    status: string
+    dependsOn: string[]
+    checkpoint?: string
+  }
+  diffSummary: string
+  touchedSymbols: string[]
+  impactedCompanions: string[]
+  failingTests: string[]
+  stderrSignature?: string
+  baselineComparison: 'new_red' | 'baseline_noise' | 'unknown'
+  scopedValidationCommand?: string
+  candidateRootCauses: CodingDiagnosisCandidateScore[]
+  competition: {
+    winner: CodingDiagnosisCandidateScore
+    runnerUp: CodingDiagnosisCandidateScore
+    whyNotRunnerUp: string
+  }
+}
+
+export interface CodingReplanDraftInput {
+  preparedAt: string
+  taskIntent: CodingChangeIntent
+  currentTarget?: string
+  diagnosis: {
+    rootCauseType: CodingChangeRootCauseType
+    nextAction: CodingChangeDiagnosis['nextAction']
+    confidence: number
+  }
+  planBudget: {
+    maxFiles: number
+    filesUsed: number
+    maxAmendCount: number
+    amendUsed: number
+    maxBacktrackCount: number
+    backtrackUsed: number
+  }
+  dependencyHints: {
+    impactedCompanions: string[]
+    referenceFiles: string[]
+    likelyTests: string[]
+  }
+  candidateNextFiles: CodingPlannerCandidateScore[]
+}
+
+export type CodingCausalTraceNodeKind = 'signal' | 'hypothesis' | 'decision'
+
+export interface CodingCausalTraceNode {
+  id: string
+  kind: CodingCausalTraceNodeKind
+  label: string
+  metadata?: Record<string, string | number | boolean>
+}
+
+export interface CodingCausalTraceEdge {
+  from: string
+  to: string
+  relation: 'supports' | 'competes_with' | 'drives'
+  strength: number
+  source: 'review_risk' | 'impact_analysis' | 'validation_output' | 'competition' | 'counterfactual'
+}
+
+export interface CodingCausalTrace {
+  traceId: string
+  createdAt: string
+  rootCauseType: CodingChangeRootCauseType
+  nodes: CodingCausalTraceNode[]
+  edges: CodingCausalTraceEdge[]
+  counterfactualChecks: CodingCounterfactualCheck[]
+}
+
+export interface CodingValidationBaseline {
+  capturedAt: string
+  workspacePath: string
+  baselineDirtyFiles: string[]
+  baselineDiffSummary: string
+  baselineFailingChecks: string[]
+  baselineFailureSignature?: string
+  baselineFailingTests?: string[]
+  baselineValidationOutputExcerpt?: string
+  baselineSkippedValidations: string[]
+  workspaceMetadata: {
+    gitAvailable: boolean
+    worktreePath?: string
+    sourceWorkspacePath?: string
+  }
+}
+
+export interface CodingPlanStep {
+  filePath: string
+  intent: string
+  source: 'target_selection' | 'search' | 'explicit'
+  status: 'pending' | 'completed' | 'blocked'
+  dependsOn?: string[]
+  checkpoint?: 'none' | 'validation_required_before_next'
+}
+
+export interface CodingChangePlan {
+  maxPlannedFiles: 1 | 2 | 3
+  diffBaselineFiles: string[]
+  steps: CodingPlanStep[]
+  reason: string
+}
+
+export type CodingReviewRisk
+  = | 'validation_failed'
+    | 'validation_timed_out'
+    | 'no_validation_run'
+    | 'patch_verification_mismatch'
+    | 'unexpected_files_touched'
+    | 'baseline_diff_escape'
+    | 'unresolved_issues_remain'
+
+export interface CodingChangeReview {
+  status: 'ready_for_next_file' | 'needs_follow_up' | 'blocked' | 'failed'
+  checkpointStatus?: 'passed' | 'pending_next_file' | 'needs_recovery'
+  filesReviewed: string[]
+  diffSummary: string
+  diffPatchExcerpt?: string
+  validationSummary: string
+  validationCommand?: string
+  baselineComparison?: 'new_red' | 'baseline_noise' | 'unknown'
+  detectedRisks: CodingReviewRisk[]
+  unresolvedIssues: string[]
+  recommendedNextAction: string
+  nextExecutableFile?: string
+  nextExecutableReason?: string
+  plannerDecisionRef?: {
+    selectedFile: string
+    selectionMode: CodingPlannerDecision['selectionMode']
+    decisionReason: string
+  }
+}
+
+export interface CodingScopedValidationCommand {
+  command: string
+  scope: 'file' | 'module' | 'workspace'
+  reason: string
+  filePath?: string
+  resolvedAt: string
 }
 
 export interface CodingContextSnapshot {
@@ -162,6 +776,25 @@ export interface CodingExecutionReport {
   nextStep: string
 }
 
+export interface CodingCompactionMeta {
+  compactionCount: number
+  lastCompactedAt: string
+  lastTrigger: 'update' | 'round_refresh'
+  compactedBuckets: string[]
+  droppedItems: number
+}
+
+export interface CodingRoundContext {
+  refreshedAt: string
+  activeFile?: string
+  activeIntent?: CodingChangeIntent
+  sessionStatus?: CodingPlanSessionStatus
+  unresolvedRisks: CodingReviewRisk[]
+  unresolvedIssues: string[]
+  nextStepHint?: string
+  anchors: string[]
+}
+
 export interface CodingRunState {
   workspacePath: string
   gitSummary: string
@@ -169,11 +802,41 @@ export interface CodingRunState {
   recentEdits: Array<{ path: string, summary?: string }>
   recentCommandResults: string[]
   recentSearches: string[]
+  targetCandidates?: CodingTargetCandidate[]
+  lastTargetSelection?: CodingTargetSelection
+  currentPlan?: CodingChangePlan
+  lastChangeReview?: CodingChangeReview
+  lastScopedTargetPath?: string
+  latestSearchMatchesBySource?: Partial<Record<CodingTargetSourceKind, string[]>>
   pendingIssues: string[]
   lastWorkspaceReview?: CodingWorkspaceReview
   lastCompressedContext?: CodingContextSnapshot
   lastCodingReport?: CodingExecutionReport
   lastValidationSummary?: string
+  lastImpactAnalysis?: CodingImpactAnalysis
+  impactGraphSnapshot?: CodingImpactGraphSnapshot
+  lastTargetHypothesis?: CodingTargetHypothesis
+  currentPlanSession?: CodingPlanSession
+  lastInvestigation?: CodingInvestigation
+  planHistory?: CodingPlanSession[]
+  lastChangeDiagnosis?: CodingChangeDiagnosis
+  lastDiagnosisCompetition?: CodingDiagnosisCompetition
+  lastDiagnosisJudgeInput?: CodingDiagnosisJudgeInput
+  lastReplanDraftInput?: CodingReplanDraftInput
+  lastCausalTrace?: CodingCausalTrace
+  causalTraceLog?: CodingCausalTrace[]
+  currentPlanGraph?: CodingPlanGraph
+  lastPlanFrontier?: CodingPlanFrontier
+  lastPlanDraft?: CodingPlanDraft
+  lastTargetDecisionCase?: TargetDecisionCase
+  lastTargetJudgement?: TargetJudgement
+  lastDiagnosisCase?: DiagnosisCase
+  lastDiagnosisJudgement?: DiagnosisJudgement
+  validationBaseline?: CodingValidationBaseline
+  lastScopedValidationCommand?: CodingScopedValidationCommand
+  lastPlannerDecision?: CodingPlannerDecision
+  compactionMeta?: CodingCompactionMeta
+  roundContext?: CodingRoundContext
 }
 
 export interface RunState {
@@ -269,6 +932,142 @@ export class RunStateManager {
       ptyApprovalGrants: [],
       ptyAuditLog: [],
       updatedAt: new Date().toISOString(),
+    }
+  }
+
+  private readonly codingCompactionThresholds = {
+    recentReads: 120,
+    recentEdits: 120,
+    recentCommandResults: 80,
+    recentSearches: 80,
+    pendingIssues: 40,
+    planHistory: 30,
+    causalTraceLog: 30,
+  } as const
+
+  private readonly codingCompactionKeep = {
+    recentReads: 40,
+    recentEdits: 40,
+    recentCommandResults: 20,
+    recentSearches: 20,
+    pendingIssues: 20,
+    planHistory: 12,
+    causalTraceLog: 24,
+  } as const
+
+  private dedupeStrings(items: string[], maxItems: number) {
+    return Array.from(new Set(items.filter(Boolean))).slice(0, maxItems)
+  }
+
+  private compactCausalTraceLog(log: CodingCausalTrace[], keep: number): CodingCausalTrace[] {
+    if (log.length <= keep) {
+      return log
+    }
+
+    const sorted = [...log].sort((left, right) => {
+      const leftTime = Date.parse(left.createdAt || '') || 0
+      const rightTime = Date.parse(right.createdAt || '') || 0
+      if (leftTime !== rightTime) {
+        return leftTime - rightTime
+      }
+
+      return left.traceId.localeCompare(right.traceId)
+    })
+
+    const keepRecent = Math.max(1, Math.floor(keep / 2))
+    const recent = sorted.slice(-keepRecent)
+    const seenTraceIds = new Set(recent.map(trace => trace.traceId))
+
+    const latestByRootCause = new Map<string, CodingCausalTrace>()
+    for (const trace of sorted) {
+      latestByRootCause.set(trace.rootCauseType, trace)
+    }
+
+    const merged: CodingCausalTrace[] = [...recent]
+    for (const trace of latestByRootCause.values()) {
+      if (seenTraceIds.has(trace.traceId)) {
+        continue
+      }
+      merged.push(trace)
+      seenTraceIds.add(trace.traceId)
+    }
+
+    const compacted = merged
+      .sort((left, right) => {
+        const leftTime = Date.parse(left.createdAt || '') || 0
+        const rightTime = Date.parse(right.createdAt || '') || 0
+        if (leftTime !== rightTime) {
+          return leftTime - rightTime
+        }
+
+        return left.traceId.localeCompare(right.traceId)
+      })
+      .slice(-keep)
+
+    return compacted
+  }
+
+  private compactCodingStateIfNeeded(coding: CodingRunState, trigger: 'update' | 'round_refresh'): CodingRunState {
+    let next = coding
+    const compactedBuckets: string[] = []
+    let droppedItems = 0
+
+    const compactArrayBucket = <T, K extends keyof Pick<CodingRunState, 'recentReads' | 'recentEdits' | 'recentCommandResults' | 'recentSearches' | 'pendingIssues' | 'planHistory'>>(
+      key: K,
+      threshold: number,
+      keep: number,
+    ) => {
+      const currentValue = next[key] as T[] | undefined
+      if (!currentValue || currentValue.length <= threshold) {
+        return
+      }
+
+      const compacted = currentValue.slice(-keep)
+      droppedItems += Math.max(0, currentValue.length - compacted.length)
+      compactedBuckets.push(String(key))
+      next = { ...next, [key]: compacted }
+    }
+
+    compactArrayBucket('recentReads', this.codingCompactionThresholds.recentReads, this.codingCompactionKeep.recentReads)
+    compactArrayBucket('recentEdits', this.codingCompactionThresholds.recentEdits, this.codingCompactionKeep.recentEdits)
+    compactArrayBucket('recentCommandResults', this.codingCompactionThresholds.recentCommandResults, this.codingCompactionKeep.recentCommandResults)
+    compactArrayBucket('recentSearches', this.codingCompactionThresholds.recentSearches, this.codingCompactionKeep.recentSearches)
+    compactArrayBucket('pendingIssues', this.codingCompactionThresholds.pendingIssues, this.codingCompactionKeep.pendingIssues)
+    compactArrayBucket('planHistory', this.codingCompactionThresholds.planHistory, this.codingCompactionKeep.planHistory)
+
+    if ((next.causalTraceLog?.length || 0) > this.codingCompactionThresholds.causalTraceLog) {
+      const current = next.causalTraceLog || []
+      const compacted = this.compactCausalTraceLog(current, this.codingCompactionKeep.causalTraceLog)
+      droppedItems += Math.max(0, current.length - compacted.length)
+      compactedBuckets.push('causalTraceLog')
+
+      const lastCausalTrace = next.lastCausalTrace
+      const keepTraceIds = new Set(compacted.map(trace => trace.traceId))
+      const nextLog = lastCausalTrace && !keepTraceIds.has(lastCausalTrace.traceId)
+        ? [...compacted.slice(1), lastCausalTrace]
+        : compacted
+
+      next = {
+        ...next,
+        causalTraceLog: nextLog,
+        lastCausalTrace: lastCausalTrace || nextLog[nextLog.length - 1],
+      }
+    }
+
+    if (compactedBuckets.length === 0) {
+      return next
+    }
+
+    const previousCompactionCount = next.compactionMeta?.compactionCount || 0
+    return {
+      ...next,
+      compactionMeta: {
+        compactionCount: previousCompactionCount + 1,
+        lastCompactedAt: new Date().toISOString(),
+        lastTrigger: trigger,
+        compactedBuckets,
+        droppedItems,
+      },
     }
   }
 
@@ -400,6 +1199,8 @@ export class RunStateManager {
       this.state.coding.recentCommandResults.shift()
     }
 
+    this.state.coding = this.compactCodingStateIfNeeded(this.state.coding, 'update')
+
     this.touch()
   }
 
@@ -504,7 +1305,69 @@ export class RunStateManager {
       recentSearches: [],
       pendingIssues: [],
     }
-    this.state.coding = { ...current, ...update }
+    this.state.coding = this.compactCodingStateIfNeeded({ ...current, ...update }, 'update')
+    this.touch()
+  }
+
+  refreshCodingRoundContext() {
+    if (!this.state.coding) {
+      return
+    }
+
+    const coding = this.state.coding
+    const activeFile = coding.lastPlannerDecision?.selectedFile
+      || coding.lastTargetSelection?.selectedFile
+      || coding.currentPlanSession?.steps.find(step => step.status === 'in_progress')?.filePath
+      || coding.currentPlan?.steps.find(step => step.status === 'pending')?.filePath
+
+    const activeIntent = coding.currentPlanSession?.changeIntent
+      || coding.lastTargetSelection?.changeIntent
+
+    const unresolvedRisks = Array.from(new Set(coding.lastChangeReview?.detectedRisks || [])).slice(0, 8)
+    const unresolvedIssues = this.dedupeStrings([
+      ...(coding.pendingIssues || []),
+      ...((coding.lastChangeReview?.unresolvedIssues || []).map(issue => `review:${issue}`)),
+    ], 12)
+
+    const nextStepHint = coding.lastPlannerDecision?.decisionReason
+      || coding.lastChangeDiagnosis?.recommendedAction
+      || coding.lastChangeReview?.recommendedNextAction
+      || coding.lastCodingReport?.nextStep
+
+    const anchors = this.dedupeStrings([
+      coding.lastPlannerDecision
+        ? `last_decision:${coding.lastPlannerDecision.selectedFile}:${coding.lastPlannerDecision.selectionMode}`
+        : '',
+      coding.currentPlanSession
+        ? `session:${coding.currentPlanSession.status}:amend=${coding.currentPlanSession.amendCount}/${coding.currentPlanSession.maxAmendCount}:backtrack=${coding.currentPlanSession.backtrackCount}/${coding.currentPlanSession.maxBacktrackCount}`
+        : '',
+      coding.lastChangeDiagnosis
+        ? `diagnosis:${coding.lastChangeDiagnosis.rootCauseType}:${coding.lastChangeDiagnosis.nextAction}`
+        : '',
+      unresolvedRisks.length > 0
+        ? `unresolved_risks:${unresolvedRisks.join(',')}`
+        : '',
+      coding.compactionMeta
+        ? `compaction:${coding.compactionMeta.compactionCount}`
+        : '',
+    ], 8)
+
+    const roundContext: CodingRoundContext = {
+      refreshedAt: new Date().toISOString(),
+      activeFile,
+      activeIntent,
+      sessionStatus: coding.currentPlanSession?.status,
+      unresolvedRisks,
+      unresolvedIssues,
+      nextStepHint,
+      anchors,
+    }
+
+    this.state.coding = this.compactCodingStateIfNeeded({
+      ...coding,
+      roundContext,
+    }, 'round_refresh')
+
     this.touch()
   }
 
