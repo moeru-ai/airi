@@ -58,7 +58,7 @@ export function createCodingExecutionLoopWorkflow(params?: {
             critical: false,
           }]
         : []),
-      ...(targetSymbol && targetLine !== undefined && targetColumn !== undefined
+      ...(params?.targetFile && targetSymbol && targetLine !== undefined && targetColumn !== undefined
         ? [{
             label: 'Find symbol references',
             kind: 'coding_find_references' as const,

@@ -17,7 +17,6 @@ export function createCodingAgenticLoopWorkflow(params?: {
   testCommand?: string
 }): WorkflowDefinition {
   const workspacePath = params?.workspacePath ?? '{workspacePath}'
-  const isolatedWorkspacePath = `${workspacePath}/.airi-agentic-worktree`
   const taskGoal = params?.taskGoal ?? '{taskGoal}'
   const targetFile = params?.targetFile ?? 'auto'
   const targetSymbol = params?.targetSymbol
@@ -72,7 +71,7 @@ export function createCodingAgenticLoopWorkflow(params?: {
             critical: false,
           }]
         : []),
-      ...(targetSymbol && targetLine !== undefined && targetColumn !== undefined
+      ...(params?.targetFile && targetSymbol && targetLine !== undefined && targetColumn !== undefined
         ? [{
             label: 'Find symbol references',
             kind: 'coding_find_references' as const,
@@ -177,7 +176,7 @@ export function createCodingAgenticLoopWorkflow(params?: {
         label: 'Run scoped validation',
         kind: 'run_command',
         description: 'Run scoped validation command in isolated workspace (auto resolves to minimal file-level checks when possible).',
-        params: { command: testCommand, cwd: isolatedWorkspacePath, timeoutMs: 60_000 },
+        params: { command: testCommand, cwd: 'auto', timeoutMs: 60_000 },
         critical: false,
       },
       {

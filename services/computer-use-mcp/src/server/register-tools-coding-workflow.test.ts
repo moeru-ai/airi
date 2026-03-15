@@ -241,6 +241,34 @@ describe('registerComputerUseTools: workflow_coding_loop', () => {
     })
   })
 
+  it('skips coding_find_references until a deterministic target file exists', async () => {
+    const executeAction = vi.fn(async (action: ActionInvocation) => makeExecutedResult(action))
+    const { server, invoke } = createMockServer()
+
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction,
+      enableTestTools: false,
+    })
+
+    const result = await invoke('workflow_coding_loop', {
+      workspacePath: '/tmp/project',
+      taskGoal: 'Refactor symbol usage without explicit file',
+      targetSymbol: 'legacyFn',
+      targetLine: 12,
+      targetColumn: 7,
+      patchOld: 'legacyFn()',
+      patchNew: 'modernFn()',
+      testCommand: 'pnpm test',
+    })
+
+    const structured = result.structuredContent as Record<string, any>
+    expect(structured.kind).toBe('workflow_result')
+    expect(structured.status).toBe('completed')
+    expect(executeAction.mock.calls.map(call => call[0].kind)).not.toContain('coding_find_references')
+  })
+
   it('fails fast when neither targetFile nor search hints are provided', async () => {
     const executeAction = vi.fn(async (action: ActionInvocation) => makeExecutedResult(action))
     const { server, invoke } = createMockServer()
@@ -369,6 +397,62 @@ describe('registerComputerUseTools: workflow_coding_loop', () => {
       kind: 'coding_select_target',
       input: {
         changeIntent: 'behavior_fix',
+      },
+    })
+  })
+
+  it('uses the captured validation workspace for agentic validation commands', async () => {
+    const executeAction = vi.fn(async (action: ActionInvocation) => {
+      if (action.kind === 'coding_review_workspace') {
+        runtime.stateManager.updateCodingState({
+          workspacePath: '/tmp/project',
+          gitSummary: 'clean',
+        })
+      }
+
+      if (action.kind === 'coding_capture_validation_baseline') {
+        runtime.stateManager.updateCodingState({
+          workspacePath: '/tmp/project',
+          validationBaseline: {
+            workspacePath: '/tmp/project',
+            baselineDirtyFiles: [],
+            baselineDiffSummary: '',
+            baselineFailingChecks: [],
+            baselineSkippedValidations: [],
+            capturedAt: new Date().toISOString(),
+            workspaceMetadata: {
+              gitAvailable: false,
+            },
+          },
+        })
+      }
+
+      return makeExecutedResult(action)
+    })
+    const { server, invoke } = createMockServer()
+
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction,
+      enableTestTools: false,
+    })
+
+    await invoke('workflow_coding_agentic_loop', {
+      workspacePath: '/tmp/project',
+      taskGoal: 'Use baseline workspace fallback',
+      targetFile: 'src/example.ts',
+      patchOld: 'a',
+      patchNew: 'b',
+      testCommand: 'pnpm test',
+      autoApprove: true,
+    })
+
+    const terminalExecAction = executeAction.mock.calls.find(call => call[0].kind === 'terminal_exec')?.[0]
+    expect(terminalExecAction).toMatchObject({
+      kind: 'terminal_exec',
+      input: {
+        cwd: '/tmp/project',
       },
     })
   })
