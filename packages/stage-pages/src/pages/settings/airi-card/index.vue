@@ -143,7 +143,7 @@ function handleCardCreationDialog() {
 }
 
 // Card activation
-function activateCard(id: string) {
+async function activateCard(id: string) {
   activeCardId.value = id
 }
 
@@ -176,6 +176,11 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
   }
 
   return 'default'
+}
+
+// Get display model ID for flip preview.
+function getDisplayModelId(id: string) {
+  return cardStore.getCardDisplayModelId(id)
 }
 </script>
 
@@ -263,6 +268,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
           :version="getVersionNumber(item.id)"
           :consciousness-model="getModuleShortName(item.id, 'consciousness')"
           :voice-model="getModuleShortName(item.id, 'voice')"
+          :display-model-id="getDisplayModelId(item.id)"
           @select="handleSelectCard(item.id)"
           @activate="activateCard(item.id)"
           @delete="confirmDelete(item.id)"

@@ -34,8 +34,8 @@ const cardsList = computed(() =>
   Array.from(cards.value.entries()).map(([id, card]) => ({ id, name: card.name })),
 )
 
-function activateCard(id: string) {
-  activeCardId.value = id
+async function activateCard(id: string) {
+  await cardStore.activateCard(id)
   open.value = false
 }
 

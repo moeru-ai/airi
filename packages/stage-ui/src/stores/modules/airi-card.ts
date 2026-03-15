@@ -1,6 +1,8 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
 
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { useLive2d } from '@proj-airi/stage-ui-live2d'
+import { useModelStore } from '@proj-airi/stage-ui-three'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, watch } from 'vue'
@@ -9,6 +11,7 @@ import { useI18n } from 'vue-i18n'
 import SystemPromptV2 from '../../constants/prompts/system-v2'
 
 import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '../../constants/prompts/artistry-instruction'
+import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useConsciousnessStore } from './consciousness'
 import { useSpeechStore } from './speech'
@@ -19,6 +22,11 @@ export interface HeartbeatConfig {
   prompt: string
   injectIntoPrompt: boolean
   useAsLocalGate: boolean
+  contextOptions?: {
+    windowHistory: boolean
+    systemLoad: boolean
+    usageMetrics: boolean
+  }
   schedule: {
     start: string // e.g., '09:00'
     end: string // e.g., '23:00'
@@ -58,6 +66,8 @@ export interface AiriExtension {
 
     // ID from display-models store (e.g. 'preset-live2d-1', 'display-model-<nanoid>')
     displayModelId?: string
+    // Legacy key from older local card revisions. Read-only for migration.
+    selectedModelId?: string
   }
 
   artistry?: {
@@ -95,6 +105,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   const consciousnessStore = useConsciousnessStore()
   const speechStore = useSpeechStore()
   const stageModelStore = useSettingsStageModel()
+  const displayModelsStore = useDisplayModelsStore()
+  const live2dStore = useLive2d()
+  const vrmStore = useModelStore()
 
   const {
     activeProvider: activeConsciousnessProvider,
@@ -135,6 +148,46 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return cards.value.get(id)
   }
 
+  const getCardDisplayModelId = (id: string) => {
+    const card = cards.value.get(id)
+    if (!card)
+      return undefined
+
+    return resolveAiriExtension(card).modules?.displayModelId
+  }
+
+  async function applyCardState(card: AiriCard | undefined) {
+    if (!card)
+      return
+
+    const extension = resolveAiriExtension(card)
+    if (!extension)
+      return
+
+    activeConsciousnessProvider.value = extension.modules?.consciousness?.provider
+    activeConsciousnessModel.value = extension.modules?.consciousness?.model
+
+    activeSpeechProvider.value = extension.modules?.speech?.provider
+    activeSpeechModel.value = extension.modules?.speech?.model
+    activeSpeechVoiceId.value = extension.modules?.speech?.voice_id
+
+    if (extension.modules?.displayModelId) {
+      stageModelStore.stageModelSelected = extension.modules.displayModelId
+      await stageModelStore.updateStageModel()
+
+      const selectedModel = displayModelsStore.displayModels.find(model => model.id === extension.modules.displayModelId)
+      if (selectedModel?.format === DisplayModelFormat.Live2dZip)
+        live2dStore.shouldUpdateView()
+      else if (selectedModel?.format === DisplayModelFormat.VRM)
+        vrmStore.shouldUpdateView()
+    }
+  }
+
+  async function activateCard(id: string) {
+    activeCardId.value = id
+    await applyCardState(cards.value.get(id))
+  }
+
   function resolveAiriExtension(card: Card | ccv3.CharacterCardV3): AiriExtension {
     // Get existing extension if available
     const existingExtension = ('data' in card
@@ -164,6 +217,11 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       prompt: '',
       injectIntoPrompt: true,
       useAsLocalGate: true,
+      contextOptions: {
+        windowHistory: true,
+        systemLoad: true,
+        usageMetrics: true,
+      },
       schedule: {
         start: '09:00',
         end: '22:00',
@@ -185,6 +243,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
 
     // Merge existing extension with defaults
+    const resolvedDisplayModelId = existingExtension.modules?.displayModelId
+      ?? existingExtension.modules?.selectedModelId
+      ?? defaultModules.displayModelId
+
     return {
       modules: {
         consciousness: {
@@ -202,7 +264,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         },
         vrm: existingExtension.modules?.vrm,
         live2d: existingExtension.modules?.live2d,
-        displayModelId: existingExtension.modules?.displayModelId ?? defaultModules.displayModelId,
+        displayModelId: resolvedDisplayModelId,
       },
       artistry: {
         ...existingExtension.artistry,
@@ -215,6 +277,11 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         prompt: existingExtension.heartbeats?.prompt ?? defaultHeartbeats.prompt,
         injectIntoPrompt: existingExtension.heartbeats?.injectIntoPrompt ?? defaultHeartbeats.injectIntoPrompt,
         useAsLocalGate: existingExtension.heartbeats?.useAsLocalGate ?? defaultHeartbeats.useAsLocalGate,
+        contextOptions: {
+          windowHistory: existingExtension.heartbeats?.contextOptions?.windowHistory ?? defaultHeartbeats.contextOptions!.windowHistory,
+          systemLoad: existingExtension.heartbeats?.contextOptions?.systemLoad ?? defaultHeartbeats.contextOptions!.systemLoad,
+          usageMetrics: existingExtension.heartbeats?.contextOptions?.usageMetrics ?? defaultHeartbeats.contextOptions!.usageMetrics,
+        },
         schedule: {
           start: existingExtension.heartbeats?.schedule?.start ?? defaultHeartbeats.schedule.start,
           end: existingExtension.heartbeats?.schedule?.end ?? defaultHeartbeats.schedule.end,
@@ -272,6 +339,12 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   function initialize() {
+    const normalizedCards = new Map<string, AiriCard>()
+    for (const [id, card] of cards.value.entries()) {
+      normalizedCards.set(id, newAiriCard(card))
+    }
+    cards.value = normalizedCards
+
     if (cards.value.has('default'))
       return
     cards.value.set('default', newAiriCard({
@@ -286,29 +359,18 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       activeCardId.value = 'default'
   }
 
-  watch(activeCard, (newCard: AiriCard | undefined) => {
-    if (!newCard)
-      return
-
-    // TODO: Minecraft Agent, etc
-    const extension = resolveAiriExtension(newCard)
-    if (!extension)
-      return
-
-    activeConsciousnessProvider.value = extension?.modules?.consciousness?.provider
-    activeConsciousnessModel.value = extension?.modules?.consciousness?.model
-
-    activeSpeechProvider.value = extension?.modules?.speech?.provider
-    activeSpeechModel.value = extension?.modules?.speech?.model
-    activeSpeechVoiceId.value = extension?.modules?.speech?.voice_id
-
-    // Apply body model if the card has a display model configured.
-    // NOTICE: must set via store property directly (not storeToRefs .value) so Pinia's
-    // proxy correctly calls the writable computed setter → stageModelSelectedState → updateStageModel().
-    if (extension.modules?.displayModelId) {
-      stageModelStore.stageModelSelected = extension.modules.displayModelId
-    }
+  watch(activeCard, async (newCard: AiriCard | undefined) => {
+    await applyCardState(newCard)
   })
+
+  watch(cards, (currentCards) => {
+    for (const [id, card] of currentCards.entries()) {
+      const modules = card.extensions?.airi?.modules
+      if (modules?.selectedModelId && !modules.displayModelId) {
+        currentCards.set(id, newAiriCard(card))
+      }
+    }
+  }, { deep: true })
 
   function resetState() {
     activeCardId.reset()
@@ -319,10 +381,12 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     cards,
     activeCard,
     activeCardId,
+    activateCard,
     addCard,
     removeCard,
     updateCard,
     getCard,
+    getCardDisplayModelId,
     resetState,
     initialize,
 
