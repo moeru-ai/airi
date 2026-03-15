@@ -73,6 +73,13 @@ function readSavedConfig(filepath: string): Partial<MinecraftEditableConfig> {
   return savedConfigSchema.parse(parsed)
 }
 
+function normalizeOptionalString(value: string | undefined) {
+  if (value == null)
+    return undefined
+
+  return value === '' ? undefined : value
+}
+
 function resolveString(
   key: string,
   savedValue: string | undefined,
@@ -80,7 +87,11 @@ function resolveString(
   localEnvValue: string | undefined,
   fallback: string,
 ) {
-  return localEnvValue ?? savedValue ?? envValue ?? process.env[key] ?? fallback
+  return normalizeOptionalString(localEnvValue)
+    ?? normalizeOptionalString(savedValue)
+    ?? normalizeOptionalString(envValue)
+    ?? normalizeOptionalString(process.env[key])
+    ?? fallback
 }
 
 function resolveNumber(
@@ -122,9 +133,9 @@ export class MinecraftRuntimeConfigManager {
 
     const editableConfig = editableConfigSchema.parse({
       enabled: savedConfig.enabled ?? true,
-      host: savedConfig.host ?? envConfig.BOT_HOSTNAME ?? process.env.BOT_HOSTNAME ?? 'localhost',
+      host: resolveString('BOT_HOSTNAME', savedConfig.host, envConfig.BOT_HOSTNAME, undefined, 'localhost'),
       port: resolvePort('BOT_PORT', savedConfig.port, envConfig.BOT_PORT, undefined, 25565),
-      username: savedConfig.username ?? envConfig.BOT_USERNAME ?? process.env.BOT_USERNAME ?? 'airi-bot',
+      username: resolveString('BOT_USERNAME', savedConfig.username, envConfig.BOT_USERNAME, undefined, 'airi-bot'),
     })
 
     return {
@@ -133,8 +144,10 @@ export class MinecraftRuntimeConfigManager {
         host: resolveString('BOT_HOSTNAME', savedConfig.host, envConfig.BOT_HOSTNAME, localEnvConfig.BOT_HOSTNAME, 'localhost'),
         port: resolvePort('BOT_PORT', savedConfig.port, envConfig.BOT_PORT, localEnvConfig.BOT_PORT, 25565),
         username: resolveString('BOT_USERNAME', savedConfig.username, envConfig.BOT_USERNAME, localEnvConfig.BOT_USERNAME, 'airi-bot'),
-        version: localEnvConfig.BOT_VERSION ?? envConfig.BOT_VERSION ?? process.env.BOT_VERSION ?? '1.20',
-        auth: (localEnvConfig.BOT_AUTH ?? envConfig.BOT_AUTH ?? process.env.BOT_AUTH ?? undefined) as Config['bot']['auth'],
+        version: resolveString('BOT_VERSION', undefined, envConfig.BOT_VERSION, localEnvConfig.BOT_VERSION, '1.20'),
+        auth: (normalizeOptionalString(localEnvConfig.BOT_AUTH)
+          ?? normalizeOptionalString(envConfig.BOT_AUTH)
+          ?? normalizeOptionalString(process.env.BOT_AUTH)) as Config['bot']['auth'] | undefined,
         password: localEnvConfig.BOT_PASSWORD ?? envConfig.BOT_PASSWORD ?? process.env.BOT_PASSWORD ?? '',
       },
     }

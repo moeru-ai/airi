@@ -143,4 +143,31 @@ describe('minecraftRuntimeConfigManager', () => {
       version: '1.21.8',
     })
   })
+
+  it('treats empty quoted env strings as unset and falls back to defaults', () => {
+    const cwd = createTempDir()
+    tempDirs.push(cwd)
+
+    writeFileSync(path.join(cwd, '.env'), [
+      'BOT_HOSTNAME=\'\'',
+      'BOT_USERNAME=\'\'',
+      'BOT_VERSION=\'\'',
+    ].join('\n'))
+
+    const manager = new MinecraftRuntimeConfigManager({ cwd })
+    const snapshot = manager.load()
+
+    expect(snapshot.editableConfig).toEqual({
+      enabled: true,
+      host: 'localhost',
+      port: 25565,
+      username: 'airi-bot',
+    })
+    expect(snapshot.effectiveBotConfig).toMatchObject({
+      host: 'localhost',
+      port: 25565,
+      username: 'airi-bot',
+      version: '1.20',
+    })
+  })
 })
