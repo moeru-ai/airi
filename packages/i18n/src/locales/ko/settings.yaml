@@ -617,6 +617,12 @@ pages:
       deepseek:
         description: deepseek.com
         title: DeepSeek
+      volcengine-ark:
+        description: 화산 엔진 Ark (더우바오 모델)
+        title: Volcengine Ark
+      dashscope:
+        description: Dashscope (통이 치엔원)
+        title: Dashscope
       elevenlabs:
         description: elevenlabs.io
         fields:

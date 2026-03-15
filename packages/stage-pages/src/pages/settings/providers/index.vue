@@ -3,20 +3,38 @@ import { IconStatusItem, RippleGrid } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useScrollToHash } from '@proj-airi/stage-ui/composables'
 import { useRippleGridState } from '@proj-airi/stage-ui/composables/use-ripple-grid-state'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useSettingsVolcRealtime } from '@proj-airi/stage-ui/stores/settings'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
+const { t } = useI18n()
 const providersStore = useProvidersStore()
 const { lastClickedIndex, setLastClickedIndex } = useRippleGridState()
 const { trackProviderClick } = useAnalytics()
+const volcRealtimeSettings = useSettingsVolcRealtime()
 
 const {
   allChatProvidersMetadata,
   allAudioSpeechProvidersMetadata,
   allAudioTranscriptionProvidersMetadata,
 } = storeToRefs(providersStore)
+
+// Realtime voice providers (special category, not in standard provider system)
+const realtimeVoiceProviders = computed(() => [
+  {
+    id: 'volc-realtime',
+    category: 'realtime-voice',
+    localizedName: t('settings.pages.providers.provider.volc-realtime.title'),
+    localizedDescription: t('settings.pages.providers.provider.volc-realtime.description'),
+    icon: 'i-lobe-icons:volcengine',
+    iconColor: 'i-lobe-icons:volcengine',
+    configured: volcRealtimeSettings.enabled,
+    to: '/settings/providers/realtime-voice/volc-realtime',
+  },
+])
 
 const providerBlocksConfig = [
   {
@@ -120,6 +138,33 @@ useScrollToHash(() => route.hash, {
         />
       </template>
     </RippleGrid>
+
+    <!-- Realtime Voice (special category) -->
+    <div id="realtime-voice" flex="~ col gap-4">
+      <div flex="~ row items-center gap-2">
+        <div i-solar:phone-bold-duotone text="neutral-500 dark:neutral-400 4xl" />
+        <div>
+          <div>
+            <span text="neutral-300 dark:neutral-500 sm sm:base">{{ t('settings.pages.providers.section.realtime-voice.description') }}</span>
+          </div>
+          <div flex text-nowrap text="2xl sm:3xl" font-normal>
+            <div>{{ t('settings.pages.providers.section.realtime-voice.title') }}</div>
+          </div>
+        </div>
+      </div>
+      <div grid="~ cols-1 sm:cols-2 xl:cols-3" gap-4>
+        <IconStatusItem
+          v-for="provider in realtimeVoiceProviders"
+          :key="provider.id"
+          :title="provider.localizedName"
+          :description="provider.localizedDescription"
+          :icon="provider.icon"
+          :icon-color="provider.iconColor"
+          :to="provider.to"
+          :configured="provider.configured"
+        />
+      </div>
+    </div>
   </div>
   <div
     v-motion

@@ -14,14 +14,16 @@ import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useVolcVoiceStore } from '@proj-airi/stage-ui/stores/modules/volc-voice'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useSettingsAudioDevice, useSettingsVolcRealtime } from '@proj-airi/stage-ui/stores/settings'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 
 const paused = ref(false)
 
@@ -52,6 +54,10 @@ const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
 const chatStore = useChatOrchestratorStore()
+const volcVoice = useVolcVoiceStore()
+const { isConnected: volcVoiceConnected } = storeToRefs(volcVoice)
+const volcSettings = useSettingsVolcRealtime()
+const { enabled: volcEnabled, autoConnect: volcAutoConnect } = storeToRefs(volcSettings)
 
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
@@ -69,6 +75,10 @@ const {
 let stopOnStopRecord: (() => void) | undefined
 
 async function startAudioInteraction() {
+  // Skip built-in STT when Volc Voice is handling audio
+  if (volcVoiceConnected.value)
+    return
+
   try {
     await initVAD()
     if (stream.value)
@@ -136,9 +146,13 @@ watch(enabled, async (val) => {
 
 onUnmounted(() => {
   stopAudioInteraction()
+  stopAudioForwarding()
+  volcVoice.disconnect()
 })
 
 watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
+  if (volcVoiceConnected.value)
+    return
   if (enabled.value && loaded && s) {
     try {
       await startVAD(s)
@@ -147,6 +161,165 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
       console.error('Failed to start VAD with stream:', e)
     }
   }
+})
+
+// --- Volcengine Realtime: auto-connect + audio forwarding ---
+
+const VOICE_SAMPLE_RATE = 16000
+const CHUNK_SAMPLES = 320 // 20ms at 16kHz
+
+const forwardingCtx = shallowRef<AudioContext | null>(null)
+const forwardingWorklet = shallowRef<AudioWorkletNode | null>(null)
+const forwardingSource = shallowRef<MediaStreamAudioSourceNode | null>(null)
+
+function float32ToInt16(buffer: Float32Array): Int16Array {
+  const output = new Int16Array(buffer.length)
+  for (let i = 0; i < buffer.length; i++) {
+    const value = Math.max(-1, Math.min(1, buffer[i]))
+    output[i] = value < 0 ? value * 0x8000 : value * 0x7FFF
+  }
+  return output
+}
+
+async function startAudioForwarding(mediaStream: MediaStream) {
+  stopAudioForwarding()
+
+  try {
+    // Use system default sample rate (usually 48kHz) — do NOT force 16kHz
+    // Forcing 16kHz AudioContext causes zero-data on macOS Chrome
+    const ctx = new AudioContext({ latencyHint: 'interactive' })
+    forwardingCtx.value = ctx
+    const nativeSR = ctx.sampleRate
+    const ratio = nativeSR / VOICE_SAMPLE_RATE
+
+    const workletCode = `
+class VolcForwardProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super()
+    this.buffer = new Float32Array(0)
+    this.ratio = ${ratio}
+    this.targetChunkSize = ${CHUNK_SAMPLES}
+  }
+  process(inputs) {
+    const input = inputs[0]
+    if (!input || !input[0]) return true
+    const channel = input[0]
+    const ratio = this.ratio
+    const downLen = Math.floor(channel.length / ratio)
+    if (downLen === 0) return true
+
+    const newBuffer = new Float32Array(this.buffer.length + downLen)
+    newBuffer.set(this.buffer)
+    for (let i = 0; i < downLen; i++) {
+      newBuffer[this.buffer.length + i] = channel[Math.floor(i * ratio)]
+    }
+    this.buffer = newBuffer
+
+    while (this.buffer.length >= this.targetChunkSize) {
+      const chunk = this.buffer.slice(0, this.targetChunkSize)
+      this.port.postMessage({ buffer: chunk })
+      this.buffer = this.buffer.slice(this.targetChunkSize)
+    }
+    return true
+  }
+}
+registerProcessor('volc-forward-processor', VolcForwardProcessor)
+`
+    const blob = new Blob([workletCode], { type: 'application/javascript' })
+    const blobUrl = URL.createObjectURL(blob)
+    await ctx.audioWorklet.addModule(blobUrl)
+    URL.revokeObjectURL(blobUrl)
+
+    const node = new AudioWorkletNode(ctx, 'volc-forward-processor')
+    forwardingWorklet.value = node
+
+    node.port.onmessage = ({ data }: MessageEvent<{ buffer: Float32Array }>) => {
+      if (!data.buffer)
+        return
+      const pcm16 = float32ToInt16(data.buffer)
+      volcVoice.sendAudioChunk(pcm16.buffer as ArrayBuffer)
+    }
+
+    const source = ctx.createMediaStreamSource(mediaStream)
+    forwardingSource.value = source
+    source.connect(node)
+
+    // Silent sink to keep the graph alive without feedback
+    const silentGain = ctx.createGain()
+    silentGain.gain.value = 0
+    node.connect(silentGain)
+    silentGain.connect(ctx.destination)
+  }
+  catch (err) {
+    console.error('[VolcForward] Failed to start audio forwarding:', err)
+    stopAudioForwarding()
+  }
+}
+
+function stopAudioForwarding() {
+  if (forwardingSource.value) {
+    forwardingSource.value.disconnect()
+    forwardingSource.value = null
+  }
+  if (forwardingWorklet.value) {
+    forwardingWorklet.value.port.onmessage = null
+    forwardingWorklet.value.disconnect()
+    forwardingWorklet.value = null
+  }
+  if (forwardingCtx.value) {
+    forwardingCtx.value.close()
+    forwardingCtx.value = null
+  }
+}
+
+// Auto-connect when enabled + autoConnect
+onMounted(() => {
+  if (volcEnabled.value && volcAutoConnect.value && !volcVoiceConnected.value) {
+    volcVoice.connect()
+  }
+})
+
+// Start/stop audio forwarding based on connection + mic stream
+watch([volcVoiceConnected, stream], ([connected, s]) => {
+  if (connected && s) {
+    startAudioForwarding(s)
+  }
+  else {
+    stopAudioForwarding()
+  }
+})
+
+// Write Volcengine dialog messages into AIRI's chat history
+const chatSession = useChatSessionStore()
+
+volcVoice.onChatEnded(({ userText, assistantText }) => {
+  if (!userText && !assistantText)
+    return
+
+  const sessionId = chatSession.activeSessionId
+  if (!sessionId)
+    return
+
+  chatSession.ensureSession(sessionId)
+  const msgs = chatSession.sessionMessages[sessionId]
+  if (!msgs)
+    return
+
+  const now = Date.now()
+  if (userText) {
+    msgs.push({ role: 'user', content: userText, createdAt: now, id: `volc-u-${now}` })
+  }
+  if (assistantText) {
+    msgs.push({
+      role: 'assistant',
+      content: assistantText,
+      slices: [{ type: 'text', text: assistantText }],
+      tool_results: [],
+      createdAt: now + 1,
+      id: `volc-a-${now}`,
+    })
+  }
+  chatSession.persistSessionMessages(sessionId)
 })
 </script>
 

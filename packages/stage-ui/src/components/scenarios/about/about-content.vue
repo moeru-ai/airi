@@ -2,6 +2,7 @@
 import type { AboutBuildInfo, AboutLink } from './types'
 
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const props = withDefaults(defineProps<{
   title?: string
@@ -19,6 +20,8 @@ const props = withDefaults(defineProps<{
     { label: 'GitHub', href: 'https://github.com/moeru-ai/airi', icon: 'i-simple-icons:github' },
   ]),
 })
+
+const { t } = useI18n()
 
 const hasBuildInfo = computed(() => {
   const info = props.buildInfo
@@ -43,12 +46,12 @@ const hasBuildInfo = computed(() => {
 
     <div v-if="hasBuildInfo" :class="['flex-1']">
       <div :class="['text-neutral-500 dark:text-neutral-400']">
-        Application build information
+        {{ t('stage.about.build-info') }}
       </div>
       <div :class="['mt-4', 'grid grid-cols-[120px_1fr]', 'gap-2', 'text-sm']">
         <template v-if="buildInfo?.version">
           <div :class="['text-neutral-500 dark:text-neutral-400']">
-            Version
+            {{ t('stage.about.version') }}
           </div>
           <div :class="['font-mono']">
             {{ buildInfo.version }}
@@ -56,7 +59,7 @@ const hasBuildInfo = computed(() => {
         </template>
         <template v-if="buildInfo?.branch">
           <div :class="['text-neutral-500 dark:text-neutral-400']">
-            Branch
+            {{ t('stage.about.branch') }}
           </div>
           <div :class="['font-mono']">
             {{ buildInfo.branch }}
@@ -64,7 +67,7 @@ const hasBuildInfo = computed(() => {
         </template>
         <template v-if="buildInfo?.commit">
           <div :class="['text-neutral-500 dark:text-neutral-400']">
-            Commit
+            {{ t('stage.about.commit') }}
           </div>
           <div :class="['font-mono']">
             {{ buildInfo.commit }}
@@ -72,7 +75,7 @@ const hasBuildInfo = computed(() => {
         </template>
         <template v-if="buildInfo?.builtOn">
           <div :class="['text-neutral-500 dark:text-neutral-400']">
-            Built on
+            {{ t('stage.about.built-on') }}
           </div>
           <div :class="['font-mono']">
             {{ buildInfo.builtOn }}
@@ -83,7 +86,7 @@ const hasBuildInfo = computed(() => {
 
     <div :class="['my-10']">
       <div :class="['text-neutral-500 dark:text-neutral-400']">
-        About
+        {{ t('stage.about.title') }}
       </div>
       <div :class="['mt-4 flex flex-col gap-2']">
         <a

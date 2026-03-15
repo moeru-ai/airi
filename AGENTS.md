@@ -151,3 +151,61 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - Maintain structured `README.md` documentation for each `packages/` and `apps/` entry, covering what it does, how to use it, when to use it, and when not to use it.
 - Always run `pnpm typecheck` and `pnpm lint:fix` after finishing a task.
 - Use Conventional Commits for commit messages (e.g., `feat: add runner reconnect backoff`).
+
+## VolcEngine Realtime Voice Integration
+
+火山引擎端到端实时语音作为 AIRI 现有管线的一种**模式**集成，复用现有 UI 和基础设施。
+
+### New Packages & Services
+
+| Module | Path | Description |
+|--------|------|-------------|
+| `volc-realtime` | `packages/volc-realtime/` | 火山引擎 WSS 二进制协议编解码库 (browser/Node.js 通用) |
+| `voice-gateway` | `services/voice-gateway/` | Node.js WebSocket 中继服务，桥接浏览器 ↔ 火山引擎 (port 8765) |
+| Dashscope provider | `packages/stage-ui/src/libs/providers/providers/dashscope/` | 通义千问 LLM provider (qwen 系列) |
+| VolcEngine Ark provider | `packages/stage-ui/src/libs/providers/providers/volcengine-ark/` | 火山方舟 LLM provider (Doubao 系列) |
+
+### New Stores
+
+| Store | Path | Description |
+|-------|------|-------------|
+| `volc-voice` | `packages/stage-ui/src/stores/modules/volc-voice.ts` | 实时语音连接/消息/音频播放/口型同步的核心 store |
+| `volc-realtime settings` | `packages/stage-ui/src/stores/settings/volc-realtime.ts` | 火山实时语音持久化设置 (localStorage) |
+
+### New Settings Pages
+
+| Page | Path | Description |
+|------|------|-------------|
+| Realtime Voice settings | `packages/stage-pages/src/pages/settings/providers/realtime-voice/` | 火山凭证输入 + 连接管理 UI |
+
+### Architecture
+
+```text
+Browser (stage-web)
+  → AudioWorklet 48kHz→16kHz downsample (index.vue)
+  → volcVoice.sendAudioChunk() (volc-voice.ts)
+  → WebSocket → voice-gateway (port 8765)
+  → VolcEngine WSS (ASR + Dialog + TTS)
+  → PCM 24kHz audio back
+  → volc-voice.ts: 24kHz→48kHz upsample + gapless playback + lip sync
+  → ChatArea: display ASR text + chat history
+```
+
+### Key Technical Notes
+
+- **macOS Chrome 16kHz AudioContext**: 强制 `sampleRate: 16000` 产生全零音频，必须用系统默认采样率 + AudioWorklet 下采样
+- **Browser ↔ gateway binary protocol**: 4-byte header length (BE) + JSON header + PCM payload
+- **Vite proxy required**: 火山方舟/Dashscope API 不支持浏览器 CORS，通过 `apps/stage-web/vite.config.ts` 代理
+- **Base URL must be absolute**: `@xsai/shared` 的 `requestURL()` 使用 `new URL(path, baseURL)`，相对路径会报错
+- **volc-realtime package**: 改动后必须 `pnpm run build` (exports 指向 dist/)
+- **HMR caveat**: shallowRef (WebSocket/AudioContext) 在 HMR 后丢失，需全页刷新
+
+### Running Services
+
+```bash
+# voice-gateway (port 8765)
+pnpm --filter @proj-airi/voice-gateway start
+
+# stage-web dev server
+pnpm --filter @proj-airi/stage-web dev
+```

@@ -617,6 +617,12 @@ pages:
       deepseek:
         description: DeepSeek.com
         title: 深度求索 DeepSeek
+      volcengine-ark:
+        description: 火山引擎方舟平台（豆包大模型）
+        title: 火山引擎方舟
+      dashscope:
+        description: 阿里雲靈積平台（通義千問）
+        title: 靈積 Dashscope
       elevenlabs:
         description: Elevenlabs.io
         fields:

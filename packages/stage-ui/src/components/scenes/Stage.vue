@@ -329,7 +329,10 @@ playbackManager.onEnd(({ item }) => {
     playSpecialToken(item.special)
 
   nowSpeaking.value = false
-  mouthOpenSize.value = 0
+  // Only reset mouthOpenSize if no other system (e.g., volc-voice) is controlling it
+  if (!useSpeakingStore().nowSpeaking) {
+    mouthOpenSize.value = 0
+  }
 })
 
 playbackManager.onStart(({ item }) => {
@@ -356,9 +359,14 @@ function startLipSyncLoop() {
   if (lipSyncLoopId.value)
     return
 
+  const speakingStore = useSpeakingStore()
+
   const tick = () => {
     if (!nowSpeaking.value || !live2dLipSync.value) {
-      mouthOpenSize.value = 0
+      // Only reset mouthOpenSize if no other system (e.g., volc-voice) is controlling it
+      if (!speakingStore.nowSpeaking) {
+        mouthOpenSize.value = 0
+      }
     }
     else {
       mouthOpenSize.value = live2dLipSync.value.getMouthOpen()
@@ -375,7 +383,10 @@ function stopLipSyncLoop() {
     lipSyncLoopId.value = undefined
   }
 
-  mouthOpenSize.value = 0
+  // Only reset mouthOpenSize if no other system (e.g., volc-voice) is controlling it
+  if (!useSpeakingStore().nowSpeaking) {
+    mouthOpenSize.value = 0
+  }
 }
 
 function resetLive2dLipSync() {

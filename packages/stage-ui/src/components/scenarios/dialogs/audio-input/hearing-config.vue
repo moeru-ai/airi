@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Callout, FieldSelect } from '@proj-airi/ui'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const props = withDefaults(defineProps<{
   enabled?: boolean
@@ -13,6 +14,8 @@ const props = withDefaults(defineProps<{
   audioInputs: () => [],
   volumeLevel: 0,
 })
+
+const { t } = useI18n()
 
 const enabled = defineModel<boolean>('enabled')
 const selectedAudioInput = defineModel<string>('selectedAudioInput')
@@ -61,10 +64,9 @@ const ringEnabledClass = computed(() => enabled.value
 
       <!-- Permission callout when needed (Electron contexts) -->
       <div v-if="!props.granted" class="mt-3 w-full">
-        <Callout theme="orange" label="Microphone permission required">
+        <Callout theme="orange" :label="t('stage.microphone.permission-required')">
           <div class="text-sm">
-            The app doesn't have permission to access your microphone.
-            Please grant microphone access in your system settings to enable audio input.
+            {{ t('stage.microphone.permission-description') }}
           </div>
         </Callout>
       </div>
@@ -74,10 +76,10 @@ const ringEnabledClass = computed(() => enabled.value
     <div class="mt-3 w-full">
       <FieldSelect
         v-model="selectedAudioInput"
-        label="Input device"
-        description="Select the microphone you want to use."
-        :options="props.audioInputs.map(device => ({ label: device.label || 'Unknown Device', value: device.deviceId }))"
-        placeholder="Select microphone"
+        :label="t('stage.microphone.input-device')"
+        :description="t('stage.microphone.input-device-description')"
+        :options="props.audioInputs.map(device => ({ label: device.label || t('stage.microphone.unknown-device'), value: device.deviceId }))"
+        :placeholder="t('stage.microphone.select-microphone')"
         layout="vertical"
       />
     </div>

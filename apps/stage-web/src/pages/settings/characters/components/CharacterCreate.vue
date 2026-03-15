@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -12,7 +15,7 @@
   >
     <div i-solar:add-square-line-duotone mb-4 text-5xl text="neutral-400 dark:neutral-500" />
     <p font-medium text="neutral-600 dark:neutral-300">
-      Create New Character
+      {{ t('settings.pages.card.create_card') }}
     </p>
   </div>
 </template>

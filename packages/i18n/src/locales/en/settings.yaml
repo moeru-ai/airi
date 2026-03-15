@@ -468,6 +468,10 @@ pages:
       Transcription: >-
         Transcription (speech-to-text) model providers. e.g. Whisper.cpp,
         OpenAI, Azure Speech
+    section:
+      realtime-voice:
+        title: Realtime Voice
+        description: End-to-end realtime voice dialogue systems. e.g. VolcEngine.
     helpinfo:
       title: First time here?
       description: >
@@ -648,6 +652,12 @@ pages:
       deepseek:
         description: deepseek.com
         title: DeepSeek
+      volcengine-ark:
+        description: Volcengine Ark (Doubao)
+        title: Volcengine Ark
+      dashscope:
+        description: Dashscope (Qwen)
+        title: Dashscope
       elevenlabs:
         description: elevenlabs.io
         fields:
@@ -800,6 +810,50 @@ pages:
               description: App ID of the project where you can obtain in Console
               label: App ID
         title: Volcano Engine
+      volc-realtime:
+        title: VolcEngine Realtime Voice
+        description: End-to-end realtime voice dialogue (ASR + LLM + TTS)
+        status:
+          connected: Connected
+          connecting: Connecting...
+          disconnected: Disconnected
+          error: Connection Error
+        credentials-required: Please fill in App ID, Access Key and App Key before connecting
+        actions:
+          connect: Connect
+          disconnect: Disconnect
+        sections:
+          credentials: API Credentials
+          model: Model Settings
+          connection: Connection Settings
+        fields:
+          volc-app-id:
+            label: App ID
+            description: Application ID from VolcEngine Console
+          volc-access-key:
+            label: Access Key
+            description: VolcEngine API access key
+          volc-app-key:
+            label: App Key
+            description: VolcEngine application key
+          volc-resource-id:
+            label: Resource ID
+            description: Realtime dialogue resource identifier
+          volc-dialog-model:
+            label: Dialog Model Version
+            description: Model version for realtime dialogue
+          volc-speaker:
+            label: TTS Voice
+            description: Voice ID for speech synthesis
+          enabled:
+            label: Enable Realtime Voice
+            description: Use VolcEngine end-to-end realtime voice dialogue, replacing local STT/LLM/TTS pipeline
+          server-url:
+            label: Relay Server URL
+            description: voice-gateway WebSocket server address
+          auto-connect:
+            label: Auto Connect
+            description: Automatically connect to relay server on page load
       xai:
         description: x.ai
         title: xAI

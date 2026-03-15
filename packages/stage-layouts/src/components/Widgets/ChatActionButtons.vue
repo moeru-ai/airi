@@ -2,8 +2,11 @@
 import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
 import { useTheme } from '@proj-airi/ui'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { BackgroundDialogPicker } from '../Backgrounds'
+
+const { t } = useI18n()
 
 const { cleanupMessages } = useChatMaintenanceStore()
 const { isDark, toggleDark } = useTheme()
@@ -45,7 +48,7 @@ const backgroundDialogOpen = ref(false)
       text="lg neutral-500 dark:neutral-400"
       flex items-center justify-center rounded-md p-2 outline-none
       transition-colors transition-transform active:scale-95
-      title="Background"
+      :title="t('stage.actions.background')"
       @click="backgroundDialogOpen = true"
     >
       <div i-solar:gallery-wide-bold-duotone />

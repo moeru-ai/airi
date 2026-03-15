@@ -31,8 +31,63 @@ viewers:
       model:
         title: 模型
 profile-switcher:
-  no-profile: No Profile
-  no-profiles: No profiles yet
-  save-as-new: Save as New Profile
-  manage: Manage Profiles
+  no-profile: 未选择角色
+  no-profiles: 还没有角色卡
+  save-as-new: 另存为新角色卡
+  manage: 管理角色卡
+microphone:
+  enabled: 麦克风已开启
+  disabled: 麦克风已关闭
+  input-device: 输入设备
+  input-device-description: 选择你要使用的麦克风。
+  unknown-device: 未知设备
+  select-microphone: 选择麦克风
+  permission-required: 需要麦克风权限
+  permission-description: 应用无法访问你的麦克风。请在系统设置中授予麦克风访问权限以启用音频输入。
+about:
+  title: 关于
+  build-info: 应用构建信息
+  version: 版本
+  branch: 分支
+  commit: 提交
+  built-on: 构建时间
+  links:
+    home: 主页
+    documentations: 文档
+actions:
+  about: 关于
+  view: 视图
+  hearing: 听觉
+  theme: 主题
+  background: 背景
+  settings: 设置
+  cleanup-messages: 清除消息
+  scale: 缩放
+background-picker:
+  title: 背景选择
+  no-preview: 无预览
+  add-custom: 添加自定义背景
+  preview: 预览
+  blur: 模糊
+  select-background: 选择一个背景
+  sampling: 采样中...
+  use-this: 使用此背景
+  remove: 移除背景
+hearing-input:
+  title: 听觉输入
+auth:
+  sign-in: 登录 AIRI Stage
+  sign-in-short: 登录
+  sign-in-with-google: 使用 Google 登录
+  sign-in-with-github: 使用 GitHub 登录
+  terms-agreement: 继续即表示你同意我们的
+  terms: 使用条款
+  privacy-policy: 隐私政策
+  login: 登录
+  signed-in-as: 已登录为
+  active-sessions: 活跃会话
+  logout: 退出登录
+not-found:
+  title: 我们在哪里？
+  go-back: 返回
 waiting: 等待中

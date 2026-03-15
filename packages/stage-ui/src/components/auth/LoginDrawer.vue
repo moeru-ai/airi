@@ -5,9 +5,12 @@ import { Button } from '@proj-airi/ui'
 import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot } from 'vaul-vue'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
 import { signIn } from '../../libs/auth'
+
+const { t } = useI18n()
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -44,7 +47,7 @@ async function handleSignIn(provider: OAuthProvider) {
         <div class="px-6 pt-2">
           <DrawerHandle class="mb-6" />
           <div class="mb-6 text-2xl font-bold">
-            Sign in
+            {{ t('stage.auth.sign-in-short') }}
           </div>
           <div class="flex flex-col gap-4">
             <Button
@@ -53,7 +56,7 @@ async function handleSignIn(provider: OAuthProvider) {
               @click="handleSignIn('google')"
             >
               <div v-if="!loading.google" class="i-simple-icons-google text-xl" />
-              <span>Sign in with Google</span>
+              <span>{{ t('stage.auth.sign-in-with-google') }}</span>
             </Button>
             <Button
               :class="['w-full', 'py-4', 'flex', 'items-center', 'justify-center', 'gap-3', 'text-lg', 'rounded-2xl']"
@@ -61,11 +64,11 @@ async function handleSignIn(provider: OAuthProvider) {
               @click="handleSignIn('github')"
             >
               <div v-if="!loading.github" class="i-simple-icons-github text-xl" />
-              <span>Sign in with GitHub</span>
+              <span>{{ t('stage.auth.sign-in-with-github') }}</span>
             </Button>
           </div>
           <div class="mt-10 pb-2 text-center text-xs text-gray-400">
-            By continuing, you agree to our <a href="#" class="underline">Terms</a> and <a href="#" class="underline">Privacy Policy</a>.
+            {{ t('stage.auth.terms-agreement') }}<a href="#" class="underline">{{ t('stage.auth.terms') }}</a>&nbsp;&amp;&nbsp;<a href="#" class="underline">{{ t('stage.auth.privacy-policy') }}</a>
           </div>
         </div>
       </DrawerContent>

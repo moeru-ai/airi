@@ -2,10 +2,13 @@
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
+import { useI18n } from 'vue-i18n'
 
 const emits = defineEmits<{
   (e: 'reset'): void
 }>()
+
+const { t } = useI18n()
 
 const { stageModelRenderer, stageViewControlsEnabled } = storeToRefs(useSettings())
 
@@ -35,7 +38,7 @@ function handleViewControlsToggle(targetMode: 'x' | 'y' | 'z' | 'scale') {
           Z
         </Button>
         <Button variant="secondary-muted" :toggled="mode === 'scale'" w-full @click="handleViewControlsToggle('scale')">
-          Scale
+          {{ t('stage.actions.scale') }}
         </Button>
       </div>
     </Transition>
@@ -43,7 +46,7 @@ function handleViewControlsToggle(targetMode: 'x' | 'y' | 'z' | 'scale') {
       w-fit flex items-center self-end justify-center justify-self-end rounded-xl p-2 backdrop-blur-md
       border="2 solid neutral-100/60 dark:neutral-800/30"
       bg="neutral-50/70 dark:neutral-800/70"
-      title="View"
+      :title="t('stage.actions.view')"
       text="neutral-500 dark:neutral-400"
       @click="stageViewControlsEnabled = !stageViewControlsEnabled"
     >

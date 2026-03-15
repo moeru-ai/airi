@@ -97,7 +97,10 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
     }
 
     try {
-      streamText({
+      // streamText returns a synchronous StreamTextResult (not a Promise).
+      // Internal fetch errors may not flow through onEvent, so we use the
+      // `messages` promise as a fallback to detect completion or failure.
+      const result = streamText({
         ...chatConfig,
         maxSteps: 10,
         messages: sanitized,
@@ -106,6 +109,12 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
         tools,
         onEvent,
       })
+
+      // result.messages is a Promise that resolves when all steps finish,
+      // or rejects if the underlying fetch/stream fails.
+      result.messages
+        .then(() => resolveOnce())
+        .catch((err: unknown) => rejectOnce(err))
     }
     catch (err) {
       rejectOnce(err)

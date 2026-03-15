@@ -1,0 +1,58 @@
+{
+  "name": "@proj-airi/volc-realtime",
+  "type": "module",
+  "private": true,
+  "description": "Volcengine Realtime Dialogue WebSocket protocol client for Project AIRI",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/volc-realtime"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./protocol": {
+      "types": "./dist/protocol.d.mts",
+      "default": "./dist/protocol.mjs"
+    },
+    "./client": {
+      "types": "./dist/client.d.mts",
+      "default": "./dist/client.mjs"
+    },
+    "./events": {
+      "types": "./dist/events.d.mts",
+      "default": "./dist/events.mjs"
+    },
+    "./types": {
+      "types": "./dist/types.d.mts",
+      "default": "./dist/types.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "dev": "pnpm run build",
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "ws": "catalog:"
+  },
+  "devDependencies": {
+    "@types/ws": "catalog:"
+  }
+}

@@ -4,8 +4,11 @@ import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { onClickOutside, useMediaQuery } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { toast } from 'vue-sonner'
+
+const { t } = useI18n()
 
 const authStore = useAuthStore()
 const { isAuthenticated, user } = storeToRefs(authStore)
@@ -47,7 +50,7 @@ async function handleListSessions() {
         border="2 solid neutral-100/60 dark:neutral-800/30"
         bg="neutral-50/70 dark:neutral-800/70"
         w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
-        title="Settings"
+        :title="t('stage.actions.settings')"
         to="/settings"
       >
         <div i-solar:settings-minimalistic-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
@@ -58,7 +61,7 @@ async function handleListSessions() {
           border="2 solid neutral-100/60 dark:neutral-800/30"
           bg="neutral-50/70 dark:neutral-800/70"
           w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
-          title="Login"
+          :title="t('stage.auth.login')"
           type="button"
           @click="authStore.isLoginDrawerOpen = true"
         >
@@ -70,7 +73,7 @@ async function handleListSessions() {
           border="2 solid neutral-100/60 dark:neutral-800/30"
           bg="neutral-50/70 dark:neutral-800/70"
           w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
-          :title="isAuthenticated ? `Logged in as ${userName}` : 'Login'"
+          :title="isAuthenticated ? `${t('stage.auth.signed-in-as')} ${userName}` : t('stage.auth.login')"
           to="/auth/login"
         >
           <div i-solar:user-bold-duotone />
@@ -123,7 +126,7 @@ async function handleListSessions() {
         >
           <div class="px-3 py-2">
             <p class="text-xs text-neutral-500 dark:text-neutral-400">
-              Signed in as
+              {{ t('stage.auth.signed-in-as') }}
             </p>
             <p class="truncate text-sm text-neutral-900 font-medium dark:text-white">
               {{ userName }}
@@ -136,7 +139,7 @@ async function handleListSessions() {
               @click="handleListSessions"
             >
               <div class="i-solar:devices-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
-              Active Sessions
+              {{ t('stage.auth.active-sessions') }}
             </button>
 
             <RouterLink
@@ -145,7 +148,7 @@ async function handleListSessions() {
               @click="showDropdown = false"
             >
               <div class="i-solar:settings-minimalistic-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
-              Settings
+              {{ t('stage.actions.settings') }}
             </RouterLink>
           </div>
 
@@ -155,7 +158,7 @@ async function handleListSessions() {
               @click="handleLogout"
             >
               <div class="i-solar:logout-3-bold-duotone text-lg transition group-hover:text-red-600 dark:group-hover:text-red-400" />
-              Logout
+              {{ t('stage.auth.logout') }}
             </button>
           </div>
         </div>

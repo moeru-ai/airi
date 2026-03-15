@@ -31,18 +31,18 @@ dialogs:
     no-models-help: >-
       请返回上一步并检查您的 API Key，或检查网络连接。
     permissions:
-      title: Notifications
-      description: You can allow notifications now or continue and set it up later.
-      notificationsTitle: Notifications
-      notificationsDescription: Allow reminders and important status updates.
-      notificationsAction: Request notification permission
-      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
-      openSettings: Open iOS Settings
-      optionalHint: You can continue even if notification permission is not granted.
-      stateUnknown: Not requested
-      stateRequesting: Requesting...
-      stateGranted: Granted
-      stateNotGranted: Not granted
+      title: 通知权限
+      description: 你可以现在允许通知，或者继续之后再设置。
+      notificationsTitle: 通知
+      notificationsDescription: 允许提醒和重要状态更新。
+      notificationsAction: 请求通知权限
+      notificationsNotGrantedHint: 如果拒绝了，你可以稍后在系统设置中启用通知。
+      openSettings: 打开系统设置
+      optionalHint: 即使未授予通知权限，你也可以继续。
+      stateUnknown: 未请求
+      stateRequesting: 请求中...
+      stateGranted: 已授权
+      stateNotGranted: 未授权
 language:
   title: 语言
   description: >
@@ -172,7 +172,7 @@ pages:
     scenario: 场景
     search: 搜索角色卡...
     sort_by: 排序方式
-    body-model: Body / Display Model
+    body-model: 形体 / 显示模型
     speech:
       provider: 语音 / 提供商
       model: 声音 / 模型
@@ -186,7 +186,7 @@ pages:
     description: 存放记忆的地方，以及策略
     title: 记忆体
   data:
-    title: Data
+    title: 数据
     description: 管理存储 AIRI 数据、导出和重置
     sections:
       chats:
@@ -298,7 +298,7 @@ pages:
           provider-model-selection:
             collapse: 折叠
             custom_model_placeholder: 输入自订模型名称
-            current_model_label: 'Current model:'
+            current_model_label: '当前模型：'
             description: 为意识选择合适的 LLM 服务来源
             error: 获取出错啦
             health_check_failed: 健康检查失败
@@ -393,7 +393,7 @@ pages:
             no_voices_description: 该服务来源的声线列表没有返回任何的数据
             no_voices_hint: 可以在下方输入自定义声线名字
             pause: 暂停
-            play_sample: Play
+            play_sample: 播放试听
             search_models_placeholder: 搜索模型...
             search_models_results: 找到 {count} / {total} 个模型
             search_voices_placeholder: 搜索声线...
@@ -451,6 +451,10 @@ pages:
       Speech: 语音（文本转语音）模型服务来源，例如 ElevenLabs, Azure Speech
       Transcription: >-
         转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
+    section:
+      realtime-voice:
+        title: 实时语音
+        description: 端到端实时语音对话系统，例如火山引擎实时对话
     helpinfo:
       title: 第一次使用？
       description: >
@@ -491,7 +495,7 @@ pages:
                 thinking-mode:
                   label: 思考模式
                   description: >
-                    Controls Ollama thinking behavior. GPT-OSS only supports low/medium/high levels.
+                    控制 Ollama 思考行为。GPT-OSS 仅支持低/中/高级别。
                   options:
                     auto: 自动（默认服务来源）
                     disable: 禁用
@@ -617,6 +621,12 @@ pages:
       deepseek:
         description: DeepSeek.com
         title: 深度求索 DeepSeek
+      volcengine-ark:
+        description: 火山引擎方舟平台（豆包大模型）
+        title: 火山引擎方舟
+      dashscope:
+        description: 阿里云灵积平台（通义千问）
+        title: 灵积 Dashscope
       elevenlabs:
         description: Elevenlabs.io
         fields:
@@ -768,6 +778,50 @@ pages:
               description: 可在控制台获取的 App ID
               label: App ID
         title: 火山引擎
+      volc-realtime:
+        title: 火山引擎实时语音
+        description: 端到端实时语音对话（ASR + LLM + TTS）
+        status:
+          connected: 已连接
+          connecting: 连接中...
+          disconnected: 未连接
+          error: 连接错误
+        credentials-required: 请填写 App ID、Access Key 和 App Key 后才能连接
+        actions:
+          connect: 连接
+          disconnect: 断开
+        sections:
+          credentials: API 凭证
+          model: 模型配置
+          connection: 连接设置
+        fields:
+          volc-app-id:
+            label: App ID
+            description: 火山引擎控制台中的应用 ID
+          volc-access-key:
+            label: Access Key
+            description: 火山引擎 API 访问密钥
+          volc-app-key:
+            label: App Key
+            description: 火山引擎应用密钥
+          volc-resource-id:
+            label: Resource ID
+            description: 实时对话资源标识
+          volc-dialog-model:
+            label: 对话模型版本
+            description: 实时对话使用的模型版本号
+          volc-speaker:
+            label: TTS 音色
+            description: 语音合成使用的音色标识
+          enabled:
+            label: 启用实时语音
+            description: 开启后将使用火山引擎端到端实时语音对话，替代本地 STT/LLM/TTS 管线
+          server-url:
+            label: 中继服务器地址
+            description: voice-gateway WebSocket 服务器地址
+          auto-connect:
+            label: 自动连接
+            description: 页面加载时自动连接到中继服务器
       xai:
         description: X.AI
         title: xAI
@@ -859,6 +913,7 @@ pages:
                 title: 拍立得
                 description: 拍摄模型照片的工具
               context-flow:
+                title: 上下文流
                 description: >-
                   检查传入的上下文更新和传出的聊天流事件
               websocket-inspector:
