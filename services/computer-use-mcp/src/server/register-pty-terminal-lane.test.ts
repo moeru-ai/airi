@@ -25,7 +25,7 @@ import {
   writeToPty,
 } from '../terminal/pty-runner'
 import { createTestConfig } from '../test-fixtures'
-import { executeApprovedPtyCreate, registerPtyTools } from './register-pty'
+import { createAcquirePtyCallback, executeApprovedPtyCreate, registerPtyTools } from './register-pty'
 
 vi.mock('../terminal/pty-runner', () => ({
   createPtySession: vi.fn(),
@@ -129,6 +129,38 @@ describe('register-pty: terminal lane', () => {
 
       expect((result.structuredContent as Record<string, any>).approvalSessionId).toBe('approval_1')
       expect(runtime.stateManager.getActivePtyGrants()).toHaveLength(1)
+    })
+
+    it('workflow PTY self-acquire queues approval with a grant session id', async () => {
+      runtime.config = createTestConfig({ approvalMode: 'actions' })
+      vi.mocked(isPtyAvailable).mockResolvedValue(true)
+      const acquirePty = createAcquirePtyCallback(runtime)
+
+      const result = await acquirePty({
+        taskId: 'task_terminal_lane',
+        stepId: 'step_terminal_lane',
+        cwd: '/tmp/project',
+        rows: 24,
+        cols: 80,
+        autoApprove: false,
+      })
+
+      expect(result).toMatchObject({
+        acquired: false,
+        approvalPending: true,
+      })
+      expect(pendingActions).toHaveLength(1)
+      expect(pendingActions[0]).toMatchObject({
+        toolName: 'pty_create',
+        action: {
+          kind: 'pty_create',
+          input: expect.objectContaining({
+            cwd: '/tmp/project',
+            stepId: 'step_terminal_lane',
+            approvalSessionId: expect.any(String),
+          }),
+        },
+      })
     })
 
     it('pty_destroy revokes the Open Grant', async () => {

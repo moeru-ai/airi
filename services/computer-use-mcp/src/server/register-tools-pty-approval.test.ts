@@ -68,6 +68,7 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
         getState: vi.fn(() => ({ effectiveCwd: '/tmp' })),
       },
       browserDomBridge: {
+        triggerEvent: vi.fn(),
         getStatus: vi.fn(() => ({ enabled: false, connected: false })),
       },
       cdpBridgeManager: {
@@ -139,5 +140,36 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
       }),
     ])
     expect((runtime.session.getPendingAction as any)('pending-pty-1')).toBeUndefined()
+  })
+
+  it('returns a structured error when browser_dom_trigger_event receives malformed optsJson', async () => {
+    ;(runtime.browserDomBridge.getStatus as any).mockReturnValue({
+      enabled: true,
+      connected: true,
+      host: '127.0.0.1',
+      port: 8765,
+      pendingRequests: 0,
+    })
+
+    const { server, invoke } = createMockServer()
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction: vi.fn(),
+      enableTestTools: false,
+    })
+
+    const result = await invoke('browser_dom_trigger_event', {
+      selector: '#app',
+      eventName: 'click',
+      optsJson: '{not-valid-json}',
+    })
+
+    expect(result.isError).toBe(true)
+    expect(result.structuredContent).toMatchObject({
+      status: 'invalid_params',
+      field: 'optsJson',
+    })
+    expect((runtime.browserDomBridge.triggerEvent as any)).not.toHaveBeenCalled()
   })
 })

@@ -14,6 +14,27 @@ function auditPreview(data: string, maxLen = 80) {
   return `${data.slice(0, maxLen)}…`
 }
 
+function requireWorkflowPrepPtyGrant(runtime: ComputerUseServerRuntime, sessionId: string, operation: string): CallToolResult | undefined {
+  if (runtime.config.approvalMode === 'never')
+    return undefined
+
+  const hasGrant = runtime.stateManager.getActivePtyGrants().some(grant => grant.active && grant.ptySessionId === sessionId)
+  if (hasGrant)
+    return undefined
+
+  return {
+    isError: true,
+    content: [
+      textContent(`${operation} failed: PTY session ${sessionId} has no active approval grant.`),
+    ],
+    structuredContent: {
+      status: 'pty_grant_required',
+      operation,
+      sessionId,
+    },
+  }
+}
+
 export function createWorkflowPrepToolExecutor(runtime: ComputerUseServerRuntime): ExecutePrepTool {
   return async (toolName) => {
     const currentIds = () => {
@@ -186,6 +207,11 @@ export function createWorkflowPrepToolExecutor(runtime: ComputerUseServerRuntime
             }
           }
 
+          const grantError = requireWorkflowPrepPtyGrant(runtime, trackedSession.id, 'pty_read_screen')
+          if (grantError) {
+            return grantError
+          }
+
           const session = readPtyScreen(trackedSession.id, { maxLines: trackedSession.rows })
           runtime.stateManager.touchPtySession(trackedSession.id)
           runtime.stateManager.updatePtySessionAlive(trackedSession.id, session.alive)
@@ -225,6 +251,11 @@ export function createWorkflowPrepToolExecutor(runtime: ComputerUseServerRuntime
           const sessionId = parts[1]
           const data = parts.slice(2).join(':')
           try {
+            const grantError = requireWorkflowPrepPtyGrant(runtime, sessionId, 'pty_send_input')
+            if (grantError) {
+              return grantError
+            }
+
             writeToPty(sessionId, { data })
             runtime.stateManager.touchPtySession(sessionId)
             runtime.stateManager.appendPtyAudit({
@@ -247,6 +278,11 @@ export function createWorkflowPrepToolExecutor(runtime: ComputerUseServerRuntime
         if (toolName.startsWith('pty_read_screen:')) {
           const sessionId = toolName.slice('pty_read_screen:'.length)
           try {
+            const grantError = requireWorkflowPrepPtyGrant(runtime, sessionId, 'pty_read_screen')
+            if (grantError) {
+              return grantError
+            }
+
             const session = readPtyScreen(sessionId, {})
             runtime.stateManager.touchPtySession(sessionId)
             runtime.stateManager.updatePtySessionAlive(sessionId, session.alive)
@@ -278,6 +314,11 @@ export function createWorkflowPrepToolExecutor(runtime: ComputerUseServerRuntime
         if (toolName.startsWith('pty_destroy:')) {
           const sessionId = toolName.slice('pty_destroy:'.length)
           try {
+            const grantError = requireWorkflowPrepPtyGrant(runtime, sessionId, 'pty_destroy')
+            if (grantError) {
+              return grantError
+            }
+
             destroyPtySession(sessionId)
             runtime.stateManager.unregisterPtySession(sessionId)
             runtime.stateManager.revokePtyApproval(sessionId)

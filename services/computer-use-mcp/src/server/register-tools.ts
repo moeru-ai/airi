@@ -819,7 +819,23 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
       let opts: Record<string, unknown> | undefined
       if (optsJson?.trim()) {
-        const parsed = JSON.parse(optsJson) as unknown
+        let parsed: unknown
+        try {
+          parsed = JSON.parse(optsJson) as unknown
+        }
+        catch (error) {
+          return {
+            isError: true,
+            content: [
+              textContent(`browser_dom_trigger_event expected optsJson to be valid JSON: ${error instanceof Error ? error.message : String(error)}`),
+            ],
+            structuredContent: {
+              status: 'invalid_params',
+              field: 'optsJson',
+            },
+          }
+        }
+
         const record = toBrowserDomRecord(parsed)
         if (!record) {
           return {
