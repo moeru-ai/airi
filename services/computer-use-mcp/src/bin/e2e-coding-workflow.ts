@@ -1,12 +1,12 @@
 /**
- * Real E2E: Coding workflow happy path.
+ * Real E2E: Search-driven coding workflow happy path.
  *
  * Proves the coding execution core works end-to-end through the real
  * MCP stdio transport:
  *
  *   1. Review a real temporary workspace
- *   2. Read and patch a real file
- *   3. Run a real validation command through terminal_exec
+ *   2. Search and deterministically select a real target file
+ *   3. Plan a limited change set and patch the current planned file
  *   4. Verify the file changed on disk
  *   5. Verify coding report/state is persisted in run state
  *
@@ -46,7 +46,7 @@ function requireStructuredContent(result: unknown, label: string): Record<string
 
 function createProjectDir() {
   const dir = mkdtempSync(join(tmpdir(), 'e2e-coding-workflow-'))
-  writeFileSync(join(dir, 'index.ts'), 'export const flag = false\n', 'utf8')
+  writeFileSync(join(dir, 'index.ts'), 'export const flag = false\nexport const untouched = true\n', 'utf8')
   writeFileSync(join(dir, 'README.md'), '# e2e coding workflow test\n', 'utf8')
   return dir
 }
@@ -103,13 +103,13 @@ async function main() {
     }
     console.info(`  ${tools.length} tools available`)
 
-    console.info('\n── Phase 1: run workflow_coding_loop ──')
+    console.info('\n── Phase 1: run workflow_coding_loop (search-driven) ──')
     const workflowResult = await client.callTool({
       name: 'workflow_coding_loop',
       arguments: {
         workspacePath: projectPath,
-        taskGoal: 'Flip the feature flag to true.',
-        targetFile: 'index.ts',
+        taskGoal: 'Flip the feature flag to true via deterministic search+selection.',
+        searchQuery: 'export const flag = false',
         patchOld: 'export const flag = false',
         patchNew: 'export const flag = true',
         testCommand: 'grep -q "export const flag = true" index.ts && echo "coding validation passed"',
@@ -123,10 +123,15 @@ async function main() {
     assert(workflowData.workflow === 'coding_execution_loop', `expected coding_execution_loop, got ${String(workflowData.workflow)}`)
 
     const stepResults = workflowData.stepResults as Array<{ label: string, succeeded: boolean, status: string }>
-    assert(stepResults.length === 8, `expected 8 steps, got ${stepResults.length}`)
+    assert(stepResults.length === 11, `expected 11 steps, got ${stepResults.length}`)
     for (const step of stepResults) {
       console.info(`  ${step.succeeded ? '✓' : '✗'} ${step.label} (${step.status})`)
     }
+
+    assert(stepResults.some(step => step.label === 'Search codebase text'), 'expected text search step')
+    assert(stepResults.some(step => step.label === 'Select deterministic target'), 'expected deterministic target selection step')
+    assert(stepResults.some(step => step.label === 'Plan limited changes'), 'expected plan generation step')
+    assert(stepResults.some(step => step.label === 'Review deterministic changes'), 'expected deterministic review step')
 
     console.info('\n── Phase 2: verify file changed on disk ──')
     const content = readFileSync(join(projectPath, 'index.ts'), 'utf8')
@@ -147,8 +152,12 @@ async function main() {
     assert(Array.isArray(codingState.recentReads) && codingState.recentReads.length >= 2, 'expected coding recentReads to be populated')
     assert(Array.isArray(codingState.recentEdits) && codingState.recentEdits.some((entry: any) => entry.path === 'index.ts'), 'expected coding recentEdits to include index.ts')
     assert(Array.isArray(codingState.recentCommandResults) && codingState.recentCommandResults.some((entry: string) => entry.includes('coding validation passed')), 'expected coding recentCommandResults to include validation output')
+    assert(codingState.lastTargetSelection?.status === 'selected', 'expected deterministic selected target')
+    assert(codingState.lastTargetSelection?.selectedFile === 'index.ts', 'expected selected target to be index.ts')
+    assert(Array.isArray(codingState.currentPlan?.steps) && codingState.currentPlan.steps.length >= 1, 'expected deterministic plan steps')
+    assert(codingState.lastChangeReview?.status === 'ready_for_next_file', `expected ready_for_next_file, got ${String(codingState.lastChangeReview?.status)}`)
     assert(codingState.lastCodingReport?.status === 'completed', `expected lastCodingReport.status=completed, got ${String(codingState.lastCodingReport?.status)}`)
-    assert(typeof codingState.lastCodingReport?.summary === 'string' && codingState.lastCodingReport.summary.includes('validated successfully'), 'expected lastCodingReport summary to mention successful validation')
+    assert(typeof codingState.lastCodingReport?.summary === 'string' && codingState.lastCodingReport.summary.includes('ready_for_next_file'), 'expected lastCodingReport summary to mention deterministic review status')
     console.info('  ✓ coding state/report written back')
 
     console.info('\n── Phase 4: verify direct coding tool structured contract ──')
