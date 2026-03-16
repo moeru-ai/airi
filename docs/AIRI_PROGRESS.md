@@ -38,6 +38,8 @@ This document tracks the current development state of the AIRI project, specific
 - **Chatterbox Provider Studio**: Shipped a first-class Chatterbox provider UI plus preset/profile CRUD, with a dedicated AIRI management studio and matching server-side endpoints in the Chatterbox fork.
 - **Privacy / Local-Only Mode**: Remote auth bootstrap and cloud chat sync are now disabled by default. AIRI only contacts `airi-api.moeru.ai` after the user explicitly enables cloud sync in settings.
 - **Discord Bot Bring-up Stabilization**: Fixed a local dev regression where the standalone Discord bot could not connect because the AIRI channel server was incorrectly inheriting the renderer dev port. The channel server now keeps its own port and the duplicate-reply issue did not reproduce after the fix.
+- **Proactivity Metrics & Window History Overhaul**: Replaced the unreliable manual counters with a real-time metrics engine that derives TTS, STT, and Chat counts directly from the chat session history. Expanded the focus history to include the last 6 entries with explicit labeling for the "Active Program" and "Active Window Title" to improve LLM reasoning.
+- **Server Communication Log Refinement**: Fine-tuned the `@proj-airi/server-runtime:websocket` logs to suppress massive chat completion text dumps (`output:gen-ai:chat:complete`) by downgrading them to debug levels, while maintaining the visibility of system heartbeat events for health monitoring.
 - **Workaround Documentation**: Added `// NOTICE:` comments throughout the codebase to explain critical hacks, OS-specific workarounds, and upstream dependency fixes.
 
 ## Project Structure

@@ -724,9 +724,6 @@ importers:
       localforage:
         specifier: ^1.10.0
         version: 1.10.0
-      mediabunny:
-        specifier: ^1.35.0
-        version: 1.35.0
       nanoid:
         specifier: ^5.1.6
         version: 5.1.6
@@ -1130,9 +1127,6 @@ importers:
       localforage:
         specifier: ^1.10.0
         version: 1.10.0
-      mediabunny:
-        specifier: ^1.35.0
-        version: 1.35.0
       node-vibrant:
         specifier: ^4.0.4
         version: 4.0.4(encoding@0.1.13)
@@ -1548,9 +1542,6 @@ importers:
       localforage:
         specifier: ^1.10.0
         version: 1.10.0
-      mediabunny:
-        specifier: ^1.35.0
-        version: 1.35.0
       nanoid:
         specifier: ^5.1.6
         version: 5.1.6
@@ -2646,9 +2637,6 @@ importers:
       localforage:
         specifier: ^1.10.0
         version: 1.10.0
-      mediabunny:
-        specifier: ^1.35.0
-        version: 1.35.0
       nanoid:
         specifier: ^5.1.6
         version: 5.1.6
@@ -8652,12 +8640,6 @@ packages:
   '@types/deep-eql@4.0.2':
     resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
 
-  '@types/dom-mediacapture-transform@0.1.11':
-    resolution: {integrity: sha512-Y2p+nGf1bF2XMttBnsVPHUWzRRZzqUoJAKmiP10b5umnO6DDrWI0BrGDJy1pOHoOULVmGSfFNkQrAlC5dcj6nQ==}
-
-  '@types/dom-webcodecs@0.1.13':
-    resolution: {integrity: sha512-O5hkiFIcjjszPIYyUSyvScyvrBoV3NOEEZx/pMlsu44TKzWNkLVBBxnxJz42in5n3QIolYOcBYFCPZZ0h8SkwQ==}
-
   '@types/draco3d@1.4.10':
     resolution: {integrity: sha512-AX22jp8Y7wwaBgAixaSvkoG4M/+PlAcm3Qs4OW8yT9DM4xUpWKeFhLueTAyZF39pviAdcDdeJoACapiAceqNcw==}
 
@@ -13401,9 +13383,6 @@ packages:
   media-typer@1.1.0:
     resolution: {integrity: sha512-aisnrDP4GNe06UcKFnV5bfMNPBUw4jsLGaWwWfnH3v02GnBuXX2MCVn5RbrWo0j3pczUilYblq7fQ7Nw2t5XKw==}
     engines: {node: '>= 0.8'}
-
-  mediabunny@1.35.0:
-    resolution: {integrity: sha512-nDCwdkK9aWDam1+L/VnK2EWzENj5WcPAAmm6HBTXQe5FZ/Mx7uSJewTKeA1JKXpkXvSsp+7UzTsx+G7HfcwOGA==}
 
   merge-descriptors@1.0.3:
     resolution: {integrity: sha512-gaNvAS7TZ897/rVaZ0nMtAyxNyi/pdbjbAwUpFQpN70GqnVfOiXpeUUMKRBmzXaSQ8DdTX4/0ms62r2K+hE6mQ==}
@@ -22473,12 +22452,6 @@ snapshots:
 
   '@types/deep-eql@4.0.2': {}
 
-  '@types/dom-mediacapture-transform@0.1.11':
-    dependencies:
-      '@types/dom-webcodecs': 0.1.13
-
-  '@types/dom-webcodecs@0.1.13': {}
-
   '@types/draco3d@1.4.10': {}
 
   '@types/earcut@2.1.4': {}
@@ -28093,11 +28066,6 @@ snapshots:
   media-typer@0.3.0: {}
 
   media-typer@1.1.0: {}
-
-  mediabunny@1.35.0:
-    dependencies:
-      '@types/dom-mediacapture-transform': 0.1.11
-      '@types/dom-webcodecs': 0.1.13
 
   merge-descriptors@1.0.3: {}
 

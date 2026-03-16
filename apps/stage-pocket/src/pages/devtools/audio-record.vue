@@ -1,45 +1,36 @@
 <script setup lang="ts">
+import { useAudioRecorder } from '@proj-airi/stage-ui/composables'
 import { useDevicesList, useObjectUrl } from '@vueuse/core'
-import { BufferTarget, MediaStreamAudioTrackSource, Output, QUALITY_MEDIUM, WavOutputFormat } from 'mediabunny'
 import { computed, ref } from 'vue'
 
 const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
 const constraintId = ref('')
 
-async function getMediaStreamTrack(constraint: ConstrainDOMString) {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: constraint } })
-  return stream.getAudioTracks()[0]
-}
+const stream = ref<MediaStream>()
+const { startRecord, stopRecord, recording } = useAudioRecorder(stream)
 
-let output: Output | undefined
-let audioInputTrack: MediaStreamAudioTrack | undefined
-let format: string | undefined
-
-const recorded = ref<ArrayBuffer[]>([])
-const recordedUrls = computed(() => recorded.value.map(rec => useObjectUrl(new Blob([rec], { type: format })).value))
+const recorded = ref<Blob[]>([])
+const recordedUrls = computed(() => recorded.value.map(rec => useObjectUrl(rec).value))
 
 async function handleStart() {
-  audioInputTrack = await getMediaStreamTrack(constraintId.value)
-  output = new Output({ format: new WavOutputFormat(), target: new BufferTarget() })
-
-  const audioSource = new MediaStreamAudioTrackSource(audioInputTrack, { codec: 'pcm-f32', bitrate: QUALITY_MEDIUM })
-  audioSource.errorPromise.catch(console.error)
-  output.addAudioTrack(audioSource)
-
-  format = await output.getMimeType()
-  await output.start()
+  stream.value = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: constraintId.value } })
+  await startRecord()
 }
 
 async function handleStop() {
-  await output?.finalize()
-  const bufferTarget = output?.target as BufferTarget | undefined
+  const blob = await stopRecord()
+  if (blob)
+    recorded.value.push(blob)
 
-  if (bufferTarget?.buffer)
-    recorded.value.push(bufferTarget.buffer)
+  // Stop the stream tracks manually
+  stream.value?.getTracks().forEach(track => track.stop())
+  stream.value = undefined
 }
 
 function handleCancel() {
-  output?.cancel()
+  // Simple cancel: just stop the stream
+  stream.value?.getTracks().forEach(track => track.stop())
+  stream.value = undefined
 }
 </script>
 
