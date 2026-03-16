@@ -5,6 +5,7 @@ import { Section } from '@proj-airi/stage-ui/components'
 
 defineProps<{
   currentPromptText: string
+  currentSourceCount: number
   lastProjection?: PromptProjectionSnapshot
 }>()
 </script>
@@ -16,6 +17,28 @@ defineProps<{
     inner-class="gap-3"
     :expand="false"
   >
+    <div
+      :class="[
+        'rounded-xl',
+        'border',
+        currentPromptText
+          ? 'border-emerald-200/80 bg-emerald-50/80 dark:border-emerald-900/80 dark:bg-emerald-950/30'
+          : 'border-neutral-200/70 bg-white/70 dark:border-neutral-800/80 dark:bg-neutral-950/40',
+        'p-4',
+      ]"
+    >
+      <div :class="['text-xs', 'font-medium', 'uppercase', 'tracking-[0.08em]', currentPromptText ? 'text-emerald-600 dark:text-emerald-400' : 'text-neutral-400 dark:text-neutral-500']">
+        Prompt Readiness
+      </div>
+      <div v-if="currentPromptText" :class="['mt-2', 'text-sm', 'text-neutral-700', 'dark:text-neutral-200']">
+        {{ currentSourceCount }} retained source bucket{{ currentSourceCount === 1 ? '' : 's' }} are ready for the next compose in this runtime.
+        `Last Actual Compose` stays empty until a real send starts.
+      </div>
+      <div v-else :class="['mt-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
+        No retained contexts are ready to inject right now.
+      </div>
+    </div>
+
     <div :class="['grid', 'gap-3', 'xl:grid-cols-2']">
       <div
         :class="[
@@ -29,7 +52,10 @@ defineProps<{
         ]"
       >
         <div :class="['text-xs', 'font-medium', 'uppercase', 'tracking-[0.08em]', 'text-neutral-400', 'dark:text-neutral-500']">
-          If Send Starts Now
+          Current Derived Prompt Block
+        </div>
+        <div :class="['mt-2', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
+          Built directly from the current `chat-context` snapshot. This does not require a compose to have started yet.
         </div>
         <pre
           v-if="currentPromptText"
@@ -53,11 +79,14 @@ defineProps<{
       >
         <div :class="['flex', 'flex-wrap', 'items-center', 'justify-between', 'gap-2']">
           <div :class="['text-xs', 'font-medium', 'uppercase', 'tracking-[0.08em]', 'text-neutral-400', 'dark:text-neutral-500']">
-            Last Compose Snapshot
+            Last Actual Compose
           </div>
           <span v-if="lastProjection" :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
             {{ new Date(lastProjection.capturedAt).toLocaleTimeString() }} · {{ lastProjection.sessionId }}
           </span>
+        </div>
+        <div :class="['mt-2', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
+          Captured only after the chat orchestrator begins a real compose/send flow.
         </div>
 
         <template v-if="lastProjection">
@@ -80,8 +109,12 @@ defineProps<{
           </details>
         </template>
 
+        <div v-else-if="currentPromptText" :class="['mt-3', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
+          Retained context is ready, but no real compose has started in this runtime yet.
+        </div>
+
         <div v-else :class="['mt-3', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-          No compose snapshot recorded yet.
+          No compose snapshot recorded yet, and there is no retained context ready to inject.
         </div>
       </div>
     </div>

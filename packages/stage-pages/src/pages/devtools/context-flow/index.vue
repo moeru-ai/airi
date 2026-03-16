@@ -618,6 +618,7 @@ onUnmounted(() => {
           />
           <ContextFlowPromptProjection
             :current-prompt-text="currentPromptText"
+            :current-source-count="activeContextBuckets.length"
             :last-projection="lastPromptProjection"
           />
         </div>
