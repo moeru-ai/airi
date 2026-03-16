@@ -7,7 +7,7 @@ import type { ProviderMetadata } from '../providers'
 import { listModels } from '@xsai/model'
 
 import { isModelProvider } from '../../libs/providers/types'
-import { getValidatorsOfProvider, validateProvider } from '../../libs/providers/validators/run'
+import { getValidatorsOfProvider, validateProvider, validateProviderManual } from '../../libs/providers/validators/run'
 
 function getCategoryFromTasks(tasks: string[]): ProviderMetadata['category'] {
   if (tasks.some(task => ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'].includes(task.toLowerCase()))) {
@@ -229,6 +229,31 @@ export function convertProviderDefinitionToMetadata(
 
         await validateProvider(plan, { t })
         return buildConfigValidationResult(plan)
+      },
+      runManualValidation: async (config) => {
+        const plan = getValidatorsOfProvider({
+          definition,
+          config,
+          schemaDefaults,
+          contextOptions: { t },
+        })
+
+        const steps = await validateProviderManual(plan, { t })
+        const invalidSteps = steps.filter(step => step.status === 'invalid')
+        if (invalidSteps.length === 0) {
+          return {
+            errors: [],
+            reason: '',
+            valid: true,
+          }
+        }
+
+        const reasons = invalidSteps.map(step => step.reason).filter(Boolean)
+        return {
+          errors: invalidSteps.map(step => new Error(step.reason || `${step.id} is invalid`)),
+          reason: reasons.join('; '),
+          valid: false,
+        }
       },
     },
     transcriptionFeatures: definition.capabilities?.transcription

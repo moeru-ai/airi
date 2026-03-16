@@ -1,5 +1,6 @@
 import type { RemovableRef } from '@vueuse/core'
 
+import { errorMessageFrom } from '@moeru/std'
 import { useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -16,7 +17,6 @@ export function useProviderValidation(providerId: string) {
 
   const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
-  // --- Internal Computed Properties for Credentials ---
   const credentials = computed(() => providers.value[providerId] || {})
 
   const apiKey = computed({
@@ -45,12 +45,15 @@ export function useProviderValidation(providerId: string) {
       providers.value[providerId].accountId = value
     },
   })
-  // --- End of Internal Computed Properties ---
 
   const debounceTime = 500
   const isValidating = ref(0)
   const isValid = ref(false)
   const validationMessage = ref('')
+  const hasManualValidators = computed(() => !!providerMetadata.value?.validators.runManualValidation)
+  const isManualTesting = ref(false)
+  const manualTestPassed = ref(false)
+  const manualTestMessage = ref('')
 
   async function validateConfiguration() {
     if (!providerMetadata.value)
@@ -74,18 +77,13 @@ export function useProviderValidation(providerId: string) {
       if (!isValid.value)
         finalValidationMessage = validationResult.reason
 
-      // When a provider validates successfully on its settings page,
-      // mark it as added so it appears in the model selector (e.g. Consciousness module).
-      // This fixes providers like LM Studio that use default config and may not
-      // need an API key, yet should be selectable after successful validation.
-      if (isValid.value) {
+      if (isValid.value)
         providersStore.markProviderAdded(providerId)
-      }
     }
     catch (error) {
       isValid.value = false
       finalValidationMessage = t('settings.dialogs.onboarding.validationError', {
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessageFrom(error),
       })
     }
     finally {
@@ -98,29 +96,59 @@ export function useProviderValidation(providerId: string) {
 
   const debouncedValidateConfiguration = useDebounceFn(() => {
     const config = credentials.value
-    // Check if any credential field has a value (generic — works for all providers)
-    const hasAnyCredential = Object.values(config).some(
-      v => v !== null && v !== undefined && String(v).trim() !== '',
-    )
-    if (!hasAnyCredential) {
+    const hasApiKey = 'apiKey' in config && !!config.apiKey?.trim()
+    const hasBaseUrl = 'baseUrl' in config && !!config.baseUrl?.trim()
+    const hasAccountId = 'accountId' in config && !!config.accountId?.trim()
+
+    if (!hasApiKey && !hasBaseUrl && !hasAccountId) {
       isValid.value = false
       validationMessage.value = ''
       isValidating.value = 0
       return
     }
+
     validateConfiguration()
   }, debounceTime)
 
   onMounted(() => {
     providersStore.initializeProvider(providerId)
-    if (Object.keys(credentials.value).some(key => !!credentials.value[key])) {
+    if (Object.keys(credentials.value).some(key => !!credentials.value[key]))
       validateConfiguration()
-    }
   })
 
   watch(credentials, () => {
     debouncedValidateConfiguration()
+    manualTestPassed.value = false
+    manualTestMessage.value = ''
   }, { deep: true })
+
+  async function runManualTest() {
+    if (!providerMetadata.value?.validators.runManualValidation)
+      return
+
+    isManualTesting.value = true
+    manualTestMessage.value = ''
+
+    try {
+      const config = { ...credentials.value }
+      if (config?.apiKey)
+        config.apiKey = config.apiKey.trim()
+      if (config?.baseUrl)
+        config.baseUrl = config.baseUrl.trim()
+
+      const result = await providerMetadata.value.validators.runManualValidation(config)
+      manualTestPassed.value = result.valid
+      if (!result.valid)
+        manualTestMessage.value = result.reason
+    }
+    catch (error) {
+      manualTestPassed.value = false
+      manualTestMessage.value = errorMessageFrom(error) ?? 'Unknown error'
+    }
+    finally {
+      isManualTesting.value = false
+    }
+  }
 
   function handleResetSettings() {
     const defaultOptions = providerMetadata.value?.defaultOptions ? providerMetadata.value.defaultOptions() : {}
@@ -128,11 +156,15 @@ export function useProviderValidation(providerId: string) {
     isValid.value = false
     validationMessage.value = ''
     isValidating.value = 0
+    manualTestPassed.value = false
+    manualTestMessage.value = ''
   }
 
   function forceValid() {
     isValid.value = true
     validationMessage.value = ''
+    manualTestPassed.value = true
+    manualTestMessage.value = ''
     providersStore.forceProviderConfigured(providerId)
   }
 
@@ -148,5 +180,10 @@ export function useProviderValidation(providerId: string) {
     validationMessage,
     handleResetSettings,
     forceValid,
+    hasManualValidators,
+    isManualTesting,
+    manualTestPassed,
+    manualTestMessage,
+    runManualTest,
   }
 }

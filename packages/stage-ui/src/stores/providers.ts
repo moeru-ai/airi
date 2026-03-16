@@ -194,6 +194,15 @@ export interface ProviderMetadata {
       reason: string
       valid: boolean
     }
+    runManualValidation?: (config: Record<string, unknown>) => Promise<{
+      errors: unknown[]
+      reason: string
+      valid: boolean
+    }> | {
+      errors: unknown[]
+      reason: string
+      valid: boolean
+    }
   }
   transcriptionFeatures?: {
     supportsGenerate: boolean
@@ -2801,8 +2810,9 @@ export const useProvidersStore = defineStore('providers', () => {
     if (!metadata)
       return false
 
-    if (!metadata)
-      return false
+    if (providerId === 'browser-web-speech-api' && !providerCredentials.value[providerId]) {
+      providerCredentials.value[providerId] = getDefaultProviderConfig(providerId)
+    }
 
     const config = providerCredentials.value[providerId]
     if (!config && providerId !== 'browser-web-speech-api')

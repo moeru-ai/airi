@@ -65,6 +65,11 @@ export interface ProviderRuntimeValidator<TConfig> {
   name: string
   validator: (config: TConfig, provider: ProviderInstance, providerExtra: ProviderExtraMethods<TConfig>, contextOptions: { t: ComposerTranslation }) => MaybePromise<ProviderValidationResult>
   schedule?: ProviderValidatorSchedule
+  /**
+   * Excluded from automatic validation runs.
+   * Use for costly checks that should only run on explicit user action.
+   */
+  manualOnly?: boolean
 }
 
 export interface ModelInfo {
