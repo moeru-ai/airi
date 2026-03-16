@@ -7,7 +7,7 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { Callout, Select } from '@proj-airi/ui'
+import { FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
 
@@ -36,6 +36,7 @@ const availableVoices = computed(() => {
 })
 
 onMounted(async () => {
+  await providersStore.loadModelsForConfiguredProviders()
   await providersStore.fetchModelsForProvider(providerId)
   await speechStore.loadVoicesForProvider(providerId)
 })
@@ -45,6 +46,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   if (!provider)
     throw new Error('Failed to initialize speech provider')
 
+  const providerConfig = providersStore.getProviderConfig(providerId)
   const modelToUse = model.value || defaultModel
 
   return await speechStore.speech(
@@ -52,6 +54,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
     modelToUse,
     input,
     voiceId,
+    providerConfig,
   )
 }
 </script>
@@ -59,21 +62,14 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 <template>
   <SpeechProviderSettings :provider-id="providerId" :default-model="defaultModel">
     <template #voice-settings>
-      <div class="space-y-3">
-        <Callout label="Model">
-          <div>
-            <p>Select the audio-capable model to use for speech generation</p>
-          </div>
-        </Callout>
-        <div>
-          <Select
-            v-model="model"
-            :options="providerModels.map(m => ({ value: m.id, label: m.name }))"
-            :disabled="isLoadingModels || providerModels.length === 0"
-            placeholder="Select a model..."
-          />
-        </div>
-      </div>
+      <FieldSelect
+        v-model="model"
+        label="Model"
+        description="Select the audio-capable model to use for speech generation"
+        :options="providerModels.map(m => ({ value: m.id, label: m.name }))"
+        :disabled="isLoadingModels || providerModels.length === 0"
+        placeholder="Select a model..."
+      />
     </template>
 
     <template #playground>
