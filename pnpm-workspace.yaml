@@ -144,6 +144,9 @@ onlyBuiltDependencies:
   - utf-8-validate
   - vue-demi
 packageExtensions:
+  '@huggingface/transformers':
+    optionalDependencies:
+      'onnxruntime-common': '*'
   '@intlify/unplugin-vue-i18n':
     peerDependencies:
       vite: '*'

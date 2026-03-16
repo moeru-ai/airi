@@ -269,7 +269,7 @@ overrides:
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 
-packageExtensionsChecksum: sha256-RoTjwxB9rdOTmLSjTpIjrM6sjCDoW5O6d0WEOJtfg7M=
+packageExtensionsChecksum: sha256-ybomeFV2smzhpqSBUXb5rXoT5VOQvqo25t1usSHK3fg=
 
 patchedDependencies:
   mineflayer-pathfinder:
@@ -19427,6 +19427,8 @@ snapshots:
       onnxruntime-node: 1.21.0
       onnxruntime-web: 1.24.2
       sharp: 0.34.5
+    optionalDependencies:
+      onnxruntime-common: 1.24.2
 
   '@humanfs/core@0.19.1': {}
 
