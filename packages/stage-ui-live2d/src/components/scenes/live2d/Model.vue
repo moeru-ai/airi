@@ -464,8 +464,8 @@ watch(modelSrcRef, async () => await loadModel(), { immediate: true })
 watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)
 watch(live2dShadowEnabled, updateDropShadowFilter)
-watch(offset, setScaleAndPosition)
-watch(() => props.scale, setScaleAndPosition)
+watch(offset, () => setScaleAndPosition())
+watch(() => props.scale, () => setScaleAndPosition())
 
 // TODO: This is hacky!
 function updateDropShadowFilterLoop() {
