@@ -664,6 +664,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   isUnmounted = true
+  resizeAnimation?.pause()
   disposeShouldUpdateView?.()
 })
 
