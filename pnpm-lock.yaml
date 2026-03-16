@@ -269,7 +269,7 @@ overrides:
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 
-packageExtensionsChecksum: sha256-ybomeFV2smzhpqSBUXb5rXoT5VOQvqo25t1usSHK3fg=
+packageExtensionsChecksum: sha256-UCFi+cr2PGQ7+Ux3cl4NB/aqHL2xwGcHHm2PMjek+0g=
 
 patchedDependencies:
   mineflayer-pathfinder:
@@ -593,7 +593,7 @@ importers:
         version: 2.1.1
       '@formkit/auto-animate':
         specifier: ^0.9.0
-        version: 0.9.0
+        version: 0.9.0(vue@3.5.29(typescript@5.9.3))
       '@huggingface/transformers':
         specifier: ^3.8.1
         version: 3.8.1
@@ -800,7 +800,7 @@ importers:
         version: 4.6.4(vue@3.5.29(typescript@5.9.3))
       vue-sonner:
         specifier: ^2.0.9
-        version: 2.0.9
+        version: 2.0.9(vue@3.5.29(typescript@5.9.3))
       workbox-window:
         specifier: ^7.4.0
         version: 7.4.0
@@ -981,7 +981,7 @@ importers:
         version: 5.2.8
       '@formkit/auto-animate':
         specifier: ^0.9.0
-        version: 0.9.0
+        version: 0.9.0(vue@3.5.29(typescript@5.9.3))
       '@guiiai/logg':
         specifier: 'catalog:'
         version: 1.2.11
@@ -1206,7 +1206,7 @@ importers:
         version: 4.6.4(vue@3.5.29(typescript@5.9.3))
       vue-sonner:
         specifier: 'catalog:'
-        version: 2.0.9
+        version: 2.0.9(vue@3.5.29(typescript@5.9.3))
       xsschema:
         specifier: 'catalog:'
         version: 0.4.0-beta.13(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
@@ -1408,7 +1408,7 @@ importers:
         version: 2.1.1
       '@formkit/auto-animate':
         specifier: ^0.9.0
-        version: 0.9.0
+        version: 0.9.0(vue@3.5.29(typescript@5.9.3))
       '@huggingface/transformers':
         specifier: ^3.8.1
         version: 3.8.1
@@ -1621,7 +1621,7 @@ importers:
         version: 4.6.4(vue@3.5.29(typescript@5.9.3))
       vue-sonner:
         specifier: ^2.0.9
-        version: 2.0.9
+        version: 2.0.9(vue@3.5.29(typescript@5.9.3))
       workbox-window:
         specifier: ^7.4.0
         version: 7.4.0
@@ -1820,7 +1820,7 @@ importers:
         version: 11.2.8(vue@3.5.29(typescript@5.9.3))
       vue-sonner:
         specifier: ^2.0.9
-        version: 2.0.9
+        version: 2.0.9(vue@3.5.29(typescript@5.9.3))
     devDependencies:
       '@iconify-json/lucide':
         specifier: ^1.2.94
@@ -2320,7 +2320,7 @@ importers:
         version: 4.6.4(vue@3.5.29(typescript@5.9.3))
       vue-sonner:
         specifier: 'catalog:'
-        version: 2.0.9
+        version: 2.0.9(vue@3.5.29(typescript@5.9.3))
     devDependencies:
       '@nekopaw/tempora':
         specifier: 'catalog:'
@@ -2429,7 +2429,7 @@ importers:
         version: 4.6.4(vue@3.5.29(typescript@5.9.3))
       vue-sonner:
         specifier: 'catalog:'
-        version: 2.0.9
+        version: 2.0.9(vue@3.5.29(typescript@5.9.3))
       xsschema:
         specifier: 'catalog:'
         version: 0.4.0-beta.13(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
@@ -2494,7 +2494,7 @@ importers:
         version: 2.1.1
       '@formkit/auto-animate':
         specifier: ^0.9.0
-        version: 0.9.0
+        version: 0.9.0(vue@3.5.29(typescript@5.9.3))
       '@huggingface/transformers':
         specifier: ^3.8.1
         version: 3.8.1
@@ -2719,7 +2719,7 @@ importers:
         version: 4.6.4(vue@3.5.29(typescript@5.9.3))
       vue-sonner:
         specifier: ^2.0.9
-        version: 2.0.9
+        version: 2.0.9(vue@3.5.29(typescript@5.9.3))
       xast-util-to-xml:
         specifier: ^4.0.0
         version: 4.0.0
@@ -5626,6 +5626,8 @@ packages:
 
   '@formkit/auto-animate@0.9.0':
     resolution: {integrity: sha512-VhP4zEAacXS3dfTpJpJ88QdLqMTcabMg0jwpOSxZ/VzfQVfl3GkZSCZThhGC5uhq/TxPHPzW0dzr4H9Bb1OgKA==}
+    peerDependencies:
+      vue: '*'
 
   '@google/genai@1.34.0':
     resolution: {integrity: sha512-vu53UMPvjmb7PGzlYu6Tzxso8Dfhn+a7eQFaS2uNemVtDZKwzSpJ5+ikqBbXplF7RGB1STcVDqCkPvquiwb2sw==}
@@ -16624,6 +16626,7 @@ packages:
       '@nuxt/kit': ^4.0.3
       '@nuxt/schema': ^4.0.3
       nuxt: ^4.0.3
+      vue: ^3.2.0
     peerDependenciesMeta:
       '@nuxt/kit':
         optional: true
@@ -19325,7 +19328,9 @@ snapshots:
 
   '@fontsource/sniglet@5.2.8': {}
 
-  '@formkit/auto-animate@0.9.0': {}
+  '@formkit/auto-animate@0.9.0(vue@3.5.29(typescript@5.9.3))':
+    dependencies:
+      vue: 3.5.29(typescript@5.9.3)
 
   '@google/genai@1.34.0(@modelcontextprotocol/sdk@1.27.1(@cfworker/json-schema@4.1.1)(zod@4.3.6))(bufferutil@4.1.0)(utf-8-validate@5.0.10)':
     dependencies:
@@ -32244,7 +32249,9 @@ snapshots:
       '@vue/devtools-api': 6.6.4
       vue: 3.5.29(typescript@5.9.3)
 
-  vue-sonner@2.0.9: {}
+  vue-sonner@2.0.9(vue@3.5.29(typescript@5.9.3)):
+    dependencies:
+      vue: 3.5.29(typescript@5.9.3)
 
   vue-tsc@3.2.5(typescript@5.9.3):
     dependencies:
