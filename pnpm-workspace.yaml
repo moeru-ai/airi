@@ -20,6 +20,7 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
+enableGlobalVirtualStore: true
 
 patchedDependencies:
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
@@ -27,6 +28,7 @@ patchedDependencies:
   pixi-live2d-display: patches/pixi-live2d-display.patch
   srvx: patches/srvx.patch
 catalog:
+  '@capacitor/android': ^8.1.0
   '@capacitor/cli': ^8.1.0
   '@capacitor/core': ^8.1.0
   '@capacitor/ios': ^8.1.0

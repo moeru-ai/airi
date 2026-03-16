@@ -199,6 +199,7 @@ export default defineConfig({
             src: resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
             exclude: base => [
               ...base,
+              '**/settings/connection/index.vue',
               '**/settings/system/general.vue',
               '**/settings/modules/mcp.vue',
             ],

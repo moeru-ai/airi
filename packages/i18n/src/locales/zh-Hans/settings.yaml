@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: API 端点 URL（如果不确定请使用默认值）
     accountId: 账户 ID
     validationSuccess: 配置验证成功
+    validationPartial: Configuration partially validated
     validationFailed: 配置验证失败
     validationError: '验证错误：{error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: 暂时跳过
     saveAndContinue: 保存并继续
     next: 下一步
@@ -172,7 +176,7 @@ pages:
     scenario: 场景
     search: 搜索角色卡...
     sort_by: 排序方式
-    body-model: 形体 / 显示模型
+    body-model: Body / Display Model
     speech:
       provider: 语音 / 提供商
       model: 声音 / 模型

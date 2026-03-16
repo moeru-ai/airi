@@ -76,6 +76,12 @@ describe('shouldRestartForNativeChange', () => {
     expect(shouldRestartForNativeChange('/repo/app/src/main.ts', 'ios', '/repo/app')).toBe(false)
     expect(shouldRestartForNativeChange('/repo/app/ios/App/CapApp-SPM/Package.swift', 'ios', '/repo/app')).toBe(false)
     expect(shouldRestartForNativeChange('/repo/app/android/build/generated/file.kt', 'android', '/repo/app')).toBe(false)
+    expect(shouldRestartForNativeChange('/repo/app/android/capacitor-cordova-android-plugins/src/main/AndroidManifest.xml', 'android', '/repo/app')).toBe(false)
+    expect(shouldRestartForNativeChange('/repo/app/android/capacitor.settings.gradle', 'android', '/repo/app')).toBe(false)
+    expect(shouldRestartForNativeChange('/repo/app/android/app/capacitor.build.gradle', 'android', '/repo/app')).toBe(false)
+    expect(shouldRestartForNativeChange('/repo/app/android/app/src/main/assets/public/index.html', 'android', '/repo/app')).toBe(false)
+    expect(shouldRestartForNativeChange('/repo/app/android/app/src/main/assets/capacitor.plugins.json', 'android', '/repo/app')).toBe(false)
+    expect(shouldRestartForNativeChange('/repo/app/android/app/src/main/res/xml/config.xml', 'android', '/repo/app')).toBe(false)
   })
 
   it('ignores capacitor config json updates', () => {

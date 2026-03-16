@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: URL конечной точки API (оставьте по умолчанию, если не уверены)
     accountId: ID аккаунта
     validationSuccess: Configuration validation success
+    validationPartial: Configuration partially validated
     validationFailed: Проверка конфигурации не удалась
     validationError: 'Ошибка проверки: {error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: Пропустить на сейчас
     saveAndContinue: Сохранить и продолжить
     next: Далее
@@ -172,6 +176,7 @@ pages:
     scenario: Сценарий
     search: Искать карточки...
     sort_by: Сортировать по
+    body-model: Body / Display Model
     speech:
       provider: Speech / Provider
       model: Речь / Модель
