@@ -2,7 +2,7 @@ import type { ContextMessage } from '../../types/chat'
 
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, toRaw } from 'vue'
 
 import { getEventSourceKey } from '../../utils/event-source'
 
@@ -23,28 +23,13 @@ export const useChatContextStore = defineStore('chat-context', () => {
   const activeContexts = ref<Record<string, ContextMessage[]>>({})
 
   function cloneMessage(message: ContextMessage): ContextMessage {
-    const metadata = message.metadata?.source
-      ? {
-          source: {
-            ...message.metadata.source,
-            plugin: message.metadata.source.plugin
-              ? {
-                  ...message.metadata.source.plugin,
-                  labels: message.metadata.source.plugin.labels
-                    ? { ...message.metadata.source.plugin.labels }
-                    : undefined,
-                }
-              : message.metadata.source.plugin,
-            labels: message.metadata.source.labels
-              ? { ...message.metadata.source.labels }
-              : undefined,
-          },
-        }
-      : undefined
+    const rawMessage = toRaw(message)
 
-    return {
-      ...message,
-      metadata,
+    try {
+      return structuredClone(rawMessage)
+    }
+    catch {
+      return JSON.parse(JSON.stringify(rawMessage)) as ContextMessage
     }
   }
 
@@ -58,21 +43,22 @@ export const useChatContextStore = defineStore('chat-context', () => {
   }
 
   function ingestContextMessage(envelope: ContextMessage) {
-    const sourceKey = getEventSourceKey(envelope)
+    const normalizedEnvelope = cloneMessage(envelope)
+    const sourceKey = getEventSourceKey(normalizedEnvelope)
     if (!activeContexts.value[sourceKey]) {
       activeContexts.value[sourceKey] = []
     }
 
-    if (envelope.strategy === ContextUpdateStrategy.ReplaceSelf) {
-      activeContexts.value[sourceKey] = [envelope]
+    if (normalizedEnvelope.strategy === ContextUpdateStrategy.ReplaceSelf) {
+      activeContexts.value[sourceKey] = [normalizedEnvelope]
       return {
         sourceKey,
         mutation: 'replace',
         entryCount: activeContexts.value[sourceKey].length,
       } satisfies ContextIngestResult
     }
-    else if (envelope.strategy === ContextUpdateStrategy.AppendSelf) {
-      activeContexts.value[sourceKey].push(envelope)
+    else if (normalizedEnvelope.strategy === ContextUpdateStrategy.AppendSelf) {
+      activeContexts.value[sourceKey].push(normalizedEnvelope)
       return {
         sourceKey,
         mutation: 'append',

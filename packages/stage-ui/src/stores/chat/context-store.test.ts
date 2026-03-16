@@ -21,6 +21,7 @@ function createContextMessage(overrides: Partial<ContextMessage> = {}) {
         plugin: { id: 'minecraft-bot' },
       },
     },
+    ...overrides,
   } as any
 }
 
@@ -88,5 +89,23 @@ describe('useChatContextStore', () => {
     expect(snapshot['minecraft-bot:instance-1']).toHaveLength(1)
     expect(snapshot['minecraft-bot:instance-1']?.[0]?.text).toBe('Updated Minecraft state')
     expect(snapshot['discord:discord-instance']?.[0]?.text).toBe('Discord state')
+  })
+
+  it('returns clone-safe snapshots for nested context payload fields like hints', () => {
+    const store = useChatContextStore()
+
+    store.ingestContextMessage(createContextMessage({
+      id: 'evt-hints',
+      contextId: 'ctx-hints',
+      strategy: ContextUpdateStrategy.AppendSelf,
+      text: 'Zombie hit me',
+      hints: ['combat', 'zombie', 'damage'],
+    }))
+
+    const snapshot = store.getContextsSnapshot()
+    const minecraftContexts = snapshot['minecraft-bot:instance-1']
+
+    expect(minecraftContexts?.[0]?.hints).toEqual(['combat', 'zombie', 'damage'])
+    expect(() => structuredClone(snapshot)).not.toThrow()
   })
 })
