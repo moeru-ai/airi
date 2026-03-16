@@ -49,12 +49,13 @@ async function collectAudioChunksFromSSE(body: ReadableStream<Uint8Array>): Prom
   const audioDataChunks: string[] = []
   let buffer = ''
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done)
+  let done = false
+  while (!done) {
+    const result = await reader.read()
+    if (result.done)
       break
 
-    buffer += decoder.decode(value, { stream: true })
+    buffer += decoder.decode(result.value, { stream: true })
     const lines = buffer.split('\n')
     buffer = lines.pop()!
 
@@ -62,8 +63,10 @@ async function collectAudioChunksFromSSE(body: ReadableStream<Uint8Array>): Prom
       if (!line.startsWith('data: '))
         continue
       const data = line.slice('data: '.length).trim()
-      if (data === '[DONE]')
+      if (data === '[DONE]') {
+        done = true
         break
+      }
 
       try {
         const chunk = JSON.parse(data)
