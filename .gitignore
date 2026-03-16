@@ -122,3 +122,8 @@ plugins-development
 
 apps/stage-pocket/ios/buildServer.json
 .ghfs/
+node_modules/
+.pnpm-store/
+*.log
+dist/
+.cache/
