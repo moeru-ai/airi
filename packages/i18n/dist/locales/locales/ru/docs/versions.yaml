@@ -1,0 +1,22 @@
+download-buttons:
+  latest-stable: Последний стабильный релиз
+  latest-prerelease: Последний пре-релиз
+  latest-nightly: Последняя ночная сборка
+  download: Скачать
+  view-release: Посмотреть релиз
+  stable-use-case-1: Использование продукта
+  stable-use-case-2: Пользователи, которым требуется стабильный опыт
+  stable-use-case-3: Прямые трансляции и создание контента
+  prerelease-use-case-1: Ранее те, кто хочет попробовать новые возможности
+  prerelease-use-case-2: Тестирование и обратная связь с разработчиками
+  prerelease-use-case-3: Пользователи с удобными случаями
+releases-list:
+  stable: Стабильный
+  prerelease: Пре-релиз
+  nightly: Ночной
+  released-on: Выпущен
+  built-on: Сборка от
+  no-releases: 'В данный момент релизов нет. Проверьте {link} напрямую.'
+  no-nightly: 'Ночные сборки не доступны в данный момент. Проверьте {link} напрямую.'
+  releases-page: страница релизов
+  workflow-page: страница процессов

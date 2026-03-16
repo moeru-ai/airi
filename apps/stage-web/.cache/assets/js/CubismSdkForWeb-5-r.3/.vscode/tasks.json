@@ -1,0 +1,101 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    // Tasks for Samples/TypeScript/Demo
+    {
+      "type": "npm",
+      "script": "install",
+      "path": "Samples/TypeScript/Demo/",
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "start",
+      "path": "Samples/TypeScript/Demo/",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "build",
+      "path": "Samples/TypeScript/Demo/",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "build:prod",
+      "path": "Samples/TypeScript/Demo/",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "test",
+      "path": "Samples/TypeScript/Demo/",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "lint",
+      "path": "Samples/TypeScript/Demo/",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "lint:fix",
+      "path": "Samples/TypeScript/Demo/",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "clean",
+      "path": "Samples/TypeScript/Demo/",
+      "problemMatcher": []
+    },
+    // Tasks for Framework
+    {
+      "type": "npm",
+      "script": "install",
+      "path": "Framework/",
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "build",
+      "path": "Framework/",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "test",
+      "path": "Framework/",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "lint",
+      "path": "Framework/",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "lint:fix",
+      "path": "Framework/",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "clean",
+      "path": "Framework/",
+      "problemMatcher": []
+    }
+  ]
+}

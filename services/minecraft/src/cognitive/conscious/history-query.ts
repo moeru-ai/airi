@@ -154,16 +154,15 @@ export function createHistoryRuntime(deps: HistoryQueryDeps) {
         if (markerIndex === -1)
           continue
 
-        const afterMarker = msg.content.slice(markerIndex + '[EVENT]'.length).trimStart()
-        const newlineIndex = afterMarker.indexOf('\n')
-        const line = (newlineIndex === -1 ? afterMarker : afterMarker.slice(0, newlineIndex)).trim()
-        if (!line)
+        const remainder = msg.content.slice(markerIndex + '[EVENT]'.length)
+        const line = remainder.trimStart().split('\n', 1)[0]
+        const colonIndex = line.indexOf(':')
+        if (colonIndex <= 0 || colonIndex === line.length - 1)
           continue
-        if (!line.includes(':'))
-          continue
-        if (line.startsWith('Perception Signal:'))
-          continue
-        chats.unshift(line)
+
+        if (!line.startsWith('Perception Signal:')) {
+          chats.unshift(line)
+        }
       }
 
       return chats

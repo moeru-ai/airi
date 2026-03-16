@@ -1,0 +1,103 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "Mao.moc3",
+		"Textures": [
+			"Mao.2048/texture_00.png"
+		],
+		"Physics": "Mao.physics3.json",
+		"Pose": "Mao.pose3.json",
+		"DisplayInfo": "Mao.cdi3.json",
+		"Expressions": [
+			{
+				"Name": "exp_01",
+				"File": "expressions/exp_01.exp3.json"
+			},
+			{
+				"Name": "exp_02",
+				"File": "expressions/exp_02.exp3.json"
+			},
+			{
+				"Name": "exp_03",
+				"File": "expressions/exp_03.exp3.json"
+			},
+			{
+				"Name": "exp_04",
+				"File": "expressions/exp_04.exp3.json"
+			},
+			{
+				"Name": "exp_05",
+				"File": "expressions/exp_05.exp3.json"
+			},
+			{
+				"Name": "exp_06",
+				"File": "expressions/exp_06.exp3.json"
+			},
+			{
+				"Name": "exp_07",
+				"File": "expressions/exp_07.exp3.json"
+			},
+			{
+				"Name": "exp_08",
+				"File": "expressions/exp_08.exp3.json"
+			}
+		],
+		"Motions": {
+			"Idle": [
+				{
+					"File": "motions/mtn_01.motion3.json"
+				},
+				{
+					"File": "motions/sample_01.motion3.json"
+				}
+			],
+			"TapBody": [
+				{
+					"File": "motions/mtn_02.motion3.json"
+				},
+				{
+					"File": "motions/mtn_03.motion3.json"
+				},
+				{
+					"File": "motions/mtn_04.motion3.json"
+				},
+				{
+					"File": "motions/special_01.motion3.json"
+				},
+				{
+					"File": "motions/special_02.motion3.json"
+				},
+				{
+					"File": "motions/special_03.motion3.json"
+				}
+			]
+		}
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": [
+				"ParamA"
+			]
+		},
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": [
+				"ParamEyeLOpen",
+				"ParamEyeROpen"
+			]
+		}
+	],
+	"HitAreas": [
+		{
+			"Id": "HitAreaHead",
+			"Name": "Head"
+		},
+		{
+			"Id": "HitAreaBody",
+			"Name": "Body"
+		}
+	]
+}

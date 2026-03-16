@@ -1,0 +1,16 @@
+
+> @proj-airi/vite-plugin-warpdrive@0.9.0-alpha.16 build /Users/jiumengliyang/Desktop/python/airi1/packages/vite-plugin-warpdrive
+> tsdown
+
+ℹ tsdown v0.20.3 powered by rolldown v1.0.0-rc.3
+ℹ config file: /Users/jiumengliyang/Desktop/python/airi1/packages/vite-plugin-warpdrive/tsdown.config.ts 
+ℹ entry: src/index.ts
+ℹ tsconfig: tsconfig.json
+ℹ Build start
+ℹ dist/index.mjs       8.03 kB │ gzip: 2.38 kB
+ℹ dist/index.mjs.map  17.16 kB │ gzip: 4.92 kB
+ℹ dist/index.d.mts     2.76 kB │ gzip: 1.08 kB
+ℹ 3 files, total: 27.95 kB
+[33m[PLUGIN_TIMINGS] Warning:[0m Your build spent significant time in plugin `rolldown-plugin-dts:generate`. See https://rolldown.rs/options/checks#plugintimings for more details.
+
+✔ Build complete in 5632ms

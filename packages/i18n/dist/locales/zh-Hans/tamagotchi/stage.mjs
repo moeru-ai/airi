@@ -1,0 +1,53 @@
+//#region src/locales/zh-Hans/tamagotchi/stage.yaml
+var data = {
+	"operations": {
+		"load-models": "加载推理模型",
+		"load-models-status": {
+			"loading": "加载中",
+			"ready": "已就绪"
+		}
+	},
+	"docs": { "theme": { "navbar": { "appearance": { "title": "外观" } } } },
+	"controls-island": {
+		"fade-on-hover": {
+			"enable": "悬停时隐藏",
+			"disable": "总是显示"
+		},
+		"open-settings": "打开设置",
+		"open-chat": "打开聊天",
+		"refresh": "刷新",
+		"open-hearing-controls": "打开听力控制",
+		"drag-to-move-window": "拖动以移动窗口",
+		"switch-to-light-mode": "切换到亮色模式",
+		"switch-to-dark-mode": "切换到暗色模式",
+		"pin-on-top": "置顶显示",
+		"unpin-from-top": "取消置顶",
+		"switch-profile": "Switch Profile",
+		"close": "关闭",
+		"expand": "展开",
+		"collapse": "折叠"
+	},
+	"status-island": {
+		"connected": "WebSocket connected",
+		"disconnected": "WebSocket disconnected",
+		"open-settings": "Open WebSocket settings"
+	},
+	"notice": { "fade-on-hover": {
+		"title": "悬停淡出",
+		"intro": "当光标靠近时自动让角色变淡，减少干扰又保持可见。",
+		"opacity": "开启后，当光标靠近时， {targets} 的不透明度会降到 {value}。",
+		"toggle": "可以通过将光标移动到 {controls} 区域，再次点击 {icon} 来关闭此功能。",
+		"controls-label": "控制岛",
+		"icon-label": "隐藏图标",
+		"value": "0",
+		"targets": "角色和界面",
+		"confirm": "知道了",
+		"dont-show-again": "不再提示",
+		"preparing": "准备中…",
+		"read-more": "阅读更多",
+		"preview-title": "这是什么？"
+	} }
+};
+
+//#endregion
+export { data as default };

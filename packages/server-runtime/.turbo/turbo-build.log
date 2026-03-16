@@ -1,0 +1,27 @@
+
+> @proj-airi/server-runtime@0.9.0-alpha.16 build /Users/jiumengliyang/Desktop/python/airi/packages/server-runtime
+> tsdown
+
+[34mℹ[39m tsdown [2mv0.20.3[22m powered by rolldown [2mv1.0.0-rc.3[22m
+[34mℹ[39m config file: [4m/Users/jiumengliyang/Desktop/python/airi/packages/server-runtime/tsdown.config.ts[24m 
+[34mℹ[39m entry: [34msrc/index.ts, src/server/index.ts, src/bin/run.ts[39m
+[34mℹ[39m target: [34mnode18[39m
+[34mℹ[39m tsconfig: [34mtsconfig.json[39m
+[34mℹ[39m Build start
+[34mℹ[39m Cleaning 9 files
+[34mℹ[39m Granting execute permission to [4mdist/bin/run.mjs[24m
+[34mℹ[39m [2mdist/[22m[1mindex.mjs[22m             [2m15.40 kB[22m [2m│ gzip: 3.98 kB[22m
+[34mℹ[39m [2mdist/[22m[1mserver.mjs[22m            [2m 4.23 kB[22m [2m│ gzip: 1.57 kB[22m
+[34mℹ[39m [2mdist/[22m[1mbin/run.mjs[22m           [2m 0.46 kB[22m [2m│ gzip: 0.30 kB[22m
+[34mℹ[39m [2mdist/[22manycast-HDRhgpyA.mjs  [2m 6.32 kB[22m [2m│ gzip: 1.74 kB[22m
+[34mℹ[39m [2mdist/[22m[32m[1mindex.d.mts[22m[39m           [2m 3.27 kB[22m [2m│ gzip: 0.94 kB[22m
+[34mℹ[39m [2mdist/[22m[32m[1mserver.d.mts[22m[39m          [2m 0.66 kB[22m [2m│ gzip: 0.33 kB[22m
+[34mℹ[39m [2mdist/[22m[32m[1mbin/run.d.mts[22m[39m         [2m 0.01 kB[22m [2m│ gzip: 0.03 kB[22m
+[34mℹ[39m [2mdist/[22m[32mindex-CyVnXn1z.d.mts[39m  [2m 1.39 kB[22m [2m│ gzip: 0.67 kB[22m
+[34mℹ[39m 8 files, total: 31.74 kB
+[33m[PLUGIN_TIMINGS] Warning:[0m Your build spent significant time in plugins. Here is a breakdown:
+  - tsdown:external (58%)
+  - rolldown-plugin-dts:generate (41%)
+See https://rolldown.rs/options/checks#plugintimings for more details.
+
+[32m✔[39m Build complete in [32m5590ms[39m

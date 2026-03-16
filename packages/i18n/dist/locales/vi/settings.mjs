@@ -1,0 +1,1117 @@
+//#region src/locales/vi/settings.yaml
+var data = {
+	"common": { "save": "Lưu" },
+	"animations": {
+		"stage-transitions": { "title": "Tắt hiệu ứng chuyển cảnh" },
+		"use-page-specific-transitions": {
+			"description": "Một số trang sẽ có hiệu ứng chuyển cảnh riêng, điều này sẽ ghi đè hiệu ứng chuyển cảnh mặc định",
+			"title": "Dùng hiệu ứng chuyển cảnh riêng cho từng trang"
+		}
+	},
+	"dialogs": { "onboarding": {
+		"title": "Chào mừng đến với AIRI!",
+		"description": "Hãy thiết lập nhà cung cấp AI đầu tiên để bắt đầu.",
+		"selectProvider": "Chọn nhà cung cấp AI",
+		"configureProvider": "Cấu hình {provider}",
+		"apiKey": "Khóa API",
+		"apiKeyHelp": "Lấy khóa API từ {provider} và dán vào đây",
+		"baseUrl": "URL gốc",
+		"baseUrlHelp": "Địa chỉ API đầu cuối (dùng mặc định nếu không chắc)",
+		"accountId": "ID tài khoản",
+		"validationSuccess": "Xác thực cấu hình thành công",
+		"validationPartial": "Configuration partially validated",
+		"validationFailed": "Xác thực cấu hình thất bại",
+		"validationError": "Lỗi xác thực: {error}",
+		"testGeneration": "Test Generation",
+		"testGenerationRunning": "Testing...",
+		"testGenerationFailed": "Generation test failed",
+		"skipForNow": "Bỏ qua",
+		"saveAndContinue": "Lưu và tiếp tục",
+		"next": "Tiếp",
+		"retry": "Thử lại",
+		"start": "Bắt đầu thôi!",
+		"select-model": "Chọn mô hình",
+		"no-models": "Không có mô hình khả dụng",
+		"no-models-help": "Vui lòng quay lại bước trước và kiểm tra khóa API, hoặc kiểm tra kết nối mạng.",
+		"permissions": {
+			"title": "Notifications",
+			"description": "You can allow notifications now or continue and set it up later.",
+			"notificationsTitle": "Notifications",
+			"notificationsDescription": "Allow reminders and important status updates.",
+			"notificationsAction": "Request notification permission",
+			"notificationsNotGrantedHint": "If denied, you can enable notifications later from iOS Settings.",
+			"openSettings": "Open iOS Settings",
+			"optionalHint": "You can continue even if notification permission is not granted.",
+			"stateUnknown": "Not requested",
+			"stateRequesting": "Requesting...",
+			"stateGranted": "Granted",
+			"stateNotGranted": "Not granted"
+		}
+	} },
+	"language": {
+		"title": "Ngôn ngữ",
+		"description": "Thay đổi ngôn ngữ giao diện AIRI. Điều này sẽ không ảnh hưởng đến ngôn ngữ phản hồi của nhân vật.\n"
+	},
+	"controls-island": { "icon-size": {
+		"title": "Kích thước biểu tượng đảo",
+		"description": "Điều chỉnh kích thước biểu tượng trên đảo điều khiển",
+		"auto": "Tự động (thích ứng)",
+		"large": "Lớn (mặc định)",
+		"small": "Nhỏ"
+	} },
+	"live2d": {
+		"change-model": {
+			"from-file": "Tải từ tệp",
+			"from-file-select": "Chọn",
+			"from-url": "Tải từ URL",
+			"from-url-confirm": "Tải",
+			"from-url-placeholder": "Nhập URL mô hình Live2D",
+			"title": "Đổi mô hình"
+		},
+		"edit-motion-map": { "title": "Chỉnh bản đồ chuyển động" },
+		"map-motions": {
+			"play": "Phát chuyển động",
+			"title": "Gán chuyển động"
+		},
+		"title": "Cài đặt Live2D",
+		"scale-and-position": {
+			"title": "Tỉ lệ và vị trí",
+			"scale": "Tỉ lệ",
+			"x": "X",
+			"y": "Y"
+		},
+		"switch-to-vrm": {
+			"title": "Chuyển sang mô hình 3D?",
+			"change-to-vrm": "Bấm vào đây để đổi sang cài đặt mô hình 3D (VRM)"
+		},
+		"theme-color-from-model": {
+			"title": "Trích xuất màu từ mô hình",
+			"button-extract": { "title": "Trích xuất" }
+		},
+		"focus": {
+			"title": "Tắt theo dõi chuột cho mô hình",
+			"button-disable": { "title": "Tắt" }
+		},
+		"fps": {
+			"title": "FPS",
+			"description": "Giới hạn tốc độ khung hình hiển thị",
+			"options": { "unlimited": "Không giới hạn" }
+		}
+	},
+	"microphone": "Micro",
+	"models": "Mô hình",
+	"pages": {
+		"card": {
+			"activate": "Kích hoạt",
+			"active": "Đang hoạt động",
+			"active_badge": "Hiện đang hoạt động",
+			"cancel": "Hủy thao tác",
+			"save": "Lưu thay đổi",
+			"card_not_found": "Không tìm thấy thẻ",
+			"character": "Nhân vật",
+			"close": "Đóng",
+			"chat": { "provider": "Trò chuyện / Nhà cung cấp" },
+			"consciousness": { "model": "Ý thức / Mô hình" },
+			"created_by": "được tạo bởi",
+			"creator_notes": "Ghi chú của tác giả",
+			"delete": "Xóa",
+			"delete_card": "Xóa thẻ",
+			"delete_confirmation": "Bạn có chắc muốn xóa thẻ này?",
+			"description": "Dùng preset thẻ nhân vật AIRI",
+			"description_label": "Mô tả",
+			"drop_here": "Kéo vào đây để tải lên",
+			"create_card": "Tạo thẻ mới",
+			"edit_card": "Chỉnh sửa thẻ",
+			"creation": {
+				"identity": "Danh tính",
+				"name": "Tên",
+				"nickname": "Biệt danh",
+				"description": "Mô tả",
+				"behavior": "Hành vi",
+				"greetings": "Lời chào (mỗi dòng một lời chào)",
+				"settings": "Cài đặt",
+				"version": "Phiên bản",
+				"create": "Tạo",
+				"defaults": {
+					"name": "Tên",
+					"personality": "Bạn là một con người bình thường, tò mò về mọi thứ.",
+					"scenario": "Bạn vừa tỉnh dậy và quên hết quá khứ.",
+					"systemprompt": "Bạn sẽ nhận tin nhắn và trả lời như một con người thực sự.",
+					"posthistoryinstructions": "Nhớ bắt chước như một con người."
+				},
+				"modules_info": "Cấu hình các module cho thẻ nhân vật này. Nếu không thiết lập, cấu hình mặc định sẽ được sử dụng.",
+				"use_default": "Sử dụng mặc định",
+				"use_default_not_configured": "Sử dụng mặc định (chưa cấu hình)",
+				"fields_info": {
+					"subtitle": "Bạn có thể thêm chi tiết về nhân vật, giải thích lịch sử, bối cảnh và cách nhân vật nên trả lời.",
+					"name": "Tên chính thức của nhân vật.",
+					"nickname": "Có thể đặt biệt danh để ưu tiên dùng.",
+					"description": "Mô tả nhân vật này.",
+					"notes": "Thêm ghi chú cá nhân nếu muốn.",
+					"personality": "Miêu tả tính cách nhân vật. Nhút nhát? Tò mò? Hoặc khác?",
+					"scenario": "Hoàn cảnh xung quanh? Tình huống hiện tại?",
+					"greetings_field": "Lời chào",
+					"greetings": "Nhân vật nên chào như thế nào?",
+					"systemprompt": "Hướng dẫn AI LLM cách trả lời khi được hỏi.",
+					"posthistoryinstructions": "Đặt thông tin mà AI LLM nên đọc sau lịch sử hội thoại.",
+					"version": "Phiên bản thẻ, hãy tăng giá trị này nếu bạn đã chỉnh sửa thẻ từ trước.",
+					"consciousness_model": "Chọn mô hình ý thức (mô hình AI) cho nhân vật này.",
+					"speech_model": "Chọn mô hình tổng hợp tiếng nói và giọng đọc cho nhân vật này."
+				},
+				"errors": {
+					"name": "Tên không hợp lệ hoặc rỗng.",
+					"version": "Lỗi: Số phiên bản không hợp lệ!",
+					"description": "Lỗi: Phải có mô tả cho thẻ này.",
+					"personality": "Lỗi: Phải có tính cách cho nhân vật.",
+					"scenario": "Lỗi: Phải có kịch bản.",
+					"systemprompt": "Lỗi: Hãy cung cấp lời nhắc hệ thống",
+					"posthistoryinstructions": "Lỗi: Cần có lịch sử đăng lời nhắc"
+				}
+			},
+			"modules": "Mô-đun",
+			"name_asc": "Tên (A-Z)",
+			"name_desc": "Tên (Z-A)",
+			"no_cards": "Chưa có thẻ nào. Bấm nút trên để tải lên!",
+			"no_results": "Không tìm thấy thẻ phù hợp",
+			"personality": "Tính cách",
+			"posthistoryinstructions": "Hướng dẫn sau lịch sử",
+			"recent": "Thêm gần đây",
+			"scenario": "Kịch bản",
+			"search": "Tìm thẻ...",
+			"sort_by": "Sắp xếp theo",
+			"body-model": "Body / Display Model",
+			"speech": {
+				"provider": "Giọng nói / Nhà cung cấp",
+				"model": "Giọng nói / Mô hình",
+				"voice": "Giọng nói / Giọng"
+			},
+			"systemprompt": "Lời nhắc hệ thống",
+			"title": "Thẻ AIRI",
+			"try_different_search": "Hãy thử từ khóa khác",
+			"upload": "Tải lên",
+			"upload_desc": "Bấm hoặc kéo thả tệp để tải lên"
+		},
+		"memory": {
+			"description": "Nơi lưu trữ và tổ chức ký ức",
+			"title": "Bộ nhớ"
+		},
+		"data": {
+			"title": "Dữ liệu",
+			"description": "Quản lý dữ liệu AIRI đã lưu, xuất và đặt lại",
+			"sections": {
+				"chats": {
+					"title": "Phiên trò chuyện",
+					"description": "Xuất hoặc nhập đoạn trò chuyện đã lưu.",
+					"export": "Xuất hội thoại",
+					"import": "Nhập hội thoại",
+					"delete": "Xóa tất cả hội thoại"
+				},
+				"models": {
+					"title": "Mô hình",
+					"description": "Xóa các mô hình Live2D/VRM đã nhập.",
+					"delete": "Xóa tất cả mô hình"
+				},
+				"modules": {
+					"title": "Các Mô-Đun",
+					"description": "Đặt lại tùy chọn mô-đun và thông tin xác thực.",
+					"reset": "Đặt lại cài đặt mô-đun"
+				},
+				"providers": {
+					"title": "Nhà cung cấp",
+					"description": "Đã đặt lại toàn bộ thiết lập nhà cung cấp và thông tin xác thực.",
+					"reset": "Đặt lại cài đặt nhà cung cấp"
+				},
+				"danger": {
+					"title": "Cảnh báo",
+					"description": "Các hành động không thể khôi phục. Hãy xuất những dữ liệu cần thiết trước khi tiếp tục."
+				},
+				"all": {
+					"title": "Xóa tất cả dữ liệu",
+					"description": "Xóa sạch toàn bộ thiết lập cục bộ, cấu hình nhà cung cấp và mô hình.",
+					"delete": "Xóa sạch dữ liệu"
+				},
+				"desktop": {
+					"title": "Đặt lại thiết lập máy tính",
+					"description": "Xóa các cài đặt và trạng thái thực thi của AIRI trên máy tính.",
+					"reset": "Đặt lại dữ liệu desktop"
+				}
+			},
+			"confirmations": {
+				"tooltip": "Bạn chắc chứ?",
+				"yes": "Đồng ý"
+			},
+			"status": {
+				"exported": "Đã xuất phiên trò chuyện.",
+				"imported": "Đã nhập phiên trò chuyện.",
+				"import_error": "Lỗi nhập dữ liệu. Vui lòng kiểm tra định dạng tệp.",
+				"chats_deleted": "Đã xóa các phiên trò chuyện.",
+				"models_deleted": "Đã xóa các mô hình.",
+				"modules_reset": "Đã đặt lại cài đặt mô-đun.",
+				"providers_reset": "Đã đặt lại cài đặt nhà cung cấp.",
+				"all_deleted": "Tất cả dữ liệu cục bộ đã bị xóa.",
+				"desktop_reset": "Đã đặt lại dữ liệu ứng dụng máy tính."
+			}
+		},
+		"models": {
+			"description": "Live2D, VRM, v.v.",
+			"title": "Mô hình",
+			"sections": { "section": {
+				"live2d": {
+					"title": "Live2D",
+					"description": "Cấu hình mô hình Live2D"
+				},
+				"vrm": {
+					"title": "VRM",
+					"description": "Cấu hình mô hình 3D VRM"
+				},
+				"scene": "Bối cảnh"
+			} }
+		},
+		"modules": {
+			"beat_sync": {
+				"description": "Rung cảm với nhịp điệu từ nguồn âm thanh",
+				"title": "Đồng bộ nhịp",
+				"sections": {
+					"audio_source": {
+						"actions": {
+							"start_screen_capture": "Bắt đầu chụp màn hình",
+							"stop": "Dừng"
+						},
+						"description": "Chọn nguồn âm thanh để nhận diện nhịp điệu.",
+						"title": "Nguồn âm thanh"
+					},
+					"beat_visualizer": { "title": "Trình trực quan hóa nhịp" },
+					"parameters": {
+						"advanced_parameters": "Thông số nâng cao",
+						"description": "Tinh chỉnh các thông số nhận diện nhịp điệu.",
+						"title": "Thông số",
+						"parameters": {
+							"adaptive_threshold": {
+								"description": "Áp dụng ngưỡng thích ứng dựa trên sự biến thiên tín hiệu theo thời gian.",
+								"label": "Ngưỡng thích ứng"
+							},
+							"buffer_duration": {
+								"description": "Thời gian của bộ đệm phân tích nội bộ.",
+								"label": "Thời lượng bộ đệm"
+							},
+							"envelope_filter_frequency": {
+								"description": "Tần số cho bộ lọc bao bì (envelope filter) để làm mượt các thay đổi năng lượng.",
+								"label": "Tần số lọc bao bì"
+							},
+							"highpass_filter_frequency": {
+								"description": "Tần số cho bộ lọc thông cao giúp giảm tần số thấp như tiếng ồn trầm.",
+								"label": "Tần số lọc thông cao"
+							},
+							"lowpass_filter_frequency": {
+								"description": "Tần số cho bộ lọc thông thấp giúp giảm tần số cao như giọng hát.",
+								"label": "Tần số lọc thông thấp"
+							},
+							"min_beat_interval": {
+								"description": "BPM tối đa hoặc khoảng thời gian tối thiểu giữa các nhịp được phát hiện.",
+								"label": "BPM tối đa / Khoảng nhịp tối thiểu"
+							},
+							"sensitivity": { "label": "Độ nhạy" },
+							"spectral_flux": {
+								"description": "Bật phát hiện dựa trên thông lượng phổ (spectral flux).",
+								"label": "Thông lượng phổ"
+							},
+							"warmup": {
+								"description": "Làm nóng trước khi nhận diện để đạt độ chính xác cao hơn.",
+								"label": "Khởi động (Warmup)"
+							}
+						}
+					}
+				}
+			},
+			"consciousness": {
+				"description": "Tính cách, mô hình mong muốn, v.v.",
+				"sections": { "section": { "provider-model-selection": {
+					"collapse": "Thu gọn",
+					"custom_model_placeholder": "Nhập tên mô hình tùy chỉnh...",
+					"current_model_label": "Current model:",
+					"description": "Chọn nhà cung cấp LLM phù hợp cho ý thức",
+					"error": "Lỗi tải mô hình",
+					"health_check_failed": "Kiểm tra trạng thái thất bại",
+					"no_providers_configured_title": "Chưa cấu hình nhà cung cấp",
+					"no_providers_configured_description": "Bấm vào đây để thiết lập nhà cung cấp LLM",
+					"expand": "Mở rộng",
+					"loading": "Đang tải mô hình...",
+					"manual_model_name": "Tên mô hình",
+					"manual_model_placeholder": "Nhập tên mô hình dùng với nhà cung cấp này",
+					"no_models": "Không có mô hình",
+					"no_models_description": "Không tìm thấy mô hình nào cho nhà cung cấp này",
+					"no_search_results": "Không có kết quả phù hợp",
+					"no_search_results_description": "Không có mô hình nào khớp với '{query}'. Thử từ khóa khác.",
+					"not_supported": "Không hỗ trợ liệt kê mô hình",
+					"not_supported_description": "Nhà cung cấp này không hỗ trợ chức năng liệt kê mô hình",
+					"search_placeholder": "Tìm mô hình...",
+					"search_results": "Tìm thấy {count}/{total} mô hình",
+					"show_less": "Ẩn bớt",
+					"show_more": "Hiện thêm",
+					"subtitle": "Chọn một mô hình mặc định từ nhà cung cấp",
+					"title": "Mô hình"
+				} } },
+				"title": "Ý thức"
+			},
+			"description": "Tư duy, thị giác, tổng hợp giọng nói, chơi game, v.v.",
+			"gaming-factorio": {
+				"description": "Chơi Factorio!",
+				"title": "Factorio",
+				"enable": "Bật tích hợp Factorio",
+				"enable-description": "Cho phép AIRI tương tác với trò chơi Factorio",
+				"server-address": "Địa chỉ máy chủ",
+				"server-address-description": "Địa chỉ IP hoặc tên máy chủ của máy chủ Factorio",
+				"server-address-placeholder": "Nhập địa chỉ máy chủ (ví dụ localhost hoặc 192.168.1.100)",
+				"server-port": "Cổng máy chủ",
+				"server-port-description": "Số cổng của máy chủ Factorio (mặc định 34197)",
+				"username": "Tên người dùng",
+				"username-description": "Tên người dùng của bạn trên máy chủ Factorio",
+				"username-placeholder": "Nhập tên người dùng Factorio của bạn",
+				"configured": "Đã cấu hình Factorio thành công!"
+			},
+			"gaming-minecraft": {
+				"description": "Chơi Minecraft!",
+				"title": "Minecraft",
+				"enable": "Bật tích hợp Minecraft",
+				"enable-description": "Cho phép AIRI tương tác với trò chơi Minecraft",
+				"server-address": "Địa chỉ máy chủ",
+				"server-address-description": "Địa chỉ IP hoặc tên máy chủ của máy chủ Minecraft",
+				"server-address-placeholder": "Nhập địa chỉ máy chủ (ví dụ localhost hoặc play.example.com)",
+				"server-port": "Cổng máy chủ",
+				"server-port-description": "Số cổng của máy chủ Minecraft (mặc định 25565)",
+				"username": "Tên người dùng",
+				"username-description": "Tên người dùng của bạn trên máy chủ Minecraft",
+				"username-placeholder": "Nhập tên người dùng Minecraft của bạn",
+				"configured": "Đã cấu hình Minecraft thành công!"
+			},
+			"hearing": {
+				"description": "Cấu hình nhận diện giọng nói",
+				"title": "Nghe",
+				"sections": { "section": { "provider-selection": { "description": "Chọn nhà cung cấp nhận diện giọng nói phù hợp" } } }
+			},
+			"memory-long-term": {
+				"description": "Cài đặt và quản lý trí nhớ dài hạn",
+				"title": "Trí nhớ dài hạn"
+			},
+			"memory-short-term": {
+				"description": "Cài đặt và quản lý trí nhớ ngắn hạn",
+				"title": "Trí nhớ ngắn hạn"
+			},
+			"messaging-discord": {
+				"description": "Trò chuyện & gọi thoại qua Discord",
+				"title": "Discord",
+				"enable": "Bật tích hợp Discord",
+				"enable-description": "Cho phép AIRI tương tác qua Discord",
+				"token": "Mã token của bot",
+				"token-description": "Mã token bot Discord của bạn",
+				"token-placeholder": "Nhập mã token bot Discord của bạn",
+				"configured": "Đã cấu hình Discord thành công!"
+			},
+			"speech": {
+				"description": "Tổng hợp giọng nói",
+				"sections": { "section": {
+					"playground": {
+						"buttons": { "stop": { "label": "Dừng" } },
+						"select-voice": {
+							"loading": "Đang tải mô hình...",
+							"required": "Vui lòng chọn một giọng nói"
+						}
+					},
+					"provider-voice-selection": {
+						"custom_model_placeholder": "Nhập tên mô hình tùy chỉnh...",
+						"custom_voice_placeholder": "Nhập ID giọng nói tùy chỉnh...",
+						"description": "Chọn nhà cung cấp giọng nói phù hợp",
+						"no_models": "Không có mô hình",
+						"no_models_description": "Không tìm thấy mô hình nào cho nhà cung cấp này",
+						"no_voices": "Không có giọng nói",
+						"no_voices_description": "Không tìm thấy giọng nói nào cho nhà cung cấp này",
+						"no_voices_hint": "Bạn có thể nhập tên giọng nói tùy chỉnh bên dưới.",
+						"pause": "Tạm dừng",
+						"play_sample": "Nghe thử",
+						"search_models_placeholder": "Tìm mô hình...",
+						"search_models_results": "Tìm thấy {count}/{total} mô hình",
+						"search_voices_placeholder": "Tìm giọng nói...",
+						"search_voices_results": "Tìm thấy {count}/{total} giọng nói",
+						"unsupported_voice_warning_title": "Không có giọng nói được hỗ trợ",
+						"unsupported_voice_warning_content": "Hãy thử nhà cung cấp hoặc mô hình khác. Chúng tôi đang nỗ lực cập nhật thêm giọng nói sớm nhất có thể. Nếu cần gấp, hãy báo cho chúng tôi trên GitHub.",
+						"show_less": "Ẩn bớt",
+						"show_more": "Hiện thêm",
+						"title": "Nhà cung cấp"
+					},
+					"voice-settings": {
+						"input-ssml": { "placeholder": "Nhập văn bản SSML..." },
+						"use-ssml": {
+							"description": "Bật để nhập SSML thô thay vì văn bản",
+							"label": "Dùng SSML tùy chỉnh"
+						}
+					}
+				} },
+				"title": "Giọng nói"
+			},
+			"title": "Module",
+			"vision": {
+				"description": "Thị giác",
+				"title": "Thị giác"
+			},
+			"x": {
+				"description": "Sử Dụng Twitter",
+				"title": "X / Twitter",
+				"enable": "Bật tích hợp X / Twitter",
+				"enable-description": "Cho phép AIRI tương tác với X / Twitter",
+				"api-key": "Khóa API",
+				"api-key-description": "Khóa API X / Twitter của bạn",
+				"api-key-placeholder": "Nhập khóa API X / Twitter của bạn",
+				"api-secret": "Bí mật API",
+				"api-secret-description": "Bí mật API X / Twitter của bạn",
+				"api-secret-placeholder": "Nhập bí mật API X / Twitter của bạn",
+				"access-token": "Mã truy cập",
+				"access-token-description": "Mã truy cập X / Twitter của bạn",
+				"access-token-placeholder": "Nhập mã truy cập X / Twitter của bạn",
+				"access-token-secret": "Bí mật mã truy cập",
+				"access-token-secret-description": "Bí mật mã truy cập X / Twitter của bạn",
+				"access-token-secret-placeholder": "Nhập bí mật mã truy cập X / Twitter của bạn",
+				"configured": "Đã cấu hình X / Twitter thành công!"
+			},
+			"mcp-server": {
+				"description": "Kết nối, quản lý máy chủ MCP và công cụ",
+				"title": "Máy chủ MCP",
+				"config-path": "Đường dẫn tệp cấu hình",
+				"runtime-title": "Trạng thái thực thi",
+				"actions": {
+					"open-config": "Mở mcp.json",
+					"apply-and-restart": "Lưu và khởi động lại MCP"
+				},
+				"messages": {
+					"opened": "Tệp cấu hình đã mở tại {path}",
+					"restarted": "Đã khởi động lại MCP. Thành công: {started}, Thất bại: {failed}, Bỏ qua: {skipped}"
+				}
+			}
+		},
+		"providers": {
+			"explained": {
+				"chat": "Nhà cung cấp mô hình tạo văn bản. Ví dụ: OpenRouter, OpenAI, Ollama.",
+				"Speech": "Nhà cung cấp mô hình giọng nói (text-to-speech). Ví dụ: ElevenLabs, Azure Speech.",
+				"Transcription": "Nhà cung cấp mô hình chuyển giọng nói thành văn bản. Ví dụ: Whisper.cpp, OpenAI, Azure Speech"
+			},
+			"helpinfo": {
+				"title": "Lần đầu tới đây?",
+				"description": "{chat} AIRI cần ít nhất một nhà cung cấp để suy nghĩ và hoạt động đúng cách. Có thể coi nó như bộ não của nhân vật AIRI trong hệ thống.\n"
+			},
+			"catalog": { "edit": {
+				"config-id-not-found": "Không tìm thấy cấu hình nhà cung cấp.",
+				"definition-id-not-found": "Không tìm thấy định nghĩa nhà cung cấp.",
+				"actions": {
+					"more-options": "Thêm tùy chọn",
+					"delete": "Xóa"
+				},
+				"validation": { "failed": {
+					"title": "Xác thực không thành công. Vui lòng kiểm tra lại cài đặt.",
+					"description": "Bạn vẫn có thể lưu cấu hình nếu muốn tiếp tục.",
+					"action": "Vẫn lưu"
+				} },
+				"config": { "common": { "fields": { "field": {
+					"api-key": {
+						"label": "Khóa API",
+						"description": "Khóa dùng để ủy quyền yêu cầu cho nhà cung cấp này",
+						"placeholder": "sk-..."
+					},
+					"base-url": {
+						"label": "URL cơ sở",
+						"description": "Địa chỉ kết nối dịch vụ. Thường là http://localhost:11434/v1 hoặc tương tự.",
+						"placeholder": "URL cơ sở..."
+					},
+					"headers": {
+						"label": "Tiêu đề HTTP tùy chỉnh",
+						"description": "Tùy chỉnh HTTP Headers",
+						"key": { "placeholder": "Khóa (Key)" },
+						"value": { "placeholder": "Giá trị (Value)" }
+					},
+					"thinking-mode": {
+						"label": "Chế độ suy nghĩ",
+						"description": "Kiểm soát hành vi suy nghĩ của Ollama/GPT-OSS.\n",
+						"options": {
+							"auto": "Tự động",
+							"disable": "Tắt",
+							"enable": "Bật",
+							"low": "Thấp",
+							"medium": "Trung bình",
+							"high": "Cao"
+						}
+					}
+				} } } },
+				"validators": {
+					"actions": { "validate": "Xác thực" },
+					"empty": "Không có bước xác thực khả dụng.",
+					"openai-compatible": {
+						"check-config": { "title": "Cấu hình" },
+						"check-connectivity": { "title": "Kết nối" },
+						"check-supports-model-listing": { "title": "Liệt kê mô hình" },
+						"check-supports-chat-completion": { "title": "Hoàn tất hội thoại" }
+					},
+					"status": {
+						"validating": "Đang xác thực...",
+						"valid": "Thành công",
+						"invalid": "Lỗi"
+					},
+					"title": "Kiểm tra"
+				},
+				"providers": { "provider": { "ollama": { "troubleshooting": { "validators": { "openai-compatible-check-connectivity": {
+					"label": "Cần cấu hình thêm cho Ollama",
+					"content": "Kiểm tra kết nối thất bại. Đối với Ollama, bạn cần đặt biến môi trường <code>OLLAMA_HOST</code> khi khởi động để cho phép kết nối. Xem hướng dẫn tại trang tài liệu."
+				} } } } } }
+			} },
+			"common": {
+				"continueAnyway": "Vẫn tiếp tục",
+				"goToModelSelection": "Chọn Mô hình →",
+				"fields": { "field": { "api-key": { "label": "Nhập khóa API" } } },
+				"section": {
+					"advanced": {
+						"fields": { "field": { "headers": {
+							"description": "Thêm HTTP header tùy chỉnh",
+							"key": { "placeholder": "Khóa" },
+							"label": "HTTP Headers",
+							"value": { "placeholder": "Giá trị" }
+						} } },
+						"title": "Nâng cao"
+					},
+					"basic": {
+						"description": "Cài đặt cơ bản",
+						"title": "Cơ bản"
+					},
+					"voice": { "title": "Cài đặt giọng nói" }
+				}
+			},
+			"description": "LLMs, nhà cung cấp giọng nói, v.v.",
+			"provider": {
+				"app-local-audio-transcription": {
+					"title": "Ứng dụng (Local)",
+					"description": "https://github.com/moeru-ai/xsai-transformers"
+				},
+				"app-local-audio-speech": {
+					"title": "Ứng dụng (Local)",
+					"description": "https://github.com/moeru-ai/xsai-transformers"
+				},
+				"browser-local-audio-transcription": {
+					"title": "Trình duyệt (Local)",
+					"description": "https://github.com/moeru-ai/xsai-transformers"
+				},
+				"browser-local-audio-speech": {
+					"title": "Trình duyệt (Local)",
+					"description": "https://github.com/moeru-ai/xsai-transformers"
+				},
+				"alibaba-cloud-model-studio": {
+					"description": "bailian.console.aliyun.com",
+					"title": "Mô hình Studio Alibaba Cloud"
+				},
+				"anthropic": {
+					"description": "anthropic.com",
+					"title": "Anthropic | Claude",
+					"helpinfo": {
+						"title": "Trước khi bắt đầu",
+						"description": {
+							"part1": "Anthropic gần đây công bố hỗ trợ beta cho SDK OpenAI",
+							"part2": "(xem thêm tại đây)",
+							"part3": "nhưng do chi tiết triển khai đi kèm",
+							"part4": "với hạn chế không tương thích hoàn toàn với SDK OpenAI, hiện chưa thể dùng nhà cung cấp này trong trình duyệt.",
+							"part5": "Nếu cần dùng, bạn phải có proxy backend riêng như Serverless Function",
+							"part6": "hoặc dịch vụ bypass CORS để vượt hạn chế."
+						}
+					}
+				},
+				"cloudflare-workers-ai": {
+					"description": "cloudflare.com",
+					"fields": { "field": {
+						"account-id": {
+							"description": "ID tài khoản Cloudflare",
+							"label": "ID Tài khoản",
+							"placeholder": "ID tài khoản Cloudflare của bạn"
+						},
+						"api-key": { "placeholder": "Nhập khóa API cho Cloudflare" }
+					} },
+					"title": "Cloudflare Workers AI"
+				},
+				"common": {
+					"status": {
+						"validating": "Đang xác thực",
+						"valid": "Cấu hình có vẻ hợp lệ."
+					},
+					"fields": { "field": {
+						"pitch": {
+							"description": "Điều chỉnh cao độ giọng nói",
+							"label": "Cao độ"
+						},
+						"speed": {
+							"description": "Điều chỉnh tốc độ giọng nói",
+							"label": "Tốc độ"
+						},
+						"volume": {
+							"description": "Điều chỉnh âm lượng",
+							"label": "Âm lượng"
+						}
+					} }
+				},
+				"deepgram-tts": {
+					"description": "deepgram.com",
+					"title": "Deepgram"
+				},
+				"speech-noop": {
+					"title": "Không có",
+					"description": "Không phát âm thanh."
+				},
+				"deepseek": {
+					"description": "deepseek.com",
+					"title": "DeepSeek"
+				},
+				"elevenlabs": {
+					"description": "elevenlabs.io",
+					"fields": { "field": {
+						"simularity-boost": {
+							"description": "Bám sát giọng gốc",
+							"label": "Tăng độ tương đồng"
+						},
+						"speaker-boost": {
+							"description": "Giọng nói tự nhiên hơn",
+							"label": "Tăng độ chân thực"
+						},
+						"speed": {
+							"description": "Tốc độ giọng nói",
+							"label": "Tốc độ"
+						},
+						"stability": {
+							"description": "Độ ổn định và ngẫu nhiên",
+							"label": "Ổn định"
+						},
+						"style": {
+							"description": "Cường điệu phong cách giọng",
+							"label": "Phong cách"
+						}
+					} },
+					"playground": {
+						"buttons": { "button": { "test-voice": {
+							"generating": "Đang tạo...",
+							"label": "Thử giọng"
+						} } },
+						"fields": { "field": {
+							"input": { "placeholder": "Nhập văn bản để thử giọng..." },
+							"language": {
+								"description": "Chọn ngôn ngữ",
+								"label": "Ngôn ngữ"
+							},
+							"voice": {
+								"description": "Chọn giọng nói ưa thích",
+								"label": "Giọng"
+							}
+						} },
+						"title": "Thử nghiệm giọng nói",
+						"validation": { "error-missing-api-key": "Vui lòng nhập khóa API để thử giọng." }
+					},
+					"title": "ElevenLabs"
+				},
+				"kokoro-local": {
+					"description": "Chuyển văn bản thành giọng nói cục bộ dùng Kokoro-82M.",
+					"fields": { "field": { "model": {
+						"label": "Chọn mô hình",
+						"description": "Mô hình nhỏ tải nhanh hơn nhưng chất lượng thấp hơn chút."
+					} } },
+					"models": {
+						"fp32-webgpu": { "description": "Mô hình độ chính xác cao dùng WebGPU - Khuyên dùng cho thiết bị hỗ trợ" },
+						"fp32": { "description": "Độ chính xác đầy đủ (Full precision)" },
+						"fp16": { "description": "Độ chính xác một nửa (Half precision)" },
+						"q8": { "description": "Lượng tử hóa 8-bit" },
+						"q4": { "description": "Lượng tử hóa 4-bit" },
+						"q4f16": { "description": "4-bit với FP16" }
+					},
+					"playground": {
+						"default-text": "Xin chào! Đây là bản thử nghiệm hệ thống giọng nói Kokoro.",
+						"title": "Thử nghiệm giọng nói"
+					},
+					"title": "Kokoro TTS (Cục bộ)"
+				},
+				"fireworks": {
+					"description": "fireworks.ai",
+					"title": "Fireworks.ai"
+				},
+				"microsoft-speech": {
+					"description": "speech.microsoft.com",
+					"fields": { "field": { "region": {
+						"description": "Khu vực dịch vụ Speech",
+						"label": "Khu vực"
+					} } },
+					"title": "Microsoft / Azure Speech"
+				},
+				"index-tts-vllm": {
+					"description": "https://index-tts.github.io/",
+					"title": "Bilibili / IndexTTS",
+					"callout_indextts2_unavailable_title": "Hỗ trợ hạn chế",
+					"callout_indextts2_unavailable": "IndexTTS2 hiện chưa hỗ trợ. Vui lòng dùng IndexTTS."
+				},
+				"azure-ai-foundry": {
+					"description": "Azure AI Foundry",
+					"title": "Azure AI Foundry"
+				},
+				"minimax": {
+					"description": "minimaxi.com",
+					"title": "MiniMax"
+				},
+				"minimax-global": {
+					"description": "minimax.io",
+					"title": "MiniMax Global"
+				},
+				"mistral": {
+					"description": "mistral.ai",
+					"title": "Mistral"
+				},
+				"moonshot": {
+					"description": "moonshot.ai",
+					"title": "Moonshot AI"
+				},
+				"modelscope": {
+					"description": "modelscope.cn",
+					"title": "ModelScope"
+				},
+				"novita": {
+					"description": "novita.ai",
+					"title": "Novita"
+				},
+				"ollama": {
+					"description": "ollama.ai",
+					"title": "Ollama"
+				},
+				"openai": {
+					"description": "openai.com",
+					"title": "OpenAI"
+				},
+				"openai-compatible": {
+					"description": "Tương thích OpenAI",
+					"title": "Tương thích OpenAI"
+				},
+				"nvidia": {
+					"description": "build.nvidia.com",
+					"title": "NVIDIA NIM"
+				},
+				"n1n": {
+					"description": "n1n.ai - Cung cấp API AI hiệu năng cao.",
+					"title": "n1n"
+				},
+				"openrouter": {
+					"description": "openrouter.ai",
+					"title": "OpenRouter"
+				},
+				"perplexity": {
+					"description": "perplexity.ai",
+					"title": "Perplexity"
+				},
+				"player2": {
+					"description": "player2.game",
+					"title": "Player2"
+				},
+				"together": {
+					"description": "together.ai",
+					"title": "Together.ai"
+				},
+				"google-generative-ai": {
+					"description": "gemini.google.com",
+					"title": "Google Gemini"
+				},
+				"groq": {
+					"description": "groq.com",
+					"title": "Groq"
+				},
+				"featherless": {
+					"description": "featherless.ai",
+					"title": "Featherless AI"
+				},
+				"lm-studio": {
+					"description": "lmstudio.ai",
+					"title": "LM Studio"
+				},
+				"vllm": {
+					"description": "vllm.ai",
+					"title": "vLLM"
+				},
+				"volcengine": {
+					"description": "volcengine.com",
+					"fields": { "field": { "appId": {
+						"description": "App ID của dự án (lấy trong Console)",
+						"label": "App ID"
+					} } },
+					"title": "Volcano Engine"
+				},
+				"xai": {
+					"description": "x.ai",
+					"title": "xAI"
+				},
+				"302-ai": {
+					"description": "302.AI",
+					"title": "302.AI"
+				},
+				"comet-api": {
+					"description": "CometAPI.com",
+					"title": "Comet API"
+				},
+				"cerebras": {
+					"description": "cerebras.ai",
+					"title": "Cerebras"
+				},
+				"aliyun-nls": {
+					"description": "Aliyun NLS",
+					"title": "Aliyun NLS"
+				},
+				"browser-web-speech-api": {
+					"description": "STT gốc trình duyệt (yêu cầu Chrome/Edge/Safari)",
+					"title": "Web Speech API"
+				},
+				"transcriptions": { "playground": { "title": "Thử nghiệm chuyển văn bản" } },
+				"aihubmix": {
+					"title": "AIHubMix",
+					"description": "https://aihubmix.com (Giảm giá 10%)"
+				}
+			},
+			"title": "Nhà cung cấp"
+		},
+		"connection": {
+			"description": "Cấu hình kết nối máy chủ WebSocket",
+			"title": "Kết nối",
+			"websocket-url": {
+				"description": "Địa chỉ đầy đủ máy chủ WebSocket (ví dụ ws://localhost:6121/ws)",
+				"label": "Địa chỉ máy chủ WebSocket",
+				"placeholder": "ws://localhost:6121/ws"
+			}
+		},
+		"scene": {
+			"description": "Cấu hình môi trường nhân vật sinh sống",
+			"title": "Bối cảnh"
+		},
+		"system": {
+			"color-scheme": {
+				"description": "Đổi bảng màu sân khấu.",
+				"title": "Bảng màu"
+			},
+			"developer": {
+				"description": "Một số tùy chọn cho nhà phát triển.",
+				"title": "Nhà phát triển"
+			},
+			"general": {
+				"description": "Chế độ tối, ngôn ngữ, v.v.",
+				"title": "Chung"
+			},
+			"description": "Tùy chỉnh thiết lập bối cảnh của bạn!",
+			"sections": { "section": {
+				"custom-color": {
+					"fields": { "field": { "primary-color": {
+						"label": "Màu chính",
+						"rgb-on": { "title": "Tôi muốn nó động!" }
+					} } },
+					"title": "Bảng màu"
+				},
+				"developer": {
+					"title": "Nhà phát triển",
+					"sections": { "section": {
+						"performance-visualizer": {
+							"title": "Trực quan hiệu năng",
+							"description": "Bật/Tắt lớp phủ FPS/tác vụ dài/bộ nhớ"
+						},
+						"markdown-stress": {
+							"title": "Kiểm thử Markdown",
+							"description": "Thử nghiệm phân tích Markdown với hội thoại lớn"
+						},
+						"use-magic-keys": {
+							"title": "Công cụ useMagicKeys",
+							"description": "Kiểm tra các phím tắt"
+						},
+						"audio-record": {
+							"title": "Ghi âm",
+							"description": "Kiểm tra các tính năng liên quan đến âm thanh"
+						},
+						"background-gradient-blending": {
+							"title": "Hòa trộn màu nền",
+							"description": "Kiểm tra hòa trộn và chủ đề"
+						},
+						"background-removal": {
+							"title": "Xóa nền (Yêu cầu WebGPU)",
+							"description": "Công cụ hỗ trợ xóa nền"
+						},
+						"chat": {
+							"title": "Trò chuyện",
+							"description": "Thử nghiệm hội thoại"
+						},
+						"gesture-circle": {
+							"title": "Vòng tròn cử chỉ (Chỉ Desktop)",
+							"description": "Kiểm tra nhận diện cử chỉ"
+						},
+						"image": {
+							"title": "Hình ảnh",
+							"description": "Xử lý hình ảnh"
+						},
+						"polaroid": {
+							"title": "Polaroid",
+							"description": "Công cụ chụp ảnh mô hình"
+						},
+						"context-flow": { "description": "Kiểm tra các bản cập nhật ngữ cảnh và sự kiện luồng chat" },
+						"websocket-inspector": {
+							"title": "Kiểm tra WebSocket",
+							"description": "Theo dõi lưu lượng WebSocket thô"
+						},
+						"vibrant": {
+							"title": "Trích xuất màu",
+							"description": "Thử nghiệm trích xuất màu sắc"
+						},
+						"providers-transcription-realtime-aliyun-nls": {
+							"title": "Aliyun Real-time Transcriber",
+							"description": "Truyền âm thanh micro tới Aliyun NLS và kiểm tra văn bản trực tiếp"
+						},
+						"performance-playground": {
+							"title": "Khu thử nghiệm hiệu năng",
+							"description": "VRM expressions + TTS lip sync playground"
+						}
+					} }
+				},
+				"theme-presets": {
+					"presets": {
+						"default": {
+							"colors": { "color-1": "Xanh AIRI" },
+							"description": "Màu xanh lá mặc định do AIRI mang đến cho bạn!",
+							"title": "Màu mặc định"
+						},
+						"morandi": {
+							"colors": {
+								"color-1": "Nâu xám",
+								"color-2": "Be",
+								"color-3": "Xám tro",
+								"color-4": "Nâu nhạt",
+								"color-5": "Ngà",
+								"color-6": "Xám ô liu",
+								"color-7": "Cát",
+								"color-8": "Xám ấm"
+							},
+							"description": "Tông màu mềm mại lấy cảm hứng từ tranh của Giorgio Morandi",
+							"title": "Màu Morandi"
+						},
+						"monet": {
+							"colors": {
+								"color-1": "Xanh da trời",
+								"color-2": "Sương mù",
+								"color-3": "Cát",
+								"color-4": "Xanh rêu",
+								"color-5": "Hoa súng",
+								"color-6": "Lúa mì",
+								"color-7": "Xanh đá phiến",
+								"color-8": "Xanh xô thơm"
+							},
+							"description": "Bảng màu ấn tượng lấy cảm hứng từ tác phẩm của Claude Monet",
+							"title": "Màu Monet"
+						},
+						"japanese": {
+							"colors": {
+								"color-1": "Nâu da cam",
+								"color-2": "Nâu xám ấm",
+								"color-3": "Nâu đất",
+								"color-4": "Cà phê",
+								"color-5": "Đồng",
+								"color-6": "Vàng kim",
+								"color-7": "Mù tạt",
+								"color-8": "Hổ phách"
+							},
+							"description": "Bảng màu truyền thống Nhật Bản",
+							"title": "Màu Nhật Bản"
+						},
+						"nordic": {
+							"colors": {
+								"color-1": "Xanh Bắc Âu",
+								"color-2": "Băng",
+								"color-3": "Vịnh hẹp",
+								"color-4": "Thép",
+								"color-5": "Sông băng",
+								"color-6": "Đá phiến",
+								"color-7": "Mây",
+								"color-8": "Đá"
+							},
+							"description": "Phong cách màu tối giản vùng Scandinavia",
+							"title": "Màu Bắc Âu"
+						},
+						"chinese": {
+							"colors": {
+								"color-1": "Bình minh",
+								"color-2": "Đỏ Trung Hoa",
+								"color-3": "Nâu khói",
+								"color-4": "Xanh tre",
+								"color-5": "Tím đậm",
+								"color-6": "Vàng hoàng kim",
+								"color-7": "Xanh lam",
+								"color-8": "Thổ hoàng"
+							},
+							"description": "Màu sắc truyền thống Trung Hoa, lấy cảm hứng từ dệt may, gốm sứ và hội họa cổ",
+							"title": "Màu truyền thống Trung Hoa"
+						}
+					},
+					"title": "Bộ Màu Có Sẵn"
+				}
+			} },
+			"title": "Giao Diện"
+		},
+		"page": { "developers": { "open-devtools": {
+			"title": "Mở Công cụ nhà phát triển",
+			"button": "Mở"
+		} } }
+	},
+	"sections": { "section": { "general": { "title": "Chung" } } },
+	"theme": {
+		"title": "Chủ Đề",
+		"description": "Chuyển đổi chủ đề cơ bản của AIRI, Chế độ Sáng hoặc Chế độ Tối.\n"
+	},
+	"title": "Cài Đặt",
+	"voices": "Giọng Nói",
+	"vrm": {
+		"change-model": {
+			"from-file": "Tải từ Tệp",
+			"from-file-select": "Chọn",
+			"from-url": "Tải từ URL",
+			"from-url-confirm": "Tải",
+			"from-url-placeholder": "Nhập URL mô hình VRM",
+			"title": "Thay Đổi Mô Hình"
+		},
+		"title": "Cài Đặt VRM",
+		"scale-and-position": {
+			"model-info-title": "Thông Tin Kích Thước Mô Hình",
+			"model-info-x": "Chiều Rộng (X)",
+			"model-info-y": "Chiều Dài (Y)",
+			"model-info-z": "Chiều Cao (Z)",
+			"tips": "Chỉnh sửa vị trí ban đầu của mô hình VRM.\nHệ trục tọa độ được hiển thị.\n",
+			"scale": "Tỷ Lệ",
+			"x": "Dịch X",
+			"y": "Dịch Y",
+			"z": "Dịch Z",
+			"fov": "Góc Nhìn (độ)",
+			"rotation-y": "Xoay Trục Y",
+			"camera-distance": "Khoảng Cách Camera",
+			"eye-tracking-mode": {
+				"title": "Nhìn Vào",
+				"options": { "option": {
+					"camera": "Camera",
+					"mouse": "Chuột",
+					"disabled": "Tắt"
+				} }
+			}
+		},
+		"switch-to-vrm": {
+			"title": "Chuyển sang mô hình Live2D?",
+			"change-to-vrm": "Nhấn vào đây để chuyển sang cài đặt Live2D avatar"
+		},
+		"theme-color-from-model": { "button-extract": { "title": "Trích Xuất" } },
+		"skybox": {
+			"skybox-intensity": "Cường Độ SkyBox",
+			"skybox-specular-mix": "Độ Trộn Phản Chiếu"
+		}
+	},
+	"websocket-secure-enabled": {
+		"title": "Bật WebSocket bảo mật (WSS)",
+		"description": "Bật WSS để hỗ trợ kết nối HTTPS cho thiết bị di động trong quá trình phát triển. Chứng chỉ tự ký sẽ được tạo tự động."
+	},
+	"wip": {
+		"title": "Đang phát triển",
+		"description": "Tính năng này hiện đang được hoàn thiện và chưa sẵn sàng công khai. Hãy chờ bản cập nhật trong tương lai nhé!"
+	}
+};
+
+//#endregion
+export { data as default };

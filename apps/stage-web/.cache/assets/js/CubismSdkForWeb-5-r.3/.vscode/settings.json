@@ -1,0 +1,3 @@
+{
+  "typescript.tsdk": "./Samples/TypeScript/Demo/node_modules/typescript/lib"
+}

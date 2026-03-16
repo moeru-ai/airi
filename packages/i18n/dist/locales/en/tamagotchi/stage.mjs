@@ -1,0 +1,53 @@
+//#region src/locales/en/tamagotchi/stage.yaml
+var data = {
+	"operations": {
+		"load-models": "Load Models",
+		"load-models-status": {
+			"loading": "Loading",
+			"ready": "Ready"
+		}
+	},
+	"docs": { "theme": { "navbar": { "appearance": { "title": "Appearance" } } } },
+	"controls-island": {
+		"fade-on-hover": {
+			"enable": "Auto hide",
+			"disable": "Always show"
+		},
+		"open-settings": "Open settings",
+		"open-chat": "Open Chat",
+		"refresh": "Refresh",
+		"open-hearing-controls": "Open hearing Controls",
+		"drag-to-move-window": "Drag to move window",
+		"switch-to-light-mode": "Switch to light mode",
+		"switch-to-dark-mode": "Switch to dark mode",
+		"pin-on-top": "Pin on top",
+		"unpin-from-top": "Unpin from top",
+		"switch-profile": "Switch Profile",
+		"close": "Close",
+		"expand": "Expand",
+		"collapse": "Collapse"
+	},
+	"status-island": {
+		"connected": "WebSocket connected",
+		"disconnected": "WebSocket disconnected",
+		"open-settings": "Open WebSocket settings"
+	},
+	"notice": { "fade-on-hover": {
+		"title": "Fade on Hover",
+		"intro": "Automatically fades the character when your cursor roams nearby. It helps reduce distractions while keeping your character visible.",
+		"opacity": "After turning on, the opacity drops to {value} for both {targets} when your cursor is nearby.",
+		"toggle": "You can toggle it off by hovering at {controls}, then clicking the {icon} again.",
+		"controls-label": "Controls Island",
+		"icon-label": "eye-slash icon",
+		"value": "0",
+		"targets": "Character and UI",
+		"confirm": "Got it",
+		"dont-show-again": "Don’t show again",
+		"preparing": "Preparing…",
+		"read-more": "Read more",
+		"preview-title": "What is it?"
+	} }
+};
+
+//#endregion
+export { data as default };

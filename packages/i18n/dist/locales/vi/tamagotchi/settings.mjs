@@ -1,0 +1,58 @@
+//#region src/locales/vi/tamagotchi/settings.yaml
+var data = {
+	"allow-visible-on-all-workspaces": {
+		"title": "Hiển thị ở mọi nơi",
+		"description": "Cho phép cửa sổ hiển thị trên tất cả workspaces, chỉ áp dụng cho macOS."
+	},
+	"pages": {
+		"modules": { "mcp-server": {
+			"description": "Kết nối và quản lý máy chủ MCP và các công cụ",
+			"title": "Máy chủ MCP"
+		} },
+		"system": {
+			"sections": { "section": { "window-shortcuts": { "title": "Phím tắt Windows" } } },
+			"window-shortcuts": {
+				"description": "Chỉnh sửa các phím tắt cho Windows.",
+				"title": "Phím tắt Windows",
+				"toggle-move": { "label": "Bật/Tắt Di chuyển" },
+				"toggle-resize": { "label": "Bật/Tắt Thay đổi kích thước" },
+				"toggle-ignore-mouse-event": { "label": "Bật/Tắt Bỏ qua sự kiện chuột" },
+				"press-keys": "Nhấn phím..."
+			},
+			"developer": { "sections": { "section": { "use-window-mouse": {
+				"title": "Công cụ useWindowMouse",
+				"description": "Kiểm tra vị trí con trỏ chuột trong cửa sổ Electron"
+			} } } }
+		}
+	},
+	"devtools": {
+		"title": "Nhà phát triển",
+		"pages": {
+			"context-flow": { "title": "Luồng ngữ cảnh (Context Flow)" },
+			"lag-visualizer": { "title": "Trình trực quan hóa độ trễ" },
+			"performance-visualizer": {
+				"title": "Trình trực quan hóa hiệu năng",
+				"description": "Bật/Tắt lớp phủ hiển thị FPS/tác vụ dài/bộ nhớ"
+			},
+			"markdown-stress": {
+				"title": "Kiểm thử áp lực Markdown",
+				"description": "Kiểm tra khả năng xử lý và hiển thị Markdown với dữ liệu hội thoại lớn"
+			},
+			"widgets-calling": { "title": "Gọi Widget" }
+		}
+	},
+	"screen-capture": { "permissions-prompt": {
+		"title": "Chụp ảnh màn hình",
+		"description": "Để chụp màn hình hoặc cửa sổ, bạn cần cấp quyền ghi âm hệ thống và ghi màn hình.",
+		"open-preferences": "Mở Tùy chọn hệ thống",
+		"dismiss": "Bỏ qua",
+		"instructions": {
+			"step-1": "Mở \"Tùy chọn hệ thống\", chọn \"Quyền riêng tư & Bảo mật\" từ thanh bên.",
+			"step-2": "Trong phần \"Ghi màn hình & Âm thanh hệ thống\" và \"Chỉ ghi âm thanh hệ thống\", hãy bật công tắc cho AIRI.",
+			"step-2-note": "Nếu không thấy AIRI trong danh sách, vui lòng thêm thủ công bằng cách nhấn nút \"+\" và chọn AIRI từ thư mục Ứng dụng (Applications)."
+		}
+	} }
+};
+
+//#endregion
+export { data as default };

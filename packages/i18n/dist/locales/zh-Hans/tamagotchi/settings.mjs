@@ -1,0 +1,58 @@
+//#region src/locales/zh-Hans/tamagotchi/settings.yaml
+var data = {
+	"allow-visible-on-all-workspaces": {
+		"title": "跨桌面可见性",
+		"description": "允许窗口在所有虚拟桌面中可见，仅限 macOS。"
+	},
+	"pages": {
+		"modules": { "mcp-server": {
+			"description": "连接与管理 MCP 服务器和工具",
+			"title": "MCP 服务器"
+		} },
+		"system": {
+			"sections": { "section": { "window-shortcuts": { "title": "键盘快捷键" } } },
+			"window-shortcuts": {
+				"description": "修改窗口快捷方式",
+				"title": "窗口快捷方式",
+				"toggle-move": { "label": "切换移动状态" },
+				"toggle-resize": { "label": "调整大小" },
+				"toggle-ignore-mouse-event": { "label": "忽略鼠标事件" },
+				"press-keys": "请按下按键..."
+			},
+			"developer": { "sections": { "section": { "use-window-mouse": {
+				"title": "使用窗口鼠标工具",
+				"description": "测试 Electron 窗口鼠标位置"
+			} } } }
+		}
+	},
+	"devtools": {
+		"title": "开发者选项",
+		"pages": {
+			"context-flow": { "title": "Context Flow" },
+			"lag-visualizer": { "title": "Lag 可视化" },
+			"performance-visualizer": {
+				"title": "性能可视化",
+				"description": "切换 FPS/长任务/内存叠加"
+			},
+			"markdown-stress": {
+				"title": "Markdown Stress",
+				"description": "用大量聊天负载来测试 Markdown 的解析和渲染能力"
+			},
+			"widgets-calling": { "title": "挂件调用" }
+		}
+	},
+	"screen-capture": { "permissions-prompt": {
+		"title": "屏幕捕获",
+		"description": "要捕获屏幕或窗口，需要屏幕和系统音频录制权限。",
+		"open-preferences": "打开系统偏好设置",
+		"dismiss": "取消",
+		"instructions": {
+			"step-1": "打开「系统首选项」，从侧边栏选择「隐私与安全」。",
+			"step-2": "在「屏幕和系统音频录制」和「系统音频录制」部分中，开启 AIRI 的开关。",
+			"step-2-note": "如果没有列出 AIRI，请通过单击「+」按钮和从应用程序文件夹中选择 AIRI 来手动添加。"
+		}
+	} }
+};
+
+//#endregion
+export { data as default };

@@ -1,0 +1,53 @@
+//#region src/locales/ko/tamagotchi/stage.yaml
+var data = {
+	"operations": {
+		"load-models": "모델 불러오기",
+		"load-models-status": {
+			"loading": "불러오는 중",
+			"ready": "준비됨"
+		}
+	},
+	"docs": { "theme": { "navbar": { "appearance": { "title": "스타일 및 모양" } } } },
+	"controls-island": {
+		"fade-on-hover": {
+			"enable": "자동 숨기기",
+			"disable": "항상 표시"
+		},
+		"open-settings": "설정 열기",
+		"open-chat": "채팅 열기",
+		"refresh": "새로고침",
+		"open-hearing-controls": "듣기 제어 열기",
+		"drag-to-move-window": "드레그하여 창 이동",
+		"switch-to-light-mode": "라이트 모드로 전환",
+		"switch-to-dark-mode": "다크 모드로 전환",
+		"pin-on-top": "맨 위에 고정",
+		"unpin-from-top": "맨 위 고정 해제",
+		"switch-profile": "Switch Profile",
+		"close": "닫기",
+		"expand": "확장",
+		"collapse": "접기"
+	},
+	"status-island": {
+		"connected": "WebSocket connected",
+		"disconnected": "WebSocket disconnected",
+		"open-settings": "Open WebSocket settings"
+	},
+	"notice": { "fade-on-hover": {
+		"title": "호버 시 페이드",
+		"intro": "커서가 근처를 돌아다니면 캐릭터가 자동으로 페이드됩니다. 캐릭터가 눈에 띄게 유지되면서 방해 요소를 줄이는 데 도움이 됩니다.",
+		"opacity": "전원을 켜면 커서가 가까이 있을 때 두 {targets} 모두에 대해 불투명도가 {value}으로 떨어집니다.",
+		"toggle": "{controls}에서 마우스를 누른 후 {icon}을 다시 클릭하여 끌 수 있습니다.",
+		"controls-label": "제어 섬",
+		"icon-label": "eye-slash 아이콘",
+		"value": "0",
+		"targets": "캐릭터 및 UI",
+		"confirm": "확인",
+		"dont-show-again": "다시 표시하지 않기",
+		"preparing": "준비 중…",
+		"read-more": "더 보기",
+		"preview-title": "이게 뭐죠?"
+	} }
+};
+
+//#endregion
+export { data as default };

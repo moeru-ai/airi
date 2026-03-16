@@ -1,0 +1,71 @@
+
+> @proj-airi/electron-screen-capture@0.9.0-alpha.16 build /Users/jiumengliyang/Desktop/python/airi/packages/electron-screen-capture
+> tsdown
+
+[34mℹ[39m tsdown [2mv0.20.3[22m powered by rolldown [2mv1.0.0-rc.3[22m
+[34mℹ[39m config file: [4m/Users/jiumengliyang/Desktop/python/airi/packages/electron-screen-capture/tsdown.config.ts[24m 
+[34mℹ[39m entry: [34msrc/main/index.ts[39m
+[34mℹ[39m tsconfig: [34mtsconfig.json[39m
+[34mℹ[39m entry: [34msrc/index.ts[39m
+[34mℹ[39m tsconfig: [34mtsconfig.json[39m
+[34mℹ[39m entry: [34msrc/vue/index.ts, src/renderer.ts[39m
+[34mℹ[39m tsconfig: [34mtsconfig.json[39m
+[34mℹ[39m Build start
+[34mℹ[39m Cleaning 56 files
+[34mℹ[39m [2mdist/[22m[1mindex.js[22m    [2m 4.42 kB[22m [2m│ gzip: 1.27 kB[22m
+[34mℹ[39m [2mdist/[22m[32m[1mindex.d.ts[22m[39m  [2m10.06 kB[22m [2m│ gzip: 1.33 kB[22m
+[34mℹ[39m 2 files, total: 14.48 kB
+../../node_modules/.pnpm/nanoid@5.1.6/node_modules/nanoid/index.js (1:36) [33m[UNRESOLVED_IMPORT] Warning:[0m Could not resolve 'node:crypto' in ../../node_modules/.pnpm/nanoid@5.1.6/node_modules/nanoid/index.js
+   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../node_modules/.pnpm/nanoid@5.1.6/node_modules/nanoid/index.js:1:37 [38;5;246m][0m
+   [38;5;246m│[0m
+ [38;5;246m1 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mw[0m[38;5;249me[0m[38;5;249mb[0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249my[0m[38;5;249mp[0m[38;5;249mt[0m[38;5;249mo[0m[38;5;249m [0m[38;5;249ma[0m[38;5;249ms[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249my[0m[38;5;249mp[0m[38;5;249mt[0m[38;5;249mo[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m'node:crypto'
+ [38;5;240m  │[0m                                     ──────┬──────  
+ [38;5;240m  │[0m                                           ╰──────── Module not found, treating it as an external dependency
+ [38;5;240m  │[0m 
+ [38;5;240m  │[0m [38;5;115mHelp[0m: The "main" field here was ignored. Main fields must be configured explicitly when using the "neutral" platform.
+[38;5;246m───╯[0m
+
+[34mℹ[39m [2mdist/[22m[1mmain.mjs[22m    [2m86.50 kB[22m [2m│ gzip: 20.10 kB[22m
+[34mℹ[39m [2mdist/[22m[32m[1mmain.d.mts[22m[39m  [2m 1.40 kB[22m [2m│ gzip:  0.53 kB[22m
+[34mℹ[39m 2 files, total: 87.90 kB
+[33m[PLUGIN_TIMINGS] Warning:[0m Your build spent significant time in plugins. Here is a breakdown:
+  - rolldown-plugin-dts:generate (62%)
+  - tsdown:external (24%)
+See https://rolldown.rs/options/checks#plugintimings for more details.
+
+[33m[PLUGIN_TIMINGS] Warning:[0m Your build spent significant time in plugins. Here is a breakdown:
+  - tsdown:external (66%)
+  - rolldown-plugin-dts:generate (29%)
+See https://rolldown.rs/options/checks#plugintimings for more details.
+
+[32m✔[39m Build complete in [32m7650ms[39m
+[32m✔[39m Build complete in [32m7650ms[39m
+[34mℹ[39m [2mdist/[22m[1mrenderer.js[22m                                                                                                                      [2m 1.44 kB[22m [2m│ gzip: 0.52 kB[22m
+[34mℹ[39m [2mdist/[22m[1mvue.js[22m                                                                                                                           [2m 0.12 kB[22m [2m│ gzip: 0.10 kB[22m
+[34mℹ[39m [2mdist/[22mnode_modules/.pnpm/picomatch@4.0.3/node_modules/picomatch/lib/parse.js                                                           [2m24.55 kB[22m [2m│ gzip: 5.86 kB[22m
+[34mℹ[39m [2mdist/[22mnode_modules/.pnpm/picomatch@4.0.3/node_modules/picomatch/lib/picomatch.js                                                       [2m10.21 kB[22m [2m│ gzip: 2.93 kB[22m
+[34mℹ[39m [2mdist/[22mnode_modules/.pnpm/picomatch@4.0.3/node_modules/picomatch/lib/scan.js                                                            [2m 8.44 kB[22m [2m│ gzip: 2.20 kB[22m
+[34mℹ[39m [2mdist/[22mnode_modules/.pnpm/@moeru_eventa@1.0.0-alpha.14_electron@39.7.0/node_modules/@moeru/eventa/dist/src-OOE3RB9u.js                  [2m 8.12 kB[22m [2m│ gzip: 2.43 kB[22m
+[34mℹ[39m [2mdist/[22mnode_modules/.pnpm/@moeru_eventa@1.0.0-alpha.14_electron@39.7.0/node_modules/@moeru/eventa/dist/context-ex8urwfs.js              [2m 7.42 kB[22m [2m│ gzip: 1.57 kB[22m
+[34mℹ[39m [2mdist/[22mnode_modules/.pnpm/picomatch@4.0.3/node_modules/picomatch/lib/constants.js                                                       [2m 4.16 kB[22m [2m│ gzip: 1.63 kB[22m
+[34mℹ[39m [2mdist/[22mnode_modules/.pnpm/picomatch@4.0.3/node_modules/picomatch/lib/utils.js                                                           [2m 2.24 kB[22m [2m│ gzip: 0.93 kB[22m
+[34mℹ[39m [2mdist/[22mnode_modules/.pnpm/@moeru_eventa@1.0.0-alpha.14_electron@39.7.0/node_modules/@moeru/eventa/dist/adapters/electron/renderer.js    [2m 1.92 kB[22m [2m│ gzip: 0.79 kB[22m
+[34mℹ[39m [2mdist/[22mvue/use-electron-screen-capture.js                                                                                               [2m 1.57 kB[22m [2m│ gzip: 0.57 kB[22m
+[34mℹ[39m [2mdist/[22mindex.js                                                                                                                         [2m 1.20 kB[22m [2m│ gzip: 0.36 kB[22m
+[34mℹ[39m [2mdist/[22m_virtual/_rolldown/runtime.js                                                                                                    [2m 1.15 kB[22m [2m│ gzip: 0.57 kB[22m
+[34mℹ[39m [2mdist/[22mnode_modules/.pnpm/picomatch@4.0.3/node_modules/picomatch/index.js                                                               [2m 0.82 kB[22m [2m│ gzip: 0.40 kB[22m
+[34mℹ[39m [2mdist/[22mnode_modules/.pnpm/nanoid@5.1.6/node_modules/nanoid/index.browser.js                                                             [2m 0.69 kB[22m [2m│ gzip: 0.39 kB[22m
+[34mℹ[39m [2mdist/[22mnode_modules/.pnpm/@moeru_eventa@1.0.0-alpha.14_electron@39.7.0/node_modules/@moeru/eventa/dist/shared-BZOulnwC.js               [2m 0.44 kB[22m [2m│ gzip: 0.29 kB[22m
+[34mℹ[39m [2mdist/[22m[32m[1mrenderer.d.ts[22m[39m                                                                                                                    [2m 1.68 kB[22m [2m│ gzip: 0.56 kB[22m
+[34mℹ[39m [2mdist/[22m[32m[1mvue.d.ts[22m[39m                                                                                                                         [2m 0.12 kB[22m [2m│ gzip: 0.09 kB[22m
+[34mℹ[39m [2mdist/[22m[32mnode_modules/.pnpm/@electron-toolkit_preload@3.0.2_electron@40.8.0/node_modules/@electron-toolkit/preload/dist/index.d.ts[39m        [2m 5.92 kB[22m [2m│ gzip: 1.65 kB[22m
+[34mℹ[39m [2mdist/[22m[32mnode_modules/.pnpm/@electron-toolkit_preload@3.0.2_electron@39.7.0/node_modules/@electron-toolkit/preload/dist/index.d.ts[39m        [2m 5.89 kB[22m [2m│ gzip: 1.64 kB[22m
+[34mℹ[39m [2mdist/[22m[32mvue/use-electron-screen-capture.d.ts[39m                                                                                             [2m 1.56 kB[22m [2m│ gzip: 0.52 kB[22m
+[34mℹ[39m [2mdist/[22m[32mnode_modules/.pnpm/@moeru_eventa@1.0.0-alpha.14_electron@39.7.0/node_modules/@moeru/eventa/dist/context-B1ihYVMY.d.ts[39m            [2m 1.22 kB[22m [2m│ gzip: 0.51 kB[22m
+[34mℹ[39m [2mdist/[22m[32mnode_modules/.pnpm/@moeru_eventa@1.0.0-alpha.14_electron@39.7.0/node_modules/@moeru/eventa/dist/adapters/electron/renderer.d.ts[39m  [2m 0.84 kB[22m [2m│ gzip: 0.42 kB[22m
+[34mℹ[39m [2mdist/[22m[32mnode_modules/.pnpm/@moeru_eventa@1.0.0-alpha.14_electron@39.7.0/node_modules/@moeru/eventa/dist/eventa-D5X7Eqmr.d.ts[39m             [2m 0.75 kB[22m [2m│ gzip: 0.39 kB[22m
+[34mℹ[39m [2mdist/[22m[32mindex.d.ts[39m                                                                                                                       [2m 0.55 kB[22m [2m│ gzip: 0.32 kB[22m
+[34mℹ[39m 25 files, total: 93.02 kB
+[33m[PLUGIN_TIMINGS] Warning:[0m Your build spent significant time in plugin `rolldown-plugin-dts:generate`. See https://rolldown.rs/options/checks#plugintimings for more details.
+
+[32m✔[39m Build complete in [32m7713ms[39m

@@ -442,6 +442,8 @@ export type InputContextUpdate
 export interface WebSocketEventInputTextBase {
   text: string
   textRaw?: string
+  sourceTags?: string[]
+  qq?: unknown
   overrides?: InputMessageOverrides
   contextUpdates?: InputContextUpdate[]
 }

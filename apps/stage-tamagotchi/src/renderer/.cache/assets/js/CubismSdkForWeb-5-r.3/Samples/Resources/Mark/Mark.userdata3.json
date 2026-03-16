@@ -1,0 +1,34 @@
+{
+	"Version": 3,
+	"Meta": {
+		"UserDataCount": 5,
+		"TotalUserDataSize": 20
+	},
+	"UserData": [
+		{
+			"Target": "ArtMesh",
+			"Id": "Hair2",
+			"Value": "hair"
+		},
+		{
+			"Target": "ArtMesh",
+			"Id": "Hair4",
+			"Value": "hair"
+		},
+		{
+			"Target": "ArtMesh",
+			"Id": "Hair5",
+			"Value": "hair"
+		},
+		{
+			"Target": "ArtMesh",
+			"Id": "Hair3",
+			"Value": "hair"
+		},
+		{
+			"Target": "ArtMesh",
+			"Id": "Hair1",
+			"Value": "hair"
+		}
+	]
+}

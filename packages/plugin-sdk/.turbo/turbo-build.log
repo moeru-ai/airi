@@ -1,0 +1,27 @@
+
+> @proj-airi/plugin-sdk@0.9.0-alpha.16 build /Users/jiumengliyang/Desktop/python/airi1/packages/plugin-sdk
+> tsdown
+
+ℹ tsdown v0.20.3 powered by rolldown v1.0.0-rc.3
+ℹ config file: /Users/jiumengliyang/Desktop/python/airi1/packages/plugin-sdk/tsdown.config.ts 
+ℹ entry: src/index.ts, src/plugin-host/index.ts, src/plugin-host/runtimes/node/index.ts, src/plugin-host/runtimes/web/index.ts
+ℹ tsconfig: tsconfig.json
+ℹ Build start
+[rolldown-plugin-dts] Warning: Failed to emit declaration file. Please try to enable `eager` option (`dts.eager` for tsdown).
+ℹ dist/plugin-host/runtimes/web/index.mjs      0.85 kB │ gzip: 0.39 kB
+ℹ dist/plugin-host/runtimes/node/index.mjs     0.84 kB │ gzip: 0.40 kB
+ℹ dist/plugin-host/index.mjs                   0.25 kB │ gzip: 0.17 kB
+ℹ dist/index.mjs                               0.15 kB │ gzip: 0.15 kB
+ℹ dist/core-CLaadm8a.mjs                      24.24 kB │ gzip: 5.76 kB
+ℹ dist/plugin-host/runtimes/node/index.d.mts   0.98 kB │ gzip: 0.40 kB
+ℹ dist/plugin-host/runtimes/web/index.d.mts    0.98 kB │ gzip: 0.40 kB
+ℹ dist/plugin-host/index.d.mts                 0.84 kB │ gzip: 0.32 kB
+ℹ dist/index.d.mts                             0.01 kB │ gzip: 0.03 kB
+ℹ dist/core-CnRybgbo.d.mts                     9.01 kB │ gzip: 2.65 kB
+ℹ 10 files, total: 38.16 kB
+[33m[PLUGIN_TIMINGS] Warning:[0m Your build spent significant time in plugins. Here is a breakdown:
+  - rolldown-plugin-dts:generate (76%)
+  - rolldown-plugin-dts:resolver (21%)
+See https://rolldown.rs/options/checks#plugintimings for more details.
+
+✔ Build complete in 8257ms

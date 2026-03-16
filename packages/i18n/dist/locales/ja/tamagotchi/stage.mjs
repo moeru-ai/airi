@@ -1,0 +1,53 @@
+//#region src/locales/ja/tamagotchi/stage.yaml
+var data = {
+	"operations": {
+		"load-models": "モデルの読み込み",
+		"load-models-status": {
+			"loading": "読み込み中",
+			"ready": "準備完了"
+		}
+	},
+	"docs": { "theme": { "navbar": { "appearance": { "title": "外観" } } } },
+	"controls-island": {
+		"fade-on-hover": {
+			"enable": "自動的に隠す",
+			"disable": "常に表示"
+		},
+		"open-settings": "設定を開く",
+		"open-chat": "チャットを開く",
+		"refresh": "再読み込み",
+		"open-hearing-controls": "聴覚コントロールを開く",
+		"drag-to-move-window": "ウィンドウをドラッグして移動",
+		"switch-to-light-mode": "ライトモードに切り替え",
+		"switch-to-dark-mode": "ダークモードに切り替え",
+		"pin-on-top": "Pin on top",
+		"unpin-from-top": "Unpin from top",
+		"switch-profile": "Switch Profile",
+		"close": "Close",
+		"expand": "Expand",
+		"collapse": "Collapse"
+	},
+	"status-island": {
+		"connected": "WebSocket connected",
+		"disconnected": "WebSocket disconnected",
+		"open-settings": "Open WebSocket settings"
+	},
+	"notice": { "fade-on-hover": {
+		"title": "ホバー時にフェード",
+		"intro": "カーソルが近くを移動するとキャラクターが自動的にフェードアウトする。この仕組みは視界の妨げを抑えつつ、キャラクターを見失わないように保つ。",
+		"opacity": "有効にすると、カーソルが近くに来た時に、{targets} の不透明度が {value} に下がります。",
+		"toggle": "{controls}にカーソルを合わせて、もう一度 {icon} をクリックすることでオフに切り替えることができます。",
+		"controls-label": "コントロールアイランド",
+		"icon-label": "eye-slash アイコン",
+		"value": "0",
+		"targets": "キャラクターとUI",
+		"confirm": "了解",
+		"dont-show-again": "次回から表示しない",
+		"preparing": "準備中…",
+		"read-more": "続きを読む",
+		"preview-title": "これは何？"
+	} }
+};
+
+//#endregion
+export { data as default };

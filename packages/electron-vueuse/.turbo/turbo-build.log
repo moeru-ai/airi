@@ -1,0 +1,19 @@
+
+> @proj-airi/electron-vueuse@0.9.0-alpha.16 build /Users/jiumengliyang/Desktop/python/airi1/packages/electron-vueuse
+> tsdown
+
+ℹ tsdown v0.20.3 powered by rolldown v1.0.0-rc.3
+ℹ config file: /Users/jiumengliyang/Desktop/python/airi1/packages/electron-vueuse/tsdown.config.ts 
+ℹ entry: src/index.ts, src/main/index.ts
+ℹ tsconfig: tsconfig.json
+ℹ Build start
+ℹ dist/index.mjs                     13.65 kB │ gzip: 3.47 kB
+ℹ dist/main/index.mjs                 0.33 kB │ gzip: 0.19 kB
+ℹ dist/renderer-loop-qSjPuJmZ.mjs     2.79 kB │ gzip: 0.95 kB
+ℹ dist/index.d.mts                   14.68 kB │ gzip: 2.93 kB
+ℹ dist/main/index.d.mts               0.36 kB │ gzip: 0.20 kB
+ℹ dist/renderer-loop-Cf1M3qmC.d.mts   1.05 kB │ gzip: 0.41 kB
+ℹ 6 files, total: 32.87 kB
+[33m[PLUGIN_TIMINGS] Warning:[0m Your build spent significant time in plugin `rolldown-plugin-dts:generate`. See https://rolldown.rs/options/checks#plugintimings for more details.
+
+✔ Build complete in 3176ms

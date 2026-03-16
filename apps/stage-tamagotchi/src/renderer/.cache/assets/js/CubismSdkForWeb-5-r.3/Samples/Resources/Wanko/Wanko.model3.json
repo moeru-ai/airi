@@ -1,0 +1,55 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "Wanko.moc3",
+		"Textures": [
+			"Wanko.1024/texture_00.png"
+		],
+		"Physics": "Wanko.physics3.json",
+		"DisplayInfo": "Wanko.cdi3.json",
+		"Motions": {
+			"Idle": [
+				{
+					"File": "motions/idle_01.motion3.json"
+				},
+				{
+					"File": "motions/idle_03.motion3.json"
+				},
+				{
+					"File": "motions/idle_04.motion3.json"
+				}
+			],
+			"TapBody": [
+				{
+					"File": "motions/touch_02.motion3.json"
+				},
+				{
+					"File": "motions/touch_04.motion3.json"
+				}
+			]
+		}
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": [
+				"PARAM_EYE_L_OPEN",
+				"PARAM_EYE_R_OPEN"
+			]
+		},
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": [
+				"PARAM_MOUTH_OPEN_Y"
+			]
+		}
+	],
+	"HitAreas": [
+		{
+			"Id": "HitArea",
+			"Name": "Body"
+		}
+	]
+}

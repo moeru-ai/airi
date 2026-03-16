@@ -1,0 +1,115 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "Natori.moc3",
+		"Textures": [
+			"Natori.2048/texture_00.png"
+		],
+		"Physics": "Natori.physics3.json",
+		"Pose": "Natori.pose3.json",
+		"DisplayInfo": "Natori.cdi3.json",
+		"Expressions": [
+			{
+				"Name": "Angry",
+				"File": "exp/Angry.exp3.json"
+			},
+			{
+				"Name": "Blushing",
+				"File": "exp/Blushing.exp3.json"
+			},
+			{
+				"Name": "Normal",
+				"File": "exp/Normal.exp3.json"
+			},
+			{
+				"Name": "Sad",
+				"File": "exp/Sad.exp3.json"
+			},
+			{
+				"Name": "Smile",
+				"File": "exp/Smile.exp3.json"
+			},
+			{
+				"Name": "Surprised",
+				"File": "exp/Surprised.exp3.json"
+			},
+			{
+				"Name": "exp_01",
+				"File": "exp/exp_01.exp3.json"
+			},
+			{
+				"Name": "exp_02",
+				"File": "exp/exp_02.exp3.json"
+			},
+			{
+				"Name": "exp_03",
+				"File": "exp/exp_03.exp3.json"
+			},
+			{
+				"Name": "exp_04",
+				"File": "exp/exp_04.exp3.json"
+			},
+			{
+				"Name": "exp_05",
+				"File": "exp/exp_05.exp3.json"
+			}
+		],
+		"Motions": {
+			"Idle": [
+				{
+					"File": "motions/mtn_00.motion3.json"
+				},
+				{
+					"File": "motions/mtn_01.motion3.json"
+				},
+				{
+					"File": "motions/mtn_02.motion3.json"
+				}
+			],
+			"TapBody": [
+				{
+					"File": "motions/mtn_03.motion3.json"
+				},
+				{
+					"File": "motions/mtn_04.motion3.json"
+				},
+				{
+					"File": "motions/mtn_05.motion3.json"
+				},
+				{
+					"File": "motions/mtn_06.motion3.json"
+				},
+				{
+					"File": "motions/mtn_07.motion3.json"
+				}
+			]
+		}
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": [
+				"ParamMouthOpenY"
+			]
+		},
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": [
+				"ParamEyeLOpen",
+				"ParamEyeROpen"
+			]
+		}
+	],
+	"HitAreas": [
+		{
+			"Id": "HitAreaHead",
+			"Name": "Head"
+		},
+		{
+			"Id": "HitAreaBody",
+			"Name": "Body"
+		}
+	]
+}

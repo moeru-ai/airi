@@ -1,0 +1,13 @@
+
+> @proj-airi/stream-kit@0.9.0-alpha.16 build /Users/jiumengliyang/Desktop/python/airi1/packages/stream-kit
+> tsdown
+
+ℹ tsdown v0.20.3 powered by rolldown v1.0.0-rc.3
+ℹ config file: /Users/jiumengliyang/Desktop/python/airi1/packages/stream-kit/tsdown.config.ts 
+ℹ entry: src/index.ts
+ℹ tsconfig: tsconfig.json
+ℹ Build start
+ℹ dist/index.mjs    1.63 kB │ gzip: 0.55 kB
+ℹ dist/index.d.mts  1.11 kB │ gzip: 0.43 kB
+ℹ 2 files, total: 2.73 kB
+✔ Build complete in 6062ms

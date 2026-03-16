@@ -1,0 +1,58 @@
+//#region src/locales/es/tamagotchi/settings.yaml
+var data = {
+	"allow-visible-on-all-workspaces": {
+		"title": "Visibilidad Entre Espacios",
+		"description": "Permitir que la ventana sea visible en todos los espacios de trabajo, solo macOS."
+	},
+	"pages": {
+		"modules": { "mcp-server": {
+			"description": "Conectar y gestionar servidor MCP y herramientas",
+			"title": "Servidor MCP"
+		} },
+		"system": {
+			"sections": { "section": { "window-shortcuts": { "title": "Atajos de Teclado" } } },
+			"window-shortcuts": {
+				"description": "Modificar los atajos de ventana.",
+				"title": "Atajos de Ventana",
+				"toggle-move": { "label": "Alternar Mover" },
+				"toggle-resize": { "label": "Alternar Redimensionar" },
+				"toggle-ignore-mouse-event": { "label": "Alternar Ignorar Evento del Ratón" },
+				"press-keys": "Presionar Teclas..."
+			},
+			"developer": { "sections": { "section": { "use-window-mouse": {
+				"title": "Herramienta useWindowMouse",
+				"description": "Evalúa la posición del cursor de la ventana de Electron"
+			} } } }
+		}
+	},
+	"devtools": {
+		"title": "Desarrollador",
+		"pages": {
+			"context-flow": { "title": "Flujo de contexto" },
+			"lag-visualizer": { "title": "Visualizador de retraso" },
+			"performance-visualizer": {
+				"title": "Visualizador de rendimiento",
+				"description": "Cambiar FPS/tareas largas/superposición de memoria"
+			},
+			"markdown-stress": {
+				"title": "Estrés por Markdown",
+				"description": "Análisis y renderizado de Markdown bajo estrés con cargas de chat pesadas"
+			},
+			"widgets-calling": { "title": "Llamada de Widget" }
+		}
+	},
+	"screen-capture": { "permissions-prompt": {
+		"title": "Captura de pantalla",
+		"description": "Para capturar las pantallas o ventanas, se requieren permisos de grabación de pantalla y audio del sistema.",
+		"open-preferences": "Abrir Preferencias del Sistema",
+		"dismiss": "Descartar",
+		"instructions": {
+			"step-1": "Abre \"Preferencias del sistema\", selecciona \"Privacidad y Seguridad\" en la barra lateral.",
+			"step-2": "En la sección \"Grabación de audio de pantalla y sistema\" y \"Solo grabación de audio del sistema\", encienda los interruptores para AIRI.",
+			"step-2-note": "Si AIRI no aparece en la lista, añádelo manualmente haciendo clic en el botón \"+\" y seleccionando AIRI de la carpeta Aplicaciones."
+		}
+	} }
+};
+
+//#endregion
+export { data as default };

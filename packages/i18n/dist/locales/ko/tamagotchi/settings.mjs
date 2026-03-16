@@ -1,0 +1,58 @@
+//#region src/locales/ko/tamagotchi/settings.yaml
+var data = {
+	"allow-visible-on-all-workspaces": {
+		"title": "모든 작업 공간에 표시",
+		"description": "모든 작업 공간에 창을 볼 수 있도록 합니다. macOS 전용 기능입니다."
+	},
+	"pages": {
+		"modules": { "mcp-server": {
+			"description": "MCP 서버 및 도구 연결 및 관리",
+			"title": "MCP 서버"
+		} },
+		"system": {
+			"sections": { "section": { "window-shortcuts": { "title": "키보드 단축키" } } },
+			"window-shortcuts": {
+				"description": "창 바로 가기를 수정합니다.",
+				"title": "창 바로 가기",
+				"toggle-move": { "label": "이동 켜기/끄기" },
+				"toggle-resize": { "label": "크기 조정 켜기/끄기" },
+				"toggle-ignore-mouse-event": { "label": "마우스 이벤트 무시 켜기/끄기" },
+				"press-keys": "키를 누르세요..."
+			},
+			"developer": { "sections": { "section": { "use-window-mouse": {
+				"title": "useWindowMouse 도구",
+				"description": "Electron 창 커서 위치 테스트"
+			} } } }
+		}
+	},
+	"devtools": {
+		"title": "개발자 옵션",
+		"pages": {
+			"context-flow": { "title": "컨텍스트 흐름" },
+			"lag-visualizer": { "title": "로그 비주얼라이저" },
+			"performance-visualizer": {
+				"title": "성능 비주얼라이저",
+				"description": "FPS/긴 작업/메모리 오버레이 전환"
+			},
+			"markdown-stress": {
+				"title": "마크다운 스트레스",
+				"description": "스트레스 마크다운 구문 분석 및 대량 채팅 페이로드 렌더링"
+			},
+			"widgets-calling": { "title": "위젯 호출" }
+		}
+	},
+	"screen-capture": { "permissions-prompt": {
+		"title": "화면 캡쳐",
+		"description": "화면이나 창을 캡쳐하기 위해선 화면 및 시스템 오디오 녹음 권한이 필요합니다.",
+		"open-preferences": "시스템 환경설정 열기",
+		"dismiss": "무시",
+		"instructions": {
+			"step-1": "\"시스템 환경설정\"을 열고 사이드 바에서 \"프라이버시 및 보안\"을 선택합니다.",
+			"step-2": "\"화면 및 시스템 오디오 녹음\" 및 \"시스템 오디오 녹음 전용\" 섹션에서 AIRI에 대한 스위치를 켭니다.",
+			"step-2-note": "AIRI가 목록에 없는 경우, \"+\" 버튼을 클릭하고 애플리케이션 폴더에서 AIRI를 선택하여 수동으로 추가해 주세요."
+		}
+	} }
+};
+
+//#endregion
+export { data as default };

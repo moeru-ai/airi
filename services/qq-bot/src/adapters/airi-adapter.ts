@@ -22,6 +22,7 @@ const log = useLogg('QQAdapter').useGlobalConfig()
 const QQ_TOKEN_ENDPOINT = 'https://bots.qq.com/app/getAppAccessToken'
 const QQ_GATEWAY_ENDPOINT = 'https://api.sgroup.qq.com/gateway'
 const QQ_API_BASE_URL = 'https://api.sgroup.qq.com'
+const QQ_AIRI_OUTPUT_TIMEOUT_MS = 12_000
 
 const QQ_INTENTS = {
   guildPublicMessage: 1 << 30,
@@ -348,6 +349,7 @@ export class QQAdapter {
   private readonly recentlySentFingerprints = new Map<string, number>()
   private readonly recentlyForwardedMessageIds = new Map<string, number>()
   private readonly recentlyRepliedMessageIds = new Map<string, number>()
+  private readonly pendingAiriOutputFallbackByTurn = new Map<string, ReturnType<typeof setTimeout>>()
 
   constructor(config: QQAdapterConfig) {
     this.configuredToken = config.qqToken?.trim() ?? ''
@@ -769,6 +771,88 @@ export class QQAdapter {
     return this.markRecent(this.recentlyRepliedMessageIds, key, 10 * 60_000)
   }
 
+  private clearAiriOutputFallback(context: QQInputContext) {
+    const turnKey = `${context.kind}:${context.messageId}`
+    const timer = this.pendingAiriOutputFallbackByTurn.get(turnKey)
+    if (!timer)
+      return
+
+    clearTimeout(timer)
+    this.pendingAiriOutputFallbackByTurn.delete(turnKey)
+  }
+
+  private clearAllAiriOutputFallbacks() {
+    for (const timer of this.pendingAiriOutputFallbackByTurn.values()) {
+      clearTimeout(timer)
+    }
+    this.pendingAiriOutputFallbackByTurn.clear()
+  }
+
+  private sendInputEventToAiri(params: {
+    content: string
+    rawContent: string
+    context: QQInputContext
+    senderDisplayName: string
+    sessionId: string
+    useAnycastRoute: boolean
+  }) {
+    const { content, rawContent, context, senderDisplayName, sessionId, useAnycastRoute } = params
+    const contextNotice = `Source: QQ (${context.kind}), messageId=${context.messageId}.`
+
+    this.airiClient.send({
+      type: 'input:text',
+      route: useAnycastRoute
+        ? {
+            destinations: [
+              `plugin:${WebSocketEventSource.StageTamagotchi}`,
+              `plugin:${WebSocketEventSource.StageWeb}`,
+            ],
+            strategy: 'anycast',
+          }
+        : undefined,
+      data: {
+        text: content,
+        textRaw: rawContent,
+        overrides: {
+          sessionId,
+          messagePrefix: `[QQ:${senderDisplayName}] `,
+        },
+        contextUpdates: [{
+          strategy: ContextUpdateStrategy.AppendSelf,
+          text: contextNotice,
+          content: contextNotice,
+          metadata: {
+            qq: context,
+          },
+        }],
+        qq: context,
+        sourceTags: ['qq'],
+      } as any,
+    } as any)
+  }
+
+  private scheduleAiriOutputFallback(params: {
+    content: string
+    rawContent: string
+    context: QQInputContext
+    senderDisplayName: string
+    sessionId: string
+  }) {
+    const turnKey = `${params.context.kind}:${params.context.messageId}`
+    this.clearAiriOutputFallback(params.context)
+
+    const timer = setTimeout(() => {
+      this.pendingAiriOutputFallbackByTurn.delete(turnKey)
+      log.warn(`No AIRI output in ${QQ_AIRI_OUTPUT_TIMEOUT_MS}ms, retrying QQ input once with broadcast route: kind=${params.context.kind}, messageId=${params.context.messageId}, sessionId=${params.sessionId}`)
+      this.sendInputEventToAiri({
+        ...params,
+        useAnycastRoute: false,
+      })
+    }, QQ_AIRI_OUTPUT_TIMEOUT_MS)
+
+    this.pendingAiriOutputFallbackByTurn.set(turnKey, timer)
+  }
+
   private async handleC2CMessage(event: QQC2CMessage): Promise<void> {
     const userOpenId = event.author?.user_openid
     if (!userOpenId)
@@ -859,41 +943,26 @@ export class QQAdapter {
       return
     }
 
-    const contextNotice = `Source: QQ (${context.kind}), messageId=${context.messageId}.`
     const sessionId = createSessionIdByContext(context)
     const outboundText = content.trim()
     this.qqContextBySessionId.set(sessionId, context)
     log.log(`[QQ->AIRI:text] ${outboundText || '00000'}`)
     log.log(`Forwarding QQ message to AIRI: kind=${context.kind}, sessionId=${sessionId}, messageId=${context.messageId}`)
-
-    this.airiClient.send({
-      type: 'input:text',
-      route: {
-        destinations: [
-          `plugin:${WebSocketEventSource.StageTamagotchi}`,
-          `plugin:${WebSocketEventSource.StageWeb}`,
-        ],
-        strategy: 'anycast',
-      },
-      data: {
-        text: outboundText,
-        textRaw: rawContent,
-        overrides: {
-          sessionId,
-          messagePrefix: `[QQ:${senderDisplayName}] `,
-        },
-        contextUpdates: [{
-          strategy: ContextUpdateStrategy.AppendSelf,
-          text: contextNotice,
-          content: contextNotice,
-          metadata: {
-            qq: context,
-          },
-        }],
-        qq: context,
-        sourceTags: ['qq'],
-      } as any,
-    } as any)
+    this.sendInputEventToAiri({
+      content: outboundText,
+      rawContent,
+      context,
+      senderDisplayName,
+      sessionId,
+      useAnycastRoute: true,
+    })
+    this.scheduleAiriOutputFallback({
+      content: outboundText,
+      rawContent,
+      context,
+      senderDisplayName,
+      sessionId,
+    })
   }
 
   private async handleAiriOutput(event: {
@@ -919,6 +988,8 @@ export class QQAdapter {
       log.warn(`Skipped AIRI output for QQ: context missing (sessionId=${sessionId ?? 'none'})`)
       return
     }
+
+    this.clearAiriOutputFallback(qqContext)
 
     const content = getMessageContent(event.data.message).trim()
     if (!content)
@@ -1404,6 +1475,7 @@ export class QQAdapter {
 
   async stop(): Promise<void> {
     this.isStopping = true
+    this.clearAllAiriOutputFallbacks()
     await this.disconnectGateway()
     this.airiClient.close()
     log.log('QQ official adapter stopped')

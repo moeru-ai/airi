@@ -11,6 +11,7 @@ export default defineConfig({
   vue: true,
 }, {
   ignores: [
+    '.agents/**',
     'cspell.config.yaml',
     'cspell.config.yml',
     'crowdin.yaml',

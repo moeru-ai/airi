@@ -1,0 +1,7 @@
+/* cjkfonts_allseto_v1.11 */
+@font-face {
+  font-family: 'cjkfonts AllSeto';
+  font-style: normal;
+  font-display: swap;
+  src: url(./files/cjkFonts_allseto_v1.11.ttf) format('truetype');
+}

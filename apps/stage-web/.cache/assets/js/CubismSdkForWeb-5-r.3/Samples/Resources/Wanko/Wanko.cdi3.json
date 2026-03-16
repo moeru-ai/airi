@@ -1,0 +1,261 @@
+{
+	"Version": 3,
+	"Parameters": [
+		{
+			"Id": "PARAM_ANGLE_X",
+			"GroupId": "",
+			"Name": "角度 X"
+		},
+		{
+			"Id": "PARAM_ANGLE_Y",
+			"GroupId": "",
+			"Name": "角度 Y"
+		},
+		{
+			"Id": "PARAM_ANGLE_Z",
+			"GroupId": "",
+			"Name": "角度 Z"
+		},
+		{
+			"Id": "PARAM_EYE_L_OPEN",
+			"GroupId": "",
+			"Name": "左眼　開閉"
+		},
+		{
+			"Id": "PARAM_EYE_R_OPEN",
+			"GroupId": "",
+			"Name": "右眼　開閉"
+		},
+		{
+			"Id": "PARAM_MOUTH_FORM",
+			"GroupId": "",
+			"Name": "口　変形"
+		},
+		{
+			"Id": "PARAM_MOUTH_OPEN_Y",
+			"GroupId": "",
+			"Name": "口　開閉"
+		},
+		{
+			"Id": "PARAM_TERE",
+			"GroupId": "",
+			"Name": "照れ"
+		},
+		{
+			"Id": "PARAM_BODY_ANGLE_X",
+			"GroupId": "",
+			"Name": "体の回転　X"
+		},
+		{
+			"Id": "PARAM_BODY_ANGLE_Z",
+			"GroupId": "",
+			"Name": "体の回転　Z"
+		},
+		{
+			"Id": "PARAM_BODY_ANGLE_Y",
+			"GroupId": "",
+			"Name": "体の回転　Y"
+		},
+		{
+			"Id": "PARAM_BREATH",
+			"GroupId": "",
+			"Name": "呼吸"
+		},
+		{
+			"Id": "PARAM_BOWL_LID",
+			"GroupId": "",
+			"Name": "お椀　ふた"
+		},
+		{
+			"Id": "PARAM_YUGE_01",
+			"GroupId": "",
+			"Name": "湯気"
+		},
+		{
+			"Id": "PARAM_YUGE_02",
+			"GroupId": "",
+			"Name": "湯気"
+		},
+		{
+			"Id": "PARAM_EFFECT",
+			"GroupId": "",
+			"Name": "エフェクト"
+		},
+		{
+			"Id": "PARAM_EAR_L",
+			"GroupId": "",
+			"Name": "左耳"
+		},
+		{
+			"Id": "PARAM_EAR_R",
+			"GroupId": "",
+			"Name": "右耳"
+		},
+		{
+			"Id": "PARAM_HAND_L",
+			"GroupId": "",
+			"Name": "左手"
+		},
+		{
+			"Id": "PARAM_HAND_R",
+			"GroupId": "",
+			"Name": "右手"
+		},
+		{
+			"Id": "PARAM_SWING",
+			"GroupId": "",
+			"Name": "揺れ"
+		},
+		{
+			"Id": "PARAM_BOWL_SWING",
+			"GroupId": "",
+			"Name": "揺れ　お椀"
+		},
+		{
+			"Id": "PARAM_FACE_01",
+			"GroupId": "",
+			"Name": "どや キリッ"
+		},
+		{
+			"Id": "PARAM_BASE_X",
+			"GroupId": "",
+			"Name": "全体の左右"
+		},
+		{
+			"Id": "PARAM_BASE_Y",
+			"GroupId": "",
+			"Name": "全体の上下"
+		}
+	],
+	"ParameterGroups": [],
+	"Parts": [
+		{
+			"Id": "PARTS_01_SKETCH",
+			"Name": "[ 下絵 ]"
+		},
+		{
+			"Id": "PARTS_01_BACKGROUND",
+			"Name": "背景"
+		},
+		{
+			"Id": "PARTS_01_BOWL",
+			"Name": "お椀"
+		},
+		{
+			"Id": "PARTS_01_BODY",
+			"Name": "体"
+		},
+		{
+			"Id": "PARTS_01_EAR_001",
+			"Name": "耳"
+		},
+		{
+			"Id": "PARTS_01_NOSE_001",
+			"Name": "鼻"
+		},
+		{
+			"Id": "PARTS_01_MOUTH_001",
+			"Name": "口"
+		},
+		{
+			"Id": "PARTS_01_BROW_001",
+			"Name": "まゆ毛"
+		},
+		{
+			"Id": "PARTS_01_EYE_BALL_001",
+			"Name": "目玉"
+		},
+		{
+			"Id": "PARTS_01_EYE_001",
+			"Name": "目"
+		},
+		{
+			"Id": "PARTS_01_FACE_001",
+			"Name": "顔"
+		},
+		{
+			"Id": "PARTS_01_HOHO",
+			"Name": "頬"
+		},
+		{
+			"Id": "PARTS_01_EFFECT",
+			"Name": "エフェクト"
+		},
+		{
+			"Id": "PARTS_01_ITEM_16",
+			"Name": "蕎麦６杯目"
+		},
+		{
+			"Id": "PARTS_01_ITEM_15",
+			"Name": "ベニテングタケ"
+		},
+		{
+			"Id": "PARTS_01_ITEM_14",
+			"Name": "蕎麦５杯目"
+		},
+		{
+			"Id": "PARTS_01_ITEM_13",
+			"Name": "しいたけ"
+		},
+		{
+			"Id": "PARTS_01_ITEM_12",
+			"Name": "みかん"
+		},
+		{
+			"Id": "PARTS_01_ITEM_11",
+			"Name": "蕎麦４杯目"
+		},
+		{
+			"Id": "PARTS_01_ITEM_10",
+			"Name": "王冠"
+		},
+		{
+			"Id": "PARTS_01_ITEM_09",
+			"Name": "まゆげ"
+		},
+		{
+			"Id": "PARTS_01_ITEM_08",
+			"Name": "蕎麦３杯目"
+		},
+		{
+			"Id": "PARTS_01_ITEM_07",
+			"Name": "アフロ"
+		},
+		{
+			"Id": "PARTS_01_ITEM_06",
+			"Name": "リボン"
+		},
+		{
+			"Id": "PARTS_01_ITEM_05",
+			"Name": "蕎麦２杯目"
+		},
+		{
+			"Id": "PARTS_01_ITEM_04",
+			"Name": "星"
+		},
+		{
+			"Id": "PARTS_01_ITEM_03",
+			"Name": "ひげ"
+		},
+		{
+			"Id": "PARTS_01_ITEM_02",
+			"Name": "蕎麦１杯目"
+		},
+		{
+			"Id": "PARTS_01_ITEM_01",
+			"Name": "たんぽぽ"
+		},
+		{
+			"Id": "PARTS_01_CORE_ITEM",
+			"Name": "コア　アイテム"
+		},
+		{
+			"Id": "PARTS_01_CORE",
+			"Name": "コア"
+		},
+		{
+			"Id": "ROUGH",
+			"Name": "ラフ"
+		}
+	]
+}

@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@capacitor/android':
+      specifier: ^8.1.0
+      version: 8.2.0
     '@capacitor/cli':
       specifier: ^8.1.0
       version: 8.1.0
@@ -571,6 +574,9 @@ importers:
 
   apps/stage-pocket:
     dependencies:
+      '@capacitor/android':
+        specifier: 'catalog:'
+        version: 8.2.0(@capacitor/core@8.1.0)
       '@capacitor/core':
         specifier: 'catalog:'
         version: 8.1.0
@@ -2818,9 +2824,6 @@ importers:
       '@vitejs/plugin-vue':
         specifier: ^6.0.4
         version: 6.0.4(vite@6.4.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))
-      '@vue-macros/volar':
-        specifier: 3.1.2
-        version: 3.1.2(typescript@5.9.3)(vue-tsc@3.2.5(typescript@5.9.3))(vue@3.5.29(typescript@5.9.3))
       clustr:
         specifier: ^1.0.2
         version: 1.0.2
@@ -4757,6 +4760,11 @@ packages:
 
   '@cacheable/utils@2.4.0':
     resolution: {integrity: sha512-PeMMsqjVq+bF0WBsxFBxr/WozBJiZKY0rUojuaCoIaKnEl3Ju1wfEwS+SV1DU/cSe8fqHIPiYJFif8T3MVt4cQ==}
+
+  '@capacitor/android@8.2.0':
+    resolution: {integrity: sha512-XLm5OsWLPfXQxDxzFS7SOdMEgGvW+2c7TGLXkTR2cSKdkWK5Abns4imlT5qghKYhjM9r74IrDkBWg/9ALUGNKQ==}
+    peerDependencies:
+      '@capacitor/core': ^8.2.0
 
   '@capacitor/cli@8.1.0':
     resolution: {integrity: sha512-JAzA/ckPgTCjZz6YumBLV2dNCFEVXAuR1oOKLD7AJ4LAI5pF5RtRZrf5FoaxvJVb0S4CouZT5cD+7NwsNJX/nw==}
@@ -20337,6 +20345,10 @@ snapshots:
     dependencies:
       hashery: 1.5.0
       keyv: 5.6.0
+
+  '@capacitor/android@8.2.0(@capacitor/core@8.1.0)':
+    dependencies:
+      '@capacitor/core': 8.1.0
 
   '@capacitor/cli@8.1.0':
     dependencies:

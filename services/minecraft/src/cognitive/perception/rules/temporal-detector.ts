@@ -27,7 +27,7 @@ export interface ProcessDetectorInput {
  */
 export function createDetectorState(windowSlots: number, nowMs: number = Date.now()): DetectorState {
   return Object.freeze({
-    counts: Object.freeze(new Array<number>(windowSlots).fill(0)),
+    counts: Object.freeze(Array.from({ length: windowSlots }, () => 0)),
     head: 0,
     total: 0,
     lastUpdateMs: nowMs,
@@ -123,7 +123,7 @@ export function resetAfterFire(
   const windowSize = state.counts.length
 
   return Object.freeze({
-    counts: Object.freeze(new Array<number>(windowSize).fill(0)),
+    counts: Object.freeze(Array.from({ length: windowSize }, () => 0)),
     head: state.head,
     total: 0,
     lastUpdateMs: state.lastUpdateMs,
@@ -140,7 +140,7 @@ function resetForNewWindow(
   nowMs: number,
 ): DetectorState {
   return Object.freeze({
-    counts: Object.freeze(new Array<number>(state.counts.length).fill(0)),
+    counts: Object.freeze(Array.from({ length: state.counts.length }, () => 0)),
     head: 0,
     total: 0,
     lastUpdateMs: nowMs,

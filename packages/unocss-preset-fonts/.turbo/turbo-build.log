@@ -1,0 +1,19 @@
+
+> @proj-airi/unocss-preset-fonts@0.9.0-alpha.16 build /Users/jiumengliyang/Desktop/python/airi1/packages/unocss-preset-fonts
+> tsdown
+
+ℹ tsdown v0.20.3 powered by rolldown v1.0.0-rc.3
+ℹ config file: /Users/jiumengliyang/Desktop/python/airi1/packages/unocss-preset-fonts/tsdown.config.ts 
+ℹ entry: src/index.ts
+ℹ tsconfig: tsconfig.json
+ℹ Build start
+ℹ dist/index.mjs      0.81 kB │ gzip: 0.40 kB
+ℹ dist/index.mjs.map  1.28 kB │ gzip: 0.55 kB
+ℹ dist/index.d.mts    0.22 kB │ gzip: 0.18 kB
+ℹ 3 files, total: 2.32 kB
+[33m[PLUGIN_TIMINGS] Warning:[0m Your build spent significant time in plugins. Here is a breakdown:
+  - tsdown:external (59%)
+  - rolldown-plugin-dts:generate (39%)
+See https://rolldown.rs/options/checks#plugintimings for more details.
+
+✔ Build complete in 7970ms

@@ -1,0 +1,22 @@
+download-buttons:
+  latest-stable: Bản phát hành ổn định mới nhất
+  latest-prerelease: Bản thử nghiệm mới nhất
+  latest-nightly: Bản dựng Nightly mới nhất
+  download: Tải về
+  view-release: Xem bản phát hành
+  stable-use-case-1: Sử dụng cho công việc/vận hành thực tế
+  stable-use-case-2: Người dùng muốn trải nghiệm ổn định
+  stable-use-case-3: Livestream và sáng tạo nội dung
+  prerelease-use-case-1: Trải nghiệm sớm tính năng mới
+  prerelease-use-case-2: Kiểm thử và gửi phản hồi cho nhà phát triển
+  prerelease-use-case-3: Chấp nhận được các lỗi nhỏ phát sinh
+releases-list:
+  stable: Ổn định (Stable)
+  prerelease: Bản xem trước (Pre-release)
+  nightly: Bản dựng đêm (Nightly)
+  released-on: Phát hành ngày
+  built-on: Đóng gói ngày
+  no-releases: 'Hiện chưa có bản phát hành nào. Kiểm tra trực tiếp tại {link}.'
+  no-nightly: 'Hiện chưa có bản dựng nightly nào. Kiểm tra trực tiếp tại {link}.'
+  releases-page: trang phát hành
+  workflow-page: trang quy trình (workflow)

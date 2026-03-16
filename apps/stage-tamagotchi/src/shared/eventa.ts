@@ -59,7 +59,6 @@ export interface ElectronGetQqOfficialRuntimeLogsResult {
   pid: number | null
 }
 export const electronGetQqOfficialRuntimeLogs = defineInvokeEventa<ElectronGetQqOfficialRuntimeLogsResult, ElectronGetQqOfficialRuntimeLogsPayload>('eventa:invoke:electron:qq:official:get-runtime-logs')
-
 export const electronPluginList = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:list')
 export const electronPluginSetEnabled = defineInvokeEventa<PluginRegistrySnapshot, { name: string, enabled: boolean, path?: string }>('eventa:invoke:electron:plugins:set-enabled')
 export const electronPluginLoadEnabled = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:load-enabled')

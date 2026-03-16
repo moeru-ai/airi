@@ -1,0 +1,115 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "Haru.moc3",
+		"Textures": [
+			"Haru.2048/texture_00.png",
+			"Haru.2048/texture_01.png"
+		],
+		"Physics": "Haru.physics3.json",
+		"Pose": "Haru.pose3.json",
+		"DisplayInfo": "Haru.cdi3.json",
+		"Expressions": [
+			{
+				"Name": "F01",
+				"File": "expressions/F01.exp3.json"
+			},
+			{
+				"Name": "F02",
+				"File": "expressions/F02.exp3.json"
+			},
+			{
+				"Name": "F03",
+				"File": "expressions/F03.exp3.json"
+			},
+			{
+				"Name": "F04",
+				"File": "expressions/F04.exp3.json"
+			},
+			{
+				"Name": "F05",
+				"File": "expressions/F05.exp3.json"
+			},
+			{
+				"Name": "F06",
+				"File": "expressions/F06.exp3.json"
+			},
+			{
+				"Name": "F07",
+				"File": "expressions/F07.exp3.json"
+			},
+			{
+				"Name": "F08",
+				"File": "expressions/F08.exp3.json"
+			}
+		],
+		"Motions": {
+			"Idle": [
+				{
+					"File": "motions/haru_g_idle.motion3.json",
+					"FadeInTime": 0.5,
+					"FadeOutTime": 0.5
+				},
+				{
+					"File": "motions/haru_g_m15.motion3.json",
+					"FadeInTime": 0.5,
+					"FadeOutTime": 0.5
+				}
+			],
+			"TapBody": [
+				{
+					"File": "motions/haru_g_m26.motion3.json",
+					"FadeInTime": 0.5,
+					"FadeOutTime": 0.5,
+					"Sound": "sounds/haru_talk_13.wav"
+				},
+				{
+					"File": "motions/haru_g_m06.motion3.json",
+					"FadeInTime": 0.5,
+					"FadeOutTime": 0.5,
+					"Sound": "sounds/haru_Info_14.wav"
+				},
+				{
+					"File": "motions/haru_g_m20.motion3.json",
+					"FadeInTime": 0.5,
+					"FadeOutTime": 0.5,
+					"Sound": "sounds/haru_normal_6.wav"
+				},
+				{
+					"File": "motions/haru_g_m09.motion3.json",
+					"FadeInTime": 0.5,
+					"FadeOutTime": 0.5,
+					"Sound": "sounds/haru_Info_04.wav"
+				}
+			]
+		},
+		"UserData": "Haru.userdata3.json"
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": [
+				"ParamEyeLOpen",
+				"ParamEyeROpen"
+			]
+		},
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": [
+				"ParamMouthOpenY"
+			]
+		}
+	],
+	"HitAreas": [
+		{
+			"Id": "HitArea",
+			"Name": "Head"
+		},
+		{
+			"Id": "HitArea2",
+			"Name": "Body"
+		}
+	]
+}

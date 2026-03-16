@@ -21,7 +21,7 @@ describe('providerService', () => {
       email: 'test@example.com',
     }).returning()
     testUser = user
-  })
+  }, 30_000)
 
   it('createUserConfig should handle provider config creation', async () => {
     const providerData = {

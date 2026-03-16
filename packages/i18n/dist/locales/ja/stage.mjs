@@ -1,0 +1,49 @@
+//#region src/locales/ja/stage.yaml
+var data = {
+	"chat": {
+		"message": { "character-name": {
+			"airi": "AIRI",
+			"core-system": "コアシステム",
+			"you": "あなた"
+		} },
+		"reasoning": "推論"
+	},
+	"message": "何か話しかけてみましょう…",
+	"operations": {
+		"load-models": "モデルの読み込み",
+		"load-models-status": {
+			"loading": "読み込み中",
+			"ready": "準備完了"
+		}
+	},
+	"select-a-audio-input": "音声入力デバイスを選択",
+	"select-a-model": "モデルを選択",
+	"select-a-voice": "声を選択",
+	"viewers": { "debug-menu": {
+		"emotions": "感情",
+		"emotions-btn": {
+			"angry": "😠 怒り",
+			"awkward": "😳 戸惑い",
+			"happy": "😄 喜び",
+			"neutral": "🙂 ふつう",
+			"question": "🤔 疑問",
+			"sad": "😫 悲しい",
+			"surprised": "🤯 驚き",
+			"think": "🤨 思考中"
+		},
+		"vrm": {
+			"camera": "カメラ",
+			"model": { "title": "モデル" }
+		}
+	} },
+	"profile-switcher": {
+		"no-profile": "No Profile",
+		"no-profiles": "No profiles yet",
+		"save-as-new": "Save as New Profile",
+		"manage": "Manage Profiles"
+	},
+	"waiting": "待機中"
+};
+
+//#endregion
+export { data as default };

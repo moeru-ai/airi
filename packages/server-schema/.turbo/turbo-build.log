@@ -1,0 +1,15 @@
+
+> @proj-airi/server-schema@0.9.0-alpha.16 build /Users/jiumengliyang/Desktop/python/airi1/packages/server-schema
+> tsdown
+
+ℹ tsdown v0.20.3 powered by rolldown v1.0.0-rc.3
+ℹ config file: /Users/jiumengliyang/Desktop/python/airi1/packages/server-schema/tsdown.config.ts 
+ℹ entry: src/index.ts
+ℹ tsconfig: tsconfig.json
+ℹ Build start
+ℹ dist/index.mjs                                     0.16 kB │ gzip: 0.12 kB
+ℹ dist/virtual_drizzle-migrations-hBDITGNJ.mjs.map  11.80 kB │ gzip: 1.53 kB
+ℹ dist/virtual_drizzle-migrations-hBDITGNJ.mjs      10.12 kB │ gzip: 1.46 kB
+ℹ dist/index.d.mts                                   0.16 kB │ gzip: 0.11 kB
+ℹ 4 files, total: 22.23 kB
+✔ Build complete in 3961ms

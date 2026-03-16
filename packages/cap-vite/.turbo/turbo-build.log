@@ -1,0 +1,33 @@
+
+> @proj-airi/cap-vite@0.9.0-alpha.16 build /Users/jiumengliyang/Desktop/python/airi/packages/cap-vite
+> tsdown
+
+[34mℹ[39m tsdown [2mv0.20.3[22m powered by rolldown [2mv1.0.0-rc.3[22m
+[34mℹ[39m config file: [4m/Users/jiumengliyang/Desktop/python/airi/packages/cap-vite/tsdown.config.ts[24m 
+[34mℹ[39m entry: [34msrc/index.ts, src/bin/run.ts, src/vite-plugin.ts, src/vite-wrapper-config.ts[39m
+[34mℹ[39m target: [34mnode18[39m
+[34mℹ[39m tsconfig: [34mtsconfig.json[39m
+[34mℹ[39m Build start
+[34mℹ[39m Cleaning 15 files
+[34mℹ[39m Granting execute permission to [4mdist/bin/run.mjs[24m
+[34mℹ[39m [2mdist/[22m[1mindex.mjs[22m                    [2m3.59 kB[22m [2m│ gzip: 1.21 kB[22m
+[34mℹ[39m [2mdist/[22m[1mvite-plugin.mjs[22m              [2m2.75 kB[22m [2m│ gzip: 1.10 kB[22m
+[34mℹ[39m [2mdist/[22m[1mbin/run.mjs[22m                  [2m1.71 kB[22m [2m│ gzip: 0.82 kB[22m
+[34mℹ[39m [2mdist/[22m[1mvite-wrapper-config.mjs[22m      [2m1.12 kB[22m [2m│ gzip: 0.55 kB[22m
+[34mℹ[39m [2mdist/[22mindex.mjs.map                [2m7.24 kB[22m [2m│ gzip: 2.31 kB[22m
+[34mℹ[39m [2mdist/[22mnative-CH9qzgm8.mjs.map      [2m5.81 kB[22m [2m│ gzip: 2.10 kB[22m
+[34mℹ[39m [2mdist/[22mvite-plugin.mjs.map          [2m4.96 kB[22m [2m│ gzip: 1.86 kB[22m
+[34mℹ[39m [2mdist/[22mnative-CH9qzgm8.mjs          [2m3.10 kB[22m [2m│ gzip: 1.20 kB[22m
+[34mℹ[39m [2mdist/[22mbin/run.mjs.map              [2m3.03 kB[22m [2m│ gzip: 1.25 kB[22m
+[34mℹ[39m [2mdist/[22mvite-wrapper-config.mjs.map  [2m1.96 kB[22m [2m│ gzip: 0.87 kB[22m
+[34mℹ[39m [2mdist/[22m[32m[1mindex.d.mts[22m[39m                  [2m0.73 kB[22m [2m│ gzip: 0.36 kB[22m
+[34mℹ[39m [2mdist/[22m[32m[1mvite-plugin.d.mts[22m[39m            [2m0.29 kB[22m [2m│ gzip: 0.19 kB[22m
+[34mℹ[39m [2mdist/[22m[32m[1mvite-wrapper-config.d.mts[22m[39m    [2m0.21 kB[22m [2m│ gzip: 0.17 kB[22m
+[34mℹ[39m [2mdist/[22m[32m[1mbin/run.d.mts[22m[39m                [2m0.01 kB[22m [2m│ gzip: 0.03 kB[22m
+[34mℹ[39m 14 files, total: 36.52 kB
+[33m[PLUGIN_TIMINGS] Warning:[0m Your build spent significant time in plugins. Here is a breakdown:
+  - tsdown:external (53%)
+  - rolldown-plugin-dts:generate (45%)
+See https://rolldown.rs/options/checks#plugintimings for more details.
+
+[32m✔[39m Build complete in [32m4989ms[39m

@@ -1,0 +1,24 @@
+{
+	"Version": 3,
+	"Meta": {
+		"UserDataCount": 3,
+		"TotalUserDataSize": 9
+	},
+	"UserData": [
+		{
+			"Target": "ArtMesh",
+			"Id": "D_PSD_27",
+			"Value": "tai"
+		},
+		{
+			"Target": "ArtMesh",
+			"Id": "D_PSD_25",
+			"Value": "tai"
+		},
+		{
+			"Target": "ArtMesh",
+			"Id": "D_PSD_24",
+			"Value": "tai"
+		}
+	]
+}

@@ -1,0 +1,1117 @@
+//#region src/locales/ko/settings.yaml
+var data = {
+	"common": { "save": "저장" },
+	"animations": {
+		"stage-transitions": { "title": "스테이지 전환 비활성화" },
+		"use-page-specific-transitions": {
+			"description": "일부 페이지에는 자체 전환이 있으며, 이는 스테이지 전환을 재정의합니다",
+			"title": "페이지별 전환 사용"
+		}
+	},
+	"dialogs": { "onboarding": {
+		"title": "AIRI에 오신 것을 환영합니다!",
+		"description": "시작하기 위해 당신의 첫 번째 AI 제공자를 설정해 보겠습니다.",
+		"selectProvider": "AI 제공자를 선택해주세요",
+		"configureProvider": "{provider} 구성",
+		"apiKey": "API 키",
+		"apiKeyHelp": "{provider}로부터 API 키를 받아온 다음 붙여넣으세요",
+		"baseUrl": "기본 URL",
+		"baseUrlHelp": "API 엔드포인트 URL(확실하지 않은 경우 기본값 사용)",
+		"accountId": "계정 ID",
+		"validationSuccess": "구성 검증 성공",
+		"validationPartial": "Configuration partially validated",
+		"validationFailed": "구성 검증 실패",
+		"validationError": "검증 오류: {error}",
+		"testGeneration": "Test Generation",
+		"testGenerationRunning": "Testing...",
+		"testGenerationFailed": "Generation test failed",
+		"skipForNow": "지금은 건너뛰기",
+		"saveAndContinue": "저장 및 계속",
+		"next": "다음",
+		"retry": "다시 시도",
+		"start": "그럼 시작합시다!",
+		"select-model": "모델 선택",
+		"no-models": "사용 가능한 모델 없음",
+		"no-models-help": "이전 단계로 돌아가서 API 키를 확인하거나 네트워크 연결을 확인해 주세요.",
+		"permissions": {
+			"title": "Notifications",
+			"description": "You can allow notifications now or continue and set it up later.",
+			"notificationsTitle": "Notifications",
+			"notificationsDescription": "Allow reminders and important status updates.",
+			"notificationsAction": "Request notification permission",
+			"notificationsNotGrantedHint": "If denied, you can enable notifications later from iOS Settings.",
+			"openSettings": "Open iOS Settings",
+			"optionalHint": "You can continue even if notification permission is not granted.",
+			"stateUnknown": "Not requested",
+			"stateRequesting": "Requesting...",
+			"stateGranted": "Granted",
+			"stateNotGranted": "Not granted"
+		}
+	} },
+	"language": {
+		"title": "언어",
+		"description": "AIRI 인터페이스의 언어를 바꿉니다. 다만 캐릭터의 응답 언어는 변경되지 않습니다.\n"
+	},
+	"controls-island": { "icon-size": {
+		"title": "아일랜드 아이콘 크기 조정",
+		"description": "컨트롤 아일랜드 아이콘 크기 조정",
+		"auto": "자동 (능동적)",
+		"large": "크게 (기본값)",
+		"small": "작게"
+	} },
+	"live2d": {
+		"change-model": {
+			"from-file": "파일로부터 불러오기",
+			"from-file-select": "선택",
+			"from-url": "URL으로부터 불러오기",
+			"from-url-confirm": "불러오기",
+			"from-url-placeholder": "Live2D 모델 URL 입력",
+			"title": "모델 변경"
+		},
+		"edit-motion-map": { "title": "모션 맵 편집" },
+		"map-motions": {
+			"play": "모션 재생",
+			"title": "모션 맵핑하기"
+		},
+		"title": "Live2D 설정",
+		"scale-and-position": {
+			"title": "크기 및 위치",
+			"scale": "크기",
+			"x": "X 좌표",
+			"y": "Y 좌표"
+		},
+		"switch-to-vrm": {
+			"title": "3D 아바타로 전환하시겠습니까?",
+			"change-to-vrm": "3D 아바타 설정(VRM)으로 전환하려면 여기를 클릭하세요"
+		},
+		"theme-color-from-model": {
+			"title": "모델로부터 색상 추출",
+			"button-extract": { "title": "추출" }
+		},
+		"focus": {
+			"title": "마우스 포인터 추적 비활성화",
+			"button-disable": { "title": "비활성화" }
+		},
+		"fps": {
+			"title": "FPS (초당 프레임)",
+			"description": "렌더링 주사율 제한",
+			"options": { "unlimited": "무제한" }
+		}
+	},
+	"microphone": "마이크",
+	"models": "모델",
+	"pages": {
+		"card": {
+			"activate": "활성화",
+			"active": "활성",
+			"active_badge": "현재 활성 상태",
+			"cancel": "작업 취소",
+			"save": "변경 사항 저장",
+			"card_not_found": "카드를 찾을 수 없음",
+			"character": "캐릭터",
+			"close": "닫기",
+			"chat": { "provider": "채팅 / 제공자" },
+			"consciousness": { "model": "의식 / 모델" },
+			"created_by": "만든이",
+			"creator_notes": "제작자 노트",
+			"delete": "삭제",
+			"delete_card": "카드 삭제",
+			"delete_confirmation": "이 카드를 삭제하시겠습니까?",
+			"description": "AIRI 캐릭터 카드 프리셋 사용",
+			"description_label": "설명",
+			"drop_here": "여기로 끌어서 업로드",
+			"create_card": "새로운 카드 만들기",
+			"edit_card": "카드 편집",
+			"creation": {
+				"identity": "기본 사",
+				"name": "이름",
+				"nickname": "닉네임",
+				"description": "설명",
+				"behavior": "동작",
+				"greetings": "인사말 (한 줄당 하나씩)",
+				"settings": "설정",
+				"version": "버전",
+				"create": "만들기",
+				"defaults": {
+					"name": "이름",
+					"personality": "당신은 모든 것에 호기심이 많은 평범한 사람이다.",
+					"scenario": "당신은 최근에 일어나서 전생에 대한 모든 것을 잊어버렸다.",
+					"systemprompt": "메시지를 받고 실제 사람처럼 답장할 것이다.",
+					"posthistoryinstructions": "인간을 모방하는 것을 잊지 마라."
+				},
+				"modules_info": "이 캐릭터 카드의 모듈을 구성합니다. 설정하지 않으면 기본 모듈 구성이 사용됩니다.",
+				"use_default": "기본값 사용",
+				"use_default_not_configured": "기본값 사용 (구성 안됨)",
+				"fields_info": {
+					"subtitle": "여기에 당신이 만들고 있는 캐릭터에 대한 몇 가지 세부 사항을 입력하고, 그의 역사와 맥락을 설명하며, 당신의 상호작용에 어떻게 답해야 하는지 설명할 수 있습니다.",
+					"name": "이 캐릭터의 정식 이름입니다.",
+					"nickname": "우선적으로 사용할 별명을 지정할 수도 있습니다.",
+					"description": "이 캐릭터에 대한 설명을 지정합니다.",
+					"notes": "개인 메모를 추가하고 싶으시다면.",
+					"personality": "여기에서 캐릭터의 성격을 설명하세요. 수줍음이 많으신가요? 궁금하신가요? 다른 것은 없나요?",
+					"scenario": "주변 환경은 어떤가요? 현재 상황은 어떻습니까?",
+					"greetings_field": "인사말",
+					"greetings": "캐릭터가 \"안녕하세요\"라고 어떻게 말해야 하나요?",
+					"systemprompt": "여기에서 AI LLM이 메시지를 받았을 때 어떻게 대답해야 하는지 설명해 주세요.",
+					"posthistoryinstructions": "메시지 기록 후에 AI LLM이 읽어야 할 모든 것을 여기에 배치하세요.",
+					"version": "카드 버전, 이전 카드에서 변경하는 경우 이를 늘려야 합니다.",
+					"consciousness_model": "이 캐릭터에 대한 의식 모델(AI 모델)을 선택합니다.",
+					"speech_model": "이 캐릭터의 음성 합성 모델과 음성을 선택합니다."
+				},
+				"errors": {
+					"name": "이름은 유효하거나 비어 있지 않아야 합니다.",
+					"version": "오류: 잘못된 버전 번호입니다!",
+					"description": "오류: 이 카드에 대한 설명을 제공해야 합니다.",
+					"personality": "오류: 이 캐릭터에 대한 성격이 제공되어야 합니다.",
+					"scenario": "오류: 시나리오가 필요합니다.",
+					"systemprompt": "오류: 시스템 프롬프트를 제공해 주세요.",
+					"posthistoryinstructions": "오류: 기록 게시 후 프롬프트가 필요합니다."
+				}
+			},
+			"modules": "모듈",
+			"name_asc": "이름 (A-Z)",
+			"name_desc": "이름 (Z-A)",
+			"no_cards": "아직 카드가 없습니다. 위의 버튼을 클릭하여 업로드하세요!",
+			"no_results": "해당하는 카드가 없음",
+			"personality": "성격",
+			"posthistoryinstructions": "이전 기록 지침",
+			"recent": "최근에 추가된 항목",
+			"scenario": "시나리오",
+			"search": "카드 검색...",
+			"sort_by": "정렬",
+			"body-model": "Body / Display Model",
+			"speech": {
+				"provider": "음성 합성 / 제공자",
+				"model": "음성 합성 / 모델",
+				"voice": "음성 합성 / 음성"
+			},
+			"systemprompt": "시스템 프롬프트",
+			"title": "AIRI 카드",
+			"try_different_search": "다른 검색어를 시도해보세요",
+			"upload": "업로드",
+			"upload_desc": "클릭 또는 파일을 드래그하여 업로드"
+		},
+		"memory": {
+			"description": "기억이 저장되고 정리된 곳",
+			"title": "메모리"
+		},
+		"data": {
+			"title": "데이터",
+			"description": "저장된 AIRI 데이터, 내보낸 항목, 초기화된 항목 관리",
+			"sections": {
+				"chats": {
+					"title": "채팅 세션",
+					"description": "저장된 채팅 세션을 내보내기 또는 가져옵니다.",
+					"export": "채팅 내보내기",
+					"import": "채팅 가져오기",
+					"delete": "모든 채팅 세션 삭제"
+				},
+				"models": {
+					"title": "모델",
+					"description": "가져온 Live2D/VRM 모델을 삭제합니다.",
+					"delete": "모든 모델 삭제"
+				},
+				"modules": {
+					"title": "모듈",
+					"description": "모듈 환경설정 및 인증 정보를 초기화합니다.",
+					"reset": "모듈 설정 초기화"
+				},
+				"providers": {
+					"title": "제공자",
+					"description": "모든 제공자 환경설정 및 인증 정보를 초기화합니다.",
+					"reset": "제공자 설정 초기화"
+				},
+				"danger": {
+					"title": "위험 구역",
+					"description": "작업 후 되돌릴 수 없는 항목입니다. 계속하기 전에 필요한 것을 내보냅니다."
+				},
+				"all": {
+					"title": "모든 데이터 삭제",
+					"description": "로컬 설정, 제공자 설정 및 모델을 전부 삭제합니다.",
+					"delete": "모든 데이터 삭제"
+				},
+				"desktop": {
+					"title": "데스크탑 설정 및 상태 초기화",
+					"description": "AIRI 데스크탑 설정 및 런타임 상태를 전부 지웁니다.",
+					"reset": "데스크탑 데이터 지우기"
+				}
+			},
+			"confirmations": {
+				"tooltip": "정말 진행하실 건가요?",
+				"yes": "네"
+			},
+			"status": {
+				"exported": "채팅 세션을 내보냈습니다.",
+				"imported": "채팅 세션을 가져왔습니다.",
+				"import_error": "채팅 세션을 가져오지 못했습니다. 파일 형식을 확인해 주세요.",
+				"chats_deleted": "채팅 세션이 삭제되었습니다.",
+				"models_deleted": "모델이 삭제되었습니다.",
+				"modules_reset": "모듈 설정이 초기화되었습니다.",
+				"providers_reset": "제공자 설정이 초기화되었습니다.",
+				"all_deleted": "로컬 데이터가 초기화되었습니다.",
+				"desktop_reset": "데스크탑 데이터가 초기화되었습니다."
+			}
+		},
+		"models": {
+			"description": "Live2D, VRM, 기타 등등.",
+			"title": "모델",
+			"sections": { "section": {
+				"live2d": {
+					"title": "Live2D",
+					"description": "Live2D 모델 및 설정 구성"
+				},
+				"vrm": {
+					"title": "VRM",
+					"description": "3D VRM 모델 및 설정 구성"
+				},
+				"scene": "장면"
+			} }
+		},
+		"modules": {
+			"beat_sync": {
+				"description": "오디오 소스의 비트가 있는 바이브",
+				"title": "비트 동기화",
+				"sections": {
+					"audio_source": {
+						"actions": {
+							"start_screen_capture": "화면 캡쳐 시작",
+							"stop": "중지"
+						},
+						"description": "비트를 감지할 오디오 소스를 선택합니다.",
+						"title": "오디오 소스"
+					},
+					"beat_visualizer": { "title": "비트 비쥬얼라이져" },
+					"parameters": {
+						"advanced_parameters": "고급 매개변수",
+						"description": "비트 감지 매개변수를 조정합니다.",
+						"title": "매개변수",
+						"parameters": {
+							"adaptive_threshold": {
+								"description": "시간 경과에 따른 신호 분산을 기반으로 적응 임계값을 적용할지 여부를 구성합니다.",
+								"label": "적응 임계값"
+							},
+							"buffer_duration": {
+								"description": "내부 분석 버퍼의 지속 시간을 구성합니다.",
+								"label": "버퍼 지속 시간"
+							},
+							"envelope_filter_frequency": {
+								"description": "부드러운 에너지 변화에 적용되는 엔벨로프 필터의 주파수를 구성합니다.",
+								"label": "엔벨로프 필터 주파수"
+							},
+							"highpass_filter_frequency": {
+								"description": "서브베이스 노이즈와 같은 저주파를 줄이기 위해 적용되는 고주파 필터의 주파수를 구성합니다.",
+								"label": "고주파 필터 주파수"
+							},
+							"lowpass_filter_frequency": {
+								"description": "보컬과 같은 고주파를 줄이기 위해 적용된 저주파 필터의 주파수를 구성합니다.",
+								"label": "저주파 필터 주파수"
+							},
+							"min_beat_interval": {
+								"description": "최대 BPM 또는 감지된 비트 사이의 최소 간격을 구성합니다.",
+								"label": "최대 BPM / 최소 박자 간격"
+							},
+							"sensitivity": { "label": "민감도" },
+							"spectral_flux": {
+								"description": "스펙트럼 플럭스 기반 발병 감지를 활성화할지 여부를 구성합니다.",
+								"label": "스펙트럼 플럭스"
+							},
+							"warmup": {
+								"description": "더 나은 정확성을 위해 비트를 감지하기 전에 워밍업할지 여부를 구성합니다.",
+								"label": "워밍업"
+							}
+						}
+					}
+				}
+			},
+			"consciousness": {
+				"description": "성격, 원하는 모델 등.",
+				"sections": { "section": { "provider-model-selection": {
+					"collapse": "접기",
+					"custom_model_placeholder": "사용자 지정 모델 이름 입력...",
+					"current_model_label": "Current model:",
+					"description": "의식에 적합한 LLM 제공자를 선택합니다.",
+					"error": "모델 목록을 불러오는데 오류가 발생했습니다.",
+					"health_check_failed": "상태 점검 실패",
+					"no_providers_configured_title": "구성된 공급자 없음",
+					"no_providers_configured_description": "LLM 제공자를 설정하려면 여기를 클릭하세요",
+					"expand": "확장",
+					"loading": "사용 가능한 모델 불러오는 중...",
+					"manual_model_name": "모델 이름",
+					"manual_model_placeholder": "이 공급자와 함께 사용할 모델 이름 입력",
+					"no_models": "사용 가능한 모델 없음",
+					"no_models_description": "이 제공자에 대한 모델을 찾을 수 없습니다",
+					"no_search_results": "일치하는 모델 없음",
+					"no_search_results_description": "'{query}'와 일치하는 모델이 없습니다. 다른 검색어를 사용해 보세요.",
+					"not_supported": "모델 목록이 지원되지 않습니다",
+					"not_supported_description": "이 제공자는 모델 목록 기능을 지원하지 않습니다",
+					"search_placeholder": "모델 검색...",
+					"search_results": "{total}개의 항목 중에 {count}개의 모델 찾음",
+					"show_less": "간략히 보기",
+					"show_more": "더 보기",
+					"subtitle": "공급자에서 기본 모델 선택",
+					"title": "모델"
+				} } },
+				"title": "의식"
+			},
+			"description": "사고, 시각, 음성 합성, 게임 등.",
+			"gaming-factorio": {
+				"description": "Factorio 플레이 중!",
+				"title": "Factorio",
+				"enable": "Factorio 통합 사용",
+				"enable-description": "AIRI가 Factorio를 접근하기 위해 허용",
+				"server-address": "서버 주소",
+				"server-address-description": "Factorio 서버의 IP 주소 및 호스트 이름",
+				"server-address-placeholder": "서버 주소 입력 (예시: localhost 및 192.168.1.100)",
+				"server-port": "서버 포트",
+				"server-port-description": "Factorio 서버의 포트 번호 (기본값: 34197)",
+				"username": "사용자 이름",
+				"username-description": "Factorio 서버의 사용자 이름",
+				"username-placeholder": "Factorio 사용자 이름을 입력하세요",
+				"configured": "Factorio 구성 완료!"
+			},
+			"gaming-minecraft": {
+				"description": "Minecraft 플레이 중!",
+				"title": "Minecraft",
+				"enable": "Minecraft 통합 사용",
+				"enable-description": "AIRI가 Minecraft를 접근하기 위해 허용",
+				"server-address": "서버 주소",
+				"server-address-description": "Minecraft 서버의 IP 주소 및 호스트 이름",
+				"server-address-placeholder": "서버 주소 입력 (예시: localhost 및 play.example.com)",
+				"server-port": "서버 포트",
+				"server-port-description": "Minecraft 서버의 포트 번호 (기본값: 25565)",
+				"username": "사용자 이름",
+				"username-description": "Minecraft 서버의 사용자 이름",
+				"username-placeholder": "Minecraft 사용자 이름을 입력하세요",
+				"configured": "Minecraft 구성 완료!"
+			},
+			"hearing": {
+				"description": "음성 인식 작동 방식 구성",
+				"title": "청력",
+				"sections": { "section": { "provider-selection": { "description": "적절한 음성 인식 제공자 선택" } } }
+			},
+			"memory-long-term": {
+				"description": "장기 메모리 관련 설정 및 관리",
+				"title": "장기 메모리"
+			},
+			"memory-short-term": {
+				"description": "단기 메모리 관련 설정 및 관리",
+				"title": "단기 메모리"
+			},
+			"messaging-discord": {
+				"description": "Discord를 통한 채팅 및 음성 채팅",
+				"title": "Discord",
+				"enable": "Discord 통합 사용",
+				"enable-description": "AIRI가 Discord를 접근하기 위해 허용",
+				"token": "봇 토큰",
+				"token-description": "당신의 Discord 봇 토큰",
+				"token-placeholder": "Discord 봇 토큰을 입력해주세요",
+				"configured": "Discord 구성 완료!"
+			},
+			"speech": {
+				"description": "음성 합성",
+				"sections": { "section": {
+					"playground": {
+						"buttons": { "stop": { "label": "중지" } },
+						"select-voice": {
+							"loading": "모델 로딩 중...",
+							"required": "음성을 선택해 주세요"
+						}
+					},
+					"provider-voice-selection": {
+						"custom_model_placeholder": "사용자 지정 모델 이름 입력...",
+						"custom_voice_placeholder": "사용자 지정 음성 ID 입력...",
+						"description": "적절한 음성 제공자 선택",
+						"no_models": "사용 가능한 모델 없음",
+						"no_models_description": "이 제공자에 대한 모델을 찾을 수 없습니다",
+						"no_voices": "사용 가능한 음성이 없습니다",
+						"no_voices_description": "이 제공자에 대한 음성을 찾을 수 없습니다",
+						"no_voices_hint": "아래에 사용자 지정 음성 이름을 입력할 수 있습니다.",
+						"pause": "일시 중지",
+						"play_sample": "예시 음성 재생",
+						"search_models_placeholder": "모델 검색...",
+						"search_models_results": "{total}개의 항목 중에 {count}개의 모델 찾음",
+						"search_voices_placeholder": "음성 검색...",
+						"search_voices_results": "{total}개의 항목 중에 {count}개의 모델 찾음",
+						"unsupported_voice_warning_title": "지원되는 음성 없음",
+						"unsupported_voice_warning_content": "다른 모델 및 제공자를 이용해 주세요. 이 모델의 모든 음성을 최대한 빨리 지원하기 위해 노력하고 있습니다. 긴급하게 필요한 경우 GitHub(https://github.com/moeru-ai/airi/issues)로 알려주시기 바랍니다.",
+						"show_less": "간략히 보기",
+						"show_more": "더 보기",
+						"title": "제공자"
+					},
+					"voice-settings": {
+						"input-ssml": { "placeholder": "SSML 텍스트 입력" },
+						"use-ssml": {
+							"description": "일반 텍스트 대신 원시 SSML을 입력할 수 있습니다",
+							"label": "사용자 지정 SSML 사용"
+						}
+					}
+				} },
+				"title": "음성"
+			},
+			"title": "모듈",
+			"vision": {
+				"description": "시각",
+				"title": "시각"
+			},
+			"x": {
+				"description": "X / 트위터 탐색 및 사용량",
+				"title": "X / 트위터",
+				"enable": "X / 트위터 통합 사용",
+				"enable-description": "AIRI가 X / 트위터를 접근하기 위해 허용",
+				"api-key": "API 키",
+				"api-key-description": "X / 트위터의 API 키",
+				"api-key-placeholder": "X / 트위터의 API 키를 입력해주세요",
+				"api-secret": "API 시크릿",
+				"api-secret-description": "X / 트위터의 API 시크릿",
+				"api-secret-placeholder": "X / 트위터의 API 시크릿을 입력해주세요",
+				"access-token": "액세스 토큰",
+				"access-token-description": "X / 트위터의 액세스 토큰",
+				"access-token-placeholder": "X / 트위터의 액세스 토큰을 입력해주세요",
+				"access-token-secret": "액세스 토큰 시크릿",
+				"access-token-secret-description": "X / 트위터의 액세스 토큰 시크릿",
+				"access-token-secret-placeholder": "X / 트위터의 액세스 토큰 시크릿을 입력해주세요",
+				"configured": "X / 트위터 구성 완료!"
+			},
+			"mcp-server": {
+				"description": "MCP 서버 및 도구 연결 및 관리",
+				"title": "MCP 서버",
+				"config-path": "설정 파일 경로",
+				"runtime-title": "런타임 상태",
+				"actions": {
+					"open-config": "mcp.json 열기",
+					"apply-and-restart": "표준 입출력 MCP 저장 후 재시작"
+				},
+				"messages": {
+					"opened": "{path}에서 설정 파일 열림",
+					"restarted": "MCP 서버 재시작 완료. 시작: {started}, 실패: {failed}, 건너뜀: {skipped}"
+				}
+			}
+		},
+		"providers": {
+			"explained": {
+				"chat": "텍스트 생성 모델 제공자를 구성합니다. (예시: OpenRouter, OpenAI, Ollama)",
+				"Speech": "음성(TTS) 모델 제공자를 구성합니다. (예시: ElevenLabs, Azure Speech)",
+				"Transcription": "전사(speech에서 텍스트로) 모델 제공자를 구성합니다. (예시: Whisper.cpp, OpenAI, Azure Speech)"
+			},
+			"helpinfo": {
+				"title": "여기 처음 오셨나요?",
+				"description": "AIRI는 적어도 하나의 {chat} 제공자가 올바르게 생각하고 행동하도록 구성되어야 합니다. AIRI 시스템에 거주하는 캐릭터의 두뇌라고 생각할 수 있습니다.\n"
+			},
+			"catalog": { "edit": {
+				"config-id-not-found": "제공자 구성을 찾을 수 없습니다.",
+				"definition-id-not-found": "제공자 정의를 찾을 수 없습니다.",
+				"actions": {
+					"more-options": "추가 옵션",
+					"delete": "삭제"
+				},
+				"validation": { "failed": {
+					"title": "제공자 설정을 확인해 주세요. 검증에 실패했습니다.",
+					"description": "계속 진행하려면 현재 구성을 저장할 수 있습니다.",
+					"action": "무시하고 저장"
+				} },
+				"config": { "common": { "fields": { "field": {
+					"api-key": {
+						"label": "API 키",
+						"description": "이 제공자에 대한 요청을 승인하는 데 사용되는 API 키",
+						"placeholder": "sk-..."
+					},
+					"base-url": {
+						"label": "기본 URL",
+						"description": "원격 서비스에 연결하는 데 사용되는 기본 URL입니다. 종종 http://localhost:11434/v1 또는 https://example.com/v1 와 같이 보입니다.",
+						"placeholder": "기본 URL..."
+					},
+					"headers": {
+						"label": "사용자 정의 HTTP 헤더",
+						"description": "사용자 정의 HTTP 헤더 추가",
+						"key": { "placeholder": "키" },
+						"value": { "placeholder": "값" }
+					},
+					"thinking-mode": {
+						"label": "사고 모드",
+						"description": "Ollama의 사고 방식을 제어합니다. GPT-OSS는 낮음/중간/높음 단계만 지원합니다.\n",
+						"options": {
+							"auto": "자동 (제공자 기본값)",
+							"disable": "비활성화",
+							"enable": "활성화",
+							"low": "낮음",
+							"medium": "보통",
+							"high": "높음"
+						}
+					}
+				} } } },
+				"validators": {
+					"actions": { "validate": "검증" },
+					"empty": "사용 가능한 검증 단계가 없습니다.",
+					"openai-compatible": {
+						"check-config": { "title": "환경설정" },
+						"check-connectivity": { "title": "연결성" },
+						"check-supports-model-listing": { "title": "모델 목록" },
+						"check-supports-chat-completion": { "title": "채팅 자동완성" }
+					},
+					"status": {
+						"validating": "확인 중...",
+						"valid": "성공했습니다",
+						"invalid": "오류가 발생했습니다"
+					},
+					"title": "검증"
+				},
+				"providers": { "provider": { "ollama": { "troubleshooting": { "validators": { "openai-compatible-check-connectivity": {
+					"label": "Ollama에 필요한 추가 구성",
+					"content": "Ollama에 대한 연결 검사가 실패했다는 소식을 듣게 되어 유감입니다. 걱정하지 마세요. Ollama 인스턴스의 경우 Ollama를 통과시키기 위해 추가 구성이 필요합니다. Ollama 애플리케이션 또는 Ollama CLI 서버를 시작할 때 <code>OLLAMA_HOST</code>를 명시적으로 설정해야 하며, 자세한 정보는 <a href=\"https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama\">Ollama 통합 가이드</a>를 확인하세요."
+				} } } } } }
+			} },
+			"common": {
+				"continueAnyway": "계속 진행",
+				"goToModelSelection": "Select Model →",
+				"fields": { "field": { "api-key": { "label": "API 키 입력" } } },
+				"section": {
+					"advanced": {
+						"fields": { "field": { "headers": {
+							"description": "사용자 정의 HTTP 헤더 추가",
+							"key": { "placeholder": "키" },
+							"label": "HTTP 헤더",
+							"value": { "placeholder": "값" }
+						} } },
+						"title": "고급"
+					},
+					"basic": {
+						"description": "추가 설정",
+						"title": "기본"
+					},
+					"voice": { "title": "음성 설정" }
+				}
+			},
+			"description": "LLM, 음성 합성 제공자 등.",
+			"provider": {
+				"app-local-audio-transcription": {
+					"title": "앱 (로컬)",
+					"description": "https://github.com/moeru-ai/xsai-transformers"
+				},
+				"app-local-audio-speech": {
+					"title": "앱 (로컬)",
+					"description": "https://github.com/moeru-ai/xsai-transformers"
+				},
+				"browser-local-audio-transcription": {
+					"title": "브라우저 (로컬)",
+					"description": "https://github.com/moeru-ai/xsai-transformers"
+				},
+				"browser-local-audio-speech": {
+					"title": "브라우저 (로컬)",
+					"description": "https://github.com/moeru-ai/xsai-transformers"
+				},
+				"alibaba-cloud-model-studio": {
+					"description": "bailian.console.aliyun.com",
+					"title": "Alibaba 클라우드 모델 스튜디오"
+				},
+				"anthropic": {
+					"description": "anthropic.com",
+					"title": "Anthropic | Claude",
+					"helpinfo": {
+						"title": "시작하기 전에",
+						"description": {
+							"part1": "최근에 Anthropic이 OpenAI SDK 호환성을 베타 버전으로 지원한다고 발표했습니다.",
+							"part2": "(여기에서 더 읽어보실 수 있습니다)",
+							"part3": "하지만 구현 세부 사항으로 인해",
+							"part4": "OpenAI SDK와 일치하지 않는 제한 사항으로 인해 현재 브라우저에서 이 제공자를 사용할 수 없습니다.",
+							"part5": "이 공급자를 사용해야 하는 경우 서버리스 기능과 같은 전용 프록시 백엔드가 필요합니다",
+							"part6": "또는 일부 CORS 우회 서비스를 통해 CORS 제한을 우회할 수 있습니다."
+						}
+					}
+				},
+				"cloudflare-workers-ai": {
+					"description": "cloudflare.com",
+					"fields": { "field": {
+						"account-id": {
+							"description": "Cloudflare 계정 ID",
+							"label": "계정 ID",
+							"placeholder": "당신의 Cloudflare 계정 ID"
+						},
+						"api-key": { "placeholder": "Cloudflare API 키 입력" }
+					} },
+					"title": "Cloudflare Workers AI"
+				},
+				"common": {
+					"status": {
+						"validating": "검증 중",
+						"valid": "구성이 유효한 것 같습니다."
+					},
+					"fields": { "field": {
+						"pitch": {
+							"description": "합성된 음성의 음정을 조정합니다(예: 더 날카롭거나 거칠음)",
+							"label": "음정"
+						},
+						"speed": {
+							"description": "음성의 속도 조절",
+							"label": "속도"
+						},
+						"volume": {
+							"description": "음성의 음량 조절",
+							"label": "음량"
+						}
+					} }
+				},
+				"deepgram-tts": {
+					"description": "deepgram.com",
+					"title": "Deepgram"
+				},
+				"speech-noop": {
+					"title": "없음",
+					"description": "음성 출력이 없습니다."
+				},
+				"deepseek": {
+					"description": "deepseek.com",
+					"title": "DeepSeek"
+				},
+				"elevenlabs": {
+					"description": "elevenlabs.io",
+					"fields": { "field": {
+						"simularity-boost": {
+							"description": "음성 유사성 준수",
+							"label": "유사성 향상"
+						},
+						"speaker-boost": {
+							"description": "화자 유사성 향상",
+							"label": "스피커 부스트"
+						},
+						"speed": {
+							"description": "음성 생성 속도",
+							"label": "속도"
+						},
+						"stability": {
+							"description": "음성 안정성 및 무작위성",
+							"label": "안정성"
+						},
+						"style": {
+							"description": "목소리 스타일 과장",
+							"label": "스타일"
+						}
+					} },
+					"playground": {
+						"buttons": { "button": { "test-voice": {
+							"generating": "생성 중...",
+							"label": "음성 테스트"
+						} } },
+						"fields": { "field": {
+							"input": { "placeholder": "음성을 테스트하려면 텍스트를 입력하세요..." },
+							"language": {
+								"description": "음성 언어 선택",
+								"label": "언어"
+							},
+							"voice": {
+								"description": "선호하는 음성 선택",
+								"label": "음성"
+							}
+						} },
+						"title": "음성 플레이그라운드",
+						"validation": { "error-missing-api-key": "음성을 테스트하려면 API 키를 입력하세요." }
+					},
+					"title": "ElevenLabs"
+				},
+				"kokoro-local": {
+					"description": "Kokoro-82M을 사용하여 로컬 텍스트 음성 변환을 생성합니다.",
+					"fields": { "field": { "model": {
+						"label": "모델 선택",
+						"description": "작은 모델은 더 빠르게 로드되지만 품질이 약간 낮을 수 있습니다."
+					} } },
+					"models": {
+						"fp32-webgpu": { "description": "WebGPU를 사용한 완전 정밀 모델 - 지원되는 장치에 권장됨" },
+						"fp32": { "description": "완전 정밀 모델" },
+						"fp16": { "description": "반 정밀도" },
+						"q8": { "description": "8비트 양자화" },
+						"q4": { "description": "4비트 양자화" },
+						"q4f16": { "description": "FP16이 포함된 4비트 양자화" }
+					},
+					"playground": {
+						"default-text": "안녕하세요! 이것은 Kokoro 문자 음성 변환 시스템의 테스트입니다.",
+						"title": "음성 플레이그라운드"
+					},
+					"title": "Kokoro TTS (로컬)"
+				},
+				"fireworks": {
+					"description": "fireworks.ai",
+					"title": "Fireworks.ai"
+				},
+				"microsoft-speech": {
+					"description": "speech.microsoft.com",
+					"fields": { "field": { "region": {
+						"description": "음성 서비스 지역",
+						"label": "지역"
+					} } },
+					"title": "Microsoft / Azure 음성"
+				},
+				"index-tts-vllm": {
+					"description": "https://index-tts.github.io/",
+					"title": "Bilibili / IndexTTS",
+					"callout_indextts2_unavailable_title": "제한된 지원",
+					"callout_indextts2_unavailable": "현재 IndexTTS2에 대한 지원이 제공되지 않습니다. IndexTTS를 사용해 주세요."
+				},
+				"azure-ai-foundry": {
+					"description": "Azure AI 파운더리",
+					"title": "Azure AI 파운드리"
+				},
+				"minimax": {
+					"description": "minimaxi.com",
+					"title": "MiniMax"
+				},
+				"minimax-global": {
+					"description": "minimax.io",
+					"title": "MiniMax 글로벌"
+				},
+				"mistral": {
+					"description": "mistral.ai",
+					"title": "Mistral"
+				},
+				"moonshot": {
+					"description": "moonshot.ai",
+					"title": "Moonshot AI"
+				},
+				"modelscope": {
+					"description": "modelscope.cn",
+					"title": "ModelScope"
+				},
+				"novita": {
+					"description": "novita.ai",
+					"title": "Novita"
+				},
+				"ollama": {
+					"description": "ollama.ai",
+					"title": "Ollama"
+				},
+				"openai": {
+					"description": "openai.com",
+					"title": "OpenAI"
+				},
+				"openai-compatible": {
+					"description": "OpenAI 호환",
+					"title": "OpenAI 호환"
+				},
+				"nvidia": {
+					"description": "build.nvidia.com",
+					"title": "NVIDIA NIM"
+				},
+				"n1n": {
+					"description": "n1n.ai - 고성능 AI API 제공자.",
+					"title": "n1n"
+				},
+				"openrouter": {
+					"description": "openrouter.ai",
+					"title": "OpenRouter"
+				},
+				"perplexity": {
+					"description": "perplexity.ai",
+					"title": "Perplexity"
+				},
+				"player2": {
+					"description": "player2.game",
+					"title": "Player2"
+				},
+				"together": {
+					"description": "together.ai",
+					"title": "Together.ai"
+				},
+				"google-generative-ai": {
+					"description": "gemini.google.com",
+					"title": "Google Gemini"
+				},
+				"groq": {
+					"description": "groq.com",
+					"title": "Groq"
+				},
+				"featherless": {
+					"description": "featherless.ai",
+					"title": "Featherless AI"
+				},
+				"lm-studio": {
+					"description": "lmstudio.ai",
+					"title": "LM 스튜디오"
+				},
+				"vllm": {
+					"description": "vllm.ai",
+					"title": "vLLM"
+				},
+				"volcengine": {
+					"description": "volcengine.com",
+					"fields": { "field": { "appId": {
+						"description": "콘솔에서 얻을 수 있는 프로젝트의 애플리케이션 ID",
+						"label": "애플리케이션 ID"
+					} } },
+					"title": "Volcano 엔진"
+				},
+				"xai": {
+					"description": "x.ai",
+					"title": "xAI"
+				},
+				"302-ai": {
+					"description": "302.AI",
+					"title": "302.AI"
+				},
+				"comet-api": {
+					"description": "CometAPI.com",
+					"title": "Comet API"
+				},
+				"cerebras": {
+					"description": "cerebras.ai",
+					"title": "Cerebras"
+				},
+				"aliyun-nls": {
+					"description": "Aliyun NLS",
+					"title": "Aliyun NLS"
+				},
+				"browser-web-speech-api": {
+					"description": "브라우저 기반 STT(Chrome/Edge/Safari 필요)",
+					"title": "웹 음성 API"
+				},
+				"transcriptions": { "playground": { "title": "전사 놀이터" } },
+				"aihubmix": {
+					"title": "AIHubMix",
+					"description": "https://aihubmix.com (10% 할인)"
+				}
+			},
+			"title": "제공자"
+		},
+		"connection": {
+			"description": "웹소켓 서버 연결 구성",
+			"title": "연결",
+			"websocket-url": {
+				"description": "웹소켓 서버의 전체 주소(예: ws://localhost:6121/ws)",
+				"label": "웹소켓 서버 주소",
+				"placeholder": "ws://localhost:6121/ws"
+			}
+		},
+		"scene": {
+			"description": "캐릭터가 사는 환경 구성하기",
+			"title": "장면"
+		},
+		"system": {
+			"color-scheme": {
+				"description": "장면의 색상 구성표를 변경합니다.",
+				"title": "색상 구성표"
+			},
+			"developer": {
+				"description": "일부 개발자 옵션.",
+				"title": "개발자 옵션"
+			},
+			"general": {
+				"description": "어두운 테마, 언어 등.",
+				"title": "일반"
+			},
+			"description": "무대를 커스터마이징하세요!",
+			"sections": { "section": {
+				"custom-color": {
+					"fields": { "field": { "primary-color": {
+						"label": "주 색상",
+						"rgb-on": { "title": "역동적이고 싶어요!" }
+					} } },
+					"title": "색상 구성표"
+				},
+				"developer": {
+					"title": "개발자 옵션",
+					"sections": { "section": {
+						"performance-visualizer": {
+							"title": "성능 비주얼라이저",
+							"description": "FPS/긴 작업/메모리 오버레이 전환"
+						},
+						"markdown-stress": {
+							"title": "마크다운 스트레스",
+							"description": "스트레스 마크다운 구문 분석 및 대량 채팅 페이로드 렌더링"
+						},
+						"use-magic-keys": {
+							"title": "useMagicKeys 도구",
+							"description": "테스트 단축키"
+						},
+						"audio-record": {
+							"title": "오디오 녹음",
+							"description": "오디오 관련 컴포저블 테스트"
+						},
+						"background-gradient-blending": {
+							"title": "배경 테마 색상 혼합",
+							"description": "테스트 블렌딩 및 테마"
+						},
+						"background-removal": {
+							"title": "배경 제거(WebGPU 필요)",
+							"description": "배경 제거를 위한유틸리티"
+						},
+						"chat": {
+							"title": "채팅",
+							"description": "채팅"
+						},
+						"gesture-circle": {
+							"title": "제스처 서클(데스크탑 전용)",
+							"description": "제스처 인식 테스트"
+						},
+						"image": {
+							"title": "이미지",
+							"description": "이미지"
+						},
+						"polaroid": {
+							"title": "폴라로이드",
+							"description": "모델 촬영 시 유용성"
+						},
+						"context-flow": { "description": "들어오는 컨텍스트 업데이트 및 나가는 채팅 스트림 이벤트 검사" },
+						"websocket-inspector": {
+							"title": "웹소켓 분석기",
+							"description": "원시 웹소켓 트래픽 검사"
+						},
+						"vibrant": {
+							"title": "색상 추출",
+							"description": "색상 추출 테스트"
+						},
+						"providers-transcription-realtime-aliyun-nls": {
+							"title": "Aliyun 실시간 전사자",
+							"description": "Aliyun NLS로 마이크 오디오 스트리밍 및 라이브 녹취록 검사"
+						},
+						"performance-playground": {
+							"title": "성능 놀이터",
+							"description": "VRM expressions + TTS lip sync playground"
+						}
+					} }
+				},
+				"theme-presets": {
+					"presets": {
+						"default": {
+							"colors": { "color-1": "AIRI 녹색" },
+							"description": "AIRI가 가져온 기본 녹색 테마 색상!",
+							"title": "기본 색상"
+						},
+						"morandi": {
+							"colors": {
+								"color-1": "회갈색",
+								"color-2": "베이지",
+								"color-3": "애쉬 그레이",
+								"color-4": "밝은 회갈색",
+								"color-5": "아이보리",
+								"color-6": "올리브 그레이",
+								"color-7": "모래",
+								"color-8": "따뜻한 그레이"
+							},
+							"description": "조르지오 모란디의 그림에서 영감을 받은 부드럽고 조용한 음색",
+							"title": "모란디 색상"
+						},
+						"monet": {
+							"colors": {
+								"color-1": "하늘색",
+								"color-2": "미스트",
+								"color-3": "모래",
+								"color-4": "황록색",
+								"color-5": "수련",
+								"color-6": "밀",
+								"color-7": "슬레이트 블루",
+								"color-8": "세이지"
+							},
+							"description": "클로드 모네의 작품에서 영감을 받은 인상파 팔레트",
+							"title": "모네 색상"
+						},
+						"japanese": {
+							"colors": {
+								"color-1": "황갈색",
+								"color-2": "따뜻한 회갈색",
+								"color-3": "Umber",
+								"color-4": "커피",
+								"color-5": "브론즈",
+								"color-6": "골드",
+								"color-7": "머스타드",
+								"color-8": "앰버"
+							},
+							"description": "전통적인 일본 색상 팔레트",
+							"title": "일본 색상"
+						},
+						"nordic": {
+							"colors": {
+								"color-1": "노르딕 블루",
+								"color-2": "얼음",
+								"color-3": "피오르드",
+								"color-4": "강철",
+								"color-5": "글레이시어",
+								"color-6": "슬레이트",
+								"color-7": "구름",
+								"color-8": null
+							},
+							"description": "스칸디나비아 미니멀리스트 색상 체계",
+							"title": "노르딕 색상"
+						},
+						"chinese": {
+							"colors": {
+								"color-1": "로지 던",
+								"color-2": "중국 레드",
+								"color-3": "스모키 브라운",
+								"color-4": "대나무 녹색",
+								"color-5": "짙은 보라색",
+								"color-6": "금빛 노란색",
+								"color-7": "연청색",
+								"color-8": "오흐레"
+							},
+							"description": "고대 직물, 도자기 및 회화에서 유래한 중국 전통 색채",
+							"title": "중국 전통 색채"
+						}
+					},
+					"title": "색상 구성표 사전 설정"
+				}
+			} },
+			"title": "시스템"
+		},
+		"page": { "developers": { "open-devtools": {
+			"title": "개발자 도구 열기",
+			"button": "열기"
+		} } }
+	},
+	"sections": { "section": { "general": { "title": "일반" } } },
+	"theme": {
+		"title": "테마",
+		"description": "AIRI의 전반적인 테마를 바꿉니다.\n"
+	},
+	"title": "설정",
+	"voices": "음성",
+	"vrm": {
+		"change-model": {
+			"from-file": "파일로부터 불러오기",
+			"from-file-select": "선택",
+			"from-url": "URL으로부터 불러오기",
+			"from-url-confirm": "불러오기",
+			"from-url-placeholder": "VRM 모델 URL 입력",
+			"title": "모델 변경"
+		},
+		"title": "VRM 설정",
+		"scale-and-position": {
+			"model-info-title": "모델 크기 정보",
+			"model-info-x": "너비 (X)",
+			"model-info-y": "높이 (Y)",
+			"model-info-z": "깊이 (Z)",
+			"tips": "VRM 모델의 초기 위치를 편집합니다.\n좌표 축이 시각화됩니다.\n",
+			"scale": "크기",
+			"x": "X 오프셋",
+			"y": "Y 오프셋",
+			"z": "Z 오프셋",
+			"fov": "FOV (각도)",
+			"rotation-y": "회전 (Y 좌표)",
+			"camera-distance": "카메라 거리",
+			"eye-tracking-mode": {
+				"title": "다음을 따라가기",
+				"options": { "option": {
+					"camera": "카메라",
+					"mouse": "마우스",
+					"disabled": "사용 안 함"
+				} }
+			}
+		},
+		"switch-to-vrm": {
+			"title": "Live2D 아바타로 전환하시겠습니까?",
+			"change-to-vrm": "Live2D 아바타 설정으로 전환하려면 여기를 클릭하세요"
+		},
+		"theme-color-from-model": { "button-extract": { "title": "추출" } },
+		"skybox": {
+			"skybox-intensity": "스카이박스 강도",
+			"skybox-specular-mix": "스페큘러 믹스"
+		}
+	},
+	"websocket-secure-enabled": {
+		"title": "보안 웹소켓 (WSS) 활성화",
+		"description": "개발 모드에서 모바일(pocket)의 HTTPS 연결을 허용하기 위해 WSS(WebSocket Secure)를 활성화합니다. 자체 서명 인증서가 자동으로 생성됩니다."
+	},
+	"wip": {
+		"title": "개발 중",
+		"description": "이 기능은 현재 개발 중이며 아직 공개되지 않았습니다. 이 기능은 향후 업데이트에서 다시 확인해 보세요."
+	}
+};
+
+//#endregion
+export { data as default };

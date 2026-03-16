@@ -1,0 +1,26 @@
+
+> @proj-airi/audio@ build /Users/jiumengliyang/Desktop/python/airi/packages/audio
+> tsdown
+
+ℹ tsdown v0.20.3 powered by rolldown v1.0.0-rc.3
+ℹ config file: /Users/jiumengliyang/Desktop/python/airi/packages/audio/tsdown.config.ts (unrun)
+ℹ entry: src/index.ts, src/audio-context/index.ts, src/audio-context/processor.worklet.ts, src/encoding/index.ts
+ℹ tsconfig: tsconfig.json
+ℹ Build start
+ℹ dist/audio-context/index.mjs                6.44 kB │ gzip: 1.78 kB
+ℹ dist/audio-context/processor.worklet.mjs    3.68 kB │ gzip: 1.14 kB
+ℹ dist/index.mjs                              0.12 kB │ gzip: 0.09 kB
+ℹ dist/encoding/index.mjs                     0.08 kB │ gzip: 0.07 kB
+ℹ dist/encoding/wav.mjs                       1.44 kB │ gzip: 0.57 kB
+ℹ dist/audio-context/index.d.mts              2.05 kB │ gzip: 0.64 kB
+ℹ dist/index.d.mts                            0.09 kB │ gzip: 0.08 kB
+ℹ dist/encoding/index.d.mts                   0.08 kB │ gzip: 0.07 kB
+ℹ dist/audio-context/processor.worklet.d.mts  0.01 kB │ gzip: 0.03 kB
+ℹ dist/encoding/wav.d.mts                     0.26 kB │ gzip: 0.17 kB
+ℹ 10 files, total: 14.23 kB
+[33m[PLUGIN_TIMINGS] Warning:[0m Your build spent significant time in plugins. Here is a breakdown:
+  - rolldown-plugin-dts:generate (73%)
+  - tsdown:external (22%)
+See https://rolldown.rs/options/checks#plugintimings for more details.
+
+✔ Build complete in 6719ms

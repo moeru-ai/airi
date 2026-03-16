@@ -1,0 +1,22 @@
+download-buttons:
+  latest-stable: 最新稳定版本
+  latest-prerelease: 最新预发布版本
+  latest-nightly: 最新每夜构建
+  download: 下载
+  view-release: 查看发布
+  stable-use-case-1: 生产环境使用
+  stable-use-case-2: 需要稳定体验的用户
+  stable-use-case-3: 直播和内容创作
+  prerelease-use-case-1: 想要尝试新功能的早期采用者
+  prerelease-use-case-2: 测试并向开发者提供反馈
+  prerelease-use-case-3: 能够接受偶尔出现问题的用户
+releases-list:
+  stable: 稳定版
+  prerelease: 预发布版
+  nightly: 每夜构建
+  released-on: 发布于
+  built-on: 构建于
+  no-releases: '暂无可用版本。请直接查看{link}。'
+  no-nightly: '暂无可用的每夜构建版本。请直接查看{link}。'
+  releases-page: 发布页面
+  workflow-page: 工作流页面

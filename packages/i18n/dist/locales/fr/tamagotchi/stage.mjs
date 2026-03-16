@@ -1,0 +1,53 @@
+//#region src/locales/fr/tamagotchi/stage.yaml
+var data = {
+	"operations": {
+		"load-models": "Charger Modèle",
+		"load-models-status": {
+			"loading": "Chargement",
+			"ready": "Prêt"
+		}
+	},
+	"docs": { "theme": { "navbar": { "appearance": { "title": "Apparence" } } } },
+	"controls-island": {
+		"fade-on-hover": {
+			"enable": "Masquer au survol",
+			"disable": "Toujours afficher"
+		},
+		"open-settings": "Ouvrir les paramètres",
+		"open-chat": "Ouvrir le Chat",
+		"refresh": "Actualiser",
+		"open-hearing-controls": "Ouvrir les contrôles d'écoute",
+		"drag-to-move-window": "Glisser pour déplacer la fenêtre",
+		"switch-to-light-mode": "Passer au mode clair",
+		"switch-to-dark-mode": "Passer au mode sombre",
+		"pin-on-top": "Épingler en haut",
+		"unpin-from-top": "Désépingler du haut",
+		"switch-profile": "Changer de Profil",
+		"close": "Fermer",
+		"expand": "Développer",
+		"collapse": "Réduire"
+	},
+	"status-island": {
+		"connected": "WebSocket connecté",
+		"disconnected": "WebSocket déconnecté",
+		"open-settings": "Ouvrir les paramètres WebSocket"
+	},
+	"notice": { "fade-on-hover": {
+		"title": "Disparaître au survol",
+		"intro": "Fait disparaître légèrement le personnage quand le curseur s’approche. Moins de distractions tout en restant visible.",
+		"opacity": "Une fois activé, l’opacité descend à {value} pour {targets} quand le curseur est à proximité.",
+		"toggle": "Vous pouvez le désactiver en survolant l’{controls}, puis en cliquant à nouveau sur l’{icon}.",
+		"controls-label": "Îlot de commandes",
+		"icon-label": "icône œil barré",
+		"value": "0",
+		"targets": "Personnage et UI",
+		"confirm": "Compris",
+		"dont-show-again": "Ne plus afficher",
+		"preparing": "Préparation…",
+		"read-more": "En savoir plus",
+		"preview-title": "C’est quoi ?"
+	} }
+};
+
+//#endregion
+export { data as default };

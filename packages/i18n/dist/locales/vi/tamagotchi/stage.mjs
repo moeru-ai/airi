@@ -1,0 +1,53 @@
+//#region src/locales/vi/tamagotchi/stage.yaml
+var data = {
+	"operations": {
+		"load-models": "Tải các mô hình",
+		"load-models-status": {
+			"loading": "Đang tải",
+			"ready": "Sẵn sàng"
+		}
+	},
+	"docs": { "theme": { "navbar": { "appearance": { "title": "Giao diện" } } } },
+	"controls-island": {
+		"fade-on-hover": {
+			"enable": "Ẩn khi rê chuột",
+			"disable": "Luôn hiển thị"
+		},
+		"open-settings": "Mở cài đặt",
+		"open-chat": "Mở trò chuyện",
+		"refresh": "Làm mới",
+		"open-hearing-controls": "Kiểm soát thính giác mở",
+		"drag-to-move-window": "Kéo để di chuyển cửa sổ",
+		"switch-to-light-mode": "Chuyển sang chế độ sáng",
+		"switch-to-dark-mode": "Chuyển sang chế độ tối",
+		"pin-on-top": "Ghim lên trên",
+		"unpin-from-top": "Gỡ ghim khỏi đầu trang",
+		"switch-profile": "Switch Profile",
+		"close": "Đóng",
+		"expand": "Mở rộng",
+		"collapse": "Sụp đổ"
+	},
+	"status-island": {
+		"connected": "WebSocket connected",
+		"disconnected": "WebSocket disconnected",
+		"open-settings": "Open WebSocket settings"
+	},
+	"notice": { "fade-on-hover": {
+		"title": "Mờ dần khi rê chuột",
+		"intro": "Tự làm mờ nhân vật khi con trỏ ở gần. Giảm xao nhãng nhưng vẫn nhìn thấy nhân vật.",
+		"opacity": "Bật lên thì độ mờ giảm xuống {value} cho {targets} khi con trỏ ở gần.",
+		"toggle": "Tắt đi bằng cách rê chuột qua {controls} rồi bấm lại {icon}.",
+		"controls-label": "Đảo Điều Khiển",
+		"icon-label": "biểu tượng mắt gạch",
+		"value": "0",
+		"targets": "Nhân vật và giao diện",
+		"confirm": "Đã hiểu",
+		"dont-show-again": "Đừng hiển thị lại",
+		"preparing": "Đang chuẩn bị…",
+		"read-more": "Xem thêm",
+		"preview-title": "Đây là gì?"
+	} }
+};
+
+//#endregion
+export { data as default };

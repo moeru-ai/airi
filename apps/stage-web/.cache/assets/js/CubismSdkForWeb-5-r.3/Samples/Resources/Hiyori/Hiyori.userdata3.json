@@ -1,0 +1,44 @@
+{
+	"Version": 3,
+	"Meta": {
+		"UserDataCount": 7,
+		"TotalUserDataSize": 35
+	},
+	"UserData": [
+		{
+			"Target": "ArtMesh",
+			"Id": "ArtMesh93",
+			"Value": "ribon"
+		},
+		{
+			"Target": "ArtMesh",
+			"Id": "ArtMesh94",
+			"Value": "ribon"
+		},
+		{
+			"Target": "ArtMesh",
+			"Id": "ArtMesh95",
+			"Value": "ribon"
+		},
+		{
+			"Target": "ArtMesh",
+			"Id": "ArtMesh57",
+			"Value": "ribon"
+		},
+		{
+			"Target": "ArtMesh",
+			"Id": "ArtMesh58",
+			"Value": "ribon"
+		},
+		{
+			"Target": "ArtMesh",
+			"Id": "ArtMesh59",
+			"Value": "ribon"
+		},
+		{
+			"Target": "ArtMesh",
+			"Id": "ArtMesh60",
+			"Value": "ribon"
+		}
+	]
+}

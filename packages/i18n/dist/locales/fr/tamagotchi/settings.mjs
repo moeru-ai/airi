@@ -1,0 +1,58 @@
+//#region src/locales/fr/tamagotchi/settings.yaml
+var data = {
+	"allow-visible-on-all-workspaces": {
+		"title": "Visibilité sur tous les bureaux",
+		"description": "Permet à la fenêtre d’être visible sur tous les bureaux, macOS uniquement."
+	},
+	"pages": {
+		"modules": { "mcp-server": {
+			"description": "Connecter et gérer le serveur MCP et ses outils",
+			"title": "Serveur MCP"
+		} },
+		"system": {
+			"sections": { "section": { "window-shortcuts": { "title": "Raccourcis clavier" } } },
+			"window-shortcuts": {
+				"description": "Modifier les raccourcis de la fenêtre.",
+				"title": "Raccourcis de la fenêtre",
+				"toggle-move": { "label": "(Dés)Activer - Déplacement" },
+				"toggle-resize": { "label": "(Dés)Activer - Redimensionnement" },
+				"toggle-ignore-mouse-event": { "label": "(Dés)Activer - Ignorer les événements de la souris" },
+				"press-keys": "Appuyer sur les touches..."
+			},
+			"developer": { "sections": { "section": { "use-window-mouse": {
+				"title": "Outil useWindowsMouse",
+				"description": "Tester la position du curseur dans la fenêtre Electron"
+			} } } }
+		}
+	},
+	"devtools": {
+		"title": "Développeur",
+		"pages": {
+			"context-flow": { "title": "Flux contextuel" },
+			"lag-visualizer": { "title": "Visualiseur de latence" },
+			"performance-visualizer": {
+				"title": "Visualiseur de performance",
+				"description": "Afficher l'overlay FPS / tâches longues / mémoire"
+			},
+			"markdown-stress": {
+				"title": "Test de charge Markdown",
+				"description": "Tester l'analyse et le rendu Markdown avec des charges de chat lourdes"
+			},
+			"widgets-calling": { "title": "Appel de widgets" }
+		}
+	},
+	"screen-capture": { "permissions-prompt": {
+		"title": "Capture d'écran",
+		"description": "Pour capturer des écrans ou des fenêtres, les autorisations d’enregistrement de l'écran et de l'audio du système sont requises.",
+		"open-preferences": "Ouvrir les Préférences Système",
+		"dismiss": "Ignorer",
+		"instructions": {
+			"step-1": "Ouvrir les \"Préférences Système\", sélectionnez \"Confidentialité et Sécurité\" dans la barre latérale.",
+			"step-2": "Dans les sections \"Enregistrement de l'écran et de l'audio du système\" et \"Enregistrement de l'audio du système uniquement\", activez les interrupteurs pour AIRI.",
+			"step-2-note": "Si AIRI n'est pas listé, veuillez l'ajouter manuellement en cliquant sur le bouton \"+\" et en sélectionnant AIRI dans le dossier Applications."
+		}
+	} }
+};
+
+//#endregion
+export { data as default };

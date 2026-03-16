@@ -1,0 +1,15 @@
+
+> @proj-airi/plugin-protocol@0.9.0-alpha.16 build /Users/jiumengliyang/Desktop/python/airi/packages/plugin-protocol
+> tsdown
+
+[34mℹ[39m tsdown [2mv0.20.3[22m powered by rolldown [2mv1.0.0-rc.3[22m
+[34mℹ[39m config file: [4m/Users/jiumengliyang/Desktop/python/airi/packages/plugin-protocol/tsdown.config.ts[24m 
+[34mℹ[39m entry: [34msrc/types/index.ts[39m
+[34mℹ[39m tsconfig: [34mtsconfig.json[39m
+[34mℹ[39m Build start
+[34mℹ[39m Cleaning 4 files
+[34mℹ[39m [2mdist/[22m[1mtypes/index.mjs[22m      [2m 6.66 kB[22m [2m│ gzip: 1.21 kB[22m
+[34mℹ[39m [2mdist/[22mtypes/index.mjs.map  [2m39.23 kB[22m [2m│ gzip: 9.07 kB[22m
+[34mℹ[39m [2mdist/[22m[32m[1mtypes/index.d.mts[22m[39m    [2m36.82 kB[22m [2m│ gzip: 8.22 kB[22m
+[34mℹ[39m 3 files, total: 82.71 kB
+[32m✔[39m Build complete in [32m10135ms[39m

@@ -19,10 +19,19 @@ interface QQRuntimeLogEntry {
 }
 
 // NOTICE: ANSI escape stripping requires matching ESC (`\u001B`) explicitly.
-const ANSI_COLOR_PATTERN = /\u001B\[[0-9;]*m/g
-
 function stripAnsi(text: string) {
-  return text.replace(ANSI_COLOR_PATTERN, '')
+  const chars: string[] = []
+  for (let i = 0; i < text.length; i++) {
+    if (text.charCodeAt(i) === 27 && text[i + 1] === '[') {
+      i += 2
+      while (i < text.length && text[i] !== 'm') {
+        i++
+      }
+      continue
+    }
+    chars.push(text[i])
+  }
+  return chars.join('')
 }
 
 type QQVoiceGenerationStatus = 'idle' | 'generating' | 'success' | 'failed'

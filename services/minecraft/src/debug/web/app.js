@@ -824,42 +824,23 @@ class ConversationPanel {
     // FEEDBACK: "toolName: Success/Failed. details"
     if (section.tag === 'FEEDBACK') {
       const colonIndex = text.indexOf(':')
-      if (colonIndex > 0) {
-        const toolName = text.slice(0, colonIndex).trim()
-        const rest = text.slice(colonIndex + 1).trimStart()
+      if (colonIndex > 0 && colonIndex < text.length - 1) {
+        const name = text.slice(0, colonIndex).trim()
+        let rest = text.slice(colonIndex + 1).trimStart()
+        const status = rest.startsWith('Success')
+          ? 'Success'
+          : rest.startsWith('Failed')
+            ? 'Failed'
+            : null
 
-        let toolNameOk = toolName.length > 0
-        for (let i = 0; i < toolName.length && toolNameOk; i++) {
-          const code = toolName.charCodeAt(i)
-          const isUpper = code >= 65 && code <= 90
-          const isLower = code >= 97 && code <= 122
-          const isDigit = code >= 48 && code <= 57
-          const isUnderscore = code === 95
-          toolNameOk = isUpper || isLower || isDigit || isUnderscore
-        }
+        if (status) {
+          rest = rest.slice(status.length)
+          if (rest.startsWith('.'))
+            rest = rest.slice(1)
+          rest = rest.trimStart()
 
-        const parseStatus = (status) => {
-          if (!rest.startsWith(status))
-            return null
-          let tail = rest.slice(status.length)
-          let i = 0
-          while (i < tail.length) {
-            const ch = tail[i]
-            if (ch !== '.' && ch !== ' ' && ch !== '\t')
-              break
-            i++
-          }
-          tail = tail.slice(i)
-          return { status, detail: tail }
-        }
-
-        const parsed = toolNameOk
-          ? parseStatus('Success') ?? parseStatus('Failed')
-          : null
-
-        if (parsed) {
-          const detail = parsed.detail.slice(0, 50)
-          return `${toolName}: ${parsed.status}${detail ? ` — ${detail}${parsed.detail.length > 50 ? '...' : ''}` : ''}`
+          const detail = rest.slice(0, 50)
+          return `${name}: ${status}${detail ? ` — ${detail}${rest.length > 50 ? '...' : ''}` : ''}`
         }
       }
     }

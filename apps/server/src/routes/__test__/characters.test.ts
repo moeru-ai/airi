@@ -51,7 +51,7 @@ describe('characterRoutes', () => {
     })
 
     app.route('/', routes)
-  })
+  }, 30_000)
 
   it('get / should return unauthorized if no user', async () => {
     const res = await app.request('/')

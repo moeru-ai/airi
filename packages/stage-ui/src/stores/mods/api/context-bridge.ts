@@ -66,6 +66,13 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           overrides,
           contextUpdates,
         } = event.data
+        const sourceTags = Array.isArray(event.data.sourceTags) ? event.data.sourceTags : []
+        const replyPluginId = event.metadata?.source?.plugin?.id
+        const shouldReplyToSourcePlugin = sourceTags.includes('qq') || Boolean(event.data.qq)
+        const enrichedOverrides = {
+          ...(typeof overrides === 'object' && overrides ? overrides : {}),
+          ...(replyPluginId ? { replyPluginId } : {}),
+        } as any
 
         const normalizedContextUpdates = contextUpdates?.map((update) => {
           const id = update.id ?? nanoid()
@@ -88,6 +95,23 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           }
         }
 
+        if (!activeProvider.value || !activeModel.value) {
+          if (shouldReplyToSourcePlugin && replyPluginId) {
+            serverChannelStore.send({
+              type: 'output:gen-ai:chat:complete',
+              route: {
+                destinations: [`plugin:${replyPluginId}`],
+              },
+              data: {
+                ...event.data,
+                overrides: enrichedOverrides,
+                message: 'AIRI 未配置对话模型，请先在设置中完成引导并选择模型后重试。',
+              } as any,
+            } as any)
+          }
+          return
+        }
+
         if (activeProvider.value && activeModel.value) {
           let chatProvider: ChatProvider
           try {
@@ -95,14 +119,27 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           }
           catch (err) {
             console.error('[context-bridge] getProviderInstance failed for provider:', activeProvider.value, err)
+            if (shouldReplyToSourcePlugin && replyPluginId) {
+              serverChannelStore.send({
+                type: 'output:gen-ai:chat:complete',
+                route: {
+                  destinations: [`plugin:${replyPluginId}`],
+                },
+                data: {
+                  ...event.data,
+                  overrides: enrichedOverrides,
+                  message: 'AIRI 当前对话 Provider 初始化失败，请检查设置后重试。',
+                } as any,
+              } as any)
+            }
             return
           }
 
           let messageText = text
-          const targetSessionId = overrides?.sessionId
+          const targetSessionId = enrichedOverrides?.sessionId
 
-          if (overrides?.messagePrefix) {
-            messageText = `${overrides.messagePrefix}${text}`
+          if (enrichedOverrides?.messagePrefix) {
+            messageText = `${enrichedOverrides.messagePrefix}${text}`
           }
 
           // TODO(@nekomeowww): This only guard for input:text events handling and doesn't cover the entire ingestion
@@ -127,7 +164,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           // - https://chromestatus.com/feature/6265472244514816
           // - https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker
           // - https://developer.mozilla.org/en-US/docs/Web/API/Web_Locks_API
-          navigator.locks.request('context-bridge:event:input:text', async () => {
+          const ingest = async () => {
             try {
               await chatOrchestrator.ingest(messageText, {
                 model: activeModel.value,
@@ -138,7 +175,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                     ...event.data,
                     text,
                     textRaw,
-                    overrides,
+                    overrides: enrichedOverrides,
                     contextUpdates: normalizedContextUpdates,
                   },
                 },
@@ -147,7 +184,15 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             catch (err) {
               console.error('Error ingesting text input via context bridge:', err)
             }
-          })
+          }
+
+          const lockManager = typeof navigator !== 'undefined' ? navigator.locks : undefined
+          if (lockManager?.request) {
+            lockManager.request('context-bridge:event:input:text', ingest)
+          }
+          else {
+            void ingest()
+          }
         }
       }))
 
@@ -202,8 +247,13 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }),
 
         chatOrchestrator.onAssistantMessage(async (message, _messageText, context) => {
+          const inputData = context.input?.data as any
+          const sourceTags = Array.isArray(inputData?.sourceTags) ? inputData.sourceTags : []
+          const replyPluginId = inputData?.overrides?.replyPluginId
+          const shouldReplyToSourcePlugin = sourceTags.includes('qq') || Boolean(inputData?.qq)
           serverChannelStore.send({
             type: 'output:gen-ai:chat:message',
+            route: shouldReplyToSourcePlugin && replyPluginId ? { destinations: [`plugin:${replyPluginId}`] } : undefined,
             data: {
               ...context.input?.data,
               message,
@@ -220,8 +270,13 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }),
 
         chatOrchestrator.onChatTurnComplete(async (chat, context) => {
+          const inputData = context.input?.data as any
+          const sourceTags = Array.isArray(inputData?.sourceTags) ? inputData.sourceTags : []
+          const replyPluginId = inputData?.overrides?.replyPluginId
+          const shouldReplyToSourcePlugin = sourceTags.includes('qq') || Boolean(inputData?.qq)
           serverChannelStore.send({
             type: 'output:gen-ai:chat:complete',
+            route: shouldReplyToSourcePlugin && replyPluginId ? { destinations: [`plugin:${replyPluginId}`] } : undefined,
             data: {
               ...context.input?.data,
               'message': chat.output,

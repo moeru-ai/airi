@@ -1,0 +1,24 @@
+
+> @proj-airi/electron-eventa@0.9.0-alpha.16 build /Users/jiumengliyang/Desktop/python/airi1/packages/electron-eventa
+> tsdown
+
+ℹ tsdown v0.20.3 powered by rolldown v1.0.0-rc.3
+ℹ config file: /Users/jiumengliyang/Desktop/python/airi1/packages/electron-eventa/tsdown.config.ts 
+ℹ entry: src/index.ts, src/electron/index.ts, src/electron-updater/index.ts
+ℹ tsconfig: tsconfig.json
+ℹ Build start
+ℹ dist/electron-updater/index.mjs     0.67 kB │ gzip: 0.27 kB
+ℹ dist/electron/index.mjs             0.41 kB │ gzip: 0.23 kB
+ℹ dist/index.mjs                      0.29 kB │ gzip: 0.16 kB
+ℹ dist/window-DKWTnfRw.mjs            3.04 kB │ gzip: 0.69 kB
+ℹ dist/electron/index.d.mts          17.97 kB │ gzip: 1.34 kB
+ℹ dist/electron-updater/index.d.mts   3.58 kB │ gzip: 0.59 kB
+ℹ dist/index.d.mts                    0.42 kB │ gzip: 0.21 kB
+ℹ dist/screen-C2k7719e.d.mts          2.01 kB │ gzip: 0.46 kB
+ℹ 8 files, total: 28.39 kB
+[33m[PLUGIN_TIMINGS] Warning:[0m Your build spent significant time in plugins. Here is a breakdown:
+  - rolldown-plugin-dts:generate (72%)
+  - tsdown:external (24%)
+See https://rolldown.rs/options/checks#plugintimings for more details.
+
+✔ Build complete in 7137ms

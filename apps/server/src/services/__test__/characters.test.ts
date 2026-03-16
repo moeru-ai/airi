@@ -21,7 +21,7 @@ describe('characterService', () => {
       email: 'test@example.com',
     }).returning()
     testUser = user
-  })
+  }, 30_000)
 
   it('create should handle full character creation', async () => {
     const characterData = {

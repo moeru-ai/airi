@@ -1,0 +1,38 @@
+chat:
+  message:
+    character-name:
+      airi: AIRI
+      core-system: 코어
+      you: 당신
+  reasoning: 추론
+message: 듣고 있어요...
+operations:
+  load-models: 모델 불러오기
+  load-models-status:
+    loading: 로딩 중
+    ready: 준비됨
+select-a-audio-input: 오디오 입력 선택
+select-a-model: 모델 선택
+select-a-voice: 음성 선택
+viewers:
+  debug-menu:
+    emotions: 감정
+    emotions-btn:
+      angry: 화남
+      awkward: 어색함
+      happy: 행복함
+      neutral: '🙂 중립'
+      question: '🤔 질문'
+      sad: 슬픔
+      surprised: 놀람
+      think: '🤨 생각'
+    vrm:
+      camera: 카메라
+      model:
+        title: 모델
+profile-switcher:
+  no-profile: No Profile
+  no-profiles: No profiles yet
+  save-as-new: Save as New Profile
+  manage: Manage Profiles
+waiting: 대기 중

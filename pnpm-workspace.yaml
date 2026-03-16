@@ -30,6 +30,7 @@ patchedDependencies:
   pixi-live2d-display: patches/pixi-live2d-display.patch
   srvx: patches/srvx.patch
 catalog:
+  '@capacitor/android': ^8.1.0
   '@capacitor/cli': ^8.1.0
   '@capacitor/core': ^8.1.0
   '@capacitor/ios': ^8.1.0

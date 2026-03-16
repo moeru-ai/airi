@@ -4,7 +4,6 @@ import type { Profile } from 'wlipsync'
 
 import { useAsyncState } from '@vueuse/core'
 import { onUnmounted, watch } from 'vue'
-import { createWLipSyncNode } from 'wlipsync'
 
 import profile from '../../assets/lip-sync-profile.json' with { type: 'json' }
 
@@ -12,7 +11,10 @@ import { useAudioContext } from '../../../../stage-ui/src/stores/audio'
 
 export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, AudioBufferSourceNode | undefined>) {
   const { audioContext } = useAudioContext()
-  const { state: lipSyncNode, isReady } = useAsyncState(createWLipSyncNode(audioContext, profile as Profile), undefined)
+  const { state: lipSyncNode, isReady } = useAsyncState(async () => {
+    const { createWLipSyncNode } = await import('wlipsync')
+    return createWLipSyncNode(audioContext, profile as Profile)
+  }, undefined)
 
   // https://github.com/mrxz/wLipSync/blob/c3bc4b321dc7e1ca333d75f7aa1e9e746cbbb23a/example/index.js#L50-L66
   const RAW_KEYS = ['A', 'E', 'I', 'O', 'U', 'S'] as const

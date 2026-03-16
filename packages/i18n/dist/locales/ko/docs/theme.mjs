@@ -1,0 +1,44 @@
+//#region src/locales/ko/docs/theme.yaml
+var data = {
+	"doc": {
+		"outline": { "title": "이 페이지에서" },
+		"community": {
+			"title": "커뮤니티",
+			"edit": { "title": "페이지 편집" },
+			"star-github": { "title": "GitHub에 Star 달기" },
+			"discord": { "title": "Discord 채팅 참여하기" },
+			"support": { "title": "이 프로젝트 지원하기" }
+		},
+		"next-page": { "title": "다음 페이지" },
+		"previous-page": { "title": "이전 페이지" }
+	},
+	"home": {
+		"subtitle": "AI waifu/버츄얼 캐릭터의 영혼을 담아 우리 세계로 가져오는 Neuro-sama를 재현합니다.",
+		"download": { "title": "다운로드" },
+		"get-started": { "title": "시작하기" },
+		"try-live": { "title": "지금 사용하기" }
+	},
+	"search": {
+		"title": "검색",
+		"placeholder": "문서 검색..."
+	},
+	"navbar": {
+		"appearance": { "title": "스타일 및 모양" },
+		"language": { "title": "언어" }
+	},
+	"pages": { "characters": { "title": "캐릭터" } },
+	"blog": {
+		"title": "Blog 및 개발 로그",
+		"subtitle": "저희 여정을 따라가시고 개발팀으로부터 최신 소식을 받아보세요.",
+		"card": { "post": { "read-more": { "title": "더 보기" } } },
+		"no-posts": "이 카테고리에 게시물이 없습니다.",
+		"categories": {
+			"all": "모두",
+			"devlog": "개발 로그",
+			"dreamlog": "드림 로그"
+		}
+	}
+};
+
+//#endregion
+export { data as default };

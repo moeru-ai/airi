@@ -1,0 +1,15 @@
+
+> @proj-airi/pipelines-audio@0.9.0-alpha.16 build /Users/jiumengliyang/Desktop/python/airi1/packages/pipelines-audio
+> tsdown
+
+ℹ tsdown v0.20.3 powered by rolldown v1.0.0-rc.3
+ℹ config file: /Users/jiumengliyang/Desktop/python/airi1/packages/pipelines-audio/tsdown.config.ts 
+ℹ entry: src/index.ts
+ℹ tsconfig: tsconfig.json
+ℹ Build start
+ℹ dist/index.mjs    21.65 kB │ gzip: 5.21 kB
+ℹ dist/index.d.mts   9.97 kB │ gzip: 2.10 kB
+ℹ 2 files, total: 31.61 kB
+[33m[PLUGIN_TIMINGS] Warning:[0m Your build spent significant time in plugin `rolldown-plugin-dts:generate`. See https://rolldown.rs/options/checks#plugintimings for more details.
+
+✔ Build complete in 6478ms

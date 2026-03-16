@@ -1,0 +1,30 @@
+//#region src/locales/en/tamagotchi/electron/tray.yaml
+var data = { "menu": { "labels": { "label": {
+	"show": "Show",
+	"adjust_sizes": "Adjust sizes",
+	"recommended_size": "Recommended (450x600)",
+	"full_height": "Full Height",
+	"half_height": "Half Height",
+	"full_screen": "Full Screen",
+	"align_to": "Align to",
+	"center": "Center",
+	"top_left": "Top Left",
+	"top_right": "Top Right",
+	"bottom_left": "Bottom Left",
+	"bottom_right": "Bottom Right",
+	"settings": "Settings...",
+	"about": "About...",
+	"open_inlay": "Open Inlay...",
+	"open_widgets": "Open Widgets...",
+	"open_caption": "Open Caption...",
+	"close_caption": "Close Caption...",
+	"caption_overlay": "Caption Overlay",
+	"follow_window": "Follow window",
+	"reset_position": "Reset position",
+	"devtools": "DevTools",
+	"troubleshoot_beatsync": "Troubleshoot BeatSync...",
+	"quit": "Quit"
+} } } };
+
+//#endregion
+export { data as default };

@@ -1,14 +1,21 @@
-import cropImg from '@lemonneko/crop-empty-pixels'
-
-import { Application } from '@pixi/app'
-import { extensions } from '@pixi/extensions'
-import { Ticker, TickerPlugin } from '@pixi/ticker'
-import { Live2DFactory, Live2DModel } from 'pixi-live2d-display/cubism4'
-
 /**
  * Render a Live2D zip/file to an offscreen canvas and return a padded preview data URL.
  */
 export async function loadLive2DModelPreview(file: File) {
+  const [
+    { default: cropImg },
+    { Application },
+    { extensions },
+    { Ticker, TickerPlugin },
+    { Live2DFactory, Live2DModel },
+  ] = await Promise.all([
+    import('@lemonneko/crop-empty-pixels/dist/index.js'),
+    import('@pixi/app'),
+    import('@pixi/extensions'),
+    import('@pixi/ticker'),
+    import('pixi-live2d-display/cubism4'),
+  ])
+
   Live2DModel.registerTicker(Ticker)
   extensions.add(TickerPlugin)
 

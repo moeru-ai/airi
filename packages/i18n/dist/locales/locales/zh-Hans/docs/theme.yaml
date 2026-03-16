@@ -1,0 +1,49 @@
+doc:
+  outline:
+    title: 本页大纲
+  community:
+    title: 社群
+    edit:
+      title: 编辑此页面
+    star-github:
+      title: 给 GitHub 点个 Star
+    discord:
+      title: Discord 服务器
+    support:
+      title: 支持我们
+  next-page:
+    title: 下一篇
+  previous-page:
+    title: 上一篇
+home:
+  subtitle: >-
+    模型驱动的灵魂容器，什么都能做一点的桌宠：让 Neuro-sama 这样的虚拟伴侣也成为我们世界中的一份子吧！
+  download:
+    title: 下载
+  get-started:
+    title: 教程
+  try-live:
+    title: 网页版
+search:
+  title: 搜索
+  placeholder: 搜索文档...
+navbar:
+  appearance:
+    title: 主题
+  language:
+    title: 语言
+pages:
+  characters:
+    title: 角色
+blog:
+  title: 文章 & 开发日志
+  subtitle: 和我们一起旅行！阅读从开发团队发布的最新进展
+  card:
+    post:
+      read-more:
+        title: 阅读更多
+  no-posts: 该分类下没有找到任何文章
+  categories:
+    all: 全部
+    devlog: DevLog
+    dreamlog: DreamLog

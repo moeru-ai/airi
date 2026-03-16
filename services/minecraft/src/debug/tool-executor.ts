@@ -1,4 +1,4 @@
-import type { ZodObject, ZodType } from 'zod'
+import type { ZodObject, ZodType, ZodTypeAny } from 'zod'
 
 import type { Mineflayer } from '../libs/mineflayer'
 import type { ToolDefinition, ToolParameter } from './types'
@@ -64,11 +64,12 @@ export class ToolExecutor {
       // perform: (mineflayer) => async (args) => result
       const performer = action.perform(this.mineflayer)
 
-      const args: any[] = []
-      const shape = (action.schema as any).shape
-      for (const key in shape) {
-        if (Object.prototype.hasOwnProperty.call(validated, key)) {
-          args.push((validated as any)[key])
+      const args: unknown[] = []
+      const validatedRecord = validated as Record<string, unknown>
+      const shape = (action.schema as ZodObject<Record<string, ZodTypeAny>>).shape
+      for (const key of Object.keys(shape)) {
+        if (Object.prototype.hasOwnProperty.call(validatedRecord, key)) {
+          args.push(validatedRecord[key])
         }
       }
 
@@ -99,7 +100,7 @@ export class ToolExecutor {
     }))
   }
 
-  private extractParamsFromSchema(schema: ZodObject<any>): ToolParameter[] {
+  private extractParamsFromSchema(schema: ZodObject<Record<string, ZodTypeAny>>): ToolParameter[] {
     if (!schema || !schema.shape)
       return []
 
@@ -123,32 +124,45 @@ export class ToolExecutor {
   }
 
   // Helper to extract metadata from Zod types
-  private getZodDef(zodType: ZodType<any>): { typeName: 'string' | 'number' | 'boolean', description?: string, min?: number, max?: number, defaultValue?: any } {
+  private getZodDef(zodType: ZodTypeAny): { typeName: 'string' | 'number' | 'boolean', description?: string, min?: number, max?: number, defaultValue?: unknown } {
     let typeName: 'string' | 'number' | 'boolean' = 'string'
-    let curr: any = zodType
+    interface ZodDef {
+      typeName?: string
+      innerType?: unknown
+      schema?: unknown
+      defaultValue?: unknown
+      checks?: unknown
+    }
+    interface ZodLike {
+      description?: string
+      _def?: ZodDef
+      constructor?: { name?: string }
+    }
+
+    let curr: ZodLike = zodType as unknown as ZodLike
     const description = curr.description
 
     let min: number | undefined
     let max: number | undefined
-    let defaultValue: any
+    let defaultValue: unknown
 
     // Helper to get type identifier
-    const getTypeId = (t: any) => t.constructor.name || t._def?.typeName
+    const getTypeId = (t: ZodLike) => t.constructor?.name || t._def?.typeName
 
     // Unwrap effects/optional/nullable/default to get inner type
     let infiniteLoopGuard = 0
     while (infiniteLoopGuard++ < 10) {
       const typeId = getTypeId(curr)
       if (typeId === 'ZodOptional' || typeId === 'ZodNullable') {
-        curr = curr._def.innerType
+        curr = curr._def?.innerType as unknown as ZodLike
       }
       else if (typeId === 'ZodEffects') {
-        curr = curr._def.schema
+        curr = curr._def?.schema as unknown as ZodLike
       }
       else if (typeId === 'ZodDefault') {
         // In Zod 4, defaultValue is the value itself, not a function
-        defaultValue = curr._def.defaultValue
-        curr = curr._def.innerType
+        defaultValue = curr._def?.defaultValue
+        curr = curr._def?.innerType as unknown as ZodLike
       }
       else {
         break
@@ -166,12 +180,17 @@ export class ToolExecutor {
     else if (typeId === 'ZodNumber') {
       typeName = 'number'
       // Try to extract min/max from checks
-      if (curr._def.checks) {
-        for (const check of (curr as any)._def.checks) {
-          if (check.kind === 'min')
-            min = check.value
-          if (check.kind === 'max')
-            max = check.value
+      const checks = Array.isArray(curr._def?.checks) ? curr._def?.checks : undefined
+      if (checks) {
+        for (const check of checks) {
+          if (typeof check !== 'object' || check === null)
+            continue
+
+          const record = check as Record<string, unknown>
+          if (record.kind === 'min' && typeof record.value === 'number')
+            min = record.value
+          if (record.kind === 'max' && typeof record.value === 'number')
+            max = record.value
         }
       }
     }

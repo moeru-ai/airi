@@ -1,0 +1,58 @@
+//#region src/locales/zh-Hant/tamagotchi/settings.yaml
+var data = {
+	"allow-visible-on-all-workspaces": {
+		"title": "跨桌面可見性",
+		"description": "允許視窗在所有虛擬桌面中可見，僅限 macOS。"
+	},
+	"pages": {
+		"modules": { "mcp-server": {
+			"description": "連線與管理 MCP 伺服器和工具",
+			"title": "MCP 伺服器"
+		} },
+		"system": {
+			"sections": { "section": { "window-shortcuts": { "title": "鍵盤快捷鍵" } } },
+			"window-shortcuts": {
+				"description": "修改視窗快捷方式",
+				"title": "視窗快捷方式",
+				"toggle-move": { "label": "切換移動狀態" },
+				"toggle-resize": { "label": "調整大小" },
+				"toggle-ignore-mouse-event": { "label": "忽略滑鼠事件" },
+				"press-keys": "請按下按鍵..."
+			},
+			"developer": { "sections": { "section": { "use-window-mouse": {
+				"title": "使用視窗滑鼠工具",
+				"description": "測試 Electron 視窗滑鼠游標位置"
+			} } } }
+		}
+	},
+	"devtools": {
+		"title": "開發者",
+		"pages": {
+			"context-flow": { "title": "上下文流程" },
+			"lag-visualizer": { "title": "卡頓可視化" },
+			"performance-visualizer": {
+				"title": "效能顯示器",
+				"description": "切換 FPS/長任務/記憶體覆蓋"
+			},
+			"markdown-stress": {
+				"title": "Markdown Stress",
+				"description": "使用大量聊天負載來進行 Markdown 解析與渲染的壓力測試"
+			},
+			"widgets-calling": { "title": "小工具調用" }
+		}
+	},
+	"screen-capture": { "permissions-prompt": {
+		"title": "螢幕截圖",
+		"description": "螢幕與語音錄製權限對於截取螢幕或視窗來說是必要的。",
+		"open-preferences": "打開系統偏好設定",
+		"dismiss": "取消",
+		"instructions": {
+			"step-1": "打開「系統偏好設定」，從側邊欄中選擇「隱私與安全」。",
+			"step-2": "在「螢幕與系統聲音錄製」以及「系統聲音錄製」區域，開啟 AIRI 的開關。",
+			"step-2-note": "如果 AIRI 沒有被列出，則請手動按下「+」按鈕並從應用資料夾選擇 AIRI。"
+		}
+	} }
+};
+
+//#endregion
+export { data as default };

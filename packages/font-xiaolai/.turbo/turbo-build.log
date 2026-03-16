@@ -1,0 +1,12 @@
+
+> @proj-airi/font-xiaolai@0.9.0-alpha.16 build /Users/jiumengliyang/Desktop/python/airi1/packages/font-xiaolai
+> tsdown
+
+ℹ tsdown v0.20.3 powered by rolldown v1.0.0-rc.3
+ℹ config file: /Users/jiumengliyang/Desktop/python/airi1/packages/font-xiaolai/tsdown.config.ts 
+ℹ entry: src/index.ts
+ℹ tsconfig: tsconfig.json
+ℹ Build start
+ℹ dist/index.mjs  0.04 kB │ gzip: 0.05 kB
+ℹ 1 files, total: 0.04 kB
+✔ Build complete in 253ms

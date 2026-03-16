@@ -1,0 +1,53 @@
+//#region src/locales/ru/tamagotchi/stage.yaml
+var data = {
+	"operations": {
+		"load-models": "Загрузить модели",
+		"load-models-status": {
+			"loading": "Загрузка",
+			"ready": "Готово"
+		}
+	},
+	"docs": { "theme": { "navbar": { "appearance": { "title": "Внешний вид" } } } },
+	"controls-island": {
+		"fade-on-hover": {
+			"enable": "Скрывать при наведении",
+			"disable": "Всегда показывать"
+		},
+		"open-settings": "Open settings",
+		"open-chat": "Open Chat",
+		"refresh": "Refresh",
+		"open-hearing-controls": "Open hearing Controls",
+		"drag-to-move-window": "Drag to move window",
+		"switch-to-light-mode": "Switch to light mode",
+		"switch-to-dark-mode": "Switch to dark mode",
+		"pin-on-top": "Pin on top",
+		"unpin-from-top": "Unpin from top",
+		"switch-profile": "Switch Profile",
+		"close": "Close",
+		"expand": "Expand",
+		"collapse": "Collapse"
+	},
+	"status-island": {
+		"connected": "WebSocket connected",
+		"disconnected": "WebSocket disconnected",
+		"open-settings": "Open WebSocket settings"
+	},
+	"notice": { "fade-on-hover": {
+		"title": "Исчезать при наведении",
+		"intro": "Автоматически делает персонажа прозрачнее, когда курсор рядом. Меньше отвлекает, но остаётся видимым.",
+		"opacity": "После включения непрозрачность падает до {value} для {targets}, когда курсор рядом.",
+		"toggle": "Можно выключить, наведя на {controls} и снова нажав на {icon}.",
+		"controls-label": "Остров управления",
+		"icon-label": "значок перечёркнутого глаза",
+		"value": "0",
+		"targets": "Персонажа и интерфейса",
+		"confirm": "Понятно",
+		"dont-show-again": "Больше не показывать",
+		"preparing": "Подготавливаем…",
+		"read-more": "Подробнее",
+		"preview-title": "Что это?"
+	} }
+};
+
+//#endregion
+export { data as default };
