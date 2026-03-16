@@ -13,7 +13,7 @@ import type { CapabilityDescriptor } from '../plugin/apis/protocol'
 import type { Plugin } from '../plugin/shared'
 import type { PluginTransport } from './transports'
 
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 import { cwd } from 'node:process'
 
 import { defineInvokeHandler } from '@moeru/eventa'
@@ -1080,7 +1080,7 @@ export class FileSystemLoader {
       )
     }
 
-    return join(root, entrypoint)
+    return isAbsolute(entrypoint) ? entrypoint : join(root, entrypoint)
   }
 
   /**

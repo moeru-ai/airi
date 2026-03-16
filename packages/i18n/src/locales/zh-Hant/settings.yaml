@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: API 端點 URL（如果不確定請使用預設值）
     accountId: 帳號 ID
     validationSuccess: 設定驗證成功
+    validationPartial: Configuration partially validated
     validationFailed: 設定驗證失敗
     validationError: '驗證錯誤：{error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: 先略過
     saveAndContinue: 儲存並繼續
     next: 下一步

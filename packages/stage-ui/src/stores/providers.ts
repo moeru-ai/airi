@@ -148,6 +148,15 @@ export interface ProviderMetadata {
       reason: string
       valid: boolean
     }
+    /**
+     * Run only the manual-only validators. Returns validation result.
+     * Only available when the provider has manual validators.
+     */
+    runManualValidation?: (config: Record<string, unknown>) => Promise<{
+      errors: unknown[]
+      reason: string
+      valid: boolean
+    }>
   }
   transcriptionFeatures?: {
     supportsGenerate: boolean
