@@ -196,27 +196,27 @@ function toggleFavorite() {
                 </template>
               </ControlButtonTooltip>
 
-            <ControlButtonTooltip disable-hoverable-content>
-              <ControlsIslandProfilePicker>
-                <template #default="{ toggle }">
-                  <ControlButton :button-style="adjustStyleClasses.button" @click="toggle">
-                    <div i-solar:emoji-funny-square-broken :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-                  </ControlButton>
+              <ControlButtonTooltip disable-hoverable-content>
+                <ControlsIslandProfilePicker>
+                  <template #default="{ toggle }">
+                    <ControlButton :button-style="adjustStyleClasses.button" @click="toggle">
+                      <div i-solar:emoji-funny-square-broken :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                    </ControlButton>
+                  </template>
+                </ControlsIslandProfilePicker>
+                <template #tooltip>
+                  {{ t('tamagotchi.stage.controls-island.switch-profile') }}
                 </template>
-              </ControlsIslandProfilePicker>
-              <template #tooltip>
-                {{ t('tamagotchi.stage.controls-island.switch-profile') }}
-              </template>
-            </ControlButtonTooltip>
+              </ControlButtonTooltip>
 
-            <ControlButtonTooltip disable-hoverable-content>
-              <ControlButton :button-style="adjustStyleClasses.button" @click="openChat">
-                <div i-solar:chat-line-line-duotone :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-              </ControlButton>
-              <template #tooltip>
-                {{ t('tamagotchi.stage.controls-island.open-chat') }}
-              </template>
-            </ControlButtonTooltip>
+              <ControlButtonTooltip disable-hoverable-content>
+                <ControlButton :button-style="adjustStyleClasses.button" @click="openChat">
+                  <div i-solar:chat-line-line-duotone :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                </ControlButton>
+                <template #tooltip>
+                  {{ t('tamagotchi.stage.controls-island.open-chat') }}
+                </template>
+              </ControlButtonTooltip>
 
               <ControlButtonTooltip>
                 <ControlButton :button-style="adjustStyleClasses.button" @click="refreshWindow">

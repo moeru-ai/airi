@@ -45,7 +45,7 @@ export function useSpecialTokenQueue(emotionsQueue: UseQueueReturn<EmotionPayloa
     if (!match)
       return { ok: false, emotion: null as EmotionPayload | null }
 
-    let payloadText = match[1].trim()
+    const payloadText = match[1].trim()
 
     // Attempt 1: Strict JSON parse
     try {

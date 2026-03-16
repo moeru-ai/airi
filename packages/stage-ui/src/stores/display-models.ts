@@ -92,7 +92,8 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     }
 
     // Fallback to in-memory presets if not found in localforage
-    return displayModelsPresets.find(model => model.id === id)
+    const preset = displayModelsPresets.find(model => model.id === id)
+    return preset
   }
 
   const loadLive2DModelPreview = (file: File) => generateLive2DPreview(file)

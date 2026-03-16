@@ -64,6 +64,7 @@ export const useSettings = defineStore('settings', () => {
     stageModelRenderer: stageModelRefs.stageModelRenderer,
     stageModelSelected: stageModelRefs.stageModelSelected,
     stageModelSelectedUrl: stageModelRefs.stageModelSelectedUrl,
+    stageModelSelectedFile: stageModelRefs.stageModelSelectedFile,
     stageModelSelectedDisplayModel: stageModelRefs.stageModelSelectedDisplayModel,
     stageViewControlsEnabled: stageModelRefs.stageViewControlsEnabled,
 

@@ -162,65 +162,65 @@ export function createSpeechPipelineRuntime(): SpeechPipelineRuntime {
       ownerId,
       priority: priority ?? 0,
       stream,
-        writeLiteral(value: string) {
-          if (closed)
-            return
-          console.log('[Speech Intent] writeLiteral', { intentId, streamId, value: value.slice(0, 120) })
-          write({ type: 'literal', value, streamId, intentId, sequence, createdAt: Date.now() })
-          context.emit(speechIntentLiteralEvent, {
-            originId,
-            intentId,
-            streamId,
-            sequence: sequence++,
-            value,
-          })
-        },
+      writeLiteral(value: string) {
+        if (closed)
+          return
+        console.log('[Speech Intent] writeLiteral', { intentId, streamId, value: value.slice(0, 120) })
+        write({ type: 'literal', value, streamId, intentId, sequence, createdAt: Date.now() })
+        context.emit(speechIntentLiteralEvent, {
+          originId,
+          intentId,
+          streamId,
+          sequence: sequence++,
+          value,
+        })
+      },
       writeSpecial(value: string) {
-          if (closed)
-            return
-          console.log('[Speech Intent] writeSpecial', { intentId, streamId, value })
-          write({ type: 'special', value, streamId, intentId, sequence, createdAt: Date.now() })
-          context.emit(speechIntentSpecialEvent, {
-            originId,
-            intentId,
-            streamId,
-            sequence: sequence++,
-            value,
-          })
+        if (closed)
+          return
+        console.log('[Speech Intent] writeSpecial', { intentId, streamId, value })
+        write({ type: 'special', value, streamId, intentId, sequence, createdAt: Date.now() })
+        context.emit(speechIntentSpecialEvent, {
+          originId,
+          intentId,
+          streamId,
+          sequence: sequence++,
+          value,
+        })
       },
       writeFlush() {
-          if (closed)
-            return
-          console.log('[Speech Intent] writeFlush', { intentId, streamId })
-          write({ type: 'flush', streamId, intentId, sequence, createdAt: Date.now() })
-          context.emit(speechIntentFlushEvent, {
-            originId,
-            intentId,
-            streamId,
-            sequence: sequence++,
-          })
+        if (closed)
+          return
+        console.log('[Speech Intent] writeFlush', { intentId, streamId })
+        write({ type: 'flush', streamId, intentId, sequence, createdAt: Date.now() })
+        context.emit(speechIntentFlushEvent, {
+          originId,
+          intentId,
+          streamId,
+          sequence: sequence++,
+        })
       },
       end() {
-          if (closed)
-            return
-          closed = true
-          close()
-          console.log('[Speech Intent] end', { intentId, streamId })
-          context.emit(speechIntentEndEvent, {
-            originId,
-            intentId,
+        if (closed)
+          return
+        closed = true
+        close()
+        console.log('[Speech Intent] end', { intentId, streamId })
+        context.emit(speechIntentEndEvent, {
+          originId,
+          intentId,
           streamId,
         })
       },
       cancel(reason?: string) {
-          if (closed)
-            return
-          closed = true
-          close()
-          console.log('[Speech Intent] cancel', { intentId, streamId, reason })
-          context.emit(speechIntentCancelEvent, {
-            originId,
-            intentId,
+        if (closed)
+          return
+        closed = true
+        close()
+        console.log('[Speech Intent] cancel', { intentId, streamId, reason })
+        context.emit(speechIntentCancelEvent, {
+          originId,
+          intentId,
           streamId,
           reason,
         })

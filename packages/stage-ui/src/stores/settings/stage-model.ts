@@ -23,6 +23,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   })
   const stageModelSelectedDisplayModel = refManualReset<DisplayModel | undefined>(undefined)
   const stageModelSelectedUrl = refManualReset<string | undefined>(undefined)
+  const stageModelSelectedFile = refManualReset<File | undefined>(undefined)
   const stageModelRenderer = refManualReset<StageModelRenderer>(undefined)
 
   const stageViewControlsEnabled = refManualReset<boolean>(false)
@@ -47,17 +48,20 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     if (!selectedModelId) {
       replaceStageModelUrl(undefined)
       stageModelSelectedDisplayModel.value = undefined
+      stageModelSelectedFile.value = undefined
       stageModelRenderer.value = 'disabled'
       return
     }
 
     const model = await displayModelsStore.getDisplayModel(selectedModelId)
+    
     if (requestId !== stageModelUpdateSequence)
       return
 
     if (!model) {
       replaceStageModelUrl(undefined)
       stageModelSelectedDisplayModel.value = undefined
+      stageModelSelectedFile.value = undefined
       stageModelRenderer.value = 'disabled'
       return
     }
@@ -82,9 +86,11 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
       }
 
       replaceStageModelUrl(nextUrl)
+      stageModelSelectedFile.value = model.file
     }
     else {
       replaceStageModelUrl(model.url)
+      stageModelSelectedFile.value = undefined
     }
 
     stageModelSelectedDisplayModel.value = model
@@ -108,6 +114,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     stageModelSelectedState.reset()
     stageModelSelectedDisplayModel.reset()
     stageModelSelectedUrl.reset()
+    stageModelSelectedFile.reset()
     stageModelRenderer.reset()
     stageViewControlsEnabled.reset()
 
@@ -118,6 +125,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     stageModelRenderer,
     stageModelSelected,
     stageModelSelectedUrl,
+    stageModelSelectedFile,
     stageModelSelectedDisplayModel,
     stageViewControlsEnabled,
 

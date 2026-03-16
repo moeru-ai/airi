@@ -28,6 +28,7 @@ import { useLive2d } from '../../../stores/live2d'
 const props = withDefaults(defineProps<{
   modelSrc?: string
   modelId?: string
+  modelFile?: File
 
   app?: Application
   mouthOpenSize?: number
@@ -221,7 +222,7 @@ async function loadModel() {
     }
 
     const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
-    await Live2DFactory.setupLive2DModel(live2DModel, { url: modelSrcRef.value, id: props.modelId }, { autoInteract: false })
+    await Live2DFactory.setupLive2DModel(live2DModel, { url: modelSrcRef.value, id: props.modelId, file: props.modelFile }, { autoInteract: false })
     availableMotions.value.forEach((motion) => {
       if (motion.motionName in Emotion) {
         motionMap.value[motion.fileName] = motion.motionName
@@ -232,7 +233,6 @@ async function loadModel() {
     })
 
     // --- Scene
-
     model.value = live2DModel
     // REVIEW: pixiApp and stage are guaranteed to be valid here due to the until(...) above.
     pixiApp.value!.stage.addChild(model.value)
@@ -399,16 +399,11 @@ async function loadModel() {
     coreModel.setParameterValueById('ParamBreath', modelParameters.value.breath)
 
     // --- Metadata Parsing (CDI & EXP) - ALPHA DEBUG MODE
-    console.group('🧪 [Live2D-Alpha] Metadata Parsing Start')
     try {
       const settings = internalModel.settings as any
       const rawJson = settings?.json
 
-      console.info('📂 settings._cdiData:', settings?._cdiData ? 'FOUND' : 'not found')
-      console.info('📂 settings._expFiles:', settings?._expFiles ? `FOUND (${settings._expFiles.length})` : 'not found')
-
       const fileRefs = rawJson?.FileReferences || rawJson?.fileReferences
-      console.info('📎 FileReferences:', fileRefs)
 
       // 1. CDI Parsing - Priority: zip-extracted > http fetch > core model fallback
       let cdiData = settings?._cdiData // Pre-extracted from zip loader
@@ -428,9 +423,22 @@ async function loadModel() {
       }
 
       if (cdiData) {
-        console.info('✅ CDI Data Available:', cdiData)
         const params = cdiData?.Parameters || cdiData?.parameters
         if (params) {
+          // Initialize missing modelParameters from core model defaults BEFORE setting metadata
+          // This avoids the UI rendering sliders with undefined/NaN values
+          params.forEach((p: any) => {
+            const id = p.Id || p.id
+            if (modelParameters.value[id] === undefined) {
+              try {
+                modelParameters.value[id] = (internalModel.coreModel as any).getParameterValueById(id) || 0
+              }
+              catch {
+                modelParameters.value[id] = 0
+              }
+            }
+          })
+
           parameterMetadata.value = params.map((p: any) => ({
             id: p.Id || p.id,
             name: p.Name || p.name,
@@ -451,15 +459,24 @@ async function loadModel() {
 
       // Fallback: extract IDs directly from the core model
       if (parameterMetadata.value.length === 0) {
-        console.info('⚠️ CDI not available, extracting parameter IDs from core model')
         try {
           const core = internalModel.coreModel as any
-          console.info('📂 Core model keys:', Object.keys(core))
           // Try various known Cubism SDK structures
           const paramIds = core?._parameterIds || core?._model?._parameterIds || []
           if (paramIds.length > 0) {
             parameterMetadata.value = paramIds.map((id: string) => ({ id, name: id }))
-            console.info('✅ Populated metadata from core model _parameterIds:', paramIds.length)
+
+            // Initialize missing modelParameters from core model defaults
+            parameterMetadata.value.forEach((p) => {
+              if (modelParameters.value[p.id] === undefined) {
+                try {
+                  modelParameters.value[p.id] = (internalModel.coreModel as any).getParameterValueById(p.id) || 0
+                }
+                catch {
+                  modelParameters.value[p.id] = 0
+                }
+              }
+            })
           }
         }
         catch (e) {
@@ -500,14 +517,9 @@ async function loadModel() {
         }
       }
 
-      console.info('🎯 [Live2D-Alpha] Final Results:', {
-        params: parameterMetadata.value.length,
-        expressions: availableExpressions.value.length,
-      })
 
       // 3. Restore saved active expressions on model load
       if (expressionData.value.length > 0 && Object.keys(activeExpressions.value).length > 0) {
-        console.info('🔄 [Live2D-Alpha] Restoring saved active expressions')
         for (const [fileName, weight] of Object.entries(activeExpressions.value)) {
           if (weight > 0) {
             const expEntry = expressionData.value.find((e: any) => e.fileName === fileName)
@@ -519,17 +531,13 @@ async function loadModel() {
                   modelParameters.value[id] = value
                 }
               }
-              console.info(`  ✅ Restored: ${fileName}`)
             }
           }
         }
       }
     }
     catch (e) {
-      console.error('❌ [Live2D-Alpha] CRITICAL PARSE FAILURE:', e)
-    }
-    finally {
-      console.groupEnd()
+      console.error('❌ [Live2D-Alpha] Metadata parsing failure:', e)
     }
 
     emits('modelLoaded')

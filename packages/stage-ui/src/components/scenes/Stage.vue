@@ -58,6 +58,7 @@ const {
   stageViewControlsEnabled,
   live2dDisableFocus,
   stageModelSelectedUrl,
+  stageModelSelectedFile,
   stageModelSelected,
   themeColorsHue,
   themeColorsHueDynamic,
@@ -681,6 +682,7 @@ defineExpose({
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
+        :model-file="stageModelSelectedFile"
         :focus-at="focusAt"
         :mouth-open-size="mouthOpenSize"
         :paused="paused"

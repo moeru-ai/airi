@@ -405,7 +405,6 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
               reasonKey: '',
               errors: [],
             }
-
           }
           catch (error) {
             return {

@@ -151,7 +151,7 @@ export const useProactivityStore = defineStore('proactivity', () => {
     if (config?.contextOptions?.usageMetrics !== false) {
       const oneHourAgo = Date.now() - 3600000
       const recentMessages = chatSession.messages.filter(m => (m.createdAt || 0) > oneHourAgo)
-      
+
       const ttsCount = recentMessages.filter(m => m.role === 'assistant').length
       const sttCount = recentMessages.filter(m => m.role === 'user').length
       const chatCount = recentMessages.length

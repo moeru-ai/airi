@@ -173,9 +173,9 @@ If there is any doubt about where risky Git operations belong, the answer is nev
 
 ### Current Recorded Baseline
 
-- reviewed upstream head: `65faf3fe1826804c41f46c66049ecac76d5cb303`
+- reviewed upstream head: `4671ceaaae92f5d780319394512bf63ed01a85f1`
 - clean-room branch: `selective-upstream-sync-2026-03-16`
-- accepted selective-sync landing commit: `4359a6ec`
+- accepted selective-sync landing commit: `a13e3479`
 - Codex thread id: `019ceec8-bb6c-7f01-a7b6-f505fe20e6b4`
 
 Interpretation:

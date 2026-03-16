@@ -7,7 +7,7 @@ const { audioInputs } = useDevicesList({ constraints: { audio: true }, requestPe
 const constraintId = ref('')
 
 const stream = ref<MediaStream>()
-const { startRecord, stopRecord, recording } = useAudioRecorder(stream)
+const { startRecord, stopRecord } = useAudioRecorder(stream)
 
 const recorded = ref<Blob[]>([])
 const recordedUrls = computed(() => recorded.value.map(rec => useObjectUrl(rec).value))

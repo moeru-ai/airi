@@ -34,6 +34,7 @@ const { scale: live2dScale } = storeToRefs(useLive2d())
 const {
   live2dDisableFocus,
   stageModelSelectedUrl,
+  stageModelSelectedFile,
   stageModelSelected,
   stageModelSelectedDisplayModel,
   stageModelRenderer,
@@ -103,6 +104,7 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
         :focus-at="{ x: positionCursor.x.value, y: positionCursor.y.value }"
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
+        :model-file="stageModelSelectedFile"
         :disable-focus-at="live2dDisableFocus"
         :scale="live2dScale"
         :theme-colors-hue="themeColorsHue"

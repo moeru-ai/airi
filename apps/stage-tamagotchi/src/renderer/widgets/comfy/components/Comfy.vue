@@ -72,9 +72,9 @@ function toggleFlip() {
 </script>
 
 <template>
-  <div class="comfy-widget relative h-full w-full perspective-1000 select-none font-sans">
+  <div class="comfy-widget perspective-1000 relative h-full w-full select-none font-sans">
     <div
-      class="relative h-full w-full preserve-3d transition-transform duration-700"
+      class="preserve-3d relative h-full w-full transition-transform duration-700"
       :class="{ 'rotate-y-180': isFlipped }"
     >
       <!-- Front Side: Gallery/Generator -->
@@ -187,7 +187,7 @@ function toggleFlip() {
 
       <!-- Back Side: Metadata -->
       <div
-        class="backface-hidden absolute inset-0 flex flex-col rotate-y-180 gap-3 overflow-hidden border border-white/20 rounded-2xl bg-[#0a0a0c] p-4 font-mono shadow-2xl"
+        class="backface-hidden rotate-y-180 absolute inset-0 flex flex-col gap-3 overflow-hidden border border-white/20 rounded-2xl bg-[#0a0a0c] p-4 font-mono shadow-2xl"
       >
         <div class="flex items-center justify-between border-b border-white/10 pb-2">
           <div class="text-xs text-yellow-500 font-bold tracking-tighter uppercase">
