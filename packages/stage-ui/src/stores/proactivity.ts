@@ -54,62 +54,16 @@ export const useProactivityStore = defineStore('proactivity', () => {
     sttCount: 0,
     chatCount: 0,
   })
-  const totalTurns = ref(0)
-  const nextMilestone = ref(100)
+  const totalTurns = computed(() => chatSession.messages.length)
+  const nextMilestone = computed(() => Math.ceil(Math.max(1, totalTurns.value + 1) / 100) * 100)
 
-  watch(activeCard, (card) => {
-    const metrics = card?.extensions?.airi?.proactivity_metrics
-    sessionMetrics.value = {
-      ttsCount: metrics?.ttsCount ?? 0,
-      sttCount: metrics?.sttCount ?? 0,
-      chatCount: metrics?.chatCount ?? 0,
-    }
-    totalTurns.value = metrics?.totalTurns ?? 0
-    nextMilestone.value = Math.ceil(Math.max(1, totalTurns.value + 1) / 100) * 100
+  watch(activeCard, () => {
+    // We now derive metrics from history, but we keep this watch for potential future extension syncs
   }, { immediate: true })
 
-  function incrementMetric(type: 'tts' | 'stt' | 'chat') {
-    const cardId = airiCardStore.activeCardId
-    const card = activeCard.value
-    if (!cardId || !card)
-      return
-
-    const metrics = {
-      ttsCount: card.extensions?.airi?.proactivity_metrics?.ttsCount ?? 0,
-      sttCount: card.extensions?.airi?.proactivity_metrics?.sttCount ?? 0,
-      chatCount: card.extensions?.airi?.proactivity_metrics?.chatCount ?? 0,
-      totalTurns: card.extensions?.airi?.proactivity_metrics?.totalTurns ?? 0,
-    }
-
-    if (type === 'chat') {
-      metrics.chatCount += 1
-      metrics.totalTurns += 1
-    }
-    else if (type === 'tts') {
-      metrics.ttsCount += 1
-    }
-    else {
-      metrics.sttCount += 1
-    }
-
-    sessionMetrics.value = {
-      ttsCount: metrics.ttsCount,
-      sttCount: metrics.sttCount,
-      chatCount: metrics.chatCount,
-    }
-    totalTurns.value = metrics.totalTurns
-    nextMilestone.value = Math.ceil(Math.max(1, totalTurns.value + 1) / 100) * 100
-
-    airiCardStore.updateCard(cardId, {
-      ...card,
-      extensions: {
-        ...card.extensions,
-        airi: {
-          ...card.extensions.airi,
-          proactivity_metrics: metrics,
-        },
-      },
-    })
+  /** @deprecated Metrics are now derived from chat history in sensorPayload */
+  function incrementMetric(_type: 'tts' | 'stt' | 'chat') {
+    // Stubbed: logic moved to computed properties in sensorPayload
   }
 
   async function updateSensors() {
@@ -152,23 +106,30 @@ export const useProactivityStore = defineStore('proactivity', () => {
 
   const sensorPayload = computed(() => {
     const config = activeCard.value?.extensions?.airi?.heartbeats
-    const metrics = activeCard.value?.extensions?.airi?.proactivity_metrics
     let payload = '[Sensor Data]\n'
 
     payload += `User Idle: ${idleTimeSec.value !== undefined ? `${idleTimeSec.value}s` : 'unknown'}\n`
 
     if (config?.contextOptions?.windowHistory !== false) {
       if (winHistory.value.length > 0) {
-        winHistory.value.slice(-3).forEach((entry) => {
-          const start = new Date(entry.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
-          const end = new Date(entry.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
-          const durationSec = Math.floor(entry.durationMs / 1000)
-          const durationStr = durationSec < 60 ? `${durationSec}s` : `${Math.floor(durationSec / 60)}m`
-          payload += `[ ${entry.window.processName} | ${entry.window.title} ] [ ${durationStr} ] [ ${start} - ${end} ]\n`
-        })
-      }
-      else {
-        payload += '[ Window History Empty ]\n'
+        const history = winHistory.value.slice(-6)
+        const active = history.pop()
+
+        if (active) {
+          payload += `Active Program: ${active.window.processName}\n`
+          payload += `Active Window Title: ${active.window.title}\n`
+        }
+
+        if (history.length > 0) {
+          payload += '\n[ Previous History ]\n'
+          history.reverse().forEach((entry) => {
+            const start = new Date(entry.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+            const end = new Date(entry.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+            const durationSec = Math.floor(entry.durationMs / 1000)
+            const durationStr = durationSec < 60 ? `${durationSec}s` : `${Math.floor(durationSec / 60)}m`
+            payload += `[ ${entry.window.processName} | ${entry.window.title} ] [ ${durationStr} ] [ ${start} - ${end} ]\n`
+          })
+        }
       }
     }
     else {
@@ -188,11 +149,19 @@ export const useProactivityStore = defineStore('proactivity', () => {
     payload += `Current Local Time: ${locTime.value || 'unknown'}\n`
 
     if (config?.contextOptions?.usageMetrics !== false) {
+      const oneHourAgo = Date.now() - 3600000
+      const recentMessages = chatSession.messages.filter(m => (m.createdAt || 0) > oneHourAgo)
+      
+      const ttsCount = recentMessages.filter(m => m.role === 'assistant').length
+      const sttCount = recentMessages.filter(m => m.role === 'user').length
+      const chatCount = recentMessages.length
+      const turnCount = chatSession.messages.length
+
       payload += '\n[Usage Metrics (Last Hr)]\n'
-      payload += `TTS (Last Hr): ${metrics?.ttsCount ?? 0}\n`
-      payload += `STT (Last Hr): ${metrics?.sttCount ?? 0}\n`
-      payload += `Chat (Last Hr): ${metrics?.chatCount ?? 0}\n`
-      payload += `Turn Count: ${totalTurns.value} (Next Target: ${nextMilestone.value})\n`
+      payload += `TTS (Last Hr): ${ttsCount}\n`
+      payload += `STT (Last Hr): ${sttCount}\n`
+      payload += `Chat (Last Hr): ${chatCount}\n`
+      payload += `Turn Count: ${turnCount} (Next Target: ${nextMilestone.value})\n`
     }
     else {
       payload += '\n[Metrics]: [DISABLED]\n'

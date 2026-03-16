@@ -294,12 +294,22 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         return
       }
 
-      logger.withFields({
-        peer: peer.id,
-        peerAuthenticated: authenticatedPeer?.authenticated,
-        peerModule: authenticatedPeer?.name,
-        peerModuleIndex: authenticatedPeer?.index,
-      }).log('received event', { type: event.type })
+      if (event.type !== 'output:gen-ai:chat:complete') {
+        logger.withFields({
+          peer: peer.id,
+          peerAuthenticated: authenticatedPeer?.authenticated,
+          peerModule: authenticatedPeer?.name,
+          peerModuleIndex: authenticatedPeer?.index,
+        }).log('received event', { type: event.type })
+      }
+      else {
+        logger.withFields({
+          peer: peer.id,
+          peerAuthenticated: authenticatedPeer?.authenticated,
+          peerModule: authenticatedPeer?.name,
+          peerModuleIndex: authenticatedPeer?.index,
+        }).debug('received event', { type: event.type })
+      }
 
       if (authenticatedPeer) {
         authenticatedPeer.lastHeartbeatAt = Date.now()
@@ -486,7 +496,12 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       const targetIds = decision?.type === 'targets' ? decision.targetIds : undefined
       const shouldBroadcast = decision?.type === 'broadcast' || !targetIds
 
-      logger.withFields({ peer: peer.id, peerName: p.name, event }).log('broadcasting event to peers')
+      if (event.type !== 'output:gen-ai:chat:complete') {
+        logger.withFields({ peer: peer.id, peerName: p.name, event }).log('broadcasting event to peers')
+      }
+      else {
+        logger.withFields({ peer: peer.id, peerName: p.name, event }).debug('broadcasting event to peers')
+      }
 
       for (const [id, other] of peers.entries()) {
         if (id === peer.id) {
