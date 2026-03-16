@@ -13,7 +13,7 @@ import VueMacros from 'vue-macros/vite'
 
 import { Download } from '@proj-airi/unplugin-fetch'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
-import { templateCompilerOptions } from '@tresjs/core'
+import templateCompilerOptions from '@tresjs/core/template-compiler-options'
 import { defineConfig } from 'electron-vite'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
