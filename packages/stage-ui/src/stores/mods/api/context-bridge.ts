@@ -161,8 +161,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
       disposeHookFns.value.push(
         chatOrchestrator.onBeforeMessageComposed(async (message, context) => {
-          if (isProcessingRemoteStream)
+          if (isProcessingRemoteStream) {
+            console.debug('[Context Bridge] Skipping broadcast of before-compose (remote stream in progress)')
             return
+          }
 
           console.log('[Context Bridge] Broadcasting before-compose', { message })
           broadcastStreamEvent({ type: 'before-compose', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
@@ -174,9 +176,12 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           broadcastStreamEvent({ type: 'after-compose', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onBeforeSend(async (message, context) => {
-          if (isProcessingRemoteStream)
+          if (isProcessingRemoteStream) {
+            console.warn('[Context Bridge] Blocked broadcast of before-send! (remote stream in progress)')
             return
+          }
 
+          console.log('[Context Bridge] Broadcasting before-send', { message })
           broadcastStreamEvent({ type: 'before-send', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onAfterSend(async (message, context) => {
@@ -186,8 +191,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           broadcastStreamEvent({ type: 'after-send', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onTokenLiteral(async (literal, context) => {
-          if (isProcessingRemoteStream)
+          if (isProcessingRemoteStream) {
+            // console.debug('[Context Bridge] Skipping broadcast of token-literal (remote stream in progress)')
             return
+          }
 
           console.log('[Context Bridge] Broadcasting token-literal', { literal })
           broadcastStreamEvent({ type: 'token-literal', literal, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })

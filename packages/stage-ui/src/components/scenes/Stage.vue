@@ -513,6 +513,21 @@ function setupAnalyser() {
 
 let currentChatIntent: ReturnType<typeof speechRuntimeStore.openIntent> | null = null
 
+function ensureSpeechIntent() {
+  if (currentChatIntent)
+    return currentChatIntent
+
+  console.log('[Stage] Opening speech intent', { ownerId: activeCardId.value })
+  currentChatIntent = speechRuntimeStore.openIntent({
+    ownerId: activeCardId.value,
+    priority: 'normal',
+    behavior: 'interrupt',
+  })
+  console.log('[Stage] Speech intent opened', { intentId: currentChatIntent.intentId, streamId: currentChatIntent.streamId })
+
+  return currentChatIntent
+}
+
 chatHookCleanups.push(onBeforeMessageComposed(async () => {
   playbackManager.stopAll('new-message')
 
@@ -536,15 +551,12 @@ chatHookCleanups.push(onBeforeMessageComposed(async () => {
   }
 
   if (currentChatIntent) {
+    console.log('[Stage] Cancelling existing speech intent for new message', { intentId: currentChatIntent.intentId })
     currentChatIntent.cancel('new-message')
     currentChatIntent = null
   }
 
-  currentChatIntent = speechRuntimeStore.openIntent({
-    ownerId: activeCardId.value,
-    priority: 'normal',
-    behavior: 'queue',
-  })
+  ensureSpeechIntent()
 }))
 
 chatHookCleanups.push(onBeforeSend(async () => {
@@ -552,20 +564,37 @@ chatHookCleanups.push(onBeforeSend(async () => {
 }))
 
 chatHookCleanups.push(onTokenLiteral(async (literal) => {
-  currentChatIntent?.writeLiteral(literal)
+  const intent = ensureSpeechIntent()
+  if (!intent)
+    return
+  console.log('[Stage] onTokenLiteral -> forwarding to speech', {
+    intentId: intent.intentId,
+    length: literal.length,
+    preview: literal.slice(0, 120),
+  })
+  intent.writeLiteral(literal)
 }))
 
 chatHookCleanups.push(onTokenSpecial(async (special) => {
+  const intent = ensureSpeechIntent()
+  if (!intent)
+    return
   // console.debug('Stage received special token:', special)
-  currentChatIntent?.writeSpecial(special)
+  console.log('[Stage] onTokenSpecial -> forwarding', { intentId: intent.intentId, special })
+  intent.writeSpecial(special)
 }))
 
 chatHookCleanups.push(onStreamEnd(async () => {
   specialTokenQueue.enqueue(llmInferenceEndToken)
-  currentChatIntent?.writeFlush()
+  const intent = ensureSpeechIntent()
+  if (intent)
+    console.log('[Stage] onStreamEnd -> flush intent', { intentId: intent.intentId })
+  intent?.writeFlush()
 }))
 
 chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
+  if (currentChatIntent)
+    console.log('[Stage] onAssistantResponseEnd -> ending intent', { intentId: currentChatIntent.intentId })
   currentChatIntent?.end()
   currentChatIntent = null
 

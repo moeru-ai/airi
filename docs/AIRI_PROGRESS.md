@@ -45,8 +45,12 @@ This document tracks the current development state of the AIRI project, specific
 - **Primary Workspace**: `airi-rebase-scratch`
   - A fork of the main project with rolled-in changes.
   - Connected to `dasilva333/airi` (`main` branch).
+  - Must remain checked out on local branch `main`.
+  - Must not be used for temporary branches, rebases, conflict-resolution experiments, or staging work.
+  - The only acceptable movement in this repo is advancing the tested live line after validation elsewhere.
 - **Staging/Clean Room**: `airi-clean-pr`
   - Used for isolating and preparing individual features into clean PR branches.
+  - This is the correct place for temporary branches, upstream sync experiments, and conflict work.
 - **Upstream Squat Backlog**: See `docs/UPSTREAM_SQUAT_CANDIDATES.md`
   - Tracks open upstream PRs worth integrating into the fork and documents current priority/risk decisions.
 

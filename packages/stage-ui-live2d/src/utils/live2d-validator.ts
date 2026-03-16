@@ -67,7 +67,7 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
     }
 
     if (sizeMb > 100) {
-      report.errors.push(`CRITICAL WEIGHT: MOC file is ${sizeMb.toFixed(2)} MB. This "Mega-Model" likely exceeds browser WASM memory limits.`)
+      report.warnings.push(`CRITICAL WEIGHT: MOC file is ${sizeMb.toFixed(2)} MB. This "Mega-Model" likely exceeds browser WASM memory limits.`)
     }
     else if (sizeMb > 30) {
       report.warnings.push(`HEAVY RESOURCE: MOC file is ${sizeMb.toFixed(2)} MB. This may cause performance issues in web browsers.`)

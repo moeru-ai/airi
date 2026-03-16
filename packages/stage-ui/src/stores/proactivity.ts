@@ -162,7 +162,9 @@ export const useProactivityStore = defineStore('proactivity', () => {
         winHistory.value.slice(-3).forEach((entry) => {
           const start = new Date(entry.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
           const end = new Date(entry.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
-          payload += `[ ${entry.window.processName} ] [ ${Math.floor(entry.durationMs / 60000)}m ] [ ${start} - ${end} ]\n`
+          const durationSec = Math.floor(entry.durationMs / 1000)
+          const durationStr = durationSec < 60 ? `${durationSec}s` : `${Math.floor(durationSec / 60)}m`
+          payload += `[ ${entry.window.processName} | ${entry.window.title} ] [ ${durationStr} ] [ ${start} - ${end} ]\n`
         })
       }
       else {
