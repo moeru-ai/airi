@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: API 엔드포인트 URL(확실하지 않은 경우 기본값 사용)
     accountId: 계정 ID
     validationSuccess: 구성 검증 성공
+    validationPartial: Configuration partially validated
     validationFailed: 구성 검증 실패
     validationError: '검증 오류: {error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: 지금은 건너뛰기
     saveAndContinue: 저장 및 계속
     next: 다음
