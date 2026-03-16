@@ -32,7 +32,7 @@
 
 <p float="left" align="center">
   <!-- readme-section:release-binary-windows -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.14/AIRI-0.9.0-alpha.14-windows-x64-setup.exe">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.16/AIRI-0.9.0-alpha.16-windows-x64-setup.exe">
     <picture>
       <source
         width="33%"
@@ -48,7 +48,7 @@
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.14/AIRI-0.9.0-alpha.14-darwin-arm64.dmg">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.16/AIRI-0.9.0-alpha.16-darwin-arm64.dmg">
     <picture>
       <source
         width="33%"
@@ -152,6 +152,7 @@ Therefore, this project, AIRI, offers another possibility here: **let you own yo
 
 ## DevLogs We Posted & Recent Updates
 
+- [DevLog @ 2026.03.14](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.14/) on March 14, 2026
 - [DevLog @ 2026.02.16](https://airi.moeru.ai/docs/en/blog/DevLog-2026.02.16/) on February 16, 2026
 - [DevLog @ 2026.01.01](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) on January 1, 2026
 - [DevLog @ 2025.10.20](https://airi.moeru.ai/docs/en/blog/DevLog-2025.10.20/) on October 20, 2025
@@ -277,7 +278,7 @@ pnpm dev:tamagotchi
 Start the development server for the capacitor:
 
 ```shell
-pnpm dev:pocket:ios <DEVICE_ID_OR_SIMULATOR_NAME>
+pnpm dev:pocket:ios --target <DEVICE_ID_OR_SIMULATOR_NAME>
 # Or
 CAPACITOR_DEVICE_ID=<DEVICE_ID_OR_SIMULATOR_NAME> pnpm dev:pocket:ios
 ```
@@ -290,7 +291,7 @@ If you need to connect server channel on pocket in wireless mode, you need to st
 sudo pnpm dev:tamagotchi
 ```
 
-Then enable secure websocket in tamagotchi `settings/system/general`.
+Then enable secure websocket in tamagotchi `settings/connections`.
 
 ### Documentation Site
 
