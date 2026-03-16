@@ -192,8 +192,8 @@ Module <sourceKey>: <JSON of retained messages>
 ```
 
 That means the `Next Prompt Projection` panel is not showing a hypothetical
-format. It is showing the same prompt block builder used by the chat
-orchestrator.
+format. Its `Current Derived Prompt Block` uses the same prompt builder used by
+the chat orchestrator.
 
 ## Data Sources Behind Each Panel
 
@@ -217,6 +217,22 @@ Reads from two sources:
   `contextObservabilityStore.lastPromptProjection`
 
 This distinction is important because retained state can change between sends.
+
+The panel intentionally separates:
+
+- `Current Derived Prompt Block`:
+  what would be injected if compose started now
+- `Last Actual Compose`:
+  the most recent prompt snapshot captured after an actual send/compose began
+
+So it is valid to see:
+
+- active retained contexts
+- a non-empty `Current Derived Prompt Block`
+- no `Last Actual Compose`
+
+That combination means the client already has prompt-ready context, but no real
+chat compose has happened in this runtime yet.
 
 ### Context Lifecycle
 
@@ -293,7 +309,7 @@ If you want to debug Minecraft-to-AIRI prompt injection in `stage-web`:
 3. Confirm the update appears in `Active Context State`.
 4. Inspect `Next Prompt Projection` to see whether it would be injected now.
 5. Trigger a chat turn.
-6. Compare `If Send Starts Now` with `Last Compose Snapshot`.
+6. Compare `Current Derived Prompt Block` with `Last Actual Compose`.
 
 That sequence tells you:
 
