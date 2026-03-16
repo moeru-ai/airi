@@ -20,6 +20,9 @@ export function buildApprovalResponse(
     approvalReason?: string
     advisorySummary?: string
   },
+  internal?: {
+    approvalToken?: string
+  },
 ): CallToolResult {
   const baseText = `Approval required for ${pending.action.kind}. Pending action id: ${pending.id}. Context: ${describeForegroundContext(context)}. Policy: ${describePolicy(decision)}.`
   const transparencyText = transparency
@@ -30,6 +33,11 @@ export function buildApprovalResponse(
     content: [
       textContent(`${baseText}${transparencyText}`),
     ],
+    toolResult: internal?.approvalToken
+      ? {
+          approvalToken: internal.approvalToken,
+        }
+      : undefined,
     structuredContent: {
       status: 'approval_required',
       pendingActionId: pending.id,

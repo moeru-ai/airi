@@ -307,6 +307,11 @@ const TOOL_REQUIRED_REQUEST_RULES: RetryRule[] = [
     description: 'Matches Chinese phrases indicating actions applied to tools/apps',
     test: ({ text }) => /(?:打开|开启|配置|设置|切换|点击|输入|填写|键入|保存|运行|执行|启动|关闭|聚焦|滚动|截图|观察|读取|写入|复制|粘贴|创建|修改|检查|验证)[\s\S]{0,18}(?:工具|工作流|命令|终端|窗口|应用|页面|浏览器|finder|vs\s*code|cursor|discord|文件|目录|设置页|开关|按钮|输入框|token|令牌|剪贴板)/i.test(text),
   },
+  {
+    id: 'mentions_desktop_companion_request_zh_en',
+    description: 'Matches conversational requests to enter or observe the desktop surface',
+    test: ({ text }) => /(?:到|进|进入|看看|看下|看一眼|陪我看|帮我看|切到|切回)[\s\S]{0,8}(?:桌面|屏幕|界面)|(?:桌面|屏幕|界面)[\s\S]{0,8}(?:看看|看下|观察|模式)|come\s+to\s+my\s+desktop|enter\s+desktop\s+mode|look\s+at\s+my\s+desktop|watch\s+my\s+screen/i.test(text),
+  },
 ]
 
 const FABRICATED_TOOL_STATUS_RULES: RetryRule[] = [

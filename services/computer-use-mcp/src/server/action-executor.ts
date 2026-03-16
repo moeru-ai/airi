@@ -252,6 +252,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         context,
         policy: decision,
       })
+      const approvalToken = runtime.session.getPendingActionApprovalToken?.(pending.id)
       runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
 
       await runtime.session.record({
@@ -272,6 +273,8 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         intent,
         approvalReason: approvalExplanation,
         advisorySummary,
+      }, {
+        approvalToken,
       })
     }
 
@@ -500,6 +503,27 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           backendResult = {
             ...result,
             app: normalizedAction.input.app,
+          }
+          break
+        }
+        case 'focus_window': {
+          const result = await runtime.executor.focusWindow(normalizedAction.input)
+          backendResult = {
+            ...result,
+            windowId: normalizedAction.input.windowId,
+            appName: normalizedAction.input.appName,
+            title: normalizedAction.input.title,
+          }
+          break
+        }
+        case 'set_window_bounds': {
+          const result = await runtime.executor.setWindowBounds(normalizedAction.input)
+          backendResult = {
+            ...result,
+            windowId: normalizedAction.input.windowId,
+            bounds: normalizedAction.input.bounds,
+            appName: normalizedAction.input.appName,
+            title: normalizedAction.input.title,
           }
           break
         }

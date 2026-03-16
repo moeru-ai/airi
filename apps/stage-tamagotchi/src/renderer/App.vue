@@ -160,10 +160,14 @@ async function callMcpTool(payload: any): Promise<any> {
   if (approvalContent.status !== 'approval_required')
     return patchComputerUseTerminalState(result, payload?.approvalSessionId)
 
+  const toolResult = result?.toolResult
+  const approvalToken = toolResult && typeof toolResult === 'object' && typeof (toolResult as Record<string, unknown>).approvalToken === 'string'
+    ? String((toolResult as Record<string, unknown>).approvalToken)
+    : undefined
   const pendingActionId = approvalContent.pendingActionId
   const action = approvalContent.action
   const actionKind = action?.kind
-  if (!pendingActionId || typeof pendingActionId !== 'string')
+  if (!pendingActionId || typeof pendingActionId !== 'string' || !approvalToken)
     return patchComputerUseTerminalState(result, payload?.approvalSessionId)
 
   const grantScope = getSessionScopedApprovalGrantScope(String(actionKind || ''))
@@ -172,7 +176,7 @@ async function callMcpTool(payload: any): Promise<any> {
   if (payload?.approvalSessionId && canAutoApproveComputerUseAction(String(actionKind || ''), existingGrant)) {
     const approved = await callMcpToolRaw({
       name: 'computer_use::desktop_approve_pending_action',
-      arguments: { id: pendingActionId },
+      arguments: { id: pendingActionId, approvalToken },
       approvalSessionId: payload.approvalSessionId,
       requestId: payload?.requestId ? `${payload.requestId}:approve` : undefined,
     })
@@ -194,7 +198,7 @@ async function callMcpTool(payload: any): Promise<any> {
 
     const approved = await callMcpToolRaw({
       name: 'computer_use::desktop_approve_pending_action',
-      arguments: { id: pendingActionId },
+      arguments: { id: pendingActionId, approvalToken },
       approvalSessionId: payload?.approvalSessionId,
       requestId: payload?.requestId ? `${payload.requestId}:approve` : undefined,
     })
@@ -205,6 +209,7 @@ async function callMcpTool(payload: any): Promise<any> {
     name: 'computer_use::desktop_reject_pending_action',
     arguments: {
       id: pendingActionId,
+      approvalToken,
       reason: 'Rejected in AIRI desktop approval dialog',
     },
     approvalSessionId: payload?.approvalSessionId,

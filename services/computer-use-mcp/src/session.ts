@@ -15,6 +15,7 @@ import { appendFile, mkdir } from 'node:fs/promises'
 export class ComputerUseSession {
   private initialized = false
   private pendingActions = new Map<string, PendingActionRecord>()
+  private pendingApprovalTokens = new Map<string, string>()
   private traceEntries: SessionTraceEntry[] = []
   private pointerPosition?: { x: number, y: number }
   private operationsExecuted = 0
@@ -100,6 +101,7 @@ export class ComputerUseSession {
       createdAt: new Date().toISOString(),
     }
     this.pendingActions.set(pending.id, pending)
+    this.pendingApprovalTokens.set(pending.id, randomUUID())
     return pending
   }
 
@@ -111,8 +113,21 @@ export class ComputerUseSession {
     return [...this.pendingActions.values()]
   }
 
+  getPendingActionApprovalToken(id: string) {
+    return this.pendingApprovalTokens.get(id)
+  }
+
+  hasPendingActionApprovalToken(id: string, token: string | undefined) {
+    if (!token) {
+      return false
+    }
+
+    return this.pendingApprovalTokens.get(id) === token
+  }
+
   removePendingAction(id: string) {
     this.pendingActions.delete(id)
+    this.pendingApprovalTokens.delete(id)
   }
 
   setTerminalState(nextState: TerminalState) {

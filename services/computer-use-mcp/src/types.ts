@@ -12,6 +12,8 @@ export type ActionKind
     | 'observe_windows'
     | 'open_app'
     | 'focus_app'
+    | 'focus_window'
+    | 'set_window_bounds'
     | 'secret_read_env_value'
     | 'clipboard_read_text'
     | 'clipboard_write_text'
@@ -141,6 +143,7 @@ export interface ForegroundContext {
 
 export interface WindowInfo {
   id: string
+  windowNumber?: number
   appName: string
   title?: string
   bounds?: Bounds
@@ -224,6 +227,26 @@ export interface OpenAppActionInput {
 
 export interface FocusAppActionInput {
   app: string
+}
+
+export interface FocusWindowActionInput {
+  windowId: string
+  windowNumber?: number
+  ownerPid?: number
+  appName?: string
+  title?: string
+  bounds?: Bounds
+  observedBounds?: Bounds
+}
+
+export interface SetWindowBoundsActionInput {
+  windowId: string
+  windowNumber?: number
+  ownerPid?: number
+  bounds: Bounds
+  observedBounds?: Bounds
+  appName?: string
+  title?: string
 }
 
 export interface ClipboardReadTextActionInput {
@@ -331,6 +354,11 @@ export interface PtyCreateApprovalInput {
   approvalSessionId?: string
 }
 
+export interface DesktopRequestLeaseApprovalInput {
+  kind: 'act'
+  ttlMs?: number
+}
+
 export interface TerminalCommandResult {
   command: string
   stdout: string
@@ -396,6 +424,8 @@ export type ActionInvocation
     | { kind: 'observe_windows', input: ObserveWindowsRequest }
     | { kind: 'open_app', input: OpenAppActionInput }
     | { kind: 'focus_app', input: FocusAppActionInput }
+    | { kind: 'focus_window', input: FocusWindowActionInput }
+    | { kind: 'set_window_bounds', input: SetWindowBoundsActionInput }
     | { kind: 'secret_read_env_value', input: SecretReadEnvValueActionInput }
     | { kind: 'clipboard_read_text', input: ClipboardReadTextActionInput }
     | { kind: 'clipboard_write_text', input: ClipboardWriteTextActionInput }
@@ -426,6 +456,7 @@ export type ActionInvocation
 export type PendingExecutableAction
   = | ActionInvocation
     | { kind: 'pty_create', input: PtyCreateApprovalInput }
+    | { kind: 'desktop_request_lease', input: DesktopRequestLeaseApprovalInput }
 
 export interface PolicyDecision {
   allowed: boolean
@@ -673,6 +704,8 @@ export interface DesktopExecutor {
   takeScreenshot: (request: ScreenshotRequest) => Promise<ScreenshotArtifact>
   openApp: (input: OpenAppActionInput) => Promise<ExecutorActionResult>
   focusApp: (input: FocusAppActionInput) => Promise<ExecutorActionResult>
+  focusWindow: (input: FocusWindowActionInput) => Promise<ExecutorActionResult>
+  setWindowBounds: (input: SetWindowBoundsActionInput) => Promise<ExecutorActionResult>
   click: (input: ClickActionInput & { pointerTrace: PointerTracePoint[] }) => Promise<ExecutorActionResult>
   typeText: (input: TypeTextActionInput) => Promise<ExecutorActionResult>
   pressKeys: (input: PressKeysActionInput) => Promise<ExecutorActionResult>

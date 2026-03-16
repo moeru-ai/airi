@@ -5,12 +5,14 @@ import type {
   ExecutionTarget,
   ExecutorActionResult,
   FocusAppActionInput,
+  FocusWindowActionInput,
   ForegroundContext,
   ObserveWindowsRequest,
   OpenAppActionInput,
   PointerTracePoint,
   PressKeysActionInput,
   ScrollActionInput,
+  SetWindowBoundsActionInput,
   TypeTextActionInput,
   WaitActionInput,
   WindowObservation,
@@ -313,6 +315,525 @@ print("{}")
 `
 }
 
+function semanticFocusWindowScript() {
+  return String.raw`
+import AppKit
+import ApplicationServices
+import Foundation
+
+func readStringAttribute(_ element: AXUIElement, _ key: String) -> String? {
+  var raw: AnyObject?
+  let error = AXUIElementCopyAttributeValue(element, key as CFString, &raw)
+  guard error == .success else { return nil }
+  return raw as? String
+}
+
+func readIntAttribute(_ element: AXUIElement, _ key: String) -> Int? {
+  var raw: AnyObject?
+  let error = AXUIElementCopyAttributeValue(element, key as CFString, &raw)
+  guard error == .success else { return nil }
+  if let number = raw as? NSNumber {
+    return number.intValue
+  }
+  return nil
+}
+
+func readBoolAttribute(_ element: AXUIElement, _ key: String) -> Bool? {
+  var raw: AnyObject?
+  let error = AXUIElementCopyAttributeValue(element, key as CFString, &raw)
+  guard error == .success else { return nil }
+  if let number = raw as? NSNumber {
+    return number.boolValue
+  }
+  return nil
+}
+
+func readBoundsAttribute(_ element: AXUIElement) -> CGRect? {
+  var rawPosition: AnyObject?
+  var rawSize: AnyObject?
+  let positionError = AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &rawPosition)
+  let sizeError = AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &rawSize)
+  guard positionError == .success, sizeError == .success,
+        let positionValue = rawPosition, let sizeValue = rawSize,
+        CFGetTypeID(positionValue) == AXValueGetTypeID(),
+        CFGetTypeID(sizeValue) == AXValueGetTypeID() else {
+    return nil
+  }
+
+  var point = CGPoint.zero
+  var size = CGSize.zero
+  guard AXValueGetType(positionValue as! AXValue) == .cgPoint,
+        AXValueGetType(sizeValue as! AXValue) == .cgSize,
+        AXValueGetValue(positionValue as! AXValue, .cgPoint, &point),
+        AXValueGetValue(sizeValue as! AXValue, .cgSize, &size) else {
+    return nil
+  }
+
+  return CGRect(origin: point, size: size)
+}
+
+func copyWindows(_ appElement: AXUIElement) -> [AXUIElement] {
+  var raw: AnyObject?
+  let error = AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &raw)
+  guard error == .success, let array = raw as? [AXUIElement] else { return [] }
+  return array
+}
+
+func setBoolAttribute(_ element: AXUIElement, _ key: String, _ value: Bool) -> Bool {
+  let cfValue: CFTypeRef = value ? kCFBooleanTrue : kCFBooleanFalse
+  return AXUIElementSetAttributeValue(element, key as CFString, cfValue) == .success
+}
+
+func emit(_ payload: [String: Any]) {
+  let data = try! JSONSerialization.data(withJSONObject: payload, options: [])
+  print(String(data: data, encoding: .utf8)!)
+}
+
+func normalizedTitle(_ value: String?) -> String {
+  return (value ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+}
+
+func readBoundsHint(_ payload: [String: Any]?) -> CGRect? {
+  guard let payload else { return nil }
+
+  func number(_ key: String) -> Double? {
+    if let value = payload[key] as? NSNumber {
+      return value.doubleValue
+    }
+    return nil
+  }
+
+  guard let x = number("x"),
+        let y = number("y"),
+        let width = number("width"),
+        let height = number("height"),
+        width > 0,
+        height > 0 else {
+    return nil
+  }
+
+  return CGRect(x: x, y: y, width: width, height: height)
+}
+
+func boundsApproximatelyMatch(_ lhs: CGRect, _ rhs: CGRect, tolerance: Double = 24) -> Bool {
+  return abs(lhs.origin.x - rhs.origin.x) <= tolerance
+    && abs(lhs.origin.y - rhs.origin.y) <= tolerance
+    && abs(lhs.size.width - rhs.size.width) <= tolerance
+    && abs(lhs.size.height - rhs.size.height) <= tolerance
+}
+
+let environment = ProcessInfo.processInfo.environment
+let rawInput = environment["COMPUTER_USE_SWIFT_STDIN"] ?? "{}"
+let inputData = rawInput.data(using: .utf8) ?? Data()
+let input = (try? JSONSerialization.jsonObject(with: inputData)) as? [String: Any] ?? [:]
+
+let ownerPid = input["ownerPid"] as? Int ?? 0
+let windowNumberHint = input["windowNumber"] as? Int ?? 0
+let titleHint = normalizedTitle(input["title"] as? String)
+let observedBoundsHint = readBoundsHint((input["observedBounds"] as? [String: Any]) ?? (input["bounds"] as? [String: Any]))
+
+if ownerPid <= 0 {
+  emit([
+    "success": false,
+    "semanticAvailable": false,
+    "reason": "missing_owner_pid"
+  ])
+  exit(0)
+}
+
+if !AXIsProcessTrusted() {
+  emit([
+    "success": false,
+    "semanticAvailable": false,
+    "reason": "accessibility_not_trusted"
+  ])
+  exit(0)
+}
+
+let pid = pid_t(ownerPid)
+let appElement = AXUIElementCreateApplication(pid)
+let windows = copyWindows(appElement)
+
+if windows.isEmpty {
+  emit([
+    "success": false,
+    "semanticAvailable": true,
+    "reason": "no_ax_windows_for_app"
+  ])
+  exit(0)
+}
+
+var selected: AXUIElement?
+var matchedTitle: String?
+var matchedWindowNumber: Int?
+var matchStrategy: String?
+var titleMatchCount = 0
+var boundsMatchCount = 0
+
+if windowNumberHint > 0 {
+  for window in windows {
+    let axWindowNumber = readIntAttribute(window, "AXWindowNumber")
+    if axWindowNumber == windowNumberHint {
+      selected = window
+      matchedTitle = readStringAttribute(window, kAXTitleAttribute as String)
+      matchedWindowNumber = axWindowNumber
+      matchStrategy = "window_number"
+      break
+    }
+  }
+}
+
+var titleMatches: [AXUIElement] = []
+if selected == nil && !titleHint.isEmpty {
+  titleMatches = windows.filter { normalizedTitle(readStringAttribute($0, kAXTitleAttribute as String)) == titleHint }
+  titleMatchCount = titleMatches.count
+
+  if titleMatches.count == 1 {
+    selected = titleMatches[0]
+    matchedTitle = readStringAttribute(titleMatches[0], kAXTitleAttribute as String)
+    matchedWindowNumber = readIntAttribute(titleMatches[0], "AXWindowNumber")
+    matchStrategy = "title"
+  }
+}
+
+if selected == nil, let observedBoundsHint {
+  let candidatePool = !titleMatches.isEmpty ? titleMatches : windows
+  let boundsMatches = candidatePool.filter { window in
+    guard let windowBounds = readBoundsAttribute(window) else { return false }
+    return boundsApproximatelyMatch(windowBounds, observedBoundsHint)
+  }
+  boundsMatchCount = boundsMatches.count
+
+  if boundsMatches.count == 1 {
+    selected = boundsMatches[0]
+    matchedTitle = readStringAttribute(boundsMatches[0], kAXTitleAttribute as String)
+    matchedWindowNumber = readIntAttribute(boundsMatches[0], "AXWindowNumber")
+    matchStrategy = titleMatches.isEmpty ? "bounds" : "title_then_bounds"
+  }
+}
+
+if selected == nil {
+  var reason = "ax_window_not_found_by_identity"
+  if windowNumberHint > 0 {
+    reason = "ax_window_not_found_by_window_number"
+  }
+  if titleMatchCount > 1 && boundsMatchCount == 0 {
+    reason = "ax_window_ambiguous_title_match"
+  } else if boundsMatchCount > 1 {
+    reason = titleMatchCount > 0 ? "ax_window_ambiguous_title_bounds_match" : "ax_window_ambiguous_bounds_match"
+  } else if windowNumberHint > 0 && (titleMatchCount > 0 || boundsMatchCount > 0) {
+    reason = "ax_window_not_found_by_window_number_but_secondary_hints_unresolved"
+  }
+
+  emit([
+    "success": false,
+    "semanticAvailable": true,
+    "reason": reason,
+    "titleMatchCount": titleMatchCount,
+    "boundsMatchCount": boundsMatchCount
+  ])
+  exit(0)
+}
+
+guard let targetWindow = selected else {
+  emit([
+    "success": false,
+    "semanticAvailable": true,
+    "reason": "ax_window_not_found_by_identity"
+  ])
+  exit(0)
+}
+
+let app = NSRunningApplication(processIdentifier: pid)
+let activated = app?.activate(options: [.activateIgnoringOtherApps]) ?? false
+let mainSet = setBoolAttribute(targetWindow, kAXMainAttribute as String, true)
+let focusedSet = setBoolAttribute(targetWindow, kAXFocusedAttribute as String, true)
+RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
+let mainVerified = readBoolAttribute(targetWindow, kAXMainAttribute as String) ?? false
+let focusedVerified = readBoolAttribute(targetWindow, kAXFocusedAttribute as String) ?? false
+let success = mainVerified || focusedVerified
+
+emit([
+  "success": success,
+  "semanticAvailable": true,
+  "reason": success ? "semantic_focus_applied" : "semantic_focus_failed",
+  "activated": activated,
+  "mainSet": mainSet,
+  "focusedSet": focusedSet,
+  "mainVerified": mainVerified,
+  "focusedVerified": focusedVerified,
+  "matchedTitle": matchedTitle as Any,
+  "matchedWindowNumber": matchedWindowNumber as Any,
+  "matchStrategy": matchStrategy as Any,
+  "titleMatchCount": titleMatchCount,
+  "boundsMatchCount": boundsMatchCount
+])
+`
+}
+
+function semanticSetWindowBoundsScript() {
+  return String.raw`
+import AppKit
+import ApplicationServices
+import Foundation
+
+func readStringAttribute(_ element: AXUIElement, _ key: String) -> String? {
+  var raw: AnyObject?
+  let error = AXUIElementCopyAttributeValue(element, key as CFString, &raw)
+  guard error == .success else { return nil }
+  return raw as? String
+}
+
+func readIntAttribute(_ element: AXUIElement, _ key: String) -> Int? {
+  var raw: AnyObject?
+  let error = AXUIElementCopyAttributeValue(element, key as CFString, &raw)
+  guard error == .success else { return nil }
+  if let number = raw as? NSNumber {
+    return number.intValue
+  }
+  return nil
+}
+
+func readBoundsAttribute(_ element: AXUIElement) -> CGRect? {
+  var rawPosition: AnyObject?
+  var rawSize: AnyObject?
+  let positionError = AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &rawPosition)
+  let sizeError = AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &rawSize)
+  guard positionError == .success, sizeError == .success,
+        let positionValue = rawPosition, let sizeValue = rawSize,
+        CFGetTypeID(positionValue) == AXValueGetTypeID(),
+        CFGetTypeID(sizeValue) == AXValueGetTypeID() else {
+    return nil
+  }
+
+  var point = CGPoint.zero
+  var size = CGSize.zero
+  guard AXValueGetType(positionValue as! AXValue) == .cgPoint,
+        AXValueGetType(sizeValue as! AXValue) == .cgSize,
+        AXValueGetValue(positionValue as! AXValue, .cgPoint, &point),
+        AXValueGetValue(sizeValue as! AXValue, .cgSize, &size) else {
+    return nil
+  }
+
+  return CGRect(origin: point, size: size)
+}
+
+func copyWindows(_ appElement: AXUIElement) -> [AXUIElement] {
+  var raw: AnyObject?
+  let error = AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &raw)
+  guard error == .success, let array = raw as? [AXUIElement] else { return [] }
+  return array
+}
+
+func setPosition(_ element: AXUIElement, x: Double, y: Double) -> Bool {
+  var point = CGPoint(x: x, y: y)
+  guard let value = AXValueCreate(.cgPoint, &point) else { return false }
+  return AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, value) == .success
+}
+
+func setSize(_ element: AXUIElement, width: Double, height: Double) -> Bool {
+  var size = CGSize(width: width, height: height)
+  guard let value = AXValueCreate(.cgSize, &size) else { return false }
+  return AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, value) == .success
+}
+
+func emit(_ payload: [String: Any]) {
+  let data = try! JSONSerialization.data(withJSONObject: payload, options: [])
+  print(String(data: data, encoding: .utf8)!)
+}
+
+func normalizedTitle(_ value: String?) -> String {
+  return (value ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+}
+
+func readBoundsHint(_ payload: [String: Any]?) -> CGRect? {
+  guard let payload else { return nil }
+
+  func number(_ key: String) -> Double? {
+    if let value = payload[key] as? NSNumber {
+      return value.doubleValue
+    }
+    return nil
+  }
+
+  guard let x = number("x"),
+        let y = number("y"),
+        let width = number("width"),
+        let height = number("height"),
+        width > 0,
+        height > 0 else {
+    return nil
+  }
+
+  return CGRect(x: x, y: y, width: width, height: height)
+}
+
+func boundsApproximatelyMatch(_ lhs: CGRect, _ rhs: CGRect, tolerance: Double = 24) -> Bool {
+  return abs(lhs.origin.x - rhs.origin.x) <= tolerance
+    && abs(lhs.origin.y - rhs.origin.y) <= tolerance
+    && abs(lhs.size.width - rhs.size.width) <= tolerance
+    && abs(lhs.size.height - rhs.size.height) <= tolerance
+}
+
+let environment = ProcessInfo.processInfo.environment
+let rawInput = environment["COMPUTER_USE_SWIFT_STDIN"] ?? "{}"
+let inputData = rawInput.data(using: .utf8) ?? Data()
+let input = (try? JSONSerialization.jsonObject(with: inputData)) as? [String: Any] ?? [:]
+
+let ownerPid = input["ownerPid"] as? Int ?? 0
+let windowNumberHint = input["windowNumber"] as? Int ?? 0
+let titleHint = normalizedTitle(input["title"] as? String)
+let observedBoundsHint = readBoundsHint(input["observedBounds"] as? [String: Any])
+let bounds = input["bounds"] as? [String: Any] ?? [:]
+let x = (bounds["x"] as? NSNumber)?.doubleValue ?? 0
+let y = (bounds["y"] as? NSNumber)?.doubleValue ?? 0
+let width = (bounds["width"] as? NSNumber)?.doubleValue ?? 0
+let height = (bounds["height"] as? NSNumber)?.doubleValue ?? 0
+
+if ownerPid <= 0 {
+  emit([
+    "success": false,
+    "semanticAvailable": false,
+    "reason": "missing_owner_pid"
+  ])
+  exit(0)
+}
+
+if width <= 0 || height <= 0 {
+  emit([
+    "success": false,
+    "semanticAvailable": true,
+    "reason": "invalid_bounds"
+  ])
+  exit(0)
+}
+
+if !AXIsProcessTrusted() {
+  emit([
+    "success": false,
+    "semanticAvailable": false,
+    "reason": "accessibility_not_trusted"
+  ])
+  exit(0)
+}
+
+let pid = pid_t(ownerPid)
+let appElement = AXUIElementCreateApplication(pid)
+let windows = copyWindows(appElement)
+
+if windows.isEmpty {
+  emit([
+    "success": false,
+    "semanticAvailable": true,
+    "reason": "no_ax_windows_for_app"
+  ])
+  exit(0)
+}
+
+var selected: AXUIElement?
+var titleMatchCount = 0
+var boundsMatchCount = 0
+var matchStrategy: String?
+
+if windowNumberHint > 0 {
+  for window in windows {
+    let axWindowNumber = readIntAttribute(window, "AXWindowNumber")
+    if axWindowNumber == windowNumberHint {
+      selected = window
+      matchStrategy = "window_number"
+      break
+    }
+  }
+}
+
+var titleMatches: [AXUIElement] = []
+if selected == nil && !titleHint.isEmpty {
+  titleMatches = windows.filter { normalizedTitle(readStringAttribute($0, kAXTitleAttribute as String)) == titleHint }
+  titleMatchCount = titleMatches.count
+
+  if titleMatches.count == 1 {
+    selected = titleMatches[0]
+    matchStrategy = "title"
+  }
+}
+
+if selected == nil, let observedBoundsHint {
+  let candidatePool = !titleMatches.isEmpty ? titleMatches : windows
+  let boundsMatches = candidatePool.filter { window in
+    guard let windowBounds = readBoundsAttribute(window) else { return false }
+    return boundsApproximatelyMatch(windowBounds, observedBoundsHint)
+  }
+  boundsMatchCount = boundsMatches.count
+
+  if boundsMatches.count == 1 {
+    selected = boundsMatches[0]
+    matchStrategy = titleMatches.isEmpty ? "bounds" : "title_then_bounds"
+  }
+}
+
+guard let targetWindow = selected else {
+  var reason = "ax_window_not_found_by_identity"
+  if windowNumberHint > 0 {
+    reason = "ax_window_not_found_by_window_number"
+  }
+  if titleMatchCount > 1 && boundsMatchCount == 0 {
+    reason = "ax_window_ambiguous_title_match"
+  } else if boundsMatchCount > 1 {
+    reason = titleMatchCount > 0 ? "ax_window_ambiguous_title_bounds_match" : "ax_window_ambiguous_bounds_match"
+  } else if windowNumberHint > 0 && (titleMatchCount > 0 || boundsMatchCount > 0) {
+    reason = "ax_window_not_found_by_window_number_but_secondary_hints_unresolved"
+  }
+
+  emit([
+    "success": false,
+    "semanticAvailable": true,
+    "reason": reason,
+    "titleMatchCount": titleMatchCount,
+    "boundsMatchCount": boundsMatchCount
+  ])
+  exit(0)
+}
+
+let positionSet = setPosition(targetWindow, x: x, y: y)
+let sizeSet = setSize(targetWindow, width: width, height: height)
+let success = positionSet && sizeSet
+
+emit([
+  "success": success,
+  "semanticAvailable": true,
+  "reason": success ? "semantic_set_bounds_applied" : "semantic_set_bounds_failed",
+  "positionSet": positionSet,
+  "sizeSet": sizeSet,
+  "matchStrategy": matchStrategy as Any,
+  "titleMatchCount": titleMatchCount,
+  "boundsMatchCount": boundsMatchCount
+])
+`
+}
+
+function parseWindowIdentity(windowId: string) {
+  if (windowId.startsWith('cg:')) {
+    const windowNumber = Number.parseInt(windowId.slice(3), 10)
+    return {
+      ownerPid: undefined,
+      layer: undefined,
+      windowNumber: Number.isFinite(windowNumber) ? windowNumber : undefined,
+      titleHint: undefined,
+    }
+  }
+
+  const [ownerPidRaw, layerRaw, ...titleParts] = windowId.split(':')
+  const ownerPid = Number.parseInt(ownerPidRaw || '', 10)
+  const layer = Number.parseInt(layerRaw || '', 10)
+
+  return {
+    ownerPid: Number.isFinite(ownerPid) ? ownerPid : undefined,
+    layer: Number.isFinite(layer) ? layer : undefined,
+    windowNumber: undefined,
+    titleHint: titleParts.join(':').trim() || undefined,
+  }
+}
+
 async function observeWindows(config: ComputerUseConfig, request: ObserveWindowsRequest): Promise<WindowObservation> {
   return await runMacOsJsonScript<WindowObservation>(config, observeWindowsScript, request)
 }
@@ -425,6 +946,86 @@ export function createMacOSLocalExecutor(config: ComputerUseConfig): DesktopExec
       await runOpenCommand(config, input.app)
       await activateApp(config, input.app)
       return result([`focused app ${input.app}`], executionTarget)
+    },
+    focusWindow: async (input: FocusWindowActionInput) => {
+      await ensureMacOS()
+      const identity = parseWindowIdentity(input.windowId)
+      const semanticResult = await runMacOsJsonScript<{
+        success: boolean
+        semanticAvailable: boolean
+        reason: string
+      }>(config, semanticFocusWindowScript(), {
+        ownerPid: input.ownerPid ?? identity.ownerPid,
+        windowNumber: input.windowNumber ?? identity.windowNumber,
+        layer: identity.layer,
+        title: input.title || identity.titleHint,
+        observedBounds: input.observedBounds ?? input.bounds,
+        appName: input.appName,
+      })
+
+      if (semanticResult.success) {
+        return result([
+          `focused window ${input.windowId}`,
+          'semantic_focus_applied',
+        ], executionTarget)
+      }
+
+      if (semanticResult.semanticAvailable) {
+        throw new Error(`focus_window semantic focus failed: ${semanticResult.reason}`)
+      }
+
+      if (!input.appName || !input.bounds) {
+        throw new Error(`focus_window fallback unavailable: ${semanticResult.reason}`)
+      }
+
+      await runOpenCommand(config, input.appName)
+      await activateApp(config, input.appName)
+
+      const center = {
+        x: Math.round(input.bounds.x + input.bounds.width / 2),
+        y: Math.round(input.bounds.y + input.bounds.height / 2),
+      }
+
+      await runMacOsJsonScript<Record<string, never>>(config, moveAndClickScript(), {
+        pointerTrace: [{ x: center.x, y: center.y, delayMs: 0 }],
+        button: buttonNames.left,
+        clickCount: 1,
+      })
+
+      return result([
+        `focused window ${input.windowId}`,
+        'semantic_unavailable_fallback_focus_app_and_center_click',
+      ], executionTarget)
+    },
+    setWindowBounds: async (input: SetWindowBoundsActionInput) => {
+      await ensureMacOS()
+      const identity = parseWindowIdentity(input.windowId)
+      const semanticResult = await runMacOsJsonScript<{
+        success: boolean
+        semanticAvailable: boolean
+        reason: string
+      }>(config, semanticSetWindowBoundsScript(), {
+        ownerPid: input.ownerPid ?? identity.ownerPid,
+        windowNumber: input.windowNumber ?? identity.windowNumber,
+        layer: identity.layer,
+        title: input.title || identity.titleHint,
+        appName: input.appName,
+        observedBounds: input.observedBounds,
+        bounds: input.bounds,
+      })
+
+      if (semanticResult.success) {
+        return result([
+          `set bounds for window ${input.windowId}`,
+          'semantic_set_bounds_applied',
+        ], executionTarget)
+      }
+
+      if (!semanticResult.semanticAvailable) {
+        throw new Error(`set_window_bounds unsupported: ${semanticResult.reason}`)
+      }
+
+      throw new Error(`set_window_bounds failed: ${semanticResult.reason}`)
     },
     click: async (input: ClickActionInput & { pointerTrace: PointerTracePoint[] }) => {
       await ensureMacOS()

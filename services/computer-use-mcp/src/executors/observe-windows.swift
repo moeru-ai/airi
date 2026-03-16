@@ -33,6 +33,7 @@ for window in rawWindowInfo {
 
   let alpha = window[kCGWindowAlpha as String] as? Double ?? 1.0
   let layer = window[kCGWindowLayer as String] as? Int ?? 0
+  let windowNumber = window[kCGWindowNumber as String] as? Int ?? 0
   let bounds = boundsDict(window[kCGWindowBounds as String] as? NSDictionary)
   let title = (window[kCGWindowName as String] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
   let ownerPid = window[kCGWindowOwnerPID as String] as? Int ?? 0
@@ -41,8 +42,13 @@ for window in rawWindowInfo {
     continue
   }
 
+  let windowId = windowNumber > 0
+    ? "cg:\(windowNumber)"
+    : "\(ownerPid):\(layer):\(title ?? ownerName)"
+
   windows.append([
-    "id": "\(ownerPid):\(layer):\(title ?? ownerName)",
+    "id": windowId,
+    "windowNumber": windowNumber,
     "appName": ownerName,
     "title": title as Any,
     "bounds": bounds as Any,

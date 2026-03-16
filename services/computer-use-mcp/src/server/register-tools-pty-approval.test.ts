@@ -46,9 +46,11 @@ function createMockServer() {
 describe('registerComputerUseTools: PTY approval bridge', () => {
   let runtime: ComputerUseServerRuntime
   let pendingActions: Map<string, Record<string, unknown>>
+  let pendingApprovalTokens: Map<string, string>
 
   beforeEach(() => {
     pendingActions = new Map()
+    pendingApprovalTokens = new Map()
     runtime = {
       config: createTestConfig({ approvalMode: 'actions' }),
       stateManager: new RunStateManager(),
@@ -56,7 +58,12 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
         createPendingAction: vi.fn(),
         getPendingAction: vi.fn((id: string) => pendingActions.get(id)),
         listPendingActions: vi.fn(() => [...pendingActions.values()]),
-        removePendingAction: vi.fn((id: string) => pendingActions.delete(id)),
+        removePendingAction: vi.fn((id: string) => {
+          pendingActions.delete(id)
+          pendingApprovalTokens.delete(id)
+        }),
+        getPendingActionApprovalToken: vi.fn((id: string) => pendingApprovalTokens.get(id)),
+        hasPendingActionApprovalToken: vi.fn((id: string, token: string | undefined) => pendingApprovalTokens.get(id) === token),
         record: vi.fn().mockResolvedValue(undefined),
         getBudgetState: vi.fn(() => ({ operationsExecuted: 0, operationUnitsConsumed: 0 })),
         getLastScreenshot: vi.fn(() => undefined),
@@ -114,6 +121,7 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
         platform: 'darwin',
       },
     })
+    pendingApprovalTokens.set('pending-pty-1', 'token-pending-pty-1')
 
     const { server, invoke } = createMockServer()
     registerComputerUseTools({
@@ -123,7 +131,10 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
       enableTestTools: false,
     })
 
-    const result = await invoke('desktop_approve_pending_action', { id: 'pending-pty-1' })
+    const result = await invoke('desktop_approve_pending_action', {
+      id: 'pending-pty-1',
+      approvalToken: 'token-pending-pty-1',
+    })
 
     expect((result.structuredContent as Record<string, any>).status).toBe('ok')
     expect(createPtySession).toHaveBeenCalledWith(runtime.config, {

@@ -36,7 +36,7 @@ function isMutatingAction(action: ActionInvocation) {
 }
 
 function isUiInteractionAction(action: ActionInvocation) {
-  return ['click', 'type_text', 'press_keys', 'scroll', 'open_app', 'focus_app'].includes(action.kind)
+  return ['click', 'type_text', 'press_keys', 'scroll', 'open_app', 'focus_app', 'focus_window', 'set_window_bounds'].includes(action.kind)
 }
 
 function getCoordinate(action: ActionInvocation) {
@@ -53,9 +53,36 @@ function getCoordinate(action: ActionInvocation) {
         return { x: action.input.x, y: action.input.y }
       }
       return undefined
+    case 'focus_window':
+      if (action.input.bounds) {
+        return {
+          x: Math.round(action.input.bounds.x + action.input.bounds.width / 2),
+          y: Math.round(action.input.bounds.y + action.input.bounds.height / 2),
+        }
+      }
+      return undefined
+    case 'set_window_bounds':
+      return {
+        x: Math.round(action.input.bounds.x + action.input.bounds.width / 2),
+        y: Math.round(action.input.bounds.y + action.input.bounds.height / 2),
+      }
     default:
       return undefined
   }
+}
+
+function isBoundsWithinAllowedBounds(action: ActionInvocation, config: ComputerUseConfig) {
+  if (action.kind !== 'set_window_bounds' || !config.allowedBounds) {
+    return true
+  }
+
+  const { bounds } = action.input
+  const allowed = config.allowedBounds
+
+  return bounds.x >= allowed.x
+    && bounds.y >= allowed.y
+    && (bounds.x + bounds.width) <= (allowed.x + allowed.width)
+    && (bounds.y + bounds.height) <= (allowed.y + allowed.height)
 }
 
 function estimateOperationUnits(action: ActionInvocation) {
@@ -84,7 +111,10 @@ function estimateOperationUnits(action: ActionInvocation) {
       return 1
     case 'open_app':
     case 'focus_app':
+    case 'focus_window':
       return 2
+    case 'set_window_bounds':
+      return 3
     case 'clipboard_read_text':
     case 'secret_read_env_value':
       return 1
@@ -174,6 +204,11 @@ export function evaluateActionPolicy(params: {
     }
   }
 
+  if (!isBoundsWithinAllowedBounds(params.action, params.config)) {
+    reasons.push('requested window bounds are outside the allowed bounds')
+    allowed = false
+  }
+
   if (isUiInteractionAction(params.action) && params.context.available) {
     if (includesPattern(params.context.appName, params.config.denyApps)) {
       reasons.push(`foreground app denied: ${params.context.appName}`)
@@ -233,7 +268,7 @@ export function evaluateActionPolicy(params: {
     riskLevel = 'high'
   }
 
-  if (params.action.kind === 'click' || params.action.kind === 'press_keys' || params.action.kind === 'scroll') {
+  if (params.action.kind === 'click' || params.action.kind === 'press_keys' || params.action.kind === 'scroll' || params.action.kind === 'focus_window' || params.action.kind === 'set_window_bounds') {
     riskLevel = 'medium'
   }
 

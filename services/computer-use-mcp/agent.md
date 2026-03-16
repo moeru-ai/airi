@@ -130,6 +130,73 @@ Do not:
 - turn coding surface into a generic plugin or MCP marketplace
 - expand this lane into VS Code/browser/native adapter productization
 
+## Desktop Control MVP (Stage 1): Current Product Posture
+
+The desktop control workstream is now framed as a **minimal real companion layer**:
+
+- macOS-first
+- preview-first
+- bounded by short `act` lease autonomy
+- semantic window actions first, coordinate fallback second (and explicit)
+
+The approval boundary for desktop-controller mutations is the `act` lease itself.
+Desktop controller mutations under an active `act` lease are executed without a
+second per-step approval queue.
+
+### Stable v1 desktop controller tool surface
+
+- `desktop_request_lease`
+- `desktop_cancel_lease`
+- `desktop_report_user_input`
+- `desktop_observe_scene`
+- `desktop_observe_pointer`
+- `desktop_preview_pointer_move`
+- `desktop_preview_layout`
+- `desktop_focus_window`
+- `desktop_apply_layout`
+
+### Internal-only in v1
+
+- `desktop_move_resize_window`
+- `desktop_run_action_plan`
+
+### Semantic action primitives
+
+The desktop controller now targets these core action primitives through the
+normal action/policy/audit/transparency stack:
+
+- `focus_window`
+- `set_window_bounds`
+
+Current executor posture:
+
+- `macos-local`: semantic window control via AX APIs (`focus_window`, `set_window_bounds`), with constrained fallback for focus.
+- `dry-run`: structured no-op simulated success.
+- `linux-x11`: explicit unsupported for these two actions in v1.
+
+### Layout semantics
+
+- Presets remain exactly: `coding-dual-pane`, `review-mode`, `agent-watch`.
+- With explicit `windowIds`, assignment is caller order -> slot order.
+- Without explicit `windowIds`, only positive-score hint matches are assigned.
+- Zero-score windows stay unresolved.
+- `desktop_apply_layout` fails fast on zero-target preview.
+
+### Boundary reminder
+
+Desktop controller MVP is a separate delivery stream from terminal/coding lane
+closure. Do not block desktop-controller hardening on terminal/coding follow-up
+items, and do not treat desktop controller completion as proof that
+terminal/coding closure is done.
+
+### Deferred stages (explicit)
+
+- Stage 2 (browser semantic adapter): extend the existing browser/CDP/DOM lane;
+  reuse bridge/message patterns and semantic browser-control ideas only. Do not
+  vendor Python CLI / NL planner / anti-detection / captcha handling.
+- Stage 3 (OS input fallback): keep as a separate adapter behind an explicit
+  opt-in flag, default OFF, and never the first-choice path.
+
 ## Terminal Lane v2: What Is Already Landed
 
 ### 1. Terminal surface model exists

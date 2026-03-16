@@ -325,6 +325,8 @@ export function registerPtyTools({ server, runtime }: RegisterPtyToolsOptions) {
         return buildApprovalResponse(pending, decision, context, {
           intent: 'Create an interactive PTY session',
           approvalReason: 'PTY session creation opens an interactive terminal surface and should be explicitly approved once per session.',
+        }, {
+          approvalToken: runtime.session.getPendingActionApprovalToken?.(pending.id),
         })
       }
 

@@ -71,6 +71,10 @@ export function explainActionIntent(action: ActionInvocation, runState: RunState
       return `Opening "${action.input.app}" because the task requires this application${taskContext}.`
     case 'focus_app':
       return `Bringing "${action.input.app}" to the foreground so we can interact with it${taskContext}.`
+    case 'focus_window':
+      return `Focusing window "${action.input.windowId}"${action.input.appName ? ` in ${action.input.appName}` : ''} using semantic window control${taskContext}.`
+    case 'set_window_bounds':
+      return `Resizing/repositioning window "${action.input.windowId}" to (${action.input.bounds.x}, ${action.input.bounds.y}, ${action.input.bounds.width}x${action.input.bounds.height})${taskContext}.`
     case 'secret_read_env_value':
       return `Reading specific secret keys from env file "${action.input.filePath}" so the task can reuse a configured value without dumping the whole file${taskContext}.`
     case 'clipboard_read_text':
@@ -121,6 +125,9 @@ export function explainApprovalReason(
   else if (action.kind === 'open_app' || action.kind === 'focus_app') {
     const app = action.kind === 'open_app' ? action.input.app : action.input.app
     parts.push(`because opening/focusing "${app}" changes the desktop environment`)
+  }
+  else if (action.kind === 'focus_window' || action.kind === 'set_window_bounds') {
+    parts.push('because semantic window-level desktop mutations can affect active task context')
   }
   else if (action.kind === 'type_text' && action.input.text.length > 160) {
     parts.push(`because a large text payload (${action.input.text.length} chars) is being typed`)
@@ -203,6 +210,10 @@ export function explainActionOutcome(params: {
       return `"${action.input.app}" has been opened. It should now be available for interaction.`
     case 'focus_app':
       return `"${action.input.app}" has been brought to the foreground.`
+    case 'focus_window':
+      return `Window "${action.input.windowId}" has been focused via semantic control.`
+    case 'set_window_bounds':
+      return `Window "${action.input.windowId}" bounds updated to (${action.input.bounds.x}, ${action.input.bounds.y}, ${action.input.bounds.width}x${action.input.bounds.height}).`
     case 'secret_read_env_value':
       return `Requested env keys were read successfully from "${action.input.filePath}".`
     case 'clipboard_read_text':
@@ -274,6 +285,10 @@ function buildFailureExplanation(
       parts.push(`Verify that "${app}" is installed and listed in COMPUTER_USE_OPENABLE_APPS.`)
       break
     }
+    case 'focus_window':
+    case 'set_window_bounds':
+      parts.push('Verify accessibility permissions and whether the target window id/title is still valid in the latest observation.')
+      break
   }
 
   return parts.join(' ')

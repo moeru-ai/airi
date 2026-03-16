@@ -15,6 +15,7 @@ import type { ComputerUseServerRuntime } from './runtime'
 
 import { z } from 'zod'
 
+import { createDesktopControlRuntime } from '../desktop'
 import { getRuntimePreflight } from '../preflight'
 import { summarizeRunState } from '../transparency'
 import {
@@ -37,6 +38,7 @@ import {
 import { refreshRuntimeRunState } from './refresh-run-state'
 import { registerCodingTools } from './register-coding'
 import { createAcquirePtyCallback, executeApprovedPtyCreate } from './register-pty'
+import { buildApprovalResponse } from './responses'
 import { formatWorkflowStructuredContent } from './workflow-formatter'
 import { createWorkflowPrepToolExecutor } from './workflow-prep-tools'
 
@@ -103,6 +105,23 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
   const executePrepTool = createWorkflowPrepToolExecutor(runtime)
   registerCodingTools(params)
   const acquirePty = createAcquirePtyCallback(runtime)
+  const desktopControl = createDesktopControlRuntime(runtime, executeAction)
+
+  function getPendingApprovalToken(id: string) {
+    return runtime.session.getPendingActionApprovalToken?.(id)
+  }
+
+  function validatePendingApprovalToken(pending: { id: string, action: { kind: string } }, providedToken?: string) {
+    if (pending.action.kind !== 'desktop_request_lease') {
+      return true
+    }
+
+    if (typeof runtime.session.hasPendingActionApprovalToken !== 'function') {
+      return true
+    }
+
+    return runtime.session.hasPendingActionApprovalToken(pending.id, providedToken)
+  }
 
   async function refreshWorkflowRunState() {
     await refreshRuntimeRunState(runtime)
@@ -792,8 +811,9 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     'desktop_approve_pending_action',
     {
       id: z.string().min(1).describe('Pending action id returned by another desktop tool'),
+      approvalToken: z.string().min(1).optional().describe('(internal) Opaque approval token returned alongside approval_required results.'),
     },
-    async ({ id }) => {
+    async ({ id, approvalToken }) => {
       const pending = runtime.session.getPendingAction(id)
       if (!pending) {
         return {
@@ -801,6 +821,20 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
           content: [
             textContent(`Pending action not found: ${id}`),
           ],
+        }
+      }
+
+      if (!validatePendingApprovalToken(pending, approvalToken)) {
+        return {
+          isError: true,
+          content: [
+            textContent(`Pending action approval token invalid for: ${id}`),
+          ],
+          structuredContent: {
+            status: 'error',
+            reason: 'pending_action_approval_token_invalid',
+            pendingActionId: id,
+          },
         }
       }
 
@@ -838,6 +872,36 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         return result
       }
 
+      if (pending.action.kind === 'desktop_request_lease') {
+        const leaseResult = desktopControl.requestLease(
+          pending.action.input.kind,
+          pending.action.input.ttlMs,
+        )
+
+        await runtime.session.record({
+          event: leaseResult.granted ? 'executed' : 'failed',
+          toolName: pending.toolName,
+          action: pending.action,
+          context: pending.context,
+          policy: pending.policy,
+          result: {
+            pendingActionId: id,
+            ...leaseResult,
+          },
+        })
+
+        return {
+          isError: !leaseResult.granted,
+          content: [textContent(`Desktop lease ${leaseResult.granted ? 'granted' : 'denied'} via approval: ${leaseResult.reason}.`)],
+          structuredContent: {
+            status: leaseResult.granted ? 'granted' : 'denied',
+            pendingActionId: id,
+            ...leaseResult,
+            control: desktopControl.getControlState(),
+          },
+        }
+      }
+
       return await executeAction(pending.action, pending.toolName, {
         skipApprovalQueue: true,
       })
@@ -848,9 +912,10 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     'desktop_reject_pending_action',
     {
       id: z.string().min(1).describe('Pending action id returned by another desktop tool'),
+      approvalToken: z.string().min(1).optional().describe('(internal) Opaque approval token returned alongside approval_required results.'),
       reason: z.string().optional().describe('Optional rejection note for the audit log'),
     },
-    async ({ id, reason }) => {
+    async ({ id, approvalToken, reason }) => {
       const pending = runtime.session.getPendingAction(id)
       if (!pending) {
         return {
@@ -858,6 +923,20 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
           content: [
             textContent(`Pending action not found: ${id}`),
           ],
+        }
+      }
+
+      if (!validatePendingApprovalToken(pending, approvalToken)) {
+        return {
+          isError: true,
+          content: [
+            textContent(`Pending action approval token invalid for: ${id}`),
+          ],
+          structuredContent: {
+            status: 'error',
+            reason: 'pending_action_approval_token_invalid',
+            pendingActionId: id,
+          },
         }
       }
 
@@ -926,6 +1005,262 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         structuredContent: {
           status: 'ok',
           runState: state,
+        },
+      }
+    },
+  )
+
+  // ---------------------------------------------------------------------------
+  // Desktop control model tools (observe / suggest / act)
+  // ---------------------------------------------------------------------------
+
+  server.tool(
+    'desktop_request_lease',
+    {
+      kind: z.enum(['observe', 'suggest', 'act']).describe('Control lease kind: observe | suggest | act.'),
+      ttlMs: z.number().int().min(250).max(30_000).optional().describe('Lease TTL in milliseconds (default: 2000).'),
+    },
+    async ({ kind, ttlMs }) => {
+      if (kind === 'act' && (runtime.config.approvalMode === 'actions' || runtime.config.approvalMode === 'all')) {
+        const { context, executionTarget } = await refreshRuntimeRunState(runtime)
+        const decision = {
+          allowed: true,
+          requiresApproval: true,
+          reason: 'act_lease_requires_approval',
+          reasons: ['Requesting an act lease enables desktop mutation actions and requires approval in the current policy mode.'],
+          riskLevel: 'high' as const,
+          estimatedOperationUnits: 1,
+        }
+
+        const pending = runtime.session.createPendingAction({
+          toolName: 'desktop_request_lease',
+          action: {
+            kind: 'desktop_request_lease',
+            input: {
+              kind: 'act',
+              ttlMs,
+            },
+          },
+          context,
+          policy: decision,
+        })
+
+        runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
+
+        await runtime.session.record({
+          event: 'approval_required',
+          toolName: 'desktop_request_lease',
+          action: pending.action,
+          context,
+          policy: decision,
+          result: {
+            executionTarget,
+            pendingActionId: pending.id,
+            requestedKind: kind,
+            ttlMs,
+          },
+        })
+
+        return buildApprovalResponse(pending, decision, context, {
+          intent: `Request act lease for ${ttlMs ?? 2_000}ms to allow desktop mutation actions.`,
+          approvalReason: 'Act lease escalation requires approval before mutation-capable desktop tools can run.',
+        }, {
+          approvalToken: getPendingApprovalToken(pending.id),
+        })
+      }
+
+      const result = desktopControl.requestLease(kind, ttlMs)
+      return {
+        content: [textContent(`Desktop lease ${result.granted ? 'granted' : 'denied'}: ${result.reason}.`)],
+        structuredContent: {
+          status: result.granted ? 'granted' : 'denied',
+          ...result,
+          control: desktopControl.getControlState(),
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'desktop_cancel_lease',
+    {
+      reason: z.string().optional().describe('Optional reason for cancellation.'),
+    },
+    async ({ reason }) => {
+      const result = desktopControl.cancelLease(reason)
+      return {
+        content: [textContent(`Desktop lease cancelled: ${result.reason}.`)],
+        structuredContent: {
+          status: 'cancelled',
+          ...result,
+          control: desktopControl.getControlState(),
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'desktop_report_user_input',
+    {
+      source: z.enum(['mouse', 'keyboard', 'unknown']).optional().describe('Input source hint for audit/readability.'),
+    },
+    async ({ source }) => {
+      const result = desktopControl.reportUserInput()
+      return {
+        content: [textContent(`User input reported (${source || 'unknown'}): ${result.reason}.`)],
+        structuredContent: {
+          status: result.interrupted ? 'interrupted' : 'noop',
+          source: source || 'unknown',
+          ...result,
+          control: desktopControl.getControlState(),
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'desktop_observe_scene',
+    {},
+    async () => {
+      const scene = await desktopControl.observeScene()
+      return {
+        content: [textContent(`Observed desktop scene: ${scene.windows.length} window(s), ${scene.screens.length} screen(s).`)],
+        structuredContent: {
+          status: 'ok',
+          scene,
+          control: desktopControl.getControlState(),
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'desktop_observe_pointer',
+    {},
+    async () => {
+      const pointer = desktopControl.observePointer()
+      return {
+        content: [textContent(`Observed pointer at (${pointer.x}, ${pointer.y}) with style=${pointer.style}.`)],
+        structuredContent: {
+          status: 'ok',
+          pointer,
+          control: desktopControl.getControlState(),
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'desktop_preview_pointer_move',
+    {
+      target: z.object({
+        x: z.number().describe('Target X coordinate in global screen space.'),
+        y: z.number().describe('Target Y coordinate in global screen space.'),
+      }),
+      label: z.string().optional().describe('Optional overlay label for this preview movement.'),
+    },
+    async ({ target, label }) => {
+      const pointer = desktopControl.previewPointerMove(target, label)
+      return {
+        content: [textContent(`Preview pointer target updated to (${target.x}, ${target.y}).`)],
+        structuredContent: {
+          status: 'ok',
+          pointer,
+          control: desktopControl.getControlState(),
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'desktop_preview_layout',
+    {
+      layoutId: z.enum(['coding-dual-pane', 'review-mode', 'agent-watch']).describe('Preset layout id to preview.'),
+      windowIds: z.array(z.string().min(1)).min(1).optional().describe('Optional explicit window ids to scope the layout preview.'),
+    },
+    async ({ layoutId, windowIds }) => {
+      const preview = await desktopControl.previewLayout(layoutId, windowIds)
+      return {
+        content: [textContent(`Layout preview ${layoutId}: ${preview.targets.length} target(s), ${preview.unresolvedWindowIds.length} unresolved.`)],
+        structuredContent: {
+          status: 'ok',
+          preview,
+          control: desktopControl.getControlState(),
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'desktop_apply_layout',
+    {
+      layoutId: z.enum(['coding-dual-pane', 'review-mode', 'agent-watch']).describe('Preset layout id to apply.'),
+      windowIds: z.array(z.string().min(1)).min(1).optional().describe('Optional explicit window ids to scope layout apply.'),
+    },
+    async ({ layoutId, windowIds }) => {
+      const result = await desktopControl.applyLayout(layoutId, windowIds)
+      if (result.status === 'lease_required' || result.status === 'failed' || result.status === 'interrupted' || result.status === 'unsupported') {
+        const reason = 'reason' in result
+          ? result.reason
+          : 'result' in result
+            ? result.result.errors?.[0] || `layout_apply_${result.status}`
+            : 'layout_apply_failed'
+
+        return {
+          isError: true,
+          content: [textContent(`Layout apply failed: ${reason}.`)],
+          structuredContent: {
+            ...result,
+            status: 'error',
+            reason,
+            control: desktopControl.getControlState(),
+          },
+        }
+      }
+
+      return {
+        content: [textContent(`Layout apply ${layoutId}: ${result.result.status}, executed ${result.result.executedSteps} step(s).`)],
+        structuredContent: {
+          ...result,
+          status: result.status,
+          control: desktopControl.getControlState(),
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'desktop_focus_window',
+    {
+      windowId: z.string().min(1).describe('Window id from desktop_observe_scene().'),
+    },
+    async ({ windowId }) => {
+      const result = await desktopControl.focusWindow(windowId)
+      if (result.status !== 'completed') {
+        const reason = 'reason' in result
+          ? result.reason
+          : 'result' in result && result.result && typeof result.result === 'object' && 'reason' in result.result
+            ? String((result.result as { reason?: unknown }).reason ?? 'unknown')
+            : `focus_window_${result.status}`
+
+        return {
+          isError: true,
+          content: [textContent(`Focus window failed: ${reason}.`)],
+          structuredContent: {
+            ...result,
+            status: 'error',
+            reason,
+            control: desktopControl.getControlState(),
+          },
+        }
+      }
+
+      return {
+        content: [textContent(`Window focused successfully: ${windowId}.`)],
+        structuredContent: {
+          ...result,
+          status: 'ok',
+          control: desktopControl.getControlState(),
         },
       }
     },

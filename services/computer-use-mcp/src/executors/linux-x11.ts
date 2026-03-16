@@ -3,10 +3,12 @@ import type {
   ClickActionInput,
   ComputerUseConfig,
   DesktopExecutor,
+  FocusWindowActionInput,
   ForegroundContext,
   PointerTracePoint,
   PressKeysActionInput,
   ScrollActionInput,
+  SetWindowBoundsActionInput,
   TypeTextActionInput,
   WaitActionInput,
   WindowObservation,
@@ -92,6 +94,12 @@ export function createLinuxX11Executor(config: ComputerUseConfig, options: Linux
     },
     focusApp: async () => {
       throw new Error('linux-x11 executor does not implement app.focus in this v1')
+    },
+    focusWindow: async (_input: FocusWindowActionInput) => {
+      throw new Error('linux-x11 executor does not implement focus_window in this v1')
+    },
+    setWindowBounds: async (_input: SetWindowBoundsActionInput) => {
+      throw new Error('linux-x11 executor does not implement set_window_bounds in this v1')
     },
     click: async (input: ClickActionInput & { pointerTrace: PointerTracePoint[] }) => await client.click(input),
     typeText: async (input: TypeTextActionInput) => await client.typeText(input),

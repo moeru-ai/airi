@@ -269,6 +269,35 @@ describe('runManualToolLoop', () => {
     expect(events).toContain('finish')
   })
 
+  it('retries once for a conversational desktop-entry request when the model narrates instead of calling tools', async () => {
+    const mockFetch = createMockFetch([
+      textOnlyResponse('好，我来你桌面了。'),
+      toolCallResponse('mcp_call_tool', {
+        name: 'computer_use::desktop_observe_scene',
+        parameters: [],
+      }),
+      textOnlyResponse('已经实际调用桌面观察工具。'),
+    ])
+
+    const events: string[] = []
+    await runManualToolLoop({
+      chatProvider: createChatProvider(mockFetch),
+      maxSteps: 5,
+      messages: [{
+        role: 'user',
+        content: '快点到我桌面吗，先陪我看看现在屏幕上是什么。',
+      }],
+      model: 'gpt-4.1',
+      tools: [createDummyTool('mcp_call_tool')],
+      promptContentMode: 'default',
+      onStreamEvent: async (event) => { events.push(event.type) },
+    })
+
+    expect(mockFetch).toHaveBeenCalledTimes(3)
+    expect(events).toContain('tool-call')
+    expect(events).toContain('finish')
+  })
+
   it('retries once for a clipboard/token transfer request when the model narrates instead of calling tools', async () => {
     const mockFetch = createMockFetch([
       textOnlyResponse('I copied the Discord token and pasted it into AIRI settings.'),
