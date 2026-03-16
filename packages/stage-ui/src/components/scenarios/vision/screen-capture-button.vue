@@ -3,14 +3,6 @@ import { Button } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const { t } = useI18n()
-
-interface Props {
-  isCapturing?: boolean
-  cooldownRemaining?: number
-  disabled?: boolean
-}
-
 const props = withDefaults(defineProps<Props>(), {
   isCapturing: false,
   cooldownRemaining: 0,
@@ -20,6 +12,14 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   capture: []
 }>()
+
+const { t } = useI18n()
+
+interface Props {
+  isCapturing?: boolean
+  cooldownRemaining?: number
+  disabled?: boolean
+}
 
 const isDisabled = computed(() => props.disabled || props.isCapturing || props.cooldownRemaining > 0)
 

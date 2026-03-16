@@ -51,15 +51,6 @@ pages:
       toggle-ignore-mouse-event:
         label: Ignore Mouse Events
       press-keys: Press keys...
-    vision:
-      title: Vision System
-      description: Configure AIRI screen perception
-      provider: AI Provider
-      model: Model
-      api-key: API Key
-      base-url: Custom API URL
-      auto-capture: Auto Capture
-      capture-interval: Capture interval (seconds)
     developer:
       sections:
         section:

@@ -103,7 +103,7 @@ watch(connected, (isConnected) => {
 </script>
 
 <template>
-  <div fixed right-3 top-3 z-20>
+  <div v-if="!connected" fixed right-3 top-3 z-20>
     <ControlButtonTooltip side="left">
       <ControlButton
         :button-style="buttonStyle.join(' ')"

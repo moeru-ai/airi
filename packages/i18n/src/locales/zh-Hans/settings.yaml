@@ -401,6 +401,14 @@ pages:
     vision:
       description: 视觉
       title: 视觉
+      analysis:
+        context-header: 我刚刚让 AIRI 看了屏幕，以下是屏幕分析结果：
+        screen-description: '屏幕描述：'
+        ui-elements: 'UI 元素：'
+        suggestions: '建议操作：'
+        none: 无
+        position: '位置：'
+        prompt-footer: 请根据这个屏幕分析结果来回答我的问题。
     x:
       description: X / Twitter 的浏览和使用
       title: X / Twitter

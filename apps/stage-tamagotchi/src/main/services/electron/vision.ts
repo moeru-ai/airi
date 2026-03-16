@@ -5,9 +5,7 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { desktopCapturer } from 'electron'
 
 import {
-  visionAnalyzeScreen,
   visionCaptureScreen,
-  visionExecuteAction,
   visionGetConfig,
   visionScreenChangeEvent,
   visionSetAutoCapture,
@@ -31,7 +29,7 @@ interface VisionConfig {
   modelName: string
 }
 
-const config: VisionConfig = {
+const DEFAULT_CONFIG: VisionConfig = {
   autoCapture: {
     enabled: false,
     interval: 30000,
@@ -39,16 +37,6 @@ const config: VisionConfig = {
   cooldown: 5000,
   modelProvider: 'openai',
   modelName: 'gpt-4o',
-}
-
-let lastCaptureTime = 0
-let autoCaptureInterval: ReturnType<typeof setInterval> | null = null
-let savedContext: ReturnType<typeof createContext>['context'] | null = null
-let savedWindow: BrowserWindow | null = null
-
-function checkCooldown(): boolean {
-  const now = Date.now()
-  return now - lastCaptureTime >= config.cooldown
 }
 
 async function getScreenSources() {
@@ -61,8 +49,58 @@ async function getScreenSources() {
 
 export function createVisionService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
   const { context, window } = params
-  savedContext = context
-  savedWindow = window
+
+  const config: VisionConfig = { ...DEFAULT_CONFIG }
+  let lastCaptureTime = 0
+  let autoCaptureInterval: ReturnType<typeof setInterval> | null = null
+
+  function checkCooldown(): boolean {
+    const now = Date.now()
+    return now - lastCaptureTime >= config.cooldown
+  }
+
+  function startAutoCapture() {
+    stopAutoCapture()
+
+    autoCaptureInterval = setInterval(() => {
+      captureAndEmit()
+    }, config.autoCapture.interval)
+  }
+
+  function stopAutoCapture() {
+    if (autoCaptureInterval) {
+      clearInterval(autoCaptureInterval)
+      autoCaptureInterval = null
+    }
+  }
+
+  async function captureAndEmit() {
+    if (!checkCooldown()) {
+      return
+    }
+
+    lastCaptureTime = Date.now()
+
+    try {
+      const sources = await getScreenSources()
+
+      if (sources.length === 0) {
+        return
+      }
+
+      const primarySource = sources[0]
+      const thumbnail = primarySource.thumbnail.toPNG().toString('base64')
+
+      context.emit(visionScreenChangeEvent, { timestamp: lastCaptureTime })
+      window.webContents.send('vision:screenshot', {
+        image: thumbnail,
+        timestamp: lastCaptureTime,
+      })
+    }
+    catch (error) {
+      console.error('[Vision] Auto capture error:', error)
+    }
+  }
 
   defineInvokeHandler(context, visionCaptureScreen, async () => {
     if (!checkCooldown()) {
@@ -84,25 +122,6 @@ export function createVisionService(params: { context: ReturnType<typeof createC
       image: thumbnail,
       timestamp: lastCaptureTime,
     }
-  })
-
-  defineInvokeHandler(context, visionAnalyzeScreen, async (payload) => {
-    const image = payload?.image ?? ''
-    const prompt = payload?.prompt
-    console.info('[Vision] Analyze screen:', { imageLength: image.length, prompt })
-    return {
-      description: 'Screen analysis placeholder - AI integration required',
-      elements: [],
-      suggestions: [],
-    }
-  })
-
-  defineInvokeHandler(context, visionExecuteAction, async (payload) => {
-    const action = payload?.action ?? ''
-    const target = payload?.target
-    const coordinates = payload?.coordinates
-
-    console.info('[Vision] Execute action:', { action, target, coordinates })
   })
 
   defineInvokeHandler(context, visionSetAutoCapture, async (payload) => {
@@ -142,49 +161,4 @@ export function createVisionService(params: { context: ReturnType<typeof createC
       }
     }
   })
-}
-
-async function captureAndEmit() {
-  if (!savedContext || !savedWindow)
-    return
-  if (!checkCooldown()) {
-    return
-  }
-
-  lastCaptureTime = Date.now()
-
-  try {
-    const sources = await getScreenSources()
-
-    if (sources.length === 0) {
-      return
-    }
-
-    const primarySource = sources[0]
-    const thumbnail = primarySource.thumbnail.toPNG().toString('base64')
-
-    savedContext.emit(visionScreenChangeEvent, { timestamp: lastCaptureTime })
-    savedWindow.webContents.send('vision:screenshot', {
-      image: thumbnail,
-      timestamp: lastCaptureTime,
-    })
-  }
-  catch (error) {
-    console.error('[Vision] Auto capture error:', error)
-  }
-}
-
-function startAutoCapture() {
-  stopAutoCapture()
-
-  autoCaptureInterval = setInterval(() => {
-    captureAndEmit()
-  }, config.autoCapture.interval)
-}
-
-function stopAutoCapture() {
-  if (autoCaptureInterval) {
-    clearInterval(autoCaptureInterval)
-    autoCaptureInterval = null
-  }
 }

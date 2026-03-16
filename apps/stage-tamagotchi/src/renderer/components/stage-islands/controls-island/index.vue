@@ -41,9 +41,14 @@ const expanded = ref(false)
 const islandRef = ref<HTMLElement>()
 
 async function captureAndAnalyze() {
-  const { useVisionStore } = await import('../../../stores/vision')
-  const visionStore = useVisionStore()
-  await visionStore.captureAndAnalyze()
+  try {
+    const { useVisionStore } = await import('../../../stores/vision')
+    const visionStore = useVisionStore()
+    await visionStore.captureAndAnalyze()
+  }
+  catch (error) {
+    console.error('[ControlsIsland] Vision capture and analyze failed:', error)
+  }
 }
 
 // Expose whether hearing dialog is open so parent can disable click-through

@@ -16,6 +16,7 @@ const {
   allChatProvidersMetadata,
   allAudioSpeechProvidersMetadata,
   allAudioTranscriptionProvidersMetadata,
+  allVisionProvidersMetadata,
 } = storeToRefs(providersStore)
 
 const providerBlocksConfig = [
@@ -39,6 +40,13 @@ const providerBlocksConfig = [
     title: 'Transcription',
     description: 'Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech',
     providersRef: allAudioTranscriptionProvidersMetadata,
+  },
+  {
+    id: 'vision',
+    icon: 'i-solar:eye-bold-duotone',
+    title: 'Vision',
+    description: 'Vision (image understanding) model providers. e.g. OpenAI GPT-4o, Ollama.',
+    providersRef: allVisionProvidersMetadata,
   },
 ]
 

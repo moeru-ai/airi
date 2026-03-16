@@ -54,6 +54,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
         url: websocketUrl.value || defaultWebSocketUrl,
         token: options?.token,
         possibleEvents,
+        autoConnect: false,
         onAnyMessage: (event) => {
           useWebSocketInspectorStore().add('incoming', event)
         },
@@ -91,6 +92,8 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
         connected.value = false
       })
+
+      client.value.connect()
     })
   }
 

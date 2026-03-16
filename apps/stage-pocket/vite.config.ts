@@ -95,12 +95,19 @@ export default defineConfig({
   },
 
   plugins: [
-    ...isEnvTruthy(process.env.VITE_SKIP_MKCERT ?? '') ? [] : [mkcert((() => {
-      // Workaround: plugin's bundled downloader has a feaxios bug, prefer system mkcert
-      const command = process.platform === 'win32' ? 'where' : 'which'
-      try { return { mkcertPath: execSync(`${command} mkcert`, { stdio: 'pipe' }).toString().trim().split(/\r?\n/)[0] } }
-      catch { return {} }
-    })())],
+    ...isEnvTruthy(process.env.VITE_SKIP_MKCERT ?? '')
+      ? []
+      : [mkcert((() => {
+          // Workaround: plugin's bundled downloader has a feaxios bug, prefer system mkcert
+          const command = process.platform === 'win32' ? 'where' : 'which'
+          try {
+            const path = execSync(`${command} mkcert`, { stdio: 'pipe' }).toString().trim().split(/\r?\n/)[0]
+            return { mkcertPath: path }
+          }
+          catch {
+            return {}
+          }
+        })())],
 
     Info(),
 

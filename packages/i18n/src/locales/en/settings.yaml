@@ -429,6 +429,14 @@ pages:
     vision:
       description: Vision
       title: Vision
+      analysis:
+        context-header: 'I just let AIRI see the screen, here is the screen analysis result:'
+        screen-description: 'Screen Description:'
+        ui-elements: 'UI Elements:'
+        suggestions: 'Suggested Actions:'
+        none: None
+        position: 'position:'
+        prompt-footer: 'Please answer my question based on this screen analysis result.'
     x:
       description: X / Twitter browsing and usage
       title: X / Twitter

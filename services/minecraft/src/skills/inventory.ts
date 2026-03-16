@@ -181,13 +181,14 @@ async function dropItemsAndWaitForCollection(
 
   return new Promise((resolve, reject) => {
     let settled = false
+    let timeout: ReturnType<typeof setTimeout>
 
-    const cleanup = () => {
+    function cleanup() {
       mineflayer.bot.removeListener('playerCollect', onCollect)
       mineflayer.removeListener('interrupt', onInterrupt)
     }
 
-    const finishResolve = () => {
+    function finishResolve() {
       if (settled)
         return
       settled = true
@@ -195,7 +196,7 @@ async function dropItemsAndWaitForCollection(
       resolve()
     }
 
-    const finishReject = (error: unknown) => {
+    function finishReject(error: unknown) {
       if (settled)
         return
       settled = true
@@ -203,12 +204,7 @@ async function dropItemsAndWaitForCollection(
       reject(error)
     }
 
-    const timeout = setTimeout(() => {
-      clearTimeout(timeout)
-      finishReject(new ActionError('INTERRUPTED', `Failed to give ${itemType} to ${username}, it was never received`, { item: itemType }))
-    }, 3000)
-
-    const onCollect = (collector: any, _collected: any) => {
+    function onCollect(collector: any, _collected: any) {
       if (collector.username === username) {
         log(mineflayer, `${username} received ${itemType}.`)
         clearTimeout(timeout)
@@ -216,10 +212,15 @@ async function dropItemsAndWaitForCollection(
       }
     }
 
-    const onInterrupt = () => {
+    function onInterrupt() {
       clearTimeout(timeout)
       finishReject(new ActionError('INTERRUPTED', `Failed to give ${itemType} to ${username}, action was cancelled`, { item: itemType }))
     }
+
+    timeout = setTimeout(() => {
+      clearTimeout(timeout)
+      finishReject(new ActionError('INTERRUPTED', `Failed to give ${itemType} to ${username}, it was never received`, { item: itemType }))
+    }, 3000)
 
     mineflayer.bot.once('playerCollect', onCollect)
     mineflayer.once('interrupt', onInterrupt)

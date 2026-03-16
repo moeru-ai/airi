@@ -51,15 +51,6 @@ pages:
       toggle-ignore-mouse-event:
         label: 忽略鼠标事件
       press-keys: 请按下按键...
-    vision:
-      title: 视觉系统
-      description: 配置 AIRI 屏幕感知功能
-      provider: AI 提供商
-      model: 模型
-      api-key: API Key
-      base-url: 自定义 API 地址
-      auto-capture: 自动截屏
-      capture-interval: 截屏间隔（秒）
     developer:
       sections:
         section:
