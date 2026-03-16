@@ -10,7 +10,6 @@ packages:
   - docs/**
   - apps/**
   - '!**/dist/**'
-
 overrides:
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
   axios: npm:feaxios@^0.0.23
@@ -21,13 +20,15 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
+enableGlobalVirtualStore: true
 
 patchedDependencies:
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
-  srvx@0.9.8: patches/srvx@0.9.8.patch
-
+  pixi-live2d-display: patches/pixi-live2d-display.patch
+  srvx: patches/srvx.patch
 catalog:
+  '@capacitor/android': ^8.1.0
   '@capacitor/cli': ^8.1.0
   '@capacitor/core': ^8.1.0
   '@capacitor/ios': ^8.1.0
@@ -39,10 +40,11 @@ catalog:
   '@histoire/plugin-vue': 1.0.0-beta.1
   '@iconify-json/logos': ^1.2.10
   '@iconify-json/tabler': ^1.2.27
+  '@intlify/core': ^11.2.8
   '@modelcontextprotocol/sdk': ^1.27.1
   '@moeru/eslint-config': 0.1.0-beta.15
   '@moeru/eventa': 1.0.0-alpha.14
-  '@moeru/std': 0.1.0-beta.14
+  '@moeru/std': 0.1.0-beta.17
   '@nekopaw/tempora': 0.4.0-alpha.1
   '@pinia/testing': ^1.0.3
   '@proj-airi/drizzle-duckdb-wasm': ^0.4.29
@@ -66,18 +68,20 @@ catalog:
   '@xsai/stream-text': ^0.4.3
   '@xsai/tool': ^0.4.3
   '@xsai/utils-chat': 0.4.0-beta.13
+  alien-signals: ^3.1.2
   async-mutex: 0.5.0
   better-auth: ^1.4.19
   builder-util-runtime: ^9.5.1
+  capacitor-native-settings: ^8.0.0
   crossws: ^0.4.4
   drizzle-valibot: ^0.4.2
-  electron: ^40.6.1
+  electron: ^40.8.0
   embla-carousel-vue: ^9.0.0-rc01
   es-toolkit: 1.43.0
   histoire: 1.0.0-beta.1
   hono: 4.11.3
   idb-keyval: ^6.2.2
-  injeca: ^0.1.7
+  injeca: ^0.1.8
   is-network-error: ^1.3.0
   knip: ^5.85.0
   mkcert: ^3.2.0
@@ -103,7 +107,6 @@ catalog:
   xsschema: 0.4.0-beta.13
   yaml: ^2.8.2
   zod: ^4.3.6
-
 catalogs:
   vitest:
     '@vitest/browser-playwright': ^4.0.18

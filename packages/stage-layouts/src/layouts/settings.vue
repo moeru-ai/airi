@@ -88,13 +88,15 @@ onMounted(() => updateThemeColor())
       <HeaderLink />
     </div>
     <!-- Content -->
-    <div class="max-h-[calc(100%-40px)] px-3 py-0 sm:max-h-[calc(100%-56px)] 2xl:max-w-screen-2xl md:py-0 xl:px-4" flex="~ col" mx-auto h-full>
+    <div class="max-h-[calc(100%-40px)] px-3 py-0 sm:max-h-[calc(100%-56px)] 2xl:max-w-screen-2xl md:py-0 xl:px-4" flex="~ col" mx-auto h-full min-h-0>
       <PageHeader
         :title="routeHeaderMetadata?.title || ''"
         :subtitle="routeHeaderMetadata?.subtitle"
         :disable-back-button="route.path === '/settings'"
       />
-      <RouterView />
+      <div id="settings-scroll-container" relative min-h-0 flex-1 overflow-y-auto scrollbar-none>
+        <RouterView />
+      </div>
     </div>
   </div>
 </template>

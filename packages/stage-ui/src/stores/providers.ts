@@ -21,7 +21,7 @@ import type {
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
-import { computedAsync, useLocalStorage } from '@vueuse/core'
+import { computedAsync, useIntervalFn, useLocalStorage } from '@vueuse/core'
 import {
   createOpenAI,
 } from '@xsai-ext/providers/create'
@@ -33,6 +33,7 @@ import {
   merge,
 } from '@xsai-ext/providers/utils'
 import { listModels } from '@xsai/model'
+import { uniqBy } from 'es-toolkit'
 import { isWebGPUSupported } from 'gpuu/webgpu'
 import { defineStore } from 'pinia'
 import {
@@ -47,6 +48,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { listProviders as listDefinedProviders } from '../libs/providers'
+import { getProviderValidationIntervalMs } from '../libs/providers/validators/run'
 import { getKokoroWorker } from '../workers/kokoro'
 import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
@@ -145,6 +147,15 @@ export interface ProviderMetadata {
       reason: string
       valid: boolean
     }
+    /**
+     * Run only the manual-only validators. Returns validation result.
+     * Only available when the provider has manual validators.
+     */
+    runManualValidation?: (config: Record<string, unknown>) => Promise<{
+      errors: unknown[]
+      reason: string
+      valid: boolean
+    }>
   }
   transcriptionFeatures?: {
     supportsGenerate: boolean
@@ -237,6 +248,34 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Centralized provider metadata with provider factory functions
   const providerMetadata: Record<string, ProviderMetadata> = {
+    'speech-noop': {
+      id: 'speech-noop',
+      category: 'speech',
+      tasks: ['text-to-speech', 'tts'],
+      nameKey: 'settings.pages.providers.provider.speech-noop.title',
+      name: 'None',
+      descriptionKey: 'settings.pages.providers.provider.speech-noop.description',
+      description: 'No speech output.',
+      icon: 'i-solar:volume-cross-bold-duotone',
+      defaultOptions: () => ({}),
+      createProvider: async () => ({
+        speech: () => ({
+          baseURL: 'http://speech-noop.invalid/v1/',
+          model: 'noop',
+        }),
+      }),
+      capabilities: {
+        listModels: async () => [],
+        listVoices: async () => [],
+      },
+      validators: {
+        validateProviderConfig: () => ({
+          errors: [],
+          reason: '',
+          valid: true,
+        }),
+      },
+    },
     'app-local-audio-speech': buildOpenAICompatibleProvider({
       id: 'app-local-audio-speech',
       name: 'App (Local)',
@@ -888,6 +927,10 @@ export const useProvidersStore = defineStore('providers', () => {
             ...provider.voice(),
           })
 
+          if (!voices || !Array.isArray(voices)) {
+            return []
+          }
+
           // Find indices of Aria and Bill
           const ariaIndex = voices.findIndex(voice => voice.name.includes('Aria'))
           const billIndex = voices.findIndex(voice => voice.name.includes('Bill'))
@@ -953,6 +996,34 @@ export const useProvidersStore = defineStore('providers', () => {
         return provider
       },
       capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'aura-2',
+              name: 'Aura 2',
+              provider: 'deepgram-tts',
+              description: 'Latest generation Aura model',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: 'aura-1',
+              name: 'Aura 1',
+              provider: 'deepgram-tts',
+              description: 'First generation Aura model',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: 'aura',
+              name: 'Aura (Legacy)',
+              provider: 'deepgram-tts',
+              description: 'Original Aura model',
+              contextLength: 0,
+              deprecated: true,
+            },
+          ]
+        },
         listVoices: async (config) => {
           const provider = createUnDeepgram((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnDeepgramOptions>
 
@@ -1068,13 +1139,14 @@ export const useProvidersStore = defineStore('providers', () => {
       iconColor: 'i-lobe-icons:bilibiliindex',
       defaultOptions: () => ({
         baseUrl: 'http://localhost:11996/tts/',
+        model: 'IndexTTS-1.5',
       }),
       createProvider: async (config) => {
         const provider: SpeechProvider = {
           speech: () => {
             const req = {
               baseURL: config.baseUrl as string,
-              model: 'IndexTTS-1.5',
+              model: (config.model as string) || 'IndexTTS-1.5',
             }
             return req
           },
@@ -1082,6 +1154,18 @@ export const useProvidersStore = defineStore('providers', () => {
         return provider
       },
       capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'IndexTTS-1.5',
+              name: 'IndexTTS-1.5',
+              provider: 'index-tts-vllm',
+              description: 'Default model for Index-TTS vLLM deployment',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
         listVoices: async (config) => {
           const voicesUrl = config.baseUrl as string
           const response = await fetch(`${voicesUrl}audio/voices`)
@@ -1321,6 +1405,18 @@ export const useProvidersStore = defineStore('providers', () => {
       }),
       createProvider: async config => createPlayer2((config.baseUrl as string).trim(), 'airi'),
       capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'player2-tts',
+              name: 'Player2 Speech',
+              provider: 'player2-speech',
+              description: 'Default model for Player2 speech endpoint',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
         listVoices: async (config) => {
           const baseUrl = (config.baseUrl as string).endsWith('/') ? (config.baseUrl as string).slice(0, -1) : config.baseUrl as string
           return await fetch(`${baseUrl}/tts/voices`).then(res => res.json()).then(({ voices }) => (voices as { id: string, language: 'american_english' | 'british_english' | 'japanese' | 'mandarin_chinese' | 'spanish' | 'french' | 'hindi' | 'italian' | 'brazilian_portuguese', name: string, gender: string }[]).map(({ id, language, name, gender }) => (
@@ -1608,11 +1704,24 @@ export const useProvidersStore = defineStore('providers', () => {
   // Progressive migration bridge:
   // translate unified provider definitions from libs/providers to legacy store metadata.
   // Existing metadata remains as fallback for providers not yet migrated.
+  const definedProviders = listDefinedProviders()
+
   const translatedProviderMetadata = convertProviderDefinitionsToMetadata(
-    listDefinedProviders(),
+    definedProviders,
     t,
     providerMetadata,
   )
+
+  const providerValidationIntervalMsById = new Map<string, number>()
+  for (const definition of definedProviders) {
+    const intervalMs = getProviderValidationIntervalMs({
+      definition,
+      contextOptions: { t },
+    })
+    if (intervalMs && intervalMs > 0) {
+      providerValidationIntervalMsById.set(definition.id, intervalMs)
+    }
+  }
 
   // Keep only legacy ASR/TTS providers as hand-written metadata.
   // All other categories are sourced from unified definitions in libs/providers.
@@ -1632,6 +1741,8 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // const validatedCredentials = ref<Record<string, string>>({})
   const providerRuntimeState = ref<Record<string, ProviderRuntimeState>>({})
+  const providerValidationInFlight = new Map<string, Promise<boolean>>()
+  const providerRevalidationLoops = new Map<string, { resume: () => void }>()
 
   const configuredProviders = computed(() => {
     const result: Record<string, boolean> = {}
@@ -1651,7 +1762,7 @@ export const useProvidersStore = defineStore('providers', () => {
   }
 
   // Configuration validation functions
-  async function validateProvider(providerId: string): Promise<boolean> {
+  async function validateProvider(providerId: string, options: { force?: boolean } = {}): Promise<boolean> {
     const metadata = providerMetadata[providerId]
     if (!metadata)
       return false
@@ -1669,26 +1780,43 @@ export const useProvidersStore = defineStore('providers', () => {
 
     const configString = JSON.stringify(config || {})
     const runtimeState = providerRuntimeState.value[providerId]
+    const cacheKey = `${providerId}:${configString}`
+    const forceValidation = options.force === true
 
-    if (runtimeState?.validatedCredentialHash === configString && typeof runtimeState.isConfigured === 'boolean')
+    if (!forceValidation && runtimeState?.validatedCredentialHash === configString && typeof runtimeState.isConfigured === 'boolean')
       return runtimeState.isConfigured
 
-    // Always cache the current config string to prevent re-validating the same config
-    if (providerRuntimeState.value[providerId]) {
-      providerRuntimeState.value[providerId].validatedCredentialHash = configString
-    }
-
-    const validationResult = await metadata.validators.validateProviderConfig(config || {})
-
-    if (providerRuntimeState.value[providerId]) {
-      providerRuntimeState.value[providerId].isConfigured = validationResult.valid
-      // Auto-mark Web Speech API as added if valid and available
-      if (validationResult.valid && ['browser-web-speech-api', 'player2'].includes(providerId)) {
-        markProviderAdded(providerId)
+    if (!forceValidation) {
+      const pending = providerValidationInFlight.get(cacheKey)
+      if (pending) {
+        return pending
       }
     }
 
-    return validationResult.valid
+    const runValidation = async () => {
+      const validationResult = await metadata.validators.validateProviderConfig(config || {})
+
+      if (providerRuntimeState.value[providerId]) {
+        providerRuntimeState.value[providerId].isConfigured = validationResult.valid
+        providerRuntimeState.value[providerId].validatedCredentialHash = configString
+        // Auto-mark Web Speech API as added if valid and available
+        if (validationResult.valid && ['browser-web-speech-api', 'player2'].includes(providerId)) {
+          markProviderAdded(providerId)
+        }
+      }
+
+      return validationResult.valid
+    }
+
+    if (forceValidation) {
+      return runValidation()
+    }
+
+    const task = runValidation()
+    providerValidationInFlight.set(cacheKey, task)
+    return task.finally(() => {
+      providerValidationInFlight.delete(cacheKey)
+    })
   }
 
   // Create computed properties for each provider's configuration status
@@ -1720,6 +1848,23 @@ export const useProvidersStore = defineStore('providers', () => {
   // Initialize all providers
   Object.keys(providerMetadata).forEach(initializeProvider)
 
+  function startPeriodicRuntimeValidation() {
+    for (const [providerId, intervalMs] of providerValidationIntervalMsById.entries()) {
+      if (!providerMetadata[providerId] || intervalMs <= 0)
+        continue
+
+      if (providerRevalidationLoops.has(providerId)) {
+        continue
+      }
+
+      const loop = useIntervalFn(() => {
+        void validateProvider(providerId, { force: true })
+      }, intervalMs, { immediate: false, immediateCallback: false })
+      loop.resume()
+      providerRevalidationLoops.set(providerId, loop)
+    }
+  }
+
   // Update configuration status for all configured providers
   async function updateConfigurationStatus() {
     await Promise.all(Object.entries(providerMetadata)
@@ -1742,6 +1887,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Call initially and watch for changes
   watch(providerCredentials, updateConfigurationStatus, { deep: true, immediate: true })
+  startPeriodicRuntimeValidation()
 
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.keys(providerMetadata).filter(providerId => providerRuntimeState.value[providerId]?.isConfigured))
@@ -1819,14 +1965,15 @@ export const useProvidersStore = defineStore('providers', () => {
 
       // Transform and store the models
       if (runtimeState) {
-        runtimeState.models = models.map(model => ({
-          id: model.id,
-          name: model.name,
-          description: model.description,
-          contextLength: model.contextLength,
-          deprecated: model.deprecated,
-          provider: providerId,
-        }))
+        runtimeState.models = uniqBy(models.filter(model => !!model.id), m => m.id)
+          .map(model => ({
+            id: model.id,
+            name: model.name,
+            description: model.description,
+            contextLength: model.contextLength,
+            deprecated: model.deprecated,
+            provider: providerId,
+          }))
         return runtimeState.models
       }
       return []

@@ -1,8 +1,8 @@
 import type { BaseIssue, BaseSchema, InferIssue, InferOutput } from 'valibot'
 
 import { existsSync, readFileSync } from 'node:fs'
-import { writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { copyFile, mkdir, rename, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 
 import { safeDestr } from 'destr'
 import { app } from 'electron'
@@ -35,6 +35,10 @@ function createConfigPath(namespace: string, filename: string) {
   return join(app.getPath('userData'), `${namespace}-${filename}`)
 }
 
+async function ensureConfigDirectory(path: string) {
+  await mkdir(dirname(path), { recursive: true })
+}
+
 type PersistedSchema = BaseSchema<unknown, unknown, BaseIssue<unknown>>
 
 function parseWithSchema<TSchema extends PersistedSchema>(
@@ -49,12 +53,19 @@ function parseWithSchema<TSchema extends PersistedSchema>(
   return { issues: result.issues }
 }
 
+export interface Config<TSchema extends PersistedSchema> {
+  setup: () => ConfigDiagnostics<InferOutput<TSchema>>
+  get: () => InferOutput<TSchema> | undefined
+  update: (newData: InferOutput<TSchema>) => void
+  getDiagnostics: () => ConfigDiagnostics<InferOutput<TSchema>> | undefined
+}
+
 export function createConfig<TSchema extends PersistedSchema>(
   namespace: string,
   filename: string,
   schema: TSchema,
   options?: CreateConfigOptions<InferOutput<TSchema>>,
-) {
+): Config<TSchema> {
   const key = `${namespace}:${filename}`
   const autoHeal = options?.autoHeal ?? Boolean(options?.default)
 
@@ -67,7 +78,11 @@ export function createConfig<TSchema extends PersistedSchema>(
 
   const save = throttle(async () => {
     try {
-      await writeFile(configPath(), JSON.stringify(persistenceMap.get(key)))
+      const path = configPath()
+      await ensureConfigDirectory(path)
+      const tmpPath = `${path}.tmp`
+      await writeFile(tmpPath, JSON.stringify(persistenceMap.get(key)))
+      await rename(tmpPath, path)
     }
     catch (error) {
       console.error('Failed to save config', error)
@@ -76,7 +91,12 @@ export function createConfig<TSchema extends PersistedSchema>(
 
   const writeHealingConfig = async (value: InferOutput<TSchema>) => {
     try {
-      await writeFile(configPath(), JSON.stringify(value))
+      const path = configPath()
+      await ensureConfigDirectory(path)
+      if (existsSync(path)) {
+        await copyFile(path, `${path}.bak`).catch(err => console.warn('Failed to create backup for config:', path, err))
+      }
+      await writeFile(path, JSON.stringify(value))
       return true
     }
     catch (error) {

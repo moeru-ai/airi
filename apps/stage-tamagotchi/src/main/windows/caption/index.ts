@@ -1,6 +1,9 @@
 import type { BrowserWindow, BrowserWindowConstructorOptions, Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
+import type { I18n } from '../../libs/i18n'
+import type { ServerChannel } from '../../services/airi/channel-server'
+
 import { createHash } from 'node:crypto'
 import { join, resolve } from 'node:path'
 
@@ -108,7 +111,7 @@ function createCaptionWindow(options?: BrowserWindowConstructorOptions) {
     show: false,
     icon,
     webPreferences: {
-      preload: join(__dirname, '../preload/index.mjs'),
+      preload: join(getElectronMainDirname(), '../preload/index.mjs'),
       sandbox: false,
     },
     // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
@@ -142,7 +145,11 @@ function createCaptionWindow(options?: BrowserWindowConstructorOptions) {
   return window
 }
 
-export function setupCaptionWindowManager(params: { mainWindow: BrowserWindow }) {
+export function setupCaptionWindowManager(params: {
+  mainWindow: BrowserWindow
+  serverChannel: ServerChannel
+  i18n: I18n
+}) {
   const matrixHash = computeDisplayMatrixHash()
 
   const {
@@ -257,6 +264,18 @@ export function setupCaptionWindowManager(params: { mainWindow: BrowserWindow })
   }
 
   let eventaContext: ReturnType<typeof createContext>['context'] | undefined
+  let currentWindow: BrowserWindow | undefined
+  const visibilityListeners = new Set<() => void>()
+
+  const emitVisibilityChanged = () => {
+    for (const listener of visibilityListeners) {
+      try {
+        listener()
+      }
+      catch {
+      }
+    }
+  }
 
   const reusable = createReusableWindow(async () => {
     // TODO: once we refactored eventa to support window-namespaced contexts,
@@ -265,10 +284,11 @@ export function setupCaptionWindowManager(params: { mainWindow: BrowserWindow })
     ipcMain.setMaxListeners(0)
 
     const window = createCaptionWindow()
+    currentWindow = window
     const { context } = createContext(ipcMain, window)
     eventaContext = context
 
-    setupBaseWindowElectronInvokes({ context, window })
+    await setupBaseWindowElectronInvokes({ context, window, serverChannel: params.serverChannel, i18n: params.i18n })
 
     const cfg = getConfig()
     const saved = cfg?.matrices?.[matrixHash]?.bounds
@@ -297,6 +317,8 @@ export function setupCaptionWindowManager(params: { mainWindow: BrowserWindow })
 
     window.on('resize', persistBounds)
     window.on('move', persistBounds)
+    window.on('show', emitVisibilityChanged)
+    window.on('hide', emitVisibilityChanged)
 
     await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/caption'))
 
@@ -320,7 +342,11 @@ export function setupCaptionWindowManager(params: { mainWindow: BrowserWindow })
       catch {
       }
 
+      if (currentWindow === window) {
+        currentWindow = undefined
+      }
       eventaContext = undefined
+      emitVisibilityChanged()
     })
 
     return window
@@ -389,11 +415,39 @@ export function setupCaptionWindowManager(params: { mainWindow: BrowserWindow })
     updateConfig(config)
   }
 
+  function isVisible(): boolean {
+    return Boolean(currentWindow && !currentWindow.isDestroyed() && currentWindow.isVisible())
+  }
+
+  async function toggleVisibility() {
+    if (isVisible()) {
+      currentWindow?.hide()
+      return
+    }
+
+    const window = await reusable.getWindow()
+    if (window.isMinimized()) {
+      window.restore()
+    }
+    window.show()
+    window.focus()
+  }
+
+  function onVisibilityChanged(listener: () => void): () => void {
+    visibilityListeners.add(listener)
+    return () => {
+      visibilityListeners.delete(listener)
+    }
+  }
+
   return {
     getWindow,
     setFollowWindow,
     toggleFollowWindow,
     getIsFollowingWindow,
     resetToSide,
+    isVisible,
+    toggleVisibility,
+    onVisibilityChanged,
   }
 }

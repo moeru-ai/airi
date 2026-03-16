@@ -55,7 +55,7 @@ async function dispatchAction(ctx: BotContext, action: Action, abortController: 
         }
       }
 
-      return () => handleLoopStep(ctx, chatCtx)
+      return
     }
     case 'send_sticker':
     {
@@ -135,7 +135,7 @@ async function dispatchAction(ctx: BotContext, action: Action, abortController: 
         chatCtx.actions.push({ action, result: `AIRI System: List of chats:${(await listJoinedChats()).map(chat => `ID:${chat.chat_id}, Name:${chat.chat_name}`).join('\n')}` })
       }
 
-      return () => handleLoopStep(ctx, chatCtx)
+      return
     case 'send_message':
     {
       const chatCtx = ensureChatContext(ctx, action.chatId)
@@ -168,8 +168,6 @@ async function dispatchAction(ctx: BotContext, action: Action, abortController: 
       if (chatCtx) {
         chatCtx.messages.push(message.user(`AIRI System: The action you sent ${action.action} haven't implemented yet by developer.`))
       }
-
-      return () => handleLoopStep(ctx, chatCtx)
   }
 }
 

@@ -84,7 +84,7 @@ export async function attackEntity(
 
   mineflayer.bot.pvp.attack(entity)
   while (getNearbyEntities(mineflayer, 24).includes(entity)) {
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    await sleep(1000)
   }
 
   log(mineflayer, `Successfully killed ${entity.name}.`)

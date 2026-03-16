@@ -20,6 +20,7 @@ const { t } = useI18n()
 
 const modelStore = useModelStore()
 const {
+  sceneMutationLocked,
   modelSize,
   modelOffset,
   cameraFOV,
@@ -52,6 +53,10 @@ const trackingOptions = computed<{
 ])
 
 // switch between hemisphere light and sky box
+const settingsLockClass = computed(() => {
+  return sceneMutationLocked.value ? ['pointer-events-none', 'opacity-60'] : []
+})
+
 const envOptions = computed(() => [
   {
     value: 'hemisphere',
@@ -81,15 +86,16 @@ const envOptions = computed(() => [
     ]"
   >
     <ColorPalette class="mb-4 mt-2" :colors="palette.map(hex => ({ hex, name: hex }))" mx-auto />
-    <Button variant="secondary" @click="$emit('extractColorsFromModel')">
+    <Button variant="secondary" :disabled="sceneMutationLocked" @click="$emit('extractColorsFromModel')">
       {{ t('settings.vrm.theme-color-from-model.button-extract.title') }}
     </Button>
 
-    <div grid="~ cols-5 gap-1" p-2>
+    <div grid="~ cols-5 gap-1" p-2 :class="settingsLockClass">
       <PropertyPoint
         v-model:x="modelOffset.x"
         v-model:y="modelOffset.y"
         v-model:z="modelOffset.z"
+        :disabled="sceneMutationLocked"
         label="Model Position"
         :x-config="{ min: -modelSize.x * 2, max: modelSize.x * 2, step: modelSize.x / 10000, label: 'X', formatValue: val => val?.toFixed(4) }"
         :y-config="{ min: -modelSize.y * 2, max: modelSize.y * 2, step: modelSize.y / 10000, label: 'Y', formatValue: val => val?.toFixed(4) }"
@@ -97,17 +103,17 @@ const envOptions = computed(() => [
       />
       <PropertyNumber
         v-model="cameraFOV"
-        :config="{ min: 1, max: 180, step: 1, label: t('settings.vrm.scale-and-position.fov') }"
+        :config="{ min: 1, max: 180, step: 1, label: t('settings.vrm.scale-and-position.fov'), disabled: sceneMutationLocked }"
         :label="t('settings.vrm.scale-and-position.fov')"
       />
       <PropertyNumber
         v-model="cameraDistance"
-        :config="{ min: modelSize.z, max: modelSize.z * 20, step: modelSize.z / 100, label: t('settings.vrm.scale-and-position.camera-distance'), formatValue: val => val?.toFixed(4) }"
+        :config="{ min: modelSize.z, max: modelSize.z * 20, step: modelSize.z / 100, label: t('settings.vrm.scale-and-position.camera-distance'), formatValue: val => val?.toFixed(4), disabled: sceneMutationLocked }"
         :label="t('settings.vrm.scale-and-position.camera-distance')"
       />
       <PropertyNumber
         v-model="modelRotationY"
-        :config="{ min: -180, max: 180, step: 1, label: t('settings.vrm.scale-and-position.rotation-y') }"
+        :config="{ min: -180, max: 180, step: 1, label: t('settings.vrm.scale-and-position.rotation-y'), disabled: sceneMutationLocked }"
         :label="t('settings.vrm.scale-and-position.rotation-y')"
       />
 
@@ -119,6 +125,7 @@ const envOptions = computed(() => [
       <template v-for="option in trackingOptions" :key="option.value">
         <Button
           :class="[option.class, 'w-auto']"
+          :disabled="sceneMutationLocked"
           size="sm"
           :variant="trackingMode === option.value ? 'primary' : 'secondary'"
           :label="option.label"
@@ -128,32 +135,34 @@ const envOptions = computed(() => [
 
       <PropertyNumber
         v-model="directionalLightRotation.x"
-        :config="{ min: -180, max: 180, step: 1, label: 'RotationXDeg', formatValue: val => val?.toFixed(0) }"
+        :config="{ min: -180, max: 180, step: 1, label: 'RotationXDeg', formatValue: val => val?.toFixed(0), disabled: sceneMutationLocked }"
         label="Directional Light Rotation - X"
       />
       <PropertyNumber
         v-model="directionalLightRotation.y"
-        :config="{ min: -180, max: 180, step: 1, label: 'RotationYDeg', formatValue: val => val?.toFixed(0) }"
+        :config="{ min: -180, max: 180, step: 1, label: 'RotationYDeg', formatValue: val => val?.toFixed(0), disabled: sceneMutationLocked }"
         label="Directional Light Rotation - Y"
       />
       <PropertyColor
         v-model="directionalLightColor"
+        :disabled="sceneMutationLocked"
         label="Directional Light Color"
       />
 
       <PropertyNumber
         v-model="directionalLightIntensity"
-        :config="{ min: 0, max: 10, step: 0.01, label: 'Intensity' }"
+        :config="{ min: 0, max: 10, step: 0.01, label: 'Intensity', disabled: sceneMutationLocked }"
         label="Directional Light Intensity"
       />
 
       <PropertyNumber
         v-model="ambientLightIntensity"
-        :config="{ min: 0, max: 10, step: 0.01, label: 'Intensity' }"
+        :config="{ min: 0, max: 10, step: 0.01, label: 'Intensity', disabled: sceneMutationLocked }"
         label="Ambient Light Intensity"
       />
       <PropertyColor
         v-model="ambientLightColor"
+        :disabled="sceneMutationLocked"
         label="Ambient Light Color"
       />
     </div>
@@ -169,33 +178,35 @@ const envOptions = computed(() => [
       >
         Environment
       </div>
-      <div :class="['p-2']">
-        <SelectTab v-model="envSelect" :options="envOptions" size="sm" />
+      <div :class="['p-2', ...settingsLockClass]">
+        <SelectTab v-model="envSelect" :options="envOptions" :disabled="sceneMutationLocked" size="sm" />
       </div>
       <div v-if="envSelect === 'hemisphere'">
         <!-- hemisphere settings -->
-        <div grid="~ cols-5 gap-1" p-2>
+        <div grid="~ cols-5 gap-1" p-2 :class="settingsLockClass">
           <PropertyNumber
             v-model="hemisphereLightIntensity"
-            :config="{ min: 0, max: 10, step: 0.01, label: 'Intensity' }"
+            :config="{ min: 0, max: 10, step: 0.01, label: 'Intensity', disabled: sceneMutationLocked }"
             label="Hemisphere Light Intensity"
           />
           <PropertyColor
             v-model="hemisphereSkyColor"
+            :disabled="sceneMutationLocked"
             label="Hemisphere Sky Color"
           />
           <PropertyColor
             v-model="hemisphereGroundColor"
+            :disabled="sceneMutationLocked"
             label="Hemisphere Ground Color"
           />
         </div>
       </div>
       <div v-else>
         <!-- skybox settings -->
-        <div grid="~ cols-5 gap-1" p-2>
+        <div grid="~ cols-5 gap-1" p-2 :class="settingsLockClass">
           <PropertyNumber
             v-model="skyBoxIntensity"
-            :config="{ min: 0, max: 1, step: 0.01, label: 'Intensity' }"
+            :config="{ min: 0, max: 1, step: 0.01, label: 'Intensity', disabled: sceneMutationLocked }"
             :label="t('settings.vrm.skybox.skybox-intensity')"
           />
         </div>

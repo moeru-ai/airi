@@ -19,6 +19,16 @@ docs:
   'drag-to-move-window': ウィンドウをドラッグして移動
   'switch-to-light-mode': ライトモードに切り替え
   'switch-to-dark-mode': ダークモードに切り替え
+  'pin-on-top': Pin on top
+  'unpin-from-top': Unpin from top
+  'switch-profile': Switch Profile
+  'close': Close
+  'expand': Expand
+  'collapse': Collapse
+'status-island':
+  connected: WebSocket connected
+  disconnected: WebSocket disconnected
+  'open-settings': Open WebSocket settings
 notice:
   'fade-on-hover':
     title: ホバー時にフェード

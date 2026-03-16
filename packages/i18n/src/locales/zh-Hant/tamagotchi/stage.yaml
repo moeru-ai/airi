@@ -19,6 +19,16 @@ docs:
   'drag-to-move-window': 長按以移動視窗
   'switch-to-light-mode': 切換至亮色模式
   'switch-to-dark-mode': 切換至深色模式
+  'pin-on-top': 置頂
+  'unpin-from-top': 取消置頂
+  'switch-profile': Switch Profile
+  'close': 關閉
+  'expand': 展開
+  'collapse': 摺疊
+'status-island':
+  connected: WebSocket connected
+  disconnected: WebSocket disconnected
+  'open-settings': Open WebSocket settings
 notice:
   'fade-on-hover':
     title: 懸停淡出

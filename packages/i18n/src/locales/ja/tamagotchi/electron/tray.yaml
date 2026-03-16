@@ -1,0 +1,27 @@
+menu:
+  labels:
+    label:
+      show: 表示
+      adjust_sizes: サイズ調節
+      recommended_size: おすすめ (450x600)
+      full_height: 高さ最大
+      half_height: 高さ半分
+      full_screen: フルスクリーン
+      align_to: 揃える
+      center: 中央揃え
+      top_left: 左上
+      top_right: 右上
+      bottom_left: 左下
+      bottom_right: 右下
+      settings: 設定…
+      about: 概要…
+      open_inlay: インレイを開く…
+      open_widgets: ウィジェットを開く…
+      open_caption: キャプションを開く…
+      close_caption: キャプションを閉じる…
+      caption_overlay: キャプションオーバーレイ
+      follow_window: ウィンドウをフォロー
+      reset_position: 位置リセット
+      devtools: 開発ツール
+      troubleshoot_beatsync: Troubleshoot BeatSync...
+      quit: Quit

@@ -1,7 +1,10 @@
 import './openai'
+import './aihubmix'
+import './lm-studio'
 import './openai-compatible'
 import './n1n'
 import './openrouter-ai'
+import './nvidia'
 import './groq'
 import './anthropic'
 import './google-generative-ai'
@@ -21,6 +24,7 @@ import './moonshot-ai'
 import './modelscope'
 import './ollama'
 import './cloudflare-workers-ai'
+import './azure-ai-foundry'
 
 export {
   getDefinedProvider,

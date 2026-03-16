@@ -174,10 +174,22 @@ export class Client<C = undefined> {
 
       const ws = new WebSocket(this.opts.url)
       this.websocket = ws
+      const isCurrentSocket = () => this.websocket === ws
 
-      ws.onmessage = this.handleMessageBound
+      ws.onmessage = (event: MessageEvent) => {
+        if (!isCurrentSocket()) {
+          return
+        }
+
+        this.handleMessageBound(event)
+      }
       ws.onerror = (event: any) => {
+        if (!isCurrentSocket()) {
+          return
+        }
+
         settle(() => {
+          this.websocket = undefined
           this.connected = false
 
           this.opts.onError?.(event)
@@ -185,6 +197,12 @@ export class Client<C = undefined> {
         })
       }
       ws.onclose = () => {
+        if (!isCurrentSocket()) {
+          return
+        }
+
+        this.websocket = undefined
+
         if (!settled && !this.connected) {
           settle(() => {
             reject(new Error('WebSocket closed before open'))
@@ -202,6 +220,10 @@ export class Client<C = undefined> {
         }
       }
       ws.onopen = () => {
+        if (!isCurrentSocket()) {
+          return
+        }
+
         settle(() => {
           this.connected = true
 
@@ -262,8 +284,14 @@ export class Client<C = undefined> {
 
   private async handleMessage(event: MessageEvent) {
     try {
-      const data = superjson.parse<WebSocketEvent<C> | undefined>(event.data as string)
-      if (!data) {
+      // Try superjson first (used by SDK clients), fall back to plain JSON
+      // for external clients that send standard JSON-encoded messages.
+      const raw = event.data as string
+      const parsed = superjson.parse<WebSocketEvent<C> | undefined>(raw)
+      const data = (parsed && typeof parsed === 'object' && 'type' in parsed)
+        ? parsed
+        : JSON.parse(raw) as WebSocketEvent<C>
+      if (!data || typeof data !== 'object' || !('type' in data)) {
         console.warn('Received empty message')
         return
       }
@@ -349,8 +377,10 @@ export class Client<C = undefined> {
   close(): void {
     this.shouldClose = true
     this.stopHeartbeat()
-    if (this.websocket) {
-      this.websocket.close()
+    const websocket = this.websocket
+    this.websocket = undefined
+    if (websocket) {
+      websocket.close()
       this.connected = false
     }
   }
@@ -419,6 +449,7 @@ export class Client<C = undefined> {
 
     const ws = this.websocket
     this.connected = false
+    this.websocket = undefined
     if (ws && ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
       ws.close()
     }

@@ -3,9 +3,7 @@
 import type { Configuration } from 'electron-builder'
 
 import { execSync } from 'node:child_process'
-import { env } from 'node:process'
 
-import { notarize } from '@electron/notarize'
 import { isMacOS } from 'std-env'
 
 function hasXcode26OrAbove() {
@@ -44,30 +42,30 @@ export default {
     output: 'dist',
     buildResources: 'build',
   },
-  // For self-publishing, testing, and distribution after modified the code without access to
-  // an Apple Developer account, comment and uncomment the following 4 lines.
-  // Later on when you obtained one, you can set up the necessary certificates and provisioning
-  // profiles to enable these security features.
-  //
-  // https://www.bigbinary.com/blog/code-sign-notorize-mac-desktop-app
-  // https://kilianvalkhof.com/2019/electron/notarizing-your-electron-application/
-  afterSign: async (context) => {
-    const { electronPlatformName, appOutDir } = context
-    if (electronPlatformName !== 'darwin')
-      return
-    if (env.CI !== 'true') {
-      console.warn('Skipping notarizing step. Packaging is not running in CI')
-      return
-    }
+  // // For self-publishing, testing, and distribution after modified the code without access to
+  // // an Apple Developer account, comment and uncomment the following lines.
+  // // Later on when you obtained one, you can set up the necessary certificates and provisioning
+  // // profiles to enable these security features.
+  // //
+  // // https://www.bigbinary.com/blog/code-sign-notorize-mac-desktop-app
+  // // https://kilianvalkhof.com/2019/electron/notarizing-your-electron-application/
+  // afterSign: async (context) => {
+  //   const { electronPlatformName, appOutDir } = context
+  //   if (electronPlatformName !== 'darwin')
+  //     return
+  //   if (env.CI !== 'true') {
+  //     console.warn('Skipping notarizing step. Packaging is not running in CI')
+  //     return
+  //   }
 
-    const appName = context.packager.appInfo.productFilename
-    await notarize({
-      appPath: `${appOutDir}/${appName}.app`,
-      teamId: env.APPLE_DEVELOPER_TEAM_ID!,
-      appleId: env.APPLE_DEVELOPER_APPLE_ID!,
-      appleIdPassword: env.APPLE_DEVELOPER_APPLE_APP_SPECIFIC_PASSWORD!,
-    })
-  },
+  //   const appName = context.packager.appInfo.productFilename
+  //   await notarize({
+  //     appPath: `${appOutDir}/${appName}.app`,
+  //     teamId: env.APPLE_DEVELOPER_TEAM_ID!,
+  //     appleId: env.APPLE_DEVELOPER_APPLE_ID!,
+  //     appleIdPassword: env.APPLE_DEVELOPER_APPLE_APP_SPECIFIC_PASSWORD!,
+  //   })
+  // },
   files: [
     'out/**',
     'resources/**',
@@ -76,9 +74,8 @@ export default {
     '!src/**/*',
     '!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}',
     '!**/node_modules/**/{.turbo,test,src,__tests__,tests,example,examples}',
-    'node_modules/debug/src/**',
-    // NOTICE: debug resolves `ms` at runtime; include it explicitly to avoid packaged runtime errors like "Cannot find module 'ms'".
-    'node_modules/ms/**',
+    '**/node_modules/debug/**/*',
+    '**/node_modules/superjson/**/*',
     '!electron.vite.config.{js,ts,mjs,cjs}',
     '!vite.config.{js,ts,mjs,cjs}',
     '!uno.config.{js,ts,mjs,cjs}',
@@ -119,14 +116,14 @@ export default {
         NSCameraUsageDescription: 'AIRI requires camera access for vision understanding',
       },
     ],
-    // We have customized the notarization step in the `afterSign` hook.
-    notarize: false,
     // For self-publishing, testing, and distribution after modified the code without access to
     // an Apple Developer account, comment and uncomment the following 4 lines.
     // Later on when you obtained one, you can set up the necessary certificates and provisioning
     // profiles to enable these security features.
     // hardenedRuntime: false,
     hardenedRuntime: true,
+    // notarize: false,
+    notarize: true,
     executableName: 'airi',
     icon: useIconFormattedMacAppIcon ? 'icon.icon' : 'icon.icns',
   },
@@ -154,4 +151,4 @@ export default {
     owner: 'moeru-ai',
     repo: 'airi',
   },
-} as Configuration
+} satisfies Configuration

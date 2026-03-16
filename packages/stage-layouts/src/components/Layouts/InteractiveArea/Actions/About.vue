@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { AboutContent, AboutDialog } from '@proj-airi/stage-ui/components'
 import { useBuildInfo } from '@proj-airi/stage-ui/composables'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const show = ref(false)
 const buildInfo = useBuildInfo()
@@ -11,6 +15,12 @@ const aboutLinks = [
   { label: 'Documentations', href: 'https://airi.moeru.ai/docs/en/docs/overview/', icon: 'i-solar:document-add-outline' },
   { label: 'GitHub', href: 'https://github.com/moeru-ai/airi', icon: 'i-simple-icons:github' },
 ]
+
+const edition = isStageTamagotchi()
+  ? t('base.edition.desktop')
+  : isStageCapacitor()
+    ? t('base.edition.mobile')
+    : t('base.edition.web')
 </script>
 
 <template>
@@ -18,6 +28,6 @@ const aboutLinks = [
     <div i-solar:info-circle-outline size-5 text="neutral-500 dark:neutral-400" />
   </button>
   <AboutDialog v-model="show">
-    <AboutContent subtitle="Web ver." :build-info="buildInfo" :links="aboutLinks" />
+    <AboutContent :subtitle="edition" :build-info="buildInfo" :links="aboutLinks" />
   </AboutDialog>
 </template>

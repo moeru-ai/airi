@@ -2,6 +2,8 @@ import type { BrowserWindow, Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
 import type { WidgetsAddPayload, WidgetSnapshot } from '../../../shared/eventa'
+import type { I18n } from '../../libs/i18n'
+import type { ServerChannel } from '../../services/airi/channel-server'
 
 import { join, resolve } from 'node:path'
 
@@ -58,7 +60,7 @@ function createWidgetsWindow() {
     show: false,
     icon,
     webPreferences: {
-      preload: join(__dirname, '../preload/index.mjs'),
+      preload: join(getElectronMainDirname(), '../preload/index.mjs'),
       sandbox: false,
     },
     // Top-level overlay style like other overlay windows
@@ -93,7 +95,10 @@ interface WidgetWindowContext {
   window?: BrowserWindow
 }
 
-export function setupWidgetsWindowManager(): WidgetsWindowManager {
+export function setupWidgetsWindowManager(params: {
+  serverChannel: ServerChannel
+  i18n: I18n
+}): WidgetsWindowManager {
   const { setup, get: getConfigRaw, update } = createConfig('windows-widgets', 'config.json', widgetsWindowConfigSchema, {
     default: {},
     autoHeal: true,
@@ -144,7 +149,14 @@ export function setupWidgetsWindowManager(): WidgetsWindowManager {
 
     const initialRoute = pendingRoute ?? defaultRoute
     await loadWithRoute(window, initialRoute)
-    await setupWidgetsWindowInvokes({ widgetWindow: window, widgetsManager: widgetsManager! })
+
+    await setupWidgetsWindowInvokes({
+      widgetWindow: window,
+      widgetsManager: widgetsManager!,
+      i18n: params.i18n,
+      serverChannel: params.serverChannel,
+    })
+
     pendingRoute = undefined
 
     window.on('closed', () => {

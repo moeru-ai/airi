@@ -48,6 +48,31 @@ export interface ProviderValidationResult {
   valid: boolean
 }
 
+export interface ProviderValidatorSchedule {
+  mode: 'once' | 'interval'
+  intervalMs?: number
+}
+
+export interface ProviderConfigValidator<TConfig> {
+  id: string
+  name: string
+  validator: (config: TConfig, contextOptions: { t: ComposerTranslation }) => MaybePromise<ProviderValidationResult>
+  schedule?: ProviderValidatorSchedule
+}
+
+export interface ProviderRuntimeValidator<TConfig> {
+  id: string
+  name: string
+  validator: (config: TConfig, provider: ProviderInstance, providerExtra: ProviderExtraMethods<TConfig>, contextOptions: { t: ComposerTranslation }) => MaybePromise<ProviderValidationResult>
+  schedule?: ProviderValidatorSchedule
+  /**
+   * When true the validator is excluded from automatic validation runs.
+   * It must be triggered explicitly by the user (e.g. a "Test Generation" button).
+   * This is used for costly checks like chat-completion probes that bill per request.
+   */
+  manualOnly?: boolean
+}
+
 export interface ModelInfo {
   id: string
   name: string
@@ -121,8 +146,8 @@ export interface ProviderDefinition<TConfig extends any = any> {
   extraMethods?: ProviderExtraMethods<TConfig>
   validationRequiredWhen?: (config: TConfig) => boolean
   validators?: {
-    validateConfig?: Array<(contextOptions: { t: ComposerTranslation }) => { id: string, name: string, validator: (config: TConfig, contextOptions: { t: ComposerTranslation }) => MaybePromise<ProviderValidationResult> }>
-    validateProvider?: Array<(contextOptions: { t: ComposerTranslation }) => { id: string, name: string, validator: (config: TConfig, provider: ProviderInstance, providerExtra: ProviderExtraMethods<TConfig>, contextOptions: { t: ComposerTranslation }) => MaybePromise<ProviderValidationResult> }>
+    validateConfig?: Array<(contextOptions: { t: ComposerTranslation }) => ProviderConfigValidator<TConfig>>
+    validateProvider?: Array<(contextOptions: { t: ComposerTranslation }) => ProviderRuntimeValidator<TConfig>>
   }
   capabilities?: {
     transcription?: {

@@ -170,7 +170,10 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       if (shouldAbort())
         return
 
-      const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
+      const sessionMessagesForSend = chatSession.sessionMessages[sessionId]
+      if (!sessionMessagesForSend) {
+        throw new Error('Session messages not found')
+      }
       sessionMessagesForSend.push({ role: 'user', content: finalContent, createdAt: sendingCreatedAt, id: nanoid() })
       chatSession.persistSessionMessages(sessionId)
 
@@ -293,6 +296,9 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       await llmStore.stream(options.model, options.chatProvider, newMessages as Message[], {
         headers,
         tools: options.tools,
+        // NOTICE: xsai stream may emit `finish` before tool steps continue, so keep waiting until
+        // the final non-tool finish to avoid ending the chat turn with no assistant reply.
+        waitForTools: true,
         onStreamEvent: async (event: StreamEvent) => {
           switch (event.type) {
             case 'tool-call':

@@ -25,7 +25,7 @@ export const useSpeechStore = defineStore('speech', () => {
   const { allAudioSpeechProvidersMetadata } = storeToRefs(providersStore)
 
   // State
-  const activeSpeechProvider = useLocalStorageManualReset<string>('settings/speech/active-provider', '')
+  const activeSpeechProvider = useLocalStorageManualReset<string>('settings/speech/active-provider', 'speech-noop')
   const activeSpeechModel = useLocalStorageManualReset<string>('settings/speech/active-model', '')
   const activeSpeechVoiceId = useLocalStorageManualReset<string>('settings/speech/voice', '')
   const activeSpeechVoice = refManualReset<VoiceInfo | undefined>(undefined)
@@ -78,7 +78,7 @@ export const useSpeechStore = defineStore('speech', () => {
     if (activeSpeechProvider.value === 'alibaba-cloud-model-studio' && activeSpeechModel.value === 'cosyvoice-v2') {
       return true
     }
-    return ['elevenlabs', 'microsoft-speech', 'azure-speech', 'google', 'volcengine'].includes(activeSpeechProvider.value)
+    return ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(activeSpeechProvider.value)
   })
 
   async function loadVoicesForProvider(provider: string) {
@@ -123,6 +123,31 @@ export const useSpeechStore = defineStore('speech', () => {
     // REVIEW: should we always load voices on init? What will happen when network is not available?
     immediate: true,
   })
+
+  if (!activeSpeechProvider.value) {
+    activeSpeechProvider.value = 'speech-noop'
+  }
+
+  watch(
+    () => providersStore.configuredSpeechProvidersMetadata.map(provider => provider.id),
+    (configuredProviderIds) => {
+      if (!activeSpeechProvider.value)
+        return
+
+      // NOTICE: clear stale selection when the currently selected speech provider
+      // is no longer configured to avoid implicit fallback behavior from persisted state.
+      // NOTE: Do NOT use { immediate: true } here — providers.ts validates credentials
+      // asynchronously on startup, so firing immediately would see an empty
+      // configuredSpeechProvidersMetadata and incorrectly reset activeSpeechProvider
+      // to 'speech-noop', permanently wiping the persisted selection from localStorage.
+      if (!configuredProviderIds.includes(activeSpeechProvider.value)) {
+        activeSpeechProvider.value = 'speech-noop'
+        activeSpeechModel.value = ''
+        activeSpeechVoiceId.value = ''
+        activeSpeechVoice.value = undefined
+      }
+    },
+  )
 
   onMounted(() => {
     loadVoicesForProvider(activeSpeechProvider.value).then(() => {
@@ -232,6 +257,9 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 
   const configured = computed(() => {
+    if (activeSpeechProvider.value === 'speech-noop')
+      return false
+
     if (!activeSpeechProvider.value)
       return false
 

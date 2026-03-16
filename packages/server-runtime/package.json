@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server-runtime",
   "type": "module",
-  "version": "0.8.5-beta.3",
+  "version": "0.9.0-alpha.16",
   "description": "Server runtime implementation for AIRI running in different environments",
   "author": {
     "name": "Moeru AI Project AIRI Team",
@@ -18,6 +18,10 @@
     ".": {
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"
+    },
+    "./server": {
+      "types": "./dist/server.d.mts",
+      "default": "./dist/server.mjs"
     }
   },
   "main": "./dist/index.mjs",
@@ -36,10 +40,10 @@
   },
   "dependencies": {
     "@guiiai/logg": "catalog:",
+    "@moeru/std": "catalog:",
     "@proj-airi/server-shared": "workspace:^",
     "crossws": "^0.4.4",
     "h3": "^2.0.1-rc.14",
-    "listhen": "^1.9.0",
     "nanoid": "catalog:",
     "srvx": "^0.11.8",
     "superjson": "catalog:"

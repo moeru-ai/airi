@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: API 엔드포인트 URL(확실하지 않은 경우 기본값 사용)
     accountId: 계정 ID
     validationSuccess: 구성 검증 성공
+    validationPartial: Configuration partially validated
     validationFailed: 구성 검증 실패
     validationError: '검증 오류: {error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: 지금은 건너뛰기
     saveAndContinue: 저장 및 계속
     next: 다음
@@ -30,6 +34,19 @@ dialogs:
     no-models: 사용 가능한 모델 없음
     no-models-help: >-
       이전 단계로 돌아가서 API 키를 확인하거나 네트워크 연결을 확인해 주세요.
+    permissions:
+      title: Notifications
+      description: You can allow notifications now or continue and set it up later.
+      notificationsTitle: Notifications
+      notificationsDescription: Allow reminders and important status updates.
+      notificationsAction: Request notification permission
+      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
+      openSettings: Open iOS Settings
+      optionalHint: You can continue even if notification permission is not granted.
+      stateUnknown: Not requested
+      stateRequesting: Requesting...
+      stateGranted: Granted
+      stateNotGranted: Not granted
 language:
   title: 언어
   description: >
@@ -118,7 +135,8 @@ pages:
         scenario: 당신은 최근에 일어나서 전생에 대한 모든 것을 잊어버렸다.
         systemprompt: 메시지를 받고 실제 사람처럼 답장할 것이다.
         posthistoryinstructions: 인간을 모방하는 것을 잊지 마라.
-      modules_info: 이 캐릭터 카드의 모듈을 구성합니다. 설정하지 않으면 기본 모듈 구성이 사용됩니다.
+      modules_info: >-
+        이 캐릭터 카드의 모듈을 구성합니다. 설정하지 않으면 기본 모듈 구성이 사용됩니다.
       use_default: 기본값 사용
       use_default_not_configured: 기본값 사용 (구성 안됨)
       fields_info:
@@ -158,6 +176,7 @@ pages:
     scenario: 시나리오
     search: 카드 검색...
     sort_by: 정렬
+    body-model: Body / Display Model
     speech:
       provider: 음성 합성 / 제공자
       model: 음성 합성 / 모델
@@ -283,6 +302,7 @@ pages:
           provider-model-selection:
             collapse: 접기
             custom_model_placeholder: 사용자 지정 모델 이름 입력...
+            current_model_label: 'Current model:'
             description: 의식에 적합한 LLM 제공자를 선택합니다.
             error: 모델 목록을 불러오는데 오류가 발생했습니다.
             health_check_failed: 상태 점검 실패
@@ -420,6 +440,15 @@ pages:
     mcp-server:
       description: MCP 서버 및 도구 연결 및 관리
       title: MCP 서버
+      config-path: 설정 파일 경로
+      runtime-title: 런타임 상태
+      actions:
+        open-config: mcp.json 열기
+        apply-and-restart: 표준 입출력 MCP 저장 후 재시작
+      messages:
+        opened: '{path}에서 설정 파일 열림'
+        restarted: >-
+          MCP 서버 재시작 완료. 시작: {started}, 실패: {failed}, 건너뜀: {skipped}
   providers:
     explained:
       chat: '텍스트 생성 모델 제공자를 구성합니다. (예시: OpenRouter, OpenAI, Ollama)'
@@ -440,7 +469,8 @@ pages:
         validation:
           failed:
             title: 제공자 설정을 확인해 주세요. 검증에 실패했습니다.
-            description: 계속 진행하려면 현재 구성을 저장할 수 있습니다.
+            description: >-
+              계속 진행하려면 현재 구성을 저장할 수 있습니다.
             action: 무시하고 저장
         config:
           common:
@@ -462,6 +492,17 @@ pages:
                     placeholder: 키
                   value:
                     placeholder: 값
+                thinking-mode:
+                  label: 사고 모드
+                  description: >
+                    Ollama의 사고 방식을 제어합니다. GPT-OSS는 낮음/중간/높음 단계만 지원합니다.
+                  options:
+                    auto: 자동 (제공자 기본값)
+                    disable: 비활성화
+                    enable: 활성화
+                    low: 낮음
+                    medium: 보통
+                    high: 높음
         validators:
           actions:
             validate: 검증
@@ -491,6 +532,7 @@ pages:
                       Ollama에 대한 연결 검사가 실패했다는 소식을 듣게 되어 유감입니다. 걱정하지 마세요. Ollama 인스턴스의 경우 Ollama를 통과시키기 위해 추가 구성이 필요합니다. Ollama 애플리케이션 또는 Ollama CLI 서버를 시작할 때 <code>OLLAMA_HOST</code>를 명시적으로 설정해야 하며, 자세한 정보는 <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama 통합 가이드</a>를 확인하세요.
     common:
       continueAnyway: 계속 진행
+      goToModelSelection: 'Select Model →'
       fields:
         field:
           api-key:
@@ -573,6 +615,9 @@ pages:
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
+      speech-noop:
+        title: 없음
+        description: 음성 출력이 없습니다.
       deepseek:
         description: deepseek.com
         title: DeepSeek
@@ -624,7 +669,8 @@ pages:
               description: 작은 모델은 더 빠르게 로드되지만 품질이 약간 낮을 수 있습니다.
         models:
           fp32-webgpu:
-            description: WebGPU를 사용한 완전 정밀 모델 - 지원되는 장치에 권장됨
+            description: >-
+              WebGPU를 사용한 완전 정밀 모델 - 지원되는 장치에 권장됨
           fp32:
             description: 완전 정밀 모델
           fp16:
@@ -685,6 +731,9 @@ pages:
       openai-compatible:
         description: OpenAI 호환
         title: OpenAI 호환
+      nvidia:
+        description: build.nvidia.com
+        title: NVIDIA NIM
       n1n:
         description: n1n.ai - 고성능 AI API 제공자.
         title: n1n
@@ -744,6 +793,9 @@ pages:
       transcriptions:
         playground:
           title: 전사 놀이터
+      aihubmix:
+        title: AIHubMix
+        description: https://aihubmix.com (10% 할인)
     title: 제공자
   connection:
     description: 웹소켓 서버 연결 구성
@@ -787,7 +839,7 @@ pages:
                 title: 마크다운 스트레스
                 description: 스트레스 마크다운 구문 분석 및 대량 채팅 페이로드 렌더링
               use-magic-keys:
-                title: 매직 키 사용
+                title: useMagicKeys 도구
                 description: 테스트 단축키
               audio-record:
                 title: 오디오 녹음
@@ -811,7 +863,8 @@ pages:
                 title: 폴라로이드
                 description: 모델 촬영 시 유용성
               context-flow:
-                description: 들어오는 컨텍스트 업데이트 및 나가는 채팅 스트림 이벤트 검사
+                description: >-
+                  들어오는 컨텍스트 업데이트 및 나가는 채팅 스트림 이벤트 검사
               websocket-inspector:
                 title: 웹소켓 분석기
                 description: 원시 웹소켓 트래픽 검사
@@ -820,10 +873,11 @@ pages:
                 description: 색상 추출 테스트
               providers-transcription-realtime-aliyun-nls:
                 title: Aliyun 실시간 전사자
-                description: Aliyun NLS로 마이크 오디오 스트리밍 및 라이브 녹취록 검사
+                description: >-
+                  Aliyun NLS로 마이크 오디오 스트리밍 및 라이브 녹취록 검사
               performance-playground:
                 title: 성능 놀이터
-                description: '테스트 성능 런타임: VRM 표현 + TTS 립싱크'
+                description: 'VRM expressions + TTS lip sync playground'
         theme-presets:
           presets:
             default:

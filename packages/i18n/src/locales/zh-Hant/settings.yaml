@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: API 端點 URL（如果不確定請使用預設值）
     accountId: 帳號 ID
     validationSuccess: 設定驗證成功
+    validationPartial: Configuration partially validated
     validationFailed: 設定驗證失敗
     validationError: '驗證錯誤：{error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: 先略過
     saveAndContinue: 儲存並繼續
     next: 下一步
@@ -30,6 +34,19 @@ dialogs:
     no-models: 找不到可用的模型
     no-models-help: >-
       請返回上一步並檢查您的 API Key，或檢查網路連線。
+    permissions:
+      title: Notifications
+      description: You can allow notifications now or continue and set it up later.
+      notificationsTitle: Notifications
+      notificationsDescription: Allow reminders and important status updates.
+      notificationsAction: Request notification permission
+      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
+      openSettings: Open iOS Settings
+      optionalHint: You can continue even if notification permission is not granted.
+      stateUnknown: Not requested
+      stateRequesting: Requesting...
+      stateGranted: Granted
+      stateNotGranted: Not granted
 language:
   title: 語言
   description: >
@@ -118,7 +135,8 @@ pages:
         scenario: 你最近醒來，忘記了之前的所有生活。
         systemprompt: 你將會收到訊息，請像真實人類一樣回覆。
         posthistoryinstructions: 記得模仿人類的行為。
-      modules_info: 為這個角色卡設定模組。如果沒有設定，將會使用預設模組。
+      modules_info: >-
+        為這個角色卡設定模組。如果沒有設定，將會使用預設模組。
       use_default: 使用預設
       use_default_not_configured: 使用預設(尚未設定)
       fields_info:
@@ -158,6 +176,7 @@ pages:
     scenario: 情境
     search: 搜尋角色卡...
     sort_by: 排序方式
+    body-model: Body / Display Model
     speech:
       provider: 聲音 / 聲線
       model: 聲音 / 模型
@@ -207,10 +226,10 @@ pages:
       tooltip: 您確定嗎？
       'yes': '是'
     status:
-      exported: 對話階段已匯出
-      imported: 對話階段已匯入
-      import_error: 匯入對話階段失敗，請檢查檔案格式
-      chats_deleted: 對話階段已刪除
+      exported: 對話階段已匯出。
+      imported: 對話階段已匯入。
+      import_error: 匯入對話階段失敗，請檢查檔案格式。
+      chats_deleted: 對話階段已刪除。
       models_deleted: 模型已刪除
       modules_reset: 模組設定已重設
       providers_reset: 服務提供者設定已重設
@@ -243,39 +262,39 @@ pages:
           title: 節拍視覺化工具
         parameters:
           advanced_parameters: 進階參數
-          description: Tweak the beat detection parameters.
-          title: Parameters
+          description: 調整節拍檢測參數。
+          title: 參數
           parameters:
             adaptive_threshold:
               description: >-
-                Whether to apply adaptive thresholds based on signal variance over time.
-              label: Adaptive threshold
+                是否根據訊號隨時間的變異性套用自適應閾值。
+              label: 自適應閾值
             buffer_duration:
-              description: Duration of the internal analysis buffer.
-              label: Buffer duration
+              description: 內部分析緩衝區的時長。
+              label: 緩衝時長
             envelope_filter_frequency:
               description: >-
-                Frequency for the envelope filter applied to smooth energy changes.
-              label: Envelope filter frequency
+                用於平滑能量變化的包絡濾波器頻率
+              label: 包絡濾波器頻率
             highpass_filter_frequency:
               description: >-
-                Frequency for the highpass filter applied to reduce low frequencies like sub-bass noises.
-              label: Highpass filter frequency
+                用於抑制次低音等低頻雜訊的高通濾波器頻率。
+              label: 高通濾波器頻率
             lowpass_filter_frequency:
               description: >-
-                Frequency for the lowpass filter applied to reduce high frequencies like vocals.
-              label: Lowpass filter frequency
+                低通濾波器的頻率是用來降低像人聲等高頻成分。
+              label: 低通濾波器
             min_beat_interval:
-              description: Maximum BPM or minimum interval between detected beats.
-              label: Max BPM / Min beat interval
+              description: 已偵測節拍之間的最大分鐘節拍數(BPM)或最小間隔。
+              label: 最大分鐘節拍數(BPM)/最小節拍間隔
             sensitivity:
-              label: Sensitivity
+              label: 靈敏度
             spectral_flux:
-              description: Whether to enable spectral flux-based onset detection.
-              label: Spectral flux
+              description: 是否啟用基於頻譜通量的起始點偵測。
+              label: 頻譜通量
             warmup:
-              description: Whether to warm up before detecting beats for better accuracy.
-              label: Warmup
+              description: 是否在偵測節拍前進行預熱以提高準確度。
+              label: 預熱
     consciousness:
       description: 人格設定、使用的模型等設定
       sections:
@@ -283,11 +302,12 @@ pages:
           provider-model-selection:
             collapse: 摺疊
             custom_model_placeholder: 輸入自訂模型名稱
+            current_model_label: '當前模型：'
             description: 為意識選擇合適的 LLM 服務來源
             error: 取得發生錯誤
-            health_check_failed: Health check failed
-            no_providers_configured_title: No Providers Configured
-            no_providers_configured_description: Click here to set up your LLM providers
+            health_check_failed: 健康度檢查失敗
+            no_providers_configured_title: 未設定任何供應商
+            no_providers_configured_description: 點此設定你的 LLM 提供者
             expand: 展開
             loading: 載入模型中...
             manual_model_name: 模型名稱
@@ -302,7 +322,7 @@ pages:
             search_results: 找到 {count} / {total} 個模型
             show_less: 顯示更少
             show_more: 顯示更多
-            subtitle: Select a default model from the provider
+            subtitle: 從該提供者中選擇預設模型
             title: 模型
       title: 意識
     description: 思維、視覺、語音綜合、遊戲等
@@ -340,7 +360,7 @@ pages:
       sections:
         section:
           provider-selection:
-            description: Select the suitable speech recognition provider
+            description: 選擇合適的語音辨識提供者
     memory-long-term:
       description: 長期記憶
       title: 長期記憶
@@ -365,7 +385,7 @@ pages:
               stop:
                 label: 停止
             select-voice:
-              loading: Loading model...
+              loading: 載入模型中……
               required: 請選擇聲線
           provider-voice-selection:
             custom_model_placeholder: 輸入指定模型名稱...
@@ -375,16 +395,16 @@ pages:
             no_models_description: 該服務來源的模型清單沒有回傳任何資料
             no_voices: 沒有任何可用的聲線
             no_voices_description: 該服務來源的聲線清單沒有回傳任何資料
-            no_voices_hint: You can enter a custom voice name below.
-            pause: Pause
+            no_voices_hint: 您可以在下方輸入自訂語音名稱。
+            pause: 暫停
             play_sample: Play
             search_models_placeholder: 搜尋模型...
             search_models_results: 找到 {count} / {total} 個模型
             search_voices_placeholder: 搜尋聲線...
             search_voices_results: 找到 {count} / {total} 條聲線
-            unsupported_voice_warning_title: No supported voices
+            unsupported_voice_warning_title: 未支援的語音
             unsupported_voice_warning_content: >-
-              Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub at https://github.com/moeru-ai/airi/issues.
+              嘗試使用不同的模型或提供者。我們正努力盡快支援此模型的所有語音；若你急需此功能，請在 GitHub 回報：https://github.com/moeru-ai/airi/issues。
             show_less: 顯示更少
             show_more: 顯示更多
             title: 選擇語音合成服務來源
@@ -420,6 +440,15 @@ pages:
     mcp-server:
       description: 連線與管理 MCP 伺服器及工具
       title: MCP 伺服器
+      config-path: 設定檔路徑
+      runtime-title: 執行狀態
+      actions:
+        open-config: 開啟 mcp.json
+        apply-and-restart: 儲存並重新啟動 stdio MCP
+      messages:
+        opened: 已於 {path} 開啟設定檔
+        restarted: >-
+          MCP 伺服器已重新啟動。已啟動：{started}，已失敗：{failed}，已略過：{skipped}
   providers:
     explained:
       chat: 文字生成模型服務來源，例如 OpenRouter、OpenAI、Ollama
@@ -432,65 +461,78 @@ pages:
         AIRI 需要設定至少一個 {chat} 服務來源，才能正常思考與運作。你可以把它看作是 AIRI 系統中角色的大腦。
     catalog:
       edit:
-        config-id-not-found: Provider configuration not found.
-        definition-id-not-found: Provider definition not found.
+        config-id-not-found: 找不到提供者設定。
+        definition-id-not-found: 找不到提供者定義。
         actions:
-          more-options: More options
-          delete: Delete
+          more-options: 更多選項
+          delete: 刪除
         validation:
           failed:
-            title: Please check your provider settings, validation failed.
-            description: You can still save the current configuration if you want to proceed.
-            action: Save anyway
+            title: 請檢查您的提供者設定，驗證失敗。
+            description: >-
+              如果您想繼續，之後仍可儲存目前的設定。
+            action: 仍然儲存
         config:
           common:
             fields:
               field:
                 api-key:
-                  label: API Key
-                  description: API Key used to authorize requests to this provider
+                  label: API 金鑰
+                  description: 用於授權向此提供者發送請求的 API 金鑰
                   placeholder: sk-...
                 base-url:
-                  label: Base URL
+                  label: 基礎 URL
                   description: >-
-                    The base url used to connect to remote service. Often looks like http://localhost:11434/v1 or https://example.com/v1.
-                  placeholder: Base url...
+                    用於連接遠端服務的基礎 URL。通常看起來像 http://localhost:11434/v1 或 https://example.com/v1
+                  placeholder: 基礎 url...
                 headers:
-                  label: Custom HTTP Headers
-                  description: Add custom HTTP headers
+                  label: 自訂 HTTP 標頭
+                  description: 新增自訂 HTTP 標頭
                   key:
-                    placeholder: Key
+                    placeholder: 參數名稱
                   value:
-                    placeholder: Value
+                    placeholder: 值
+                thinking-mode:
+                  label: 思考模式
+                  description: >
+                    控制 Ollama 思考行為。GPT-OSS 僅支持 low/medium/high 等級。
+                  options:
+                    auto: 自動（提供者預設）
+                    disable: 停用
+                    enable: 啟用
+                    low: 低
+                    medium: 中
+                    high: 高
         validators:
           actions:
-            validate: Validate
-          empty: No validation steps available.
+            validate: 驗證
+          empty: 沒有可用的驗證步驟。
           openai-compatible:
             check-config:
-              title: Configuration
+              title: 設定
             check-connectivity:
-              title: Connectivity
+              title: 連線
             check-supports-model-listing:
-              title: List Models
+              title: 列出模型
             check-supports-chat-completion:
-              title: Chat Completion
+              title: 聊天補全
           status:
-            validating: Validating...
-            valid: Passed
-            invalid: Errored
-          title: Checks
+            validating: 驗證中...
+            valid: 已通過
+            invalid: 發生錯誤
+          title: 檢查
         providers:
           provider:
             ollama:
               troubleshooting:
                 validators:
                   openai-compatible-check-connectivity:
-                    label: Extra configuration needed for Ollama
+                    label: 需要為 Ollama 進行額外配置
                     content: >-
-                      Sorry to hear that Connectivity check failed for Ollama. Don't worry, for Ollama instances, extra configuration is needed for making it pass for Ollama. You need to set <code>OLLAMA_HOST</code> explicitly when start the Ollama application or Ollama CLI server, for detailed information, check <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama integration guide</a>.
+                      很抱歉，Ollama 連接檢查失敗。不要擔心，如果使用 Ollama，需要額外配置才能通過 Ollama。 您需要在啟動 Olama 應用程序或 Ollama CLI 伺服器時明確設置 <code>OLLAMA_HOST</code> 詳情，請檢查 <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama 集成指南</a>。
     common:
       continueAnyway: 仍然繼續
+      goToModelSelection: '選擇模型→'
       fields:
         field:
           api-key:
@@ -573,6 +615,9 @@ pages:
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
+      speech-noop:
+        title: 無
+        description: 無語音輸出。
       deepseek:
         description: DeepSeek.com
         title: 深度求索 DeepSeek
@@ -616,29 +661,30 @@ pages:
             error-missing-api-key: 需要填寫 API Key 才能使用喔！
         title: ElevenLabs (11labs)
       kokoro-local:
-        description: Local text-to-speech using Kokoro-82M.
+        description: 基於 Kokoro-82M 的本地文字轉語音。
         fields:
           field:
             model:
-              label: Model Selection
-              description: Smaller models load faster but may have slightly lower quality.
+              label: 模型選擇
+              description: 較小的模型載入速度更快，但品質可能略低。
         models:
           fp32-webgpu:
-            description: Full precision model using WebGPU - Recommended for supported devices
+            description: >-
+              使用 WebGPU 的全精度模型 - 建議在支援的裝置上使用
           fp32:
-            description: Full precision model
+            description: 全精度模型
           fp16:
-            description: Half precision
+            description: 半精度
           q8:
-            description: 8-bit quantized
+            description: 8-bit 量化
           q4:
-            description: 4-bit quantized
+            description: 4-bit 量化
           q4f16:
-            description: 4-bit with FP16
+            description: 4-bit 搭配 FP16
         playground:
-          default-text: Hello! This is a test of the Kokoro text-to-speech system.
-          title: Voice Playground
-        title: Kokoro TTS (Local)
+          default-text: 您好！這是 Kokoro 文字轉語音系統的測試。
+          title: 語音測試場
+        title: Kokoro TTS (本地)
       fireworks:
         description: Fireworks.ai
         title: Fireworks.ai
@@ -653,8 +699,8 @@ pages:
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili / IndexTTS
-        callout_indextts2_unavailable_title: Limited Support
-        callout_indextts2_unavailable: Support for IndexTTS2 is currently unavailable. Please use IndexTTS.
+        callout_indextts2_unavailable_title: 有限支援
+        callout_indextts2_unavailable: IndexTTS2 目前尚未支援，請改用 IndexTTS。
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry
@@ -684,9 +730,12 @@ pages:
         title: OpenAI
       openai-compatible:
         description: OpenAI 相容
-        title: OpenAI Compatible
+        title: OpenAI 兼容性
+      nvidia:
+        description: build.nvidia.com
+        title: NVIDIA NIM
       n1n:
-        description: n1n.ai - High-performance AI API provider.
+        description: n1n.ai - 高效能AI API供應商
         title: n1n
       openrouter:
         description: OpenRouter.ai
@@ -721,7 +770,7 @@ pages:
           field:
             appId:
               description: 可在控制台取得的 App ID
-              label: App ID
+              label: 應用程式 ID
         title: 火山引擎
       xai:
         description: X.AI
@@ -736,21 +785,24 @@ pages:
         description: cerebras.ai
         title: Cerebras
       aliyun-nls:
-        description: Aliyun NLS
-        title: Aliyun NLS
+        description: 阿里雲 NLS
+        title: 阿里雲 NLS
       browser-web-speech-api:
-        description: Browser-native STT (requires Chrome/Edge/Safari)
-        title: Web Speech API
+        description: 瀏覽器原生 STT（需要 Chrome/Edge/Safari）
+        title: 網頁語音 API
       transcriptions:
         playground:
           title: 實驗平台
+      aihubmix:
+        title: AIHubMix
+        description: https://aihubmix.com (10% 優惠)
     title: 服務來源
   connection:
-    description: Configure WebSocket server connection
-    title: Connection
+    description: 配置 WebSocket 伺服器連接
+    title: 連線
     websocket-url:
-      description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
-      label: WebSocket Server Address
+      description: WebSocket 伺服器的完整位址（例如：ws://localhost:6121/ws）
+      label: WebSocket 伺服器位址
       placeholder: ws://localhost:6121/ws
   scene:
     description: 設定角色所在環境
@@ -781,124 +833,126 @@ pages:
           sections:
             section:
               performance-visualizer:
-                title: Performance Visualizer
-                description: Toggle FPS/long task/memory overlay
+                title: 效能檢視器
+                description: 切換 FPS/長時間任務/記憶疊加層
               markdown-stress:
-                title: Markdown Stress
-                description: Stress markdown parsing and rendering with heavy chat payloads
+                title: Markdown 壓力測試
+                description: 使用大量聊天內容進行 Markdown 解析與渲染的壓力測試
               use-magic-keys:
-                title: useMagicKeys
+                title: useMagicKeys 工具
                 description: 測試快捷鍵
               audio-record:
-                title: Audio Record
-                description: Test Audio related composables
+                title: 錄音
+                description: 測試音訊相關的組合式函式
               background-gradient-blending:
-                title: Background Theme color blending
-                description: Test blending & theme
+                title: 背景主題色彩混合
+                description: 測試混合效果與主題
               background-removal:
-                title: Background removal (WebGPU required)
-                description: Utility for background removal
+                title: 移除背景（需要 WebGPU）
+                description: 背景移除工具
               chat:
-                title: Chat
-                description: Chat
+                title: 聊天
+                description: 聊天
               gesture-circle:
-                title: Gesture Circle (Desktop only)
-                description: Test gesture recognition
+                title: 手勢圈選（僅限桌面）
+                description: 測試手勢辨識
               image:
-                title: Image
-                description: Image
+                title: 圖片
+                description: 圖片
               polaroid:
                 title: Polaroid
-                description: Utility for taking shots of models
+                description: 模型快照工具
               context-flow:
-                description: Inspect incoming context updates and outgoing chat stream events
+                description: >-
+                  檢查傳入的上下文更新與傳出的聊天串流事件
               websocket-inspector:
-                title: WebSocket Inspector
-                description: Inspect raw WebSocket traffic
+                title: WebSocket 檢查器
+                description: 檢查原始 WebSocket 流量
               vibrant:
-                title: Color extract
-                description: Test color extraction
+                title: 色彩擷取
+                description: 測試色彩擷取
               providers-transcription-realtime-aliyun-nls:
-                title: Aliyun Real-time Transcriber
-                description: Stream microphone audio to Aliyun NLS and inspect live transcripts
+                title: 阿里雲即時轉錄器
+                description: >-
+                  將麥克風音訊串流至阿里雲 NLS 並檢查即時轉錄文字
               performance-playground:
-                title: Performance Playground
-                description: 'Test performance runtime: VRM expressions + TTS lip sync'
+                title: 效能實驗場
+                description: 'VRM 表情 + TTS 嘴型同步實驗場'
         theme-presets:
           presets:
             default:
               colors:
-                color-1: AIRI Green
-              description: The default greenish theme color, brought by AIRI to you!
-              title: Default Color
+                color-1: AIRI 綠
+              description: AIRI 為您帶來的預設綠色系主題色彩！
+              title: 預設色彩
             morandi:
               colors:
-                color-1: Taupe
-                color-2: Beige
-                color-3: Ash Grey
-                color-4: Light Taupe
-                color-5: Ivory
-                color-6: Olive Grey
-                color-7: Sand
-                color-8: Warm Grey
-              description: Soft, muted tones inspired by Giorgio Morandi's paintings
-              title: Morandi Colors
+                color-1: 灰褐色
+                color-2: 米色
+                color-3: 灰白色
+                color-4: 淺褐色
+                color-5: 象牙色
+                color-6: 橄欖灰
+                color-7: 砂色
+                color-8: 暖灰色
+              description: 受喬治·莫蘭迪畫作啟發的柔和低飽和色調
+              title: Morandi 顏色
             monet:
               colors:
-                color-1: Sky Blue
-                color-2: Mist
-                color-3: Sand
-                color-4: Moss Green
-                color-5: Water Lily
-                color-6: Wheat
-                color-7: Slate Blue
-                color-8: Sage
-              description: Impressionist palette inspired by Claude Monet's works
-              title: Monet Colors
+                color-1: 天藍色
+                color-2: 薄霧色
+                color-3: 砂色
+                color-4: 苔綠色
+                color-5: 睡蓮色
+                color-6: 小麥色
+                color-7: 板岩藍
+                color-8: 鼠尾草綠
+              description: 受克勞德·莫內作品啟發的印象派色調
+              title: 莫內(Monet) 色系
             japanese:
               colors:
-                color-1: Tan
-                color-2: Warm Taupe
-                color-3: Umber
-                color-4: Coffee
-                color-5: Bronze
-                color-6: Gold
-                color-7: Mustard
-                color-8: Amber
-              description: Traditional Japanese color palette
-              title: Japanese Colors
+                color-1: 棕褐色
+                color-2: 暖灰褐色
+                color-3: 深棕褐
+                color-4: 咖啡色
+                color-5: 古銅色
+                color-6: 金色
+                color-7: 芥末黃
+                color-8: 琥珀色
+              description: 傳統日本色彩調色盤
+              title: 日本顏色
             nordic:
               colors:
-                color-1: Nordic Blue
-                color-2: Ice
-                color-3: Fjord
-                color-4: Steel
-                color-5: Glacier
-                color-6: Slate
-                color-7: Cloud
-                color-8: Stone
-              description: Scandinavian minimalist color scheme
-              title: Nordic Colors
+                color-1: 北歐藍
+                color-2: 冰色
+                color-3: 峽灣色
+                color-4: 鋼灰
+                color-5: 冰川藍
+                color-6: 石板灰
+                color-7: 雲霧灰
+                color-8: 石頭色
+              description: 北歐極簡主義配色方案
+              title: 北歐顏色
             chinese:
               colors:
-                color-1: Rosy Dawn
-                color-2: Chinese Red
-                color-3: Smoky Brown
-                color-4: Bamboo Green
-                color-5: Dark Purple
-                color-6: Golden Yellow
-                color-7: Azure Blue
-                color-8: Ochre
+                color-1: 霞光紅
+                color-2: 棗紅
+                color-3: 黃櫨
+                color-4: 竹青
+                color-5: 烏梅紫
+                color-6: 緗色
+                color-7: 青冥
+                color-8: 赭石色
               description: >-
-                Traditional Chinese colors, derived from ancient textiles, porcelain and paintings
-              title: Chinese Traditional Colors
+                源自古代紡織品、瓷器和畫作的傳統中國色彩
+              title: 中國傳統色彩
           title: 預設
     title: 外觀
   page:
     developers:
       open-devtools:
-        title: Open Developer Tools
-        button: Open
+        title: 開放開發者工具
+        button: 開放
 sections:
   section:
     general:
@@ -954,6 +1008,6 @@ websocket-secure-enabled:
   description: >-
     啟用 WSS（WebSocket Secure）以允許開發模式下行動裝置（pocket）的 HTTPS 連線。這將自動產生自簽名憑證。
 wip:
-  title: Work in Progress
+  title: 正在開發中
   description: >-
-    This feature is currently under development and not yet publicly available. Check back in future updates for this functionality.
+    此功能正在開發中，尚未公開發佈。請在未來的更新中再次查看此功能。

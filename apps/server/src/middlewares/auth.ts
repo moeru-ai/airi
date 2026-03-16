@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from 'hono'
 
-import type { createAuth } from '../services/auth'
+import type { createAuth } from '../libs/auth'
 import type { HonoEnv } from '../types/hono'
 
 import { createUnauthorizedError } from '../utils/error'

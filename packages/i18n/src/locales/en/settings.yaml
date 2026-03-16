@@ -20,8 +20,12 @@ dialogs:
     baseUrlHelp: API endpoint URL (use default if unsure)
     accountId: Account ID
     validationSuccess: Configuration validation success
+    validationPartial: Configuration partially validated
     validationFailed: Configuration validation failed
     validationError: 'Validation error: {error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: Skip for now
     saveAndContinue: Save and Continue
     next: Next
@@ -32,6 +36,19 @@ dialogs:
     no-models-help: >-
       Please return to the previous step and check your API key, or check the
       network connection.
+    permissions:
+      title: Notifications
+      description: You can allow notifications now or continue and set it up later.
+      notificationsTitle: Notifications
+      notificationsDescription: Allow reminders and important status updates.
+      notificationsAction: Request notification permission
+      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
+      openSettings: Open iOS Settings
+      optionalHint: You can continue even if notification permission is not granted.
+      stateUnknown: Not requested
+      stateRequesting: Requesting...
+      stateGranted: Granted
+      stateNotGranted: Not granted
 language:
   title: Language
   description: >
@@ -121,7 +138,9 @@ pages:
         scenario: You recently woke up and forgot everything about your previous life.
         systemprompt: You will receive messages, answer to them like a real human.
         posthistoryinstructions: Remember to imitate an human.
-      modules_info: Configure modules for this character card. If not set, default module configuration will be used.
+      modules_info: >-
+        Configure modules for this character card. If not set, default module
+        configuration will be used.
       use_default: Use default
       use_default_not_configured: Use default (not configured)
       fields_info:
@@ -155,7 +174,6 @@ pages:
         systemprompt: 'Error: Please, provide a system prompt.'
         posthistoryinstructions: 'Error: Post history prompt is required.'
     modules: Modules
-
     name_asc: Name (A-Z)
     name_desc: Name (Z-A)
     no_cards: No cards yet. Click the button above to upload one!
@@ -166,6 +184,7 @@ pages:
     scenario: Scenario
     search: Search cards...
     sort_by: Sort by
+    body-model: Body / Display Model
     speech:
       provider: Speech / Provider
       model: Speech / Model
@@ -295,6 +314,7 @@ pages:
           provider-model-selection:
             collapse: Collapse
             custom_model_placeholder: Enter custom model name...
+            current_model_label: 'Current model:'
             description: Select the suitable LLM provider for consciousness
             error: Error loading models
             health_check_failed: Health check failed
@@ -435,6 +455,16 @@ pages:
     mcp-server:
       description: Connect and manage MCP server and tools
       title: MCP Server
+      config-path: Config file path
+      runtime-title: Runtime status
+      actions:
+        open-config: Open mcp.json
+        apply-and-restart: Save and restart stdio MCP
+      messages:
+        opened: Config file opened at {path}
+        restarted: >-
+          MCP servers restarted. Started {started}, failed {failed}, skipped
+          {skipped}
   providers:
     explained:
       chat: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
@@ -458,7 +488,9 @@ pages:
         validation:
           failed:
             title: Please check your provider settings, validation failed.
-            description: You can still save the current configuration if you want to proceed.
+            description: >-
+              You can still save the current configuration if you want to
+              proceed.
             action: Save anyway
         config:
           common:
@@ -481,6 +513,17 @@ pages:
                     placeholder: Key
                   value:
                     placeholder: Value
+                thinking-mode:
+                  label: Thinking Mode
+                  description: >
+                    Controls Ollama thinking behavior. GPT-OSS only supports low/medium/high levels.
+                  options:
+                    auto: Auto (provider default)
+                    disable: Disable
+                    enable: Enable
+                    low: Low
+                    medium: Medium
+                    high: High
         validators:
           actions:
             validate: Validate
@@ -512,9 +555,12 @@ pages:
                       needed for making it pass for Ollama. You need to set
                       <code>OLLAMA_HOST</code> explicitly when start the Ollama
                       application or Ollama CLI server, for detailed
-                      information, check <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama integration guide</a>.
+                      information, check <a
+                      href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama
+                      integration guide</a>.
     common:
       continueAnyway: Continue Anyway
+      goToModelSelection: 'Select Model →'
       fields:
         field:
           api-key:
@@ -600,6 +646,9 @@ pages:
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
+      speech-noop:
+        title: None
+        description: No speech output.
       deepseek:
         description: deepseek.com
         title: DeepSeek
@@ -651,7 +700,9 @@ pages:
               description: Smaller models load faster but may have slightly lower quality.
         models:
           fp32-webgpu:
-            description: Full precision model using WebGPU - Recommended for supported devices
+            description: >-
+              Full precision model using WebGPU - Recommended for supported
+              devices
           fp32:
             description: Full precision model
           fp16:
@@ -712,6 +763,9 @@ pages:
       openai-compatible:
         description: OpenAI Compatible
         title: OpenAI Compatible
+      nvidia:
+        description: build.nvidia.com
+        title: NVIDIA NIM
       n1n:
         description: n1n.ai - High-performance AI API provider.
         title: n1n
@@ -771,6 +825,9 @@ pages:
       transcriptions:
         playground:
           title: Transcription Playground
+      aihubmix:
+        title: AIHubMix
+        description: https://aihubmix.com (10% off)
     title: Providers
   connection:
     description: Configure WebSocket server connection
@@ -814,7 +871,7 @@ pages:
                 title: Markdown Stress
                 description: Stress markdown parsing and rendering with heavy chat payloads
               use-magic-keys:
-                title: useMagicKeys
+                title: useMagicKeys Tool
                 description: Test shortcuts
               audio-record:
                 title: Audio Record
@@ -838,7 +895,9 @@ pages:
                 title: Polaroid
                 description: Utility for taking shots of models
               context-flow:
-                description: Inspect incoming context updates and outgoing chat stream events
+                description: >-
+                  Inspect incoming context updates and outgoing chat stream
+                  events
               websocket-inspector:
                 title: WebSocket Inspector
                 description: Inspect raw WebSocket traffic
@@ -847,10 +906,12 @@ pages:
                 description: Test color extraction
               providers-transcription-realtime-aliyun-nls:
                 title: Aliyun Real-time Transcriber
-                description: Stream microphone audio to Aliyun NLS and inspect live transcripts
+                description: >-
+                  Stream microphone audio to Aliyun NLS and inspect live
+                  transcripts
               performance-playground:
                 title: Performance Playground
-                description: 'Test performance runtime: VRM expressions + TTS lip sync'
+                description: 'VRM expressions + TTS lip sync playground'
         theme-presets:
           presets:
             default:
@@ -980,7 +1041,9 @@ vrm:
 websocket-secure-enabled:
   title: Enable Secure WebSocket (WSS)
   description: >-
-    Enable WSS (WebSocket Secure) to allow HTTPS connections for mobile (pocket) in development mode. This will automatically generate a self-signed certificate.
+    Enable WSS (WebSocket Secure) to allow HTTPS connections for mobile (pocket)
+    in development mode. This will automatically generate a self-signed
+    certificate.
 wip:
   title: Work in Progress
   description: >-

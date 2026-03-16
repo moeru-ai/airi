@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: API 端点 URL（如果不确定请使用默认值）
     accountId: 账户 ID
     validationSuccess: 配置验证成功
+    validationPartial: Configuration partially validated
     validationFailed: 配置验证失败
     validationError: '验证错误：{error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: 暂时跳过
     saveAndContinue: 保存并继续
     next: 下一步
@@ -30,6 +34,19 @@ dialogs:
     no-models: 找不到可用模型
     no-models-help: >-
       请返回上一步并检查您的 API Key，或检查网络连接。
+    permissions:
+      title: Notifications
+      description: You can allow notifications now or continue and set it up later.
+      notificationsTitle: Notifications
+      notificationsDescription: Allow reminders and important status updates.
+      notificationsAction: Request notification permission
+      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
+      openSettings: Open iOS Settings
+      optionalHint: You can continue even if notification permission is not granted.
+      stateUnknown: Not requested
+      stateRequesting: Requesting...
+      stateGranted: Granted
+      stateNotGranted: Not granted
 language:
   title: 语言
   description: >
@@ -118,7 +135,8 @@ pages:
         scenario: 你最近醒来，忘记了之前的所有生活。
         systemprompt: 你将收到消息，请像真实人类一样回复。
         posthistoryinstructions: 记得模仿人类的行为。
-      modules_info: 为此角色卡配置模块。如未设置，将使用默认模块配置。
+      modules_info: >-
+        为此角色卡配置模块。如未设置，将使用默认模块配置。
       use_default: 使用默认
       use_default_not_configured: 使用默认（未配置）
       fields_info:
@@ -158,6 +176,7 @@ pages:
     scenario: 场景
     search: 搜索角色卡...
     sort_by: 排序方式
+    body-model: Body / Display Model
     speech:
       provider: 语音 / 提供商
       model: 声音 / 模型
@@ -283,6 +302,7 @@ pages:
           provider-model-selection:
             collapse: 折叠
             custom_model_placeholder: 输入自订模型名称
+            current_model_label: 'Current model:'
             description: 为意识选择合适的 LLM 服务来源
             error: 获取出错啦
             health_check_failed: 健康检查失败
@@ -420,6 +440,15 @@ pages:
     mcp-server:
       description: 连接和管理 MCP 服务器及工具
       title: MCP 服务器
+      config-path: 配置文件路径
+      runtime-title: 运行状态
+      actions:
+        open-config: 打开 mcp.json
+        apply-and-restart: 保存并重启 stdio MCP
+      messages:
+        opened: 配置文件已于{path}打开
+        restarted: >-
+          MCP 服务已重新启动，启动了{started}，未启动{failed}，跳过{skipped}
   providers:
     explained:
       chat: 文本生成模型服务来源，例如 OpenRouter, OpenAI, Ollama
@@ -440,7 +469,8 @@ pages:
         validation:
           failed:
             title: 请检查您的服务来源设置，验证失败。
-            description: 如果你想要继续，你仍然可以保存当前的配置。
+            description: >-
+              如果你想要继续，你仍然可以保存当前的配置。
             action: 仍要保存
         config:
           common:
@@ -462,6 +492,17 @@ pages:
                     placeholder: 请求头名字
                   value:
                     placeholder: 请求头数值
+                thinking-mode:
+                  label: 思考模式
+                  description: >
+                    Controls Ollama thinking behavior. GPT-OSS only supports low/medium/high levels.
+                  options:
+                    auto: 自动（默认服务来源）
+                    disable: 禁用
+                    enable: 启用
+                    low: 低
+                    medium: 中
+                    high: 高
         validators:
           actions:
             validate: 验证
@@ -491,6 +532,7 @@ pages:
                       很抱歉，Ollama 连接检查失败。不要担心，如果是 Ollama，需要额外配置才能通过 Ollama。 您需要在启动 Olama 应用程序或 Ollama CLI 服务器时明确设置 <code>OLLAMA_HOST</code> 详情，请检查 <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama 集成指南</a>。
     common:
       continueAnyway: 仍然继续
+      goToModelSelection: '选择模型→'
       fields:
         field:
           api-key:
@@ -573,6 +615,9 @@ pages:
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
+      speech-noop:
+        title: 无
+        description: 不使用语音合成
       deepseek:
         description: DeepSeek.com
         title: 深度求索 DeepSeek
@@ -624,11 +669,12 @@ pages:
               description: 较小的模型加载更快，但质量可能略有下降。
         models:
           fp32-webgpu:
-            description: 基于 WebGPU 的全精度模型 - 建议在支持的设备上使用
+            description: >-
+              基于 WebGPU 的全精度模型 - 建议在支持的设备上使用
           fp32:
             description: 全精度模型
           fp16:
-            description: 半精度
+            description: 半精度量化
           q8:
             description: 8-bit 量化
           q4:
@@ -685,6 +731,9 @@ pages:
       openai-compatible:
         description: OpenAI 兼容 API
         title: OpenAI 兼容 API
+      nvidia:
+        description: build.nvidia.com
+        title: NVIDIA NIM
       n1n:
         description: n1n.ai - 高性能的 AI API 提供商
         title: n1n
@@ -744,6 +793,9 @@ pages:
       transcriptions:
         playground:
           title: 实验平台
+      aihubmix:
+        title: AIHubMix
+        description: https://aihubmix.com (10% off)
     title: 服务来源
   connection:
     description: 配置 WebSocket 服务器连接
@@ -787,7 +839,7 @@ pages:
                 title: Markdown Stress
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
               use-magic-keys:
-                title: useMagicKeys
+                title: 使用MagicKeys工具
                 description: 测试快捷键
               audio-record:
                 title: 音频录制
@@ -811,7 +863,8 @@ pages:
                 title: 拍立得
                 description: 拍摄模型照片的工具
               context-flow:
-                description: 检查传入的上下文更新和传出的聊天流事件
+                description: >-
+                  检查传入的上下文更新和传出的聊天流事件
               websocket-inspector:
                 title: WebSocket 检查器
                 description: 检查原始 WebSocket 流量
@@ -820,10 +873,11 @@ pages:
                 description: 测试颜色提取
               providers-transcription-realtime-aliyun-nls:
                 title: 阿里云实时转写
-                description: 将麦克风音频流式传输到阿里云 NLS 并检查实时转写
+                description: >-
+                  将麦克风音频流式传输到阿里云 NLS 并检查实时转写
               performance-playground:
                 title: 性能测试场地
-                description: '测试性能运行时：VRM 表情 + TTS 口型同步'
+                description: 'VRM expressions + TTS lip sync playground'
         theme-presets:
           presets:
             default:
