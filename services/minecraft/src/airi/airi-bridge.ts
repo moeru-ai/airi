@@ -107,6 +107,7 @@ export class AiriBridge {
         urgency,
         headline,
         note,
+        destinations: ['what?'], // TODO
       },
     } as Parameters<typeof this.client.send>[0])
     this.logger.log('Sent spark:notify', { headline, urgency })
