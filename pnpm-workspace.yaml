@@ -22,6 +22,11 @@ overrides:
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 enableGlobalVirtualStore: true
 
+packageExtensions:
+  '@intlify/unplugin-vue-i18n':
+    peerDependencies:
+      vite: '*'
+
 patchedDependencies:
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
