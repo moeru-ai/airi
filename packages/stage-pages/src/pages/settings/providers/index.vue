@@ -2,6 +2,8 @@
 import { IconStatusItem, RippleGrid } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useScrollToHash } from '@proj-airi/stage-ui/composables'
 import { useRippleGridState } from '@proj-airi/stage-ui/composables/use-ripple-grid-state'
+import { usePlannerEmbeddingProvidersStore } from '@proj-airi/stage-ui/stores/planner-embedding-providers'
+import { usePlannerProvidersStore } from '@proj-airi/stage-ui/stores/planner-providers'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
@@ -9,7 +11,9 @@ import { useRoute } from 'vue-router'
 
 const route = useRoute()
 const providersStore = useProvidersStore()
-const { lastClickedIndex, setLastClickedIndex } = useRippleGridState()
+const plannerProvidersStore = usePlannerProvidersStore()
+const plannerEmbeddingProvidersStore = usePlannerEmbeddingProvidersStore()
+const { lastClickedIndex, setLastClickedIndex } = useRippleGridState('/settings/providers')
 const { trackProviderClick } = useAnalytics()
 
 const {
@@ -17,6 +21,8 @@ const {
   allAudioSpeechProvidersMetadata,
   allAudioTranscriptionProvidersMetadata,
 } = storeToRefs(providersStore)
+const { allPlannerChatProvidersMetadata } = storeToRefs(plannerProvidersStore)
+const { allPlannerEmbeddingProvidersMetadata } = storeToRefs(plannerEmbeddingProvidersStore)
 
 const providerBlocksConfig = [
   {
@@ -24,13 +30,31 @@ const providerBlocksConfig = [
     icon: 'i-solar:chat-square-like-bold-duotone',
     title: 'Chat',
     description: 'Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.',
+    routeCategory: 'chat',
     providersRef: allChatProvidersMetadata,
+  },
+  {
+    id: 'planner',
+    icon: 'i-solar:bolt-bold-duotone',
+    title: 'Planner',
+    description: 'Dedicated provider credentials for Alaya planner LLM and embedding.',
+    routeCategory: 'planner',
+    providersRef: allPlannerChatProvidersMetadata,
+  },
+  {
+    id: 'planner-embedding',
+    icon: 'i-solar:database-bold-duotone',
+    title: 'Planner Embedding',
+    description: 'Dedicated embedding providers for Alaya memory vectorization.',
+    routeCategory: 'planner-embedding',
+    providersRef: allPlannerEmbeddingProvidersMetadata,
   },
   {
     id: 'speech',
     icon: 'i-solar:user-speak-rounded-bold-duotone',
     title: 'Speech',
     description: 'Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.',
+    routeCategory: 'speech',
     providersRef: allAudioSpeechProvidersMetadata,
   },
   {
@@ -38,22 +62,46 @@ const providerBlocksConfig = [
     icon: 'i-solar:microphone-3-bold-duotone',
     title: 'Transcription',
     description: 'Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech',
+    routeCategory: 'transcription',
     providersRef: allAudioTranscriptionProvidersMetadata,
   },
 ]
 
 const providerBlocks = computed(() => {
   let globalIndex = 0
-  return providerBlocksConfig.map(block => ({
-    id: block.id,
-    icon: block.icon,
-    title: block.title,
-    description: block.description,
-    providers: block.providersRef.value.map(provider => ({
-      ...provider,
-      renderIndex: globalIndex++,
-    })),
-  }))
+  return providerBlocksConfig.map((block) => {
+    const providers = Array.isArray(block.providersRef.value)
+      ? block.providersRef.value
+      : []
+
+    return {
+      id: block.id,
+      icon: block.icon,
+      title: block.title,
+      description: block.description,
+      routeCategory: block.routeCategory,
+      providers: providers.map(provider => ({
+        ...provider,
+        routeCategory: block.routeCategory,
+        renderIndex: globalIndex++,
+      })),
+    }
+  })
+})
+
+const providerItemCount = computed(() => {
+  return providerBlocks.value.reduce((count, block) => count + block.providers.length, 0)
+})
+
+const safeOriginIndex = computed(() => {
+  const index = lastClickedIndex.value
+  if (!Number.isFinite(index))
+    return 0
+
+  if (index < 0 || index >= providerItemCount.value)
+    return 0
+
+  return index
 })
 
 useScrollToHash(() => route.hash, {
@@ -88,7 +136,10 @@ useScrollToHash(() => route.hash, {
       :sections="providerBlocks"
       :get-items="block => block.providers"
       :columns="{ default: 1, sm: 2, xl: 3 }"
-      :origin-index="lastClickedIndex"
+      :origin-index="safeOriginIndex"
+      :animation-initial="{ opacity: 1, y: 0 }"
+      :animation-enter="{ opacity: 1, y: 0 }"
+      :delay-per-unit="0"
       @item-click="({ globalIndex }) => setLastClickedIndex(globalIndex)"
     >
       <template #header="{ section: block }">
@@ -114,7 +165,7 @@ useScrollToHash(() => route.hash, {
           :icon="provider.icon"
           :icon-color="provider.iconColor"
           :icon-image="provider.iconImage"
-          :to="`/settings/providers/${provider.category}/${provider.id}`"
+          :to="`/settings/providers/${provider.routeCategory}/${provider.id}`"
           :configured="provider.configured"
           @click="trackProviderClick(provider.id, provider.category)"
         />

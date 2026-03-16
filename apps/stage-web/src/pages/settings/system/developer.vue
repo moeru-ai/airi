@@ -75,6 +75,12 @@ const menu = computed(() => [
     to: '/devtools/websocket-inspector',
   },
   {
+    title: 'Memory Alaya',
+    description: 'Inspect planner trigger logs and short-term write results',
+    icon: 'i-solar:database-bold-duotone',
+    to: '/devtools/memory-alaya',
+  },
+  {
     title: 'Plugin Host Debug',
     description: 'Inspect plugin host registry and capability state (desktop runtime)',
     icon: 'i-solar:bug-bold-duotone',
