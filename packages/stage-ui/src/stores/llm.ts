@@ -34,6 +34,16 @@ function sanitizeMessages(messages: unknown[]): Message[] {
         content: `User encountered error: ${String(m.content ?? '')}`,
       } as Message
     }
+    // NOTICE: This block is critical for backward compatibility with LLM providers (e.g., DeepSeek)
+    // that expect message content to be a string, not an array of content parts.
+    // Failure to flatten array content (when no image_url is present) can lead to
+    // deserialization errors like "invalid type: sequence, expected a string".
+    if (m && Array.isArray(m.content)) {
+      const contentParts = m.content as { type?: string, text?: string }[]
+      if (!contentParts.some(p => p?.type === 'image_url')) {
+        return { ...m, content: contentParts.map(p => p?.text ?? '').join('') } as Message
+      }
+    }
     return m as Message
   })
 }
