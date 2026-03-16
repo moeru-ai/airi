@@ -9,6 +9,10 @@ description: Contribute to Project AIRI
 cd services/satori-bot
 ```
 
+### Connect QQ (via Koishi + Satori)
+
+If you want AIRI to chat in QQ, see: [QQ Bot (Koishi + Satori)](./qq.md).
+
 Configure the `.env` file:
 
 ```shell

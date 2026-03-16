@@ -9,6 +9,10 @@ description: 参与并贡献 Project AIRI
 cd services/satori-bot
 ```
 
+### 接入 QQ（通过 Koishi + Satori）
+
+如果你希望让 AIRI 在 QQ 中收发消息，请参考：[QQ Bot（Koishi + Satori）](./qq.md)。
+
 配置 `.env` 文件：
 
 ```shell
