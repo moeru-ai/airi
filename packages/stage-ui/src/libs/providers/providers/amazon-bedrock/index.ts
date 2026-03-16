@@ -113,7 +113,10 @@ function createBedrockConverseProvider(config: {
         if (system)
           converseBody.system = system
 
-        // Call Bedrock Converse API with Bearer token auth
+        // Use /converse (non-streaming) — bearer-token auth does not support
+        // the binary event-stream protocol required by /converse-stream.
+        // We fetch the complete response and then re-emit it as an SSE stream
+        // so the rest of the xsai pipeline sees a standard streaming response.
         const converseUrl = `https://bedrock-runtime.${region}.amazonaws.com/model/${encodeURIComponent(modelId)}/converse`
 
         const response = await fetch(converseUrl, {
@@ -123,48 +126,49 @@ function createBedrockConverseProvider(config: {
         })
 
         if (!response.ok) {
-          // Return error as-is for debugging
           return response
         }
 
-        const data = await response.json() as any
-        // Filter to text-only blocks (Claude 3.7+ may include thinking/reasoning blocks)
-        const contentBlocks: any[] = data?.output?.message?.content || []
-        const text = contentBlocks
-          .filter((c: any) => c.type === 'text' || (!c.type && c.text))
-          .map((c: any) => c.text || '')
-          .join('')
-        const stopReason = data?.stopReason || 'end_turn'
+        const data = await response.json() as {
+          output: { message: { content: Array<{ text?: string }> } }
+          stopReason?: string
+        }
 
-        // Wrap Converse response into xsai-compatible SSE stream (chat.completion.chunk format)
+        const fullText = (data.output?.message?.content ?? [])
+          .filter(c => c.text)
+          .map(c => c.text!)
+          .join('')
+
+        const stopReason = data.stopReason === 'end_turn' ? 'stop' : (data.stopReason ?? 'stop')
+        const id = `chatcmpl-bedrock-${Date.now()}`
         const encoder = new TextEncoder()
+
+        // Emit SSE chunks character-by-character to simulate a streaming response.
         const stream = new ReadableStream({
-          start(controller) {
-            // Role delta
-            const roleChunk = {
-              id: `chatcmpl-bedrock-${Date.now()}`,
+          async start(controller) {
+            const enqueue = (chunk: object) =>
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`))
+
+            enqueue({
+              id,
               object: 'chat.completion.chunk',
               choices: [{ delta: { role: 'assistant' }, index: 0, finish_reason: null }],
-            }
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(roleChunk)}\n\n`))
+            })
 
-            // Content delta
-            if (text) {
-              const contentChunk = {
-                id: `chatcmpl-bedrock-${Date.now()}`,
+            for (const char of fullText) {
+              enqueue({
+                id,
                 object: 'chat.completion.chunk',
-                choices: [{ delta: { content: text }, index: 0, finish_reason: null }],
-              }
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify(contentChunk)}\n\n`))
+                choices: [{ delta: { content: char }, index: 0, finish_reason: null }],
+              })
+              await new Promise(r => setTimeout(r, 10))
             }
 
-            // Final chunk with stop reason
-            const stopChunk = {
-              id: `chatcmpl-bedrock-${Date.now()}`,
+            enqueue({
+              id,
               object: 'chat.completion.chunk',
-              choices: [{ delta: {}, index: 0, finish_reason: stopReason === 'end_turn' ? 'stop' : stopReason }],
-            }
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(stopChunk)}\n\n`))
+              choices: [{ delta: {}, index: 0, finish_reason: stopReason }],
+            })
             controller.enqueue(encoder.encode('data: [DONE]\n\n'))
             controller.close()
           },
@@ -244,7 +248,7 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
 
       const base = `https://bedrock.${region}.amazonaws.com`
       const headers = {
-        'authorization': `Bearer ${apiKey}`,
+        authorization: `Bearer ${apiKey}`,
       }
 
       try {
@@ -372,7 +376,7 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
               {
                 method: 'GET',
                 headers: {
-                  'authorization': `Bearer ${apiKey}`,
+                  authorization: `Bearer ${apiKey}`,
                 },
               },
             )

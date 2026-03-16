@@ -175,6 +175,7 @@ export interface ProviderDefinition<TConfig extends any = any> {
   requiresCredentials?: boolean
 
   createProviderConfig: (contextOptions: { t: ComposerTranslation }) => $ZodType<TConfig>
+  onboardingFields?: (ctx: { t: ComposerTranslation }) => ProviderOnboardingField[]
   createProvider: (config: TConfig) => ProviderInstance
   extraMethods?: ProviderExtraMethods<TConfig>
   validationRequiredWhen?: (config: TConfig) => boolean
