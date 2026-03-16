@@ -127,3 +127,4 @@ node_modules/
 *.log
 dist/
 .cache/
+node_modules/
