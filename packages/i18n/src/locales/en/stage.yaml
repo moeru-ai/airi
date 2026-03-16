@@ -35,4 +35,59 @@ profile-switcher:
   no-profiles: No profiles yet
   save-as-new: Save as New Profile
   manage: Manage Profiles
+microphone:
+  enabled: Microphone enabled
+  disabled: Microphone disabled
+  input-device: Input device
+  input-device-description: Select the microphone you want to use.
+  unknown-device: Unknown Device
+  select-microphone: Select microphone
+  permission-required: Microphone permission required
+  permission-description: The app doesn't have permission to access your microphone. Please grant microphone access in your system settings to enable audio input.
+about:
+  title: About
+  build-info: Application build information
+  version: Version
+  branch: Branch
+  commit: Commit
+  built-on: Built on
+  links:
+    home: Home
+    documentations: Documentations
+actions:
+  about: About
+  view: View
+  hearing: Hearing
+  theme: Theme
+  background: Background
+  settings: Settings
+  cleanup-messages: Cleanup Messages
+  scale: Scale
+background-picker:
+  title: Background Picker
+  no-preview: No preview
+  add-custom: Add custom background
+  preview: Preview
+  blur: Blur
+  select-background: Select a background
+  sampling: Sampling...
+  use-this: Use this background
+  remove: Remove background
+hearing-input:
+  title: Hearing Input
+auth:
+  sign-in: Sign in to AIRI Stage
+  sign-in-short: Sign in
+  sign-in-with-google: Sign in with Google
+  sign-in-with-github: Sign in with GitHub
+  terms-agreement: 'By continuing, you agree to our'
+  terms: Terms
+  privacy-policy: Privacy Policy
+  login: Login
+  signed-in-as: Signed in as
+  active-sessions: Active Sessions
+  logout: Logout
+not-found:
+  title: Where are we?
+  go-back: Go Back
 waiting: Waiting

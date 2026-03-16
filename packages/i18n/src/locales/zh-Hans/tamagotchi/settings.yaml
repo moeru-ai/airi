@@ -31,7 +31,7 @@ devtools:
   title: 开发者选项
   pages:
     context-flow:
-      title: Context Flow
+      title: 上下文流
     lag-visualizer:
       title: Lag 可视化
     performance-visualizer:

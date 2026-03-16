@@ -621,6 +621,12 @@ pages:
       deepseek:
         description: deepseek.com
         title: DeepSeek
+      volcengine-ark:
+        description: Volcengine Ark (Doubao)
+        title: Volcengine Ark
+      dashscope:
+        description: Dashscope (Qwen)
+        title: Dashscope
       elevenlabs:
         description: elevenlabs.io
         fields:

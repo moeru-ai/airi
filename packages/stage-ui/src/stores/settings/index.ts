@@ -15,6 +15,7 @@ export * from './stage-model'
 export * from './theme'
 // Export constants
 export { DEFAULT_THEME_COLORS_HUE } from './theme'
+export * from './volc-realtime'
 
 /**
  * Unified settings store for backward compatibility.

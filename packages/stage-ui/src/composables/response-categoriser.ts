@@ -2,7 +2,6 @@ import type { Element, Root } from 'hast'
 import type { Position } from 'unist'
 
 import rehypeParse from 'rehype-parse'
-import rehypeStringify from 'rehype-stringify'
 
 import { unified } from 'unified'
 import { visit } from 'unist-util-visit'
@@ -218,31 +217,17 @@ export function createStreamingCategorizer(
   let buffer = ''
   let categorized: CategorizedResponse | null = null
   let lastEmittedSegmentIndex = -1
-  let lastParsedLength = 0
 
   // Lightweight state machine to detect tag closures without parsing entire buffer
   type TagState = 'outside' | 'in-opening-tag' | 'in-content' | 'in-closing-tag'
   let tagState: TagState = 'outside'
   let tagStackDepth = 0
 
-  // Fallback for filterToSpeech - uses rehype for robust incomplete tag detection
+  // Fast incomplete tag detection using incremental state machine.
+  // Previous implementation parsed the ENTIRE buffer with rehype on every filterToSpeech call,
+  // causing O(n²) complexity. Now we just check the state machine's tag depth — O(1).
   function checkIncompleteTag(): boolean {
-    try {
-      const tree = unified().use(rehypeParse, { fragment: true }).parse(buffer) as Root
-      const stringified = unified().use(rehypeStringify).stringify(tree).toString()
-
-      if (stringified !== buffer) {
-        const bufferEnd = buffer.trim().slice(-30)
-        const stringifiedEnd = stringified.trim().slice(-30)
-        return bufferEnd !== stringifiedEnd
-      }
-
-      return false
-    }
-    catch {
-      // If parsing fails, assume incomplete
-      return true
-    }
+    return tagStackDepth > 0 || tagState !== 'outside'
   }
 
   // Tracks tag state incrementally (O(chunk.length)) to detect when tags close
@@ -313,20 +298,19 @@ export function createStreamingCategorizer(
       const tagJustClosed = processChunkIncrementally(chunk)
       buffer += chunk
 
-      // Re-categorize on first chunk, tag closure, or every 1KB (periodic fallback)
-      const shouldRecategorize = !categorized
-        || tagJustClosed
-        || buffer.length - lastParsedLength > 1000
+      // Re-categorize on first chunk or tag closure only.
+      // Previous 1KB periodic fallback caused expensive rehype parses during normal streaming.
+      // The incremental state machine already tracks tag state, so we only need full
+      // categorization when a tag actually closes (content becomes available).
+      const shouldRecategorize = !categorized || tagJustClosed
 
       if (shouldRecategorize) {
         categorized = categorizeResponse(buffer, providerId)
-        lastParsedLength = buffer.length
       }
 
       // Type guard for TypeScript (shouldRecategorize handles !categorized, but TS doesn't know)
       if (!categorized) {
         categorized = categorizeResponse(buffer, providerId)
-        lastParsedLength = buffer.length
       }
 
       if (onSegment && categorized.segments.length > 0) {
@@ -365,48 +349,11 @@ export function createStreamingCategorizer(
      * Removes content that falls within thought/reasoning segments
      */
     filterToSpeech(text: string, startPosition: number): string {
-      // Check if we're currently inside an incomplete tag
+      // If we're inside an incomplete tag (e.g., <think>...</think> reasoning block),
+      // suppress all text from TTS. The incremental state machine tracks this in O(1).
+      // Previous implementation parsed the ENTIRE (buffer + text) with rehype on every call — O(n²).
       if (checkIncompleteTag()) {
-        // Try to find where the tag closes in the combined buffer + text
-        const fullText = buffer + text
-        try {
-          const tree = unified().use(rehypeParse, { fragment: true }).parse(fullText) as Root
-          let closingOffset = -1
-
-          visit(tree, 'element', (node: Element) => {
-            const position = node.position
-            if (position?.end && closingOffset === -1) {
-              const endOffset = getOffsetFromPosition(fullText, position.end)
-              // Check if this element actually has a closing tag in the source
-              const elementSource = fullText.slice(
-                getOffsetFromPosition(fullText, position.start),
-                endOffset,
-              )
-              const expectedClosingTag = `</${node.tagName}>`
-
-              // Only consider it complete if the closing tag exists in source
-              if (elementSource.includes(expectedClosingTag)) {
-                // If this element closes within the new text chunk
-                if (endOffset >= buffer.length && endOffset <= fullText.length) {
-                  closingOffset = endOffset - buffer.length
-                }
-              }
-            }
-          })
-
-          if (closingOffset === -1)
-            return '' // Still incomplete, filter everything
-
-          // Return only content after the closing tag
-          // The buffer already includes text up to closingOffset (from consume())
-          text = text.slice(closingOffset)
-          startPosition += closingOffset
-          // Re-categorize with the complete tag now in buffer
-          categorized = categorizeResponse(buffer, providerId)
-        }
-        catch {
-          return '' // Parsing failed, filter everything
-        }
+        return '' // Inside a tag, filter everything until tag closes
       }
 
       if (!categorized || categorized.segments.length === 0) {

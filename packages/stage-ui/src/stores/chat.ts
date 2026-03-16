@@ -226,7 +226,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
           }
           updateUI()
         },
-        minLiteralEmitLength: 24,
+        minLiteralEmitLength: 4,
       })
 
       const toolCallQueue = createQueue<ChatSlices>({

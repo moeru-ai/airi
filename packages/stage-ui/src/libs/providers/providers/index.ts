@@ -25,6 +25,8 @@ import './modelscope'
 import './ollama'
 import './cloudflare-workers-ai'
 import './azure-ai-foundry'
+import './volcengine-ark'
+import './dashscope'
 
 export {
   getDefinedProvider,

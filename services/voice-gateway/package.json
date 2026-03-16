@@ -1,0 +1,33 @@
+{
+  "name": "@proj-airi/voice-gateway",
+  "type": "module",
+  "private": true,
+  "description": "Voice gateway service bridging browser WebSocket and Volcengine Realtime Dialogue",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "services/voice-gateway"
+  },
+  "scripts": {
+    "start": "tsx --env-file=.env --env-file-if-exists=.env.local src/index.ts",
+    "dev": "tsx --watch --env-file=.env --env-file-if-exists=.env.local src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "@proj-airi/volc-realtime": "workspace:^",
+    "dotenv": "catalog:",
+    "ofetch": "catalog:",
+    "tsx": "catalog:",
+    "ws": "catalog:"
+  },
+  "devDependencies": {
+    "@types/ws": "catalog:"
+  }
+}

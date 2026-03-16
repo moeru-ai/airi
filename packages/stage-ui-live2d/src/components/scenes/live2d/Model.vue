@@ -15,7 +15,7 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 
 
 import {
   createBeatSyncController,
-
+  useLive2DIdleEyeFocus,
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
   useMotionUpdatePluginBeatSync,
@@ -100,6 +100,10 @@ const model = ref<Live2DModel<PixiLive2DInternalModel>>()
 const initialModelWidth = ref<number>(0)
 const initialModelHeight = ref<number>(0)
 const mouthOpenSize = computed(() => Math.max(0, Math.min(100, props.mouthOpenSize)))
+// Derive speaking state from mouthOpenSize — used to suppress idle eye saccade during speech
+const nowSpeaking = computed(() => props.mouthOpenSize > 0.01)
+// Shared idle eye focus instance with speaking awareness
+const idleEyeFocus = useLive2DIdleEyeFocus({ nowSpeaking })
 const lastUpdateTime = ref(0)
 
 const { isDark: dark } = useTheme()
@@ -314,8 +318,8 @@ async function loadModel() {
     })
 
     motionManagerUpdate.register(useMotionUpdatePluginBeatSync(beatSync), 'pre')
-    motionManagerUpdate.register(useMotionUpdatePluginIdleDisable(), 'pre')
-    motionManagerUpdate.register(useMotionUpdatePluginIdleFocus(), 'post')
+    motionManagerUpdate.register(useMotionUpdatePluginIdleDisable(idleEyeFocus), 'pre')
+    motionManagerUpdate.register(useMotionUpdatePluginIdleFocus(idleEyeFocus), 'post')
     motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(), 'post')
 
     const hookedUpdate = motionManager.update as (model: PixiLive2DInternalModel['coreModel'], now: number) => boolean

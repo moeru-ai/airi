@@ -2,25 +2,22 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
-import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
-import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useVolcVoiceStore } from '@proj-airi/stage-ui/stores/modules/volc-voice'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { BasicTextarea, FieldSelect } from '@proj-airi/ui'
+import { BasicTextarea } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { PopoverContent, PopoverRoot, PopoverTrigger } from 'reka-ui'
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import IndicatorMicVolume from './IndicatorMicVolume.vue'
 
 const messageInput = ref('')
-const hearingPopoverOpen = ref(false)
 const isComposing = ref(false)
 const isListening = ref(false) // Transcription listening state (separate from microphone enabled)
 
@@ -29,12 +26,11 @@ const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
 const { askPermission, startStream } = useSettingsAudioDevice()
-const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(useSettingsAudioDevice())
+const { enabled, stream } = storeToRefs(useSettingsAudioDevice())
 const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
 const { ingest, onAfterMessageComposed, discoverToolsCompatibility } = chatOrchestrator
 const { messages } = storeToRefs(chatSession)
-const { audioContext } = useAudioContext()
 const { t } = useI18n()
 
 // Transcription pipeline
@@ -44,6 +40,13 @@ const { transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const { configured: hearingConfigured, autoSendEnabled, autoSendDelay } = storeToRefs(hearingStore)
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
+
+// Volcengine realtime voice
+const volcVoice = useVolcVoiceStore()
+const { isConnected: volcConnected } = storeToRefs(volcVoice)
+
+// Volcengine realtime voice handles ASR display in the chat conversation directly,
+// no need to duplicate ASR text in the input box.
 
 // Auto-send logic
 let autoSendTimeout: ReturnType<typeof setTimeout> | undefined
@@ -120,19 +123,14 @@ async function handleSend() {
   }
   catch (error) {
     messageInput.value = textToSend
-    messages.value.pop()
+    // Don't pop the user message — it was already persisted in the session.
+    // Only append the error so the user can see what went wrong.
     messages.value.push({
       role: 'error',
       content: (error as Error).message,
     })
   }
 }
-
-watch(hearingPopoverOpen, async (value) => {
-  if (value) {
-    await askPermission()
-  }
-})
 
 watch([activeProvider, activeModel], async () => {
   if (activeProvider.value && activeModel.value) {
@@ -143,38 +141,7 @@ watch([activeProvider, activeModel], async () => {
 onAfterMessageComposed(async () => {
 })
 
-const { startAnalyzer, stopAnalyzer, volumeLevel } = useAudioAnalyzer()
-const normalizedVolume = computed(() => Math.min(1, Math.max(0, (volumeLevel.value ?? 0) / 100)))
-let analyzerSource: MediaStreamAudioSourceNode | undefined
-
-function teardownAnalyzer() {
-  try {
-    analyzerSource?.disconnect()
-  }
-  catch {}
-  analyzerSource = undefined
-  stopAnalyzer()
-}
-
-async function setupAnalyzer() {
-  teardownAnalyzer()
-  if (!hearingPopoverOpen.value || !enabled.value || !stream.value)
-    return
-  if (audioContext.state === 'suspended')
-    await audioContext.resume()
-  const analyser = startAnalyzer(audioContext)
-  if (!analyser)
-    return
-  analyzerSource = audioContext.createMediaStreamSource(stream.value)
-  analyzerSource.connect(analyser)
-}
-
-watch([hearingPopoverOpen, enabled, stream], () => {
-  setupAnalyzer()
-}, { immediate: true })
-
 onUnmounted(() => {
-  teardownAnalyzer()
   stopListening()
 
   // Clear auto-send timeout on unmount
@@ -186,6 +153,10 @@ onUnmounted(() => {
 
 // Transcription listening functions
 async function startListening() {
+  // Skip local STT when Volcengine realtime voice is handling audio end-to-end
+  if (volcConnected.value)
+    return
+
   // Allow calling this even if already listening - transcribeForMediaStream will handle session reuse/restart
   try {
     console.info('[ChatArea] Starting listening...', {
@@ -395,6 +366,32 @@ watch(autoSendEnabled, (enabled) => {
     console.info('[ChatArea] Auto-send disabled, cleared pending text')
   }
 })
+
+async function toggleMic() {
+  if (enabled.value) {
+    // Turn off microphone and stop listening
+    await stopListening()
+    enabled.value = false
+    return
+  }
+
+  // Request microphone permission and start listening directly
+  await askPermission()
+  enabled.value = true
+
+  if (!stream.value) {
+    startStream()
+    try {
+      await until(stream).toBeTruthy({ timeout: 3000, throwOnTimeout: true })
+    }
+    catch {
+      console.error('[ChatArea] Timed out waiting for audio stream.')
+      return
+    }
+  }
+
+  await startListening()
+}
 </script>
 
 <template>
@@ -412,7 +409,7 @@ watch(autoSendEnabled, (enabled) => {
         text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
         bg="transparent"
         min-h="[100px]" max-h="[300px]" w-full
-        rounded-t-xl p-4 font-medium pb="[60px]"
+        rounded-t-xl p-4 font-medium pb="[40px]"
         outline-none transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
         :class="{
           'transition-colors-none placeholder:transition-colors-none': themeColorsHueDynamic,
@@ -422,75 +419,23 @@ watch(autoSendEnabled, (enabled) => {
         @compositionend="isComposing = false"
       />
 
-      <!-- Bottom-left action button: Microphone -->
+      <!-- Bottom action bar: sits below the textarea content area -->
       <div
-        absolute bottom-2 left-2 z-10 flex items-center gap-2
+        class="flex items-center px-2 py-1"
       >
-        <!-- Microphone icon button -->
-        <PopoverRoot v-model:open="hearingPopoverOpen">
-          <PopoverTrigger as-child>
-            <button
-              class="h-8 w-8 flex items-center justify-center rounded-md outline-none transition-all duration-200 active:scale-95"
-              text="lg neutral-500 dark:neutral-400"
-              :title="t('settings.hearing.title')"
-            >
-              <Transition name="fade" mode="out-in">
-                <IndicatorMicVolume v-if="enabled" class="h-5 w-5" />
-                <div v-else class="i-ph:microphone-slash h-5 w-5" />
-              </Transition>
-            </button>
-          </PopoverTrigger>
-          <PopoverContent
-            side="top"
-            :side-offset="8"
-            :class="[
-              'w-72 max-w-[18rem] rounded-xl border border-neutral-200/60 bg-neutral-50/90 p-4',
-              'shadow-lg backdrop-blur-md dark:border-neutral-800/30 dark:bg-neutral-900/80',
-              'flex flex-col gap-3',
-            ]"
-          >
-            <div class="flex flex-col items-center justify-center">
-              <div class="relative h-28 w-28 select-none">
-                <div
-                  class="absolute left-1/2 top-1/2 h-20 w-20 rounded-full transition-all duration-150 -translate-x-1/2 -translate-y-1/2"
-                  :style="{ transform: `translate(-50%, -50%) scale(${1 + normalizedVolume * 0.35})`, opacity: String(0.25 + normalizedVolume * 0.25) }"
-                  :class="enabled ? 'bg-primary-500/15 dark:bg-primary-600/20' : 'bg-neutral-300/20 dark:bg-neutral-700/20'"
-                />
-                <div
-                  class="absolute left-1/2 top-1/2 h-24 w-24 rounded-full transition-all duration-200 -translate-x-1/2 -translate-y-1/2"
-                  :style="{ transform: `translate(-50%, -50%) scale(${1.2 + normalizedVolume * 0.55})`, opacity: String(0.15 + normalizedVolume * 0.2) }"
-                  :class="enabled ? 'bg-primary-500/10 dark:bg-primary-600/15' : 'bg-neutral-300/10 dark:bg-neutral-700/10'"
-                />
-                <div
-                  class="absolute left-1/2 top-1/2 h-28 w-28 rounded-full transition-all duration-300 -translate-x-1/2 -translate-y-1/2"
-                  :style="{ transform: `translate(-50%, -50%) scale(${1.5 + normalizedVolume * 0.8})`, opacity: String(0.08 + normalizedVolume * 0.15) }"
-                  :class="enabled ? 'bg-primary-500/5 dark:bg-primary-600/10' : 'bg-neutral-300/5 dark:bg-neutral-700/5'"
-                />
-                <button
-                  class="absolute left-1/2 top-1/2 grid h-16 w-16 place-items-center rounded-full shadow-md outline-none transition-all duration-200 -translate-x-1/2 -translate-y-1/2"
-                  :class="enabled
-                    ? 'bg-primary-500 text-white hover:bg-primary-600 active:scale-95'
-                    : 'bg-neutral-200 text-neutral-600 hover:bg-neutral-300 active:scale-95 dark:bg-neutral-700 dark:text-neutral-200'"
-                  @click="enabled = !enabled"
-                >
-                  <div :class="enabled ? 'i-ph:microphone' : 'i-ph:microphone-slash'" class="h-6 w-6" />
-                </button>
-              </div>
-              <p class="mt-3 text-xs text-neutral-500 dark:text-neutral-400">
-                {{ enabled ? 'Microphone enabled' : 'Microphone disabled' }}
-              </p>
-            </div>
-
-            <FieldSelect
-              v-model="selectedAudioInput"
-              label="Input device"
-              description="Select the microphone you want to use."
-              :options="audioInputs.map(device => ({ label: device.label || 'Unknown Device', value: device.deviceId }))"
-              layout="vertical"
-              placeholder="Select microphone"
-            />
-          </PopoverContent>
-        </PopoverRoot>
+        <button
+          class="h-8 w-8 flex cursor-pointer items-center justify-center rounded-md outline-none transition-all duration-200 active:scale-95"
+          :class="enabled
+            ? 'text-primary-500 dark:text-primary-400'
+            : 'text-lg text-neutral-500 dark:text-neutral-400'"
+          :title="enabled ? t('stage.microphone.enabled') : t('stage.microphone.disabled')"
+          @click="toggleMic"
+        >
+          <Transition name="fade" mode="out-in">
+            <IndicatorMicVolume v-if="enabled" class="h-5 w-5" />
+            <div v-else class="i-ph:microphone-slash h-5 w-5" />
+          </Transition>
+        </button>
       </div>
     </div>
   </div>

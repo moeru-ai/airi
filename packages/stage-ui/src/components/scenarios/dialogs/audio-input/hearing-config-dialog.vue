@@ -3,6 +3,7 @@ import { useMediaQuery, useResizeObserver, useScreenSafeArea } from '@vueuse/cor
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, DialogTrigger, VisuallyHidden } from 'reka-ui'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTrigger } from 'vaul-vue'
 import { onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import HearingConfig from './hearing-config.vue'
 
@@ -13,6 +14,8 @@ const props = defineProps<{
   audioInputs?: MediaDeviceInfo[]
   volumeLevel?: number
 }>()
+
+const { t } = useI18n()
 
 const showDialog = defineModel('show', { type: Boolean, default: false, required: false })
 const selectedAudioInput = defineModel<string>('selectedAudioInput')
@@ -40,7 +43,7 @@ onMounted(() => screenSafeArea.update())
       />
       <DialogContent class="fixed left-1/2 top-1/2 z-[9999] max-h-full max-w-5xl w-[92dvw] transform overflow-y-scroll rounded-2xl bg-white p-6 shadow-xl outline-none backdrop-blur-md scrollbar-none -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:bg-neutral-900">
         <VisuallyHidden>
-          <DialogTitle>Hearing Input</DialogTitle>
+          <DialogTitle>{{ t('stage.hearing-input.title') }}</DialogTitle>
         </VisuallyHidden>
         <HearingConfig
           v-model:enabled="enabled"

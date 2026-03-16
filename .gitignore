@@ -18,6 +18,10 @@ lerna-debug.log*
 .temp
 **/temp/
 
+# Environment files with secrets
+.env
+**/.env
+
 # Anything .local, especially for .env.local
 *.local
 # e.g. Claude Code settings.local.json
@@ -122,3 +126,6 @@ plugins-development
 
 apps/stage-pocket/ios/buildServer.json
 .ghfs/
+.claude/
+system-overview.md
+plugins/airi-plugin-openclaw/

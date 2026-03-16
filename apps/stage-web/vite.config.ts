@@ -74,6 +74,20 @@ export default defineConfig({
         `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src'))}/*.vue`,
       ],
     },
+    proxy: {
+      // Volcengine Ark API proxy (CORS workaround for Chinese LLM APIs)
+      '/api/volcengine-ark': {
+        target: 'https://ark.cn-beijing.volces.com',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/api\/volcengine-ark/, '/api/coding/v3'),
+      },
+      // Dashscope API proxy (CORS workaround for Chinese LLM APIs)
+      '/api/dashscope': {
+        target: 'https://coding.dashscope.aliyuncs.com',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/api\/dashscope/, '/v1'),
+      },
+    },
   },
   build: {
     sourcemap: true,

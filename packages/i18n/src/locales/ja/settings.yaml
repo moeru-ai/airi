@@ -621,6 +621,12 @@ pages:
       deepseek:
         description: deepseek.com
         title: DeepSeek
+      volcengine-ark:
+        description: 火山エンジン Ark（豆包モデル）
+        title: 火山エンジン Ark
+      dashscope:
+        description: Dashscope（通義千問）
+        title: Dashscope
       elevenlabs:
         description: elevenlabs.io
         fields:

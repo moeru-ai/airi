@@ -1,5 +1,4 @@
 catalogMode: prefer
-
 shellEmulator: true
 packages:
   - packages/**
@@ -74,6 +73,7 @@ catalog:
   builder-util-runtime: ^9.5.1
   capacitor-native-settings: ^8.0.0
   crossws: ^0.4.4
+  dotenv: ^17.3.1
   drizzle-valibot: ^0.4.2
   electron: ^40.8.0
   embla-carousel-vue: ^9.0.0-rc01
