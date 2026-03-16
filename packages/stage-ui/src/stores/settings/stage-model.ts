@@ -54,7 +54,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     }
 
     const model = await displayModelsStore.getDisplayModel(selectedModelId)
-    
+
     if (requestId !== stageModelUpdateSequence)
       return
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useModelStore } from '@proj-airi/stage-ui-three'
+import { animations, useModelStore } from '@proj-airi/stage-ui-three'
 import { Button, Callout, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
@@ -7,7 +7,7 @@ import { useI18n } from 'vue-i18n'
 
 import VRMExpressions from './vrm-expressions.vue'
 
-import { Container, PropertyColor, PropertyNumber, PropertyPoint } from '../../../data-pane'
+import { Container, PropertyColor, PropertyNumber, PropertyPoint, PropertySelect } from '../../../data-pane'
 import { ColorPalette } from '../../../widgets'
 
 defineProps<{
@@ -42,6 +42,7 @@ const {
 
   envSelect,
   skyBoxIntensity,
+  vrmIdleAnimation,
 } = storeToRefs(modelStore)
 
 // NOTICE: sceneMutationLocked was removed upstream; hardcoded to false.
@@ -168,6 +169,13 @@ const envOptions = computed(() => [
         v-model="ambientLightColor"
         :disabled="sceneMutationLocked"
         label="Ambient Light Color"
+      />
+
+      <PropertySelect
+        v-model="vrmIdleAnimation"
+        :label="t('settings.vrm.idle-animation.title')"
+        :options="Object.keys(animations).map(key => ({ label: key, value: key }))"
+        :disabled="sceneMutationLocked"
       />
     </div>
     <div>

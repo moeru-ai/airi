@@ -600,6 +600,40 @@ onMounted(async () => {
       idleEyeSaccades.instantUpdate(vrm.value, newTarget)
     }
   }, { deep: true })
+
+  // watch if the idle animation should be updated
+  watch(() => props.idleAnimation, async (newAnimUrl) => {
+    if (!vrm.value || !vrmAnimationMixer.value || !newAnimUrl)
+      return
+
+    try {
+      const animation = await loadVRMAnimation(newAnimUrl)
+      const clip = await clipFromVRMAnimation(vrm.value, animation)
+      if (!clip)
+        return
+
+      reAnchorRootPositionTrack(clip, vrm.value)
+      clip.tracks = clip.tracks.filter(track => !track.name.includes('blendShapes') && !track.name.includes('expressions'))
+
+      const newAction = vrmAnimationMixer.value.clipAction(clip)
+
+      // Find the currently playing action
+      const activeActions = (vrmAnimationMixer.value as any)._actions || []
+      const currentAction = activeActions.find((a: any) => a.isRunning())
+
+      if (currentAction && currentAction !== newAction) {
+        newAction.reset()
+        newAction.play()
+        currentAction.crossFadeTo(newAction, 0.5, true)
+      }
+      else {
+        newAction.play()
+      }
+    }
+    catch (err) {
+      console.error('[VRMModel] Failed to switch idle animation:', err)
+    }
+  })
 })
 
 onUnmounted(() => {

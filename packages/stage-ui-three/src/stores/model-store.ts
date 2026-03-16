@@ -105,6 +105,8 @@ export const useModelStore = defineStore('modelStore', () => {
   // Quick-toggle favorite expression (e.g., "pixel_glasses")
   const favoriteExpression = useLocalStorage<string>('settings/stage-ui-three/favoriteExpression', '')
 
+  const vrmIdleAnimation = useLocalStorage<string>('settings/stage-ui-three/vrmIdleAnimation', 'idleLoop')
+
   function resetModelStore() {
     modelSize.value = { x: 0, y: 0, z: 0 }
     modelOrigin.value = { x: 0, y: 0, z: 0 }
@@ -123,6 +125,7 @@ export const useModelStore = defineStore('modelStore', () => {
     activeExpressions.value = {}
     emotionMappings.value = {}
     favoriteExpression.value = ''
+    vrmIdleAnimation.value = 'idleLoop'
   }
 
   // === Lighting ===
@@ -202,6 +205,7 @@ export const useModelStore = defineStore('modelStore', () => {
     activeExpressions,
     emotionMappings,
     favoriteExpression,
+    vrmIdleAnimation,
 
     onShouldUpdateView,
     shouldUpdateView,

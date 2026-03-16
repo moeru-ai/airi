@@ -517,7 +517,6 @@ async function loadModel() {
         }
       }
 
-
       // 3. Restore saved active expressions on model load
       if (expressionData.value.length > 0 && Object.keys(activeExpressions.value).length > 0) {
         for (const [fileName, weight] of Object.entries(activeExpressions.value)) {

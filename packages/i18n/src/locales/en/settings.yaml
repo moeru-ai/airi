@@ -1060,6 +1060,8 @@ vrm:
     from-url-placeholder: Enter VRM model URL
     title: Change Model
   title: VRM Settings
+  idle-animation:
+    title: Default Idle Animation
   scale-and-position:
     model-info-title: Model Size Information
     model-info-x: Width (X)
