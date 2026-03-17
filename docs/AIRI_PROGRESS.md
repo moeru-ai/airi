@@ -27,22 +27,6 @@ This document tracks the current development state of the AIRI project, specific
 | `feat/live2d-customizations-panel` | A dedicated settings panel for fine-tuning Live2D model behaviors and visuals. | Active |
 | `feat/model-selector-redesign` | (PR #1297) Re-engineered model selector with categorized grouping and real-time validation. | Submitted |
 | `feat/scrolllock-mic-toggle` | (PR #1298) Feature to toggle the microphone mute state using the ScrollLock key. | Submitted |
-### 2026-03-17 - Live2D Loading Fixes & Pipeline Robustness
-
-- **Status**: ✅ Live2D Model loading restored across all environments
-- **What worked**:
-  - **Live2D 206 Fix**: Diagnosed a strict status check in `pixi-live2d-display` that caused crashes on `206 Partial Content` responses. Updated `opfs-loader.ts` to normalized these requests into full `200` blobs.
-  - **Hotkey Persistence**: Fixed a race condition/initialization bug where the microphone toggle hotkey (e.g., Caps Lock) would reset to Scroll Lock. Refined `hearing.vue` with an `isFetched` guard.
-  - **Bedrock Stability**: Added protective credential checks in the Amazon Bedrock provider to prevent application crashes when AWS keys are missing.
-  - **Animation Cycler**: Integrated initial support for cycling through VRM/Live2D idle animations via the control island.
-
-- **Status**: ✅ TTS audio routing operational
-- **What worked**:
-  - Found that `await getServerChannelConfig()` was hanging in `App.vue` `onMounted`.
-  - Root cause was missing IPC service registrations in `main/index.ts` for Channel Server, MCP, and I18n.
-  - Hoisting issue with `mainWindow` in `index.ts` was resolved by moving registrations into the `injeca.invoke` callback.
-  - Build errors caused by missing exports and unused variables were resolved.
-
 # AIRI Progress Overview
 
 This document tracks the current development state of the AIRI project, specifically within the `airi-rebase-scratch` workspace.
@@ -61,6 +45,7 @@ This document tracks the current development state of the AIRI project, specific
 | `feat/tray-position-startup-fix` | (PR #1289) Auto-restore window position from snapshot on startup. | Submitted |
 | `feat/vrm-live2d-expressions-customizations` | Shared logic and UI for emotion/expression mapping across both VRM and Live2D models. | Active |
 | `feat/artistry-enhancements` | Reorganizing Artistry UI and automating widget prompt injection. | Active |
+| `feat/volume-sensor-integration` | Integrating system volume levels into the proactivity sensor suite. | Completed |
 
 ## Recent Changes (in `airi-rebase-scratch`)
 - **Live2D 206 Fix**: Resolved critical `206 Partial Content` loading failure in `opfs-loader.ts` by normalizing responses into full `200` blobs and adding robust guards for `blobUrl`.
@@ -68,6 +53,10 @@ This document tracks the current development state of the AIRI project, specific
 - **Bedrock Stability**: Hardened Amazon Bedrock provider to prevent application crashes when AWS credentials are missing.
 - **Microphone Quality / Crackling Audio**: Resolved hardware-specific audio artifacts that previously blocked pipeline stability improvements.
 - **Control Island Animation Cycler**: Integrated initial support for cycling through VRM/Live2D idle animations directly from the stage view controls.
+- **System Volume Sensor & Build Resilience**:
+  - **Volume Integration**: Implemented a PowerShell-indexed system volume sensor. The proactivity payload now includes real-time volume levels, enabling context-aware silence logic for the AI.
+  - **Build Fixes**: Resolved TypeScript type mismatch regressions in `i18n` and `windows` services. Fixed UTF-16LE encoding in `live2d-structure-report.ts` and unified `mic-toggle` imports to eliminate bundling warnings.
+  - **Environmental Triage**: Investigated silent `exit code 1` build failure and confirmed it as a baseline Vite 8 / Rolldown regression on Windows.
 - **Chat Response UI Synchronization (FIXED)**: Resolved a critical issue where chat responses were being lost or remained empty. This involved:
   - Adding direct support for the `reasoning-delta` event type (used by models like `glm-4.7`).
   - Implementing an end-of-stream synchronization step in `onEnd` to force-commit speech content if the streaming categorizer was stalling on unclosed tags.
@@ -106,7 +95,6 @@ This document tracks the current development state of the AIRI project, specific
 
 ### 🟡 Medium (Sensor & Render Integration)
 - **Model Centering & Preview Cache**: Investigating why some models (like VRM/Live2D) load off-center. This involves diving into the bounding box and camera initialization logic in the renderer.
-- **Sensor-Driven NO_REPLY & Volume Context**: Integrating system output volume and mic levels into the proactivity payload. This allows the AI (like Lain) to smartly decide to be silent if your volume is muted or the environment is noisy.
 - **Malformed Prompt Stall (Ina vs Lain)**: Fix the `llm-marker-parser` infinite loop when encountering typos in character prompts (e.g., `<|ACT...}>`). Needs stashed synchronization logic fully integrated.
 
 ### 🔴 Hard / Complex (Core Systems & Performance)
