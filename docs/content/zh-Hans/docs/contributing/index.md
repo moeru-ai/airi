@@ -15,9 +15,15 @@ description: 参与并贡献 Project AIRI
 <details>
 <summary>Windows 平台相关设置</summary>
 
-0. 下载 [Visual Studio](https://visualstudio.microsoft.com/downloads/), and follow the instructions here: https://rust-lang.github.io/rustup/installation/windows-msvc.html#walkthrough-installing-visual-studio-2022
+0. 下载 [Visual Studio](https://visualstudio.microsoft.com/downloads/), 根据这个教程安装 https://rust-lang.github.io/rustup/installation/windows-msvc.html#walkthrough-installing-visual-studio-2022
 
-   > 安装时请确保勾选了 Windows SDK 和 C++ build tools
+   > 安装时请确保勾选了 Windows SDK 和MSVC C++ build tools
+
+::: tip
+
+建议使用Visual Studio 2022版以达到更好的兼容性
+
+:::
 
 1. 打开 PowerShell
 2. 安装 [`scoop`](https://scoop.sh/)
@@ -103,7 +109,7 @@ description: 参与并贡献 Project AIRI
 请确保你的本地仓库与主仓库保持最新同步：
 
 ```shell
-git fetch -all
+git fetch --all
 git checkout main
 git pull upstream main --rebase
 ```
@@ -157,7 +163,7 @@ npm i -g @antfu/ni
 - 用 `ni` 来替代 `pnpm install`、`npm install` 和 `yarn install` 命令。
 - 用 `nr` 来替代 `pnpm run`、`npm run` 和 `yarn run` 命令。
 
-你无需费心使用何种包管理器，`ni` 会自动适配。
+你无需费心选择包管理器，`ni` 会自动适配。
 :::
 
 ## 提交代码（Commit）
