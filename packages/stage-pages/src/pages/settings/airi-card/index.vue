@@ -9,11 +9,14 @@ import { Alert } from '@proj-airi/stage-ui/components'
 import { DisplayModelFormat, useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
+import { AiriCardSchema } from '@proj-airi/stage-ui/types'
 import { InputFile } from '@proj-airi/ui'
 import { Select } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
+import { safeParse } from 'valibot'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { toast } from 'vue-sonner'
 
 import cardExportFrameUrl from './card-export-frame.png?url'
 import CardCreate from './components/CardCreate.vue'
@@ -174,7 +177,24 @@ watch(inputFiles, async (newFiles) => {
     }
     else {
       const content = await file.text()
-      importedCard = parseImportedCard(content)
+      try {
+        importedCard = parseImportedCard(content)
+      }
+      catch (e) {
+        toast.error('Failed to parse card JSON: Malformed file')
+        return
+      }
+    }
+
+    // Validate the card
+    const validation = safeParse(AiriCardSchema, importedCard)
+    if (!validation.success) {
+      const errorMsg = validation.issues.map(i => i.message).join('\n')
+      toast.error('Card validation failed', {
+        description: errorMsg,
+      })
+      console.error('[AiriCard] Validation errors:', validation.issues)
+      return
     }
 
     const uniqueName = getUniqueImportedCardName(getImportedCardName(importedCard))
@@ -183,9 +203,11 @@ watch(inputFiles, async (newFiles) => {
     // Add card and select it
     selectedCardId.value = addCard(renamedCard)
     isCardDialogOpen.value = true
+    toast.success('Card imported successfully')
   }
   catch (error) {
     console.error('Error processing card file:', error)
+    toast.error('Error processing card file')
   }
 })
 
@@ -308,7 +330,9 @@ function buildCharaCardV2(card: AiriCard) {
       scenario: card.scenario || '',
       first_mes: card.greetings?.[0] || '',
       mes_example: Array.isArray(card.messageExample)
-        ? card.messageExample.map(example => example.join('\n')).join('\n<START>\n')
+        ? card.messageExample
+            .map(example => Array.isArray(example) ? example.join('\n') : String(example))
+            .join('\n<START>\n')
         : '',
       creator_notes: card.notes || '',
       system_prompt: card.systemPrompt || '',

@@ -130,8 +130,14 @@ This document tracks the current development state of the AIRI project, specific
   - Adding direct support for the `reasoning-delta` event type (used by models like `glm-4.7`).
   - Implementing an end-of-stream synchronization step in `onEnd` to force-commit speech content if the streaming categorizer was stalling on unclosed tags.
   - Refining the categorizer's "incomplete tag" detection to prevent it from stalling on non-tag characters like `<`.
+  - **Notice**: These fixes are currently **STASHED** (stash@{0}) to allow for baseline testing.
+
+- **Malformed Prompt Stall (Ina vs Lain)**: Discovered that a simple typo in a character prompt (e.g., `<|ACT...}>` instead of `<|ACT...|>`) can cause the `llm-marker-parser` to enter an infinite "Tag Mode" buffer state.
+  - **Observation**: Lain worked because her prompt luckily included a correct trailing example (`DELAY`), whereas Ina's stopped at the typo.
+  - **Impact**: Without the stashed `onEnd` synchronization, the system would stall indefinitely and appear empty to the user.
 
 - **Configurable Global Hotkey**: Allow users to configure the global microphone toggle key from the settings panel. This would replace the current hardcoded ScrollLock logic (or make it optional), while potentially maintaining LED sync for toggle keys like CapsLock/NumLock.
 - **Microphone Quality / Crackly Audio Investigation**: Re-open investigation around the unresolved local crackly-audio issue that blocked PR `#1299` (`feat/speech-pipeline-stability`). The pipeline fixes themselves look promising, but they still need validation on the affected hardware/setup before that work is ready to upstream cleanly.
 - **Sensor-Driven `NO_REPLY` & Volume Context**: Integrate system output volume and microphone levels as part of the core proactivity sensor payload. This will allow persona-specific prompt crafting (like for Lain) where the AI can intelligently decide to output `NO_REPLY` if the user's volume is muted or they are clearly in a noisy environment where they wouldn't want to be interrupted.
 - **VRM Animation Ecosystem (The "Idle Hairball")**: Evolving the single-loop idle system into a dynamic, weighted "Idle Sampler" that can cycle through behaviors (innocent, shy, etc.) and gracefully yield to AI-triggered performances (ACT tokens).
+- **Control Island Animation Cycler**: Add a new button to the StageView Control Island that allows users to cycle through available idle animations. This can be implemented as a simple "next index" loop or a selection list similar to the character picker.

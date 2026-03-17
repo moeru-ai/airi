@@ -5,12 +5,14 @@ import { useLive2d } from '@proj-airi/stage-ui-live2d'
 import { useModelStore } from '@proj-airi/stage-ui-three'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
+import { safeParse } from 'valibot'
 import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import SystemPromptV2 from '../../constants/prompts/system-v2'
 
 import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '../../constants/prompts/artistry-instruction'
+import { AiriCardSchema } from '../../types/card.schema'
 import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useConsciousnessStore } from './consciousness'
@@ -346,6 +348,13 @@ Use provider-supported speech mannerisms only when they help communicate tone or
   }
 
   function newAiriCard(card: Card | ccv3.CharacterCardV3): AiriCard {
+    const validation = safeParse(AiriCardSchema, card)
+    if (!validation.success) {
+      console.warn('[AiriCard] Validation issues found during normalization:', validation.issues)
+      // We still proceed with normalization for robustness, but we've logged the problems.
+      // In a stricter implementation, we could throw here.
+    }
+
     const normalizeVersion = (version?: string | null) => {
       const normalized = version?.trim()
       return normalized || '1.0.0'
