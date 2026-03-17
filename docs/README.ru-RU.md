@@ -460,6 +460,16 @@ flowchart TD
 - [mallorbc/whisper_mic](https://github.com/mallorbc/whisper_mic)
 - [`xsai`](https://github.com/moeru-ai/xsai): Реализован приличный набор пакетов для взаимодействия с LLM и моделями, как [Vercel AI SDK](https://sdk.vercel.ai/) но гораздо меньше.
 
+## Спонсоры
+
+<p align="center">
+  <strong>Спасибо за поддержку Project AIRI через OpenCollective, Patreon и Ko-fi.</strong>
+</p>
+
+<p align="center">
+  <img src="./content/public/assets/sponsors/sponsors.svg" alt="Project AIRI supporters" />
+</p>
+
 ## Особая благодарность
 
 Особая благодарность всем участникам за их вклад в Project AIRI ❤️

@@ -1,0 +1,38 @@
+[
+  {
+    "name": "印章",
+    "login": "yinzhang",
+    "linkUrl": "https://ko-fi.com/proj_airi",
+    "avatarUrl": "https://ko-fi.com/img/anon5.png?v=1",
+    "monthlyDollars": 50,
+    "tierName": "Ko-fi Supporter",
+    "createdAt": "2026-03-01T00:00:00.000Z"
+  },
+  {
+    "name": "Menci",
+    "login": "menci",
+    "linkUrl": "https://ko-fi.com/proj_airi",
+    "avatarUrl": "https://storage.ko-fi.com/cdn/useruploads/post/e51af3ff-e6a0-434f-843a-9526b2d2b927_d5f01589-ba4c-405a-8b7f-8bf1d2d19625.png",
+    "monthlyDollars": 405,
+    "tierName": "Ko-fi Supporter",
+    "createdAt": "2025-09-25T00:00:00.000Z"
+  },
+  {
+    "name": "ミカ",
+    "login": "mika",
+    "linkUrl": "https://ko-fi.com/proj_airi",
+    "avatarPath": "docs/content/public/assets/Sponsor's avatar/ミカ.jpg",
+    "monthlyDollars": 5,
+    "tierName": "Ko-fi Supporter",
+    "createdAt": "2025-08-22T00:00:00.000Z"
+  },
+  {
+    "name": "0xGingi",
+    "login": "0xgingi",
+    "linkUrl": "https://ko-fi.com/proj_airi",
+    "avatarUrl": "https://storage.ko-fi.com/cdn/useruploads/post/75e4029a-cd1d-4b83-a3de-9419f131addf_ba982323-4f34-4ff6-b445-febf24af5e11.png",
+    "monthlyDollars": 5,
+    "tierName": "Ko-fi Supporter",
+    "createdAt": "2025-08-22T00:00:00.000Z"
+  }
+]

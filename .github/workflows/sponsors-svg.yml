@@ -1,0 +1,41 @@
+name: Update Sponsors SVG
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    env:
+      SPONSORKIT_PATREON_TOKEN: ${{ secrets.SPONSORKIT_PATREON_TOKEN }}
+      SPONSORKIT_OPENCOLLECTIVE_KEY: ${{ secrets.SPONSORKIT_OPENCOLLECTIVE_KEY }}
+      SPONSORKIT_OPENCOLLECTIVE_SLUG: proj-airi
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate sponsors svg
+        run: pnpm run sponsors:generate
+
+      - name: Pull with rebase
+        run: git pull origin main --rebase --autostash
+
+      - uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: 'chore: update sponsors svg'
+          commit_author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
