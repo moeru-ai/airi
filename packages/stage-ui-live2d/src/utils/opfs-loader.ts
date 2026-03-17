@@ -160,7 +160,6 @@ export class OPFSCacheV2 {
     let blobUrl: string | undefined
 
     // In Model.vue, we pass {id, url, file} to the loader, extract them here
-
     if (
       typeof source === 'object'
       && source !== null
@@ -180,16 +179,14 @@ export class OPFSCacheV2 {
       }
     }
 
-    // check if url is blob. If not a blob (e.g. a regular URL to a zip),
-    // skip this middleware and let the default ZipLoader handle it.
-    // This avoids unneccessary caching/fetching for local presets.
-    if (!key || !blobUrl || !blobUrl.startsWith('blob:')) {
-      if (blobUrl)
-        context.source = blobUrl
-      return next()
-    }
+    // NOTICE: Perform robust checks to avoid "undefined" property access runtime errors.
+    const isBlob = !!blobUrl && blobUrl.startsWith('blob:')
+    const isLocalVite = !!blobUrl && blobUrl.startsWith('http://localhost') && blobUrl.includes('/@fs/')
+    const shouldFetchManually = isBlob || isLocalVite
 
-    if (!key || !blobUrl) {
+    if (!key || !blobUrl || !shouldFetchManually) {
+      if (typeof blobUrl === 'string')
+        context.source = blobUrl
       return next()
     }
 
@@ -203,18 +200,24 @@ export class OPFSCacheV2 {
 
     // cache miss
     // eslint-disable-next-line no-console
-    console.debug(`[OPFS] Cache miss for ${key}`)
+    console.debug(`[OPFS] Cache miss for ${key}${isLocalVite ? ' (local vite)' : ''}`)
     context.opfsKey = key
     context.opfsUrl = blobUrl
 
     try {
+      // NOTICE: Always fetch as a blob and wrap in a File to bypass XHRLoader's strict 206/Status 0 checks
+      // and let pixi-live2d-display handle it as a local file array if possible.
       const res = await fetch(blobUrl)
+      if (!res.ok) {
+        throw new Error(`Failed to fetch source: ${res.statusText} (${res.status})`)
+      }
+
       const blob = await res.blob()
       const fileName = `${key}.zip`
       context.source = [new File([blob], fileName)]
     }
     catch (e) {
-      console.error(`[OPFS] Failed to fetch blob for ${key}`, e)
+      console.error(`[OPFS] Failed to fetch source for ${key}`, e)
       throw e
     }
 
