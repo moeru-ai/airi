@@ -2,6 +2,7 @@
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { animations, useModelStore } from '@proj-airi/stage-ui-three'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
@@ -9,6 +10,7 @@ import { useTimeoutFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { toast } from 'vue-sonner'
 
 import ControlButtonTooltip from './control-button-tooltip.vue'
 import ControlButton from './control-button.vue'
@@ -34,7 +36,16 @@ const modelStore = useModelStore()
 const context = useElectronEventaContext()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
 const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
+const cardStore = useAiriCardStore()
+const { activeCard } = storeToRefs(cardStore)
 const { favoriteExpression, activeExpressions, vrmIdleAnimation } = storeToRefs(modelStore)
+
+// Watch for profile changes to provide feedback
+watch(activeCard, (card) => {
+  if (card) {
+    toast.info(`You selected AIRI Card: ${card.name}`, { id: 'transcription-feedback' })
+  }
+})
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const openChat = useElectronEventaInvoke(electronOpenChat)
 const isLinux = ref(false)
@@ -141,6 +152,7 @@ const ACT_EMOTIONS = [
 function triggerEmotion(emotion: string) {
   if (typeof (window as any).testEmotion === 'function') {
     ;(window as any).testEmotion(emotion)
+    toast.info(`Triggered ${emotion} expression`, { id: 'transcription-feedback' })
   }
 }
 
@@ -170,7 +182,9 @@ function cycleAnimation() {
   const keys = Object.keys(animations)
   const currentIndex = keys.indexOf(vrmIdleAnimation.value)
   const nextIndex = (currentIndex + 1) % keys.length
-  vrmIdleAnimation.value = keys[nextIndex]
+  const nextAnimation = keys[nextIndex]
+  vrmIdleAnimation.value = nextAnimation
+  toast.info(`Selected animation: ${nextAnimation}`, { id: 'transcription-feedback' })
 }
 </script>
 
@@ -277,9 +291,7 @@ function cycleAnimation() {
               <!-- Emotions Button -->
               <ControlButtonTooltip>
                 <ControlButton :button-style="adjustStyleClasses.button" @click="view = 'emotions'">
-                  <div :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" class="flex items-center justify-center text-base leading-none">
-                    😊
-                  </div>
+                  <div i-solar:emoji-funny-square-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
                 </ControlButton>
                 <template #tooltip>
                   Emotions
@@ -297,11 +309,9 @@ function cycleAnimation() {
                     :class="[
                       adjustStyleClasses.icon,
                       hasFavorite ? 'text-amber-500' : 'text-neutral-400 dark:text-neutral-600',
+                      isFavoriteActive ? 'i-solar:star-bold' : 'i-solar:star-linear',
                     ]"
-                    class="flex items-center justify-center text-base leading-none"
-                  >
-                    ⭐
-                  </div>
+                  />
                 </ControlButton>
                 <template #tooltip>
                   {{ hasFavorite ? `Favorite: ${favoriteExpression}` : 'No favorite set' }}
