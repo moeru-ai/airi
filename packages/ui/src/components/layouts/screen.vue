@@ -8,8 +8,11 @@ const breakpoints = useBreakpoints(breakpointsTailwind)
 const { width } = useWindowSize()
 const containerElementBounding = useElementBounding(containerRef, { immediate: true, windowResize: true, reset: true })
 
+const isMobile = computed(() => breakpoints.between('sm', 'md').value || breakpoints.smaller('sm').value)
+const isTablet = computed(() => breakpoints.between('md', 'lg').value)
+
 const canvasWidth = computed(() => {
-  if (breakpoints.smaller('lg').value)
+  if (isMobile.value || isTablet.value)
     return (width.value - 16) // padding
   return containerElementBounding.width.value
 })
