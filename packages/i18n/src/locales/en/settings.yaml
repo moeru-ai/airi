@@ -337,6 +337,9 @@ pages:
             subtitle: Select a default model from the provider
             title: Model
       title: Consciousness
+    context-observer:
+      description: Track how active context entries merge over time
+      title: Context Observer
     description: Thinking, vision, speech synthesis, gaming, etc.
     gaming-factorio:
       description: Playing Factorio!
