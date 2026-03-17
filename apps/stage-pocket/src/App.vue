@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { OnboardingDialog, ToasterRoot } from '@proj-airi/stage-ui/components'
+import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
+import { isPosthogAvailableInBuild } from '@proj-airi/stage-ui/stores/analytics/posthog'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
@@ -96,6 +97,11 @@ function handleSetupSkipped() {
 }
 
 const extraSteps = computed(() => [
+  ...(
+    isPosthogAvailableInBuild()
+      ? [{ id: 'analytics-notice', component: OnboardingStepAnalyticsNotice }]
+      : []
+  ),
   {
     id: 'step-permissions',
     component: OnboardingPermissionsStep,

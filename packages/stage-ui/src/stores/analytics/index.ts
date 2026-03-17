@@ -1,38 +1,45 @@
 import type { AboutBuildInfo } from '../../components/scenarios/about/types'
 
-import posthog from 'posthog-js'
+import { defineStore, storeToRefs } from 'pinia'
+import { ref, watch } from 'vue'
 
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
-
-import { POSTHOG_ENABLED } from '../../../../../posthog.config'
 import { useBuildInfo } from '../../composables'
+import { useSettingsGeneral } from '../settings'
+import {
+  isPosthogAvailableInBuild,
+  registerPosthogBuildInfo,
+  syncPosthogCapture,
+} from './posthog'
 
 export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
   const buildInfo = ref<AboutBuildInfo>(useBuildInfo())
+  const settingsGeneral = useSettingsGeneral()
+  const { analyticsEnabled } = storeToRefs(settingsGeneral)
   const isInitialized = ref(false)
 
   const appStartTime = ref<number | null>(null)
   const firstMessageTracked = ref(false)
 
+  watch(analyticsEnabled, (enabled) => {
+    if (!isInitialized.value)
+      return
+
+    const shouldCapture = syncPosthogCapture(enabled)
+    if (shouldCapture)
+      registerPosthogBuildInfo(buildInfo.value)
+  })
+
   function initialize() {
     if (isInitialized.value)
       return
 
-    if (!POSTHOG_ENABLED) {
-      isInitialized.value = true
-      return
-    }
-
     appStartTime.value = Date.now()
 
-    // Register metadata with PostHog after buildInfo is set
-    posthog.register({
-      app_version: (buildInfo.value.version && buildInfo.value.version !== '0.0.0') ? buildInfo.value.version : 'dev',
-      app_commit: buildInfo.value.commit,
-      app_branch: buildInfo.value.branch,
-      app_build_time: buildInfo.value.builtOn,
-    })
+    if (isPosthogAvailableInBuild()) {
+      const shouldCapture = syncPosthogCapture(analyticsEnabled.value)
+      if (shouldCapture)
+        registerPosthogBuildInfo(buildInfo.value)
+    }
 
     isInitialized.value = true
   }
