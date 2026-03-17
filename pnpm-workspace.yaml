@@ -118,6 +118,7 @@ catalogs:
 ignoredBuiltDependencies:
   - '@prisma/client'
   - better-sqlite3
+  - simple-git-hooks # [workaround] postinstall script bundled in simple-git-hooks fails to execute with `enableGlobalVirtualStore: true`. Using local postinstall script to run `npx simple-git-hooks` instead.
 
 onlyBuiltDependencies:
   - '@discordjs/opus'
@@ -139,7 +140,25 @@ onlyBuiltDependencies:
   - onnxruntime-node
   - protobufjs
   - sharp
-  - simple-git-hooks
   - spawn-sync
   - utf-8-validate
   - vue-demi
+packageExtensions:
+  '@formkit/auto-animate':
+    peerDependencies:
+      vue: '*'
+  '@huggingface/transformers':
+    optionalDependencies:
+      'onnxruntime-common': '*'
+  '@intlify/unplugin-vue-i18n':
+    peerDependencies:
+      vite: '*'
+  '@masknet/eslint-plugin':
+    peerDependencies:
+      typescript: '*'
+  '@unocss/eslint-plugin':
+    peerDependencies:
+      '@typescript-eslint/types': '*'
+  'vue-sonner':
+    peerDependencies:
+      vue: '^3.2.0'
