@@ -70,6 +70,17 @@ function createBedrockConverseProvider(config: {
   sessionToken?: string
   region: string
 }) {
+  if (!config.accessKeyId || !config.secretAccessKey) {
+    return {
+      chat: (_model: string) => ({
+        apiKey: 'bedrock-sigv4',
+        baseURL: '',
+        model: '',
+        fetch: async () => new Response(JSON.stringify({ error: 'Missing credentials' }), { status: 401 }),
+      }),
+    }
+  }
+
   const aws = new AwsClient({
     accessKeyId: config.accessKeyId,
     secretAccessKey: config.secretAccessKey,
@@ -247,6 +258,10 @@ export const providerAmazonBedrock = defineProvider<AmazonBedrockConfig>({
   extraMethods: {
     listModels: async (config, _provider) => {
       const region = config.region
+
+      if (!config.accessKeyId || !config.secretAccessKey) {
+        return fallbackModels()
+      }
 
       const aws = new AwsClient({
         accessKeyId: config.accessKeyId,

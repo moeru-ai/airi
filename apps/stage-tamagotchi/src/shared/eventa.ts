@@ -255,4 +255,6 @@ export const i18nSetLocale = defineInvokeEventa<void, Locale>('eventa:invoke:ele
 export const i18nGetLocale = defineInvokeEventa<Locale>('eventa:invoke:electron:i18n:get-locale')
 
 export { electron } from '@proj-airi/electron-eventa'
+
 export * from '@proj-airi/electron-eventa/electron-updater'
+export * from '@proj-airi/stage-shared/shortcuts'

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
+import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { electronGetMicToggleHotkey, electronSetMicToggleHotkey } from '@proj-airi/stage-shared/shortcuts'
 import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useAudioAnalyzer, useAudioRecorder } from '@proj-airi/stage-ui/composables'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
@@ -78,6 +80,41 @@ const testStreamWasStarted = ref(false) // Track if we started the stream for te
 const useVADThreshold = ref(0.6) // 0.1 - 0.9
 const useVADModel = ref(true) // Toggle between VAD and volume-based detection
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
+
+const isElectron = typeof window !== 'undefined' && !!(window as any).electron
+const getMicToggleHotkeyInvoke = isElectron ? useElectronEventaInvoke(electronGetMicToggleHotkey) : null
+const setMicToggleHotkeyInvoke = isElectron ? useElectronEventaInvoke(electronSetMicToggleHotkey) : null
+
+const selectedHotkey = ref<MicToggleHotkey>('Scroll')
+const instanceId = Math.random().toString(36).slice(2, 9)
+const isFetched = ref(false)
+
+onMounted(async () => {
+  if (isElectron) {
+    console.log('[Hearing Page] Mounting, fetching hotkey from main process...')
+    const hotkey = await getMicToggleHotkeyInvoke?.()
+    console.log('[Hearing Page] Fetched hotkey from main:', hotkey)
+    if (hotkey) {
+      selectedHotkey.value = hotkey as MicToggleHotkey
+    }
+    isFetched.value = true
+  }
+  else {
+    isFetched.value = true
+  }
+})
+
+watch(selectedHotkey, async (newHotkey, oldHotkey) => {
+  console.log('[Hearing Page] selectedHotkey watch triggered:', oldHotkey, '->', newHotkey)
+  // Only save if we've already performed the initial fetch and it's a real change
+  if (isElectron && isFetched.value && newHotkey !== oldHotkey) {
+    console.log('[Hearing Page] User changed hotkey, saving to main process:', newHotkey)
+    await setMicToggleHotkeyInvoke?.(newHotkey)
+  }
+  else {
+    console.log('[Hearing Page] Watch skipped save (initialization or no change)')
+  }
+})
 
 async function handleSpeechStart() {
   if (shouldUseStreamInput.value && stream.value) {
@@ -861,6 +898,40 @@ onUnmounted(() => {
               />
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Mic Toggle Hotkey (Desktop Only) -->
+      <div v-if="isElectron" w-full rounded-xl bg="neutral-50 dark:[rgba(0,0,0,0.3)]" p-4 flex="~ col gap-4">
+        <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
+          {{ t('settings.pages.modules.hearing.sections.section.hotkey.title') }}
+        </h2>
+        <div text="sm neutral-400 dark:neutral-500" mb-2>
+          {{ t('settings.pages.modules.hearing.sections.section.hotkey.description') }}
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <RadioCardSimple
+            id="Scroll"
+            v-model="selectedHotkey"
+            :name="`mic-toggle-hotkey-${instanceId}`"
+            value="Scroll"
+            :title="t('settings.pages.modules.hearing.sections.section.hotkey.options.scroll')"
+          />
+          <RadioCardSimple
+            id="Caps"
+            v-model="selectedHotkey"
+            :name="`mic-toggle-hotkey-${instanceId}`"
+            value="Caps"
+            :title="t('settings.pages.modules.hearing.sections.section.hotkey.options.caps')"
+          />
+          <RadioCardSimple
+            id="Num"
+            v-model="selectedHotkey"
+            :name="`mic-toggle-hotkey-${instanceId}`"
+            value="Num"
+            :title="t('settings.pages.modules.hearing.sections.section.hotkey.options.num')"
+          />
         </div>
       </div>
 

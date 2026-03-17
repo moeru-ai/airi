@@ -25,6 +25,7 @@ docs:
   'close': Close
   'expand': Expand
   'collapse': Collapse
+  'cycle-animation': Cycle Animation
 'status-island':
   connected: WebSocket connected
   disconnected: WebSocket disconnected

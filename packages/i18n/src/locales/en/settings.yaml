@@ -390,6 +390,13 @@ pages:
         section:
           provider-selection:
             description: Select the suitable speech recognition provider
+          hotkey:
+            title: Mic Toggle Hotkey
+            description: Toggle the microphone using a keyboard lock key (Scroll, Caps, or Num Lock). Your keyboard's LED will stay in sync with AIRI's mic status.
+            options:
+              scroll: Scroll Lock
+              caps: Caps Lock
+              num: Num Lock
     memory-long-term:
       description: Long-term memory specific settings and management
       title: Long-Term Memory
