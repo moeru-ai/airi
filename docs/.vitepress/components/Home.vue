@@ -3,6 +3,7 @@ import type { AnimatableObject } from 'animejs'
 
 import { useLocalStorage, useWindowSize } from '@vueuse/core'
 import { createAnimatable } from 'animejs'
+import { useData } from 'vitepress'
 import { onMounted, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -89,6 +90,8 @@ watchEffect((onCleanup) => {
     }
   }
 })
+
+const { frontmatter } = useData()
 </script>
 
 <template>
@@ -125,16 +128,20 @@ watchEffect((onCleanup) => {
               >
                 <div i-twemoji:christmas-tree />Merry Christmas!<div i-twemoji:christmas-tree />
               </div>
-              <div :class="[isBetweenHalloweenAndHalfOfNovember(new Date()) ? 'font-sans-serif-halloween' : '']">
-                Project AIRI
+              <div
+                v-if="frontmatter.title"
+                :class="[isBetweenHalloweenAndHalfOfNovember(new Date()) ? 'font-sans-serif-halloween' : '']"
+              >
+                {{ frontmatter.title }}
               </div>
             </ClientOnly>
           </div>
           <div
+            v-if="frontmatter.slogan"
             class="relative max-w-prose text-center text-slate-900 dark:text-white"
             :class="[isBetweenHalloweenAndHalfOfNovember(new Date()) ? 'font-sans-serif-halloween-secondary' : '']"
           >
-            {{ t('docs.theme.home.subtitle') }}
+            {{ frontmatter.slogan }}
           </div>
           <div class="relative z-10 w-full flex justify-center gap-4">
             <a
