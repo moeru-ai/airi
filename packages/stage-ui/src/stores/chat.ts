@@ -112,6 +112,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     generation: number,
     sessionId: string,
   ) {
+    console.log('[ChatDebug] performSend starting with message:', sendingMessage)
+
     if (!sendingMessage && !options.attachments?.length)
       return
 
@@ -140,6 +142,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     const buildingMessage: StreamingAssistantMessage = { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now(), id: nanoid() }
 
     const updateUI = () => {
+      console.log('[ChatDebug] updateUI triggered')
       if (isForegroundSession()) {
         streamingMessage.value = JSON.parse(JSON.stringify(buildingMessage))
       }
@@ -231,19 +234,22 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       })
 
       const parser = useLlmmarkerParser({
-        onLiteral: async (literal) => {
+        onLiteral: async (text) => {
+          console.log('[ChatDebug] onLiteral:', text)
           if (shouldAbort())
             return
 
-          await literalInterceptor.consume(literal)
+          await literalInterceptor.consume(text)
         },
         onSpecial: async (special) => {
+          console.log('[ChatDebug] onSpecial:', special)
           if (shouldAbort())
             return
 
           await hooks.emitTokenSpecialHooks(special, streamingMessageContext)
         },
         onEnd: async (fullText) => {
+          console.log('[ChatDebug] parser.onEnd triggered with fullText length:', fullText.length)
           if (isStaleGeneration())
             return
 
@@ -251,8 +257,31 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
           buildingMessage.categorization = {
             speech: finalCategorization.speech,
-            reasoning: finalCategorization.reasoning,
+            reasoning: (buildingMessage.categorization?.reasoning ?? '') + (finalCategorization.reasoning ? `\n\n${finalCategorization.reasoning}` : ''),
           }
+
+          // [ChatDebug] Sync check
+          if (buildingMessage.content !== finalCategorization.speech) {
+            console.log('[ChatDebug] onEnd sync difference found:', {
+              building: (buildingMessage.content ?? '').length,
+              final: finalCategorization.speech.length,
+            })
+            buildingMessage.content = finalCategorization.speech
+
+            // Rebuild slices if they got out of sync due to stalling
+            // This is a safety catch to ensure the UI shows the full speech
+            const lastSlice = buildingMessage.slices.at(-1)
+            if (lastSlice?.type === 'text') {
+              lastSlice.text = buildingMessage.content
+            }
+            else {
+              buildingMessage.slices.push({
+                type: 'text',
+                text: buildingMessage.content,
+              })
+            }
+          }
+
           updateUI()
         },
         minLiteralEmitLength: 24,
@@ -345,6 +374,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         // the final non-tool finish to avoid ending the chat turn with no assistant reply.
         waitForTools: true,
         onStreamEvent: async (event: StreamEvent) => {
+          console.log('[ChatDebug] Stream event in orchestrator:', event)
           resetStreamIdleTimeout()
           switch (event.type) {
             case 'tool-call':
@@ -371,6 +401,13 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
                 sessionId,
               })
               await parser.consume(event.text)
+              break
+            case 'reasoning-delta':
+              if (!buildingMessage.categorization) {
+                buildingMessage.categorization = { speech: '', reasoning: '' }
+              }
+              buildingMessage.categorization.reasoning += event.text
+              updateUI()
               break
             case 'finish':
               // Log final full text to main process

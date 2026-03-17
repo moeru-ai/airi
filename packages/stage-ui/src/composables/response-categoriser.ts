@@ -227,6 +227,24 @@ export function createStreamingCategorizer(
 
   // Fallback for filterToSpeech - uses rehype for robust incomplete tag detection
   function checkIncompleteTag(): boolean {
+    // Basic heuristic: if we don't have a '<', we're definitely not at a tag start
+    if (!buffer.includes('<'))
+      return false
+
+    const lastOpen = buffer.lastIndexOf('<')
+    const lastClose = buffer.lastIndexOf('>')
+
+    // If there's a '<' after the last '>', it might be an opening tag
+    if (lastOpen > lastClose) {
+      const tagContent = buffer.slice(lastOpen + 1)
+      // If it's just a '<' or some generic text like '< 5', don't stall unless it looks like a tag name
+      // Tag names start with a letter.
+      if (tagContent.length > 0 && !/^[a-z/]/i.test(tagContent)) {
+        return false
+      }
+      return true
+    }
+
     try {
       const tree = unified().use(rehypeParse, { fragment: true }).parse(buffer) as Root
       const stringified = unified().use(rehypeStringify).stringify(tree).toString()

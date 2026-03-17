@@ -11,6 +11,7 @@ import { mcp } from '../tools'
 
 export type StreamEvent
   = | { type: 'text-delta', text: string }
+    | { type: 'reasoning-delta', text: string }
     | ({ type: 'finish' } & any)
     | ({ type: 'tool-call' } & CompletionToolCall)
     | { type: 'tool-result', toolCallId: string, result?: string | CommonContentPart[] }
