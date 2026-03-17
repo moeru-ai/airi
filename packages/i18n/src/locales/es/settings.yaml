@@ -777,7 +777,37 @@ pages:
           title: Playground de Transcripción
       aihubmix:
         title: AIHubMix
-        description: https://aihubmix.com (10% off)
+        description: https://aihubmix.com (10% de descuento)
+      openai-vision:
+        title: OpenAI Vision
+        description: Modelos de visión de OpenAI para comprensión de imágenes
+      openai-compatible-vision:
+        title: OpenAI Compatible Vision
+        description: Conectar a cualquier API que siga la especificación OpenAI para visión
+      openai-audio-speech:
+        title: OpenAI
+        description: openai.com
+      openai-audio-transcription:
+        title: OpenAI
+        description: openai.com
+      openai-compatible-audio-speech:
+        title: OpenAI Compatible
+        description: Conectar a cualquier API que siga la especificación OpenAI.
+      openai-compatible-audio-transcription:
+        title: OpenAI Compatible
+        description: Conectar a cualquier API que siga la especificación OpenAI.
+      aliyun-nls-transcription:
+        title: Aliyun NLS
+        description: nls-console.aliyun.com
+      comet-api-speech:
+        title: CometAPI Speech
+        description: cometapi.com
+      comet-api-transcription:
+        title: CometAPI Transcription
+        description: cometapi.com
+      player2-speech:
+        title: Player2 Speech
+        description: player2.game
     title: Proveedores
   connection:
     description: Configure WebSocket server connection

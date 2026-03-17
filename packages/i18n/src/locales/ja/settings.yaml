@@ -778,6 +778,36 @@ pages:
       aihubmix:
         title: AIHubMix
         description: https://aihubmix.com (10% off)
+      openai-vision:
+        title: OpenAI Vision
+        description: 画像理解のためのOpenAIビジョンモデル
+      openai-compatible-vision:
+        title: OpenAI Compatible Vision
+        description: OpenAI仕様に準拠したビジョンAPIに接続
+      openai-audio-speech:
+        title: OpenAI
+        description: openai.com
+      openai-audio-transcription:
+        title: OpenAI
+        description: openai.com
+      openai-compatible-audio-speech:
+        title: OpenAI Compatible
+        description: OpenAI仕様に準拠したAPIに接続
+      openai-compatible-audio-transcription:
+        title: OpenAI Compatible
+        description: OpenAI仕様に準拠したAPIに接続
+      aliyun-nls-transcription:
+        title: Aliyun NLS
+        description: nls-console.aliyun.com
+      comet-api-speech:
+        title: CometAPI Speech
+        description: cometapi.com
+      comet-api-transcription:
+        title: CometAPI Transcription
+        description: cometapi.com
+      player2-speech:
+        title: Player2 Speech
+        description: player2.game
     title: プロバイダー
   connection:
     description: WebSocketサーバー接続の設定
