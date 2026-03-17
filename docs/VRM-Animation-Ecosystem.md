@@ -1,4 +1,4 @@
-# Feature Brainstorming: [New Feature Name]
+# VRM Animation Ecosystem
 
 ## Concept Overview
 Allow users to dynamically select the default idle animation for VRM models via a global setting. This replaces the currently hardcoded `idle_loop.vrma`.
@@ -79,3 +79,40 @@ Based on the criteria: **Seamless, Optional, and Prioritized**.
 **File**: [vrm.vue](file:///c:/Users/h4rdc/Documents/Github/airi-rebase-scratch/packages/stage-ui/src/components/scenarios/settings/model-settings/vrm.vue)
 - **Change**: Add a dropdown menu for "Default Idle Animation".
 - **Options**: Populated from the exported animation keys in `stage-ui-three`.
+
+## Phase 4: Weighted Idle States & Pattern Sampling (FUTURE)
+
+### The "Idle Hairball" Concept
+- **Goal**: Move beyond a single static idle loop to a dynamic "idle behavior" system.
+- **Mechanism**: Define an array of allowed idle animations (e.g., `idleLoop`, `innocent`, `shy`) that the character can cycle through or sample from based on weights.
+- **State Management**: AIRI would need to manage a "Transition Bridge":
+  1. **Directive State**: When an array is active, the system samples a new loop every N seconds (or after the current loop finishes).
+  2. **Interruption Handling**: If a performance/ACT token is triggered, the "Idle Sampler" must pause, yield to the performance, and then resume the idle cycle once the performance finishes.
+  3. **Backoff**: Ensure her primary "Performance" state has priority over the "Idle Shuffle."
+- **Benefit**: Creates a more "alive" character that doesn't just loop a single animation but has a range of resting behaviors.
+
+## Deep Dive: The VRMA Customization Ecosystem & User Empowerment
+
+### 1. The Per-Character vs. Global Question
+- **Hierarchy**: Do we keep a global "default" for all models, or move to a per-character "Persona Palette"?
+- **UI Placement**: If per-character, does this live in the **Acting** tab or a new **Motion** tab?
+- **Granularity**: Users should have "Fine-tune Control"—the ability to pick-and-choose which animations are allowed for a specific character (e.g., Lain gets geometric/stilted poses, whereas someone else gets high-energy dances).
+
+### 2. User-Customizable VRMAs (The "Uploader" Flow)
+- **Moving away from `index.ts` Hacks**: We need a first-class uploader.
+- **Location**: Place the uploader UI right next to the VRM/Live2D model selector to signify that VRMAs are "first-class" support models.
+- **Workflow**:
+  - User clicks "Add VRMA".
+  - File picker opens -> User selects `.vrma`.
+  - System prompts for a name (defaulting to clean filename).
+  - File is stored in IndexedDB/OPFS (Private Storage).
+- **Discovery**: The **Explore** tab should have a dedicated category for VRMAs to help users find and enrich their library.
+
+### 3. Key Resources & Marketplaces
+- **Finding VRMAs**: [Booth.pm - VRM Animation Marketplace](https://booth.pm/en/browse/3D%20Motion%20&%20Animation?sort=price_asc&tags%5B%5D=VRMA)
+- **Guides**: [Vidol Chat - How to get VRMA](https://docs.vidol.chat/en/role-manual/faq/how-to-get-vrma)
+
+### 4. Open UI/UX Questions
+- If global, is it "all-or-one" or a "checked selection"?
+- How do we visualize the "sampling" state in the UI so the user knows *why* she just switched animations?
+- Interaction with ACT tokens: If a performance is playing, do we show a "Performance in Progress" lockout in the settings?
