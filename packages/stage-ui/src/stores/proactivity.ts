@@ -3,7 +3,7 @@ import type { ActiveWindowEntry, SystemLoadAverages } from '@proj-airi/stage-sha
 import type { ChatStreamEventContext, StreamingAssistantMessage } from '../types/chat'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { sensorsGetActiveWindow, sensorsGetActiveWindowHistory, sensorsGetIdleTime, sensorsGetLocalTime, sensorsGetSystemLoad } from '@proj-airi/stage-shared'
+import { sensorsGetActiveWindow, sensorsGetActiveWindowHistory, sensorsGetIdleTime, sensorsGetLocalTime, sensorsGetSystemLoad, sensorsGetVolumeLevel } from '@proj-airi/stage-shared'
 import { useIntervalFn } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -42,12 +42,14 @@ export const useProactivityStore = defineStore('proactivity', () => {
   const getActiveWindowHistoryInvoke = isElectron ? useElectronEventaInvoke(sensorsGetActiveWindowHistory) : null
   const getSystemLoadInvoke = isElectron ? useElectronEventaInvoke(sensorsGetSystemLoad) : null
   const getLocalTimeInvoke = isElectron ? useElectronEventaInvoke(sensorsGetLocalTime) : null
+  const getVolumeLevelInvoke = isElectron ? useElectronEventaInvoke(sensorsGetVolumeLevel) : null
 
   const idleTimeSec = ref<number | undefined>(undefined)
   const activeWinStr = ref('')
   const winHistory = ref<ActiveWindowEntry[]>([])
   const sysLoad = ref<SystemLoadAverages | null>(null)
   const locTime = ref('')
+  const volLevel = ref<number | undefined>(undefined)
 
   const sessionMetrics = ref({
     ttsCount: 0,
@@ -91,6 +93,10 @@ export const useProactivityStore = defineStore('proactivity', () => {
 
       if (getLocalTimeInvoke) {
         locTime.value = await getLocalTimeInvoke()
+      }
+
+      if (getVolumeLevelInvoke) {
+        volLevel.value = await getVolumeLevelInvoke()
       }
     }
     catch (err) {
@@ -146,6 +152,8 @@ export const useProactivityStore = defineStore('proactivity', () => {
       payload += 'System Load: [DISABLED]\n'
     }
 
+    const volStr = volLevel.value !== undefined ? `${volLevel.value}%` : 'unknown'
+    payload += `Volume Level: ${volStr}\n`
     payload += `Current Local Time: ${locTime.value || 'unknown'}\n`
 
     if (config?.contextOptions?.usageMetrics !== false) {

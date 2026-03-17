@@ -41,7 +41,7 @@ export async function setupMainWindow(params: {
   onboardingWindowManager: OnboardingWindowManager
   appConfig: Config<typeof globalAppConfigSchema>
 }) {
-  const getConfig = (): InferOutput<typeof globalAppConfigSchema> => params.appConfig.get() ?? { language: 'en', windows: [] }
+  const getConfig = (): InferOutput<typeof globalAppConfigSchema> => params.appConfig.get() ?? { language: 'en', windows: [], microphoneToggleHotkey: 'Scroll' }
   const updateConfig = (newData: InferOutput<typeof globalAppConfigSchema>) => params.appConfig.update(newData)
 
   const mainWindowConfig = getConfig().windows?.find((w: any) => w.title === 'AIRI' && w.tag === 'main')

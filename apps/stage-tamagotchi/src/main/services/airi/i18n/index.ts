@@ -17,7 +17,16 @@ export async function createI18nService(params: { context: ReturnType<typeof cre
   params.i18n.locale(config.get()?.language || 'en')
 
   defineInvokeHandler(params.context, i18nSetLocale, (locale) => {
-    config.update({ ...config.get(), language: locale })
+    const current = config.get()
+    const currentConfig = current
+      ? { ...current }
+      : { language: 'en', windows: [], microphoneToggleHotkey: 'Scroll' as const }
+
+    config.update({
+      ...currentConfig,
+      language: locale,
+      microphoneToggleHotkey: currentConfig.microphoneToggleHotkey || 'Scroll',
+    })
     params.i18n.locale(locale)
   })
 

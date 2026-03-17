@@ -1,4 +1,4 @@
-import { array, boolean, number, object, optional, string } from 'valibot'
+import { array, boolean, number, object, optional, picklist, string } from 'valibot'
 
 import { createConfig } from '../libs/electron/persistence'
 
@@ -19,6 +19,7 @@ export const globalAppConfigSchema = object({
       height: number(),
     })),
   }))),
+  microphoneToggleHotkey: optional(picklist(['Scroll', 'Caps', 'Num']), 'Scroll'),
 })
 
 export function createGlobalAppConfig() {

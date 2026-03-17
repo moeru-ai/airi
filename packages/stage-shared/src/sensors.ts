@@ -22,3 +22,4 @@ export const sensorsGetActiveWindow = defineInvokeEventa<WindowInfo | null>('eve
 export const sensorsGetLocalTime = defineInvokeEventa<string>('eventa:invoke:electron:sensors:get-local-time')
 export const sensorsGetSystemLoad = defineInvokeEventa<SystemLoadAverages>('eventa:invoke:electron:sensors:get-system-load')
 export const sensorsGetActiveWindowHistory = defineInvokeEventa<ActiveWindowEntry[]>('eventa:invoke:electron:sensors:get-active-window-history')
+export const sensorsGetVolumeLevel = defineInvokeEventa<number>('eventa:invoke:electron:sensors:get-volume-level')

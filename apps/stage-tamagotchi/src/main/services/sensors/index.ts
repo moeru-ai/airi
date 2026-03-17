@@ -16,6 +16,7 @@ import {
   sensorsGetIdleTime,
   sensorsGetLocalTime,
   sensorsGetSystemLoad,
+  sensorsGetVolumeLevel,
 } from '@proj-airi/stage-shared'
 import { ipcMain, powerMonitor } from 'electron'
 
@@ -126,6 +127,68 @@ export function setupSensorsService() {
     sensorsGetActiveWindowHistory,
     async () => {
       return activeWindowHistory
+    },
+  )
+
+  async function getVolumeLevel(): Promise<number> {
+    if (process.platform !== 'win32')
+      return 0
+
+    try {
+      // Accessing CoreAudio via PowerShell to get master volume and mute status
+      const psScript = `
+        Add-Type -TypeDefinition @"
+        using System;
+        using System.Runtime.InteropServices;
+        [Guid("5CDF2C82-841E-4546-9722-0CF74078229A"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        interface IAudioEndpointVolume {
+            int Unused1(); int Unused2(); int Unused3(); int Unused4(); int Unused5();
+            int SetMasterVolumeLevelScalar(float fLevel, Guid pguidEventContext);
+            int GetMasterVolumeLevelScalar(out float fLevel);
+            int SetMute([MarshalAs(UnmanagedType.Bool)] bool bMute, Guid pguidEventContext);
+            int GetMute(out bool bMute);
+        }
+        [Guid("D6660639-8444-4E4C-AD9A-03B0699BD2C8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        interface IMMDevice { int Activate(ref Guid id, int clsCtx, IntPtr activationParams, out IAudioEndpointVolume volume); }
+        [Guid("A95664D1-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        interface IMMDeviceEnumerator { int GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDevice device); }
+        [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")] class MMDeviceEnumeratorComObject { }
+        public class AudioVolume {
+            public static float GetVolume() {
+                var enumerator = (IMMDeviceEnumerator)new MMDeviceEnumeratorComObject();
+                IMMDevice device;
+                enumerator.GetDefaultAudioEndpoint(0, 1, out device);
+                IAudioEndpointVolume volume;
+                var guid = new Guid("5CDF2C82-841E-4546-9722-0CF74078229A");
+                device.Activate(ref guid, 23, IntPtr.Zero, out volume);
+                bool mute;
+                volume.GetMute(out mute);
+                if (mute) return 0.0f;
+                float level;
+                volume.GetMasterVolumeLevelScalar(out level);
+                return level * 100;
+            }
+        }
+"@
+        [AudioVolume]::GetVolume()
+      `
+      const encodedCommand = Buffer.from(psScript, 'utf16le').toString('base64')
+      const { stdout } = await execAsync(`powershell -NoProfile -NonInteractive -EncodedCommand ${encodedCommand}`)
+      const volume = Number.parseFloat(stdout.trim())
+      return Number.isNaN(volume) ? 0 : Math.round(volume)
+    }
+    catch (err) {
+      log.withError(err).warn('Failed to get system volume via PowerShell')
+    }
+
+    return 0
+  }
+
+  defineInvokeHandler(
+    context,
+    sensorsGetVolumeLevel,
+    async () => {
+      return getVolumeLevel()
     },
   )
 

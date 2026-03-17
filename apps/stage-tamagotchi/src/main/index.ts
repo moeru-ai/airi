@@ -23,8 +23,10 @@ import { createServerChannelService, setupServerChannel } from './services/airi/
 import { createI18nService } from './services/airi/i18n'
 import { createMcpServersService, setupMcpStdioManager } from './services/airi/mcp-servers'
 import { setupPluginHost } from './services/airi/plugins'
+import { createMicToggleService } from './services/airi/shortcuts/mic-toggle'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupSensorsService } from './services/sensors'
+import { cleanupMicToggleShortcut } from './services/shortcuts/mic-toggle'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -177,15 +179,14 @@ app.whenReady().then(async () => {
       createServerChannelService({ serverChannel: deps.serverChannel })
       createMcpServersService({ context, manager: deps.mcpStdioManager })
       createI18nService({ context, window: deps.mainWindow, i18n: deps.i18n })
+      createMicToggleService({ context, window: deps.mainWindow })
 
       import('./libs/bootkit/lifecycle').then((m) => {
         m.onAppBeforeQuit(() => {
           deps.appConfig.flush()
         })
       })
-      import('./services/shortcuts/mic-toggle').then((m) => {
-        m.setupMicToggleShortcut(deps.mainWindow)
-      })
+
       ipcMain.on('provider-validation-result', (_, data: { providerId: string, valid: boolean, reason: string, config: any }) => {
         if (data.valid)
           return
@@ -244,5 +245,5 @@ app.on('window-all-closed', () => {
 app.on('before-quit', async () => {
   emitAppBeforeQuit()
   injeca.stop()
-  import('./services/shortcuts/mic-toggle').then(m => m.cleanupMicToggleShortcut())
+  cleanupMicToggleShortcut()
 })
