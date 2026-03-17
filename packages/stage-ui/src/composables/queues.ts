@@ -9,10 +9,13 @@ import { EMOTION_VALUES } from '../constants/emotions'
 
 export function useSpecialTokenQueue(emotionsQueue: UseQueueReturn<EmotionPayload>) {
   const normalizeEmotionName = (value: string): Emotion | string => {
-    const normalized = value.trim().toLowerCase()
-    if (EMOTION_VALUES.includes(normalized as Emotion))
-      return normalized as Emotion
-    return value.trim()
+    const trimmed = value.trim()
+    const lower = trimmed.toLowerCase()
+    // If it matches a known emotion enum value, return the standard key
+    if (EMOTION_VALUES.includes(lower as Emotion))
+      return lower as Emotion
+    // Otherwise return the original casing (needed for VRMA filenames)
+    return trimmed
   }
 
   const normalizeIntensity = (value: unknown): number => {
@@ -21,61 +24,77 @@ export function useSpecialTokenQueue(emotionsQueue: UseQueueReturn<EmotionPayloa
     return Math.min(1, Math.max(0, value))
   }
 
-  function extractFromPayload(payload: any) {
-    const emotion = payload?.emotion
-    if (typeof emotion === 'string') {
-      const normalized = normalizeEmotionName(emotion)
-      if (normalized)
-        return { ok: true, emotion: { name: normalized, intensity: 1 } }
-    }
-    else if (emotion && typeof emotion === 'object' && !Array.isArray(emotion)) {
-      if ('name' in emotion && typeof (emotion as { name?: unknown }).name === 'string') {
-        const normalized = normalizeEmotionName((emotion as { name: string }).name)
+  function extractEmotions(payload: any): EmotionPayload[] {
+    const results: EmotionPayload[] = []
+
+    // 1. Emotion object or string
+    if (payload?.emotion && typeof payload.emotion === 'object' && !Array.isArray(payload.emotion)) {
+      if (typeof payload.emotion.name === 'string') {
+        const normalized = normalizeEmotionName(payload.emotion.name)
         if (normalized) {
-          const intensity = normalizeIntensity((emotion as { intensity?: unknown }).intensity)
-          return { ok: true, emotion: { name: normalized, intensity } }
+          const intensity = normalizeIntensity(payload.emotion.intensity)
+          results.push({ name: normalized, intensity })
         }
       }
     }
-    return { ok: false, emotion: null as EmotionPayload | null }
+    else if (typeof payload?.emotion === 'string') {
+      const normalized = normalizeEmotionName(payload.emotion)
+      if (normalized) {
+        results.push({ name: normalized, intensity: 1 })
+      }
+    }
+
+    // 2. Motion string
+    if (typeof payload?.motion === 'string') {
+      const normalized = normalizeEmotionName(payload.motion)
+      if (normalized && !results.some(r => r.name === normalized)) {
+        results.push({ name: normalized, intensity: 1 })
+      }
+    }
+
+    return results
   }
 
   function parseActEmotion(content: string) {
     const match = /<\|ACT\s*(?::\s*)?([\s\S]*?)\|>/i.exec(content)
     if (!match)
-      return { ok: false, emotion: null as EmotionPayload | null }
+      return { ok: false, emotions: [] as EmotionPayload[] }
 
     const payloadText = match[1].trim()
+    let emotions: EmotionPayload[] = []
 
     // Attempt 1: Strict JSON parse
     try {
-      const payload = JSON.parse(payloadText) as { emotion?: unknown }
-      return extractFromPayload(payload)
+      const payload = JSON.parse(payloadText)
+      emotions = extractEmotions(payload)
     }
     catch {
       // Attempt 2: Try wrapping in braces if missing
       if (!payloadText.startsWith('{')) {
         try {
           const wrapped = JSON.parse(`{${payloadText}}`)
-          return extractFromPayload(wrapped)
+          emotions = extractEmotions(wrapped)
         }
         catch { /* continue to fallback */ }
       }
     }
 
     // Attempt 3: Regex fallback for raw key-value pairs
-    const emotionMatch = /"?emotion"?\s*:\s*(?:\{?[\s\S]*?"name"\s*:\s*)?"?([^"}\s,]+)"??/i.exec(payloadText)
-    if (emotionMatch) {
-      const name = emotionMatch[1]
-      const normalized = normalizeEmotionName(name)
-      if (normalized) {
-        const intensityMatch = /"?intensity"?\s*:\s*([\d.]+)/i.exec(payloadText)
-        const intensity = intensityMatch ? normalizeIntensity(Number.parseFloat(intensityMatch[1])) : 1
-        return { ok: true, emotion: { name: normalized, intensity } }
+    if (emotions.length === 0) {
+      const emotionMatch = /"?(?:emotion|motion)"?\s*:\s*(?:\{?[\s\S]*?"name"\s*:\s*)?"?([^"}\s,]+)"??/gi
+      let m
+      while ((m = emotionMatch.exec(payloadText)) !== null) {
+        const name = m[1]
+        const normalized = normalizeEmotionName(name)
+        if (normalized && !emotions.some(e => e.name === normalized)) {
+          const intensityMatch = /"?intensity"?\s*:\s*([\d.]+)/i.exec(payloadText)
+          const intensity = intensityMatch ? normalizeIntensity(Number.parseFloat(intensityMatch[1])) : 1
+          emotions.push({ name: normalized, intensity })
+        }
       }
     }
 
-    return { ok: false, emotion: null as EmotionPayload | null }
+    return { ok: emotions.length > 0, emotions }
   }
 
   function parseDelay(content: string) {
@@ -97,11 +116,16 @@ export function useSpecialTokenQueue(emotionsQueue: UseQueueReturn<EmotionPayloa
           return
         }
 
-        // 2. Check for Emotion
+        // 2. Check for Emotion/Motion
         const actParsed = parseActEmotion(ctx.data)
-        if (actParsed.ok && actParsed.emotion) {
-          ctx.emit('emotion', actParsed.emotion)
-          emotionsQueue.enqueue(actParsed.emotion)
+        if (actParsed.ok) {
+          for (const emotion of actParsed.emotions) {
+            // Trace log for debugging
+            // eslint-disable-next-line no-console
+            console.log('[Queue] Dispatching ACT payload:', emotion)
+            ctx.emit('emotion', emotion)
+            emotionsQueue.enqueue(emotion)
+          }
         }
       },
     ],

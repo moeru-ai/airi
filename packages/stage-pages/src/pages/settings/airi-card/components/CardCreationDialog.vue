@@ -6,6 +6,7 @@ import type { SpeechCapabilitiesInfo } from '@proj-airi/stage-ui/stores/provider
 import kebabcase from '@stdlib/string-base-kebabcase'
 
 import { useModelStore } from '@proj-airi/stage-ui-three'
+import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '@proj-airi/stage-ui/constants/prompts/artistry-instruction'
 import { DisplayModelFormat, useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -88,7 +89,7 @@ const DEFAULT_ACTING_MODEL_PROMPT = `## Instruction: ACT Tokens
 Start every reply with an ACT token to indicate your initial mood or action. If your synchronization or focus changes, insert a new ACT token. One token lasts until you use a new one.
 
 **ACT JSON format (all fields optional):**
-\`<|ACT:"emotion":{"name": expression_name, "intensity": 1},"motion":"action cue"|>\`
+\`<|ACT:"emotion":{"name": expression_name, "intensity": 1}>\`
 
 ## Available Expressions (Keys)
 Use these EXACT names in your ACT tokens:
@@ -228,8 +229,14 @@ const displayModelOptions = computed(() => {
 })
 
 const actingModelExpressionOptions = computed(() => {
-  return [...availableExpressions.value].sort((a, b) => a.localeCompare(b))
+  const modelExps = [...availableExpressions.value]
+  const vrmaExps = Object.keys(animations)
+  return [...new Set([...modelExps, ...vrmaExps])].sort((a, b) => a.localeCompare(b))
 })
+
+function isVrmaExpression(name: string) {
+  return name in animations
+}
 
 const actingExpressionTags = computed(() => actingSpeechCapabilities.value?.expressionTags || [])
 
@@ -713,9 +720,15 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                     <button
                       v-for="name in actingModelExpressionOptions"
                       :key="name"
-                      class="border border-neutral-200 rounded-full px-3 py-1 text-xs text-neutral-600 transition-colors dark:border-neutral-700 hover:border-primary-400 dark:text-neutral-300 hover:text-primary-500"
+                      class="flex items-center gap-1 border border-neutral-200 rounded-full px-3 py-1 text-xs transition-colors dark:border-neutral-700 hover:border-primary-400 hover:text-primary-500"
+                      :class="[
+                        isVrmaExpression(name)
+                          ? 'bg-primary-50/50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300 border-primary-200/50'
+                          : 'text-neutral-600 dark:text-neutral-300',
+                      ]"
                       @click="insertModelExpression(name)"
                     >
+                      <div v-if="isVrmaExpression(name)" class="i-solar:running-bold-duotone text-[10px]" />
                       {{ name }}
                     </button>
                   </div>

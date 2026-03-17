@@ -25,6 +25,29 @@ Currently, all VRMs share the same hardcoded idle animation (`idle_loop.vrma`). 
 - **Storage**: Utilize origin-isolated folders in IndexedDB/OPFS as described in `Storage-Architecture.md`.
 - **Discovery**: Automatically scan the storage directory for new `.vrma` files and add them to the selection dropdown.
 
+## Phase 2 Pitch: ACT Token Integration (REFINED)
+
+Based on the criteria: **Seamless, Optional, and Prioritized**.
+
+### 1. Seamless (The "Butter" Logic)
+- **Automatic Trigger**: Hook into `specialTokenQueue` (via `Stage.vue`). When an `<|ACT|>` token is parsed, we first check if the `emotion.name` (or a potential new `motion` field) matches one of our 10 VRMA animation keys.
+- **Auto-Return**: Animations triggered this way will play and then smoothly cross-fade back to the **Phase 1 Global Default Idle** upon completion (or after a fixed duration).
+
+### 2. Optional (The Acting Tab)
+- **UI Helper**: In the **Acting** tab of the AIRI Card editor, we will add a new section: **"Available Idle Animations"**.
+- **Manual "Teaching"**: This section will list buttons for `agent007`, `blingBang`, etc. Clicking them will insert the corresponding ACT token into the prompt. If the user doesn't add them, AIRI won't know they exist (keeping it optional).
+
+### 3. Prioritized (The Hierarchy)
+- **VRMA vs. Expression**: If a token name exists as both a VRMA animation and a blendshape expression, the **VRMA animation takes precedence**.
+- **Execution flow**:
+  1. Check if name is a VRMA Animation preset -> **Play VRMA**.
+  2. If not, check if name is a Model Expression -> **Apply Expression**.
+  3. If not, fallback to existing behavior.
+
+### 4. Technical Mapping
+- **ACT Payload**: We'll enhance `queues.ts` to better handle both `emotion` and the `motion` fields in ACT tokens.
+- **Animation Hub**: Use the `animations` export from `stage-ui-three` as the source of truth for both the UI helpers and the Stage hook.
+
 ## Decision Log
 - **Per-Character Settings**: **REJECTED**. The feature will remain global to keep complexity low and value high.
 - **Phasing**: Transitioning from built-in presets to dynamic user storage in clearly defined stages.

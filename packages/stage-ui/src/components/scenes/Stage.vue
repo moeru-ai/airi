@@ -118,24 +118,38 @@ const speechRuntimeStore = useSpeechRuntimeStore()
 
 const { currentMotion, availableExpressions: live2dExpressions, expressionData: live2dExpressionData, activeExpressions: live2dActiveExpressions, modelParameters: live2dModelParameters } = storeToRefs(live2dStore)
 
+const temporaryVrma = ref<string | null>(null)
+let temporaryVrmaTimeout: ReturnType<typeof setTimeout> | null = null
+
+const vrmActiveAnimation = computed(() => {
+  const vrmaKey = temporaryVrma.value || vrmStore.vrmIdleAnimation
+  return (animations as any)[vrmaKey] || animations.idleLoop
+})
+
 const emotionsQueue = createQueue<EmotionPayload>({
   handlers: [
     async (ctx) => {
       if (stageModelRenderer.value === 'vrm') {
-        const value = (EMOTION_VRMExpressionName_value as any)[ctx.data.name] ?? ctx.data.name
-        // eslint-disable-next-line no-console
-        console.log('[Stage] VRM emotion processing:', { name: ctx.data.name, mappedValue: value, intensity: ctx.data.intensity })
+        const emotionName = ctx.data.name
+        const isVrma = emotionName in animations
 
-        if (!value) {
-          console.warn('[Stage] No VRM mapping or raw name found for emotion:', ctx.data.name)
-          return
+        if (isVrma) {
+          temporaryVrma.value = emotionName
         }
 
+        const value = (EMOTION_VRMExpressionName_value as any)[emotionName] ?? emotionName
+
+        if (!value)
+          return
+
         if (vrmViewerRef.value) {
-          // eslint-disable-next-line no-console
-          console.log('[Stage] Calling vrmViewerRef.setExpression')
-          // Reset to neutral after 2 seconds to prevent getting stuck in an emotion
-          await vrmViewerRef.value.setExpression(value, ctx.data.intensity, 2000)
+          // Only trigger expression if it's a known mapping or a valid raw expression.
+          // This prevents warnings and interference for motion-only tokens.
+          const isExpression = emotionName in EMOTION_VRMExpressionName_value || vrmViewerRef.value.listExpressions().includes(value)
+
+          if (isExpression) {
+            vrmViewerRef.value.setExpression(value, ctx.data.intensity, 2000)
+          }
         }
         else {
           console.warn('[Stage] vrmViewerRef is NULL')
@@ -296,9 +310,16 @@ async function playFunction(item: Parameters<Parameters<typeof createPlaybackMan
   currentAudioSource.value = source
   source.buffer = item.audio
 
+  // Ensure connections are robust
   source.connect(audioContext.destination)
   if (audioAnalyser.value)
     source.connect(audioAnalyser.value)
+
+  // Explicitly ensure lip-sync setup is called if not already started
+  if (!lipSyncStarted.value) {
+    await setupLipSync()
+  }
+
   if (lipSyncNode.value)
     source.connect(lipSyncNode.value)
 
@@ -599,10 +620,16 @@ chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
   currentChatIntent?.end()
   currentChatIntent = null
 
-  // Restore VRM expressions to user-configured defaults after speech ends
-  // (e.g., school uniform stays on even after the AI triggered other expressions)
+  // Restore VRM expressions and animations to user-configured defaults after speech ends
   if (stageModelRenderer.value === 'vrm') {
     vrmViewerRef.value?.restoreDefaultExpressions()
+
+    // Reset to idle animation when the entire turn ends
+    if (temporaryVrmaTimeout) {
+      clearTimeout(temporaryVrmaTimeout)
+      temporaryVrmaTimeout = null
+    }
+    temporaryVrma.value = null
   }
   // const res = await embed({
   //   ...transformersProvider.embed('Xenova/nomic-embed-text-v1'),
@@ -704,7 +731,7 @@ defineExpose({
         v-model:state="componentState"
         :model-src="stageModelSelectedUrl"
         :model-identity="stageModelSelected"
-        :idle-animation="(animations as any)[vrmStore.vrmIdleAnimation] || animations.idleLoop"
+        :idle-animation="vrmActiveAnimation"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :paused="paused"
         :show-axes="stageViewControlsEnabled"
