@@ -2,9 +2,13 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
 import type { AiriCard } from '@proj-airi/stage-ui/stores/modules/airi-card'
 
+import { loadLive2DModelPreview } from '@proj-airi/stage-ui-live2d/utils/live2d-preview'
+import { useModelStore } from '@proj-airi/stage-ui-three'
+import { loadVrmModelPreview } from '@proj-airi/stage-ui-three/utils/vrm-preview'
 import { Alert } from '@proj-airi/stage-ui/components'
-import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
+import { DisplayModelFormat, useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { InputFile } from '@proj-airi/ui'
 import { Select } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
@@ -23,6 +27,10 @@ const cardStore = useAiriCardStore()
 const displayModelsStore = useDisplayModelsStore()
 const { addCard, removeCard } = cardStore
 const { cards, activeCardId } = storeToRefs(cardStore)
+const modelStore = useModelStore()
+const stageModelStore = useSettingsStageModel()
+const { activeExpressions } = storeToRefs(modelStore)
+const { stageModelSelected } = storeToRefs(stageModelStore)
 
 // Currently selected card ID (different from active card ID)
 const selectedCardId = ref<string>('')
@@ -480,8 +488,33 @@ async function exportCardPng(cardId: string) {
   const displayModelId = cardStore.getCardDisplayModelId(cardId)
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   const previewModel = displayModelId ? await displayModelsStore.getDisplayModel(displayModelId) : null
+  if (!previewModel)
+    return
 
-  const previewImage = previewModel?.previewImage
+  let previewImage = previewModel.previewImage
+
+  // If this model is currently active on stage, take a "Live Snapshot" to reflect outfits/expressions
+  // We use stageModelSelected from useSettingsStageModel to check for active model
+  if (displayModelId === stageModelSelected.value) {
+    try {
+      const modelInput = previewModel.type === 'file' ? previewModel.file : (previewModel as any).url
+
+      if (previewModel.format === DisplayModelFormat.VRM) {
+        const liveSnapshot = await loadVrmModelPreview(modelInput, activeExpressions.value)
+        if (liveSnapshot)
+          previewImage = liveSnapshot
+      }
+      else if (previewModel.format === DisplayModelFormat.Live2dZip) {
+        const liveSnapshot = await loadLive2DModelPreview(modelInput, activeExpressions.value)
+        if (liveSnapshot)
+          previewImage = liveSnapshot
+      }
+    }
+    catch (err) {
+      console.warn('Failed to take live snapshot for card export, falling back to stale preview:', err)
+    }
+  }
+
   if (!previewImage) {
     console.error('No preview image available for card PNG export')
     return
