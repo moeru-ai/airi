@@ -1,5 +1,7 @@
 import type { DefaultTheme } from 'vitepress'
 
+import type { ThemeConfig } from './theme/config.ts'
+
 import { join, posix, resolve } from 'node:path'
 import { env } from 'node:process'
 
@@ -23,6 +25,7 @@ import {
   projectName,
   projectShortName,
   releases,
+  webLive,
   x,
 } from './meta'
 import { frontmatterAssets } from './plugins/vite-frontmatter-assets'
@@ -36,7 +39,7 @@ function withBase(url: string) {
 }
 
 // https://vitepress.dev/reference/site-config
-export default defineConfig({
+export default defineConfig<ThemeConfig>({
   cleanUrls: true,
   ignoreDeadLinks: true,
   title: projectName,
@@ -203,6 +206,24 @@ export default defineConfig({
             link: withBase('/en/characters/'),
           },
         ] as (DefaultTheme.SidebarItem & { icon?: string })[],
+
+        homepage: {
+          buttons: [
+            {
+              text: 'Try Live',
+              link: webLive,
+              primary: true,
+            },
+            {
+              text: 'Download',
+              link: withBase('/en/docs/overview/versions'),
+            },
+            {
+              text: 'Get Started',
+              link: withBase('/en/docs/overview'),
+            },
+          ],
+        },
       },
     },
     'zh-Hans': {
@@ -325,6 +346,24 @@ export default defineConfig({
             link: withBase('/zh-Hans/characters/'),
           },
         ] as (DefaultTheme.SidebarItem & { icon?: string })[],
+
+        homepage: {
+          buttons: [
+            {
+              text: '网页版',
+              link: webLive,
+              primary: true,
+            },
+            {
+              text: '下载',
+              link: withBase('/zh-Hans/docs/overview/versions'),
+            },
+            {
+              text: '使用教程',
+              link: withBase('/zh-Hans/docs/overview'),
+            },
+          ],
+        },
       },
     },
     'ja': {
@@ -447,6 +486,24 @@ export default defineConfig({
             link: withBase('/ja/characters/'),
           },
         ] as (DefaultTheme.SidebarItem & { icon?: string })[],
+
+        homepage: {
+          buttons: [
+            {
+              text: 'ライブ版を試す',
+              link: webLive,
+              primary: true,
+            },
+            {
+              text: 'ダウンロード',
+              link: withBase('/ja/docs/overview/versions'),
+            },
+            {
+              text: 'はじめに',
+              link: withBase('/ja/docs/overview'),
+            },
+          ],
+        },
       },
     },
   },

@@ -4,7 +4,7 @@ import type { AnimatableObject } from 'animejs'
 import { useLocalStorage, useWindowSize } from '@vueuse/core'
 import { createAnimatable } from 'animejs'
 import { useData } from 'vitepress'
-import { onMounted, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
+import { computed, onMounted, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import homeBackgroundChristmas20251224 from '../assets/home-cover-2025-12-24-bg.avif'
@@ -13,6 +13,7 @@ import homeBackgroundChristmas20251224 from '../assets/home-cover-2025-12-24-bg.
 // cached or erased in dev/prod, causing the mask pattern to not show up.
 import homeBackgroundPatternGhost from '../assets/home-patterns-ghost.svg?no-inline'
 import homeBackgroundPatternLollipop from '../assets/home-patterns-lollipop.svg?no-inline'
+import HomeButtonSet from './HomeButtonSet.vue'
 import ParallaxCover from './ParallaxCover.vue'
 import ParallaxCoverChristmas20251224 from './ParallaxCoverChristmas20251224.vue'
 import ParallaxCoverHalloween20251029 from './ParallaxCoverHalloween20251029.vue'
@@ -91,10 +92,12 @@ watchEffect((onCleanup) => {
   }
 })
 
-const { frontmatter } = useData()
-
 const isShowHalloween = isBetweenHalloweenAndHalfOfNovember(new Date())
 const isShowChristmas = isBetweenChristmasAndHalfOfJanuary(new Date())
+
+const { theme, frontmatter } = useData()
+
+const buttons = computed(() => theme.value.homepage?.buttons || [])
 </script>
 
 <template>
@@ -146,44 +149,7 @@ const isShowChristmas = isBetweenChristmasAndHalfOfJanuary(new Date())
           >
             {{ frontmatter.slogan }}
           </div>
-          <div class="relative z-10 w-full flex justify-center gap-4">
-            <a
-              :class="[
-                'rounded-xl px-3 py-2 lg:px-5 lg:py-3 font-extrabold outline-none backdrop-blur-md active:scale-95 focus:outline-none text-nowrap text-sm md:text-base',
-                'text-slate-700 dark:text-cyan-200',
-              ]"
-              bg="primary/20 dark:primary/30 dark:hover:primary/40"
-              transition="colors,transform duration-200 ease-in-out"
-              cursor-pointer
-              @click="() => handleClickTryLive()"
-            >
-              {{ t('docs.theme.home.try-live.title') }}
-            </a>
-            <a
-              href="https://github.com/moeru-ai/airi/releases/latest"
-              :class="[
-                'rounded-xl px-3 py-2 lg:px-5 lg:py-3 font-extrabold outline-none backdrop-blur-md active:scale-95 focus:outline-none text-nowrap text-sm md:text-base',
-                'text-slate-700 dark:text-slate-100',
-              ]"
-              bg="black/4 dark:white/20 dark:hover:white/30"
-              cursor-pointer
-              transition="colors,transform duration-200 ease-in-out"
-            >
-              {{ t('docs.theme.home.download.title') }}
-            </a>
-            <a
-              href="./docs/overview/"
-              :class="[
-                'rounded-xl px-3 py-2 lg:px-5 lg:py-3 font-extrabold outline-none backdrop-blur-md active:scale-95 focus:outline-none text-nowrap text-sm md:text-base',
-                'text-slate-700 dark:text-slate-100',
-              ]"
-              bg="black/4 dark:white/20 dark:hover:white/30"
-              transition="colors,transform duration-200 ease-in-out"
-              cursor-pointer
-            >
-              {{ t('docs.theme.home.get-started.title') }}
-            </a>
-          </div>
+          <HomeButtonSet :items="buttons" />
         </div>
       </div>
     </section>
