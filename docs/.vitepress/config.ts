@@ -15,6 +15,7 @@ import { tasklist } from '@mdit/plugin-tasklist'
 import { defineConfig, postcssIsolateStyles } from 'vitepress'
 
 import { version } from '../../package.json'
+import { webLive } from './constants.ts'
 import { teamMembers } from './contributors'
 import {
   discord,
@@ -25,7 +26,6 @@ import {
   projectName,
   projectShortName,
   releases,
-  webLive,
   x,
 } from './meta'
 import { frontmatterAssets } from './plugins/vite-frontmatter-assets'

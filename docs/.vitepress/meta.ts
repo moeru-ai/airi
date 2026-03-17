@@ -19,6 +19,3 @@ export const x = 'https://x.com/proj_airi'
 
 /* Avatar/Image/Sponsors servers */
 export const sponsor = 'https://github.com/sponsors/nekomeowww'
-
-/* URL Constants */
-export const webLive = 'https://airi.moeru.ai/'
