@@ -57,9 +57,10 @@ This document tracks the current development state of the AIRI project, specific
   - **Volume Integration**: Implemented a PowerShell-indexed system volume sensor. The proactivity payload now includes real-time volume levels, enabling context-aware silence logic for the AI.
   - **Build Fixes**: Resolved TypeScript type mismatch regressions in `i18n` and `windows` services. Fixed UTF-16LE encoding in `live2d-structure-report.ts` and unified `mic-toggle` imports to eliminate bundling warnings.
   - **Environmental Triage**: Investigated silent `exit code 1` build failure and confirmed it as a baseline Vite 8 / Rolldown regression on Windows.
-- **Chat Response UI Synchronization (FIXED)**: Resolved a critical issue where chat responses were being lost or remained empty. This involved:
+- **Chat Response UI Synchronization & Malformed Prompt Stall (FIXED)**: Resolved a critical issue where chat responses were being lost or remained empty due to malformed tags (e.g., typos like `<|ACT...}>`). This involved:
   - Adding direct support for the `reasoning-delta` event type (used by models like `glm-4.7`).
-  - Implementing an end-of-stream synchronization step in `onEnd` to force-commit speech content if the streaming categorizer was stalling on unclosed tags.
+  - Implementing an `onEnd` synchronization step in the chat orchestrator to force-commit speech content if the streaming categorizer stalls on unclosed tags.
+  - Integrating stashed synchronization logic to ensure the UI always shows the full speech regardless of trailing tag syntax errors.
   - Refining the categorizer's "incomplete tag" detection to prevent it from stalling on non-tag characters like `<`.
 - **Dynamic AIRI Card Exports (Phase 2 Complete)**: Implemented a session-aware snapshot system for AIRI card exports. It now captures the model's active state (outfits and expressions) in real-time. Added full support for both local files and URL/Preset models (e.g., Lain), ensuring consistency across all character types.
 - **Expanded VRM Animation Library**: Increased the library of built-in `.vrma` presets from 11 to 24. This included translating and cleaning several Japanese/garbled filenames into a standardized English underscore format (e.g., `ai_cat_dance`, `humans_are_just_cylinders`, `hito_mania`). All 24 animations are now type-safe and available in the animation registry.
@@ -95,7 +96,6 @@ This document tracks the current development state of the AIRI project, specific
 
 ### 🟡 Medium (Sensor & Render Integration)
 - **Model Centering & Preview Cache**: Investigating why some models (like VRM/Live2D) load off-center. This involves diving into the bounding box and camera initialization logic in the renderer.
-- **Malformed Prompt Stall (Ina vs Lain)**: Fix the `llm-marker-parser` infinite loop when encountering typos in character prompts (e.g., `<|ACT...}>`). Needs stashed synchronization logic fully integrated.
 
 ### 🔴 Hard / Complex (Core Systems & Performance)
 - **VRM Animation Ecosystem (The "Idle Hairball")**: Evolving the static idle loop into a dynamic weighted sampler (shifting weight, blinking, breathing) that gracefully yields to AI-driven performance tokens (`|ACT...|`).
