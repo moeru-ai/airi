@@ -152,7 +152,7 @@ export function useProviderValidation(providerId: string) {
     }
     catch (error) {
       manualTestPassed.value = false
-      manualTestMessage.value = errorMessageFrom(error)
+      manualTestMessage.value = errorMessageFrom(error) ?? 'Unknown error'
     }
     finally {
       isManualTesting.value = false

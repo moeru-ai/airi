@@ -16,9 +16,11 @@
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
     "dev:web": "vite",
-    "dev:ios": "cap-vite -- ios"
+    "dev:ios": "cap-vite -- ios",
+    "dev:android": "cap-vite -- android"
   },
   "dependencies": {
+    "@capacitor/android": "catalog:",
     "@capacitor/core": "catalog:",
     "@capacitor/ios": "catalog:",
     "@capacitor/local-notifications": "catalog:",
