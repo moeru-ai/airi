@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: Địa chỉ API đầu cuối (dùng mặc định nếu không chắc)
     accountId: ID tài khoản
     validationSuccess: Xác thực cấu hình thành công
+    validationPartial: Configuration partially validated
     validationFailed: Xác thực cấu hình thất bại
     validationError: 'Lỗi xác thực: {error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: Bỏ qua
     saveAndContinue: Lưu và tiếp tục
     next: Tiếp
@@ -30,6 +34,19 @@ dialogs:
     no-models: Không có mô hình khả dụng
     no-models-help: >-
       Vui lòng quay lại bước trước và kiểm tra khóa API, hoặc kiểm tra kết nối mạng.
+    permissions:
+      title: Notifications
+      description: You can allow notifications now or continue and set it up later.
+      notificationsTitle: Notifications
+      notificationsDescription: Allow reminders and important status updates.
+      notificationsAction: Request notification permission
+      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
+      openSettings: Open iOS Settings
+      optionalHint: You can continue even if notification permission is not granted.
+      stateUnknown: Not requested
+      stateRequesting: Requesting...
+      stateGranted: Granted
+      stateNotGranted: Not granted
 language:
   title: Ngôn ngữ
   description: >
@@ -159,6 +176,7 @@ pages:
     scenario: Kịch bản
     search: Tìm thẻ...
     sort_by: Sắp xếp theo
+    body-model: Body / Display Model
     speech:
       provider: Giọng nói / Nhà cung cấp
       model: Giọng nói / Mô hình

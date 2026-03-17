@@ -21,14 +21,15 @@ docs:
   'switch-to-dark-mode': 切换到暗色模式
   'pin-on-top': 置顶显示
   'unpin-from-top': 取消置顶
+  'switch-profile': Switch Profile
   'close': 关闭
   'expand': 展开
   'collapse': 折叠
   'vision-see-screen': 让 AIRI 看屏幕
 'status-island':
-  connected: WebSocket 已连接
-  disconnected: WebSocket 已断开
-  'open-settings': 打开 WebSocket 设置
+  connected: WebSocket connected
+  disconnected: WebSocket disconnected
+  'open-settings': Open WebSocket settings
 notice:
   'fade-on-hover':
     title: 悬停淡出

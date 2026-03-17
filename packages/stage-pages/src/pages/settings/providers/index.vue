@@ -70,6 +70,7 @@ useScrollToHash(() => route.hash, {
   behavior: 'smooth', // smooth scroll animation
   maxRetries: 15, // retry if target element isn't ready
   retryDelay: 150, // wait between retries
+  scrollContainer: '#settings-scroll-container',
 })
 </script>
 

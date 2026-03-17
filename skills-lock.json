@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "skills": {
+    "eventa": {
+      "source": "moeru-ai/eventa",
+      "sourceType": "github",
+      "computedHash": "e28297714fd27dc7c3ebe2f3ab4c9f23d9e1e92abbb00248ca7878d833f190ea"
+    },
+    "pnpm": {
+      "source": "antfu/skills",
+      "sourceType": "github",
+      "computedHash": "318f9fca2441a3e06fedc336e195dd18be5dbe901064e4fa71b76b40b096ab3a"
+    },
+    "unocss": {
+      "source": "antfu/skills",
+      "sourceType": "github",
+      "computedHash": "4b7a9f7b89994d5aef70b9d55cb7f65d6e80cea437d5786cd33bb5cf7231c7c4"
+    },
+    "vue": {
+      "source": "antfu/skills",
+      "sourceType": "github",
+      "computedHash": "9c241141e07e836e4f0537c63e8f929fba3767c2997250be38e699f19b75e3f2"
+    },
+    "vue-best-practices": {
+      "source": "antfu/skills",
+      "sourceType": "github",
+      "computedHash": "9200aa5cdf61032bd7d870a08a269a9a8ab672da6e594e7d4318ee3f23bde31d"
+    },
+    "vueuse-functions": {
+      "source": "antfu/skills",
+      "sourceType": "github",
+      "computedHash": "4073414438ae18f65782f968947e614046474d6e31d97c508b627cd80abb1975"
+    },
+    "xsai": {
+      "source": "moeru-ai/xsai",
+      "sourceType": "github",
+      "computedHash": "24095862c1dc77055c1c85f9467465f8761d970bcbfca00f0875ad0e868a8a76"
+    }
+  }
+}

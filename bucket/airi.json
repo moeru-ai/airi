@@ -1,0 +1,34 @@
+{
+  "version": "0.9.0-alpha.12",
+  "description": "A self-hosted AI companion desktop app with voice chat and game integrations",
+  "homepage": "https://airi.moeru.ai/",
+  "license": "MIT",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.12/AIRI-0.9.0-alpha.12-windows-x64-setup.exe#/dl.7z",
+      "hash": "cf4698c7c483ce58e81e05b08a5015a753243e79c54aa2e4baec81c92041e5a7"
+    }
+  },
+  "pre_install": [
+    "Expand-7zipArchive \"$dir\\`$PLUGINSDIR\\app-64.7z\" \"$dir\"",
+    "Remove-Item \"$dir\\`$PLUGINSDIR\", \"$dir\\`$R0\", \"$dir\\`$R1\", \"$dir\\Uninstall*\", \"$dir\\nsProcess*\" -Force -Recurse -ErrorAction SilentlyContinue"
+  ],
+  "shortcuts": [
+    [
+      "airi.exe",
+      "AIRI"
+    ]
+  ],
+  "checkver": "github",
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": "https://github.com/moeru-ai/airi/releases/download/v$version/AIRI-$version-windows-x64-setup.exe#/dl.7z"
+      }
+    },
+    "hash": {
+      "url": "$baseurl/latest.yml",
+      "regex": "sha512:\\s$base64"
+    }
+  }
+}
