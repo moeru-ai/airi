@@ -360,7 +360,7 @@ export default defineConfig<ThemeConfig>({
             },
             {
               text: '使用教程',
-              link: withBase('/zh-Hans/docs/overview'),
+              link: withBase('/zh-Hans/docs/overview/'),
             },
           ],
         },
