@@ -1,0 +1,38 @@
+{
+  "name": "@proj-airi/matrix-bot",
+  "type": "module",
+  "private": true,
+  "description": "Matrix bot for AIRI",
+  "author": {
+    "name": "DonjuanPlatinum",
+    "email": "donpalt@barrensea.org",
+    "url": "https://github.com/donjuanplatinum"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "services/matrix-bot"
+  },
+  "scripts": {
+    "start": "tsx --env-file=.env --env-file-if-exists=.env.local src/index.ts",
+    "dev": "tsx watch --env-file=.env --env-file-if-exists=.env.local src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "@moeru/std": "catalog:",
+    "@proj-airi/server-sdk": "workspace:^",
+    "@proj-airi/server-shared": "workspace:^",
+    "@xsai/shared-chat": "catalog:",
+    "@xsai/utils-chat": "catalog:",
+    "es-toolkit": "^1.44.0",
+    "matrix-js-sdk": "^36.0.0",
+    "nanoid": "^5.1.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.12",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

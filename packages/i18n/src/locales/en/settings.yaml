@@ -388,6 +388,21 @@ pages:
       token-description: Your Discord bot token
       token-placeholder: Enter your Discord bot token
       configured: Discord is properly configured!
+    messaging-matrix:
+      description: Chat over Matrix
+      title: Matrix
+      enable: Enable Matrix Integration
+      enable-description: Allow AIRI to interact through Matrix
+      homeserver-url: Homeserver URL
+      homeserver-url-description: Your Matrix homeserver URL (e.g., https://matrix.org)
+      homeserver-url-placeholder: Enter your Matrix homeserver URL
+      access-token: Access Token
+      access-token-description: Your Matrix bot's access token
+      access-token-placeholder: Enter your Matrix bot's access token
+      user-id: User ID
+      user-id-description: Your Matrix bot's user ID (e.g., @bot:matrix.org)
+      user-id-placeholder: Enter your Matrix bot's user ID
+      configured: Matrix is properly configured!
     speech:
       description: Speech synthesis
       sections:
