@@ -5,6 +5,7 @@ import posthog from 'posthog-js'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
+import { POSTHOG_ENABLED } from '../../../../../posthog.config'
 import { useBuildInfo } from '../../composables'
 
 export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
@@ -17,6 +18,11 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
   function initialize() {
     if (isInitialized.value)
       return
+
+    if (!POSTHOG_ENABLED) {
+      isInitialized.value = true
+      return
+    }
 
     appStartTime.value = Date.now()
 
