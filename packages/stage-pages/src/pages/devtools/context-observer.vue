@@ -643,3 +643,10 @@ watch([selectedSource, strategyFilter, textFilter, onlyWithText], () => {
     </div>
   </div>
 </template>
+
+<route lang="yaml">
+meta:
+  layout: settings
+  titleKey: settings.pages.modules.context-observer.title
+  subtitleKey: settings.pages.modules.context-observer.description
+</route>
