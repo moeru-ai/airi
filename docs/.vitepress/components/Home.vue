@@ -92,6 +92,9 @@ watchEffect((onCleanup) => {
 })
 
 const { frontmatter } = useData()
+
+const isShowHalloween = isBetweenHalloweenAndHalfOfNovember(new Date())
+const isShowChristmas = isBetweenChristmasAndHalfOfJanuary(new Date())
 </script>
 
 <template>
@@ -103,7 +106,7 @@ const { frontmatter } = useData()
           <div class="relative w-full flex flex-col items-center justify-center text-center font-extrabold font-sans-rounded" text="4xl md:5xl">
             <ClientOnly>
               <div
-                v-if="isBetweenHalloweenAndHalfOfNovember(new Date())"
+                v-if="isShowHalloween"
                 :class="[
                   'w-fit',
                   'flex items-center gap-2',
@@ -116,7 +119,7 @@ const { frontmatter } = useData()
                 <div i-twemoji:jack-o-lantern />Happy Halloween!<div i-twemoji:jack-o-lantern />
               </div>
               <div
-                v-if="isBetweenChristmasAndHalfOfJanuary(new Date())"
+                v-if="isShowChristmas"
                 :class="[
                   'w-fit',
                   'flex items-center gap-2',
@@ -130,7 +133,7 @@ const { frontmatter } = useData()
               </div>
               <div
                 v-if="frontmatter.title"
-                :class="[isBetweenHalloweenAndHalfOfNovember(new Date()) ? 'font-sans-serif-halloween' : '']"
+                :class="[isShowHalloween ? 'font-sans-serif-halloween' : '']"
               >
                 {{ frontmatter.title }}
               </div>
@@ -139,7 +142,7 @@ const { frontmatter } = useData()
           <div
             v-if="frontmatter.slogan"
             class="relative max-w-prose text-center text-slate-900 dark:text-white"
-            :class="[isBetweenHalloweenAndHalfOfNovember(new Date()) ? 'font-sans-serif-halloween-secondary' : '']"
+            :class="[isShowHalloween ? 'font-sans-serif-halloween-secondary' : '']"
           >
             {{ frontmatter.slogan }}
           </div>
@@ -188,10 +191,10 @@ const { frontmatter } = useData()
     <div class="absolute inset-0 overflow-hidden -z-10">
       <!-- Repeating, slowly scrolling SVG pattern background -->
       <ClientOnly>
-        <template v-if="isBetweenHalloweenAndHalfOfNovember(new Date())">
+        <template v-if="isShowHalloween">
           <div class="bg-icon-pattern pointer-events-none absolute inset-0 z-0 opacity-10 dark:opacity-10" :style="{ '--bg-mask-icon-pattern': `url(${homeBackgroundPatternGhost})` }" />
         </template>
-        <template v-if="isBetweenChristmasAndHalfOfJanuary(new Date())">
+        <template v-if="isShowChristmas">
           <img :src="homeBackgroundChristmas20251224" class="pointer-events-none absolute inset-0 z-0 h-full w-full object-cover">
         </template>
         <template v-else>
@@ -202,14 +205,14 @@ const { frontmatter } = useData()
           :class="[
             'absolute bottom-0 left-0 right-0 top-0 z-2',
             'from-transparent to-white bg-gradient-to-t dark:to-[hsl(207_15%_5%)]',
-            isBetweenChristmasAndHalfOfJanuary(new Date()) ? 'h-[40%]' : 'h-[80%]',
+            isShowChristmas ? 'h-[40%]' : 'h-[80%]',
           ]"
           style="--un-gradient-shape: to top in srgb;"
         />
-        <template v-if="isBetweenHalloweenAndHalfOfNovember(new Date())">
+        <template v-if="isShowHalloween">
           <ParallaxCoverHalloween20251029 />
         </template>
-        <template v-else-if="isBetweenChristmasAndHalfOfJanuary(new Date())">
+        <template v-else-if="isShowChristmas">
           <Snowfall />
           <ParallaxCoverChristmas20251224 />
         </template>
