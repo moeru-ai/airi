@@ -17,7 +17,7 @@ description: 参与并贡献 Project AIRI
 
 0. 下载 [Visual Studio](https://visualstudio.microsoft.com/downloads/), 根据这个教程安装 https://rust-lang.github.io/rustup/installation/windows-msvc.html#walkthrough-installing-visual-studio-2022
 
-   > 安装时请确保勾选了 Windows SDK 和MSVC C++ build tools
+   > 安装时请确保勾选了 Windows SDK 和 MSVC C++ build tools
 
 ::: tip
 
