@@ -1,12 +1,12 @@
 import { join } from 'node:path'
 
-import { createContext, defineEventa, defineInvoke, defineInvokeHandler } from '@moeru/eventa'
+import { createContext, defineEventa, defineInvoke, defineInvokeEventa, defineInvokeHandler } from '@moeru/eventa'
 import { moduleCompatibilityResult, moduleStatus, registryModulesSync } from '@proj-airi/plugin-protocol/types'
 import { describe, expect, it, vi } from 'vitest'
 
 import { FileSystemLoader, PluginHost } from '.'
 import { createApis } from '../plugin/apis/client'
-import { protocolCapabilityWait, protocolProviders } from '../plugin/apis/protocol'
+import { protocolCapabilityWait, protocolResourceList, protocolResourceListEventName } from '../plugin/apis/protocol'
 
 function reportPluginCapability(
   host: PluginHost,
@@ -145,7 +145,7 @@ describe('for FileSystemPluginHost', () => {
 })
 
 describe('for PluginHost', () => {
-  const providersCapability = 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers'
+  const providersCapability = protocolResourceListEventName
   const testManifest = {
     apiVersion: 'v1' as const,
     kind: 'manifest.plugin.airi.moeru.ai' as const,
@@ -236,21 +236,21 @@ describe('for PluginHost', () => {
     await expect(pluginDef.init?.({ channels: { host: ctx }, apis })).resolves.not.toThrow()
     expect(onVitestCall).toHaveBeenCalledTimes(1)
 
-    defineInvokeHandler(ctx, protocolProviders.listProviders, async () => {
+    defineInvokeHandler(ctx, protocolResourceList, async () => {
       return [
-        { name: 'provider1' },
+        { id: 'provider1', kind: 'ai.provider', phase: 'Ready' as const, updatedAt: Date.now(), metadata: { name: 'provider1' } },
       ]
     })
     defineInvokeHandler(ctx, protocolCapabilityWait, async () => {
       return {
-        key: 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers',
+        key: protocolResourceListEventName,
         state: 'ready',
         updatedAt: Date.now(),
       }
     })
 
     const onProviderListCall = vi.fn()
-    ctx.on(protocolProviders.listProviders.sendEvent, onProviderListCall)
+    ctx.on(protocolResourceList.sendEvent, onProviderListCall)
     await expect(pluginDef.setupModules?.({ channels: { host: ctx }, apis })).resolves.not.toThrow()
     expect(onProviderListCall).toHaveBeenCalledTimes(1)
   })
@@ -398,6 +398,166 @@ describe('for PluginHost', () => {
       key: 'cap:unstable',
       state: 'ready',
       metadata: { source: 'recovered' },
+    })
+  })
+
+  it('should create resource claim and bind it when matching resource is registered', () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+
+    const claim = host.createResourceClaim({
+      id: 'claim-openai',
+      kind: 'ai.provider',
+      owner: {
+        pluginId: 'plugin-consumer',
+        moduleId: 'llm-agent',
+      },
+      selector: {
+        vendor: 'openai',
+      },
+    })
+    expect(claim.phase).toBe('Pending')
+    expect(claim.bindingId).toBeUndefined()
+
+    host.registerResource({
+      id: 'resource-openai',
+      kind: 'ai.provider',
+      labels: {
+        vendor: 'openai',
+      },
+      metadata: {
+        name: 'openai',
+      },
+      owner: {
+        pluginId: 'plugin-provider-openai',
+      },
+    })
+
+    const claims = host.listResourceClaims({ kind: 'ai.provider', phase: 'Bound' })
+    expect(claims).toHaveLength(1)
+    expect(claims[0]?.id).toBe('claim-openai')
+    expect(claims[0]?.bindingId).toBeTruthy()
+
+    const bindings = host.listResourceBindings({ claimId: 'claim-openai', phase: 'Bound' })
+    expect(bindings).toHaveLength(1)
+    expect(bindings[0]).toMatchObject({
+      claimId: 'claim-openai',
+      resourceId: 'resource-openai',
+      phase: 'Bound',
+    })
+
+    const snapshot = host.resourceSnapshot()
+    expect(snapshot.claims).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'claim-openai',
+        phase: 'Bound',
+      }),
+    ]))
+    expect(snapshot.bindings).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        claimId: 'claim-openai',
+      }),
+    ]))
+  })
+
+  it('should release claim and transition binding to released', () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+
+    host.registerResource({
+      id: 'resource-openai',
+      kind: 'ai.provider',
+      labels: { vendor: 'openai' },
+      metadata: { name: 'openai' },
+    })
+    const claim = host.createResourceClaim({
+      id: 'claim-release',
+      kind: 'ai.provider',
+      selector: { vendor: 'openai' },
+    })
+    expect(claim.phase).toBe('Bound')
+
+    const released = host.releaseResourceClaim({
+      id: 'claim-release',
+      reason: 'plugin disabled',
+    })
+    expect(released.phase).toBe('Released')
+
+    const bindings = host.listResourceBindings({ claimId: 'claim-release' })
+    expect(bindings[0]?.phase).toBe('Released')
+  })
+
+  it('should load consumer and provider test plugins and bind claim after provider registration', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+
+    const consumerSession = await host.start({
+      apiVersion: 'v1',
+      kind: 'manifest.plugin.airi.moeru.ai',
+      name: 'test-consumer-llm',
+      entrypoints: {
+        electron: join(import.meta.dirname, 'testdata', 'test-consumer-llm-plugin.ts'),
+      },
+    }, { cwd: '' })
+
+    expect(consumerSession.phase).toBe('ready')
+    expect(host.listResourceClaims({ ownerPluginId: 'test-consumer-llm' })).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'claim-consumer-openai',
+        phase: 'Pending',
+      }),
+    ]))
+
+    const providerSession = await host.start({
+      apiVersion: 'v1',
+      kind: 'manifest.plugin.airi.moeru.ai',
+      name: 'test-provider-openai',
+      entrypoints: {
+        electron: join(import.meta.dirname, 'testdata', 'test-provider-openai-plugin.ts'),
+      },
+    }, { cwd: '' })
+
+    expect(providerSession.phase).toBe('ready')
+
+    const providersFromConsumer = await consumerSession.apis.providers.listProviders()
+    expect(providersFromConsumer).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: 'openai',
+      }),
+    ]))
+
+    const consumerSnapshot = await consumerSession.apis.resources.snapshot()
+    const updatedClaim = consumerSnapshot.claims.find(claim => claim.id === 'claim-consumer-openai')
+    expect(updatedClaim).toBeDefined()
+    expect(updatedClaim?.phase).toBe('Bound')
+    expect(updatedClaim?.bindingId).toBeTruthy()
+
+    const binding = consumerSnapshot.bindings.find(item => item.claimId === 'claim-consumer-openai')
+    expect(binding).toMatchObject({
+      claimId: 'claim-consumer-openai',
+      resourceId: 'provider-openai-resource',
+      phase: 'Bound',
+    })
+
+    const fulfilledResource = consumerSnapshot.resources.find(resource => resource.id === 'provider-openai-resource')
+    expect(fulfilledResource).toMatchObject({
+      id: 'provider-openai-resource',
+      kind: 'ai.provider',
+      phase: 'Ready',
+      labels: {
+        vendor: 'openai',
+        category: 'llm',
+      },
+      metadata: {
+        name: 'openai',
+        features: ['generateText', 'streamText'],
+      },
     })
   })
 
@@ -571,14 +731,15 @@ describe('for PluginHost', () => {
       name: 'test-plugin-session-two',
     }, { cwd: '' })
 
-    defineInvokeHandler(sessionOne.channels.host, protocolProviders.listProviders, async () => [{ name: 'provider:one' }])
-    defineInvokeHandler(sessionTwo.channels.host, protocolProviders.listProviders, async () => [{ name: 'provider:two' }])
+    const testInvoke = defineInvokeEventa<{ source: string }, undefined>('vitest:invoke:isolation')
+    defineInvokeHandler(sessionOne.channels.host, testInvoke, async () => ({ source: 'session-one' }))
+    defineInvokeHandler(sessionTwo.channels.host, testInvoke, async () => ({ source: 'session-two' }))
 
-    const invokeOne = defineInvoke(sessionOne.channels.host, protocolProviders.listProviders)
-    const invokeTwo = defineInvoke(sessionTwo.channels.host, protocolProviders.listProviders)
+    const invokeOne = defineInvoke(sessionOne.channels.host, testInvoke)
+    const invokeTwo = defineInvoke(sessionTwo.channels.host, testInvoke)
 
-    await expect(invokeOne()).resolves.toEqual([{ name: 'provider:one' }])
-    await expect(invokeTwo()).resolves.toEqual([{ name: 'provider:two' }])
+    await expect(invokeOne(undefined)).resolves.toEqual({ source: 'session-one' })
+    await expect(invokeTwo(undefined)).resolves.toEqual({ source: 'session-two' })
   })
 
   it('should include active modules in registry sync when initializing another session', async () => {

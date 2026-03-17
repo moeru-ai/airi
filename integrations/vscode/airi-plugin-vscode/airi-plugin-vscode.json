@@ -1,0 +1,8 @@
+{
+  "apiVersion": "v1",
+  "kind": "manifest.plugin.airi.moeru.ai",
+  "name": "airi-plugin-vscode",
+  "entrypoints": {
+    "electron": "../../../../../../../../neko/Git/moeru-ai/airi/integrations/vscode/airi-plugin-vscode/dist/index.mjs"
+  }
+}

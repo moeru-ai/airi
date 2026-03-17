@@ -10,6 +10,18 @@ import type { ActorRefFrom } from 'xstate'
 import type { definePlugin } from '../plugin'
 import type { createApis } from '../plugin/apis/client'
 import type { CapabilityDescriptor } from '../plugin/apis/protocol'
+import type {
+  ResourceBinding,
+  ResourceBindingListFilter,
+  ResourceClaim,
+  ResourceClaimCreateInput,
+  ResourceClaimListFilter,
+  ResourceClaimReleaseInput,
+  ResourceCondition,
+  ResourceInstance,
+  ResourceListFilter,
+  ResourceRegistrationInput,
+} from '../plugin/apis/protocol/resources'
 import type { Plugin } from '../plugin/shared'
 import type { PluginTransport } from './transports'
 
@@ -39,7 +51,22 @@ import { createActor, createMachine } from 'xstate'
 
 import { createApis as createBoundApis } from '../plugin/apis/client'
 import { protocolCapabilitySnapshot, protocolCapabilityWait } from '../plugin/apis/protocol'
-import { protocolListProvidersEventName, protocolProviders } from '../plugin/apis/protocol/resources/providers'
+import {
+  protocolResourceBindingsList,
+  protocolResourceBindingsListEventName,
+  protocolResourceClaimCreate,
+  protocolResourceClaimCreateEventName,
+  protocolResourceClaimRelease,
+  protocolResourceClaimReleaseEventName,
+  protocolResourceClaimsList,
+  protocolResourceClaimsListEventName,
+  protocolResourceList,
+  protocolResourceListEventName,
+  protocolResourceRegister,
+  protocolResourceRegisterEventName,
+  protocolResourceSnapshot,
+  protocolResourceSnapshotEventName,
+} from '../plugin/apis/protocol/resources'
 import { createPluginContext } from './runtimes/node'
 
 /**
@@ -402,6 +429,37 @@ function resolveNegotiatedVersion(preferredVersion: string, hostSupportedVersion
   }
 }
 
+function nowIso() {
+  return new Date().toISOString()
+}
+
+function createCondition(
+  type: string,
+  status: ResourceCondition['status'],
+  reason: string,
+  message: string,
+): ResourceCondition {
+  return {
+    type,
+    status,
+    reason,
+    message,
+    lastTransitionTime: nowIso(),
+  }
+}
+
+function labelsMatch(labels: Record<string, string> | undefined, selector: Record<string, string> | undefined) {
+  if (!selector || Object.keys(selector).length === 0) {
+    return true
+  }
+
+  if (!labels) {
+    return false
+  }
+
+  return Object.entries(selector).every(([key, value]) => labels[key] === value)
+}
+
 export type PluginRuntime = 'electron' | 'node' | 'web'
 
 export type ModulePhase = ProtocolModulePhase
@@ -516,9 +574,14 @@ export class PluginHost {
   private readonly supportedProtocolVersions: string[]
   private readonly supportedApiVersions: string[]
   private readonly capabilities = new Map<string, CapabilityDescriptor>()
+  private readonly resources = new Map<string, ResourceInstance>()
+  private readonly resourceClaims = new Map<string, ResourceClaim>()
+  private readonly resourceBindings = new Map<string, ResourceBinding>()
   private readonly capabilityWaiters = new Map<string, Set<(descriptor: CapabilityDescriptor) => void>>()
-  private providersListResolver: () => Promise<Array<{ name: string }>> | Array<{ name: string }> = () => []
   private sessionCounter = 0
+  private resourceCounter = 0
+  private claimCounter = 0
+  private bindingCounter = 0
 
   constructor(options: PluginHostOptions = {}) {
     this.loader = new FileSystemLoader()
@@ -528,7 +591,13 @@ export class PluginHost {
     this.apiVersion = options.apiVersion ?? 'v1'
     this.supportedProtocolVersions = resolveSupportedVersions(this.protocolVersion, options.supportedProtocolVersions)
     this.supportedApiVersions = resolveSupportedVersions(this.apiVersion, options.supportedApiVersions)
-    this.markCapabilityReady(protocolListProvidersEventName, { source: 'plugin-host' })
+    this.markCapabilityReady(protocolResourceRegisterEventName, { source: 'plugin-host' })
+    this.markCapabilityReady(protocolResourceListEventName, { source: 'plugin-host' })
+    this.markCapabilityReady(protocolResourceClaimCreateEventName, { source: 'plugin-host' })
+    this.markCapabilityReady(protocolResourceClaimReleaseEventName, { source: 'plugin-host' })
+    this.markCapabilityReady(protocolResourceClaimsListEventName, { source: 'plugin-host' })
+    this.markCapabilityReady(protocolResourceBindingsListEventName, { source: 'plugin-host' })
+    this.markCapabilityReady(protocolResourceSnapshotEventName, { source: 'plugin-host' })
   }
 
   listSessions() {
@@ -571,8 +640,26 @@ export class PluginHost {
     defineInvokeHandler(hostChannel, protocolCapabilitySnapshot, async () => {
       return this.listCapabilities()
     })
-    defineInvokeHandler(hostChannel, protocolProviders.listProviders, async () => {
-      return await this.providersListResolver()
+    defineInvokeHandler(hostChannel, protocolResourceRegister, async (payload) => {
+      return this.registerResource(payload)
+    })
+    defineInvokeHandler(hostChannel, protocolResourceList, async (payload) => {
+      return this.listResources(payload)
+    })
+    defineInvokeHandler(hostChannel, protocolResourceClaimCreate, async (payload) => {
+      return this.createResourceClaim(payload)
+    })
+    defineInvokeHandler(hostChannel, protocolResourceClaimRelease, async (payload) => {
+      return this.releaseResourceClaim(payload)
+    })
+    defineInvokeHandler(hostChannel, protocolResourceClaimsList, async (payload) => {
+      return this.listResourceClaims(payload)
+    })
+    defineInvokeHandler(hostChannel, protocolResourceBindingsList, async (payload) => {
+      return this.listResourceBindings(payload)
+    })
+    defineInvokeHandler(hostChannel, protocolResourceSnapshot, async () => {
+      return this.resourceSnapshot()
     })
 
     const session: PluginHostSession = {
@@ -864,9 +951,209 @@ export class PluginHost {
     return session
   }
 
-  setProvidersListResolver(resolver: () => Promise<Array<{ name: string }>> | Array<{ name: string }>) {
-    this.providersListResolver = resolver
-    this.markCapabilityReady(protocolListProvidersEventName, { source: 'plugin-host-override' })
+  registerResource(input: ResourceRegistrationInput): ResourceInstance {
+    const now = Date.now()
+    const id = input.id ?? `resource-${this.resourceCounter++}`
+    const resource: ResourceInstance = {
+      id,
+      kind: input.kind,
+      labels: input.labels,
+      metadata: input.metadata,
+      phase: input.phase ?? 'Ready',
+      owner: input.owner,
+      updatedAt: now,
+    }
+    this.resources.set(id, resource)
+    this.reconcilePendingClaims()
+    return resource
+  }
+
+  listResources(filter?: ResourceListFilter): ResourceInstance[] {
+    return [...this.resources.values()].filter((resource) => {
+      if (filter?.kind && resource.kind !== filter.kind) {
+        return false
+      }
+
+      if (filter?.phase && resource.phase !== filter.phase) {
+        return false
+      }
+
+      return labelsMatch(resource.labels, filter?.labels)
+    })
+  }
+
+  createResourceClaim(input: ResourceClaimCreateInput): ResourceClaim {
+    const now = Date.now()
+    const claimId = input.id ?? `resource-claim-${this.claimCounter++}`
+    const claim: ResourceClaim = {
+      id: claimId,
+      kind: input.kind,
+      owner: input.owner,
+      selector: input.selector,
+      constraints: input.constraints,
+      phase: 'Pending',
+      conditions: [
+        createCondition('ClaimCreated', 'True', 'ClaimAccepted', `Claim ${claimId} has been accepted by host scheduler.`),
+      ],
+      updatedAt: now,
+    }
+
+    this.resourceClaims.set(claimId, claim)
+    return this.reconcileClaim(claimId)
+  }
+
+  releaseResourceClaim(input: ResourceClaimReleaseInput): ResourceClaim {
+    const claim = this.resourceClaims.get(input.id)
+    if (!claim) {
+      throw new Error(`Unable to release unknown resource claim: ${input.id}`)
+    }
+
+    claim.phase = 'Released'
+    claim.updatedAt = Date.now()
+    claim.conditions = [
+      ...claim.conditions,
+      createCondition(
+        'Released',
+        'True',
+        'ClaimReleased',
+        input.reason ?? `Claim ${claim.id} has been released by request.`,
+      ),
+    ]
+
+    if (claim.bindingId) {
+      const binding = this.resourceBindings.get(claim.bindingId)
+      if (binding) {
+        binding.phase = 'Released'
+        binding.updatedAt = Date.now()
+        binding.conditions = [
+          ...binding.conditions,
+          createCondition('Released', 'True', 'BindingReleased', `Binding ${binding.id} released because claim ${claim.id} was released.`),
+        ]
+      }
+    }
+
+    return claim
+  }
+
+  listResourceClaims(filter?: ResourceClaimListFilter): ResourceClaim[] {
+    return [...this.resourceClaims.values()].filter((claim) => {
+      if (filter?.kind && claim.kind !== filter.kind) {
+        return false
+      }
+
+      if (filter?.phase && claim.phase !== filter.phase) {
+        return false
+      }
+
+      if (filter?.ownerPluginId && claim.owner?.pluginId !== filter.ownerPluginId) {
+        return false
+      }
+
+      return true
+    })
+  }
+
+  listResourceBindings(filter?: ResourceBindingListFilter): ResourceBinding[] {
+    return [...this.resourceBindings.values()].filter((binding) => {
+      if (filter?.claimId && binding.claimId !== filter.claimId) {
+        return false
+      }
+
+      if (filter?.resourceId && binding.resourceId !== filter.resourceId) {
+        return false
+      }
+
+      if (filter?.phase && binding.phase !== filter.phase) {
+        return false
+      }
+
+      return true
+    })
+  }
+
+  resourceSnapshot() {
+    return {
+      resources: this.listResources(),
+      claims: this.listResourceClaims(),
+      bindings: this.listResourceBindings(),
+    }
+  }
+
+  private reconcilePendingClaims() {
+    for (const claim of this.resourceClaims.values()) {
+      if (claim.phase === 'Pending' || claim.phase === 'Degraded') {
+        this.reconcileClaim(claim.id)
+      }
+    }
+  }
+
+  private reconcileClaim(claimId: string): ResourceClaim {
+    const claim = this.resourceClaims.get(claimId)
+    if (!claim) {
+      throw new Error(`Unable to reconcile unknown claim: ${claimId}`)
+    }
+
+    if (claim.phase === 'Released') {
+      return claim
+    }
+
+    const matched = [...this.resources.values()].filter((resource) => {
+      if (resource.kind !== claim.kind) {
+        return false
+      }
+
+      if (resource.phase !== 'Ready') {
+        return false
+      }
+
+      return labelsMatch(resource.labels, claim.selector)
+    })
+
+    if (matched.length === 0) {
+      claim.phase = 'Pending'
+      claim.updatedAt = Date.now()
+      claim.conditions = [
+        ...claim.conditions,
+        createCondition('SelectorMatched', 'False', 'NoMatchingResources', `No ready resources found for kind ${claim.kind}.`),
+      ]
+      return claim
+    }
+
+    const target = matched[0]!
+    let binding: ResourceBinding | undefined = claim.bindingId ? this.resourceBindings.get(claim.bindingId) : undefined
+    if (!binding) {
+      const bindingId = `resource-binding-${this.bindingCounter++}`
+      binding = {
+        id: bindingId,
+        claimId: claim.id,
+        resourceId: target.id,
+        phase: 'Bound',
+        conditions: [
+          createCondition('Bound', 'True', 'BindingAssigned', `Claim ${claim.id} has been bound to resource ${target.id}.`),
+        ],
+        updatedAt: Date.now(),
+      }
+      this.resourceBindings.set(bindingId, binding)
+      claim.bindingId = bindingId
+    }
+    else {
+      binding.phase = 'Bound'
+      binding.resourceId = target.id
+      binding.updatedAt = Date.now()
+      binding.conditions = [
+        ...binding.conditions,
+        createCondition('Bound', 'True', 'BindingReconciled', `Binding ${binding.id} confirmed against resource ${target.id}.`),
+      ]
+    }
+
+    claim.phase = 'Bound'
+    claim.updatedAt = Date.now()
+    claim.conditions = [
+      ...claim.conditions,
+      createCondition('Bound', 'True', 'DependenciesFulfilled', `Claim ${claim.id} dependencies fulfilled by resource ${target.id}.`),
+    ]
+
+    return claim
   }
 
   announceCapability(key: string, metadata?: Record<string, unknown>) {

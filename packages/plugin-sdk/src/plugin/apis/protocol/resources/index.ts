@@ -1,1 +1,1 @@
-export { protocolProviders } from './providers'
+export * from './core'

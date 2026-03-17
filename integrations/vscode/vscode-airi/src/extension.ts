@@ -1,9 +1,9 @@
-import type { Lifecycle, ProvidedBy } from 'injeca'
+import type { ProvidedBy } from 'injeca'
 import type * as vscode from 'vscode'
 
 import { initLogger, LoggerFormat, LoggerLevel, useLogger } from '@guiiai/logg'
 import { noop } from 'es-toolkit'
-import { injeca, lifecycle } from 'injeca'
+import { injeca } from 'injeca'
 import { commands, window, workspace } from 'vscode'
 
 import { Client } from './airi'
@@ -14,6 +14,21 @@ interface IntervalHandle {
   setInterval: (fn: () => void) => NodeJS.Timeout
 }
 
+function createInstanceId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+async function getOrCreateInstanceId(context: vscode.ExtensionContext) {
+  const key = 'airi:instance-id'
+  const existing = context.globalState.get<string>(key)
+  if (existing)
+    return existing
+
+  const next = createInstanceId()
+  await context.globalState.update(key, next)
+  return next
+}
+
 /**
  * Activate the plugin
  */
@@ -22,15 +37,15 @@ export async function activate(context: vscode.ExtensionContext) {
 
   useLogger().log('AIRI is activating...')
 
-  // Get the configuration
   const config = workspace.getConfiguration('airi-vscode')
   const isEnabled = config.get<boolean>('enabled', true)
   const contextLines = config.get<number>('contextLines', 5)
   const sendInterval = config.get<number>('sendInterval', 3000)
+  const instanceId = await getOrCreateInstanceId(context)
+  const workspaceFolders = workspace.workspaceFolders?.map(folder => folder.uri.fsPath) ?? []
 
-  // Initialize
   const vscodeContext = injeca.provide('vscode:context', () => context)
-  const client = injeca.provide('proj-airi:client', () => new Client())
+  const client = injeca.provide('proj-airi:client', () => new Client({ instanceId, workspaceFolders }))
   const contextCollector = injeca.provide('self:context-collector', () => new ContextCollector(contextLines))
   const eventListeners = injeca.provide('self:event-listeners', () => [] as vscode.Disposable[])
   const controlLoopInterval = injeca.provide('self:control-loop:interval:send', () => {
@@ -50,7 +65,7 @@ export async function activate(context: vscode.ExtensionContext) {
   })
 
   const extension = injeca.provide('extension', {
-    dependsOn: { client, vscodeContext, contextCollector, eventListeners, lifecycle, controlLoopInterval },
+    dependsOn: { client, vscodeContext, contextCollector, eventListeners, controlLoopInterval },
     build: ({ dependsOn }) => setup({ ...dependsOn, isEnabled, sendInterval }),
   })
 
@@ -67,58 +82,50 @@ async function setup(params: {
   vscodeContext: vscode.ExtensionContext
   contextCollector: ContextCollector
   eventListeners: vscode.Disposable[]
-  lifecycle: Lifecycle
   controlLoopInterval: IntervalHandle
   isEnabled: boolean
   sendInterval: number
 }) {
-  // Connect to Airi Channel Server
   if (params.isEnabled) {
     const connected = await params.client.connect()
     if (connected) {
-      window.showInformationMessage('AIRI Server Channel connected!')
+      window.showInformationMessage('AIRI VSCode channel connected')
     }
     else {
-      window.showWarningMessage('AIRI Server Channel connection failed!')
+      window.showWarningMessage('AIRI VSCode channel connection failed')
     }
   }
 
-  // Register commands
   params.vscodeContext.subscriptions.push(
     commands.registerCommand('airi-vscode.enable', async () => {
       params.isEnabled = true
       await params.client.connect()
-      await registerListeners({ ...params })
-      window.showInformationMessage('AIRI enabled!')
+      await registerListeners(params)
+      window.showInformationMessage('AIRI enabled')
     }),
 
     commands.registerCommand('airi-vscode.disable', () => {
       params.isEnabled = false
       unregisterListeners({ eventListeners: params.eventListeners, controlLoopInterval: params.controlLoopInterval })
       params.client.disconnect()
-      window.showInformationMessage('AIRI disabled!')
+      window.showInformationMessage('AIRI disabled')
     }),
 
     commands.registerCommand('airi-vscode.status', () => {
-      const status = params.isEnabled && params.client ? 'Connected' : 'Disconnected'
-      window.showInformationMessage(`AIRI Server Channel status: ${status}.`)
+      const status = params.isEnabled && params.client.isConnected() ? 'Connected' : 'Disconnected'
+      window.showInformationMessage(`AIRI VSCode channel status: ${status}.`)
     }),
   )
 
-  // Register event listeners if enabled
   if (params.isEnabled) {
-    await registerListeners({ ...params })
+    await registerListeners(params)
   }
 
   useLogger().log('AIRI activated successfully')
 }
 
-/**
- * Register event listeners for file save and editor switch
- */
 async function registerListeners(params: {
   contextCollector: ContextCollector
-  lifecycle: Lifecycle
   eventListeners: vscode.Disposable[]
   client: Client
   controlLoopInterval: IntervalHandle
@@ -127,30 +134,10 @@ async function registerListeners(params: {
 }) {
   unregisterListeners({ eventListeners: params.eventListeners, controlLoopInterval: params.controlLoopInterval })
 
-  // File save event
   params.eventListeners.push(
     workspace.onDidSaveTextDocument(async (document) => {
       const editor = window.activeTextEditor
-      if (editor && editor.document === document) {
-        const ctx = await params.contextCollector.collect(editor)
-        if (!ctx)
-          return
-
-        params.client.replaceContext(''
-          + `User saved the file: ${ctx.file.fileName} (located at ${ctx.file.path}). Here is the context around the cursor after saving:\n`
-          + '\n'
-          + `${ctx.context.before.join('\n')}\n`
-          + `${ctx.currentLine.text}\n`
-          + `${ctx.context.after.join('\n')}`,
-        )
-      }
-    }),
-  )
-
-  // Switch file event
-  params.eventListeners.push(
-    window.onDidChangeActiveTextEditor(async (editor) => {
-      if (!editor) {
+      if (!editor || editor.document !== document) {
         return
       }
 
@@ -159,41 +146,67 @@ async function registerListeners(params: {
         return
       }
 
-      params.client.replaceContext(''
+      await params.client.replaceContext(
+        ''
+        + `User saved the file: ${ctx.file.fileName} (located at ${ctx.file.path}). Here is the context around the cursor after saving:\n`
+        + '\n'
+        + `${ctx.context.before.join('\n')}\n`
+        + `${ctx.currentLine.text}\n`
+        + `${ctx.context.after.join('\n')}`,
+        'save',
+        {
+          workspaceFolder: ctx.file.workspaceFolder,
+          filePath: ctx.file.path,
+          languageId: ctx.file.languageId,
+          cursor: ctx.cursor,
+        },
+      )
+    }),
+  )
+
+  params.eventListeners.push(
+    window.onDidChangeActiveTextEditor(async (editor) => {
+      if (!editor)
+        return
+
+      const ctx = await params.contextCollector.collect(editor)
+      if (!ctx)
+        return
+
+      await params.client.replaceContext(
+        ''
         + `User switched to file: ${ctx.file.fileName} (located at ${ctx.file.path}). Here is the context around the cursor after switching:\n`
         + '\n'
         + `${ctx.context.before.join('\n')}\n`
         + `${ctx.currentLine.text}\n`
         + `${ctx.context.after.join('\n')}`,
+        'switch-file',
+        {
+          workspaceFolder: ctx.file.workspaceFolder,
+          filePath: ctx.file.path,
+          languageId: ctx.file.languageId,
+          cursor: ctx.cursor,
+        },
       )
     }),
   )
 
-  // Start periodic monitoring if interval is set
   if (params.sendInterval > 0) {
-    startMonitoring({ ...params })
+    startMonitoring(params)
   }
 }
 
-/**
- * Unregister all event listeners
- */
 function unregisterListeners(params: { eventListeners: vscode.Disposable[], controlLoopInterval: IntervalHandle }) {
   params.eventListeners.forEach(listener => listener.dispose())
   params.eventListeners = []
   stopMonitoring({ controlLoopInterval: params.controlLoopInterval })
 }
 
-/**
- * Start monitoring the coding context
- */
 function startMonitoring(params: {
   contextCollector: ContextCollector
-  lifecycle: Lifecycle
   client: Client
   controlLoopInterval: IntervalHandle
   isEnabled: boolean
-  sendInterval: number
 }) {
   stopMonitoring({ controlLoopInterval: params.controlLoopInterval })
 
@@ -209,21 +222,26 @@ function startMonitoring(params: {
     if (!ctx)
       return
 
-    params.client.replaceContext(''
+    await params.client.replaceContext(
+      ''
       + `User opened file is: ${ctx.file.fileName} (located at ${ctx.file.path}), and current cursor is at line ${ctx.cursor.line + 1}, character ${ctx.cursor.character + 1}.\n`
       + '\n'
-      + `Here is the context around the cursor:\n`
-      + `\n`
+      + 'Here is the context around the cursor:\n'
+      + '\n'
       + `${ctx.context.before.join('\n')}\n`
       + `${ctx.currentLine.text}\n`
       + `${ctx.context.after.join('\n')}`,
+      'heartbeat',
+      {
+        workspaceFolder: ctx.file.workspaceFolder,
+        filePath: ctx.file.path,
+        languageId: ctx.file.languageId,
+        cursor: ctx.cursor,
+      },
     )
   })
 }
 
-/**
- * Stop monitoring
- */
 function stopMonitoring(params: { controlLoopInterval: IntervalHandle }) {
   params.controlLoopInterval.clearInterval()
 }
@@ -238,5 +256,5 @@ export async function deactivate() {
 
   unregisterListeners({ eventListeners, controlLoopInterval })
   client?.disconnect()
-  useLogger().log('AIRI deactivated!')
+  useLogger().log('AIRI deactivated')
 }

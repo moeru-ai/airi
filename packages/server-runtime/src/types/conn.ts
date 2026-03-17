@@ -34,4 +34,21 @@ export interface AuthenticatedPeer extends NamedPeer {
   lastHeartbeatAt?: number
   healthy?: boolean
   missedHeartbeats?: number
+
+  discovered?: boolean
+  approved?: boolean
+
+  discoveredName?: string
+  discoveredEntrypoints?: {
+    default?: string
+    electron?: string
+    web?: string
+    node?: string
+    server?: string
+  }
+
+  selectedEntrypoint?: {
+    runtime: 'electron' | 'web' | 'node' | 'server'
+    entrypoint: string
+  }
 }

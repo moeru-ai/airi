@@ -523,6 +523,37 @@ interface ModuleCompatibilityResultEvent {
   reason?: string
 }
 
+interface PluginDiscoveredEvent {
+  name: string
+  identity: ModuleIdentity
+  entrypoints?: {
+    default?: string
+    electron?: string
+    web?: string
+    node?: string
+    server?: string
+  }
+  metadata?: Record<string, unknown>
+}
+
+interface PluginApprovalRequestEvent {
+  identity: ModuleIdentity
+  name: string
+  reason?: string
+}
+
+interface PluginApprovalResultEvent {
+  identity: ModuleIdentity
+  approved: boolean
+  reason?: string
+}
+
+interface PluginEntrypointSelectEvent {
+  identity: ModuleIdentity
+  runtime: 'electron' | 'web' | 'node' | 'server'
+  entrypoint: string
+}
+
 interface RegistryModulesSyncEvent {
   modules: Array<{
     name: string
@@ -843,6 +874,10 @@ export const moduleAuthenticate = defineEventa<ModuleAuthenticateEvent>('module:
 export const moduleAuthenticated = defineEventa<ModuleAuthenticatedEvent>('module:authenticated')
 export const moduleCompatibilityRequest = defineEventa<ModuleCompatibilityRequestEvent>('module:compatibility:request')
 export const moduleCompatibilityResult = defineEventa<ModuleCompatibilityResultEvent>('module:compatibility:result')
+export const pluginDiscovered = defineEventa<PluginDiscoveredEvent>('plugin:discovered')
+export const pluginApprovalRequest = defineEventa<PluginApprovalRequestEvent>('plugin:approval:request')
+export const pluginApprovalResult = defineEventa<PluginApprovalResultEvent>('plugin:approval:result')
+export const pluginEntrypointSelect = defineEventa<PluginEntrypointSelectEvent>('plugin:entrypoint:select')
 export const registryModulesSync = defineEventa<RegistryModulesSyncEvent>('registry:modules:sync')
 export const registryModulesHealthUnhealthy = defineEventa<RegistryModulesHealthUnhealthyEvent>('registry:modules:health:unhealthy')
 export const registryModulesHealthHealthy = defineEventa<RegistryModulesHealthHealthyEvent>('registry:modules:health:healthy')
@@ -917,6 +952,22 @@ export interface ProtocolEvents<C = undefined> {
    * Host replies with accepted mode/result for protocol + API compatibility.
    */
   'module:compatibility:result': ModuleCompatibilityResultEvent
+  /**
+   * Plugin announces itself as discovered and awaits explicit approval.
+   */
+  'plugin:discovered': PluginDiscoveredEvent
+  /**
+   * Host/UI requests an approval decision for a discovered plugin.
+   */
+  'plugin:approval:request': PluginApprovalRequestEvent
+  /**
+   * Approval decision for a discovered plugin.
+   */
+  'plugin:approval:result': PluginApprovalResultEvent
+  /**
+   * Host selects runtime entrypoint for an approved plugin.
+   */
+  'plugin:entrypoint:select': PluginEntrypointSelectEvent
   /**
    * Server-side registry sync for known online modules.
    * Sent to newly authenticated peers to bootstrap module discovery.

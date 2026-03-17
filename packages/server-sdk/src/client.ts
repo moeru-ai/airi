@@ -18,19 +18,33 @@ import {
 } from '@proj-airi/server-shared/types'
 
 export interface ClientOptions<C = undefined> {
-  url?: string
+  url?: string | string[]
   name: string
   possibleEvents?: Array<keyof WebSocketEvents<C>>
   token?: string
   identity?: MetadataEventSource
   dependencies?: ModuleDependency[]
   configSchema?: ModuleConfigSchema
+  entrypoints?: {
+    default?: string
+    electron?: string
+    web?: string
+    node?: string
+    server?: string
+  }
+  autoApprovePlugin?: boolean
   heartbeat?: {
     readTimeout?: number
     message?: MessageHeartbeat | string
   }
+  onPluginApprovalRequest?: (payload: {
+    identity: MetadataEventSource
+    name: string
+    reason?: string
+  }) => boolean | Promise<boolean>
   onError?: (error: unknown) => void
   onClose?: () => void
+  onConnected?: (url: string) => void
   autoConnect?: boolean
   autoReconnect?: boolean
   maxReconnectAttempts?: number
@@ -46,6 +60,8 @@ function createEventId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 }
 
+const defaultClientUrls = ['wss://localhost:6121/ws', 'ws://localhost:6121/ws']
+
 export class Client<C = undefined> {
   private connected = false
   private connecting = false
@@ -54,30 +70,59 @@ export class Client<C = undefined> {
   private connectAttempt?: Promise<void>
   private connectTask?: Promise<void>
   private heartbeatTimer?: ReturnType<typeof setInterval>
-  private readonly identity: MetadataEventSource
 
-  private readonly opts: Required<Omit<ClientOptions<C>, 'token'>> & Pick<ClientOptions<C>, 'token'>
+  private readonly opts: Omit<Required<Omit<ClientOptions<C>, 'token'>>, 'url'> & { url: string } & Pick<ClientOptions<C>, 'token'>
+
+  private readonly identity: MetadataEventSource
+  private readonly urls: string[]
+  private activeUrlIndex = 0
+  private discovered = false
+  private approved = false
+  private entrypointSelected = false
+  private announced = false
+
   private readonly eventListeners = new Map<
     keyof WebSocketEvents<C>,
     Set<(data: WebSocketBaseEvent<any, any>) => void | Promise<void>>
   >()
 
   constructor(options: ClientOptions<C>) {
+    const { url, ...restOptions } = options
+    const normalizedUrls = (
+      Array.isArray(url)
+        ? url
+        : url
+          ? [url]
+          : [...defaultClientUrls])
+      .map(entry => entry.trim())
+      .filter(entry => entry.length > 0,
+      )
+
+    const urls = normalizedUrls.length > 0
+      ? normalizedUrls
+      : [...defaultClientUrls]
+
     const identity = options.identity ?? {
       kind: 'plugin',
       plugin: { id: options.name },
       id: createInstanceId(),
     }
 
+    this.urls = urls
+
     this.opts = {
-      url: 'ws://localhost:6121/ws',
+      url: urls[0],
       onAnyMessage: () => {},
       onAnySend: () => {},
       possibleEvents: [],
       dependencies: [],
       configSchema: undefined,
+      entrypoints: undefined,
+      autoApprovePlugin: true,
+      onPluginApprovalRequest: undefined,
       onError: () => {},
       onClose: () => {},
+      onConnected: () => {},
       autoConnect: true,
       autoReconnect: true,
       maxReconnectAttempts: -1,
@@ -85,7 +130,7 @@ export class Client<C = undefined> {
         readTimeout: 30_000,
         message: MessageHeartbeat.Ping,
       },
-      ...options,
+      ...restOptions,
       identity,
     }
 
@@ -94,10 +139,57 @@ export class Client<C = undefined> {
     // Authentication listener is registered once only
     this.onEvent('module:authenticated', async (event) => {
       if (event.data.authenticated) {
-        this.tryAnnounce()
+        this.tryDiscover()
       }
       else {
         await this.retryWithExponentialBackoff(() => this.tryAuthenticate())
+      }
+    })
+
+    this.onEvent('plugin:approval:request', async (event) => {
+      const expectedIdentity = this.identity
+      if (event.data.identity.id !== expectedIdentity.id || event.data.identity.plugin?.id !== expectedIdentity.plugin?.id) {
+        return
+      }
+
+      const approvedByHook = await this.opts.onPluginApprovalRequest?.({
+        identity: event.data.identity,
+        name: event.data.name,
+        reason: event.data.reason,
+      })
+      const approved = approvedByHook ?? this.opts.autoApprovePlugin
+
+      this.send({
+        type: 'plugin:approval:result',
+        data: {
+          identity: expectedIdentity,
+          approved,
+          reason: approved ? 'approved by client policy' : 'rejected by client policy',
+        },
+      })
+    })
+
+    this.onEvent('plugin:approval:result', async (event) => {
+      const expectedIdentity = this.identity
+      if (event.data.identity.id !== expectedIdentity.id || event.data.identity.plugin?.id !== expectedIdentity.plugin?.id) {
+        return
+      }
+
+      this.approved = event.data.approved
+      if (this.approved && this.entrypointSelected) {
+        this.tryAnnounce()
+      }
+    })
+
+    this.onEvent('plugin:entrypoint:select', async (event) => {
+      const expectedIdentity = this.identity
+      if (event.data.identity.id !== expectedIdentity.id || event.data.identity.plugin?.id !== expectedIdentity.plugin?.id) {
+        return
+      }
+
+      this.entrypointSelected = true
+      if (this.approved) {
+        this.tryAnnounce()
       }
     })
 
@@ -124,6 +216,11 @@ export class Client<C = undefined> {
 
     // Loop until attempts exceed maxReconnectAttempts, or unlimited if -1
     while (true) {
+      if (this.shouldClose) {
+        console.warn('Aborting retry: client is closed')
+        return
+      }
+
       if (maxReconnectAttempts !== -1 && attempts >= maxReconnectAttempts) {
         console.error(`Maximum retry attempts (${maxReconnectAttempts}) reached`)
         return
@@ -135,6 +232,11 @@ export class Client<C = undefined> {
       }
       catch (err) {
         this.opts.onError?.(err)
+        if (this.urls.length > 1) {
+          this.activeUrlIndex = (this.activeUrlIndex + 1) % this.urls.length
+          console.warn(`Attempt ${attempts + 1}: Failed to connect to ${this.urls[this.activeUrlIndex]}, trying next URL`)
+        }
+
         const delay = Math.min(2 ** attempts * 1000, 30_000) // capped exponential backoff
         await sleep(delay)
         attempts++
@@ -172,7 +274,7 @@ export class Client<C = undefined> {
         fn()
       }
 
-      const ws = new WebSocket(this.opts.url)
+      const ws = new WebSocket(this.urls[this.activeUrlIndex] ?? this.opts.url)
       this.websocket = ws
       const isCurrentSocket = () => this.websocket === ws
 
@@ -212,6 +314,10 @@ export class Client<C = undefined> {
 
         if (this.connected) {
           this.connected = false
+          this.discovered = false
+          this.approved = false
+          this.entrypointSelected = false
+          this.announced = false
           this.stopHeartbeat()
           this.opts.onClose?.()
         }
@@ -226,13 +332,15 @@ export class Client<C = undefined> {
 
         settle(() => {
           this.connected = true
+          const connectedUrl = this.urls[this.activeUrlIndex] ?? this.opts.url
+          this.opts.onConnected?.(connectedUrl)
 
           this.startHeartbeat()
 
           if (this.opts.token)
             this.tryAuthenticate()
           else
-            this.tryAnnounce()
+            this.tryDiscover()
 
           resolve()
         })
@@ -255,7 +363,28 @@ export class Client<C = undefined> {
     return this.connectTask
   }
 
+  private tryDiscover() {
+    if (this.discovered) {
+      return
+    }
+
+    this.discovered = true
+    this.send({
+      type: 'plugin:discovered',
+      data: {
+        name: this.opts.name,
+        identity: this.identity,
+        entrypoints: this.opts.entrypoints,
+      },
+    })
+  }
+
   private tryAnnounce() {
+    if (this.announced || !this.approved || !this.entrypointSelected) {
+      return
+    }
+
+    this.announced = true
     this.send({
       type: 'module:announce',
       data: {
@@ -453,6 +582,11 @@ export class Client<C = undefined> {
     if (ws && ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
       ws.close()
     }
+
+    this.discovered = false
+    this.approved = false
+    this.entrypointSelected = false
+    this.announced = false
 
     await this.connect()
   }

@@ -10,15 +10,26 @@ import { ref, watch } from 'vue'
 import { useWebSocketInspectorStore } from '../../devtools/websocket-inspector'
 
 export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:server', () => {
+  interface OnlineModuleSummary {
+    name: string
+    index?: number
+    moduleId?: string
+    pluginId?: string
+  }
+
   const connected = ref(false)
+  const connectedUrl = ref<string | null>(null)
+  const connectedProtocol = ref<'wss' | 'ws' | null>(null)
   const client = ref<Client>()
   const initializing = ref<Promise<void> | null>(null)
   const pendingSend = ref<Array<WebSocketEvent>>([])
   const listenersInitialized = ref(false)
   const listenerDisposers = ref<Array<() => void>>([])
+  const onlineModules = ref<OnlineModuleSummary[]>([])
 
-  const defaultWebSocketUrl = import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws'
+  const defaultWebSocketUrl = import.meta.env.VITE_AIRI_WS_URL || 'localhost:6121/ws'
   const websocketUrl = useLocalStorage('settings/connection/websocket-url', defaultWebSocketUrl)
+  const websocketProtocolCache = useLocalStorage<Record<string, 'wss' | 'ws'>>('settings/connection/websocket-protocol-cache', {})
 
   const basePossibleEvents: Array<keyof WebSocketEvents> = [
     'context:update',
@@ -26,6 +37,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     'module:announce',
     'module:configure',
     'module:authenticated',
+    'registry:modules:sync',
     'spark:notify',
     'spark:emit',
     'spark:command',
@@ -36,6 +48,53 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     'output:gen-ai:chat:tool-call',
     'ui:configure',
   ]
+
+  function normalizeWsUrl(raw: string) {
+    const trimmed = raw.trim()
+    if (!trimmed)
+      return null
+
+    const withProtocol = /^wss?:\/\//i.test(trimmed)
+      ? trimmed
+      : /^https?:\/\//i.test(trimmed)
+        ? trimmed.replace(/^http/i, 'ws')
+        : `ws://${trimmed}`
+
+    try {
+      const parsed = new URL(withProtocol)
+      if (parsed.protocol !== 'ws:' && parsed.protocol !== 'wss:')
+        return null
+
+      if (!parsed.pathname || parsed.pathname === '/')
+        parsed.pathname = '/ws'
+
+      return parsed
+    }
+    catch {
+      return null
+    }
+  }
+
+  function toEndpointKey(url: URL) {
+    return `${url.host}${url.pathname}${url.search}`
+  }
+
+  function resolveCandidateUrls(rawValue: string) {
+    const parsed = normalizeWsUrl(rawValue) ?? normalizeWsUrl(defaultWebSocketUrl)
+    if (!parsed) {
+      return ['wss://localhost:6121/ws', 'ws://localhost:6121/ws']
+    }
+
+    const endpointKey = toEndpointKey(parsed)
+    const explicitProtocol = /^wss?:\/\//i.test(rawValue.trim())
+    const cachedProtocol = websocketProtocolCache.value?.[endpointKey]
+    const currentProtocol = parsed.protocol === 'wss:' ? 'wss' : 'ws'
+    const primaryProtocol = cachedProtocol ?? (explicitProtocol ? currentProtocol : 'wss')
+    const secondaryProtocol = primaryProtocol === 'wss' ? 'ws' : 'wss'
+    const originAndPath = `${parsed.host}${parsed.pathname}${parsed.search}`
+
+    return [`${primaryProtocol}://${originAndPath}`, `${secondaryProtocol}://${originAndPath}`]
+  }
 
   async function initialize(options?: { token?: string, possibleEvents?: Array<keyof WebSocketEvents> }) {
     if (connected.value && client.value)
@@ -51,30 +110,41 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     initializing.value = new Promise<void>((resolve) => {
       client.value = new Client({
         name: isStageWeb() ? WebSocketEventSource.StageWeb : isStageTamagotchi() ? WebSocketEventSource.StageTamagotchi : WebSocketEventSource.StageWeb,
-        url: websocketUrl.value || defaultWebSocketUrl,
+        url: resolveCandidateUrls(websocketUrl.value || defaultWebSocketUrl),
         token: options?.token,
         possibleEvents,
-        onAnyMessage: (event) => {
+        onAnyMessage: (event: WebSocketEvent) => {
           useWebSocketInspectorStore().add('incoming', event)
         },
-        onAnySend: (event) => {
+        onAnySend: (event: WebSocketEvent) => {
           useWebSocketInspectorStore().add('outgoing', event)
         },
-        onError: (error) => {
+        onError: () => {
           connected.value = false
           initializing.value = null
           clearListeners()
-
-          console.warn('WebSocket server connection error:', error)
         },
         onClose: () => {
           connected.value = false
+          connectedUrl.value = null
+          connectedProtocol.value = null
           initializing.value = null
           clearListeners()
 
           console.warn('WebSocket server connection closed')
         },
-      })
+        onConnected: (url: string) => {
+          connectedUrl.value = url
+          connectedProtocol.value = url.startsWith('wss://') ? 'wss' : 'ws'
+          const parsed = normalizeWsUrl(url)
+          if (parsed) {
+            websocketProtocolCache.value = {
+              ...websocketProtocolCache.value,
+              [toEndpointKey(parsed)]: connectedProtocol.value ?? 'ws',
+            }
+          }
+        },
+      } as any)
 
       client.value.onEvent('module:authenticated', (event) => {
         if (event.data.authenticated) {
@@ -112,13 +182,51 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     }
     listenerDisposers.value = []
     listenersInitialized.value = false
+    onlineModules.value = []
   }
 
   function initializeListeners() {
     if (!client.value)
-      // No-op for now; keep placeholder for future shared listeners.
-      // eslint-disable-next-line no-useless-return
+    // No-op for now; keep placeholder for future shared listeners.
+
       return
+
+    if (listenersInitialized.value) {
+      return
+    }
+
+    const onModuleAnnounce = (event: WebSocketBaseEvent<'module:announce', WebSocketEvents['module:announce']>) => {
+      const identity = event.data?.identity
+      const next: OnlineModuleSummary = {
+        name: event.data.name,
+        index: undefined,
+        moduleId: identity?.id,
+        pluginId: identity?.plugin?.id,
+      }
+
+      const nextModules = onlineModules.value.filter(module => module.name !== next.name)
+      nextModules.push(next)
+      onlineModules.value = nextModules
+    }
+
+    const onRegistryModulesSync = (event: WebSocketBaseEvent<'registry:modules:sync', WebSocketEvents['registry:modules:sync']>) => {
+      onlineModules.value = event.data.modules.map(module => ({
+        name: module.name,
+        index: module.index,
+        moduleId: module.identity.id,
+        pluginId: module.identity.plugin.id,
+      }))
+    }
+
+    client.value.onEvent('module:announce', onModuleAnnounce as any)
+    client.value.onEvent('registry:modules:sync', onRegistryModulesSync as any)
+
+    listenerDisposers.value.push(() => {
+      client.value?.offEvent('module:announce', onModuleAnnounce as any)
+      client.value?.offEvent('registry:modules:sync', onRegistryModulesSync as any)
+    })
+
+    listenersInitialized.value = true
   }
 
   function send<C = undefined>(data: WebSocketEventOptionalSource<C>) {
@@ -182,7 +290,14 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
       client.value = undefined
     }
     connected.value = false
+    connectedUrl.value = null
+    connectedProtocol.value = null
     initializing.value = null
+    onlineModules.value = []
+  }
+
+  function hasModule(moduleName: string) {
+    return onlineModules.value.some(module => module.name === moduleName || module.pluginId === moduleName)
   }
 
   watch(websocketUrl, (newUrl, oldUrl) => {
@@ -197,7 +312,11 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
   return {
     connected,
+    connectedUrl,
+    connectedProtocol,
     ensureConnected,
+    onlineModules,
+    hasModule,
 
     initialize,
     send,

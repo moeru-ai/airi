@@ -90,6 +90,10 @@ export interface AppOptions {
     readTimeout?: number
     message?: MessageHeartbeat | string
   }
+  pluginApproval?: {
+    autoApprove?: boolean
+    runtime?: 'electron' | 'web' | 'node' | 'server'
+  }
 }
 
 export function normalizeLoggerConfig(options?: AppOptions) {
@@ -123,6 +127,8 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
   const peersByModule = new Map<string, Map<number | undefined, AuthenticatedPeer>>()
   const heartbeatTtlMs = options?.heartbeat?.readTimeout ?? DEFAULT_HEARTBEAT_TTL_MS
   const heartbeatMessage = options?.heartbeat?.message ?? MessageHeartbeat.Pong
+  const autoApproveDiscoveredPlugins = options?.pluginApproval?.autoApprove ?? true
+  const selectedPluginRuntime = options?.pluginApproval?.runtime ?? 'server'
   const routingMiddleware = [
     ...(options?.routing?.policy ? [createPolicyMiddleware(options.routing.policy)] : []),
     ...(options?.routing?.middleware ?? []),
@@ -248,14 +254,96 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
     }
   }
 
+  function resolveSelectedEntrypoint(
+    entrypoints: {
+      default?: string
+      electron?: string
+      web?: string
+      node?: string
+      server?: string
+    } | undefined,
+    runtime: 'electron' | 'web' | 'node' | 'server',
+  ): string | undefined {
+    if (!entrypoints) {
+      return undefined
+    }
+
+    return entrypoints[runtime]
+      ?? entrypoints.default
+      ?? entrypoints.server
+      ?? entrypoints.node
+      ?? entrypoints.electron
+      ?? entrypoints.web
+  }
+
+  function sendPluginApprovalRequest(pluginPeer: AuthenticatedPeer, parentId?: string) {
+    const payload = {
+      type: 'plugin:approval:request',
+      data: {
+        identity: pluginPeer.identity!,
+        name: pluginPeer.discoveredName ?? pluginPeer.name,
+      },
+      metadata: createServerEventMetadata(instanceId, parentId),
+    } as WebSocketEvent
+
+    const serialized = stringify(payload)
+    for (const peer of peers.values()) {
+      if (!peer.authenticated || peer.peer.id === pluginPeer.peer.id) {
+        continue
+      }
+
+      send(peer.peer, serialized)
+    }
+
+    send(pluginPeer.peer, payload)
+  }
+
+  function approvePluginPeer(pluginPeer: AuthenticatedPeer, approved: boolean, reason?: string, parentId?: string) {
+    pluginPeer.approved = approved
+    send(pluginPeer.peer, {
+      type: 'plugin:approval:result',
+      data: {
+        identity: pluginPeer.identity!,
+        approved,
+        reason,
+      },
+      metadata: createServerEventMetadata(instanceId, parentId),
+    })
+
+    if (!approved) {
+      return
+    }
+
+    const selectedEntrypoint = resolveSelectedEntrypoint(pluginPeer.discoveredEntrypoints, selectedPluginRuntime)
+    if (!selectedEntrypoint) {
+      pluginPeer.approved = false
+      send(pluginPeer.peer, RESPONSES.error(`No entrypoint can be selected for runtime '${selectedPluginRuntime}'.`, instanceId, parentId))
+      return
+    }
+
+    pluginPeer.selectedEntrypoint = {
+      runtime: selectedPluginRuntime,
+      entrypoint: selectedEntrypoint,
+    }
+    send(pluginPeer.peer, {
+      type: 'plugin:entrypoint:select',
+      data: {
+        identity: pluginPeer.identity!,
+        runtime: selectedPluginRuntime,
+        entrypoint: selectedEntrypoint,
+      },
+      metadata: createServerEventMetadata(instanceId, parentId),
+    })
+  }
+
   app.get('/ws', defineWebSocketHandler({
     open: (peer) => {
       if (authToken) {
-        peers.set(peer.id, { peer, authenticated: false, name: '', lastHeartbeatAt: Date.now() })
+        peers.set(peer.id, { peer, authenticated: false, name: '', lastHeartbeatAt: Date.now(), discovered: false, approved: false })
       }
       else {
         send(peer, RESPONSES.authenticated(instanceId))
-        peers.set(peer.id, { peer, authenticated: true, name: '', lastHeartbeatAt: Date.now() })
+        peers.set(peer.id, { peer, authenticated: true, name: '', lastHeartbeatAt: Date.now(), discovered: false, approved: false })
         sendRegistrySync(peer)
       }
 
@@ -353,6 +441,82 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
           return
         }
 
+        case 'plugin:discovered': {
+          const p = peers.get(peer.id)
+          if (!p) {
+            return
+          }
+
+          if (authToken && !p.authenticated) {
+            send(peer, RESPONSES.error('must authenticate before plugin discovery', instanceId))
+            return
+          }
+
+          const { identity, name, entrypoints } = event.data as {
+            identity?: MetadataEventSource
+            name?: string
+            entrypoints?: {
+              default?: string
+              electron?: string
+              web?: string
+              node?: string
+              server?: string
+            }
+          }
+          if (!identity || identity.kind !== 'plugin' || !identity.plugin?.id) {
+            send(peer, RESPONSES.error('plugin identity must include kind=plugin and plugin id for event \'plugin:discovered\'', instanceId))
+            return
+          }
+
+          if (!name || typeof name !== 'string') {
+            send(peer, RESPONSES.error('the field \'name\' must be a non-empty string for event \'plugin:discovered\'', instanceId))
+            return
+          }
+
+          p.identity = identity
+          p.discovered = true
+          p.discoveredName = name
+          p.discoveredEntrypoints = entrypoints
+
+          sendPluginApprovalRequest(p, event.metadata?.event.id)
+          if (autoApproveDiscoveredPlugins) {
+            approvePluginPeer(p, true, 'auto-approved by runtime policy', event.metadata?.event.id)
+          }
+
+          return
+        }
+
+        case 'plugin:approval:result': {
+          const p = peers.get(peer.id)
+          if (!p?.authenticated) {
+            send(peer, RESPONSES.notAuthenticated(instanceId, event.metadata?.event.id))
+            return
+          }
+
+          const { identity, approved, reason } = event.data as {
+            identity?: MetadataEventSource
+            approved?: boolean
+            reason?: string
+          }
+          if (!identity?.id || typeof approved !== 'boolean') {
+            send(peer, RESPONSES.error('invalid plugin approval payload', instanceId, event.metadata?.event.id))
+            return
+          }
+
+          const target = [...peers.values()].find(candidate =>
+            candidate.identity?.id === identity.id
+            && candidate.identity?.plugin?.id === identity.plugin?.id,
+          )
+
+          if (!target) {
+            send(peer, RESPONSES.error('plugin not found for approval result', instanceId, event.metadata?.event.id))
+            return
+          }
+
+          approvePluginPeer(target, approved, reason, event.metadata?.event.id)
+          return
+        }
+
         case 'module:announce': {
           const p = peers.get(peer.id)
           if (!p) {
@@ -383,6 +547,18 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
           if (authToken && !p.authenticated) {
             send(peer, RESPONSES.error('must authenticate before announcing', instanceId))
 
+            return
+          }
+          if (!p.discovered) {
+            send(peer, RESPONSES.error('plugin must be discovered before module announce', instanceId))
+            return
+          }
+          if (!p.approved) {
+            send(peer, RESPONSES.error('plugin is not approved for module announce', instanceId))
+            return
+          }
+          if (!p.selectedEntrypoint) {
+            send(peer, RESPONSES.error('plugin entrypoint is not selected', instanceId))
             return
           }
 
@@ -455,6 +631,10 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         logger.withFields({ peer: peer.id, peerName: p?.name, peerRemote: peer.remoteAddress, peerRequest: peer.request.url }).debug('not authenticated')
         send(peer, RESPONSES.notAuthenticated(instanceId, event.metadata?.event.id))
 
+        return
+      }
+      if (!p.discovered || !p.approved) {
+        send(peer, RESPONSES.error('plugin must be discovered and approved before sending routed events', instanceId, event.metadata?.event.id))
         return
       }
 

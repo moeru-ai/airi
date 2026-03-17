@@ -27,7 +27,13 @@
     "build": "tsdown",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@proj-airi/plugin-protocol": "workspace:*",
+    "@proj-airi/server-sdk": "workspace:*",
+    "@xsai/generate-text": "catalog:",
+    "@xsai/utils-chat": "catalog:"
+  },
   "devDependencies": {
-    "@proj-airi/plugin-sdk": "workspace:*"
+    "@guiiai/logg": "catalog:"
   }
 }
