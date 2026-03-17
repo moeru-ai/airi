@@ -389,20 +389,21 @@ export function setupCaptionWindowManager(params: {
 
     if (isFollowing) {
       const rel = computeRelativeOffset(window)
-      const cfg = getConfig() ?? { isFollowing, matrices: {} }
-      cfg.matrices[matrixHash] = { ...cfg.matrices[matrixHash], relativeToMain: rel }
-      updateConfig(cfg)
+      const config = getConfig() ?? { isFollowing, matrices: {} }
+      config.isFollowing = isFollowing
+      config.matrices[matrixHash] = { ...config.matrices[matrixHash], relativeToMain: rel }
+      updateConfig(config)
 
       // Start following main without re-docking; keep current position
       followMainWindow(window)
     }
     else {
       detachFromMain()
-    }
 
-    const config = getConfig() ?? { isFollowing, matrices: {} }
-    config.isFollowing = isFollowing
-    updateConfig(config)
+      const config = getConfig() ?? { isFollowing, matrices: {} }
+      config.isFollowing = isFollowing
+      updateConfig(config)
+    }
 
     // Keep window visible after toggle
     window.show()
