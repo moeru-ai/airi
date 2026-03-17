@@ -21,7 +21,7 @@ description: 参与并贡献 Project AIRI
 
 ::: tip
 
-建议使用Visual Studio 2022版以达到更好的兼容性
+建议使用Visual Studio 2022 版以达到更好的兼容性
 
 :::
 
@@ -163,7 +163,7 @@ npm i -g @antfu/ni
 - 用 `ni` 来替代 `pnpm install`、`npm install` 和 `yarn install` 命令。
 - 用 `nr` 来替代 `pnpm run`、`npm run` 和 `yarn run` 命令。
 
-你无需费心选择包管理器，`ni` 会自动适配。
+你无需费心选择包管理器， `ni` 会自动适配。
 :::
 
 ## 提交代码（Commit）
