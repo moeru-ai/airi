@@ -29,11 +29,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
-      - name: Generate sponsors svg
-        run: pnpm run sponsors:generate
-
       - name: Pull with rebase
         run: git pull origin main --rebase --autostash
+
+      - name: Generate sponsors svg
+        run: pnpm run sponsors:generate
 
       - uses: stefanzweifel/git-auto-commit-action@v6
         with:
