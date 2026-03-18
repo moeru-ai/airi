@@ -21,6 +21,7 @@ pnpm -F @proj-airi/stage-pocket run dev:ios -- --target <DEVICE_ID_OR_SIMULATOR_
 - Arguments after `--` are forwarded to `cap run`.
 - If `CAPACITOR_DEVICE_ID` is set and `cap run` args do not contain `--target`, `cap-vite` injects `--target <CAPACITOR_DEVICE_ID>` automatically.
 - `cap-vite` always launches the Vite dev server. Do not pass `vite dev` or `vite serve` as extra args.
+- After the dev server starts, press `R` in the terminal to re-run `cap run` without restarting Vite.
 
 You can see the list of available devices and simulators by running `pnpm exec cap run ios --list` or `pnpm exec cap run android --list`.
 
@@ -51,11 +52,12 @@ export default config
 
 - No need to care what `server.url` should be, it will be automatically set to the correct value.
 - Rerun native app when native code changes, you won't forget to start it.
+- Rerun `cap run` on demand from the same terminal when you need a clean native relaunch.
 - No need to open two terminals to run the project, you can run it with one command.
 
 ## Architecture Notes
 
 - Vite arguments are left to the real Vite CLI instead of being reimplemented inside `cap-vite`.
 - `cap-vite` injects a wrapper config so it can append its own Vite plugin without editing the user's existing `vite.config.*`.
-- The injected plugin reads `server.resolvedUrls`, starts `cap run`, and restarts it when files under the native platform directory change.
+- The injected plugin reads `server.resolvedUrls`, starts `cap run`, and restarts it when files under the native platform directory change or when you press `R` in the terminal.
 - `cap-vite` only splits the two argument groups and passes the `cap run` arguments into the injected plugin through environment variables.
