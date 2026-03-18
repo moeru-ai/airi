@@ -225,6 +225,12 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                   :class="{ 'animate-pulse': isActivating }"
                   @click="handleActivate"
                 />
+                <Button
+                  variant="secondary"
+                  icon="i-solar:undo-left-bold-duotone"
+                  :label="t('settings.pages.card.cancel')"
+                  @click="emit('update:modelValue', false)"
+                />
               </div>
             </div>
 
