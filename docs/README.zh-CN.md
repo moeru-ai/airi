@@ -121,10 +121,10 @@
       />
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.browser.light.en-US.png"
+        srcset="./content/public/assets/download-buttons/download-buttons.browser.light.zh-Hans.png"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.browser.light.en-US.png" />
+      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.browser.light.zh-Hans.png" />
     </picture>
   </a>
 </p>

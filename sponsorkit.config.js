@@ -3,6 +3,14 @@ import { extname } from 'node:path'
 
 import { defineConfig, tierPresets } from 'sponsorkit'
 
+const avatarMimeTypeMap = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+}
+
 const kofiProvider = {
   name: 'kofi',
   async fetchSponsors() {
@@ -19,7 +27,7 @@ const kofiProvider = {
       if (item.avatarPath) {
         const buffer = await readFile(item.avatarPath)
         const ext = extname(item.avatarPath).toLowerCase()
-        const mime = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : ext === '.webp' ? 'image/webp' : ext === '.svg' ? 'image/svg+xml' : 'image/png'
+        const mime = avatarMimeTypeMap[ext] || 'image/png'
         avatarUrl = `data:${mime};base64,${buffer.toString('base64')}`
       }
       return {
