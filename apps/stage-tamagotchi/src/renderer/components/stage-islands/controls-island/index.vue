@@ -97,6 +97,14 @@ function toggleAlwaysOnTop() {
   alwaysOnTop.value = !alwaysOnTop.value
 }
 
+function handleOpenSettings() {
+  return openSettings()
+}
+
+function handleOpenChat() {
+  return openChat()
+}
+
 // Grouped classes for icon / border / padding and combined style class
 const adjustStyleClasses = computed(() => {
   let isLarge: boolean
@@ -217,7 +225,7 @@ function cycleAnimation() {
           >
             <div v-if="view === 'main'" key="main" grid grid-cols-3 gap-2>
               <ControlButtonTooltip>
-                <ControlButton :button-style="adjustStyleClasses.button" @click="openSettings">
+                <ControlButton :button-style="adjustStyleClasses.button" @click="handleOpenSettings">
                   <div i-solar:settings-minimalistic-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
                 </ControlButton>
                 <template #tooltip>
@@ -239,7 +247,7 @@ function cycleAnimation() {
               </ControlButtonTooltip>
 
               <ControlButtonTooltip disable-hoverable-content>
-                <ControlButton :button-style="adjustStyleClasses.button" @click="openChat">
+                <ControlButton :button-style="adjustStyleClasses.button" @click="handleOpenChat">
                   <div i-solar:chat-line-line-duotone :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
                 </ControlButton>
                 <template #tooltip>
