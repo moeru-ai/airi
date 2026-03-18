@@ -144,6 +144,9 @@ onlyBuiltDependencies:
   - utf-8-validate
   - vue-demi
 packageExtensions:
+  '@formkit/auto-animate':
+    peerDependencies:
+      vue: '*'
   '@huggingface/transformers':
     optionalDependencies:
       'onnxruntime-common': '*'
@@ -153,6 +156,12 @@ packageExtensions:
   '@masknet/eslint-plugin':
     peerDependencies:
       typescript: '*'
+  '@pmndrs/pointer-events':
+    peerDependencies:
+      three: '*'
   '@unocss/eslint-plugin':
     peerDependencies:
       '@typescript-eslint/types': '*'
+  'vue-sonner':
+    peerDependencies:
+      vue: '^3.2.0'
