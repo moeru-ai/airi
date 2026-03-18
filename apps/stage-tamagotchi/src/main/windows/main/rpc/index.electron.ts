@@ -9,15 +9,19 @@ import type { OnboardingWindowManager } from '../../onboarding'
 import type { SettingsWindowManager } from '../../settings'
 import type { WidgetsWindowManager } from '../../widgets'
 
+import clickDragPlugin from 'electron-click-drag-plugin'
+
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
+import { isLinux } from 'std-env'
 
 import {
   electronGetMainWindowConfig,
   electronOpenChat,
   electronOpenMainDevtools,
   electronOpenSettings,
+  electronStartDraggingWindow,
   noticeWindowEventa,
 } from '../../../../shared/eventa'
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
@@ -62,6 +66,18 @@ export async function setupMainWindowElectronInvokes(params: {
   defineInvokeHandler(context, electronGetMainWindowConfig, () => {
     return (params.window as any).__airi_config
   })
+
+  if (!isLinux) {
+    defineInvokeHandler(context, electronStartDraggingWindow, () => {
+      try {
+        const windowId = params.window.getNativeWindowHandle()
+        clickDragPlugin.startDrag(windowId)
+      }
+      catch (error) {
+        console.error(error)
+      }
+    })
+  }
 
   ipcMain.on('main-window-config-updated', (_event, config) => {
     params.window.webContents.send('eventa:event:electron:windows:main:config-changed', config)
