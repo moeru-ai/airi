@@ -30,21 +30,15 @@ const { apply } = useMotion(pageHeaderRef, {
 })
 
 function handleBack() {
-  // - If page was opened directly (no navigation history), go to fallback route
-  // - Otherwise, go back in history
-  try {
-    if (window.history.length <= 1) {
-      // No prior history - this page was opened directly
-      // Fallback to the configured fallback route (usually settings homepage)
-      router.push(props.fallbackRoute)
-    }
-    else {
-      // Normal case - go back in history
-      router.back()
-    }
+  // If there's history to go back to, use router.back().
+  // The check for `window` handles non-browser environments (e.g., SSR).
+  if (typeof window !== 'undefined' && window.history.length > 1) {
+    router.back()
   }
-  catch {
-    // If anything goes wrong, safely fallback
+  else {
+    // Otherwise, navigate to the fallback route. This covers cases where:
+    // - The page was opened directly (no history).
+    // - The code is running in a non-browser environment.
     router.push(props.fallbackRoute)
   }
 }
