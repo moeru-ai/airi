@@ -343,6 +343,47 @@ export interface ModuleCapability {
   metadata?: Record<string, unknown>
 }
 
+export type ModulePermissionArea = 'apis' | 'resources' | 'capabilities' | 'processors' | 'pipelines'
+
+export interface ModulePermissionSpec<
+  Area extends ModulePermissionArea = ModulePermissionArea,
+  Action extends string = string,
+> {
+  key: string
+  actions: Action[]
+  /**
+   * Human-facing explanation for consent/permission UI.
+   * Prefer i18n key form over raw strings for localization.
+   */
+  reason?: Localizable
+  /**
+   * Optional short display label for permission prompts.
+   * Prefer i18n key form over raw strings for localization.
+   */
+  label?: Localizable
+  required?: boolean
+  metadata?: Record<string, unknown>
+  area?: Area
+}
+
+export interface ModulePermissionDeclaration {
+  apis?: ModulePermissionSpec<'apis', 'invoke' | 'emit'>[]
+  resources?: ModulePermissionSpec<'resources', 'read' | 'write' | 'subscribe'>[]
+  capabilities?: ModulePermissionSpec<'capabilities', 'wait' | 'snapshot'>[]
+  processors?: ModulePermissionSpec<'processors', 'register' | 'execute' | 'manage'>[]
+  pipelines?: ModulePermissionSpec<'pipelines', 'hook' | 'process' | 'emit' | 'manage'>[]
+}
+
+export type ModulePermissionGrant = ModulePermissionDeclaration
+
+export interface ModulePermissionError {
+  area: ModulePermissionArea
+  action: string
+  key: string
+  reason?: Localizable
+  recoverable?: boolean
+}
+
 export type RouteTargetExpression
   = | { type: 'and', all: RouteTargetExpression[] }
     | { type: 'or', any: RouteTargetExpression[] }
@@ -535,14 +576,19 @@ interface ErrorEvent {
   message: string
 }
 
+interface ErrorPermissionEvent {
+  identity?: ModuleIdentity
+  error: ModulePermissionError
+}
+
 interface ModuleAnnounceEvent<C = undefined> {
   name: string
   identity: ModuleIdentity
   possibleEvents: Array<(keyof ProtocolEvents<C>)>
+  permissions?: ModulePermissionDeclaration
   configSchema?: ModuleConfigSchema
   dependencies?: ModuleDependency[]
 }
-
 interface ModuleAnnouncedEvent {
   name: string
   index?: number
@@ -567,6 +613,38 @@ interface RegistryModulesHealthHealthyEvent {
   name: string
   index?: number
   identity: ModuleIdentity
+
+}
+interface ModulePermissionsDeclareEvent {
+  identity: ModuleIdentity
+  requested: ModulePermissionDeclaration
+  source: 'manifest' | 'runtime'
+}
+
+interface ModulePermissionsRequestEvent {
+  identity: ModuleIdentity
+  requested: ModulePermissionDeclaration
+  reason?: string
+}
+
+interface ModulePermissionsGrantedEvent {
+  identity: ModuleIdentity
+  granted: ModulePermissionGrant
+  revision: number
+}
+
+interface ModulePermissionsDeniedEvent {
+  identity: ModuleIdentity
+  denied: ModulePermissionDeclaration
+  reason?: string
+  revision: number
+}
+
+interface ModulePermissionsEffectiveEvent {
+  identity: ModuleIdentity
+  requested: ModulePermissionDeclaration
+  granted: ModulePermissionGrant
+  revision: number
 }
 
 interface ModulePreparedEvent {
@@ -848,10 +926,18 @@ export const registryModulesHealthUnhealthy = defineEventa<RegistryModulesHealth
 export const registryModulesHealthHealthy = defineEventa<RegistryModulesHealthHealthyEvent>('registry:modules:health:healthy')
 
 export const error = defineEventa<ErrorEvent>('error')
+export const errorPermission = defineEventa<ErrorPermissionEvent>('error:permission')
 
 export const moduleAnnounce = defineEventa<ModuleAnnounceEvent>('module:announce')
 export const moduleAnnounced = defineEventa<ModuleAnnouncedEvent>('module:announced')
 export const moduleDeAnnounced = defineEventa<ModuleDeAnnouncedEvent>('module:de-announced')
+
+export const modulePermissionsDeclare = defineEventa<ModulePermissionsDeclareEvent>('module:permissions:declare')
+export const modulePermissionsRequest = defineEventa<ModulePermissionsRequestEvent>('module:permissions:request')
+export const modulePermissionsGranted = defineEventa<ModulePermissionsGrantedEvent>('module:permissions:granted')
+export const modulePermissionsDenied = defineEventa<ModulePermissionsDeniedEvent>('module:permissions:denied')
+export const modulePermissionsEffective = defineEventa<ModulePermissionsEffectiveEvent>('module:permissions:effective')
+
 export const modulePrepared = defineEventa<ModulePreparedEvent>('module:prepared')
 export const moduleConfigurationNeeded = defineEventa<ModuleConfigurationNeededEvent>('module:configuration:needed')
 export const moduleStatus = defineEventa<ModuleStatusEvent>('module:status')
@@ -940,6 +1026,11 @@ export interface ProtocolEvents<C = undefined> {
    * module:announced or module:de-announced, or registry:modules:sync and registry:modules:health:* events for more reliable discovery and tracking.
    */
   'module:announce': ModuleAnnounceEvent<C>
+  'module:permissions:declare': ModulePermissionsDeclareEvent
+  'module:permissions:request': ModulePermissionsRequestEvent
+  'module:permissions:granted': ModulePermissionsGrantedEvent
+  'module:permissions:denied': ModulePermissionsDeniedEvent
+  'module:permissions:effective': ModulePermissionsEffectiveEvent
   /**
    * Broadcast to all peers when a module successfully announces.
    */
