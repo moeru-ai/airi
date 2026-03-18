@@ -72,7 +72,7 @@ const { scene, renderer } = useTres()
 
 // Remove the sky box
 function clearEnvironment() {
-  const scn = scene.value as Scene | null
+  const scn = (scene.value as unknown) as Scene | null
   if (!scn)
     return
   scn.environment = null
@@ -128,7 +128,7 @@ async function loadEnvironment(skyBoxSrc: string) {
 
     // PBR IBL
     environment.value = hdrTex
-    const scn = scene.value as Scene
+    const scn = (scene.value as unknown) as Scene
     scn.environment = rt.texture // drives PBR materials (Standard/Physical)
     if (props.asBackground)
       scn.background = rt.texture // optional: also show as background

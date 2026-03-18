@@ -156,7 +156,7 @@ function registerInfoFlow() {
 
 onMounted(async () => {
   // wait until camera is not undefined
-  await until(() => cameraTres.value && renderer.domElement).toBeTruthy()
+  await until(() => !!(cameraTres.value && renderer.domElement)).toBeTruthy()
   if (!cameraTres.value || !renderer.domElement) {
     console.warn('Camera or Renderer initialisation failure!')
     return

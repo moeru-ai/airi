@@ -44,7 +44,7 @@ export async function loadVrm(model: string, options?: {
   // Add look at quaternion proxy to the VRM; which is needed to play the look at animation
   if (options?.lookAt && _vrm.lookAt) {
     const lookAtQuatProxy = new VRMLookAtQuaternionProxy(_vrm.lookAt)
-    lookAtQuatProxy.name = 'lookAtQuaternionProxy'
+    ;(lookAtQuatProxy as unknown as Object3D).name = 'lookAtQuaternionProxy'
     _vrm.scene.add(lookAtQuatProxy)
   }
 
