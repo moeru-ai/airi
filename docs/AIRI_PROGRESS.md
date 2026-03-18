@@ -48,3 +48,6 @@ This document tracks the current development state of the AIRI project, specific
 - **Model Centering**: Investigating off-center loading for VRM/Live2D.
 - **VRM Idle Hairball**: Evolving static loops into dynamic weighted samplers.
 - **Live2D ZIP Repackaging**: Intercepting oversized ZIP imports on the Electron side.
+- **AIRI Card Export Preview Modes**: Explore an optional export mode that bakes the currently selected stage background into the composed PNG preview, while keeping the current transparent/framed export as the default. This should stay optional so card portability and predictable framing are not lost.
+- **Character Photo Mode / Saved Shots**: Explore a lightweight "photo mode" for capturing stills of the current character pose/frame directly from stage. Initial scope should be simple one-click image capture and download; a later extension could allow cards to keep a preferred preview shot for export. Keep this intentionally small to avoid overengineering into a full screenshot studio too early.
+- **Imported Card Customization Guidance**: Continue improving the onboarding/discovery copy around imported SillyTavern cards so users understand these are starter assets and still need AIRI-specific tuning, especially in the **Acting** tab to align expressions, speech tags, and motion cues with the currently selected VRM/Live2D model.

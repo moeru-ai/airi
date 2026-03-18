@@ -194,14 +194,42 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
   }
 
+  function stripEmbeddedBackgroundData(extension: AiriExtension): AiriExtension {
+    return {
+      ...extension,
+      modules: {
+        ...extension.modules,
+        // NOTICE: embedded background image data is only for import/export portability.
+        // Persisting it in the `airi-cards` localStorage blob quickly exhausts browser quota.
+        preferredBackgroundDataUrl: null,
+      },
+    }
+  }
+
+  function compactCard(card: AiriCard | Card | ccv3.CharacterCardV3) {
+    return newAiriCard(card)
+  }
+
+  function compactAllCardsMap(source: Map<string, AiriCard>) {
+    const normalizedCards = new Map<string, AiriCard>()
+    for (const [id, card] of source.entries()) {
+      normalizedCards.set(id, compactCard(card))
+    }
+    return normalizedCards
+  }
+
   const addCard = (card: AiriCard | Card | ccv3.CharacterCardV3) => {
     const newCardId = nanoid()
-    cards.value.set(newCardId, newAiriCard(card))
+    const nextCards = new Map(cards.value)
+    nextCards.set(newCardId, compactCard(card))
+    cards.value = nextCards
     return newCardId
   }
 
   const removeCard = (id: string) => {
-    cards.value.delete(id)
+    const nextCards = new Map(cards.value)
+    nextCards.delete(id)
+    cards.value = nextCards
   }
 
   const updateCard = (id: string, updates: AiriCard | Card | ccv3.CharacterCardV3) => {
@@ -214,7 +242,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       ...updates,
     }
 
-    cards.value.set(id, newAiriCard(updatedCard))
+    const nextCards = new Map(cards.value)
+    nextCards.set(id, compactCard(updatedCard))
+    cards.value = nextCards
     return true
   }
 
@@ -494,7 +524,7 @@ Use provider-supported speech mannerisms only when they help communicate tone or
         tags: ccv3Card.data.tags ?? [],
         extensions: {
           ...ccv3Card.data.extensions,
-          airi: resolveAiriExtension(ccv3Card),
+          airi: stripEmbeddedBackgroundData(resolveAiriExtension(ccv3Card)),
         },
       }
     }
@@ -506,21 +536,18 @@ Use provider-supported speech mannerisms only when they help communicate tone or
       postHistoryInstructions: normalizeRequiredText(card.postHistoryInstructions, defaultPostHistoryInstructions),
       extensions: {
         ...card.extensions,
-        airi: resolveAiriExtension(card),
+        airi: stripEmbeddedBackgroundData(resolveAiriExtension(card)),
       },
     }
   }
 
   function initialize() {
-    const normalizedCards = new Map<string, AiriCard>()
-    for (const [id, card] of cards.value.entries()) {
-      normalizedCards.set(id, newAiriCard(card))
-    }
-    cards.value = normalizedCards
+    cards.value = compactAllCardsMap(cards.value)
 
     if (cards.value.has('default'))
       return
-    cards.value.set('default', newAiriCard({
+    const nextCards = new Map(cards.value)
+    nextCards.set('default', compactCard({
       name: 'ReLU',
       version: '1.0.0',
       description: SystemPromptV2(
@@ -528,6 +555,7 @@ Use provider-supported speech mannerisms only when they help communicate tone or
         t('base.prompt.suffix'),
       ).content,
     }))
+    cards.value = nextCards
     if (!activeCardId.value)
       activeCardId.value = 'default'
   }

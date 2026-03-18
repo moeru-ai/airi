@@ -17,6 +17,86 @@
 <p align="center">Re-creating Neuro-sama, a soul container of AI waifu / virtual characters to bring them into our world.</p>
 
 <p align="center">
+  This repository is a maintained downstream fork of <a href="https://github.com/moeru-ai/airi">moeru-ai/airi</a>, focused on keeping the desktop experience usable, integrating high-value upstream ideas selectively, and shipping heavily tested improvements on top of the original project.
+</p>
+
+> [!IMPORTANT]
+> **Fork context:** This build still credits and depends on the original `moeru-ai/airi` project for its foundation, vision, and broad architecture. The goal here is not to erase that lineage, but to provide a working fork that continues to land practical desktop-focused improvements while upstream changes are reviewed more selectively.
+
+## Why This Fork Exists
+
+This fork exists to keep AIRI moving as a practical daily-driver build instead of waiting on broad upstream history churn to settle.
+
+In this workspace, the priority is:
+
+- keep the desktop path stable and testable
+- preserve upstream intent where it is genuinely useful
+- selectively forward-port worthwhile upstream work instead of blindly rebasing
+- ship tangible UX, performance, and workflow improvements for real usage
+
+If you want the original project history and broader upstream context, see [`moeru-ai/airi`](https://github.com/moeru-ai/airi). If you want the branch that is being actively tuned for usability, this repository is that branch.
+
+## What This Fork Adds
+
+This fork is not just a bugfix branch. It meaningfully expands what AIRI can do on desktop, especially around character setup, stage presentation, speech, proactivity, and everyday usability.
+
+### AIRI Cards Are A Real Character System Here
+
+In upstream, AIRI cards are much thinner. In this fork, the AIRI card flow is treated like an actual character-management system. Cards can be imported, edited, previewed, and exported in ways that are useful for real users instead of just existing as a placeholder.
+
+Each card now has working import and per-card export paths for both AIRI-native JSON and SillyTavern-compatible `chara_card_v2` PNG. Hovering a card surfaces its picture, framed PNG export is supported, and the card itself can carry more of the character's real identity across machines. Setting a card is no longer just a name/description swap either: it can drive the active model, the character's preferred background, and the wider stage presentation around that character. Technical format details live in [`docs/AIRI_Card_Import_Export.md`](./docs/AIRI_Card_Import_Export.md).
+
+This fork also extends card portability well beyond the upstream baseline. AIRI-specific exports preserve things like thumbnails, preferred backgrounds, acting metadata, and other custom extensions. The PNG compatibility path is designed so you can participate in the broader card ecosystem without giving up AIRI-specific data.
+
+### New AIRI Card Tabs That Actually Matter
+
+The card editor has been expanded into a multi-tab configuration surface instead of a thin metadata form.
+
+**Acting** is where you teach AIRI how to perform. It has three prompt layers: one for model expressions and ACT tokens, one for speech-expression tags, and one for speech mannerisms. The point is not just "more fields"; it is to let the same personality speak differently depending on the selected VRM/Live2D model and the active speech provider. The prompts are there so you can align the model's face, the TTS delivery, and the character's writing style instead of leaving all of that implicit.
+
+**Modules** lets a card carry its own model and stage choices. That includes the active chat model, speech provider/model/voice, the selected VRM or Live2D avatar, and the character's preferred background. In practice this means switching characters can switch the whole presentation, not just the text persona.
+
+**Artistry** is brand new and turns image generation into a first-class character capability. Each card can carry an image provider, optional model override, default prompt prefix, widget instruction, and provider-specific JSON options. Right now that is wired around providers like Replicate, with the system shaped so other image APIs can plug in cleanly. ComfyUI support is part of the intended path forward here rather than an afterthought.
+
+**Proactivity** is one of the most important additions in this fork. Instead of treating AIRI as a thing that only answers when spoken to, this tab lets you define when and how the character should decide to speak on her own. The system can inject real context like window history, system load, volume state, and usage metrics into heartbeat evaluations, and the prompt can be tuned so AIRI knows when to remain silent versus when to comment. The goal is not random interruptions; it is to give the character a believable sense of timing, awareness, and restraint.
+
+### Scene System Is New In This Fork
+
+The Scene Manager is a real feature added here, not a minor tweak. Upstream did not have this broader character-aware background workflow in the same way.
+
+You can upload scene backgrounds, manage them in a gallery, preserve readable names, choose a global default, and override that per character through AIRI cards. Cards can also carry preferred background metadata across export/import so the scene can be restored later instead of being lost as soon as you move machines. Editing the active card can live-apply the selected background so you are not making blind choices.
+
+This makes stage composition much more intentional. Characters can now have their own look and environment instead of sharing one undifferentiated global presentation.
+
+### Tamagotchi / Desktop Stage Improvements
+
+The desktop Tamagotchi experience is one of the areas this fork pushes the hardest. The Control Island is no longer just a minimal tray of generic actions. It has grown into a character-facing stage control surface with new dedicated icons for quick emotions, favorites, and idle-loop cycling, along with stronger refresh behavior, feedback toasts, and better resize handling for the floating desktop window.
+
+That matters because these are the interactions people actually touch all day. The goal of this fork is not only to expose settings somewhere deep in a menu, but to make the live desktop character feel responsive and playful while she is on screen.
+
+### Models, Motion, And Character Presentation Are Much Deeper
+
+This fork pushes both VRM and Live2D much further than the stock setup.
+
+For Live2D, there are dedicated customization surfaces and expression-oriented tools so a model can be tuned instead of merely loaded. For VRM, there are expression controls, better recovery/reset behavior, and a growing motion ecosystem. Idle behavior is no longer just one hardcoded file forever: there is support for customizable idle loops, random idle cycling, and a broader direction toward VRMA-driven character motion. On the desktop side, those motion systems are also surfaced through the Control Island so they are not trapped in settings-only workflows.
+
+The model selector itself is also significantly improved. This fork adds a denser multi-column library layout, better filtering and sorting, and an Explore tab for discovering models and related assets instead of forcing everything through one cramped view. VRMA add-file support is also part of the roadmap.
+
+### Speech And Provider Plumbing Are More Practical
+
+One of the biggest quality-of-life fixes in this fork is speech quality. A major problem in the original stack was the audio degradation introduced by a library choice in the speech path; this fork replaced that weak point so TTS playback quality is materially better.
+
+On top of that, OpenAI-compatible speech providers that expose a voices endpoint can now surface selectable voices in the UI instead of making users guess IDs manually. There is also broader provider work throughout the fork, including Chatterbox integration, local-server quality-of-life improvements, and other compatibility hardening so the app is easier to run with real-world backends.
+
+### Privacy And Daily-Driver Defaults
+
+This fork also carries smaller but important product decisions that make it easier to recommend as an everyday build. One example is the option in `Settings -> General` to disable cloud sync, with this fork favoring a privacy-respecting local-default posture rather than assuming remote sync should be on.
+
+Overall, the fork is trying to turn AIRI from an interesting base project into something more complete, more character-driven, and more usable as an actual personal desktop companion.
+
+If you want the running journal for what is actively being built, refined, and thought through in this fork, start with [`docs/AIRI_PROGRESS.md`](./docs/AIRI_PROGRESS.md). For the selective upstream strategy used here, see [`docs/PR/Selective Upstream Sync.md`](./docs/PR/Selective%20Upstream%20Sync.md).
+
+<p align="center">
   [<a href="https://discord.gg/TgQ3Cu2F7A">Join Discord Server</a>] [<a href="https://airi.moeru.ai">Try it</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.zh-CN.md">简体中文</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.ja-JP.md">日本語</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.ru-RU.md">Русский</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.vi.md">Tiếng Việt</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.fr.md">Français</a>] [<a href="https://github.com/moeru-ai/airi/blob/main/docs/README.ko-KR.md">한국어</a>]
 </p>
 
