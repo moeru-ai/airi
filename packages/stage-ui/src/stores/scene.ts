@@ -24,7 +24,9 @@ export const useSceneStore = defineStore('scene', () => {
 
   function addBackground(url: string, name: string) {
     const id = nanoid()
-    backgrounds.value.set(id, { id, url, name })
+    const nextBackgrounds = new Map(backgrounds.value)
+    nextBackgrounds.set(id, { id, url, name })
+    backgrounds.value = nextBackgrounds
     if (!globalBackgroundId.value) {
       globalBackgroundId.value = id
     }
@@ -32,9 +34,11 @@ export const useSceneStore = defineStore('scene', () => {
   }
 
   function removeBackground(id: string) {
-    backgrounds.value.delete(id)
+    const nextBackgrounds = new Map(backgrounds.value)
+    nextBackgrounds.delete(id)
+    backgrounds.value = nextBackgrounds
     if (globalBackgroundId.value === id) {
-      globalBackgroundId.value = backgrounds.value.keys().next().value || null
+      globalBackgroundId.value = nextBackgrounds.keys().next().value || null
     }
     if (activeBackgroundId.value === id) {
       activeBackgroundId.value = globalBackgroundId.value

@@ -247,6 +247,23 @@ const sceneOptions = computed(() => {
   ]
 })
 
+const selectedPreferredBackgroundName = computed(() => {
+  if (selectedPreferredBackgroundId.value === '__none__')
+    return 'none'
+
+  if (selectedPreferredBackgroundId.value === '__default__')
+    return null
+
+  return backgrounds.value.get(selectedPreferredBackgroundId.value)?.name ?? null
+})
+
+const selectedPreferredBackgroundDataUrl = computed(() => {
+  if (selectedPreferredBackgroundId.value === '__default__' || selectedPreferredBackgroundId.value === '__none__')
+    return null
+
+  return backgrounds.value.get(selectedPreferredBackgroundId.value)?.url ?? null
+})
+
 const actingModelExpressionOptions = computed(() => {
   const modelExps = [...availableExpressions.value]
   const vrmaExps = Object.keys(animations)
@@ -483,6 +500,8 @@ function saveCard(card: Card): boolean {
           preferredBackgroundId: selectedPreferredBackgroundId.value === '__default__'
             ? null
             : (selectedPreferredBackgroundId.value === '__none__' ? 'none' : selectedPreferredBackgroundId.value),
+          preferredBackgroundName: selectedPreferredBackgroundName.value,
+          preferredBackgroundDataUrl: selectedPreferredBackgroundDataUrl.value,
         },
         agents: {},
         heartbeats: {

@@ -8,6 +8,7 @@ import { loadVrmModelPreview } from '@proj-airi/stage-ui-three/utils/vrm-preview
 import { Alert } from '@proj-airi/stage-ui/components'
 import { DisplayModelFormat, useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useSceneStore } from '@proj-airi/stage-ui/stores/scene'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { AiriCardSchema } from '@proj-airi/stage-ui/types'
 import { InputFile } from '@proj-airi/ui'
@@ -32,6 +33,7 @@ const { addCard, removeCard } = cardStore
 const { cards, activeCardId } = storeToRefs(cardStore)
 const modelStore = useModelStore()
 const stageModelStore = useSettingsStageModel()
+const sceneStore = useSceneStore()
 const { activeExpressions } = storeToRefs(modelStore)
 const { stageModelSelected } = storeToRefs(stageModelStore)
 
@@ -50,6 +52,29 @@ const searchQuery = ref('')
 const sortOption = ref('nameAsc')
 
 const inputFiles = ref<File[]>([])
+
+const cardSourceLinks = [
+  {
+    name: 'JannyAI',
+    description: 'Character discovery and card sharing with SillyTavern-friendly exports in the ecosystem.',
+    url: 'https://jannyai.com',
+  },
+  {
+    name: 'JanitorAI',
+    description: 'Popular character platform. Look for exports or mirrors that provide SillyTavern / chara_card_v2 PNG or JSON.',
+    url: 'https://janitorai.com',
+  },
+  {
+    name: 'Chub AI',
+    description: 'Large character-sharing ecosystem commonly used with third-party roleplay UIs.',
+    url: 'https://chub.ai',
+  },
+  {
+    name: 'Risu Realm',
+    description: 'Community character hub tied to the Risu ecosystem, useful for portable card-style prompts.',
+    url: 'https://realm.risuai.net',
+  },
+] as const
 
 // Card list data structure
 interface CardItem {
@@ -186,8 +211,12 @@ watch(inputFiles, async (newFiles) => {
       }
     }
 
-    // Validate the card
-    const validation = safeParse(AiriCardSchema, importedCard)
+    const normalizedForValidation = 'data' in importedCard
+      ? addCardPreviewNormalize(importedCard)
+      : importedCard
+
+    // Validate the normalized AIRI card shape
+    const validation = safeParse(AiriCardSchema, normalizedForValidation)
     if (!validation.success) {
       const errorMsg = validation.issues.map(i => i.message).join('\n')
       toast.error('Card validation failed', {
@@ -210,6 +239,31 @@ watch(inputFiles, async (newFiles) => {
     toast.error('Error processing card file')
   }
 })
+
+function addCardPreviewNormalize(card: ImportedCardPayload) {
+  if (!('data' in card))
+    return card
+
+  return {
+    name: card.data.name,
+    version: card.data.character_version || '1.0.0',
+    description: card.data.description ?? '',
+    notes: card.data.creator_notes ?? '',
+    personality: card.data.personality ?? '',
+    scenario: card.data.scenario ?? '',
+    systemPrompt: card.data.system_prompt ?? '',
+    postHistoryInstructions: card.data.post_history_instructions ?? '',
+    greetings: [
+      card.data.first_mes,
+      ...(card.data.alternate_greetings ?? []),
+    ].filter(Boolean),
+    messageExample: [],
+    extensions: {
+      airi: card.data.extensions?.airi,
+      ...card.data.extensions,
+    },
+  }
+}
 
 // Transform cards Map to array for display
 const cardsArray = computed<CardItem[]>(() =>
@@ -291,7 +345,7 @@ function handleCardCreationDialog() {
 }
 
 function exportCard(cardId: string) {
-  const card = cardStore.getCard(cardId)
+  const card = getCardWithExportedBackground(cardId)
   if (!card) {
     console.error(`Card with id ${cardId} not found`)
     return
@@ -320,6 +374,18 @@ function exportCard(cardId: string) {
 }
 
 function buildCharaCardV2(card: AiriCard) {
+  const exportedExtensions = {
+    ...card.extensions,
+    airi: {
+      ...card.extensions?.airi,
+      sillytavernCompatibilityProbe: {
+        exportedBy: 'Project AIRI',
+        probe: 'extensions-airi-ok',
+        version: 1,
+      },
+    },
+  }
+
   return {
     spec: 'chara_card_v2',
     spec_version: '2.0',
@@ -341,7 +407,44 @@ function buildCharaCardV2(card: AiriCard) {
       tags: card.tags || [],
       creator: card.creator || '',
       character_version: card.version || '',
-      extensions: card.extensions || {},
+      extensions: exportedExtensions,
+      x_airi_probe: 'top-level-data-ok',
+    },
+  }
+}
+
+function getCardWithExportedBackground(cardId: string): AiriCard | undefined {
+  const card = cardStore.getCard(cardId)
+  if (!card)
+    return undefined
+
+  const preferredBackgroundId = card.extensions?.airi?.modules?.preferredBackgroundId
+
+  if (!preferredBackgroundId || preferredBackgroundId === 'none')
+    return card
+
+  const linkedBackground = sceneStore.backgrounds.get(preferredBackgroundId)
+  const matchedByName = !linkedBackground && card.extensions?.airi?.modules?.preferredBackgroundName
+    ? Array.from(sceneStore.backgrounds.values()).find(background => background.name === card.extensions?.airi?.modules?.preferredBackgroundName)
+    : null
+  const exportBackground = linkedBackground ?? matchedByName ?? null
+
+  if (!exportBackground)
+    return card
+
+  return {
+    ...card,
+    extensions: {
+      ...card.extensions,
+      airi: {
+        ...card.extensions?.airi,
+        modules: {
+          ...card.extensions?.airi?.modules,
+          preferredBackgroundId,
+          preferredBackgroundName: exportBackground.name,
+          preferredBackgroundDataUrl: exportBackground.url,
+        },
+      },
     },
   }
 }
@@ -503,7 +606,7 @@ async function composeCardExportPng(previewImage: string) {
 }
 
 async function exportCardPng(cardId: string) {
-  const card = cardStore.getCard(cardId)
+  const card = getCardWithExportedBackground(cardId)
   if (!card) {
     console.error(`Card with id ${cardId} not found`)
     return
@@ -755,6 +858,57 @@ function getDisplayModelId(id: string) {
     flex items-center justify-center
   >
     <div text="60" i-solar:emoji-funny-square-bold-duotone />
+  </div>
+
+  <div
+    :class="[
+      'mt-8 rounded-2xl border border-primary-500/10 bg-primary-500/5 p-5',
+      'flex flex-col gap-4',
+    ]"
+  >
+    <div :class="['flex items-start gap-3']">
+      <div :class="['i-solar:compass-bold-duotone text-2xl text-primary-500']" />
+      <div :class="['flex flex-col gap-1']">
+        <div :class="['text-lg font-bold']">
+          Find More Cards
+        </div>
+        <div :class="['max-w-3xl text-sm opacity-80']">
+          AIRI can import standard SillyTavern-style character cards, including `chara_card_v2` PNG exports. Imported cards are a strong starting point, but they usually will not fill in AIRI-specific fields automatically.
+        </div>
+        <div :class="['max-w-3xl text-sm opacity-70']">
+          After import, review and customize AIRI-only settings, especially the <strong>Acting</strong> tab, so expressions, speech tags, and motion cues actually line up with your current VRM or Live2D model.
+        </div>
+      </div>
+    </div>
+
+    <div :class="['grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4']">
+      <a
+        v-for="source in cardSourceLinks"
+        :key="source.name"
+        :href="source.url"
+        target="_blank"
+        rel="noopener noreferrer"
+        :class="[
+          'group rounded-xl border border-transparent bg-white/70 p-4 transition-all dark:bg-neutral-900/60',
+          'hover:border-primary-500/40 hover:shadow-md',
+          'flex flex-col gap-2',
+        ]"
+      >
+        <div :class="['flex items-center justify-between gap-2']">
+          <div :class="['font-bold group-hover:text-primary-500 transition-colors']">
+            {{ source.name }}
+          </div>
+          <div :class="['i-solar:share-circle-bold-duotone text-primary-500 opacity-70']" />
+        </div>
+        <div :class="['text-sm opacity-75']">
+          {{ source.description }}
+        </div>
+      </a>
+    </div>
+
+    <div :class="['text-xs opacity-60']">
+      Prefer exports explicitly labeled for SillyTavern, `chara_card_v2`, or ST PNG / JSON compatibility. Not every character site exports in a portable format.
+    </div>
   </div>
 </template>
 

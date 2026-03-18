@@ -43,6 +43,7 @@ const currentTab = ref<'library' | 'explore'>('library')
 
 const marketplaces = [
   { name: 'Booth', vrm: true, live2d: true, languages: ['jp', 'us'], origin: 'Japan', url: 'https://booth.pm/en/browse/VTuber' },
+  { name: 'Booth VRMA', vrm: true, live2d: false, languages: ['jp', 'us'], origin: 'Japan', url: 'https://booth.pm/en/browse/3D%20Motion%20&%20Animation?sort=price_asc&tags%5B%5D=VRMA' },
   { name: 'VGen', vrm: true, live2d: true, languages: ['us'], origin: 'USA', url: 'https://vgen.co' },
   { name: 'itch.io', vrm: true, live2d: true, languages: ['us'], origin: 'USA', url: 'https://itch.io/game-assets' },
   { name: 'Gumroad', vrm: true, live2d: true, languages: ['us'], origin: 'USA', url: 'https://gumroad.com' },

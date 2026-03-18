@@ -77,6 +77,8 @@ export interface AiriExtension {
     displayModelId?: string
     // ID from scene store
     preferredBackgroundId?: string | null
+    preferredBackgroundName?: string | null
+    preferredBackgroundDataUrl?: string | null
     // Legacy key from older local card revisions. Read-only for migration.
     selectedModelId?: string
   }
@@ -142,6 +144,56 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     activeSpeechModel,
   } = storeToRefs(speechStore)
 
+  function resolveLocalPreferredBackground(modules?: AiriExtension['modules']) {
+    if (!modules)
+      return undefined
+
+    if (modules.preferredBackgroundId === 'none') {
+      return {
+        preferredBackgroundId: 'none' as const,
+        preferredBackgroundName: modules.preferredBackgroundName ?? 'none',
+        preferredBackgroundDataUrl: modules.preferredBackgroundDataUrl ?? null,
+      }
+    }
+
+    if (modules.preferredBackgroundId && sceneStore.backgrounds.has(modules.preferredBackgroundId)) {
+      const existing = sceneStore.backgrounds.get(modules.preferredBackgroundId)
+      return {
+        preferredBackgroundId: modules.preferredBackgroundId,
+        preferredBackgroundName: existing?.name ?? modules.preferredBackgroundName ?? null,
+        preferredBackgroundDataUrl: existing?.url ?? modules.preferredBackgroundDataUrl ?? null,
+      }
+    }
+
+    if (modules.preferredBackgroundName) {
+      const matchedBackground = Array.from(sceneStore.backgrounds.values()).find(
+        background => background.name === modules.preferredBackgroundName,
+      )
+      if (matchedBackground) {
+        return {
+          preferredBackgroundId: matchedBackground.id,
+          preferredBackgroundName: matchedBackground.name,
+          preferredBackgroundDataUrl: matchedBackground.url,
+        }
+      }
+    }
+
+    if (modules.preferredBackgroundDataUrl && modules.preferredBackgroundName) {
+      const importedBackgroundId = sceneStore.addBackground(modules.preferredBackgroundDataUrl, modules.preferredBackgroundName)
+      return {
+        preferredBackgroundId: importedBackgroundId,
+        preferredBackgroundName: modules.preferredBackgroundName,
+        preferredBackgroundDataUrl: modules.preferredBackgroundDataUrl,
+      }
+    }
+
+    return {
+      preferredBackgroundId: modules.preferredBackgroundId ?? null,
+      preferredBackgroundName: modules.preferredBackgroundName ?? null,
+      preferredBackgroundDataUrl: modules.preferredBackgroundDataUrl ?? null,
+    }
+  }
+
   const addCard = (card: AiriCard | Card | ccv3.CharacterCardV3) => {
     const newCardId = nanoid()
     cards.value.set(newCardId, newAiriCard(card))
@@ -205,12 +257,34 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         vrmStore.shouldUpdateView()
     }
 
-    const preferredBackgroundId = extension.modules?.preferredBackgroundId
+    const resolvedPreferredBackground = resolveLocalPreferredBackground(extension.modules)
+    const preferredBackgroundId = resolvedPreferredBackground?.preferredBackgroundId
+    const preferredBackgroundName = resolvedPreferredBackground?.preferredBackgroundName
+    const preferredBackgroundDataUrl = resolvedPreferredBackground?.preferredBackgroundDataUrl
     if (preferredBackgroundId === 'none') {
       sceneStore.setActiveBackground(null)
     }
-    else if (preferredBackgroundId) {
+    else if (preferredBackgroundId && sceneStore.backgrounds.has(preferredBackgroundId)) {
       sceneStore.setActiveBackground(preferredBackgroundId)
+    }
+    else if (preferredBackgroundName) {
+      const matchedBackground = Array.from(sceneStore.backgrounds.values()).find(
+        background => background.name === preferredBackgroundName,
+      )
+      if (matchedBackground) {
+        sceneStore.setActiveBackground(matchedBackground.id)
+      }
+      else if (preferredBackgroundDataUrl) {
+        const importedBackgroundId = sceneStore.addBackground(preferredBackgroundDataUrl, preferredBackgroundName)
+        sceneStore.setActiveBackground(importedBackgroundId)
+      }
+      else if (sceneStore.globalBackgroundId) {
+        sceneStore.setActiveBackground(sceneStore.globalBackgroundId)
+      }
+    }
+    else if (preferredBackgroundDataUrl && preferredBackgroundName) {
+      const importedBackgroundId = sceneStore.addBackground(preferredBackgroundDataUrl, preferredBackgroundName)
+      sceneStore.setActiveBackground(importedBackgroundId)
     }
     else if (sceneStore.globalBackgroundId) {
       sceneStore.setActiveBackground(sceneStore.globalBackgroundId)
@@ -244,6 +318,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       },
       displayModelId: stageModelStore.stageModelSelected,
       preferredBackgroundId: 'none',
+      preferredBackgroundName: null,
+      preferredBackgroundDataUrl: null,
     }
 
     const defaultHeartbeats: HeartbeatConfig = {
@@ -309,6 +385,7 @@ Use provider-supported speech mannerisms only when they help communicate tone or
     const resolvedDisplayModelId = existingExtension.modules?.displayModelId
       ?? existingExtension.modules?.selectedModelId
       ?? defaultModules.displayModelId
+    const resolvedPreferredBackground = resolveLocalPreferredBackground(existingExtension.modules)
 
     return {
       modules: {
@@ -328,7 +405,9 @@ Use provider-supported speech mannerisms only when they help communicate tone or
         vrm: existingExtension.modules?.vrm,
         live2d: existingExtension.modules?.live2d,
         displayModelId: resolvedDisplayModelId,
-        preferredBackgroundId: existingExtension.modules?.preferredBackgroundId ?? defaultModules.preferredBackgroundId,
+        preferredBackgroundId: resolvedPreferredBackground?.preferredBackgroundId ?? defaultModules.preferredBackgroundId,
+        preferredBackgroundName: resolvedPreferredBackground?.preferredBackgroundName ?? defaultModules.preferredBackgroundName,
+        preferredBackgroundDataUrl: resolvedPreferredBackground?.preferredBackgroundDataUrl ?? defaultModules.preferredBackgroundDataUrl,
       },
       artistry: {
         ...existingExtension.artistry,
@@ -414,8 +493,8 @@ Use provider-supported speech mannerisms only when they help communicate tone or
           : [],
         tags: ccv3Card.data.tags ?? [],
         extensions: {
-          airi: resolveAiriExtension(ccv3Card),
           ...ccv3Card.data.extensions,
+          airi: resolveAiriExtension(ccv3Card),
         },
       }
     }
@@ -426,8 +505,8 @@ Use provider-supported speech mannerisms only when they help communicate tone or
       systemPrompt: normalizeRequiredText(card.systemPrompt, defaultSystemPrompt),
       postHistoryInstructions: normalizeRequiredText(card.postHistoryInstructions, defaultPostHistoryInstructions),
       extensions: {
-        airi: resolveAiriExtension(card),
         ...card.extensions,
+        airi: resolveAiriExtension(card),
       },
     }
   }
