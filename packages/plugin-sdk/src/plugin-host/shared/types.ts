@@ -54,7 +54,7 @@ export interface ManifestV1 {
   apiVersion: 'v1'
   kind: 'manifest.plugin.airi.moeru.ai'
   name: string
-  permissions: ModulePermissionDeclaration
+  permissions?: ModulePermissionDeclaration
   entrypoints: {
     default?: string
     electron?: string
@@ -76,7 +76,7 @@ export const manifestV1Schema = object({
   apiVersion: literal('v1'),
   kind: literal('manifest.plugin.airi.moeru.ai'),
   name: string(),
-  permissions: object({
+  permissions: optional(object({
     apis: optional(array(object({
       key: string(),
       actions: array(picklist(['invoke', 'emit'])),
@@ -112,7 +112,7 @@ export const manifestV1Schema = object({
       label: optional(localizableSchema),
       required: optional(boolean()),
     }))),
-  }),
+  })),
   entrypoints: object({
     default: optional(string()),
     electron: optional(string()),

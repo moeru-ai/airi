@@ -1,3 +1,5 @@
+import type { Dirent } from 'node:fs'
+
 import type { ManifestV1 } from '@proj-airi/plugin-sdk/plugin-host'
 
 import type {
@@ -71,6 +73,26 @@ function isManifestV1(value: unknown): value is ManifestV1 {
   return safeParse(manifestV1Schema, value).success
 }
 
+async function realPathOf(entry: Dirent<string>, options?: { cwd?: string }): Promise<{ resolved: false, path?: string, error?: unknown } | { resolved: true, path: string, error?: unknown }> {
+  if (!entry.isSymbolicLink()) {
+    return { resolved: false }
+  }
+
+  try {
+    const resolvedPath = await realpath(join(options?.cwd ?? '', entry.name))
+
+    const stats = await stat(resolvedPath)
+    if (stats.isFile() || stats.isDirectory()) {
+      return { resolved: true, path: resolvedPath }
+    }
+
+    return { resolved: false }
+  }
+  catch (error) {
+    return { resolved: false, error }
+  }
+}
+
 async function loadManifestsFrom(dir: string, log: ReturnType<typeof useLogg>): Promise<ManifestEntry[]> {
   await mkdir(dir, { recursive: true })
   const entries = await readdir(dir, { withFileTypes: true })
@@ -78,10 +100,35 @@ async function loadManifestsFrom(dir: string, log: ReturnType<typeof useLogg>): 
   const manifestPaths: string[] = []
 
   for (const entry of entries) {
-    if (!entry.isDirectory())
-      continue
+    if (!entry.isDirectory()) {
+      if (entry.isSymbolicLink()) {
+        const { resolved, error } = await realPathOf(entry, { cwd: dir })
+        if (error) {
+          log.withError(error).withFields({ name: entry.name }).warn('failed to resolve plugin manifest path, skipping')
+          continue
+        }
+        if (!resolved) {
+          log.withFields({ name: entry.name }).warn('found symlink that does not resolve to a file, skipping')
+          continue
+        }
+      }
+      else {
+        continue
+      }
+    }
 
-    const pluginDir = join(dir, entry.name)
+    let pluginDir = join(dir, entry.name)
+    if (entry.isSymbolicLink()) {
+      const { path, resolved } = await realPathOf(entry, { cwd: dir })
+      if (resolved) {
+        pluginDir = path
+      }
+      else {
+        log.withFields({ name: entry.name }).warn('found symlink that does not resolve to a file, skipping')
+        continue
+      }
+    }
+
     const pluginEntries = await readdir(pluginDir, { withFileTypes: true })
     for (const pluginEntry of pluginEntries) {
       if (pluginEntry.isSymbolicLink()) {

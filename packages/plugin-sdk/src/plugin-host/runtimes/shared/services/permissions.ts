@@ -31,13 +31,13 @@ function matchKey(pattern: string, target: string) {
   return pattern === target
 }
 
-function normalizeDeclaration(declaration: ModulePermissionDeclaration): ModulePermissionDeclaration {
+function normalizeDeclaration(declaration?: ModulePermissionDeclaration | null): ModulePermissionDeclaration {
   return {
-    apis: declaration.apis ?? [],
-    resources: declaration.resources ?? [],
-    capabilities: declaration.capabilities ?? [],
-    processors: declaration.processors ?? [],
-    pipelines: declaration.pipelines ?? [],
+    apis: declaration?.apis ?? [],
+    resources: declaration?.resources ?? [],
+    capabilities: declaration?.capabilities ?? [],
+    processors: declaration?.processors ?? [],
+    pipelines: declaration?.pipelines ?? [],
   }
 }
 
@@ -147,6 +147,7 @@ export class PermissionService {
       granted,
       revision: previousRevision + 1,
     }
+
     this.store.set(pluginId, snapshot)
     return snapshot
   }
