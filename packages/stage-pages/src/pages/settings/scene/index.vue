@@ -25,7 +25,7 @@ function handleFileChange(event: Event) {
   reader.onload = (e) => {
     const result = e.target?.result
     if (typeof result === 'string') {
-      sceneStore.addBackground(result)
+      sceneStore.addBackground(result, file.name)
     }
   }
   reader.readAsDataURL(file)
@@ -108,6 +108,17 @@ function clearGlobalDefault() {
                 backgroundPosition: 'center',
               }"
             />
+
+            <div
+              :class="[
+                'absolute bottom-0 left-0 right-0 z-1',
+                'bg-black/60 px-2 py-1.5 text-xs text-white font-medium',
+                'truncate',
+              ]"
+              :title="bg.name"
+            >
+              {{ bg.name }}
+            </div>
 
             <!-- Badges -->
             <div :class="['absolute top-2 left-2', 'flex flex-col gap-1']">

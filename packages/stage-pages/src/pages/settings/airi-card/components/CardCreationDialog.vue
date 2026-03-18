@@ -66,6 +66,7 @@ const { activeProvider: defaultArtistryProvider } = storeToRefs(artistryStore)
 const { availableExpressions } = storeToRefs(modelStore)
 const sceneStore = useSceneStore()
 const { backgrounds } = storeToRefs(sceneStore)
+const { activeCardId } = storeToRefs(cardStore)
 
 // Determine if we're in edit mode
 const isEditMode = computed(() => !!props.cardId)
@@ -605,10 +606,34 @@ function initializeCard(): Card {
 }
 
 const card = ref<Card>(initializeCard())
+const hasInitializedPreferredBackground = ref(false)
+
+watch(selectedPreferredBackgroundId, (nextValue) => {
+  if (!hasInitializedPreferredBackground.value) {
+    hasInitializedPreferredBackground.value = true
+    return
+  }
+
+  if (!isEditMode.value || !props.cardId || activeCardId.value !== props.cardId)
+    return
+
+  if (nextValue === '__none__') {
+    sceneStore.setActiveBackground(null)
+    return
+  }
+
+  if (nextValue === '__default__') {
+    sceneStore.setActiveBackground(sceneStore.globalBackgroundId)
+    return
+  }
+
+  sceneStore.setActiveBackground(nextValue)
+})
 
 // Reinitialize when cardId changes or dialog opens
 watch(() => [props.modelValue, props.cardId], () => {
   if (props.modelValue) {
+    hasInitializedPreferredBackground.value = false
     card.value = initializeCard()
   }
 })
