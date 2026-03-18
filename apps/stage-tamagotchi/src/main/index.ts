@@ -51,6 +51,13 @@ setupDebugger()
 
 const log = useLogg('main').useGlobalConfig()
 
+// NOTICE: mem9 cloud API currently does not answer browser CORS preflight
+// requests in a way Chromium accepts (`OPTIONS` returns 405), so the Electron
+// renderer must bypass browser CORS enforcement. Keep this limited to the
+// desktop runtime; stage-web still follows normal browser rules.
+app.commandLine.appendSwitch('disable-web-security')
+app.commandLine.appendSwitch('disable-features', 'OutOfBlinkCors')
+
 // Thanks to [@blurymind](https://github.com/blurymind),
 //
 // When running Electron on Linux, navigator.gpu.requestAdapter() fails.

@@ -11,6 +11,7 @@ import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models
 import { clearMcpToolBridge, setMcpToolBridge } from '@proj-airi/stage-ui/stores/mcp-tool-bridge'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
+import { useMemoryBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/memory-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
@@ -48,6 +49,7 @@ import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 const { isDark: dark } = useTheme()
 const i18n = useI18n()
 const contextBridgeStore = useContextBridgeStore()
+const memoryBridgeStore = useMemoryBridgeStore()
 const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settingsStore)
@@ -129,6 +131,7 @@ onMounted(async () => {
 
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   await contextBridgeStore.initialize()
+  await memoryBridgeStore.initialize()
   characterOrchestratorStore.initialize()
   await startTrackingCursorPoint()
 
@@ -156,6 +159,7 @@ watch(themeColorsHueDynamic, () => {
 
 onUnmounted(() => {
   contextBridgeStore.dispose()
+  memoryBridgeStore.dispose()
   clearMcpToolBridge()
 })
 </script>

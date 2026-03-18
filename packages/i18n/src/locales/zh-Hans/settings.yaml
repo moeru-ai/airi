@@ -362,8 +362,23 @@ pages:
           provider-selection:
             description: 选择合适的语音转文本的服务来源
     memory-long-term:
-      description: 长期记忆
+      description: 基于 mem9 的云端长期记忆
       title: 长期记忆
+      enable: 启用长期记忆
+      enable-description: 自动为当前 AIRI 实例创建并连接 mem9 云记忆空间
+      auto-recall: 每次回复前自动回忆
+      auto-recall-description: 从 mem9 检索相关记忆并注入到下一轮提示词
+      auto-capture: 每次回复后自动写入
+      auto-capture-description: 将最近对话发回 mem9 进行智能记忆提取
+      status-title: 连接状态
+      status-disabled: 长期记忆已禁用
+      status-provisioning: 正在创建 mem9 空间
+      status-error: mem9 当前不可用
+      status-ready: mem9 记忆已就绪
+      status-idle: 等待连接
+      reconnect: 重新创建记忆空间
+      reconnecting: 正在重新创建...
+      saving: 正在保存...
     memory-short-term:
       description: 短期记忆
       title: 短期记忆

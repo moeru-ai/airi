@@ -1,0 +1,26 @@
+{
+  "name": "@proj-airi/memory-mem9",
+  "type": "module",
+  "version": "0.9.0-alpha.12",
+  "private": true,
+  "description": "mem9 HTTP client utilities for Project AIRI",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/memory-mem9"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "echo \"No build step required\"",
+    "typecheck": "tsc --noEmit",
+    "test:run": "vitest run --config vitest.config.ts"
+  }
+}
