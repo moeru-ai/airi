@@ -33,6 +33,7 @@ import { useModsServerChannelStore } from '../../stores/mods/api/channel-server'
 import { useAiriCardStore } from '../../stores/modules'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
+import { useSceneStore } from '../../stores/scene'
 import { useSettings } from '../../stores/settings'
 import { useSpeechRuntimeStore } from '../../stores/speech-runtime'
 
@@ -115,7 +116,9 @@ const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
 const activeCardId = computed(() => activeCard.value?.name ?? 'default')
 const speechRuntimeStore = useSpeechRuntimeStore()
+const sceneStore = useSceneStore()
 
+const { activeBackgroundUrl } = storeToRefs(sceneStore)
 const { currentMotion, availableExpressions: live2dExpressions, expressionData: live2dExpressionData, activeExpressions: live2dActiveExpressions, modelParameters: live2dModelParameters } = storeToRefs(live2dStore)
 
 const temporaryVrma = ref<string | null>(null)
@@ -639,6 +642,27 @@ chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
   // await db.value?.execute(`INSERT INTO memory_test (vec) VALUES (${JSON.stringify(res.embedding)});`)
 }))
 
+function handleAnimationFinished() {
+  if (stageModelRenderer.value !== 'vrm')
+    return
+
+  // Resume idle from ACT performance
+  if (temporaryVrma.value) {
+    temporaryVrma.value = null
+  }
+
+  // Cycle if enabled
+  if (vrmStore.vrmIdleCycleEnabled) {
+    const keys = Object.keys(animations)
+    const currentKey = vrmStore.vrmIdleAnimation
+    const otherKeys = keys.filter(key => key !== currentKey)
+    const randomKey = otherKeys[Math.floor(Math.random() * otherKeys.length)]
+    if (randomKey) {
+      vrmStore.vrmIdleAnimation = randomKey
+    }
+  }
+}
+
 onUnmounted(() => {
   lipSyncStarted.value = false
 })
@@ -699,8 +723,21 @@ defineExpose({
 </script>
 
 <template>
-  <div relative>
-    <div h-full w-full>
+  <div relative h-full w-full>
+    <!-- Scene Background Layer -->
+    <div
+      v-if="activeBackgroundUrl"
+      absolute left-0 top-0 z-0 h-full w-full
+      transition-opacity duration-500
+      :style="{
+        backgroundImage: `url(${activeBackgroundUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }"
+    />
+
+    <div relative z-1 h-full w-full>
       <Live2DScene
         v-if="stageModelRenderer === 'live2d'"
         ref="live2dSceneRef"
@@ -737,6 +774,7 @@ defineExpose({
         :show-axes="stageViewControlsEnabled"
         :current-audio-source="currentAudioSource"
         @error="console.error"
+        @finished="handleAnimationFinished"
       />
     </div>
   </div>

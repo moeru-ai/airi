@@ -22,6 +22,8 @@ import { useLoop, useTresContext } from '@tresjs/core'
 import { until, useMouse } from '@vueuse/core'
 import {
   AnimationMixer,
+  LoopOnce,
+  LoopRepeat,
   MathUtils,
   Plane,
   Raycaster,
@@ -111,6 +113,7 @@ const emit = defineEmits<{
 
   (e: 'error', value: unknown): void
   (e: 'loaded', value: { modelIdentity?: string, modelSrc: string }): void
+  (e: 'finished'): void
 }>()
 
 const {
@@ -213,6 +216,12 @@ function componentCleanUp() {
   // clear IBL probe
   airiIblProbe?.dispose()
   airiIblProbe = null
+
+  vrmAnimationMixer.value?.removeEventListener('finished', onAnimationFinished)
+}
+
+function onAnimationFinished() {
+  emit('finished')
 }
 
 // look at mouse
@@ -371,7 +380,14 @@ async function loadModel() {
 
       // play animation
       vrmAnimationMixer.value = new AnimationMixer(_vrm.scene)
-      vrmAnimationMixer.value.clipAction(clip).play()
+      vrmAnimationMixer.value.addEventListener('finished', onAnimationFinished)
+
+      const action = vrmAnimationMixer.value.clipAction(clip)
+      if (modelStore.vrmIdleCycleEnabled) {
+        action.setLoop(LoopOnce, 1)
+        action.clampWhenFinished = true
+      }
+      action.play()
 
       vrmEmote.value = useVRMEmote(_vrm)
 
@@ -601,6 +617,25 @@ onMounted(async () => {
     }
   }, { deep: true })
 
+  // watch for cycle toggle
+  watch(() => modelStore.vrmIdleCycleEnabled, (enabled) => {
+    if (!vrmAnimationMixer.value)
+      return
+
+    const activeActions = (vrmAnimationMixer.value as any)._actions || []
+    const currentAction = activeActions.find((a: any) => a.isRunning())
+    if (currentAction) {
+      if (enabled) {
+        currentAction.setLoop(LoopOnce, 1)
+        currentAction.clampWhenFinished = true
+      }
+      else {
+        currentAction.setLoop(LoopRepeat, Infinity)
+        currentAction.clampWhenFinished = false
+      }
+    }
+  })
+
   // watch if the idle animation should be updated
   watch(() => props.idleAnimation, async (newAnimUrl) => {
     if (!vrm.value || !vrmAnimationMixer.value || !newAnimUrl)
@@ -616,6 +651,10 @@ onMounted(async () => {
       clip.tracks = clip.tracks.filter(track => !track.name.includes('blendShapes') && !track.name.includes('expressions'))
 
       const newAction = vrmAnimationMixer.value.clipAction(clip)
+      if (modelStore.vrmIdleCycleEnabled) {
+        newAction.setLoop(LoopOnce, 1)
+        newAction.clampWhenFinished = true
+      }
 
       // Find the currently playing action
       const activeActions = (vrmAnimationMixer.value as any)._actions || []

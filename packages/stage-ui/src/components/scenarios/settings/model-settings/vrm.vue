@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { animations, useModelStore } from '@proj-airi/stage-ui-three'
-import { Button, Callout, SelectTab } from '@proj-airi/ui'
+import { Button, Callout, Checkbox, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -43,6 +43,7 @@ const {
   envSelect,
   skyBoxIntensity,
   vrmIdleAnimation,
+  vrmIdleCycleEnabled,
 } = storeToRefs(modelStore)
 
 // NOTICE: sceneMutationLocked was removed upstream; hardcoded to false.
@@ -177,6 +178,14 @@ const envOptions = computed(() => [
         :options="Object.keys(animations).map(key => ({ label: key, value: key }))"
         :disabled="sceneMutationLocked"
       />
+
+      <!-- Random Idle Cycle -->
+      <div class="text-xs">
+        Random Cycle:
+      </div>
+      <div>
+        <Checkbox v-model="vrmIdleCycleEnabled" />
+      </div>
     </div>
     <div>
       <div

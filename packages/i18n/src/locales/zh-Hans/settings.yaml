@@ -243,6 +243,21 @@ pages:
           title: VRM
           description: 配置 3D VRM 模型
         scene: 场景
+  scene:
+    title: 场景
+    description: 为您的角色自定义虚拟环境。
+    beta_label: 场景测试版
+    beta_description: >-
+      欢迎使用新的场景系统！第一阶段允许您为所有角色设置全局背景。这些图像本地存储在您的浏览器/应用程序中。
+    background_image:
+      title: 背景图像
+      no_background: 暂无活动背景。上传正方形或横向图像效果最佳。
+      upload: 上传背景
+      change: 更换背景
+      clear: 清除
+    tip:
+      label: 提示！
+      description: 使用正方形图像将在纵向模式下利用 <b>cover</b> 裁剪，聚焦于场景中心。
   modules:
     beat_sync:
       description: 随音源节拍律动
@@ -806,9 +821,6 @@ pages:
       description: WebSocket 服务器的完整地址(例如，ws://localhost:6121/ws)
       label: WebSocket 服务器地址
       placeholder: ws://localhost:6121/ws
-  scene:
-    description: 配置角色所在环境
-    title: 场景
   system:
     color-scheme:
       description: 更改舞台的配色方案

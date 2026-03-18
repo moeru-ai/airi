@@ -18,10 +18,18 @@ Currently, all VRMs share the same hardcoded idle animation (`idle_loop.vrma`). 
 ### Phase 2: ACT Token Integration
 - **Goal**: Enable AI to trigger animations on demand.
 - **Mechanism**: Integrate with `specialTokenQueue`. Allow `<|ACT:{"animation":"crab_dance"}|>` to trigger any built-in animation.
-- **Transiton**: Ensure "smooth as butter" transitions between the idle loop and on-demand animations.
+### Phase 3a: The "Idle Hairball" (Global Random Cycle)
+- **Goal**: Move beyond a single static idle loop to a dynamic resting state.
+- **Scope**: A global toggle that, when enabled, samples a random animation from the preset library and cross-fades between them.
+- **Integration**: Must gracefully yield to `<|ACT|>` performance tokens and resume upon completion.
 
-### Phase 3: User Storage Integration
-- **Goal**: Allow users to drop their own `.vrma` files into storage.
+### Phase 3b: Per-Character "Persona Palettes"
+- **Goal**: Allow fine-grained control over which animations are allowed for specific characters.
+- **UI**: Added to the AIRI Card "Acting" or "Motion" tab.
+- **Override**: If configured, the per-character list overrides the global random pool.
+
+### Phase 4: User Storage Integration
+- **Goal**: Allow users to upload and manage their own `.vrma` files.
 - **Storage**: Utilize origin-isolated folders in IndexedDB/OPFS as described in `Storage-Architecture.md`.
 - **Discovery**: Automatically scan the storage directory for new `.vrma` files and add them to the selection dropdown.
 
@@ -80,16 +88,13 @@ Based on the criteria: **Seamless, Optional, and Prioritized**.
 - **Change**: Add a dropdown menu for "Default Idle Animation".
 - **Options**: Populated from the exported animation keys in `stage-ui-three`.
 
-## Phase 4: Weighted Idle States & Pattern Sampling (FUTURE)
-
-### The "Idle Hairball" Concept
-- **Goal**: Move beyond a single static idle loop to a dynamic "idle behavior" system.
-- **Mechanism**: Define an array of allowed idle animations (e.g., `idleLoop`, `innocent`, `shy`) that the character can cycle through or sample from based on weights.
-- **State Management**: AIRI would need to manage a "Transition Bridge":
-  1. **Directive State**: When an array is active, the system samples a new loop every N seconds (or after the current loop finishes).
-  2. **Interruption Handling**: If a performance/ACT token is triggered, the "Idle Sampler" must pause, yield to the performance, and then resume the idle cycle once the performance finishes.
-  3. **Backoff**: Ensure her primary "Performance" state has priority over the "Idle Shuffle."
-- **Benefit**: Creates a more "alive" character that doesn't just loop a single animation but has a range of resting behaviors.
+## Phase 3a: The "Idle Hairball" Concept (REFINED SCOPE)
+- **Goal**: Ensure the character feels "alive" and use constant animation switching as a stability stress-test for the VRM mixer.
+- **Mechanism**: A boolean `vrmIdleCycleEnabled` in the model store.
+- **Logic**:
+  1. **Sampling**: When one loop finishes, pick a new random index from the 24 presets.
+  2. **Transition**: Cross-fade between states to avoid "snapping."
+  3. **Interruption Handling**: If an `<|ACT|>` performance token is triggered, the cycle pauses, yields to the performance, and then resumes a new idle cycle once finished.
 
 ## Deep Dive: The VRMA Customization Ecosystem & User Empowerment
 

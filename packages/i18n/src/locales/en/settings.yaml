@@ -264,6 +264,27 @@ pages:
           title: VRM
           description: Configure 3D VRM models and settings
         scene: Scene
+  scene:
+    title: Scene
+    description: Customize the virtual environment for your characters.
+    beta_label: Scene Beta
+    beta_description: >-
+      Welcome to the new Scenes system! Phase 1 allows you to set a global
+      background for all your characters. These images are stored locally in
+      your browser/app.
+    background_image:
+      title: Background Image
+      no_background: >-
+        No background active. Upload a square or landscape image for best
+        results.
+      upload: Upload Background
+      change: Change Background
+      clear: Clear
+    tip:
+      label: Tip!
+      description: >-
+        Using a square image will leverage <b>cover</b> cropping in portrait
+        mode, focusing on the center of the scene.
   modules:
     artistry:
       description: Generate images and visual content during conversations
@@ -896,9 +917,6 @@ pages:
       description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
       label: WebSocket Server Address
       placeholder: ws://localhost:6121/ws
-  scene:
-    description: Configure the environment where the character lives
-    title: Scene
   system:
     color-scheme:
       description: Change the color scheme of the stage.

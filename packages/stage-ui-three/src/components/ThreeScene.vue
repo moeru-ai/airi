@@ -52,6 +52,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   (e: 'loadModelProgress', value: number): void
   (e: 'error', value: unknown): void
+  (e: 'finished'): void
 }>()
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
@@ -407,6 +408,7 @@ defineExpose({
           @look-at-target="onVRMModelLookAtTarget"
           @error="(err: unknown) => emit('error', err)"
           @loaded="onVRMModelLoaded"
+          @finished="emit('finished')"
         />
         <TresAxesHelper v-if="props.showAxes" :size="1" />
       </TresCanvas>
