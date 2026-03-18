@@ -25,7 +25,7 @@ import {
   PerspectiveCamera,
   Vector3,
 } from 'three'
-import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 
 // From stage-ui-three package
 import { useRenderTargetRegionAtClientPoint } from '../composables/render-target'
@@ -43,6 +43,7 @@ const props = withDefaults(defineProps<{
   showAxes?: boolean
   idleAnimation?: string
   paused?: boolean
+  renderScaleOverride?: number
 }>(), {
   showAxes: false,
   idleAnimation: new URL('../assets/vrm/animations/idle_loop.vrma', import.meta.url).href,
@@ -209,6 +210,8 @@ onUnmounted(() => {
 })
 
 const vrmFrameHook = shallowRef<((vrm: VRM, delta: number) => void) | undefined>(undefined)
+const effectiveRenderScale = computed(() => props.renderScaleOverride ?? renderScale.value)
+
 function applyVrmFrameHook() {
   modelRef.value?.setVrmFrameHook(vrmFrameHook.value)
 }
@@ -324,7 +327,7 @@ defineExpose({
         :camera="camera"
         :alpha="true"
         :antialias="true"
-        :dpr="renderScale"
+        :dpr="effectiveRenderScale"
         :width="width"
         :height="height"
         :tone-mapping="ACESFilmicToneMapping"

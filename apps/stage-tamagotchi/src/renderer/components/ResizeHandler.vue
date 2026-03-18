@@ -10,14 +10,14 @@ const isWindowsRef = useAsyncState(() => isWindows(), false)
 
 <template>
   <div v-if="isWindowsRef" class="resize-handles">
-    <div class="handle n" @mousedown="handleResizeStart($event, 'n')" />
-    <div class="handle s" @mousedown="handleResizeStart($event, 's')" />
-    <div class="handle e" @mousedown="handleResizeStart($event, 'e')" />
-    <div class="handle w" @mousedown="handleResizeStart($event, 'w')" />
-    <div class="handle ne" @mousedown="handleResizeStart($event, 'ne')" />
-    <div class="handle nw" @mousedown="handleResizeStart($event, 'nw')" />
-    <div class="handle se" @mousedown="handleResizeStart($event, 'se')" />
-    <div class="handle sw" @mousedown="handleResizeStart($event, 'sw')" />
+    <div class="handle n" @mousedown="handleResizeStart($event, 'n')" @dragstart.prevent @selectstart.prevent />
+    <div class="handle s" @mousedown="handleResizeStart($event, 's')" @dragstart.prevent @selectstart.prevent />
+    <div class="handle e" @mousedown="handleResizeStart($event, 'e')" @dragstart.prevent @selectstart.prevent />
+    <div class="handle w" @mousedown="handleResizeStart($event, 'w')" @dragstart.prevent @selectstart.prevent />
+    <div class="handle ne" @mousedown="handleResizeStart($event, 'ne')" @dragstart.prevent @selectstart.prevent />
+    <div class="handle nw" @mousedown="handleResizeStart($event, 'nw')" @dragstart.prevent @selectstart.prevent />
+    <div class="handle se" @mousedown="handleResizeStart($event, 'se')" @dragstart.prevent @selectstart.prevent />
+    <div class="handle sw" @mousedown="handleResizeStart($event, 'sw')" @dragstart.prevent @selectstart.prevent />
   </div>
 </template>
 

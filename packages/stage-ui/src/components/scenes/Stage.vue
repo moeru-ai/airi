@@ -9,6 +9,7 @@ import type { EmotionPayload } from '../../constants/emotions'
 
 import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
 import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser'
+import { useElectronWindowResizeStateEvent } from '@proj-airi/electron-vueuse'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline } from '@proj-airi/pipelines-audio'
@@ -119,6 +120,16 @@ const speechRuntimeStore = useSpeechRuntimeStore()
 const sceneStore = useSceneStore()
 
 const { activeBackgroundUrl } = storeToRefs(sceneStore)
+const resizeStateEventName = useElectronWindowResizeStateEvent()
+const isWindowResizing = ref(false)
+const reducedRenderScale = computed(() => {
+  const nextScale = Math.min(vrmStore.renderScale, 0.75)
+  return Math.max(0.5, nextScale)
+})
+function handleResizeStateChange(event: Event) {
+  const customEvent = event as CustomEvent<{ active?: boolean }>
+  isWindowResizing.value = !!customEvent.detail?.active
+}
 
 const { currentMotion, availableExpressions: live2dExpressions, expressionData: live2dExpressionData, activeExpressions: live2dActiveExpressions, modelParameters: live2dModelParameters } = storeToRefs(live2dStore)
 
@@ -685,6 +696,7 @@ if (typeof window !== 'undefined') {
   events.forEach((event) => {
     window.addEventListener(event, resumeAudioContextOnInteraction, { once: true, passive: true })
   })
+  window.addEventListener(resizeStateEventName, handleResizeStateChange as EventListener)
 }
 
 onMounted(async () => {
@@ -715,6 +727,9 @@ onUnmounted(() => {
 
   chatHookCleanups.forEach(dispose => dispose?.())
   viewUpdateCleanups.forEach(dispose => dispose?.())
+  if (typeof window !== 'undefined') {
+    window.removeEventListener(resizeStateEventName, handleResizeStateChange as EventListener)
+  }
 })
 
 defineExpose({
@@ -771,6 +786,7 @@ defineExpose({
         :model-src="stageModelSelectedUrl"
         :model-identity="stageModelSelected"
         :idle-animation="vrmActiveAnimation"
+        :render-scale-override="isWindowResizing ? reducedRenderScale : undefined"
         :class="['min-w-50% <lg:full min-h-100 sm:100', 'h-full w-full flex-1']"
         :paused="paused"
         :show-axes="stageViewControlsEnabled"
