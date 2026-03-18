@@ -19,12 +19,15 @@ import { useI18n } from 'vue-i18n'
 
 import IndicatorMicVolume from './IndicatorMicVolume.vue'
 
+// Transcription listening state (separate from microphone enabled)
+
+const props = defineProps<{
+  tools?: any[]
+}>()
 const messageInput = ref('')
 const hearingPopoverOpen = ref(false)
 const isComposing = ref(false)
-const isListening = ref(false) // Transcription listening state (separate from microphone enabled)
-
-const providersStore = useProvidersStore()
+const isListening = ref(false)const providersStore = useProvidersStore()
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 const settingsChat = useSettingsChat()
@@ -89,6 +92,7 @@ async function debouncedAutoSend(text: string) {
           chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
           model: activeModel.value,
           providerConfig,
+          tools: props.tools,
         })
         // Clear the message input after sending
         messageInput.value = ''
@@ -117,6 +121,7 @@ async function handleSend() {
       chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
       model: activeModel.value,
       providerConfig,
+      tools: props.tools,
     })
   }
   catch (error) {
@@ -322,6 +327,7 @@ async function startListening() {
                 chatProvider: provider as ChatProvider,
                 model: activeModel.value,
                 skipAssistant: !autoSendEnabled.value,
+                tools: props.tools,
               })
 
               // Clear the message input if it matches the transcribed text (standard behavior)
@@ -373,6 +379,7 @@ async function stopListening() {
           chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
           model: activeModel.value,
           providerConfig,
+          tools: props.tools,
         })
         messageInput.value = ''
       }

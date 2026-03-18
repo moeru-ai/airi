@@ -187,10 +187,11 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         return
 
       const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
-      sessionMessagesForSend.push({ role: 'user', content: finalContent, createdAt: sendingCreatedAt, id: nanoid() })
-      chatSession.persistSessionMessages(sessionId)
+      const nextMessages = [...sessionMessagesForSend, { role: 'user' as const, content: finalContent, createdAt: sendingCreatedAt, id: nanoid() }]
+      chatSession.setSessionMessages(sessionId, nextMessages)
 
       if (options.skipAssistant) {
+        console.log('[ChatDebug] skipAssistant is true, ending ingest.')
         return
       }
 
@@ -428,8 +429,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       await parser.end()
 
       if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
-        sessionMessagesForSend.push(toRaw(buildingMessage))
-        chatSession.persistSessionMessages(sessionId)
+        const currentMessages = chatSession.getSessionMessages(sessionId)
+        chatSession.setSessionMessages(sessionId, [...currentMessages, toRaw(buildingMessage)])
       }
 
       await hooks.emitStreamEndHooks(streamingMessageContext)
@@ -463,10 +464,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     options: SendOptions,
     targetSessionId?: string,
   ) {
-    if (sending.value)
-      return
-
     const sessionId = targetSessionId || activeSessionId.value
+    console.log('[ChatDebug] Ingesting message:', { sendingMessage, sessionId, sending: sending.value })
     const generation = chatSession.getSessionGeneration(sessionId)
 
     return new Promise<void>((resolve, reject) => {

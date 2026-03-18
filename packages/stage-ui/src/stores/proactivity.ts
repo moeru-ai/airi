@@ -32,6 +32,17 @@ export const useProactivityStore = defineStore('proactivity', () => {
   // eslint-disable-next-line no-console
   console.log('[Proactivity] Proactivity Store initialized.')
 
+  const registeredTools = ref<(any | (() => Promise<any[] | undefined>))[]>([])
+
+  function registerTools(tools: any | any[] | (() => Promise<any[] | undefined>)) {
+    if (Array.isArray(tools)) {
+      registeredTools.value.push(...tools)
+    }
+    else {
+      registeredTools.value.push(tools)
+    }
+  }
+
   const lastHeartbeatTime = ref<number>(Date.now())
   const isHeartbeatEvaluating = ref(false)
   let heartbeatInterval: any = null
@@ -346,7 +357,25 @@ export const useProactivityStore = defineStore('proactivity', () => {
         return
       }
 
-      const llmResponse = await llmStore.generate(activeModel, activeProvider, messages)
+      const resolveRegisteredTools = async () => {
+        const all: any[] = []
+        for (const t of registeredTools.value) {
+          if (typeof t === 'function') {
+            const resolved = await t()
+            if (resolved)
+              all.push(...resolved)
+          }
+          else {
+            all.push(t)
+          }
+        }
+        return all
+      }
+
+      const llmResponse = await llmStore.generate(activeModel, activeProvider, messages, {
+        tools: resolveRegisteredTools,
+        supportsTools: true,
+      })
       const rawReply = llmResponse.text
 
       // eslint-disable-next-line no-console
@@ -486,6 +515,7 @@ export const useProactivityStore = defineStore('proactivity', () => {
     locTime,
     lastHeartbeatTime,
     isHeartbeatEvaluating,
+    registerTools,
     evaluateHeartbeat,
     startHeartbeatLoop,
     stopHeartbeatLoop,

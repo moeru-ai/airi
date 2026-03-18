@@ -174,7 +174,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return resolveAiriExtension(card).modules?.displayModelId
   }
 
-  async function applyCardState(card: AiriCard | undefined) {
+  async function applyCardState(card: AiriCard | undefined, force = false) {
     if (!card)
       return
 
@@ -189,11 +189,12 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     activeSpeechModel.value = extension.modules?.speech?.model
     activeSpeechVoiceId.value = extension.modules?.speech?.voice_id
 
-    if (extension.modules?.displayModelId) {
-      stageModelStore.stageModelSelected = extension.modules.displayModelId
+    const newModelId = extension.modules?.displayModelId
+    if (newModelId && (force || newModelId !== stageModelStore.stageModelSelected)) {
+      stageModelStore.stageModelSelected = newModelId
       await stageModelStore.updateStageModel()
 
-      const selectedModel = await displayModelsStore.getDisplayModel(extension.modules.displayModelId)
+      const selectedModel = await displayModelsStore.getDisplayModel(newModelId)
       if (selectedModel?.format === DisplayModelFormat.Live2dZip)
         live2dStore.shouldUpdateView()
       else if (selectedModel?.format === DisplayModelFormat.VRM)
@@ -201,9 +202,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
   }
 
-  async function activateCard(id: string) {
+  async function activateCard(id: string, force = false) {
     activeCardId.value = id
-    await applyCardState(cards.value.get(id))
+    await applyCardState(cards.value.get(id), force)
   }
 
   function resolveAiriExtension(card: Card | ccv3.CharacterCardV3): AiriExtension {

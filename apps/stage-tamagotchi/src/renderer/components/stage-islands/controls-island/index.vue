@@ -37,12 +37,14 @@ const context = useElectronEventaContext()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
 const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
 const cardStore = useAiriCardStore()
-const { activeCard } = storeToRefs(cardStore)
+const { activeCard, activeCardId } = storeToRefs(cardStore)
 const { favoriteExpression, activeExpressions, vrmIdleAnimation } = storeToRefs(modelStore)
 
 // Watch for profile changes to provide feedback
+const lastCardId = ref(activeCardId.value)
 watch(activeCard, (card) => {
-  if (card) {
+  if (card && activeCardId.value !== lastCardId.value) {
+    lastCardId.value = activeCardId.value
     toast.info(`You selected AIRI Card: ${card.name}`, { id: 'transcription-feedback' })
   }
 })
@@ -134,8 +136,14 @@ function startDraggingWindow() {
   }
 }
 
-function refreshWindow() {
-  window.location.reload()
+async function refreshWindow() {
+  // Use store-level applyCardState with force=true to reload model without full page refresh
+  if (activeCard.value) {
+    await cardStore.activateCard(activeCardId.value, true)
+  }
+  else {
+    window.location.reload()
+  }
 }
 
 // === Emotions ===
@@ -198,7 +206,7 @@ function cycleAnimation() {
         enter-from-class="opacity-0 translate-y-8 scale-90 blur-sm"
         leave-to-class="opacity-0 translate-y-8 scale-90 blur-sm"
       >
-        <div v-if="expanded" border="1 neutral-200 dark:neutral-800" mb-2 flex flex-col gap-1 rounded-2xl p-2 backdrop-blur-xl class="bg-neutral-100/80 shadow-2xl shadow-black/20 dark:bg-neutral-900/80">
+        <div v-if="expanded" border="1 neutral-200 dark:neutral-800" mb-2 flex flex-col gap-1 rounded-2xl p-2 backdrop-blur-xl :class="['bg-neutral-100/80 shadow-2xl shadow-black/20 dark:bg-neutral-900/80']">
           <!-- Main View -->
           <Transition
             enter-active-class="transition-all duration-300 cubic-bezier(0.32, 0.72, 0, 1)"
@@ -342,7 +350,7 @@ function cycleAnimation() {
             <div v-else key="emotions" grid grid-cols-3 gap-2>
               <ControlButtonTooltip v-for="emotion in ACT_EMOTIONS" :key="emotion.key">
                 <ControlButton :button-style="adjustStyleClasses.button" @click="triggerEmotion(emotion.key)">
-                  <div :class="adjustStyleClasses.icon" class="flex items-center justify-center text-base leading-none">
+                  <div :class="[adjustStyleClasses.icon, 'flex items-center justify-center text-base leading-none']">
                     {{ emotion.emoji }}
                   </div>
                 </ControlButton>

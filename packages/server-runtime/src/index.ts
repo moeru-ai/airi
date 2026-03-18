@@ -496,12 +496,14 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       const targetIds = decision?.type === 'targets' ? decision.targetIds : undefined
       const shouldBroadcast = decision?.type === 'broadcast' || !targetIds
 
+      /*
       if (event.type !== 'output:gen-ai:chat:complete') {
         logger.withFields({ peer: peer.id, peerName: p.name, event }).log('broadcasting event to peers')
       }
       else {
         logger.withFields({ peer: peer.id, peerName: p.name, event }).debug('broadcasting event to peers')
       }
+      */
 
       for (const [id, other] of peers.entries()) {
         if (id === peer.id) {

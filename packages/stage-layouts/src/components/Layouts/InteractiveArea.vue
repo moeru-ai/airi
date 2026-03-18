@@ -13,6 +13,9 @@ import ChatActionButtons from '../Widgets/ChatActionButtons.vue'
 import ChatArea from '../Widgets/ChatArea.vue'
 import ChatContainer from '../Widgets/ChatContainer.vue'
 
+const props = defineProps<{
+  tools?: any[]
+}>()
 const { isReady } = useDeferredMount()
 const { sending } = storeToRefs(useChatOrchestratorStore())
 const { messages } = storeToRefs(useChatSessionStore())
@@ -44,7 +47,7 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
             @vue:mounted="isLoading = false"
           />
         </div>
-        <ChatArea />
+        <ChatArea :tools="props.tools" />
       </ChatContainer>
     </div>
 

@@ -161,6 +161,7 @@ async function generateFrom(model: string, chatProvider: ChatProvider, messages:
 
   return await generateText({
     ...chatConfig,
+    maxSteps: 10,
     messages: sanitized,
     headers,
     tools,

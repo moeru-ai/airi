@@ -1,17 +1,3 @@
-### 2026-03-17 - Live2D Loading Fixes & Pipeline Robustness
-
-- **Status**: ✅ Live2D Model loading restored across all environments
-- **What worked**:
-  - **Live2D 206 Fix**: Diagnosed a strict status check in `pixi-live2d-display` that caused crashes on `206 Partial Content` responses. Updated `opfs-loader.ts` to normalized these requests into full `200` blobs.
-  - **Hotkey Persistence**: Fixed a race condition/initialization bug where the microphone toggle hotkey (e.g., Caps Lock) would reset to Scroll Lock. Refined `hearing.vue` with an `isFetched` guard.
-  - **Bedrock Stability**: Added protective credential checks in the Amazon Bedrock provider to prevent application crashes when AWS keys are missing.
-  - **Animation Cycler**: Integrated initial support for cycling through VRM/Live2D idle animations via the control island.
-
-- **Status**: ✅ TTS audio routing operational
-- **What worked**:
-  - Found that `await getServerChannelConfig()` was hanging in `App.vue` `onMounted`.
-  - Root cause was missing IPC service registrations in `main/index.ts` for Channel Server, MCP, and I18n.
-  - Hoisting issue with `mainWindow` in `index.ts` was resolved by moving registrations into the `injeca.invoke` callback.
   - Build errors caused by missing exports and unused variables were resolved.
 
 # AIRI Progress Overview

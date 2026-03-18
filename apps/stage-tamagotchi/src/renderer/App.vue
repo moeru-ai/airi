@@ -46,6 +46,7 @@ import {
   pluginProtocolListProvidersEventName,
 } from '../shared/eventa'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
+import { widgetsTools } from './stores/tools/builtin/widgets'
 
 const { isDark: dark } = useTheme()
 const i18n = useI18n()
@@ -117,6 +118,7 @@ onMounted(async () => {
   }
 
   logStep('onMounted start')
+  proactivityStore.registerTools(widgetsTools)
   proactivityStore.startHeartbeatLoop()
 
   logStep('Initializing Analytics & Card stores')

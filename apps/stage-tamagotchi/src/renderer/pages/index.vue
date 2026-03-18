@@ -274,6 +274,11 @@ async function startAudioInteraction() {
 
           postCaption({ type: 'caption-speaker', text })
 
+          if (hearingDialogOpen.value) {
+            console.info('[Main Page] Hearing dialog is open, skipping duplicate ingestion in favor of ChatArea.')
+            return
+          }
+
           void (async () => {
             try {
               const provider = await providersStore.getProviderInstance(activeChatProvider.value)
@@ -338,6 +343,11 @@ async function startAudioInteraction() {
 
       // Update caption overlay speaker text via BroadcastChannel
       postCaption({ type: 'caption-speaker', text })
+
+      if (hearingDialogOpen.value) {
+        console.info('[Main Page] (Manual) Hearing dialog is open, skipping duplicate ingestion in favor of ChatArea.')
+        return
+      }
 
       try {
         const provider = await providersStore.getProviderInstance(activeChatProvider.value)
