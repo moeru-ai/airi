@@ -77,17 +77,27 @@ export function createConfig<TSchema extends PersistedSchema>(
     return diagnostics
   }
 
-  const save = throttle(async () => {
+  let queuedSave = Promise.resolve()
+  let saveSequence = 0
+
+  const persistToDisk = async () => {
     try {
       const path = configPath()
       await ensureConfigDirectory(path)
-      const tmpPath = `${path}.tmp`
+      const sequence = ++saveSequence
+      const tmpPath = `${path}.${process.pid}.${sequence}.tmp`
       await writeFile(tmpPath, JSON.stringify(persistenceMap.get(key)))
       await rename(tmpPath, path)
     }
     catch (error) {
       console.error('Failed to save config', error)
     }
+  }
+
+  const save = throttle(() => {
+    queuedSave = queuedSave
+      .catch(() => {})
+      .then(async () => persistToDisk())
   }, 250)
 
   const writeHealingConfig = async (value: InferOutput<TSchema>) => {
