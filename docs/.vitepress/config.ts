@@ -220,7 +220,7 @@ export default defineConfig<ThemeConfig>({
             },
             {
               text: 'Get Started',
-              link: withBase('/en/docs/overview'),
+              link: withBase('/en/docs/overview/'),
             },
           ],
         },
@@ -500,7 +500,7 @@ export default defineConfig<ThemeConfig>({
             },
             {
               text: 'はじめに',
-              link: withBase('/ja/docs/overview'),
+              link: withBase('/ja/docs/overview/'),
             },
           ],
         },
