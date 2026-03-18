@@ -56,7 +56,7 @@ export function useSpecialTokenQueue(emotionsQueue: UseQueueReturn<EmotionPayloa
   }
 
   function parseActEmotion(content: string) {
-    const match = /<\|ACT\s*(?::\s*)?([\s\S]*?)\|>/i.exec(content)
+    const match = /<\|ACT\s*(?::\s*)?([\s\S]*?)(?:\|>|>)/i.exec(content)
     if (!match)
       return { ok: false, emotions: [] as EmotionPayload[] }
 
@@ -98,7 +98,7 @@ export function useSpecialTokenQueue(emotionsQueue: UseQueueReturn<EmotionPayloa
   }
 
   function parseDelay(content: string) {
-    const match = /<\|DELAY:\s*(\d+)\s*\|>/i.exec(content)
+    const match = /<\|DELAY:\s*(\d+)\s*(?:\|>|>)/i.exec(content)
     if (!match)
       return null
     const delay = Number.parseFloat(match[1])

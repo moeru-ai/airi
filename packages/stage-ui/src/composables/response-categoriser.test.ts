@@ -237,6 +237,17 @@ describe('createStreamingCategorizer', () => {
     expect(result.reasoning).toBe('only reasoning')
   })
 
+  it('should strip legacy ACT markers closed with plain > from final speech', () => {
+    const categorizer = createStreamingCategorizer()
+    const text = '<|ACT:"emotion":{"name":"annoyed","intensity":1}> Hello world!'
+
+    categorizer.consume(text)
+    const result = categorizer.end()
+
+    expect(result.speech).toBe('Hello world!')
+    expect(result.speech).not.toContain('<|ACT')
+  })
+
   it('should handle streaming with incremental categorization', () => {
     const categorizer = createStreamingCategorizer()
 

@@ -10,6 +10,7 @@ import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw, watch } from 'vue'
 
+import { categorizeResponse } from '../../../composables/response-categoriser'
 import { useChatOrchestratorStore } from '../../chat'
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME } from '../../chat/constants'
 import { useChatContextStore } from '../../chat/context-store'
@@ -36,6 +37,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
   const disposeHookFns = ref<Array<() => void>>([])
   let remoteStreamGuard: { sessionId: string, generation: number } | null = null
+  let remoteStreamReceivedLiteral = false
   const isInitialized = ref(false)
 
   async function initialize() {
@@ -286,6 +288,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                 sessionId: chatSession.activeSessionId,
                 generation: chatSession.getSessionGenerationValue(),
               }
+              remoteStreamReceivedLiteral = false
               chatOrchestrator.sending = true
               chatStream.beginStream()
               break
@@ -299,6 +302,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                 return
               if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
                 return
+              remoteStreamReceivedLiteral = true
               chatStream.appendStreamLiteral(event.literal)
               await chatOrchestrator.emitTokenLiteralHooks(event.literal, event.context)
               break
@@ -312,10 +316,13 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                 break
               if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
                 break
+              if (!remoteStreamReceivedLiteral)
+                break
               await chatOrchestrator.emitStreamEndHooks(event.context)
               chatStream.finalizeStream(remoteStreamGuard.sessionId)
               chatOrchestrator.sending = false
               remoteStreamGuard = null
+              remoteStreamReceivedLiteral = false
               break
             case 'assistant-end':
               if (!remoteStreamGuard)
@@ -324,10 +331,24 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                 break
               if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
                 break
+              // NOTICE: some remote producers can arrive here without ever forwarding token-literal events.
+              // Recover the final speech text from the completed message so UI/TTS do not leak raw ACT tokens
+              // or end up with silent turns.
+              const fallbackSpeech = !remoteStreamReceivedLiteral
+                ? categorizeResponse(event.message, activeProvider.value).speech.trim()
+                : ''
+
+              if (!remoteStreamReceivedLiteral && fallbackSpeech) {
+                chatStream.appendStreamLiteral(fallbackSpeech)
+                await chatOrchestrator.emitTokenLiteralHooks(fallbackSpeech, event.context)
+                await chatOrchestrator.emitStreamEndHooks(event.context)
+              }
+
               await chatOrchestrator.emitAssistantResponseEndHooks(event.message, event.context)
-              chatStream.finalizeStream(remoteStreamGuard.sessionId, event.message)
+              chatStream.finalizeStream(remoteStreamGuard.sessionId)
               chatOrchestrator.sending = false
               remoteStreamGuard = null
+              remoteStreamReceivedLiteral = false
               break
           }
         }

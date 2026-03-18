@@ -26,12 +26,14 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { useSpecialTokenQueue } from '../../composables/queues'
+import { categorizeResponse } from '../../composables/response-categoriser'
 import { llmInferenceEndToken } from '../../constants'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useChatOrchestratorStore } from '../../stores/chat'
 import { useModsServerChannelStore } from '../../stores/mods/api/channel-server'
 import { useAiriCardStore } from '../../stores/modules'
+import { useConsciousnessStore } from '../../stores/modules/consciousness'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSceneStore } from '../../stores/scene'
@@ -81,6 +83,7 @@ const chatHookCleanups: Array<() => void> = []
 //             cross-window broadcast wiring.
 
 const providersStore = useProvidersStore()
+const consciousnessStore = useConsciousnessStore()
 const live2dStore = useLive2d()
 const vrmStore = useModelStore()
 const viewUpdateCleanups: Array<() => void> = []
@@ -115,6 +118,7 @@ const live2dLipSyncOptions: Live2DLipSyncOptions = { mouthUpdateIntervalMs: 50, 
 const { activeCard } = storeToRefs(useAiriCardStore())
 const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
+const { activeProvider: activeChatProvider } = storeToRefs(consciousnessStore)
 const activeCardId = computed(() => activeCard.value?.name ?? 'default')
 const speechRuntimeStore = useSpeechRuntimeStore()
 const sceneStore = useSceneStore()
@@ -246,7 +250,7 @@ function playSpecialToken(special: string) {
 const modsServer = useModsServerChannelStore()
 
 function processMarkers(content: string) {
-  const markers = content.match(/<\|(?:ACT|DELAY)[\s\S]*?\|>/gi)
+  const markers = content.match(/<\|(?:ACT|DELAY)[^\r\n]*?(?:\|>|>)/gi)
   if (markers) {
     // eslint-disable-next-line no-console
     console.debug('[Stage] Markers detected:', markers)
@@ -472,6 +476,9 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
   playback: playbackManager,
 })
 
+// NOTICE: the speech runtime host must follow the Stage lifecycle. If a previous Stage instance
+// keeps the host registration after unmount, chat text can continue rendering while TTS writes
+// into a stale pipeline owned by the dead component.
 void speechRuntimeStore.registerHost(speechPipeline)
 
 speechPipeline.on('onSpecial', (segment) => {
@@ -549,6 +556,7 @@ function setupAnalyser() {
 }
 
 let currentChatIntent: ReturnType<typeof speechRuntimeStore.openIntent> | null = null
+const currentChatIntentReceivedLiteral = ref(false)
 
 function ensureSpeechIntent() {
   if (currentChatIntent)
@@ -593,6 +601,7 @@ chatHookCleanups.push(onBeforeMessageComposed(async () => {
     currentChatIntent = null
   }
 
+  currentChatIntentReceivedLiteral.value = false
   ensureSpeechIntent()
 }))
 
@@ -604,6 +613,7 @@ chatHookCleanups.push(onTokenLiteral(async (literal) => {
   const intent = ensureSpeechIntent()
   if (!intent)
     return
+  currentChatIntentReceivedLiteral.value = true
   console.log('[Stage] onTokenLiteral -> forwarding to speech', {
     intentId: intent.intentId,
     length: literal.length,
@@ -629,11 +639,25 @@ chatHookCleanups.push(onStreamEnd(async () => {
   intent?.writeFlush()
 }))
 
-chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
+chatHookCleanups.push(onAssistantResponseEnd(async (message) => {
+  if (!currentChatIntentReceivedLiteral.value) {
+    const fallbackSpeech = categorizeResponse(message, activeChatProvider.value).speech.trim()
+    if (fallbackSpeech) {
+      const intent = ensureSpeechIntent()
+      console.log('[Stage] onAssistantResponseEnd -> fallback speech literal', {
+        intentId: intent.intentId,
+        length: fallbackSpeech.length,
+      })
+      intent.writeLiteral(fallbackSpeech)
+      intent.writeFlush()
+    }
+  }
+
   if (currentChatIntent)
     console.log('[Stage] onAssistantResponseEnd -> ending intent', { intentId: currentChatIntent.intentId })
   currentChatIntent?.end()
   currentChatIntent = null
+  currentChatIntentReceivedLiteral.value = false
 
   // Restore VRM expressions and animations to user-configured defaults after speech ends
   if (stageModelRenderer.value === 'vrm') {
@@ -727,6 +751,7 @@ onUnmounted(() => {
 
   chatHookCleanups.forEach(dispose => dispose?.())
   viewUpdateCleanups.forEach(dispose => dispose?.())
+  void speechRuntimeStore.unregisterHost(speechPipeline)
   if (typeof window !== 'undefined') {
     window.removeEventListener(resizeStateEventName, handleResizeStateChange as EventListener)
   }

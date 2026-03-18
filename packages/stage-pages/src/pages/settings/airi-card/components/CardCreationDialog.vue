@@ -94,7 +94,7 @@ const DEFAULT_ACTING_MODEL_PROMPT = `## Instruction: ACT Tokens
 Start every reply with an ACT token to indicate your initial mood or action. If your synchronization or focus changes, insert a new ACT token. One token lasts until you use a new one.
 
 **ACT JSON format (all fields optional):**
-\`<|ACT:"emotion":{"name": expression_name, "intensity": 1}>\`
+\`<|ACT:"emotion":{"name": expression_name, "intensity": 1}|>\`
 
 ## Available Expressions (Keys)
 Use these EXACT names in your ACT tokens:

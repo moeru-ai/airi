@@ -230,6 +230,30 @@ describe('useLlmmarkerParser', async () => {
     }
   })
 
+  it('should normalize legacy ACT markers closed with plain > and continue emitting literals', async () => {
+    const input = '<|ACT:"emotion":{"name":"annoyed","intensity":1}> Hello there.'
+    const collectedLiterals: string[] = []
+    const collectedSpecials: string[] = []
+
+    const parser = useLlmmarkerParser({
+      onLiteral(literal) {
+        collectedLiterals.push(literal)
+      },
+      onSpecial(special) {
+        collectedSpecials.push(special)
+      },
+    })
+
+    for (const char of input) {
+      await parser.consume(char)
+    }
+
+    await parser.end()
+
+    expect(collectedSpecials).toEqual(['<|ACT:"emotion":{"name":"annoyed","intensity":1}|>'])
+    expect(collectedLiterals.join('')).toBe(' Hello there.')
+  })
+
   it('should call onEnd with full text', async () => {
     const fullText = 'Hello, world!'
     let endText = ''

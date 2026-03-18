@@ -23,6 +23,7 @@ function createId(prefix: string) {
 export interface SpeechPipelineRuntime {
   openIntent: (options?: IntentOptions) => IntentHandle
   registerHost: (pipeline: ReturnType<typeof createSpeechPipeline<AudioBuffer>>) => Promise<void>
+  unregisterHost: (pipeline?: ReturnType<typeof createSpeechPipeline<AudioBuffer>>) => Promise<void>
   isHost: () => boolean
   dispose: () => Promise<void>
 }
@@ -233,11 +234,33 @@ export function createSpeechPipelineRuntime(): SpeechPipelineRuntime {
   async function registerHost(pipeline: ReturnType<typeof createSpeechPipeline<AudioBuffer>>) {
     await mutex.acquire()
     try {
-      if (hostPipeline)
-        return
+      if (hostPipeline && hostPipeline !== pipeline) {
+        console.log('[Speech Runtime] Replacing stale host pipeline')
+        remoteIntentMap.clear()
+      }
+
       hostPipeline = pipeline
       hostReady = true
       bindSpeechBusToHost()
+    }
+    finally {
+      mutex.release()
+    }
+  }
+
+  async function unregisterHost(pipeline?: ReturnType<typeof createSpeechPipeline<AudioBuffer>>) {
+    await mutex.acquire()
+    try {
+      if (!hostPipeline)
+        return
+
+      if (pipeline && hostPipeline !== pipeline)
+        return
+
+      console.log('[Speech Runtime] Unregistering host pipeline')
+      hostPipeline = null
+      hostReady = false
+      remoteIntentMap.clear()
     }
     finally {
       mutex.release()
@@ -257,20 +280,13 @@ export function createSpeechPipelineRuntime(): SpeechPipelineRuntime {
   }
 
   async function dispose() {
-    await mutex.acquire()
-    try {
-      hostPipeline = null
-      hostReady = false
-      remoteIntentMap.clear()
-    }
-    finally {
-      mutex.release()
-    }
+    await unregisterHost()
   }
 
   return {
     openIntent,
     registerHost,
+    unregisterHost,
     isHost,
     dispose,
   }
