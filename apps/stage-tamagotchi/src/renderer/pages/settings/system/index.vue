@@ -24,6 +24,7 @@ const settings = computed(() => [
     icon: 'i-solar:keyboard-bold-duotone',
     to: '/settings/system/window-shortcuts',
   },
+
   {
     title: t('settings.pages.system.developer.title'),
     description: t('settings.pages.system.developer.description'),

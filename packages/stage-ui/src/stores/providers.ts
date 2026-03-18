@@ -72,7 +72,7 @@ type AliyunNlsRegion = typeof ALIYUN_NLS_REGIONS[number]
 export interface ProviderMetadata {
   id: string
   order?: number
-  category: 'chat' | 'embed' | 'speech' | 'transcription'
+  category: 'chat' | 'embed' | 'speech' | 'transcription' | 'vision'
   tasks: string[]
   nameKey: string // i18n key for provider name
   name: string // Default name (fallback)
@@ -1701,6 +1701,117 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'openai-vision': buildOpenAICompatibleProvider({
+      id: 'openai-vision',
+      name: 'OpenAI Vision',
+      nameKey: 'settings.pages.providers.provider.openai-vision.title',
+      descriptionKey: 'settings.pages.providers.provider.openai-vision.description',
+      icon: 'i-lobe-icons:openai',
+      description: 'OpenAI vision models for image understanding',
+      category: 'vision',
+      tasks: ['image-understanding', 'vision'],
+      defaultBaseUrl: 'https://api.openai.com/v1/',
+      creator: createOpenAI,
+      validation: ['health'],
+      capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'gpt-4o',
+              name: 'GPT-4o',
+              provider: 'openai-vision',
+              description: 'Most capable vision model, optimized for image understanding',
+              contextLength: 128000,
+              deprecated: false,
+            },
+            {
+              id: 'gpt-4o-mini',
+              name: 'GPT-4o Mini',
+              provider: 'openai-vision',
+              description: 'Fast and affordable vision model',
+              contextLength: 128000,
+              deprecated: false,
+            },
+            {
+              id: 'gpt-4-turbo',
+              name: 'GPT-4 Turbo',
+              provider: 'openai-vision',
+              description: 'Previous generation vision-capable model',
+              contextLength: 128000,
+              deprecated: false,
+            },
+            {
+              id: 'gpt-4',
+              name: 'GPT-4',
+              provider: 'openai-vision',
+              description: 'Legacy GPT-4 with vision capabilities',
+              contextLength: 8192,
+              deprecated: false,
+            },
+          ] satisfies ModelInfo[]
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          const errors = [
+            !config.apiKey && new Error('API Key is required'),
+            !config.baseUrl && new Error('Base URL is required. Default to https://api.openai.com/v1/ for official OpenAI API.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
+        },
+      },
+    }),
+    'openai-compatible-vision': buildOpenAICompatibleProvider({
+      id: 'openai-compatible-vision',
+      name: 'OpenAI Compatible Vision',
+      nameKey: 'settings.pages.providers.provider.openai-compatible-vision.title',
+      descriptionKey: 'settings.pages.providers.provider.openai-compatible-vision.description',
+      icon: 'i-lobe-icons:openai',
+      description: 'Connect to any API that follows the OpenAI specification for vision.',
+      category: 'vision',
+      tasks: ['image-understanding', 'vision'],
+      creator: createOpenAI,
+      capabilities: {
+        listModels: async (config: Record<string, unknown>) => {
+          const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+          let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+
+          if (!baseUrl.endsWith('/'))
+            baseUrl += '/'
+
+          if (!apiKey || !baseUrl) {
+            return []
+          }
+
+          try {
+            const models = await listModels({
+              apiKey,
+              baseURL: baseUrl,
+            })
+
+            return models
+              .map((model: any) => {
+                return {
+                  id: model.id,
+                  name: model.name || model.display_name || model.id,
+                  provider: 'openai-compatible-vision',
+                  description: model.description || '',
+                  contextLength: model.context_length || 0,
+                  deprecated: false,
+                } satisfies ModelInfo
+              })
+          }
+          catch {
+            return []
+          }
+        },
+      },
+    }),
   }
 
   // Progressive migration bridge:
@@ -1725,17 +1836,17 @@ export const useProvidersStore = defineStore('providers', () => {
     }
   }
 
-  // Keep only legacy ASR/TTS providers as hand-written metadata.
+  // Keep only legacy ASR/TTS/Vision providers as hand-written metadata.
   // All other categories are sourced from unified definitions in libs/providers.
   for (const [providerId, existing] of Object.entries(providerMetadata)) {
-    if (existing.category !== 'speech' && existing.category !== 'transcription') {
+    if (existing.category !== 'speech' && existing.category !== 'transcription' && existing.category !== 'vision') {
       delete providerMetadata[providerId]
     }
   }
 
-  // Populate non-speech providers from unified registry translation.
+  // Populate non-speech/transcription/vision providers from unified registry translation.
   for (const [providerId, translated] of Object.entries(translatedProviderMetadata)) {
-    if (translated.category === 'speech' || translated.category === 'transcription') {
+    if (translated.category === 'speech' || translated.category === 'transcription' || translated.category === 'vision') {
       continue
     }
     providerMetadata[providerId] = translated
@@ -2167,6 +2278,14 @@ export const useProvidersStore = defineStore('providers', () => {
     return allAudioTranscriptionProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
   })
 
+  const allVisionProvidersMetadata = computed(() => {
+    return availableProvidersMetadata.value.filter(metadata => metadata.category === 'vision')
+  })
+
+  const configuredVisionProvidersMetadata = computed(() => {
+    return allVisionProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+  })
+
   function isProviderConfigDirty(providerId: string) {
     const config = providerCredentials.value[providerId]
     if (!config)
@@ -2194,6 +2313,10 @@ export const useProvidersStore = defineStore('providers', () => {
 
   const persistedTranscriptionProvidersMetadata = computed(() => {
     return persistedProvidersMetadata.value.filter(metadata => metadata.category === 'transcription')
+  })
+
+  const persistedVisionProvidersMetadata = computed(() => {
+    return persistedProvidersMetadata.value.filter(metadata => metadata.category === 'vision')
   })
 
   function getProviderConfig(providerId: string) {
@@ -2234,9 +2357,12 @@ export const useProvidersStore = defineStore('providers', () => {
     configuredChatProvidersMetadata,
     configuredSpeechProvidersMetadata,
     configuredTranscriptionProvidersMetadata,
+    allVisionProvidersMetadata,
+    configuredVisionProvidersMetadata,
     persistedProvidersMetadata,
     persistedChatProvidersMetadata,
     persistedSpeechProvidersMetadata,
     persistedTranscriptionProvidersMetadata,
+    persistedVisionProvidersMetadata,
   }
 })

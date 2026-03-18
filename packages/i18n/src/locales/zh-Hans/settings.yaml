@@ -419,6 +419,14 @@ pages:
     vision:
       description: 视觉
       title: 视觉
+      analysis:
+        context-header: 我刚刚让 AIRI 看了屏幕，以下是屏幕分析结果：
+        screen-description: '屏幕描述：'
+        ui-elements: 'UI 元素：'
+        suggestions: '建议操作：'
+        none: 无
+        position: '位置：'
+        prompt-footer: 请根据这个屏幕分析结果来回答我的问题。
     x:
       description: X / Twitter 的浏览和使用
       title: X / Twitter
@@ -796,6 +804,36 @@ pages:
       aihubmix:
         title: AIHubMix
         description: https://aihubmix.com (10% off)
+      openai-vision:
+        title: OpenAI 视觉
+        description: OpenAI 视觉模型，用于图像理解
+      openai-compatible-vision:
+        title: OpenAI 兼容视觉
+        description: 连接任何遵循 OpenAI 规范的视觉 API
+      openai-audio-speech:
+        title: OpenAI
+        description: openai.com
+      openai-audio-transcription:
+        title: OpenAI
+        description: openai.com
+      openai-compatible-audio-speech:
+        title: OpenAI 兼容
+        description: 连接任何遵循 OpenAI 规范的 API
+      openai-compatible-audio-transcription:
+        title: OpenAI 兼容
+        description: 连接任何遵循 OpenAI 规范的 API
+      aliyun-nls-transcription:
+        title: 阿里云 NLS
+        description: nls-console.aliyun.com
+      comet-api-speech:
+        title: CometAPI 语音
+        description: cometapi.com
+      comet-api-transcription:
+        title: CometAPI 转录
+        description: cometapi.com
+      player2-speech:
+        title: Player2 语音
+        description: player2.game
     title: 服务来源
   connection:
     description: 配置 WebSocket 服务器连接

@@ -795,6 +795,37 @@ pages:
           title: 實驗平台
       aihubmix:
         title: AIHubMix
+        description: https://aihubmix.com (10% off)
+      openai-vision:
+        title: OpenAI 視覺
+        description: OpenAI 視覺模型，用於圖像理解
+      openai-compatible-vision:
+        title: OpenAI 相容視覺
+        description: 連接任何遵循 OpenAI 規範的視覺 API
+      openai-audio-speech:
+        title: OpenAI
+        description: openai.com
+      openai-audio-transcription:
+        title: OpenAI
+        description: openai.com
+      openai-compatible-audio-speech:
+        title: OpenAI 相容
+        description: 連接任何遵循 OpenAI 規範的 API
+      openai-compatible-audio-transcription:
+        title: OpenAI 相容
+        description: 連接任何遵循 OpenAI 規範的 API
+      aliyun-nls-transcription:
+        title: 阿里雲 NLS
+        description: nls-console.aliyun.com
+      comet-api-speech:
+        title: CometAPI 語音
+        description: cometapi.com
+      comet-api-transcription:
+        title: CometAPI 轉錄
+        description: cometapi.com
+      player2-speech:
+        title: Player2 語音
+        description: player2.game
         description: https://aihubmix.com (10% 優惠)
     title: 服務來源
   connection:

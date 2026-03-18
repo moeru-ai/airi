@@ -796,6 +796,36 @@ pages:
       aihubmix:
         title: AIHubMix
         description: https://aihubmix.com (10% off)
+      openai-vision:
+        title: OpenAI Vision
+        description: Модели зрения OpenAI для понимания изображений
+      openai-compatible-vision:
+        title: OpenAI Compatible Vision
+        description: Подключение к любому API, соответствующему спецификации OpenAI для зрения
+      openai-audio-speech:
+        title: OpenAI
+        description: openai.com
+      openai-audio-transcription:
+        title: OpenAI
+        description: openai.com
+      openai-compatible-audio-speech:
+        title: OpenAI Compatible
+        description: Подключение к любому API, соответствующему спецификации OpenAI.
+      openai-compatible-audio-transcription:
+        title: OpenAI Compatible
+        description: Подключение к любому API, соответствующему спецификации OpenAI.
+      aliyun-nls-transcription:
+        title: Aliyun NLS
+        description: nls-console.aliyun.com
+      comet-api-speech:
+        title: CometAPI Speech
+        description: cometapi.com
+      comet-api-transcription:
+        title: CometAPI Transcription
+        description: cometapi.com
+      player2-speech:
+        title: Player2 Speech
+        description: player2.game
     title: Провайдеры
   connection:
     description: Configure WebSocket server connection

@@ -108,6 +108,8 @@ export default defineConfig({
           // Workaround: plugin's bundled downloader has a feaxios bug, prefer system mkcert
           const command = process.platform === 'win32' ? 'where' : 'which'
           try {
+            const path = execSync(`${command} mkcert`, { stdio: 'pipe' }).toString().trim().split(/\r?\n/)[0]
+            return { mkcertPath: path }
             return { mkcertPath: execSync(`${command} mkcert`, { stdio: 'pipe' }).toString().trim().split(/\r?\n/)[0] }
           }
           catch {

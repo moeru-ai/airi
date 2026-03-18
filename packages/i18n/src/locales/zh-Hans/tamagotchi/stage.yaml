@@ -25,6 +25,7 @@ docs:
   'close': 关闭
   'expand': 展开
   'collapse': 折叠
+  'vision-see-screen': 让 AIRI 看屏幕
 'status-island':
   connected: WebSocket已连接
   disconnected: WebSocket已断开

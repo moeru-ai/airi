@@ -6,6 +6,36 @@ pages:
     mcp-server:
       description: 连接与管理 MCP 服务器和工具
       title: MCP 服务器
+    vision:
+      title: 视觉系统
+      description: 配置 AIRI 屏幕感知功能
+      enable: 启用视觉系统
+      enable-description: 让 AIRI 能够感知和分析屏幕内容
+      provider: AI 提供商
+      model: 模型
+      api-key: API Key
+      base-url: 自定义 API 地址
+      auto-capture: 自动截屏
+      capture-interval: 截屏间隔（毫秒）
+      cooldown: 冷却时间（毫秒）
+      configured: 视觉系统配置已保存
+      analysis:
+        title: 屏幕分析
+        no-result: 暂无可用分析结果
+        analyzing: 正在分析屏幕...
+        suggestions: 建议操作
+        ui-elements: UI 元素
+      capture:
+        capturing: 捕获中...
+        wait: 等待 {seconds} 秒
+        let-see: 让 AIRI 看看
+      error:
+        capture-failed: 屏幕捕获失败
+        analysis-failed: 屏幕分析失败
+        analysis-unavailable: 分析不可用
+        cooldown-active: 冷却中
+        no-sources: 没有可用的屏幕源
+        placeholder: 屏幕分析占位符 - 需要AI集成
   system:
     sections:
       section:

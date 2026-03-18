@@ -796,6 +796,36 @@ pages:
       aihubmix:
         title: AIHubMix
         description: https://aihubmix.com (10% 할인)
+      openai-vision:
+        title: OpenAI Vision
+        description: 이미지 이해를 위한 OpenAI 비전 모델
+      openai-compatible-vision:
+        title: OpenAI 호환 Vision
+        description: OpenAI 사양을 따르는 비전 API에 연결
+      openai-audio-speech:
+        title: OpenAI
+        description: openai.com
+      openai-audio-transcription:
+        title: OpenAI
+        description: openai.com
+      openai-compatible-audio-speech:
+        title: OpenAI 호환
+        description: OpenAI 사양을 따르는 API에 연결
+      openai-compatible-audio-transcription:
+        title: OpenAI 호환
+        description: OpenAI 사양을 따르는 API에 연결
+      aliyun-nls-transcription:
+        title: Aliyun NLS
+        description: nls-console.aliyun.com
+      comet-api-speech:
+        title: CometAPI Speech
+        description: cometapi.com
+      comet-api-transcription:
+        title: CometAPI Transcription
+        description: cometapi.com
+      player2-speech:
+        title: Player2 Speech
+        description: player2.game
     title: 제공자
   connection:
     description: 웹소켓 서버 연결 구성

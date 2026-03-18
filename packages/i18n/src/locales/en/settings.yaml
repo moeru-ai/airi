@@ -434,6 +434,14 @@ pages:
     vision:
       description: Vision
       title: Vision
+      analysis:
+        context-header: 'I just let AIRI see the screen, here is the screen analysis result:'
+        screen-description: 'Screen Description:'
+        ui-elements: 'UI Elements:'
+        suggestions: 'Suggested Actions:'
+        none: None
+        position: 'position:'
+        prompt-footer: 'Please answer my question based on this screen analysis result.'
     x:
       description: X / Twitter browsing and usage
       title: X / Twitter
@@ -831,6 +839,36 @@ pages:
       aihubmix:
         title: AIHubMix
         description: https://aihubmix.com (10% off)
+      openai-vision:
+        title: OpenAI Vision
+        description: OpenAI vision models for image understanding
+      openai-compatible-vision:
+        title: OpenAI Compatible Vision
+        description: Connect to any API that follows the OpenAI specification for vision
+      openai-audio-speech:
+        title: OpenAI
+        description: openai.com
+      openai-audio-transcription:
+        title: OpenAI
+        description: openai.com
+      openai-compatible-audio-speech:
+        title: OpenAI Compatible
+        description: Connect to any API that follows the OpenAI specification.
+      openai-compatible-audio-transcription:
+        title: OpenAI Compatible
+        description: Connect to any API that follows the OpenAI specification.
+      aliyun-nls-transcription:
+        title: Aliyun NLS
+        description: nls-console.aliyun.com
+      comet-api-speech:
+        title: CometAPI Speech
+        description: cometapi.com
+      comet-api-transcription:
+        title: CometAPI Transcription
+        description: cometapi.com
+      player2-speech:
+        title: Player2 Speech
+        description: player2.game
     title: Providers
   connection:
     description: Configure WebSocket server connection

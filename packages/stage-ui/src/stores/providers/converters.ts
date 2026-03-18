@@ -19,6 +19,9 @@ function getCategoryFromTasks(tasks: string[]): ProviderMetadata['category'] {
   if (tasks.some(task => ['embed', 'embedding'].includes(task.toLowerCase()))) {
     return 'embed'
   }
+  if (tasks.some(task => ['image-understanding', 'vision'].includes(task.toLowerCase()))) {
+    return 'vision'
+  }
 
   return 'chat'
 }

@@ -6,6 +6,36 @@ pages:
     mcp-server:
       description: Connect and manage MCP server and tools
       title: MCP Server
+    vision:
+      title: Vision System
+      description: Configure AIRI screen perception
+      enable: Enable Vision System
+      enable-description: Allow AIRI to perceive and analyze screen content
+      provider: AI Provider
+      model: Model
+      api-key: API Key
+      base-url: Custom API URL
+      auto-capture: Auto Capture
+      capture-interval: Capture interval (milliseconds)
+      cooldown: Cooldown time (milliseconds)
+      configured: Vision system configuration saved
+      analysis:
+        title: Screen Analysis
+        no-result: No analysis available
+        analyzing: Analyzing screen...
+        suggestions: Suggestions
+        ui-elements: UI Elements
+      capture:
+        capturing: Capturing...
+        wait: Wait {seconds}s
+        let-see: Let AIRI see
+      error:
+        capture-failed: Screen capture failed
+        analysis-failed: Screen analysis failed
+        analysis-unavailable: Analysis unavailable
+        cooldown-active: Cooldown active
+        no-sources: No screen sources available
+        placeholder: Screen analysis placeholder - AI integration required
   system:
     sections:
       section:
@@ -17,10 +47,10 @@ pages:
       toggle-move:
         label: Toggle Move
       toggle-resize:
-        label: Toggle Resize
+        label: Resize
       toggle-ignore-mouse-event:
-        label: Toggle Ignore Mouse Event
-      press-keys: Press Keys...
+        label: Ignore Mouse Events
+      press-keys: Press keys...
     developer:
       sections:
         section:

@@ -796,6 +796,36 @@ pages:
       aihubmix:
         title: AIHubMix
         description: https://aihubmix.com (Giảm giá 10%)
+      openai-vision:
+        title: OpenAI Vision
+        description: Mô hình thị giác OpenAI để hiểu hình ảnh
+      openai-compatible-vision:
+        title: OpenAI Compatible Vision
+        description: Kết nối với bất kỳ API nào tuân theo đặc tả OpenAI cho thị giác
+      openai-audio-speech:
+        title: OpenAI
+        description: openai.com
+      openai-audio-transcription:
+        title: OpenAI
+        description: openai.com
+      openai-compatible-audio-speech:
+        title: OpenAI Compatible
+        description: Kết nối với bất kỳ API nào tuân theo đặc tả OpenAI.
+      openai-compatible-audio-transcription:
+        title: OpenAI Compatible
+        description: Kết nối với bất kỳ API nào tuân theo đặc tả OpenAI.
+      aliyun-nls-transcription:
+        title: Aliyun NLS
+        description: nls-console.aliyun.com
+      comet-api-speech:
+        title: CometAPI Speech
+        description: cometapi.com
+      comet-api-transcription:
+        title: CometAPI Transcription
+        description: cometapi.com
+      player2-speech:
+        title: Player2 Speech
+        description: player2.game
     title: Nhà cung cấp
   connection:
     description: Cấu hình kết nối máy chủ WebSocket
