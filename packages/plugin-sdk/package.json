@@ -43,6 +43,7 @@
     "@moeru/eventa": "catalog:",
     "@proj-airi/plugin-protocol": "workspace:*",
     "@proj-airi/server-shared": "workspace:*",
+    "nanoid": "catalog:",
     "valibot": "^1.2.0",
     "xstate": "^5.28.0"
   }

@@ -1,23 +1,27 @@
-import type {
-  ProtocolEvents,
-  ModuleConfigEnvelope as ProtocolModuleConfigEnvelope,
-  ModuleIdentity as ProtocolModuleIdentity,
-  ModulePhase as ProtocolModulePhase,
-  PluginIdentity as ProtocolPluginIdentity,
-} from '@proj-airi/plugin-protocol/types'
 import type { ActorRefFrom } from 'xstate'
 
-import type { definePlugin } from '../plugin'
 import type { createApis } from '../plugin/apis/client'
-import type { CapabilityDescriptor } from '../plugin/apis/protocol'
 import type { Plugin } from '../plugin/shared'
+import type {
+  ManifestV1,
+  ModuleCompatibilityRequest,
+  ModuleConfigEnvelope,
+  ModuleIdentity,
+  ModulePermissionDeclaration,
+  ModulePermissionGrant,
+  PluginHostOptions,
+  PluginLoadOptions,
+  PluginRuntime,
+  PluginSessionPhase,
+  PluginStartOptions,
+} from './shared/types'
 import type { PluginTransport } from './transports'
 
-import { isAbsolute, join } from 'node:path'
 import { cwd } from 'node:process'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import {
+  errorPermission,
   moduleAnnounce,
   moduleAuthenticate,
   moduleAuthenticated,
@@ -25,22 +29,36 @@ import {
   moduleCompatibilityResult,
   moduleConfigurationConfigured,
   moduleConfigurationNeeded,
+  modulePermissionsDeclare,
+  modulePermissionsDenied,
+  modulePermissionsEffective,
+  modulePermissionsGranted,
+  modulePermissionsRequest,
   modulePrepared,
   moduleStatus,
   registryModulesSync,
 } from '@proj-airi/plugin-protocol/types'
-import {
-  literal,
-  object,
-  optional,
-  string,
-} from 'valibot'
 import { createActor, createMachine } from 'xstate'
 
 import { createApis as createBoundApis } from '../plugin/apis/client'
-import { protocolCapabilitySnapshot, protocolCapabilityWait } from '../plugin/apis/protocol'
-import { protocolListProvidersEventName, protocolProviders } from '../plugin/apis/protocol/resources/providers'
+import {
+  protocolCapabilitySnapshot,
+  protocolCapabilitySnapshotEventName,
+  protocolCapabilityWait,
+  protocolCapabilityWaitEventName,
+} from '../plugin/apis/protocol'
+import {
+  protocolListProvidersEventName,
+  protocolProviders,
+} from '../plugin/apis/protocol/resources/providers'
 import { createPluginContext } from './runtimes/node'
+import { FileSystemLoader } from './runtimes/node/loaders'
+import {
+  DependencyService,
+  PermissionService,
+  PluginSessionService,
+  ResourceService,
+} from './runtimes/shared'
 
 /**
  * Plugin Host lifecycle overview (transport-aware):
@@ -304,51 +322,6 @@ function markFailedTransition(session: PluginHostSession) {
   }
 }
 
-function isPluginDefinition(value: unknown): value is ReturnType<typeof definePlugin> {
-  return typeof value === 'object'
-    && value !== null
-    && 'setup' in value
-    && typeof (value as { setup?: unknown }).setup === 'function'
-}
-
-async function coercePluginFromModule(moduleValue: unknown): Promise<Plugin> {
-  if (isPluginDefinition(moduleValue)) {
-    return await moduleValue.setup()
-  }
-
-  if (typeof moduleValue === 'object' && moduleValue !== null) {
-    if ('default' in moduleValue && isPluginDefinition((moduleValue as { default?: unknown }).default)) {
-      return await (moduleValue as { default: ReturnType<typeof definePlugin> }).default.setup()
-    }
-
-    if ('default' in moduleValue && typeof (moduleValue as { default?: unknown }).default === 'object') {
-      const defaultPlugin = (moduleValue as { default: Plugin }).default
-      if (typeof defaultPlugin.init === 'function' || typeof defaultPlugin.setupModules === 'function') {
-        return defaultPlugin
-      }
-    }
-
-    const plugin = moduleValue as Plugin
-    if (typeof plugin.init === 'function' || typeof plugin.setupModules === 'function') {
-      return plugin
-    }
-  }
-
-  throw new Error('Failed to resolve plugin module. The entrypoint must export either definePlugin(...) or Plugin hooks.')
-}
-
-function createModuleIdentity(name: string, index: number): ModuleIdentity {
-  const sanitizedName = name.trim() || 'plugin'
-
-  return {
-    id: `${sanitizedName}-${index}`,
-    kind: 'plugin',
-    plugin: {
-      id: sanitizedName,
-    },
-  }
-}
-
 // TODO: Maybe support more complex version formats.
 function normalizeVersionList(versions: string[]) {
   return [...new Set(versions.map(version => version.trim()).filter(Boolean))]
@@ -402,74 +375,39 @@ function resolveNegotiatedVersion(preferredVersion: string, hostSupportedVersion
   }
 }
 
-export type PluginRuntime = 'electron' | 'node' | 'web'
+function filterDeniedPermissions(requested: ModulePermissionDeclaration, granted: ModulePermissionGrant): ModulePermissionDeclaration {
+  const denied: ModulePermissionDeclaration = {}
+  const areas: Array<keyof ModulePermissionDeclaration> = ['apis', 'resources', 'capabilities', 'processors', 'pipelines']
 
-export type ModulePhase = ProtocolModulePhase
-
-export type PluginSessionPhase
-  = | 'loading'
-    | 'loaded'
-    | 'authenticating'
-    | 'authenticated'
-    | 'waiting-deps'
-    | ModulePhase
-    | 'stopped'
-
-export type PluginIdentity = ProtocolPluginIdentity
-
-export type ModuleIdentity = ProtocolModuleIdentity
-
-export type ModuleConfigEnvelope<C = Record<string, unknown>> = ProtocolModuleConfigEnvelope<C>
-
-export type ModuleCompatibilityRequest = ProtocolEvents['module:compatibility:request']
-
-export type ModuleCompatibilityResult = ProtocolEvents['module:compatibility:result']
-
-export interface ManifestV1 {
-  apiVersion: 'v1'
-  kind: 'manifest.plugin.airi.moeru.ai'
-  name: string
-  entrypoints: {
-    default?: string
-    electron?: string
-    node?: string
-    web?: string
+  for (const area of areas) {
+    const requestedSpecs = requested[area] ?? []
+    const grantedSpecs = granted[area] ?? []
+    const missing = requestedSpecs.filter(spec =>
+      !grantedSpecs.some(grantedSpec =>
+        grantedSpec.key === spec.key
+        && spec.actions.every(action => grantedSpec.actions.includes(action as never)),
+      ),
+    )
+    if (missing.length > 0) {
+      denied[area] = missing as never
+    }
   }
+
+  return denied
 }
 
-export const manifestV1Schema = object({
-  apiVersion: literal('v1'),
-  kind: literal('manifest.plugin.airi.moeru.ai'),
-  name: string(),
-  entrypoints: object({
-    default: optional(string()),
-    electron: optional(string()),
-    node: optional(string()),
-    web: optional(string()),
-  }),
-})
+class PermissionDeniedError extends Error {
+  readonly details: {
+    area: 'apis' | 'resources' | 'capabilities' | 'processors' | 'pipelines'
+    action: string
+    key: string
+  }
 
-export interface PluginLoadOptions {
-  cwd?: string
-  runtime?: PluginRuntime
-}
-
-export interface PluginHostOptions {
-  runtime?: PluginRuntime
-  transport?: PluginTransport
-  protocolVersion?: string
-  apiVersion?: string
-  supportedProtocolVersions?: string[]
-  supportedApiVersions?: string[]
-}
-
-export interface PluginStartOptions {
-  cwd?: string
-  runtime?: PluginRuntime
-  requireConfiguration?: boolean
-  compatibility?: Omit<ModuleCompatibilityRequest, 'protocolVersion' | 'apiVersion'>
-  requiredCapabilities?: string[]
-  capabilityWaitTimeoutMs?: number
+  constructor(details: PermissionDeniedError['details']) {
+    super(`Permission denied: ${details.area}.${details.action} "${details.key}"`)
+    this.name = 'PermissionDeniedError'
+    this.details = details
+  }
 }
 
 export interface PluginHostSession {
@@ -487,6 +425,11 @@ export interface PluginHostSession {
     host: ReturnType<typeof createPluginContext>
   }
   apis: ReturnType<typeof createApis>
+  permissions: {
+    requested: ModulePermissionDeclaration
+    granted: ModulePermissionGrant
+    revision: number
+  }
 }
 
 /**
@@ -508,17 +451,18 @@ export interface PluginHostSession {
  */
 export class PluginHost {
   private readonly loader: FileSystemLoader
-  private readonly sessions = new Map<string, PluginHostSession>()
+  private readonly sessionService = new PluginSessionService<PluginHostSession>()
   private readonly runtime: PluginRuntime
   private readonly transport: PluginTransport
   private readonly protocolVersion: string
   private readonly apiVersion: string
   private readonly supportedProtocolVersions: string[]
   private readonly supportedApiVersions: string[]
-  private readonly capabilities = new Map<string, CapabilityDescriptor>()
-  private readonly capabilityWaiters = new Map<string, Set<(descriptor: CapabilityDescriptor) => void>>()
-  private providersListResolver: () => Promise<Array<{ name: string }>> | Array<{ name: string }> = () => []
-  private sessionCounter = 0
+  private readonly dependencies = new DependencyService()
+  private readonly permissions = new PermissionService()
+  private readonly permissionResolver?: PluginHostOptions['permissionResolver']
+  private readonly persistedPermissionGrants = new Map<string, ModulePermissionGrant>()
+  private readonly resources = new ResourceService()
 
   constructor(options: PluginHostOptions = {}) {
     this.loader = new FileSystemLoader()
@@ -528,15 +472,51 @@ export class PluginHost {
     this.apiVersion = options.apiVersion ?? 'v1'
     this.supportedProtocolVersions = resolveSupportedVersions(this.protocolVersion, options.supportedProtocolVersions)
     this.supportedApiVersions = resolveSupportedVersions(this.apiVersion, options.supportedApiVersions)
+    this.permissionResolver = options.permissionResolver
+    this.resources.setValue(protocolListProvidersEventName, [] as Array<{ name: string }>)
     this.markCapabilityReady(protocolListProvidersEventName, { source: 'plugin-host' })
   }
 
+  private assertPermission(
+    session: PluginHostSession,
+    input: {
+      area: 'apis' | 'resources' | 'capabilities' | 'processors' | 'pipelines'
+      action: string
+      key: string
+      reason?: string
+    },
+  ) {
+    const allowed = this.permissions.isAllowed(session.identity.plugin.id, input.area, input.action, input.key)
+    if (allowed) {
+      return
+    }
+
+    const error = new PermissionDeniedError({
+      area: input.area,
+      action: input.action,
+      key: input.key,
+    })
+
+    session.channels.host.emit(errorPermission, {
+      identity: session.identity,
+      error: {
+        area: input.area,
+        action: input.action,
+        key: input.key,
+        reason: input.reason ?? 'Permission not granted for requested operation.',
+        recoverable: true,
+      },
+    })
+
+    throw error
+  }
+
   listSessions() {
-    return [...this.sessions.values()]
+    return this.sessionService.list()
   }
 
   getSession(sessionId: string) {
-    return this.sessions.get(sessionId)
+    return this.sessionService.get(sessionId)
   }
 
   async load(manifest: ManifestV1, options: PluginLoadOptions = {}): Promise<PluginHostSession> {
@@ -552,27 +532,20 @@ export class PluginHost {
       throw new Error(`Only in-memory transport is currently supported by PluginHost alpha. Got: ${transport.kind}`)
     }
 
-    // Build deterministic per-session identity.
-    // `sessionCounter` gives stable ordering for registry sync and debugging.
-    const sessionIndex = this.sessionCounter
-    this.sessionCounter += 1
-
-    const id = `plugin-session-${sessionIndex}`
-    const identity = createModuleIdentity(manifest.name, sessionIndex)
+    // Build per-session identity.
+    const sessionIdentity = this.sessionService.nextSessionIdentity(manifest.name)
+    const sessionIndex = sessionIdentity.index
+    const id = sessionIdentity.sessionId
+    const identity = sessionIdentity.moduleIdentity
 
     // Step 1 (connect/control-plane prep): create an isolated Eventa context per plugin.
     // All invokes/events for this plugin go through this context to prevent cross-talk.
     const hostChannel = createPluginContext(transport)
     const lifecycle = createActor(pluginLifecycleMachine)
     lifecycle.start()
-    defineInvokeHandler(hostChannel, protocolCapabilityWait, async (payload) => {
-      return await this.waitForCapability(payload.key, payload?.timeoutMs)
-    })
-    defineInvokeHandler(hostChannel, protocolCapabilitySnapshot, async () => {
-      return this.listCapabilities()
-    })
-    defineInvokeHandler(hostChannel, protocolProviders.listProviders, async () => {
-      return await this.providersListResolver()
+
+    const permissionSnapshot = this.permissions.initialize(identity.plugin.id, manifest.permissions, {
+      persisted: this.persistedPermissionGrants.get(identity.plugin.id),
     })
 
     const session: PluginHostSession = {
@@ -590,10 +563,55 @@ export class PluginHost {
         host: hostChannel,
       },
       apis: createBoundApis(hostChannel),
+      permissions: {
+        requested: permissionSnapshot.requested,
+        granted: permissionSnapshot.granted,
+        revision: permissionSnapshot.revision,
+      },
     }
 
+    defineInvokeHandler(hostChannel, protocolCapabilityWait, async (payload) => {
+      this.assertPermission(session, {
+        area: 'apis',
+        action: 'invoke',
+        key: protocolCapabilityWaitEventName,
+      })
+      this.assertPermission(session, {
+        area: 'capabilities',
+        action: 'wait',
+        key: payload.key,
+      })
+      return await this.waitForCapability(payload.key, payload?.timeoutMs)
+    })
+    defineInvokeHandler(hostChannel, protocolCapabilitySnapshot, async () => {
+      this.assertPermission(session, {
+        area: 'apis',
+        action: 'invoke',
+        key: protocolCapabilitySnapshotEventName,
+      })
+      this.assertPermission(session, {
+        area: 'capabilities',
+        action: 'snapshot',
+        key: '*',
+      })
+      return this.listCapabilities()
+    })
+    defineInvokeHandler(hostChannel, protocolProviders.listProviders, async () => {
+      this.assertPermission(session, {
+        area: 'apis',
+        action: 'invoke',
+        key: protocolListProvidersEventName,
+      })
+      this.assertPermission(session, {
+        area: 'resources',
+        action: 'read',
+        key: protocolListProvidersEventName,
+      })
+      return await this.resources.get<Array<{ name: string }>>(protocolListProvidersEventName, []) ?? []
+    })
+
     // Register session before loading so failure paths still have observable state.
-    this.sessions.set(id, session)
+    this.sessionService.register(session)
 
     try {
       // Load plugin module from manifest-selected runtime entrypoint.
@@ -624,7 +642,7 @@ export class PluginHost {
 
   async init(sessionId: string, options: PluginStartOptions = {}): Promise<PluginHostSession> {
     // `init` starts at procedure step 2 (authenticate) and drives lifecycle to ready.
-    const session = this.sessions.get(sessionId)
+    const session = this.sessionService.get(sessionId)
     if (!session) {
       throw new Error(`Unable to initialize plugin session: ${sessionId}`)
     }
@@ -700,12 +718,58 @@ export class PluginHost {
           })),
       })
 
+      session.channels.host.emit(modulePermissionsDeclare, {
+        identity: session.identity,
+        requested: session.permissions.requested,
+        source: 'manifest',
+      })
+
+      const resolvedGrant = await this.permissionResolver?.({
+        identity: session.identity,
+        manifest: session.manifest,
+        requested: session.permissions.requested,
+        persisted: this.persistedPermissionGrants.get(session.identity.plugin.id),
+      }) ?? session.permissions.requested
+
+      const grantedSnapshot = this.permissions.initialize(session.identity.plugin.id, session.permissions.requested, {
+        grant: resolvedGrant,
+        persisted: this.persistedPermissionGrants.get(session.identity.plugin.id),
+      })
+      session.permissions = {
+        requested: grantedSnapshot.requested,
+        granted: grantedSnapshot.granted,
+        revision: grantedSnapshot.revision,
+      }
+      this.persistedPermissionGrants.set(session.identity.plugin.id, grantedSnapshot.granted)
+
+      const deniedPermissions = filterDeniedPermissions(grantedSnapshot.requested, grantedSnapshot.granted)
+      session.channels.host.emit(modulePermissionsGranted, {
+        identity: session.identity,
+        granted: grantedSnapshot.granted,
+        revision: grantedSnapshot.revision,
+      })
+      if (Object.values(deniedPermissions).some(value => Array.isArray(value) && value.length > 0)) {
+        session.channels.host.emit(modulePermissionsDenied, {
+          identity: session.identity,
+          denied: deniedPermissions,
+          reason: 'One or more requested permissions were not granted by host policy.',
+          revision: grantedSnapshot.revision,
+        })
+      }
+      session.channels.host.emit(modulePermissionsEffective, {
+        identity: session.identity,
+        requested: grantedSnapshot.requested,
+        granted: grantedSnapshot.granted,
+        revision: grantedSnapshot.revision,
+      })
+
       // Step 5: module announcement to the shared control plane.
       assertTransition(session, 'announced')
       session.channels.host.emit(moduleAnnounce, {
         name: session.manifest.name,
         identity: session.identity,
         possibleEvents: [],
+        permissions: session.permissions.requested,
       })
       session.channels.host.emit(moduleStatus, {
         identity: session.identity,
@@ -836,7 +900,7 @@ export class PluginHost {
 
   async applyConfiguration(sessionId: string, config: ModuleConfigEnvelope) {
     // Configuration is allowed only after prepare, during configuration-needed, or while re-configuring.
-    const session = this.sessions.get(sessionId)
+    const session = this.sessionService.get(sessionId)
     if (!session) {
       throw new Error(`Unable to configure plugin session: ${sessionId}`)
     }
@@ -864,117 +928,99 @@ export class PluginHost {
     return session
   }
 
-  setProvidersListResolver(resolver: () => Promise<Array<{ name: string }>> | Array<{ name: string }>) {
-    this.providersListResolver = resolver
-    this.markCapabilityReady(protocolListProvidersEventName, { source: 'plugin-host-override' })
+  requestPermissions(sessionId: string, requested: ModulePermissionDeclaration, reason?: string) {
+    const session = this.sessionService.get(sessionId)
+    if (!session) {
+      throw new Error(`Unable to request permissions for plugin session: ${sessionId}`)
+    }
+
+    session.channels.host.emit(modulePermissionsRequest, {
+      identity: session.identity,
+      requested,
+      reason,
+    })
+  }
+
+  grantPermissions(
+    sessionId: string,
+    grant: ModulePermissionGrant,
+  ): {
+    requested: ModulePermissionDeclaration
+    granted: ModulePermissionGrant
+    revision: number
+  } {
+    const session = this.sessionService.get(sessionId)
+    if (!session) {
+      throw new Error(`Unable to grant permissions for plugin session: ${sessionId}`)
+    }
+
+    const snapshot = this.permissions.grant(session.identity.plugin.id, grant)
+    session.permissions = {
+      requested: snapshot.requested,
+      granted: snapshot.granted,
+      revision: snapshot.revision,
+    }
+    this.persistedPermissionGrants.set(session.identity.plugin.id, snapshot.granted)
+
+    session.channels.host.emit(modulePermissionsGranted, {
+      identity: session.identity,
+      granted: snapshot.granted,
+      revision: snapshot.revision,
+    })
+    session.channels.host.emit(modulePermissionsEffective, {
+      identity: session.identity,
+      requested: snapshot.requested,
+      granted: snapshot.granted,
+      revision: snapshot.revision,
+    })
+
+    return snapshot
+  }
+
+  setResourceResolver<T>(key: string, resolver: () => Promise<T> | T) {
+    this.resources.setResolver(key, resolver)
+  }
+
+  setResourceValue<T>(key: string, value: T) {
+    this.resources.setValue(key, value)
   }
 
   announceCapability(key: string, metadata?: Record<string, unknown>) {
-    const current = this.capabilities.get(key)
-    const descriptor: CapabilityDescriptor = {
-      key,
-      state: 'announced',
-      metadata: metadata ?? current?.metadata,
-      updatedAt: Date.now(),
-    }
-
-    this.capabilities.set(key, descriptor)
-    return descriptor
+    return this.dependencies.announce(key, metadata)
   }
 
   markCapabilityReady(key: string, metadata?: Record<string, unknown>) {
-    const current = this.capabilities.get(key)
-    const descriptor: CapabilityDescriptor = {
-      key,
-      state: 'ready',
-      metadata: metadata ?? current?.metadata,
-      updatedAt: Date.now(),
-    }
-
-    this.capabilities.set(key, descriptor)
-    const waiters = this.capabilityWaiters.get(key)
-    if (waiters) {
-      for (const resolve of waiters) {
-        resolve(descriptor)
-      }
-      this.capabilityWaiters.delete(key)
-    }
-
-    return descriptor
+    return this.dependencies.markReady(key, metadata)
   }
 
   markCapabilityDegraded(key: string, metadata?: Record<string, unknown>) {
-    const current = this.capabilities.get(key)
-    const descriptor: CapabilityDescriptor = {
-      key,
-      state: 'degraded',
-      metadata: metadata ?? current?.metadata,
-      updatedAt: Date.now(),
-    }
-
-    this.capabilities.set(key, descriptor)
-    return descriptor
+    return this.dependencies.markDegraded(key, metadata)
   }
 
   withdrawCapability(key: string, metadata?: Record<string, unknown>) {
-    const current = this.capabilities.get(key)
-    const descriptor: CapabilityDescriptor = {
-      key,
-      state: 'withdrawn',
-      metadata: metadata ?? current?.metadata,
-      updatedAt: Date.now(),
-    }
-
-    this.capabilities.set(key, descriptor)
-    return descriptor
+    return this.dependencies.withdraw(key, metadata)
   }
 
   listCapabilities() {
-    return [...this.capabilities.values()]
+    return this.dependencies.list()
   }
 
   isCapabilityReady(key: string) {
-    return this.capabilities.get(key)?.state === 'ready'
+    return this.dependencies.isReady(key)
   }
 
   async waitForCapabilities(keys: string[], timeoutMs: number = 15000) {
-    await Promise.all(keys.map(async key => await this.waitForCapability(key, timeoutMs)))
+    await this.dependencies.waitForMany(keys, timeoutMs)
   }
 
   async waitForCapability(key: string, timeoutMs: number = 15000) {
-    const existing = this.capabilities.get(key)
-    if (existing?.state === 'ready') {
-      return existing
-    }
-
-    return await new Promise<CapabilityDescriptor>((resolve, reject) => {
-      let timeout: ReturnType<typeof setTimeout> | undefined
-      const onReady = (descriptor: CapabilityDescriptor) => {
-        if (timeout) {
-          clearTimeout(timeout)
-        }
-        resolve(descriptor)
-      }
-
-      const waiters = this.capabilityWaiters.get(key) ?? new Set()
-      waiters.add(onReady)
-      this.capabilityWaiters.set(key, waiters)
-
-      timeout = setTimeout(() => {
-        const currentWaiters = this.capabilityWaiters.get(key)
-        currentWaiters?.delete(onReady)
-        if (currentWaiters && currentWaiters.size === 0) {
-          this.capabilityWaiters.delete(key)
-        }
-        reject(new Error(`Capability \`${key}\` is not ready after ${timeoutMs}ms.`))
-      }, timeoutMs)
-    })
+    return await this.dependencies.waitFor(key, timeoutMs)
   }
 
   markConfigurationNeeded(sessionId: string, reason?: string) {
     // Explicit rollback/forward hook into "configuration-needed" phase.
     // Mirrors procedure step 17 where module may request reconfiguration.
-    const session = this.sessions.get(sessionId)
+    const session = this.sessionService.get(sessionId)
     if (!session) {
       throw new Error(`Unable to update plugin session: ${sessionId}`)
     }
@@ -1000,7 +1046,7 @@ export class PluginHost {
 
   stop(sessionId: string) {
     // Stop removes session from active registry. Lifecycle first transitions to `stopped`.
-    const session = this.sessions.get(sessionId)
+    const session = this.sessionService.get(sessionId)
     if (!session) {
       return undefined
     }
@@ -1017,14 +1063,14 @@ export class PluginHost {
     }
 
     session.lifecycle.stop()
-    this.sessions.delete(session.id)
+    this.sessionService.remove(session.id)
     return session
   }
 
   async reload(sessionId: string, options: PluginStartOptions = {}) {
     // Reload preserves manifest/runtime intent, then performs stop + fresh start.
     // This intentionally creates a new session identity for deterministic re-bootstrap.
-    const previous = this.sessions.get(sessionId)
+    const previous = this.sessionService.get(sessionId)
     if (!previous) {
       throw new Error(`Unable to reload missing plugin session: ${sessionId}`)
     }
@@ -1036,88 +1082,5 @@ export class PluginHost {
       cwd: options.cwd ?? previous.cwd,
       runtime: options.runtime ?? previous.runtime,
     })
-  }
-}
-
-export class FileSystemLoader {
-  /**
-   * Filesystem-backed plugin module loader.
-   *
-   * Responsibilities:
-   * - Resolve runtime-specific entrypoints from `ManifestV1`.
-   * - Import plugin modules from local disk.
-   * - Normalize module exports into either:
-   *   - lazy plugin definition (`definePlugin(...)`) via `loadLazyPluginFor`, or
-   *   - executable plugin hooks (`Plugin`) via `loadPluginFor`.
-   */
-  constructor() {
-
-  }
-
-  /**
-   * Resolve a manifest entrypoint for the requested runtime.
-   *
-   * Resolution order:
-   * 1) `entrypoints.<runtime>`
-   * 2) `entrypoints.default`
-   * 3) `entrypoints.electron` (legacy fallback for current local plugin manifests)
-   *
-   * Throws an actionable error when no entrypoint can be selected.
-   */
-  resolveEntrypointFor(manifest: ManifestV1, options?: PluginLoadOptions) {
-    const runtime = options?.runtime ?? 'electron'
-    const root = options?.cwd ?? cwd()
-    const entrypoint
-      = manifest.entrypoints[runtime]
-        ?? manifest.entrypoints.default
-        ?? manifest.entrypoints.electron
-
-    if (!entrypoint) {
-      throw new Error(''
-        + `Plugin entrypoint is required for runtime \`${runtime}\`. `
-        + 'Define one of `entrypoints.<runtime>`, `entrypoints.default`, '
-        + 'or `entrypoints.electron` in the plugin manifest.',
-      )
-    }
-
-    return isAbsolute(entrypoint) ? entrypoint : join(root, entrypoint)
-  }
-
-  /**
-   * Load a lazy plugin definition (`definePlugin(...)`) without executing setup.
-   *
-   * Use this when host logic wants to inspect plugin metadata/setup contract first
-   * and control when `setup()` is called.
-   */
-  async loadLazyPluginFor(manifest: ManifestV1, options?: PluginLoadOptions) {
-    const entrypoint = this.resolveEntrypointFor(manifest, options)
-    const pluginModule = await import(entrypoint)
-
-    if (isPluginDefinition(pluginModule)) {
-      return pluginModule
-    }
-
-    if (typeof pluginModule === 'object' && pluginModule !== null) {
-      const defaultExport = (pluginModule as { default?: unknown }).default
-      if (isPluginDefinition(defaultExport)) {
-        return defaultExport
-      }
-    }
-
-    throw new Error('Plugin lazy loader expects a definePlugin(...) export.')
-  }
-
-  /**
-   * Load and normalize a plugin entrypoint into executable `Plugin` hooks.
-   *
-   * Accepts:
-   * - a direct `Plugin` export
-   * - a default `Plugin` export
-   * - `definePlugin(...)` (calls `setup()` and returns the resulting `Plugin`)
-   */
-  async loadPluginFor(manifest: ManifestV1, options?: PluginLoadOptions) {
-    const entrypoint = this.resolveEntrypointFor(manifest, options)
-    const pluginModule = await import(entrypoint)
-    return coercePluginFromModule(pluginModule)
   }
 }

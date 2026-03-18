@@ -1,3 +1,5 @@
+import type { ModulePermissionDeclaration } from './shared/types'
+
 import { join } from 'node:path'
 
 import { createContext, defineEventa, defineInvoke, defineInvokeHandler } from '@moeru/eventa'
@@ -20,6 +22,19 @@ function reportPluginCapability(
 }
 
 describe('for FileSystemPluginHost', () => {
+  const testPermissions: ModulePermissionDeclaration = {
+    apis: [
+      { key: 'proj-airi:plugin-sdk:apis:protocol:capabilities:wait', actions: ['invoke'] },
+      { key: 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers', actions: ['invoke'] },
+    ],
+    resources: [
+      { key: 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers', actions: ['read'] },
+    ],
+    capabilities: [
+      { key: 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers', actions: ['wait'] },
+    ],
+  }
+
   it('should load test-normal-plugin from manifest', async () => {
     const host = new FileSystemLoader()
 
@@ -27,6 +42,7 @@ describe('for FileSystemPluginHost', () => {
       apiVersion: 'v1',
       kind: 'manifest.plugin.airi.moeru.ai',
       name: 'test-plugin',
+      permissions: testPermissions,
       entrypoints: {
         electron: join(import.meta.dirname, 'testdata', 'test-normal-plugin.ts'),
       },
@@ -48,6 +64,7 @@ describe('for FileSystemPluginHost', () => {
       apiVersion: 'v1',
       kind: 'manifest.plugin.airi.moeru.ai',
       name: 'test-plugin',
+      permissions: testPermissions,
       entrypoints: {
         node: join(import.meta.dirname, 'testdata', 'test-normal-plugin.ts'),
       },
@@ -64,6 +81,7 @@ describe('for FileSystemPluginHost', () => {
       apiVersion: 'v1',
       kind: 'manifest.plugin.airi.moeru.ai',
       name: 'test-plugin',
+      permissions: testPermissions,
       entrypoints: {
         electron: join(import.meta.dirname, 'testdata', 'test-error-plugin.ts'),
       },
@@ -76,6 +94,7 @@ describe('for FileSystemPluginHost', () => {
       apiVersion: 'v1' as const,
       kind: 'manifest.plugin.airi.moeru.ai' as const,
       name: 'test-plugin',
+      permissions: testPermissions,
     }
 
     const runtimeEntryManifest = {
@@ -123,6 +142,7 @@ describe('for FileSystemPluginHost', () => {
       apiVersion: 'v1',
       kind: 'manifest.plugin.airi.moeru.ai',
       name: 'test-plugin',
+      permissions: testPermissions,
       entrypoints: {
         node: '/opt/plugins/entry.ts',
       },
@@ -139,6 +159,7 @@ describe('for FileSystemPluginHost', () => {
       apiVersion: 'v1',
       kind: 'manifest.plugin.airi.moeru.ai',
       name: 'test-plugin',
+      permissions: testPermissions,
       entrypoints: {},
     }, { runtime: 'node' })).toThrow('Plugin entrypoint is required for runtime `node`.')
   })
@@ -150,6 +171,18 @@ describe('for PluginHost', () => {
     apiVersion: 'v1' as const,
     kind: 'manifest.plugin.airi.moeru.ai' as const,
     name: 'test-plugin',
+    permissions: {
+      apis: [
+        { key: 'proj-airi:plugin-sdk:apis:protocol:capabilities:wait', actions: ['invoke'] },
+        { key: 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers', actions: ['invoke'] },
+      ],
+      resources: [
+        { key: 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers', actions: ['read'] },
+      ],
+      capabilities: [
+        { key: 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers', actions: ['wait'] },
+      ],
+    } satisfies ModulePermissionDeclaration,
     entrypoints: {
       electron: join(import.meta.dirname, 'testdata', 'test-normal-plugin.ts'),
     },
@@ -196,6 +229,7 @@ describe('for PluginHost', () => {
       apiVersion: 'v1',
       kind: 'manifest.plugin.airi.moeru.ai',
       name: 'test-plugin-no-connect',
+      permissions: testManifest.permissions,
       entrypoints: {
         electron: join(import.meta.dirname, 'testdata', 'test-no-connect-plugin.ts'),
       },
@@ -223,6 +257,7 @@ describe('for PluginHost', () => {
       apiVersion: 'v1',
       kind: 'manifest.plugin.airi.moeru.ai',
       name: 'test-plugin',
+      permissions: testManifest.permissions,
       entrypoints: {
         electron: join(import.meta.dirname, 'testdata', 'test-normal-plugin.ts'),
       },
@@ -416,6 +451,7 @@ describe('for PluginHost', () => {
       apiVersion: 'v1',
       kind: 'manifest.plugin.airi.moeru.ai',
       name: 'test-reload-relative-entrypoint',
+      permissions: testManifest.permissions,
       entrypoints: {
         electron: './test-normal-plugin.ts',
       },
