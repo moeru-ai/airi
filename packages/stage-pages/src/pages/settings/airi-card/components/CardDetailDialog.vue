@@ -227,7 +227,7 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                 />
                 <Button
                   variant="secondary"
-                  icon="i-solar:undo-left-bold-duotone"
+                  icon="i-solar:close-circle-bold-duotone"
                   :label="t('settings.pages.card.cancel')"
                   @click="emit('update:modelValue', false)"
                 />
