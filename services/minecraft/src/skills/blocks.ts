@@ -1,35 +1,18 @@
-import type { SafeBlock } from 'mineflayer-pathfinder'
-
 import type { Mineflayer } from '../libs/mineflayer'
 import type { BlockFace } from './base'
 
 import pathfinderModel from 'mineflayer-pathfinder'
 
+import { sleep } from '@moeru/std'
 import { Vec3 } from 'vec3'
 
 import { McData } from '../utils/mcdata'
 import { log } from './base'
 import { goToPosition } from './movement'
 import { patchedGoto } from './patched-goto'
-import { getNearestBlock, getNearestBlocks, getPosition, shouldPlaceTorch } from './world'
+import { getNearestBlock } from './world'
 
 const { goals, Movements } = pathfinderModel
-
-/**
- * Place a torch if needed
- */
-async function autoLight(mineflayer: Mineflayer): Promise<boolean> {
-  if (shouldPlaceTorch(mineflayer)) {
-    try {
-      const pos = getPosition(mineflayer)
-      return await placeBlock(mineflayer, 'torch', pos.x, pos.y, pos.z, 'bottom', true)
-    }
-    catch {
-      return false
-    }
-  }
-  return false
-}
 
 /**
  * Break a block at the specified position
@@ -223,7 +206,8 @@ async function placeWithoutCheats(
     const mcData = McData.fromBot(mineflayer.bot)
     const itemId = mcData.getItemId(itemName)
     if (itemId) {
-      const Item = require('prismarine-item')(mineflayer.bot.version)
+      const item = await import('prismarine-item')
+      const Item = item.default(mineflayer.bot.version)
       await mineflayer.bot.creative.setInventorySlot(36, new Item(itemId, 1))
     }
     block = mineflayer.bot.inventory.items().find(item => item.name === itemName)
@@ -273,7 +257,7 @@ async function clearBlockSpace(
     log(mineflayer, `Cannot place ${blockType} at ${targetBlock.position}: block in the way.`)
     return false
   }
-  await new Promise(resolve => setTimeout(resolve, 200))
+  await sleep(200)
   return true
 }
 
@@ -381,7 +365,7 @@ async function tryPlaceBlock(
   try {
     await mineflayer.bot.placeBlock(buildOffBlock, faceVec)
     log(mineflayer, `Placed ${blockType} at ${targetDest}.`)
-    await new Promise(resolve => setTimeout(resolve, 200))
+    await sleep(200)
     return true
   }
   catch {
@@ -403,7 +387,7 @@ export async function useDoor(mineflayer: Mineflayer, doorPos: Vec3 | null = nul
 
   await goToPosition(mineflayer, doorPos.x, doorPos.y, doorPos.z, 1)
   while (mineflayer.bot.pathfinder.isMoving()) {
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await sleep(100)
   }
 
   return await operateDoor(mineflayer, doorPos)
@@ -447,12 +431,12 @@ async function operateDoor(mineflayer: Mineflayer, doorPos: Vec3): Promise<boole
   }
 
   mineflayer.bot.setControlState('forward', true)
-  await new Promise(resolve => setTimeout(resolve, 600))
+  await sleep(600)
   mineflayer.bot.setControlState('forward', false)
   await mineflayer.bot.activateBlock(doorBlock)
 
   mineflayer.bot.setControlState('forward', true)
-  await new Promise(resolve => setTimeout(resolve, 600))
+  await sleep(600)
   mineflayer.bot.setControlState('forward', false)
   await mineflayer.bot.activateBlock(doorBlock)
 
@@ -564,119 +548,4 @@ export async function activateNearestBlock(mineflayer: Mineflayer, type: string)
   await mineflayer.bot.activateBlock(block)
   log(mineflayer, `Activated ${type} at x:${block.position.x.toFixed(1)}, y:${block.position.y.toFixed(1)}, z:${block.position.z.toFixed(1)}.`)
   return true
-}
-
-export async function collectBlock(
-  mineflayer: Mineflayer,
-  blockType: string,
-  num: number = 1,
-  exclude: Vec3[] | null = null,
-): Promise<boolean> {
-  if (num < 1) {
-    log(mineflayer, `Invalid number of blocks to collect: ${num}.`)
-    return false
-  }
-
-  const blocktypes = getBlockTypes(blockType)
-  let collected = 0
-
-  mineflayer.once('interrupt', () => {
-    collected = -1
-  })
-
-  for (let i = 0; i < num && collected >= 0; i++) {
-    const blocks = getValidBlocks(mineflayer, blocktypes, exclude)
-
-    if (blocks.length === 0) {
-      logNoBlocksMessage(mineflayer, blockType, collected)
-      break
-    }
-
-    const block = blocks[0]
-    if (!await canHarvestBlock(mineflayer, block, blockType)) {
-      return false
-    }
-
-    if (!await tryCollectBlock(mineflayer, block, blockType)) {
-      break
-    }
-
-    collected++
-  }
-
-  if (collected < 0) {
-    log(mineflayer, 'Collection interrupted.')
-    return false
-  }
-
-  log(mineflayer, `Collected ${collected} ${blockType}.`)
-  return collected > 0
-}
-
-function getBlockTypes(blockType: string): string[] {
-  const blocktypes: string[] = [blockType]
-
-  const ores = ['coal', 'diamond', 'emerald', 'iron', 'gold', 'lapis_lazuli', 'redstone']
-  if (ores.includes(blockType)) {
-    blocktypes.push(`${blockType}_ore`)
-  }
-  if (blockType.endsWith('ore')) {
-    blocktypes.push(`deepslate_${blockType}`)
-  }
-  if (blockType === 'dirt') {
-    blocktypes.push('grass_block')
-  }
-
-  return blocktypes
-}
-
-function getValidBlocks(mineflayer: Mineflayer, blocktypes: string[], exclude: Vec3[] | null): any[] {
-  let blocks = getNearestBlocks(mineflayer, blocktypes, 64)
-
-  if (exclude) {
-    blocks = blocks.filter(
-      block => !exclude.some(pos =>
-        pos.x === block.position.x
-        && pos.y === block.position.y
-        && pos.z === block.position.z,
-      ),
-    )
-  }
-
-  const movements = new Movements(mineflayer.bot)
-  movements.dontMineUnderFallingBlock = false
-  return blocks.filter(block => movements.safeToBreak(block as SafeBlock))
-}
-
-function logNoBlocksMessage(mineflayer: Mineflayer, blockType: string, collected: number): void {
-  log(mineflayer, collected === 0
-    ? `No ${blockType} nearby to collect.`
-    : `No more ${blockType} nearby to collect.`)
-}
-
-async function canHarvestBlock(mineflayer: Mineflayer, block: any, blockType: string): Promise<boolean> {
-  await mineflayer.bot.tool.equipForBlock(block)
-  const itemId = mineflayer.bot.heldItem ? mineflayer.bot.heldItem.type : null
-
-  if (!block.canHarvest(itemId)) {
-    log(mineflayer, `Don't have right tools to harvest ${blockType}.`)
-    return false
-  }
-  return true
-}
-
-async function tryCollectBlock(mineflayer: Mineflayer, block: any, blockType: string): Promise<boolean> {
-  try {
-    await mineflayer.bot.collectBlock.collect(block)
-    await autoLight(mineflayer)
-    return true
-  }
-  catch (err) {
-    if (err instanceof Error && err.name === 'NoChests') {
-      log(mineflayer, `Failed to collect ${blockType}: Inventory full, no place to deposit.`)
-      return false
-    }
-    log(mineflayer, `Failed to collect ${blockType}: ${err}.`)
-    return true
-  }
 }

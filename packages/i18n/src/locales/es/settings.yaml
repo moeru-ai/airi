@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: URL del endpoint de la API (usa el predeterminado si no estás seguro)
     accountId: ID de Cuenta
     validationSuccess: La validación de la configuración fue exitosa
+    validationPartial: Configuration partially validated
     validationFailed: La validación de la configuración falló
     validationError: 'Error de validación: {error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: Omitir por ahora
     saveAndContinue: Guardar y Continuar
     next: Siguiente
@@ -30,6 +34,19 @@ dialogs:
     no-models: Ningún modelo disponible
     no-models-help: >-
       Por favor vuelva al paso anterior y compruebe su clave de API o su conexión de red.
+    permissions:
+      title: Notifications
+      description: You can allow notifications now or continue and set it up later.
+      notificationsTitle: Notifications
+      notificationsDescription: Allow reminders and important status updates.
+      notificationsAction: Request notification permission
+      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
+      openSettings: Open iOS Settings
+      optionalHint: You can continue even if notification permission is not granted.
+      stateUnknown: Not requested
+      stateRequesting: Requesting...
+      stateGranted: Granted
+      stateNotGranted: Not granted
 language:
   title: Idioma
   description: >
@@ -118,7 +135,8 @@ pages:
         scenario: Recientemente despertaste y olvidaste todo sobre tu vida anterior.
         systemprompt: Recibirás mensajes, respóndelos como un humano real.
         posthistoryinstructions: Recuerda imitar a un humano.
-      modules_info: Configura los módulos para esta tarjeta de Personaje. Si no se establece, se utilizará la configuración predeterminada.
+      modules_info: >-
+        Configura los módulos para esta tarjeta de Personaje. Si no se establece, se utilizará la configuración predeterminada.
       use_default: Usar predeterminado
       use_default_not_configured: Usar predeterminado (no configurado)
       fields_info:
@@ -158,6 +176,7 @@ pages:
     scenario: Escenario
     search: Buscar tarjetas...
     sort_by: Ordenar por
+    body-model: Body / Display Model
     speech:
       provider: Voz / Proveedor
       model: Habla / Modelo
@@ -259,7 +278,7 @@ pages:
               label: Envelope filter frequency
             highpass_filter_frequency:
               description: >-
-                Frequency for the highpass filter applied to reduce low frequencies like sub-bass noises.
+                Frecuencia para el filtro de paso alto aplicado para reducir frecuencias bajas como ruidos sub bajos.
               label: Highpass filter frequency
             lowpass_filter_frequency:
               description: >-
@@ -283,6 +302,7 @@ pages:
           provider-model-selection:
             collapse: Colapsar
             custom_model_placeholder: Ingresa el nombre del modelo personalizado...
+            current_model_label: 'Current model:'
             description: Selecciona el proveedor LLM adecuado para la consciencia
             error: Error cargando modelos
             health_check_failed: Health check failed
@@ -427,7 +447,8 @@ pages:
         apply-and-restart: Save and restart stdio MCP
       messages:
         opened: Config file opened at {path}
-        restarted: MCP servers restarted. Started {started}, failed {failed}, skipped {skipped}
+        restarted: >-
+          MCP servers restarted. Started {started}, failed {failed}, skipped {skipped}
   providers:
     explained:
       chat: Proveedores de modelos de generación de texto. ej. OpenRouter, OpenAI, Ollama.
@@ -448,7 +469,8 @@ pages:
         validation:
           failed:
             title: Please check your provider settings, validation failed.
-            description: You can still save the current configuration if you want to proceed.
+            description: >-
+              You can still save the current configuration if you want to proceed.
             action: Save anyway
         config:
           common:
@@ -470,6 +492,17 @@ pages:
                     placeholder: Key
                   value:
                     placeholder: Value
+                thinking-mode:
+                  label: Thinking Mode
+                  description: >
+                    Controla el comportamiento de pensamiento de Ollama. GPT-OSS solo soporta los niveles bajo/medio/alto (low/medium/high).
+                  options:
+                    auto: Auto (provider default)
+                    disable: Disable
+                    enable: Enable
+                    low: Low
+                    medium: Medium
+                    high: High
         validators:
           actions:
             validate: Validate
@@ -499,6 +532,7 @@ pages:
                       Lamentamos escuchar que la conexion con Ollama falló. No te preocupes, para las instancias de Ollama, es necesaria una configuración extra para que pase por Ollama. Debe establecer <code>OLLAMA_HOST</code> explícitamente al iniciar la aplicación Ollama o el servidor CLI de Ollama, para obtener información detallada, consulte la guía <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">de integración Ollama</a>.
     common:
       continueAnyway: Continuar de todos modos
+      goToModelSelection: 'Select Model →'
       fields:
         field:
           api-key:
@@ -581,6 +615,9 @@ pages:
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
+      speech-noop:
+        title: None
+        description: No speech output.
       deepseek:
         description: deepseek.com
         title: DeepSeek
@@ -632,7 +669,8 @@ pages:
               description: Los modelos más pequeños cargan más rápido, pero pueden tener una calidad ligeramente menor.
         models:
           fp32-webgpu:
-            description: Modelo de precisión completa usando WebGPU - Recomendado para dispositivos compatibles
+            description: >-
+              Modelo de precisión completa usando WebGPU - Recomendado para dispositivos compatibles
           fp32:
             description: Full precision model
           fp16:
@@ -693,6 +731,9 @@ pages:
       openai-compatible:
         description: OpenAI Compatible
         title: OpenAI Compatible
+      nvidia:
+        description: build.nvidia.com
+        title: NVIDIA NIM
       n1n:
         description: n1n.ai - High-performance AI API provider.
         title: n1n
@@ -752,6 +793,9 @@ pages:
       transcriptions:
         playground:
           title: Playground de Transcripción
+      aihubmix:
+        title: AIHubMix
+        description: https://aihubmix.com (10% off)
     title: Proveedores
   connection:
     description: Configure WebSocket server connection
@@ -819,7 +863,8 @@ pages:
                 title: Polaroid
                 description: Utility for taking shots of models
               context-flow:
-                description: Inspect incoming context updates and outgoing chat stream events
+                description: >-
+                  Inspect incoming context updates and outgoing chat stream events
               websocket-inspector:
                 title: WebSocket Inspector
                 description: Inspect raw WebSocket traffic
@@ -828,10 +873,11 @@ pages:
                 description: Test color extraction
               providers-transcription-realtime-aliyun-nls:
                 title: Aliyun Real-time Transcriber
-                description: Stream microphone audio to Aliyun NLS and inspect live transcripts
+                description: >-
+                  Stream microphone audio to Aliyun NLS and inspect live transcripts
               performance-playground:
                 title: Performance Playground
-                description: 'Test performance runtime: VRM expressions + TTS lip sync'
+                description: 'VRM expressions + TTS lip sync playground'
         theme-presets:
           presets:
             default:

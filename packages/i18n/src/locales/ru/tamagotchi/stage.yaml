@@ -19,9 +19,16 @@ docs:
   'drag-to-move-window': Drag to move window
   'switch-to-light-mode': Switch to light mode
   'switch-to-dark-mode': Switch to dark mode
+  'pin-on-top': Pin on top
+  'unpin-from-top': Unpin from top
+  'switch-profile': Switch Profile
   'close': Close
   'expand': Expand
   'collapse': Collapse
+'status-island':
+  connected: WebSocket connected
+  disconnected: WebSocket disconnected
+  'open-settings': Open WebSocket settings
 notice:
   'fade-on-hover':
     title: Исчезать при наведении

@@ -17,6 +17,7 @@ lerna-debug.log*
 .idea
 .temp
 **/temp/
+.claude/worktrees/
 
 # Anything .local, especially for .env.local
 *.local
@@ -121,3 +122,4 @@ plugins-local
 plugins-development
 
 apps/stage-pocket/ios/buildServer.json
+.ghfs/

@@ -7,7 +7,7 @@ trigger:
   where:
     entityType: player
 
-accumulator:
+detector:
   threshold: 6
   window: 1s
   mode: sliding

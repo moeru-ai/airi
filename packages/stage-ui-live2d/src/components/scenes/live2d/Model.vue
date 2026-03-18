@@ -5,7 +5,8 @@ import type { PixiLive2DInternalModel } from '../../../composables/live2d'
 
 import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync'
 import { useTheme } from '@proj-airi/ui'
-import { breakpointsTailwind, until, useBreakpoints, useDebounceFn } from '@vueuse/core'
+import { breakpointsTailwind, until, useBreakpoints } from '@vueuse/core'
+import { animate } from 'animejs'
 import { formatHex } from 'culori'
 import { Mutex } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
@@ -61,6 +62,7 @@ const props = withDefaults(defineProps<{
 
 const emits = defineEmits<{
   (e: 'modelLoaded'): void
+  (e: 'error', error: Error): void
 }>()
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
@@ -115,10 +117,9 @@ function getCoreModel() {
   return model.value!.internalModel.coreModel as any
 }
 
-function setScaleAndPosition() {
-  if (!model.value)
-    return
+let resizeAnimation: ReturnType<typeof animate> | undefined
 
+function computeScaleAndPosition() {
   let offsetFactor = 2.2
   if (isMobile.value) {
     offsetFactor = 2.2
@@ -128,15 +129,52 @@ function setScaleAndPosition() {
   const widthScale = (props.width * 0.95 / initialModelWidth.value * offsetFactor)
   let scale = Math.min(heightScale, widthScale)
 
-  // Prevent zero or NaN values to fix the "headless" model issue.
   if (Number.isNaN(scale) || scale <= 0) {
     scale = 1e-6
   }
 
-  model.value.scale.set(scale * props.scale, scale * props.scale)
+  return {
+    scale: scale * props.scale,
+    x: (props.width / 2) + offset.value.xOffset,
+    y: props.height + offset.value.yOffset,
+  }
+}
 
-  model.value.x = (props.width / 2) + offset.value.xOffset
-  model.value.y = props.height + offset.value.yOffset
+function setScaleAndPosition(animated = false) {
+  if (!model.value)
+    return
+
+  const target = computeScaleAndPosition()
+
+  if (!animated) {
+    model.value.scale.set(target.scale, target.scale)
+    model.value.x = target.x
+    model.value.y = target.y
+    return
+  }
+
+  resizeAnimation?.pause()
+
+  const current = {
+    scale: model.value.scale.x,
+    x: model.value.x,
+    y: model.value.y,
+  }
+
+  resizeAnimation = animate(current, {
+    scale: target.scale,
+    x: target.x,
+    y: target.y,
+    duration: 200,
+    ease: 'outQuad',
+    onUpdate: () => {
+      if (!model.value)
+        return
+      model.value.scale.set(current.scale, current.scale)
+      model.value.x = current.x
+      model.value.y = current.y
+    },
+  })
 }
 
 const live2dStore = useLive2d()
@@ -369,6 +407,10 @@ async function loadModel() {
 
     emits('modelLoaded')
   }
+  catch (error) {
+    console.error('[Live2D] Failed to load model:', error)
+    emits('error', error instanceof Error ? error : new Error(String(error)))
+  }
   finally {
     modelLoading.value = false
     componentState.value = 'mounted'
@@ -393,7 +435,9 @@ async function setMotion(motionName: string, index?: number) {
   }
 }
 
-const handleResize = useDebounceFn(setScaleAndPosition, 100)
+function handleResize() {
+  setScaleAndPosition(true)
+}
 
 const dropShadowColorComputer = ref<HTMLDivElement>()
 const dropShadowAnimationId = ref(0)
@@ -420,8 +464,8 @@ watch(modelSrcRef, async () => await loadModel(), { immediate: true })
 watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)
 watch(live2dShadowEnabled, updateDropShadowFilter)
-watch(offset, setScaleAndPosition)
-watch(() => props.scale, setScaleAndPosition)
+watch(offset, () => setScaleAndPosition())
+watch(() => props.scale, () => setScaleAndPosition())
 
 // TODO: This is hacky!
 function updateDropShadowFilterLoop() {
@@ -620,6 +664,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   isUnmounted = true
+  resizeAnimation?.pause()
   disposeShouldUpdateView?.()
 })
 

@@ -2,6 +2,7 @@ import type { Action } from '../../../libs/mineflayer/action'
 
 import fs, { readFileSync } from 'node:fs'
 
+import { env } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 const templatePath = fileURLToPath(new URL('./brain-prompt.md', import.meta.url))
@@ -24,7 +25,7 @@ function ensureWatcher(): void {
     return
 
   watcherInitialized = true
-  if (process.env.NODE_ENV === 'production')
+  if (env.NODE_ENV === 'production')
     return
 
   fs.watch(templatePath, { persistent: false }, () => {

@@ -25,10 +25,19 @@ export function parseMayStructuredMessage(responseText: string) {
   if (result) {
     logger.withField('text', JSON.stringify(responseText)).withField('result', result).log('Multiple messages detected')
 
-    const parsedResponse = parse(result?.[0]) as ({ messages?: string[], reply_to_message_id?: string } | undefined)
-    parsedResponse.messages = parsedResponse.messages?.filter(message => message.trim() !== '')
+    const parsedResponse = parse(result[0]) as ({ messages?: unknown, reply_to_message_id?: unknown } | undefined)
+    const messages = Array.isArray(parsedResponse?.messages)
+      ? parsedResponse.messages.filter((message): message is string => typeof message === 'string' && message.trim() !== '')
+      : []
+    const replyToMessageId = typeof parsedResponse?.reply_to_message_id === 'string'
+      ? parsedResponse.reply_to_message_id
+      : undefined
 
-    return parsedResponse
+    if (messages.length > 0) {
+      return { messages, reply_to_message_id: replyToMessageId }
+    }
+
+    return { messages: [responseText], reply_to_message_id: replyToMessageId }
   }
 
   return { messages: [responseText], reply_to_message_id: undefined }
@@ -60,20 +69,18 @@ export async function sendMessage(
     chatContext.currentTask = null
   }
 
-  // Check if we should abort due to new messages since processing began
-  if (botContext.unreadMessages[chatId] && botContext.unreadMessages[chatId].length > 0) {
-    botContext.logger.log(`Not sending message to ${chatId} - new messages arrived`)
-    return // Don't send the message, let the next processing loop handle it
-  }
+  // Note: removed "new messages arrived" check — it was preventing the bot
+  // from ever responding in fast-paced chats. The agent loop handles new messages naturally.
 
+  const systemContent = String(await messageSplit())
   const req = {
     apiKey: env.LLM_API_KEY!,
     baseURL: env.LLM_API_BASE_URL!,
     model: env.LLM_MODEL!,
     messages: message.messages(
-      message.system(await messageSplit()),
-      message.user('This is the input message:'),
-      message.user(responseText),
+      { role: 'system' as const, content: systemContent },
+      { role: 'user' as const, content: 'This is the input message:' },
+      { role: 'user' as const, content: String(responseText) },
     ),
     abortSignal: abortController.signal,
   } satisfies GenerateTextOptions

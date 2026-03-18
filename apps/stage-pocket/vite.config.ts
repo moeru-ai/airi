@@ -8,6 +8,7 @@ import { execSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
+import templateCompilerOptions from '@tresjs/core/template-compiler-options'
 import Vue from '@vitejs/plugin-vue'
 import Unocss from 'unocss/vite'
 import Info from 'unplugin-info/vite'
@@ -20,7 +21,6 @@ import VueMacros from 'vue-macros/vite'
 
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
-import { templateCompilerOptions } from '@tresjs/core'
 import { defineConfig } from 'vite'
 
 // import { isEnvTruthy } from '@proj-airi/stage-shared'
@@ -74,6 +74,13 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5273,
+    fs: {
+      // To mute errors like:
+      //   The request id ".../node_modules/@fontsource/sniglet/files/sniglet-latin-400-normal.woff" is outside of Vite serving allow list.
+      //
+      // See: https://vite.dev/config/server-options#server-fs-strict
+      strict: false,
+    },
     warmup: {
       clientFiles: [
         `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src'))}/*.vue`,
@@ -95,7 +102,18 @@ export default defineConfig({
   },
 
   plugins: [
-    ...isEnvTruthy(process.env.VITE_SKIP_MKCERT ?? '') ? [] : [mkcert()],
+    ...isEnvTruthy(process.env.VITE_SKIP_MKCERT ?? '')
+      ? []
+      : [mkcert((() => {
+          // Workaround: plugin's bundled downloader has a feaxios bug, prefer system mkcert
+          const command = process.platform === 'win32' ? 'where' : 'which'
+          try {
+            return { mkcertPath: execSync(`${command} mkcert`, { stdio: 'pipe' }).toString().trim().split(/\r?\n/)[0] }
+          }
+          catch {
+            return {}
+          }
+        })())],
 
     Info(),
 

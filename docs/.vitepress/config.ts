@@ -1,5 +1,7 @@
 import type { DefaultTheme } from 'vitepress'
 
+import type { ThemeConfig } from './theme/config.ts'
+
 import { join, posix, resolve } from 'node:path'
 import { env } from 'node:process'
 
@@ -13,6 +15,7 @@ import { tasklist } from '@mdit/plugin-tasklist'
 import { defineConfig, postcssIsolateStyles } from 'vitepress'
 
 import { version } from '../../package.json'
+import { webLive } from './constants.ts'
 import { teamMembers } from './contributors'
 import {
   discord,
@@ -36,7 +39,7 @@ function withBase(url: string) {
 }
 
 // https://vitepress.dev/reference/site-config
-export default defineConfig({
+export default defineConfig<ThemeConfig>({
   cleanUrls: true,
   ignoreDeadLinks: true,
   title: projectName,
@@ -132,43 +135,61 @@ export default defineConfig({
             icon: 'lucide:rocket',
             items: [
               { text: 'Introduction', link: withBase('/en/docs/overview/') },
-              {
-                text: 'Guide',
-                items: [
-                  {
-                    text: 'Guide to Desktop version',
-                    link: withBase('/en/docs/overview/guide/tamagotchi/'),
-                    items: [],
-                  },
-                  {
-                    text: 'Guide to Web version',
-                    link: withBase('/en/docs/overview/guide/web/'),
-                    items: [],
-                  },
-                ],
-              },
-              {
-                text: 'Contributing',
-                items: [
-                  { text: 'Contribute Code', link: withBase('/en/docs/overview/contributing/') },
-                  {
-                    text: 'Contribute Design',
-                    items: [
-                      { text: 'Resources', link: withBase('/en/docs/overview/contributing/design-guidelines/resources') },
-                      { text: 'Tools', link: withBase('/en/docs/overview/contributing/design-guidelines/tools') },
-                    ],
-                  },
-                ],
-              },
+              { text: 'Versions & Downloads', link: withBase('/en/docs/overview/versions') },
               { text: 'About AI VTuber', link: withBase('/en/docs/overview/about-ai-vtuber') },
               { text: 'About Neuro-sama', link: withBase('/en/docs/overview/about-neuro-sama') },
+              { text: 'Other Similar Projects', link: withBase('/en/docs/overview/other-similar-projects') },
             ],
           },
           {
             text: 'Manual',
             icon: 'lucide:book-open',
             items: [
-              { text: 'Versions', link: withBase('/en/docs/manual/versions') },
+              {
+                text: 'Quick Start',
+                items: [
+                  { text: 'Desktop Version', link: withBase('/en/docs/manual/tamagotchi/') },
+                  { text: 'Web Version', link: withBase('/en/docs/manual/web/') },
+                ],
+              },
+              {
+                text: 'Configuration',
+                items: [
+                  { text: 'Configuration Guide', link: withBase('/en/docs/manual/config/') },
+                ],
+              },
+            ],
+          },
+          {
+            text: 'Contributing',
+            icon: 'lucide:users',
+            items: [
+              {
+                text: 'Basic Setup',
+                items: [
+                  { text: 'Environment Setup & Prerequisites', link: withBase('/en/docs/contributing/') },
+                  { text: 'Desktop App', link: withBase('/en/docs/contributing/tamagotchi') },
+                  { text: 'Web UI', link: withBase('/en/docs/contributing/webui') },
+                  { text: 'Documentation Site', link: withBase('/en/docs/contributing/docs') },
+                ],
+              },
+              {
+                text: 'Games & Social Platforms',
+                items: [
+                  { text: 'Minecraft', link: withBase('/en/docs/contributing/services/minecraft') },
+                  { text: 'Satori Bot', link: withBase('/en/docs/contributing/services/satori') },
+                  { text: 'Telegram Bot', link: withBase('/en/docs/contributing/services/telegram') },
+                  { text: 'Discord Bot', link: withBase('/en/docs/contributing/services/discord') },
+                ],
+              },
+              {
+                text: 'Design Guidelines',
+                items: [
+                  { text: 'Introduction', link: withBase('/en/docs/contributing/design-guidelines/') },
+                  { text: 'Artists & Developers (Resources)', link: withBase('/en/docs/contributing/design-guidelines/resources') },
+                  { text: 'Tools', link: withBase('/en/docs/contributing/design-guidelines/tools') },
+                ],
+              },
             ],
           },
           {
@@ -185,6 +206,24 @@ export default defineConfig({
             link: withBase('/en/characters/'),
           },
         ] as (DefaultTheme.SidebarItem & { icon?: string })[],
+
+        homepage: {
+          buttons: [
+            {
+              text: 'Try Live',
+              link: webLive,
+              primary: true,
+            },
+            {
+              text: 'Download',
+              link: withBase('/en/docs/overview/versions'),
+            },
+            {
+              text: 'Get Started',
+              link: withBase('/en/docs/overview/'),
+            },
+          ],
+        },
       },
     },
     'zh-Hans': {
@@ -235,40 +274,62 @@ export default defineConfig({
             text: '概览',
             icon: 'lucide:rocket',
             items: [
-              { text: '介绍', link: withBase('/zh-Hans/docs/overview/') },
-              {
-                text: '指南',
-                items: [
-                  {
-                    text: '桌面版上手指南',
-                    link: withBase('/zh-Hans/docs/overview/guide/tamagotchi/'),
-                    items: [],
-                  },
-                  {
-                    text: '网页版上手指南',
-                    link: withBase('/zh-Hans/docs/overview/guide/web/'),
-                    items: [],
-                  },
-                ],
-              },
-              {
-                text: '参与贡献',
-                items: [
-                  { text: '贡献代码', link: withBase('/zh-Hans/docs/overview/contributing/') },
-                  { text: '贡献设计', link: withBase('/zh-Hans/docs/overview/contributing/design-guidelines/') },
-                  { text: '参考资源', link: withBase('/zh-Hans/docs/overview/contributing/design-guidelines/resources') },
-                  { text: '工具', link: withBase('/zh-Hans/docs/overview/contributing/design-guidelines/tools') },
-                ],
-              },
+              { text: '这是什么项目？', link: withBase('/zh-Hans/docs/overview/') },
+              { text: '版本与下载', link: withBase('/zh-Hans/docs/overview/versions') },
               { text: '有关 AI VTuber', link: withBase('/zh-Hans/docs/overview/about-ai-vtuber') },
               { text: '有关 Neuro-sama', link: withBase('/zh-Hans/docs/overview/about-neuro-sama') },
+              { text: '其他类似项目', link: withBase('/zh-Hans/docs/overview/other-similar-projects') },
             ],
           },
           {
-            text: '指南',
+            text: '用户手册',
             icon: 'lucide:book-open',
             items: [
-              { text: '不同的版本', link: withBase('/zh-Hans/docs/manual/versions') },
+              {
+                text: '快速开始',
+                items: [
+                  { text: '桌面版', link: withBase('/zh-Hans/docs/manual/tamagotchi/') },
+                  { text: '网页版', link: withBase('/zh-Hans/docs/manual/web/') },
+                ],
+              },
+              {
+                text: '配置',
+                items: [
+                  { text: '配置指南', link: withBase('/zh-Hans/docs/manual/config/') },
+                ],
+              },
+            ],
+          },
+          {
+            text: '贡献指南',
+            icon: 'lucide:users',
+            items: [
+              {
+                text: '基础配置与开发',
+                items: [
+                  { text: '环境配置与基础准备', link: withBase('/zh-Hans/docs/contributing/') },
+                  { text: '桌面端', link: withBase('/zh-Hans/docs/contributing/tamagotchi') },
+                  { text: '网页端', link: withBase('/zh-Hans/docs/contributing/webui') },
+                  { text: '文档站', link: withBase('/zh-Hans/docs/contributing/docs') },
+                ],
+              },
+              {
+                text: '游戏与社交平台',
+                items: [
+                  { text: 'Minecraft', link: withBase('/zh-Hans/docs/contributing/services/minecraft') },
+                  { text: 'Satori Bot', link: withBase('/zh-Hans/docs/contributing/services/satori') },
+                  { text: 'Telegram Bot', link: withBase('/zh-Hans/docs/contributing/services/telegram') },
+                  { text: 'Discord Bot', link: withBase('/zh-Hans/docs/contributing/services/discord') },
+                ],
+              },
+              {
+                text: '设计指南',
+                items: [
+                  { text: '介绍', link: withBase('/zh-Hans/docs/contributing/design-guidelines/') },
+                  { text: '艺术家与开发者 (参考资源)', link: withBase('/zh-Hans/docs/contributing/design-guidelines/resources') },
+                  { text: '工具', link: withBase('/zh-Hans/docs/contributing/design-guidelines/tools') },
+                ],
+              },
             ],
           },
           {
@@ -285,6 +346,24 @@ export default defineConfig({
             link: withBase('/zh-Hans/characters/'),
           },
         ] as (DefaultTheme.SidebarItem & { icon?: string })[],
+
+        homepage: {
+          buttons: [
+            {
+              text: '网页版',
+              link: webLive,
+              primary: true,
+            },
+            {
+              text: '下载',
+              link: withBase('/zh-Hans/docs/overview/versions'),
+            },
+            {
+              text: '使用教程',
+              link: withBase('/zh-Hans/docs/overview/'),
+            },
+          ],
+        },
       },
     },
     'ja': {
@@ -336,39 +415,61 @@ export default defineConfig({
             icon: 'lucide:rocket',
             items: [
               { text: 'はじめに', link: withBase('/ja/docs/overview/') },
-              {
-                text: 'ガイド',
-                items: [
-                  {
-                    text: 'デスクトップ版のガイド',
-                    link: withBase('/ja/docs/overview/guide/tamagotchi/'),
-                    items: [],
-                  },
-                  {
-                    text: 'Web 版のガイド',
-                    link: withBase('/ja/docs/overview/guide/web/'),
-                    items: [],
-                  },
-                ],
-              },
-              {
-                text: 'コントリビューション',
-                items: [
-                  { text: 'コードで貢献', link: withBase('/ja/docs/overview/contributing/') },
-                  { text: 'デザインで貢献', link: withBase('/ja/docs/overview/contributing/design-guidelines/') },
-                  { text: 'リソース', link: withBase('/ja/docs/overview/contributing/design-guidelines/resources') },
-                  { text: 'ツール', link: withBase('/ja/docs/overview/contributing/design-guidelines/tools') },
-                ],
-              },
-              { text: 'AI VTuber について', link: withBase('/ja/docs/overview/about-ai-vtuber') },
-              { text: 'Neuro-sama について', link: withBase('/ja/docs/overview/about-neuro-sama') },
+              { text: 'バージョンとダウンロード', link: withBase('/ja/docs/overview/versions') },
+              { text: 'AI VTuberについて', link: withBase('/ja/docs/overview/about-ai-vtuber') },
+              { text: 'Neuro-samaについて', link: withBase('/ja/docs/overview/about-neuro-sama') },
+              { text: 'その他の類似プロジェクト', link: withBase('/ja/docs/overview/other-similar-projects') },
             ],
           },
           {
             text: 'マニュアル',
             icon: 'lucide:book-open',
             items: [
-              { text: 'バージョン一覧', link: withBase('/ja/docs/manual/versions') },
+              {
+                text: 'クイックスタート',
+                items: [
+                  { text: 'デスクトップ版', link: withBase('/ja/docs/manual/tamagotchi/') },
+                  { text: 'Web版', link: withBase('/ja/docs/manual/web/') },
+                ],
+              },
+              {
+                text: '設定',
+                items: [
+                  { text: '設定ガイド', link: withBase('/ja/docs/manual/config/') },
+                ],
+              },
+            ],
+          },
+          {
+            text: 'コントリビューション',
+            icon: 'lucide:users',
+            items: [
+              {
+                text: '基本設定と開発',
+                items: [
+                  { text: '環境構築と事前準備', link: withBase('/ja/docs/contributing/') },
+                  { text: 'デスクトップアプリ', link: withBase('/ja/docs/contributing/tamagotchi') },
+                  { text: 'Web UI', link: withBase('/ja/docs/contributing/webui') },
+                  { text: 'ドキュメントサイト', link: withBase('/ja/docs/contributing/docs') },
+                ],
+              },
+              {
+                text: 'ゲーム＆ソーシャルプラットフォーム',
+                items: [
+                  { text: 'Minecraft', link: withBase('/ja/docs/contributing/services/minecraft') },
+                  { text: 'Satori Bot', link: withBase('/ja/docs/contributing/services/satori') },
+                  { text: 'Telegram Bot', link: withBase('/ja/docs/contributing/services/telegram') },
+                  { text: 'Discord Bot', link: withBase('/ja/docs/contributing/services/discord') },
+                ],
+              },
+              {
+                text: 'デザインガイドライン',
+                items: [
+                  { text: 'はじめに', link: withBase('/ja/docs/contributing/design-guidelines/') },
+                  { text: 'アーティストと開発者 (参考リソース)', link: withBase('/ja/docs/contributing/design-guidelines/resources') },
+                  { text: 'ツール', link: withBase('/ja/docs/contributing/design-guidelines/tools') },
+                ],
+              },
             ],
           },
           {
@@ -385,6 +486,24 @@ export default defineConfig({
             link: withBase('/ja/characters/'),
           },
         ] as (DefaultTheme.SidebarItem & { icon?: string })[],
+
+        homepage: {
+          buttons: [
+            {
+              text: 'ライブ版を試す',
+              link: webLive,
+              primary: true,
+            },
+            {
+              text: 'ダウンロード',
+              link: withBase('/ja/docs/overview/versions'),
+            },
+            {
+              text: 'はじめに',
+              link: withBase('/ja/docs/overview/'),
+            },
+          ],
+        },
       },
     },
   },

@@ -1,26 +1,27 @@
 menu:
   labels:
     label:
-      show: Show
-      adjust_sizes: Adjust sizes
-      recommended_size: Recommended (450x600)
-      full_height: Full Height
-      half_height: Half Height
-      full_screen: Full Screen
-      align_to: Align to
-      center: Center
-      top_left: Top Left
-      top_right: Top Right
-      bottom_left: Bottom Left
-      bottom_right: Bottom Right
-      settings: Settings...
-      about: About...
-      open_inlay: Open Inlay...
-      open_widgets: Open Widgets...
-      open_caption: Open Caption...
-      caption_overlay: Caption Overlay
-      follow_window: Follow window
-      reset_position: Reset position
-      devtools: DevTools
-      troubleshoot_beatsync: Troubleshoot BeatSync...
-      quit: Quit
+      show: 표시
+      adjust_sizes: 크기 조정
+      recommended_size: 권장 (450x600)
+      full_height: 전체 높이
+      half_height: 절반 높이
+      full_screen: 전체 화면
+      align_to: 위치 정렬
+      center: 중앙
+      top_left: 좌측 상단
+      top_right: 우측 상단
+      bottom_left: 좌측 하단
+      bottom_right: 우측 하단
+      settings: 설정...
+      about: 정보...
+      open_inlay: 인레이 열기...
+      open_widgets: 위젯 열기...
+      open_caption: 자막 열기...
+      close_caption: Close Caption...
+      caption_overlay: 자막 오버레이
+      follow_window: 창 따라가기
+      reset_position: 위치 초기화
+      devtools: 개발자 도구
+      troubleshoot_beatsync: BeatSync 문제 해결...
+      quit: 종료

@@ -543,6 +543,32 @@ interface ModuleAnnounceEvent<C = undefined> {
   dependencies?: ModuleDependency[]
 }
 
+interface ModuleAnnouncedEvent {
+  name: string
+  index?: number
+  identity: ModuleIdentity
+}
+
+interface ModuleDeAnnouncedEvent {
+  name: string
+  index?: number
+  identity: ModuleIdentity
+  reason?: string
+}
+
+interface RegistryModulesHealthUnhealthyEvent {
+  name: string
+  index?: number
+  identity: ModuleIdentity
+  reason?: string
+}
+
+interface RegistryModulesHealthHealthyEvent {
+  name: string
+  index?: number
+  identity: ModuleIdentity
+}
+
 interface ModulePreparedEvent {
   identity: ModuleIdentity
   missingDependencies?: ModuleDependency[]
@@ -818,10 +844,14 @@ export const moduleAuthenticated = defineEventa<ModuleAuthenticatedEvent>('modul
 export const moduleCompatibilityRequest = defineEventa<ModuleCompatibilityRequestEvent>('module:compatibility:request')
 export const moduleCompatibilityResult = defineEventa<ModuleCompatibilityResultEvent>('module:compatibility:result')
 export const registryModulesSync = defineEventa<RegistryModulesSyncEvent>('registry:modules:sync')
+export const registryModulesHealthUnhealthy = defineEventa<RegistryModulesHealthUnhealthyEvent>('registry:modules:health:unhealthy')
+export const registryModulesHealthHealthy = defineEventa<RegistryModulesHealthHealthyEvent>('registry:modules:health:healthy')
 
 export const error = defineEventa<ErrorEvent>('error')
 
 export const moduleAnnounce = defineEventa<ModuleAnnounceEvent>('module:announce')
+export const moduleAnnounced = defineEventa<ModuleAnnouncedEvent>('module:announced')
+export const moduleDeAnnounced = defineEventa<ModuleDeAnnouncedEvent>('module:de-announced')
 export const modulePrepared = defineEventa<ModulePreparedEvent>('module:prepared')
 export const moduleConfigurationNeeded = defineEventa<ModuleConfigurationNeededEvent>('module:configuration:needed')
 export const moduleStatus = defineEventa<ModuleStatusEvent>('module:status')
@@ -892,7 +922,32 @@ export interface ProtocolEvents<C = undefined> {
    * Sent to newly authenticated peers to bootstrap module discovery.
    */
   'registry:modules:sync': RegistryModulesSyncEvent
+  /**
+   * Broadcast when a module's heartbeat expires (unhealthy).
+   */
+  'registry:modules:health:unhealthy': RegistryModulesHealthUnhealthyEvent
+  /**
+   * Broadcast when a previously unhealthy module resumes heartbeating (healthy again).
+   */
+  'registry:modules:health:healthy': RegistryModulesHealthHealthyEvent
+  /**
+   * Broadcast to all peers when a module announces itself, with its identity, static metadata, and declared dependencies.
+   * Host can use this to decide when to prepare/configure modules based on their needs and capabilities.
+   * Module that registering self can use this to declare its presence and what it offers, and to trigger orchestration flows in the host or other modules.
+   *
+   *
+   * NOTICE: Modules that would love to discover peers SHOULD NOT wait or listen to this event, instead
+   * module:announced or module:de-announced, or registry:modules:sync and registry:modules:health:* events for more reliable discovery and tracking.
+   */
   'module:announce': ModuleAnnounceEvent<C>
+  /**
+   * Broadcast to all peers when a module successfully announces.
+   */
+  'module:announced': ModuleAnnouncedEvent
+  /**
+   * Broadcast to all peers when a module is unregistered (disconnect, heartbeat expiry, error, etc).
+   */
+  'module:de-announced': ModuleDeAnnouncedEvent
   /**
    * Prepare completed. Host can move into config apply/validate.
    *

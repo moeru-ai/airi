@@ -20,19 +20,25 @@ import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { refDebounced, useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onUnmounted, ref, toRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
+import StatusIsland from '../components/stage-islands/status-island/index.vue'
 
+import { electronOpenOnboarding } from '../../shared/eventa'
 import { useControlsIslandStore } from '../stores/controls-island'
+import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
 import { useWindowStore } from '../stores/window'
+import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
+const statusIslandRef = ref<InstanceType<typeof StatusIsland>>()
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
 const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
@@ -42,9 +48,14 @@ const isLoading = ref(true)
 const isIgnoringMouseEvents = ref(false)
 const shouldFadeOnCursorWithin = ref(false)
 
+const onboardingStore = useOnboardingStore()
+const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
+
 const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
 const { isOutside } = useElectronMouseInElement(controlsIslandRef)
+const { isOutside: isOutsideStatusIsland } = useElectronMouseInElement(statusIslandRef)
 const isOutsideFor250Ms = refDebounced(isOutside, 250)
+const isOutsideStatusIslandFor250Ms = refDebounced(isOutsideStatusIsland, 250)
 const { x: relativeMouseX, y: relativeMouseY } = useElectronRelativeMouse()
 // NOTICE: In real-world use cases of Fade on Hover feature, the cursor may move around the edge of the
 // model rapidly, causing flickering effects when checking pixel transparency strictly.
@@ -63,9 +74,20 @@ const isTransparentByThree = useThreeSceneIsTransparentAtPoint(
 )
 
 const { stageModelRenderer } = storeToRefs(useSettings())
+const { stagePaused } = storeToRefs(useStageWindowLifecycleStore())
+const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
+const shouldUseThreeTransparencyHitTest = computed(() => shouldSampleStageTransparency({
+  componentState: componentStateStage.value,
+  fadeOnHoverEnabled: fadeOnHoverEnabled.value,
+  stageModelRenderer: stageModelRenderer.value,
+  stagePaused: stagePaused.value,
+}))
 const isTransparent = computed(() => {
+  if (stagePaused.value || componentStateStage.value !== 'mounted' || !fadeOnHoverEnabled.value)
+    return true
+
   if (stageModelRenderer.value === 'vrm')
-    return isTransparentByThree.value
+    return shouldUseThreeTransparencyHitTest.value ? isTransparentByThree.value : true
 
   if (stageModelRenderer.value === 'live2d')
     return isTransparentByPixels.value
@@ -78,9 +100,9 @@ const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
 
-const { scale, positionInPercentageString } = storeToRefs(useLive2d())
+const live2dStore = useLive2d()
+const { scale, positionInPercentageString } = storeToRefs(live2dStore)
 const { live2dLookAtX, live2dLookAtY } = storeToRefs(useWindowStore())
-const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
 
 watch(componentStateStage, () => isLoading.value = componentStateStage.value !== 'mounted', { immediate: true })
 
@@ -90,7 +112,15 @@ const { pause, resume } = watch(isTransparent, (transparent) => {
 
 const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
 
-watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled], () => {
+watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled, stagePaused], () => {
+  if (stagePaused.value) {
+    isIgnoringMouseEvents.value = false
+    shouldFadeOnCursorWithin.value = false
+    setIgnoreMouseEvents([false, { forward: true }])
+    pause()
+    return
+  }
+
   if (hearingDialogOpen.value) {
     // Hearing dialog/drawer is open; keep window interactive
     isIgnoringMouseEvents.value = false
@@ -100,7 +130,7 @@ watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTrans
     return
   }
 
-  const insideControls = !isOutsideFor250Ms.value
+  const insideControls = !isOutsideFor250Ms.value || !isOutsideStatusIslandFor250Ms.value
   const nearBorder = isAroundWindowBorderFor250Ms.value
 
   if (insideControls || nearBorder) {
@@ -296,6 +326,12 @@ watch(enabled, async (val) => {
   }
 }, { immediate: true })
 
+onMounted(() => {
+  if (onboardingStore.needsOnboarding) {
+    openOnboarding()
+  }
+})
+
 onUnmounted(() => {
   stopAudioInteraction()
 })
@@ -322,8 +358,8 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
     relative z-2 h-full overflow-hidden rounded-xl
     transition="opacity duration-500 ease-in-out"
   >
+    <!-- Stage is always in DOM so TresCanvas can measure dimensions -->
     <div
-      v-show="!isLoading"
       :class="[
         'relative h-full w-full items-end gap-2',
         'transition-opacity duration-250 ease-in-out',
@@ -339,12 +375,14 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
           'transition-opacity duration-250 ease-in-out',
         ]"
       >
+        <StatusIsland ref="statusIslandRef" />
         <ResourceStatusIsland />
         <WidgetStage
           ref="widgetStageRef"
           v-model:state="componentStateStage"
           h-full w-full
           flex-1
+          :paused="stagePaused"
           :focus-at="{ x: live2dLookAtX, y: live2dLookAtY }"
           :scale="scale"
           :x-offset="positionInPercentageString.x"
@@ -356,28 +394,27 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
         />
       </div>
     </div>
-    <div v-show="isLoading" h-full w-full>
-      <div class="absolute left-0 top-0 z-99 h-full w-full flex cursor-grab items-center justify-center overflow-hidden">
+    <!-- Loading overlay sits on top, does not hide the stage -->
+    <div v-show="isLoading" class="absolute left-0 top-0 z-99 h-full w-full flex cursor-grab items-center justify-center overflow-hidden">
+      <div
+        :class="[
+          'absolute h-24 w-full overflow-hidden rounded-xl',
+          'flex items-center justify-center',
+          'bg-white/80 dark:bg-neutral-950/80',
+          'backdrop-blur-md',
+        ]"
+      >
         <div
           :class="[
-            'absolute h-24 w-full overflow-hidden rounded-xl',
-            'flex items-center justify-center',
-            'bg-white/80 dark:bg-neutral-950/80',
-            'backdrop-blur-md',
+            'drag-region',
+            'absolute left-0 top-0',
+            'h-full w-full flex items-center justify-center',
+            'text-1.5rem text-primary-600 dark:text-primary-400 font-normal',
+            'select-none',
+            'animate-flash animate-duration-5s animate-count-infinite',
           ]"
         >
-          <div
-            :class="[
-              'drag-region',
-              'absolute left-0 top-0',
-              'h-full w-full flex items-center justify-center',
-              'text-1.5rem text-primary-600 dark:text-primary-400 font-normal',
-              'select-none',
-              'animate-flash animate-duration-5s animate-count-infinite',
-            ]"
-          >
-            Loading...
-          </div>
+          Loading...
         </div>
       </div>
     </div>

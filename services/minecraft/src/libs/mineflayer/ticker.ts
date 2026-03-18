@@ -14,14 +14,19 @@ export type TickEventsHandler<K extends TickEvents> = TickEventHandlers[K]
 
 // This update loop ensures that each update() is called one at a time, even if it takes longer than the interval
 export class Ticker extends EventEmitter<TickEventHandlers> {
+  private stopping = false
+  private initialTimer: ReturnType<typeof setTimeout> | null = null
+
   constructor(options?: { interval?: number }) {
     super()
     const { interval = 300 } = options ?? { interval: 300 }
 
     let last = Date.now()
 
-    setTimeout(async () => {
-      while (true) {
+    this.initialTimer = setTimeout(async () => {
+      this.initialTimer = null
+
+      while (!this.stopping) {
         const start = Date.now()
         const nextTickPromise = new Promise<void>((resolve) => {
           // Schedule nextTick resolution for after all callbacks complete
@@ -43,7 +48,7 @@ export class Ticker extends EventEmitter<TickEventHandlers> {
         ])
 
         const remaining = interval - (Date.now() - start)
-        if (remaining > 0)
+        if (remaining > 0 && !this.stopping)
           await new Promise(resolve => setTimeout(resolve, remaining))
 
         last = start
@@ -53,5 +58,16 @@ export class Ticker extends EventEmitter<TickEventHandlers> {
 
   on<K extends TickEvents>(event: K, cb: TickEventsHandler<K>) {
     return super.on(event, cb)
+  }
+
+  stop() {
+    this.stopping = true
+
+    if (this.initialTimer) {
+      clearTimeout(this.initialTimer)
+      this.initialTimer = null
+    }
+
+    this.removeAllListeners()
   }
 }

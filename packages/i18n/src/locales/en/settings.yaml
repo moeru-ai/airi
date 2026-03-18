@@ -20,8 +20,12 @@ dialogs:
     baseUrlHelp: API endpoint URL (use default if unsure)
     accountId: Account ID
     validationSuccess: Configuration validation success
+    validationPartial: Configuration partially validated
     validationFailed: Configuration validation failed
     validationError: 'Validation error: {error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: Skip for now
     saveAndContinue: Save and Continue
     next: Next
@@ -32,6 +36,19 @@ dialogs:
     no-models-help: >-
       Please return to the previous step and check your API key, or check the
       network connection.
+    permissions:
+      title: Notifications
+      description: You can allow notifications now or continue and set it up later.
+      notificationsTitle: Notifications
+      notificationsDescription: Allow reminders and important status updates.
+      notificationsAction: Request notification permission
+      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
+      openSettings: Open iOS Settings
+      optionalHint: You can continue even if notification permission is not granted.
+      stateUnknown: Not requested
+      stateRequesting: Requesting...
+      stateGranted: Granted
+      stateNotGranted: Not granted
 language:
   title: Language
   description: >
@@ -167,6 +184,7 @@ pages:
     scenario: Scenario
     search: Search cards...
     sort_by: Sort by
+    body-model: Body / Display Model
     speech:
       provider: Speech / Provider
       model: Speech / Model
@@ -296,6 +314,7 @@ pages:
           provider-model-selection:
             collapse: Collapse
             custom_model_placeholder: Enter custom model name...
+            current_model_label: 'Current model:'
             description: Select the suitable LLM provider for consciousness
             error: Error loading models
             health_check_failed: Health check failed
@@ -541,6 +560,7 @@ pages:
                       integration guide</a>.
     common:
       continueAnyway: Continue Anyway
+      goToModelSelection: 'Select Model →'
       fields:
         field:
           api-key:
@@ -743,10 +763,16 @@ pages:
       openai-compatible:
         description: OpenAI Compatible
         title: OpenAI Compatible
+      nvidia:
+        description: build.nvidia.com
+        title: NVIDIA NIM
       n1n:
         description: n1n.ai - High-performance AI API provider.
         title: n1n
       openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:
@@ -888,7 +914,7 @@ pages:
                   transcripts
               performance-playground:
                 title: Performance Playground
-                description: 'Test performance runtime: VRM expressions + TTS lip sync'
+                description: 'VRM expressions + TTS lip sync playground'
         theme-presets:
           presets:
             default:

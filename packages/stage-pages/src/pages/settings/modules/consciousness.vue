@@ -145,8 +145,9 @@ function handleDeleteProvider(providerId: string) {
           <h2 class="text-lg md:text-2xl">
             {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.title') }}
           </h2>
-          <div text="neutral-400 dark:neutral-400">
+          <div class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-400">
             <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}</span>
+            <span v-if="activeModel" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.current_model_label') }} {{ activeModel }}</span>
           </div>
         </div>
 
@@ -164,6 +165,18 @@ function handleDeleteProvider(providerId: string) {
           :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
           :error="activeProviderModelError"
         />
+
+        <!-- Manual model input fallback when model list fails to load -->
+        <div v-if="activeProviderModelError" class="mt-2">
+          <label class="mb-1 block text-sm font-medium">
+            {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_name') }}
+          </label>
+          <input
+            v-model="activeModel" type="text"
+            class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+            :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+          >
+        </div>
 
         <!-- No models available -->
         <Alert
@@ -183,7 +196,7 @@ function handleDeleteProvider(providerId: string) {
           <RadioCardManySelect
             v-model="activeModel"
             v-model:search-query="modelSearchQuery"
-            :items="providerModels.sort((a, b) => a.id === activeModel ? -1 : b.id === activeModel ? 1 : 0)"
+            :items="providerModels"
             :searchable="true"
             :allow-custom="true"
             :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"

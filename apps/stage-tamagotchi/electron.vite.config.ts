@@ -1,6 +1,7 @@
 import { join, resolve } from 'node:path'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
+import templateCompilerOptions from '@tresjs/core/template-compiler-options'
 import Vue from '@vitejs/plugin-vue'
 import UnoCss from 'unocss/vite'
 import Info from 'unplugin-info/vite'
@@ -13,7 +14,6 @@ import VueMacros from 'vue-macros/vite'
 
 import { Download } from '@proj-airi/unplugin-fetch'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
-import { templateCompilerOptions } from '@tresjs/core'
 import { defineConfig } from 'electron-vite'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
@@ -21,8 +21,14 @@ const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 
 export default defineConfig({
   main: {
+    build: {
+      externalizeDeps: {
+        include: [
+          'electron-click-drag-plugin',
+        ],
+      },
+    },
     plugins: [
-      Info(),
       {
         // To replace `build.rolldownOptions`, as electron-vite still uses the deprecated
         // `rollupOptions`, using `rollupOptions` and `rolldownOptions` at the same
@@ -32,19 +38,32 @@ export default defineConfig({
         name: 'manual-chunks',
         outputOptions(options) {
           options.codeSplitting = {
-            groups: [{
-              name(moduleId) {
-                // https://github.com/lobehub/lobehub/blob/6ecba929b738e1259e15d17e7643941e015324ee/apps/desktop/electron.vite.config.ts#L54
-                // Prevent debug package from being bundled into index.js to avoid side-effect pollution
-                if (moduleId.includes('node_modules/debug')) {
-                  return 'vendor-debug'
-                }
+            groups: [
+              {
+                name(moduleId) {
+                  // https://github.com/lobehub/lobehub/blob/6ecba929b738e1259e15d17e7643941e015324ee/apps/desktop/electron.vite.config.ts#L54
+                  // Prevent debug package from being bundled into index.js to avoid side-effect pollution
+                  if (moduleId.includes('node_modules/debug')) {
+                    return 'vendor-debug'
+                  }
+                },
               },
-            }],
+              {
+                name(moduleId) {
+                  // https://github.com/lobehub/lobehub/blob/6ecba929b738e1259e15d17e7643941e015324ee/apps/desktop/electron.vite.config.ts#L54
+                  // Prevent debug package from being bundled into index.js to avoid side-effect pollution
+                  if (moduleId.includes('node_modules/h3')) {
+                    return 'vendor-h3'
+                  }
+                },
+              },
+            ],
           }
+
           return options
         },
       },
+      Info(),
     ],
 
     resolve: {
@@ -53,6 +72,7 @@ export default defineConfig({
       },
     },
   },
+
   preload: {
     build: {
       lib: {
@@ -62,8 +82,10 @@ export default defineConfig({
         },
       },
     },
+
     plugins: [],
   },
+
   renderer: {
     // Thanks to [@Maqsyo](https://github.com/Maqsyo)
     // https://github.com/alex8088/electron-vite/issues/99#issuecomment-1862671727
@@ -118,6 +140,13 @@ export default defineConfig({
     },
 
     server: {
+      fs: {
+        // To mute errors like:
+        //   The request id ".../node_modules/@fontsource/sniglet/files/sniglet-latin-400-normal.woff" is outside of Vite serving allow list.
+        //
+        // See: https://vite.dev/config/server-options#server-fs-strict
+        strict: false,
+      },
       warmup: {
         clientFiles: [
           `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src'))}/*.vue`,
@@ -177,6 +206,7 @@ export default defineConfig({
             src: resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
             exclude: base => [
               ...base,
+              '**/settings/connection/index.vue',
               '**/settings/system/general.vue',
               '**/settings/modules/mcp.vue',
             ],

@@ -18,7 +18,7 @@ ZipLoader.createSettings = async (reader: JSZip) => {
 }
 
 export function isSettingsFile(file: string) {
-  return file.endsWith('model3.json')
+  return file.endsWith('.model3.json') || file.endsWith('.model.json')
 }
 
 export function isMocFile(file: string) {

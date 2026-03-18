@@ -12,16 +12,23 @@ docs:
   'fade-on-hover':
     enable: Masquer au survol
     disable: Toujours afficher
-  'open-settings': Open settings
-  'open-chat': Open Chat
-  'refresh': Refresh
-  'open-hearing-controls': Open hearing Controls
-  'drag-to-move-window': Drag to move window
-  'switch-to-light-mode': Switch to light mode
-  'switch-to-dark-mode': Switch to dark mode
-  'close': Close
-  'expand': Expand
-  'collapse': Collapse
+  'open-settings': Ouvrir les paramètres
+  'open-chat': Ouvrir le Chat
+  'refresh': Actualiser
+  'open-hearing-controls': Ouvrir les contrôles d'écoute
+  'drag-to-move-window': Glisser pour déplacer la fenêtre
+  'switch-to-light-mode': Passer au mode clair
+  'switch-to-dark-mode': Passer au mode sombre
+  'pin-on-top': Épingler en haut
+  'unpin-from-top': Désépingler du haut
+  'switch-profile': Changer de Profil
+  'close': Fermer
+  'expand': Développer
+  'collapse': Réduire
+'status-island':
+  connected: WebSocket connecté
+  disconnected: WebSocket déconnecté
+  'open-settings': Ouvrir les paramètres WebSocket
 notice:
   'fade-on-hover':
     title: Disparaître au survol
