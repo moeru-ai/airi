@@ -1,11 +1,11 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { CommonContentPart, CompletionToolCall, Message, Tool } from '@xsai/shared-chat'
 
+import { useLocalStorage } from '@vueuse/core'
 import { generateText } from '@xsai/generate-text'
 import { listModels } from '@xsai/model'
 import { streamText } from '@xsai/stream-text'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
 
 import { mcp } from '../tools'
 
@@ -20,7 +20,7 @@ export type StreamEvent
 export interface StreamOptions {
   headers?: Record<string, string>
   onStreamEvent?: (event: StreamEvent) => void | Promise<void>
-  toolsCompatibility?: Map<string, boolean>
+  toolsCompatibility?: Record<string, boolean>
   supportsTools?: boolean
   waitForTools?: boolean // when true,won't resolve on finishReason=='tool_calls';
   tools?: Tool[] | (() => Promise<Tool[] | undefined>)
@@ -51,7 +51,7 @@ function sanitizeMessages(messages: unknown[]): Message[] {
 }
 
 function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProvider, _: Message[], options?: StreamOptions): boolean {
-  return !!(options?.supportsTools || options?.toolsCompatibility?.get(`${chatProvider.chat(model).baseURL}-${model}`))
+  return !!(options?.supportsTools || options?.toolsCompatibility?.[`${chatProvider.chat(model).baseURL}-${model}`])
 }
 
 async function streamFrom(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
@@ -73,6 +73,13 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
         ...await resolveTools(),
       ]
     : undefined
+
+  if (tools && tools.length > 0) {
+    console.log('Calling LLM with tools', tools.map((t: any) => t.function?.name || t.name))
+  }
+  else {
+    console.log('Calling LLM with NO tools available')
+  }
 
   return new Promise<void>((resolve, reject) => {
     let settled = false
@@ -144,6 +151,13 @@ async function generateFrom(model: string, chatProvider: ChatProvider, messages:
         ...await resolveTools(),
       ]
     : undefined
+
+  if (tools && tools.length > 0) {
+    console.log('Calling LLM with tools', tools.map((t: any) => t.function?.name || t.name))
+  }
+  else {
+    console.log('Calling LLM with NO tools available')
+  }
 
   return await generateText({
     ...chatConfig,
@@ -219,7 +233,7 @@ export async function attemptForToolsCompatibilityDiscovery(model: string, chatP
 }
 
 export const useLLM = defineStore('llm', () => {
-  const toolsCompatibility = ref<Map<string, boolean>>(new Map())
+  const toolsCompatibility = useLocalStorage<Record<string, boolean>>('settings/llm/tools-compatibility-v3', {})
 
   function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
     // Disable automatic discovery to save user credits.
@@ -233,12 +247,13 @@ export const useLLM = defineStore('llm', () => {
 
   async function discoverToolsCompatibility(model: string, chatProvider: ChatProvider, _: Message[], options?: Omit<StreamOptions, 'supportsTools'>) {
     // Cached, no need to discover again
-    if (toolsCompatibility.value.has(`${chatProvider.chat(model).baseURL}-${model}`)) {
+    const key = `${chatProvider.chat(model).baseURL}-${model}`
+    if (key in toolsCompatibility.value) {
       return
     }
 
     const res = await attemptForToolsCompatibilityDiscovery(model, chatProvider, _, { ...options, toolsCompatibility: toolsCompatibility.value })
-    toolsCompatibility.value.set(`${chatProvider.chat(model).baseURL}-${model}`, res)
+    toolsCompatibility.value[key] = res
   }
 
   async function models(apiUrl: string, apiKey: string) {

@@ -199,10 +199,14 @@ export function categorizeResponse(
   // Speech is everything outside tags
   const speech = speechParts.join(' ').trim()
 
+  // NOTICE: strip LLM markers <|...|> from the final output as they are handled
+  //         separately by the stage/orchestrator system and should not appear in UI.
+  const stripMarkers = (text: string) => text.replace(/<\|[\s\S]*?\|>/g, '')
+
   return {
     segments,
-    speech: speech || '',
-    reasoning,
+    speech: stripMarkers(speech || ''),
+    reasoning: stripMarkers(reasoning || ''),
     raw: response,
   }
 }

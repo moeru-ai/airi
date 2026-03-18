@@ -174,6 +174,9 @@ catalogs:
     knip:
       specifier: ^5.85.0
       version: 5.85.0
+    loudness:
+      specifier: ^0.4.2
+      version: 0.4.2
     mkcert:
       specifier: ^3.2.0
       version: 3.2.0
@@ -1127,6 +1130,9 @@ importers:
       localforage:
         specifier: ^1.10.0
         version: 1.10.0
+      loudness:
+        specifier: 'catalog:'
+        version: 0.4.2
       node-vibrant:
         specifier: ^4.0.4
         version: 4.0.4(encoding@0.1.13)
@@ -2347,6 +2353,9 @@ importers:
       '@proj-airi/server-sdk':
         specifier: workspace:*
         version: link:../server-sdk
+      '@proj-airi/stage-shared':
+        specifier: workspace:*
+        version: link:../stage-shared
       '@proj-airi/stage-ui':
         specifier: workspace:*
         version: link:../stage-ui
@@ -2429,9 +2438,6 @@ importers:
       '@nekopaw/tempora':
         specifier: 'catalog:'
         version: 0.4.0-alpha.1
-      '@proj-airi/stage-shared':
-        specifier: workspace:^
-        version: link:../stage-shared
       '@types/audioworklet':
         specifier: 'catalog:'
         version: 0.0.96
@@ -2450,6 +2456,9 @@ importers:
 
   packages/stage-shared:
     dependencies:
+      '@moeru/eventa':
+        specifier: ^1.0.0-beta.1
+        version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@vueuse/core':
         specifier: 'catalog:'
         version: 14.1.0(vue@3.5.29(typescript@5.9.3))
@@ -2463,9 +2472,6 @@ importers:
       '@electron-toolkit/preload':
         specifier: ^3.0.2
         version: 3.0.2(electron@40.8.0)
-      '@moeru/eventa':
-        specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@nekopaw/tempora':
         specifier: 'catalog:'
         version: 0.4.0-alpha.1
@@ -11742,6 +11748,10 @@ packages:
     resolution: {integrity: sha512-CRT1WTyuQoD771GW56XEZFQ/ZoSfWid1alKGDYMmkt2yl8UXrVR4pspqWNEcqKvVIzg6PAltWjxcSSPrboA4iA==}
     engines: {node: '>=18.0.0'}
 
+  execa@4.1.0:
+    resolution: {integrity: sha512-j5W0//W7f8UxAn8hXVnwG8tLwdiUy4FJLcSupCg6maBYZDpyBvTApK7KyuI4bKj8KOh1r2YH+6ucuYtJv1bTZA==}
+    engines: {node: '>=10'}
+
   execa@5.1.1:
     resolution: {integrity: sha512-8uSpZZocAZRBAPIEINJj3Lo9HyGitllczc27Eh5YYojjMFMn8yHMDMaUHE2Jqfq05D/wucwI4JGURyXt1vchyg==}
     engines: {node: '>=10'}
@@ -12471,6 +12481,10 @@ packages:
   https-proxy-agent@7.0.6:
     resolution: {integrity: sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw==}
     engines: {node: '>= 14'}
+
+  human-signals@1.1.1:
+    resolution: {integrity: sha512-SEQu7vl8KjNL2eoGBLF3+wAjpsNfA9XMlXAYj/3EdaNfAlxKthD1xjEQfGOUhllCGGJVNY34bRr6lPINhNjyZw==}
+    engines: {node: '>=8.12.0'}
 
   human-signals@2.1.0:
     resolution: {integrity: sha512-B4FFZ6q/T2jhhksgkbEW3HBvWIfDW85snkQgawt07S7J5QXTk6BkNV+0yAeZrM5QpMAdYlocGoljn0sJ/WQkFw==}
@@ -13224,6 +13238,10 @@ packages:
 
   longest-streak@3.1.0:
     resolution: {integrity: sha512-9Ri+o0JYgehTaVBBDoMqIl8GXtbWg711O3srftcHhZ0dqnETqLaoIK0x17fUw9rFSlK/0NlsKe0Ahhyl5pXE2g==}
+
+  loudness@0.4.2:
+    resolution: {integrity: sha512-D+1opqDjcpAdyv0JVt5KJju/4f6yLs/tqcDj8LCrtZciYMtD4I2I4brByt9nZkfU5bnnnHsLFPtBBDpv2oamkg==}
+    engines: {node: '>=10.13.0'}
 
   lowercase-keys@2.0.0:
     resolution: {integrity: sha512-tqNXrS78oMOE73NMxK4EMLQsQowWf8jKooH9g7xPavRT706R6bkQJ6DY2Te7QukaZsulxa30wQ7bk0pm4XiHmA==}
@@ -26126,6 +26144,18 @@ snapshots:
     dependencies:
       eventsource-parser: 3.0.6
 
+  execa@4.1.0:
+    dependencies:
+      cross-spawn: 7.0.6
+      get-stream: 5.2.0
+      human-signals: 1.1.1
+      is-stream: 2.0.1
+      merge-stream: 2.0.0
+      npm-run-path: 4.0.1
+      onetime: 5.1.2
+      signal-exit: 3.0.7
+      strip-final-newline: 2.0.0
+
   execa@5.1.1:
     dependencies:
       cross-spawn: 7.0.6
@@ -27136,6 +27166,8 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  human-signals@1.1.1: {}
+
   human-signals@2.1.0: {}
 
   humanize-ms@1.2.1:
@@ -27812,6 +27844,10 @@ snapshots:
   long@5.3.2: {}
 
   longest-streak@3.1.0: {}
+
+  loudness@0.4.2:
+    dependencies:
+      execa: 4.1.0
 
   lowercase-keys@2.0.0: {}
 
