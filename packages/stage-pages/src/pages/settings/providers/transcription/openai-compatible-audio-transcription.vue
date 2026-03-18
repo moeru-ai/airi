@@ -13,6 +13,7 @@ import {
   TranscriptionPlayground,
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
+import { getDefinedProvider } from '@proj-airi/stage-ui/libs'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldInput, FieldSelect } from '@proj-airi/ui'
@@ -109,6 +110,21 @@ const {
   forceValid,
 } = useProviderValidation(providerId)
 
+const apiKeyPlaceholder = computed(() => {
+  const definition = getDefinedProvider(providerId)
+  if (!definition?.createProviderConfig)
+    return 'sk-...'
+
+  const schema = definition.createProviderConfig({ t }) as any
+  const shape = typeof schema?.shape === 'function' ? schema.shape() : schema?.shape
+  const apiKeySchema = shape?.apiKey
+  if (!apiKeySchema)
+    return 'sk-...'
+
+  const meta = typeof apiKeySchema.meta === 'function' ? apiKeySchema.meta() : undefined
+  return typeof meta?.placeholderLocalized === 'string' ? meta.placeholderLocalized : 'sk-...'
+})
+
 // Expand Advanced section if there's a base URL validation error
 const shouldExpandAdvanced = computed(() => {
   if (!validationMessage.value)
@@ -195,7 +211,7 @@ watch(model, () => {
           <ProviderApiKeyInput
             v-model="apiKey"
             :provider-name="providerMetadata?.localizedName"
-            placeholder="sk-..."
+            :placeholder="apiKeyPlaceholder"
           />
           <!-- Model selection: Use dropdown if models are available, otherwise use text input -->
           <FieldSelect
