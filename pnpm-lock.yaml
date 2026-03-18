@@ -269,7 +269,7 @@ overrides:
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 
-packageExtensionsChecksum: sha256-UCFi+cr2PGQ7+Ux3cl4NB/aqHL2xwGcHHm2PMjek+0g=
+packageExtensionsChecksum: sha256-SQFrmAjlIKKpmge0IEueHU14dbRJWb8bHR4X52vacF4=
 
 patchedDependencies:
   mineflayer-pathfinder:
@@ -7517,6 +7517,8 @@ packages:
 
   '@pmndrs/pointer-events@6.6.28':
     resolution: {integrity: sha512-kmZlcMsPiTHcotECLFbo6J/qQouX2ZeKNSMRwBWAF/EFesAV1uPwjar6SQDWkDH0fVB1snNbEoWLDLQ84tWOkw==}
+    peerDependencies:
+      three: '*'
 
   '@pnpm/config.env-replace@1.1.0':
     resolution: {integrity: sha512-htyl8TWnKL7K/ESFa1oW2UB5lVDxuF5DpM7tBi6Hu2LNL3mWkIzNLG6N4zoCUP1lCKNxWy/3iu8mS8MvToGd6w==}
@@ -20839,7 +20841,9 @@ snapshots:
 
   '@pkgr/core@0.2.9': {}
 
-  '@pmndrs/pointer-events@6.6.28': {}
+  '@pmndrs/pointer-events@6.6.28(three@0.183.1)':
+    dependencies:
+      three: 0.183.1
 
   '@pnpm/config.env-replace@1.1.0': {}
 
@@ -21511,7 +21515,7 @@ snapshots:
 
   '@tresjs/core@5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3))':
     dependencies:
-      '@pmndrs/pointer-events': 6.6.28
+      '@pmndrs/pointer-events': 6.6.28(three@0.183.1)
       '@vue/devtools-api': 7.7.9
       '@vueuse/core': 13.9.0(vue@3.5.29(typescript@5.9.3))
       radashi: 12.7.1
