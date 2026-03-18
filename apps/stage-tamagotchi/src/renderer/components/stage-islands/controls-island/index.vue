@@ -62,7 +62,7 @@ const view = ref<'main' | 'emotions'>('main')
 
 // Expose whether hearing dialog is open so parent can disable click-through
 const hearingDialogOpen = ref(false)
-defineExpose({ hearingDialogOpen })
+defineExpose({ hearingDialogOpen, rootElement: islandRef })
 
 const { isOutside } = useElectronMouseInElement(islandRef)
 
@@ -197,7 +197,7 @@ function cycleAnimation() {
 </script>
 
 <template>
-  <div ref="islandRef" fixed bottom-2 right-2>
+  <div ref="islandRef" fixed bottom-2 right-2 z-100 select-none>
     <div flex flex-col items-end gap-1>
       <!-- iOS Style Drawer Panel -->
       <Transition
@@ -402,7 +402,6 @@ function cycleAnimation() {
           <ControlButton
             :button-style="adjustStyleClasses.button"
             cursor-move
-            class="drag-region"
             @mousedown="startDraggingWindow()"
           >
             <div

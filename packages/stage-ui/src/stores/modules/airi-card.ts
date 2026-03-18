@@ -14,6 +14,7 @@ import SystemPromptV2 from '../../constants/prompts/system-v2'
 import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '../../constants/prompts/artistry-instruction'
 import { AiriCardSchema } from '../../types/card.schema'
 import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
+import { useSceneStore } from '../scene'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useConsciousnessStore } from './consciousness'
 import { useSpeechStore } from './speech'
@@ -74,6 +75,8 @@ export interface AiriExtension {
 
     // ID from display-models store (e.g. 'preset-live2d-1', 'display-model-<nanoid>')
     displayModelId?: string
+    // ID from scene store
+    preferredBackgroundId?: string | null
     // Legacy key from older local card revisions. Read-only for migration.
     selectedModelId?: string
   }
@@ -126,6 +129,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   const displayModelsStore = useDisplayModelsStore()
   const live2dStore = useLive2d()
   const vrmStore = useModelStore()
+  const sceneStore = useSceneStore()
 
   const {
     activeProvider: activeConsciousnessProvider,
@@ -200,6 +204,14 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       else if (selectedModel?.format === DisplayModelFormat.VRM)
         vrmStore.shouldUpdateView()
     }
+
+    const preferredBackgroundId = extension.modules?.preferredBackgroundId
+    if (preferredBackgroundId) {
+      sceneStore.setActiveBackground(preferredBackgroundId)
+    }
+    else if (sceneStore.globalBackgroundId) {
+      sceneStore.setActiveBackground(sceneStore.globalBackgroundId)
+    }
   }
 
   async function activateCard(id: string, force = false) {
@@ -228,6 +240,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         voice_id: activeSpeechVoiceId.value,
       },
       displayModelId: stageModelStore.stageModelSelected,
+      preferredBackgroundId: sceneStore.globalBackgroundId,
     }
 
     const defaultHeartbeats: HeartbeatConfig = {
@@ -312,6 +325,7 @@ Use provider-supported speech mannerisms only when they help communicate tone or
         vrm: existingExtension.modules?.vrm,
         live2d: existingExtension.modules?.live2d,
         displayModelId: resolvedDisplayModelId,
+        preferredBackgroundId: existingExtension.modules?.preferredBackgroundId ?? defaultModules.preferredBackgroundId,
       },
       artistry: {
         ...existingExtension.artistry,

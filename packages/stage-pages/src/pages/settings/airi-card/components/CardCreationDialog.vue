@@ -15,6 +15,7 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProactivityStore } from '@proj-airi/stage-ui/stores/proactivity'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useSceneStore } from '@proj-airi/stage-ui/stores/scene'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { Button, FieldInput, FieldValues } from '@proj-airi/ui'
 import { Select } from '@proj-airi/ui/components/form'
@@ -63,6 +64,8 @@ const { activeSpeechProvider: speechProvider, activeSpeechModel: defaultSpeechMo
 const { stageModelSelected: defaultDisplayModelId } = storeToRefs(stageModelStore)
 const { activeProvider: defaultArtistryProvider } = storeToRefs(artistryStore)
 const { availableExpressions } = storeToRefs(modelStore)
+const sceneStore = useSceneStore()
+const { backgrounds, globalBackgroundId } = storeToRefs(sceneStore)
 
 // Determine if we're in edit mode
 const isEditMode = computed(() => !!props.cardId)
@@ -74,6 +77,7 @@ const selectedSpeechProvider = ref<string>('')
 const selectedSpeechModel = ref<string>('')
 const selectedSpeechVoiceId = ref<string>('')
 const selectedDisplayModelId = ref<string>('')
+const selectedPreferredBackgroundId = ref<string>('__default__')
 const selectedArtistryProvider = ref<string>('')
 const selectedArtistryModel = ref<string>('')
 const selectedArtistryPromptPrefix = ref<string>('')
@@ -227,6 +231,18 @@ const displayModelOptions = computed(() => {
       label: `${prefix} ${model.name}`,
     }
   })
+})
+
+const sceneOptions = computed(() => {
+  const options = Array.from(backgrounds.value.entries()).map(([id, bg]) => ({
+    value: id,
+    label: bg.name || id,
+  }))
+
+  return [
+    { value: '__default__', label: t('settings.pages.card.creation.use_default') },
+    ...options,
+  ]
 })
 
 const actingModelExpressionOptions = computed(() => {
@@ -462,6 +478,7 @@ function saveCard(card: Card): boolean {
             voice_id: selectedSpeechVoiceId.value || defaultSpeechVoiceId.value,
           },
           displayModelId: selectedDisplayModelId.value || defaultDisplayModelId.value,
+          preferredBackgroundId: selectedPreferredBackgroundId.value === '__default__' ? null : selectedPreferredBackgroundId.value,
         },
         agents: {},
         heartbeats: {
@@ -533,6 +550,7 @@ function initializeCard(): Card {
   selectedSpeechModel.value = airiExt?.modules?.speech?.model || defaultSpeechModel.value
   selectedSpeechVoiceId.value = airiExt?.modules?.speech?.voice_id || defaultSpeechVoiceId.value
   selectedDisplayModelId.value = airiExt?.modules?.displayModelId || defaultDisplayModelId.value
+  selectedPreferredBackgroundId.value = airiExt?.modules?.preferredBackgroundId ?? '__default__'
   selectedArtistryProvider.value = airiExt?.artistry?.provider || defaultArtistryProvider.value
   selectedArtistryModel.value = airiExt?.artistry?.model || ''
   selectedArtistryPromptPrefix.value = airiExt?.artistry?.promptPrefix || ''
@@ -897,6 +915,20 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   v-model="selectedDisplayModelId"
                   :options="displayModelOptions"
                   :placeholder="getDefaultPlaceholder(defaultDisplayModelId)"
+                  class="w-full"
+                />
+              </div>
+
+              <!-- Scene / Background -->
+              <div :class="['flex', 'flex-col', 'gap-2', 'sm:col-span-2']">
+                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
+                  <div i-solar:gallery-bold-duotone />
+                  {{ t('settings.pages.card.creation.preferred_background') }}
+                </label>
+                <Select
+                  v-model="selectedPreferredBackgroundId"
+                  :options="sceneOptions"
+                  placeholder="Select background preference"
                   class="w-full"
                 />
               </div>

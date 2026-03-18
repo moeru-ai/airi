@@ -23,7 +23,7 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { refDebounced, useBroadcastChannel } from '@vueuse/core'
+import { useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, provide, ref, toRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
@@ -47,8 +47,8 @@ const isIgnoringMouseEvents = ref(false)
 const shouldFadeOnCursorWithin = ref(false)
 
 const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
-const { isOutside } = useElectronMouseInElement(controlsIslandRef)
-const isOutsideFor250Ms = refDebounced(isOutside, 250)
+const { isOutside } = useElectronMouseInElement(() => controlsIslandRef.value?.rootElement)
+const isOutsideForInstant = isOutside
 const { x: relativeMouseX, y: relativeMouseY } = useElectronRelativeMouse()
 // NOTICE: In real-world use cases of Fade on Hover feature, the cursor may move around the edge of the
 // model rapidly, causing flickering effects when checking pixel transparency strictly.
@@ -93,7 +93,7 @@ const isTransparent = computed(() => {
 })
 
 const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBorder({ threshold: 30 })
-const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
+const isAroundWindowBorderForInstant = isAroundWindowBorder
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
 
@@ -129,7 +129,7 @@ onMounted(async () => {
 
 const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
 
-watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled], () => {
+watch([isOutsideForInstant, isAroundWindowBorderForInstant, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled], () => {
   if (hearingDialogOpen.value) {
     // Hearing dialog/drawer is open; keep window interactive
     isIgnoringMouseEvents.value = false
@@ -139,8 +139,8 @@ watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTrans
     return
   }
 
-  const insideControls = !isOutsideFor250Ms.value
-  const nearBorder = isAroundWindowBorderFor250Ms.value
+  const insideControls = !isOutsideForInstant.value
+  const nearBorder = isAroundWindowBorderForInstant.value
 
   if (insideControls || nearBorder) {
     // Inside interactive controls or near resize border: do NOT ignore events
@@ -562,7 +562,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
     leave-from-class="opacity-100"
     leave-to-class="opacity-50"
   >
-    <div v-if="isAroundWindowBorderFor250Ms && !isLoading" class="pointer-events-none absolute left-0 top-0 z-999 h-full w-full">
+    <div v-if="isAroundWindowBorderForInstant && !isLoading" class="pointer-events-none absolute left-0 top-0 z-999 h-full w-full">
       <div
         :class="[
           'b-primary/50',

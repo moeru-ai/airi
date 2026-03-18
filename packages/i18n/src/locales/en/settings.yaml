@@ -152,6 +152,7 @@ pages:
         configuration will be used.
       use_default: Use default
       use_default_not_configured: Use default (not configured)
+      preferred_background: Preferred Scene/Background
       fields_info:
         subtitle: >-
           You can put here some details about the character you are creating,
@@ -269,17 +270,23 @@ pages:
     description: Customize the virtual environment for your characters.
     beta_label: Scene Beta
     beta_description: >-
-      Welcome to the new Scenes system! Phase 1 allows you to set a global
-      background for all your characters. These images are stored locally in
-      your browser/app.
+      Welcome to the new Scenes system! Phase 2 adds a background gallery.
+      Each character card can now specify its own preferred background from this gallery.
     background_image:
-      title: Background Image
+      title: Global Default Background
       no_background: >-
-        No background active. Upload a square or landscape image for best
+        No global background active. Upload a square or landscape image for best
         results.
-      upload: Upload Background
+      upload: Upload to Gallery
       change: Change Background
-      clear: Clear
+      clear: Clear Default
+    gallery:
+      title: Scene Gallery
+      empty: No images in gallery yet. Upload one above!
+      set_as_global: Set as Global Default
+      delete: Delete from Gallery
+      global_badge: Global Default
+      active_badge: Current Scene
     tip:
       label: Tip!
       description: >-

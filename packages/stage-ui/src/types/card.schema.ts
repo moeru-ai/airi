@@ -46,6 +46,7 @@ const AiriModulesSchema = object({
     file: optional(string()),
     url: optional(string()),
   })),
+  preferredBackgroundId: optional(string()),
 })
 
 const AiriHeartbeatSchema = object({

@@ -135,6 +135,7 @@ pages:
         为此角色卡配置模块。如未设置，将使用默认模块配置。
       use_default: 使用默认
       use_default_not_configured: 使用默认（未配置）
+      preferred_background: 首选场景/背景
       fields_info:
         subtitle: >-
           您可以在这里填写有关您正在创建的角色的一些详细信息，解释他的背景和情境，以及应该如何回应您的互动。
@@ -248,13 +249,21 @@ pages:
     description: 为您的角色自定义虚拟环境。
     beta_label: 场景测试版
     beta_description: >-
-      欢迎使用新的场景系统！第一阶段允许您为所有角色设置全局背景。这些图像本地存储在您的浏览器/应用程序中。
+      欢迎使用新的场景系统！第二阶段增加了背景画廊。
+      每个角色卡片现在都可以从画廊中指定自己喜好的背景。
     background_image:
-      title: 背景图像
-      no_background: 暂无活动背景。上传正方形或横向图像效果最佳。
-      upload: 上传背景
+      title: 全局默认背景
+      no_background: 暂无全局活动背景。上传正方形或横向图像效果最佳。
+      upload: 上传到画廊
       change: 更换背景
-      clear: 清除
+      clear: 清除默认
+    gallery:
+      title: 场景画廊
+      empty: 画廊中还没有图像。在上方上传一个吧！
+      set_as_global: 设为全局默认
+      delete: 从画廊删除
+      global_badge: 全局默认
+      active_badge: 当前场景
     tip:
       label: 提示！
       description: 使用正方形图像将在纵向模式下利用 <b>cover</b> 裁剪，聚焦于场景中心。

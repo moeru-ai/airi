@@ -119,6 +119,7 @@ const speechRuntimeStore = useSpeechRuntimeStore()
 const sceneStore = useSceneStore()
 
 const { activeBackgroundUrl } = storeToRefs(sceneStore)
+
 const { currentMotion, availableExpressions: live2dExpressions, expressionData: live2dExpressionData, activeExpressions: live2dActiveExpressions, modelParameters: live2dModelParameters } = storeToRefs(live2dStore)
 
 const temporaryVrma = ref<string | null>(null)
@@ -723,12 +724,14 @@ defineExpose({
 </script>
 
 <template>
-  <div relative h-full w-full>
+  <div :class="['relative h-full w-full']">
     <!-- Scene Background Layer -->
     <div
       v-if="activeBackgroundUrl"
-      absolute left-0 top-0 z-0 h-full w-full
-      transition-opacity duration-500
+      :class="[
+        'absolute left-0 top-0 z-0 h-full w-full',
+        'transition-opacity duration-500',
+      ]"
       :style="{
         backgroundImage: `url(${activeBackgroundUrl})`,
         backgroundSize: 'cover',
@@ -737,13 +740,12 @@ defineExpose({
       }"
     />
 
-    <div relative z-1 h-full w-full>
+    <div :class="['relative h-full w-full']">
       <Live2DScene
         v-if="stageModelRenderer === 'live2d'"
         ref="live2dSceneRef"
         v-model:state="componentState"
-        min-w="50% <lg:full" min-h="100 sm:100"
-        h-full w-full flex-1
+        :class="['min-w-50% <lg:full min-h-100 sm:100', 'h-full w-full flex-1']"
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
         :model-file="stageModelSelectedFile"
@@ -769,7 +771,7 @@ defineExpose({
         :model-src="stageModelSelectedUrl"
         :model-identity="stageModelSelected"
         :idle-animation="vrmActiveAnimation"
-        min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
+        :class="['min-w-50% <lg:full min-h-100 sm:100', 'h-full w-full flex-1']"
         :paused="paused"
         :show-axes="stageViewControlsEnabled"
         :current-audio-source="currentAudioSource"

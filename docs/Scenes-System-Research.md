@@ -33,23 +33,53 @@ A Scene in AIRI represents an environment with:
 - **Dynamic Z-Depth**: Grouping objects into foreground, middle-ground (character), and background layers.
 - **Interactive Objects**: AI-aware props (e.g., "The cat is on the couch").
 
-### 2. DiT-Generated PNGs with Transparency
-Diffusion Transformers (DiT) like SD3 or specialized object generation models can potentially output transparency.
-- **Native Alpha**: Some newer DiT architectures can be trained for RGBA output.
-- **Post-Processing (RMBG)**: Integrate Background Removal (e.g., RMBG-1.4 or BRIA AI) as a post-generation step to create transparent "assets" (furniture, props) for the scene.
-- **API Idea**: `generate_asset(prompt: "a cozy green armchair", transparent: true)` returns a PNG with alpha.
+## UI & Token Interaction Design
+
+### 1. Proposed UI Integration (AIRI Card Editor)
+To support character-specific environments, we should add a **Scene** tab to the `CardCreationDialog`:
+- **Selective Override**: A toggle to "Use Character-Specific Background".
+- **Asset Manager**: A simplified version of the main Scenes UI, allowing one active background to be uploaded/selected for that specific character.
+- **Portability**: When the character is exported as a PNG (AIRI Card), the background blob is Base64 encoded and injected into the PNG metadata under a `scene_background` key.
+
+### 2. Token Logic (ACT vs. SCENE)
+Discussing the differentiation between behavior and environment:
+- **`ACT` Token**: Best suited for *Internal State* (emotions, expressions) and *Micro-Motions* (gestures, poses).
+    - Example: `<|ACT:"emotion":{"name": "excited"},"motion":"wave"|>`
+- **`SCENE` Token**: Recommended for *External State* (background flips, lighting changes, ambience).
+    - Example: `<|SCENE:{"background": "park.png", "ambience": "birds_chirping"}|>`
+- **Rationale**: Decoupling allows for scene changes without forcing a behavior shift, and vice versa. It also keeps the JSON payload for each token type concise and focused.
+
+### 3. "Special Sauce" Post-Processing
+For AI-generated scenes, we propose a pipeline:
+1.  **Generation**: DiT produces a raw background.
+2.  **Segmentation**: Run a segmentation model (e.g., SAM - Segment Anything) to identify the "floor" and "walls".
+3.  **Refinement**: If the character is partially "in" the scene (e.g., sitting on a couch), use the segmentation mask to create a "Foreground Prop" layer that sits in front of the character's canvas.
+
+### 2. Autonomous Environment Control
+The AI (AIRI) should have the agency to modify her own environment:
+- **Self-Updating Backgrounds**: Based on conversation context (e.g., "Let's go to the park"), AIRI triggers a scene change.
+- **ACT Token Evolution**: Re-evaluating if `<|ACT...|>` is the right vehicle for scene control. While "acting" often involves a setting, we may need a dedicated `<|SCENE:{"background": "..."}|>` or similar for explicit environment flips.
+
+### 3. Character-Specific vs. Global Scenes
+A hybrid approach to character-scene integration:
+- **Global Library**: Users upload scenes to a main repository (current Phase 1).
+- **Character Overrides**: AIRI cards can specify a "Preferred Scene" ID.
+- **Exclusive Scenes**: Option to tie a specific background *only* to one character.
+
+### 4. AIRI Card Persistence (The "Blob in PNG" Idea)
+To ensure portability, we should leverage the PNG metadata of AIRI cards:
+- **Embedded Assets**: Base64 encode the active background blob directly into the character's PNG file.
+- **Re-import Flow**: When a user shares a card, importing it automatically restores the character's preferred environment.
 
 ---
 
 ## Proposed Technical Roadmap
 
-### Phase 1: Background Manager
-- [ ] Create a `sceneStore` to manage active background images (blob URLs).
-- [ ] Implement a basic background layer in `Stage.vue` that sits behind the model canvases.
-- [ ] Update the Scenes settings to allow uploading/selecting these images.
+### Phase 1: Background Manager (Complete)
+- [x] Global `sceneStore` and background layer in `Stage.vue`.
+- [x] Settings UI for manual image management.
 
 ### Phase 2: Primitive Physics/Walls
-- [ ] Extend the `index.vue` "wall" concept into a generic component.
 - [ ] Allow defining "ground" and "wall" lines that the character's `y-offset` can respect.
 
 ### Phase 3: AI-Generated Scenes
