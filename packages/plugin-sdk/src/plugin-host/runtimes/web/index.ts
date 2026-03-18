@@ -4,7 +4,8 @@ import type { PluginTransport } from '../../transports'
 
 import { createContext } from '@moeru/eventa'
 
-export * from '../../core'
+export * from '../../host'
+export * from '../../shared'
 export * from '../../transports'
 
 export function createPluginContext(transport: PluginTransport): EventContext<any, any> {
