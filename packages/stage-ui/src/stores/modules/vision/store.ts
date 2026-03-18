@@ -1,4 +1,5 @@
-import { refManualReset, useLocalStorage } from '@vueuse/core'
+import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { refManualReset } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 
@@ -7,9 +8,9 @@ import { useProvidersStore } from '../../providers'
 export const useVisionStore = defineStore('vision', () => {
   const providersStore = useProvidersStore()
 
-  const activeProvider = refManualReset(useLocalStorage('settings/vision/active-provider', ''))
-  const activeModel = refManualReset(useLocalStorage('settings/vision/active-model', ''))
-  const activeCustomModelName = refManualReset(useLocalStorage('settings/vision/active-custom-model', ''))
+  const activeProvider = useLocalStorageManualReset('settings/vision/active-provider', '')
+  const activeModel = useLocalStorageManualReset('settings/vision/active-model', '')
+  const activeCustomModelName = useLocalStorageManualReset('settings/vision/active-custom-model', '')
   const modelSearchQuery = refManualReset('')
 
   const providerMetadata = computed(() => {

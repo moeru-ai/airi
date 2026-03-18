@@ -1,4 +1,4 @@
-import { refManualReset, useLocalStorage } from '@vueuse/core'
+import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
@@ -31,10 +31,10 @@ function countInWindow(history: number[], windowMs: number) {
 }
 
 export const useVisionProcessingStore = defineStore('vision-processing', () => {
-  const captureIntervalMs = refManualReset<number>(useLocalStorage<number>(
+  const captureIntervalMs = useLocalStorageManualReset<number>(
     'settings/vision/capture-interval-ms',
     DEFAULT_CAPTURE_INTERVAL_MS,
-  ))
+  )
 
   const isRunning = ref(false)
   const isProcessing = ref(false)
