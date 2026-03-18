@@ -206,7 +206,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
 
     const preferredBackgroundId = extension.modules?.preferredBackgroundId
-    if (preferredBackgroundId) {
+    if (preferredBackgroundId === 'none') {
+      sceneStore.setActiveBackground(null)
+    }
+    else if (preferredBackgroundId) {
       sceneStore.setActiveBackground(preferredBackgroundId)
     }
     else if (sceneStore.globalBackgroundId) {
@@ -240,7 +243,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         voice_id: activeSpeechVoiceId.value,
       },
       displayModelId: stageModelStore.stageModelSelected,
-      preferredBackgroundId: sceneStore.globalBackgroundId,
+      preferredBackgroundId: 'none',
     }
 
     const defaultHeartbeats: HeartbeatConfig = {

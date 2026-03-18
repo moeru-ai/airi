@@ -65,7 +65,7 @@ const { stageModelSelected: defaultDisplayModelId } = storeToRefs(stageModelStor
 const { activeProvider: defaultArtistryProvider } = storeToRefs(artistryStore)
 const { availableExpressions } = storeToRefs(modelStore)
 const sceneStore = useSceneStore()
-const { backgrounds, globalBackgroundId } = storeToRefs(sceneStore)
+const { backgrounds } = storeToRefs(sceneStore)
 
 // Determine if we're in edit mode
 const isEditMode = computed(() => !!props.cardId)
@@ -77,7 +77,7 @@ const selectedSpeechProvider = ref<string>('')
 const selectedSpeechModel = ref<string>('')
 const selectedSpeechVoiceId = ref<string>('')
 const selectedDisplayModelId = ref<string>('')
-const selectedPreferredBackgroundId = ref<string>('__default__')
+const selectedPreferredBackgroundId = ref<string>('__none__')
 const selectedArtistryProvider = ref<string>('')
 const selectedArtistryModel = ref<string>('')
 const selectedArtistryPromptPrefix = ref<string>('')
@@ -241,6 +241,7 @@ const sceneOptions = computed(() => {
 
   return [
     { value: '__default__', label: t('settings.pages.card.creation.use_default') },
+    { value: '__none__', label: t('settings.pages.card.creation.none') },
     ...options,
   ]
 })
@@ -478,7 +479,9 @@ function saveCard(card: Card): boolean {
             voice_id: selectedSpeechVoiceId.value || defaultSpeechVoiceId.value,
           },
           displayModelId: selectedDisplayModelId.value || defaultDisplayModelId.value,
-          preferredBackgroundId: selectedPreferredBackgroundId.value === '__default__' ? null : selectedPreferredBackgroundId.value,
+          preferredBackgroundId: selectedPreferredBackgroundId.value === '__default__'
+            ? null
+            : (selectedPreferredBackgroundId.value === '__none__' ? 'none' : selectedPreferredBackgroundId.value),
         },
         agents: {},
         heartbeats: {
@@ -550,7 +553,10 @@ function initializeCard(): Card {
   selectedSpeechModel.value = airiExt?.modules?.speech?.model || defaultSpeechModel.value
   selectedSpeechVoiceId.value = airiExt?.modules?.speech?.voice_id || defaultSpeechVoiceId.value
   selectedDisplayModelId.value = airiExt?.modules?.displayModelId || defaultDisplayModelId.value
-  selectedPreferredBackgroundId.value = airiExt?.modules?.preferredBackgroundId ?? '__default__'
+  const preferredBg = airiExt?.modules?.preferredBackgroundId
+  selectedPreferredBackgroundId.value = preferredBg === 'none'
+    ? '__none__'
+    : (preferredBg ?? '__none__')
   selectedArtistryProvider.value = airiExt?.artistry?.provider || defaultArtistryProvider.value
   selectedArtistryModel.value = airiExt?.artistry?.model || ''
   selectedArtistryPromptPrefix.value = airiExt?.artistry?.promptPrefix || ''

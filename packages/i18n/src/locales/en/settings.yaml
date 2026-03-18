@@ -152,6 +152,7 @@ pages:
         configuration will be used.
       use_default: Use default
       use_default_not_configured: Use default (not configured)
+      none: None (No background)
       preferred_background: Preferred Scene/Background
       fields_info:
         subtitle: >-
