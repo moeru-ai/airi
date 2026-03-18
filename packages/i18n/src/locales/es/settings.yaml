@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: URL del endpoint de la API (usa el predeterminado si no estás seguro)
     accountId: ID de Cuenta
     validationSuccess: La validación de la configuración fue exitosa
+    validationPartial: Configuration partially validated
     validationFailed: La validación de la configuración falló
     validationError: 'Error de validación: {error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: Omitir por ahora
     saveAndContinue: Guardar y Continuar
     next: Siguiente
@@ -30,6 +34,19 @@ dialogs:
     no-models: Ningún modelo disponible
     no-models-help: >-
       Por favor vuelva al paso anterior y compruebe su clave de API o su conexión de red.
+    permissions:
+      title: Notifications
+      description: You can allow notifications now or continue and set it up later.
+      notificationsTitle: Notifications
+      notificationsDescription: Allow reminders and important status updates.
+      notificationsAction: Request notification permission
+      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
+      openSettings: Open iOS Settings
+      optionalHint: You can continue even if notification permission is not granted.
+      stateUnknown: Not requested
+      stateRequesting: Requesting...
+      stateGranted: Granted
+      stateNotGranted: Not granted
 language:
   title: Idioma
   description: >
@@ -159,6 +176,7 @@ pages:
     scenario: Escenario
     search: Buscar tarjetas...
     sort_by: Ordenar por
+    body-model: Body / Display Model
     speech:
       provider: Voz / Proveedor
       model: Habla / Modelo
@@ -260,7 +278,7 @@ pages:
               label: Envelope filter frequency
             highpass_filter_frequency:
               description: >-
-                Frequency for the highpass filter applied to reduce low frequencies like sub-bass noises.
+                Frecuencia para el filtro de paso alto aplicado para reducir frecuencias bajas como ruidos sub bajos.
               label: Highpass filter frequency
             lowpass_filter_frequency:
               description: >-

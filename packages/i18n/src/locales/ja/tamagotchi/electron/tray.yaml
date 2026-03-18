@@ -1,26 +1,27 @@
 menu:
   labels:
     label:
-      show: Show
-      adjust_sizes: Adjust sizes
-      recommended_size: Recommended (450x600)
-      full_height: Full Height
-      half_height: Half Height
-      full_screen: Full Screen
-      align_to: Align to
-      center: Center
-      top_left: Top Left
-      top_right: Top Right
-      bottom_left: Bottom Left
-      bottom_right: Bottom Right
-      settings: Settings...
-      about: About...
-      open_inlay: Open Inlay...
-      open_widgets: Open Widgets...
-      open_caption: Open Caption...
-      caption_overlay: Caption Overlay
-      follow_window: Follow window
-      reset_position: Reset position
-      devtools: DevTools
+      show: 表示
+      adjust_sizes: サイズ調節
+      recommended_size: おすすめ (450x600)
+      full_height: 高さ最大
+      half_height: 高さ半分
+      full_screen: フルスクリーン
+      align_to: 揃える
+      center: 中央揃え
+      top_left: 左上
+      top_right: 右上
+      bottom_left: 左下
+      bottom_right: 右下
+      settings: 設定…
+      about: 概要…
+      open_inlay: インレイを開く…
+      open_widgets: ウィジェットを開く…
+      open_caption: キャプションを開く…
+      close_caption: キャプションを閉じる…
+      caption_overlay: キャプションオーバーレイ
+      follow_window: ウィンドウをフォロー
+      reset_position: 位置リセット
+      devtools: 開発ツール
       troubleshoot_beatsync: Troubleshoot BeatSync...
       quit: Quit

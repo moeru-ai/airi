@@ -26,6 +26,8 @@ export interface ProviderValidationPlan {
   definition: ProviderDefinition
   configValidators: ProviderConfigValidator<Record<string, unknown>>[]
   providerValidators: ProviderRuntimeValidator<Record<string, unknown>>[]
+  /** Provider validators that require explicit user action (e.g. "Test Generation" button). */
+  manualProviderValidators: ProviderRuntimeValidator<Record<string, unknown>>[]
   providerExtra: ProviderExtraMethods<Record<string, unknown>> | undefined
   shouldValidate: boolean
 }
@@ -83,7 +85,12 @@ export function getValidatorsOfProvider(options: {
   const { definition } = options
 
   const configValidators = (definition.validators?.validateConfig || []).map(creator => creator(options.contextOptions))
-  const providerValidators = (definition.validators?.validateProvider || []).map(creator => creator(options.contextOptions))
+  const allProviderValidators = (definition.validators?.validateProvider || []).map(creator => creator(options.contextOptions))
+
+  // Separate automatic validators from manual-only ones (e.g. chat completion probes)
+  const providerValidators = allProviderValidators.filter(v => !v.manualOnly)
+  const manualProviderValidators = allProviderValidators.filter(v => v.manualOnly)
+
   const steps: ProviderValidationStep[] = [
     ...createConfigValidationSteps(configValidators),
     ...createProviderValidationSteps(providerValidators),
@@ -99,6 +106,7 @@ export function getValidatorsOfProvider(options: {
     definition,
     configValidators: configValidators as ProviderValidationPlan['configValidators'],
     providerValidators: providerValidators as ProviderValidationPlan['providerValidators'],
+    manualProviderValidators: manualProviderValidators as ProviderValidationPlan['manualProviderValidators'],
     providerExtra: definition.extraMethods as ProviderValidationPlan['providerExtra'],
     shouldValidate,
   }
@@ -130,7 +138,7 @@ export async function validateProvider(
     }
     catch (error) {
       step.status = 'invalid'
-      step.reason = errorMessageFrom(error) || 'Unknown error'
+      step.reason = errorMessageFrom(error) ?? 'Unknown error'
       onValidatorError?.({ kind: 'config', index, step, error })
       return { valid: false, reason: step.reason }
     }
@@ -150,13 +158,13 @@ export async function validateProvider(
 
   let providerInstance: ProviderInstance
   try {
-    providerInstance = await definition.createProvider(config as any)
+    providerInstance = await definition.createProvider(config)
   }
   catch (error) {
     for (let i = 0; i < providerValidators.length; i++) {
       const step = steps[providerStepOffset + i]
       step.status = 'invalid'
-      step.reason = error instanceof Error ? error.message : String(error)
+      step.reason = errorMessageFrom(error) ?? 'Unknown error'
     }
     return steps
   }
@@ -167,14 +175,77 @@ export async function validateProvider(
     step.reason = ''
     onValidatorStart?.({ kind: 'provider', index, step })
     try {
-      const result = await validatorDefinition.validator(config, providerInstance as any, providerExtra as any, runContext)
+      const result = await validatorDefinition.validator(config, providerInstance, providerExtra as any, runContext)
       step.status = result.valid ? 'valid' : 'invalid'
       step.reason = result.valid ? '' : result.reason
       onValidatorSuccess?.({ kind: 'provider', index, step, result })
     }
     catch (error) {
       step.status = 'invalid'
-      step.reason = error instanceof Error ? error.message : String(error)
+      step.reason = errorMessageFrom(error) ?? 'Unknown error'
+      onValidatorError?.({ kind: 'provider', index, step, error })
+    }
+  }))
+
+  return steps
+}
+
+/**
+ * Run only the manual-only validators (e.g. chat completion probes).
+ * These are excluded from automatic validation to avoid costly API calls.
+ * Must be triggered explicitly by the user.
+ */
+export async function validateProviderManual(
+  plan: ProviderValidationPlan,
+  contextOptions: { t: ComposerTranslation },
+  callbacks: ProviderValidationCallbacks = {},
+) {
+  const { manualProviderValidators, config, definition, providerExtra } = plan
+  if (manualProviderValidators.length === 0)
+    return []
+
+  const runContext = {
+    ...contextOptions,
+    validationCache: new Map<string, unknown>(),
+  }
+  const { onValidatorError, onValidatorStart, onValidatorSuccess } = callbacks
+
+  let providerInstance: ProviderInstance
+  try {
+    providerInstance = await definition.createProvider(config)
+  }
+  catch (error) {
+    return manualProviderValidators.map(v => ({
+      id: v.id,
+      label: v.name,
+      status: 'invalid' as ProviderValidationStepStatus,
+      reason: errorMessageFrom(error) ?? 'Unknown error',
+      kind: 'provider' as ProviderValidationStepKind,
+    }))
+  }
+
+  const steps: ProviderValidationStep[] = manualProviderValidators.map(v => ({
+    id: v.id,
+    label: v.name,
+    status: 'idle' as ProviderValidationStepStatus,
+    reason: '',
+    kind: 'provider' as ProviderValidationStepKind,
+  }))
+
+  await Promise.all(manualProviderValidators.map(async (validatorDefinition, index) => {
+    const step = steps[index]
+    step.status = 'validating'
+    step.reason = ''
+    onValidatorStart?.({ kind: 'provider', index, step })
+    try {
+      const result = await validatorDefinition.validator(config, providerInstance, providerExtra as any, runContext)
+      step.status = result.valid ? 'valid' : 'invalid'
+      step.reason = result.valid ? '' : result.reason
+      onValidatorSuccess?.({ kind: 'provider', index, step, result })
+    }
+    catch (error) {
+      step.status = 'invalid'
+      step.reason = errorMessageFrom(error) ?? 'Unknown error'
       onValidatorError?.({ kind: 'provider', index, step, error })
     }
   }))

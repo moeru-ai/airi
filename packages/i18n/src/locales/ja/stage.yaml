@@ -30,4 +30,9 @@ viewers:
       camera: カメラ
       model:
         title: モデル
+profile-switcher:
+  no-profile: No Profile
+  no-profiles: No profiles yet
+  save-as-new: Save as New Profile
+  manage: Manage Profiles
 waiting: 待機中

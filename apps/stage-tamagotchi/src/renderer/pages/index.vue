@@ -29,6 +29,7 @@ import { computed, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
+import StatusIsland from '../components/stage-islands/status-island/index.vue'
 
 import { electronOpenOnboarding } from '../../shared/eventa'
 import { useControlsIslandStore } from '../stores/controls-island'
@@ -37,6 +38,7 @@ import { useWindowStore } from '../stores/window'
 import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
+const statusIslandRef = ref<InstanceType<typeof StatusIsland>>()
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
 const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
@@ -51,7 +53,9 @@ const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
 
 const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
 const { isOutside } = useElectronMouseInElement(controlsIslandRef)
+const { isOutside: isOutsideStatusIsland } = useElectronMouseInElement(statusIslandRef)
 const isOutsideFor250Ms = refDebounced(isOutside, 250)
+const isOutsideStatusIslandFor250Ms = refDebounced(isOutsideStatusIsland, 250)
 const { x: relativeMouseX, y: relativeMouseY } = useElectronRelativeMouse()
 // NOTICE: In real-world use cases of Fade on Hover feature, the cursor may move around the edge of the
 // model rapidly, causing flickering effects when checking pixel transparency strictly.
@@ -108,7 +112,7 @@ const { pause, resume } = watch(isTransparent, (transparent) => {
 
 const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
 
-watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled, stagePaused], () => {
+watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled, stagePaused], () => {
   if (stagePaused.value) {
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
@@ -126,7 +130,7 @@ watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTrans
     return
   }
 
-  const insideControls = !isOutsideFor250Ms.value
+  const insideControls = !isOutsideFor250Ms.value || !isOutsideStatusIslandFor250Ms.value
   const nearBorder = isAroundWindowBorderFor250Ms.value
 
   if (insideControls || nearBorder) {
@@ -371,6 +375,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
           'transition-opacity duration-250 ease-in-out',
         ]"
       >
+        <StatusIsland ref="statusIslandRef" />
         <ResourceStatusIsland />
         <WidgetStage
           ref="widgetStageRef"

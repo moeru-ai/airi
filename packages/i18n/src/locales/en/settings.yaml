@@ -20,8 +20,12 @@ dialogs:
     baseUrlHelp: API endpoint URL (use default if unsure)
     accountId: Account ID
     validationSuccess: Configuration validation success
+    validationPartial: Configuration partially validated
     validationFailed: Configuration validation failed
     validationError: 'Validation error: {error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: Skip for now
     saveAndContinue: Save and Continue
     next: Next
@@ -185,6 +189,7 @@ pages:
     scenario: Scenario
     search: Search cards...
     sort_by: Sort by
+    body-model: Body / Display Model
     speech:
       provider: Speech / Provider
       model: Speech / Model

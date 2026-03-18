@@ -1,6 +1,7 @@
 import { join, resolve } from 'node:path'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
+import templateCompilerOptions from '@tresjs/core/template-compiler-options'
 import Vue from '@vitejs/plugin-vue'
 import UnoCss from 'unocss/vite'
 import Info from 'unplugin-info/vite'
@@ -13,7 +14,6 @@ import VueMacros from 'vue-macros/vite'
 
 import { Download } from '@proj-airi/unplugin-fetch'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
-import { templateCompilerOptions } from '@tresjs/core'
 import { defineConfig } from 'electron-vite'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
@@ -140,6 +140,13 @@ export default defineConfig({
     },
 
     server: {
+      fs: {
+        // To mute errors like:
+        //   The request id ".../node_modules/@fontsource/sniglet/files/sniglet-latin-400-normal.woff" is outside of Vite serving allow list.
+        //
+        // See: https://vite.dev/config/server-options#server-fs-strict
+        strict: false,
+      },
       warmup: {
         clientFiles: [
           `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src'))}/*.vue`,
@@ -199,6 +206,7 @@ export default defineConfig({
             src: resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
             exclude: base => [
               ...base,
+              '**/settings/connection/index.vue',
               '**/settings/system/general.vue',
               '**/settings/modules/mcp.vue',
             ],
