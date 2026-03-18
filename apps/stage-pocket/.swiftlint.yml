@@ -1,2 +1,3 @@
 excluded:
   - ios/DerivedData
+  - ios/App/CapApp-SPM/Package.swift
