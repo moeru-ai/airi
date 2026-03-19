@@ -12,7 +12,7 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsChat } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { widgetsTools } from '../stores/tools/builtin/widgets'
@@ -33,6 +33,16 @@ const providersStore = useProvidersStore()
 const { activeModel, activeProvider } = storeToRefs(useConsciousnessStore())
 const settingsChat = useSettingsChat()
 const isComposing = ref(false)
+const CHAT_WINDOW_TITLE = 'AIRI - Chat Window'
+
+function updateWindowTitle() {
+  const nextTitle = messageInput.value.trim()
+    ? `${CHAT_WINDOW_TITLE} - User Typing...`
+    : CHAT_WINDOW_TITLE
+
+  if (document.title !== nextTitle)
+    document.title = nextTitle
+}
 
 async function handleSend() {
   if (isComposing.value) {
@@ -112,6 +122,14 @@ onAfterMessageComposed(async () => {
 })
 
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+
+onMounted(() => {
+  updateWindowTitle()
+})
+
+watch(messageInput, () => {
+  updateWindowTitle()
+})
 </script>
 
 <template>

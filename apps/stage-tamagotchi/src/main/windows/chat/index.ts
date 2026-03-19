@@ -21,7 +21,7 @@ export function setupChatWindowReusableFunc(params: {
 }) {
   return createReusableWindow(async () => {
     const window = new BrowserWindow({
-      title: 'Chat',
+      title: 'AIRI - Chat Window',
       width: 600.0,
       height: 800.0,
       show: false,

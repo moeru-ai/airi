@@ -39,7 +39,7 @@ export function setupSettingsWindowReusableFunc(params: {
 
   const reusable = createReusableWindow(async () => {
     const window = new BrowserWindow({
-      title: 'Settings',
+      title: 'AIRI - Settings',
       width: 600.0,
       height: 800.0,
       show: false,

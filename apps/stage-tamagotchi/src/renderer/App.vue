@@ -186,6 +186,34 @@ watch(themeColorsHueDynamic, () => {
   document.documentElement.classList.toggle('dynamic-hue', themeColorsHueDynamic.value)
 }, { immediate: true })
 
+watch(
+  () => [route.path, route.meta.titleKey, route.meta.title],
+  () => {
+    if (!route.path.startsWith('/settings'))
+      return
+
+    const titleKey = typeof route.meta.titleKey === 'string' ? route.meta.titleKey : undefined
+    const rawTitle = typeof route.meta.title === 'string' ? route.meta.title : undefined
+    const resolvedTitle = titleKey ? i18n.t(titleKey) : rawTitle
+    const parts = ['AIRI', 'Settings']
+
+    if (resolvedTitle && resolvedTitle !== i18n.t('settings.title'))
+      parts.push(resolvedTitle)
+
+    const nextTitle = parts.join(' - ')
+
+    if (document.title !== nextTitle) {
+      console.log('[AppTitle] Updating settings title', {
+        from: document.title,
+        to: nextTitle,
+        route: route.path,
+      })
+      document.title = nextTitle
+    }
+  },
+  { immediate: true },
+)
+
 watch(() => onboardingStore.needsOnboarding, () => {
   if (onboardingStore.needsOnboarding) {
     openOnboarding()
