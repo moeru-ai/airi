@@ -54,6 +54,11 @@ const testDataRoot = resolve(
   'plugin-host',
   'testdata',
 )
+const samplePluginRoot = resolve(
+  import.meta.dirname,
+  'examples',
+  'devtools-sample-plugin',
+)
 
 async function writeManifest(params: { dir: string, name: string, entrypoint: string }) {
   const manifest = {
@@ -255,6 +260,32 @@ describe('setupPluginHost', () => {
     finally {
       await rm(externalDir, { recursive: true, force: true })
     }
+  })
+
+  it('loads the devtools sample plugin with its declared protocol permissions', async () => {
+    const pluginDir = join(pluginsDir, 'devtools-sample-plugin')
+    await mkdir(pluginDir, { recursive: true })
+    await writeFile(
+      join(pluginDir, 'devtools-sample-plugin.json'),
+      await readFile(join(samplePluginRoot, 'devtools-sample-plugin.json'), 'utf-8'),
+    )
+    await writeFile(
+      join(pluginDir, 'devtools-sample-plugin.mjs'),
+      await readFile(join(samplePluginRoot, 'devtools-sample-plugin.mjs'), 'utf-8'),
+    )
+
+    await setupPluginHost()
+
+    expect(contextState.lastContext).toBeDefined()
+    const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
+    const invokeLoadEnabled = defineInvoke(contextState.lastContext!, electronPluginLoadEnabled)
+
+    await invokeSetEnabled({ name: 'devtools-sample-plugin', enabled: true })
+
+    const snapshot = await invokeLoadEnabled()
+    const plugin = snapshot.plugins.find(item => item.name === 'devtools-sample-plugin')
+
+    expect(plugin).toEqual(expect.objectContaining({ enabled: true, loaded: true }))
   })
 
   it('mirrors degraded and withdrawn capability updates into the host snapshot', async () => {
