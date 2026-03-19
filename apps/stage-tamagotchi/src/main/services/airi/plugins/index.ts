@@ -408,10 +408,11 @@ export async function setupPluginHost(): Promise<PluginHostService> {
         return capabilityHost.markCapabilityDegraded(payload.key, payload.metadata)
       case 'withdrawn':
         return capabilityHost.withdrawCapability(payload.key, payload.metadata)
+      default: {
+        const unexpectedState: never = payload.state
+        throw new Error(`Unsupported capability state: ${unexpectedState}`)
+      }
     }
-
-    const unexpectedState: never = payload.state
-    throw new Error(`Unsupported capability state: ${unexpectedState}`)
   })
 
   // Initialize enabled plugins during module setup so startup is bound to injeca lifecycle.

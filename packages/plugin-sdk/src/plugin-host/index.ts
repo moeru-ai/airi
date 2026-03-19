@@ -1,4 +1,4 @@
-export * from './host'
+export * from './core'
 export { createPluginContext } from './runtimes/node'
 export * from './runtimes/node/loaders'
 export * from './runtimes/shared'

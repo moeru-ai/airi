@@ -4,7 +4,7 @@ import type { PluginTransport } from '../../transports'
 
 import { createContext } from '@moeru/eventa'
 
-export * from '../../host'
+export * from '../../core'
 export * from '../../shared'
 export * from '../../transports'
 
