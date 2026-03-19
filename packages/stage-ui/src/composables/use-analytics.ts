@@ -6,7 +6,7 @@ import { useI18n } from 'vue-i18n'
 import { POSTHOG_ENABLED } from '../../../../posthog.config'
 import { useSharedAnalyticsStore } from '../stores/analytics'
 import { getAnalyticsPrivacyPolicyUrl } from '../stores/analytics/privacy-policy'
-import { useSettingsGeneral } from '../stores/settings'
+import { useSettingsGeneral } from '../stores/settings/general'
 
 export function useAnalytics() {
   const analyticsStore = useSharedAnalyticsStore()

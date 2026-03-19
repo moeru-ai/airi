@@ -3,8 +3,8 @@ import type { AboutBuildInfo } from '../../components/scenarios/about/types'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 
-import { useBuildInfo } from '../../composables'
-import { useSettingsGeneral } from '../settings'
+import { useBuildInfo } from '../../composables/use-build-info'
+import { useSettingsGeneral } from '../settings/general'
 import {
   isPosthogAvailableInBuild,
   registerPosthogBuildInfo,
@@ -20,13 +20,18 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
   const appStartTime = ref<number | null>(null)
   const firstMessageTracked = ref(false)
 
-  watch(analyticsEnabled, (enabled) => {
+  watch(analyticsEnabled, (enabled, previousEnabled) => {
     if (!isInitialized.value)
       return
 
     const shouldCapture = syncPosthogCapture(enabled)
-    if (shouldCapture)
+    if (shouldCapture) {
+      // Avoid backfilling a stale "first message" event after analytics is enabled mid-session.
+      if (!previousEnabled && !firstMessageTracked.value)
+        markFirstMessageTracked()
+
       registerPosthogBuildInfo(buildInfo.value)
+    }
   })
 
   function initialize() {
