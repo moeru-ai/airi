@@ -19,6 +19,12 @@ export interface VisionCapturePayload {
   publishContext?: boolean
 }
 
+function getVisionContextId(payload: Pick<VisionCapturePayload, 'workloadId' | 'sourceId'>) {
+  return payload.sourceId
+    ? `vision:${payload.workloadId}:${payload.sourceId}`
+    : `vision:${payload.workloadId}`
+}
+
 export const useVisionOrchestratorStore = defineStore('vision-orchestrator', () => {
   const visionStore = useVisionStore()
   const { activeProvider, activeModel } = storeToRefs(visionStore)
@@ -59,6 +65,7 @@ export const useVisionOrchestratorStore = defineStore('vision-orchestrator', () 
 
       modsServerChannelStore.sendContextUpdate({
         strategy: ContextUpdateStrategy.ReplaceSelf,
+        contextId: getVisionContextId(payload),
         text,
         content,
         metadata: {

@@ -36,6 +36,33 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
 
   const activeSource = computed(() => sources.value.find(source => source.id === activeSourceId.value) || null)
 
+  function isActiveStream(stream: MediaStream | null | undefined) {
+    if (!stream)
+      return false
+
+    return stream.getVideoTracks().some(track => track.readyState === 'live')
+  }
+
+  function clearActiveStream() {
+    const stream = activeStream.value
+    if (!stream) {
+      activeStream.value = null
+      return
+    }
+
+    stream.getTracks().forEach(track => track.stop())
+    activeStream.value = null
+  }
+
+  function attachStreamLifecycle(stream: MediaStream) {
+    stream.getTracks().forEach((track) => {
+      track.addEventListener('ended', () => {
+        if (activeStream.value === stream)
+          activeStream.value = null
+      }, { once: true })
+    })
+  }
+
   async function refetchSources() {
     try {
       isRefetching.value = true
@@ -61,9 +88,9 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
         thumbnailURL: source.thumbnail && source.thumbnail.length > 0 ? toObjectUrl(source.thumbnail, 'image/jpeg') : undefined,
       }))
 
-      if (!activeSourceId.value && sources.value.length > 0) {
+      const hasActiveSource = sources.value.some(source => source.id === activeSourceId.value)
+      if (!hasActiveSource)
         activeSourceId.value = sources.value[0]?.id || ''
-      }
     }
     finally {
       isRefetching.value = false
@@ -75,9 +102,10 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
     if (!activeSourceId.value)
       throw new Error('No active source selected')
 
-    if (activeStream.value) {
-      activeStream.value.getTracks().forEach(track => track.stop())
-    }
+    if (isActiveStream(activeStream.value))
+      return activeStream.value!
+
+    clearActiveStream()
 
     const handle = await setSource({
       options: toRaw(toValue(sourcesOptions)),
@@ -87,7 +115,12 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
       activeStream.value = stream
+      attachStreamLifecycle(stream)
       return stream
+    }
+    catch (error) {
+      activeStream.value = null
+      throw error
     }
     finally {
       await resetSource(handle)
@@ -95,10 +128,7 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
   }
 
   function stopStream() {
-    if (activeStream.value) {
-      activeStream.value.getTracks().forEach(track => track.stop())
-    }
-    activeStream.value = null
+    clearActiveStream()
   }
 
   function cleanup() {
