@@ -71,6 +71,22 @@ const AiriHeartbeatSchema = object({
 const AiriExtensionSchema = object({
   modules: optional(AiriModulesSchema),
   heartbeats: optional(AiriHeartbeatSchema),
+  generation: optional(object({
+    enabled: boolean(),
+    provider: optional(string()),
+    model: optional(string()),
+    known: optional(object({
+      maxTokens: optional(number()),
+      temperature: optional(number()),
+      topP: optional(number()),
+    })),
+    advanced: optional(record(string(), unknown())),
+    importedPresetMeta: optional(object({
+      source: optional(string()),
+      originalKeys: optional(array(string())),
+      importedAt: optional(string()),
+    })),
+  })),
   acting: optional(object({
     modelExpressionPrompt: string(),
     speechExpressionPrompt: string(),

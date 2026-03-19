@@ -42,6 +42,23 @@ export interface ActingConfig {
   speechMannerismPrompt: string
 }
 
+export interface CharacterGenerationConfig {
+  enabled: boolean
+  provider?: string
+  model?: string
+  known?: {
+    maxTokens?: number
+    temperature?: number
+    topP?: number
+  }
+  advanced?: Record<string, any>
+  importedPresetMeta?: {
+    source?: 'sillytavern' | 'manual' | 'unknown'
+    originalKeys?: string[]
+    importedAt?: string
+  }
+}
+
 export interface AiriExtension {
   modules: {
     consciousness: {
@@ -90,6 +107,8 @@ export interface AiriExtension {
     widgetInstruction?: string
     options?: Record<string, any>
   }
+
+  generation?: CharacterGenerationConfig
 
   acting?: ActingConfig
 
@@ -373,6 +392,15 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       widgetInstruction: DEFAULT_ARTISTRY_WIDGET_INSTRUCTION,
     }
 
+    const defaultGeneration: CharacterGenerationConfig = {
+      enabled: false,
+      provider: activeConsciousnessProvider.value,
+      model: activeConsciousnessModel.value,
+      known: {},
+      advanced: undefined,
+      importedPresetMeta: undefined,
+    }
+
     const defaultActing: ActingConfig = {
       modelExpressionPrompt: `## Instruction: ACT Tokens
 Start every reply with an ACT token to indicate your initial mood or action. If your synchronization or focus changes, insert a new ACT token. One token lasts until you use a new one.
@@ -408,6 +436,7 @@ Use provider-supported speech mannerisms only when they help communicate tone or
         agents: {},
         heartbeats: defaultHeartbeats,
         artistry: defaultArtistry,
+        generation: defaultGeneration,
       }
     }
 
@@ -442,6 +471,18 @@ Use provider-supported speech mannerisms only when they help communicate tone or
       artistry: {
         ...existingExtension.artistry,
         widgetInstruction: existingExtension.artistry?.widgetInstruction ?? defaultArtistry.widgetInstruction,
+      },
+      generation: {
+        enabled: existingExtension.generation?.enabled ?? defaultGeneration.enabled,
+        provider: existingExtension.generation?.provider ?? defaultGeneration.provider,
+        model: existingExtension.generation?.model ?? defaultGeneration.model,
+        known: {
+          maxTokens: existingExtension.generation?.known?.maxTokens,
+          temperature: existingExtension.generation?.known?.temperature,
+          topP: existingExtension.generation?.known?.topP,
+        },
+        advanced: existingExtension.generation?.advanced,
+        importedPresetMeta: existingExtension.generation?.importedPresetMeta,
       },
       acting: {
         modelExpressionPrompt: existingExtension.acting?.modelExpressionPrompt ?? defaultActing.modelExpressionPrompt,

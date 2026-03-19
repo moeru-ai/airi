@@ -1,30 +1,31 @@
 # Technical Design Document
-## Generation Config Tester — Character Settings
+## Character Generation Settings
 
 **Project:** Character-Based LLM Orchestrator
-**Feature:** Per-Character Generation Parameter Testing
+**Feature:** Per-Character Generation Settings
 **Status:** Draft
-**Date:** 2026-03-18
+**Date:** 2026-03-19
 
 ---
 
 ## 1. Overview
 
-This feature enables users to discover, test, and validate LLM generation parameters on a **per-character basis** without affecting chat history. It addresses the fragmentation of parameter naming across providers (OpenAI, Anthropic, OpenRouter, etc.) by providing a sandbox for trial-and-error configuration.
+This feature gives each AIRI card its own **Generation** tab so users can tune chat-generation behavior per character without immediately diving into a full provider-normalization project.
 
-The first implementation should be intentionally narrow:
+The first pass should stay intentionally narrow:
 
 - scope it to **consciousness/chat generation only**
-- let users test settings without polluting normal chat state
-- stage edits locally in the card dialog and only persist them when the user clicks the dialog's normal **Save** button
-- support both a small set of structured, well-understood fields and a raw advanced JSON block for provider/backend-specific tuning
+- stage edits inside the AIRI card dialog
+- persist them only when the normal dialog **Save** button is clicked
+- start with a small, structured set of common controls
+- leave room for provider-specific advanced JSON later
 
 ---
 
 ## 2. Problem Statement
 
 ### 2.1 Parameter Inconsistency
-Different providers use different keys for the same concept:
+Different providers use different keys for the same concept.
 
 | Concept | OpenAI | Anthropic | OpenRouter | Others |
 |---------|--------|-----------|------------|--------|
@@ -34,316 +35,198 @@ Different providers use different keys for the same concept:
 | Stop sequences | `stop` | `stop_sequences` | `stop` | `stop_tokens` |
 
 ### 2.2 Aggregator Ambiguity
-Providers like OpenRouter, Together, and Fireworks are **aggregators** proxying dozens of backends. They may:
-- Coalesce params to a common schema
-- Proxy params directly to the underlying model
-- Ignore unknown keys silently
-- Reject unknown keys with 400 errors
+Providers like OpenRouter, Together, and Fireworks proxy many different backends. They may:
 
-**Conclusion:** Maintaining a canonical provider param schema is not feasible. Users must own the discovery process.
+- coalesce params to a common schema
+- proxy params directly to the underlying model
+- ignore unknown keys silently
+- reject unknown keys entirely
+
+**Conclusion:** AIRI should not pretend there is one universal schema that behaves identically everywhere.
 
 ### 2.3 Why SillyTavern Presets Matter
-SillyTavern-style generation preset JSON files are important precedent here. They often contain a mix of:
+SillyTavern preset JSON is useful precedent because it proves users already have **known-good generation profiles** that materially improve model behavior.
 
-- common generation controls like `temperature`, `top_p`, `top_k`, and penalties
-- backend-specific sampler controls like `min_p`, `dynatemp`, `xtc_*`, `dry_*`, and `mirostat_*`
-- ordering/prioritization metadata for how samplers should be applied
+Those presets typically combine:
 
-The practical lesson is not that AIRI should clone all of SillyTavern's internals. The lesson is that users already have **known-good tuning profiles** that materially improve model behavior.
+- common controls like `temperature`, `top_p`, `top_k`, and penalties
+- backend-specific sampler settings like `min_p`, `dynatemp`, `xtc_*`, `dry_*`, and `mirostat_*`
+- ordering metadata for how those controls should be applied
 
-In practice, SillyTavern appears to use those preset files as **request-shaping input**:
-
-1. the user selects a preset
-2. SillyTavern builds the final outbound request for each turn
-3. well-known values are mapped into the backend request shape
-4. provider/backend-specific values influence how the request is formed or proxied
-
-So the preset is less "just a static JSON blob" and more "a generation behavior profile that gets applied turn by turn."
-
-This is why AIRI should treat **preset import** as a first-class consideration even if compatibility remains best-effort.
+The important takeaway is not “clone SillyTavern internals.”
+The takeaway is: **request-shaping profiles matter**, and AIRI should grow toward preserving and importing them on a best-effort basis.
 
 ---
 
 ## 3. Proposed Solution
 
-### 3.1 Generation Config Tester
-A sandbox UI embedded in the **Character Edit Screen** that allows users to:
+### 3.1 Generation Tab
+A dedicated **Generation** tab embedded in the AIRI card editor.
 
-1. **Build** a generation params object incrementally
-2. **Test** it with a custom prompt (one-shot, no history)
-3. **Review** the raw response + metrics (tokens, timing)
-4. **Save** the working config to the character
+For the first pass, the user flow should be:
+
+1. decide whether this character should use **character-specific generation settings**
+2. if enabled, stage a provider, model, and a few common generation controls
+3. save those settings together with the AIRI card through the normal dialog **Save** button
+
+This avoids the confusing old idea of separate provider/model override toggles.
+
+The card either:
+
+- uses global generation defaults
+- or uses one per-character generation config block
 
 ### 3.2 First-Scope Boundaries
-To keep this grounded, the first pass should explicitly avoid trying to solve everything:
 
 - **In scope**
   - consciousness/chat generation settings only
   - per-character tuning
-  - one-shot sandbox testing
-  - best-effort import of external preset JSON, especially SillyTavern-style settings
+  - staged save inside the AIRI card dialog
+  - a small set of structured common fields
 - **Out of scope for v1**
+  - one-shot sandbox testing
   - speech model tuning
   - tool behavior tuning
   - proactivity-specific tuning
   - full cross-provider parameter normalization
-  - exact parity with SillyTavern's sampler stack
+  - exact SillyTavern sampler parity
+  - preset JSON import
 
 ### 3.3 Design Principles
 
 | Principle | Rationale |
 |-----------|-----------|
-| **No chat history impact** | Testing is ephemeral; doesn't pollute conversations |
-| **One-shot only** | Multi-turn introduces state complexity; keep it simple |
-| **User-provided prompt** | Cannot hardcode test input; user defines the scenario |
-| **Payload transparency** | Show exactly what JSON is being sent |
-| **Metrics visible** | Tokens + timing for cost estimation |
-| **Disclaimer prominent** | Set expectations: trial-and-error is expected |
-| **Persist only on dialog save** | Match the AIRI card editor model; test against staged changes, commit only when the card is saved |
-| **Best-effort preset compatibility** | Preserve useful external tuning intent without pretending to implement every provider/backend quirk |
+| **Keep it understandable** | Users should understand “global defaults” vs “character-specific settings” immediately |
+| **Persist only on dialog save** | Match the AIRI card editor model |
+| **Structured first** | Start with the most common controls before advanced JSON |
+| **Best-effort growth path** | The schema should leave room for ST preset import later |
+| **No fake universality** | AIRI should not imply every field works the same on every backend |
 
 ---
 
-## 4. UI/UX Specification
+## 4. UI / UX
 
 ### 4.1 Location
-**Character Edit Screen → dedicated tuning area/tab (exact placement TBD)**
+**Character Edit Screen → `Generation` tab**
 
-This should no longer assume the old standalone "Settings" tab exists. The actual placement should be decided alongside the larger AIRI card tab consolidation work.
+This is intentionally separate from:
 
-### 4.2 Layout
+- `Identity`, which defines the character and prompt text
+- `Modules`, which holds the broader provider/model surface AIRI already uses
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  ⚠️  Provider Behavior Disclaimer                           │
-│     Keys that work for one model may be ignored or rejected │
-│     by another. Trial and error expected.                   │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ── Test Prompt ─────────────────────────────────────────   │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │ [Textarea: "Write a message to test with..."]         │  │
-│  └───────────────────────────────────────────────────────┘  │
-│                                                             │
-│  ── Parameters ──────────────────────────────────────────   │
-│  [+ Add Parameter] (dropdown + custom entry)                │
-│                                                             │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │ max_tokens        │  500                          │ ✕ │  │
-│  │ temperature       │  0.8                          │ ✕ │  │
-│  │ top_p             │  0.9                          │ ✕ │  │
-│  └───────────────────────────────────────────────────────┘  │
-│                                                             │
-│  ── Preview Payload ─────────────────────────────────────   │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │ { "max_tokens": 500, "temperature": 0.8, ... }        │  │
-│  └───────────────────────────────────────────────────────┘  │
-│                                                             │
-│  [ 🧪 Run Test ]                                            │
-│                                                             │
-│  ── Response ────────────────────────────────────────────   │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │ [Response text appears here]                          │  │
-│  │                                                       │  │
-│  │ Tokens: 142 | Time: 1.2s                              │  │
-│  └───────────────────────────────────────────────────────┘  │
-│                                                             │
-│  [ 💾 Save to Character ]                                   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+### 4.2 MVP Layout
+
+- Provider behavior disclaimer
+- `Use character-specific generation settings` toggle
+- When enabled:
+  - provider
+  - model
+  - max tokens
+  - temperature
+  - top-p
+- Save happens through the normal AIRI card dialog save button
 
 ### 4.3 Component States
 
 | State | Description |
 |-------|-------------|
-| **Idle** | Empty prompt, no params, test button disabled |
-| **Configuring** | Prompt + at least 1 param added, test button enabled |
-| **Loading** | Request in flight, show spinner + "Testing..." |
-| **Success** | Response displayed with metrics |
-| **Error** | API error shown (e.g., 400 bad request, auth failure) |
+| **Disabled** | Character inherits global defaults |
+| **Editing** | Character-specific settings are enabled and staged locally |
+| **Saved** | Settings persist with the AIRI card after dialog save |
 
 ---
 
 ## 5. Data Structures
 
-### 5.1 Character Config Schema (Extended)
+### 5.1 Character Generation Config
 
-```typescript
-interface CharacterConfig {
-  id: string
-  name: string
-  provider: string // e.g., "openai", "anthropic", "openrouter"
-  model: string // e.g., "gpt-4", "claude-sonnet-4-20250514"
-  generationParams?: {
-    known?: {
-      max_tokens?: number
-      temperature?: number
-      top_p?: number
-      top_k?: number
-      frequency_penalty?: number
-      presence_penalty?: number
-      stop?: string[]
-      seed?: number
-    }
-    advanced?: Record<string, any> // provider/backend-specific extras
-    importedPresetMeta?: {
-      source?: 'sillytavern' | 'manual' | 'unknown'
-      originalKeys?: string[]
-      importedAt?: string
-    }
+```ts
+interface CharacterGenerationConfig {
+  enabled: boolean
+  provider?: string
+  model?: string
+  known?: {
+    maxTokens?: number
+    temperature?: number
+    topP?: number
   }
-  // ... other character fields
+  advanced?: Record<string, any>
+  importedPresetMeta?: {
+    source?: 'sillytavern' | 'manual' | 'unknown'
+    originalKeys?: string[]
+    importedAt?: string
+  }
 }
 ```
 
-This split is important:
+This split matters:
 
-- `known` supports the small set of fields AIRI can confidently label and edit
-- `advanced` preserves the rest of the tuning object without pretending it is universal
-- `importedPresetMeta` gives the user and future developers context about where the tuning came from
-
-### 5.2 Test Session State (Ephemeral)
-
-```typescript
-interface TestSessionState {
-  prompt: string
-  params: Array<{ key: string, value: any }>
-  payloadPreview: string // JSON string
-  response?: string
-  metrics?: {
-    tokens?: number
-    timeMs?: number
-  }
-  status: 'idle' | 'loading' | 'success' | 'error'
-  error?: string
-}
-```
-
-### 5.3 Common Parameter Suggestions (Dropdown Source)
-
-```typescript
-const COMMON_LLM_PARAMS = [
-  { key: 'max_tokens', type: 'number', default: 500 },
-  { key: 'temperature', type: 'number', default: 0.8, min: 0, max: 2 },
-  { key: 'top_p', type: 'number', default: 0.9, min: 0, max: 1 },
-  { key: 'top_k', type: 'number', default: 40 },
-  { key: 'frequency_penalty', type: 'number', default: 0, min: -2, max: 2 },
-  { key: 'presence_penalty', type: 'number', default: 0, min: -2, max: 2 },
-  { key: 'stop', type: 'array' },
-  { key: 'seed', type: 'number' },
-  { key: 'max_completion_tokens', type: 'number', default: 500 },
-  { key: 'timeout', type: 'number', default: 30000 },
-]
-```
-
-### 5.4 Preset Import Model
-External preset import should be **best effort**:
-
-1. parse the incoming JSON
-2. map any recognized keys into `generationParams.known`
-3. copy unrecognized but valid keys into `generationParams.advanced`
-4. preserve basic metadata about the import source
-
-This should be explicitly framed as:
-
-- **useful**
-- **transparent**
-- **not guaranteed to reproduce another app's exact runtime behavior**
+- `known` supports the fields AIRI can label clearly today
+- `advanced` is reserved for later provider-specific tuning
+- `importedPresetMeta` gives later phases context for preset import
 
 ---
 
-## 6. Implementation Notes
+## 6. Phase Plan
 
-### 6.1 API Request Flow
+### MVP
 
-```
-User clicks "Run Test"
-    ↓
-Build payload from character.provider + character.model + staged tuning params
-    ↓
-POST to provider endpoint (same pipeline as normal chat)
-    ↓
-Capture response + headers (for token usage) + timing
-    ↓
-Display in sandbox (no history write)
-```
+- tab name: `Generation`
+- one top-level toggle: `Use character-specific generation settings`
+- when enabled:
+  - provider
+  - model
+  - max tokens
+  - temperature
+  - top-p
+- saved with the AIRI card only when the dialog Save button is pressed
+- no test bench yet
+- no preset import yet
 
-Important clarification:
+### Phase 2
 
-- the sandbox should test against the **staged in-dialog values**, not only already-saved card state
-- successful tests should **not** auto-apply or auto-save those settings
-- the normal AIRI card **Save** action remains the commit point
+- one-shot sandbox test prompt
+- formatted output preview
+- latency and token usage
+- optional “include current character prompt context”
 
-### 6.2 Storage
+### Phase 3
 
-| Data | Storage | Persistence |
-|------|---------|-------------|
-| Character config | Existing AIRI card persistence | Persistent |
-| Test session state | Component state (React) | Ephemeral (resets on nav) |
-| Last-used test params | LocalStorage (optional) | Session-level |
+- expand common controls
+- top-k
+- penalties
+- provider/backend capability hints
+- expose advanced JSON editing
 
-### 6.3 Security Considerations
+### Phase 4
 
-- **No history write:** Ensure test requests are flagged to bypass conversation logging
-- **API key safety:** Use existing auth pipeline; no new key exposure
-- **Payload sanitization:** Don't allow arbitrary code execution in custom param values
-
-### 6.4 Edge Cases
-
-| Case | Handling |
-|------|----------|
-| Provider rejects unknown key | Show error message; user removes/adjusts param |
-| Provider ignores unknown key | Response succeeds; user infers key was ignored |
-| Empty prompt | Disable test button; show validation hint |
-| No params added | Allow test (uses character defaults) |
-| Timeout | Show error; suggest increasing `timeout` param |
-| Imported preset contains many unsupported keys | Preserve them in advanced JSON; warn that compatibility is best-effort |
-| Imported preset is tuned for another backend | Keep import possible, but label it as potentially non-portable |
+- best-effort SillyTavern preset import
+- recognized keys mapped into structured controls
+- unknown keys preserved in `advanced`
 
 ---
 
-## 7. Future Considerations
+## 7. Implementation Notes
 
-| Feature | Priority | Notes |
-|---------|----------|-------|
-| Save multiple param presets per character | Low | "Quick", "Verbose", etc. |
-| Export/import param configs | Medium | Includes SillyTavern-style preset import/export pathways |
-| Auto-suggest params by provider | Medium | Crowdsourced or heuristic-based |
-| Multi-turn test mode | Low | Adds complexity; defer to v2 |
-| Token cost estimation | Medium | Show $ estimate based on usage |
-| Speech/provider tuning surfaces | Low | Separate concern from chat/consciousness tuning |
+### 7.1 Practical v1 Shape
+The safest first implementation is:
 
----
+- add the `Generation` tab
+- persist the structured config on the AIRI card
+- keep the schema future-ready for advanced JSON and preset import
 
-## 8. Open Questions
+That gives AIRI a real foundation instead of a throwaway form, while leaving room for later request-shaping work.
 
-1. **Default prompt?** Should we provide a sample prompt template, or leave blank?
-2. **Param validation?** Should we validate types client-side (e.g., temp 0-2), or let the API reject?
-3. **Persist last test state?** Restore prompt/params if user navigates away and returns?
-4. **Character defaults?** If no params are set, does the character use provider defaults or app-wide defaults?
-5. **UI placement?** Does this become its own tab, or a major section inside a consolidated character/identity surface?
-6. **Preset labeling?** How prominently should imported preset provenance (e.g. "Imported from SillyTavern") be shown to the user?
+### 7.2 Preset Import Direction
+Preset import should stay explicitly **best effort**:
 
----
+1. parse incoming JSON
+2. map recognized keys into `known`
+3. preserve unknown keys in `advanced`
+4. record minimal import metadata
 
-## 9. Acceptance Criteria
+This should be framed as:
 
-- [ ] User can add/remove generation params dynamically
-- [ ] User can input custom test prompt
-- [ ] Test request does not affect chat history
-- [ ] Response displays with token count + timing
-- [ ] Payload preview shows exact JSON sent
-- [ ] Error states are clearly communicated
-- [ ] Working config can be saved to character
-- [ ] Disclaimer is visible and prominent
-- [ ] External preset JSON can be imported on a best-effort basis
-- [ ] Known fields and advanced JSON are both preserved without misleading the user about parity
-
----
-
-**Next Steps:**
-1. Confirm UI mockup with stakeholder (Richard)
-2. Implement component structure
-3. Integrate with existing provider API pipeline
-4. Test across multiple providers (OpenAI, Anthropic, OpenRouter)
+- useful
+- transparent
+- not guaranteed to reproduce another app’s exact runtime behavior

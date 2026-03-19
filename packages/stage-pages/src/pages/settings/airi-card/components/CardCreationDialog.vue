@@ -32,6 +32,7 @@ import { useI18n } from 'vue-i18n'
 import CardCreationTabActing from './tabs/CardCreationTabActing.vue'
 import CardCreationTabArtistry from './tabs/CardCreationTabArtistry.vue'
 import CardCreationTabBehavior from './tabs/CardCreationTabBehavior.vue'
+import CardCreationTabGeneration from './tabs/CardCreationTabGeneration.vue'
 import CardCreationTabIdentity from './tabs/CardCreationTabIdentity.vue'
 import CardCreationTabModules from './tabs/CardCreationTabModules.vue'
 import CardCreationTabProactivity from './tabs/CardCreationTabProactivity.vue'
@@ -85,6 +86,12 @@ const selectedArtistryModel = ref<string>('')
 const selectedArtistryPromptPrefix = ref<string>('')
 const selectedArtistryWidgetInstruction = ref<string>('')
 const selectedArtistryConfigStr = ref<string>('{\n  \n}')
+const generationEnabled = ref<boolean>(false)
+const generationProvider = ref<string>('')
+const generationModel = ref<string>('')
+const generationMaxTokens = ref<number | undefined>(undefined)
+const generationTemperature = ref<number | undefined>(undefined)
+const generationTopP = ref<number | undefined>(undefined)
 const selectedActingModelExpressionPrompt = ref<string>('')
 const selectedActingSpeechExpressionPrompt = ref<string>('')
 const selectedActingSpeechMannerismPrompt = ref<string>('')
@@ -183,6 +190,19 @@ const artistryProviderOptions = computed(() => {
 // Computed: available consciousness models options
 const consciousnessModelOptions = computed(() => {
   const provider = selectedConsciousnessProvider.value || consciousnessProvider.value
+  if (!provider)
+    return []
+  const models = providersStore.getModelsForProvider(provider)
+  return models.map(model => ({
+    value: model.id,
+    label: model.name || model.id,
+  }))
+})
+
+const generationProviderOptions = computed(() => consciousnessProviderOptions.value)
+
+const generationModelOptions = computed(() => {
+  const provider = generationProvider.value || selectedConsciousnessProvider.value || consciousnessProvider.value
   if (!provider)
     return []
   const models = providersStore.getModelsForProvider(provider)
@@ -366,6 +386,13 @@ watch(selectedConsciousnessProvider, async (newProvider, oldProvider) => {
   }
 })
 
+watch(generationProvider, async (newProvider, oldProvider) => {
+  if (oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
+    await consciousnessStore.loadModelsForProvider(newProvider)
+    generationModel.value = ''
+  }
+})
+
 // Watch speech provider changes and reload models/voices
 watch(selectedSpeechProvider, async (newProvider, oldProvider) => {
   if (oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
@@ -408,6 +435,7 @@ const activeTabId = ref('')
 const tabs: Tab[] = [
   { id: 'identity', label: t('settings.pages.card.creation.identity'), icon: 'i-solar:emoji-funny-square-bold-duotone' },
   { id: 'behavior', label: t('settings.pages.card.creation.behavior'), icon: 'i-solar:chat-round-line-bold-duotone' },
+  { id: 'generation', label: 'Generation', icon: 'i-solar:tuning-square-bold-duotone' },
   { id: 'acting', label: 'Acting', icon: 'i-solar:mask-happly-bold-duotone' },
   { id: 'modules', label: t('settings.pages.card.modules'), icon: 'i-solar:widget-4-bold-duotone' },
   { id: 'artistry', label: t('settings.pages.modules.artistry.title'), icon: 'i-solar:gallery-bold-duotone' },
@@ -525,6 +553,16 @@ function saveCard(card: Card): boolean {
           speechExpressionPrompt: selectedActingSpeechExpressionPrompt.value,
           speechMannerismPrompt: selectedActingSpeechMannerismPrompt.value,
         },
+        generation: {
+          enabled: generationEnabled.value,
+          provider: generationProvider.value || selectedConsciousnessProvider.value || consciousnessProvider.value,
+          model: generationModel.value || selectedConsciousnessModel.value || defaultConsciousnessModel.value,
+          known: {
+            maxTokens: generationMaxTokens.value,
+            temperature: generationTemperature.value,
+            topP: generationTopP.value,
+          },
+        },
       } as AiriExtension,
     },
   }
@@ -581,6 +619,12 @@ function initializeCard(): Card {
   selectedArtistryModel.value = airiExt?.artistry?.model || ''
   selectedArtistryPromptPrefix.value = airiExt?.artistry?.promptPrefix || ''
   selectedArtistryWidgetInstruction.value = airiExt?.artistry?.widgetInstruction || DEFAULT_ARTISTRY_WIDGET_INSTRUCTION
+  generationEnabled.value = airiExt?.generation?.enabled ?? false
+  generationProvider.value = airiExt?.generation?.provider || airiExt?.modules?.consciousness?.provider || consciousnessProvider.value
+  generationModel.value = airiExt?.generation?.model || airiExt?.modules?.consciousness?.model || defaultConsciousnessModel.value
+  generationMaxTokens.value = airiExt?.generation?.known?.maxTokens
+  generationTemperature.value = airiExt?.generation?.known?.temperature
+  generationTopP.value = airiExt?.generation?.known?.topP
   selectedActingModelExpressionPrompt.value = airiExt?.acting?.modelExpressionPrompt || DEFAULT_ACTING_MODEL_PROMPT
   selectedActingSpeechExpressionPrompt.value = airiExt?.acting?.speechExpressionPrompt || DEFAULT_ACTING_SPEECH_EXPRESSION_PROMPT
   selectedActingSpeechMannerismPrompt.value = airiExt?.acting?.speechMannerismPrompt || DEFAULT_ACTING_SPEECH_MANNERISM_PROMPT
@@ -760,6 +804,19 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
             v-model:card-personality="cardPersonality"
             v-model:card-scenario="cardScenario"
             v-model:card-greetings="cardGreetings"
+          />
+          <CardCreationTabGeneration
+            v-else-if="activeTab === 'generation'"
+            v-model:generation-enabled="generationEnabled"
+            v-model:generation-provider="generationProvider"
+            v-model:generation-model="generationModel"
+            v-model:generation-max-tokens="generationMaxTokens"
+            v-model:generation-temperature="generationTemperature"
+            v-model:generation-top-p="generationTopP"
+            :provider-options="generationProviderOptions"
+            :model-options="generationModelOptions"
+            :provider-placeholder="getDefaultPlaceholder(selectedConsciousnessProvider || consciousnessProvider)"
+            :model-placeholder="getDefaultPlaceholder(selectedConsciousnessModel || defaultConsciousnessModel)"
           />
           <CardCreationTabActing
             v-else-if="activeTab === 'acting'"
