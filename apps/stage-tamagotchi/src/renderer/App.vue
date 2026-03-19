@@ -59,6 +59,7 @@ const onboardingStore = useOnboardingStore()
 const router = useRouter()
 const route = useRoute()
 const cardStore = useAiriCardStore()
+const { activeCard } = storeToRefs(cardStore)
 const chatSessionStore = useChatSessionStore()
 const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
@@ -207,6 +208,28 @@ watch(
         from: document.title,
         to: nextTitle,
         route: route.path,
+      })
+      document.title = nextTitle
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => [route.path, activeCard.value?.name],
+  () => {
+    if (route.path.startsWith('/settings') || route.path === '/chat')
+      return
+
+    const activeCharacterLabel = activeCard.value?.name?.trim() || 'AIRI'
+    const nextTitle = `AIRI - Looking at ${activeCharacterLabel}`
+
+    if (document.title !== nextTitle) {
+      console.log('[AppTitle] Updating main title', {
+        from: document.title,
+        to: nextTitle,
+        route: route.path,
+        activeCharacterLabel,
       })
       document.title = nextTitle
     }

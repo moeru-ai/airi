@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { animations, useModelStore } from '@proj-airi/stage-ui-three'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -98,7 +97,7 @@ function toggleAlwaysOnTop() {
 }
 
 function handleOpenSettings() {
-  return openSettings()
+  return openSettings({})
 }
 
 function handleOpenChat() {
@@ -137,7 +136,7 @@ const adjustStyleClasses = computed(() => {
  *
  * See `apps/stage-tamagotchi/src/main/windows/main/index.ts` for handler definition
  */
-const startDraggingWindowInvoke = defineInvoke(context.value, electronStartDraggingWindow)
+const startDraggingWindowInvoke = useElectronEventaInvoke(electronStartDraggingWindow, context.value)
 function startDraggingWindow() {
   if (!isLinux.value) {
     startDraggingWindowInvoke()

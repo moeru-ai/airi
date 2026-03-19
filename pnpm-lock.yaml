@@ -2416,6 +2416,9 @@ importers:
       unspeech:
         specifier: catalog:xsai
         version: 0.1.11
+      valibot:
+        specifier: ^1.2.0
+        version: 1.2.0(typescript@5.9.3)
       vue:
         specifier: 'catalog:'
         version: 3.5.29(typescript@5.9.3)

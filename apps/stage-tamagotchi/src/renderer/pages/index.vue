@@ -39,6 +39,7 @@ import { useWindowStore } from '../stores/window'
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
+const controlsIslandRoot = computed(() => controlsIslandRef.value?.rootElement)
 const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
 
 const isLoading = ref(true)
@@ -47,7 +48,7 @@ const isIgnoringMouseEvents = ref(false)
 const shouldFadeOnCursorWithin = ref(false)
 
 const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
-const { isOutside } = useElectronMouseInElement(() => controlsIslandRef.value?.rootElement)
+const { isOutside } = useElectronMouseInElement(controlsIslandRoot)
 const isOutsideForInstant = isOutside
 const { x: relativeMouseX, y: relativeMouseY } = useElectronRelativeMouse()
 // NOTICE: In real-world use cases of Fade on Hover feature, the cursor may move around the edge of the
