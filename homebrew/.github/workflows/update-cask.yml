@@ -1,0 +1,21 @@
+name: Update Cask
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update airi cask
+        run: |
+          brew tap moeru-ai/tap "$(pwd)"
+          brew bump-cask-pr --no-browse --write-only airi
+      - name: Open PR if changed
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: 'chore: bump airi cask to latest'
+          title: 'chore: bump airi cask to latest'
+          branch: auto/bump-airi-cask
