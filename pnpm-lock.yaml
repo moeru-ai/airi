@@ -2173,6 +2173,9 @@ importers:
       '@proj-airi/server-shared':
         specifier: workspace:*
         version: link:../server-shared
+      nanoid:
+        specifier: 'catalog:'
+        version: 5.1.6
       valibot:
         specifier: ^1.2.0
         version: 1.2.0(typescript@5.9.3)
