@@ -130,6 +130,13 @@ const expectedRateMax = computed(() => {
   return Math.max(60, Math.ceil(60000 / interval))
 })
 
+function hasLiveVideoStream(stream: MediaStream | null) {
+  if (!stream)
+    return false
+
+  return stream.getVideoTracks().some(track => track.readyState === 'live')
+}
+
 async function ensureVideoStream() {
   if (!activeSourceId.value)
     return
@@ -156,8 +163,10 @@ async function handleVisionTick() {
     return
 
   try {
-    if (!activeStream.value)
+    if (!hasLiveVideoStream(activeStream.value)) {
+      activeStream.value = null
       await ensureVideoStream()
+    }
 
     const video = videoRef.value
     if (!video)
