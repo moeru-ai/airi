@@ -31,6 +31,18 @@ function matchKey(pattern: string, target: string) {
   return pattern === target
 }
 
+function getIntersectionKey(left: string, right: string) {
+  if (matchKey(left, right)) {
+    return right
+  }
+
+  if (matchKey(right, left)) {
+    return left
+  }
+
+  return undefined
+}
+
 function normalizeDeclaration(declaration?: ModulePermissionDeclaration | null): ModulePermissionDeclaration {
   return {
     apis: declaration?.apis ?? [],
@@ -49,33 +61,41 @@ function intersectPermissionScopes<T extends PermissionScope>(
     return []
   }
 
-  const result: T[] = []
+  const result = new Map<string, T>()
   for (const requestedSpec of requested) {
-    const matched = granted.filter(candidate => matchKey(candidate.key, requestedSpec.key) || matchKey(requestedSpec.key, candidate.key))
-    if (matched.length === 0) {
-      continue
-    }
+    for (const candidate of granted) {
+      const intersectionKey = getIntersectionKey(requestedSpec.key, candidate.key)
+      if (!intersectionKey) {
+        continue
+      }
 
-    const actions = new Set<T['actions'][number]>()
-    for (const candidate of matched) {
+      const actions = new Set<T['actions'][number]>()
       for (const action of candidate.actions) {
         if (hasAction(requestedSpec.actions, action)) {
           actions.add(action)
         }
       }
-    }
 
-    if (actions.size === 0) {
-      continue
-    }
+      if (actions.size === 0) {
+        continue
+      }
 
-    result.push({
-      ...requestedSpec,
-      actions: [...actions],
-    } as T)
+      const existing = result.get(intersectionKey)
+      const mergedActions = new Set(existing?.actions ?? [])
+      for (const action of actions) {
+        mergedActions.add(action)
+      }
+
+      result.set(intersectionKey, {
+        ...requestedSpec,
+        ...existing,
+        key: intersectionKey,
+        actions: [...mergedActions],
+      } as T)
+    }
   }
 
-  return result
+  return [...result.values()]
 }
 
 function intersectPermissions(
