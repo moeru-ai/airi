@@ -121,7 +121,7 @@ function handleManage() {
           placement === 'up'
             ? 'bottom-full mb-2 origin-bottom-right'
             : 'top-full mt-2 origin-top-right',
-          'border border-neutral-200/60 dark:border-neutral-800/60 rounded-xl',
+          'overflow-hidden border border-neutral-200/60 dark:border-neutral-800/60 rounded-xl',
           'bg-white/90 dark:bg-neutral-900/90 backdrop-blur-xl shadow-xl',
           'divide-y divide-neutral-100 dark:divide-neutral-800',
         ]"
@@ -173,7 +173,7 @@ function handleManage() {
         </Transition>
 
         <!-- Profile list -->
-        <div class="max-h-60 overflow-y-auto p-1">
+        <div class="max-h-60 overflow-y-auto p-1 scrollbar-none">
           <button
             v-for="card in cardsList"
             :key="card.id"
