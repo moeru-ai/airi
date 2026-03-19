@@ -12,6 +12,13 @@
 
 This feature enables users to discover, test, and validate LLM generation parameters on a **per-character basis** without affecting chat history. It addresses the fragmentation of parameter naming across providers (OpenAI, Anthropic, OpenRouter, etc.) by providing a sandbox for trial-and-error configuration.
 
+The first implementation should be intentionally narrow:
+
+- scope it to **consciousness/chat generation only**
+- let users test settings without polluting normal chat state
+- stage edits locally in the card dialog and only persist them when the user clicks the dialog's normal **Save** button
+- support both a small set of structured, well-understood fields and a raw advanced JSON block for provider/backend-specific tuning
+
 ---
 
 ## 2. Problem Statement
@@ -35,19 +42,54 @@ Providers like OpenRouter, Together, and Fireworks are **aggregators** proxying 
 
 **Conclusion:** Maintaining a canonical provider param schema is not feasible. Users must own the discovery process.
 
+### 2.3 Why SillyTavern Presets Matter
+SillyTavern-style generation preset JSON files are important precedent here. They often contain a mix of:
+
+- common generation controls like `temperature`, `top_p`, `top_k`, and penalties
+- backend-specific sampler controls like `min_p`, `dynatemp`, `xtc_*`, `dry_*`, and `mirostat_*`
+- ordering/prioritization metadata for how samplers should be applied
+
+The practical lesson is not that AIRI should clone all of SillyTavern's internals. The lesson is that users already have **known-good tuning profiles** that materially improve model behavior.
+
+In practice, SillyTavern appears to use those preset files as **request-shaping input**:
+
+1. the user selects a preset
+2. SillyTavern builds the final outbound request for each turn
+3. well-known values are mapped into the backend request shape
+4. provider/backend-specific values influence how the request is formed or proxied
+
+So the preset is less "just a static JSON blob" and more "a generation behavior profile that gets applied turn by turn."
+
+This is why AIRI should treat **preset import** as a first-class consideration even if compatibility remains best-effort.
+
 ---
 
 ## 3. Proposed Solution
 
 ### 3.1 Generation Config Tester
-A sandbox UI embedded in the **Character Edit Screen** (settings tab) that allows users to:
+A sandbox UI embedded in the **Character Edit Screen** that allows users to:
 
 1. **Build** a generation params object incrementally
 2. **Test** it with a custom prompt (one-shot, no history)
 3. **Review** the raw response + metrics (tokens, timing)
 4. **Save** the working config to the character
 
-### 3.2 Design Principles
+### 3.2 First-Scope Boundaries
+To keep this grounded, the first pass should explicitly avoid trying to solve everything:
+
+- **In scope**
+  - consciousness/chat generation settings only
+  - per-character tuning
+  - one-shot sandbox testing
+  - best-effort import of external preset JSON, especially SillyTavern-style settings
+- **Out of scope for v1**
+  - speech model tuning
+  - tool behavior tuning
+  - proactivity-specific tuning
+  - full cross-provider parameter normalization
+  - exact parity with SillyTavern's sampler stack
+
+### 3.3 Design Principles
 
 | Principle | Rationale |
 |-----------|-----------|
@@ -57,13 +99,17 @@ A sandbox UI embedded in the **Character Edit Screen** (settings tab) that allow
 | **Payload transparency** | Show exactly what JSON is being sent |
 | **Metrics visible** | Tokens + timing for cost estimation |
 | **Disclaimer prominent** | Set expectations: trial-and-error is expected |
+| **Persist only on dialog save** | Match the AIRI card editor model; test against staged changes, commit only when the card is saved |
+| **Best-effort preset compatibility** | Preserve useful external tuning intent without pretending to implement every provider/backend quirk |
 
 ---
 
 ## 4. UI/UX Specification
 
 ### 4.1 Location
-**Character Edit Screen → Settings Tab → "Generation Test" Section**
+**Character Edit Screen → dedicated tuning area/tab (exact placement TBD)**
+
+This should no longer assume the old standalone "Settings" tab exists. The actual placement should be decided alongside the larger AIRI card tab consolidation work.
 
 ### 4.2 Layout
 
@@ -129,10 +175,33 @@ interface CharacterConfig {
   name: string
   provider: string // e.g., "openai", "anthropic", "openrouter"
   model: string // e.g., "gpt-4", "claude-sonnet-4-20250514"
-  generationParams?: Record<string, any> // e.g., { max_tokens: 500, temp: 0.8 }
+  generationParams?: {
+    known?: {
+      max_tokens?: number
+      temperature?: number
+      top_p?: number
+      top_k?: number
+      frequency_penalty?: number
+      presence_penalty?: number
+      stop?: string[]
+      seed?: number
+    }
+    advanced?: Record<string, any> // provider/backend-specific extras
+    importedPresetMeta?: {
+      source?: 'sillytavern' | 'manual' | 'unknown'
+      originalKeys?: string[]
+      importedAt?: string
+    }
+  }
   // ... other character fields
 }
 ```
+
+This split is important:
+
+- `known` supports the small set of fields AIRI can confidently label and edit
+- `advanced` preserves the rest of the tuning object without pretending it is universal
+- `importedPresetMeta` gives the user and future developers context about where the tuning came from
 
 ### 5.2 Test Session State (Ephemeral)
 
@@ -168,6 +237,20 @@ const COMMON_LLM_PARAMS = [
 ]
 ```
 
+### 5.4 Preset Import Model
+External preset import should be **best effort**:
+
+1. parse the incoming JSON
+2. map any recognized keys into `generationParams.known`
+3. copy unrecognized but valid keys into `generationParams.advanced`
+4. preserve basic metadata about the import source
+
+This should be explicitly framed as:
+
+- **useful**
+- **transparent**
+- **not guaranteed to reproduce another app's exact runtime behavior**
+
 ---
 
 ## 6. Implementation Notes
@@ -177,7 +260,7 @@ const COMMON_LLM_PARAMS = [
 ```
 User clicks "Run Test"
     ↓
-Build payload from character.provider + character.model + test params
+Build payload from character.provider + character.model + staged tuning params
     ↓
 POST to provider endpoint (same pipeline as normal chat)
     ↓
@@ -186,11 +269,17 @@ Capture response + headers (for token usage) + timing
 Display in sandbox (no history write)
 ```
 
+Important clarification:
+
+- the sandbox should test against the **staged in-dialog values**, not only already-saved card state
+- successful tests should **not** auto-apply or auto-save those settings
+- the normal AIRI card **Save** action remains the commit point
+
 ### 6.2 Storage
 
 | Data | Storage | Persistence |
 |------|---------|-------------|
-| Character config | IndexedDB / LocalStorage | Persistent |
+| Character config | Existing AIRI card persistence | Persistent |
 | Test session state | Component state (React) | Ephemeral (resets on nav) |
 | Last-used test params | LocalStorage (optional) | Session-level |
 
@@ -209,6 +298,8 @@ Display in sandbox (no history write)
 | Empty prompt | Disable test button; show validation hint |
 | No params added | Allow test (uses character defaults) |
 | Timeout | Show error; suggest increasing `timeout` param |
+| Imported preset contains many unsupported keys | Preserve them in advanced JSON; warn that compatibility is best-effort |
+| Imported preset is tuned for another backend | Keep import possible, but label it as potentially non-portable |
 
 ---
 
@@ -217,10 +308,11 @@ Display in sandbox (no history write)
 | Feature | Priority | Notes |
 |---------|----------|-------|
 | Save multiple param presets per character | Low | "Quick", "Verbose", etc. |
-| Export/import param configs | Low | Share configs between characters |
+| Export/import param configs | Medium | Includes SillyTavern-style preset import/export pathways |
 | Auto-suggest params by provider | Medium | Crowdsourced or heuristic-based |
 | Multi-turn test mode | Low | Adds complexity; defer to v2 |
 | Token cost estimation | Medium | Show $ estimate based on usage |
+| Speech/provider tuning surfaces | Low | Separate concern from chat/consciousness tuning |
 
 ---
 
@@ -230,6 +322,8 @@ Display in sandbox (no history write)
 2. **Param validation?** Should we validate types client-side (e.g., temp 0-2), or let the API reject?
 3. **Persist last test state?** Restore prompt/params if user navigates away and returns?
 4. **Character defaults?** If no params are set, does the character use provider defaults or app-wide defaults?
+5. **UI placement?** Does this become its own tab, or a major section inside a consolidated character/identity surface?
+6. **Preset labeling?** How prominently should imported preset provenance (e.g. "Imported from SillyTavern") be shown to the user?
 
 ---
 
@@ -243,6 +337,8 @@ Display in sandbox (no history write)
 - [ ] Error states are clearly communicated
 - [ ] Working config can be saved to character
 - [ ] Disclaimer is visible and prominent
+- [ ] External preset JSON can be imported on a best-effort basis
+- [ ] Known fields and advanced JSON are both preserved without misleading the user about parity
 
 ---
 

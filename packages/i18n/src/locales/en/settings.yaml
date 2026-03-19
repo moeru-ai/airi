@@ -159,6 +159,12 @@ pages:
           You can put here some details about the character you are creating,
           explain his history and context, and how your interactions should be
           answered.
+        identity_prompting: >-
+          These fields all help define the character, but they are not
+          separate runtime layers today. System Prompt is used in AIRI's active
+          prompt assembly. Post-History Instructions is currently kept mainly
+          for card compatibility and future prompt-pipeline work, so you can
+          fill it out now without expecting distinct live behavior yet.
         name: Is the formal name of this character.
         nickname: You can also give a nickname that will be used in priority.
         description: Description of this character.
@@ -169,8 +175,8 @@ pages:
         scenario: What are the surroundings ? What is the current situation ?
         greetings_field: Greetings
         greetings: How your character should say "hello" ?
-        systemprompt: Explain here to the AI LLM how it should answer when prompted.
-        posthistoryinstructions: Place here anything the AI LLM should read after the messages history.
+        systemprompt: The main instructions AIRI actively uses today when building this character's prompt.
+        posthistoryinstructions: Stored for card compatibility and future prompt compaction work. It is not currently applied as a distinct live prompt stage.
         version: >-
           Card version, you should increase this if you are making changes from
           a previous card.

@@ -123,6 +123,12 @@ Why this is the right MVP:
 - it preserves the existing successful carousel interaction pattern
 - it adds a new user-facing capability instead of only rebuilding storage under the hood
 
+An important downstream extension of `set_as_background` is sensor awareness:
+
+- once AIRI changes her own background through the journal flow, the active background should be surfaced back into the proactivity/sensor layer
+- this allows future heartbeat logic to understand and reference AIRI's current visual environment instead of treating background changes as silent UI-only state
+- in other words, journal-driven background changes should become part of AIRI's ambient self-context, not just a scene-side implementation detail
+
 ## 10. Titles, Slugs, and Future Interactions
 The LLM should provide a **human-readable title** as part of image creation.
 

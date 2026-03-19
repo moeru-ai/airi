@@ -35,7 +35,6 @@ import CardCreationTabBehavior from './tabs/CardCreationTabBehavior.vue'
 import CardCreationTabIdentity from './tabs/CardCreationTabIdentity.vue'
 import CardCreationTabModules from './tabs/CardCreationTabModules.vue'
 import CardCreationTabProactivity from './tabs/CardCreationTabProactivity.vue'
-import CardCreationTabSettings from './tabs/CardCreationTabSettings.vue'
 
 interface Props {
   modelValue: boolean
@@ -413,7 +412,6 @@ const tabs: Tab[] = [
   { id: 'modules', label: t('settings.pages.card.modules'), icon: 'i-solar:widget-4-bold-duotone' },
   { id: 'artistry', label: t('settings.pages.modules.artistry.title'), icon: 'i-solar:gallery-bold-duotone' },
   { id: 'proactivity', label: t('settings.pages.card.creation.proactivity', 'Proactivity'), icon: 'i-solar:heart-pulse-bold-duotone' },
-  { id: 'settings', label: t('settings.pages.card.creation.settings'), icon: 'i-solar:settings-bold-duotone' },
 ]
 
 // Active tab state - set to first available tab by default
@@ -753,6 +751,9 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
             v-model:card-nickname="cardNickname"
             v-model:card-description="cardDescription"
             v-model:card-notes="cardNotes"
+            v-model:card-system-prompt="cardSystemPrompt"
+            v-model:card-post-history-instructions="cardPostHistoryInstructions"
+            v-model:card-version="cardVersion"
           />
           <CardCreationTabBehavior
             v-else-if="activeTab === 'behavior'"
@@ -825,13 +826,6 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
             :sensor-payload="sensorPayload"
             :static-sample-payload="staticSamplePayload"
           />
-          <CardCreationTabSettings
-            v-else-if="activeTab === 'settings'"
-            v-model:card-system-prompt="cardSystemPrompt"
-            v-model:card-post-history-instructions="cardPostHistoryInstructions"
-            v-model:card-version="cardVersion"
-          />
-
           <div class="ml-auto mr-1 flex flex-row gap-2">
             <Button
               variant="secondary"
