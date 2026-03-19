@@ -19,10 +19,7 @@ const showControlsIsland = computed(() => props.needsControlsIslandIconSizeSetti
 const showAnalyticsSettings = computed(() => isPosthogAvailableInBuild())
 const analyticsToggleValue = computed({
   get: () => showAnalyticsSettings.value ? settings.analyticsEnabled : false,
-  set: (value: boolean) => {
-    if (showAnalyticsSettings.value)
-      settings.analyticsEnabled = value
-  },
+  set: (value: boolean) => settings.analyticsEnabled = value,
 })
 
 const { locale, t } = useI18n()
