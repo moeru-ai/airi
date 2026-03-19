@@ -3,7 +3,7 @@ import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@pr
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { FieldRange } from '@proj-airi/ui'
+import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -17,6 +17,7 @@ const {
   activeProvider,
   activeModel,
   customModelName,
+  ollamaThinkingEnabled,
   modelSearchQuery,
   supportsModelListing,
   providerModels,
@@ -60,6 +61,7 @@ function handleDeleteProvider(providerId: string) {
 
 const formattedLastCapture = computed(() => formatRelativeTime(lastCaptureAt.value))
 const formattedLastContextUpdate = computed(() => formatRelativeTime(lastContextUpdateAt.value))
+const isOllamaVisionProvider = computed(() => activeProvider.value === 'ollama')
 
 function formatRelativeTime(timestamp: number | null) {
   if (!timestamp)
@@ -384,6 +386,28 @@ function formatRelativeTime(timestamp: number | null) {
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div
+      v-if="isOllamaVisionProvider"
+      :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']"
+    >
+      <div :class="['flex', 'flex-col', 'gap-4']">
+        <div>
+          <h2 :class="['text-lg', 'text-neutral-500', 'md:text-2xl', 'dark:text-neutral-400']">
+            Provider request toggles
+          </h2>
+          <div :class="['text-neutral-400', 'dark:text-neutral-400']">
+            Control provider-specific request flags for vision inference.
+          </div>
+        </div>
+
+        <FieldCheckbox
+          v-model="ollamaThinkingEnabled"
+          label="Thinking (Ollama)"
+          description="When enabled, vision requests sent through Ollama include `think: true`. When disabled, they include `think: false`."
+        />
       </div>
     </div>
   </div>

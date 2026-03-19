@@ -35,7 +35,7 @@ export function useVisionInference() {
   const llmStore = useLLM()
   const providersStore = useProvidersStore()
   const visionStore = useVisionStore()
-  const { activeProvider, activeModel } = storeToRefs(visionStore)
+  const { activeProvider, activeModel, ollamaThinkingEnabled } = storeToRefs(visionStore)
 
   const lastText = ref('')
 
@@ -47,6 +47,17 @@ export function useVisionInference() {
     const workload = getVisionWorkload(input.workloadId)
     const prompt = input.promptOverride ?? workload.prompt
     const { url } = parseDataUrl(input.imageDataUrl)
+    const visionProvider = activeProvider.value === 'ollama'
+      ? {
+        ...provider,
+        chat(model: string) {
+          return {
+            ...provider.chat(model),
+            think: ollamaThinkingEnabled.value,
+          }
+        },
+      } satisfies ChatProvider
+      : provider
 
     const contentParts: CommonContentPart[] = [
       { type: 'text', text: prompt },
@@ -63,7 +74,7 @@ export function useVisionInference() {
     ]
 
     let buffer = ''
-    await llmStore.stream(activeModel.value, provider, messages, {
+    await llmStore.stream(activeModel.value, visionProvider, messages, {
       onStreamEvent: (event) => {
         if (event.type === 'text-delta') {
           buffer += event.text

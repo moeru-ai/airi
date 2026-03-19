@@ -46,6 +46,7 @@ const sourceCategory = ref<SourceCategory>('displays')
 const errorMessage = ref('')
 const screenshotDataUrl = ref('')
 const sendContextUpdates = ref(false)
+const captureDownscalePercent = ref(100)
 const selectedWorkload = ref<VisionWorkloadId>(VISION_WORKLOADS[0]?.id || 'screen:interpret')
 
 const videoRef = ref<HTMLVideoElement | null>(null)
@@ -101,6 +102,14 @@ const statusLabel = computed(() => {
 
 const isInitialLoading = computed(() => !hasFetchedOnce.value && isRefetching.value)
 const refetchLabel = computed(() => (isInitialLoading.value ? 'Loading...' : isRefetching.value ? 'Refetching...' : 'Refetch'))
+const captureInputBounds = computed(() => {
+  const scaleRatio = captureDownscalePercent.value / 100
+
+  return {
+    maxWidth: Math.max(160, Math.round(1280 * scaleRatio)),
+    maxHeight: Math.max(90, Math.round(720 * scaleRatio)),
+  }
+})
 
 const processingMaxMs = computed(() => {
   if (!processingHistoryMs.value.length)
@@ -146,7 +155,12 @@ async function handleVisionTick() {
     if (!video)
       return
 
-    const dataUrl = captureFrame(video)
+    const dataUrl = captureFrame(
+      video,
+      0.82,
+      captureInputBounds.value.maxWidth,
+      captureInputBounds.value.maxHeight,
+    )
     if (!dataUrl)
       return
 
@@ -366,6 +380,20 @@ onBeforeUnmount(() => {
                   :step="250"
                   :format-value="value => `${(value / 1000).toFixed(2)}s`"
                 />
+
+                <FieldRange
+                  v-model="captureDownscalePercent"
+                  label="Input downscale"
+                  description="Shrink each captured frame before sending it to the vision model. 100% keeps the existing 1280×720 capture cap."
+                  :min="25"
+                  :max="100"
+                  :step="5"
+                  :format-value="value => `${value}%`"
+                />
+
+                <div :class="['text-xs', 'text-neutral-400']">
+                  Vision input max size: {{ captureInputBounds.maxWidth }} × {{ captureInputBounds.maxHeight }}
+                </div>
 
                 <FieldSelect
                   v-model="selectedWorkload"
