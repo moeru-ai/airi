@@ -7,6 +7,7 @@ import {
   moduleCompatibilityResult,
   modulePermissionsCurrent,
   modulePermissionsDeclare,
+  modulePermissionsDenied,
   modulePermissionsGranted,
   modulePermissionsRequest,
   moduleStatus,
@@ -807,6 +808,98 @@ describe('for PluginHost', () => {
     ]))
 
     await expect(invokeProviders()).resolves.toEqual([{ name: 'provider:runtime' }])
+  })
+
+  it('should only emit denied scopes that remain precisely representable after partial approval', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+      permissionResolver: ({ requested }) => ({
+        apis: [
+          ...(requested.apis ?? []).filter(spec => spec.key.startsWith('proj-airi:plugin-sdk:')),
+          { key: 'plugin.api.users', actions: ['invoke'] },
+        ],
+        resources: [
+          ...(requested.resources ?? []).filter(spec => spec.key.startsWith('proj-airi:plugin-sdk:')),
+          { key: 'plugin.resource.settings', actions: ['read'] },
+        ],
+        capabilities: requested.capabilities,
+      }),
+    })
+
+    const manifest = {
+      apiVersion: 'v1' as const,
+      kind: 'manifest.plugin.airi.moeru.ai' as const,
+      name: 'test-plugin-denied-partial',
+      permissions: {
+        apis: [
+          ...(testManifest.permissions.apis ?? []),
+          { key: 'plugin.api.users', actions: ['invoke', 'emit'], reason: 'Use selected user API actions' },
+        ],
+        resources: [
+          ...(testManifest.permissions.resources ?? []),
+          { key: 'plugin.resource.*', actions: ['read'], reason: 'Read plugin resources' },
+        ],
+        capabilities: testManifest.permissions.capabilities,
+      } satisfies ModulePermissionDeclaration,
+      entrypoints: {
+        electron: join(import.meta.dirname, 'testdata', 'test-normal-plugin.ts'),
+      },
+    }
+
+    const session = await host.load(manifest, { cwd: '' })
+    const deniedEvents: Array<{ body?: Record<string, unknown> }> = []
+    const currentEvents: Array<{ body?: Record<string, unknown> }> = []
+    session.channels.host.on(modulePermissionsDenied, payload => deniedEvents.push(payload as unknown as { body?: Record<string, unknown> }))
+    session.channels.host.on(modulePermissionsCurrent, payload => currentEvents.push(payload as unknown as { body?: Record<string, unknown> }))
+
+    await host.init(session.id)
+
+    expect(session.permissions.granted).toEqual({
+      apis: [
+        ...(testManifest.permissions.apis ?? []),
+        { key: 'plugin.api.users', actions: ['invoke'], reason: 'Use selected user API actions' },
+      ],
+      resources: [
+        ...(testManifest.permissions.resources ?? []),
+        { key: 'plugin.resource.settings', actions: ['read'], reason: 'Read plugin resources' },
+      ],
+      capabilities: testManifest.permissions.capabilities ?? [],
+      processors: [],
+      pipelines: [],
+    })
+
+    expect(deniedEvents).toEqual([
+      expect.objectContaining({
+        body: expect.objectContaining({
+          denied: {
+            apis: [
+              { key: 'plugin.api.users', actions: ['emit'], reason: 'Use selected user API actions' },
+            ],
+          },
+        }),
+      }),
+    ])
+    expect(deniedEvents[0]?.body?.denied).not.toHaveProperty('resources')
+    expect(currentEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        body: expect.objectContaining({
+          granted: {
+            apis: [
+              ...(testManifest.permissions.apis ?? []),
+              { key: 'plugin.api.users', actions: ['invoke'], reason: 'Use selected user API actions' },
+            ],
+            resources: [
+              ...(testManifest.permissions.resources ?? []),
+              { key: 'plugin.resource.settings', actions: ['read'], reason: 'Read plugin resources' },
+            ],
+            capabilities: testManifest.permissions.capabilities ?? [],
+            processors: [],
+            pipelines: [],
+          },
+        }),
+      }),
+    ]))
   })
 
   it('should isolate runtime permission grants between concurrent same-name sessions', async () => {

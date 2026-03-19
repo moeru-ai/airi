@@ -377,23 +377,108 @@ function resolveNegotiatedVersion(preferredVersion: string, hostSupportedVersion
 
 function filterDeniedPermissions(requested: ModulePermissionDeclaration, granted: ModulePermissionGrant): ModulePermissionDeclaration {
   const denied: ModulePermissionDeclaration = {}
-  const areas: Array<keyof ModulePermissionDeclaration> = ['apis', 'resources', 'capabilities', 'processors', 'pipelines']
+  const deniedApis = filterDeniedPermissionScopes(requested.apis, granted.apis)
+  const deniedResources = filterDeniedPermissionScopes(requested.resources, granted.resources)
+  const deniedCapabilities = filterDeniedPermissionScopes(requested.capabilities, granted.capabilities)
+  const deniedProcessors = filterDeniedPermissionScopes(requested.processors, granted.processors)
+  const deniedPipelines = filterDeniedPermissionScopes(requested.pipelines, granted.pipelines)
 
-  for (const area of areas) {
-    const requestedSpecs = requested[area] ?? []
-    const grantedSpecs = granted[area] ?? []
-    const missing = requestedSpecs.filter(spec =>
-      !grantedSpecs.some(grantedSpec =>
-        grantedSpec.key === spec.key
-        && spec.actions.every(action => grantedSpec.actions.includes(action as never)),
-      ),
-    )
-    if (missing.length > 0) {
-      denied[area] = missing as never
-    }
+  if (deniedApis.length > 0) {
+    denied.apis = deniedApis
+  }
+
+  if (deniedResources.length > 0) {
+    denied.resources = deniedResources
+  }
+
+  if (deniedCapabilities.length > 0) {
+    denied.capabilities = deniedCapabilities
+  }
+
+  if (deniedProcessors.length > 0) {
+    denied.processors = deniedProcessors
+  }
+
+  if (deniedPipelines.length > 0) {
+    denied.pipelines = deniedPipelines
   }
 
   return denied
+}
+
+function matchPermissionKey(pattern: string, target: string) {
+  if (pattern === '*') {
+    return true
+  }
+
+  if (pattern.endsWith('*')) {
+    return target.startsWith(pattern.slice(0, -1))
+  }
+
+  return pattern === target
+}
+
+function getPermissionIntersectionKey(left: string, right: string) {
+  if (matchPermissionKey(left, right)) {
+    return right
+  }
+
+  if (matchPermissionKey(right, left)) {
+    return left
+  }
+
+  return undefined
+}
+
+function filterDeniedPermissionScopes<
+  T extends {
+    key: string
+    actions: string[]
+  },
+>(requested: T[] | undefined, granted: T[] | undefined): T[] {
+  if (!requested?.length) {
+    return []
+  }
+
+  return requested.flatMap((requestedSpec) => {
+    const grantedActions = new Set<string>()
+    let hasUnRepresentableOverlap = false
+
+    for (const grantedSpec of granted ?? []) {
+      const intersectionKey = getPermissionIntersectionKey(requestedSpec.key, grantedSpec.key)
+      if (!intersectionKey) {
+        continue
+      }
+
+      if (intersectionKey !== requestedSpec.key) {
+        // A narrower grant overlaps only part of the requested scope, such as:
+        // - requested `plugin.resource.*`
+        // - granted   `plugin.resource.settings`
+        //
+        // The current declaration shape cannot express "everything except the granted subset",
+        // so reporting the whole requested scope as denied would contradict the granted/current
+        // snapshots. In that case we omit the denied entry rather than over-reporting it.
+        hasUnRepresentableOverlap = true
+        continue
+      }
+
+      for (const action of grantedSpec.actions) {
+        if (requestedSpec.actions.includes(action)) {
+          grantedActions.add(action)
+        }
+      }
+    }
+
+    const deniedActions = requestedSpec.actions.filter(action => !grantedActions.has(action))
+    if (deniedActions.length === 0 || hasUnRepresentableOverlap) {
+      return []
+    }
+
+    return [{
+      ...requestedSpec,
+      actions: deniedActions,
+    }]
+  })
 }
 
 class PermissionDeniedError extends Error {
