@@ -269,7 +269,7 @@ overrides:
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 
-packageExtensionsChecksum: sha256-SQFrmAjlIKKpmge0IEueHU14dbRJWb8bHR4X52vacF4=
+packageExtensionsChecksum: sha256-IN+tid6KSQ4g0xsKE9LfWOFHY7VffRXA5pNaiV4aMFg=
 
 patchedDependencies:
   mineflayer-pathfinder:
@@ -647,10 +647,10 @@ importers:
         version: link:../../packages/ui-transitions
       '@tresjs/cientos':
         specifier: ^5.4.0
-        version: 5.4.0(@tresjs/core@5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3)))(@types/three@0.183.1)(react@19.2.3)(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
+        version: 5.4.0(@tresjs/core@5.5.0(@types/three@0.183.1)(three@0.183.1)(vue@3.5.29(typescript@5.9.3)))(@types/three@0.183.1)(react@19.2.3)(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
       '@tresjs/core':
         specifier: ^5.5.0
-        version: 5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
+        version: 5.5.0(@types/three@0.183.1)(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
       '@valibot/to-json-schema':
         specifier: 1.0.0-rc.0
         version: 1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3))
@@ -1038,10 +1038,10 @@ importers:
         version: 3.23.0
       '@tresjs/cientos':
         specifier: ^5.4.0
-        version: 5.4.0(@tresjs/core@5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3)))(@types/three@0.183.1)(react@19.2.3)(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
+        version: 5.4.0(@tresjs/core@5.5.0(@types/three@0.183.1)(three@0.183.1)(vue@3.5.29(typescript@5.9.3)))(@types/three@0.183.1)(react@19.2.3)(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
       '@tresjs/core':
         specifier: ^5.5.0
-        version: 5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
+        version: 5.5.0(@types/three@0.183.1)(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
       '@unocss/reset':
         specifier: ^66.6.2
         version: 66.6.2
@@ -1465,10 +1465,10 @@ importers:
         version: link:../../packages/ui-transitions
       '@tresjs/cientos':
         specifier: ^5.4.0
-        version: 5.4.0(@tresjs/core@5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3)))(@types/three@0.183.1)(react@19.2.3)(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
+        version: 5.4.0(@tresjs/core@5.5.0(@types/three@0.183.1)(three@0.183.1)(vue@3.5.29(typescript@5.9.3)))(@types/three@0.183.1)(react@19.2.3)(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
       '@tresjs/core':
         specifier: ^5.5.0
-        version: 5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
+        version: 5.5.0(@types/three@0.183.1)(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
       '@valibot/to-json-schema':
         specifier: 1.0.0-rc.0
         version: 1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3))
@@ -1833,7 +1833,7 @@ importers:
         version: 5.0.0(vue@3.5.29(typescript@5.9.3))
       '@intlify/unplugin-vue-i18n':
         specifier: ^11.0.7
-        version: 11.0.7(@vue/compiler-dom@3.5.29)(eslint@9.39.3(jiti@2.6.1))(rollup@4.59.0)(typescript@5.9.3)(vite@7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
+        version: 11.0.7(@vue/compiler-dom@3.5.29)(eslint@9.39.3(jiti@2.6.1))(rollup@4.59.0)(typescript@5.9.3)(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
       '@mdit/plugin-footnote':
         specifier: ^0.22.4
         version: 0.22.4(markdown-it@14.1.1)
@@ -1893,7 +1893,7 @@ importers:
         version: 0.1.3
       unplugin-yaml:
         specifier: ^4.0.0
-        version: 4.0.0(@nuxt/kit@3.20.2(magicast@0.5.2))(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@4.59.0)(vite@7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+        version: 4.0.0(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@4.59.0)(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
       vitepress:
         specifier: ^2.0.0-alpha.16
         version: 2.0.0-alpha.16(@types/node@24.10.14)(change-case@5.4.4)(fuse.js@7.1.0)(idb-keyval@6.2.2)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(nprogress@0.2.0)(postcss@8.5.6)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
@@ -2123,7 +2123,7 @@ importers:
         version: 0.1.0-beta.17
       '@pixiv/three-vrm':
         specifier: ^3.5.0
-        version: 3.5.0(three@0.183.1)
+        version: 3.5.0(@types/three@0.183.1)(three@0.183.1)
       es-toolkit:
         specifier: 'catalog:'
         version: 1.43.0
@@ -2952,13 +2952,13 @@ importers:
         version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@pixiv/three-vrm':
         specifier: ^3.5.0
-        version: 3.5.0(three@0.183.1)
+        version: 3.5.0(@types/three@0.183.1)(three@0.183.1)
       '@pixiv/three-vrm-animation':
         specifier: ^3.5.0
-        version: 3.5.0(three@0.183.1)
+        version: 3.5.0(@types/three@0.183.1)(three@0.183.1)
       '@pixiv/three-vrm-core':
         specifier: ^3.5.0
-        version: 3.5.0(three@0.183.1)
+        version: 3.5.0(@types/three@0.183.1)(three@0.183.1)
       '@proj-airi/stage-shared':
         specifier: workspace:*
         version: link:../stage-shared
@@ -2967,13 +2967,13 @@ importers:
         version: link:../ui
       '@tresjs/cientos':
         specifier: ^5.4.0
-        version: 5.4.0(@tresjs/core@5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3)))(@types/three@0.183.1)(react@19.2.3)(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
+        version: 5.4.0(@tresjs/core@5.5.0(@types/three@0.183.1)(three@0.183.1)(vue@3.5.29(typescript@5.9.3)))(@types/three@0.183.1)(react@19.2.3)(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
       '@tresjs/core':
         specifier: ^5.5.0
-        version: 5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
+        version: 5.5.0(@types/three@0.183.1)(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
       '@tresjs/post-processing':
         specifier: ^3.4.0
-        version: 3.4.0(@tresjs/core@5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3)))(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
+        version: 3.4.0(@tresjs/core@5.5.0(@types/three@0.183.1)(three@0.183.1)(vue@3.5.29(typescript@5.9.3)))(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
       '@vueuse/core':
         specifier: ^14.2.1
         version: 14.2.1(vue@3.5.29(typescript@5.9.3))
@@ -3234,7 +3234,7 @@ importers:
         version: 14.1.0(vue@3.5.29(typescript@5.9.3))
       '@wxt-dev/module-vue':
         specifier: ^1.0.3
-        version: 1.0.3(vite@7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))(wxt@0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+        version: 1.0.3(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))(wxt@0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
       nanoid:
         specifier: ^5.1.6
         version: 5.1.6
@@ -7449,11 +7449,13 @@ packages:
   '@pixiv/three-vrm-animation@3.5.0':
     resolution: {integrity: sha512-CcwVBqE9JMGHOcaqYSQEcXeIhWXdKkSI8//y8L4q3XTMgxYfrD1ZGLgXxXFpOuSyRZZa4Teig5VA1yno2QWvmA==}
     peerDependencies:
+      '@types/three': '*'
       three: '>=0.137'
 
   '@pixiv/three-vrm-core@3.5.0':
     resolution: {integrity: sha512-Z3op1F2EZWF+DpZnsUIWBHwd32BOO8AeojdNZSPribt5ORhbBbpcY2TO570CO33bBcAuAABV3iwu/mNLy4Xg6w==}
     peerDependencies:
+      '@types/three': '*'
       three: '>=0.137'
 
   '@pixiv/three-vrm-materials-hdr-emissive-multiplier@3.5.0':
@@ -8380,6 +8382,7 @@ packages:
   '@tresjs/core@5.5.0':
     resolution: {integrity: sha512-wIHwPYWeBXO1LdDVRHPAt0YLjvqm8JYb6uliOkzLyWzHqVNVZ0qQjipGPT72mV87uQFUiIHF8EY8L2jiWxuUFw==}
     peerDependencies:
+      '@types/three': '*'
       three: '>=0.133'
       vue: '>=3.4'
 
@@ -19153,31 +19156,6 @@ snapshots:
       - supports-color
       - typescript
 
-  '@intlify/unplugin-vue-i18n@11.0.7(@vue/compiler-dom@3.5.29)(eslint@9.39.3(jiti@2.6.1))(rollup@4.59.0)(typescript@5.9.3)(vite@7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))':
-    dependencies:
-      '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.3(jiti@2.6.1))
-      '@intlify/bundle-utils': 11.0.7(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))
-      '@intlify/shared': 11.2.8
-      '@intlify/vue-i18n-extensions': 8.0.0(@intlify/shared@11.2.8)(@vue/compiler-dom@3.5.29)(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
-      '@rollup/pluginutils': 5.3.0(rollup@4.59.0)
-      '@typescript-eslint/scope-manager': 8.56.1
-      '@typescript-eslint/typescript-estree': 8.56.1(typescript@5.9.3)
-      debug: 4.4.3
-      fast-glob: 3.3.3
-      pathe: 2.0.3
-      picocolors: 1.1.1
-      unplugin: 2.3.11
-      vite: 7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
-      vue: 3.5.29(typescript@5.9.3)
-    optionalDependencies:
-      vue-i18n: 11.2.8(vue@3.5.29(typescript@5.9.3))
-    transitivePeerDependencies:
-      - '@vue/compiler-dom'
-      - eslint
-      - rollup
-      - supports-color
-      - typescript
-
   '@intlify/unplugin-vue-i18n@11.0.7(@vue/compiler-dom@3.5.29)(eslint@9.39.3(jiti@2.6.1))(rollup@4.59.0)(typescript@5.9.3)(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))':
     dependencies:
       '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.3(jiti@2.6.1))
@@ -21074,17 +21052,19 @@ snapshots:
       eventemitter3: 3.1.2
       url: 0.11.4
 
-  '@pixiv/three-vrm-animation@3.5.0(three@0.183.1)':
+  '@pixiv/three-vrm-animation@3.5.0(@types/three@0.183.1)(three@0.183.1)':
     dependencies:
-      '@pixiv/three-vrm-core': 3.5.0(three@0.183.1)
+      '@pixiv/three-vrm-core': 3.5.0(@types/three@0.183.1)(three@0.183.1)
       '@pixiv/types-vrmc-vrm-1.0': 3.5.0
       '@pixiv/types-vrmc-vrm-animation-1.0': 3.5.0
+      '@types/three': 0.183.1
       three: 0.183.1
 
-  '@pixiv/three-vrm-core@3.5.0(three@0.183.1)':
+  '@pixiv/three-vrm-core@3.5.0(@types/three@0.183.1)(three@0.183.1)':
     dependencies:
       '@pixiv/types-vrm-0.0': 3.5.0
       '@pixiv/types-vrmc-vrm-1.0': 3.5.0
+      '@types/three': 0.183.1
       three: 0.183.1
 
   '@pixiv/three-vrm-materials-hdr-emissive-multiplier@3.5.0(three@0.183.1)':
@@ -21116,15 +21096,17 @@ snapshots:
       '@pixiv/types-vrmc-springbone-extended-collider-1.0': 3.5.0
       three: 0.183.1
 
-  '@pixiv/three-vrm@3.5.0(three@0.183.1)':
+  '@pixiv/three-vrm@3.5.0(@types/three@0.183.1)(three@0.183.1)':
     dependencies:
-      '@pixiv/three-vrm-core': 3.5.0(three@0.183.1)
+      '@pixiv/three-vrm-core': 3.5.0(@types/three@0.183.1)(three@0.183.1)
       '@pixiv/three-vrm-materials-hdr-emissive-multiplier': 3.5.0(three@0.183.1)
       '@pixiv/three-vrm-materials-mtoon': 3.5.0(three@0.183.1)
       '@pixiv/three-vrm-materials-v0compat': 3.5.0(three@0.183.1)
       '@pixiv/three-vrm-node-constraint': 3.5.0(three@0.183.1)
       '@pixiv/three-vrm-springbone': 3.5.0(three@0.183.1)
       three: 0.183.1
+    transitivePeerDependencies:
+      - '@types/three'
 
   '@pixiv/types-vrm-0.0@3.5.0': {}
 
@@ -21806,9 +21788,9 @@ snapshots:
 
   '@tokenizer/token@0.3.0': {}
 
-  '@tresjs/cientos@5.4.0(@tresjs/core@5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3)))(@types/three@0.183.1)(react@19.2.3)(three@0.183.1)(vue@3.5.29(typescript@5.9.3))':
+  '@tresjs/cientos@5.4.0(@tresjs/core@5.5.0(@types/three@0.183.1)(three@0.183.1)(vue@3.5.29(typescript@5.9.3)))(@types/three@0.183.1)(react@19.2.3)(three@0.183.1)(vue@3.5.29(typescript@5.9.3))':
     dependencies:
-      '@tresjs/core': 5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
+      '@tresjs/core': 5.5.0(@types/three@0.183.1)(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
       '@vueuse/core': 13.9.0(vue@3.5.29(typescript@5.9.3))
       camera-controls: 2.10.1(three@0.183.1)
       stats-gl: 2.4.2(@types/three@0.183.1)(three@0.183.1)
@@ -21823,18 +21805,19 @@ snapshots:
       - '@types/three'
       - react
 
-  '@tresjs/core@5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3))':
+  '@tresjs/core@5.5.0(@types/three@0.183.1)(three@0.183.1)(vue@3.5.29(typescript@5.9.3))':
     dependencies:
       '@pmndrs/pointer-events': 6.6.28(three@0.183.1)
+      '@types/three': 0.183.1
       '@vue/devtools-api': 7.7.9
       '@vueuse/core': 13.9.0(vue@3.5.29(typescript@5.9.3))
       radashi: 12.7.1
       three: 0.183.1
       vue: 3.5.29(typescript@5.9.3)
 
-  '@tresjs/post-processing@3.4.0(@tresjs/core@5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3)))(three@0.183.1)(vue@3.5.29(typescript@5.9.3))':
+  '@tresjs/post-processing@3.4.0(@tresjs/core@5.5.0(@types/three@0.183.1)(three@0.183.1)(vue@3.5.29(typescript@5.9.3)))(three@0.183.1)(vue@3.5.29(typescript@5.9.3))':
     dependencies:
-      '@tresjs/core': 5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
+      '@tresjs/core': 5.5.0(@types/three@0.183.1)(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
       '@vueuse/core': 13.9.0(vue@3.5.29(typescript@5.9.3))
       postprocessing: 6.38.3(three@0.183.1)
       three: 0.183.1
@@ -23288,9 +23271,9 @@ snapshots:
       '@types/filesystem': 0.0.36
       '@types/har-format': 1.2.16
 
-  '@wxt-dev/module-vue@1.0.3(vite@7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))(wxt@0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))':
+  '@wxt-dev/module-vue@1.0.3(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))(wxt@0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
-      '@vitejs/plugin-vue': 6.0.4(vite@7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))
+      '@vitejs/plugin-vue': 6.0.4(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))
       wxt: 0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - vite

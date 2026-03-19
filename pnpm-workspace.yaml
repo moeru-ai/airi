@@ -1,5 +1,4 @@
 catalogMode: prefer
-
 shellEmulator: true
 packages:
   - packages/**
@@ -20,8 +19,6 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
-enableGlobalVirtualStore: true
-
 patchedDependencies:
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
@@ -114,6 +111,7 @@ catalogs:
     vitest: ^4.0.18
   xsai:
     unspeech: ^0.1.11
+enableGlobalVirtualStore: true
 
 ignoredBuiltDependencies:
   - '@prisma/client'
@@ -156,9 +154,18 @@ packageExtensions:
   '@masknet/eslint-plugin':
     peerDependencies:
       typescript: '*'
+  '@pixiv/three-vrm-animation':
+    peerDependencies:
+      '@types/three': '*'
+  '@pixiv/three-vrm-core':
+    peerDependencies:
+      '@types/three': '*'
   '@pmndrs/pointer-events':
     peerDependencies:
       three: '*'
+  '@tresjs/core':
+    peerDependencies:
+      '@types/three': '*'
   '@unocss/eslint-plugin':
     peerDependencies:
       '@typescript-eslint/types': '*'
