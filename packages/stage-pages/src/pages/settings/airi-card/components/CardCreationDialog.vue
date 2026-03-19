@@ -17,8 +17,7 @@ import { useProactivityStore } from '@proj-airi/stage-ui/stores/proactivity'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSceneStore } from '@proj-airi/stage-ui/stores/scene'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
-import { Button, FieldInput, FieldValues } from '@proj-airi/ui'
-import { Select } from '@proj-airi/ui/components/form'
+import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import {
   DialogContent,
@@ -26,14 +25,17 @@ import {
   DialogPortal,
   DialogRoot,
   DialogTitle,
-  TooltipArrow,
-  TooltipContent,
-  TooltipProvider,
-  TooltipRoot,
-  TooltipTrigger,
 } from 'reka-ui'
 import { computed, onMounted, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import CardCreationTabActing from './tabs/CardCreationTabActing.vue'
+import CardCreationTabArtistry from './tabs/CardCreationTabArtistry.vue'
+import CardCreationTabBehavior from './tabs/CardCreationTabBehavior.vue'
+import CardCreationTabIdentity from './tabs/CardCreationTabIdentity.vue'
+import CardCreationTabModules from './tabs/CardCreationTabModules.vue'
+import CardCreationTabProactivity from './tabs/CardCreationTabProactivity.vue'
+import CardCreationTabSettings from './tabs/CardCreationTabSettings.vue'
 
 interface Props {
   modelValue: boolean
@@ -745,386 +747,90 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
           </div>
 
           <!-- Actual content -->
-          <!-- Identity details -->
-          <div v-if="activeTab === 'identity'" class="tab-content ml-auto mr-auto w-95%">
-            <p class="mb-3">
-              {{ t('settings.pages.card.creation.fields_info.subtitle') }}
-            </p>
-
-            <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
-              <FieldInput v-model="cardName" :label="t('settings.pages.card.creation.name')" :description="t('settings.pages.card.creation.fields_info.name')" :required="true" />
-              <FieldInput v-model="cardNickname" :label="t('settings.pages.card.creation.nickname')" :description="t('settings.pages.card.creation.fields_info.nickname')" />
-              <FieldInput v-model="cardDescription" :label="t('settings.pages.card.creation.description')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.description')" />
-              <FieldInput v-model="cardNotes" :label="t('settings.pages.card.creator_notes')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.notes')" />
-            </div>
-          </div>
-          <!-- Behavior -->
-          <div v-else-if="activeTab === 'behavior'" class="tab-content ml-auto mr-auto w-95%">
-            <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
-              <FieldInput v-model="cardPersonality" :label="t('settings.pages.card.personality')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.personality')" />
-              <FieldInput v-model="cardScenario" :label="t('settings.pages.card.scenario')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.scenario')" />
-              <FieldValues v-model="cardGreetings" :label="t('settings.pages.card.creation.greetings')" :description="t('settings.pages.card.creation.fields_info.greetings')" />
-            </div>
-          </div>
-          <!-- Acting -->
-          <div v-else-if="activeTab === 'acting'" class="tab-content ml-auto mr-auto w-95%">
-            <p class="mb-3 text-sm text-neutral-500">
-              Author helper-backed prompt instructions for model expressions, speech tags, and speech mannerisms. These fields are injected into AIRI's prompt builder, while the helpers below reflect the currently loaded model and selected speech provider.
-            </p>
-
-            <div class="input-list ml-auto mr-auto w-90% flex flex-col gap-8">
-              <div class="border border-neutral-200 rounded-xl p-4 dark:border-neutral-700">
-                <FieldInput
-                  v-model="selectedActingModelExpressionPrompt"
-                  label="ACT / Model Expressions"
-                  description="Teach AIRI how to emit ACT tokens for avatar expressions and motion cues."
-                  :single-line="false"
-                />
-                <div class="mt-3 flex flex-col gap-2">
-                  <div class="text-xs text-neutral-500">
-                    Available model expressions
-                    <span v-if="actingModelExpressionOptions.length">({{ actingModelExpressionOptions.length }})</span>
-                  </div>
-                  <div v-if="actingModelExpressionOptions.length" class="flex flex-wrap gap-2">
-                    <button
-                      v-for="name in actingModelExpressionOptions"
-                      :key="name"
-                      class="flex items-center gap-1 border border-neutral-200 rounded-full px-3 py-1 text-xs transition-colors dark:border-neutral-700 hover:border-primary-400 hover:text-primary-500"
-                      :class="[
-                        isVrmaExpression(name)
-                          ? 'bg-primary-50/50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300 border-primary-200/50'
-                          : 'text-neutral-600 dark:text-neutral-300',
-                      ]"
-                      @click="insertModelExpression(name)"
-                    >
-                      <div v-if="isVrmaExpression(name)" class="i-solar:running-bold-duotone text-[10px]" />
-                      {{ name }}
-                    </button>
-                  </div>
-                  <div v-else class="text-xs text-neutral-400">
-                    No VRM expression list is currently available. Load a VRM model on stage to surface expression helpers here.
-                  </div>
-                </div>
-              </div>
-
-              <div class="border border-neutral-200 rounded-xl p-4 dark:border-neutral-700">
-                <FieldInput
-                  v-model="selectedActingSpeechExpressionPrompt"
-                  label="Speech Tags / Audio Expressions"
-                  description="Teach AIRI how to use provider-side vocal tags when the selected speech provider supports them."
-                  :single-line="false"
-                />
-                <div class="mt-3 flex flex-col gap-3">
-                  <div class="text-xs text-neutral-500">
-                    Speech tag helpers for provider
-                    <span class="text-neutral-700 font-medium dark:text-neutral-200">{{ selectedSpeechProvider || speechProvider || 'none' }}</span>
-                  </div>
-                  <div v-if="actingSpeechCapabilitiesLoading" class="text-xs text-neutral-400">
-                    Loading speech capability helpers...
-                  </div>
-                  <div v-else-if="actingGroupedExpressionTags.length" class="flex flex-col gap-3">
-                    <div v-for="group in actingGroupedExpressionTags" :key="group.category" class="flex flex-col gap-2">
-                      <div class="text-xs text-neutral-500 tracking-wide uppercase">
-                        {{ group.category }}
-                      </div>
-                      <div class="flex flex-wrap gap-2">
-                        <button
-                          v-for="tag in group.tags"
-                          :key="`${group.category}:${tag.tag}`"
-                          class="border border-neutral-200 rounded-full px-3 py-1 text-xs text-neutral-600 transition-colors dark:border-neutral-700 hover:border-primary-400 dark:text-neutral-300 hover:text-primary-500"
-                          :title="tag.description || tag.tag"
-                          @click="insertSpeechTag(tag.tag, tag.description)"
-                        >
-                          [{{ tag.tag }}]
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <div v-else class="text-xs text-neutral-400">
-                    The selected speech provider does not currently expose expression-tag helpers.
-                  </div>
-                </div>
-              </div>
-
-              <div class="border border-neutral-200 rounded-xl p-4 dark:border-neutral-700">
-                <FieldInput
-                  v-model="selectedActingSpeechMannerismPrompt"
-                  label="Speech Mannerisms"
-                  description="Teach AIRI when to use provider-supported speech mannerisms without exposing the raw transformation internals."
-                  :single-line="false"
-                />
-                <div class="mt-3 flex flex-col gap-3">
-                  <div class="text-xs text-neutral-500">
-                    Insert helper blurbs from the current speech provider
-                  </div>
-                  <div v-if="actingMannerismOptions.length" class="flex flex-wrap gap-2">
-                    <button
-                      v-for="item in actingMannerismOptions"
-                      :key="item.id"
-                      class="border border-neutral-200 rounded-full px-3 py-1 text-xs text-neutral-600 transition-colors dark:border-neutral-700 hover:border-primary-400 dark:text-neutral-300 hover:text-primary-500"
-                      :title="item.description || item.label"
-                      @click="insertSpeechMannerism(item.id)"
-                    >
-                      {{ item.label }}
-                    </button>
-                  </div>
-                  <div v-else class="text-xs text-neutral-400">
-                    No provider-side mannerism helpers are currently available for this speech provider.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <!-- Modules -->
-          <div v-else-if="activeTab === 'modules'" class="tab-content ml-auto mr-auto w-95%">
-            <p class="mb-3">
-              {{ t('settings.pages.card.creation.modules_info') }}
-            </p>
-
-            <div :class="['grid', 'grid-cols-1', 'sm:grid-cols-2', 'gap-4', 'ml-auto', 'mr-auto', 'w-90%']">
-              <!-- Consciousness Provider -->
-              <div :class="['flex', 'flex-col', 'gap-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-lucide:brain />
-                  {{ t('settings.pages.card.chat.provider') }}
-                </label>
-                <Select
-                  v-model="selectedConsciousnessProvider"
-                  :options="consciousnessProviderOptions"
-                  :placeholder="getDefaultPlaceholder(consciousnessProvider)"
-                  class="w-full"
-                />
-              </div>
-
-              <!-- Consciousness Model -->
-              <div :class="['flex', 'flex-col', 'gap-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-lucide:ghost />
-                  {{ t('settings.pages.card.consciousness.model') }}
-                </label>
-                <Select
-                  v-model="selectedConsciousnessModel"
-                  :options="consciousnessModelOptions"
-                  :placeholder="getDefaultPlaceholder(defaultConsciousnessModel)"
-                  :disabled="!selectedConsciousnessProvider && !consciousnessProvider"
-                  class="w-full"
-                />
-              </div>
-
-              <!-- Speech Provider -->
-              <div :class="['flex', 'flex-col', 'gap-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-lucide:radio />
-                  {{ t('settings.pages.card.speech.provider') }}
-                </label>
-                <Select
-                  v-model="selectedSpeechProvider"
-                  :options="speechProviderOptions"
-                  :placeholder="getDefaultPlaceholder(speechProvider)"
-                  class="w-full"
-                />
-              </div>
-
-              <!-- Speech Model -->
-              <div :class="['flex', 'flex-col', 'gap-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-lucide:mic />
-                  {{ t('settings.pages.card.speech.model') }}
-                </label>
-                <Select
-                  v-model="selectedSpeechModel"
-                  :options="speechModelOptions"
-                  :placeholder="getDefaultPlaceholder(defaultSpeechModel)"
-                  :disabled="!selectedSpeechProvider && !speechProvider"
-                  class="w-full"
-                />
-              </div>
-
-              <!-- Speech Voice -->
-              <div :class="['flex', 'flex-col', 'gap-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-lucide:music />
-                  {{ t('settings.pages.card.speech.voice') }}
-                </label>
-                <Select
-                  v-model="selectedSpeechVoiceId"
-                  :options="speechVoiceOptions"
-                  :placeholder="getDefaultPlaceholder(defaultSpeechVoiceId)"
-                  :disabled="!selectedSpeechProvider && !speechProvider"
-                  class="w-full"
-                />
-              </div>
-
-              <!-- Models / Avatar -->
-              <div :class="['flex', 'flex-col', 'gap-2', 'sm:col-span-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-solar:user-circle-bold-duotone />
-                  Models / Avatar
-                </label>
-                <Select
-                  v-model="selectedDisplayModelId"
-                  :options="displayModelOptions"
-                  :placeholder="getDefaultPlaceholder(defaultDisplayModelId)"
-                  class="w-full"
-                />
-              </div>
-
-              <!-- Scene / Background -->
-              <div :class="['flex', 'flex-col', 'gap-2', 'sm:col-span-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-solar:gallery-bold-duotone />
-                  {{ t('settings.pages.card.creation.preferred_background') }}
-                </label>
-                <Select
-                  v-model="selectedPreferredBackgroundId"
-                  :options="sceneOptions"
-                  placeholder="Select background preference"
-                  class="w-full"
-                />
-              </div>
-            </div>
-          </div>
-          <!-- Artistry -->
-          <div v-else-if="activeTab === 'artistry'" class="tab-content ml-auto mr-auto w-95%">
-            <p class="mb-3">
-              Configure how AIRI generates images and visual content.
-            </p>
-
-            <div :class="['grid', 'grid-cols-1', 'gap-4', 'ml-auto', 'mr-auto', 'w-90%']">
-              <!-- Artistry Provider -->
-              <div :class="['flex', 'flex-col', 'gap-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-lucide:image />
-                  Artistry Provider
-                </label>
-                <Select
-                  v-model="selectedArtistryProvider"
-                  :options="artistryProviderOptions"
-                  :placeholder="getDefaultPlaceholder(defaultArtistryProvider)"
-                  class="w-full"
-                />
-              </div>
-
-              <!-- Artistry Extra Config -->
-              <div class="mt-4 flex flex-col gap-5">
-                <FieldInput
-                  v-model="selectedArtistryModel"
-                  label="Artistry Model (Optional Override)"
-                  description="Model identifier if needed by provider"
-                  placeholder="e.g. black-forest-labs/flux-schnell"
-                />
-                <FieldInput
-                  v-model="selectedArtistryPromptPrefix"
-                  label="Artistry Prompt Default Prefix"
-                  description="Pre-pended to every prompt sent to the image generator."
-                  placeholder="e.g. Masterpiece, high quality, 1girl, anime,"
-                />
-                <FieldInput
-                  v-model="selectedArtistryWidgetInstruction"
-                  :label="t('settings.pages.modules.artistry.widget-instructions.label')"
-                  :description="t('settings.pages.modules.artistry.widget-instructions.description')"
-                  :single-line="false"
-                  :rows="12"
-                />
-                <FieldInput
-                  v-model="selectedArtistryConfigStr"
-                  label="Artistry Provider Options (JSON)"
-                  :single-line="false"
-                />
-              </div>
-            </div>
-          </div>
-          <!-- Proactivity -->
-          <div v-else-if="activeTab === 'proactivity'" class="tab-content ml-auto mr-auto w-95%">
-            <p class="mb-3 text-sm text-neutral-500">
-              Configure how often AIRI will proactively speak to you without being prompted.
-            </p>
-            <div class="input-list ml-auto mr-auto w-90% flex flex-col flex-wrap justify-center gap-6">
-              <div class="flex items-center gap-2">
-                <input id="heartbeats-enabled" v-model="heartbeatsEnabled" type="checkbox" class="h-4 w-4 border-gray-300 rounded text-primary-600">
-                <label for="heartbeats-enabled" class="font-medium">Enable Proactive Heartbeats</label>
-              </div>
-
-              <div v-if="heartbeatsEnabled" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div class="flex flex-col gap-2">
-                  <label class="text-sm text-neutral-700 font-medium dark:text-neutral-300">Interval (Minutes)</label>
-                  <input v-model="heartbeatsIntervalMinutes" type="number" min="1" max="1440" class="border border-neutral-200 rounded-lg bg-transparent px-3 py-2 dark:border-neutral-700">
-                  <span class="text-xs text-neutral-500">How often to tick the heartbeat polling.</span>
-                </div>
-
-                <div class="flex flex-col gap-2">
-                  <label class="text-sm text-neutral-700 font-medium dark:text-neutral-300">Schedule Options</label>
-                  <div class="flex items-center gap-2">
-                    <input v-model="heartbeatsScheduleStart" type="time" class="flex-1 border border-neutral-200 rounded-lg bg-transparent px-2 py-1 dark:border-neutral-700">
-                    <span>to</span>
-                    <input v-model="heartbeatsScheduleEnd" type="time" class="flex-1 border border-neutral-200 rounded-lg bg-transparent px-2 py-1 dark:border-neutral-700">
-                  </div>
-                  <span class="mt-1 text-xs text-neutral-500">Only trigger heartbeats between these hours.</span>
-                </div>
-
-                <div class="col-span-1 mt-4 flex flex-col gap-4 sm:col-span-2">
-                  <div class="flex flex-col gap-2 border-l-2 border-neutral-100 pl-4 dark:border-neutral-700">
-                    <div class="flex items-center gap-2">
-                      <input id="heartbeats-injectContext" v-model="heartbeatsInjectIntoPrompt" type="checkbox" class="h-4 w-4">
-                      <label for="heartbeats-injectContext" class="group relative flex items-center gap-1 text-sm font-semibold dark:text-neutral-200">
-                        Inject Rich Context into heartbeats
-                        <TooltipProvider :delay-duration="0">
-                          <TooltipRoot>
-                            <TooltipTrigger as-child>
-                              <div i-lucide:info class="h-4 w-4 cursor-help text-neutral-400" />
-                            </TooltipTrigger>
-                            <TooltipContent
-                              class="z-110 max-w-sm animate-fadeIn animate-duration-200 rounded-lg bg-neutral-900 p-3 text-xs text-white shadow-xl"
-                              :side-offset="8"
-                              side="right"
-                            >
-                              <p class="mb-2 border-b border-white/20 pb-1 text-primary-400 font-bold">Sample Prompt Payload:</p>
-                              <pre class="max-h-60 overflow-y-auto whitespace-pre-wrap font-mono opacity-90">{{ sensorPayload || staticSamplePayload }}</pre>
-                              <TooltipArrow class="fill-neutral-900" />
-                            </TooltipContent>
-                          </TooltipRoot>
-                        </TooltipProvider>
-                      </label>
-                    </div>
-                    <span class="text-xs text-neutral-500">Inject real-time sensor and usage data into the proactivity prompt.</span>
-
-                    <div v-if="heartbeatsInjectIntoPrompt" class="grid grid-cols-1 ml-6 mt-2 gap-2 sm:grid-cols-3">
-                      <div class="flex items-center gap-2">
-                        <input id="ctx-window" v-model="heartbeatsContextWindowHistory" type="checkbox" class="h-3.5 w-3.5">
-                        <label for="ctx-window" class="text-xs text-neutral-600 dark:text-neutral-400">Window History</label>
-                      </div>
-                      <div class="flex items-center gap-2">
-                        <input id="ctx-load" v-model="heartbeatsContextSystemLoad" type="checkbox" class="h-3.5 w-3.5">
-                        <label for="ctx-load" class="text-xs text-neutral-600 dark:text-neutral-400">System Load</label>
-                      </div>
-                      <div class="flex items-center gap-2">
-                        <input id="ctx-metrics" v-model="heartbeatsContextUsageMetrics" type="checkbox" class="h-3.5 w-3.5">
-                        <label for="ctx-metrics" class="text-xs text-neutral-600 dark:text-neutral-400">Usage Metrics</label>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="mt-2 flex items-center gap-2">
-                    <input id="heartbeats-localGate" v-model="heartbeatsUseAsLocalGate" type="checkbox" class="h-4 w-4">
-                    <label for="heartbeats-localGate" class="text-sm text-neutral-700 font-medium dark:text-neutral-300">Require Keyboard/Mouse Inactivity</label>
-                  </div>
-                  <span class="pl-6 text-xs text-neutral-500">Only trigger the LLM if the user is currently idle (mouse/keyboard).</span>
-                </div>
-
-                <div class="col-span-1 mt-4 sm:col-span-2">
-                  <FieldInput v-model="heartbeatsPrompt" label="Stealth Heartbeat Prompt" description="The hidden instruction sent to the LLM during a heartbeat tick. Instruct it to reply with exactly &quot;NO_REPLY&quot; if you want it to remain silent." :single-line="false" placeholder="You are evaluating a proactive heartbeat. Provide a fun comment, or output NO_REPLY to remain silent." />
-                </div>
-              </div>
-            </div>
-          </div>
-          <!-- Settings -->
-          <div v-else-if="activeTab === 'settings'" class="tab-content ml-auto mr-auto w-95%">
-            <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
-              <FieldInput v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.systemprompt')" />
-              <FieldInput v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.posthistoryinstructions')" />
-              <FieldInput v-model="cardVersion" :label="t('settings.pages.card.creation.version')" :required="true" :description="t('settings.pages.card.creation.fields_info.version')" />
-            </div>
-          </div>
+          <CardCreationTabIdentity
+            v-if="activeTab === 'identity'"
+            v-model:card-name="cardName"
+            v-model:card-nickname="cardNickname"
+            v-model:card-description="cardDescription"
+            v-model:card-notes="cardNotes"
+          />
+          <CardCreationTabBehavior
+            v-else-if="activeTab === 'behavior'"
+            v-model:card-personality="cardPersonality"
+            v-model:card-scenario="cardScenario"
+            v-model:card-greetings="cardGreetings"
+          />
+          <CardCreationTabActing
+            v-else-if="activeTab === 'acting'"
+            v-model:selected-acting-model-expression-prompt="selectedActingModelExpressionPrompt"
+            v-model:selected-acting-speech-expression-prompt="selectedActingSpeechExpressionPrompt"
+            v-model:selected-acting-speech-mannerism-prompt="selectedActingSpeechMannerismPrompt"
+            :acting-model-expression-options="actingModelExpressionOptions"
+            :acting-grouped-expression-tags="actingGroupedExpressionTags"
+            :acting-mannerism-options="actingMannerismOptions"
+            :acting-speech-capabilities-loading="actingSpeechCapabilitiesLoading"
+            :selected-speech-provider-label="selectedSpeechProvider || speechProvider || 'none'"
+            :is-vrma-expression="isVrmaExpression"
+            :insert-model-expression="insertModelExpression"
+            :insert-speech-tag="insertSpeechTag"
+            :insert-speech-mannerism="insertSpeechMannerism"
+          />
+          <CardCreationTabModules
+            v-else-if="activeTab === 'modules'"
+            v-model:selected-consciousness-provider="selectedConsciousnessProvider"
+            v-model:selected-consciousness-model="selectedConsciousnessModel"
+            v-model:selected-speech-provider="selectedSpeechProvider"
+            v-model:selected-speech-model="selectedSpeechModel"
+            v-model:selected-speech-voice-id="selectedSpeechVoiceId"
+            v-model:selected-display-model-id="selectedDisplayModelId"
+            v-model:selected-preferred-background-id="selectedPreferredBackgroundId"
+            :consciousness-provider-options="consciousnessProviderOptions"
+            :consciousness-model-options="consciousnessModelOptions"
+            :speech-provider-options="speechProviderOptions"
+            :speech-model-options="speechModelOptions"
+            :speech-voice-options="speechVoiceOptions"
+            :display-model-options="displayModelOptions"
+            :scene-options="sceneOptions"
+            :consciousness-provider-placeholder="getDefaultPlaceholder(consciousnessProvider)"
+            :default-consciousness-model-placeholder="getDefaultPlaceholder(defaultConsciousnessModel)"
+            :speech-provider-placeholder="getDefaultPlaceholder(speechProvider)"
+            :default-speech-model-placeholder="getDefaultPlaceholder(defaultSpeechModel)"
+            :default-speech-voice-id-placeholder="getDefaultPlaceholder(defaultSpeechVoiceId)"
+            :default-display-model-id-placeholder="getDefaultPlaceholder(defaultDisplayModelId)"
+            :consciousness-provider-active="Boolean(consciousnessProvider)"
+            :speech-provider-active="Boolean(speechProvider)"
+          />
+          <CardCreationTabArtistry
+            v-else-if="activeTab === 'artistry'"
+            v-model:selected-artistry-provider="selectedArtistryProvider"
+            v-model:selected-artistry-model="selectedArtistryModel"
+            v-model:selected-artistry-prompt-prefix="selectedArtistryPromptPrefix"
+            v-model:selected-artistry-widget-instruction="selectedArtistryWidgetInstruction"
+            v-model:selected-artistry-config-str="selectedArtistryConfigStr"
+            :artistry-provider-options="artistryProviderOptions"
+            :default-artistry-provider-placeholder="getDefaultPlaceholder(defaultArtistryProvider)"
+          />
+          <CardCreationTabProactivity
+            v-else-if="activeTab === 'proactivity'"
+            v-model:heartbeats-enabled="heartbeatsEnabled"
+            v-model:heartbeats-interval-minutes="heartbeatsIntervalMinutes"
+            v-model:heartbeats-prompt="heartbeatsPrompt"
+            v-model:heartbeats-inject-into-prompt="heartbeatsInjectIntoPrompt"
+            v-model:heartbeats-use-as-local-gate="heartbeatsUseAsLocalGate"
+            v-model:heartbeats-schedule-start="heartbeatsScheduleStart"
+            v-model:heartbeats-schedule-end="heartbeatsScheduleEnd"
+            v-model:heartbeats-context-window-history="heartbeatsContextWindowHistory"
+            v-model:heartbeats-context-system-load="heartbeatsContextSystemLoad"
+            v-model:heartbeats-context-usage-metrics="heartbeatsContextUsageMetrics"
+            :sensor-payload="sensorPayload"
+            :static-sample-payload="staticSamplePayload"
+          />
+          <CardCreationTabSettings
+            v-else-if="activeTab === 'settings'"
+            v-model:card-system-prompt="cardSystemPrompt"
+            v-model:card-post-history-instructions="cardPostHistoryInstructions"
+            v-model:card-version="cardVersion"
+          />
 
           <div class="ml-auto mr-1 flex flex-row gap-2">
             <Button
@@ -1147,16 +853,3 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
     </DialogPortal>
   </DialogRoot>
 </template>
-
-<style scoped>
-.input-list > * {
-    min-width: 45%;
-  }
-
-  @media (max-width: 641px) {
-  .input-list * {
-    min-width: unset;
-    width: 100%;
-  }
-}
-</style>
