@@ -35,9 +35,14 @@ const {
 const { t } = useI18n()
 const { trackProviderClick } = useAnalytics()
 
-watch(activeProvider, async (provider) => {
+watch(activeProvider, async (provider, oldProvider) => {
   if (!provider)
     return
+
+  if (oldProvider !== undefined && oldProvider !== provider) {
+    visionStore.resetModelSelection()
+  }
+
   await visionStore.loadModelsForProvider(provider)
 }, { immediate: true })
 
