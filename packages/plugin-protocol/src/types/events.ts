@@ -1074,6 +1074,7 @@ export const contextUpdate = defineEventa<ContextUpdateEvent>('context:update')
 // https://www.reddit.com/r/typescript/comments/1064ibt/a_little_hack_for_creating_extensible/
 export interface ProtocolEvents<C = undefined> {
   'error': ErrorEvent
+  'error:permission': ErrorPermissionEvent
 
   'module:authenticate': ModuleAuthenticateEvent
   'module:authenticated': ModuleAuthenticatedEvent
