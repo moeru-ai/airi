@@ -75,7 +75,7 @@ async function handleComfyTrigger(params: {
       debugLog(`🎉 Job complete for ${params.id}. Sending final status: done`)
       params.widgetsManager.updateWidget({
         id: params.id,
-        componentProps: { status: 'done', progress: 100 },
+        componentProps: { status: 'done', progress: 100, actionLabel: undefined },
       })
     })
   }

@@ -59,3 +59,101 @@ To ensure the LLM uses these powers correctly, the following instructions should
 
 ### "Composition" Strategy
 If a specific component doesn't exist, use a descriptive `componentName` and pass all data into `componentProps`. The system will automatically generate a styled JSON info-card.
+
+## 6. Current File Map (2026 Fork Layout)
+The widget system now spans both the generic widget shell and the specialized artistry/image-generation pipeline:
+
+- **Renderer Tool Entry**: `apps/stage-tamagotchi/src/renderer/stores/tools/builtin/widgets.ts`
+  - Defines the `stage_widgets` tool AIRI calls.
+  - Normalizes `spawn` and `update` payloads before they cross into the main process.
+- **Renderer Widget Window**: `apps/stage-tamagotchi/src/renderer/pages/widgets.vue`
+  - Fetches a widget snapshot by `id`.
+  - Merges live `widgetsUpdateEvent` payloads into the open widget instance.
+- **Renderer Image Widget Components**:
+  - `apps/stage-tamagotchi/src/renderer/widgets/artistry/components/Comfy.vue`
+  - `apps/stage-tamagotchi/src/renderer/widgets/comfy/components/Comfy.vue`
+  - These handle the visual gallery/history layer, loading overlays, and prompt metadata.
+- **Main Widgets Window Manager**: `apps/stage-tamagotchi/src/main/windows/widgets/index.ts`
+  - Owns the authoritative in-memory widget snapshot `Map`.
+  - Emits `widgetsRenderEvent`, `widgetsUpdateEvent`, `widgetsRemoveEvent`, and `widgetsClearEvent`.
+- **Main Artistry Bridge**: `apps/stage-tamagotchi/src/main/services/airi/widgets/artistry-bridge.ts`
+  - Intercepts widget generations.
+  - Dispatches to the active image provider.
+  - This is the real bridge for the current `artistry` widget pipeline.
+- **Providers**:
+  - `apps/stage-tamagotchi/src/main/services/airi/widgets/providers/replicate.ts`
+  - `apps/stage-tamagotchi/src/main/services/airi/widgets/providers/comfyui.ts`
+- **Legacy / Proof-of-Concept CUIPP Bridge**:
+  - `apps/stage-tamagotchi/src/main/services/airi/widgets/cuipp.ts`
+  - This should be treated as exploratory bridge code, not the final architecture.
+
+## 7. Current Limitation: Widgets Are Too Ephemeral
+The current architecture still treats a widget as both:
+
+1. the **live surface** where generation happens
+2. the **only owner** of image history
+
+That is why history behavior keeps feeling brittle. Once a widget is replaced, removed, or superseded by a later run, the generated image history becomes hard to reason about. The widget should really be a **viewport**, not the long-term source of truth.
+
+## 8. Planned Direction: `image_journal`
+The current conclusion is that generated art should stop being modeled as a fragile `stage_widgets` lifecycle problem and instead become a dedicated first-class feature called `image_journal`.
+
+Important constraints for this redesign:
+
+- keep the current **carousel** UI metaphor
+- do **not** invent separate AI-facing browse/list/show/delete concepts
+- do **not** force the model to manage widget ids
+- do **not** split the feature into a separate "live panel" and "journal" product surface
+
+The journal itself should be the persistent carousel. New images simply append to that surface over time.
+
+## 9. Proposed `image_journal` MVP
+The first version should stay very small and very opinionated:
+
+- `create`
+  - required fields: `title`, `prompt`
+  - routes through the provider's normal create/generate method
+  - appends the finished image to the persistent carousel
+- `set_as_background`
+  - promotes the currently focused journal image into the stage background system
+
+Why this is the right MVP:
+
+- it removes brittle widget lifecycle/id management from the model-facing flow
+- it preserves the existing successful carousel interaction pattern
+- it adds a new user-facing capability instead of only rebuilding storage under the hood
+
+## 10. Titles, Slugs, and Future Interactions
+The LLM should provide a **human-readable title** as part of image creation.
+
+The app should then:
+
+- sanitize the title
+- slugify it for storage
+- dedupe it automatically when needed
+
+This is preferable to UUID-based interactions. Human-readable labels make it possible to support richer future workflows without forcing the model or the user to think in terms of opaque ids.
+
+## 11. Storage Direction
+`localStorage` is not suitable for this feature.
+
+The durable shape should be:
+
+- persistent journal metadata
+- real file/blob-backed image storage
+- optional per-character association so generated art can become a character picture book over time
+
+The key architectural point is that the **journal becomes the source of truth**, while the carousel UI is simply the way that truth is presented.
+
+## 12. CUIPP Future Scope
+If CUIPP is ever extracted into something open and reusable, the scope should be **MVP-first**:
+
+- do **not** try to port the whole CUIPP app
+- do extract a minimal standalone generation worker
+- the first contract should be:
+  - prompt in
+  - optional remix/source id
+  - progress/status events out
+  - final asset path or URL out
+
+`remix` should be treated as a CUIPP-first capability that can later expand to other providers, not as something every provider must support on day one.

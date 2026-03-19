@@ -23,6 +23,11 @@ function robustParse(input: any): any {
 }
 
 const lastTriggerMap = new Map<string, string>()
+const activeRunMap = new Map<string, string>()
+
+function createRunId(widgetId: string) {
+  return `${widgetId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`
+}
 
 // Maintain a registry of providers
 const providers = new Map<string, ArtistryProvider>()
@@ -57,6 +62,8 @@ async function handleArtistryTrigger(params: {
   if (status === 'generating' && lastTriggerMap.get(params.id) !== triggerFingerprint && (prompt || remixId)) {
     log.log(`🎯 TRIGGER DETECTED [${params.id}]: ${triggerFingerprint} | Mode: ${mode} | Provider: ${providerId}`)
     lastTriggerMap.set(params.id, triggerFingerprint)
+    const runId = createRunId(params.id)
+    activeRunMap.set(params.id, runId)
 
     const provider = providers.get(providerId)
     if (!provider) {
@@ -80,19 +87,26 @@ async function handleArtistryTrigger(params: {
         model: config.model,
         extra: {
           ...options,
-          internalJobId: params.id, // For tracking
+          internalJobId: runId, // Track each generation independently, even on the same widget.
           remixId,
         },
       }
 
+      const updateIfActive = (statusUpdate: Record<string, any>) => {
+        // NOTICE: the same widget can kick off another generation before the previous one fully
+        // settles. Only the most recent run is allowed to keep updating the widget state.
+        if (activeRunMap.get(params.id) !== runId)
+          return
+
+        params.widgetsManager.updateWidget({
+          id: params.id,
+          componentProps: statusUpdate,
+        })
+      }
+
       // If the provider accepts callbacks (like ComfyUI streaming stdout)
       if ('setJobCallback' in provider) {
-        ;(provider as any).setJobCallback(params.id, (statusUpdate: any) => {
-          params.widgetsManager.updateWidget({
-            id: params.id,
-            componentProps: statusUpdate,
-          })
-        })
+        ;(provider as any).setJobCallback(runId, (statusUpdate: any) => updateIfActive(statusUpdate))
       }
 
       const job = await provider.generate(request)
@@ -106,10 +120,7 @@ async function handleArtistryTrigger(params: {
             isDone = true
           }
 
-          params.widgetsManager.updateWidget({
-            id: params.id,
-            componentProps: status,
-          })
+          updateIfActive(status)
 
           if (!isDone) {
             await new Promise(resolve => setTimeout(resolve, 2000))
@@ -118,17 +129,16 @@ async function handleArtistryTrigger(params: {
       }
 
       log.log(`🎉 Job complete for ${params.id}. Sending final status: done`)
-      params.widgetsManager.updateWidget({
-        id: params.id,
-        componentProps: { status: 'done', progress: 100 },
-      })
+      updateIfActive({ status: 'done', progress: 100, actionLabel: undefined })
     }
     catch (error: any) {
       log.error(`🔴 Generation failed: ${error.message}`)
-      params.widgetsManager.updateWidget({
-        id: params.id,
-        componentProps: { status: 'error', actionLabel: error.message },
-      })
+      if (activeRunMap.get(params.id) === runId) {
+        params.widgetsManager.updateWidget({
+          id: params.id,
+          componentProps: { status: 'error', actionLabel: error.message },
+        })
+      }
     }
   }
 }
@@ -139,13 +149,13 @@ export function setupArtistryBridge(params: { widgetsManager: WidgetsWindowManag
   const originalUpdateWidget = params.widgetsManager.updateWidget
   params.widgetsManager.updateWidget = async (payload) => {
     const snapshot = params.widgetsManager.getWidgetSnapshot(payload.id)
+    await originalUpdateWidget.call(params.widgetsManager, payload)
     await handleArtistryTrigger({
       id: payload.id,
       componentName: snapshot?.componentName,
       componentProps: payload.componentProps,
       widgetsManager: params.widgetsManager,
     })
-    return originalUpdateWidget.call(params.widgetsManager, payload)
   }
 
   const originalPushWidget = params.widgetsManager.pushWidget

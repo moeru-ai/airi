@@ -19,6 +19,32 @@ interface WidgetItem {
   ttlMs: number
 }
 
+function isTerminalWidgetStatus(status: unknown) {
+  return status === 'done' || status === 'error' || status === 'succeeded'
+}
+
+function shouldIgnoreStaleGeneratingRollback(
+  currentProps: Record<string, any>,
+  nextProps: Record<string, any>,
+) {
+  if (!isTerminalWidgetStatus(currentProps.status))
+    return false
+
+  if (nextProps.status !== 'generating')
+    return false
+
+  const nextProgress = typeof nextProps.progress === 'number'
+    ? nextProps.progress
+    : currentProps.progress
+  const sameImage = nextProps.imageUrl != null && nextProps.imageUrl === currentProps.imageUrl
+  const samePrompt = nextProps.prompt == null || nextProps.prompt === currentProps.prompt
+
+  // NOTICE: a late partial update can arrive after a generation already finalized. If it tries
+  // to move the widget back to `generating` while still pointing at the same completed prompt
+  // and image with 100% progress, keep the terminal state instead of reviving the loading HUD.
+  return sameImage && samePrompt && typeof nextProgress === 'number' && nextProgress >= 100
+}
+
 const route = useRoute()
 
 const widgetId = computed(() => {
@@ -122,6 +148,11 @@ onMounted(() => {
 
       if (!widget.value) {
         requestSnapshot(body.id)
+        return
+      }
+
+      if (shouldIgnoreStaleGeneratingRollback(widget.value.componentProps, body.componentProps ?? {})) {
+        console.warn(`[Widgets] Ignoring stale generating rollback for ${body.id}:`, body.componentProps)
         return
       }
 

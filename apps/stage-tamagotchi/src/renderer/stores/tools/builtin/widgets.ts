@@ -165,6 +165,15 @@ export async function executeWidgetAction(input: WidgetActionInput, deps?: { inv
         throw new Error('id is required to update a widget.')
 
       const componentProps = { ...normalizeComponentProps(input.componentProps), _artistryConfig: getArtistryConfig() }
+      const looksLikeArtistryGeneration = componentProps.prompt
+        || componentProps.remixId
+        || componentProps.payload?.prompt
+        || componentProps.payload?.remixId
+
+      if ((input.componentName === 'comfy' || input.componentName === 'artistry' || looksLikeArtistryGeneration) && !componentProps.status) {
+        componentProps.status = 'generating'
+      }
+
       await invokers.updateWidget({
         id: normalizedId,
         componentProps,

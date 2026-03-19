@@ -19,35 +19,56 @@ const props = withDefaults(defineProps<{
   progress: 0,
 })
 
-const history = ref<{ url: string, prompt?: string, remixId?: string | number }[]>([])
+interface HistoryFrame {
+  frameId: number
+  generationId: number
+  url: string
+  prompt?: string
+  remixId?: string | number
+}
+
+const history = ref<HistoryFrame[]>([])
 const currentIndex = ref(0)
 const isFlipped = ref(false)
 const errorOccurred = ref(false)
+const currentGenerationId = ref(0)
+const nextFrameId = ref(1)
 
 const hideWindow = useElectronEventaInvoke(widgetsHideWindow)
 const removeWidget = useElectronEventaInvoke(widgetsRemove)
 
-// Add new images to history as they arrive
-watch(() => props.imageUrl, (newUrl) => {
+watch(() => props.status, (status, previousStatus) => {
+  if (status === 'generating' && previousStatus !== 'generating')
+    currentGenerationId.value += 1
+}, { immediate: true })
+
+// Keep one gallery frame per generation cycle, even when the backend reuses the same file URL.
+watch(() => [props.imageUrl, props.prompt, props.remixId] as const, ([newUrl, prompt, remixId]) => {
   if (!newUrl)
     return
 
   errorOccurred.value = false
+  if (currentGenerationId.value === 0)
+    currentGenerationId.value = 1
 
-  // Rule: check if different then set it as active. if same don't change.
-  if (currentImage.value?.url === newUrl)
-    return
-
-  const existingIndex = history.value.findIndex(img => img.url === newUrl)
+  const existingIndex = history.value.findIndex(img => img.generationId === currentGenerationId.value)
   if (existingIndex === -1) {
     history.value.push({
+      frameId: nextFrameId.value++,
+      generationId: currentGenerationId.value,
       url: newUrl,
-      prompt: props.prompt,
-      remixId: props.remixId,
+      prompt,
+      remixId,
     })
     currentIndex.value = history.value.length - 1
   }
   else {
+    history.value[existingIndex] = {
+      ...history.value[existingIndex],
+      url: newUrl,
+      prompt,
+      remixId,
+    }
     currentIndex.value = existingIndex
   }
 }, { immediate: true })
@@ -147,7 +168,7 @@ async function handleClose() {
         <div class="relative h-full w-full flex items-center justify-center bg-black">
           <img
             v-if="currentImage && !errorOccurred"
-            :key="currentImage.url"
+            :key="currentImage.frameId"
             :src="currentImage.url"
             class="h-full w-full object-cover transition-all duration-500"
             @error="handleImageError"

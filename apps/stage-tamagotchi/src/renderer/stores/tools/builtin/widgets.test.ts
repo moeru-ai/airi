@@ -74,6 +74,26 @@ describe('widgets tool helpers', () => {
       expect(invokers.updateWidget).toHaveBeenCalledWith({ id: 'xyz', componentProps: { foo: 1 } })
     })
 
+    it('forces artistry updates into generating when prompt changes without explicit status', async () => {
+      const invokers = makeInvokers()
+      await executeWidgetAction({
+        action: 'update',
+        id: 'staging-test-001',
+        componentName: 'artistry',
+        componentProps: '{"prompt":"A new generation prompt"}',
+        size: 'm',
+        ttlSeconds: 0,
+      }, { invokers })
+
+      expect(invokers.updateWidget).toHaveBeenCalledWith({
+        id: 'staging-test-001',
+        componentProps: expect.objectContaining({
+          prompt: 'A new generation prompt',
+          status: 'generating',
+        }),
+      })
+    })
+
     it('removes when id provided', async () => {
       const invokers = makeInvokers()
       await executeWidgetAction({
