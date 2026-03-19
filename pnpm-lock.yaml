@@ -2984,6 +2984,9 @@ importers:
       es-toolkit:
         specifier: 'catalog:'
         version: 1.43.0
+      localforage:
+        specifier: ^1.10.0
+        version: 1.10.0
       pinia:
         specifier: ^3.0.4
         version: 3.0.4(typescript@5.9.3)(vue@3.5.29(typescript@5.9.3))

@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { animations, useModelStore } from '@proj-airi/stage-ui-three'
-import { Button, Callout, Checkbox, SelectTab } from '@proj-airi/ui'
+import { useCustomVrmAnimationsStore, useModelStore } from '@proj-airi/stage-ui-three'
+import { Button, Callout, Checkbox, Select, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import VRMExpressions from './vrm-expressions.vue'
 
-import { Container, PropertyColor, PropertyNumber, PropertyPoint, PropertySelect } from '../../../data-pane'
+import { Container, PropertyColor, PropertyNumber, PropertyPoint } from '../../../data-pane'
 import { ColorPalette } from '../../../widgets'
 
 defineProps<{
@@ -21,6 +21,7 @@ defineEmits<{
 const { t } = useI18n()
 
 const modelStore = useModelStore()
+const customVrmAnimationsStore = useCustomVrmAnimationsStore()
 const {
   modelSize,
   modelOffset,
@@ -45,6 +46,7 @@ const {
   vrmIdleAnimation,
   vrmIdleCycleEnabled,
 } = storeToRefs(modelStore)
+const { animationOptions } = storeToRefs(customVrmAnimationsStore)
 
 // NOTICE: sceneMutationLocked was removed upstream; hardcoded to false.
 const sceneMutationLocked = computed(() => false)
@@ -172,12 +174,18 @@ const envOptions = computed(() => [
         label="Ambient Light Color"
       />
 
-      <PropertySelect
-        v-model="vrmIdleAnimation"
-        :label="t('settings.vrm.idle-animation.title')"
-        :options="Object.keys(animations).map(key => ({ label: key, value: key }))"
-        :disabled="sceneMutationLocked"
-      />
+      <div>
+        <span text-nowrap text-xs>{{ t('settings.vrm.idle-animation.title') }}</span>
+      </div>
+      <div />
+      <div grid-col-span-3>
+        <Select
+          v-model="vrmIdleAnimation"
+          :options="animationOptions"
+          :disabled="sceneMutationLocked"
+          class="w-full"
+        />
+      </div>
 
       <!-- Random Idle Cycle -->
       <div class="text-xs">

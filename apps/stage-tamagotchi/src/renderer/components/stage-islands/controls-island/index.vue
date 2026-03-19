@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
-import { animations, useModelStore } from '@proj-airi/stage-ui-three'
+import { useCustomVrmAnimationsStore, useModelStore } from '@proj-airi/stage-ui-three'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -32,6 +32,7 @@ const { t } = useI18n()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const settingsStore = useSettings()
 const modelStore = useModelStore()
+const customVrmAnimationsStore = useCustomVrmAnimationsStore()
 const context = useElectronEventaContext()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
 const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
@@ -178,6 +179,7 @@ function triggerRandomEmotion() {
 
 // === Favorite ===
 const hasFavorite = computed(() => !!favoriteExpression.value)
+const currentIdleAnimationLabel = computed(() => customVrmAnimationsStore.animationLabelByKey[vrmIdleAnimation.value] ?? vrmIdleAnimation.value)
 const isFavoriteActive = computed(() => {
   if (!favoriteExpression.value)
     return false
@@ -194,12 +196,12 @@ function toggleFavorite() {
 }
 
 function cycleAnimation() {
-  const keys = Object.keys(animations)
+  const keys = customVrmAnimationsStore.animationKeys
   const currentIndex = keys.indexOf(vrmIdleAnimation.value)
   const nextIndex = (currentIndex + 1) % keys.length
   const nextAnimation = keys[nextIndex]
   vrmIdleAnimation.value = nextAnimation
-  toast.info(`Selected animation: ${nextAnimation}`, { id: 'transcription-feedback' })
+  toast.info(`Selected animation: ${customVrmAnimationsStore.animationLabelByKey[nextAnimation] ?? nextAnimation}`, { id: 'transcription-feedback' })
 }
 </script>
 
@@ -339,7 +341,7 @@ function cycleAnimation() {
                   <div i-solar:running-2-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
                 </ControlButton>
                 <template #tooltip>
-                  {{ t('tamagotchi.stage.controls-island.cycle-animation') }}: {{ vrmIdleAnimation }}
+                  {{ t('tamagotchi.stage.controls-island.cycle-animation') }}: {{ currentIdleAnimationLabel }}
                 </template>
               </ControlButtonTooltip>
 

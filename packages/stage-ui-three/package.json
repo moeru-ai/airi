@@ -37,6 +37,7 @@
     "@vueuse/core": "^14.2.1",
     "culori": "^4.0.2",
     "es-toolkit": "catalog:",
+    "localforage": "^1.10.0",
     "pinia": "^3.0.4",
     "postprocessing": "^6.38.3",
     "three": "^0.183.1",

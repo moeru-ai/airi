@@ -48,7 +48,7 @@ export async function clipFromVRMAnimation(vrm?: VRMCore, animation?: VRMAnimati
 }
 
 // Set initial positions for animation
-export function reAnchorRootPositionTrack(clip: AnimationClip, _vrm: VRMCore) {
+export function reAnchorRootPositionTrack(clip: AnimationClip, _vrm: VRMCore, anchorHipPosition?: Vector3) {
 // Get the hips node to re-anchor the root position track
   const hipNode = _vrm.humanoid?.getNormalizedBoneNode('hips')
   if (!hipNode) {
@@ -56,8 +56,9 @@ export function reAnchorRootPositionTrack(clip: AnimationClip, _vrm: VRMCore) {
     return
   }
   hipNode.updateMatrixWorld(true)
-  const defaultHipPos = new Vector3()
-  hipNode.getWorldPosition(defaultHipPos)
+  const defaultHipPos = anchorHipPosition?.clone() ?? new Vector3()
+  if (!anchorHipPosition)
+    hipNode.getWorldPosition(defaultHipPos)
 
   // Calculate the offset from the hips node to the hips's first frame position
   const hipsTrack = clip.tracks.find(track =>

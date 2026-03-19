@@ -5,11 +5,13 @@ import type { DisplayModel } from '../../../../stores/display-models'
 
 import { vAutoAnimate } from '@formkit/auto-animate/vue'
 import { validateLive2DZip } from '@proj-airi/stage-ui-live2d'
+import { useCustomVrmAnimationsStore } from '@proj-airi/stage-ui-three'
 import { Button } from '@proj-airi/ui'
 import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, ref } from 'vue'
+import { toast } from 'vue-sonner'
 
 import Live2DReportModal from './Live2DReportModal.vue'
 
@@ -22,6 +24,7 @@ const emits = defineEmits<{
 const selectedModel = defineModel<DisplayModel | undefined>({ type: Object, required: false })
 
 const displayModelStore = useDisplayModelsStore()
+const customVrmAnimationsStore = useCustomVrmAnimationsStore()
 const { displayModelsFromIndexedDBLoading, displayModels } = storeToRefs(displayModelStore)
 
 // Redesign State
@@ -155,6 +158,23 @@ function handleAddVRMModel(file: FileList | null) {
   displayModelStore.addDisplayModel(DisplayModelFormat.VRM, file[0])
 }
 
+async function handleAddVrmaAnimation(file: FileList | null) {
+  if (file === null || file.length === 0)
+    return
+  if (!file[0].name.endsWith('.vrma'))
+    return
+
+  try {
+    await customVrmAnimationsStore.addCustomAnimation(file[0])
+    emits('close', undefined)
+    toast.success(`${file[0].name} was added. It now appears in the idle loops dropdown. If it does not start immediately, click Refresh on the stage and then select it there.`)
+  }
+  catch (error) {
+    console.error('[Model Selector] Failed to add VRMA animation', error)
+    toast.error('Failed to add custom VRMA animation.')
+  }
+}
+
 const mapFormatRenderer: Record<DisplayModelFormat, string> = {
   [DisplayModelFormat.Live2dZip]: 'Live2D',
   [DisplayModelFormat.Live2dDirectory]: 'Live2D',
@@ -166,9 +186,11 @@ const mapFormatRenderer: Record<DisplayModelFormat, string> = {
 
 const live2dDialog = useFileDialog({ accept: '.zip', multiple: false, reset: true })
 const vrmDialog = useFileDialog({ accept: '.vrm', multiple: false, reset: true })
+const vrmaDialog = useFileDialog({ accept: '.vrma', multiple: false, reset: true })
 
 live2dDialog.onChange(handleAddLive2DModel)
 vrmDialog.onChange(handleAddVRMModel)
+vrmaDialog.onChange(handleAddVrmaAnimation)
 
 function handleFixError(err: string) {
   // eslint-disable-next-line no-console
@@ -316,6 +338,18 @@ function handleFixError(err: string) {
                 transition="colors duration-200 ease-in-out" @click="vrmDialog.open()"
               >
                 VRM (.vrm)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                :class="[
+                  'data-[disabled]:text-mauve8 relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 leading-none outline-none data-[disabled]:pointer-events-none',
+                  'text-base sm:text-sm',
+                  'data-[highlighted]:bg-primary-300/20 dark:data-[highlighted]:bg-primary-100/20',
+                  'data-[highlighted]:text-primary-400 dark:data-[highlighted]:text-primary-200',
+                ]"
+                transition="colors duration-200 ease-in-out"
+                @click="vrmaDialog.open()"
+              >
+                VRMA (.vrma)
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenuPortal>

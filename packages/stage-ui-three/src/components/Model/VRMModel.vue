@@ -145,6 +145,7 @@ const { scene } = useTresContext()
 const vrm = shallowRef<VRM | null>(null)
 const vrmGroup = shallowRef<Group>()
 const modelLoaded = ref<boolean>(false)
+const initialHipWorldPosition = shallowRef<Vector3 | null>(null)
 // for eye tracking modes
 const { x: mouseX, y: mouseY } = useMouse()
 const raycaster = new Raycaster()
@@ -216,6 +217,7 @@ function componentCleanUp() {
   // clear IBL probe
   airiIblProbe?.dispose()
   airiIblProbe = null
+  initialHipWorldPosition.value = null
 
   vrmAnimationMixer.value?.removeEventListener('finished', onAnimationFinished)
 }
@@ -353,6 +355,17 @@ async function loadModel() {
         modelStore.availableExpressions = expressions
       }
 
+      const hipNode = _vrm.humanoid?.getNormalizedBoneNode('hips')
+      if (hipNode) {
+        hipNode.updateMatrixWorld(true)
+        const hipWorldPosition = new Vector3()
+        hipNode.getWorldPosition(hipWorldPosition)
+        initialHipWorldPosition.value = hipWorldPosition
+      }
+      else {
+        initialHipWorldPosition.value = null
+      }
+
       /*
         * Animation setting
       */
@@ -363,7 +376,7 @@ async function loadModel() {
         return
       }
       // Re-anchor the root position track to the model origin
-      reAnchorRootPositionTrack(clip, _vrm)
+      reAnchorRootPositionTrack(clip, _vrm, initialHipWorldPosition.value ?? undefined)
 
       // Strip expression/blendShape tracks from the idle animation.
       // The idle loop should only drive bone transforms, not facial expressions.
@@ -647,7 +660,10 @@ onMounted(async () => {
       if (!clip)
         return
 
-      reAnchorRootPositionTrack(clip, vrm.value)
+      // NOTICE: Re-anchor against the model's initial hips position captured at load time.
+      // Recomputing from the currently animated pose causes cumulative upward drift when
+      // users switch idle loops repeatedly.
+      reAnchorRootPositionTrack(clip, vrm.value, initialHipWorldPosition.value ?? undefined)
       clip.tracks = clip.tracks.filter(track => !track.name.includes('blendShapes') && !track.name.includes('expressions'))
 
       const newAction = vrmAnimationMixer.value.clipAction(clip)

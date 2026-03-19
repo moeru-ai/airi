@@ -14,7 +14,7 @@ import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline } from '@proj-airi/pipelines-audio'
 import { Live2DScene, useLive2d } from '@proj-airi/stage-ui-live2d'
-import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
+import { ThreeScene, useCustomVrmAnimationsStore, useModelStore } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { createQueue } from '@proj-airi/stream-kit'
 import { useBroadcastChannel } from '@vueuse/core'
@@ -86,6 +86,7 @@ const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
 const live2dStore = useLive2d()
 const vrmStore = useModelStore()
+const customVrmAnimationsStore = useCustomVrmAnimationsStore()
 const viewUpdateCleanups: Array<() => void> = []
 
 // Caption + Presentation broadcast channels
@@ -142,7 +143,7 @@ let temporaryVrmaTimeout: ReturnType<typeof setTimeout> | null = null
 
 const vrmActiveAnimation = computed(() => {
   const vrmaKey = temporaryVrma.value || vrmStore.vrmIdleAnimation
-  return (animations as any)[vrmaKey] || animations.idleLoop
+  return customVrmAnimationsStore.resolveAnimationUrl(vrmaKey)
 })
 
 const emotionsQueue = createQueue<EmotionPayload>({
@@ -693,7 +694,7 @@ function handleAnimationFinished() {
 
   // Cycle if enabled
   if (vrmStore.vrmIdleCycleEnabled) {
-    const keys = Object.keys(animations)
+    const keys = customVrmAnimationsStore.animationKeys
     const currentKey = vrmStore.vrmIdleAnimation
     const otherKeys = keys.filter(key => key !== currentKey)
     const randomKey = otherKeys[Math.floor(Math.random() * otherKeys.length)]
