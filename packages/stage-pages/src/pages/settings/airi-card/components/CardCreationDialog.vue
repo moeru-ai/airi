@@ -92,6 +92,7 @@ const generationModel = ref<string>('')
 const generationMaxTokens = ref<number | undefined>(undefined)
 const generationTemperature = ref<number | undefined>(undefined)
 const generationTopP = ref<number | undefined>(undefined)
+const generationAdvancedJson = ref<string>('{\n  \n}')
 const selectedActingModelExpressionPrompt = ref<string>('')
 const selectedActingSpeechExpressionPrompt = ref<string>('')
 const selectedActingSpeechMannerismPrompt = ref<string>('')
@@ -508,6 +509,24 @@ function saveCard(card: Card): boolean {
   }
   showError.value = false
 
+  const generationKnown = {
+    maxTokens: normalizeOptionalNumber(generationMaxTokens.value),
+    temperature: normalizeOptionalNumber(generationTemperature.value),
+    topP: normalizeOptionalNumber(generationTopP.value),
+  }
+  let generationAdvanced: Record<string, any> | undefined
+
+  try {
+    generationAdvanced = generationAdvancedJson.value.trim()
+      ? JSON.parse(generationAdvancedJson.value)
+      : undefined
+  }
+  catch {
+    showError.value = true
+    errorMessage.value = 'Generation Advanced JSON must be valid JSON before saving.'
+    return false
+  }
+
   // Build card with modules extension
   const cardWithModules = {
     ...rawCard,
@@ -557,11 +576,8 @@ function saveCard(card: Card): boolean {
           enabled: generationEnabled.value,
           provider: generationProvider.value || selectedConsciousnessProvider.value || consciousnessProvider.value,
           model: generationModel.value || selectedConsciousnessModel.value || defaultConsciousnessModel.value,
-          known: {
-            maxTokens: generationMaxTokens.value,
-            temperature: generationTemperature.value,
-            topP: generationTopP.value,
-          },
+          known: generationKnown,
+          advanced: generationAdvanced,
         },
       } as AiriExtension,
     },
@@ -622,9 +638,10 @@ function initializeCard(): Card {
   generationEnabled.value = airiExt?.generation?.enabled ?? false
   generationProvider.value = airiExt?.generation?.provider || airiExt?.modules?.consciousness?.provider || consciousnessProvider.value
   generationModel.value = airiExt?.generation?.model || airiExt?.modules?.consciousness?.model || defaultConsciousnessModel.value
-  generationMaxTokens.value = airiExt?.generation?.known?.maxTokens
-  generationTemperature.value = airiExt?.generation?.known?.temperature
-  generationTopP.value = airiExt?.generation?.known?.topP
+  generationMaxTokens.value = normalizeOptionalNumber(airiExt?.generation?.known?.maxTokens)
+  generationTemperature.value = normalizeOptionalNumber(airiExt?.generation?.known?.temperature)
+  generationTopP.value = normalizeOptionalNumber(airiExt?.generation?.known?.topP)
+  generationAdvancedJson.value = airiExt?.generation?.advanced ? JSON.stringify(airiExt.generation.advanced, null, 2) : '{\n  \n}'
   selectedActingModelExpressionPrompt.value = airiExt?.acting?.modelExpressionPrompt || DEFAULT_ACTING_MODEL_PROMPT
   selectedActingSpeechExpressionPrompt.value = airiExt?.acting?.speechExpressionPrompt || DEFAULT_ACTING_SPEECH_EXPRESSION_PROMPT
   selectedActingSpeechMannerismPrompt.value = airiExt?.acting?.speechMannerismPrompt || DEFAULT_ACTING_SPEECH_MANNERISM_PROMPT
@@ -739,6 +756,22 @@ const cardVersion = makeComputed('version')
 const cardSystemPrompt = makeComputed('systemPrompt')
 const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
 
+function normalizeOptionalNumber(value: unknown): number | undefined {
+  if (typeof value === 'number')
+    return Number.isFinite(value) ? value : undefined
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed)
+      return undefined
+
+    const parsed = Number(trimmed)
+    return Number.isFinite(parsed) ? parsed : undefined
+  }
+
+  return undefined
+}
+
 // Helper function to generate placeholder text for default values
 function getDefaultPlaceholder(defaultValue: string | undefined): string {
   return defaultValue
@@ -813,6 +846,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
             v-model:generation-max-tokens="generationMaxTokens"
             v-model:generation-temperature="generationTemperature"
             v-model:generation-top-p="generationTopP"
+            v-model:generation-advanced-json="generationAdvancedJson"
             :provider-options="generationProviderOptions"
             :model-options="generationModelOptions"
             :provider-placeholder="getDefaultPlaceholder(selectedConsciousnessProvider || consciousnessProvider)"

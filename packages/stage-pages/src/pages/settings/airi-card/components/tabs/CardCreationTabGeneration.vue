@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FieldCheckbox, FieldInput, Select } from '@proj-airi/ui'
+import { FieldCheckbox, FieldInput, FieldTextArea, Select } from '@proj-airi/ui'
 
 defineProps<{
   providerOptions: { value: string, label: string }[]
@@ -14,6 +14,7 @@ const generationModel = defineModel<string>('generationModel', { required: true 
 const generationMaxTokens = defineModel<number | undefined>('generationMaxTokens', { required: true })
 const generationTemperature = defineModel<number | undefined>('generationTemperature', { required: true })
 const generationTopP = defineModel<number | undefined>('generationTopP', { required: true })
+const generationAdvancedJson = defineModel<string>('generationAdvancedJson', { required: true })
 </script>
 
 <template>
@@ -87,6 +88,15 @@ const generationTopP = defineModel<number | undefined>('generationTopP', { requi
         type="number"
         placeholder="0.9"
       />
+
+      <FieldTextArea
+        v-model="generationAdvancedJson"
+        class="advanced-block"
+        label="Advanced JSON"
+        description="Optional raw request fields for provider-specific tuning. These keys are merged into the outbound request when Generation is enabled."
+        placeholder="{&#10;  &quot;thinking&quot;: { &quot;type&quot;: &quot;disabled&quot; }&#10;}"
+        :rows="8"
+      />
     </div>
   </div>
 </template>
@@ -98,6 +108,10 @@ const generationTopP = defineModel<number | undefined>('generationTopP', { requi
 
 .field-block {
   width: 45%;
+}
+
+.advanced-block {
+  width: 100%;
 }
 
 @media (max-width: 641px) {

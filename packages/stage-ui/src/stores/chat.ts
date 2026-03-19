@@ -20,6 +20,7 @@ import { createChatHooks } from './chat/hooks'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useLLM } from './llm'
+import { useAiriCardStore } from './modules/airi-card'
 import { useConsciousnessStore } from './modules/consciousness'
 import { useProactivityStore } from './proactivity'
 import { useSettingsChat } from './settings/chat'
@@ -60,8 +61,10 @@ interface QueuedSend {
 export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const llmStore = useLLM()
   const consciousnessStore = useConsciousnessStore()
+  const airiCardStore = useAiriCardStore()
   const settingsChat = useSettingsChat()
   const { activeProvider } = storeToRefs(consciousnessStore)
+  const { activeCard } = storeToRefs(airiCardStore)
   const { trackFirstMessage } = useAnalytics()
 
   const chatSession = useChatSessionStore()
@@ -335,6 +338,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
       let fullText = ''
       const headers = (options.providerConfig?.headers || {}) as Record<string, string>
+      const generationConfig = activeCard.value?.extensions?.airi?.generation
+      const generationKnown = generationConfig?.enabled ? generationConfig.known : undefined
       const abortController = new AbortController()
 
       const clearStreamIdleTimeout = () => {
@@ -357,6 +362,10 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       await llmStore.stream(options.model, options.chatProvider, newMessages as Message[], {
         headers,
         tools: options.tools,
+        temperature: generationKnown?.temperature,
+        top_p: generationKnown?.topP,
+        max_tokens: generationKnown?.maxTokens,
+        requestOverrides: generationConfig?.enabled ? generationConfig.advanced : undefined,
         abortSignal: abortController.signal,
         // NOTICE: xsai stream may emit `finish` before tool steps continue, so keep waiting until
         // the final non-tool finish to avoid ending the chat turn with no assistant reply.

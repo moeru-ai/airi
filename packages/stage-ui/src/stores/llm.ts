@@ -25,6 +25,28 @@ export interface StreamOptions {
   waitForTools?: boolean // when true,won't resolve on finishReason=='tool_calls';
   tools?: Tool[] | (() => Promise<Tool[] | undefined>)
   abortSignal?: AbortSignal
+  temperature?: number
+  top_p?: number
+  max_tokens?: number
+  requestOverrides?: Record<string, unknown>
+}
+
+function sanitizeRequestOverrides(overrides?: Record<string, unknown>) {
+  if (!overrides)
+    return {}
+
+  const reservedKeys = new Set([
+    'messages',
+    'headers',
+    'tools',
+    'onEvent',
+    'abortSignal',
+    'maxSteps',
+  ])
+
+  return Object.fromEntries(
+    Object.entries(overrides).filter(([key]) => !reservedKeys.has(key)),
+  )
 }
 
 // TODO: proper format for other error messages.
@@ -59,6 +81,7 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
   const chatConfig = chatProvider.chat(model)
 
   const sanitized = sanitizeMessages(messages as unknown[])
+  const requestOverrides = sanitizeRequestOverrides(options?.requestOverrides)
   const resolveTools = async () => {
     const tools = typeof options?.tools === 'function'
       ? await options.tools()
@@ -117,9 +140,13 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
     try {
       streamText({
         ...chatConfig,
+        ...requestOverrides,
         maxSteps: 10,
         messages: sanitized,
         headers,
+        temperature: options?.temperature,
+        top_p: options?.top_p,
+        max_tokens: options?.max_tokens,
         // TODO: we need Automatic tools discovery
         tools,
         onEvent,
@@ -136,6 +163,7 @@ async function generateFrom(model: string, chatProvider: ChatProvider, messages:
   const headers = options?.headers
   const chatConfig = chatProvider.chat(model)
   const sanitized = sanitizeMessages(messages as unknown[])
+  const requestOverrides = sanitizeRequestOverrides(options?.requestOverrides)
 
   const resolveTools = async () => {
     const tools = typeof options?.tools === 'function'
@@ -161,9 +189,13 @@ async function generateFrom(model: string, chatProvider: ChatProvider, messages:
 
   return await generateText({
     ...chatConfig,
+    ...requestOverrides,
     maxSteps: 10,
     messages: sanitized,
     headers,
+    temperature: options?.temperature,
+    top_p: options?.top_p,
+    max_tokens: options?.max_tokens,
     tools,
   })
 }
