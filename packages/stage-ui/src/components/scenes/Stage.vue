@@ -574,7 +574,11 @@ function ensureSpeechIntent() {
 }
 
 chatHookCleanups.push(onBeforeMessageComposed(async () => {
-  playbackManager.stopAll('new-message')
+  // NOTICE: chat and proactivity share the same speech lane. Stopping playback alone is not
+  // enough if a previous turn left an active or queued intent inside the speech pipeline.
+  // Reset the entire host pipeline on each new assistant turn so later chat TTS cannot inherit
+  // stale proactivity/chat intent state.
+  speechPipeline.stopAll('new-message')
 
   setupAnalyser()
   await setupLipSync()

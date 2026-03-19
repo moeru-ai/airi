@@ -130,3 +130,56 @@ Fix direction:
 - keep ACT markers in normal `content` chunks
 - make the parser/runtime tolerant of both `<|ACT...|>` and legacy `<|ACT...>` closes
 - normalize legacy markers to the canonical `|>` form before downstream handling
+
+Another failure pattern to watch is shared speech-lane contamination between chat and proactivity.
+
+Failure mode:
+- chat and proactivity both route through the same Stage speech hooks and host pipeline
+- a previous turn can leave an active or queued speech intent behind even after audible playback stops
+- the next chat turn resets only playback, not the underlying speech pipeline state
+- later TTS can appear to "randomly" die until the whole app is restarted
+
+Observed symptom:
+- fresh restart: chat TTS works
+- proactivity speaks a few times
+- later chat text still appears but no speech is heard
+- full process restart restores speech temporarily
+
+Fix direction:
+- reset the full speech pipeline, not just playback, at the start of each new assistant turn
+- treat proactivity and chat as sharing one speech lane unless/until they get separate pipeline ownership
+
+Another replay-specific failure mode is missing remote start events with later literal events still arriving.
+
+Failure mode:
+- one renderer/window broadcasts a remote chat stream
+- the receiver misses or drops `before-send`
+- later `token-literal` events still arrive
+- the receiver currently expects an existing replay guard and can discard the rest of the speech turn
+
+Observed symptom:
+- sender logs show `Broadcasting token-literal`
+- visible chat in the sending surface still works
+- the Stage/TTS host in the other surface stays silent because it never opened replay state
+
+Fix direction:
+- allow the receiver to lazily create remote replay state from the first `token-literal` or `assistant-end`
+- do not make remote TTS depend on perfect delivery of the initial start event
+
+Another remote replay failure mode is tearing down the receiver state on `stream-end` before `assistant-end`.
+
+Failure mode:
+- the receiver successfully gets remote `token-literal` events and starts speaking
+- `stream-end` arrives and clears replay guard state immediately
+- `assistant-end` arrives afterward and reopens replay state as if no literals were ever received
+- fallback speech recovery injects the entire assistant response again as one big literal
+
+Observed symptom:
+- chat TTS appears to work after restart, but later turns can speak twice
+- the Stage logs show normal `token-literal` forwarding and then one huge `onTokenLiteral` during `assistant-end`
+- the duplicated final literal often contains the whole response, including legacy ACT text if present in raw output
+
+Fix direction:
+- treat `stream-end` as a flush hook only for remote replay
+- keep replay guard and `remoteStreamReceivedLiteral` alive until `assistant-end`
+- only finalize the remote stream and clear replay state in `assistant-end`

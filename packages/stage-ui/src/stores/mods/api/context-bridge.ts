@@ -40,6 +40,34 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   let remoteStreamReceivedLiteral = false
   const isInitialized = ref(false)
 
+  function ensureRemoteReplayGuard(sessionId = chatSession.activeSessionId) {
+    if (remoteStreamGuard) {
+      if (remoteStreamGuard.sessionId !== sessionId) {
+        console.warn('[Context Bridge] Rebinding remote replay guard to incoming session', {
+          from: remoteStreamGuard.sessionId,
+          to: sessionId,
+          activeSessionId: chatSession.activeSessionId,
+        })
+      }
+      else {
+        return remoteStreamGuard
+      }
+    }
+
+    // NOTICE: remote replay must follow the source stream session, not the receiver window's
+    // current local session. Chatbox and stage windows can drift onto different session IDs
+    // after turns/forks/proactivity, and using the receiver's `activeSessionId` here causes
+    // later token-literal events to be dropped even though the sender broadcast succeeded.
+    remoteStreamGuard = {
+      sessionId,
+      generation: chatSession.getSessionGenerationValue(sessionId),
+    }
+    remoteStreamReceivedLiteral = false
+    chatOrchestrator.sending = true
+    chatStream.beginStream()
+    return remoteStreamGuard
+  }
+
   async function initialize() {
     console.log('[Context Bridge] Initializing...')
     if (isInitialized.value) {
@@ -284,27 +312,22 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               break
             case 'before-send':
               await chatOrchestrator.emitBeforeSendHooks(event.message, event.context)
-              remoteStreamGuard = {
-                sessionId: chatSession.activeSessionId,
-                generation: chatSession.getSessionGenerationValue(),
-              }
-              remoteStreamReceivedLiteral = false
-              chatOrchestrator.sending = true
-              chatStream.beginStream()
+              ensureRemoteReplayGuard(event.sessionId)
               break
             case 'after-send':
               await chatOrchestrator.emitAfterSendHooks(event.message, event.context)
               break
             case 'token-literal':
-              if (!remoteStreamGuard)
-                return
-              if (remoteStreamGuard.sessionId !== chatSession.activeSessionId)
-                return
-              if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
-                return
-              remoteStreamReceivedLiteral = true
-              chatStream.appendStreamLiteral(event.literal)
-              await chatOrchestrator.emitTokenLiteralHooks(event.literal, event.context)
+              {
+                const guard = ensureRemoteReplayGuard(event.sessionId)
+                if (guard.sessionId !== event.sessionId)
+                  return
+                if (chatSession.getSessionGenerationValue(guard.sessionId) !== guard.generation)
+                  return
+                remoteStreamReceivedLiteral = true
+                chatStream.appendStreamLiteral(event.literal)
+                await chatOrchestrator.emitTokenLiteralHooks(event.literal, event.context)
+              }
               break
             case 'token-special':
               await chatOrchestrator.emitTokenSpecialHooks(event.special, event.context)
@@ -312,43 +335,44 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             case 'stream-end':
               if (!remoteStreamGuard)
                 break
-              if (remoteStreamGuard.sessionId !== chatSession.activeSessionId)
+              if (remoteStreamGuard.sessionId !== event.sessionId)
                 break
               if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
                 break
               if (!remoteStreamReceivedLiteral)
                 break
               await chatOrchestrator.emitStreamEndHooks(event.context)
-              chatStream.finalizeStream(remoteStreamGuard.sessionId)
-              chatOrchestrator.sending = false
-              remoteStreamGuard = null
-              remoteStreamReceivedLiteral = false
+              // NOTICE: `assistant-end` is the true end-of-turn signal for remote replay.
+              // If we tear down the guard here, the later `assistant-end` will reopen replay state,
+              // think no literals were received, and inject the full response as fallback speech,
+              // which causes duplicated TTS/transcript playback.
               break
             case 'assistant-end':
-              if (!remoteStreamGuard)
-                break
-              if (remoteStreamGuard.sessionId !== chatSession.activeSessionId)
-                break
-              if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
-                break
-              // NOTICE: some remote producers can arrive here without ever forwarding token-literal events.
-              // Recover the final speech text from the completed message so UI/TTS do not leak raw ACT tokens
-              // or end up with silent turns.
-              const fallbackSpeech = !remoteStreamReceivedLiteral
-                ? categorizeResponse(event.message, activeProvider.value).speech.trim()
-                : ''
+              {
+                const guard = ensureRemoteReplayGuard(event.sessionId)
+                if (guard.sessionId !== event.sessionId)
+                  break
+                if (chatSession.getSessionGenerationValue(guard.sessionId) !== guard.generation)
+                  break
+                // NOTICE: some remote producers can arrive here without ever forwarding token-literal events.
+                // Recover the final speech text from the completed message so UI/TTS do not leak raw ACT tokens
+                // or end up with silent turns.
+                const fallbackSpeech = !remoteStreamReceivedLiteral
+                  ? categorizeResponse(event.message, activeProvider.value).speech.trim()
+                  : ''
 
-              if (!remoteStreamReceivedLiteral && fallbackSpeech) {
-                chatStream.appendStreamLiteral(fallbackSpeech)
-                await chatOrchestrator.emitTokenLiteralHooks(fallbackSpeech, event.context)
-                await chatOrchestrator.emitStreamEndHooks(event.context)
+                if (!remoteStreamReceivedLiteral && fallbackSpeech) {
+                  chatStream.appendStreamLiteral(fallbackSpeech)
+                  await chatOrchestrator.emitTokenLiteralHooks(fallbackSpeech, event.context)
+                  await chatOrchestrator.emitStreamEndHooks(event.context)
+                }
+
+                await chatOrchestrator.emitAssistantResponseEndHooks(event.message, event.context)
+                chatStream.finalizeStream(guard.sessionId)
+                chatOrchestrator.sending = false
+                remoteStreamGuard = null
+                remoteStreamReceivedLiteral = false
               }
-
-              await chatOrchestrator.emitAssistantResponseEndHooks(event.message, event.context)
-              chatStream.finalizeStream(remoteStreamGuard.sessionId)
-              chatOrchestrator.sending = false
-              remoteStreamGuard = null
-              remoteStreamReceivedLiteral = false
               break
           }
         }
