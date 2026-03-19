@@ -268,19 +268,6 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
               final: finalCategorization.speech.length,
             })
             buildingMessage.content = finalCategorization.speech
-
-            // Rebuild slices if they got out of sync due to stalling
-            // This is a safety catch to ensure the UI shows the full speech
-            const lastSlice = buildingMessage.slices.at(-1)
-            if (lastSlice?.type === 'text') {
-              lastSlice.text = buildingMessage.content
-            }
-            else {
-              buildingMessage.slices.push({
-                type: 'text',
-                text: buildingMessage.content,
-              })
-            }
           }
 
           updateUI()
