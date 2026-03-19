@@ -12,7 +12,7 @@ function handleNavigation() {
 </script>
 
 <template>
-  <ProfileSwitcherPopover placement="up" @create="handleNavigation" @manage="handleNavigation">
+  <ProfileSwitcherPopover placement="up" @manage="handleNavigation">
     <template #default="{ open, toggle, activeCard }">
       <slot :open="open" :toggle="toggle" :active-card="activeCard" />
     </template>
