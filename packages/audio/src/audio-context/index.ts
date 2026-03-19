@@ -18,6 +18,91 @@ const activeWorkletNodes = new Set<AudioWorkletNode>()
 
 const listeners = new Set<(state: State) => void>()
 
+// iOS Silent mode fix: track whether we've unlocked the AudioContext via user gesture
+let isUnlocked = false
+let unlockPromise: Promise<void> | undefined
+
+/**
+ * Detects if the current browser is iOS Safari (including PWA/webview).
+ * Only iOS WebKit browsers respect the silent switch — Chrome/Firefox on iOS use
+ * the system AVAudioSession with playback category and bypass it.
+ */
+export function isIOSAudioRestricted(): boolean {
+  if (typeof window === 'undefined')
+    return false
+  const ua = window.navigator.userAgent
+  const iOS = !!ua.match(/iPad/i) || !!ua.match(/iPhone/i)
+  const webkit = !!ua.match(/WebKit/i)
+  const nonSystemBrowser = !ua.match(/CriOS/i) && !ua.match(/FxiOS/i)
+  return iOS && webkit && nonSystemBrowser
+}
+
+/**
+ * Unlocks the AudioContext on iOS by playing a silent buffer from a user gesture.
+ *
+ * iOS Safari (and webview PWAs) use AVAudioSession with category "ambient" by default,
+ * which routes audio through the ringer switch. When the ringer is muted, no audio plays.
+ *
+ * The workaround: call resume() + play a 1-sample inaudible buffer within a user
+ * gesture handler. This is the documented approach used by YouTube PWA, Google TTS, etc.
+ *
+ * @see https://bugs.webkit.org/show_bug.cgi?id=237322
+ * @see https://stackoverflow.com/questions/76291413/no-sound-on-ios-only-web-audio-api
+ */
+export async function unlockAudioContextOnIOS(): Promise<void> {
+  if (!isIOSAudioRestricted())
+    return
+  if (isUnlocked)
+    return
+  if (unlockPromise)
+    return unlockPromise
+
+  unlockPromise = _doUnlock()
+  await unlockPromise
+}
+
+async function _doUnlock(): Promise<void> {
+  if (typeof AudioContext === 'undefined')
+    return
+
+  try {
+    const ctx = context ?? new AudioContext()
+
+    if (ctx.state === 'suspended')
+      await ctx.resume()
+
+    // Play a 1-sample inaudible buffer — this is the actual unlock trigger on iOS
+    const silentBuffer = ctx.createBuffer(1, 1, ctx.sampleRate)
+    const source = ctx.createBufferSource()
+    source.buffer = silentBuffer
+    source.connect(ctx.destination)
+    source.start()
+
+    if (!context) {
+      // If we minted a temporary context just for unlock, discard it
+      await ctx.close()
+    }
+
+    isUnlocked = true
+  }
+  catch {
+    // Silently ignore — not all environments support Web Audio
+  }
+}
+
+/**
+ * Returns true when the AudioContext is in a state where audio will actually play.
+ * On iOS Silent mode the context may report 'running' but be muted —
+ * isAudioContextUnlocked() reflects the real unlock state after user gesture.
+ */
+export function isAudioContextUnlocked(): boolean {
+  if (!context)
+    return false
+  if (!isIOSAudioRestricted())
+    return true
+  return context.state !== 'suspended' || isUnlocked
+}
+
 export interface State {
   isReady: boolean
   sampleRate: number

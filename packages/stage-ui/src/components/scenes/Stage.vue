@@ -12,6 +12,7 @@ import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/impo
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline } from '@proj-airi/pipelines-audio'
+import { unlockAudioContextOnIOS } from '@proj-airi/audio'
 import { Live2DScene, useLive2d } from '@proj-airi/stage-ui-live2d'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
@@ -501,10 +502,16 @@ chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
 
 // Resume audio context on first user interaction (browser requirement)
 let audioContextResumed = false
-function resumeAudioContextOnInteraction() {
+async function resumeAudioContextOnInteraction() {
   if (audioContextResumed || !audioContext)
     return
   audioContextResumed = true
+
+  // iOS Silent mode fix: play a silent buffer to unlock the AudioContext
+  // so TTS audio plays through the ringer switch on iOS.
+  // See: https://bugs.webkit.org/show_bug.cgi?id=237322
+  await unlockAudioContextOnIOS()
+
   audioContext.resume().catch(() => {
     // Ignore errors - audio context will be resumed when needed
   })
