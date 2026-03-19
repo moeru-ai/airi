@@ -94,6 +94,14 @@ const sourceCounts = computed(() => ({
   devices: sources.value.filter(isDeviceSource).length,
 }))
 
+function getShareLabel(source: { id: string }) {
+  if (isDisplaySource(source))
+    return 'Share Screen'
+  if (isDeviceSource(source))
+    return 'Share Device'
+  return 'Share Window'
+}
+
 const statusLabel = computed(() => {
   if (isRunning.value)
     return isProcessing.value ? 'Processing...' : 'Streaming'
@@ -187,7 +195,7 @@ async function handleVisionTick() {
 async function startCaptureLoop() {
   errorMessage.value = ''
   if (!activeSourceId.value) {
-    errorMessage.value = 'Select a screen source before starting the ticker.'
+    errorMessage.value = 'Select a source before starting the ticker.'
     return
   }
 
@@ -211,12 +219,28 @@ async function stopCaptureLoop() {
   }
 }
 
+function stopActiveCapture() {
+  void stopCaptureLoop()
+}
+
 function selectSource(sourceId: string) {
   activeSourceId.value = sourceId
   if (isRunning.value) {
     void ensureVideoStream().catch((error) => {
       errorMessage.value = `Failed to start stream: ${errorMessageFrom(error)}`
     })
+  }
+}
+
+async function shareSource(sourceId: string) {
+  errorMessage.value = ''
+  activeSourceId.value = sourceId
+
+  try {
+    await ensureVideoStream()
+  }
+  catch (error) {
+    errorMessage.value = `Failed to start stream: ${errorMessageFrom(error)}`
   }
 }
 
@@ -249,6 +273,53 @@ onBeforeUnmount(() => {
           </div>
           <div :class="['text-sm', 'text-neutral-400']">
             {{ statusLabel }}
+          </div>
+        </div>
+
+        <div
+          v-if="activeStream"
+          :class="[
+            'flex', 'w-full', 'flex-col', 'gap-2',
+            'overflow-hidden', 'rounded-2xl', 'p-3',
+            'border-2', 'border-solid', 'border-primary-400/70',
+            'bg-primary-300/10',
+          ]"
+        >
+          <div :class="['flex', 'items-center', 'justify-between', 'gap-3']">
+            <div :class="['flex', 'items-center', 'gap-2']">
+              <div :class="['i-solar:videocamera-record-line-duotone']" />
+              <div>Capturing</div>
+            </div>
+            <div :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
+              {{ activeSource ? activeSource.name : 'Active source' }}
+            </div>
+          </div>
+
+          <div :class="['flex', 'w-full', 'items-center', 'gap-3', 'overflow-x-auto']">
+            <div :class="['relative', 'overflow-hidden', 'rounded-lg']">
+              <div
+                :class="[
+                  'absolute', 'right-0', 'top-0', 'z-10',
+                  'flex', 'h-full', 'w-full', 'cursor-pointer', 'flex-col',
+                  'items-center', 'justify-center', 'gap-1', 'rounded-lg',
+                  'bg-black/30', 'text-light', 'opacity-0', 'backdrop-blur-sm',
+                  'transition-all', 'duration-200', 'hover:opacity-100',
+                ]"
+                @click="stopActiveCapture()"
+              >
+                <div :class="['i-solar:stop-line-duotone']" />
+                <div :class="['text-sm']">
+                  Stop
+                </div>
+              </div>
+              <video
+                autoplay
+                muted
+                playsinline
+                :srcObject="activeStream"
+                :class="['h-140px', 'w-auto']"
+              />
+            </div>
           </div>
         </div>
 
@@ -303,7 +374,7 @@ onBeforeUnmount(() => {
                     :key="source.id"
                     type="button"
                     :class="[
-                      'flex', 'w-full', 'flex-col', 'gap-2', 'rounded-xl', 'p-3', 'text-left',
+                      'group', 'flex', 'w-full', 'flex-col', 'gap-2', 'rounded-xl', 'p-3', 'text-left',
                       'border', 'border-transparent',
                       'bg-white/60', 'dark:bg-neutral-900/40',
                       'transition', 'duration-200',
@@ -314,6 +385,29 @@ onBeforeUnmount(() => {
                     @click="selectSource(source.id)"
                   >
                     <div :class="['relative', 'aspect-video', 'w-full', 'overflow-hidden', 'rounded-lg', 'bg-neutral-200/60', 'dark:bg-neutral-800']">
+                      <div
+                        :class="[
+                          'absolute', 'inset-0', 'z-10',
+                          'flex', 'items-center', 'justify-center',
+                          'opacity-0', 'backdrop-blur-sm',
+                          'transition-all', 'duration-200',
+                          'bg-black/30', 'group-hover:opacity-100',
+                        ]"
+                      >
+                        <button
+                          type="button"
+                          :class="[
+                            'flex', 'items-center', 'gap-2', 'rounded-lg', 'px-3', 'py-2',
+                            'bg-primary-500/80', 'text-white', 'shadow-lg',
+                            'transition-transform', 'duration-200', 'hover:scale-105',
+                          ]"
+                          @click.stop="shareSource(source.id)"
+                        >
+                          <span :class="['i-solar:share-line-duotone']" />
+                          <span :class="['text-sm', 'font-medium']">{{ getShareLabel(source) }}</span>
+                        </button>
+                      </div>
+
                       <img
                         v-if="source.thumbnailURL"
                         :src="source.thumbnailURL"
